@@ -1,0 +1,16 @@
+# Example event contract (YAML)
+name: product.catalog.v1.ProductCreated
+version: v1
+schema:
+  id: string
+  name: string
+  price: number
+  currency: string
+metadata:
+  retention: 365d
+  pii: false
+compatibility:
+  strategy: backward-compatible
+  rules:
+    - fields are only added with defaults
+    - never change semantics of existing fields
