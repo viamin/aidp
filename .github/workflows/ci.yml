@@ -24,6 +24,5 @@ jobs:
       - name: Run specs
         run: bundle exec rake spec
 
-      # Uncomment when RuboCop config is added
-      # - name: Run RuboCop
-      #   run: bundle exec rubocop
+      - name: Run StandardRB
+        run: bundle exec standardrb

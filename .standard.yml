@@ -1,0 +1,9 @@
+# StandardRB configuration
+# https://github.com/standardrb/standard
+
+# Ignore certain files/directories
+ignore:
+  - 'bin/**/*'
+  - 'templates/**/*'
+  - '.git/**/*'
+  - 'vendor/**/*'

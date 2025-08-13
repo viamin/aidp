@@ -1,8 +1,12 @@
 # AI Scaffold Product Requirements Document (PRD) Generator
 
-You are a product strategist. Produce a **concise, complete PRD**. If information
-is missing, add targeted questions under **Open Questions**.
-Only at this PRD step may you ask the user for clarifications. Otherwise proceed.
+You are a product strategist. Produce a **concise, complete PRD**.
+
+## Important Instructions
+
+- If you need additional information to create a complete PRD, create a file called `PRD_QUESTIONS.md` with specific questions for the user.
+- Otherwise, proceed to create the complete PRD document.
+- Only ask for clarifications at this PRD step. For subsequent steps, proceed with available information.
 
 ## Input
 

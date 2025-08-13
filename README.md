@@ -8,28 +8,25 @@ A portable CLI that runs a markdown-only AI dev workflow using your existing IDE
 
 - **Prefers Cursor CLI** (`cursor-agent`)
 - **Falls back to Claude** (`claude`/`claude-code`) or **Gemini** (`gemini`/`gemini-cli`)
-- **Last resort: macOS UI automation** (AppleScript) to paste into Cursor chat
+- **Human-in-the-loop gates** at key decision points (PRD, Architecture, Tasks, Implementation Strategy)
+- **Visual progress tracking** with completion status and timestamps
 
 ### Installation
 
 ```bash
-# Build and install the gem
-gem build aidp.gemspec
-gem install aidp-*.gem
-
-# Or install directly from this directory
-gem install .
+gem install aidp
 ```
 
 ### Usage
 
 ```bash
 cd /your/project
-aidp steps                    # see available steps
+aidp status                   # show progress of all steps
 aidp detect                   # see which provider will be used
-aidp execute prd              # run PRD step
-aidp sync prd                 # copy generated files
-aidp execute_all              # run all steps sequentially
+aidp execute next             # run the next step in the pipeline
+aidp execute prd              # run specific step (gate - requires approval)
+aidp approve prd              # approve completed PRD step
+aidp approve current          # approve completed current step
 ```
 
 ### Override Provider
@@ -37,6 +34,19 @@ aidp execute_all              # run all steps sequentially
 ```bash
 AIDP_PROVIDER=anthropic aidp execute prd
 AIDP_LLM_CMD=/usr/local/bin/claude aidp execute nfrs
+```
+
+### Debug and Logging
+
+```bash
+# Enable debug output to see cursor-agent communication
+AIDP_DEBUG=1 aidp execute prd
+
+# Log to a file for debugging
+AIDP_LOG_FILE=aidp.log aidp execute prd
+
+# Combine both for full debugging
+AIDP_DEBUG=1 AIDP_LOG_FILE=aidp.log aidp execute prd
 ```
 
 ### Development
@@ -48,6 +58,12 @@ bundle install
 # Run tests
 bundle exec rspec
 
+# Run linter
+bundle exec standardrb
+
+# Auto-fix linting issues
+bundle exec standardrb --fix
+
 # Build gem
 bundle exec rake build
 ```
@@ -56,7 +72,7 @@ bundle exec rake build
 
 The gem packages **markdown prompts/instructions** that you can also use directly with Cursor (or any LLM) **step-by-step** to go from an idea → Product Requirements Document → Non-Functional Requirements → Architecture → Domain decomposition → Contracts → Threat model → Test plan → Tasks → Scaffolding hints → Implementation guidance → Static analysis → Observability → Delivery → Docs → Post-release.
 
-- Style: inspired by `snarktank/ai-dev-tasks`. Every file is **self-contained**,
+- Style: imagine [snarktank/ai-dev-tasks](https://github.com/snarktank/ai-dev-tasks) but severely over-engineered. Every file is **self-contained**,
   designed to be pasted or referenced by your LLM agent/editor.
 - **Human-in-the-loop gates**: The process pauses and asks the user for missing
   info at **two stages only**: Product Requirements Document and Architecture.

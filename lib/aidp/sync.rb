@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'fileutils'
+require "fileutils"
 
 module Aidp
   class Sync

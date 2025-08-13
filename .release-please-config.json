@@ -1,0 +1,12 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "ruby",
+      "package-name": "aidp",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
+    }
+  },
+  "bootstrap-sha": "HEAD",
+  "release-type": "ruby"
+}
