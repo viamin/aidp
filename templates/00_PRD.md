@@ -1,4 +1,4 @@
-# AI Scaffold PRD Generator
+# AI Scaffold Product Requirements Document (PRD) Generator
 
 You are a product strategist. Produce a **concise, complete PRD**. If information
 is missing, add targeted questions under **Open Questions**.

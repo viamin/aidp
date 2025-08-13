@@ -18,7 +18,7 @@ You are a developer experience engineer.
 ## Output
 
 - `docs/ScaffoldingGuide.md` with practical structures and examples for multiple
-  common stacks (JS/TS, Python, Go, Java, etc.)
+  common stacks (JS/TS, Ruby on Rails, Go, Java, etc.)
 
 ## Regeneration Policy
 

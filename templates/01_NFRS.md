@@ -1,4 +1,4 @@
-# AI Scaffold NFRs Generator
+# AI Scaffold Non-Functional Requirements (NFRs) Generator
 
 You are a systems/product engineer focusing on **quality attributes** that shape
 architecture.

@@ -1,4 +1,4 @@
-# AI Scaffold ADR Factory
+# AI Scaffold Architecture Decision Records (ADRs) Factory
 
 You are the ADR scribe. For each proposed decision, create an ADR using the standard
 format.
