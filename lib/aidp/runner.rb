@@ -38,14 +38,30 @@ module Aidp
 
     def composed_prompt(step_name)
       spec = Steps.for(step_name)
-      roots = [Config.templates_root]
+      roots = [
+        File.join(Config.templates_root, "COMMON"),
+        Config.templates_root
+      ]
       body = +""
       body << "# STEP: #{step_name}\n"
+
+      # Add base agent template if available
+      base_template = find_template("AGENT_BASE.md", roots)
+      if base_template
+        body << "\n--- BEGIN BASE TEMPLATE ---\n"
+        body << File.read(base_template)
+        body << "\n--- END BASE TEMPLATE ---\n"
+      end
+
       spec[:templates].each do |t|
-        full = File.join(roots.first, t)
-        body << "\n--- BEGIN TEMPLATE: #{t} ---\n"
-        body << File.read(full)
-        body << "\n--- END TEMPLATE: #{t} ---\n"
+        template_path = find_template(t, roots)
+        if template_path
+          body << "\n--- BEGIN TEMPLATE: #{t} ---\n"
+          body << File.read(template_path)
+          body << "\n--- END TEMPLATE: #{t} ---\n"
+        else
+          warn "Warning: Template file not found: #{t}"
+        end
       end
 
       # Provide project context and explicit output paths
@@ -141,6 +157,14 @@ module Aidp
     end
 
     private
+
+    def find_template(template_name, roots)
+      roots.each do |root|
+        full_path = File.join(root, template_name)
+        return full_path if File.exist?(full_path)
+      end
+      nil
+    end
 
     def questions_file_for_step(step_name)
       case step_name
