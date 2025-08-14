@@ -294,33 +294,29 @@ module Aidp
       end
 
       # Import analysis results
-      if parsed_data["analysis_results"]
-        parsed_data["analysis_results"].each do |result|
-          @db.execute(
-            "INSERT OR REPLACE INTO analysis_results (execution_id, step_name, data, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-            result["execution_id"],
-            result["step_name"],
-            result["data"],
-            result["metadata"],
-            result["created_at"],
-            result["updated_at"]
-          )
-        end
+      parsed_data["analysis_results"]&.each do |result|
+        @db.execute(
+          "INSERT OR REPLACE INTO analysis_results (execution_id, step_name, data, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+          result["execution_id"],
+          result["step_name"],
+          result["data"],
+          result["metadata"],
+          result["created_at"],
+          result["updated_at"]
+        )
       end
 
       # Import metrics
-      if parsed_data["metrics"]
-        parsed_data["metrics"].each do |metric|
-          @db.execute(
-            "INSERT OR REPLACE INTO metrics (execution_id, step_name, metric_name, metric_value, metric_type, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            metric["execution_id"],
-            metric["step_name"],
-            metric["metric_name"],
-            metric["metric_value"],
-            metric["metric_type"],
-            metric["created_at"]
-          )
-        end
+      parsed_data["metrics"]&.each do |metric|
+        @db.execute(
+          "INSERT OR REPLACE INTO metrics (execution_id, step_name, metric_name, metric_value, metric_type, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+          metric["execution_id"],
+          metric["step_name"],
+          metric["metric_name"],
+          metric["metric_value"],
+          metric["metric_type"],
+          metric["created_at"]
+        )
       end
 
       {success: true, imported_records: parsed_data.length}

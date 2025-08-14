@@ -96,10 +96,8 @@ module Aidp
 
       # Add language-specific defaults if available
       if language && DEFAULT_PREFERRED_TOOLS[language]
-        merged_config
-      else
-        merged_config
       end
+      merged_config
     end
 
     # Set tool configuration

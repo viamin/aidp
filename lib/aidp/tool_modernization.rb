@@ -392,7 +392,6 @@ module Aidp
           content = File.read(file_path)
           return true if content.include?("pep8")
         end
-        false
       when "pylint1"
         # Check for old pylint version
         requirements_files = ["requirements.txt", "setup.py", "pyproject.toml"]
@@ -403,10 +402,8 @@ module Aidp
           content = File.read(file_path)
           return true if /pylint[<>=]?\s*1\./.match?(content)
         end
-        false
-      else
-        false
       end
+      false
     end
 
     def detect_java_tool(tool_id)
@@ -421,7 +418,6 @@ module Aidp
           content = File.read(file_path)
           return true if content.include?("findbugs")
         end
-        false
       when "pmd4"
         # Check for old PMD version
         build_files = ["pom.xml", "build.gradle", "build.gradle.kts"]
@@ -432,10 +428,8 @@ module Aidp
           content = File.read(file_path)
           return true if /pmd[<>=]?\s*4\./.match?(content)
         end
-        false
-      else
-        false
       end
+      false
     end
 
     def detect_tool_location(tool_id, language)
