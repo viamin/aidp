@@ -8,5 +8,7 @@
     }
   },
   "bootstrap-sha": "HEAD",
-  "release-type": "ruby"
+  "release-type": "ruby",
+  "include-component-in-tag": false,
+  "tag-separator": "v"
 }

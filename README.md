@@ -175,6 +175,10 @@ bundle exec standardrb --fix
 bundle exec rake build
 ```
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and conventional commit guidelines.
+
 ## Pipeline Steps
 
 The gem automates a complete 15-step development pipeline:
