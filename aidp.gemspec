@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "thor", "~> 1.3"
   s.add_runtime_dependency "tty-prompt", "~> 0.23"
 
-  s.add_development_dependency "rspec", "~> 3.12"
   s.add_development_dependency "rake", "~> 13.0"
+  s.add_development_dependency "rspec", "~> 3.12"
   s.add_development_dependency "standard", "~> 1.0"
 end

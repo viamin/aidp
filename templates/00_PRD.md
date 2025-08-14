@@ -5,6 +5,7 @@ You are a product strategist. Produce a **concise, complete PRD**.
 ## Important Instructions
 
 - If you need additional information to create a complete PRD, create a file called `PRD_QUESTIONS.md` with specific questions for the user.
+- If `PRD_QUESTIONS.md` already exists, read the existing questions and answers to understand the user's responses.
 - Otherwise, proceed to create the complete PRD document.
 - Only ask for clarifications at this PRD step. For subsequent steps, proceed with available information.
 

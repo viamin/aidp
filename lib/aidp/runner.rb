@@ -60,6 +60,17 @@ module Aidp
         body << "\n\n# GATE INSTRUCTIONS\n"
         body << "This is a GATE step that requires human approval. Ask concise questions first, wait for my answers, then proceed.\n"
         body << "After completing this step, mark it as completed in the progress tracker.\n"
+
+        # Include existing questions and answers if available
+        questions_file = questions_file_for_step(step_name)
+        if File.exist?(questions_file)
+          body << "\n\n# EXISTING QUESTIONS AND ANSWERS\n"
+          body << "The following questions and answers were provided previously:\n"
+          body << "```\n"
+          body << File.read(questions_file)
+          body << "\n```\n"
+          body << "Use these answers to proceed with creating the complete output.\n"
+        end
       end
 
       body
@@ -131,7 +142,20 @@ module Aidp
 
     private
 
-    def with_progress_indicator(timeout_seconds: 300) # 5 minutes default timeout
+    def questions_file_for_step(step_name)
+      case step_name
+      when "prd"
+        File.join(@project_dir, "PRD_QUESTIONS.md")
+      when "arch"
+        File.join(@project_dir, "ARCH_QUESTIONS.md")
+      when "tasks"
+        File.join(@project_dir, "TASKS_QUESTIONS.md")
+      when "impl"
+        File.join(@project_dir, "IMPL_QUESTIONS.md")
+      end
+    end
+
+    def with_progress_indicator(timeout_seconds: 300, &block) # 5 minutes default timeout
       puts "⏳ Sending prompt to AI provider..."
 
       # Start progress animation in a separate thread
@@ -147,9 +171,7 @@ module Aidp
       end
 
       # Execute the actual work with timeout
-      result = Timeout.timeout(timeout_seconds) do
-        yield
-      end
+      result = Timeout.timeout(timeout_seconds, &block)
 
       # Stop progress animation
       progress_thread.kill

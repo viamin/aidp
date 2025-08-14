@@ -1,55 +1,162 @@
 # AI Dev Pipeline (aidp) - Ruby Gem
 
-This repository contains both the **AI Dev Pipeline Ruby gem** and the **markdown prompts/instructions** that power it.
+A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants.
 
-## The Gem: `aidp`
-
-A portable CLI that runs a markdown-only AI dev workflow using your existing IDE assistants:
-
-- **Prefers Cursor CLI** (`cursor-agent`)
-- **Falls back to Claude** (`claude`/`claude-code`) or **Gemini** (`gemini`/`gemini-cli`)
-- **Human-in-the-loop gates** at key decision points (PRD, Architecture, Tasks, Implementation Strategy)
-- **Visual progress tracking** with completion status and timestamps
-
-### Installation
+## Quick Start
 
 ```bash
+# Install the gem
 gem install aidp
+
+# Navigate to your project
+cd /your/project
+
+# Start the workflow
+aidp execute next
 ```
 
-### Usage
+## User Workflow
+
+The gem automates a complete development pipeline with **human-in-the-loop gates** at key decision points. Here's the simplest workflow:
+
+### 1. Start Your Project
 
 ```bash
 cd /your/project
-aidp status                   # show progress of all steps
-aidp detect                   # see which provider will be used
-aidp execute next             # run the next step in the pipeline
-aidp execute prd              # run specific step (gate - requires approval)
-aidp approve prd              # approve completed PRD step
-aidp approve current          # approve completed current step
+aidp status                   # Check current progress
+aidp execute next             # Run the next pending step
 ```
+
+### 2. Handle Gate Steps
+
+When you reach a **gate step** (PRD, Architecture, Tasks, Implementation), the AI will:
+
+1. **Generate questions** in a file (e.g., `PRD_QUESTIONS.md`) if it needs more information
+2. **Create the main output** (e.g., `docs/PRD.md`)
+3. **Wait for your approval** before proceeding
+
+**Your actions at gates:**
+
+```bash
+# Review the generated files
+cat PRD_QUESTIONS.md          # Check if AI needs more information
+cat docs/PRD.md              # Review the output
+
+# If PRD_QUESTIONS.md exists, answer the questions:
+# Edit the questions file directly with your answers
+nano PRD_QUESTIONS.md         # Add your answers below each question
+
+# Re-run the step to use your answers
+aidp execute prd              # AI will read your answers and complete the step
+
+# Once satisfied with the output, approve and continue
+aidp approve current          # Mark the step complete
+aidp execute next             # Continue to next step
+```
+
+### 3. Continue the Pipeline
+
+For non-gate steps, the AI runs automatically:
+
+```bash
+aidp execute next             # Run next step automatically
+aidp status                   # Check progress
+```
+
+### 4. Complete the Workflow
+
+The pipeline includes 15 steps total:
+
+- **Gates**: PRD, Architecture, Tasks, Implementation (require approval)
+- **Auto**: NFRs, ADRs, Domains, Contracts, Threat Model, Test Plan, Scaffolding, Static Analysis, Observability, Delivery, Docs Portal, Post-Release
+
+## Key Commands
+
+```bash
+aidp status                   # Show progress of all steps
+aidp execute next             # Run next pending step
+aidp approve current          # Approve current gate step
+aidp detect                   # See which AI provider will be used
+aidp execute <step>           # Run specific step (e.g., prd, arch, tasks)
+aidp approve <step>           # Approve specific step
+aidp reset                    # Reset all progress (start over)
+```
+
+## AI Providers
+
+The gem automatically detects and uses the best available AI provider:
+
+- **Cursor CLI** (`cursor-agent`) - Preferred
+- **Claude CLI** (`claude`/`claude-code`) - Fallback
+- **Gemini CLI** (`gemini`/`gemini-cli`) - Fallback
 
 ### Override Provider
 
 ```bash
-AIDP_PROVIDER=anthropic aidp execute prd
-AIDP_LLM_CMD=/usr/local/bin/claude aidp execute nfrs
+AIDP_PROVIDER=anthropic aidp execute next
+AIDP_LLM_CMD=/usr/local/bin/claude aidp execute next
 ```
 
-### Debug and Logging
+## File-Based Interaction
+
+At gate steps, the AI creates files for interaction instead of requiring real-time chat:
+
+- **Questions files**: `PRD_QUESTIONS.md`, `ARCH_QUESTIONS.md`, `TASKS_QUESTIONS.md`, `IMPL_QUESTIONS.md` - Contains questions if AI needs more information
+- **Output files**: `docs/PRD.md`, `docs/Architecture.md` - Review and edit as needed
+- **Progress tracking**: `.aidp-progress.yml` - Tracks completion status
+
+### Answering Questions
+
+When the AI creates a questions file, follow these steps:
+
+1. **Edit the file directly**: Add your answers below each question in the file
+2. **Re-run the step**: The AI will read your answers and complete the step
+3. **Approve when satisfied**: Mark the step complete and continue
+
+The questions file is only created when the AI needs additional information beyond what it can infer from your project structure and existing files. Your answers are preserved for future reference.
+
+## Debug and Logging
 
 ```bash
-# Enable debug output to see cursor-agent communication
-AIDP_DEBUG=1 aidp execute prd
+# Enable debug output to see AI provider communication
+AIDP_DEBUG=1 aidp execute next
 
 # Log to a file for debugging
-AIDP_LOG_FILE=aidp.log aidp execute prd
+AIDP_LOG_FILE=aidp.log aidp execute next
 
 # Combine both for full debugging
-AIDP_DEBUG=1 AIDP_LOG_FILE=aidp.log aidp execute prd
+AIDP_DEBUG=1 AIDP_LOG_FILE=aidp.log aidp execute next
 ```
 
-### Development
+## Workflow Example
+
+Here's a typical session:
+
+```bash
+# 1. Start the workflow
+aidp execute next
+# → Creates docs/PRD.md and PRD_QUESTIONS.md
+
+# 2. Review the questions (if any)
+cat PRD_QUESTIONS.md
+# → If questions exist, edit the file with your answers, then re-run
+
+# 3. Review the PRD
+cat docs/PRD.md
+# → Edit if needed
+
+# 4. Approve and continue
+aidp approve current
+aidp execute next
+# → Creates docs/NFRs.md automatically
+
+# 5. Continue through gates
+aidp execute next
+# → Creates docs/Architecture.md and ARCH_QUESTIONS.md
+# → Repeat review/approve cycle
+```
+
+## Development
 
 ```bash
 # Install dependencies
@@ -68,50 +175,32 @@ bundle exec standardrb --fix
 bundle exec rake build
 ```
 
-## The Workflow: Markdown-Only, Tool/Stack Agnostic
+## Pipeline Steps
 
-The gem packages **markdown prompts/instructions** that you can also use directly with Cursor (or any LLM) **step-by-step** to go from an idea → Product Requirements Document → Non-Functional Requirements → Architecture → Domain decomposition → Contracts → Threat model → Test plan → Tasks → Scaffolding hints → Implementation guidance → Static analysis → Observability → Delivery → Docs → Post-release.
+The gem automates a complete 15-step development pipeline:
 
-- Style: imagine [snarktank/ai-dev-tasks](https://github.com/snarktank/ai-dev-tasks) but severely over-engineered. Every file is **self-contained**,
-  designed to be pasted or referenced by your LLM agent/editor.
-- **Human-in-the-loop gates**: The process pauses and asks the user for missing
-  info at **two stages only**: Product Requirements Document and Architecture.
-- Everything is **stack-agnostic**. The LLM should ask the user for frameworks/languages
-  appropriate for the project requirements and constraints.
+### Gate Steps (Require Approval)
 
-## How to use with Cursor / your LLM
+- **PRD** → Product Requirements Document (`docs/PRD.md`)
+- **Architecture** → System architecture and ADRs (`docs/Architecture.md`)
+- **Tasks** → Implementation tasks and backlog (`tasks/backlog.yaml`)
+- **Implementation** → Implementation strategy and guidance (`docs/ImplementationGuide.md`)
 
-1. Start with `00_PRD.md`. Paste your high-level idea/prompt where indicated and
-   run the instructions.
-2. If the LLM needs additional info, it must ask questions **only** at PRD and
-   Architecture steps, per the prompts.
-3. Proceed to the next file in numeric order. Each step reads **previous
-   artifacts** from disk if available (or the chat buffer), and produces new
-   artifacts in Markdown/YAML/Mermaid.
-4. You can re-run any step; outputs are **idempotent** and instruct the LLM to
-   append under a `## Regenerated on YYYY-MM-DD` section rather than overwrite
-   manual edits.
+### Automatic Steps
 
-## Directory map
+- **NFRs** → Non-Functional Requirements (`docs/NFRs.md`)
+- **ADRs** → Architecture Decision Records (`docs/adr/`)
+- **Domains** → Domain decomposition (`docs/DomainCharters/`)
+- **Contracts** → API/Event contracts (`contracts/`)
+- **Threat Model** → Security analysis (`docs/ThreatModel.md`)
+- **Test Plan** → Testing strategy (`docs/TestPlan.md`)
+- **Scaffolding** → Project structure guidance (`docs/ScaffoldingGuide.md`)
+- **Static Analysis** → Code quality tools (`docs/StaticAnalysis.md`)
+- **Observability** → Monitoring and SLOs (`docs/Observability.md`)
+- **Delivery** → Deployment strategy (`docs/DeliveryPlan.md`)
+- **Docs Portal** → Documentation portal (`docs/DocsPortalPlan.md`)
+- **Post-Release** → Post-release analysis (`docs/PostReleaseReport.md`)
 
-- `00_PRD.md` → Prompt → Product Requirements Document (PRD)
-- `01_NFRS.md` → Non-Functional Requirements (NFRs) / Quality Attributes
-- `02_ARCHITECTURE.md` → Architecture analysis + Mermaid + Architecture Decision Records (ADRs) suggestions
-  (**Gate #2**)
-- `02A_ARCH_GATE_QUESTIONS.md` → Explicit questions to ask at the architecture
-  gate
-- `03_ADR_FACTORY.md` → Turn suggestions into concrete ADRs
-- `04_DOMAIN_DECOMPOSITION.md` → Bounded contexts + charters
-- `05_CONTRACTS.md` → API/Event/Schema contracts (consumer-driven)
-- `06_THREAT_MODEL.md` → STRIDE/LINDDUN, data classification
-- `07_TEST_PLAN.md` → Acceptance tests, pyramid, golden cases
-- `08_TASKS.md` → Tasks per domain/cross-cutting
-- `09_SCAFFOLDING_DEVEX.md` → Repo structure guidance (language-agnostic)
-- `10_IMPLEMENTATION_AGENT.md` → SOLID, GoF, DDD, hexagonal; composition-first
-- `11_STATIC_ANALYSIS.md` → Linters, SAST, SBOM, secrets, licenses
-- `12_OBSERVABILITY_SLOS.md` → Telemetry, Service Level Objectives (SLOs), dashboards, runbooks
-- `13_DELIVERY_ROLLOUT.md` → Feature flags, canary, rollback
-- `14_DOCS_PORTAL.md` → Living docs / developer portal
-- `15_POST_RELEASE.md` → Telemetry review, error budgets, iterate/optimize
+## Manual Workflow (Alternative)
 
-Common templates & checklists live under `COMMON/`.
+The gem packages markdown prompts that can also be used directly with Cursor or any LLM. See the `templates/` directory for the individual prompt files that can be run manually.

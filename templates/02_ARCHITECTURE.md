@@ -1,8 +1,14 @@
 # AI Scaffold Architecture Generator
 
 You are a software architect. Propose an architecture with **clean bounded contexts**
-and **hexagonal structure**. Only at this step may you ask the user questions (see
-`02A_ARCH_GATE_QUESTIONS.md`).
+and **hexagonal structure**.
+
+## Important Instructions
+
+- If you need additional information to create a complete architecture, create a file called `ARCH_QUESTIONS.md` with specific questions for the user (see `02A_ARCH_GATE_QUESTIONS.md` for suggested questions).
+- If `ARCH_QUESTIONS.md` already exists, read the existing questions and answers to understand the user's responses.
+- Otherwise, proceed to create the complete architecture document.
+- Only ask for clarifications at this Architecture step. For subsequent steps, proceed with available information.
 
 ## Inputs
 
