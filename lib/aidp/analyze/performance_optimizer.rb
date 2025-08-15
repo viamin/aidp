@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require "concurrent"
-require "digest"
-require "json"
+require 'concurrent'
+require 'digest'
+require 'json'
 
 module Aidp
   # Performance optimization system for large codebases
@@ -27,7 +27,7 @@ module Aidp
       cached_result = @cache.get(cache_key)
 
       if cached_result && !options[:force_refresh]
-        log_performance_metric(analysis_type, "cache_hit", Time.current - start_time)
+        log_performance_metric(analysis_type, 'cache_hit', Time.current - start_time)
         return cached_result
       end
 
@@ -42,7 +42,7 @@ module Aidp
 
       # Record performance metrics
       duration = Time.current - start_time
-      log_performance_metric(analysis_type, "analysis", duration)
+      log_performance_metric(analysis_type, 'analysis', duration)
 
       result
     end
@@ -139,11 +139,11 @@ module Aidp
 
     def apply_optimization_strategies(analysis_type, data, options)
       case analysis_type
-      when "repository_analysis"
+      when 'repository_analysis'
         optimize_repository_analysis(data, options)
-      when "architecture_analysis"
+      when 'architecture_analysis'
         optimize_architecture_analysis(data, options)
-      when "static_analysis"
+      when 'static_analysis'
         optimize_static_analysis(data, options)
       else
         data
@@ -192,11 +192,11 @@ module Aidp
 
     def execute_optimized_analysis(analysis_type, data, options)
       case analysis_type
-      when "repository_analysis"
+      when 'repository_analysis'
         execute_repository_analysis_optimized(data, options)
-      when "architecture_analysis"
+      when 'architecture_analysis'
         execute_architecture_analysis_optimized(data, options)
-      when "static_analysis"
+      when 'static_analysis'
         execute_static_analysis_optimized(data, options)
       else
         execute_generic_analysis(data, options)
@@ -487,13 +487,13 @@ module Aidp
     # Database operation methods
     def execute_database_operation(operation)
       case operation[:type]
-      when "select"
+      when 'select'
         execute_select_operation(operation)
-      when "insert"
+      when 'insert'
         execute_insert_operation(operation)
-      when "update"
+      when 'update'
         execute_update_operation(operation)
-      when "delete"
+      when 'delete'
         execute_delete_operation(operation)
       else
         raise ArgumentError, "Unknown operation type: #{operation[:type]}"
@@ -506,38 +506,38 @@ module Aidp
 
     def execute_select_operation(operation)
       # Execute SELECT operation
-      {type: "select", result: "mock_result"}
+      { type: 'select', result: 'mock_result' }
     end
 
     def execute_insert_operation(operation)
       # Execute INSERT operation
-      {type: "insert", result: "mock_result"}
+      { type: 'insert', result: 'mock_result' }
     end
 
     def execute_update_operation(operation)
       # Execute UPDATE operation
-      {type: "update", result: "mock_result"}
+      { type: 'update', result: 'mock_result' }
     end
 
     def execute_delete_operation(operation)
       # Execute DELETE operation
-      {type: "delete", result: "mock_result"}
+      { type: 'delete', result: 'mock_result' }
     end
 
     # Utility methods
     def execute_single_tool(tool)
       # Execute a single static analysis tool
-      {tool: tool[:name], status: "completed", issues: []}
+      { tool: tool[:name], status: 'completed', issues: [] }
     end
 
     def analyze_single_file(file)
       # Analyze a single file
-      {file: file[:path], complexity: 5, issues: []}
+      { file: file[:path], complexity: 5, issues: [] }
     end
 
     def process_generic_item(item)
       # Process a generic item
-      {processed: true, data: item}
+      { processed: true, data: item }
     end
 
     def aggregate_statistics(statistics_list)
@@ -559,18 +559,18 @@ module Aidp
 
       # Analyze cache performance
       cache_stats = @cache.statistics
-      recommendations << "Consider increasing cache size or TTL for better performance" if cache_stats[:hit_rate] < 0.5
+      recommendations << 'Consider increasing cache size or TTL for better performance' if cache_stats[:hit_rate] < 0.5
 
       # Analyze memory usage
       memory_stats = @memory_manager.get_memory_statistics
       if memory_stats[:usage_percentage] > 80
-        recommendations << "Consider reducing chunk size or implementing streaming for large datasets"
+        recommendations << 'Consider reducing chunk size or implementing streaming for large datasets'
       end
 
       # Analyze parallel performance
       parallel_stats = @parallel_executor.statistics
       if parallel_stats[:utilization] < 0.7
-        recommendations << "Consider adjusting parallel worker count for better resource utilization"
+        recommendations << 'Consider adjusting parallel worker count for better resource utilization'
       end
 
       recommendations
@@ -579,13 +579,11 @@ module Aidp
 
   # Cache manager for performance optimization
   class CacheManager
-    attr_reader :statistics
-
     def initialize(max_size: 1000, ttl: 3600)
       @max_size = max_size
       @ttl = ttl
       @cache = {}
-      @statistics = {hits: 0, misses: 0, sets: 0}
+      @statistics = { hits: 0, misses: 0, sets: 0 }
     end
 
     def get(key)
@@ -610,12 +608,12 @@ module Aidp
 
     def clear
       @cache.clear
-      @statistics = {hits: 0, misses: 0, sets: 0}
+      @statistics = { hits: 0, misses: 0, sets: 0 }
     end
 
     def statistics
       total_requests = @statistics[:hits] + @statistics[:misses]
-      hit_rate = (total_requests > 0) ? @statistics[:hits].to_f / total_requests : 0
+      hit_rate = total_requests > 0 ? @statistics[:hits].to_f / total_requests : 0
 
       {
         size: @cache.size,
@@ -650,12 +648,10 @@ module Aidp
 
   # Parallel executor for performance optimization
   class ParallelExecutor
-    attr_reader :statistics
-
     def initialize(max_workers: Concurrent.processor_count, timeout: 300)
       @max_workers = max_workers
       @timeout = timeout
-      @statistics = {executions: 0, total_time: 0, errors: 0}
+      @statistics = { executions: 0, total_time: 0, errors: 0 }
     end
 
     def execute(items, processor = nil)
@@ -667,9 +663,9 @@ module Aidp
       futures = items.map do |item|
         Concurrent::Future.execute do
           processor ? processor.call(item) : item
-        rescue => e
+        rescue StandardError => e
           @statistics[:errors] += 1
-          {error: e.message, item: item}
+          { error: e.message, item: item }
         end
       end
 
@@ -682,8 +678,8 @@ module Aidp
     end
 
     def statistics
-      avg_time = (@statistics[:executions] > 0) ? @statistics[:total_time] / @statistics[:executions] : 0
-      utilization = (@statistics[:executions] > 0) ? @statistics[:total_time] / (@statistics[:executions] * @timeout) : 0
+      avg_time = @statistics[:executions] > 0 ? @statistics[:total_time] / @statistics[:executions] : 0
+      utilization = @statistics[:executions] > 0 ? @statistics[:total_time] / (@statistics[:executions] * @timeout) : 0
 
       {
         max_workers: @max_workers,
