@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-require 'aidp/cli'
-require 'aidp/config'
-require 'aidp/analyze_runner'
+require "spec_helper"
+require "aidp/cli"
+require "aidp/config"
+require "aidp/analyze_runner"
 
-RSpec.describe 'Configuration Isolation', type: :integration do
-  let(:project_dir) { Dir.mktmpdir('aidp_config_test') }
+RSpec.describe "Configuration Isolation", type: :integration do
+  let(:project_dir) { Dir.mktmpdir("aidp_config_test") }
   let(:cli) { Aidp::CLI.new }
   let(:execute_config) { Aidp::Config.new(project_dir) }
   let(:analyze_config) { Aidp::AnalyzeRunner.new(project_dir) }
@@ -21,124 +21,124 @@ RSpec.describe 'Configuration Isolation', type: :integration do
     cleanup_user_config
   end
 
-  describe 'Progress File Isolation' do
-    it 'execute mode uses .aidp-progress.yml' do
+  describe "Progress File Isolation" do
+    it "execute mode uses .aidp-progress.yml" do
       # Execute mode should use its own progress file
-      progress_file = File.join(project_dir, '.aidp-progress.yml')
+      progress_file = File.join(project_dir, ".aidp-progress.yml")
 
       # Create execute mode progress
-      execute_config.mark_step_completed('00_PRD')
+      execute_config.mark_step_completed("00_PRD")
 
       expect(File.exist?(progress_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp-analyze-progress.yml'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp-analyze-progress.yml"))).to be false
 
       progress_data = YAML.load_file(progress_file)
-      expect(progress_data['completed_steps']).to include('00_PRD')
+      expect(progress_data["completed_steps"]).to include("00_PRD")
     end
 
-    it 'analyze mode uses .aidp-analyze-progress.yml' do
+    it "analyze mode uses .aidp-analyze-progress.yml" do
       # Analyze mode should use its own progress file
-      progress_file = File.join(project_dir, '.aidp-analyze-progress.yml')
+      progress_file = File.join(project_dir, ".aidp-analyze-progress.yml")
 
       # Create analyze mode progress
       analyze_progress = Aidp::AnalyzeProgress.new(project_dir)
-      analyze_progress.mark_step_completed('01_REPOSITORY_ANALYSIS')
+      analyze_progress.mark_step_completed("01_REPOSITORY_ANALYSIS")
 
       expect(File.exist?(progress_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp-progress.yml'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp-progress.yml"))).to be false
 
       progress_data = YAML.load_file(progress_file)
-      expect(progress_data['completed_steps']).to include('01_REPOSITORY_ANALYSIS')
+      expect(progress_data["completed_steps"]).to include("01_REPOSITORY_ANALYSIS")
     end
 
-    it 'progress files are completely isolated' do
+    it "progress files are completely isolated" do
       # Both modes can run independently without interference
-      execute_progress_file = File.join(project_dir, '.aidp-progress.yml')
-      analyze_progress_file = File.join(project_dir, '.aidp-analyze-progress.yml')
+      execute_progress_file = File.join(project_dir, ".aidp-progress.yml")
+      analyze_progress_file = File.join(project_dir, ".aidp-analyze-progress.yml")
 
       # Run execute mode
-      execute_config.mark_step_completed('00_PRD')
-      execute_config.mark_step_completed('01_NFRS')
+      execute_config.mark_step_completed("00_PRD")
+      execute_config.mark_step_completed("01_NFRS")
 
       # Run analyze mode
       analyze_progress = Aidp::AnalyzeProgress.new(project_dir)
-      analyze_progress.mark_step_completed('01_REPOSITORY_ANALYSIS')
-      analyze_progress.mark_step_completed('02_ARCHITECTURE_ANALYSIS')
+      analyze_progress.mark_step_completed("01_REPOSITORY_ANALYSIS")
+      analyze_progress.mark_step_completed("02_ARCHITECTURE_ANALYSIS")
 
       # Verify isolation
       execute_data = YAML.load_file(execute_progress_file)
       analyze_data = YAML.load_file(analyze_progress_file)
 
-      expect(execute_data['completed_steps']).to include('00_PRD', '01_NFRS')
-      expect(execute_data['completed_steps']).not_to include('01_REPOSITORY_ANALYSIS', '02_ARCHITECTURE_ANALYSIS')
+      expect(execute_data["completed_steps"]).to include("00_PRD", "01_NFRS")
+      expect(execute_data["completed_steps"]).not_to include("01_REPOSITORY_ANALYSIS", "02_ARCHITECTURE_ANALYSIS")
 
-      expect(analyze_data['completed_steps']).to include('01_REPOSITORY_ANALYSIS', '02_ARCHITECTURE_ANALYSIS')
-      expect(analyze_data['completed_steps']).not_to include('00_PRD', '01_NFRS')
+      expect(analyze_data["completed_steps"]).to include("01_REPOSITORY_ANALYSIS", "02_ARCHITECTURE_ANALYSIS")
+      expect(analyze_data["completed_steps"]).not_to include("00_PRD", "01_NFRS")
     end
   end
 
-  describe 'Configuration File Isolation' do
-    it 'execute mode uses .aidp.yml' do
+  describe "Configuration File Isolation" do
+    it "execute mode uses .aidp.yml" do
       # Execute mode should use its own configuration file
-      config_file = File.join(project_dir, '.aidp.yml')
+      config_file = File.join(project_dir, ".aidp.yml")
 
       # Create execute mode configuration
-      execute_config.set('provider', 'anthropic')
-      execute_config.set('model', 'claude-3-sonnet')
+      execute_config.set("provider", "anthropic")
+      execute_config.set("model", "claude-3-sonnet")
 
       expect(File.exist?(config_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp-analyze.yml'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp-analyze.yml"))).to be false
 
       config_data = YAML.load_file(config_file)
-      expect(config_data['provider']).to eq('anthropic')
-      expect(config_data['model']).to eq('claude-3-sonnet')
+      expect(config_data["provider"]).to eq("anthropic")
+      expect(config_data["model"]).to eq("claude-3-sonnet")
     end
 
-    it 'analyze mode uses .aidp-analyze.yml' do
+    it "analyze mode uses .aidp-analyze.yml" do
       # Analyze mode should use its own configuration file
-      config_file = File.join(project_dir, '.aidp-analyze.yml')
+      config_file = File.join(project_dir, ".aidp-analyze.yml")
 
       # Create analyze mode configuration
       analyze_config_data = {
-        'analysis_settings' => {
-          'chunk_size' => 1000,
-          'parallel_workers' => 4
+        "analysis_settings" => {
+          "chunk_size" => 1000,
+          "parallel_workers" => 4
         },
-        'preferred_tools' => {
-          'ruby' => %w[rubocop reek]
+        "preferred_tools" => {
+          "ruby" => %w[rubocop reek]
         }
       }
 
       File.write(config_file, analyze_config_data.to_yaml)
 
       expect(File.exist?(config_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp.yml'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp.yml"))).to be false
 
       config_data = YAML.load_file(config_file)
-      expect(config_data['analysis_settings']['chunk_size']).to eq(1000)
-      expect(config_data['preferred_tools']['ruby']).to include('rubocop', 'reek')
+      expect(config_data["analysis_settings"]["chunk_size"]).to eq(1000)
+      expect(config_data["preferred_tools"]["ruby"]).to include("rubocop", "reek")
     end
 
-    it 'configuration files are completely isolated' do
+    it "configuration files are completely isolated" do
       # Both modes can have their own configurations without interference
-      execute_config_file = File.join(project_dir, '.aidp.yml')
-      analyze_config_file = File.join(project_dir, '.aidp-analyze.yml')
+      execute_config_file = File.join(project_dir, ".aidp.yml")
+      analyze_config_file = File.join(project_dir, ".aidp-analyze.yml")
 
       # Execute mode configuration
-      execute_config.set('provider', 'anthropic')
-      execute_config.set('model', 'claude-3-sonnet')
-      execute_config.set('timeout', 300)
+      execute_config.set("provider", "anthropic")
+      execute_config.set("model", "claude-3-sonnet")
+      execute_config.set("timeout", 300)
 
       # Analyze mode configuration
       analyze_config_data = {
-        'analysis_settings' => {
-          'chunk_size' => 1000,
-          'parallel_workers' => 4,
-          'timeout' => 600
+        "analysis_settings" => {
+          "chunk_size" => 1000,
+          "parallel_workers" => 4,
+          "timeout" => 600
         },
-        'preferred_tools' => {
-          'ruby' => %w[rubocop reek],
-          'javascript' => ['eslint']
+        "preferred_tools" => {
+          "ruby" => %w[rubocop reek],
+          "javascript" => ["eslint"]
         }
       }
 
@@ -148,95 +148,95 @@ RSpec.describe 'Configuration Isolation', type: :integration do
       execute_data = YAML.load_file(execute_config_file)
       analyze_data = YAML.load_file(analyze_config_file)
 
-      expect(execute_data['provider']).to eq('anthropic')
-      expect(execute_data['model']).to eq('claude-3-sonnet')
-      expect(execute_data['timeout']).to eq(300)
-      expect(execute_data).not_to have_key('analysis_settings')
+      expect(execute_data["provider"]).to eq("anthropic")
+      expect(execute_data["model"]).to eq("claude-3-sonnet")
+      expect(execute_data["timeout"]).to eq(300)
+      expect(execute_data).not_to have_key("analysis_settings")
 
-      expect(analyze_data['analysis_settings']['chunk_size']).to eq(1000)
-      expect(analyze_data['analysis_settings']['timeout']).to eq(600)
-      expect(analyze_data['preferred_tools']['ruby']).to include('rubocop', 'reek')
-      expect(analyze_data).not_to have_key('provider')
+      expect(analyze_data["analysis_settings"]["chunk_size"]).to eq(1000)
+      expect(analyze_data["analysis_settings"]["timeout"]).to eq(600)
+      expect(analyze_data["preferred_tools"]["ruby"]).to include("rubocop", "reek")
+      expect(analyze_data).not_to have_key("provider")
     end
   end
 
-  describe 'Tool Configuration Isolation' do
-    it 'execute mode tool configuration is separate' do
+  describe "Tool Configuration Isolation" do
+    it "execute mode tool configuration is separate" do
       # Execute mode should have its own tool configuration
-      execute_tools_file = File.join(project_dir, '.aidp-tools.yml')
+      execute_tools_file = File.join(project_dir, ".aidp-tools.yml")
 
       execute_tools_config = {
-        'build_tools' => {
-          'ruby' => %w[bundler rake],
-          'javascript' => %w[npm yarn]
+        "build_tools" => {
+          "ruby" => %w[bundler rake],
+          "javascript" => %w[npm yarn]
         },
-        'test_tools' => {
-          'ruby' => %w[rspec minitest],
-          'javascript' => %w[jest mocha]
+        "test_tools" => {
+          "ruby" => %w[rspec minitest],
+          "javascript" => %w[jest mocha]
         }
       }
 
       File.write(execute_tools_file, execute_tools_config.to_yaml)
 
       expect(File.exist?(execute_tools_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp-analyze-tools.yml'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp-analyze-tools.yml"))).to be false
 
       config_data = YAML.load_file(execute_tools_file)
-      expect(config_data['build_tools']['ruby']).to include('bundler', 'rake')
-      expect(config_data['test_tools']['javascript']).to include('jest', 'mocha')
+      expect(config_data["build_tools"]["ruby"]).to include("bundler", "rake")
+      expect(config_data["test_tools"]["javascript"]).to include("jest", "mocha")
     end
 
-    it 'analyze mode tool configuration is separate' do
+    it "analyze mode tool configuration is separate" do
       # Analyze mode should have its own tool configuration
-      analyze_tools_file = File.join(project_dir, '.aidp-analyze-tools.yml')
+      analyze_tools_file = File.join(project_dir, ".aidp-analyze-tools.yml")
 
       analyze_tools_config = {
-        'static_analysis_tools' => {
-          'ruby' => %w[rubocop reek brakeman],
-          'javascript' => %w[eslint prettier]
+        "static_analysis_tools" => {
+          "ruby" => %w[rubocop reek brakeman],
+          "javascript" => %w[eslint prettier]
         },
-        'code_quality_tools' => {
-          'ruby' => %w[flog flay],
-          'javascript' => %w[jshint jscs]
+        "code_quality_tools" => {
+          "ruby" => %w[flog flay],
+          "javascript" => %w[jshint jscs]
         }
       }
 
       File.write(analyze_tools_file, analyze_tools_config.to_yaml)
 
       expect(File.exist?(analyze_tools_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp-tools.yml'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp-tools.yml"))).to be false
 
       config_data = YAML.load_file(analyze_tools_file)
-      expect(config_data['static_analysis_tools']['ruby']).to include('rubocop', 'reek', 'brakeman')
-      expect(config_data['code_quality_tools']['javascript']).to include('jshint', 'jscs')
+      expect(config_data["static_analysis_tools"]["ruby"]).to include("rubocop", "reek", "brakeman")
+      expect(config_data["code_quality_tools"]["javascript"]).to include("jshint", "jscs")
     end
 
-    it 'tool configurations are completely isolated' do
+    it "tool configurations are completely isolated" do
       # Both modes can have their own tool configurations
-      execute_tools_file = File.join(project_dir, '.aidp-tools.yml')
-      analyze_tools_file = File.join(project_dir, '.aidp-analyze-tools.yml')
+      execute_tools_file = File.join(project_dir, ".aidp-tools.yml")
+      analyze_tools_file = File.join(project_dir, ".aidp-analyze-tools.yml")
 
       # Execute mode tools
       execute_tools_config = {
-        'build_tools' => {
-          'ruby' => %w[bundler rake],
-          'javascript' => %w[npm yarn]
+        "build_tools" => {
+          "ruby" => %w[bundler rake],
+          "javascript" => %w[npm yarn]
         },
-        'test_tools' => {
-          'ruby' => %w[rspec minitest],
-          'javascript' => %w[jest mocha]
+        "test_tools" => {
+          "ruby" => %w[rspec minitest],
+          "javascript" => %w[jest mocha]
         }
       }
 
       # Analyze mode tools
       analyze_tools_config = {
-        'static_analysis_tools' => {
-          'ruby' => %w[rubocop reek brakeman],
-          'javascript' => %w[eslint prettier]
+        "static_analysis_tools" => {
+          "ruby" => %w[rubocop reek brakeman],
+          "javascript" => %w[eslint prettier]
         },
-        'code_quality_tools' => {
-          'ruby' => %w[flog flay],
-          'javascript' => %w[jshint jscs]
+        "code_quality_tools" => {
+          "ruby" => %w[flog flay],
+          "javascript" => %w[jshint jscs]
         }
       }
 
@@ -247,62 +247,62 @@ RSpec.describe 'Configuration Isolation', type: :integration do
       execute_data = YAML.load_file(execute_tools_file)
       analyze_data = YAML.load_file(analyze_tools_file)
 
-      expect(execute_data['build_tools']['ruby']).to include('bundler', 'rake')
-      expect(execute_data['test_tools']['javascript']).to include('jest', 'mocha')
-      expect(execute_data).not_to have_key('static_analysis_tools')
+      expect(execute_data["build_tools"]["ruby"]).to include("bundler", "rake")
+      expect(execute_data["test_tools"]["javascript"]).to include("jest", "mocha")
+      expect(execute_data).not_to have_key("static_analysis_tools")
 
-      expect(analyze_data['static_analysis_tools']['ruby']).to include('rubocop', 'reek', 'brakeman')
-      expect(analyze_data['code_quality_tools']['javascript']).to include('jshint', 'jscs')
-      expect(analyze_data).not_to have_key('build_tools')
+      expect(analyze_data["static_analysis_tools"]["ruby"]).to include("rubocop", "reek", "brakeman")
+      expect(analyze_data["code_quality_tools"]["javascript"]).to include("jshint", "jscs")
+      expect(analyze_data).not_to have_key("build_tools")
     end
   end
 
-  describe 'Database Isolation' do
-    it 'execute mode uses .aidp.db' do
+  describe "Database Isolation" do
+    it "execute mode uses .aidp.db" do
       # Execute mode should use its own database
-      db_file = File.join(project_dir, '.aidp.db')
+      db_file = File.join(project_dir, ".aidp.db")
 
       # Create execute mode database
       db = SQLite3::Database.new(db_file)
-      db.execute('CREATE TABLE IF NOT EXISTS execute_data (id INTEGER PRIMARY KEY, data TEXT)')
-      db.execute('INSERT INTO execute_data (data) VALUES (?)', ['execute_mode_data'])
+      db.execute("CREATE TABLE IF NOT EXISTS execute_data (id INTEGER PRIMARY KEY, data TEXT)")
+      db.execute("INSERT INTO execute_data (data) VALUES (?)", ["execute_mode_data"])
       db.close
 
       expect(File.exist?(db_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp-analysis.db'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp-analysis.db"))).to be false
     end
 
-    it 'analyze mode uses .aidp-analysis.db' do
+    it "analyze mode uses .aidp-analysis.db" do
       # Analyze mode should use its own database
-      db_file = File.join(project_dir, '.aidp-analysis.db')
+      db_file = File.join(project_dir, ".aidp-analysis.db")
 
       # Create analyze mode database
       db = SQLite3::Database.new(db_file)
-      db.execute('CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)')
-      db.execute('INSERT INTO analysis_results (step, result) VALUES (?, ?)',
-                 %w[01_REPOSITORY_ANALYSIS analysis_data])
+      db.execute("CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)")
+      db.execute("INSERT INTO analysis_results (step, result) VALUES (?, ?)",
+        %w[01_REPOSITORY_ANALYSIS analysis_data])
       db.close
 
       expect(File.exist?(db_file)).to be true
-      expect(File.exist?(File.join(project_dir, '.aidp.db'))).to be false
+      expect(File.exist?(File.join(project_dir, ".aidp.db"))).to be false
     end
 
-    it 'databases are completely isolated' do
+    it "databases are completely isolated" do
       # Both modes can have their own databases
-      execute_db_file = File.join(project_dir, '.aidp.db')
-      analyze_db_file = File.join(project_dir, '.aidp-analysis.db')
+      execute_db_file = File.join(project_dir, ".aidp.db")
+      analyze_db_file = File.join(project_dir, ".aidp-analysis.db")
 
       # Execute mode database
       execute_db = SQLite3::Database.new(execute_db_file)
-      execute_db.execute('CREATE TABLE IF NOT EXISTS execute_data (id INTEGER PRIMARY KEY, data TEXT)')
-      execute_db.execute('INSERT INTO execute_data (data) VALUES (?)', ['execute_mode_data'])
+      execute_db.execute("CREATE TABLE IF NOT EXISTS execute_data (id INTEGER PRIMARY KEY, data TEXT)")
+      execute_db.execute("INSERT INTO execute_data (data) VALUES (?)", ["execute_mode_data"])
       execute_db.close
 
       # Analyze mode database
       analyze_db = SQLite3::Database.new(analyze_db_file)
-      analyze_db.execute('CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)')
-      analyze_db.execute('INSERT INTO analysis_results (step, result) VALUES (?, ?)',
-                         %w[01_REPOSITORY_ANALYSIS analysis_data])
+      analyze_db.execute("CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)")
+      analyze_db.execute("INSERT INTO analysis_results (step, result) VALUES (?, ?)",
+        %w[01_REPOSITORY_ANALYSIS analysis_data])
       analyze_db.close
 
       # Verify isolation
@@ -311,39 +311,39 @@ RSpec.describe 'Configuration Isolation', type: :integration do
 
       # Check execute database
       execute_db = SQLite3::Database.new(execute_db_file)
-      execute_result = execute_db.execute('SELECT data FROM execute_data').first
+      execute_result = execute_db.execute("SELECT data FROM execute_data").first
       execute_db.close
-      expect(execute_result.first).to eq('execute_mode_data')
+      expect(execute_result.first).to eq("execute_mode_data")
 
       # Check analyze database
       analyze_db = SQLite3::Database.new(analyze_db_file)
-      analyze_result = analyze_db.execute('SELECT result FROM analysis_results').first
+      analyze_result = analyze_db.execute("SELECT result FROM analysis_results").first
       analyze_db.close
-      expect(analyze_result.first).to eq('analysis_data')
+      expect(analyze_result.first).to eq("analysis_data")
     end
   end
 
-  describe 'User Configuration Isolation' do
-    it 'user configuration is shared but mode-specific sections are isolated' do
+  describe "User Configuration Isolation" do
+    it "user configuration is shared but mode-specific sections are isolated" do
       # User configuration can have mode-specific sections
-      user_config_file = File.expand_path('~/.aidp.yml')
+      user_config_file = File.expand_path("~/.aidp.yml")
 
       user_config = {
-        'global_settings' => {
-          'log_level' => 'info',
-          'timeout' => 300
+        "global_settings" => {
+          "log_level" => "info",
+          "timeout" => 300
         },
-        'execute_mode' => {
-          'provider' => 'anthropic',
-          'model' => 'claude-3-sonnet'
+        "execute_mode" => {
+          "provider" => "anthropic",
+          "model" => "claude-3-sonnet"
         },
-        'analyze_mode' => {
-          'analysis_settings' => {
-            'chunk_size' => 1000,
-            'parallel_workers' => 4
+        "analyze_mode" => {
+          "analysis_settings" => {
+            "chunk_size" => 1000,
+            "parallel_workers" => 4
           },
-          'preferred_tools' => {
-            'ruby' => %w[rubocop reek]
+          "preferred_tools" => {
+            "ruby" => %w[rubocop reek]
           }
         }
       }
@@ -352,113 +352,113 @@ RSpec.describe 'Configuration Isolation', type: :integration do
 
       # Verify shared settings
       config_data = YAML.load_file(user_config_file)
-      expect(config_data['global_settings']['log_level']).to eq('info')
-      expect(config_data['global_settings']['timeout']).to eq(300)
+      expect(config_data["global_settings"]["log_level"]).to eq("info")
+      expect(config_data["global_settings"]["timeout"]).to eq(300)
 
       # Verify mode-specific settings
-      expect(config_data['execute_mode']['provider']).to eq('anthropic')
-      expect(config_data['analyze_mode']['analysis_settings']['chunk_size']).to eq(1000)
+      expect(config_data["execute_mode"]["provider"]).to eq("anthropic")
+      expect(config_data["analyze_mode"]["analysis_settings"]["chunk_size"]).to eq(1000)
 
       # Verify isolation
-      expect(config_data['execute_mode']).not_to have_key('analysis_settings')
-      expect(config_data['analyze_mode']).not_to have_key('provider')
+      expect(config_data["execute_mode"]).not_to have_key("analysis_settings")
+      expect(config_data["analyze_mode"]).not_to have_key("provider")
     end
   end
 
-  describe 'Environment Variable Isolation' do
-    it 'environment variables can be mode-specific' do
+  describe "Environment Variable Isolation" do
+    it "environment variables can be mode-specific" do
       # Set mode-specific environment variables
-      ENV['AIDP_PROVIDER'] = 'anthropic'
-      ENV['AIDP_ANALYZE_CHUNK_SIZE'] = '1000'
-      ENV['AIDP_ANALYZE_PARALLEL_WORKERS'] = '4'
+      ENV["AIDP_PROVIDER"] = "anthropic"
+      ENV["AIDP_ANALYZE_CHUNK_SIZE"] = "1000"
+      ENV["AIDP_ANALYZE_PARALLEL_WORKERS"] = "4"
 
       # Execute mode should use general AIDP_ variables
-      expect(ENV['AIDP_PROVIDER']).to eq('anthropic')
+      expect(ENV["AIDP_PROVIDER"]).to eq("anthropic")
 
       # Analyze mode should use AIDP_ANALYZE_ variables
-      expect(ENV['AIDP_ANALYZE_CHUNK_SIZE']).to eq('1000')
-      expect(ENV['AIDP_ANALYZE_PARALLEL_WORKERS']).to eq('4')
+      expect(ENV["AIDP_ANALYZE_CHUNK_SIZE"]).to eq("1000")
+      expect(ENV["AIDP_ANALYZE_PARALLEL_WORKERS"]).to eq("4")
 
       # Verify isolation
-      expect(ENV['AIDP_ANALYZE_CHUNK_SIZE']).not_to eq(ENV['AIDP_PROVIDER'])
+      expect(ENV["AIDP_ANALYZE_CHUNK_SIZE"]).not_to eq(ENV["AIDP_PROVIDER"])
     end
   end
 
-  describe 'Configuration Loading Isolation' do
-    it 'execute mode loads only execute configuration' do
+  describe "Configuration Loading Isolation" do
+    it "execute mode loads only execute configuration" do
       # Create both configuration files
-      execute_config_file = File.join(project_dir, '.aidp.yml')
-      analyze_config_file = File.join(project_dir, '.aidp-analyze.yml')
+      execute_config_file = File.join(project_dir, ".aidp.yml")
+      analyze_config_file = File.join(project_dir, ".aidp-analyze.yml")
 
-      execute_config_data = { 'provider' => 'anthropic', 'model' => 'claude-3-sonnet' }
-      analyze_config_data = { 'analysis_settings' => { 'chunk_size' => 1000 } }
+      execute_config_data = {"provider" => "anthropic", "model" => "claude-3-sonnet"}
+      analyze_config_data = {"analysis_settings" => {"chunk_size" => 1000}}
 
       File.write(execute_config_file, execute_config_data.to_yaml)
       File.write(analyze_config_file, analyze_config_data.to_yaml)
 
       # Execute mode should only load its own config
       execute_config = Aidp::Config.new(project_dir)
-      expect(execute_config.get('provider')).to eq('anthropic')
-      expect(execute_config.get('model')).to eq('claude-3-sonnet')
-      expect(execute_config.get('analysis_settings')).to be_nil
+      expect(execute_config.get("provider")).to eq("anthropic")
+      expect(execute_config.get("model")).to eq("claude-3-sonnet")
+      expect(execute_config.get("analysis_settings")).to be_nil
     end
 
-    it 'analyze mode loads only analyze configuration' do
+    it "analyze mode loads only analyze configuration" do
       # Create both configuration files
-      execute_config_file = File.join(project_dir, '.aidp.yml')
-      analyze_config_file = File.join(project_dir, '.aidp-analyze.yml')
+      execute_config_file = File.join(project_dir, ".aidp.yml")
+      analyze_config_file = File.join(project_dir, ".aidp-analyze.yml")
 
-      execute_config_data = { 'provider' => 'anthropic', 'model' => 'claude-3-sonnet' }
-      analyze_config_data = { 'analysis_settings' => { 'chunk_size' => 1000 } }
+      execute_config_data = {"provider" => "anthropic", "model" => "claude-3-sonnet"}
+      analyze_config_data = {"analysis_settings" => {"chunk_size" => 1000}}
 
       File.write(execute_config_file, execute_config_data.to_yaml)
       File.write(analyze_config_file, analyze_config_data.to_yaml)
 
       # Analyze mode should only load its own config
       analyze_config_data_loaded = YAML.load_file(analyze_config_file)
-      expect(analyze_config_data_loaded['analysis_settings']['chunk_size']).to eq(1000)
-      expect(analyze_config_data_loaded['provider']).to be_nil
+      expect(analyze_config_data_loaded["analysis_settings"]["chunk_size"]).to eq(1000)
+      expect(analyze_config_data_loaded["provider"]).to be_nil
     end
   end
 
-  describe 'Configuration Validation' do
-    it 'execute mode validates its own configuration schema' do
+  describe "Configuration Validation" do
+    it "execute mode validates its own configuration schema" do
       # Execute mode should validate its configuration
-      execute_config_file = File.join(project_dir, '.aidp.yml')
+      execute_config_file = File.join(project_dir, ".aidp.yml")
 
       valid_config = {
-        'provider' => 'anthropic',
-        'model' => 'claude-3-sonnet',
-        'timeout' => 300
+        "provider" => "anthropic",
+        "model" => "claude-3-sonnet",
+        "timeout" => 300
       }
 
       File.write(execute_config_file, valid_config.to_yaml)
 
       execute_config = Aidp::Config.new(project_dir)
-      expect(execute_config.get('provider')).to eq('anthropic')
-      expect(execute_config.get('model')).to eq('claude-3-sonnet')
+      expect(execute_config.get("provider")).to eq("anthropic")
+      expect(execute_config.get("model")).to eq("claude-3-sonnet")
     end
 
-    it 'analyze mode validates its own configuration schema' do
+    it "analyze mode validates its own configuration schema" do
       # Analyze mode should validate its configuration
-      analyze_config_file = File.join(project_dir, '.aidp-analyze.yml')
+      analyze_config_file = File.join(project_dir, ".aidp-analyze.yml")
 
       valid_config = {
-        'analysis_settings' => {
-          'chunk_size' => 1000,
-          'parallel_workers' => 4,
-          'timeout' => 600
+        "analysis_settings" => {
+          "chunk_size" => 1000,
+          "parallel_workers" => 4,
+          "timeout" => 600
         },
-        'preferred_tools' => {
-          'ruby' => %w[rubocop reek]
+        "preferred_tools" => {
+          "ruby" => %w[rubocop reek]
         }
       }
 
       File.write(analyze_config_file, valid_config.to_yaml)
 
       config_data = YAML.load_file(analyze_config_file)
-      expect(config_data['analysis_settings']['chunk_size']).to eq(1000)
-      expect(config_data['preferred_tools']['ruby']).to include('rubocop', 'reek')
+      expect(config_data["analysis_settings"]["chunk_size"]).to eq(1000)
+      expect(config_data["preferred_tools"]["ruby"]).to include("rubocop", "reek")
     end
   end
 
@@ -471,13 +471,13 @@ RSpec.describe 'Configuration Isolation', type: :integration do
 
   def setup_mock_project
     # Create basic project structure
-    FileUtils.mkdir_p(File.join(project_dir, 'app'))
-    File.write(File.join(project_dir, 'README.md'), '# Test Project')
+    FileUtils.mkdir_p(File.join(project_dir, "app"))
+    File.write(File.join(project_dir, "README.md"), "# Test Project")
   end
 
   def cleanup_user_config
     # Clean up user configuration file
-    user_config_file = File.expand_path('~/.aidp.yml')
+    user_config_file = File.expand_path("~/.aidp.yml")
     File.delete(user_config_file) if File.exist?(user_config_file)
   end
 end

@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = "aidp"
-  s.version = File.read(File.expand_path("lib/aidp/version.rb", __dir__)).match(/VERSION = "([^"]+)"/)[1]
+  s.version = File.read(File.expand_path("lib/aidp/shared/version.rb", __dir__)).match(/VERSION = "([^"]+)"/)[1]
   s.summary = "AI Dev Pipeline CLI that drives prompts via Cursor/Claude/Gemini"
   s.description = "Portable CLI to run a markdown-based AI dev workflow without copying prompts into projects."
   s.authors = ["Bart Agapinan"]
