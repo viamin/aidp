@@ -3,11 +3,11 @@
 Gem::Specification.new do |s|
   s.name = "aidp"
   s.version = File.read(File.expand_path("lib/aidp/shared/version.rb", __dir__)).match(/VERSION = "([^"]+)"/)[1]
-  s.summary = "AI Dev Pipeline CLI that drives prompts via Cursor/Claude/Gemini"
-  s.description = "Portable CLI to run a markdown-based AI dev workflow without copying prompts into projects."
+  s.summary = "A CLI for AI-driven software development, from analysis to execution."
+  s.description = "The AI-Dev-Pipeline (AIDP) CLI provides a powerful, markdown-driven workflow for software development. It supports in-depth project analysis to understand existing codebases and an execution mode to systematically implement new features."
   s.authors = ["Bart Agapinan"]
   s.email = ["bart@sonic.next"]
-  s.homepage = "https://github.com/viamin/ai-scaffold"
+  s.homepage = "https://github.com/viamin/aidp"
   s.license = "MIT"
 
   s.files = Dir.chdir(__dir__) do
