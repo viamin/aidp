@@ -1,2 +1,18 @@
 .rspec_status
 pkg/*
+
+# Aidp analyze mode output files
+*.csv
+git.log
+code_maat_analysis_report.md
+
+# Aidp configuration and data files
+.aidp-analysis.db
+.aidp-analyze-progress.yml
+.aidp-tools.yml
+.aidp-analyze.yml
+.aidp-analyze-tools.yml
+
+# Temporary files
+*.tmp
+*.log

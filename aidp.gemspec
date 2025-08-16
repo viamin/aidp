@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = "aidp"
-  s.version = File.read(File.expand_path("lib/aidp/version.rb", __dir__)).match(/VERSION = "([^"]+)"/)[1]
+  s.version = File.read(File.expand_path("lib/aidp/shared/version.rb", __dir__)).match(/VERSION = "([^"]+)"/)[1]
   s.summary = "AI Dev Pipeline CLI that drives prompts via Cursor/Claude/Gemini"
   s.description = "Portable CLI to run a markdown-based AI dev workflow without copying prompts into projects."
   s.authors = ["Bart Agapinan"]
@@ -18,8 +18,16 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
   s.required_ruby_version = ">= 3.0"
 
+  s.add_runtime_dependency "colorize", "~> 1.1"
+  s.add_runtime_dependency "concurrent-ruby", "~> 1.2"
+  s.add_runtime_dependency "csv", "~> 3.2"
+  s.add_runtime_dependency "logger", "~> 1.5"
+  s.add_runtime_dependency "sqlite3", "~> 1.6"
   s.add_runtime_dependency "thor", "~> 1.3"
+  s.add_runtime_dependency "tty-progressbar", "~> 0.18"
   s.add_runtime_dependency "tty-prompt", "~> 0.23"
+  s.add_runtime_dependency "tty-spinner", "~> 0.9"
+  s.add_runtime_dependency "tty-table", "~> 0.12"
 
   s.add_development_dependency "rake", "~> 13.0"
   s.add_development_dependency "rspec", "~> 3.12"

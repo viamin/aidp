@@ -2,4 +2,4 @@
 # frozen_string_literal: true
 
 require 'aidp'
-Aidp::CLI.start(ARGV)
+Aidp::Shared::CLI.start(ARGV)
