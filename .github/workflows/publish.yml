@@ -25,21 +25,5 @@ jobs:
       - name: Run specs
         run: bundle exec rake spec
 
-      - name: Build gem
-        run: gem build aidp.gemspec
-
-      - name: Push to RubyGems
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-        run: |
-          set -euo pipefail
-          ls -1 *.gem
-          gem push *.gem
-
-      - name: Upload gem to GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TAG="${{ github.event.release.tag_name }}"
-          gh release upload "$TAG" *.gem --clobber
+      - name: Publish to RubyGems and GitHub Releases
+        uses: rubygems/release-gem@v1
