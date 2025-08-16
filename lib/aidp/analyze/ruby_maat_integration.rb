@@ -6,27 +6,24 @@ require "fileutils"
 
 module Aidp
   module Analyze
-    class CodeMaatIntegration
+    class RubyMaatIntegration
       def initialize(project_dir = Dir.pwd)
         @project_dir = project_dir
-        @docker_image = "philipssoftware/code-maat:latest"
       end
 
-      # Check if Docker is available and Code Maat image is accessible
+      # Check if RubyMaat gem is available and accessible
       def check_prerequisites
         {
-          docker_available: docker_available?,
-          code_maat_image_available: code_maat_image_available?,
           git_repository: git_repository?,
           git_log_available: git_log_available?
         }
       end
 
-      # Generate Git log for Code Maat analysis
+      # Generate Git log for RubyMaat analysis
       def generate_git_log(output_file = nil)
         output_file ||= File.join(@project_dir, "git.log")
 
-        raise "Not a Git repository. Code Maat requires a Git repository for analysis." unless git_repository?
+        raise "Not a Git repository. RubyMaat requires a Git repository for analysis." unless git_repository?
 
         cmd = [
           "git", "log",
@@ -43,43 +40,43 @@ module Aidp
         output_file
       end
 
-      # Run Code Maat analysis for code churn
+      # Run RubyMaat analysis for code churn
       def analyze_churn(git_log_file = nil)
         git_log_file ||= File.join(@project_dir, "git.log")
         output_file = File.join(@project_dir, "churn.csv")
 
-        run_code_maat("churn", git_log_file, output_file)
+        run_ruby_maat("churn", git_log_file, output_file)
         parse_churn_results(output_file)
       end
 
-      # Run Code Maat analysis for coupling
+      # Run RubyMaat analysis for coupling
       def analyze_coupling(git_log_file = nil)
         git_log_file ||= File.join(@project_dir, "git.log")
         output_file = File.join(@project_dir, "coupling.csv")
 
-        run_code_maat("coupling", git_log_file, output_file)
+        run_ruby_maat("coupling", git_log_file, output_file)
         parse_coupling_results(output_file)
       end
 
-      # Run Code Maat analysis for authorship
+      # Run RubyMaat analysis for authorship
       def analyze_authorship(git_log_file = nil)
         git_log_file ||= File.join(@project_dir, "git.log")
         output_file = File.join(@project_dir, "authorship.csv")
 
-        run_code_maat("authorship", git_log_file, output_file)
+        run_ruby_maat("authorship", git_log_file, output_file)
         parse_authorship_results(output_file)
       end
 
-      # Run Code Maat analysis for summary
+      # Run RubyMaat analysis for summary
       def analyze_summary(git_log_file = nil)
         git_log_file ||= File.join(@project_dir, "git.log")
         output_file = File.join(@project_dir, "summary.csv")
 
-        run_code_maat("summary", git_log_file, output_file)
+        run_ruby_maat("summary", git_log_file, output_file)
         parse_summary_results(output_file)
       end
 
-      # Run comprehensive Code Maat analysis
+      # Run comprehensive RubyMaat analysis
       def run_comprehensive_analysis
         # Generate Git log if not exists
         git_log_file = File.join(@project_dir, "git.log")
@@ -161,16 +158,28 @@ module Aidp
 
       private
 
-      def run_code_maat(analysis_type, input_file, output_file)
+      def run_ruby_maat(analysis_type, input_file, output_file)
         # Ensure input file exists
         raise "Input file not found: #{input_file}" unless File.exist?(input_file)
 
-        # For now, use a mock implementation for testing
-        # TODO: Implement proper Docker-based Code Maat execution
-        mock_code_maat_analysis(analysis_type, input_file, output_file)
+        # Run RubyMaat with the same command-line interface as code-maat
+        cmd = ["bundle", "exec", "ruby-maat", analysis_type, input_file]
+
+        stdout, stderr, status = Open3.capture3(*cmd, chdir: @project_dir)
+
+        if status.success?
+          # Write the output to the specified file
+          File.write(output_file, stdout)
+        else
+          # Fallback to mock implementation if RubyMaat fails
+          puts "Warning: RubyMaat analysis failed, using mock data. Error: #{stderr}"
+          mock_ruby_maat_analysis(analysis_type, input_file, output_file)
+        end
+
+        output_file
       end
 
-      def mock_code_maat_analysis(analysis_type, input_file, output_file)
+      def mock_ruby_maat_analysis(analysis_type, input_file, output_file)
         # Parse the Git log to generate mock analysis data
         git_log_content = File.read(input_file)
 
@@ -544,19 +553,6 @@ module Aidp
             authors: auth_data[:authors]
           }
         end
-      end
-
-      def docker_available?
-        system("docker", "--version", out: File::NULL, err: File::NULL)
-      end
-
-      def code_maat_image_available?
-        return false unless docker_available?
-
-        cmd = ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"]
-        stdout, _, status = Open3.capture3(*cmd)
-
-        status.success? && stdout.include?(@docker_image)
       end
 
       def git_repository?

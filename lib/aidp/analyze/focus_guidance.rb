@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "prioritizer"
-require_relative "code_maat_integration"
+require_relative "ruby_maat_integration"
 require_relative "feature_analyzer"
 
 module Aidp
@@ -10,7 +10,7 @@ module Aidp
       def initialize(project_dir = Dir.pwd)
         @project_dir = project_dir
         @prioritizer = AnalysisPrioritizer.new(project_dir)
-        @code_maat = CodeMaatIntegration.new(project_dir)
+        @code_maat = RubyMaatIntegration.new(project_dir)
         @feature_analyzer = FeatureAnalyzer.new(project_dir)
       end
 
