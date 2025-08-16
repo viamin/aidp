@@ -1,15 +1,12 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "aidp/cli"
-require "aidp/config"
-require "aidp/analyze_runner"
 
 RSpec.describe "Configuration Isolation", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_config_test") }
-  let(:cli) { Aidp::CLI.new }
-  let(:execute_config) { Aidp::Config.new(project_dir) }
-  let(:analyze_config) { Aidp::AnalyzeRunner.new(project_dir) }
+  let(:cli) { Aidp::Shared::CLI.new }
+  let(:execute_progress) { Aidp::Execute::Progress.new(project_dir) }
+  let(:analyze_config) { Aidp::Analyze::Runner.new(project_dir) }
 
   before do
     setup_configuration_files
@@ -27,7 +24,7 @@ RSpec.describe "Configuration Isolation", type: :integration do
       progress_file = File.join(project_dir, ".aidp-progress.yml")
 
       # Create execute mode progress
-      execute_config.mark_step_completed("00_PRD")
+      execute_progress.mark_step_completed("00_PRD")
 
       expect(File.exist?(progress_file)).to be true
       expect(File.exist?(File.join(project_dir, ".aidp-analyze-progress.yml"))).to be false
@@ -41,7 +38,7 @@ RSpec.describe "Configuration Isolation", type: :integration do
       progress_file = File.join(project_dir, ".aidp-analyze-progress.yml")
 
       # Create analyze mode progress
-      analyze_progress = Aidp::AnalyzeProgress.new(project_dir)
+      analyze_progress = Aidp::Analyze::Progress.new(project_dir)
       analyze_progress.mark_step_completed("01_REPOSITORY_ANALYSIS")
 
       expect(File.exist?(progress_file)).to be true
@@ -57,11 +54,11 @@ RSpec.describe "Configuration Isolation", type: :integration do
       analyze_progress_file = File.join(project_dir, ".aidp-analyze-progress.yml")
 
       # Run execute mode
-      execute_config.mark_step_completed("00_PRD")
-      execute_config.mark_step_completed("01_NFRS")
+      execute_progress.mark_step_completed("00_PRD")
+      execute_progress.mark_step_completed("01_NFRS")
 
       # Run analyze mode
-      analyze_progress = Aidp::AnalyzeProgress.new(project_dir)
+      analyze_progress = Aidp::Analyze::Progress.new(project_dir)
       analyze_progress.mark_step_completed("01_REPOSITORY_ANALYSIS")
       analyze_progress.mark_step_completed("02_ARCHITECTURE_ANALYSIS")
 
@@ -83,8 +80,11 @@ RSpec.describe "Configuration Isolation", type: :integration do
       config_file = File.join(project_dir, ".aidp.yml")
 
       # Create execute mode configuration
-      execute_config.set("provider", "anthropic")
-      execute_config.set("model", "claude-3-sonnet")
+      execute_config_data = {
+        "provider" => "anthropic",
+        "model" => "claude-3-sonnet"
+      }
+      File.write(config_file, execute_config_data.to_yaml)
 
       expect(File.exist?(config_file)).to be true
       expect(File.exist?(File.join(project_dir, ".aidp-analyze.yml"))).to be false
@@ -125,9 +125,12 @@ RSpec.describe "Configuration Isolation", type: :integration do
       analyze_config_file = File.join(project_dir, ".aidp-analyze.yml")
 
       # Execute mode configuration
-      execute_config.set("provider", "anthropic")
-      execute_config.set("model", "claude-3-sonnet")
-      execute_config.set("timeout", 300)
+      execute_config_data = {
+        "provider" => "anthropic",
+        "model" => "claude-3-sonnet",
+        "timeout" => 300
+      }
+      File.write(execute_config_file, execute_config_data.to_yaml)
 
       # Analyze mode configuration
       analyze_config_data = {
@@ -397,10 +400,10 @@ RSpec.describe "Configuration Isolation", type: :integration do
       File.write(analyze_config_file, analyze_config_data.to_yaml)
 
       # Execute mode should only load its own config
-      execute_config = Aidp::Config.new(project_dir)
-      expect(execute_config.get("provider")).to eq("anthropic")
-      expect(execute_config.get("model")).to eq("claude-3-sonnet")
-      expect(execute_config.get("analysis_settings")).to be_nil
+      execute_config = Aidp::Shared::Config.load(project_dir)
+      expect(execute_config["provider"]).to eq("anthropic")
+      expect(execute_config["model"]).to eq("claude-3-sonnet")
+      expect(execute_config["analysis_settings"]).to be_nil
     end
 
     it "analyze mode loads only analyze configuration" do
@@ -434,9 +437,9 @@ RSpec.describe "Configuration Isolation", type: :integration do
 
       File.write(execute_config_file, valid_config.to_yaml)
 
-      execute_config = Aidp::Config.new(project_dir)
-      expect(execute_config.get("provider")).to eq("anthropic")
-      expect(execute_config.get("model")).to eq("claude-3-sonnet")
+      execute_config = Aidp::Shared::Config.load(project_dir)
+      expect(execute_config["provider"]).to eq("anthropic")
+      expect(execute_config["model"]).to eq("claude-3-sonnet")
     end
 
     it "analyze mode validates its own configuration schema" do

@@ -19,5 +19,21 @@ RSpec.describe Aidp::Shared::CLI do
     it "defines version command" do
       expect(Aidp::Shared::CLI.commands.keys).to include("version")
     end
+
+    it "defines execute-approve command" do
+      expect(Aidp::Shared::CLI.commands.keys).to include("execute_approve")
+    end
+
+    it "defines execute-reset command" do
+      expect(Aidp::Shared::CLI.commands.keys).to include("execute_reset")
+    end
+
+    it "defines analyze-approve command" do
+      expect(Aidp::Shared::CLI.commands.keys).to include("analyze_approve")
+    end
+
+    it "defines analyze-reset command" do
+      expect(Aidp::Shared::CLI.commands.keys).to include("analyze_reset")
+    end
   end
 end

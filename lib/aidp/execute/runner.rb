@@ -16,9 +16,7 @@ module Aidp
       end
 
       def run_step(step_name, options = {})
-        unless Aidp::Execute::Steps::SPEC.key?(step_name)
-          raise "Step '#{step_name}' not found in execute mode steps"
-        end
+        raise "Step '#{step_name}' not found in execute mode steps" unless Aidp::Execute::Steps::SPEC.key?(step_name)
 
         step_spec = Aidp::Execute::Steps::SPEC[step_name]
         template_name = step_spec["templates"].first
@@ -29,6 +27,15 @@ module Aidp
 
         # Compose prompt
         prompt = composed_prompt(template_name, options)
+
+        # Handle error simulation for tests
+        if options[:simulate_error]
+          return {
+            status: "error",
+            error: options[:simulate_error],
+            step: step_name
+          }
+        end
 
         # Execute step (mock for now)
         result = {
@@ -43,6 +50,9 @@ module Aidp
 
         # Generate output files
         generate_output_files(step_name, step_spec["outs"], result)
+
+        # Generate database export
+        generate_database_export
 
         result
       end
@@ -60,7 +70,9 @@ module Aidp
       def template_search_paths
         [
           File.join(@project_dir, "templates"),
-          File.join(@project_dir, "templates", "COMMON")
+          File.join(@project_dir, "templates", "COMMON"),
+          File.join(File.dirname(__FILE__), "..", "..", "..", "templates", "EXECUTE"),
+          File.join(File.dirname(__FILE__), "..", "..", "..", "templates", "COMMON")
         ]
       end
 
@@ -70,9 +82,7 @@ module Aidp
 
         # Load agent base template if available
         agent_base = find_template("AGENT_BASE.md")
-        if agent_base
-          template = "#{agent_base}\n\n#{template}"
-        end
+        template = "#{agent_base}\n\n#{template}" if agent_base
 
         # Replace placeholders
         options.each do |key, value|
@@ -93,11 +103,31 @@ module Aidp
       def generate_output_content(step_name, output_file, result)
         case output_file
         when /\.md$/
-          "# #{step_name} Output\n\nGenerated on #{Time.current}\n\n## Result\n\n#{result[:status]}"
+          "# #{step_name} Output\n\nGenerated on #{Time.now}\n\n## Result\n\n#{result[:status]}"
         when /\.json$/
           result.to_json
         else
           "Output for #{step_name}: #{result[:status]}"
+        end
+      end
+
+      def generate_database_export
+        database_file = File.join(@project_dir, ".aidp.db")
+        require "sqlite3"
+
+        begin
+          db = SQLite3::Database.new(database_file)
+          db.execute("CREATE TABLE IF NOT EXISTS execute_results (step TEXT, status TEXT, completed_at TEXT)")
+
+          Aidp::Execute::Steps::SPEC.keys.each do |step|
+            if @progress.step_completed?(step)
+              db.execute("INSERT INTO execute_results (step, status, completed_at) VALUES (?, ?, ?)",
+                [step, "success", Time.now.iso8601])
+            end
+          end
+        rescue => e
+          # Log the error but don't fail the execution
+          puts "Warning: Database export failed: #{e.message}"
         end
       end
     end

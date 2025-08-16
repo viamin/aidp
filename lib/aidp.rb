@@ -48,4 +48,6 @@ require "aidp/analyze/large_analysis_progress"
 require "aidp/analyze/performance_optimizer"
 require "aidp/analyze/error_handler"
 
-module Aidp; end
+module Aidp
+  VERSION = Aidp::Shared::VERSION
+end

@@ -3,482 +3,484 @@
 require "logger"
 
 module Aidp
-  # Comprehensive error handling system for analyze mode
-  class ErrorHandler
-    attr_reader :logger, :error_counts, :recovery_strategies
+  module Analyze
+    # Comprehensive error handling system for analyze mode
+    class ErrorHandler
+      attr_reader :logger, :error_counts, :recovery_strategies
 
-    def initialize(log_file: nil, verbose: false)
-      @logger = setup_logger(log_file, verbose)
-      @error_counts = Hash.new(0)
-      @recovery_strategies = setup_recovery_strategies
-      @error_history = []
-    end
-
-    # Handle errors with appropriate recovery strategies
-    def handle_error(error, context: {}, step: nil, retry_count: 0)
-      error_info = {
-        error: error,
-        context: context,
-        step: step,
-        retry_count: retry_count,
-        timestamp: Time.current
-      }
-
-      log_error(error_info)
-      increment_error_count(error.class)
-      add_to_history(error_info)
-
-      recovery_strategy = determine_recovery_strategy(error, context)
-      apply_recovery_strategy(recovery_strategy, error_info)
-    end
-
-    # Handle specific error types with custom logic
-    def handle_network_error(error, context: {})
-      case error
-      when Net::TimeoutError
-        handle_timeout_error(error, context)
-      when Net::HTTPError
-        handle_http_error(error, context)
-      when SocketError
-        handle_socket_error(error, context)
-      else
-        handle_generic_network_error(error, context)
+      def initialize(log_file: nil, verbose: false)
+        @logger = setup_logger(log_file, verbose)
+        @error_counts = Hash.new(0)
+        @recovery_strategies = setup_recovery_strategies
+        @error_history = []
       end
-    end
 
-    def handle_file_system_error(error, context: {})
-      case error
-      when Errno::ENOENT
-        handle_file_not_found(error, context)
-      when Errno::EACCES
-        handle_permission_denied(error, context)
-      when Errno::ENOSPC
-        handle_disk_full(error, context)
-      else
-        handle_generic_file_error(error, context)
+      # Handle errors with appropriate recovery strategies
+      def handle_error(error, context: {}, step: nil, retry_count: 0)
+        error_info = {
+          error: error,
+          context: context,
+          step: step,
+          retry_count: retry_count,
+          timestamp: Time.current
+        }
+
+        log_error(error_info)
+        increment_error_count(error.class)
+        add_to_history(error_info)
+
+        recovery_strategy = determine_recovery_strategy(error, context)
+        apply_recovery_strategy(recovery_strategy, error_info)
       end
-    end
 
-    def handle_database_error(error, context: {})
-      case error
-      when SQLite3::BusyException
-        handle_database_busy(error, context)
-      when SQLite3::CorruptException
-        handle_database_corrupt(error, context)
-      when SQLite3::ReadOnlyException
-        handle_database_readonly(error, context)
-      else
-        handle_generic_database_error(error, context)
-      end
-    end
-
-    def handle_analysis_error(error, context: {})
-      case error
-      when AnalysisTimeoutError
-        handle_analysis_timeout(error, context)
-      when AnalysisDataError
-        handle_analysis_data_error(error, context)
-      when AnalysisToolError
-        handle_analysis_tool_error(error, context)
-      else
-        handle_generic_analysis_error(error, context)
-      end
-    end
-
-    # Recovery strategies
-    def retry_with_backoff(operation, max_retries: 3, base_delay: 1)
-      retry_count = 0
-      begin
-        operation.call
-      rescue => e
-        retry_count += 1
-        if retry_count <= max_retries
-          delay = base_delay * (2**(retry_count - 1))
-          logger.warn("Retrying operation in #{delay} seconds (attempt #{retry_count}/#{max_retries})")
-          sleep(delay)
-          retry
+      # Handle specific error types with custom logic
+      def handle_network_error(error, context: {})
+        case error
+        when Net::TimeoutError
+          handle_timeout_error(error, context)
+        when Net::HTTPError
+          handle_http_error(error, context)
+        when SocketError
+          handle_socket_error(error, context)
         else
-          logger.error("Operation failed after #{max_retries} retries: #{e.message}")
-          raise e
+          handle_generic_network_error(error, context)
         end
       end
-    end
 
-    def fallback_to_mock_data(operation, fallback_data)
-      operation.call
-    rescue => e
-      logger.warn("Operation failed, using fallback data: #{e.message}")
-      fallback_data
-    end
-
-    def skip_step_with_warning(step_name, error)
-      logger.warn("Skipping step '#{step_name}' due to error: #{error.message}")
-      {
-        status: "skipped",
-        reason: error.message,
-        timestamp: Time.current
-      }
-    end
-
-    def continue_with_partial_data(operation, partial_data_handler)
-      operation.call
-    rescue => e
-      logger.warn("Operation failed, continuing with partial data: #{e.message}")
-      partial_data_handler.call(e)
-    end
-
-    # Error reporting and statistics
-    def get_error_summary
-      {
-        total_errors: @error_counts.values.sum,
-        error_breakdown: @error_counts,
-        recent_errors: @error_history.last(10),
-        recovery_success_rate: calculate_recovery_success_rate
-      }
-    end
-
-    def get_error_recommendations
-      recommendations = []
-
-      if @error_counts[Net::TimeoutError] > 5
-        recommendations << "Consider increasing timeout values for network operations"
+      def handle_file_system_error(error, context: {})
+        case error
+        when Errno::ENOENT
+          handle_file_not_found(error, context)
+        when Errno::EACCES
+          handle_permission_denied(error, context)
+        when Errno::ENOSPC
+          handle_disk_full(error, context)
+        else
+          handle_generic_file_error(error, context)
+        end
       end
 
-      if @error_counts[Errno::ENOSPC] > 0
-        recommendations << "Check available disk space and implement cleanup procedures"
+      def handle_database_error(error, context: {})
+        case error
+        when SQLite3::BusyException
+          handle_database_busy(error, context)
+        when SQLite3::CorruptException
+          handle_database_corrupt(error, context)
+        when SQLite3::ReadOnlyException
+          handle_database_readonly(error, context)
+        else
+          handle_generic_database_error(error, context)
+        end
       end
 
-      if @error_counts[SQLite3::BusyException] > 3
-        recommendations << "Consider implementing database connection pooling"
+      def handle_analysis_error(error, context: {})
+        case error
+        when AnalysisTimeoutError
+          handle_analysis_timeout(error, context)
+        when AnalysisDataError
+          handle_analysis_data_error(error, context)
+        when AnalysisToolError
+          handle_analysis_tool_error(error, context)
+        else
+          handle_generic_analysis_error(error, context)
+        end
       end
 
-      if @error_counts[AnalysisTimeoutError] > 2
-        recommendations << "Consider chunking large analysis tasks or increasing timeouts"
+      # Recovery strategies
+      def retry_with_backoff(operation, max_retries: 3, base_delay: 1)
+        retry_count = 0
+        begin
+          operation.call
+        rescue => e
+          retry_count += 1
+          if retry_count <= max_retries
+            delay = base_delay * (2**(retry_count - 1))
+            logger.warn("Retrying operation in #{delay} seconds (attempt #{retry_count}/#{max_retries})")
+            sleep(delay)
+            retry
+          else
+            logger.error("Operation failed after #{max_retries} retries: #{e.message}")
+            raise e
+          end
+        end
       end
 
-      recommendations
-    end
-
-    # Cleanup and resource management
-    def cleanup
-      logger.info("Cleaning up error handler resources")
-      @error_history.clear
-      @error_counts.clear
-    end
-
-    private
-
-    def setup_logger(log_file, verbose)
-      logger = Logger.new(log_file || $stdout)
-      logger.level = verbose ? Logger::DEBUG : Logger::INFO
-      logger.formatter = proc do |severity, datetime, progname, msg|
-        "#{datetime.strftime("%Y-%m-%d %H:%M:%S")} [#{severity}] #{msg}\n"
-      end
-      logger
-    end
-
-    def setup_recovery_strategies
-      {
-        Net::TimeoutError => :retry_with_backoff,
-        Net::HTTPError => :retry_with_backoff,
-        SocketError => :retry_with_backoff,
-        Errno::ENOENT => :skip_step_with_warning,
-        Errno::EACCES => :skip_step_with_warning,
-        Errno::ENOSPC => :critical_error,
-        SQLite3::BusyException => :retry_with_backoff,
-        SQLite3::CorruptException => :critical_error,
-        AnalysisTimeoutError => :chunk_and_retry,
-        AnalysisDataError => :continue_with_partial_data,
-        AnalysisToolError => :fallback_to_mock_data
-      }
-    end
-
-    def log_error(error_info)
-      error = error_info[:error]
-      context = error_info[:context]
-      step = error_info[:step]
-
-      logger.error("Error in step '#{step}': #{error.class} - #{error.message}")
-      logger.error("Context: #{context}") unless context.empty?
-      logger.error("Backtrace: #{error.backtrace.first(5).join("\n")}") if error.backtrace
-    end
-
-    def increment_error_count(error_class)
-      @error_counts[error_class] += 1
-    end
-
-    def add_to_history(error_info)
-      @error_history << error_info
-      @error_history.shift if @error_history.length > 100
-    end
-
-    def determine_recovery_strategy(error, context)
-      strategy = @recovery_strategies[error.class] || :log_and_continue
-
-      # Override strategy based on context
-      strategy = :critical_error if context[:critical] && strategy == :skip_step_with_warning
-
-      strategy = :retry_with_backoff if context[:retryable] && strategy == :log_and_continue
-
-      strategy
-    end
-
-    def apply_recovery_strategy(strategy, error_info)
-      case strategy
-      when :retry_with_backoff
-        retry_operation(error_info)
-      when :skip_step_with_warning
-        skip_step(error_info)
-      when :critical_error
-        raise_critical_error(error_info)
-      when :chunk_and_retry
-        chunk_and_retry(error_info)
-      when :continue_with_partial_data
-        continue_with_partial(error_info)
-      when :fallback_to_mock_data
-        fallback_to_mock(error_info)
-      when :log_and_continue
-        log_and_continue(error_info)
-      else
-        log_and_continue(error_info)
-      end
-    end
-
-    # Specific error handlers
-    def handle_timeout_error(error, context)
-      logger.warn("Network timeout: #{error.message}")
-      if context[:retryable]
-        retry_with_backoff(-> { context[:operation].call }, max_retries: 2)
-      else
-        skip_step_with_warning(context[:step], error)
-      end
-    end
-
-    def handle_http_error(error, context)
-      logger.warn("HTTP error: #{error.message}")
-      case error.response&.code
-      when "429" # Rate limited
-        sleep(60) # Wait 1 minute
-        retry_with_backoff(-> { context[:operation].call }, max_retries: 2)
-      when "500".."599" # Server errors
-        retry_with_backoff(-> { context[:operation].call }, max_retries: 3)
-      else
-        skip_step_with_warning(context[:step], error)
-      end
-    end
-
-    def handle_socket_error(error, context)
-      logger.warn("Socket error: #{error.message}")
-      if context[:network_required]
-        raise_critical_error({error: error, context: context})
-      else
-        fallback_to_mock_data(-> { context[:operation].call }, context[:fallback_data])
-      end
-    end
-
-    def handle_file_not_found(error, context)
-      logger.warn("File not found: #{error.message}")
-      if context[:required]
-        raise_critical_error({error: error, context: context})
-      else
-        skip_step_with_warning(context[:step], error)
-      end
-    end
-
-    def handle_permission_denied(error, context)
-      logger.error("Permission denied: #{error.message}")
-      raise_critical_error({error: error, context: context})
-    end
-
-    def handle_disk_full(error, context)
-      logger.error("Disk full: #{error.message}")
-      raise_critical_error({error: error, context: context})
-    end
-
-    def handle_database_busy(error, context)
-      logger.warn("Database busy: #{error.message}")
-      retry_with_backoff(-> { context[:operation].call }, max_retries: 5, base_delay: 0.5)
-    end
-
-    def handle_database_corrupt(error, context)
-      logger.error("Database corrupt: #{error.message}")
-      raise_critical_error({error: error, context: context})
-    end
-
-    def handle_database_readonly(error, context)
-      logger.error("Database read-only: #{error.message}")
-      raise_critical_error({error: error, context: context})
-    end
-
-    def handle_analysis_timeout(error, context)
-      logger.warn("Analysis timeout: #{error.message}")
-      if context[:chunkable]
-        chunk_and_retry({error: error, context: context})
-      else
-        skip_step_with_warning(context[:step], error)
-      end
-    end
-
-    def handle_analysis_data_error(error, context)
-      logger.warn("Analysis data error: #{error.message}")
-      continue_with_partial_data(
-        -> { context[:operation].call },
-        ->(e) { context[:partial_data_handler]&.call(e) || {} }
-      )
-    end
-
-    def handle_analysis_tool_error(error, context)
-      logger.warn("Analysis tool error: #{error.message}")
-      fallback_to_mock_data(
-        -> { context[:operation].call },
-        context[:mock_data] || generate_mock_data(context)
-      )
-    end
-
-    # Recovery strategy implementations
-    def retry_operation(error_info)
-      operation = error_info[:context][:operation]
-      max_retries = error_info[:context][:max_retries] || 3
-      base_delay = error_info[:context][:base_delay] || 1
-
-      retry_with_backoff(operation, max_retries: max_retries, base_delay: base_delay)
-    end
-
-    def skip_step(error_info)
-      step = error_info[:step]
-      error = error_info[:error]
-      skip_step_with_warning(step, error)
-    end
-
-    def raise_critical_error(error_info)
-      error = error_info[:error]
-      context = error_info[:context]
-
-      logger.error("Critical error: #{error.message}")
-      logger.error("Context: #{context}")
-
-      raise CriticalAnalysisError.new(error.message, error_info)
-    end
-
-    def chunk_and_retry(error_info)
-      context = error_info[:context]
-      chunker = context[:chunker]
-      operation = context[:operation]
-
-      logger.info("Chunking analysis and retrying")
-
-      chunks = chunker.chunk_repository("size_based")
-      results = []
-
-      chunks[:chunks].each do |chunk|
-        result = operation.call(chunk)
-        results << result
+      def fallback_to_mock_data(operation, fallback_data)
+        operation.call
       rescue => e
-        logger.warn("Chunk failed: #{e.message}")
-        results << {status: "failed", error: e.message}
+        logger.warn("Operation failed, using fallback data: #{e.message}")
+        fallback_data
       end
 
-      results
-    end
+      def skip_step_with_warning(step_name, error)
+        logger.warn("Skipping step '#{step_name}' due to error: #{error.message}")
+        {
+          status: "skipped",
+          reason: error.message,
+          timestamp: Time.current
+        }
+      end
 
-    def continue_with_partial(error_info)
-      context = error_info[:context]
-      operation = context[:operation]
-      partial_handler = context[:partial_data_handler]
+      def continue_with_partial_data(operation, partial_data_handler)
+        operation.call
+      rescue => e
+        logger.warn("Operation failed, continuing with partial data: #{e.message}")
+        partial_data_handler.call(e)
+      end
 
-      continue_with_partial_data(operation, partial_handler)
-    end
+      # Error reporting and statistics
+      def get_error_summary
+        {
+          total_errors: @error_counts.values.sum,
+          error_breakdown: @error_counts,
+          recent_errors: @error_history.last(10),
+          recovery_success_rate: calculate_recovery_success_rate
+        }
+      end
 
-    def fallback_to_mock(error_info)
-      context = error_info[:context]
-      operation = context[:operation]
-      mock_data = context[:mock_data] || generate_mock_data(context)
+      def get_error_recommendations
+        recommendations = []
 
-      fallback_to_mock_data(operation, mock_data)
-    end
+        if @error_counts[Net::TimeoutError] > 5
+          recommendations << "Consider increasing timeout values for network operations"
+        end
 
-    def log_and_continue(error_info)
-      error = error_info[:error]
-      logger.warn("Continuing after error: #{error.message}")
-      {status: "continued_with_error", error: error.message}
-    end
+        if @error_counts[Errno::ENOSPC] > 0
+          recommendations << "Check available disk space and implement cleanup procedures"
+        end
 
-    def generate_mock_data(context)
-      case context[:analysis_type]
-      when "repository"
-        generate_mock_repository_data
-      when "architecture"
-        generate_mock_architecture_data
-      when "test_coverage"
-        generate_mock_test_data
-      else
-        {status: "mock_data", message: "Mock data generated due to error"}
+        if @error_counts[SQLite3::BusyException] > 3
+          recommendations << "Consider implementing database connection pooling"
+        end
+
+        if @error_counts[AnalysisTimeoutError] > 2
+          recommendations << "Consider chunking large analysis tasks or increasing timeouts"
+        end
+
+        recommendations
+      end
+
+      # Cleanup and resource management
+      def cleanup
+        logger.info("Cleaning up error handler resources")
+        @error_history.clear
+        @error_counts.clear
+      end
+
+      private
+
+      def setup_logger(log_file, verbose)
+        logger = Logger.new(log_file || $stdout)
+        logger.level = verbose ? Logger::DEBUG : Logger::INFO
+        logger.formatter = proc do |severity, datetime, progname, msg|
+          "#{datetime.strftime("%Y-%m-%d %H:%M:%S")} [#{severity}] #{msg}\n"
+        end
+        logger
+      end
+
+      def setup_recovery_strategies
+        {
+          Net::TimeoutError => :retry_with_backoff,
+          Net::HTTPError => :retry_with_backoff,
+          SocketError => :retry_with_backoff,
+          Errno::ENOENT => :skip_step_with_warning,
+          Errno::EACCES => :skip_step_with_warning,
+          Errno::ENOSPC => :critical_error,
+          SQLite3::BusyException => :retry_with_backoff,
+          SQLite3::CorruptException => :critical_error,
+          AnalysisTimeoutError => :chunk_and_retry,
+          AnalysisDataError => :continue_with_partial_data,
+          AnalysisToolError => :fallback_to_mock_data
+        }
+      end
+
+      def log_error(error_info)
+        error = error_info[:error]
+        context = error_info[:context]
+        step = error_info[:step]
+
+        logger.error("Error in step '#{step}': #{error.class} - #{error.message}")
+        logger.error("Context: #{context}") unless context.empty?
+        logger.error("Backtrace: #{error.backtrace.first(5).join("\n")}") if error.backtrace
+      end
+
+      def increment_error_count(error_class)
+        @error_counts[error_class] += 1
+      end
+
+      def add_to_history(error_info)
+        @error_history << error_info
+        @error_history.shift if @error_history.length > 100
+      end
+
+      def determine_recovery_strategy(error, context)
+        strategy = @recovery_strategies[error.class] || :log_and_continue
+
+        # Override strategy based on context
+        strategy = :critical_error if context[:critical] && strategy == :skip_step_with_warning
+
+        strategy = :retry_with_backoff if context[:retryable] && strategy == :log_and_continue
+
+        strategy
+      end
+
+      def apply_recovery_strategy(strategy, error_info)
+        case strategy
+        when :retry_with_backoff
+          retry_operation(error_info)
+        when :skip_step_with_warning
+          skip_step(error_info)
+        when :critical_error
+          raise_critical_error(error_info)
+        when :chunk_and_retry
+          chunk_and_retry(error_info)
+        when :continue_with_partial_data
+          continue_with_partial(error_info)
+        when :fallback_to_mock_data
+          fallback_to_mock(error_info)
+        when :log_and_continue
+          log_and_continue(error_info)
+        else
+          log_and_continue(error_info)
+        end
+      end
+
+      # Specific error handlers
+      def handle_timeout_error(error, context)
+        logger.warn("Network timeout: #{error.message}")
+        if context[:retryable]
+          retry_with_backoff(-> { context[:operation].call }, max_retries: 2)
+        else
+          skip_step_with_warning(context[:step], error)
+        end
+      end
+
+      def handle_http_error(error, context)
+        logger.warn("HTTP error: #{error.message}")
+        case error.response&.code
+        when "429" # Rate limited
+          sleep(60) # Wait 1 minute
+          retry_with_backoff(-> { context[:operation].call }, max_retries: 2)
+        when "500".."599" # Server errors
+          retry_with_backoff(-> { context[:operation].call }, max_retries: 3)
+        else
+          skip_step_with_warning(context[:step], error)
+        end
+      end
+
+      def handle_socket_error(error, context)
+        logger.warn("Socket error: #{error.message}")
+        if context[:network_required]
+          raise_critical_error({error: error, context: context})
+        else
+          fallback_to_mock_data(-> { context[:operation].call }, context[:fallback_data])
+        end
+      end
+
+      def handle_file_not_found(error, context)
+        logger.warn("File not found: #{error.message}")
+        if context[:required]
+          raise_critical_error({error: error, context: context})
+        else
+          skip_step_with_warning(context[:step], error)
+        end
+      end
+
+      def handle_permission_denied(error, context)
+        logger.error("Permission denied: #{error.message}")
+        raise_critical_error({error: error, context: context})
+      end
+
+      def handle_disk_full(error, context)
+        logger.error("Disk full: #{error.message}")
+        raise_critical_error({error: error, context: context})
+      end
+
+      def handle_database_busy(error, context)
+        logger.warn("Database busy: #{error.message}")
+        retry_with_backoff(-> { context[:operation].call }, max_retries: 5, base_delay: 0.5)
+      end
+
+      def handle_database_corrupt(error, context)
+        logger.error("Database corrupt: #{error.message}")
+        raise_critical_error({error: error, context: context})
+      end
+
+      def handle_database_readonly(error, context)
+        logger.error("Database read-only: #{error.message}")
+        raise_critical_error({error: error, context: context})
+      end
+
+      def handle_analysis_timeout(error, context)
+        logger.warn("Analysis timeout: #{error.message}")
+        if context[:chunkable]
+          chunk_and_retry({error: error, context: context})
+        else
+          skip_step_with_warning(context[:step], error)
+        end
+      end
+
+      def handle_analysis_data_error(error, context)
+        logger.warn("Analysis data error: #{error.message}")
+        continue_with_partial_data(
+          -> { context[:operation].call },
+          ->(e) { context[:partial_data_handler]&.call(e) || {} }
+        )
+      end
+
+      def handle_analysis_tool_error(error, context)
+        logger.warn("Analysis tool error: #{error.message}")
+        fallback_to_mock_data(
+          -> { context[:operation].call },
+          context[:mock_data] || generate_mock_data(context)
+        )
+      end
+
+      # Recovery strategy implementations
+      def retry_operation(error_info)
+        operation = error_info[:context][:operation]
+        max_retries = error_info[:context][:max_retries] || 3
+        base_delay = error_info[:context][:base_delay] || 1
+
+        retry_with_backoff(operation, max_retries: max_retries, base_delay: base_delay)
+      end
+
+      def skip_step(error_info)
+        step = error_info[:step]
+        error = error_info[:error]
+        skip_step_with_warning(step, error)
+      end
+
+      def raise_critical_error(error_info)
+        error = error_info[:error]
+        context = error_info[:context]
+
+        logger.error("Critical error: #{error.message}")
+        logger.error("Context: #{context}")
+
+        raise CriticalAnalysisError.new(error.message, error_info)
+      end
+
+      def chunk_and_retry(error_info)
+        context = error_info[:context]
+        chunker = context[:chunker]
+        operation = context[:operation]
+
+        logger.info("Chunking analysis and retrying")
+
+        chunks = chunker.chunk_repository("size_based")
+        results = []
+
+        chunks[:chunks].each do |chunk|
+          result = operation.call(chunk)
+          results << result
+        rescue => e
+          logger.warn("Chunk failed: #{e.message}")
+          results << {status: "failed", error: e.message}
+        end
+
+        results
+      end
+
+      def continue_with_partial(error_info)
+        context = error_info[:context]
+        operation = context[:operation]
+        partial_handler = context[:partial_data_handler]
+
+        continue_with_partial_data(operation, partial_handler)
+      end
+
+      def fallback_to_mock(error_info)
+        context = error_info[:context]
+        operation = context[:operation]
+        mock_data = context[:mock_data] || generate_mock_data(context)
+
+        fallback_to_mock_data(operation, mock_data)
+      end
+
+      def log_and_continue(error_info)
+        error = error_info[:error]
+        logger.warn("Continuing after error: #{error.message}")
+        {status: "continued_with_error", error: error.message}
+      end
+
+      def generate_mock_data(context)
+        case context[:analysis_type]
+        when "repository"
+          generate_mock_repository_data
+        when "architecture"
+          generate_mock_architecture_data
+        when "test_coverage"
+          generate_mock_test_data
+        else
+          {status: "mock_data", message: "Mock data generated due to error"}
+        end
+      end
+
+      def generate_mock_repository_data
+        {
+          analysis_type: "repository",
+          status: "completed",
+          data: [
+            {entity: "mock_file.rb", nrev: 5, nloc: 100, churn: 20}
+          ],
+          statistics: {
+            total_files: 1,
+            total_commits: 5,
+            total_lines: 100
+          }
+        }
+      end
+
+      def generate_mock_architecture_data
+        {
+          analysis_type: "architecture",
+          status: "completed",
+          data: {
+            pattern: "monolithic",
+            components: ["mock_component"],
+            dependencies: []
+          }
+        }
+      end
+
+      def generate_mock_test_data
+        {
+          analysis_type: "test_coverage",
+          status: "completed",
+          data: {
+            coverage: 75.0,
+            tests: 10,
+            files: 5
+          }
+        }
+      end
+
+      def calculate_recovery_success_rate
+        return 0.0 if @error_history.empty?
+
+        successful_recoveries = @error_history.count do |error_info|
+          error_info[:recovery_successful]
+        end
+
+        (successful_recoveries.to_f / @error_history.length * 100).round(2)
       end
     end
 
-    def generate_mock_repository_data
-      {
-        analysis_type: "repository",
-        status: "completed",
-        data: [
-          {entity: "mock_file.rb", nrev: 5, nloc: 100, churn: 20}
-        ],
-        statistics: {
-          total_files: 1,
-          total_commits: 5,
-          total_lines: 100
-        }
-      }
-    end
+    # Custom error classes
+    class CriticalAnalysisError < StandardError
+      attr_reader :error_info
 
-    def generate_mock_architecture_data
-      {
-        analysis_type: "architecture",
-        status: "completed",
-        data: {
-          pattern: "monolithic",
-          components: ["mock_component"],
-          dependencies: []
-        }
-      }
-    end
-
-    def generate_mock_test_data
-      {
-        analysis_type: "test_coverage",
-        status: "completed",
-        data: {
-          coverage: 75.0,
-          tests: 10,
-          files: 5
-        }
-      }
-    end
-
-    def calculate_recovery_success_rate
-      return 0.0 if @error_history.empty?
-
-      successful_recoveries = @error_history.count do |error_info|
-        error_info[:recovery_successful]
+      def initialize(message, error_info = {})
+        super(message)
+        @error_info = error_info
       end
-
-      (successful_recoveries.to_f / @error_history.length * 100).round(2)
     end
+
+    class AnalysisTimeoutError < StandardError; end
+
+    class AnalysisDataError < StandardError; end
+
+    class AnalysisToolError < StandardError; end
   end
-
-  # Custom error classes
-  class CriticalAnalysisError < StandardError
-    attr_reader :error_info
-
-    def initialize(message, error_info = {})
-      super(message)
-      @error_info = error_info
-    end
-  end
-
-  class AnalysisTimeoutError < StandardError; end
-
-  class AnalysisDataError < StandardError; end
-
-  class AnalysisToolError < StandardError; end
 end

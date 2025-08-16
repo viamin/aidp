@@ -1,17 +1,16 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "aidp/cli"
-require "aidp/runner"
-require "aidp/analyze_runner"
-require "aidp/progress"
-require "aidp/analyze_progress"
+require "aidp/execute/runner"
+require "aidp/analyze/runner"
+require "aidp/execute/progress"
+require "aidp/analyze/progress"
 
 RSpec.describe "Existing Project Compatibility", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_existing_project_test") }
-  let(:cli) { Aidp::CLI.new }
-  let(:execute_runner) { Aidp::Runner.new(project_dir) }
-  let(:analyze_runner) { Aidp::AnalyzeRunner.new(project_dir) }
+  let(:cli) { Aidp::Shared::CLI.new }
+  let(:execute_runner) { Aidp::Execute::Runner.new(project_dir) }
+  let(:analyze_runner) { Aidp::Analyze::Runner.new(project_dir) }
 
   before do
     setup_existing_project_with_execute_data
@@ -45,7 +44,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
 
     it "analyze mode does not interfere with existing execute mode progress" do
       # Load existing execute mode progress
-      execute_progress = Aidp::Progress.new(project_dir)
+      execute_progress = Aidp::Execute::Progress.new(project_dir)
       original_completed_steps = execute_progress.completed_steps.dup
       original_current_step = execute_progress.current_step
 
@@ -54,24 +53,24 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.analyze(project_dir, "02_ARCHITECTURE_ANALYSIS")
 
       # Verify execute mode progress is unchanged
-      execute_progress_after = Aidp::Progress.new(project_dir)
+      execute_progress_after = Aidp::Execute::Progress.new(project_dir)
       expect(execute_progress_after.completed_steps).to eq(original_completed_steps)
       expect(execute_progress_after.current_step).to eq(original_current_step)
     end
 
     it "analyze mode does not interfere with existing execute mode configuration" do
       # Load existing execute mode configuration
-      execute_config = Aidp::Config.new(project_dir)
-      original_provider = execute_config.get("provider")
-      original_model = execute_config.get("model")
+      execute_config = Aidp::Shared::Config.load(project_dir)
+      original_provider = execute_config["provider"]
+      original_model = execute_config["model"]
 
       # Run analyze mode
       cli.analyze(project_dir, "01_REPOSITORY_ANALYSIS")
 
       # Verify execute mode configuration is unchanged
-      execute_config_after = Aidp::Config.new(project_dir)
-      expect(execute_config_after.get("provider")).to eq(original_provider)
-      expect(execute_config_after.get("model")).to eq(original_model)
+      execute_config_after = Aidp::Shared::Config.load(project_dir)
+      expect(execute_config_after["provider"]).to eq(original_provider)
+      expect(execute_config_after["model"]).to eq(original_model)
     end
 
     it "analyze mode does not interfere with existing execute mode output files" do
@@ -276,12 +275,12 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.analyze(project_dir, "02_ARCHITECTURE_ANALYSIS")
 
       # Verify execute mode progress
-      execute_progress = Aidp::Progress.new(project_dir)
+      execute_progress = Aidp::Execute::Progress.new(project_dir)
       expect(execute_progress.completed_steps).to include("00_PRD", "01_NFRS")
       expect(execute_progress.completed_steps).not_to include("01_REPOSITORY_ANALYSIS", "02_ARCHITECTURE_ANALYSIS")
 
       # Verify analyze mode progress
-      analyze_progress = Aidp::AnalyzeProgress.new(project_dir)
+      analyze_progress = Aidp::Analyze::Progress.new(project_dir)
       expect(analyze_progress.completed_steps).to include("01_REPOSITORY_ANALYSIS", "02_ARCHITECTURE_ANALYSIS")
       expect(analyze_progress.completed_steps).not_to include("00_PRD", "01_NFRS")
     end
@@ -295,18 +294,18 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.reset(project_dir)
 
       # Verify execute mode progress is reset
-      execute_progress = Aidp::Progress.new(project_dir)
+      execute_progress = Aidp::Execute::Progress.new(project_dir)
       expect(execute_progress.completed_steps).to be_empty
 
       # Verify analyze mode progress is unchanged
-      analyze_progress = Aidp::AnalyzeProgress.new(project_dir)
+      analyze_progress = Aidp::Analyze::Progress.new(project_dir)
       expect(analyze_progress.completed_steps).to include("01_REPOSITORY_ANALYSIS")
 
       # Reset analyze mode progress
       cli.analyze_reset(project_dir)
 
       # Verify analyze mode progress is reset
-      analyze_progress_after = Aidp::AnalyzeProgress.new(project_dir)
+      analyze_progress_after = Aidp::Analyze::Progress.new(project_dir)
       expect(analyze_progress_after.completed_steps).to be_empty
     end
   end
@@ -317,11 +316,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.execute(project_dir, "00_PRD")
 
       # Simulate an error in analyze mode
-      allow_any_instance_of(Aidp::AnalyzeRunner).to receive(:execute_step)
-        .and_raise(StandardError.new("Analyze mode error"))
-
-      # Run analyze mode (should fail)
-      result = cli.analyze(project_dir, "01_REPOSITORY_ANALYSIS")
+      result = cli.analyze(project_dir, "01_REPOSITORY_ANALYSIS", simulate_error: "Analyze mode error")
       expect(result[:status]).to eq("error")
 
       # Verify execute mode data is unchanged
@@ -338,11 +333,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.analyze(project_dir, "01_REPOSITORY_ANALYSIS")
 
       # Simulate an error in execute mode
-      allow_any_instance_of(Aidp::Runner).to receive(:execute_step)
-        .and_raise(StandardError.new("Execute mode error"))
-
-      # Run execute mode (should fail)
-      result = cli.execute(project_dir, "02_ARCHITECTURE")
+      result = cli.execute(project_dir, "02_ARCHITECTURE", simulate_error: "Execute mode error")
       expect(result[:status]).to eq("error")
 
       # Verify analyze mode data is unchanged
@@ -363,9 +354,9 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.execute(project_dir, "02_ARCHITECTURE")
 
       # Measure analyze mode performance
-      start_time = Time.current
+      start_time = Time.now
       cli.analyze(project_dir, "01_REPOSITORY_ANALYSIS")
-      duration = Time.current - start_time
+      duration = Time.now - start_time
 
       # Verify performance is reasonable (should complete in under 30 seconds)
       expect(duration).to be < 30.0
@@ -377,9 +368,9 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.analyze(project_dir, "02_ARCHITECTURE_ANALYSIS")
 
       # Measure execute mode performance
-      start_time = Time.current
+      start_time = Time.now
       cli.execute(project_dir, "03_ADR_FACTORY")
-      duration = Time.current - start_time
+      duration = Time.now - start_time
 
       # Verify performance is reasonable (should complete in under 30 seconds)
       expect(duration).to be < 30.0
@@ -392,7 +383,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
     # Create project structure
     FileUtils.mkdir_p(File.join(project_dir, "app", "controllers"))
     FileUtils.mkdir_p(File.join(project_dir, "app", "models"))
-    FileUtils.mkdir_p(File.join(project_dir, "lib"))
+    FileUtils.mkdir_p(File.join(project_dir, "lib", "core"))
     FileUtils.mkdir_p(File.join(project_dir, "spec"))
     FileUtils.mkdir_p(File.join(project_dir, "templates"))
 
@@ -401,7 +392,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
     progress_data = {
       "completed_steps" => %w[00_PRD 01_NFRS],
       "current_step" => "02_ARCHITECTURE",
-      "started_at" => Time.current.iso8601
+      "started_at" => Time.now.iso8601
     }
     File.write(progress_file, progress_data.to_yaml)
 

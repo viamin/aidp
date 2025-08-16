@@ -6,7 +6,7 @@ RSpec.describe Aidp::Analyze::RepositoryChunker do
   describe "repository chunking" do
     it "chunks large repositories" do
       # Test placeholder for repository chunker functionality
-      expect(Aidp::Analyze::RepositoryChunker).to be_defined
+      expect(Aidp::Analyze::RepositoryChunker).to be_a(Class)
     end
   end
 end

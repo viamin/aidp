@@ -35,12 +35,13 @@ module Aidp
         @progress["completed_steps"] ||= []
         @progress["completed_steps"] << step_name unless step_completed?(step_name)
         @progress["current_step"] = nil
+        @progress["started_at"] ||= Time.now.iso8601
         save_progress
       end
 
       def mark_step_in_progress(step_name)
         @progress["current_step"] = step_name
-        @progress["started_at"] ||= Time.current.iso8601
+        @progress["started_at"] ||= Time.now.iso8601
         save_progress
       end
 

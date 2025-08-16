@@ -21,6 +21,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "colorize", "~> 1.1"
   s.add_runtime_dependency "concurrent-ruby", "~> 1.2"
   s.add_runtime_dependency "csv", "~> 3.2"
+  s.add_runtime_dependency "logger", "~> 1.5"
   s.add_runtime_dependency "sqlite3", "~> 1.6"
   s.add_runtime_dependency "thor", "~> 1.3"
   s.add_runtime_dependency "tty-progressbar", "~> 0.18"
