@@ -5,7 +5,7 @@ require "net/http"
 
 RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_integration_test") }
-  let(:cli) { Aidp::Shared::CLI.new }
+  let(:cli) { Aidp::CLI.new }
   let(:progress_file) { File.join(project_dir, ".aidp-analyze-progress.yml") }
   let(:database_file) { File.join(project_dir, ".aidp-analysis.db") }
 
@@ -166,7 +166,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
       run_analyze_command("analyze", "02_ARCHITECTURE_ANALYSIS")
 
       # Simulate restart
-      new_cli = Aidp::Shared::CLI.new
+      new_cli = Aidp::CLI.new
       result = new_cli.analyze(project_dir, nil)
 
       expect(result[:next_step]).to eq("03_TEST_ANALYSIS")

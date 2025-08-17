@@ -13,7 +13,7 @@ module Aidp
     # Default configuration
     DEFAULT_CONFIG = {
       checkpoint_interval: 100, # Save progress every 100 items
-      max_checkpoints: 50,      # Keep last 50 checkpoints
+      max_checkpoints: 50, # Keep last 50 checkpoints
       progress_file: ".aidp-large-analysis-progress.yml",
       auto_save: true,
       detailed_logging: false
@@ -280,7 +280,7 @@ module Aidp
       when "json"
         JSON.parse(data)
       when "yaml"
-        YAML.load(data)
+        YAML.safe_load(data)
       else
         raise "Unsupported import format: #{format}"
       end

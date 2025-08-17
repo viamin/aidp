@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe "Configuration Isolation", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_config_test") }
-  let(:cli) { Aidp::Shared::CLI.new }
+  let(:cli) { Aidp::CLI.new }
   let(:execute_progress) { Aidp::Execute::Progress.new(project_dir) }
   let(:analyze_config) { Aidp::Analyze::Runner.new(project_dir) }
 
@@ -400,7 +400,7 @@ RSpec.describe "Configuration Isolation", type: :integration do
       File.write(analyze_config_file, analyze_config_data.to_yaml)
 
       # Execute mode should only load its own config
-      execute_config = Aidp::Shared::Config.load(project_dir)
+      execute_config = Aidp::Config.load(project_dir)
       expect(execute_config["provider"]).to eq("anthropic")
       expect(execute_config["model"]).to eq("claude-3-sonnet")
       expect(execute_config["analysis_settings"]).to be_nil
@@ -437,7 +437,7 @@ RSpec.describe "Configuration Isolation", type: :integration do
 
       File.write(execute_config_file, valid_config.to_yaml)
 
-      execute_config = Aidp::Shared::Config.load(project_dir)
+      execute_config = Aidp::Config.load(project_dir)
       expect(execute_config["provider"]).to eq("anthropic")
       expect(execute_config["model"]).to eq("claude-3-sonnet")
     end

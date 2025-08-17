@@ -281,9 +281,9 @@ module Aidp
 
         # Adjust for authorship patterns
         if authorship_file[:author_count] == 1
-          base_score *= 1.5  # Knowledge silo penalty
+          base_score *= 1.5 # Knowledge silo penalty
         elsif authorship_file[:author_count] > 3
-          base_score *= 1.2  # Coordination complexity penalty
+          base_score *= 1.2 # Coordination complexity penalty
         end
 
         base_score

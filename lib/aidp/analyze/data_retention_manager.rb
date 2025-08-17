@@ -19,8 +19,8 @@ module Aidp
       # Default retention periods (in days)
       DEFAULT_RETENTION_PERIODS = {
         "analysis_results" => 90, # 3 months
-        "execution_logs" => 30,   # 1 month
-        "temporary_data" => 1     # 1 day
+        "execution_logs" => 30, # 1 month
+        "temporary_data" => 1 # 1 day
       }.freeze
 
       def initialize(project_dir = Dir.pwd, config = {})
