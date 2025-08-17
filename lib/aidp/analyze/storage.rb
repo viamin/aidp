@@ -288,7 +288,7 @@ module Aidp
       when "json"
         JSON.parse(data)
       when "yaml"
-        YAML.load(data)
+        YAML.safe_load(data)
       else
         raise "Unsupported import format: #{format}"
       end

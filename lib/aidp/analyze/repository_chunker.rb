@@ -13,15 +13,15 @@ module Aidp
       DEFAULT_CHUNK_CONFIG = {
         "time_based" => {
           "chunk_size" => "30d", # 30 days
-          "overlap" => "7d"      # 7 days overlap
+          "overlap" => "7d" # 7 days overlap
         },
         "commit_count" => {
-          "chunk_size" => 1000,  # 1000 commits per chunk
-          "overlap" => 100       # 100 commits overlap
+          "chunk_size" => 1000, # 1000 commits per chunk
+          "overlap" => 100 # 100 commits overlap
         },
         "size_based" => {
           "chunk_size" => "100MB", # 100MB per chunk
-          "overlap" => "10MB"      # 10MB overlap
+          "overlap" => "10MB" # 10MB overlap
         },
         "feature_based" => {
           "max_files_per_chunk" => 500,

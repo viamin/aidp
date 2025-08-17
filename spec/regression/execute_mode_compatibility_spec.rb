@@ -7,7 +7,7 @@ require "aidp/execute/steps"
 
 RSpec.describe "Execute Mode Regression Tests", type: :regression do
   let(:project_dir) { Dir.mktmpdir("aidp_regression_test") }
-  let(:cli) { Aidp::Shared::CLI.new }
+  let(:cli) { Aidp::CLI.new }
   let(:runner) { Aidp::Execute::Runner.new(project_dir) }
   let(:progress) { Aidp::Execute::Progress.new(project_dir) }
 
@@ -205,7 +205,7 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
   describe "Configuration Compatibility" do
     it "execute mode configuration loading is unchanged" do
       # Test that configuration loading works exactly as before
-      config = Aidp::Shared::Config.load(project_dir)
+      config = Aidp::Config.load(project_dir)
       expect(config).to be_a(Hash)
 
       # Test configuration loading
@@ -233,7 +233,7 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
   describe "Provider Integration Compatibility" do
     it "execute mode provider integration is unchanged" do
       # Test that provider integration works exactly as before
-      providers = Aidp::Shared::Providers
+      providers = Aidp::Providers
       expect(providers).to be_a(Module)
 
       # Test that all expected providers exist
@@ -242,8 +242,8 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
 
     it "execute mode provider initialization is unchanged" do
       # Test that provider initialization works exactly as before
-      provider = Aidp::Shared::Providers::Anthropic.new
-      expect(provider).to be_a(Aidp::Shared::Providers::Anthropic)
+      provider = Aidp::Providers::Anthropic.new
+      expect(provider).to be_a(Aidp::Providers::Anthropic)
     end
   end
 
@@ -345,7 +345,7 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
       File.write(existing_config_file, existing_config.to_yaml)
 
       # Test that existing configuration is loaded correctly
-      config = Aidp::Shared::Config.load(project_dir)
+      config = Aidp::Config.load(project_dir)
       expect(config["provider"]).to eq("anthropic")
       expect(config["model"]).to eq("claude-3-sonnet")
       expect(config["timeout"]).to eq(300)

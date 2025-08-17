@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
 # Shared modules
-require "aidp/shared/version"
-require "aidp/shared/config"
-require "aidp/shared/workspace"
-require "aidp/shared/util"
-require "aidp/shared/cli"
-require "aidp/shared/project_detector"
-require "aidp/shared/sync"
-require "aidp/shared/providers/base"
-require "aidp/shared/providers/cursor"
-require "aidp/shared/providers/anthropic"
-require "aidp/shared/providers/gemini"
-require "aidp/shared/providers/macos_ui"
+require "aidp/version"
+require "aidp/config"
+require "aidp/workspace"
+require "aidp/util"
+require "aidp/cli"
+require "aidp/project_detector"
+require "aidp/sync"
+require "aidp/providers/base"
+require "aidp/providers/cursor"
+require "aidp/providers/anthropic"
+require "aidp/providers/gemini"
+require "aidp/providers/macos_ui"
 
 # Execute mode modules
 require "aidp/execute/steps"
@@ -49,5 +49,5 @@ require "aidp/analyze/performance_optimizer"
 require "aidp/analyze/error_handler"
 
 module Aidp
-  VERSION = Aidp::Shared::VERSION
+  class Error < StandardError; end
 end

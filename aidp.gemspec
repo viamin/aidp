@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "lib/aidp/version"
+
 Gem::Specification.new do |s|
   s.name = "aidp"
-  s.version = File.read(File.expand_path("lib/aidp/shared/version.rb", __dir__)).match(/VERSION = "([^"]+)"/)[1]
+  s.version = Aidp::VERSION
   s.summary = "A CLI for AI-driven software development, from analysis to execution."
   s.description = "The AI-Dev-Pipeline (AIDP) CLI provides a powerful, markdown-driven workflow for software development. It supports in-depth project analysis to understand existing codebases and an execution mode to systematically implement new features."
   s.authors = ["Bart Agapinan"]

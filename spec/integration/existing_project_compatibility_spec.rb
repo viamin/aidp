@@ -8,7 +8,7 @@ require "aidp/analyze/progress"
 
 RSpec.describe "Existing Project Compatibility", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_existing_project_test") }
-  let(:cli) { Aidp::Shared::CLI.new }
+  let(:cli) { Aidp::CLI.new }
   let(:execute_runner) { Aidp::Execute::Runner.new(project_dir) }
   let(:analyze_runner) { Aidp::Analyze::Runner.new(project_dir) }
 
@@ -60,7 +60,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
 
     it "analyze mode does not interfere with existing execute mode configuration" do
       # Load existing execute mode configuration
-      execute_config = Aidp::Shared::Config.load(project_dir)
+      execute_config = Aidp::Config.load(project_dir)
       original_provider = execute_config["provider"]
       original_model = execute_config["model"]
 
@@ -68,7 +68,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.analyze(project_dir, "01_REPOSITORY_ANALYSIS")
 
       # Verify execute mode configuration is unchanged
-      execute_config_after = Aidp::Shared::Config.load(project_dir)
+      execute_config_after = Aidp::Config.load(project_dir)
       expect(execute_config_after["provider"]).to eq(original_provider)
       expect(execute_config_after["model"]).to eq(original_model)
     end

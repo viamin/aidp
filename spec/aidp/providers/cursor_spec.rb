@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe Aidp::Shared::Providers::Cursor do
+RSpec.describe Aidp::Providers::Cursor do
   describe ".available?" do
     it "returns boolean value" do
       expect([true, false]).to include(described_class.available?)
