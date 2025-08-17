@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/viamin/aidp/compare/v0.2.0...v0.3.0) (2025-08-17)
+
+
+### Features
+
+* update publish workflow and remove legacy release workflow; bump aidp version to 0.2.0 ([07dc9c7](https://github.com/viamin/aidp/commit/07dc9c761a7d5e989fa3418af85935e5e98168c5))
+
 ## [0.2.0](https://github.com/viamin/aidp/compare/v0.1.0...v0.2.0) (2025-08-17)
 
 
