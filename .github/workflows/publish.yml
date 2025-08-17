@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
   workflow_dispatch:
   workflow_run:
     workflows: ["CI"]
@@ -12,7 +11,6 @@ on:
       - completed
     branches:
       - main
-      - master
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
