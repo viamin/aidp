@@ -358,14 +358,15 @@ module Aidp
 
       def parse_time_duration(duration_str)
         # Parse duration strings like "30d", "7d", "1w", etc.
-        case duration_str
-        when /(\d+)d/
+        # Use anchored patterns with limited digit repetition to prevent ReDoS
+        case duration_str.to_s.strip
+        when /\A(\d{1,6})d\z/
           ::Regexp.last_match(1).to_i * 24 * 60 * 60
-        when /(\d+)w/
+        when /\A(\d{1,6})w\z/
           ::Regexp.last_match(1).to_i * 7 * 24 * 60 * 60
-        when /(\d+)m/
+        when /\A(\d{1,6})m\z/
           ::Regexp.last_match(1).to_i * 30 * 24 * 60 * 60
-        when /(\d+)y/
+        when /\A(\d{1,6})y\z/
           ::Regexp.last_match(1).to_i * 365 * 24 * 60 * 60
         else
           30 * 24 * 60 * 60 # Default to 30 days
@@ -374,12 +375,13 @@ module Aidp
 
       def parse_size(size_str)
         # Parse size strings like "100MB", "1GB", etc.
-        case size_str
-        when /(\d+)KB/i
+        # Use anchored patterns with limited digit repetition to prevent ReDoS
+        case size_str.to_s.strip
+        when /\A(\d{1,10})KB\z/i
           ::Regexp.last_match(1).to_i * 1024
-        when /(\d+)MB/i
+        when /\A(\d{1,10})MB\z/i
           ::Regexp.last_match(1).to_i * 1024 * 1024
-        when /(\d+)GB/i
+        when /\A(\d{1,10})GB\z/i
           ::Regexp.last_match(1).to_i * 1024 * 1024 * 1024
         else
           100 * 1024 * 1024 # Default to 100MB
