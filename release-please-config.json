@@ -2,7 +2,10 @@
   "packages": {
     ".": {
       "release-type": "ruby",
-      "version-file": "lib/aidp/version.rb"
+      "version-file": "lib/aidp/version.rb",
+      "extra-files": [
+        "Gemfile.lock"
+      ]
     }
   }
 }
