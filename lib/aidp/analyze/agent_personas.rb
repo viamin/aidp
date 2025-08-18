@@ -9,7 +9,7 @@ module Aidp
           "name" => "Repository Analyst",
           "description" => "Expert in analyzing version control data, code evolution patterns, and repository metrics. Specializes in identifying hotspots, technical debt, and code quality trends over time.",
           "expertise" => ["Git analysis", "Code metrics", "Temporal patterns", "Hotspot identification"],
-          "tools" => ["Code Maat", "Git log analysis", "Statistical analysis"]
+          "tools" => ["ruby-maat", "Git log analysis", "Statistical analysis"]
         },
         "Architecture Analyst" => {
           "name" => "Architecture Analyst",

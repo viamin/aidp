@@ -3,6 +3,7 @@
 require "erb"
 require "yaml"
 require "json"
+require_relative "../provider_manager"
 
 module Aidp
   module Analyze
@@ -13,6 +14,7 @@ module Aidp
       def initialize(project_dir)
         @project_dir = project_dir
         @progress = Aidp::Analyze::Progress.new(project_dir)
+        @provider = nil
       end
 
       def run_step(step_name, options = {})
@@ -37,14 +39,8 @@ module Aidp
           }
         end
 
-        # Execute step (mock for now)
-        result = {
-          status: "success",
-          step: step_name,
-          output_files: step_spec["outs"],
-          prompt: prompt,
-          agent: step_spec["agent"]
-        }
+        # Execute step with LLM provider
+        result = execute_with_provider(step_name, step_spec, prompt, options)
 
         # Add test-specific fields based on options
         result[:force_used] = true if options[:force]
@@ -88,6 +84,95 @@ module Aidp
       end
 
       private
+
+      def execute_with_provider(step_name, step_spec, prompt, options)
+        # Check for mock mode first (auto-detect test environment)
+        if should_use_mock_mode?(options)
+          puts "🔄 Using mock mode..."
+          return {
+            status: "success",
+            step: step_name,
+            output_files: step_spec["outs"],
+            prompt: prompt,
+            agent: step_spec["agent"],
+            provider: "mock",
+            message: "Mock execution"
+          }
+        end
+
+        begin
+          # Get or initialize provider
+          @provider ||= Aidp::ProviderManager.load_from_config(@project_dir)
+
+          puts "🤖 Executing #{step_name} with #{@provider.name} provider..."
+
+          # Send prompt to provider
+          provider_result = @provider.send(prompt: prompt)
+
+          case provider_result
+          when :ok
+            status = "success"
+            message = "Analysis completed successfully"
+          when :interactive
+            status = "interactive"
+            message = "Interactive session started"
+          when String
+            status = "success"
+            message = "Analysis completed with captured output"
+            # TODO: Process captured output if needed
+          else
+            status = "success"
+            message = "Analysis completed"
+          end
+
+          {
+            status: status,
+            step: step_name,
+            output_files: step_spec["outs"],
+            prompt: prompt,
+            agent: step_spec["agent"],
+            provider: @provider.name,
+            message: message
+          }
+        rescue => e
+          puts "❌ Error executing step with provider: #{e.message}"
+
+          # Fallback to mock mode for tests or when provider fails
+          if should_use_mock_mode?(options)
+            puts "🔄 Falling back to mock mode..."
+            {
+              status: "success",
+              step: step_name,
+              output_files: step_spec["outs"],
+              prompt: prompt,
+              agent: step_spec["agent"],
+              provider: "mock",
+              message: "Mock execution (provider unavailable)"
+            }
+          else
+            {
+              status: "error",
+              step: step_name,
+              error: e.message,
+              agent: step_spec["agent"]
+            }
+          end
+        end
+      end
+
+      def should_use_mock_mode?(options)
+        # Explicit mock mode option
+        return true if options[:mock_mode]
+
+        # Environment variable override
+        return true if ENV["AIDP_MOCK_MODE"]
+
+        # Auto-detect test environment
+        return true if defined?(RSpec) || ENV["RAILS_ENV"] == "test" || ENV["RACK_ENV"] == "test"
+
+        # CLI usage should use real providers by default
+        false
+      end
 
       def find_template(template_name)
         template_search_paths.each do |path|

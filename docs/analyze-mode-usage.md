@@ -2,7 +2,7 @@
 
 ## Overview
 
-Aidp's analyze mode is designed for analyzing legacy codebases to generate documentation and provide refactoring guidance. It uses specialized AI agents and integrates with Code Maat for repository mining analysis.
+Aidp's analyze mode is designed for analyzing legacy codebases to generate documentation and provide refactoring guidance. It uses specialized AI agents and integrates with the ruby-maat gem for repository mining analysis.
 
 ## Quick Start
 
@@ -48,7 +48,7 @@ aidp analyze-reset
 
 - `01_REPOSITORY_ANALYSIS.md` - Detailed repository analysis
 - `01_REPOSITORY_ANALYSIS.json` - Structured data for further analysis
-- Code Maat integration results (churn, coupling, authorship)
+- Ruby-maat integration results (churn, coupling, authorship)
 
 **Example Output**:
 
@@ -171,8 +171,7 @@ execution_settings:
 
 # Integration settings
 integrations:
-  code_maat:
-    docker_image: adamtornhill/code-maat
+  ruby_maat:
     timeout: 600
 ```
 
@@ -251,7 +250,7 @@ aidp analyze --interactive
 
 This will present:
 
-1. High-priority areas (based on Code Maat data)
+1. High-priority areas (based on ruby-maat data)
 2. Medium-priority areas (based on feature analysis)
 3. Low-priority areas (remaining code)
 4. Custom focus strategies
@@ -352,14 +351,6 @@ aidp analyze --gates
 ## Error Handling
 
 ### Common Issues
-
-**Docker Not Available**:
-
-```bash
-# Code Maat integration requires Docker
-# Install Docker or use mock mode
-aidp analyze --mock-code-maat
-```
 
 **Large Repository Timeout**:
 

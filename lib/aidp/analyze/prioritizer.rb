@@ -12,9 +12,9 @@ module Aidp
         @feature_analyzer = Aidp::Analyze::FeatureAnalyzer.new(project_dir)
       end
 
-      # Generate prioritized analysis recommendations based on Code Maat data
+      # Generate prioritized analysis recommendations based on ruby-maat data
       def generate_prioritized_recommendations
-        # Get Code Maat analysis data
+        # Get ruby-maat analysis data
         code_maat_data = @code_maat.run_comprehensive_analysis
 
         # Get feature analysis data

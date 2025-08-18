@@ -53,7 +53,7 @@ module Aidp
         generate_focused_plan(selected_areas, recommendations)
       end
 
-      # Get focus areas based on Code Maat analysis
+      # Get focus areas based on ruby-maat analysis
       def get_code_maat_focus_areas
         @code_maat.run_comprehensive_analysis
 
@@ -490,7 +490,7 @@ module Aidp
 
           ### Phase 1: Baseline Analysis
           - Repository analysis to establish current state
-          - Code Maat analysis for historical patterns
+          - Ruby-maat analysis for historical patterns
           - Feature analysis for current structure
 
           ### Phase 2: Focused Analysis

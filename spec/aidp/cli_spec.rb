@@ -169,16 +169,19 @@ RSpec.describe Aidp::CLI do
 
     context "when called without arguments" do
       it "lists available steps with status indicators" do
-        expect { cli.analyze(temp_dir) }.to output(/Available analyze steps:/).to_stdout
-        expect { cli.analyze(temp_dir) }.to output(/⏳ 01: 01_REPOSITORY_ANALYSIS/).to_stdout
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
+        expect { cli.analyze }.to output(/Available analyze steps:/).to_stdout
+        expect { cli.analyze }.to output(/⏳ 01: 01_REPOSITORY_ANALYSIS/).to_stdout
       end
 
       it "shows helpful hint for next step" do
-        expect { cli.analyze(temp_dir) }.to output(/💡 Run 'aidp analyze next' or 'aidp analyze 01'/).to_stdout
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
+        expect { cli.analyze }.to output(/💡 Run 'aidp analyze next' or 'aidp analyze 01'/).to_stdout
       end
 
       it "returns success status with metadata" do
-        result = cli.analyze(temp_dir)
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
+        result = cli.analyze
         expect(result[:status]).to eq("success")
         expect(result[:message]).to eq("Available steps listed")
         expect(result[:next_step]).to eq("01_REPOSITORY_ANALYSIS")
@@ -187,49 +190,57 @@ RSpec.describe Aidp::CLI do
 
     context "when called with 'next'" do
       it "runs the next step" do
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
         expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze(temp_dir, "next")
+        cli.analyze("next")
       end
     end
 
     context "when called with 'current'" do
       it "runs the current step" do
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
         allow(progress).to receive(:current_step).and_return("02_ARCHITECTURE_ANALYSIS")
         expect(runner).to receive(:run_step).with("02_ARCHITECTURE_ANALYSIS", {})
-        cli.analyze(temp_dir, "current")
+        cli.analyze("current")
       end
     end
 
     context "when called with step number" do
       it "runs the correct step for '01'" do
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
         expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze(temp_dir, "01")
+        cli.analyze("01")
       end
 
       it "runs the correct step for '1'" do
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
         expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze(temp_dir, "1")
+        cli.analyze("1")
       end
     end
 
     context "when called with full step name" do
       it "runs the step" do
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
         expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze(temp_dir, "01_REPOSITORY_ANALYSIS")
+        cli.analyze("01_REPOSITORY_ANALYSIS")
       end
     end
 
     context "when called with invalid step" do
       it "shows error message" do
-        expect { cli.analyze(temp_dir, "invalid") }.to output(/❌ Step 'invalid' not found/).to_stdout
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
+        expect { cli.analyze("invalid") }.to output(/❌ Step 'invalid' not found/).to_stdout
       end
 
       it "shows available steps" do
-        expect { cli.analyze(temp_dir, "invalid") }.to output(/Available steps:/).to_stdout
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
+        expect { cli.analyze("invalid") }.to output(/Available steps:/).to_stdout
       end
 
       it "returns error status" do
-        result = cli.analyze(temp_dir, "invalid")
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
+        result = cli.analyze("invalid")
         expect(result[:status]).to eq("error")
         expect(result[:message]).to eq("Step not found")
       end
@@ -237,15 +248,17 @@ RSpec.describe Aidp::CLI do
 
     context "with options" do
       it "passes force option to runner" do
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
         cli.options = {"force" => true}
         expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {"force" => true})
-        cli.analyze(temp_dir, "01")
+        cli.analyze("01")
       end
 
       it "passes rerun option to runner" do
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
         cli.options = {"rerun" => true}
         expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {"rerun" => true})
-        cli.analyze(temp_dir, "01")
+        cli.analyze("01")
       end
     end
   end
