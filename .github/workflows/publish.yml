@@ -53,6 +53,10 @@ jobs:
         ruby-version: '3.3'
         bundler-cache: true
 
+    - name: Update Gemfile.lock
+      run: |
+        bundle install
+
     - name: Release gem
       uses: rubygems/release-gem@v1
       
