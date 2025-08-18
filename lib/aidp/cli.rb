@@ -24,19 +24,49 @@ module Aidp
     end
 
     desc "analyze [STEP]", "Run analyze mode step(s)"
+    long_desc <<~DESC
+      Run analyze mode steps. STEP can be:
+      - A full step name (e.g., 01_REPOSITORY_ANALYSIS)
+      - A step number (e.g., 01, 02, 03)
+      - 'next' to run the next unfinished step
+      - 'current' to run the current step
+      - Empty to list available steps
+    DESC
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"
     def analyze(project_dir = Dir.pwd, step_name = nil, custom_options = {})
+      progress = Aidp::Analyze::Progress.new(project_dir)
+      
       if step_name
-        runner = Aidp::Analyze::Runner.new(project_dir)
-        # Merge Thor options with custom options
-        all_options = options.merge(custom_options)
-        runner.run_step(step_name, all_options)
+        # Resolve the step name
+        resolved_step = resolve_analyze_step(step_name, progress)
+        
+        if resolved_step
+          runner = Aidp::Analyze::Runner.new(project_dir)
+          # Merge Thor options with custom options
+          all_options = options.merge(custom_options)
+          runner.run_step(resolved_step, all_options)
+        else
+          puts "❌ Step '#{step_name}' not found or not available"
+          puts "\nAvailable steps:"
+          Aidp::Analyze::Steps::SPEC.keys.each_with_index do |step, index|
+            status = progress.step_completed?(step) ? "✅" : "⏳"
+            puts "  #{status} #{sprintf('%02d', index + 1)}: #{step}"
+          end
+          return {status: "error", message: "Step not found"}
+        end
       else
         puts "Available analyze steps:"
-        Aidp::Analyze::Steps::SPEC.keys.each { |step| puts "  - #{step}" }
-        progress = Aidp::Analyze::Progress.new(project_dir)
+        Aidp::Analyze::Steps::SPEC.keys.each_with_index do |step, index|
+          status = progress.step_completed?(step) ? "✅" : "⏳"
+          puts "  #{status} #{sprintf('%02d', index + 1)}: #{step}"
+        end
+        
         next_step = progress.next_step
+        if next_step
+          puts "\n💡 Run 'aidp analyze next' or 'aidp analyze #{next_step.match(/^(\d+)/)[1]}' to run the next step"
+        end
+        
         {status: "success", message: "Available steps listed", next_step: next_step,
          completed_steps: progress.completed_steps}
       end
@@ -110,6 +140,29 @@ module Aidp
     desc "version", "Show version information"
     def version
       puts "Aidp version #{Aidp::VERSION}"
+    end
+
+    private
+
+    def resolve_analyze_step(step_input, progress)
+      step_input = step_input.to_s.downcase.strip
+      
+      case step_input
+      when "next"
+        progress.next_step
+      when "current"
+        progress.current_step || progress.next_step
+      else
+        # Check if it's a step number (e.g., "01", "02", "1", "2")
+        if step_input.match?(/^\d{1,2}$/)
+          step_number = sprintf('%02d', step_input.to_i)
+          # Find step that starts with this number
+          Aidp::Analyze::Steps::SPEC.keys.find { |step| step.start_with?(step_number) }
+        else
+          # Check if it's a full step name (case insensitive)
+          Aidp::Analyze::Steps::SPEC.keys.find { |step| step.downcase == step_input }
+        end
+      end
     end
   end
 end
