@@ -1,8 +1,9 @@
 {
   "packages": {
     ".": {
+      "package-name": "aidp",
       "release-type": "ruby",
-      "version-file": "lib/aidp/version.rb"
+      "version_file": "lib/aidp/version.rb"
     }
   }
 }
