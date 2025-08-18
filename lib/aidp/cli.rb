@@ -34,8 +34,49 @@ module Aidp
     DESC
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"
-    def analyze(step_name = nil, custom_options = {})
-      project_dir = Dir.pwd
+    def analyze(*args)
+      # Handle both old and new calling patterns for backwards compatibility
+      case args.length
+      when 0
+        # analyze() - list steps
+        project_dir = Dir.pwd
+        step_name = nil
+        custom_options = {}
+      when 1
+        # analyze(step_name) - new CLI pattern
+        if args[0].is_a?(String) && Dir.exist?(args[0])
+          # analyze(project_dir) - old test pattern
+          project_dir = args[0]
+          step_name = nil
+        else
+          # analyze(step_name) - new CLI pattern
+          project_dir = Dir.pwd
+          step_name = args[0]
+        end
+        custom_options = {}
+      when 2
+        # analyze(project_dir, step_name) - old test pattern
+        # or analyze(step_name, options) - new CLI pattern
+        if Dir.exist?(args[0])
+          # analyze(project_dir, step_name)
+          project_dir = args[0]
+          step_name = args[1]
+          custom_options = {}
+        else
+          # analyze(step_name, options)
+          project_dir = Dir.pwd
+          step_name = args[0]
+          custom_options = args[1] || {}
+        end
+      when 3
+        # analyze(project_dir, step_name, options) - old test pattern
+        project_dir = args[0]
+        step_name = args[1]
+        custom_options = args[2] || {}
+      else
+        raise ArgumentError, "Wrong number of arguments (given #{args.length}, expected 0..3)"
+      end
+
       progress = Aidp::Analyze::Progress.new(project_dir)
 
       if step_name
