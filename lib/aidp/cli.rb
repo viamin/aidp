@@ -36,11 +36,11 @@ module Aidp
     option :rerun, type: :boolean, desc: "Re-run a completed step"
     def analyze(project_dir = Dir.pwd, step_name = nil, custom_options = {})
       progress = Aidp::Analyze::Progress.new(project_dir)
-      
+
       if step_name
         # Resolve the step name
         resolved_step = resolve_analyze_step(step_name, progress)
-        
+
         if resolved_step
           runner = Aidp::Analyze::Runner.new(project_dir)
           # Merge Thor options with custom options
@@ -51,22 +51,22 @@ module Aidp
           puts "\nAvailable steps:"
           Aidp::Analyze::Steps::SPEC.keys.each_with_index do |step, index|
             status = progress.step_completed?(step) ? "✅" : "⏳"
-            puts "  #{status} #{sprintf('%02d', index + 1)}: #{step}"
+            puts "  #{status} #{sprintf("%02d", index + 1)}: #{step}"
           end
-          return {status: "error", message: "Step not found"}
+          {status: "error", message: "Step not found"}
         end
       else
         puts "Available analyze steps:"
         Aidp::Analyze::Steps::SPEC.keys.each_with_index do |step, index|
           status = progress.step_completed?(step) ? "✅" : "⏳"
-          puts "  #{status} #{sprintf('%02d', index + 1)}: #{step}"
+          puts "  #{status} #{sprintf("%02d", index + 1)}: #{step}"
         end
-        
+
         next_step = progress.next_step
         if next_step
           puts "\n💡 Run 'aidp analyze next' or 'aidp analyze #{next_step.match(/^(\d+)/)[1]}' to run the next step"
         end
-        
+
         {status: "success", message: "Available steps listed", next_step: next_step,
          completed_steps: progress.completed_steps}
       end
@@ -146,7 +146,7 @@ module Aidp
 
     def resolve_analyze_step(step_input, progress)
       step_input = step_input.to_s.downcase.strip
-      
+
       case step_input
       when "next"
         progress.next_step
@@ -155,7 +155,7 @@ module Aidp
       else
         # Check if it's a step number (e.g., "01", "02", "1", "2")
         if step_input.match?(/^\d{1,2}$/)
-          step_number = sprintf('%02d', step_input.to_i)
+          step_number = sprintf("%02d", step_input.to_i)
           # Find step that starts with this number
           Aidp::Analyze::Steps::SPEC.keys.find { |step| step.start_with?(step_number) }
         else

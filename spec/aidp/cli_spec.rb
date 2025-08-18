@@ -7,7 +7,7 @@ require "fileutils"
 RSpec.describe Aidp::CLI do
   let(:temp_dir) { Dir.mktmpdir("aidp_cli_test") }
   let(:cli) { Aidp::CLI.new }
-  
+
   after do
     FileUtils.rm_rf(temp_dir) if temp_dir && Dir.exist?(temp_dir)
   end
