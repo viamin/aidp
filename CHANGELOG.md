@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/viamin/aidp/compare/v0.3.0...v0.4.0) (2025-08-18)
+
+
+### Features
+
+* add step to update Gemfile.lock before releasing gem ([292c1f7](https://github.com/viamin/aidp/commit/292c1f78e75c606ddba99512f1dc80312dec7db4))
+* enhance analyze command with step resolution and user feedback ([96ce3bb](https://github.com/viamin/aidp/commit/96ce3bb440d94bf6f688931c887f9d43c2d4328f))
+* enhance analyze command with step resolution and user feedback ([4a1d177](https://github.com/viamin/aidp/commit/4a1d177981f766fc57eeb13351032e918bd6e870))
+
 ## [0.3.0](https://github.com/viamin/aidp/compare/v0.2.0...v0.3.0) (2025-08-17)
 
 
