@@ -477,7 +477,7 @@ module Aidp
         report_file = File.join(@project_dir, "code_maat_analysis_report.md")
 
         report = <<~REPORT
-          # Code Maat Analysis Report
+          # Ruby-maat Analysis Report
 
           Generated on: #{Time.now.strftime("%Y-%m-%d %H:%M:%S")}
           Project: #{File.basename(@project_dir)}

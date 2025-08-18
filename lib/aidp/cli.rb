@@ -34,7 +34,8 @@ module Aidp
     DESC
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"
-    def analyze(project_dir = Dir.pwd, step_name = nil, custom_options = {})
+    def analyze(step_name = nil, custom_options = {})
+      project_dir = Dir.pwd
       progress = Aidp::Analyze::Progress.new(project_dir)
 
       if step_name
