@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/viamin/aidp/compare/v0.4.0...v0.5.0) (2025-08-18)
+
+
+### Features
+
+* implement provider management and enhance CLI analysis functionality ([71d266c](https://github.com/viamin/aidp/commit/71d266c9f5d7b2c7dea7dda51759c6cda693f29b))
+
+
+### Bug Fixes
+
+* correct key name from "version-file" to "version_file" in release configuration ([2202349](https://github.com/viamin/aidp/commit/2202349463854228165ff64c84a4cbbd0740c14f))
+* remove redundant "release-type" key from release configuration ([f74f5c1](https://github.com/viamin/aidp/commit/f74f5c19277b11dfe9745815ffb1fad71516d8b1))
+
 ## [0.4.0](https://github.com/viamin/aidp/compare/v0.3.0...v0.4.0) (2025-08-18)
 
 
