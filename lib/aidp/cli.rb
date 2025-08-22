@@ -179,6 +179,13 @@ module Aidp
       end
     end
 
+    desc "jobs", "Show and manage background jobs"
+    def jobs
+      require_relative "cli/jobs_command"
+      command = Aidp::CLI::JobsCommand.new
+      command.run
+    end
+
     desc "version", "Show version information"
     def version
       puts "Aidp version #{Aidp::VERSION}"
