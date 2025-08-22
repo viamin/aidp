@@ -196,7 +196,7 @@ module Aidp
       if metric_name
         query += " AND metric_name = $#{param_index}"
         params << metric_name
-        param_index += 1
+        param_index + 1
       end
 
       query += " ORDER BY created_at DESC"

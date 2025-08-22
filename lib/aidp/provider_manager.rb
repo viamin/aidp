@@ -13,8 +13,6 @@ module Aidp
           Aidp::Providers::Gemini.new
         when "macos_ui"
           Aidp::Providers::MacosUI.new
-        else
-          nil
         end
       end
 

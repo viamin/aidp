@@ -165,7 +165,7 @@ module Aidp
     def get_statistics
       db = connect
 
-      stats = {
+      {
         total_analysis_results: db.exec("SELECT COUNT(*) FROM analysis_results").first["count"].to_i,
         total_metrics: db.exec("SELECT COUNT(*) FROM analysis_metrics").first["count"].to_i,
         total_embeddings: db.exec("SELECT COUNT(*) FROM embeddings").first["count"].to_i,
@@ -173,8 +173,6 @@ module Aidp
         oldest_metric: db.exec("SELECT MIN(recorded_at) FROM analysis_metrics").first["min"],
         newest_metric: db.exec("SELECT MAX(recorded_at) FROM analysis_metrics").first["max"]
       }
-
-      stats
     end
 
     private

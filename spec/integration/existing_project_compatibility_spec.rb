@@ -33,7 +33,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
 
       # Run analyze mode
       result = cli.analyze(project_dir, "00_PRD")
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
 
       # In mock mode, files are not actually created, so check that the command succeeded
       expect(result[:provider]).to eq("mock")
@@ -98,11 +98,11 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
     it "both modes can run simultaneously without interference" do
       # Run execute mode
       execute_result = cli.execute(project_dir, "02_ARCHITECTURE")
-      expect(execute_result[:status]).to eq("success")
+      expect(execute_result[:status]).to eq("completed")
 
       # Run analyze mode
       analyze_result = cli.analyze(project_dir, "00_PRD")
-      expect(analyze_result[:status]).to eq("success")
+      expect(analyze_result[:status]).to eq("completed")
 
       # In mock mode, files are not created, so verify the results instead
       expect(execute_result[:provider]).to eq("mock")
@@ -121,11 +121,11 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
     it "analyze mode creates separate database files" do
       # Run execute mode to create its database
       execute_result = cli.execute(project_dir, "00_PRD")
-      expect(execute_result[:status]).to eq("success")
+      expect(execute_result[:status]).to eq("completed")
 
       # Run analyze mode to create its database
       analyze_result = cli.analyze(project_dir, "00_PRD")
-      expect(analyze_result[:status]).to eq("success")
+      expect(analyze_result[:status]).to eq("completed")
 
       # In mock mode, databases are not actually created, but verify the paths are different
       execute_db = File.join(project_dir, ".aidp.db")
@@ -147,7 +147,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
 
       # Run analyze mode to create its tool configuration
       result = cli.analyze(project_dir, "11_STATIC_ANALYSIS")
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
 
       # Verify the file paths would be different (isolation)
       execute_tools_file = File.join(project_dir, ".aidp-tools.yml")
@@ -167,7 +167,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
 
       # Run analyze mode
       result = cli.analyze(project_dir, "00_PRD")
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
 
       # Verify project structure is unchanged
       expect(File.exist?(File.join(project_dir, "app"))).to be true
@@ -207,8 +207,8 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       analyze_result = cli.analyze(project_dir, "00_PRD")
 
       # Verify both modes work correctly with shared configuration
-      expect(execute_result[:status]).to eq("success")
-      expect(analyze_result[:status]).to eq("success")
+      expect(execute_result[:status]).to eq("completed")
+      expect(analyze_result[:status]).to eq("completed")
 
       # Clean up user config
       File.delete(user_config_file) if File.exist?(user_config_file)
@@ -232,7 +232,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       result = cli.analyze(project_dir, "11_STATIC_ANALYSIS")
 
       # Verify analyze mode used project-specific configuration
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
     end
@@ -249,13 +249,13 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       result = cli.analyze(project_dir, "00_PRD")
 
       # Verify analyze mode can access shared templates
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
     end
 
     it "analyze mode prioritizes its own templates over shared ones" do
-      # Create shared template  
+      # Create shared template
       common_template_file = File.join(project_dir, "templates", "COMMON", "prd.md")
       FileUtils.mkdir_p(File.dirname(common_template_file))
       File.write(common_template_file, '# Shared PRD Template\n\nThis is a shared template.')
@@ -269,10 +269,10 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       result = cli.analyze(project_dir, "00_PRD")
 
       # Verify analyze mode would prioritize its own template (template resolution logic)
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
-      
+
       # Verify that analyze templates directory comes first in search path
       runner = Aidp::Analyze::Runner.new(project_dir)
       search_paths = runner.send(:template_search_paths)
@@ -292,12 +292,12 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       cli.analyze(project_dir, "02_ARCHITECTURE")
 
       # In mock mode, progress is not actually tracked, so verify the modes use separate progress files
-      execute_progress_file = File.join(project_dir, ".aidp-progress.yml")  
+      execute_progress_file = File.join(project_dir, ".aidp-progress.yml")
       analyze_progress_file = File.join(project_dir, ".aidp-analyze-progress.yml")
-      
+
       # Verify the progress files are different (isolation)
       expect(execute_progress_file).not_to eq(analyze_progress_file)
-      
+
       # Verify the existing execute progress file is still present and unchanged
       expect(File.exist?(execute_progress_file)).to be true
       progress_data = YAML.load_file(execute_progress_file)
@@ -308,15 +308,15 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       # Run both modes
       execute_result = cli.execute(project_dir, "00_PRD")
       analyze_result = cli.analyze(project_dir, "00_PRD")
-      
-      expect(execute_result[:status]).to eq("success")
-      expect(analyze_result[:status]).to eq("success")
+
+      expect(execute_result[:status]).to eq("completed")
+      expect(analyze_result[:status]).to eq("completed")
 
       # Reset execute mode progress
       reset_result = cli.reset(project_dir)
       expect(reset_result[:status]).to eq("success")
 
-      # Reset analyze mode progress  
+      # Reset analyze mode progress
       analyze_reset_result = cli.analyze_reset(project_dir)
       expect(analyze_reset_result[:status]).to eq("success")
 
@@ -329,7 +329,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
     it "analyze mode handles errors gracefully without affecting execute mode data" do
       # Run execute mode successfully
       execute_result = cli.execute(project_dir, "00_PRD")
-      expect(execute_result[:status]).to eq("success")
+      expect(execute_result[:status]).to eq("completed")
 
       # Simulate an error in analyze mode
       result = cli.analyze(project_dir, "00_PRD", simulate_error: "Analyze mode error")
@@ -342,13 +342,13 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
 
       # Verify execute mode can still run
       execute_result_after = cli.execute(project_dir, "01_NFRS")
-      expect(execute_result_after[:status]).to eq("success")
+      expect(execute_result_after[:status]).to eq("completed")
     end
 
     it "execute mode handles errors gracefully without affecting analyze mode data" do
       # Run analyze mode successfully
       analyze_result = cli.analyze(project_dir, "00_PRD")
-      expect(analyze_result[:status]).to eq("success")
+      expect(analyze_result[:status]).to eq("completed")
 
       # Simulate an error in execute mode
       result = cli.execute(project_dir, "02_ARCHITECTURE", simulate_error: "Execute mode error")
@@ -358,7 +358,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       # Verify existing analyze mode progress is not affected by execute mode errors
       # In mock mode, we verify that analyze mode can still run normally
       analyze_result_after = cli.analyze(project_dir, "02_ARCHITECTURE")
-      expect(analyze_result_after[:status]).to eq("success")
+      expect(analyze_result_after[:status]).to eq("completed")
     end
   end
 
@@ -443,7 +443,7 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       '# Product Requirements Document\n\n## Project Information\n**Project Name**: {{project_name}}')
     File.write(File.join(project_dir, "templates", "EXECUTE", "nfrs.md"),
       '# Non-Functional Requirements\n\n## Performance\n{{performance_requirements}}')
-    
+
     # Create basic templates for analyze mode
     File.write(File.join(project_dir, "templates", "ANALYZE", "prd.md"),
       '# Product Requirements Document (Analyze)\n\n## Project Information\n**Project Name**: {{project_name}}')

@@ -69,7 +69,7 @@ module Aidp
             end
 
             # Start supervisor thread
-            supervisor_thread = start_supervisor_thread(wait)
+            start_supervisor_thread(wait)
 
             # Start output collection threads
             start_output_threads(stdout, stderr)

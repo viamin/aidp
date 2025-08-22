@@ -3,9 +3,9 @@
 module JobHelper
   def create_mock_job(id:, status: "completed", error: nil)
     # Use the correct Que column names
-    finished_at = status == "completed" ? Time.now : nil
+    finished_at = (status == "completed") ? Time.now : nil
     error_count = error ? 1 : 0
-    
+
     Que.execute(
       <<~SQL,
         INSERT INTO que_jobs (
@@ -17,7 +17,7 @@ module JobHelper
       SQL
       [
         "Aidp::Jobs::ProviderExecutionJob",
-        "test_queue", 
+        "test_queue",
         Time.now - 10,
         error_count,
         error,

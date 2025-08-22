@@ -57,13 +57,13 @@ RSpec.describe "Background Jobs Workflow" do
     end
 
     before do
-      stub_const("Aidp::Analyze::Steps::SPEC", { step_name => step_spec })
+      stub_const("Aidp::Analyze::Steps::SPEC", {step_name => step_spec})
     end
 
     it "executes analyze step with background job" do
       result = analyze_runner.run_step(step_name)
 
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
     end
@@ -86,13 +86,13 @@ RSpec.describe "Background Jobs Workflow" do
     end
 
     before do
-      stub_const("Aidp::Execute::Steps::SPEC", { step_name => step_spec })
+      stub_const("Aidp::Execute::Steps::SPEC", {step_name => step_spec})
     end
 
     it "executes execute step with background job" do
       result = execute_runner.run_step(step_name)
 
-      expect(result[:status]).to eq("success")
+      expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
     end
@@ -122,7 +122,7 @@ RSpec.describe "Background Jobs Workflow" do
     it "allows retrying failed jobs" do
       # In mock mode, just verify the command can be instantiated
       expect(jobs_command).to be_a(Aidp::CLI::JobsCommand)
-      
+
       # Simulate running and interrupting
       expect { jobs_command.run }.to raise_error(Interrupt)
     end

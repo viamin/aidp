@@ -366,10 +366,10 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
       # but we can verify the isolation by checking that the two modes use different file names
       execute_progress_file = File.join(project_dir, ".aidp-progress.yml")
       analyze_progress_file = File.join(project_dir, ".aidp-analyze-progress.yml")
-      
+
       # Verify the file paths are different (isolation)
       expect(execute_progress_file).not_to eq(analyze_progress_file)
-      
+
       # Verify analyze mode files do not exist
       expect(File.exist?(analyze_progress_file)).to be false
 

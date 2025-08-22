@@ -14,7 +14,7 @@ module Aidp
       self.error_handlers = []
 
       def self.on_error(&block)
-        self.error_handlers << block
+        error_handlers << block
       end
 
       protected
@@ -29,11 +29,9 @@ module Aidp
 
       def handle_error(error)
         self.class.error_handlers.each do |handler|
-          begin
-            handler.call(error, self)
-          rescue => e
-            log_error "Error handler failed: #{e.message}"
-          end
+          handler.call(error, self)
+        rescue => e
+          log_error "Error handler failed: #{e.message}"
         end
       end
 

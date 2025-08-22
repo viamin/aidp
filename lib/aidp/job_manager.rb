@@ -10,7 +10,7 @@ module Aidp
       # Create a new job and return job ID
       # This is a placeholder implementation
       job_id = rand(1000..9999)
-      
+
       # Store job metadata for testing
       @jobs ||= {}
       @jobs[job_id] = {
@@ -20,7 +20,7 @@ module Aidp
         status: "queued",
         created_at: Time.now
       }
-      
+
       job_id
     end
 
@@ -32,7 +32,7 @@ module Aidp
     def update_job_status(job_id, status, error: nil)
       @jobs ||= {}
       return unless @jobs[job_id]
-      
+
       @jobs[job_id][:status] = status
       @jobs[job_id][:error] = error if error
       @jobs[job_id][:updated_at] = Time.now

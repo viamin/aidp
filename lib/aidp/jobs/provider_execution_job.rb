@@ -4,7 +4,7 @@ module Aidp
   module Jobs
     class ProviderExecutionJob < BaseJob
       def self.enqueue(provider_type:, prompt:, session: nil, metadata: {})
-        job = super(provider_type: provider_type, prompt: prompt, session: session, metadata: metadata)
+        job = super
         job.que_attrs[:job_id]
       end
 
@@ -29,7 +29,6 @@ module Aidp
             success: true,
             error: nil
           )
-
         rescue => error
           # Record metrics
           record_metrics(

@@ -2,6 +2,9 @@
 
 require "bundler/setup"
 require "rspec"
+require "timeout"
+
+ENV["RACK_ENV"] = "test"
 
 # Workaround for Ruby 3.4.2 compatibility with RSpec 3.12.x
 module RSpec
@@ -24,6 +27,15 @@ RSpec.configure do |config|
 
   config.expect_with :rspec do |c|
     c.syntax = :expect
+  end
+
+  # Add timeout to prevent hanging tests
+  config.around(:each) do |example|
+    Timeout.timeout(10) do
+      example.run
+    end
+  rescue Timeout::Error
+    raise "Test timed out after 10 seconds"
   end
 
   # Configure Que for testing

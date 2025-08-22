@@ -22,7 +22,7 @@ module Aidp
 
       def git_log_available?
         return false unless git_repository_available?
-        
+
         system("git log --oneline -1", out: File::NULL, err: File::NULL)
       end
     end
