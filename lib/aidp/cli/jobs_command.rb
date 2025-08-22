@@ -114,12 +114,12 @@ module Aidp
             header: ["ID", "Job", "Queue", "Status", "Runtime", "Error"],
             rows: jobs.map do |job|
               [
-                job["id"],
-                job["job_class"]&.split("::")&.last || "Unknown",
-                job["queue"] || "default",
+                job[:id].to_s,
+                job[:job_class]&.split("::")&.last || "Unknown",
+                job[:queue] || "default",
                 job_status(job),
                 format_runtime(job),
-                truncate_error(job["last_error_message"])
+                truncate_error(job[:last_error_message])
               ]
             end
           )
@@ -150,17 +150,16 @@ module Aidp
         @io.puts
 
         # Print job details
-        @io.puts "Class:      #{job["job_class"]}"
-        @io.puts "Queue:      #{job["queue"]}"
+        @io.puts "Class:      #{job[:job_class]}"
+        @io.puts "Queue:      #{job[:queue]}"
         @io.puts "Status:     #{job_status(job)}"
         @io.puts "Runtime:    #{format_runtime(job)}"
-        @io.puts "Created:    #{job["created_at"]}"
-        @io.puts "Started:    #{job["run_at"]}"
-        @io.puts "Finished:   #{job["finished_at"]}"
-        @io.puts "Attempts:   #{job["error_count"]}"
+        @io.puts "Started:    #{job[:run_at]}"
+        @io.puts "Finished:   #{job[:finished_at]}"
+        @io.puts "Attempts:   #{job[:error_count]}"
         @io.puts
-        @io.puts "Error:" if job["last_error_message"]
-        @io.puts job["last_error_message"] if job["last_error_message"]
+        @io.puts "Error:" if job[:last_error_message]
+        @io.puts job[:last_error_message] if job[:last_error_message]
 
         @io.puts
         @io.puts "Commands: (b)ack, (r)etry, (q)uit"
@@ -205,7 +204,7 @@ module Aidp
 
         if job_exists?(job_id)
           job = fetch_job(job_id)
-          if job["error_count"].to_i > 0
+          if job[:error_count].to_i > 0
             Que.execute(
               <<~SQL,
                 UPDATE que_jobs
@@ -231,7 +230,7 @@ module Aidp
         return [] if ENV["RACK_ENV"] == "test" && !Que.connection
         return [] if ENV["RACK_ENV"] == "test" && ENV["MOCK_DATABASE"] == "true"
 
-        Timeout.timeout(1) do
+        Timeout.timeout(5) do
           Que.execute(
             <<~SQL
               SELECT *
@@ -277,8 +276,8 @@ module Aidp
       def job_status(job)
         return "unknown" unless job
 
-        if job["finished_at"]
-          (job["error_count"].to_i > 0) ? "failed" : "completed"
+        if job[:finished_at]
+          (job[:error_count].to_i > 0) ? "failed" : "completed"
         else
           "running"
         end
@@ -287,21 +286,24 @@ module Aidp
       def format_runtime(job)
         return "unknown" unless job
 
-        if job["finished_at"] && job["run_at"]
-          duration = Time.parse(job["finished_at"]) - Time.parse(job["run_at"])
+        if job[:finished_at] && job[:run_at]
+          finished_at = job[:finished_at].is_a?(Time) ? job[:finished_at] : Time.parse(job[:finished_at])
+          run_at = job[:run_at].is_a?(Time) ? job[:run_at] : Time.parse(job[:run_at])
+          duration = finished_at - run_at
           minutes = (duration / 60).to_i
           seconds = (duration % 60).to_i
           (minutes > 0) ? "#{minutes}m #{seconds}s" : "#{seconds}s"
-        elsif job["run_at"]
-          duration = Time.now - Time.parse(job["run_at"])
+        elsif job[:run_at]
+          run_at = job[:run_at].is_a?(Time) ? job[:run_at] : Time.parse(job[:run_at])
+          duration = Time.now - run_at
           minutes = (duration / 60).to_i
           seconds = (duration % 60).to_i
           (minutes > 0) ? "#{minutes}m #{seconds}s" : "#{seconds}s"
         else
           "pending"
         end
-      rescue
-        "error"
+      rescue => e
+        "error (#{e.message})"
       end
 
       def truncate_error(error)

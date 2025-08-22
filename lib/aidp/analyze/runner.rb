@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require "timeout"
+require "que"
+require "sequel"
+
 module Aidp
   module Analyze
     class Runner
@@ -28,6 +32,9 @@ module Aidp
           return result
         end
 
+        # Set up database connection for background jobs
+        setup_database_connection
+
         job = Aidp::Jobs::ProviderExecutionJob.enqueue(
           provider_type: "cursor",
           prompt: composed_prompt(step_name, options),
@@ -41,6 +48,35 @@ module Aidp
       end
 
       private
+
+      def setup_database_connection
+        # Skip database setup in test mode if we're mocking
+        return if ENV["RACK_ENV"] == "test" && ENV["MOCK_DATABASE"] == "true"
+
+        dbname = (ENV["RACK_ENV"] == "test") ? "aidp_test" : (ENV["AIDP_DB_NAME"] || "aidp")
+
+        # Use Sequel for connection pooling with timeout
+        Timeout.timeout(10) do
+          Que.connection = Sequel.connect(
+            adapter: "postgres",
+            host: ENV["AIDP_DB_HOST"] || "localhost",
+            port: ENV["AIDP_DB_PORT"] || 5432,
+            database: dbname,
+            user: ENV["AIDP_DB_USER"] || ENV["USER"],
+            password: ENV["AIDP_DB_PASSWORD"],
+            max_connections: 10,
+            pool_timeout: 30
+          )
+
+          Que.migrate!(version: Que::Migrations::CURRENT_VERSION)
+        end
+      rescue Timeout::Error
+        puts "Database connection timed out"
+        raise
+      rescue => e
+        puts "Error connecting to database: #{e.message}"
+        raise
+      end
 
       def should_use_mock_mode?(options)
         return false if options[:background] # Force background jobs if requested
