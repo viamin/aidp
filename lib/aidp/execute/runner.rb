@@ -7,8 +7,20 @@ module Aidp
         @project_dir = project_dir
       end
 
+      def progress
+        @progress ||= Aidp::Execute::Progress.new(@project_dir)
+      end
+
       def run_step(step_name, options = {})
-        return mock_execution_result if should_use_mock_mode?(options)
+        # Always validate step exists first, even in mock mode
+        step_spec = Aidp::Execute::Steps::SPEC[step_name]
+        raise "Step '#{step_name}' not found" unless step_spec
+        
+        if should_use_mock_mode?(options)
+          return options[:simulate_error] ? 
+            { status: "error", error: options[:simulate_error] } : 
+            mock_execution_result
+        end
 
         job = Aidp::Jobs::ProviderExecutionJob.enqueue(
           provider_type: "cursor",
@@ -30,14 +42,15 @@ module Aidp
 
       def mock_execution_result
         {
-          status: "completed",
-          output: "Mock execution result"
+          status: "success",
+          provider: "mock",
+          message: "Mock execution"
         }
       end
 
       def wait_for_job_completion(job_id)
         loop do
-          job = Que.execute("SELECT * FROM que_jobs WHERE job_id = $1", [job_id]).first
+          job = Que.execute("SELECT * FROM que_jobs WHERE id = $1", [job_id]).first
           return { status: "completed" } if job.finished_at && job.error_count == 0
           return { status: "failed", error: job.last_error_message } if job.error_count > 0
 
@@ -73,11 +86,21 @@ module Aidp
       end
 
       def composed_prompt(step_name, options = {})
-        template_path = find_template("#{step_name}.md")
+        step_spec = Aidp::Execute::Steps::SPEC[step_name]
+        raise "Step '#{step_name}' not found" unless step_spec
+        
+        template_name = step_spec["templates"].first
+        template_path = find_template(template_name)
         raise "Template not found for step #{step_name}" unless template_path
 
         template = File.read(template_path)
-        template % options
+        
+        # Replace template variables in the format {{key}} with option values
+        options.each do |key, value|
+          template = template.gsub("{{#{key}}}", value.to_s)
+        end
+        
+        template
       end
     end
   end

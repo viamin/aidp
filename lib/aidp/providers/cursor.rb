@@ -58,7 +58,7 @@ module Aidp
 
           # Read stdout
           stdout_thread = Thread.new do
-            stdout.each_line do |line|
+            stdout&.each_line do |line|
               output += line
               if ENV["AIDP_DEBUG"]
                 clear_activity_status
@@ -76,7 +76,7 @@ module Aidp
 
           # Read stderr
           stderr_thread = Thread.new do
-            stderr.each_line do |line|
+            stderr&.each_line do |line|
               error_output += line
               if ENV["AIDP_DEBUG"]
                 clear_activity_status
@@ -204,6 +204,18 @@ module Aidp
       end
 
       private
+
+      def print_activity_status
+        # Print activity status during cursor execution
+        print "🔄 cursor-agent is running..."
+        $stdout.flush
+      end
+
+      def clear_activity_status
+        # Clear the activity status line
+        print "\r" + " " * 50 + "\r"
+        $stdout.flush
+      end
 
       def calculate_timeout
         # Priority order for timeout calculation:

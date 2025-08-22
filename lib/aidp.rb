@@ -17,6 +17,7 @@ require "aidp/sync"
 require "aidp/database_connection"
 
 # Job infrastructure
+require "aidp/job_manager"
 require "aidp/jobs/base_job"
 require "aidp/jobs/provider_execution_job"
 
@@ -35,7 +36,9 @@ require "aidp/analyze/repository_chunker"
 require "aidp/analyze/ruby_maat_integration"
 require "aidp/analyze/runner"
 require "aidp/analyze/steps"
+require "aidp/analyze/progress"
 
 # Execute mode
 require "aidp/execute/steps"
 require "aidp/execute/runner"
+require "aidp/execute/progress"

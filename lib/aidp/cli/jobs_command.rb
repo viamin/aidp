@@ -20,14 +20,7 @@ module Aidp
 
       def run
         # Initialize Que connection
-        Que.connection = PG.connect(
-          host: ENV["AIDP_DB_HOST"] || "localhost",
-          port: ENV["AIDP_DB_PORT"] || 5432,
-          dbname: ENV["AIDP_DB_NAME"] || "aidp",
-          user: ENV["AIDP_DB_USER"] || ENV["USER"],
-          password: ENV["AIDP_DB_PASSWORD"]
-        )
-        Que.migrate!
+        setup_database_connection
 
         # Start the UI loop
         while @running
@@ -39,7 +32,7 @@ module Aidp
           end
 
           handle_input
-          sleep 1 unless @running
+          sleep_for_refresh unless @running
         end
       ensure
         # Clear screen and show cursor
@@ -48,6 +41,17 @@ module Aidp
       end
 
       private
+
+      def setup_database_connection
+        Que.connection = PG.connect(
+          host: ENV["AIDP_DB_HOST"] || "localhost",
+          port: ENV["AIDP_DB_PORT"] || 5432,
+          dbname: ENV["AIDP_DB_NAME"] || "aidp",
+          user: ENV["AIDP_DB_USER"] || ENV["USER"],
+          password: ENV["AIDP_DB_PASSWORD"]
+        )
+        Que.migrate!
+      end
 
       def render_job_list
         jobs = fetch_jobs
@@ -70,7 +74,7 @@ module Aidp
             header: ["ID", "Job", "Queue", "Status", "Runtime", "Error"],
             rows: jobs.map do |job|
               [
-                job["job_id"],
+                job["id"],
                 job["job_class"].split("::").last,
                 job["queue"],
                 job_status(job),
@@ -165,7 +169,7 @@ module Aidp
                   last_error_message = NULL,
                   finished_at = NULL,
                   expired_at = NULL
-              WHERE job_id = $1
+              WHERE id = $1
               SQL
               [job_id]
             )
@@ -189,17 +193,21 @@ module Aidp
                 WHEN error_count > 0 THEN 2                          -- Failed
                 ELSE 3                                              -- Completed
               END,
-              job_id DESC
+              id DESC
           SQL
         )
       end
 
       def fetch_job(job_id)
-        Que.execute("SELECT * FROM que_jobs WHERE job_id = $1", [job_id]).first
+        Que.execute("SELECT * FROM que_jobs WHERE id = $1", [job_id]).first
       end
 
       def job_exists?(job_id)
         fetch_job(job_id) != nil
+      end
+
+      def sleep_for_refresh
+        sleep 1
       end
 
       def job_status(job)

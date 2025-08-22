@@ -17,9 +17,11 @@ RSpec.describe Aidp::CLI::JobsCommand do
     # Prevent actual job processor from starting
     ENV["QUE_WORKER_COUNT"] = "0"
 
-    # Set up test database config
-    allow(Que).to receive(:connection=)
-    allow(Que).to receive(:migrate!)
+    # Stub database connection setup
+    allow_any_instance_of(Aidp::CLI::JobsCommand).to receive(:setup_database_connection)
+    
+    # Stub input handling to avoid waiting for user input
+    allow_any_instance_of(Aidp::CLI::JobsCommand).to receive(:handle_input)
   end
 
   after do
@@ -32,7 +34,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
     context "with no jobs" do
       it "displays empty state message" do
         # Simulate Ctrl-C after first render
-        expect(command).to receive(:sleep).and_raise(Interrupt)
+        expect(command).to receive(:sleep_for_refresh).and_raise(Interrupt)
 
         command.run
 
@@ -50,7 +52,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
       end
 
       it "displays job list with current status" do
-        expect(command).to receive(:sleep).and_raise(Interrupt)
+        expect(command).to receive(:sleep_for_refresh).and_raise(Interrupt)
 
         command.run
 
@@ -64,7 +66,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
 
       it "updates job status in real-time" do
         # First render
-        expect(command).to receive(:sleep) do
+        expect(command).to receive(:sleep_for_refresh) do
           # Update a job status
           create_mock_job(id: 3, status: "completed")
           raise Interrupt
@@ -86,7 +88,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
         allow($stdin).to receive(:ready?).and_return(true)
         allow($stdin).to receive(:getch).and_return("d")
         allow(command).to receive(:gets).and_return("1\n")
-        expect(command).to receive(:sleep).and_raise(Interrupt)
+        expect(command).to receive(:sleep_for_refresh).and_raise(Interrupt)
 
         command.run
 
@@ -100,7 +102,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
         allow($stdin).to receive(:ready?).and_return(true)
         allow($stdin).to receive(:getch).and_return("d")
         allow(command).to receive(:gets).and_return("999\n")
-        expect(command).to receive(:sleep).and_raise(Interrupt)
+        expect(command).to receive(:sleep_for_refresh).and_raise(Interrupt)
 
         command.run
 
@@ -118,7 +120,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
         allow($stdin).to receive(:ready?).and_return(true)
         allow($stdin).to receive(:getch).and_return("r")
         allow(command).to receive(:gets).and_return("1\n")
-        expect(command).to receive(:sleep).and_raise(Interrupt)
+        expect(command).to receive(:sleep_for_refresh).and_raise(Interrupt)
 
         command.run
 
@@ -134,7 +136,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
         allow($stdin).to receive(:ready?).and_return(true)
         allow($stdin).to receive(:getch).and_return("r")
         allow(command).to receive(:gets).and_return("2\n")
-        expect(command).to receive(:sleep).and_raise(Interrupt)
+        expect(command).to receive(:sleep_for_refresh).and_raise(Interrupt)
 
         command.run
 
@@ -163,7 +165,7 @@ RSpec.describe Aidp::CLI::JobsCommand do
         allow($stdin).to receive(:ready?).and_return(true)
         allow($stdin).to receive(:getch).and_return("d", "b")
         allow(command).to receive(:gets).and_return("1\n")
-        expect(command).to receive(:sleep).and_raise(Interrupt)
+        expect(command).to receive(:sleep_for_refresh).and_raise(Interrupt)
 
         command.run
 

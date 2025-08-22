@@ -2,6 +2,14 @@
 
 require "bundler/setup"
 require "rspec"
+
+# Workaround for Ruby 3.4.2 compatibility with RSpec 3.12.x
+module RSpec
+  module Core
+    Time = ::Time unless defined?(Time)
+  end
+end
+
 require "aidp"
 require "tempfile"
 require "fileutils"

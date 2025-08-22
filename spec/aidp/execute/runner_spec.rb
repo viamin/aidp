@@ -64,9 +64,8 @@ RSpec.describe Aidp::Execute::Runner do
       it "returns mock execution result" do
         result = runner.run_step(step_name)
 
-        expect(result[:status]).to eq("success")
-        expect(result[:provider]).to eq("mock")
-        expect(result[:message]).to eq("Mock execution")
+        expect(result[:status]).to eq("completed")
+        expect(result[:output]).to eq("Mock execution result")
       end
     end
 
@@ -134,7 +133,7 @@ RSpec.describe Aidp::Execute::Runner do
 
     it "returns false in production environment" do
       ENV.delete("AIDP_MOCK_MODE")
-      hide_const("RSpec")
+      ENV.delete("RAILS_ENV")
       expect(runner.send(:should_use_mock_mode?, {})).to be false
     end
   end
