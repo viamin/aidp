@@ -77,22 +77,22 @@ RSpec.describe Aidp::CLI do
     context "with step numbers" do
       it "resolves single digit numbers" do
         result = cli.send(:resolve_analyze_step, "1", progress)
-        expect(result).to eq("01_NFRS")
+        expect(result).to eq("01_REPOSITORY_ANALYSIS")
       end
 
       it "resolves zero-padded numbers" do
         result = cli.send(:resolve_analyze_step, "01", progress)
-        expect(result).to eq("01_NFRS")
+        expect(result).to eq("01_REPOSITORY_ANALYSIS")
       end
 
       it "resolves larger step numbers" do
         result = cli.send(:resolve_analyze_step, "3", progress)
-        expect(result).to eq("03_ADR_FACTORY")
+        expect(result).to eq("03_TEST_ANALYSIS")
       end
 
       it "resolves two-digit step numbers" do
         result = cli.send(:resolve_analyze_step, "03", progress)
-        expect(result).to eq("03_ADR_FACTORY")
+        expect(result).to eq("03_TEST_ANALYSIS")
       end
 
       it "returns nil for invalid step numbers" do
@@ -103,18 +103,18 @@ RSpec.describe Aidp::CLI do
 
     context "with full step names" do
       it "resolves exact case matches" do
-        result = cli.send(:resolve_analyze_step, "01_NFRS", progress)
-        expect(result).to eq("01_NFRS")
+        result = cli.send(:resolve_analyze_step, "01_REPOSITORY_ANALYSIS", progress)
+        expect(result).to eq("01_REPOSITORY_ANALYSIS")
       end
 
       it "resolves case-insensitive matches" do
-        result = cli.send(:resolve_analyze_step, "01_nfrs", progress)
-        expect(result).to eq("01_NFRS")
+        result = cli.send(:resolve_analyze_step, "01_repository_analysis", progress)
+        expect(result).to eq("01_REPOSITORY_ANALYSIS")
       end
 
       it "resolves mixed case matches" do
-        result = cli.send(:resolve_analyze_step, "01_Nfrs", progress)
-        expect(result).to eq("01_NFRS")
+        result = cli.send(:resolve_analyze_step, "01_Repository_Analysis", progress)
+        expect(result).to eq("01_REPOSITORY_ANALYSIS")
       end
 
       it "returns nil for non-existent step names" do
@@ -143,12 +143,12 @@ RSpec.describe Aidp::CLI do
     context "with whitespace handling" do
       it "strips whitespace from input" do
         result = cli.send(:resolve_analyze_step, "  01  ", progress)
-        expect(result).to eq("01_NFRS")
+        expect(result).to eq("01_REPOSITORY_ANALYSIS")
       end
 
       it "handles tabs and newlines" do
         result = cli.send(:resolve_analyze_step, "\t\n01\t\n", progress)
-        expect(result).to eq("01_NFRS")
+        expect(result).to eq("01_REPOSITORY_ANALYSIS")
       end
     end
   end
@@ -160,7 +160,7 @@ RSpec.describe Aidp::CLI do
     before do
       allow(Aidp::Analyze::Runner).to receive(:new).and_return(runner)
       allow(Aidp::Analyze::Progress).to receive(:new).and_return(progress)
-      allow(progress).to receive(:next_step).and_return("00_PRD")
+      allow(progress).to receive(:next_step).and_return("01_REPOSITORY_ANALYSIS")
       allow(progress).to receive(:current_step).and_return(nil)
       allow(progress).to receive(:step_completed?).and_return(false)
       allow(progress).to receive(:completed_steps).and_return([])
@@ -171,12 +171,12 @@ RSpec.describe Aidp::CLI do
       it "lists available steps with status indicators" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
         expect { cli.analyze }.to output(/Available analyze steps:/).to_stdout
-        expect { cli.analyze }.to output(/⏳ 01: 00_PRD/).to_stdout
+        expect { cli.analyze }.to output(/⏳ 01: 01_REPOSITORY_ANALYSIS/).to_stdout
       end
 
       it "shows helpful hint for next step" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect { cli.analyze }.to output(/💡 Run 'aidp analyze next' or 'aidp analyze 00'/).to_stdout
+        expect { cli.analyze }.to output(/💡 Run 'aidp analyze next' or 'aidp analyze 01'/).to_stdout
       end
 
       it "returns success status with metadata" do
@@ -184,14 +184,14 @@ RSpec.describe Aidp::CLI do
         result = cli.analyze
         expect(result[:status]).to eq("success")
         expect(result[:message]).to eq("Available steps listed")
-        expect(result[:next_step]).to eq("00_PRD")
+        expect(result[:next_step]).to eq("01_REPOSITORY_ANALYSIS")
       end
     end
 
     context "when called with 'next'" do
       it "runs the next step" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("00_PRD", {})
+        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
         cli.analyze("next")
       end
     end
@@ -199,8 +199,8 @@ RSpec.describe Aidp::CLI do
     context "when called with 'current'" do
       it "runs the current step" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
-        allow(progress).to receive(:current_step).and_return("02_ARCHITECTURE")
-        expect(runner).to receive(:run_step).with("02_ARCHITECTURE", {})
+        allow(progress).to receive(:current_step).and_return("02_ARCHITECTURE_ANALYSIS")
+        expect(runner).to receive(:run_step).with("02_ARCHITECTURE_ANALYSIS", {})
         cli.analyze("current")
       end
     end
@@ -208,13 +208,13 @@ RSpec.describe Aidp::CLI do
     context "when called with step number" do
       it "runs the correct step for '01'" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("01_NFRS", {})
+        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
         cli.analyze("01")
       end
 
       it "runs the correct step for '1'" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("01_NFRS", {})
+        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
         cli.analyze("1")
       end
     end
@@ -222,8 +222,8 @@ RSpec.describe Aidp::CLI do
     context "when called with full step name" do
       it "runs the step" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("01_NFRS", {})
-        cli.analyze("01_NFRS")
+        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
+        cli.analyze("01_REPOSITORY_ANALYSIS")
       end
     end
 
@@ -250,14 +250,14 @@ RSpec.describe Aidp::CLI do
       it "passes force option to runner" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
         cli.options = {"force" => true}
-        expect(runner).to receive(:run_step).with("01_NFRS", {"force" => true})
+        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {"force" => true})
         cli.analyze("01")
       end
 
       it "passes rerun option to runner" do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
         cli.options = {"rerun" => true}
-        expect(runner).to receive(:run_step).with("01_NFRS", {"rerun" => true})
+        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {"rerun" => true})
         cli.analyze("01")
       end
     end

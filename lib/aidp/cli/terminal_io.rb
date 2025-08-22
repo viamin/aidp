@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'stringio'
+require "stringio"
 
 module Aidp
   class CLI

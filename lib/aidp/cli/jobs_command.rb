@@ -18,6 +18,7 @@ module Aidp
         @running = true
         @view_mode = :list
         @selected_job_id = nil
+        @jobs_displayed = false  # Track if we've displayed jobs in interactive mode
       end
 
       def run
@@ -29,22 +30,30 @@ module Aidp
           while @running
             case @view_mode
             when :list
-              render_job_list
+              result = render_job_list
+              if result == :exit
+                # Exit immediately when no jobs are found
+                break
+              end
+              handle_input
+              sleep_for_refresh unless @running
             when :details
               render_job_details
+              handle_input
+              sleep_for_refresh unless @running
             end
-
-            handle_input
-            sleep_for_refresh unless @running
           end
         end
       rescue Timeout::Error
         @io.puts "Command timed out"
         @running = false
       ensure
-        # Clear screen and show cursor
-        @io.print @cursor.clear_screen
-        @io.print @cursor.show
+        # Only clear screen and show cursor if we were in interactive mode
+        # (i.e., if we had jobs to display and were in a real terminal)
+        if @view_mode == :list && @jobs_displayed
+          @io.print @cursor.clear_screen
+          @io.print @cursor.show
+        end
       end
 
       private
@@ -81,19 +90,25 @@ module Aidp
       def render_job_list
         jobs = fetch_jobs
 
-        # Clear screen and hide cursor
-        @io.print(@cursor.hide)
-        @io.print(@cursor.clear_screen)
-        @io.print(@cursor.move_to(0, 0))
-
-        # Print header
-        @io.puts "Background Jobs"
-        @io.puts "-" * @screen_width
-        @io.puts
-
         if jobs.empty?
+          # Don't clear screen when no jobs - just show the message
+          @io.puts "Background Jobs"
+          @io.puts "-" * @screen_width
+          @io.puts
           @io.puts "No jobs are currently running"
+          return :exit
         else
+          # Clear screen and hide cursor only when we have jobs to display
+          @io.print(@cursor.hide)
+          @io.print(@cursor.clear_screen)
+          @io.print(@cursor.move_to(0, 0))
+          @jobs_displayed = true  # Mark that we've displayed jobs
+
+          # Print header
+          @io.puts "Background Jobs"
+          @io.puts "-" * @screen_width
+          @io.puts
+
           # Create table
           table = TTY::Table.new(
             header: ["ID", "Job", "Queue", "Status", "Runtime", "Error"],
@@ -115,6 +130,7 @@ module Aidp
 
         @io.puts
         @io.puts "Commands: (d)etails, (r)etry, (q)uit"
+        :continue
       end
 
       def render_job_details

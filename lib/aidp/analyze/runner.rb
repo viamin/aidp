@@ -43,7 +43,8 @@ module Aidp
       private
 
       def should_use_mock_mode?(options)
-        options[:mock_mode] || ENV["AIDP_MOCK_MODE"] == "1" || ENV["RAILS_ENV"] == "test"
+        return false if options[:background] # Force background jobs if requested
+        options[:mock_mode] || ENV["AIDP_MOCK_MODE"] == "1" || ENV["RAILS_ENV"] == "test" || ENV["RAILS_ENV"] != "production"
       end
 
       def mock_execution_result

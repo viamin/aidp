@@ -27,46 +27,46 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
       # Step 1: Start analyze mode
       result = run_analyze_command("analyze")
       expect(result[:status]).to eq("success")
-      expect(result[:next_step]).to eq("00_PRD")
+      expect(result[:next_step]).to eq("01_REPOSITORY_ANALYSIS")
 
       # Step 2: Run repository analysis
-      result = run_analyze_command("analyze", "00_PRD")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
 
       # Step 3: Run architecture analysis
-      result = run_analyze_command("analyze", "02_ARCHITECTURE")
+      result = run_analyze_command("analyze", "02_ARCHITECTURE_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
 
       # Step 4: Run test analysis
-      result = run_analyze_command("analyze", "10_TESTING_STRATEGY")
+      result = run_analyze_command("analyze", "03_TEST_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
 
       # Step 5: Run functionality analysis
-      result = run_analyze_command("analyze", "04_DOMAIN_DECOMPOSITION")
+      result = run_analyze_command("analyze", "04_FUNCTIONALITY_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
 
       # Step 6: Run documentation analysis
-      result = run_analyze_command("analyze", "14_DOCS_PORTAL")
+      result = run_analyze_command("analyze", "05_DOCUMENTATION_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
 
       # Step 7: Run static analysis
-      result = run_analyze_command("analyze", "11_STATIC_ANALYSIS")
+      result = run_analyze_command("analyze", "06_STATIC_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
 
       # Step 8: Run refactoring recommendations
-      result = run_analyze_command("analyze", "15_POST_RELEASE")
+      result = run_analyze_command("analyze", "07_REFACTORING_RECOMMENDATIONS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -74,11 +74,11 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
 
     it "handles workflow with errors and recovery" do
       # Run first two steps successfully
-      run_analyze_command("analyze", "00_PRD")
-      run_analyze_command("analyze", "02_ARCHITECTURE")
+      run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
+      run_analyze_command("analyze", "02_ARCHITECTURE_ANALYSIS")
 
       # Step 3 should fail with simulated error
-      result = run_analyze_command("analyze", "10_TESTING_STRATEGY", simulate_error: "Test analysis failed")
+      result = run_analyze_command("analyze", "03_TEST_ANALYSIS", simulate_error: "Test analysis failed")
       expect(result[:status]).to eq("error")
       expect(result[:error]).to eq("Test analysis failed")
 
@@ -90,15 +90,15 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
 
     it "handles force and rerun flags correctly" do
       # Run initial analysis
-      result = run_analyze_command("analyze", "00_PRD")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
       expect(result[:status]).to eq("completed")
 
       # Force run a step (should ignore dependencies)
-      result = run_analyze_command("analyze", "04_DOMAIN_DECOMPOSITION", force: true)
+      result = run_analyze_command("analyze", "04_FUNCTIONALITY_ANALYSIS", force: true)
       expect(result[:status]).to eq("completed")
 
       # Rerun a completed step
-      result = run_analyze_command("analyze", "00_PRD", rerun: true)
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS", rerun: true)
       expect(result[:status]).to eq("completed")
     end
 
@@ -107,7 +107,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
       create_large_mock_repository
 
       # Run analysis with chunking
-      result = run_analyze_command("analyze", "00_PRD")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -115,7 +115,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
 
     it "handles focus area selection" do
       # Run analysis with focus areas
-      result = run_analyze_command("analyze", "00_PRD", focus: "high-churn,security-critical")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS", focus: "high-churn,security-critical")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -123,7 +123,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
 
     it "exports results in multiple formats" do
       # Run analysis with multiple export formats
-      result = run_analyze_command("analyze", "00_PRD", format: "markdown,json,csv")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS", format: "markdown,json,csv")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -133,7 +133,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   describe "Error Handling Integration" do
     it "handles network errors gracefully" do
       # Simulate network error - in mock mode this just returns success
-      result = run_analyze_command("analyze", "00_PRD", simulate_network_error: true)
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS", simulate_network_error: true)
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -141,14 +141,14 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
 
     it "handles file system errors gracefully" do
       # Simulate permission error
-      result = run_analyze_command("analyze", "00_PRD", simulate_error: "Permission denied")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS", simulate_error: "Permission denied")
       expect(result[:status]).to eq("error")
       expect(result[:error]).to eq("Permission denied")
     end
 
     it "handles database errors gracefully" do
       # Simulate database error but expect success in mock mode
-      result = run_analyze_command("analyze", "00_PRD")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -158,20 +158,20 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   describe "Progress Tracking Integration" do
     it "maintains progress across sessions" do
       # Start analysis
-      run_analyze_command("analyze", "00_PRD")
-      run_analyze_command("analyze", "02_ARCHITECTURE")
+      run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
+      run_analyze_command("analyze", "02_ARCHITECTURE_ANALYSIS")
 
       # Simulate restart
       new_cli = Aidp::CLI.new
       result = new_cli.analyze(project_dir, nil)
 
       expect(result[:status]).to eq("success")
-      expect(result[:next_step]).to eq("00_PRD") # First step in mock mode
+      expect(result[:next_step]).to eq("01_REPOSITORY_ANALYSIS") # First step in mock mode
     end
 
     it "handles progress reset" do
       # Run some steps
-      run_analyze_command("analyze", "00_PRD")
+      run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
 
       # Reset progress
       result = run_analyze_command("analyze-reset")
@@ -185,7 +185,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
       # Create project configuration
       create_project_config
 
-      result = run_analyze_command("analyze", "11_STATIC_ANALYSIS")
+      result = run_analyze_command("analyze", "06_STATIC_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -195,7 +195,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
       # Create user configuration
       create_user_config
 
-      result = run_analyze_command("analyze", "11_STATIC_ANALYSIS")
+      result = run_analyze_command("analyze", "06_STATIC_ANALYSIS")
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
       expect(result[:message]).to eq("Mock execution")
@@ -212,7 +212,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
     end
 
     it "exports data to database" do
-      result = run_analyze_command("analyze", "00_PRD")
+      result = run_analyze_command("analyze", "01_REPOSITORY_ANALYSIS")
 
       # In mock mode, verify the step completed successfully
       expect(result[:status]).to eq("completed")

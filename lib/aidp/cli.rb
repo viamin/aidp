@@ -34,6 +34,7 @@ module Aidp
     DESC
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"
+    option :background, type: :boolean, desc: "Run analysis in background jobs (requires database setup)"
     def analyze(*args)
       # Handle both old and new calling patterns for backwards compatibility
       case args.length
