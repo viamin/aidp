@@ -76,6 +76,7 @@ The pipeline includes 15 steps total:
 aidp status                   # Show progress of all steps
 aidp execute next             # Run next pending step
 aidp approve current          # Approve current gate step
+aidp jobs                     # Monitor background jobs (real-time)
 aidp detect                   # See which AI provider will be used
 aidp execute <step>           # Run specific step (e.g., prd, arch, tasks)
 aidp approve <step>           # Approve specific step
@@ -95,6 +96,56 @@ The gem automatically detects and uses the best available AI provider:
 ```bash
 AIDP_PROVIDER=anthropic aidp execute next
 AIDP_LLM_CMD=/usr/local/bin/claude aidp execute next
+```
+
+## Background Jobs
+
+AIDP uses background jobs to handle all AI provider executions, providing better reliability and real-time monitoring capabilities.
+
+### Job Monitoring
+
+Monitor running and completed jobs in real-time:
+
+```bash
+aidp jobs                     # Show job status with real-time updates
+```
+
+The jobs view displays:
+
+- **Running jobs** with live progress updates
+- **Queued jobs** waiting to be processed
+- **Completed jobs** with execution results
+- **Failed jobs** with error details
+
+### Job Controls
+
+From the jobs view, you can:
+
+- **Retry failed jobs** by pressing `r` on a failed job
+- **View job details** by pressing `d` on any job
+- **Exit monitoring** by pressing `q`
+
+### Job Persistence
+
+- Jobs persist across CLI restarts
+- Job history is preserved for analysis
+- Failed jobs can be retried at any time
+- All job metadata and logs are stored
+
+### Database Setup
+
+AIDP uses PostgreSQL for job management. Ensure PostgreSQL is installed and running:
+
+```bash
+# macOS (using Homebrew)
+brew install postgresql
+brew services start postgresql
+
+# Ubuntu/Debian
+sudo apt-get install postgresql postgresql-contrib
+sudo systemctl start postgresql
+
+# The database will be created automatically on first use
 ```
 
 ## File-Based Interaction
@@ -137,20 +188,24 @@ Here's a typical session:
 aidp execute next
 # → Creates docs/PRD.md and PRD_QUESTIONS.md
 
-# 2. Review the questions (if any)
+# 2. Monitor job progress (optional)
+aidp jobs
+# → Shows real-time job status and progress
+
+# 3. Review the questions (if any)
 cat PRD_QUESTIONS.md
 # → If questions exist, edit the file with your answers, then re-run
 
-# 3. Review the PRD
+# 4. Review the PRD
 cat docs/PRD.md
 # → Edit if needed
 
-# 4. Approve and continue
+# 5. Approve and continue
 aidp approve current
 aidp execute next
 # → Creates docs/NFRs.md automatically
 
-# 5. Continue through gates
+# 6. Continue through gates
 aidp execute next
 # → Creates docs/Architecture.md and ARCH_QUESTIONS.md
 # → Repeat review/approve cycle

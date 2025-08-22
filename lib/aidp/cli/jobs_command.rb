@@ -68,7 +68,7 @@ module Aidp
             pool_timeout: 30
           )
 
-          Que.migrate!
+          Que.migrate!(version: Que::Migrations::CURRENT_VERSION)
         end
       rescue Timeout::Error
         @io.puts "Database connection timed out"

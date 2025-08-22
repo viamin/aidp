@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'stringio'
+
 module Aidp
   class CLI
     class TerminalIO
@@ -11,7 +13,9 @@ module Aidp
       def ready?
         return false if @input.closed?
         return true if @input.is_a?(StringIO)
-        @input.ready?
+        # For regular IO, we can't easily check if data is ready
+        # So we'll assume it's always ready for non-blocking operations
+        true
       end
 
       def getch
