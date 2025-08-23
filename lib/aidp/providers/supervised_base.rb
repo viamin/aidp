@@ -6,6 +6,17 @@ module Aidp
   module Providers
     # Base class for providers that use the agent supervisor
     class SupervisedBase
+      # Timeout constants to avoid hardcoding and ensure consistency
+      DEFAULT_TIMEOUT = 300             # 5 minutes for general operations
+      QUICK_MODE_TIMEOUT = 120          # 2 minutes for testing
+      REPOSITORY_ANALYSIS_TIMEOUT = 180 # 3 minutes
+      ARCHITECTURE_ANALYSIS_TIMEOUT = 600  # 10 minutes
+      TEST_ANALYSIS_TIMEOUT = 300       # 5 minutes
+      FUNCTIONALITY_ANALYSIS_TIMEOUT = 600  # 10 minutes
+      DOCUMENTATION_ANALYSIS_TIMEOUT = 300  # 5 minutes
+      STATIC_ANALYSIS_TIMEOUT = 450     # 7.5 minutes
+      REFACTORING_RECOMMENDATIONS_TIMEOUT = 600  # 10 minutes
+      ADAPTIVE_TIMEOUT_BUFFER = 1.2     # 20% buffer for adaptive timeouts
       attr_reader :name, :last_execution_result, :metrics
 
       def initialize
@@ -145,8 +156,8 @@ module Aidp
         # 4. Default timeout
 
         if ENV["AIDP_QUICK_MODE"]
-          log_info("Quick mode enabled - 2 minute timeout")
-          return 120
+          log_info("Quick mode enabled - #{QUICK_MODE_TIMEOUT / 60} minute timeout")
+          return QUICK_MODE_TIMEOUT
         end
 
         provider_timeout_var = "AIDP_#{provider_name.upcase}_TIMEOUT"
@@ -161,9 +172,9 @@ module Aidp
           return step_timeout
         end
 
-        # Default timeout (5 minutes for interactive use)
-        log_info("Using default timeout: 5 minutes")
-        300
+        # Default timeout for interactive use
+        log_info("Using default timeout: #{DEFAULT_TIMEOUT / 60} minutes")
+        DEFAULT_TIMEOUT
       end
 
       def get_adaptive_timeout
@@ -178,8 +189,8 @@ module Aidp
 
           if recommendations[step_name]
             recommended = recommendations[step_name][:recommended_timeout]
-            # Add 20% buffer for safety
-            return (recommended * 1.2).ceil
+            # Add buffer for safety
+            return (recommended * ADAPTIVE_TIMEOUT_BUFFER).ceil
           end
         rescue => e
           log_warning("Could not get adaptive timeout: #{e.message}") if ENV["AIDP_DEBUG"]
@@ -190,19 +201,19 @@ module Aidp
 
         case step_name
         when /REPOSITORY_ANALYSIS/
-          180  # 3 minutes - repository analysis can be quick
+          REPOSITORY_ANALYSIS_TIMEOUT
         when /ARCHITECTURE_ANALYSIS/
-          600  # 10 minutes - architecture analysis needs more time
+          ARCHITECTURE_ANALYSIS_TIMEOUT
         when /TEST_ANALYSIS/
-          300  # 5 minutes - test analysis is moderate
+          TEST_ANALYSIS_TIMEOUT
         when /FUNCTIONALITY_ANALYSIS/
-          600  # 10 minutes - functionality analysis is complex
+          FUNCTIONALITY_ANALYSIS_TIMEOUT
         when /DOCUMENTATION_ANALYSIS/
-          300  # 5 minutes - documentation analysis is moderate
+          DOCUMENTATION_ANALYSIS_TIMEOUT
         when /STATIC_ANALYSIS/
-          450  # 7.5 minutes - static analysis can be intensive
+          STATIC_ANALYSIS_TIMEOUT
         when /REFACTORING_RECOMMENDATIONS/
-          600  # 10 minutes - refactoring recommendations are complex
+          REFACTORING_RECOMMENDATIONS_TIMEOUT
         else
           nil  # Use default
         end

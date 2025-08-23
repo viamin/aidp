@@ -5,7 +5,10 @@ module Aidp
     class ProviderExecutionJob < BaseJob
       def self.enqueue(provider_type:, prompt:, session: nil, metadata: {})
         job = super
-        job.que_attrs[:job_id]
+        # Extract job ID explicitly for better readability and debugging
+        job_id = job.que_attrs[:job_id]
+        raise "Failed to enqueue job: no job ID returned" unless job_id
+        job_id
       end
 
       def run(provider_type:, prompt:, session: nil, metadata: {})

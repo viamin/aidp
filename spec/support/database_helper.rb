@@ -5,7 +5,16 @@ require "que"
 require "sequel"
 
 module DatabaseHelper
+  TEST_DB_NAME = "aidp_test"
+
+  def self.validate_database_name(name)
+    # Only allow alphanumeric characters, underscores, and hyphens
+    raise ArgumentError, "Invalid database name" unless name.match?(/\A[a-zA-Z0-9_-]+\z/)
+  end
+
   def self.setup_test_db
+    validate_database_name(TEST_DB_NAME)
+    
     # Connect to postgres to create test database
     conn = PG.connect(
       host: "localhost",
@@ -16,9 +25,9 @@ module DatabaseHelper
 
     begin
       # Drop test database if it exists
-      conn.exec("SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'aidp_test' AND pid <> pg_backend_pid()")
-      conn.exec("DROP DATABASE IF EXISTS aidp_test")
-      conn.exec("CREATE DATABASE aidp_test")
+      conn.exec_params("SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = $1 AND pid <> pg_backend_pid()", [TEST_DB_NAME])
+      conn.exec("DROP DATABASE IF EXISTS #{conn.escape_identifier(TEST_DB_NAME)}")
+      conn.exec("CREATE DATABASE #{conn.escape_identifier(TEST_DB_NAME)}")
     rescue PG::Error => e
       puts "Error setting up test database: #{e.message}"
       raise
@@ -31,7 +40,7 @@ module DatabaseHelper
       @db = PG.connect(
         host: "localhost",
         port: 5432,
-        dbname: "aidp_test",
+        dbname: TEST_DB_NAME,
         user: ENV["USER"]
       )
 
@@ -40,7 +49,7 @@ module DatabaseHelper
         adapter: "postgres",
         host: "localhost",
         port: 5432,
-        database: "aidp_test",
+        database: TEST_DB_NAME,
         user: ENV["USER"],
         max_connections: 10
       )
@@ -74,13 +83,13 @@ module DatabaseHelper
 
     begin
       # Terminate all connections to the test database
-      conn.exec("SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'aidp_test' AND pid <> pg_backend_pid()")
+      conn.exec_params("SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = $1 AND pid <> pg_backend_pid()", [TEST_DB_NAME])
 
       # Wait a moment for connections to close
       sleep 0.1
 
       # Drop the database
-      conn.exec("DROP DATABASE IF EXISTS aidp_test")
+      conn.exec("DROP DATABASE IF EXISTS #{conn.escape_identifier(TEST_DB_NAME)}")
     rescue PG::Error => e
       puts "Warning: Could not drop test database: #{e.message}"
       # Don't raise the error - this is cleanup and shouldn't fail tests
@@ -95,7 +104,7 @@ module DatabaseHelper
       @db = PG.connect(
         host: "localhost",
         port: 5432,
-        dbname: "aidp_test",
+        dbname: TEST_DB_NAME,
         user: ENV["USER"]
       )
     end
