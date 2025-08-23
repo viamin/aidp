@@ -33,6 +33,7 @@ aidp jobs
 ### 1. Jobs Not Starting
 
 **Symptoms:**
+
 - Jobs remain in "queued" status
 - No progress updates
 - Database connection errors
@@ -77,6 +78,7 @@ brew services restart postgresql@14
 ### 2. Jobs Stuck in "Running" Status
 
 **Symptoms:**
+
 - Jobs show "running" for extended periods
 - No progress updates
 - System appears unresponsive
@@ -117,6 +119,7 @@ ps aux | grep -E "(cursor-agent|claude|gemini)"
 ### 3. Failed Jobs
 
 **Symptoms:**
+
 - Jobs show "failed" status
 - Error messages in job details
 - Repeated failures
@@ -174,6 +177,7 @@ aidp jobs
 ### 4. Job Timeout Issues
 
 **Symptoms:**
+
 - Jobs hang indefinitely
 - No progress updates
 - Provider processes not responding
@@ -217,6 +221,7 @@ aidp jobs
 ### 5. Database Corruption
 
 **Symptoms:**
+
 - Unexpected errors when accessing jobs
 - Missing job history
 - CLI crashes when running jobs
@@ -247,6 +252,7 @@ psql aidp -c "VACUUM ANALYZE;"
 ### 6. Performance Issues
 
 **Symptoms:**
+
 - Slow job processing
 - High memory usage
 - Database connection timeouts
@@ -385,6 +391,7 @@ If you're still experiencing issues:
 5. **Restart services** if needed
 
 For persistent issues, check:
+
 - PostgreSQL logs: `tail -f /usr/local/var/log/postgresql@14.log`
 - System logs: `dmesg | tail -20`
 - Provider tool logs (check individual tool documentation)

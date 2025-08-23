@@ -110,6 +110,7 @@ To kill a running job:
 4. The job will be marked as killed with an error message
 
 **Safety Features**:
+
 - Only running jobs can be killed
 - Confirmation prompt prevents accidental kills
 - Killed jobs are marked with "Job killed by user" error

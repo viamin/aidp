@@ -35,6 +35,7 @@ module Aidp
         # Set up database connection for background jobs
         setup_database_connection
 
+        puts "🚀 Enqueuing background job for step: #{step_name}"
         job = Aidp::Jobs::ProviderExecutionJob.enqueue(
           provider_type: "cursor",
           prompt: composed_prompt(step_name, options),
@@ -43,6 +44,7 @@ module Aidp
             project_dir: @project_dir
           }
         )
+        puts "✅ Job enqueued with ID: #{job}"
 
         wait_for_job_completion(job)
       end
