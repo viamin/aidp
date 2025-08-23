@@ -280,7 +280,10 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
         cli.analyze(project_dir, nil)
       end
     when "analyze-reset"
-      cli.analyze_reset(project_dir)
+      # Use the new flag-based reset approach
+      # Stub the options method to return the reset flag
+      allow(cli).to receive(:options).and_return({"reset" => true})
+      cli.analyze
     else
       {status: "error", error: "Unknown command"}
     end

@@ -28,22 +28,6 @@ RSpec.describe Aidp::CLI do
     it "defines version command" do
       expect(Aidp::CLI.commands.keys).to include("version")
     end
-
-    it "defines execute-approve command" do
-      expect(Aidp::CLI.commands.keys).to include("execute_approve")
-    end
-
-    it "defines execute-reset command" do
-      expect(Aidp::CLI.commands.keys).to include("execute_reset")
-    end
-
-    it "defines analyze-approve command" do
-      expect(Aidp::CLI.commands.keys).to include("analyze_approve")
-    end
-
-    it "defines analyze-reset command" do
-      expect(Aidp::CLI.commands.keys).to include("analyze_reset")
-    end
   end
 
   describe "#resolve_analyze_step" do
@@ -164,7 +148,7 @@ RSpec.describe Aidp::CLI do
       allow(progress).to receive(:current_step).and_return(nil)
       allow(progress).to receive(:step_completed?).and_return(false)
       allow(progress).to receive(:completed_steps).and_return([])
-      allow(runner).to receive(:run_step)
+      allow(runner).to receive(:run_step).and_return({status: "completed", provider: "mock", message: "Mock execution"})
     end
 
     context "when called without arguments" do

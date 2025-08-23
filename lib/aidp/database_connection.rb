@@ -40,7 +40,7 @@ module Aidp
         initialize_mutex
         @mutex.synchronize do
           return unless @connection
-          
+
           # Safely disconnect in reverse order
           begin
             Que.connection = nil
@@ -48,7 +48,7 @@ module Aidp
             # Log but don't fail on Que disconnection issues
             puts "Warning: Error setting Que.connection to nil: #{e.message}" if ENV["AIDP_DEBUG"]
           end
-          
+
           @sequel_db&.disconnect
           @connection&.close
           @connection = nil

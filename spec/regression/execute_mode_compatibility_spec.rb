@@ -51,14 +51,16 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
     end
 
     it "execute mode approve command works correctly" do
-      # Test that approve command works
-      result = cli.approve(project_dir)
+      # Test that approve flag works
+      allow(cli).to receive(:options).and_return({"approve" => "01_NFRS"})
+      result = cli.execute
       expect(result[:status]).to eq("success")
     end
 
     it "execute mode reset command works correctly" do
-      # Test that reset command works
-      result = cli.reset(project_dir)
+      # Test that reset flag works
+      allow(cli).to receive(:options).and_return({"reset" => true})
+      result = cli.execute
       expect(result[:status]).to eq("success")
     end
   end

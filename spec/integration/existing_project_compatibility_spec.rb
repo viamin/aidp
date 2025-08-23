@@ -312,12 +312,14 @@ RSpec.describe "Existing Project Compatibility", type: :integration do
       expect(execute_result[:status]).to eq("completed")
       expect(analyze_result[:status]).to eq("completed")
 
-      # Reset execute mode progress
-      reset_result = cli.reset(project_dir)
+      # Reset execute mode progress using new flag syntax
+      allow(cli).to receive(:options).and_return({"reset" => true})
+      reset_result = cli.execute
       expect(reset_result[:status]).to eq("success")
 
-      # Reset analyze mode progress
-      analyze_reset_result = cli.analyze_reset(project_dir)
+      # Reset analyze mode progress using new flag syntax
+      allow(cli).to receive(:options).and_return({"reset" => true})
+      analyze_reset_result = cli.analyze
       expect(analyze_reset_result[:status]).to eq("success")
 
       # In mock mode, we verify the reset commands work without errors

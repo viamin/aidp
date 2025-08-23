@@ -12,7 +12,7 @@ module Aidp
     option :reset, type: :boolean, desc: "Reset execute mode progress"
     def execute(project_dir = Dir.pwd, step_name = nil, custom_options = {})
       # Handle reset flag
-      if options[:reset]
+      if options[:reset] || options["reset"]
         progress = Aidp::Execute::Progress.new(project_dir)
         progress.reset
         puts "🔄 Reset execute mode progress"
@@ -20,8 +20,8 @@ module Aidp
       end
 
       # Handle approve flag
-      if options[:approve]
-        step_name = options[:approve]
+      if options[:approve] || options["approve"]
+        step_name = options[:approve] || options["approve"]
         progress = Aidp::Execute::Progress.new(project_dir)
         progress.mark_step_completed(step_name)
         puts "✅ Approved execute step: #{step_name}"
@@ -58,7 +58,7 @@ module Aidp
     option :reset, type: :boolean, desc: "Reset analyze mode progress"
     def analyze(*args)
       # Handle reset flag
-      if options[:reset]
+      if options[:reset] || options["reset"]
         project_dir = Dir.pwd
         progress = Aidp::Analyze::Progress.new(project_dir)
         progress.reset
@@ -67,9 +67,9 @@ module Aidp
       end
 
       # Handle approve flag
-      if options[:approve]
+      if options[:approve] || options["approve"]
         project_dir = Dir.pwd
-        step_name = options[:approve]
+        step_name = options[:approve] || options["approve"]
         progress = Aidp::Analyze::Progress.new(project_dir)
         progress.mark_step_completed(step_name)
         puts "✅ Approved analyze step: #{step_name}"

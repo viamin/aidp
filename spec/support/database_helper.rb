@@ -14,7 +14,7 @@ module DatabaseHelper
 
   def self.setup_test_db
     validate_database_name(TEST_DB_NAME)
-    
+
     # Connect to postgres to create test database
     conn = PG.connect(
       host: "localhost",
