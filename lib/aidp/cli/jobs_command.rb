@@ -5,6 +5,7 @@ require "tty-screen"
 require "tty-table"
 require "io/console"
 require "que"
+require "json"
 require_relative "terminal_io"
 
 module Aidp
@@ -39,6 +40,10 @@ module Aidp
               sleep_for_refresh unless @running
             when :details
               render_job_details
+              handle_input
+              sleep_for_refresh unless @running
+            when :output
+              render_job_output
               handle_input
               sleep_for_refresh unless @running
             end
@@ -129,7 +134,7 @@ module Aidp
         end
 
         @io.puts
-        @io.puts "Commands: (d)etails, (r)etry, (q)uit"
+        @io.puts "Commands: (d)etails, (o)utput, (r)etry, (k)ill, (q)uit"
         :continue
       end
 
@@ -162,7 +167,43 @@ module Aidp
         @io.puts job[:last_error_message] if job[:last_error_message]
 
         @io.puts
-        @io.puts "Commands: (b)ack, (r)etry, (q)uit"
+        @io.puts "Commands: (b)ack, (o)utput, (r)etry, (k)ill, (q)uit"
+      end
+
+      def render_job_output
+        return switch_to_list unless @selected_job_id
+
+        job = fetch_job(@selected_job_id)
+        return switch_to_list unless job
+
+        # Clear screen and hide cursor
+        @io.print(@cursor.hide)
+        @io.print(@cursor.clear_screen)
+        @io.print(@cursor.move_to(0, 0))
+
+        # Print header
+        @io.puts "Job Output - ID: #{@selected_job_id}"
+        @io.puts "-" * @screen_width
+        @io.puts
+
+        # Get job output
+        output = get_job_output(@selected_job_id)
+
+        if output.empty?
+          @io.puts "No output available for this job."
+          @io.puts
+          @io.puts "This could mean:"
+          @io.puts "- The job hasn't started yet"
+          @io.puts "- The job is still running but hasn't produced output"
+          @io.puts "- The job completed without output"
+        else
+          @io.puts "Recent Output:"
+          @io.puts "-" * 20
+          @io.puts output
+        end
+
+        @io.puts
+        @io.puts "Commands: (b)ack, (r)efresh, (q)uit"
       end
 
       def handle_input
@@ -175,8 +216,12 @@ module Aidp
             @running = false
           when "d"
             handle_details_command
+          when "o"
+            handle_output_command
           when "r"
             handle_retry_command
+          when "k"
+            handle_kill_command
           when "b"
             switch_to_list
           end
@@ -191,6 +236,20 @@ module Aidp
         if job_exists?(job_id)
           @selected_job_id = job_id
           @view_mode = :details
+        end
+      end
+
+      def handle_output_command
+        job_id = (@view_mode == :details) ? @selected_job_id : nil
+
+        unless job_id
+          @io.print "Enter job ID: "
+          job_id = @io.gets.chomp
+        end
+
+        if job_exists?(job_id)
+          @selected_job_id = job_id
+          @view_mode = :output
         end
       end
 
@@ -216,6 +275,42 @@ module Aidp
               SQL
               [job_id]
             )
+            @io.puts "Job #{job_id} has been queued for retry"
+            sleep 2
+          else
+            @io.puts "Job #{job_id} has no errors to retry"
+            sleep 2
+          end
+        end
+      end
+
+      def handle_kill_command
+        job_id = (@view_mode == :details) ? @selected_job_id : nil
+
+        unless job_id
+          @io.print "Enter job ID: "
+          job_id = @io.gets.chomp
+        end
+
+        if job_exists?(job_id)
+          job = fetch_job(job_id)
+
+          # Only allow killing running jobs
+          if job_status(job) == "running"
+            @io.print "Are you sure you want to kill job #{job_id}? (y/N): "
+            confirmation = @io.gets.chomp.downcase
+
+            if confirmation == "y" || confirmation == "yes"
+              kill_job(job_id)
+              @io.puts "Job #{job_id} has been killed"
+              sleep 2
+            else
+              @io.puts "Job kill cancelled"
+              sleep 1
+            end
+          else
+            @io.puts "Only running jobs can be killed. Job #{job_id} is #{job_status(job)}"
+            sleep 2
           end
         end
       end
@@ -230,7 +325,7 @@ module Aidp
         return [] if ENV["RACK_ENV"] == "test" && !Que.connection
         return [] if ENV["RACK_ENV"] == "test" && ENV["MOCK_DATABASE"] == "true"
 
-        Timeout.timeout(5) do
+        Timeout.timeout(10) do
           Que.execute(
             <<~SQL
               SELECT *
@@ -314,6 +409,80 @@ module Aidp
           "#{error[0..max_length - 4]}..."
         else
           error
+        end
+      end
+
+      def get_job_output(job_id)
+        # Try to get output from various sources
+        output = []
+
+        # 1. Check if there's a result stored in analysis_results table
+        begin
+          result = Que.execute(
+            "SELECT data FROM analysis_results WHERE step_name = $1",
+            ["job_#{job_id}"]
+          ).first
+
+          if result && result["data"]
+            data = JSON.parse(result["data"])
+            output << "Result: #{data["output"]}" if data["output"]
+          end
+        rescue => e
+          # Ignore errors - table might not exist
+        end
+
+        # 2. Check for any recent log entries
+        begin
+          logs = Que.execute(
+            "SELECT message FROM que_jobs WHERE id = $1 AND last_error_message IS NOT NULL",
+            [job_id]
+          ).first
+
+          if logs && logs["last_error_message"]
+            output << "Error: #{logs["last_error_message"]}"
+          end
+        rescue => e
+          # Ignore errors
+        end
+
+        # 3. Check if job appears to be hung
+        job = fetch_job(job_id)
+        if job && job_status(job) == "running"
+          run_at = job[:run_at].is_a?(Time) ? job[:run_at] : Time.parse(job[:run_at])
+          duration = Time.now - run_at
+
+          if duration > 300 # 5 minutes
+            output << "⚠️  WARNING: Job has been running for #{format_duration(duration)}"
+            output << "   This job may be hung or stuck."
+          end
+        end
+
+        output.join("\n")
+      end
+
+      def kill_job(job_id)
+        # Mark the job as finished with an error to stop it
+        Que.execute(
+          <<~SQL,
+            UPDATE que_jobs
+            SET finished_at = NOW(),
+                last_error_message = 'Job killed by user',
+                error_count = error_count + 1
+            WHERE id = $1
+          SQL
+          [job_id]
+        )
+      end
+
+      def format_duration(seconds)
+        minutes = (seconds / 60).to_i
+        hours = (minutes / 60).to_i
+        minutes = minutes % 60
+
+        if hours > 0
+          "#{hours}h #{minutes}m"
+        else
+          "#{minutes}m"
         end
       end
     end

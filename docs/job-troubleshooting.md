@@ -1,124 +1,146 @@
 # Job Troubleshooting Guide
 
-This guide helps you resolve common issues with AIDP's background job system.
+This guide helps you diagnose and resolve common issues with background jobs in AIDP.
+
+## Quick Diagnosis
+
+### Check Job Status
+
+```bash
+# View all jobs and their status
+aidp jobs
+```
+
+### Check Job Output
+
+```bash
+# View job output and activity
+aidp jobs
+# Press 'o' to view output for a specific job
+```
+
+### Kill Hung Jobs
+
+```bash
+# Kill a job that's stuck
+aidp jobs
+# Navigate to the job and press 'k'
+# Confirm with 'y'
+```
 
 ## Common Issues
 
-### 1. PostgreSQL Connection Issues
+### 1. Jobs Not Starting
 
 **Symptoms:**
-
-- "database connection failed" errors
-- Jobs not appearing in `aidp jobs`
-- CLI hangs when trying to access jobs
-
-**Solutions:**
-
-#### Check PostgreSQL Installation
-
-```bash
-# macOS
-brew list postgresql || brew install postgresql
-
-# Ubuntu/Debian
-sudo systemctl status postgresql
-```
-
-#### Start PostgreSQL Service
-
-```bash
-# macOS
-brew services start postgresql
-
-# Ubuntu/Debian
-sudo systemctl start postgresql
-```
-
-#### Verify Connection
-
-```bash
-# Test PostgreSQL connection
-psql -h localhost -U postgres -c "SELECT version();"
-```
-
-#### Check Database Creation
-
-AIDP creates the database automatically on first use. If it fails:
-
-```bash
-# Create database manually
-createdb aidp_jobs
-```
-
-### 2. Jobs Not Starting
-
-**Symptoms:**
-
 - Jobs remain in "queued" status
 - No progress updates
-- CLI shows "waiting for job" indefinitely
+- Database connection errors
 
 **Solutions:**
 
-#### Check Worker Process
+#### Check Database Connection
 
 ```bash
-# Check if Que workers are running
-ps aux | grep que
+# Verify PostgreSQL is running
+brew services list | grep postgresql
+
+# Check database exists
+psql -l | grep aidp
+
+# Test connection
+psql aidp -c "SELECT 1;"
 ```
 
-#### Restart Workers
+#### Verify Que Setup
 
 ```bash
-# Kill existing workers
-pkill -f que
+# Check Que tables exist
+psql aidp -c "\dt" | grep que
 
-# Restart AIDP (workers start automatically)
-aidp status
+# Should show:
+# - que_jobs
+# - que_lockers
+# - que_values
 ```
 
-#### Check Database Permissions
+#### Restart Services
 
 ```bash
-# Ensure your user can access the database
-psql -h localhost -U postgres -d aidp_jobs -c "SELECT 1;"
+# Restart PostgreSQL
+brew services restart postgresql@14
+
+# Restart AIDP CLI
+# (just restart your terminal session)
+```
+
+### 2. Jobs Stuck in "Running" Status
+
+**Symptoms:**
+- Jobs show "running" for extended periods
+- No progress updates
+- System appears unresponsive
+
+**Solutions:**
+
+#### Check for Hung Jobs
+
+```bash
+# View job output to check activity
+aidp jobs
+# Press 'o' to view output
+# Look for warning messages about long-running jobs
+```
+
+#### Kill Stuck Jobs
+
+```bash
+# Kill jobs that have been running too long
+aidp jobs
+# Navigate to stuck job and press 'k'
+# Confirm with 'y'
+```
+
+#### Check System Resources
+
+```bash
+# Check CPU and memory usage
+top -p $(pgrep -f aidp)
+
+# Check disk space
+df -h
+
+# Check for hanging processes
+ps aux | grep -E "(cursor-agent|claude|gemini)"
 ```
 
 ### 3. Failed Jobs
 
 **Symptoms:**
-
 - Jobs show "failed" status
 - Error messages in job details
 - Repeated failures
 
 **Solutions:**
 
-#### Check AI Provider Availability
+#### Review Error Details
 
 ```bash
-# Test provider availability
-aidp detect
-```
-
-#### Review Error Messages
-
-```bash
-# View job details for error information
+# View job details and error messages
 aidp jobs
 # Navigate to failed job and press 'd'
 ```
 
-#### Common Provider Issues
+#### Check Provider Availability
 
-**Cursor Agent:**
+**Cursor:**
 
 ```bash
-# Check if cursor-agent is installed
+# Check if cursor-agent is available
 which cursor-agent
 
 # Install if missing
-npm install -g @cursor/cli
+npm install -g @cursor/agent
 ```
 
 **Claude:**
@@ -141,10 +163,17 @@ which gemini
 pip install google-generativeai
 ```
 
+#### Retry Failed Jobs
+
+```bash
+# Retry a failed job
+aidp jobs
+# Navigate to failed job and press 'r'
+```
+
 ### 4. Job Timeout Issues
 
 **Symptoms:**
-
 - Jobs hang indefinitely
 - No progress updates
 - Provider processes not responding
@@ -167,18 +196,27 @@ pkill -f claude
 pkill -f gemini
 ```
 
-#### Retry Jobs
+#### Use Job Output View
 
 ```bash
-# Retry failed jobs
+# Check job activity and detect hung jobs
 aidp jobs
-# Navigate to failed job and press 'r'
+# Press 'o' to view output
+# Look for warning messages about long-running jobs
+```
+
+#### Kill Hung Jobs
+
+```bash
+# Kill jobs that appear stuck
+aidp jobs
+# Navigate to hung job and press 'k'
+# Confirm with 'y'
 ```
 
 ### 5. Database Corruption
 
 **Symptoms:**
-
 - Unexpected errors when accessing jobs
 - Missing job history
 - CLI crashes when running jobs
@@ -189,27 +227,26 @@ aidp jobs
 
 ```bash
 # Backup existing database
-pg_dump aidp_jobs > aidp_jobs_backup.sql
+pg_dump aidp > aidp_backup.sql
 
 # Drop and recreate database
-dropdb aidp_jobs
-createdb aidp_jobs
+dropdb aidp
+createdb aidp
 
 # Restore if needed
-psql aidp_jobs < aidp_jobs_backup.sql
+psql aidp < aidp_backup.sql
 ```
 
 #### Check Database Integrity
 
 ```bash
 # Check for corruption
-psql aidp_jobs -c "VACUUM ANALYZE;"
+psql aidp -c "VACUUM ANALYZE;"
 ```
 
 ### 6. Performance Issues
 
 **Symptoms:**
-
 - Slow job processing
 - High memory usage
 - Database connection timeouts
@@ -220,8 +257,8 @@ psql aidp_jobs -c "VACUUM ANALYZE;"
 
 ```bash
 # Run database maintenance
-psql aidp_jobs -c "VACUUM ANALYZE;"
-psql aidp_jobs -c "REINDEX DATABASE aidp_jobs;"
+psql aidp -c "VACUUM ANALYZE;"
+psql aidp -c "REINDEX DATABASE aidp;"
 ```
 
 #### Adjust Worker Count
@@ -263,39 +300,91 @@ export AIDP_DEBUG=1
 export AIDP_LOG_FILE=/path/to/logfile.log
 
 # Worker count
-export QUE_WORKER_COUNT=1
+export QUE_WORKER_COUNT=2
 
-# Database connection
-export DATABASE_URL=postgresql://user:pass@localhost/aidp_jobs
+# Database settings
+export AIDP_DB_NAME=aidp
+export AIDP_DB_HOST=localhost
+export AIDP_DB_PORT=5432
+export AIDP_DB_USER=your_username
+export AIDP_DB_PASSWORD=your_password
 ```
 
-## Log Analysis
+## Advanced Troubleshooting
 
-Check logs for specific error patterns:
+### Check Job Output and Activity
 
 ```bash
-# Search for error patterns
-grep -i "error\|failed\|timeout" aidp_jobs.log
-
-# Check provider-specific errors
-grep -i "cursor\|claude\|gemini" aidp_jobs.log
+# View detailed job output
+aidp jobs
+# Press 'o' to view output for a specific job
+# This shows:
+# - Recent output from job execution
+# - Warning messages for hung jobs
+# - Error details for failed jobs
 ```
+
+### Monitor Job Progress
+
+```bash
+# Watch job status in real-time
+watch -n 2 'aidp jobs'
+```
+
+### Check Database Queries
+
+```bash
+# View recent jobs
+psql aidp -c "SELECT id, job_class, status, run_at, finished_at FROM que_jobs ORDER BY run_at DESC LIMIT 10;"
+
+# Check for stuck jobs
+psql aidp -c "SELECT id, job_class, run_at, EXTRACT(EPOCH FROM (NOW() - run_at))/60 as minutes_running FROM que_jobs WHERE finished_at IS NULL AND error_count = 0;"
+```
+
+### Kill Multiple Hung Jobs
+
+```bash
+# Kill all jobs running longer than 30 minutes
+psql aidp -c "UPDATE que_jobs SET finished_at = NOW(), last_error_message = 'Job killed by system (timeout)', error_count = error_count + 1 WHERE finished_at IS NULL AND run_at < NOW() - INTERVAL '30 minutes';"
+```
+
+## Prevention Strategies
+
+### 1. Regular Monitoring
+
+- Check job status regularly during long workflows
+- Use the output view to verify job activity
+- Monitor system resources
+
+### 2. Proper Job Management
+
+- Kill jobs that have been running for extended periods
+- Retry failed jobs after checking error messages
+- Keep provider tools updated
+
+### 3. System Maintenance
+
+- Regularly restart PostgreSQL
+- Monitor disk space and memory usage
+- Keep AIDP and dependencies updated
+
+### 4. Configuration Best Practices
+
+- Set appropriate worker counts
+- Use debug mode for troubleshooting
+- Configure proper database timeouts
 
 ## Getting Help
 
 If you're still experiencing issues:
 
-1. **Enable debug mode** and reproduce the issue
-2. **Check the logs** for error messages
-3. **Note the exact steps** that cause the problem
-4. **Include environment information** (OS, Ruby version, etc.)
+1. **Enable debug mode** and check logs
+2. **Review job output** using the output view
+3. **Check system resources** and provider availability
+4. **Kill hung jobs** and retry failed ones
+5. **Restart services** if needed
 
-## Prevention
-
-To avoid job-related issues:
-
-1. **Keep PostgreSQL running** - Use system services or process managers
-2. **Monitor disk space** - Ensure adequate storage for job logs
-3. **Regular maintenance** - Run database maintenance periodically
-4. **Update providers** - Keep AI provider CLIs up to date
-5. **Check connectivity** - Ensure stable network for provider API calls
+For persistent issues, check:
+- PostgreSQL logs: `tail -f /usr/local/var/log/postgresql@14.log`
+- System logs: `dmesg | tail -20`
+- Provider tool logs (check individual tool documentation)
