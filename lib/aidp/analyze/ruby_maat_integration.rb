@@ -171,110 +171,14 @@ module Aidp
           # Write the output to the specified file
           File.write(output_file, stdout)
         else
-          # Fallback to mock implementation if RubyMaat fails
-          puts "Warning: RubyMaat analysis failed, using mock data. Error: #{stderr}"
-          mock_ruby_maat_analysis(analysis_type, input_file, output_file)
+          # Raise proper error instead of falling back to fake data
+          error_msg = "RubyMaat analysis failed for #{analysis_type}: #{stderr.strip}"
+          error_msg += "\n\nTo install ruby-maat, run: gem install ruby-maat"
+          error_msg += "\nOr add it to your Gemfile: gem 'ruby-maat'"
+          raise error_msg
         end
 
         output_file
-      end
-
-      def mock_ruby_maat_analysis(analysis_type, input_file, output_file)
-        # Parse the Git log to generate mock analysis data
-        git_log_content = File.read(input_file)
-
-        case analysis_type
-        when "churn"
-          generate_mock_churn_data(git_log_content, output_file)
-        when "coupling"
-          generate_mock_coupling_data(git_log_content, output_file)
-        when "authorship"
-          generate_mock_authorship_data(git_log_content, output_file)
-        when "summary"
-          generate_mock_summary_data(git_log_content, output_file)
-        else
-          raise "Unknown analysis type: #{analysis_type}"
-        end
-
-        output_file
-      end
-
-      def generate_mock_churn_data(git_log_content, output_file)
-        # Extract file names from Git log and generate mock churn data
-        files = extract_files_from_git_log(git_log_content)
-
-        csv_content = "entity,n-revs,n-lines-added,n-lines-deleted\n"
-        files.each_with_index do |file, index|
-          changes = rand(1..20)
-          additions = rand(0..changes * 10)
-          deletions = rand(0..changes * 5)
-          csv_content += "#{file},#{changes},#{additions},#{deletions}\n"
-        end
-
-        File.write(output_file, csv_content)
-      end
-
-      def generate_mock_coupling_data(git_log_content, output_file)
-        # Generate mock coupling data between files
-        files = extract_files_from_git_log(git_log_content)
-
-        csv_content = "entity,coupled,degree,average-revs\n"
-        files.each_slice(2) do |file1, file2|
-          next unless file2
-
-          shared_changes = rand(1..10)
-          rand(0.1..1.0).round(2)
-          avg_revs = rand(1..5)
-          csv_content += "#{file1},#{file2},#{shared_changes},#{avg_revs}\n"
-        end
-
-        File.write(output_file, csv_content)
-      end
-
-      def generate_mock_authorship_data(git_log_content, output_file)
-        # Generate mock authorship data
-        files = extract_files_from_git_log(git_log_content)
-        authors = %w[Alice Bob Charlie Diana Eve]
-
-        csv_content = "entity,n-authors,revs\n"
-        files.each do |file|
-          author_count = rand(1..3)
-          file_authors = authors.sample(author_count)
-          revs = rand(1..15)
-          csv_content += "#{file},\"#{file_authors.join(";")}\",#{revs}\n"
-        end
-
-        File.write(output_file, csv_content)
-      end
-
-      def generate_mock_summary_data(git_log_content, output_file)
-        # Generate mock summary data
-        summary_content = <<~SUMMARY
-          Number of commits: 42
-          Number of entities: 15
-          Number of authors: 5
-          First commit: 2023-01-01
-          Last commit: 2024-01-01
-          Total lines added: 1250
-          Total lines deleted: 450
-        SUMMARY
-
-        File.write(output_file, summary_content)
-      end
-
-      def extract_files_from_git_log(git_log_content)
-        # Extract file names from Git log content
-        files = []
-        git_log_content.lines.each do |line|
-          # Look for lines that contain file paths (not commit info)
-          next unless line.match?(/\d+\s+\d+\s+[^\s]+$/)
-
-          parts = line.strip.split(/\s+/)
-          files << parts[2] if parts.length >= 3 && parts[2] != "-"
-        end
-
-        # Return unique files, limited to a reasonable number
-        files.uniq.first(20)
       end
 
       # Check if repository is large enough to require chunking
