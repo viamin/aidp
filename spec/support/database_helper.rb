@@ -53,20 +53,40 @@ module DatabaseHelper
   end
 
   def self.drop_test_db
+    # Close Que connection first
     Que.connection = nil
+
+    # Disconnect Sequel connection
     @sequel_db&.disconnect
+
+    # Close direct PG connection
     @db&.close
     @db = nil
     @sequel_db = nil
 
+    # Connect to postgres to drop the test database
     conn = PG.connect(
       host: "localhost",
       port: 5432,
       dbname: "postgres",
       user: ENV["USER"]
     )
-    conn.exec("DROP DATABASE IF EXISTS aidp_test")
-    conn.close
+
+    begin
+      # Terminate all connections to the test database
+      conn.exec("SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'aidp_test' AND pid <> pg_backend_pid()")
+
+      # Wait a moment for connections to close
+      sleep 0.1
+
+      # Drop the database
+      conn.exec("DROP DATABASE IF EXISTS aidp_test")
+    rescue PG::Error => e
+      puts "Warning: Could not drop test database: #{e.message}"
+      # Don't raise the error - this is cleanup and shouldn't fail tests
+    ensure
+      conn.close
+    end
   end
 
   def self.clear_que_tables
@@ -79,10 +99,14 @@ module DatabaseHelper
         user: ENV["USER"]
       )
     end
-    @db.exec("TRUNCATE que_jobs CASCADE")
-  rescue PG::Error => e
-    puts "Error clearing que tables: #{e.message}"
-    setup_test_db
-    retry
+
+    begin
+      @db.exec("TRUNCATE que_jobs CASCADE")
+    rescue PG::Error => e
+      puts "Error clearing que tables: #{e.message}"
+      # Try to reconnect and retry once
+      setup_test_db
+      @db.exec("TRUNCATE que_jobs CASCADE")
+    end
   end
 end

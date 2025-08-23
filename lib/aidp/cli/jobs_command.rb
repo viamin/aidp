@@ -276,11 +276,10 @@ module Aidp
               [job_id]
             )
             @io.puts "Job #{job_id} has been queued for retry"
-            sleep 2
           else
             @io.puts "Job #{job_id} has no errors to retry"
-            sleep 2
           end
+          sleep 2
         end
       end
 
@@ -427,7 +426,7 @@ module Aidp
             data = JSON.parse(result["data"])
             output << "Result: #{data["output"]}" if data["output"]
           end
-        rescue => e
+        rescue
           # Ignore errors - table might not exist
         end
 
@@ -441,7 +440,7 @@ module Aidp
           if logs && logs["last_error_message"]
             output << "Error: #{logs["last_error_message"]}"
           end
-        rescue => e
+        rescue
           # Ignore errors
         end
 
@@ -477,7 +476,7 @@ module Aidp
       def format_duration(seconds)
         minutes = (seconds / 60).to_i
         hours = (minutes / 60).to_i
-        minutes = minutes % 60
+        minutes %= 60
 
         if hours > 0
           "#{hours}h #{minutes}m"

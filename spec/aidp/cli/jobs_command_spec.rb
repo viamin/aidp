@@ -22,16 +22,17 @@ RSpec.describe Aidp::CLI::JobsCommand do
   end
 
   describe "#run" do
-    context "with no jobs" do
-      it "handles empty job list" do
+    context "with no active jobs" do
+      it "exits cleanly when no jobs are found" do
         input = StringIO.new
         output = StringIO.new
         command = described_class.new(input: input, output: output)
 
-        # Test that the command can be initialized
-        expect(command).to be_a(described_class)
-        expect(command.instance_variable_get(:@running)).to be true
-        expect(command.instance_variable_get(:@view_mode)).to eq(:list)
+        # Mock fetch_jobs to return empty array
+        allow(command).to receive(:fetch_jobs).and_return([])
+
+        # Test that run method can be called and exits cleanly
+        expect { command.run }.not_to raise_error
       end
     end
 
@@ -51,9 +52,9 @@ RSpec.describe Aidp::CLI::JobsCommand do
         command = described_class.new(input: input, output: output)
 
         # Test job status determination
-        completed_job = {"finished_at" => Time.now, "error_count" => 0}
-        failed_job = {"finished_at" => Time.now, "error_count" => 1}
-        running_job = {"finished_at" => nil, "error_count" => 0}
+        completed_job = {finished_at: Time.now, error_count: 0}
+        failed_job = {finished_at: Time.now, error_count: 1}
+        running_job = {finished_at: nil, error_count: 0}
 
         expect(command.send(:job_status, completed_job)).to eq("completed")
         expect(command.send(:job_status, failed_job)).to eq("failed")
@@ -120,6 +121,77 @@ RSpec.describe Aidp::CLI::JobsCommand do
       end
     end
 
+    context "when viewing job output" do
+      it "can handle output commands" do
+        input = StringIO.new
+        output = StringIO.new
+        command = described_class.new(input: input, output: output)
+
+        # Mock the input to return a job ID
+        allow(command.instance_variable_get(:@io)).to receive(:gets).and_return("1\n")
+
+        # Test that handle_output_command method can be called
+        expect { command.send(:handle_output_command) }.not_to raise_error
+      end
+
+      it "can get job output" do
+        input = StringIO.new
+        output = StringIO.new
+        command = described_class.new(input: input, output: output)
+
+        # Test that get_job_output method can be called
+        expect { command.send(:get_job_output, "1") }.not_to raise_error
+      end
+
+      it "can detect hung jobs" do
+        input = StringIO.new
+        output = StringIO.new
+        command = described_class.new(input: input, output: output)
+
+        # Mock a job that's been running for more than 5 minutes
+        hung_job = {run_at: Time.now - 400, finished_at: nil, error_count: 0}
+        allow(command).to receive(:fetch_job).and_return(hung_job)
+
+        output_result = command.send(:get_job_output, "1")
+        expect(output_result).to include("WARNING")
+        expect(output_result).to include("hung")
+      end
+    end
+
+    context "when killing jobs" do
+      it "can handle kill commands" do
+        input = StringIO.new
+        output = StringIO.new
+        command = described_class.new(input: input, output: output)
+
+        # Mock the input to return a job ID and confirmation
+        allow(command.instance_variable_get(:@io)).to receive(:gets).and_return("1\n", "y\n")
+
+        # Test that handle_kill_command method can be called
+        expect { command.send(:handle_kill_command) }.not_to raise_error
+      end
+
+      it "can kill a job" do
+        input = StringIO.new
+        output = StringIO.new
+        command = described_class.new(input: input, output: output)
+
+        # Test that kill_job method can be called
+        expect { command.send(:kill_job, "1") }.not_to raise_error
+      end
+
+      it "can format duration" do
+        input = StringIO.new
+        output = StringIO.new
+        command = described_class.new(input: input, output: output)
+
+        # Test duration formatting
+        expect(command.send(:format_duration, 3661)).to eq("1h 1m")  # 1 hour 1 minute
+        expect(command.send(:format_duration, 125)).to eq("2m")      # 2 minutes
+        expect(command.send(:format_duration, 30)).to eq("0m")       # 30 seconds
+      end
+    end
+
     context "when handling keyboard input" do
       it "can handle input processing" do
         input = StringIO.new
@@ -138,8 +210,8 @@ RSpec.describe Aidp::CLI::JobsCommand do
         # Test runtime formatting with string timestamps
         now = Time.now
         job_with_runtime = {
-          "finished_at" => now.to_s,
-          "run_at" => (now - 60).to_s
+          finished_at: now.to_s,
+          run_at: (now - 60).to_s
         }
         result = command.send(:format_runtime, job_with_runtime)
         expect(result).to include("1m")
