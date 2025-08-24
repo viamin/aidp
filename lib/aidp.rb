@@ -1,53 +1,44 @@
 # frozen_string_literal: true
 
+# Core extensions
+require "aidp/core_ext/class_attribute"
+
 # Shared modules
 require "aidp/version"
 require "aidp/config"
 require "aidp/workspace"
 require "aidp/util"
 require "aidp/cli"
+require "aidp/cli/jobs_command"
 require "aidp/project_detector"
 require "aidp/sync"
+
+# Database
+require "aidp/database_connection"
+
+# Job infrastructure
+require "aidp/job_manager"
+require "aidp/jobs/base_job"
+require "aidp/jobs/provider_execution_job"
+
+# Providers
 require "aidp/providers/base"
 require "aidp/providers/cursor"
 require "aidp/providers/anthropic"
 require "aidp/providers/gemini"
 require "aidp/providers/macos_ui"
+require "aidp/provider_manager"
 
-# Execute mode modules
+# Analyze mode
+require "aidp/analyze/error_handler"
+require "aidp/analyze/parallel_processor"
+require "aidp/analyze/repository_chunker"
+require "aidp/analyze/ruby_maat_integration"
+require "aidp/analyze/runner"
+require "aidp/analyze/steps"
+require "aidp/analyze/progress"
+
+# Execute mode
 require "aidp/execute/steps"
 require "aidp/execute/runner"
 require "aidp/execute/progress"
-
-# Analyze mode modules
-require "aidp/analyze/steps"
-require "aidp/analyze/runner"
-require "aidp/analyze/progress"
-require "aidp/analyze/dependencies"
-require "aidp/analyze/storage"
-require "aidp/analyze/prioritizer"
-require "aidp/analyze/database"
-require "aidp/analyze/ruby_maat_integration"
-require "aidp/analyze/feature_analyzer"
-require "aidp/analyze/focus_guidance"
-require "aidp/analyze/agent_personas"
-require "aidp/analyze/agent_tool_executor"
-require "aidp/analyze/static_analysis_detector"
-require "aidp/analyze/tool_configuration"
-require "aidp/analyze/tool_modernization"
-require "aidp/analyze/language_analysis_strategies"
-require "aidp/analyze/report_generator"
-require "aidp/analyze/export_manager"
-require "aidp/analyze/incremental_analyzer"
-require "aidp/analyze/progress_visualizer"
-require "aidp/analyze/data_retention_manager"
-require "aidp/analyze/repository_chunker"
-require "aidp/analyze/parallel_processor"
-require "aidp/analyze/memory_manager"
-require "aidp/analyze/large_analysis_progress"
-require "aidp/analyze/performance_optimizer"
-require "aidp/analyze/error_handler"
-
-module Aidp
-  class Error < StandardError; end
-end

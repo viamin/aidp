@@ -105,13 +105,6 @@ module Aidp
         end
       end
 
-      def fallback_to_mock_data(operation, fallback_data)
-        operation.call
-      rescue => e
-        logger.warn("Operation failed, using fallback data: #{e.message}")
-        fallback_data
-      end
-
       def skip_step_with_warning(step_name, error)
         logger.warn("Skipping step '#{step_name}' due to error: #{error.message}")
         {
@@ -190,7 +183,7 @@ module Aidp
           SQLite3::CorruptException => :critical_error,
           AnalysisTimeoutError => :chunk_and_retry,
           AnalysisDataError => :continue_with_partial_data,
-          AnalysisToolError => :fallback_to_mock_data
+          AnalysisToolError => :log_and_continue
         }
       end
 
@@ -236,8 +229,6 @@ module Aidp
           chunk_and_retry(error_info)
         when :continue_with_partial_data
           continue_with_partial(error_info)
-        when :fallback_to_mock_data
-          fallback_to_mock(error_info)
         when :log_and_continue
           log_and_continue(error_info)
         else
@@ -273,7 +264,8 @@ module Aidp
         if context[:network_required]
           raise_critical_error({error: error, context: context})
         else
-          fallback_to_mock_data(-> { context[:operation].call }, context[:fallback_data])
+          logger.error("Network connection error: #{error.message}")
+          raise error
         end
       end
 
@@ -329,11 +321,15 @@ module Aidp
       end
 
       def handle_analysis_tool_error(error, context)
-        logger.warn("Analysis tool error: #{error.message}")
-        fallback_to_mock_data(
-          -> { context[:operation].call },
-          context[:mock_data] || generate_mock_data(context)
-        )
+        logger.error("Analysis tool error: #{error.message}")
+        tool_name = context[:tool_name] || "analysis tool"
+        error_msg = "#{tool_name} failed: #{error.message}"
+
+        if context[:installation_guide]
+          error_msg += "\n\nTo install #{tool_name}:\n#{context[:installation_guide]}"
+        end
+
+        raise AnalysisToolError.new(error_msg)
       end
 
       # Recovery strategy implementations
@@ -390,70 +386,10 @@ module Aidp
         continue_with_partial_data(operation, partial_handler)
       end
 
-      def fallback_to_mock(error_info)
-        context = error_info[:context]
-        operation = context[:operation]
-        mock_data = context[:mock_data] || generate_mock_data(context)
-
-        fallback_to_mock_data(operation, mock_data)
-      end
-
       def log_and_continue(error_info)
         error = error_info[:error]
         logger.warn("Continuing after error: #{error.message}")
         {status: "continued_with_error", error: error.message}
-      end
-
-      def generate_mock_data(context)
-        case context[:analysis_type]
-        when "repository"
-          generate_mock_repository_data
-        when "architecture"
-          generate_mock_architecture_data
-        when "test_coverage"
-          generate_mock_test_data
-        else
-          {status: "mock_data", message: "Mock data generated due to error"}
-        end
-      end
-
-      def generate_mock_repository_data
-        {
-          analysis_type: "repository",
-          status: "completed",
-          data: [
-            {entity: "mock_file.rb", nrev: 5, nloc: 100, churn: 20}
-          ],
-          statistics: {
-            total_files: 1,
-            total_commits: 5,
-            total_lines: 100
-          }
-        }
-      end
-
-      def generate_mock_architecture_data
-        {
-          analysis_type: "architecture",
-          status: "completed",
-          data: {
-            pattern: "monolithic",
-            components: ["mock_component"],
-            dependencies: []
-          }
-        }
-      end
-
-      def generate_mock_test_data
-        {
-          analysis_type: "test_coverage",
-          status: "completed",
-          data: {
-            coverage: 75.0,
-            tests: 10,
-            files: 5
-          }
-        }
       end
 
       def calculate_recovery_success_rate

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "sqlite3"
+require "pg"
 require "json"
 require "fileutils"
 
@@ -8,7 +8,6 @@ module Aidp
   class AnalysisDatabase
     def initialize(project_dir = Dir.pwd)
       @project_dir = project_dir
-      @db_path = File.join(project_dir, ".aidp-analysis.db")
       ensure_database_exists
     end
 
@@ -17,15 +16,21 @@ module Aidp
       db = connect
 
       # Store the main analysis result
-      db.execute(
-        "INSERT OR REPLACE INTO analysis_results (step_name, data, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        [step_name, data.to_json, metadata.to_json, Time.now.iso8601, Time.now.iso8601]
+      db.exec_params(
+        <<~SQL,
+          INSERT INTO analysis_results (step_name, data, metadata, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (step_name)
+          DO UPDATE SET
+            data = EXCLUDED.data,
+            metadata = EXCLUDED.metadata,
+            updated_at = EXCLUDED.updated_at
+        SQL
+        [step_name, data.to_json, metadata.to_json, Time.now, Time.now]
       )
 
       # Store metrics for indefinite retention
       store_metrics(step_name, metadata[:metrics]) if metadata[:metrics]
-
-      db.close
     end
 
     # Store metrics that should be retained indefinitely
@@ -33,57 +38,66 @@ module Aidp
       db = connect
 
       metrics.each do |metric_name, value|
-        db.execute(
-          "INSERT OR REPLACE INTO analysis_metrics (step_name, metric_name, value, recorded_at) VALUES (?, ?, ?, ?)",
-          [step_name, metric_name.to_s, value.to_json, Time.now.iso8601]
+        db.exec_params(
+          <<~SQL,
+            INSERT INTO analysis_metrics (step_name, metric_name, value, recorded_at)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (step_name, metric_name, recorded_at)
+            DO UPDATE SET value = EXCLUDED.value
+          SQL
+          [step_name, metric_name.to_s, value.to_json, Time.now]
         )
       end
-
-      db.close
     end
 
     # Store embedding vectors for future semantic analysis
     def store_embeddings(step_name, embeddings_data)
       db = connect
 
-      db.execute(
-        "INSERT OR REPLACE INTO embeddings (step_name, embeddings_data, created_at) VALUES (?, ?, ?)",
-        [step_name, embeddings_data.to_json, Time.now.iso8601]
+      db.exec_params(
+        <<~SQL,
+          INSERT INTO embeddings (step_name, embeddings_data, created_at)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (step_name)
+          DO UPDATE SET
+            embeddings_data = EXCLUDED.embeddings_data,
+            created_at = EXCLUDED.created_at
+        SQL
+        [step_name, embeddings_data.to_json, Time.now]
       )
-
-      db.close
     end
 
     # Retrieve analysis results
     def get_analysis_result(step_name)
       db = connect
-      result = db.execute("SELECT data, metadata, created_at, updated_at FROM analysis_results WHERE step_name = ?",
-        [step_name]).first
-      db.close
+      result = db.exec_params(
+        "SELECT data, metadata, created_at, updated_at FROM analysis_results WHERE step_name = $1",
+        [step_name]
+      ).first
 
       return nil unless result
 
       {
-        data: JSON.parse(result[0]),
-        metadata: JSON.parse(result[1]),
-        created_at: result[2],
-        updated_at: result[3]
+        data: JSON.parse(result["data"]),
+        metadata: JSON.parse(result["metadata"]),
+        created_at: result["created_at"],
+        updated_at: result["updated_at"]
       }
     end
 
     # Retrieve metrics for a step
     def get_metrics(step_name)
       db = connect
-      results = db.execute(
-        "SELECT metric_name, value, recorded_at FROM analysis_metrics WHERE step_name = ? ORDER BY recorded_at DESC", [step_name]
+      results = db.exec_params(
+        "SELECT metric_name, value, recorded_at FROM analysis_metrics WHERE step_name = $1 ORDER BY recorded_at DESC",
+        [step_name]
       )
-      db.close
 
       results.map do |row|
         {
-          metric_name: row[0],
-          value: JSON.parse(row[1]),
-          recorded_at: row[2]
+          metric_name: row["metric_name"],
+          value: JSON.parse(row["value"]),
+          recorded_at: row["recorded_at"]
         }
       end
     end
@@ -91,15 +105,14 @@ module Aidp
     # Get all metrics for trend analysis
     def get_all_metrics
       db = connect
-      results = db.execute("SELECT step_name, metric_name, value, recorded_at FROM analysis_metrics ORDER BY recorded_at DESC")
-      db.close
+      results = db.exec("SELECT step_name, metric_name, value, recorded_at FROM analysis_metrics ORDER BY recorded_at DESC")
 
       results.map do |row|
         {
-          step_name: row[0],
-          metric_name: row[1],
-          value: JSON.parse(row[2]),
-          recorded_at: row[2]
+          step_name: row["step_name"],
+          metric_name: row["metric_name"],
+          value: JSON.parse(row["value"]),
+          recorded_at: row["recorded_at"]
         }
       end
     end
@@ -109,28 +122,28 @@ module Aidp
       db = connect
 
       # Delete existing data
-      db.execute("DELETE FROM analysis_results WHERE step_name = ?", [step_name])
-      db.execute("DELETE FROM embeddings WHERE step_name = ?", [step_name])
+      db.exec_params("DELETE FROM analysis_results WHERE step_name = $1", [step_name])
+      db.exec_params("DELETE FROM embeddings WHERE step_name = $1", [step_name])
 
       # Store new data
-      db.execute(
-        "INSERT INTO analysis_results (step_name, data, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        [step_name, data.to_json, metadata.to_json, Time.now.iso8601, Time.now.iso8601]
+      db.exec_params(
+        <<~SQL,
+          INSERT INTO analysis_results (step_name, data, metadata, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5)
+        SQL
+        [step_name, data.to_json, metadata.to_json, Time.now, Time.now]
       )
 
       # Store metrics (these are retained indefinitely)
       store_metrics(step_name, metadata[:metrics]) if metadata[:metrics]
-
-      db.close
     end
 
     # Delete analysis data (for user cleanup)
     def delete_analysis_data(step_name)
       db = connect
-      db.execute("DELETE FROM analysis_results WHERE step_name = ?", [step_name])
-      db.execute("DELETE FROM embeddings WHERE step_name = ?", [step_name])
+      db.exec_params("DELETE FROM analysis_results WHERE step_name = $1", [step_name])
+      db.exec_params("DELETE FROM embeddings WHERE step_name = $1", [step_name])
       # NOTE: metrics are NOT deleted as they should be retained indefinitely
-      db.close
     end
 
     # Export data in different formats
@@ -152,68 +165,72 @@ module Aidp
     def get_statistics
       db = connect
 
-      stats = {
-        total_analysis_results: db.execute("SELECT COUNT(*) FROM analysis_results").first[0],
-        total_metrics: db.execute("SELECT COUNT(*) FROM analysis_metrics").first[0],
-        total_embeddings: db.execute("SELECT COUNT(*) FROM embeddings").first[0],
-        steps_analyzed: db.execute("SELECT DISTINCT step_name FROM analysis_results").map { |row| row[0] },
-        oldest_metric: db.execute("SELECT MIN(recorded_at) FROM analysis_metrics").first[0],
-        newest_metric: db.execute("SELECT MAX(recorded_at) FROM analysis_metrics").first[0]
+      {
+        total_analysis_results: db.exec("SELECT COUNT(*) FROM analysis_results").first["count"].to_i,
+        total_metrics: db.exec("SELECT COUNT(*) FROM analysis_metrics").first["count"].to_i,
+        total_embeddings: db.exec("SELECT COUNT(*) FROM embeddings").first["count"].to_i,
+        steps_analyzed: db.exec("SELECT DISTINCT step_name FROM analysis_results").map { |row| row["step_name"] },
+        oldest_metric: db.exec("SELECT MIN(recorded_at) FROM analysis_metrics").first["min"],
+        newest_metric: db.exec("SELECT MAX(recorded_at) FROM analysis_metrics").first["max"]
       }
-
-      db.close
-      stats
     end
 
     private
 
     def ensure_database_exists
-      return if File.exist?(@db_path)
+      db = connect
+      create_schema(db)
+    end
 
-      db = SQLite3::Database.new(@db_path)
+    def connect
+      @db ||= PG.connect(
+        host: ENV["AIDP_DB_HOST"] || "localhost",
+        port: ENV["AIDP_DB_PORT"] || 5432,
+        dbname: ENV["AIDP_DB_NAME"] || "aidp",
+        user: ENV["AIDP_DB_USER"] || ENV["USER"],
+        password: ENV["AIDP_DB_PASSWORD"]
+      )
+      @db.type_map_for_results = PG::BasicTypeMapForResults.new(@db)
+      @db
+    end
 
+    def create_schema(db)
       # Create analysis_results table
-      db.execute(<<~SQL)
-        CREATE TABLE analysis_results (
+      db.exec(<<~SQL)
+        CREATE TABLE IF NOT EXISTS analysis_results (
           step_name TEXT PRIMARY KEY,
-          data TEXT NOT NULL,
-          metadata TEXT,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
+          data JSONB NOT NULL,
+          metadata JSONB,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          updated_at TIMESTAMP WITH TIME ZONE NOT NULL
         )
       SQL
 
       # Create analysis_metrics table (indefinite retention)
-      db.execute(<<~SQL)
-        CREATE TABLE analysis_metrics (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+      db.exec(<<~SQL)
+        CREATE TABLE IF NOT EXISTS analysis_metrics (
+          id SERIAL PRIMARY KEY,
           step_name TEXT NOT NULL,
           metric_name TEXT NOT NULL,
-          value TEXT NOT NULL,
-          recorded_at TEXT NOT NULL,
+          value JSONB NOT NULL,
+          recorded_at TIMESTAMP WITH TIME ZONE NOT NULL,
           UNIQUE(step_name, metric_name, recorded_at)
         )
       SQL
 
       # Create embeddings table (for future semantic analysis)
-      db.execute(<<~SQL)
-        CREATE TABLE embeddings (
+      db.exec(<<~SQL)
+        CREATE TABLE IF NOT EXISTS embeddings (
           step_name TEXT PRIMARY KEY,
-          embeddings_data TEXT NOT NULL,
-          created_at TEXT NOT NULL
+          embeddings_data JSONB NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE NOT NULL
         )
       SQL
 
       # Create indexes for better performance
-      db.execute("CREATE INDEX idx_analysis_metrics_step_name ON analysis_metrics(step_name)")
-      db.execute("CREATE INDEX idx_analysis_metrics_recorded_at ON analysis_metrics(recorded_at)")
-      db.execute("CREATE INDEX idx_analysis_results_updated_at ON analysis_results(updated_at)")
-
-      db.close
-    end
-
-    def connect
-      SQLite3::Database.new(@db_path)
+      db.exec("CREATE INDEX IF NOT EXISTS idx_analysis_metrics_step_name ON analysis_metrics(step_name)")
+      db.exec("CREATE INDEX IF NOT EXISTS idx_analysis_metrics_recorded_at ON analysis_metrics(recorded_at)")
+      db.exec("CREATE INDEX IF NOT EXISTS idx_analysis_results_updated_at ON analysis_results(updated_at)")
     end
 
     def export_to_csv(data)

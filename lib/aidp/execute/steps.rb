@@ -2,110 +2,109 @@
 
 module Aidp
   module Execute
-    # Defines the steps, templates, outputs, and associated AI agents for execute mode
-    class Steps
+    module Steps
       SPEC = {
         "00_PRD" => {
-          "templates" => ["00_PRD.md"],
-          "outs" => ["00_PRD.md"],
-          "gate" => false,
-          "agent" => "Product Manager"
+          "templates" => ["prd.md"],
+          "description" => "Generate Product Requirements Document",
+          "outs" => ["docs/prd.md"],
+          "gate" => true
         },
         "01_NFRS" => {
-          "templates" => ["01_NFRS.md"],
-          "outs" => ["01_NFRS.md"],
-          "gate" => false,
-          "agent" => "Architect"
+          "templates" => ["nfrs.md"],
+          "description" => "Define Non-Functional Requirements",
+          "outs" => ["docs/nfrs.md"],
+          "gate" => true
         },
         "02_ARCHITECTURE" => {
-          "templates" => ["02_ARCHITECTURE.md"],
-          "outs" => ["02_ARCHITECTURE.md"],
-          "gate" => false,
-          "agent" => "Architect"
+          "templates" => ["architecture.md"],
+          "description" => "Design System Architecture",
+          "outs" => ["docs/architecture.md"],
+          "gate" => true
         },
         "02A_ARCH_GATE_QUESTIONS" => {
-          "templates" => ["02A_ARCH_GATE_QUESTIONS.md"],
-          "outs" => ["02A_ARCH_GATE_QUESTIONS.md"],
-          "gate" => true,
-          "agent" => "Architect"
+          "templates" => ["arch_gate_questions.md"],
+          "description" => "Architecture Gate Questions",
+          "outs" => ["docs/arch_gate_questions.md"],
+          "gate" => true
         },
         "03_ADR_FACTORY" => {
-          "templates" => ["03_ADR_FACTORY.md"],
-          "outs" => ["03_ADR_FACTORY.md"],
-          "gate" => false,
-          "agent" => "Architect"
+          "templates" => ["adr_factory.md"],
+          "description" => "Generate Architecture Decision Records",
+          "outs" => ["docs/adr/*.md"],
+          "gate" => false
         },
         "04_DOMAIN_DECOMPOSITION" => {
-          "templates" => ["04_DOMAIN_DECOMPOSITION.md"],
-          "outs" => ["04_DOMAIN_DECOMPOSITION.md"],
-          "gate" => false,
-          "agent" => "Architect"
+          "templates" => ["domain_decomposition.md"],
+          "description" => "Decompose Domain into Components",
+          "outs" => ["docs/domain_decomposition.md"],
+          "gate" => true
         },
-        "05_CONTRACTS" => {
-          "templates" => ["05_CONTRACTS.md"],
-          "outs" => ["05_CONTRACTS.md"],
-          "gate" => false,
-          "agent" => "Architect"
+        "05_API_DESIGN" => {
+          "templates" => ["api_design.md"],
+          "description" => "Design APIs and Interfaces",
+          "outs" => ["docs/api_design.md"],
+          "gate" => true
         },
-        "06_THREAT_MODEL" => {
-          "templates" => ["06_THREAT_MODEL.md"],
-          "outs" => ["06_THREAT_MODEL.md"],
-          "gate" => false,
-          "agent" => "Security Expert"
+        "06_DATA_MODEL" => {
+          "templates" => ["data_model.md"],
+          "description" => "Design Data Model",
+          "outs" => ["docs/data_model.md"],
+          "gate" => true
         },
-        "07_TEST_PLAN" => {
-          "templates" => ["07_TEST_PLAN.md"],
-          "outs" => ["07_TEST_PLAN.md"],
-          "gate" => false,
-          "agent" => "Test Engineer"
+        "07_SECURITY_REVIEW" => {
+          "templates" => ["security_review.md"],
+          "description" => "Security Review and Threat Model",
+          "outs" => ["docs/security_review.md"],
+          "gate" => true
         },
-        "08_TASKS" => {
-          "templates" => ["08_TASKS.md"],
-          "outs" => ["08_TASKS.md"],
-          "gate" => false,
-          "agent" => "Project Manager"
+        "08_PERFORMANCE_REVIEW" => {
+          "templates" => ["performance_review.md"],
+          "description" => "Performance Review and Optimization",
+          "outs" => ["docs/performance_review.md"],
+          "gate" => true
         },
-        "09_SCAFFOLDING_DEVEX" => {
-          "templates" => ["09_SCAFFOLDING_DEVEX.md"],
-          "outs" => ["09_SCAFFOLDING_DEVEX.md"],
-          "gate" => false,
-          "agent" => "DevOps Engineer"
+        "09_RELIABILITY_REVIEW" => {
+          "templates" => ["reliability_review.md"],
+          "description" => "Reliability Review and SLOs",
+          "outs" => ["docs/reliability_review.md"],
+          "gate" => true
         },
-        "10_IMPLEMENTATION_AGENT" => {
-          "templates" => ["10_IMPLEMENTATION_AGENT.md"],
-          "outs" => ["10_IMPLEMENTATION_AGENT.md"],
-          "gate" => false,
-          "agent" => "Implementation Specialist"
+        "10_TESTING_STRATEGY" => {
+          "templates" => ["testing_strategy.md"],
+          "description" => "Define Testing Strategy",
+          "outs" => ["docs/testing_strategy.md"],
+          "gate" => true
         },
         "11_STATIC_ANALYSIS" => {
-          "templates" => ["11_STATIC_ANALYSIS.md"],
-          "outs" => ["11_STATIC_ANALYSIS.md"],
-          "gate" => false,
-          "agent" => "Code Quality Expert"
+          "templates" => ["static_analysis.md"],
+          "description" => "Static Code Analysis",
+          "outs" => ["docs/static_analysis.md"],
+          "gate" => false
         },
         "12_OBSERVABILITY_SLOS" => {
-          "templates" => ["12_OBSERVABILITY_SLOS.md"],
-          "outs" => ["12_OBSERVABILITY_SLOS.md"],
-          "gate" => false,
-          "agent" => "SRE Engineer"
+          "templates" => ["observability_slos.md"],
+          "description" => "Define Observability and SLOs",
+          "outs" => ["docs/observability_slos.md"],
+          "gate" => true
         },
         "13_DELIVERY_ROLLOUT" => {
-          "templates" => ["13_DELIVERY_ROLLOUT.md"],
-          "outs" => ["13_DELIVERY_ROLLOUT.md"],
-          "gate" => false,
-          "agent" => "DevOps Engineer"
+          "templates" => ["delivery_rollout.md"],
+          "description" => "Plan Delivery and Rollout",
+          "outs" => ["docs/delivery_rollout.md"],
+          "gate" => true
         },
         "14_DOCS_PORTAL" => {
-          "templates" => ["14_DOCS_PORTAL.md"],
-          "outs" => ["14_DOCS_PORTAL.md"],
-          "gate" => false,
-          "agent" => "Technical Writer"
+          "templates" => ["docs_portal.md"],
+          "description" => "Documentation Portal",
+          "outs" => ["docs/docs_portal.md"],
+          "gate" => false
         },
         "15_POST_RELEASE" => {
-          "templates" => ["15_POST_RELEASE.md"],
-          "outs" => ["15_POST_RELEASE.md"],
-          "gate" => false,
-          "agent" => "Project Manager"
+          "templates" => ["post_release.md"],
+          "description" => "Post-Release Review",
+          "outs" => ["docs/post_release.md"],
+          "gate" => true
         }
       }.freeze
     end

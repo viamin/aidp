@@ -14,7 +14,7 @@ RSpec.describe Aidp::Execute::Steps do
         expect(spec).to have_key("templates")
         expect(spec).to have_key("outs")
         expect(spec).to have_key("gate")
-        expect(spec).to have_key("agent")
+        expect(spec).to have_key("description")
       end
     end
 

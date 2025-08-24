@@ -3,3 +3,10 @@
 source "https://rubygems.org"
 
 gemspec
+
+group :development, :test do
+  gem "rake"
+  gem "rspec"
+  gem "standard"
+  gem "sqlite3"
+end

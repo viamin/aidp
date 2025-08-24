@@ -28,49 +28,33 @@ RSpec.describe Aidp::CLI do
     it "defines version command" do
       expect(Aidp::CLI.commands.keys).to include("version")
     end
-
-    it "defines execute-approve command" do
-      expect(Aidp::CLI.commands.keys).to include("execute_approve")
-    end
-
-    it "defines execute-reset command" do
-      expect(Aidp::CLI.commands.keys).to include("execute_reset")
-    end
-
-    it "defines analyze-approve command" do
-      expect(Aidp::CLI.commands.keys).to include("analyze_approve")
-    end
-
-    it "defines analyze-reset command" do
-      expect(Aidp::CLI.commands.keys).to include("analyze_reset")
-    end
   end
 
   describe "#resolve_analyze_step" do
     let(:progress) { instance_double(Aidp::Analyze::Progress) }
 
     before do
-      allow(progress).to receive(:next_step).and_return("01_REPOSITORY_ANALYSIS")
-      allow(progress).to receive(:current_step).and_return("02_ARCHITECTURE_ANALYSIS")
+      allow(progress).to receive(:next_step).and_return("00_PRD")
+      allow(progress).to receive(:current_step).and_return("02_ARCHITECTURE")
     end
 
     context "with 'next' keyword" do
       it "returns the next step from progress" do
         result = cli.send(:resolve_analyze_step, "next", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
+        expect(result).to eq("00_PRD")
       end
     end
 
     context "with 'current' keyword" do
       it "returns the current step from progress" do
         result = cli.send(:resolve_analyze_step, "current", progress)
-        expect(result).to eq("02_ARCHITECTURE_ANALYSIS")
+        expect(result).to eq("02_ARCHITECTURE")
       end
 
       it "falls back to next step when no current step" do
         allow(progress).to receive(:current_step).and_return(nil)
         result = cli.send(:resolve_analyze_step, "current", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
+        expect(result).to eq("00_PRD")
       end
     end
 
@@ -164,7 +148,7 @@ RSpec.describe Aidp::CLI do
       allow(progress).to receive(:current_step).and_return(nil)
       allow(progress).to receive(:step_completed?).and_return(false)
       allow(progress).to receive(:completed_steps).and_return([])
-      allow(runner).to receive(:run_step)
+      allow(runner).to receive(:run_step).and_return({status: "completed", provider: "mock", message: "Mock execution"})
     end
 
     context "when called without arguments" do

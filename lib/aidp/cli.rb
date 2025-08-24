@@ -8,7 +8,26 @@ module Aidp
     desc "execute [STEP]", "Run execute mode step(s)"
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"
+    option :approve, type: :string, desc: "Approve a completed execute gate step"
+    option :reset, type: :boolean, desc: "Reset execute mode progress"
     def execute(project_dir = Dir.pwd, step_name = nil, custom_options = {})
+      # Handle reset flag
+      if options[:reset] || options["reset"]
+        progress = Aidp::Execute::Progress.new(project_dir)
+        progress.reset
+        puts "🔄 Reset execute mode progress"
+        return {status: "success", message: "Progress reset"}
+      end
+
+      # Handle approve flag
+      if options[:approve] || options["approve"]
+        step_name = options[:approve] || options["approve"]
+        progress = Aidp::Execute::Progress.new(project_dir)
+        progress.mark_step_completed(step_name)
+        puts "✅ Approved execute step: #{step_name}"
+        return {status: "success", step: step_name}
+      end
+
       if step_name
         runner = Aidp::Execute::Runner.new(project_dir)
         # Merge Thor options with custom options
@@ -34,7 +53,29 @@ module Aidp
     DESC
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"
+    option :background, type: :boolean, desc: "Run analysis in background jobs (requires database setup)"
+    option :approve, type: :string, desc: "Approve a completed analyze gate step"
+    option :reset, type: :boolean, desc: "Reset analyze mode progress"
     def analyze(*args)
+      # Handle reset flag
+      if options[:reset] || options["reset"]
+        project_dir = Dir.pwd
+        progress = Aidp::Analyze::Progress.new(project_dir)
+        progress.reset
+        puts "🔄 Reset analyze mode progress"
+        return {status: "success", message: "Progress reset"}
+      end
+
+      # Handle approve flag
+      if options[:approve] || options["approve"]
+        project_dir = Dir.pwd
+        step_name = options[:approve] || options["approve"]
+        progress = Aidp::Analyze::Progress.new(project_dir)
+        progress.mark_step_completed(step_name)
+        puts "✅ Approved analyze step: #{step_name}"
+        return {status: "success", step: step_name}
+      end
+
       # Handle both old and new calling patterns for backwards compatibility
       case args.length
       when 0
@@ -87,7 +128,19 @@ module Aidp
           runner = Aidp::Analyze::Runner.new(project_dir)
           # Merge Thor options with custom options
           all_options = options.merge(custom_options)
-          runner.run_step(resolved_step, all_options)
+          result = runner.run_step(resolved_step, all_options)
+
+          # Display the result
+          if result[:status] == "completed"
+            puts "✅ Step '#{resolved_step}' completed successfully"
+            puts "   Provider: #{result[:provider]}"
+            puts "   Message: #{result[:message]}" if result[:message]
+          elsif result[:status] == "error"
+            puts "❌ Step '#{resolved_step}' failed"
+            puts "   Error: #{result[:error]}" if result[:error]
+          end
+
+          result
         else
           puts "❌ Step '#{step_name}' not found or not available"
           puts "\nAvailable steps:"
@@ -114,49 +167,6 @@ module Aidp
       end
     end
 
-    desc "analyze-approve STEP", "Approve a completed analyze gate step"
-    def analyze_approve(project_dir = Dir.pwd, step_name = nil)
-      progress = Aidp::Analyze::Progress.new(project_dir)
-      progress.mark_step_completed(step_name)
-      puts "✅ Approved analyze step: #{step_name}"
-      {status: "success", step: step_name}
-    end
-
-    desc "analyze-reset", "Reset analyze mode progress"
-    def analyze_reset(project_dir = Dir.pwd)
-      progress = Aidp::Analyze::Progress.new(project_dir)
-      progress.reset
-      puts "🔄 Reset analyze mode progress"
-      {status: "success", message: "Progress reset"}
-    end
-
-    desc "execute-approve STEP", "Approve a completed execute gate step"
-    def execute_approve(project_dir = Dir.pwd, step_name = nil)
-      progress = Aidp::Execute::Progress.new(project_dir)
-      progress.mark_step_completed(step_name)
-      puts "✅ Approved execute step: #{step_name}"
-      {status: "success", step: step_name}
-    end
-
-    desc "execute-reset", "Reset execute mode progress"
-    def execute_reset(project_dir = Dir.pwd)
-      progress = Aidp::Execute::Progress.new(project_dir)
-      progress.reset
-      puts "🔄 Reset execute mode progress"
-      {status: "success", message: "Progress reset"}
-    end
-
-    # Backward compatibility aliases
-    desc "approve STEP", "Approve a completed execute gate step (alias for execute-approve)"
-    def approve(project_dir = Dir.pwd, step_name = nil)
-      execute_approve(project_dir, step_name)
-    end
-
-    desc "reset", "Reset execute mode progress (alias for execute-reset)"
-    def reset(project_dir = Dir.pwd)
-      execute_reset(project_dir)
-    end
-
     desc "status", "Show current progress for both modes"
     def status
       puts "\n📊 AI Dev Pipeline Status"
@@ -177,6 +187,13 @@ module Aidp
         status = analyze_progress.step_completed?(step) ? "✅" : "⏳"
         puts "  #{status} #{step}"
       end
+    end
+
+    desc "jobs", "Show and manage background jobs"
+    def jobs
+      require_relative "cli/jobs_command"
+      command = Aidp::CLI::JobsCommand.new
+      command.run
     end
 
     desc "version", "Show version information"

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "sqlite3"
 
 RSpec.describe "Configuration Isolation", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_config_test") }
@@ -39,13 +40,13 @@ RSpec.describe "Configuration Isolation", type: :integration do
 
       # Create analyze mode progress
       analyze_progress = Aidp::Analyze::Progress.new(project_dir)
-      analyze_progress.mark_step_completed("01_REPOSITORY_ANALYSIS")
+      analyze_progress.mark_step_completed("00_PRD")
 
       expect(File.exist?(progress_file)).to be true
       expect(File.exist?(File.join(project_dir, ".aidp-progress.yml"))).to be false
 
       progress_data = YAML.load_file(progress_file)
-      expect(progress_data["completed_steps"]).to include("01_REPOSITORY_ANALYSIS")
+      expect(progress_data["completed_steps"]).to include("00_PRD")
     end
 
     it "progress files are completely isolated" do
@@ -59,18 +60,18 @@ RSpec.describe "Configuration Isolation", type: :integration do
 
       # Run analyze mode
       analyze_progress = Aidp::Analyze::Progress.new(project_dir)
-      analyze_progress.mark_step_completed("01_REPOSITORY_ANALYSIS")
-      analyze_progress.mark_step_completed("02_ARCHITECTURE_ANALYSIS")
+      analyze_progress.mark_step_completed("00_PRD")
+      analyze_progress.mark_step_completed("02_ARCHITECTURE")
 
       # Verify isolation
       execute_data = YAML.load_file(execute_progress_file)
       analyze_data = YAML.load_file(analyze_progress_file)
 
       expect(execute_data["completed_steps"]).to include("00_PRD", "01_NFRS")
-      expect(execute_data["completed_steps"]).not_to include("01_REPOSITORY_ANALYSIS", "02_ARCHITECTURE_ANALYSIS")
+      expect(execute_data["completed_steps"]).not_to include("02_ARCHITECTURE")
 
-      expect(analyze_data["completed_steps"]).to include("01_REPOSITORY_ANALYSIS", "02_ARCHITECTURE_ANALYSIS")
-      expect(analyze_data["completed_steps"]).not_to include("00_PRD", "01_NFRS")
+      expect(analyze_data["completed_steps"]).to include("00_PRD", "02_ARCHITECTURE")
+      expect(analyze_data["completed_steps"]).not_to include("01_NFRS")
     end
   end
 
@@ -283,7 +284,7 @@ RSpec.describe "Configuration Isolation", type: :integration do
       db = SQLite3::Database.new(db_file)
       db.execute("CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)")
       db.execute("INSERT INTO analysis_results (step, result) VALUES (?, ?)",
-        %w[01_REPOSITORY_ANALYSIS analysis_data])
+        %w[00_PRD analysis_data])
       db.close
 
       expect(File.exist?(db_file)).to be true
@@ -305,7 +306,7 @@ RSpec.describe "Configuration Isolation", type: :integration do
       analyze_db = SQLite3::Database.new(analyze_db_file)
       analyze_db.execute("CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)")
       analyze_db.execute("INSERT INTO analysis_results (step, result) VALUES (?, ?)",
-        %w[01_REPOSITORY_ANALYSIS analysis_data])
+        %w[00_PRD analysis_data])
       analyze_db.close
 
       # Verify isolation

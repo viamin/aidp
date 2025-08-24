@@ -2,50 +2,49 @@
 
 module Aidp
   module Analyze
-    # Defines the steps, templates, outputs, and associated AI agents for analyze mode
-    class Steps
+    module Steps
       SPEC = {
         "01_REPOSITORY_ANALYSIS" => {
-          "templates" => ["01_REPOSITORY_ANALYSIS.md"],
-          "outs" => ["01_REPOSITORY_ANALYSIS.md"],
-          "gate" => false,
-          "agent" => "Repository Analyst"
+          "templates" => ["01_repository_analysis.md"],
+          "description" => "Initial code-maat based repository mining",
+          "outs" => ["docs/analysis/repository_analysis.md"],
+          "gate" => false
         },
         "02_ARCHITECTURE_ANALYSIS" => {
-          "templates" => ["02_ARCHITECTURE_ANALYSIS.md"],
-          "outs" => ["02_ARCHITECTURE_ANALYSIS.md"],
-          "gate" => false,
-          "agent" => "Architecture Analyst"
+          "templates" => ["02_architecture_analysis.md"],
+          "description" => "Identify architectural patterns, dependencies, and violations",
+          "outs" => ["docs/analysis/architecture_analysis.md"],
+          "gate" => true
         },
         "03_TEST_ANALYSIS" => {
-          "templates" => ["03_TEST_ANALYSIS.md"],
-          "outs" => ["03_TEST_ANALYSIS.md"],
-          "gate" => false,
-          "agent" => "Test Analyst"
+          "templates" => ["03_test_analysis.md"],
+          "description" => "Analyze existing test coverage and identify gaps",
+          "outs" => ["docs/analysis/test_analysis.md"],
+          "gate" => false
         },
         "04_FUNCTIONALITY_ANALYSIS" => {
-          "templates" => ["04_FUNCTIONALITY_ANALYSIS.md"],
-          "outs" => ["04_FUNCTIONALITY_ANALYSIS.md"],
-          "gate" => false,
-          "agent" => "Functionality Analyst"
+          "templates" => ["04_functionality_analysis.md"],
+          "description" => "Map features, identify dead code, analyze complexity",
+          "outs" => ["docs/analysis/functionality_analysis.md"],
+          "gate" => false
         },
         "05_DOCUMENTATION_ANALYSIS" => {
-          "templates" => ["05_DOCUMENTATION_ANALYSIS.md"],
-          "outs" => ["05_DOCUMENTATION_ANALYSIS.md"],
-          "gate" => false,
-          "agent" => "Documentation Analyst"
+          "templates" => ["05_documentation_analysis.md"],
+          "description" => "Identify missing documentation and generate what's needed",
+          "outs" => ["docs/analysis/documentation_analysis.md"],
+          "gate" => false
         },
         "06_STATIC_ANALYSIS" => {
-          "templates" => ["06_STATIC_ANALYSIS.md"],
-          "outs" => ["06_STATIC_ANALYSIS.md"],
-          "gate" => false,
-          "agent" => "Static Analysis Expert"
+          "templates" => ["06_static_analysis.md"],
+          "description" => "Check for existing tools and recommend improvements",
+          "outs" => ["docs/analysis/static_analysis.md"],
+          "gate" => false
         },
         "07_REFACTORING_RECOMMENDATIONS" => {
-          "templates" => ["07_REFACTORING_RECOMMENDATIONS.md"],
-          "outs" => ["07_REFACTORING_RECOMMENDATIONS.md"],
-          "gate" => false,
-          "agent" => "Refactoring Specialist"
+          "templates" => ["07_refactoring_recommendations.md"],
+          "description" => "Provide actionable refactoring guidance",
+          "outs" => ["docs/analysis/refactoring_recommendations.md"],
+          "gate" => true
         }
       }.freeze
     end
