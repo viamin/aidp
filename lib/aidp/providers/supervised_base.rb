@@ -6,17 +6,17 @@ module Aidp
   module Providers
     # Base class for providers that use the agent supervisor
     class SupervisedBase
-      # Timeout constants to avoid hardcoding and ensure consistency
-      DEFAULT_TIMEOUT = 300             # 5 minutes for general operations
-      QUICK_MODE_TIMEOUT = 120          # 2 minutes for testing
-      REPOSITORY_ANALYSIS_TIMEOUT = 180 # 3 minutes
-      ARCHITECTURE_ANALYSIS_TIMEOUT = 600  # 10 minutes
-      TEST_ANALYSIS_TIMEOUT = 300       # 5 minutes
-      FUNCTIONALITY_ANALYSIS_TIMEOUT = 600  # 10 minutes
-      DOCUMENTATION_ANALYSIS_TIMEOUT = 300  # 5 minutes
-      STATIC_ANALYSIS_TIMEOUT = 450     # 7.5 minutes
-      REFACTORING_RECOMMENDATIONS_TIMEOUT = 600  # 10 minutes
-      ADAPTIVE_TIMEOUT_BUFFER = 1.2     # 20% buffer for adaptive timeouts
+      # Timeout constants are now configurable via environment variables for flexibility
+      DEFAULT_TIMEOUT = Integer(ENV.fetch("AIDP_DEFAULT_TIMEOUT", "300"))             # 5 minutes for general operations
+      QUICK_MODE_TIMEOUT = Integer(ENV.fetch("AIDP_QUICK_MODE_TIMEOUT", "120"))       # 2 minutes for testing
+      REPOSITORY_ANALYSIS_TIMEOUT = Integer(ENV.fetch("AIDP_REPOSITORY_ANALYSIS_TIMEOUT", "180")) # 3 minutes
+      ARCHITECTURE_ANALYSIS_TIMEOUT = Integer(ENV.fetch("AIDP_ARCHITECTURE_ANALYSIS_TIMEOUT", "600"))  # 10 minutes
+      TEST_ANALYSIS_TIMEOUT = Integer(ENV.fetch("AIDP_TEST_ANALYSIS_TIMEOUT", "300"))       # 5 minutes
+      FUNCTIONALITY_ANALYSIS_TIMEOUT = Integer(ENV.fetch("AIDP_FUNCTIONALITY_ANALYSIS_TIMEOUT", "600"))  # 10 minutes
+      DOCUMENTATION_ANALYSIS_TIMEOUT = Integer(ENV.fetch("AIDP_DOCUMENTATION_ANALYSIS_TIMEOUT", "300"))  # 5 minutes
+      STATIC_ANALYSIS_TIMEOUT = Integer(ENV.fetch("AIDP_STATIC_ANALYSIS_TIMEOUT", "450"))     # 7.5 minutes
+      REFACTORING_RECOMMENDATIONS_TIMEOUT = Integer(ENV.fetch("AIDP_REFACTORING_RECOMMENDATIONS_TIMEOUT", "600"))  # 10 minutes
+      ADAPTIVE_TIMEOUT_BUFFER = Float(ENV.fetch("AIDP_ADAPTIVE_TIMEOUT_BUFFER", "1.2"))     # 20% buffer for adaptive timeouts
       attr_reader :name, :last_execution_result, :metrics
 
       def initialize
