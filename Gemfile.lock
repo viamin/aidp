@@ -78,7 +78,7 @@ GEM
       rubocop (>= 1.75.0, < 2.0)
       rubocop-ast (>= 1.38.0, < 2.0)
     ruby-progressbar (1.13.0)
-    sequel (5.95.1)
+    sequel (5.96.0)
       bigdecimal
     sqlite3 (2.7.3)
       mini_portile2 (~> 2.8.0)
