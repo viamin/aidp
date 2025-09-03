@@ -4,10 +4,10 @@ on:
   push:
     branches: [ main ]
   pull_request:
-  
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false 
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,7 +15,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:16
@@ -30,17 +30,17 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     env:
       USER: postgres
       PGPASSWORD: postgres
-    
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@44511735964dcb71245e7e55f72539531f7bc0eb
         with:
           ruby-version: '3.3'
           bundler-cache: true
