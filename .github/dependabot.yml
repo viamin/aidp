@@ -8,7 +8,7 @@ updates:
     assignees:
       - "viamin"
     commit-message:
-      prefix: "deps"
+      prefix: "chore"
       include: "scope"
     labels:
       - "dependencies"
