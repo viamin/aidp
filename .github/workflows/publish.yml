@@ -23,12 +23,13 @@ jobs:
     permissions:
       contents: write # Required to create releases and update changelog
       pull-requests: write # Required to create release PRs
+      actions: write # Required to create git tags
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - name: Create Release PR or Release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -43,16 +44,15 @@ jobs:
       contents: write # Required for release
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       with:
         persist-credentials: false
 
     - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
+      uses: ruby/setup-ruby@44511735964dcb71245e7e55f72539531f7bc0eb
       with:
         ruby-version: '3.3'
         bundler-cache: true
 
     - name: Release gem
-      uses: rubygems/release-gem@v1
-      
+      uses: rubygems/release-gem@a25424ba2ba8b387abc8ef40807c2c85b96cbe32
