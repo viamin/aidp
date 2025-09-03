@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.4](https://github.com/viamin/aidp/compare/v0.5.3...v0.5.4) (2025-09-03)
+
+
+### Bug Fixes
+
+* code scanning alert no. 6: Workflow does not contain permissions ([9120c66](https://github.com/viamin/aidp/commit/9120c66d230ae5252aeed7f66a02474b83ce303c))
+
 ## [0.5.3](https://github.com/viamin/aidp/compare/v0.5.2...v0.5.3) (2025-09-03)
 
 
