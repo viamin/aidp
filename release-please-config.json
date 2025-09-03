@@ -11,14 +11,38 @@
       "package-name": "aidp",
       "version-file": "lib/aidp/version.rb",
       "changelog-sections": [
-        {"type": "feat", "section": "Features"},
-        {"type": "fix", "section": "Bug Fixes"}, 
-        {"type": "refactor", "section": "Improvements"},
-        {"type": "chore", "section": "Maintenance", "hidden": true},
-        {"type": "docs", "section": "Documentation"},
-        {"type": "test", "section": "Testing"},
-        {"type": "ci", "section": "CI/CD"},
-        {"type": "BREAKING CHANGE", "section": "Breaking Changes"}
+        {
+          "type": "feat",
+          "section": "Features"
+        },
+        {
+          "type": "fix",
+          "section": "Bug Fixes"
+        },
+        {
+          "type": "refactor",
+          "section": "Improvements"
+        },
+        {
+          "type": "chore",
+          "section": "Maintenance"
+        },
+        {
+          "type": "docs",
+          "section": "Documentation"
+        },
+        {
+          "type": "test",
+          "section": "Testing"
+        },
+        {
+          "type": "ci",
+          "section": "CI/CD"
+        },
+        {
+          "type": "BREAKING CHANGE",
+          "section": "Breaking Changes"
+        }
       ],
       "release-search-depth": 400,
       "commit-search-depth": 500
