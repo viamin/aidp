@@ -9,38 +9,26 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# .github/workflows/push_gem.yml
 jobs:
   push:
+    name: Push gem to RubyGems.org
     runs-on: ubuntu-latest
+
     permissions:
-      contents: write
-      id-token: write
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+      contents: write # IMPORTANT: this permission is required for `rake release` to push the release tag
+
     steps:
-    - uses: rubygems/configure-rubygems-credentials@main
-      with:
-        role-to-assume: ${{ secrets.RUBYGEMS_ROLE_TO_ASSUME }}
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-    - name: Set remote URL
-      run: |
-        # Attribute commits to the last committer on HEAD
-        git config --global user.email "$(git log -1 --pretty=format:'%ae')"
-        git config --global user.name "$(git log -1 --pretty=format:'%an')"
-        git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY"
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        bundler-cache: true
-        ruby-version: ruby
-    - name: Release
-      run: bundle exec rake release
-    - name: Wait for release to propagate
-      run: |
-        gem install rubygems-await
-        gem_tuple="$(ruby -rbundler/setup -rbundler -e '
-            spec = Bundler.definition.specs.find {|s| s.name == ARGV[0] }
-            raise "No spec for #{ARGV[0]}" unless spec
-            print [spec.name, spec.version, spec.platform].join(":")
-          ' "aidp")"
-        gem await "${gem_tuple}"
+      # Set up
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@44511735964dcb71245e7e55f72539531f7bc0eb
+        with:
+          bundler-cache: true
+          ruby-version: ruby
+
+      # Release
+      - uses: rubygems/release-gem@a25424ba2ba8b387abc8ef40807c2c85b96cbe32
