@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.2](https://github.com/viamin/aidp/compare/v0.5.1...v0.5.2) (2025-09-03)
+
+
+### Maintenance
+
+* enable cancellation of in-progress jobs in CI and publish workflows ([f5eb408](https://github.com/viamin/aidp/commit/f5eb408c947cefa071e3283984369a8f4418697f))
+* update CI and publish workflows ([fedd33d](https://github.com/viamin/aidp/commit/fedd33d3347af59cc2f1d5259c88245b030ee6f3))
+* update CI and publish workflows ([1a8f91b](https://github.com/viamin/aidp/commit/1a8f91b24e246c953eda3e0d1e28ac4033c126f5))
+
 ## [0.5.1](https://github.com/viamin/aidp/compare/v0.5.0...v0.5.1) (2025-09-03)
 
 
