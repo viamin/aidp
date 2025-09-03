@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.1](https://github.com/viamin/aidp/compare/v0.5.0...v0.5.1) (2025-09-03)
+
+
+### Maintenance
+
+* **deps:** bump sequel from 5.95.1 to 5.96.0 ([013c8a0](https://github.com/viamin/aidp/commit/013c8a043de4d12e38cecea3294bdb2b28e5ca88))
+* mark release 0.5.0 as complete ([44b50ed](https://github.com/viamin/aidp/commit/44b50eda8bcdee175bfaf783f1b1b0f11e4074a8))
+* release 0.5.0 ([1954fd3](https://github.com/viamin/aidp/commit/1954fd34d71e852eb409e50e79d156d977ddc8b7))
+* update changelog formatting and release configuration ([5057c89](https://github.com/viamin/aidp/commit/5057c8984a145c1bc7aae649f57e21a48e852d28))
+* update changelog formatting and release configuration ([4d0e1f6](https://github.com/viamin/aidp/commit/4d0e1f62fa042cc48b9e454022116b87e194a16f))
+* update dependabot commit messages and release configuration ([e2cf7b7](https://github.com/viamin/aidp/commit/e2cf7b7b1c7ab95878bfd718d1878c40bf62d3c7))
+
 ## [0.5.0](https://github.com/viamin/aidp/compare/v0.4.0...v0.5.0) (2025-08-24)
 
 ### Features
