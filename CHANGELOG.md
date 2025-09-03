@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.3](https://github.com/viamin/aidp/compare/v0.5.2...v0.5.3) (2025-09-03)
+
+
+### Maintenance
+
+* simplify publish workflow by removing unused triggers and conditions ([267be3d](https://github.com/viamin/aidp/commit/267be3d6a0afc5145286f13b6c693d674880fbd6))
+* simplify publish workflow by removing unused triggers and conditions ([ea8b7c7](https://github.com/viamin/aidp/commit/ea8b7c77610cc6bb55063bcbd93b20814f993709))
+
 ## [0.5.2](https://github.com/viamin/aidp/compare/v0.5.1...v0.5.2) (2025-09-03)
 
 
