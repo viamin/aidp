@@ -10,6 +10,8 @@
     ".": {
       "package-name": "aidp",
       "version-file": "lib/aidp/version.rb",
+      "include-component-in-tag": false,
+      "merge": true,
       "changelog-sections": [
         {
           "type": "feat",
