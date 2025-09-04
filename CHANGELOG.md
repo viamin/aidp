@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.5](https://github.com/viamin/aidp/compare/v0.5.4...v0.5.5) (2025-09-04)
+
+
+### Bug Fixes
+
+* update version to match release tags ([d116ead](https://github.com/viamin/aidp/commit/d116ead588d64aae292c0d34c2d57b3dbf6de0e9))
+* update version to match release tags ([ae4d96a](https://github.com/viamin/aidp/commit/ae4d96a9e198ead4fb78ded495fa42222bc62b56))
+
 ## [0.5.4](https://github.com/viamin/aidp/compare/v0.5.3...v0.5.4) (2025-09-03)
 
 
