@@ -10,6 +10,11 @@
     ".": {
       "package-name": "aidp",
       "version-file": "lib/aidp/version.rb",
+      "include-component-in-tag": false,
+      "squash": true,
+      "include-v-in-tag": true,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
       "changelog-sections": [
         {
           "type": "feat",
