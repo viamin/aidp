@@ -9,12 +9,4 @@ RSpec.describe "JobsCommand Integration", type: :integration do
     create_mock_job(id: 2, error: "Test error")
     create_mock_job(id: 3, status: "running")
   end
-
-  it "runs with real IO", :manual do
-    # Skip in CI since this requires manual interaction
-    skip "This test requires manual interaction" unless ENV["MANUAL_TESTS"]
-
-    command = Aidp::CLI::JobsCommand.new
-    command.run
-  end
 end

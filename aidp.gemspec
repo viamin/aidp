@@ -35,4 +35,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "tty-screen", "~> 0.8"
   s.add_runtime_dependency "tty-spinner", "~> 0.9"
   s.add_runtime_dependency "tty-table", "~> 0.12"
+  s.add_runtime_dependency "ruby_tree_sitter", "~> 2.0"
 end
