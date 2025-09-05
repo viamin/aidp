@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/viamin/aidp/compare/aidp/v0.6.0...aidp/v0.6.1) (2025-09-05)
+
+
+### Maintenance
+
+* update workflow trigger from release to push for gem publishing ([33b1cc8](https://github.com/viamin/aidp/commit/33b1cc892a212c2a1589ffd2b624edcae20a9c9a))
+
 ## [0.6.0](https://github.com/viamin/aidp/compare/aidp-v0.5.4...aidp/v0.6.0) (2025-09-05)
 
 
