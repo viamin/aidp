@@ -1,6 +1,5 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "pull-request-title-pattern": "chore: release ${version}",
   "packages": {
     ".": {
       "release-type": "ruby",
