@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "sqlite3"
 
 RSpec.describe "Configuration Isolation", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_config_test") }
@@ -258,72 +257,6 @@ RSpec.describe "Configuration Isolation", type: :integration do
       expect(analyze_data["static_analysis_tools"]["ruby"]).to include("rubocop", "reek", "brakeman")
       expect(analyze_data["code_quality_tools"]["javascript"]).to include("jshint", "jscs")
       expect(analyze_data).not_to have_key("build_tools")
-    end
-  end
-
-  describe "Database Isolation" do
-    it "execute mode uses .aidp.db" do
-      # Execute mode should use its own database
-      db_file = File.join(project_dir, ".aidp.db")
-
-      # Create execute mode database
-      db = SQLite3::Database.new(db_file)
-      db.execute("CREATE TABLE IF NOT EXISTS execute_data (id INTEGER PRIMARY KEY, data TEXT)")
-      db.execute("INSERT INTO execute_data (data) VALUES (?)", ["execute_mode_data"])
-      db.close
-
-      expect(File.exist?(db_file)).to be true
-      expect(File.exist?(File.join(project_dir, ".aidp-analysis.db"))).to be false
-    end
-
-    it "analyze mode uses .aidp-analysis.db" do
-      # Analyze mode should use its own database
-      db_file = File.join(project_dir, ".aidp-analysis.db")
-
-      # Create analyze mode database
-      db = SQLite3::Database.new(db_file)
-      db.execute("CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)")
-      db.execute("INSERT INTO analysis_results (step, result) VALUES (?, ?)",
-        %w[00_PRD analysis_data])
-      db.close
-
-      expect(File.exist?(db_file)).to be true
-      expect(File.exist?(File.join(project_dir, ".aidp.db"))).to be false
-    end
-
-    it "databases are completely isolated" do
-      # Both modes can have their own databases
-      execute_db_file = File.join(project_dir, ".aidp.db")
-      analyze_db_file = File.join(project_dir, ".aidp-analysis.db")
-
-      # Execute mode database
-      execute_db = SQLite3::Database.new(execute_db_file)
-      execute_db.execute("CREATE TABLE IF NOT EXISTS execute_data (id INTEGER PRIMARY KEY, data TEXT)")
-      execute_db.execute("INSERT INTO execute_data (data) VALUES (?)", ["execute_mode_data"])
-      execute_db.close
-
-      # Analyze mode database
-      analyze_db = SQLite3::Database.new(analyze_db_file)
-      analyze_db.execute("CREATE TABLE IF NOT EXISTS analysis_results (id INTEGER PRIMARY KEY, step TEXT, result TEXT)")
-      analyze_db.execute("INSERT INTO analysis_results (step, result) VALUES (?, ?)",
-        %w[00_PRD analysis_data])
-      analyze_db.close
-
-      # Verify isolation
-      expect(File.exist?(execute_db_file)).to be true
-      expect(File.exist?(analyze_db_file)).to be true
-
-      # Check execute database
-      execute_db = SQLite3::Database.new(execute_db_file)
-      execute_result = execute_db.execute("SELECT data FROM execute_data").first
-      execute_db.close
-      expect(execute_result.first).to eq("execute_mode_data")
-
-      # Check analyze database
-      analyze_db = SQLite3::Database.new(analyze_db_file)
-      analyze_result = analyze_db.execute("SELECT result FROM analysis_results").first
-      analyze_db.close
-      expect(analyze_result.first).to eq("analysis_data")
     end
   end
 

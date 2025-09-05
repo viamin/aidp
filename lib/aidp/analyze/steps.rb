@@ -40,6 +40,12 @@ module Aidp
           "outs" => ["docs/analysis/static_analysis.md"],
           "gate" => false
         },
+        "06A_TREE_SITTER_SCAN" => {
+          "templates" => ["06a_tree_sitter_scan.md"],
+          "description" => "Tree-sitter powered static analysis to build knowledge base",
+          "outs" => [".aidp/kb/symbols.json", ".aidp/kb/seams.json", ".aidp/kb/hotspots.json"],
+          "gate" => false
+        },
         "07_REFACTORING_RECOMMENDATIONS" => {
           "templates" => ["07_refactoring_recommendations.md"],
           "description" => "Provide actionable refactoring guidance",

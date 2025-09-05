@@ -13,6 +13,7 @@ code_maat_analysis_report.md
 .aidp-analyze.yml
 .aidp-analyze-tools.yml
 .aidp-progress.yml
+.aidp/parsers
 
 # Temporary files
 *.tmp

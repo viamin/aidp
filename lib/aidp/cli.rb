@@ -196,6 +196,60 @@ module Aidp
       command.run
     end
 
+    desc "analyze code", "Run Tree-sitter static analysis to build knowledge base"
+    option :langs, type: :string, desc: "Comma-separated list of languages to analyze (default: ruby)"
+    option :threads, type: :numeric, desc: "Number of threads for parallel processing (default: CPU count)"
+    option :rebuild, type: :boolean, desc: "Rebuild knowledge base from scratch"
+    option :kb_dir, type: :string, desc: "Knowledge base directory (default: .aidp/kb)"
+    def analyze_code
+      require_relative "analysis/tree_sitter_scan"
+
+      langs = options[:langs] ? options[:langs].split(",").map(&:strip) : %w[ruby]
+      threads = options[:threads] || Etc.nprocessors
+      kb_dir = options[:kb_dir] || ".aidp/kb"
+
+      if options[:rebuild]
+        kb_path = File.expand_path(kb_dir, Dir.pwd)
+        FileUtils.rm_rf(kb_path) if File.exist?(kb_path)
+        puts "🗑️  Rebuilt knowledge base directory"
+      end
+
+      scanner = Aidp::Analysis::TreeSitterScan.new(
+        root: Dir.pwd,
+        kb_dir: kb_dir,
+        langs: langs,
+        threads: threads
+      )
+
+      scanner.run
+    end
+
+    desc "kb show [TYPE]", "Show knowledge base contents"
+    option :format, type: :string, desc: "Output format (json, table, summary)"
+    def kb_show(type = "summary")
+      require_relative "analysis/kb_inspector"
+
+      kb_dir = options[:kb_dir] || ".aidp/kb"
+      format = options[:format] || "summary"
+
+      inspector = Aidp::Analysis::KBInspector.new(kb_dir)
+      inspector.show(type, format: format)
+    end
+
+    desc "kb graph [TYPE]", "Generate graph visualization from knowledge base"
+    option :format, type: :string, desc: "Graph format (dot, json, mermaid)"
+    option :output, type: :string, desc: "Output file path"
+    def kb_graph(type = "imports")
+      require_relative "analysis/kb_inspector"
+
+      kb_dir = options[:kb_dir] || ".aidp/kb"
+      format = options[:format] || "dot"
+      output = options[:output]
+
+      inspector = Aidp::Analysis::KBInspector.new(kb_dir)
+      inspector.generate_graph(type, format: format, output: output)
+    end
+
     desc "version", "Show version information"
     def version
       puts "Aidp version #{Aidp::VERSION}"

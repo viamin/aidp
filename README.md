@@ -98,6 +98,114 @@ AIDP_PROVIDER=anthropic aidp execute next
 AIDP_LLM_CMD=/usr/local/bin/claude aidp execute next
 ```
 
+## Tree-sitter Static Analysis
+
+AIDP includes powerful Tree-sitter-based static analysis capabilities for code.
+
+### Tree-sitter Dependencies
+
+The Tree-sitter analysis requires the Tree-sitter system library and pre-compiled language parsers:
+
+```bash
+# Install Tree-sitter system library
+# macOS
+brew install tree-sitter
+
+# Ubuntu/Debian
+sudo apt-get install tree-sitter
+
+# Or follow the ruby_tree_sitter README for other platforms
+# https://github.com/Faveod/ruby-tree-sitter#installation
+
+# Install Tree-sitter parsers
+./install_tree_sitter_parsers.sh
+```
+
+### Parser Installation Script
+
+The `install_tree_sitter_parsers.sh` script automatically downloads and installs pre-built Tree-sitter parsers:
+
+```bash
+# Make the script executable
+chmod +x install_tree_sitter_parsers.sh
+
+# Run the installation script
+./install_tree_sitter_parsers.sh
+```
+
+The script will:
+
+- Detect your OS and architecture (macOS ARM64, Linux x64, etc.)
+- Download the appropriate parser bundle from [Faveod/tree-sitter-parsers](https://github.com/Faveod/tree-sitter-parsers/releases/tag/v4.9)
+- Extract parsers to `.aidp/parsers/` directory
+- Set up the `TREE_SITTER_PARSERS` environment variable
+
+### Environment Setup
+
+After running the installation script, make the environment variable permanent:
+
+```bash
+# Add to your shell profile (e.g., ~/.zshrc, ~/.bashrc)
+echo 'export TREE_SITTER_PARSERS="$(pwd)/.aidp/parsers"' >> ~/.zshrc
+
+# Reload your shell
+source ~/.zshrc
+```
+
+### Tree-sitter Analysis Commands
+
+```bash
+# Run Tree-sitter static analysis
+aidp analyze code
+
+# Analyze specific languages
+aidp analyze code --langs ruby,javascript,typescript
+
+# Use multiple threads for faster analysis
+aidp analyze code --threads 8
+
+# Rebuild knowledge base from scratch
+aidp analyze code --rebuild
+
+# Specify custom KB directory
+aidp analyze code --kb-dir .aidp/custom-kb
+
+# Inspect generated knowledge base
+aidp kb show
+
+# Show specific KB data
+aidp kb show symbols
+aidp kb show imports
+aidp kb show seams
+
+# Generate dependency graphs
+aidp kb graph imports
+aidp kb graph calls
+```
+
+### Knowledge Base Structure
+
+The Tree-sitter analysis generates structured JSON files in `.aidp/kb/`:
+
+- **`symbols.json`** - Classes, modules, methods, and their metadata
+- **`imports.json`** - Require statements and dependencies
+- **`calls.json`** - Method calls and invocation patterns
+- **`metrics.json`** - Code complexity and size metrics
+- **`seams.json`** - Integration points and dependency injection opportunities
+- **`hotspots.json`** - Frequently changed code areas (based on git history)
+- **`tests.json`** - Test coverage analysis
+- **`cycles.json`** - Circular dependency detection
+
+### Legacy Code Analysis Features
+
+The Tree-sitter analysis specifically supports:
+
+- **Seam Detection**: Identifies I/O operations, global state access, and constructor dependencies
+- **Change Hotspots**: Uses git history to identify frequently modified code
+- **Dependency Analysis**: Maps import relationships and call graphs
+- **Test Coverage**: Identifies untested public APIs
+- **Refactoring Opportunities**: Suggests dependency injection points and seam locations
+
 ## Background Jobs
 
 AIDP uses background jobs to handle all AI provider executions, providing better reliability and real-time monitoring capabilities.
@@ -217,8 +325,18 @@ aidp execute next
 # Install dependencies
 bundle install
 
+# Install Tree-sitter parsers for development
+./install_tree_sitter_parsers.sh
+
+# Set up environment variables
+export TREE_SITTER_PARSERS="$(pwd)/.aidp/parsers"
+
 # Run tests
 bundle exec rspec
+
+# Run Tree-sitter analysis tests specifically
+bundle exec rspec spec/aidp/analysis/
+bundle exec rspec spec/integration/tree_sitter_analysis_workflow_spec.rb
 
 # Run linter
 bundle exec standardrb
@@ -229,6 +347,19 @@ bundle exec standardrb --fix
 # Build gem
 bundle exec rake build
 ```
+
+### Development Dependencies
+
+The following system dependencies are required for development:
+
+- **Tree-sitter** - System library for parsing (install via `brew install tree-sitter` or package manager)
+- **PostgreSQL** - Database for job management
+- **Ruby gems** - All required gems are specified in `aidp.gemspec` and installed via `bundle install`
+
+Optional gems with fallbacks:
+
+- **`concurrent-ruby`** - Parallel processing (fallback to basic threading if not available)
+- **`tty-table`** - Table rendering (fallback to basic ASCII tables if not available)
 
 ## Contributing
 
@@ -254,7 +385,7 @@ The gem automates a complete 15-step development pipeline:
 - **Threat Model** → Security analysis (`docs/ThreatModel.md`)
 - **Test Plan** → Testing strategy (`docs/TestPlan.md`)
 - **Scaffolding** → Project structure guidance (`docs/ScaffoldingGuide.md`)
-- **Static Analysis** → Code quality tools (`docs/StaticAnalysis.md`)
+- **Static Analysis** → Code quality tools and Tree-sitter analysis (`docs/StaticAnalysis.md`, `.aidp/kb/`)
 - **Observability** → Monitoring and SLOs (`docs/Observability.md`)
 - **Delivery** → Deployment strategy (`docs/DeliveryPlan.md`)
 - **Docs Portal** → Documentation portal (`docs/DocsPortalPlan.md`)
