@@ -3,6 +3,9 @@
 # Script to install Tree-sitter parsers from Faveod/tree-sitter-parsers
 # This downloads pre-built parsers for the tree_sitter gem
 
+# Configuration
+VERSION="4.9"
+
 echo "🔧 Installing Tree-sitter parsers from Faveod/tree-sitter-parsers..."
 
 # Create parser directory
@@ -44,7 +47,7 @@ case "$OS" in
 esac
 
 # Download URL for the latest release
-DOWNLOAD_URL="https://github.com/Faveod/tree-sitter-parsers/releases/download/v4.9/tree-sitter-parsers-4.9-${OS_SUFFIX}-${ARCH_SUFFIX}.tar.gz"
+DOWNLOAD_URL="https://github.com/Faveod/tree-sitter-parsers/releases/download/v${VERSION}/tree-sitter-parsers-${VERSION}-${OS_SUFFIX}-${ARCH_SUFFIX}.tar.gz"
 
 echo "📥 Downloading parsers from: $DOWNLOAD_URL"
 

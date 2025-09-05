@@ -4,6 +4,7 @@ require "json"
 require "fileutils"
 require "digest"
 require "concurrent"
+require "etc"
 
 require_relative "tree_sitter_grammar_loader"
 require_relative "seams"
@@ -83,7 +84,7 @@ module Aidp
             next if line.empty? || line.start_with?("#")
 
             # Convert gitignore patterns to glob patterns
-            pattern = line.gsub("**", "*").gsub("*", "**/*")
+            pattern = convert_gitignore_to_glob(line)
             ignored_patterns << pattern
           end
         end
@@ -97,6 +98,31 @@ module Aidp
         files.reject do |file|
           relative_path = file.sub(/^#{Regexp.escape(@root)}\/?/, "")
           ignored_patterns.any? { |pattern| File.fnmatch?(pattern, relative_path) }
+        end
+      end
+
+      # Convert gitignore patterns to Ruby glob patterns
+      def convert_gitignore_to_glob(gitignore_pattern)
+        # Handle different gitignore pattern types
+        case gitignore_pattern
+        when /^\//
+          # Absolute path from root: /foo -> foo
+          gitignore_pattern[1..]
+        when /\/$/
+          # Directory only: foo/ -> **/foo/**
+          "**/" + gitignore_pattern.chomp("/") + "/**"
+        when /\*\*/
+          # Already contains **: leave as-is for glob
+          gitignore_pattern
+        else
+          # Regular pattern: foo -> **/foo
+          if gitignore_pattern.include?("/")
+            # Contains path separator: keep relative structure
+            gitignore_pattern
+          else
+            # Simple filename: match anywhere
+            "**/" + gitignore_pattern
+          end
         end
       end
 
@@ -131,33 +157,21 @@ module Aidp
           # Load grammar for this language
           grammar = @grammar_loader.load_grammar(lang)
 
-          # Process files in parallel
-          if defined?(Concurrent)
-            # Use Concurrent gem if available
-            pool = Concurrent::FixedThreadPool.new(@threads)
-            futures = []
+          # Process files in parallel using Concurrent gem
+          pool = Concurrent::FixedThreadPool.new(@threads)
+          futures = []
 
-            lang_files.each do |file|
-              future = Concurrent::Promise.execute(executor: pool) do
-                parse_file(file, grammar)
-              end
-              futures << future
+          lang_files.each do |file|
+            future = Concurrent::Promise.execute(executor: pool) do
+              parse_file(file, grammar)
             end
-
-            # Wait for all futures to complete
-            futures.each(&:value!)
-            pool.shutdown
-            pool.wait_for_termination
-          else
-            # Fallback to basic Ruby threading
-            threads = []
-            lang_files.each_slice((lang_files.length / @threads.to_f).ceil) do |file_batch|
-              threads << Thread.new do
-                file_batch.each { |file| parse_file(file, grammar) }
-              end
-            end
-            threads.each(&:join)
+            futures << future
           end
+
+          # Wait for all futures to complete
+          futures.each(&:value!)
+          pool.shutdown
+          pool.wait_for_termination
         end
 
         save_cache
@@ -196,7 +210,7 @@ module Aidp
         begin
           # Set current file for context in helper methods
           @current_file_path = file_path
-          
+
           source_code = File.read(file_path)
           ast = grammar[:parser][:parse].call(source_code)
 
@@ -402,13 +416,13 @@ module Aidp
           # Single-quoted string - minimal escaping
           content = full_text[1..-2] # Remove surrounding quotes
           content.gsub("\\'", "'").gsub("\\\\", "\\")
-        when '%'
+        when "%"
           # Percent notation strings (%q, %Q, %w, etc.)
           handle_percent_string(full_text)
         else
           # Fallback: try to extract content between quotes
-          if full_text.match(/^["'](.*)["']$/)
-            $1
+          if (match = full_text.match(/^["'](.*)["']$/))
+            match[1]
           else
             full_text
           end
@@ -417,15 +431,15 @@ module Aidp
 
       # Handle Ruby's percent notation strings
       def handle_percent_string(text)
-        return text unless text.start_with?('%')
-        
+        return text unless text.start_with?("%")
+
         case text[1]
-        when 'q', 'Q'
+        when "q", "Q"
           # %q{...} or %Q{...}
           delimiter = text[2]
           closing_delimiter = get_closing_delimiter(delimiter)
           content = text[3..-(closing_delimiter.length + 1)]
-          text[1] == 'Q' ? unescape_string(content) : content
+          (text[1] == "Q") ? unescape_string(content) : content
         else
           text
         end
@@ -434,21 +448,21 @@ module Aidp
       # Get closing delimiter for percent strings
       def get_closing_delimiter(opening)
         case opening
-        when '('; ')'
-        when '['; ']'
-        when '{'; '}'
-        when '<'; '>'
+        when "(" then ")"
+        when "[" then "]"
+        when "{" then "}"
+        when "<" then ">"
         else; opening
         end
       end
 
       # Unescape common Ruby escape sequences
       def unescape_string(str)
-        str.gsub(/\\n/, "\n")
-           .gsub(/\\t/, "\t")
-           .gsub(/\\r/, "\r")
-           .gsub(/\\"/, '"')
-           .gsub(/\\\\/, "\\")
+        str.gsub("\\n", "\n")
+          .gsub("\\t", "\t")
+          .gsub("\\r", "\r")
+          .gsub('\"', '"')
+          .gsub("\\\\", "\\")
       end
 
       # Safely extract children from a node, handling nested structures
@@ -478,8 +492,8 @@ module Aidp
 
       # Generalized method to extract text from any Tree-sitter node using source position
       def extract_node_text_from_source(node, file_path = nil)
-        return nil unless node&.dig(:start_line) && node&.dig(:end_line)
-        return nil unless node&.dig(:start_column) && node&.dig(:end_column)
+        return nil unless node&.dig(:start_line) && node.dig(:end_line)
+        return nil unless node&.dig(:start_column) && node.dig(:end_column)
 
         # Get source file path - either from parameter or from current parsing context
         source_file = file_path ? File.join(@root, file_path) : @current_file_path
@@ -487,9 +501,9 @@ module Aidp
 
         # Read source lines
         source_lines = File.readlines(source_file)
-        
+
         start_line = node[:start_line]
-        end_line = node[:end_line] 
+        end_line = node[:end_line]
         start_col = node[:start_column]
         end_col = node[:end_column]
 
@@ -503,16 +517,16 @@ module Aidp
         result = ""
         (start_line..end_line).each do |line_num|
           line_content = source_lines[line_num - 1] || ""
-          
-          if line_num == start_line
+
+          result += if line_num == start_line
             # First line: from start_col to end
-            result += line_content[start_col..-1] || ""
+            line_content[start_col..] || ""
           elsif line_num == end_line
             # Last line: from start to end_col
-            result += line_content[0...end_col] || ""
+            line_content[0...end_col] || ""
           else
             # Middle lines: entire line
-            result += line_content
+            line_content
           end
         end
 

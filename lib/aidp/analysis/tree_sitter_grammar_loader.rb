@@ -138,12 +138,7 @@ module Aidp
       end
 
       def create_tree_sitter_parser(language)
-        # Check if Tree-sitter is available
-        if defined?(TreeSitter)
-          create_real_parser(language)
-        else
-          create_mock_parser(language)
-        end
+        create_real_parser(language)
       end
 
       def create_real_parser(language)
@@ -160,7 +155,7 @@ module Aidp
         puts "Warning: Tree-sitter parser not found for #{language}: #{e.message}"
         create_mock_parser(language)
       rescue => e
-        puts "Warning: Failed to create real Tree-sitter parser for #{language}: #{e.message}"
+        puts "Warning: Failed to create Tree-sitter parser for #{language}: #{e.message}"
         create_mock_parser(language)
       end
 

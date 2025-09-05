@@ -5,46 +5,6 @@ require "tty-table"
 
 module Aidp
   module Analysis
-    # Basic table formatter for when TTY::Table is not available
-    class BasicTable
-      def initialize(header, rows)
-        @header = header
-        @rows = rows
-      end
-
-      def render
-        return "No data" if @rows.empty?
-
-        # Calculate column widths
-        widths = @header.map(&:length)
-        @rows.each do |row|
-          row.each_with_index do |cell, i|
-            widths[i] = [widths[i], cell.to_s.length].max
-          end
-        end
-
-        # Create separator line
-        separator = "+" + widths.map { |w| "-" * (w + 2) }.join("+") + "+"
-
-        # Build table
-        result = [separator]
-
-        # Header
-        header_row = "|" + @header.each_with_index.map { |cell, i| " #{cell.to_s.ljust(widths[i])} " }.join("|") + "|"
-        result << header_row
-        result << separator
-
-        # Data rows
-        @rows.each do |row|
-          data_row = "|" + row.each_with_index.map { |cell, i| " #{cell.to_s.ljust(widths[i])} " }.join("|") + "|"
-          result << data_row
-        end
-
-        result << separator
-        result.join("\n")
-      end
-    end
-
     class KBInspector
       def initialize(kb_dir = ".aidp/kb")
         @kb_dir = File.expand_path(kb_dir)
@@ -90,12 +50,7 @@ module Aidp
       private
 
       def create_table(header, rows)
-        if defined?(TTY::Table)
-          TTY::Table.new(header: header, rows: rows)
-        else
-          # Fallback to basic table formatting
-          BasicTable.new(header, rows)
-        end
+        TTY::Table.new(header: header, rows: rows)
       end
 
       def load_kb_data
