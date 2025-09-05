@@ -1,8 +1,9 @@
 name: Push Gem
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'aidp/v*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
