@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    aidp (0.5.4)
+    aidp (0.6.0)
       colorize (~> 1.1)
       concurrent-ruby (~> 1.2)
       csv (~> 3.2)
