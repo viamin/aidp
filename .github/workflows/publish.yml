@@ -15,9 +15,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         id: release
-        with:
-          token: ${{ secrets.RELEASE_TOKEN }}
-          release-type: ruby
