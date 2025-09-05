@@ -44,7 +44,7 @@ case "$OS" in
 esac
 
 # Download URL for the latest release
-DOWNLOAD_URL="https://github.com/Faveod/tree-sitter-parsers/releases/download/v4.9/tree-sitter-parsers-4.9-macos-${ARCH_SUFFIX}.tar.gz"
+DOWNLOAD_URL="https://github.com/Faveod/tree-sitter-parsers/releases/download/v4.9/tree-sitter-parsers-4.9-${OS_SUFFIX}-${ARCH_SUFFIX}.tar.gz"
 
 echo "📥 Downloading parsers from: $DOWNLOAD_URL"
 

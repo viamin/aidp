@@ -1,13 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-
-begin
-  require "tty-table"
-rescue LoadError
-  # TTY-table gem not available, using basic table formatting
-  puts "Warning: tty-table gem not available. Using basic table formatting."
-end
+require "tty-table"
 
 module Aidp
   module Analysis

@@ -194,6 +194,9 @@ module Aidp
 
         # Parse the file
         begin
+          # Set current file for context in helper methods
+          @current_file_path = file_path
+          
           source_code = File.read(file_path)
           ast = grammar[:parser][:parse].call(source_code)
 
@@ -210,6 +213,8 @@ module Aidp
           merge_file_data(file_data)
         rescue => e
           puts "⚠️  Error parsing #{relative_path}: #{e.message}"
+        ensure
+          @current_file_path = nil
         end
       end
 
@@ -352,72 +357,168 @@ module Aidp
       end
 
       def extract_require_target(node)
-        # Look for string content in the argument list
-        # Handle nested children structure
-        actual_children = (node[:children] && node[:children][:children]) ? node[:children][:children] : node[:children]
-        if actual_children&.is_a?(Array)
-          actual_children.each do |child|
-            if child[:type].to_s == "argument_list"
-              # Handle nested argument_list structure
-              actual_args = (child[:children] && child[:children][:children]) ? child[:children][:children] : child[:children]
-              if actual_args&.is_a?(Array)
-                actual_args.each do |arg|
-                  if arg[:type].to_s == "string"
-                    # Handle nested string structure
-                    actual_string_children = (arg[:children] && arg[:children][:children]) ? arg[:children][:children] : arg[:children]
-                    if actual_string_children&.is_a?(Array)
-                      actual_string_children.each do |string_part|
-                        if string_part[:type].to_s == "string_content"
-                          # Extract the actual string content from the source code
-                          return extract_string_content(string_part, node[:line])
-                        end
-                      end
-                    end
-                  end
-                end
-              end
-            end
+        # Recursively search for string literals in the require call
+        find_string_in_node(node)
+      end
+
+      # Recursively find string content in a Tree-sitter node
+      def find_string_in_node(node)
+        return nil unless node.is_a?(Hash)
+
+        case node[:type].to_s
+        when "string"
+          # Found a string node - extract its content
+          return extract_string_literal_content(node)
+        when "string_content"
+          # Direct string content - extract text
+          return extract_node_text_from_source(node)
+        end
+
+        # Recursively search in children
+        children = get_node_children(node)
+        if children&.is_a?(Array)
+          children.each do |child|
+            result = find_string_in_node(child)
+            return result if result
           end
         end
+
         nil
       end
 
-      def extract_string_content(string_content_node, line_number)
-        # Extract the actual string content from the source code
-        # The string_content node has line and column information
+      # Extract content from a string literal, handling quotes properly
+      def extract_string_literal_content(string_node)
+        # Get the full text of the string node including quotes
+        full_text = extract_node_text_from_source(string_node)
+        return nil unless full_text
 
-        # For now, let's use a simple approach based on the test files
-        # The test files have 'json' and './helper' as require targets
-        if line_number == 1
-          return "json"
-        elsif line_number == 2
-          return "./helper"
+        # Remove quotes and handle escape sequences
+        case full_text[0]
+        when '"'
+          # Double-quoted string - handle escape sequences
+          content = full_text[1..-2] # Remove surrounding quotes
+          unescape_string(content)
+        when "'"
+          # Single-quoted string - minimal escaping
+          content = full_text[1..-2] # Remove surrounding quotes
+          content.gsub("\\'", "'").gsub("\\\\", "\\")
+        when '%'
+          # Percent notation strings (%q, %Q, %w, etc.)
+          handle_percent_string(full_text)
+        else
+          # Fallback: try to extract content between quotes
+          if full_text.match(/^["'](.*)["']$/)
+            $1
+          else
+            full_text
+          end
         end
+      end
 
-        # Fallback to node name if available
-        return string_content_node[:name] if string_content_node[:name] && string_content_node[:name] != "string_content"
+      # Handle Ruby's percent notation strings
+      def handle_percent_string(text)
+        return text unless text.start_with?('%')
+        
+        case text[1]
+        when 'q', 'Q'
+          # %q{...} or %Q{...}
+          delimiter = text[2]
+          closing_delimiter = get_closing_delimiter(delimiter)
+          content = text[3..-(closing_delimiter.length + 1)]
+          text[1] == 'Q' ? unescape_string(content) : content
+        else
+          text
+        end
+      end
 
-        "unknown"
+      # Get closing delimiter for percent strings
+      def get_closing_delimiter(opening)
+        case opening
+        when '('; ')'
+        when '['; ']'
+        when '{'; '}'
+        when '<'; '>'
+        else; opening
+        end
+      end
+
+      # Unescape common Ruby escape sequences
+      def unescape_string(str)
+        str.gsub(/\\n/, "\n")
+           .gsub(/\\t/, "\t")
+           .gsub(/\\r/, "\r")
+           .gsub(/\\"/, '"')
+           .gsub(/\\\\/, "\\")
+      end
+
+      # Safely extract children from a node, handling nested structures
+      def get_node_children(node)
+        if node[:children].is_a?(Hash) && node[:children][:children]
+          node[:children][:children]
+        else
+          node[:children]
+        end
+      end
+
+      def extract_string_content(string_content_node, _line_number)
+        # Extract the actual string content from the source code using node position
+        extract_node_text_from_source(string_content_node)
       rescue => e
         puts "Warning: Error extracting string content: #{e.message}"
         nil
       end
 
       def extract_identifier_name(identifier_node, file_path)
-        # Extract the actual identifier name from the source code
-        # The identifier node has line and column information
-        begin
-          source_file = File.join(@root, file_path)
-          if File.exist?(source_file)
-            lines = File.readlines(source_file)
-            line_content = lines[identifier_node[:line] - 1] || ""
-            start_col = identifier_node[:start_column]
-            end_col = identifier_node[:end_column]
-            return line_content[start_col...end_col]
-          end
-        rescue => e
-          puts "Warning: Error extracting identifier name: #{e.message}"
+        # Extract the actual identifier name from the source code using node position
+        extract_node_text_from_source(identifier_node, file_path)
+      rescue => e
+        puts "Warning: Error extracting identifier name: #{e.message}"
+        nil
+      end
+
+      # Generalized method to extract text from any Tree-sitter node using source position
+      def extract_node_text_from_source(node, file_path = nil)
+        return nil unless node&.dig(:start_line) && node&.dig(:end_line)
+        return nil unless node&.dig(:start_column) && node&.dig(:end_column)
+
+        # Get source file path - either from parameter or from current parsing context
+        source_file = file_path ? File.join(@root, file_path) : @current_file_path
+        return nil unless source_file && File.exist?(source_file)
+
+        # Read source lines
+        source_lines = File.readlines(source_file)
+        
+        start_line = node[:start_line]
+        end_line = node[:end_line] 
+        start_col = node[:start_column]
+        end_col = node[:end_column]
+
+        # Handle single line nodes
+        if start_line == end_line
+          line_content = source_lines[start_line - 1] || ""
+          return line_content[start_col...end_col]
         end
+
+        # Handle multi-line nodes
+        result = ""
+        (start_line..end_line).each do |line_num|
+          line_content = source_lines[line_num - 1] || ""
+          
+          if line_num == start_line
+            # First line: from start_col to end
+            result += line_content[start_col..-1] || ""
+          elsif line_num == end_line
+            # Last line: from start to end_col
+            result += line_content[0...end_col] || ""
+          else
+            # Middle lines: entire line
+            result += line_content
+          end
+        end
+
+        result
+      rescue => e
+        puts "Warning: Error extracting node text: #{e.message}"
         nil
       end
 

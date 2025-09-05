@@ -226,28 +226,41 @@ module Aidp
         # Extract meaningful names from nodes
         case node.type.to_s
         when "class", "module"
-          # Look for the class/module name in the source
+          # Look for the class/module name in the source, handling nested constants
           lines = source_code.lines
           line_content = lines[node.start_point.row] || ""
-          if (match = line_content.match(/(?:class|module)\s+(\w+)/))
+          # Handle patterns like: class Foo, class Foo::Bar, module A::B::C
+          if (match = line_content.match(/(?:class|module)\s+((?:\w+::)*\w+)/))
             match[1]
           else
             node.type.to_s
           end
         when "method"
-          # Look for method name
+          # Look for method name, handling various definition styles
           lines = source_code.lines
           line_content = lines[node.start_point.row] || ""
-          if (match = line_content.match(/def\s+(\w+)/))
+          # Handle: def foo, def foo(args), def foo=(value), def []=(key, value)
+          if (match = line_content.match(/def\s+([\w\[\]=!?]+)/))
             match[1]
           else
             node.type.to_s
           end
         when "singleton_method"
-          # Look for singleton method name
+          # Look for singleton method name, handling class methods
           lines = source_code.lines
           line_content = lines[node.start_point.row] || ""
-          if (match = line_content.match(/def\s+self\.(\w+)/))
+          # Handle: def self.foo, def ClassName.foo, def obj.method_name
+          if (match = line_content.match(/def\s+(?:self|[\w:]+)\.([\w\[\]=!?]+)/))
+            match[1]
+          else
+            node.type.to_s
+          end
+        when "constant"
+          # Extract constant names
+          lines = source_code.lines
+          line_content = lines[node.start_point.row] || ""
+          # Handle: CONSTANT = value, A::B::CONSTANT = value
+          if (match = line_content.match(/((?:\w+::)*[A-Z_][A-Z0-9_]*)\s*=/))
             match[1]
           else
             node.type.to_s
@@ -330,8 +343,8 @@ module Aidp
         lines.each_with_index do |line, index|
           line_number = index + 1
 
-          # Extract class definitions
-          if (match = line.match(/^\s*class\s+(\w+)/))
+          # Extract class definitions (including nested constants)
+          if (match = line.match(/^\s*class\s+((?:\w+::)*\w+)/))
             nodes << {
               type: "class",
               name: match[1],
@@ -341,8 +354,8 @@ module Aidp
             }
           end
 
-          # Extract module definitions
-          if (match = line.match(/^\s*module\s+(\w+)/))
+          # Extract module definitions (including nested constants)
+          if (match = line.match(/^\s*module\s+((?:\w+::)*\w+)/))
             nodes << {
               type: "module",
               name: match[1],
@@ -352,10 +365,21 @@ module Aidp
             }
           end
 
-          # Extract method definitions
-          if (match = line.match(/^\s*def\s+(\w+)/))
+          # Extract method definitions (including special methods)
+          if (match = line.match(/^\s*def\s+([\w\[\]=!?]+)/))
             nodes << {
               type: "method",
+              name: match[1],
+              line: line_number,
+              start_column: line.index(match[0]),
+              end_column: line.index(match[0]) + match[0].length
+            }
+          end
+
+          # Extract singleton/class method definitions
+          if (match = line.match(/^\s*def\s+(?:self|[\w:]+)\.([\w\[\]=!?]+)/))
+            nodes << {
+              type: "singleton_method",
               name: match[1],
               line: line_number,
               start_column: line.index(match[0]),
