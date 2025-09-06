@@ -193,7 +193,7 @@ module Aidp
       end
 
       def parse_file(file_path, grammar)
-        relative_path = file_path.sub(@root + "/", "")
+        relative_path = file_path.sub(@root + File::SEPARATOR, "")
 
         # Check cache first
         cache_key = relative_path
@@ -233,7 +233,7 @@ module Aidp
       end
 
       def extract_file_data(file_path, ast, source_code)
-        relative_path = file_path.sub(@root + "/", "")
+        relative_path = file_path.sub(@root + File::SEPARATOR, "")
 
         {
           symbols: extract_symbols(ast, relative_path),

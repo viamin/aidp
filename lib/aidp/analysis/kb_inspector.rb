@@ -49,6 +49,13 @@ module Aidp
 
       private
 
+      def truncate_text(text, max_length = 50)
+        return nil unless text
+        return text if text.length <= max_length
+
+        text[0..max_length - 4] + "..."
+      end
+
       def create_table(header, rows)
         TTY::Table.new(header: header, rows: rows)
       end
@@ -126,7 +133,7 @@ module Aidp
               seam[:file],
               seam[:line],
               seam[:symbol_id]&.split(":")&.last || "N/A",
-              (seam[:suggestion]&.length && seam[:suggestion].length > 50) ? seam[:suggestion][0..47] + "..." : seam[:suggestion] || "N/A"
+              truncate_text(seam[:suggestion], 50) || "N/A"
             ]
           end
         )
