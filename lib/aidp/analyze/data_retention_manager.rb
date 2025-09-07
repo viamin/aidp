@@ -51,11 +51,6 @@ module Aidp
           when "immediate"
             results[:cleaned_data][data_type] = clean_immediately(data_type, dry_run)
           end
-        rescue => e
-          results[:errors] << {
-            data_type: data_type,
-            error: e.message
-          }
         end
 
         results

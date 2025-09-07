@@ -38,6 +38,12 @@ require "aidp/analyze/runner"
 require "aidp/analyze/steps"
 require "aidp/analyze/progress"
 
+# Tree-sitter analysis
+require "aidp/analysis/tree_sitter_grammar_loader"
+require "aidp/analysis/seams"
+require "aidp/analysis/tree_sitter_scan"
+require "aidp/analysis/kb_inspector"
+
 # Execute mode
 require "aidp/execute/steps"
 require "aidp/execute/runner"

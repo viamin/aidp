@@ -264,28 +264,21 @@ module Aidp
           status: "running"
         }
 
-        begin
-          # Perform analysis based on chunk type
-          case chunk[:strategy]
-          when "time_based"
-            results[:data] = analyze_time_chunk(chunk, analysis_type, options)
-          when "commit_count"
-            results[:data] = analyze_commit_chunk(chunk, analysis_type, options)
-          when "size_based"
-            results[:data] = analyze_size_chunk(chunk, analysis_type, options)
-          when "feature_based"
-            results[:data] = analyze_feature_chunk(chunk, analysis_type, options)
-          end
-
-          results[:status] = "completed"
-          results[:end_time] = Time.now
-          results[:duration] = results[:end_time] - results[:start_time]
-        rescue => e
-          results[:status] = "failed"
-          results[:error] = e.message
-          results[:end_time] = Time.now
-          results[:duration] = results[:end_time] - results[:start_time]
+        # Perform analysis based on chunk type
+        case chunk[:strategy]
+        when "time_based"
+          results[:data] = analyze_time_chunk(chunk, analysis_type, options)
+        when "commit_count"
+          results[:data] = analyze_commit_chunk(chunk, analysis_type, options)
+        when "size_based"
+          results[:data] = analyze_size_chunk(chunk, analysis_type, options)
+        when "feature_based"
+          results[:data] = analyze_feature_chunk(chunk, analysis_type, options)
         end
+
+        results[:status] = "completed"
+        results[:end_time] = Time.now
+        results[:duration] = results[:end_time] - results[:start_time]
 
         results
       end

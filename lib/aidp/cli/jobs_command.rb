@@ -87,9 +87,6 @@ module Aidp
       rescue Timeout::Error
         @io.puts "Database connection timed out"
         raise
-      rescue => e
-        @io.puts "Error connecting to database: #{e.message}"
-        raise
       end
 
       def render_job_list
@@ -396,8 +393,6 @@ module Aidp
         else
           "pending"
         end
-      rescue => e
-        "error (#{e.message})"
       end
 
       def truncate_error(error)
@@ -426,8 +421,12 @@ module Aidp
             data = JSON.parse(result["data"])
             output << "Result: #{data["output"]}" if data["output"]
           end
-        rescue
-          # Ignore errors - table might not exist
+        rescue Sequel::DatabaseError, PG::Error => e
+          # Database error - table might not exist
+          @io.puts "Warning: Could not fetch job result: #{e.message}" if ENV["AIDP_DEBUG"]
+        rescue JSON::ParserError => e
+          # JSON parse error
+          @io.puts "Warning: Could not parse job result data: #{e.message}" if ENV["AIDP_DEBUG"]
         end
 
         # 2. Check for any recent log entries
@@ -440,8 +439,9 @@ module Aidp
           if logs && logs["last_error_message"]
             output << "Error: #{logs["last_error_message"]}"
           end
-        rescue
-          # Ignore errors
+        rescue Sequel::DatabaseError, PG::Error => e
+          # Database error fetching logs - continue with diagnostic
+          @io.puts "Warning: Could not fetch job logs: #{e.message}" if ENV["AIDP_DEBUG"]
         end
 
         # 3. Check if job appears to be hung

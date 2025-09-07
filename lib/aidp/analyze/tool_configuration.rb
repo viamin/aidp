@@ -251,32 +251,27 @@ module Aidp
     def import_config(file_path, scope = :project)
       return false unless File.exist?(file_path)
 
-      begin
-        config_data = case File.extname(file_path)
-        when ".yml", ".yaml"
-          YAML.load_file(file_path)
-        when ".json"
-          JSON.parse(File.read(file_path))
-        else
-          raise ArgumentError, "Unsupported file format: #{File.extname(file_path)}"
-        end
-
-        case scope
-        when :project
-          @project_config = config_data
-          save_project_config
-        when :user
-          @user_config = config_data
-          save_user_config
-        else
-          raise ArgumentError, "Invalid scope: #{scope}"
-        end
-
-        true
-      rescue => e
-        warn "Failed to import configuration: #{e.message}"
-        false
+      config_data = case File.extname(file_path)
+      when ".yml", ".yaml"
+        YAML.load_file(file_path)
+      when ".json"
+        JSON.parse(File.read(file_path))
+      else
+        raise ArgumentError, "Unsupported file format: #{File.extname(file_path)}"
       end
+
+      case scope
+      when :project
+        @project_config = config_data
+        save_project_config
+      when :user
+        @user_config = config_data
+        save_user_config
+      else
+        raise ArgumentError, "Invalid scope: #{scope}"
+      end
+
+      true
     end
 
     # Validate configuration
@@ -297,24 +292,14 @@ module Aidp
     def load_user_config
       return {} unless File.exist?(USER_CONFIG_FILE)
 
-      begin
-        YAML.load_file(USER_CONFIG_FILE) || {}
-      rescue => e
-        warn "Failed to load user config: #{e.message}"
-        {}
-      end
+      YAML.load_file(USER_CONFIG_FILE) || {}
     end
 
     def load_project_config
       config_path = project_config_path
       return {} unless File.exist?(config_path)
 
-      begin
-        YAML.load_file(config_path) || {}
-      rescue => e
-        warn "Failed to load project config: #{e.message}"
-        {}
-      end
+      YAML.load_file(config_path) || {}
     end
 
     def project_config_path

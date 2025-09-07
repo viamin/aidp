@@ -116,9 +116,6 @@ module Aidp
 
       def continue_with_partial_data(operation, partial_data_handler)
         operation.call
-      rescue => e
-        logger.warn("Operation failed, continuing with partial data: #{e.message}")
-        partial_data_handler.call(e)
       end
 
       # Error reporting and statistics

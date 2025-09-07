@@ -171,12 +171,7 @@ module Aidp
         state_file = get_state_file_path(analysis_type)
         return create_initial_state(analysis_type) unless File.exist?(state_file)
 
-        begin
-          YAML.load_file(state_file) || create_initial_state(analysis_type)
-        rescue => e
-          puts "Warning: Could not load analysis state: #{e.message}"
-          create_initial_state(analysis_type)
-        end
+        YAML.load_file(state_file) || create_initial_state(analysis_type)
       end
 
       def save_analysis_state(analysis_type, state)
@@ -367,11 +362,6 @@ module Aidp
         plan[:components].each do |component|
           component_result = analyze_component(component, plan[:analysis_type], options)
           results[:results][component] = component_result
-        rescue => e
-          results[:errors] << {
-            component: component,
-            error: e.message
-          }
         end
 
         results[:end_time] = Time.now

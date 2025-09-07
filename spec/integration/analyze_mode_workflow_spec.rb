@@ -2,7 +2,6 @@
 
 require "spec_helper"
 require "net/http"
-require "sqlite3"
 
 RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_integration_test") }
@@ -287,8 +286,6 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
     else
       {status: "error", error: "Unknown command"}
     end
-  rescue => e
-    {status: "error", error: e.message}
   end
 
   def run_complete_analysis

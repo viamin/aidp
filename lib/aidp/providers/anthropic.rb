@@ -57,8 +57,6 @@ module Aidp
 
               # Stop checking if the process is done
               break if wait.value
-            rescue
-              break
             end
           end
 
@@ -88,8 +86,8 @@ module Aidp
             # Kill the process if it's taking too long
             begin
               Process.kill("TERM", wait.pid)
-            rescue
-              nil
+            rescue Errno::ESRCH
+              # Process already terminated
             end
 
             mark_failed("claude timed out after #{timeout_seconds} seconds")
@@ -101,8 +99,8 @@ module Aidp
             # Kill the process
             begin
               Process.kill("TERM", wait.pid)
-            rescue
-              nil
+            rescue Errno::ESRCH
+              # Process already terminated
             end
 
             mark_failed("claude execution was interrupted")
@@ -143,21 +141,17 @@ module Aidp
 
       def get_adaptive_timeout
         # Try to get timeout recommendations from metrics storage
-        begin
-          require_relative "../analyze/metrics_storage"
-          storage = Aidp::Analyze::MetricsStorage.new(Dir.pwd)
-          recommendations = storage.calculate_timeout_recommendations
+        require_relative "../analyze/metrics_storage"
+        storage = Aidp::Analyze::MetricsStorage.new(Dir.pwd)
+        recommendations = storage.calculate_timeout_recommendations
 
-          # Get current step name from environment or context
-          step_name = ENV["AIDP_CURRENT_STEP"] || "unknown"
+        # Get current step name from environment or context
+        step_name = ENV["AIDP_CURRENT_STEP"] || "unknown"
 
-          if recommendations[step_name]
-            recommended = recommendations[step_name][:recommended_timeout]
-            # Add 20% buffer for safety
-            return (recommended * 1.2).ceil
-          end
-        rescue => e
-          puts "⚠️  Could not get adaptive timeout: #{e.message}" if ENV["AIDP_DEBUG"]
+        if recommendations[step_name]
+          recommended = recommendations[step_name][:recommended_timeout]
+          # Add 20% buffer for safety
+          return (recommended * 1.2).ceil
         end
 
         # Fallback timeouts based on step type patterns

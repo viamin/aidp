@@ -18,32 +18,19 @@ module Aidp
         provider = Aidp::ProviderManager.get_provider(provider_type)
         raise "Provider #{provider_type} not available" unless provider
 
-        begin
-          # Execute provider
-          result = provider.send(prompt: prompt, session: session)
+        # Execute provider
+        result = provider.send(prompt: prompt, session: session)
 
-          # Store result
-          store_result(result, metadata)
+        # Store result
+        store_result(result, metadata)
 
-          # Record metrics
-          record_metrics(
-            provider_type: provider_type,
-            duration: Time.now - start_time,
-            success: true,
-            error: nil
-          )
-        rescue => error
-          # Record metrics
-          record_metrics(
-            provider_type: provider_type,
-            duration: Time.now - start_time,
-            success: false,
-            error: error.message
-          )
-
-          # Re-raise error to trigger Que's retry mechanism
-          raise
-        end
+        # Record metrics
+        record_metrics(
+          provider_type: provider_type,
+          duration: Time.now - start_time,
+          success: true,
+          error: nil
+        )
       end
 
       private

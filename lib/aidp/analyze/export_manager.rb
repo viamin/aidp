@@ -158,13 +158,6 @@ module Aidp
         size: File.size(output_path),
         generated_at: Time.now
       }
-    rescue => e
-      {
-        success: false,
-        error: e.message,
-        format: format,
-        generated_at: Time.now
-      }
     end
 
     def format_export_data(data, options)

@@ -215,8 +215,8 @@ module Aidp
           # Try one more time with KILL
           begin
             Process.kill("KILL", @process_pid) if process_running?(@process_pid)
-          rescue
-            # Give up
+          rescue Errno::ESRCH
+            # Process already terminated
           end
         end
       end

@@ -236,12 +236,6 @@ module Aidp
             index: future_info[:index]
           }
           @progress.increment
-        rescue => e
-          @errors << {
-            chunk_id: future_info[:chunk][:id],
-            error: e.message,
-            index: future_info[:index]
-          }
         end
 
         completed_futures
