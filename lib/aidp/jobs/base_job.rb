@@ -30,8 +30,6 @@ module Aidp
       def handle_error(error)
         self.class.error_handlers.each do |handler|
           handler.call(error, self)
-        rescue => e
-          log_error "Error handler failed: #{e.message}"
         end
       end
 

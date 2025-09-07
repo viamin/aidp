@@ -292,11 +292,6 @@ module Aidp
         success: true,
         imported_progress: @current_progress
       }
-    rescue => e
-      {
-        success: false,
-        error: e.message
-      }
     end
 
     private

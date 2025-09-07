@@ -154,9 +154,6 @@ module Aidp
       rescue TreeSitter::ParserNotFoundError => e
         puts "Warning: Tree-sitter parser not found for #{language}: #{e.message}"
         create_mock_parser(language)
-      rescue => e
-        puts "Warning: Failed to create Tree-sitter parser for #{language}: #{e.message}"
-        create_mock_parser(language)
       end
 
       def create_mock_parser(language)
@@ -185,30 +182,21 @@ module Aidp
       def convert_tree_sitter_ast(node, source_code)
         children = []
 
-        begin
-          node.each do |child|
-            child_data = {
-              type: child.type,
-              name: extract_node_name(child, source_code),
-              line: child.start_point.row + 1,
-              start_column: child.start_point.column,
-              end_column: child.end_point.column
-            }
-
-            # Recursively process child nodes
-            if child.child_count > 0
-              child_data[:children] = convert_tree_sitter_ast(child, source_code)
-            end
-
-            children << child_data
-          end
-        rescue => e
-          puts "Warning: Error converting Tree-sitter AST: #{e.message}"
-          # Return empty structure if conversion fails
-          return {
-            type: node.type,
-            children: []
+        node.each do |child|
+          child_data = {
+            type: child.type,
+            name: extract_node_name(child, source_code),
+            line: child.start_point.row + 1,
+            start_column: child.start_point.column,
+            end_column: child.end_point.column
           }
+
+          # Recursively process child nodes
+          if child.child_count > 0
+            child_data[:children] = convert_tree_sitter_ast(child, source_code)
+          end
+
+          children << child_data
         end
 
         {

@@ -64,13 +64,6 @@ module Aidp
         stored_at: timestamp,
         success: true
       }
-    rescue => e
-      {
-        success: false,
-        error: e.message,
-        execution_id: execution_id,
-        step_name: step_name
-      }
     end
 
     # Store metrics with indefinite retention

@@ -87,9 +87,6 @@ module Aidp
       rescue Timeout::Error
         @io.puts "Database connection timed out"
         raise
-      rescue => e
-        @io.puts "Error connecting to database: #{e.message}"
-        raise
       end
 
       def render_job_list
@@ -396,8 +393,6 @@ module Aidp
         else
           "pending"
         end
-      rescue => e
-        "error (#{e.message})"
       end
 
       def truncate_error(error)

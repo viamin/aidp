@@ -207,29 +207,23 @@ module Aidp
         end
 
         # Parse the file
-        begin
-          # Set current file for context in helper methods
-          @current_file_path = file_path
+        # Set current file for context in helper methods
+        @current_file_path = file_path
 
-          source_code = File.read(file_path)
-          ast = grammar[:parser][:parse].call(source_code)
+        source_code = File.read(file_path)
+        ast = grammar[:parser][:parse].call(source_code)
 
-          # Extract data from AST
-          file_data = extract_file_data(file_path, ast, source_code)
+        # Extract data from AST
+        file_data = extract_file_data(file_path, ast, source_code)
 
-          # Cache the results
-          @cache[cache_key] = {
-            mtime: file_mtime,
-            data: file_data
-          }
+        # Cache the results
+        @cache[cache_key] = {
+          mtime: file_mtime,
+          data: file_data
+        }
 
-          # Merge into global data structures
-          merge_file_data(file_data)
-        rescue => e
-          puts "⚠️  Error parsing #{relative_path}: #{e.message}"
-        ensure
-          @current_file_path = nil
-        end
+        # Merge into global data structures
+        merge_file_data(file_data)
       end
 
       def extract_file_data(file_path, ast, source_code)
@@ -477,17 +471,11 @@ module Aidp
       def extract_string_content(string_content_node, _line_number)
         # Extract the actual string content from the source code using node position
         extract_node_text_from_source(string_content_node)
-      rescue => e
-        puts "Warning: Error extracting string content: #{e.message}"
-        nil
       end
 
       def extract_identifier_name(identifier_node, file_path)
         # Extract the actual identifier name from the source code using node position
         extract_node_text_from_source(identifier_node, file_path)
-      rescue => e
-        puts "Warning: Error extracting identifier name: #{e.message}"
-        nil
       end
 
       # Generalized method to extract text from any Tree-sitter node using source position
@@ -531,9 +519,6 @@ module Aidp
         end
 
         result
-      rescue => e
-        puts "Warning: Error extracting node text: #{e.message}"
-        nil
       end
 
       def extract_calls(_ast, _file_path)

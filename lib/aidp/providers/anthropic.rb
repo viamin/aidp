@@ -143,21 +143,17 @@ module Aidp
 
       def get_adaptive_timeout
         # Try to get timeout recommendations from metrics storage
-        begin
-          require_relative "../analyze/metrics_storage"
-          storage = Aidp::Analyze::MetricsStorage.new(Dir.pwd)
-          recommendations = storage.calculate_timeout_recommendations
+        require_relative "../analyze/metrics_storage"
+        storage = Aidp::Analyze::MetricsStorage.new(Dir.pwd)
+        recommendations = storage.calculate_timeout_recommendations
 
-          # Get current step name from environment or context
-          step_name = ENV["AIDP_CURRENT_STEP"] || "unknown"
+        # Get current step name from environment or context
+        step_name = ENV["AIDP_CURRENT_STEP"] || "unknown"
 
-          if recommendations[step_name]
-            recommended = recommendations[step_name][:recommended_timeout]
-            # Add 20% buffer for safety
-            return (recommended * 1.2).ceil
-          end
-        rescue => e
-          puts "⚠️  Could not get adaptive timeout: #{e.message}" if ENV["AIDP_DEBUG"]
+        if recommendations[step_name]
+          recommended = recommendations[step_name][:recommended_timeout]
+          # Add 20% buffer for safety
+          return (recommended * 1.2).ceil
         end
 
         # Fallback timeouts based on step type patterns

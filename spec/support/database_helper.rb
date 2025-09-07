@@ -35,30 +35,25 @@ module DatabaseHelper
       conn.close
     end
 
-    begin
-      # Connect to test database
-      @db = PG.connect(
-        host: "localhost",
-        port: 5432,
-        dbname: TEST_DB_NAME,
-        user: ENV["USER"]
-      )
+    # Connect to test database
+    @db = PG.connect(
+      host: "localhost",
+      port: 5432,
+      dbname: TEST_DB_NAME,
+      user: ENV["USER"]
+    )
 
-      # Set up Que with Sequel
-      @sequel_db = Sequel.connect(
-        adapter: "postgres",
-        host: "localhost",
-        port: 5432,
-        database: TEST_DB_NAME,
-        user: ENV["USER"],
-        max_connections: 10
-      )
-      Que.connection = @sequel_db
-      Que.migrate!(version: Que::Migrations::CURRENT_VERSION)
-    rescue => e
-      puts "Error connecting to test database: #{e.message}"
-      raise
-    end
+    # Set up Que with Sequel
+    @sequel_db = Sequel.connect(
+      adapter: "postgres",
+      host: "localhost",
+      port: 5432,
+      database: TEST_DB_NAME,
+      user: ENV["USER"],
+      max_connections: 10
+    )
+    Que.connection = @sequel_db
+    Que.migrate!(version: Que::Migrations::CURRENT_VERSION)
   end
 
   def self.drop_test_db

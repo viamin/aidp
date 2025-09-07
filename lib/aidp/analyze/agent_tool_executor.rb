@@ -30,17 +30,11 @@ module Aidp
 
       log_execution_start(execution_id, tool_name, options)
 
-      begin
-        result = execute_tool_with_timeout(tool_name, options)
-        execution_time = Time.now - start_time
+      result = execute_tool_with_timeout(tool_name, options)
+      execution_time = Time.now - start_time
 
-        log_execution_success(execution_id, tool_name, execution_time, result)
-        result
-      rescue => e
-        execution_time = Time.now - start_time
-        log_execution_error(execution_id, tool_name, execution_time, e)
-        raise
-      end
+      log_execution_success(execution_id, tool_name, execution_time, result)
+      result
     end
 
     # Execute multiple tools in parallel

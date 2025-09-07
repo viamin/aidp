@@ -663,9 +663,6 @@ module Aidp
       futures = items.map do |item|
         Concurrent::Future.execute do
           processor ? processor.call(item) : item
-        rescue => e
-          @statistics[:errors] += 1
-          {error: e.message, item: item}
         end
       end
 

@@ -273,9 +273,6 @@ module Aidp
         end
 
         true
-      rescue => e
-        warn "Failed to import configuration: #{e.message}"
-        false
       end
     end
 
@@ -297,24 +294,14 @@ module Aidp
     def load_user_config
       return {} unless File.exist?(USER_CONFIG_FILE)
 
-      begin
-        YAML.load_file(USER_CONFIG_FILE) || {}
-      rescue => e
-        warn "Failed to load user config: #{e.message}"
-        {}
-      end
+      YAML.load_file(USER_CONFIG_FILE) || {}
     end
 
     def load_project_config
       config_path = project_config_path
       return {} unless File.exist?(config_path)
 
-      begin
-        YAML.load_file(config_path) || {}
-      rescue => e
-        warn "Failed to load project config: #{e.message}"
-        {}
-      end
+      YAML.load_file(config_path) || {}
     end
 
     def project_config_path

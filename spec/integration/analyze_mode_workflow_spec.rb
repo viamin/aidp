@@ -286,8 +286,6 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
     else
       {status: "error", error: "Unknown command"}
     end
-  rescue => e
-    {status: "error", error: e.message}
   end
 
   def run_complete_analysis

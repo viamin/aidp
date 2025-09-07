@@ -54,38 +54,24 @@ module Aidp
         errors: []
       }
 
-      begin
-        dataset.each_with_index do |item, index|
-          # Check memory usage
-          current_memory = get_memory_usage
-          results[:memory_usage] << current_memory
+      dataset.each_with_index do |item, index|
+        # Check memory usage
+        current_memory = get_memory_usage
+        results[:memory_usage] << current_memory
 
-          # Trigger garbage collection if needed
-          if should_trigger_gc?(current_memory)
-            trigger_garbage_collection
-            results[:gc_count] += 1
-          end
-
-          # Process item
-          begin
-            result = processor_method.call(item, options)
-            results[:results] << result
-            results[:processed_items] += 1
-          rescue => e
-            results[:errors] << {
-              item_index: index,
-              error: e.message
-            }
-          end
-
-          # Update memory tracking
-          update_memory_tracking(current_memory)
+        # Trigger garbage collection if needed
+        if should_trigger_gc?(current_memory)
+          trigger_garbage_collection
+          results[:gc_count] += 1
         end
-      rescue => e
-        results[:errors] << {
-          type: "streaming_error",
-          message: e.message
-        }
+
+        # Process item
+        result = processor_method.call(item, options)
+        results[:results] << result
+        results[:processed_items] += 1
+
+        # Update memory tracking
+        update_memory_tracking(current_memory)
       end
 
       results
@@ -103,32 +89,25 @@ module Aidp
         errors: []
       }
 
-      begin
-        dataset.each_slice(chunk_size) do |chunk|
-          # Check memory before processing chunk
-          pre_chunk_memory = get_memory_usage
-          results[:memory_usage] << pre_chunk_memory
+      dataset.each_slice(chunk_size) do |chunk|
+        # Check memory before processing chunk
+        pre_chunk_memory = get_memory_usage
+        results[:memory_usage] << pre_chunk_memory
 
-          # Process chunk
-          chunk_results = process_chunk(chunk, processor_method, options)
-          results[:results].concat(chunk_results[:results])
-          results[:errors].concat(chunk_results[:errors])
-          results[:processed_items] += chunk_results[:processed_items]
+        # Process chunk
+        chunk_results = process_chunk(chunk, processor_method, options)
+        results[:results].concat(chunk_results[:results])
+        results[:errors].concat(chunk_results[:errors])
+        results[:processed_items] += chunk_results[:processed_items]
 
-          # Trigger garbage collection after chunk
-          if should_trigger_gc?(pre_chunk_memory)
-            trigger_garbage_collection
-            results[:gc_count] += 1
-          end
-
-          results[:processed_chunks] += 1
-          update_memory_tracking(pre_chunk_memory)
+        # Trigger garbage collection after chunk
+        if should_trigger_gc?(pre_chunk_memory)
+          trigger_garbage_collection
+          results[:gc_count] += 1
         end
-      rescue => e
-        results[:errors] << {
-          type: "chunking_error",
-          message: e.message
-        }
+
+        results[:processed_chunks] += 1
+        update_memory_tracking(pre_chunk_memory)
       end
 
       results
@@ -303,11 +282,6 @@ module Aidp
         result = processor_method.call(item, options)
         results[:results] << result
         results[:processed_items] += 1
-      rescue => e
-        results[:errors] << {
-          item_index: index,
-          error: e.message
-        }
       end
 
       results
