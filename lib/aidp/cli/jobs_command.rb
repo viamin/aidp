@@ -421,7 +421,7 @@ module Aidp
             data = JSON.parse(result["data"])
             output << "Result: #{data["output"]}" if data["output"]
           end
-        rescue Sequel::DatabaseError => e
+        rescue Sequel::DatabaseError, PG::Error => e
           # Database error - table might not exist
           @io.puts "Warning: Could not fetch job result: #{e.message}" if ENV["AIDP_DEBUG"]
         rescue JSON::ParserError => e
@@ -439,7 +439,7 @@ module Aidp
           if logs && logs["last_error_message"]
             output << "Error: #{logs["last_error_message"]}"
           end
-        rescue Sequel::DatabaseError => e
+        rescue Sequel::DatabaseError, PG::Error => e
           # Database error fetching logs - continue with diagnostic
           @io.puts "Warning: Could not fetch job logs: #{e.message}" if ENV["AIDP_DEBUG"]
         end
