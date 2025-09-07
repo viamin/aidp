@@ -226,6 +226,7 @@ module Aidp
 
     desc "kb show [TYPE]", "Show knowledge base contents"
     option :format, type: :string, desc: "Output format (json, table, summary)"
+    option :kb_dir, type: :string, desc: "Knowledge base directory (default: .aidp/kb)"
     def kb_show(type = "summary")
       require_relative "analysis/kb_inspector"
 
@@ -239,6 +240,7 @@ module Aidp
     desc "kb graph [TYPE]", "Generate graph visualization from knowledge base"
     option :format, type: :string, desc: "Graph format (dot, json, mermaid)"
     option :output, type: :string, desc: "Output file path"
+    option :kb_dir, type: :string, desc: "Knowledge base directory (default: .aidp/kb)"
     def kb_graph(type = "imports")
       require_relative "analysis/kb_inspector"
 
