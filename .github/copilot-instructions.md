@@ -10,7 +10,17 @@
 - Ruby 2.x compatibility is not required (EOL versions)
 
 ## Code Style Preferences
-- Use explicit exception handling: `rescue StandardError => e` over bare `rescue => e`
+- **Exception handling philosophy**: Let bugs crash early rather than masking them with rescues
+  - Use `rescue StandardError => e` over bare `rescue => e` when rescue is warranted
+  - Only rescue exceptions when:
+    - Cleaning up external resources (files, network connections, etc.)
+    - Providing graceful degradation for optional features
+    - Converting between error types at API boundaries
+    - Handling expected operational failures (network timeouts, missing files)
+  - **Avoid** rescuing exceptions for:
+    - Programming errors (NoMethodError, ArgumentError, etc.)
+    - Configuration errors that should be fixed
+    - Logic errors that indicate bugs
 - Prefer `File.join` and `File::SEPARATOR` for path operations over string concatenation
 - Extract common patterns into helper methods rather than inline duplication
 - Use double quotes for require statements and strings with interpolation

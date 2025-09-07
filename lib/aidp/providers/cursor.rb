@@ -121,8 +121,6 @@ module Aidp
 
               # Stop checking if the process is done
               break if wait.value
-            rescue
-              break
             end
           end
 
@@ -135,7 +133,7 @@ module Aidp
                 Process.kill("TERM", wait.pid)
                 sleep 2
                 Process.kill("KILL", wait.pid) if wait.value.nil?
-              rescue
+              rescue Errno::ESRCH
                 # Process already terminated
               end
             end
@@ -156,7 +154,7 @@ module Aidp
                 Process.kill("TERM", wait.pid)
                 sleep 1
                 Process.kill("KILL", wait.pid) if wait.value.nil?
-              rescue
+              rescue Errno::ESRCH
                 # Process already terminated
               end
 

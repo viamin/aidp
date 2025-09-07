@@ -251,29 +251,27 @@ module Aidp
     def import_config(file_path, scope = :project)
       return false unless File.exist?(file_path)
 
-      begin
-        config_data = case File.extname(file_path)
-        when ".yml", ".yaml"
-          YAML.load_file(file_path)
-        when ".json"
-          JSON.parse(File.read(file_path))
-        else
-          raise ArgumentError, "Unsupported file format: #{File.extname(file_path)}"
-        end
-
-        case scope
-        when :project
-          @project_config = config_data
-          save_project_config
-        when :user
-          @user_config = config_data
-          save_user_config
-        else
-          raise ArgumentError, "Invalid scope: #{scope}"
-        end
-
-        true
+      config_data = case File.extname(file_path)
+      when ".yml", ".yaml"
+        YAML.load_file(file_path)
+      when ".json"
+        JSON.parse(File.read(file_path))
+      else
+        raise ArgumentError, "Unsupported file format: #{File.extname(file_path)}"
       end
+
+      case scope
+      when :project
+        @project_config = config_data
+        save_project_config
+      when :user
+        @user_config = config_data
+        save_user_config
+      else
+        raise ArgumentError, "Invalid scope: #{scope}"
+      end
+
+      true
     end
 
     # Validate configuration

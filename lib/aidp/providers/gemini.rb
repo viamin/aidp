@@ -57,8 +57,6 @@ module Aidp
 
               # Stop checking if the process is done
               break if wait.value
-            rescue
-              break
             end
           end
 
@@ -88,8 +86,8 @@ module Aidp
             # Kill the process if it's taking too long
             begin
               Process.kill("TERM", wait.pid)
-            rescue
-              nil
+            rescue Errno::ESRCH
+              # Process already terminated
             end
 
             mark_failed("gemini timed out after #{timeout_seconds} seconds")
@@ -101,8 +99,8 @@ module Aidp
             # Kill the process
             begin
               Process.kill("TERM", wait.pid)
-            rescue
-              nil
+            rescue Errno::ESRCH
+              # Process already terminated
             end
 
             mark_failed("gemini execution was interrupted")

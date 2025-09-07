@@ -309,7 +309,7 @@ module Aidp
     def generate_cache_key(item)
       # Generate a cache key for the item
       Digest::MD5.hexdigest(item.to_json)
-    rescue
+    rescue JSON::GeneratorError
       # Fallback to object_id if JSON serialization fails
       "item_#{item.object_id}"
     end
