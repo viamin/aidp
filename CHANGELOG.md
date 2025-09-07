@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.7.0](https://github.com/viamin/aidp/compare/aidp/v0.6.0...aidp/v0.7.0) (2025-09-07)
+
+
+### Features
+
+* add Copilot instructions for AIDP project ([2130422](https://github.com/viamin/aidp/commit/21304225b994ed397ab20a5099f29a69aac1eafc))
+* add kb_dir option to kb_show and kb_graph commands for customizable knowledge base directory ([4cbf8ff](https://github.com/viamin/aidp/commit/4cbf8ff98d2aa0b147ffeebed15be5ac5c2504fb))
+* Add Tree-sitter static analysis capabilities and parser installation ([#36](https://github.com/viamin/aidp/issues/36)) ([467fa35](https://github.com/viamin/aidp/commit/467fa357fd9fbeb410353e12eb5f42b7a6f6adfc))
+
+
+### Bug Fixes
+
+* enhance error handling by adding PG::Error to database error rescue clauses ([30ed108](https://github.com/viamin/aidp/commit/30ed1088430f2ee49a5925841b4e9a59731cb866))
+* update download URL format for Tree-sitter parsers and improve error handling in TreeSitterScan ([e1dc397](https://github.com/viamin/aidp/commit/e1dc397e8dd390dbcfdf7c564e9fec20f8173f49))
+* update path separator handling in TreeSitterScan for cross-platform compatibility ([55b4b67](https://github.com/viamin/aidp/commit/55b4b6792a3d90830eab7f9ea3e80cc6faa80a8c))
+
+
+### Improvements
+
+* improve exception handling across multiple files to specify error types ([99e46c4](https://github.com/viamin/aidp/commit/99e46c48981abd5891b88043e55b220897928de0))
+* remove redundant error handling across multiple files ([6498b34](https://github.com/viamin/aidp/commit/6498b341182ce34cbb91f24539654259dcc5073a))
+* streamline parser installation script and enhance error handling in TreeSitterScan ([686b10d](https://github.com/viamin/aidp/commit/686b10d13169ed392f8253a491260617342f32c6))
+
 ## [0.6.0](https://github.com/viamin/aidp/compare/aidp-v0.5.4...aidp/v0.6.0) (2025-09-05)
 
 
