@@ -1,0 +1,51 @@
+# AIDP Configuration File
+# This file configures the AI Dev Pipeline harness and providers
+
+# Harness configuration
+harness:
+  # Maximum number of retries for failed operations
+  max_retries: 2
+
+  # Default provider to use when starting execution
+  default_provider: "cursor"
+
+  # Fallback providers in order of preference
+  fallback_providers: ["claude", "gemini"]
+
+  # Restrict to non-BYOK (Bring Your Own Key) providers only
+  restrict_to_non_byok: true
+
+# Provider configurations
+providers:
+  # Cursor provider (package-based)
+  cursor:
+    type: "package"  # package, api, or byok
+    default_flags: []  # Default command-line flags for this provider
+
+  # Claude provider (API-based)
+  claude:
+    type: "api"
+    max_tokens: 100000  # Maximum tokens per request
+    default_flags: ["--dangerously-skip-permissions"]  # Default flags
+
+  # Gemini provider (API-based)
+  gemini:
+    type: "api"
+    max_tokens: 50000
+    default_flags: []
+
+  # Example BYOK provider
+  # openai:
+  #   type: "byok"
+  #   default_flags: ["--model", "gpt-4"]
+
+# Provider types explained:
+# - "package": Uses package-based pricing (e.g., Cursor Pro)
+# - "api": Uses API-based pricing with token limits
+# - "byok": Bring Your Own Key (user provides API key)
+
+# Configuration tips:
+# - Set max_tokens based on your API plan limits
+# - Use default_flags to customize provider behavior
+# - Configure fallback_providers for automatic failover
+# - Set restrict_to_non_byok: true to avoid BYOK providers
