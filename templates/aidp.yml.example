@@ -15,29 +15,242 @@ harness:
   # Restrict to non-BYOK (Bring Your Own Key) providers only
   restrict_to_non_byok: true
 
+  # Provider weights for load balancing (higher = more preferred)
+  provider_weights:
+    cursor: 3
+    claude: 2
+    gemini: 1
+
+  # Circuit breaker configuration
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5      # Open circuit after 5 failures
+    timeout: 300              # Keep circuit open for 5 minutes
+    half_open_max_calls: 3    # Test with 3 calls when half-open
+
+  # Retry configuration
+  retry:
+    enabled: true
+    max_attempts: 3
+    base_delay: 1.0           # Initial delay in seconds
+    max_delay: 60.0           # Maximum delay in seconds
+    exponential_base: 2.0     # Exponential backoff multiplier
+    jitter: true              # Add random jitter to delays
+
+  # Rate limiting configuration
+  rate_limit:
+    enabled: true
+    default_reset_time: 3600  # Default reset time in seconds (1 hour)
+    burst_limit: 10           # Maximum burst requests
+    sustained_limit: 5        # Sustained request limit
+
+  # Load balancing configuration
+  load_balancing:
+    enabled: true
+    strategy: "weighted_round_robin"  # weighted_round_robin, least_connections, random
+    health_check_interval: 30        # Health check interval in seconds
+    unhealthy_threshold: 3           # Mark unhealthy after 3 failed checks
+
+  # Model switching configuration
+  model_switching:
+    enabled: true
+    auto_switch_on_error: true       # Auto-switch models on errors
+    auto_switch_on_rate_limit: true  # Auto-switch models on rate limits
+    fallback_strategy: "sequential"  # sequential, load_balanced, random
+
+  # Health check configuration
+  health_check:
+    enabled: true
+    interval: 60              # Health check interval in seconds
+    timeout: 10               # Health check timeout in seconds
+    failure_threshold: 3      # Mark unhealthy after 3 failures
+    success_threshold: 2      # Mark healthy after 2 successes
+
+  # Metrics configuration
+  metrics:
+    enabled: true
+    retention_days: 30        # Keep metrics for 30 days
+    aggregation_interval: 300 # Aggregate metrics every 5 minutes
+    export_interval: 3600     # Export metrics every hour
+
+  # Session configuration
+  session:
+    enabled: true
+    timeout: 1800             # Session timeout in seconds (30 minutes)
+    sticky_sessions: true     # Enable sticky sessions
+    session_affinity: "provider_model"  # provider, model, provider_model
+
 # Provider configurations
 providers:
   # Cursor provider (package-based)
   cursor:
-    type: "package"  # package, api, or byok
-    default_flags: []  # Default command-line flags for this provider
+    type: "package"           # package, api, or byok
+    priority: 1               # Provider priority (higher = more preferred)
+    default_flags: []         # Default command-line flags for this provider
+
+    # Available models for this provider
+    models: ["cursor-default", "cursor-fast", "cursor-precise"]
+
+    # Model weights for load balancing
+    model_weights:
+      cursor-default: 3
+      cursor-fast: 2
+      cursor-precise: 1
+
+    # Model-specific configurations
+    models_config:
+      cursor-default:
+        flags: []
+        timeout: 600          # 10 minutes
+      cursor-fast:
+        flags: ["--fast"]
+        timeout: 300          # 5 minutes
+      cursor-precise:
+        flags: ["--precise"]
+        timeout: 900          # 15 minutes
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      metrics_interval: 60    # Metrics collection interval in seconds
 
   # Claude provider (API-based)
   claude:
     type: "api"
-    max_tokens: 100000  # Maximum tokens per request
-    default_flags: ["--dangerously-skip-permissions"]  # Default flags
+    priority: 2
+    max_tokens: 100000        # Maximum tokens per request
+    default_flags: ["--dangerously-skip-permissions"]
+
+    # Available models for this provider
+    models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
+
+    # Model weights for load balancing
+    model_weights:
+      claude-3-5-sonnet-20241022: 3
+      claude-3-5-haiku-20241022: 2
+      claude-3-opus-20240229: 1
+
+    # Model-specific configurations
+    models_config:
+      claude-3-5-sonnet-20241022:
+        flags: ["--dangerously-skip-permissions"]
+        max_tokens: 200000
+        timeout: 300          # 5 minutes
+      claude-3-5-haiku-20241022:
+        flags: ["--dangerously-skip-permissions"]
+        max_tokens: 200000
+        timeout: 180          # 3 minutes
+      claude-3-opus-20240229:
+        flags: ["--dangerously-skip-permissions"]
+        max_tokens: 200000
+        timeout: 600          # 10 minutes
+
+    # Authentication configuration
+    auth:
+      api_key_env: "ANTHROPIC_API_KEY"  # Environment variable for API key
+
+    # Endpoint configuration
+    endpoints:
+      default: "https://api.anthropic.com/v1/messages"
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+      vision: true
+
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      metrics_interval: 60
 
   # Gemini provider (API-based)
   gemini:
     type: "api"
+    priority: 3
     max_tokens: 50000
     default_flags: []
+
+    # Available models for this provider
+    models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+
+    # Model weights for load balancing
+    model_weights:
+      gemini-1.5-pro: 3
+      gemini-1.5-flash: 2
+      gemini-1.0-pro: 1
+
+    # Model-specific configurations
+    models_config:
+      gemini-1.5-pro:
+        flags: []
+        max_tokens: 100000
+        timeout: 300          # 5 minutes
+      gemini-1.5-flash:
+        flags: []
+        max_tokens: 100000
+        timeout: 180          # 3 minutes
+      gemini-1.0-pro:
+        flags: []
+        max_tokens: 30000
+        timeout: 300          # 5 minutes
+
+    # Authentication configuration
+    auth:
+      api_key_env: "GEMINI_API_KEY"  # Environment variable for API key
+
+    # Endpoint configuration
+    endpoints:
+      default: "https://generativelanguage.googleapis.com/v1beta/models"
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+      vision: true
+
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      metrics_interval: 60
 
   # Example BYOK provider
   # openai:
   #   type: "byok"
+  #   priority: 4
   #   default_flags: ["--model", "gpt-4"]
+  #   models: ["gpt-4", "gpt-3.5-turbo"]
+  #   model_weights:
+  #     gpt-4: 3
+  #     gpt-3.5-turbo: 2
+  #   models_config:
+  #     gpt-4:
+  #       flags: ["--model", "gpt-4"]
+  #       max_tokens: 128000
+  #       timeout: 300
+  #     gpt-3.5-turbo:
+  #       flags: ["--model", "gpt-3.5-turbo"]
+  #       max_tokens: 16000
+  #       timeout: 180
+  #   auth:
+  #     api_key_env: "OPENAI_API_KEY"
+  #   endpoints:
+  #     default: "https://api.openai.com/v1/chat/completions"
+  #   features:
+  #     file_upload: true
+  #     code_generation: true
+  #     analysis: true
+  #   monitoring:
+  #     enabled: true
+  #     metrics_interval: 60
 
 # Provider types explained:
 # - "package": Uses package-based pricing (e.g., Cursor Pro)
@@ -49,3 +262,8 @@ providers:
 # - Use default_flags to customize provider behavior
 # - Configure fallback_providers for automatic failover
 # - Set restrict_to_non_byok: true to avoid BYOK providers
+# - Adjust provider_weights to control load balancing
+# - Configure model_weights for model selection within providers
+# - Set appropriate timeouts for different models
+# - Enable monitoring for production environments
+# - Use session_affinity for consistent user experience

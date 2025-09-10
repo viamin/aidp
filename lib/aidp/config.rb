@@ -11,22 +11,188 @@ module Aidp
         max_retries: 2,
         default_provider: "cursor",
         fallback_providers: ["claude", "gemini"],
-        restrict_to_non_byok: false
+        restrict_to_non_byok: false,
+        provider_weights: {
+          "cursor" => 3,
+          "claude" => 2,
+          "gemini" => 1
+        },
+        circuit_breaker: {
+          enabled: true,
+          failure_threshold: 5,
+          timeout: 300,
+          half_open_max_calls: 3
+        },
+        retry: {
+          enabled: true,
+          max_attempts: 3,
+          base_delay: 1.0,
+          max_delay: 60.0,
+          exponential_base: 2.0,
+          jitter: true
+        },
+        rate_limit: {
+          enabled: true,
+          default_reset_time: 3600,
+          burst_limit: 10,
+          sustained_limit: 5
+        },
+        load_balancing: {
+          enabled: true,
+          strategy: "weighted_round_robin",
+          health_check_interval: 30,
+          unhealthy_threshold: 3
+        },
+        model_switching: {
+          enabled: true,
+          auto_switch_on_error: true,
+          auto_switch_on_rate_limit: true,
+          fallback_strategy: "sequential"
+        },
+        health_check: {
+          enabled: true,
+          interval: 60,
+          timeout: 10,
+          failure_threshold: 3,
+          success_threshold: 2
+        },
+        metrics: {
+          enabled: true,
+          retention_days: 30,
+          aggregation_interval: 300,
+          export_interval: 3600
+        },
+        session: {
+          enabled: true,
+          timeout: 1800,
+          sticky_sessions: true,
+          session_affinity: "provider_model"
+        }
       },
       providers: {
         cursor: {
           type: "package",
-          default_flags: []
+          priority: 1,
+          default_flags: [],
+          models: ["cursor-default", "cursor-fast", "cursor-precise"],
+          model_weights: {
+            "cursor-default" => 3,
+            "cursor-fast" => 2,
+            "cursor-precise" => 1
+          },
+          models_config: {
+            "cursor-default" => {
+              flags: [],
+              timeout: 600
+            },
+            "cursor-fast" => {
+              flags: ["--fast"],
+              timeout: 300
+            },
+            "cursor-precise" => {
+              flags: ["--precise"],
+              timeout: 900
+            }
+          },
+          features: {
+            file_upload: true,
+            code_generation: true,
+            analysis: true
+          },
+          monitoring: {
+            enabled: true,
+            metrics_interval: 60
+          }
         },
         claude: {
           type: "api",
+          priority: 2,
           max_tokens: 100_000,
-          default_flags: []
+          default_flags: ["--dangerously-skip-permissions"],
+          models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
+          model_weights: {
+            "claude-3-5-sonnet-20241022" => 3,
+            "claude-3-5-haiku-20241022" => 2,
+            "claude-3-opus-20240229" => 1
+          },
+          models_config: {
+            "claude-3-5-sonnet-20241022" => {
+              flags: ["--dangerously-skip-permissions"],
+              max_tokens: 200_000,
+              timeout: 300
+            },
+            "claude-3-5-haiku-20241022" => {
+              flags: ["--dangerously-skip-permissions"],
+              max_tokens: 200_000,
+              timeout: 180
+            },
+            "claude-3-opus-20240229" => {
+              flags: ["--dangerously-skip-permissions"],
+              max_tokens: 200_000,
+              timeout: 600
+            }
+          },
+          auth: {
+            api_key_env: "ANTHROPIC_API_KEY"
+          },
+          endpoints: {
+            default: "https://api.anthropic.com/v1/messages"
+          },
+          features: {
+            file_upload: true,
+            code_generation: true,
+            analysis: true,
+            vision: true
+          },
+          monitoring: {
+            enabled: true,
+            metrics_interval: 60
+          }
         },
         gemini: {
           type: "api",
+          priority: 3,
           max_tokens: 50_000,
-          default_flags: []
+          default_flags: [],
+          models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
+          model_weights: {
+            "gemini-1.5-pro" => 3,
+            "gemini-1.5-flash" => 2,
+            "gemini-1.0-pro" => 1
+          },
+          models_config: {
+            "gemini-1.5-pro" => {
+              flags: [],
+              max_tokens: 100_000,
+              timeout: 300
+            },
+            "gemini-1.5-flash" => {
+              flags: [],
+              max_tokens: 100_000,
+              timeout: 180
+            },
+            "gemini-1.0-pro" => {
+              flags: [],
+              max_tokens: 30_000,
+              timeout: 300
+            }
+          },
+          auth: {
+            api_key_env: "GEMINI_API_KEY"
+          },
+          endpoints: {
+            default: "https://generativelanguage.googleapis.com/v1beta/models"
+          },
+          features: {
+            file_upload: true,
+            code_generation: true,
+            analysis: true,
+            vision: true
+          },
+          monitoring: {
+            enabled: true,
+            metrics_interval: 60
+          }
         }
       }
     }.freeze
