@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "net/http"
+
 module Aidp
   module Harness
     # Handles error recovery, retry strategies, and fallback mechanisms
@@ -39,6 +41,38 @@ module Aidp
           # No retry, attempt recovery
           recovery_result = attempt_recovery(error_info, context)
           return recovery_result
+        end
+      end
+
+      # Execute a block with retry logic
+      def execute_with_retry(&block)
+        max_attempts = @configuration.max_retries + 1
+        attempt = 0
+
+        begin
+          attempt += 1
+          yield
+        rescue => error
+          if attempt < max_attempts
+            error_info = {
+              error: error,
+              provider: @provider_manager.current_provider,
+              model: @provider_manager.current_model,
+              error_type: @error_classifier.classify_error(error)
+            }
+
+            strategy = get_retry_strategy(error_info[:error_type])
+            if should_retry?(error_info, strategy)
+              sleep(calculate_delay(attempt, strategy, 1, 10))
+              retry
+            end
+          end
+
+          # If we get here, all retries failed
+          handle_error(error, {
+            provider: @provider_manager.current_provider,
+            model: @provider_manager.current_model
+          })
         end
       end
 
@@ -443,20 +477,22 @@ module Aidp
           {
             error: error,
             error_type: error_type,
-            provider: context[:provider] || "unknown",
-            model: context[:model] || "unknown",
+            provider: (context && context.is_a?(Hash) && context[:provider]) || "unknown",
+            model: (context && context.is_a?(Hash) && context[:model]) || "unknown",
             timestamp: Time.now,
-            context: context,
-            message: error.message,
-            backtrace: error.backtrace&.first(5)
+            context: context || {},
+            message: error&.message || "Unknown error",
+            backtrace: error&.backtrace&.first(5)
           }
         end
 
         private
 
         def classify_error_type(error)
+          return :unknown if error.nil?
+
           case error
-          when Net::TimeoutError, Timeout::Error
+          when Timeout::Error
             :timeout
           when Net::HTTPError
             case error.response.code.to_i

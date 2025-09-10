@@ -5,9 +5,8 @@ require_relative "../harness/config_validator"
 require_relative "../harness/config_loader"
 
 module Aidp
-  module CLI
-    # Configuration management command
-    class ConfigCommand
+  # Configuration management command
+  class ConfigCommand
       def initialize(project_dir = Dir.pwd)
         @project_dir = project_dir
         @migrator = Aidp::Harness::ConfigMigrator.new(project_dir)
@@ -43,7 +42,7 @@ module Aidp
         end
       end
 
-      private
+      public
 
       def run_migrate(args)
         options = parse_options(args)
@@ -383,5 +382,4 @@ module Aidp
         HELP
       end
     end
-  end
 end

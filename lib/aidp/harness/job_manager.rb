@@ -28,7 +28,7 @@ module Aidp
         job_id = generate_job_id
 
         # Add harness context to job arguments
-        harness_args = args.merge(
+        harness_args = (args || {}).merge(
           harness_context: {
             project_dir: @project_dir,
             harness_runner_id: @harness_runner&.object_id,
@@ -38,6 +38,7 @@ module Aidp
         )
 
         # Create the job
+        return nil unless job_class
         job = job_class.enqueue(**harness_args)
 
         # Track harness job metadata

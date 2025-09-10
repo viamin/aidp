@@ -43,7 +43,7 @@ module Aidp
         @condition_detector = ConditionDetector.new
         @provider_manager = ProviderManager.new(@configuration)
         @user_interface = UserInterface.new
-        @error_handler = ErrorHandler.new(@configuration)
+        @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @status_display = StatusDisplay.new
       end
 
