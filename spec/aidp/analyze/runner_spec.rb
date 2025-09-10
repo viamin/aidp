@@ -13,6 +13,9 @@ RSpec.describe Aidp::Analyze::Runner do
     allow(File).to receive(:read).and_return("Test template content")
     allow(File).to receive(:write)
     allow(Dir).to receive(:exist?).and_return(true)
+
+    # Mock YAML.load_file to return empty hash for progress files
+    allow(YAML).to receive(:load_file).and_return({})
   end
 
   describe "initialization" do
@@ -65,7 +68,7 @@ RSpec.describe Aidp::Analyze::Runner do
 
   describe "step execution" do
     let(:step_name) { "01_REPOSITORY_ANALYSIS" }
-    let(:options) { {mock_mode: true} }
+    let(:options) { {} }
 
     it "executes step in harness mode" do
       allow(runner).to receive(:run_step_with_harness).and_return({status: "completed"})
