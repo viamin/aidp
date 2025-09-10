@@ -160,25 +160,25 @@ module Aidp
       def get_mode_runner
         case @mode
         when :analyze
-          Aidp::Analyze::Runner.new(@project_dir)
+          Aidp::Analyze::Runner.new(@project_dir, self)
         when :execute
-          Aidp::Execute::Runner.new(@project_dir)
+          Aidp::Execute::Runner.new(@project_dir, self)
         else
           raise ArgumentError, "Unsupported mode: #{@mode}"
         end
       end
 
-      def get_next_step(_runner)
-        # Use the state manager's next_step method which integrates with progress tracking
-        @state_manager.next_step
+      def get_next_step(runner)
+        # Use the mode runner's next_step method
+        runner.next_step
       end
 
       def execute_step(runner, step_name)
         @current_step = step_name
         log_execution("Executing step: #{step_name}")
 
-        # Mark step as in progress in state manager
-        @state_manager.mark_step_in_progress(step_name)
+        # Mark step as in progress using the runner's method
+        runner.mark_step_in_progress(step_name)
 
         # Update status display
         @status_display.update_current_step(step_name)
@@ -204,9 +204,9 @@ module Aidp
           handle_rate_limit(result)
         end
 
-        # Mark step as completed if successful
+        # Mark step as completed if successful using the runner's method
         if result && result[:status] == "completed"
-          @state_manager.mark_step_completed(step_name)
+          runner.mark_step_completed(step_name)
         end
 
         log_execution("Step completed: #{step_name}", {result: result})
@@ -299,9 +299,9 @@ module Aidp
         end
       end
 
-      def all_steps_completed?(_runner)
-        # Use the state manager's all_steps_completed? method
-        @state_manager.all_steps_completed?
+      def all_steps_completed?(runner)
+        # Use the mode runner's all_steps_completed? method
+        runner.all_steps_completed?
       end
 
       def update_state
