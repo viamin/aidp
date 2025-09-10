@@ -13,6 +13,9 @@ RSpec.describe Aidp::Execute::Runner do
     allow(File).to receive(:read).and_return("Test template content")
     allow(File).to receive(:write)
     allow(Dir).to receive(:exist?).and_return(true)
+
+    # Mock YAML.load_file to return empty hash for progress files
+    allow(YAML).to receive(:load_file).and_return({})
   end
 
   describe "initialization" do
@@ -47,7 +50,7 @@ RSpec.describe Aidp::Execute::Runner do
 
   describe "step execution" do
     let(:step_name) { "00_PRD" }
-    let(:options) { {mock_mode: true} }
+    let(:options) { {} }
 
     it "executes step in harness mode" do
       allow(runner).to receive(:run_step_with_harness).and_return({status: "completed"})
@@ -302,16 +305,17 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "handles rate limit results" do
+      reset_time = Time.now + 300
       raw_result = {
         status: "rate_limited",
         rate_limited: true,
-        rate_limit_info: {reset_time: Time.now + 300}
+        rate_limit_info: {reset_time: reset_time}
       }
 
       processed_result = runner.send(:process_result_for_harness, raw_result, step_name, options)
 
       expect(processed_result[:rate_limited]).to be true
-      expect(processed_result[:rate_limit_info]).to eq({reset_time: Time.now + 300})
+      expect(processed_result[:rate_limit_info]).to eq({reset_time: reset_time})
     end
 
     it "handles user feedback requests" do
@@ -354,7 +358,13 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "finds templates in correct search paths" do
+      # Reset the global mock for this specific test
+      allow(File).to receive(:exist?).and_call_original
       allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "EXECUTE", "prd.md")).and_return(true)
+      allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "COMMON", "prd.md")).and_return(false)
+
+      # Override the find_template mock from the before block
+      allow(runner).to receive(:find_template).and_call_original
 
       template_path = runner.send(:find_template, "prd.md")
 
@@ -362,8 +372,13 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "searches common templates path" do
+      # Reset the global mock for this specific test
+      allow(File).to receive(:exist?).and_call_original
       allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "EXECUTE", "prd.md")).and_return(false)
       allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "COMMON", "prd.md")).and_return(true)
+
+      # Override the find_template mock from the before block
+      allow(runner).to receive(:find_template).and_call_original
 
       template_path = runner.send(:find_template, "prd.md")
 
