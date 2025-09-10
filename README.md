@@ -1,6 +1,6 @@
 # AI Dev Pipeline (aidp) - Ruby Gem
 
-A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants.
+A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants. Now with **Harness Mode** - autonomous execution that runs complete workflows automatically with intelligent provider management and error recovery.
 
 ## Quick Start
 
@@ -11,8 +11,75 @@ gem install aidp
 # Navigate to your project
 cd /your/project
 
-# Start the workflow
+# Start the workflow (now with autonomous harness mode)
+aidp execute
+
+# Or run analysis
+aidp analyze
+```
+
+## 🚀 New: Harness Mode
+
+AIDP now features **Harness Mode** - an autonomous execution system that transforms AIDP from a step-by-step tool into an intelligent development assistant. The harness runs complete workflows automatically, handling rate limits, user feedback, error recovery, and provider switching.
+
+### Harness Features
+
+- **🔄 Autonomous Execution**: Runs complete workflows from start to finish
+- **🧠 Intelligent Provider Management**: Automatic switching between Claude, Gemini, and Cursor
+- **⚡ Smart Error Recovery**: Handles rate limits, timeouts, and failures automatically
+- **💬 Interactive User Input**: Collects feedback when agents need clarification
+- **📊 Real-time Monitoring**: Live status updates and progress tracking
+- **🔧 Configurable**: Customize behavior through `aidp.yml` configuration
+
+### Quick Harness Start
+
+```bash
+# Run complete analysis workflow automatically
+aidp analyze
+
+# Run complete development workflow automatically
+aidp execute
+
+# Check harness status
+aidp harness status
+
+# View real-time progress
+aidp status
+```
+
+### Harness Configuration
+
+Create an `aidp.yml` file to customize harness behavior:
+
+```yaml
+# aidp.yml
+harness:
+  enabled: true
+  max_retries: 2
+  default_provider: "claude"
+  fallback_providers: ["gemini", "cursor"]
+
+providers:
+  claude:
+    type: "api"
+    api_key: "${AIDP_CLAUDE_API_KEY}"
+    max_tokens: 100000
+  gemini:
+    type: "api"
+    api_key: "${AIDP_GEMINI_API_KEY}"
+    max_tokens: 50000
+  cursor:
+    type: "package"
+```
+
+### Traditional Mode Still Available
+
+You can still run individual steps manually:
+
+```bash
+# Traditional step-by-step mode
 aidp execute next
+aidp analyze 01_REPOSITORY_ANALYSIS
 ```
 
 ## User Workflow
@@ -72,6 +139,20 @@ The pipeline includes 15 steps total:
 
 ## Key Commands
 
+### Harness Mode Commands
+
+```bash
+aidp execute                  # Run complete development workflow automatically
+aidp analyze                  # Run complete analysis workflow automatically
+aidp harness status           # Show detailed harness status and configuration
+aidp harness reset --mode=analyze  # Reset harness state for analyze mode
+aidp harness reset --mode=execute  # Reset harness state for execute mode
+aidp config show              # Show current configuration
+aidp config validate          # Validate configuration file
+```
+
+### Traditional Mode Commands
+
 ```bash
 aidp status                   # Show progress of all steps
 aidp execute next             # Run next pending step
@@ -83,7 +164,32 @@ aidp approve <step>           # Approve specific step
 aidp reset                    # Reset all progress (start over)
 ```
 
+### Universal Commands
+
+```bash
+aidp status                   # Show progress of all steps (works in both modes)
+aidp jobs                     # Monitor background jobs (real-time)
+aidp version                  # Show version information
+aidp help                     # Show help information
+```
+
 ## AI Providers
+
+### Harness Mode (Recommended)
+
+In harness mode, AIDP intelligently manages multiple providers with automatic switching:
+
+- **Claude API** - Primary provider for complex analysis and code generation
+- **Gemini API** - Cost-effective fallback for general tasks
+- **Cursor CLI** - IDE-integrated provider for code-specific tasks
+
+The harness automatically switches providers when:
+- Rate limits are hit
+- Providers fail or timeout
+- Cost limits are reached
+- Performance optimization is needed
+
+### Traditional Mode
 
 The gem automatically detects and uses the best available AI provider:
 
@@ -91,9 +197,37 @@ The gem automatically detects and uses the best available AI provider:
 - **Claude CLI** (`claude`/`claude-code`) - Fallback
 - **Gemini CLI** (`gemini`/`gemini-cli`) - Fallback
 
-### Override Provider
+### Provider Configuration
+
+#### Harness Mode Configuration
+
+```yaml
+# aidp.yml
+harness:
+  default_provider: "claude"
+  fallback_providers: ["gemini", "cursor"]
+
+providers:
+  claude:
+    type: "api"
+    api_key: "${AIDP_CLAUDE_API_KEY}"
+    max_tokens: 100000
+  gemini:
+    type: "api"
+    api_key: "${AIDP_GEMINI_API_KEY}"
+    max_tokens: 50000
+  cursor:
+    type: "package"
+```
+
+#### Environment Variables
 
 ```bash
+# Set API keys for harness mode
+export AIDP_CLAUDE_API_KEY="your-claude-api-key"
+export AIDP_GEMINI_API_KEY="your-gemini-api-key"
+
+# Traditional mode override
 AIDP_PROVIDER=anthropic aidp execute next
 AIDP_LLM_CMD=/usr/local/bin/claude aidp execute next
 ```
@@ -390,6 +524,15 @@ The gem automates a complete 15-step development pipeline:
 - **Delivery** → Deployment strategy (`docs/DeliveryPlan.md`)
 - **Docs Portal** → Documentation portal (`docs/DocsPortalPlan.md`)
 - **Post-Release** → Post-release analysis (`docs/PostReleaseReport.md`)
+
+## Harness Documentation
+
+For detailed information about harness mode:
+
+- **[Harness Usage Guide](docs/harness-usage.md)** - Complete guide to using harness mode
+- **[Configuration Guide](docs/harness-configuration.md)** - Detailed configuration options and examples
+- **[Troubleshooting Guide](docs/harness-troubleshooting.md)** - Common issues and solutions
+- **[Migration Guide](docs/harness-migration.md)** - Migrating from step-by-step to harness mode
 
 ## Manual Workflow (Alternative)
 
