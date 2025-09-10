@@ -217,6 +217,31 @@ module Aidp
       merge_harness_defaults(config)
     end
 
+    # Get harness configuration loader instance
+    def self.harness_config_loader(project_dir = Dir.pwd)
+      require_relative "harness/config_loader"
+      @harness_loaders ||= {}
+      @harness_loaders[project_dir] ||= Aidp::Harness::ConfigLoader.new(project_dir)
+    end
+
+    # Load harness configuration using the new loader
+    def self.load_harness_config_v2(project_dir = Dir.pwd, force_reload = false)
+      loader = harness_config_loader(project_dir)
+      loader.load_config(force_reload)
+    end
+
+    # Get harness configuration using the new loader
+    def self.get_harness_config_v2(project_dir = Dir.pwd, force_reload = false)
+      loader = harness_config_loader(project_dir)
+      loader.get_harness_config(force_reload)
+    end
+
+    # Get provider configuration using the new loader
+    def self.get_provider_config_v2(provider_name, project_dir = Dir.pwd, force_reload = false)
+      loader = harness_config_loader(project_dir)
+      loader.get_provider_config(provider_name, force_reload)
+    end
+
     # Validate harness configuration
     def self.validate_harness_config(config)
       errors = []
