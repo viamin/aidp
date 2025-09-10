@@ -69,6 +69,31 @@ module Aidp
         event
       end
 
+      def record_circuit_breaker_success(provider_name, model_name, state)
+        event = {
+          type: :circuit_breaker_success,
+          provider: provider_name,
+          model: model_name,
+          state: state,
+          timestamp: Time.now
+        }
+        @metrics_store.store_event(event)
+        event
+      end
+
+      def record_circuit_breaker_failure(provider_name, model_name, state, error)
+        event = {
+          type: :circuit_breaker_failure,
+          provider: provider_name,
+          model: model_name,
+          state: state,
+          error: error&.message,
+          timestamp: Time.now
+        }
+        @metrics_store.store_event(event)
+        event
+      end
+
       # Get comprehensive metrics for a provider
       def get_provider_metrics(provider_name, time_range = nil)
         time_range ||= default_time_range

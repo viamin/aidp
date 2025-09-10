@@ -29,7 +29,12 @@ module Aidp
         when :closed
           true
         when :open
-          check_recovery_timeout(circuit_breaker)
+          if check_recovery_timeout(circuit_breaker)
+            half_open_circuit_breaker(provider, model, "Recovery timeout reached")
+            true
+          else
+            false
+          end
         when :half_open
           true
         else
@@ -39,8 +44,7 @@ module Aidp
 
       # Record successful execution
       def record_success(provider, model = nil)
-        circuit_breaker = get_circuit_breaker(provider, model)
-        return unless circuit_breaker
+        circuit_breaker = get_or_create_circuit_breaker(provider, model)
 
         @success_counts[get_key(provider, model)] ||= 0
         @success_counts[get_key(provider, model)] += 1
@@ -52,8 +56,11 @@ module Aidp
             close_circuit_breaker(provider, model, "Recovery successful")
           end
         when :closed
-          # Reset failure count on success
-          @failure_counts[get_key(provider, model)] = 0
+          # Reset failure count on success only if not using failure rate threshold
+          # If using failure rate threshold, let it accumulate for rate calculation
+          unless circuit_breaker[:failure_rate_threshold] && circuit_breaker[:failure_rate_threshold] > 0
+            @failure_counts[get_key(provider, model)] = 0
+          end
         end
 
         # Record in metrics
@@ -62,8 +69,7 @@ module Aidp
 
       # Record failed execution
       def record_failure(provider, model = nil, error = nil)
-        circuit_breaker = get_circuit_breaker(provider, model)
-        return unless circuit_breaker
+        circuit_breaker = get_or_create_circuit_breaker(provider, model)
 
         key = get_key(provider, model)
         @failure_counts[key] ||= 0
@@ -276,9 +282,9 @@ module Aidp
           {healthy: true, reason: "Circuit breaker closed"}
         when :open
           if check_recovery_timeout(circuit_breaker)
-            {healthy: false, reason: "Circuit breaker open - recovery timeout not reached"}
-          else
             {healthy: true, reason: "Circuit breaker open - ready for recovery"}
+          else
+            {healthy: false, reason: "Circuit breaker open - recovery timeout not reached"}
           end
         when :half_open
           {healthy: true, reason: "Circuit breaker half-open - testing recovery"}
@@ -456,13 +462,13 @@ module Aidp
           @health_checks = {}
         end
 
-        def check_health(provider, model = nil)
+        def check_health(_provider, _model = nil)
           # This would perform actual health checks
           # For now, return a mock health status
           {healthy: true, response_time: 100, last_check: Time.now}
         end
 
-        def get_health_score(provider, model = nil)
+        def get_health_score(_provider, _model = nil)
           # This would calculate health score based on various metrics
           # For now, return a mock score
           0.95
@@ -474,13 +480,13 @@ module Aidp
           @recovery_tests = {}
         end
 
-        def test_recovery(provider, model = nil)
+        def test_recovery(_provider, _model = nil)
           # This would perform recovery tests
           # For now, return a mock test result
           {success: true, response_time: 150, test_time: Time.now}
         end
 
-        def should_attempt_recovery(provider, model = nil)
+        def should_attempt_recovery(_provider, _model = nil)
           # This would determine if recovery should be attempted
           # For now, return true
           true

@@ -24,6 +24,8 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
     allow(error_logger).to receive(:log_circuit_breaker_event)
 
     # Mock metrics manager methods
+    allow(metrics_manager).to receive(:record_request)
+    allow(metrics_manager).to receive(:get_provider_metrics)
     allow(metrics_manager).to receive(:record_circuit_breaker_success)
     allow(metrics_manager).to receive(:record_circuit_breaker_failure)
   end
@@ -85,14 +87,27 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
     end
 
     it "resets failure count on success when closed" do
+      # Use configuration without failure rate threshold for this test
+      allow(configuration).to receive(:circuit_breaker_config).and_return({
+        failure_threshold: 5,
+        success_threshold: 3,
+        timeout: 60,
+        half_open_max_requests: 1,
+        failure_rate_threshold: 0,  # Disable failure rate threshold
+        minimum_requests: 10
+      })
+
+      # Create a new circuit breaker manager with the updated configuration
+      test_circuit_breaker_manager = described_class.new(configuration, error_logger, metrics_manager)
+
       # Record some failures
-      circuit_breaker_manager.record_failure("claude", nil, StandardError.new("Test error"))
-      circuit_breaker_manager.record_failure("claude", nil, StandardError.new("Test error"))
+      test_circuit_breaker_manager.record_failure("claude", nil, StandardError.new("Test error"))
+      test_circuit_breaker_manager.record_failure("claude", nil, StandardError.new("Test error"))
 
       # Record success
-      circuit_breaker_manager.record_success("claude")
+      test_circuit_breaker_manager.record_success("claude")
 
-      status = circuit_breaker_manager.get_status("claude")
+      status = test_circuit_breaker_manager.get_status("claude")
       expect(status[:failure_count]).to eq(0)
     end
   end
@@ -424,9 +439,13 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
 
     it "opens circuit breaker based on failure rate" do
       # Record 10 requests with 6 failures (60% failure rate)
-      6.times { circuit_breaker_manager.record_failure("claude", nil, StandardError.new("Test error")) }
+      # First record some successes to meet minimum_requests threshold
       4.times { circuit_breaker_manager.record_success("claude") }
 
+      # Then record 6 failures to exceed failure rate threshold
+      6.times { circuit_breaker_manager.record_failure("claude", nil, StandardError.new("Test error")) }
+
+      # Check state after failures (should be open)
       expect(circuit_breaker_manager.get_state("claude")).to eq(:open)
     end
 
