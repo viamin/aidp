@@ -607,14 +607,20 @@ module Aidp
               found_indicators << pattern.source
               case confidence_level
               when :high_confidence
-                max_confidence = [max_confidence, 0.9].max
-                completion_type = "explicit_high_confidence"
+                if max_confidence < 0.9
+                  max_confidence = 0.9
+                  completion_type = "explicit_high_confidence"
+                end
               when :medium_confidence
-                max_confidence = [max_confidence, 0.7].max
-                completion_type = "explicit_medium_confidence"
+                if max_confidence < 0.7
+                  max_confidence = 0.7
+                  completion_type = "explicit_medium_confidence"
+                end
               when :low_confidence
-                max_confidence = [max_confidence, 0.5].max
-                completion_type = "explicit_low_confidence"
+                if max_confidence < 0.5
+                  max_confidence = 0.5
+                  completion_type = "explicit_low_confidence"
+                end
               end
             end
           end
@@ -688,7 +694,7 @@ module Aidp
         # Check for progress completion
         if progress && progress.completed_steps.size > 0
           completion_ratio = progress.completed_steps.size.to_f / progress.total_steps
-          if completion_ratio >= 0.9 # 90% or more complete
+          if completion_ratio >= 0.8 # 80% or more complete
             found_indicators << "high_progress_ratio"
             max_confidence = [max_confidence, 0.6].max
             completion_type = "implicit_high_progress"
@@ -752,8 +758,8 @@ module Aidp
           next_actions << "handle_errors"
         end
 
-        # Check progress status
-        if progress
+        # Check progress status only if no specific status was detected from text
+        if status == "in_progress" && progress
           completion_ratio = progress.completed_steps.size.to_f / progress.total_steps
           if completion_ratio >= 0.8
             status = "near_completion"
@@ -831,6 +837,10 @@ module Aidp
         elsif error_message.match?(/access.*denied/i) || error_message.match?(/insufficient.*privileges/i)
           :access_denied
 
+        # File and I/O errors (check these first as they're more specific)
+        elsif error_message.match?(/file.*not found/i) || error_message.match?(/no such file/i)
+          :file_not_found
+
         # HTTP and API errors
         elsif error_message.match?(/not found/i) || error_message.match?(/404/i)
           :not_found
@@ -845,10 +855,6 @@ module Aidp
           :rate_limit
         elsif error_message.match?(/quota.*exceeded/i) || error_message.match?(/usage.*limit/i)
           :quota_exceeded
-
-        # File and I/O errors
-        elsif error_message.match?(/file.*not found/i) || error_message.match?(/no such file/i)
-          :file_not_found
         elsif error_message.match?(/permission.*denied/i) || error_message.match?(/eacces/i)
           :file_permission
         elsif error_message.match?(/disk.*full/i) || error_message.match?(/no space/i)
@@ -1477,16 +1483,30 @@ module Aidp
       def is_waiting_for_input?(completion_info)
         return false unless completion_info
 
-        completion_info[:progress_status] == "waiting_for_input" ||
-          completion_info[:next_actions].include?("collect_user_input")
+        if completion_info[:progress_status] == "waiting_for_input"
+          return true
+        end
+
+        if completion_info[:next_actions] && completion_info[:next_actions].include?("collect_user_input")
+          return true
+        end
+
+        return false
       end
 
       # Check if work has errors
       def has_errors?(completion_info)
         return false unless completion_info
 
-        completion_info[:progress_status] == "has_errors" ||
-          completion_info[:next_actions].include?("handle_errors")
+        if completion_info[:progress_status] == "has_errors"
+          return true
+        end
+
+        if completion_info[:next_actions] && completion_info[:next_actions].include?("handle_errors")
+          return true
+        end
+
+        return false
       end
 
       # Get progress status description

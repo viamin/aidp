@@ -97,7 +97,7 @@ RSpec.describe Aidp::Harness::ConditionDetector do
         allow(mock_progress).to receive(:completed_steps).and_return([1, 2])
         allow(mock_progress).to receive(:total_steps).and_return(5)
 
-        result = {output: "Working on the next step"}
+        result = {output: "Currently processing data"}
         info = detector.extract_completion_info(result, mock_progress)
 
         expect(info[:is_complete]).to be false
@@ -136,7 +136,7 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       end
 
       it "detects medium confidence completion" do
-        text = "Task completed"
+        text = "Work is complete"
         result = detector.send(:detect_explicit_completion, text)
 
         expect(result[:found]).to be true
@@ -146,7 +146,7 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       end
 
       it "detects low confidence completion" do
-        text = "Work finished"
+        text = "Work will end"
         result = detector.send(:detect_explicit_completion, text)
 
         expect(result[:found]).to be true
