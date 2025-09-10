@@ -27,6 +27,8 @@ require "aidp/providers/cursor"
 require "aidp/providers/anthropic"
 require "aidp/providers/gemini"
 require "aidp/providers/macos_ui"
+require "aidp/providers/supervised_base"
+require "aidp/providers/supervised_cursor"
 require "aidp/provider_manager"
 
 # Analyze mode
