@@ -23,7 +23,7 @@ RSpec.describe Aidp::Config do
 
       it "loads the configuration from aidp.yml" do
         config = described_class.load(temp_dir)
-        expect(config["harness"]["default_provider"]).to eq("test_provider")
+        expect(config[:harness][:default_provider]).to eq("test_provider")
       end
     end
 
@@ -40,7 +40,7 @@ RSpec.describe Aidp::Config do
 
       it "loads the configuration from .aidp.yml" do
         config = described_class.load(temp_dir)
-        expect(config["harness"]["default_provider"]).to eq("legacy_provider")
+        expect(config[:harness][:default_provider]).to eq("legacy_provider")
       end
     end
 
@@ -133,8 +133,8 @@ RSpec.describe Aidp::Config do
       expect(File.exist?(config_file)).to be true
 
       config = YAML.load_file(config_file)
-      expect(config).to have_key("harness")
-      expect(config).to have_key("providers")
+      expect(config).to have_key(:harness)
+      expect(config).to have_key(:providers)
     end
 
     it "returns false if file already exists" do
