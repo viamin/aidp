@@ -551,7 +551,7 @@ RSpec.describe Aidp::Harness::ProviderStatusTracker do
     end
 
     it "exports with options" do
-      json_export = tracker.export_status_data(:json, { pretty: true })
+      json_export = tracker.export_status_data(:json, {pretty: true})
 
       expect(json_export).to be_a(String)
     end
@@ -762,15 +762,15 @@ RSpec.describe Aidp::Harness::ProviderStatusTracker do
       let(:exporter) { described_class::StatusExporter.new(:json) }
 
       it "exports data in specified format" do
-        data = { test: "data" }
+        data = {test: "data"}
         export = exporter.export(data)
 
         expect(export).to be_a(String)
       end
 
       it "exports with options" do
-        data = { test: "data" }
-        export = exporter.export(data, { pretty: true })
+        data = {test: "data"}
+        export = exporter.export(data, {pretty: true})
 
         expect(export).to be_a(String)
       end
@@ -780,7 +780,7 @@ RSpec.describe Aidp::Harness::ProviderStatusTracker do
       let(:validator) { described_class::StatusValidator.new(:comprehensive) }
 
       it "validates status data" do
-        data = { test: "data" }
+        data = {test: "data"}
         result = validator.validate(data)
 
         expect(result).to include(:valid, :errors)
@@ -801,7 +801,7 @@ RSpec.describe Aidp::Harness::ProviderStatusTracker do
     end
 
     describe "StatusTrendAnalyzer" do
-      let(:history) { [{ timestamp: Time.now, data: "test" }] }
+      let(:history) { [{timestamp: Time.now, data: "test"}] }
       let(:analyzer) { described_class::StatusTrendAnalyzer.new(history, 3600) }
 
       it "analyzes status trends" do
@@ -817,7 +817,7 @@ RSpec.describe Aidp::Harness::ProviderStatusTracker do
     end
 
     describe "StatusPredictor" do
-      let(:history) { [{ timestamp: Time.now, data: "test" }] }
+      let(:history) { [{timestamp: Time.now, data: "test"}] }
       let(:predictor) { described_class::StatusPredictor.new(history, metrics_manager) }
 
       it "predicts status for provider" do

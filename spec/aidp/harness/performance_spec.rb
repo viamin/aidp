@@ -96,7 +96,7 @@ RSpec.describe "Harness Performance Testing", type: :performance do
       # Set some state data
       harness_runner.instance_variable_set(:@current_step, "01_REPOSITORY_ANALYSIS")
       harness_runner.instance_variable_set(:@current_provider, "claude")
-      harness_runner.instance_variable_set(:@user_input, { "question_1" => "test answer" })
+      harness_runner.instance_variable_set(:@user_input, {"question_1" => "test answer"})
 
       # Measure state saving time
       save_times = []
@@ -158,23 +158,19 @@ RSpec.describe "Harness Performance Testing", type: :performance do
       5.times do
         threads << Thread.new do
           10.times do
-            begin
-              harness_runner.send(:save_state)
-              harness_runner.send(:load_state)
-            rescue => e
-              # Handle timeout errors gracefully
-              puts "Thread error: #{e.message}" if e.message.include?("timeout")
-            end
+            harness_runner.send(:save_state)
+            harness_runner.send(:load_state)
+          rescue => e
+            # Handle timeout errors gracefully
+            puts "Thread error: #{e.message}" if e.message.include?("timeout")
           end
         end
       end
 
       threads.each do |thread|
-        begin
-          thread.join(5) # 5 second timeout
-        rescue => e
-          puts "Thread join timeout: #{e.message}"
-        end
+        thread.join(5) # 5 second timeout
+      rescue => e
+        puts "Thread join timeout: #{e.message}"
       end
       total_time = Time.now - start_time
 
@@ -269,7 +265,7 @@ RSpec.describe "Harness Performance Testing", type: :performance do
 
       10.times do
         time = Benchmark.realtime do
-          error_handler.handle_error(StandardError.new("Test error"), { provider: "claude" })
+          error_handler.handle_error(StandardError.new("Test error"), {provider: "claude"})
         end
         error_times << time
       end
@@ -316,9 +312,9 @@ RSpec.describe "Harness Performance Testing", type: :performance do
 
       100.times do
         time = Benchmark.realtime do
-          condition_detector.is_rate_limited?({ message: "Rate limit exceeded" })
-          condition_detector.needs_user_feedback?({ message: "Please provide input" })
-          condition_detector.is_work_complete?({ message: "Work completed" }, nil)
+          condition_detector.is_rate_limited?({message: "Rate limit exceeded"})
+          condition_detector.needs_user_feedback?({message: "Please provide input"})
+          condition_detector.is_work_complete?({message: "Work completed"}, nil)
         end
         detection_times << time
       end
@@ -434,7 +430,7 @@ RSpec.describe "Harness Performance Testing", type: :performance do
 
       10.times do
         time = Benchmark.realtime do
-          job_manager.create_harness_job("TestJob", { test: "data" })
+          job_manager.create_harness_job("TestJob", {test: "data"})
         end
         creation_times << time
       end
@@ -539,7 +535,7 @@ RSpec.describe "Harness Performance Testing", type: :performance do
       harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
 
       # Measure CPU usage during idle operations
-      start_time = Time.now
+      Time.now
       start_cpu = get_cpu_usage
 
       # Perform lightweight operations
@@ -547,10 +543,8 @@ RSpec.describe "Harness Performance Testing", type: :performance do
         harness_runner.status
       end
 
-      end_time = Time.now
+      Time.now
       end_cpu = get_cpu_usage
-
-      duration = end_time - start_time
       cpu_usage = end_cpu - start_cpu
 
       # CPU usage should be reasonable (less than 10% for 1000 operations)
@@ -561,7 +555,7 @@ RSpec.describe "Harness Performance Testing", type: :performance do
       harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
 
       # Measure CPU usage during intensive operations
-      start_time = Time.now
+      Time.now
       start_cpu = get_cpu_usage
 
       # Perform intensive operations
@@ -576,10 +570,8 @@ RSpec.describe "Harness Performance Testing", type: :performance do
         harness_runner.status
       end
 
-      end_time = Time.now
+      Time.now
       end_cpu = get_cpu_usage
-
-      duration = end_time - start_time
       cpu_usage = end_cpu - start_cpu
 
       # CPU usage should be reasonable (less than 20% for 100 intensive operations)

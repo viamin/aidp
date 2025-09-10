@@ -157,7 +157,7 @@ RSpec.describe Aidp::Harness::ConditionDetector do
 
     it "extracts specific timestamp" do
       future_time = Time.now + 300
-      text = "Rate limit exceeded. Reset at #{future_time.strftime('%Y-%m-%d %H:%M:%S')}"
+      text = "Rate limit exceeded. Reset at #{future_time.strftime("%Y-%m-%d %H:%M:%S")}"
       reset_time = detector.send(:extract_reset_time, text)
 
       expect(reset_time).to be_a(Time)

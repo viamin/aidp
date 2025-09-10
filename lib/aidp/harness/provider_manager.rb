@@ -105,7 +105,7 @@ module Aidp
         when "timeout"
           switch_provider("timeout", error_details)
         else
-          switch_provider("error", { error_type: error_type }.merge(error_details))
+          switch_provider("error", {error_type: error_type}.merge(error_details))
         end
       end
 
@@ -114,7 +114,7 @@ module Aidp
         retry_count = 0
 
         while retry_count < max_retries
-          next_provider = switch_provider(reason, { retry_count: retry_count })
+          next_provider = switch_provider(reason, {retry_count: retry_count})
 
           if next_provider
             return next_provider
@@ -188,7 +188,7 @@ module Aidp
         when "timeout"
           switch_model("timeout", error_details)
         else
-          switch_model("error", { error_type: error_type }.merge(error_details))
+          switch_model("error", {error_type: error_type}.merge(error_details))
         end
       end
 
@@ -199,7 +199,7 @@ module Aidp
         retry_count = 0
 
         while retry_count < max_retries
-          next_model = switch_model(reason, { retry_count: retry_count })
+          next_model = switch_model(reason, {retry_count: retry_count})
 
           if next_model
             return next_model
@@ -271,8 +271,8 @@ module Aidp
         all_providers = @configuration.available_providers
         all_providers.select do |provider|
           !is_rate_limited?(provider) &&
-          is_provider_healthy?(provider) &&
-          !is_provider_circuit_breaker_open?(provider)
+            is_provider_healthy?(provider) &&
+            !is_provider_circuit_breaker_open?(provider)
         end
       end
 
@@ -281,8 +281,8 @@ module Aidp
         models = get_provider_models(provider_name)
         models.select do |model|
           model_available?(provider_name, model) &&
-          is_model_healthy?(provider_name, model) &&
-          !is_model_circuit_breaker_open?(provider_name, model)
+            is_model_healthy?(provider_name, model) &&
+            !is_model_circuit_breaker_open?(provider_name, model)
         end
       end
 
@@ -414,8 +414,7 @@ module Aidp
         current_usage = calculate_model_current_usage(provider_name, model_name)
 
         # Load formula: higher is worse
-        load = (1 - success_rate) * 100 + avg_response_time + current_usage
-        load
+        (1 - success_rate) * 100 + avg_response_time + current_usage
       end
 
       # Calculate current usage for model
@@ -519,8 +518,7 @@ module Aidp
         current_usage = calculate_current_usage(provider_name)
 
         # Load formula: higher is worse
-        load = (1 - success_rate) * 100 + avg_response_time + current_usage
-        load
+        (1 - success_rate) * 100 + avg_response_time + current_usage
       end
 
       # Calculate current usage for provider
@@ -546,8 +544,8 @@ module Aidp
       # Check if provider is available (not rate limited, healthy, circuit breaker closed)
       def is_provider_available?(provider_name)
         !is_rate_limited?(provider_name) &&
-        is_provider_healthy?(provider_name) &&
-        !is_provider_circuit_breaker_open?(provider_name)
+          is_provider_healthy?(provider_name) &&
+          !is_provider_circuit_breaker_open?(provider_name)
       end
 
       # Check if model is rate limited
@@ -576,7 +574,7 @@ module Aidp
 
         # Switch to next model if current one is rate limited
         if provider_name == current_provider && model_name == current_model
-          switch_model("rate_limit", { provider: provider_name, model: model_name })
+          switch_model("rate_limit", {provider: provider_name, model: model_name})
         end
       end
 
@@ -603,7 +601,7 @@ module Aidp
         if health[:circuit_breaker_open]
           # Check if timeout has passed
           if health[:circuit_breaker_opened_at] &&
-             Time.now - health[:circuit_breaker_opened_at] > @circuit_breaker_timeout
+              Time.now - health[:circuit_breaker_opened_at] > @circuit_breaker_timeout
             # Reset circuit breaker
             reset_model_circuit_breaker(provider_name, model_name)
             return false
@@ -714,7 +712,7 @@ module Aidp
         if health[:circuit_breaker_open]
           # Check if timeout has passed
           if health[:circuit_breaker_opened_at] &&
-             Time.now - health[:circuit_breaker_opened_at] > @circuit_breaker_timeout
+              Time.now - health[:circuit_breaker_opened_at] > @circuit_breaker_timeout
             # Reset circuit breaker
             reset_circuit_breaker(provider_name)
             return false
@@ -812,7 +810,7 @@ module Aidp
 
         # Switch to next provider if current one is rate limited
         if provider_name == current_provider
-          switch_provider("rate_limit", { provider: provider_name })
+          switch_provider("rate_limit", {provider: provider_name})
         end
       end
 
@@ -872,7 +870,7 @@ module Aidp
           metrics[:failed_requests] += 1
           metrics[:last_error] = error&.message || "Unknown error"
           metrics[:last_error_time] = Time.now
-          update_provider_health(provider_name, "error", { error: error })
+          update_provider_health(provider_name, "error", {error: error})
         end
       end
 
@@ -903,7 +901,7 @@ module Aidp
           metrics[:failed_requests] += 1
           metrics[:last_error] = error&.message || "Unknown error"
           metrics[:last_error_time] = Time.now
-          update_model_health(provider_name, model_name, "error", { error: error })
+          update_model_health(provider_name, model_name, "error", {error: error})
         end
       end
 
@@ -1138,7 +1136,7 @@ module Aidp
       # Calculate retry delay with exponential backoff
       def calculate_retry_delay(retry_count)
         # Exponential backoff: 1s, 2s, 4s, 8s, etc.
-        delay = 2 ** retry_count
+        delay = 2**retry_count
         [delay, 60].min # Cap at 60 seconds
       end
 

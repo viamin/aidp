@@ -54,7 +54,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
   end
 
   describe "error logging" do
-    let(:context) { { provider: "claude", model: "model1", session_id: "session123" } }
+    let(:context) { {provider: "claude", model: "model1", session_id: "session123"} }
 
     it "logs network timeout errors" do
       error = Net::TimeoutError.new("Connection timeout")
@@ -150,8 +150,8 @@ RSpec.describe Aidp::Harness::ErrorLogger do
   end
 
   describe "recovery action logging" do
-    let(:action_details) { { success: true, duration: 2.5, new_provider: "gemini" } }
-    let(:context) { { provider: "claude", model: "model1", session_id: "session123" } }
+    let(:action_details) { {success: true, duration: 2.5, new_provider: "gemini"} }
+    let(:context) { {provider: "claude", model: "model1", session_id: "session123"} }
 
     it "logs recovery actions" do
       entry = error_logger.log_recovery_action(:provider_switch, action_details, context)
@@ -179,7 +179,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
   end
 
   describe "switch logging" do
-    let(:context) { { session_id: "session123", duration: 0.5 } }
+    let(:context) { {session_id: "session123", duration: 0.5} }
 
     it "logs provider switches" do
       entry = error_logger.log_provider_switch("claude", "gemini", "rate_limit", context)
@@ -209,7 +209,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
   end
 
   describe "retry logging" do
-    let(:context) { { provider: "claude", model: "model1", session_id: "session123" } }
+    let(:context) { {provider: "claude", model: "model1", session_id: "session123"} }
 
     it "logs retry attempts" do
       entry = error_logger.log_retry_attempt(:network_error, 2, 1.5, context)
@@ -237,7 +237,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
   end
 
   describe "circuit breaker logging" do
-    let(:context) { { session_id: "session123", failure_count: 5 } }
+    let(:context) { {session_id: "session123", failure_count: 5} }
 
     it "logs circuit breaker events" do
       entry = error_logger.log_circuit_breaker_event("claude", "model1", :opened, "high_failure_rate", context)
@@ -267,9 +267,9 @@ RSpec.describe Aidp::Harness::ErrorLogger do
   describe "log retrieval with filtering" do
     before do
       # Add some test logs
-      error_logger.log_error(StandardError.new("Error 1"), { provider: "claude", model: "model1" })
-      error_logger.log_error(StandardError.new("Error 2"), { provider: "gemini", model: "model1" })
-      error_logger.log_recovery_action(:provider_switch, { success: true }, { provider: "claude" })
+      error_logger.log_error(StandardError.new("Error 1"), {provider: "claude", model: "model1"})
+      error_logger.log_error(StandardError.new("Error 2"), {provider: "gemini", model: "model1"})
+      error_logger.log_recovery_action(:provider_switch, {success: true}, {provider: "claude"})
     end
 
     it "gets error logs without filters" do
@@ -280,7 +280,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
     end
 
     it "gets error logs with provider filter" do
-      errors = error_logger.get_error_logs({ provider: "claude" })
+      errors = error_logger.get_error_logs({provider: "claude"})
 
       expect(errors.size).to eq(1)
       expect(errors.first[:provider]).to eq("claude")
@@ -288,7 +288,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
 
     it "gets error logs with time range filter" do
       time_range = (Time.now - 1)..Time.now
-      errors = error_logger.get_error_logs({ time_range: time_range })
+      errors = error_logger.get_error_logs({time_range: time_range})
 
       expect(errors.size).to eq(2)
     end
@@ -331,11 +331,11 @@ RSpec.describe Aidp::Harness::ErrorLogger do
   describe "log summary" do
     before do
       # Add some test logs
-      error_logger.log_error(StandardError.new("Error 1"), { provider: "claude", model: "model1" })
-      error_logger.log_error(Net::TimeoutError.new("Timeout"), { provider: "gemini", model: "model1" })
-      error_logger.log_recovery_action(:provider_switch, { success: true, duration: 2.0 }, {})
-      error_logger.log_provider_switch("claude", "gemini", "rate_limit", { duration: 0.5 })
-      error_logger.log_retry_attempt(:network_error, 1, 1.0, { success: true })
+      error_logger.log_error(StandardError.new("Error 1"), {provider: "claude", model: "model1"})
+      error_logger.log_error(Net::TimeoutError.new("Timeout"), {provider: "gemini", model: "model1"})
+      error_logger.log_recovery_action(:provider_switch, {success: true, duration: 2.0}, {})
+      error_logger.log_provider_switch("claude", "gemini", "rate_limit", {duration: 0.5})
+      error_logger.log_retry_attempt(:network_error, 1, 1.0, {success: true})
       error_logger.log_circuit_breaker_event("claude", "model1", :opened, "high_failure_rate", {})
     end
 
@@ -360,7 +360,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
 
       expect(error_summary[:total_errors]).to eq(2)
       expect(error_summary[:errors_by_provider]).to include("claude" => 1, "gemini" => 1)
-      expect(error_summary[:errors_by_severity]).to include(:error => 1, :warning => 1)
+      expect(error_summary[:errors_by_severity]).to include(error: 1, warning: 1)
     end
 
     it "provides recovery summary with statistics" do
@@ -397,15 +397,15 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       circuit_breaker_summary = summary[:circuit_breaker_summary]
 
       expect(circuit_breaker_summary[:total_events]).to eq(1)
-      expect(circuit_breaker_summary[:events_by_type]).to include(:opened => 1)
+      expect(circuit_breaker_summary[:events_by_type]).to include(opened: 1)
     end
   end
 
   describe "log export" do
     before do
       # Add some test logs
-      error_logger.log_error(StandardError.new("Test error"), { provider: "claude" })
-      error_logger.log_recovery_action(:provider_switch, { success: true }, {})
+      error_logger.log_error(StandardError.new("Test error"), {provider: "claude"})
+      error_logger.log_recovery_action(:provider_switch, {success: true}, {})
     end
 
     it "exports logs in JSON format" do
@@ -518,7 +518,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       let(:log_storage) { described_class::LogStorage.new }
 
       it "stores and retrieves errors" do
-        error_entry = { id: "1", type: :error, timestamp: Time.now }
+        error_entry = {id: "1", type: :error, timestamp: Time.now}
 
         log_storage.store_error(error_entry)
         errors = log_storage.get_errors
@@ -527,35 +527,35 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       end
 
       it "filters logs by time range" do
-        old_entry = { id: "1", type: :error, timestamp: Time.now - 3600 }
-        new_entry = { id: "2", type: :error, timestamp: Time.now }
+        old_entry = {id: "1", type: :error, timestamp: Time.now - 3600}
+        new_entry = {id: "2", type: :error, timestamp: Time.now}
 
         log_storage.store_error(old_entry)
         log_storage.store_error(new_entry)
 
         time_range = (Time.now - 1800)..Time.now
-        filtered = log_storage.get_errors({ time_range: time_range })
+        filtered = log_storage.get_errors({time_range: time_range})
 
         expect(filtered).to include(new_entry)
         expect(filtered).not_to include(old_entry)
       end
 
       it "filters logs by provider" do
-        claude_entry = { id: "1", type: :error, provider: "claude" }
-        gemini_entry = { id: "2", type: :error, provider: "gemini" }
+        claude_entry = {id: "1", type: :error, provider: "claude"}
+        gemini_entry = {id: "2", type: :error, provider: "gemini"}
 
         log_storage.store_error(claude_entry)
         log_storage.store_error(gemini_entry)
 
-        filtered = log_storage.get_errors({ provider: "claude" })
+        filtered = log_storage.get_errors({provider: "claude"})
 
         expect(filtered).to include(claude_entry)
         expect(filtered).not_to include(gemini_entry)
       end
 
       it "clears old logs" do
-        old_entry = { id: "1", type: :error, timestamp: Time.now - 3600 }
-        new_entry = { id: "2", type: :error, timestamp: Time.now }
+        old_entry = {id: "1", type: :error, timestamp: Time.now - 3600}
+        new_entry = {id: "2", type: :error, timestamp: Time.now}
 
         log_storage.store_error(old_entry)
         log_storage.store_error(new_entry)
@@ -572,7 +572,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       let(:tracker) { described_class::RecoveryTracker.new }
 
       it "tracks recovery metrics" do
-        recovery_entry = { action_type: :provider_switch, success: true, duration: 2.0 }
+        recovery_entry = {action_type: :provider_switch, success: true, duration: 2.0}
 
         expect { tracker.track_recovery(recovery_entry) }.not_to raise_error
       end
@@ -593,7 +593,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       let(:analyzer) { described_class::ErrorAnalyzer.new }
 
       it "analyzes error patterns" do
-        error_entry = { category: :timeout, severity: :warning }
+        error_entry = {category: :timeout, severity: :warning}
 
         expect { analyzer.analyze_error(error_entry) }.not_to raise_error
       end
@@ -614,7 +614,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       let(:alert_manager) { described_class::AlertManager.new }
 
       it "checks error alerts" do
-        error_entry = { severity: :error, category: :server_error }
+        error_entry = {severity: :error, category: :server_error}
 
         expect { alert_manager.check_error_alerts(error_entry) }.not_to raise_error
       end

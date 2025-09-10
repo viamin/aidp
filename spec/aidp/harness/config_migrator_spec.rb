@@ -194,7 +194,7 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
 
   describe "auto migration" do
     it "migrates from legacy when legacy config exists" do
-      legacy_config = { "provider" => "cursor" }
+      legacy_config = {"provider" => "cursor"}
       File.write(legacy_config_file, YAML.dump(legacy_config))
 
       result = migrator.auto_migrate
@@ -204,7 +204,7 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
     end
 
     it "migrates harness format when needed" do
-      old_config = { "harness" => "cursor" }
+      old_config = {"harness" => "cursor"}
       File.write(config_file, YAML.dump(old_config))
 
       result = migrator.auto_migrate
@@ -242,14 +242,14 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
 
   describe "migration detection" do
     it "detects legacy configuration needs migration" do
-      legacy_config = { "provider" => "cursor" }
+      legacy_config = {"provider" => "cursor"}
       File.write(config_file, YAML.dump(legacy_config))
 
       expect(migrator.needs_migration?).to be true
     end
 
     it "detects old harness format needs migration" do
-      old_config = { "harness" => "cursor" }
+      old_config = {"harness" => "cursor"}
       File.write(config_file, YAML.dump(old_config))
 
       expect(migrator.needs_migration?).to be true
@@ -360,7 +360,7 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
       File.write(backup_file, YAML.dump(backup_config))
 
       # Create current config
-      current_config = { "harness" => { "default_provider" => "cursor" } }
+      current_config = {"harness" => {"default_provider" => "cursor"}}
       File.write(config_file, YAML.dump(current_config))
 
       result = migrator.restore_from_backup(backup_file)
@@ -379,7 +379,7 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
       File.write(backup_file, YAML.dump(backup_config))
 
       # Create current config
-      current_config = { "harness" => { "default_provider" => "cursor" } }
+      current_config = {"harness" => {"default_provider" => "cursor"}}
       File.write(config_file, YAML.dump(current_config))
 
       result = migrator.restore_from_backup(backup_file)
@@ -399,7 +399,7 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
 
   describe "migration status" do
     it "reports status for legacy configuration" do
-      legacy_config = { "provider" => "cursor" }
+      legacy_config = {"provider" => "cursor"}
       File.write(legacy_config_file, YAML.dump(legacy_config))
 
       status = migrator.get_migration_status

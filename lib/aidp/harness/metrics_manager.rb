@@ -948,7 +948,7 @@ module Aidp
 
         def update_realtime_metrics(provider_name, model_name, event)
           key = "#{provider_name}:#{model_name}"
-          @realtime_metrics[key] ||= { requests: 0, errors: 0, total_duration: 0 }
+          @realtime_metrics[key] ||= {requests: 0, errors: 0, total_duration: 0}
 
           @realtime_metrics[key][:requests] += 1
           @realtime_metrics[key][:errors] += 1 unless event[:success]
@@ -972,7 +972,7 @@ module Aidp
         end
 
         def get_active_providers
-          @realtime_metrics.keys.map { |k| k.split(':').first }.uniq
+          @realtime_metrics.keys.map { |k| k.split(":").first }.uniq
         end
 
         def get_current_load
@@ -1012,8 +1012,7 @@ module Aidp
         def calculate_reliability_score(events)
           return 0.0 if events.empty?
 
-          success_rate = events.count { |e| e[:success] }.to_f / events.size
-          success_rate
+          events.count { |e| e[:success] }.to_f / events.size
         end
 
         def calculate_system_health_score(request_events, switch_events, rate_limit_events)

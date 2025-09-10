@@ -16,7 +16,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     allow(provider_manager).to receive(:set_current_model).and_return(true)
 
     # Mock configuration methods
-    allow(configuration).to receive(:rate_limit_recovery_config).and_return({ strategies: {} })
+    allow(configuration).to receive(:rate_limit_recovery_config).and_return({strategies: {}})
 
     # Mock metrics manager methods
     allow(metrics_manager).to receive(:record_rate_limit_recovery)
@@ -59,7 +59,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       }
     end
 
-    let(:context) { { error_message: "Rate limit exceeded" } }
+    let(:context) { {error_message: "Rate limit exceeded"} }
 
     it "handles rate limit with immediate provider switch" do
       result = recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, context)
@@ -181,7 +181,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     end
 
     it "returns default strategy for unknown scenario" do
-      unknown_rate_limit = { type: :unknown }
+      unknown_rate_limit = {type: :unknown}
       strategy = recovery_manager.get_switch_strategy("claude", "model1", unknown_rate_limit, {})
 
       expect(strategy[:name]).to eq("default")
@@ -189,7 +189,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     end
 
     it "applies context modifications to strategy" do
-      context = { priority: :critical, cooldown_period: 120 }
+      context = {priority: :critical, cooldown_period: 120}
       strategy = recovery_manager.get_switch_strategy("claude", "model1", rate_limit_info, context)
 
       expect(strategy[:priority]).to eq(:critical)
@@ -197,9 +197,9 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     end
 
     it "uses context-specific switch strategy" do
-      context = { switch_strategy: :custom_strategy }
+      context = {switch_strategy: :custom_strategy}
       recovery_manager.configure_switch_strategies({
-        custom_strategy: { name: "custom", action: :escalate }
+        custom_strategy: {name: "custom", action: :escalate}
       })
 
       strategy = recovery_manager.get_switch_strategy("claude", "model1", rate_limit_info, context)
@@ -286,8 +286,8 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     end
 
     it "tracks quota usage across providers/models" do
-      rate_limit_info1 = { quota_remaining: 100, quota_limit: 1000 }
-      rate_limit_info2 = { quota_remaining: 200, quota_limit: 1000 }
+      rate_limit_info1 = {quota_remaining: 100, quota_limit: 1000}
+      rate_limit_info2 = {quota_remaining: 200, quota_limit: 1000}
 
       recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info1, {})
       recovery_manager.handle_rate_limit("gemini", "model1", rate_limit_info2, {})
@@ -303,7 +303,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
   describe "recovery history management" do
     it "gets recovery history within time range" do
       # Add some recoveries
-      rate_limit_info = { type: :rate_limit, retry_after: 60 }
+      rate_limit_info = {type: :rate_limit, retry_after: 60}
       recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, {})
       recovery_manager.handle_rate_limit("gemini", "model1", rate_limit_info, {})
 
@@ -315,7 +315,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     end
 
     it "clears recovery history" do
-      rate_limit_info = { type: :rate_limit, retry_after: 60 }
+      rate_limit_info = {type: :rate_limit, retry_after: 60}
       recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, {})
 
       recovery_manager.clear_recovery_history
@@ -366,7 +366,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
 
       recovery_manager.configure_switch_strategies(custom_strategies)
 
-      strategy = recovery_manager.get_switch_strategy("claude", "model1", { type: :rate_limit }, { switch_strategy: :custom_recovery })
+      strategy = recovery_manager.get_switch_strategy("claude", "model1", {type: :rate_limit}, {switch_strategy: :custom_recovery})
       expect(strategy[:name]).to eq("custom_recovery")
       expect(strategy[:action]).to eq(:escalate)
       expect(strategy[:priority]).to eq(:critical)
@@ -394,7 +394,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
         }
       })
 
-      context = { switch_strategy: :cooldown_strategy }
+      context = {switch_strategy: :cooldown_strategy}
 
       # First switch should succeed
       result1 = recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, context)
@@ -412,7 +412,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       let(:tracker) { described_class::RateLimitTracker.new }
 
       it "tracks rate limits" do
-        rate_limit_info = { type: :rate_limit, retry_after: 60 }
+        rate_limit_info = {type: :rate_limit, retry_after: 60}
 
         tracker.record_rate_limit("claude", "model1", rate_limit_info)
 
@@ -422,7 +422,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       end
 
       it "clears rate limits" do
-        rate_limit_info = { type: :rate_limit, retry_after: 60 }
+        rate_limit_info = {type: :rate_limit, retry_after: 60}
 
         tracker.record_rate_limit("claude", "model1", rate_limit_info)
         tracker.clear_rate_limit("claude", "model1")
@@ -432,7 +432,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       end
 
       it "clears all rate limits" do
-        rate_limit_info = { type: :rate_limit, retry_after: 60 }
+        rate_limit_info = {type: :rate_limit, retry_after: 60}
 
         tracker.record_rate_limit("claude", "model1", rate_limit_info)
         tracker.record_rate_limit("gemini", "model1", rate_limit_info)
@@ -447,7 +447,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       let(:quota_manager) { described_class::QuotaManager.new }
 
       it "tracks quota usage" do
-        rate_limit_info = { quota_remaining: 100, quota_limit: 1000 }
+        rate_limit_info = {quota_remaining: 100, quota_limit: 1000}
 
         quota_manager.record_rate_limit("claude", "model1", rate_limit_info)
 
@@ -457,8 +457,8 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       end
 
       it "finds best quota combination" do
-        quota_manager.record_rate_limit("claude", "model1", { quota_remaining: 100, quota_limit: 1000 })
-        quota_manager.record_rate_limit("gemini", "model1", { quota_remaining: 200, quota_limit: 1000 })
+        quota_manager.record_rate_limit("claude", "model1", {quota_remaining: 100, quota_limit: 1000})
+        quota_manager.record_rate_limit("gemini", "model1", {quota_remaining: 200, quota_limit: 1000})
 
         best_combination = quota_manager.find_best_quota_combination({})
 
@@ -467,7 +467,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       end
 
       it "resets quota for specific provider/model" do
-        rate_limit_info = { quota_remaining: 100, quota_limit: 1000 }
+        rate_limit_info = {quota_remaining: 100, quota_limit: 1000}
 
         quota_manager.record_rate_limit("claude", "model1", rate_limit_info)
         quota_manager.reset_quota("claude", "model1")
@@ -477,7 +477,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       end
 
       it "resets all quotas" do
-        rate_limit_info = { quota_remaining: 100, quota_limit: 1000 }
+        rate_limit_info = {quota_remaining: 100, quota_limit: 1000}
 
         quota_manager.record_rate_limit("claude", "model1", rate_limit_info)
         quota_manager.record_rate_limit("gemini", "model1", rate_limit_info)
@@ -495,7 +495,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       allow(provider_manager).to receive(:configured_providers).and_return(["claude"])
       allow(provider_manager).to receive(:get_provider_models).and_return(["model1"])
 
-      rate_limit_info = { type: :rate_limit, retry_after: 60 }
+      rate_limit_info = {type: :rate_limit, retry_after: 60}
 
       result = recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, {})
 
@@ -506,7 +506,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     it "handles missing provider manager methods gracefully" do
       allow(provider_manager).to receive(:set_current_provider).and_raise(NoMethodError)
 
-      rate_limit_info = { type: :rate_limit, retry_after: 60 }
+      rate_limit_info = {type: :rate_limit, retry_after: 60}
 
       expect {
         recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, {})

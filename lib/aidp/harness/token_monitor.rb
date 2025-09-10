@@ -365,12 +365,12 @@ module Aidp
         day = timestamp.wday
 
         # Update hourly pattern
-        pattern[:hourly_pattern][hour] ||= { count: 0, total_tokens: 0 }
+        pattern[:hourly_pattern][hour] ||= {count: 0, total_tokens: 0}
         pattern[:hourly_pattern][hour][:count] += 1
         pattern[:hourly_pattern][hour][:total_tokens] += total_tokens
 
         # Update daily pattern
-        pattern[:daily_pattern][day] ||= { count: 0, total_tokens: 0 }
+        pattern[:daily_pattern][day] ||= {count: 0, total_tokens: 0}
         pattern[:daily_pattern][day][:count] += 1
         pattern[:daily_pattern][day][:total_tokens] += total_tokens
 
@@ -448,7 +448,7 @@ module Aidp
           response_tokens: total_response_tokens,
           request_count: total_requests,
           total_cost: total_cost,
-          average_usage: total_requests > 0 ? total_tokens.to_f / total_requests : 0.0,
+          average_usage: (total_requests > 0) ? total_tokens.to_f / total_requests : 0.0,
           models: models.keys,
           last_used: models.values.map { |data| data[:last_used] }.compact.max
         }
@@ -687,13 +687,13 @@ module Aidp
 
       class ProviderTokenPredictor < TokenUsagePredictor
         def predict_usage(provider, model = nil, time_horizon = 3600)
-          super(provider, model, time_horizon)
+          super
         end
       end
 
       class ModelTokenPredictor < TokenUsagePredictor
         def predict_usage(provider, model, time_horizon = 3600)
-          super(provider, model, time_horizon)
+          super
         end
       end
 
@@ -711,13 +711,13 @@ module Aidp
 
       class ProviderCostCalculator < TokenCostCalculator
         def analyze_costs(provider, model = nil, time_range = 3600)
-          super(provider, model, time_range)
+          super
         end
       end
 
       class ModelCostCalculator < TokenCostCalculator
         def analyze_costs(provider, model, time_range = 3600)
-          super(provider, model, time_range)
+          super
         end
       end
 
@@ -734,13 +734,13 @@ module Aidp
 
       class ProviderQuotaManager < TokenQuotaManager
         def check_quota_status(provider, model = nil, usage_data = {}, limits = {})
-          super(provider, model, usage_data, limits)
+          super
         end
       end
 
       class ModelQuotaManager < TokenQuotaManager
         def check_quota_status(provider, model, usage_data = {}, limits = {})
-          super(provider, model, usage_data, limits)
+          super
         end
       end
 
@@ -832,7 +832,7 @@ module Aidp
 
       class ProviderTokenOptimizer < TokenUsageOptimizer
         def optimize_usage(provider, model = nil, monitor)
-          super(provider, model, monitor)
+          super
         end
       end
 

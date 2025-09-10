@@ -15,7 +15,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     allow(provider_manager).to receive(:current_model).and_return("model1")
     allow(provider_manager).to receive(:get_available_providers).and_return(["claude", "gemini", "cursor"])
     allow(provider_manager).to receive(:get_provider_health_status).and_return({
-      "claude" => { status: "healthy", health_score: 0.95 }
+      "claude" => {status: "healthy", health_score: 0.95}
     })
 
     # Mock metrics manager methods
@@ -27,12 +27,12 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
     # Mock circuit breaker manager methods
     allow(circuit_breaker_manager).to receive(:get_all_states).and_return({
-      "claude" => { state: :closed, failure_count: 0 }
+      "claude" => {state: :closed, failure_count: 0}
     })
 
     # Mock error logger methods
     allow(error_logger).to receive(:get_log_summary).and_return({
-      error_summary: { total_errors: 2, error_rate: 0.05 }
+      error_summary: {total_errors: 2, error_rate: 0.05}
     })
   end
 
@@ -110,7 +110,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "updates recovery status" do
-      status_display.update_recovery_status(:provider_switch, :success, { new_provider: "gemini" })
+      status_display.update_recovery_status(:provider_switch, :success, {new_provider: "gemini"})
 
       recovery_status = status_display.instance_variable_get(:@recovery_status)
       expect(recovery_status[:provider_switch][:status]).to eq(:success)
@@ -118,7 +118,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "updates user feedback status" do
-      status_display.update_user_feedback_status(:question, :waiting, { question_count: 3 })
+      status_display.update_user_feedback_status(:question, :waiting, {question_count: 3})
 
       user_feedback_status = status_display.instance_variable_get(:@user_feedback_status)
       expect(user_feedback_status[:question][:status]).to eq(:waiting)
@@ -140,7 +140,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "updates performance metrics" do
-      metrics = { throughput: 15, error_rate: 0.02 }
+      metrics = {throughput: 15, error_rate: 0.02}
       status_display.update_performance_metrics(metrics)
 
       performance_metrics = status_display.instance_variable_get(:@performance_metrics)
@@ -149,7 +149,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "updates error summary" do
-      error_summary = { total_errors: 5, error_rate: 0.1 }
+      error_summary = {total_errors: 5, error_rate: 0.1}
       status_display.update_error_summary(error_summary)
 
       error_summary_data = status_display.instance_variable_get(:@error_summary)
@@ -172,7 +172,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "configures display settings" do
-      config = { show_animations: false, show_colors: false }
+      config = {show_animations: false, show_colors: false}
       status_display.configure_display(config)
 
       display_config = status_display.instance_variable_get(:@display_config)
@@ -262,7 +262,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "displays provider information" do
       status_display.instance_variable_set(:@provider_status, {
         available_providers: ["claude", "gemini"],
-        provider_health: { "claude" => { status: "healthy", health_score: 0.95 } }
+        provider_health: {"claude" => {status: "healthy", health_score: 0.95}}
       })
 
       expect { status_display.send(:display_provider_info) }.to output(/PROVIDER INFORMATION/).to_stdout
@@ -284,8 +284,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         error_summary: {
           total_errors: 3,
           error_rate: 0.1,
-          errors_by_severity: { warning: 2, error: 1 },
-          errors_by_provider: { "claude" => 2, "gemini" => 1 }
+          errors_by_severity: {warning: 2, error: 1},
+          errors_by_provider: {"claude" => 2, "gemini" => 1}
         }
       })
 
@@ -294,8 +294,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
     it "displays circuit breaker information" do
       status_display.instance_variable_set(:@circuit_breaker_status, {
-        "claude" => { state: :closed, failure_count: 0 },
-        "gemini" => { state: :open, failure_count: 5 }
+        "claude" => {state: :closed, failure_count: 0},
+        "gemini" => {state: :open, failure_count: 5}
       })
 
       expect { status_display.send(:display_circuit_breaker_info) }.to output(/CIRCUIT BREAKER STATUS/).to_stdout
@@ -304,7 +304,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "displays token usage information" do
       status_display.instance_variable_set(:@token_usage, {
         "claude" => {
-          "model1" => { used: 1000, remaining: 500 }
+          "model1" => {used: 1000, remaining: 500}
         }
       })
 
@@ -329,7 +329,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
     it "displays recovery information" do
       status_display.instance_variable_set(:@recovery_status, {
-        provider_switch: { status: :success, details: { new_provider: "gemini" } }
+        provider_switch: {status: :success, details: {new_provider: "gemini"}}
       })
 
       expect { status_display.send(:display_recovery_info) }.to output(/RECOVERY STATUS/).to_stdout
@@ -337,7 +337,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
     it "displays user feedback information" do
       status_display.instance_variable_set(:@user_feedback_status, {
-        question: { status: :waiting, details: { question_count: 3 } }
+        question: {status: :waiting, details: {question_count: 3}}
       })
 
       expect { status_display.send(:display_user_feedback_info) }.to output(/USER FEEDBACK STATUS/).to_stdout
@@ -356,7 +356,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "displays alerts" do
       alert_manager = status_display.instance_variable_get(:@alert_manager)
       alert_manager.process_alerts([
-        { severity: :warning, message: "High error rate", timestamp: Time.now }
+        {severity: :warning, message: "High error rate", timestamp: Time.now}
       ])
 
       expect { status_display.send(:display_alerts) }.to output(/ALERTS/).to_stdout
@@ -365,14 +365,14 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "alert checking" do
     it "checks for high error rate alerts" do
-      status_display.instance_variable_set(:@performance_metrics, { error_rate: 0.15 })
+      status_display.instance_variable_set(:@performance_metrics, {error_rate: 0.15})
 
       expect { status_display.send(:check_alerts) }.not_to raise_error
     end
 
     it "checks for open circuit breaker alerts" do
       status_display.instance_variable_set(:@circuit_breaker_status, {
-        "claude" => { state: :open, failure_count: 5 }
+        "claude" => {state: :open, failure_count: 5}
       })
 
       expect { status_display.send(:check_alerts) }.not_to raise_error
@@ -381,7 +381,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "checks for rate limit alerts" do
       status_display.instance_variable_set(:@rate_limit_status, {
         "claude" => {
-          "model1" => { rate_limited: true }
+          "model1" => {rate_limited: true}
         }
       })
 
@@ -582,7 +582,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       let(:formatter) { described_class::StatusFormatter.new }
 
       it "formats status data" do
-        status_data = { test: "data" }
+        status_data = {test: "data"}
 
         expect(formatter.format_status(status_data, :compact)).to be_a(String)
         expect(formatter.format_status(status_data, :detailed)).to be_a(String)
@@ -594,7 +594,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       let(:calculator) { described_class::MetricsCalculator.new }
 
       it "calculates metrics" do
-        raw_data = { requests: 100, errors: 5 }
+        raw_data = {requests: 100, errors: 5}
         metrics = calculator.calculate_metrics(raw_data)
 
         expect(metrics).to include(
@@ -611,7 +611,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
       it "processes alerts" do
         alerts = [
-          { severity: :warning, message: "Test alert", timestamp: Time.now }
+          {severity: :warning, message: "Test alert", timestamp: Time.now}
         ]
 
         expect { alert_manager.process_alerts(alerts) }.not_to raise_error

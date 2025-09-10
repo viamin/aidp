@@ -105,7 +105,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
 
   describe "provider rotation" do
     it "gets next available combination with provider-first strategy" do
-      result = rate_limit_manager.get_next_available_combination("claude", "model1", { rotation_strategy: "provider_first" })
+      result = rate_limit_manager.get_next_available_combination("claude", "model1", {rotation_strategy: "provider_first"})
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq("provider_switch")
@@ -113,7 +113,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     end
 
     it "gets next available combination with model-first strategy" do
-      result = rate_limit_manager.get_next_available_combination("claude", "model1", { rotation_strategy: "model_first" })
+      result = rate_limit_manager.get_next_available_combination("claude", "model1", {rotation_strategy: "model_first"})
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq("model_switch")
@@ -121,21 +121,21 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     end
 
     it "gets next available combination with cost-optimized strategy" do
-      result = rate_limit_manager.get_next_available_combination("claude", "model1", { rotation_strategy: "cost_optimized" })
+      result = rate_limit_manager.get_next_available_combination("claude", "model1", {rotation_strategy: "cost_optimized"})
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq("cost_optimized_switch")
     end
 
     it "gets next available combination with performance-optimized strategy" do
-      result = rate_limit_manager.get_next_available_combination("claude", "model1", { rotation_strategy: "performance_optimized" })
+      result = rate_limit_manager.get_next_available_combination("claude", "model1", {rotation_strategy: "performance_optimized"})
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq("performance_optimized_switch")
     end
 
     it "gets next available combination with quota-aware strategy" do
-      result = rate_limit_manager.get_next_available_combination("claude", "model1", { rotation_strategy: "quota_aware" })
+      result = rate_limit_manager.get_next_available_combination("claude", "model1", {rotation_strategy: "quota_aware"})
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq("quota_aware_switch")
@@ -190,7 +190,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
 
   describe "retry strategies" do
     it "returns retry strategy for rate limit error" do
-      strategy = rate_limit_manager.get_retry_strategy("rate_limit", { retry_count: 1 })
+      strategy = rate_limit_manager.get_retry_strategy("rate_limit", {retry_count: 1})
 
       expect(strategy).to include(
         :max_retries,
@@ -205,42 +205,42 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     end
 
     it "returns retry strategy for network error" do
-      strategy = rate_limit_manager.get_retry_strategy("network_error", { retry_count: 1 })
+      strategy = rate_limit_manager.get_retry_strategy("network_error", {retry_count: 1})
 
       expect(strategy[:strategy]).to eq("linear_backoff")
       expect(strategy[:max_retries]).to eq(5)
     end
 
     it "returns retry strategy for server error" do
-      strategy = rate_limit_manager.get_retry_strategy("server_error", { retry_count: 1 })
+      strategy = rate_limit_manager.get_retry_strategy("server_error", {retry_count: 1})
 
       expect(strategy[:strategy]).to eq("exponential_backoff")
       expect(strategy[:max_retries]).to eq(3)
     end
 
     it "returns retry strategy for timeout error" do
-      strategy = rate_limit_manager.get_retry_strategy("timeout", { retry_count: 1 })
+      strategy = rate_limit_manager.get_retry_strategy("timeout", {retry_count: 1})
 
       expect(strategy[:strategy]).to eq("fixed_delay")
       expect(strategy[:max_retries]).to eq(2)
     end
 
     it "returns retry strategy for authentication error" do
-      strategy = rate_limit_manager.get_retry_strategy("authentication", { retry_count: 1 })
+      strategy = rate_limit_manager.get_retry_strategy("authentication", {retry_count: 1})
 
       expect(strategy[:strategy]).to eq("immediate_fail")
       expect(strategy[:max_retries]).to eq(1)
     end
 
     it "returns default retry strategy for unknown error" do
-      strategy = rate_limit_manager.get_retry_strategy("unknown_error", { retry_count: 1 })
+      strategy = rate_limit_manager.get_retry_strategy("unknown_error", {retry_count: 1})
 
       expect(strategy[:strategy]).to eq("exponential_backoff")
       expect(strategy[:max_retries]).to eq(3)
     end
 
     it "calculates backoff delay correctly" do
-      strategy = rate_limit_manager.get_retry_strategy("rate_limit", { retry_count: 2 })
+      strategy = rate_limit_manager.get_retry_strategy("rate_limit", {retry_count: 2})
 
       # With base_delay=1.0, exponential_base=2.0, retry_count=2
       # Expected delay = 1.0 * (2.0 ** 2) = 4.0
@@ -248,7 +248,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     end
 
     it "applies jitter when enabled" do
-      strategy = rate_limit_manager.get_retry_strategy("rate_limit", { retry_count: 1 })
+      strategy = rate_limit_manager.get_retry_strategy("rate_limit", {retry_count: 1})
 
       expect(strategy[:jitter]).to be true
       # The actual delay will be calculated with jitter in execute_retry
@@ -257,14 +257,14 @@ RSpec.describe Aidp::Harness::RateLimitManager do
 
   describe "retry execution" do
     it "executes retry with strategy" do
-      result = rate_limit_manager.execute_retry("claude", "model1", "rate_limit", { retry_count: 0 })
+      result = rate_limit_manager.execute_retry("claude", "model1", "rate_limit", {retry_count: 0})
 
       expect(result).to include(:success, :action, :provider, :model)
       expect(result[:success]).to be true
     end
 
     it "does not retry when max retries exceeded" do
-      result = rate_limit_manager.execute_retry("claude", "model1", "rate_limit", { retry_count: 5 })
+      result = rate_limit_manager.execute_retry("claude", "model1", "rate_limit", {retry_count: 5})
 
       expect(result[:success]).to be false
       expect(result[:action]).to eq("no_retry")
@@ -272,7 +272,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     end
 
     it "records retry attempt" do
-      rate_limit_manager.execute_retry("claude", "model1", "rate_limit", { retry_count: 0 })
+      rate_limit_manager.execute_retry("claude", "model1", "rate_limit", {retry_count: 0})
 
       history = rate_limit_manager.instance_variable_get(:@rotation_history)
       expect(history).not_to be_empty
@@ -327,9 +327,9 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     it "calculates average rotation time" do
       # Add rotation history with durations
       history = rate_limit_manager.instance_variable_get(:@rotation_history)
-      history << { duration: 1.0, success: true }
-      history << { duration: 2.0, success: true }
-      history << { success: true } # No duration
+      history << {duration: 1.0, success: true}
+      history << {duration: 2.0, success: true}
+      history << {success: true} # No duration
 
       stats = rate_limit_manager.get_rotation_statistics
 
@@ -339,9 +339,9 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     it "calculates success rate" do
       # Add rotation history
       history = rate_limit_manager.instance_variable_get(:@rotation_history)
-      history << { success: true }
-      history << { success: true }
-      history << { success: false }
+      history << {success: true}
+      history << {success: true}
+      history << {success: false}
 
       stats = rate_limit_manager.get_rotation_statistics
 

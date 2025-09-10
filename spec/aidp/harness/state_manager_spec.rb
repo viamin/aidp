@@ -342,7 +342,7 @@ RSpec.describe Aidp::Harness::StateManager do
       allow(state_manager).to receive(:all_steps_completed?).and_return(false)
       allow(state_manager.progress_tracker).to receive(:started_at).and_return(Time.now - 3600)
       allow(state_manager).to receive(:has_state?).and_return(true)
-      allow(state_manager).to receive(:load_state).and_return({ state: :running })
+      allow(state_manager).to receive(:load_state).and_return({state: :running})
       allow(state_manager).to receive(:harness_metrics).and_return({
         provider_switches: 1,
         rate_limit_events: 0,

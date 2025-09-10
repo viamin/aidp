@@ -138,18 +138,18 @@ RSpec.describe Aidp::Harness::ProgressTracker do
 
     it "updates step progress" do
       tracker.start_step("test-step", :analysis)
-      progress_info = tracker.update_step_progress("test-step", 0.5, "sub-step-1", { tokens: 100 })
+      progress_info = tracker.update_step_progress("test-step", 0.5, "sub-step-1", {tokens: 100})
 
       expect(progress_info[:progress]).to eq(0.5)
       expect(progress_info[:sub_steps]).to include(
-        { name: "sub-step-1", progress: 0.5, timestamp: be_a(Time) }
+        {name: "sub-step-1", progress: 0.5, timestamp: be_a(Time)}
       )
       expect(progress_info[:metrics]).to include(tokens: 100)
     end
 
     it "updates step progress without sub-step" do
       tracker.start_step("test-step", :analysis)
-      progress_info = tracker.update_step_progress("test-step", 0.75, nil, { tokens: 200 })
+      progress_info = tracker.update_step_progress("test-step", 0.75, nil, {tokens: 200})
 
       expect(progress_info[:progress]).to eq(0.75)
       expect(progress_info[:sub_steps]).to be_empty
@@ -160,7 +160,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
       tracker.start_step("test-step", :analysis)
       tracker.update_step_progress("test-step", 0.8)
 
-      completed_info = tracker.complete_step("test-step", { final_tokens: 500 })
+      completed_info = tracker.complete_step("test-step", {final_tokens: 500})
 
       expect(completed_info[:status]).to eq(:completed)
       expect(completed_info[:progress]).to eq(1.0)
@@ -173,7 +173,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
       tracker.start_step("test-step", :analysis)
       error = StandardError.new("Test error")
 
-      failed_info = tracker.fail_step("test-step", error, { error_context: "test" })
+      failed_info = tracker.fail_step("test-step", error, {error_context: "test"})
 
       expect(failed_info[:status]).to eq(:failed)
       expect(failed_info[:end_time]).to be_a(Time)
@@ -226,7 +226,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
     before do
       tracker.start_progress_tracking("test-session", 5)
       tracker.start_step("test-step", :analysis, ["dependency1"], 300)
-      tracker.update_step_progress("test-step", 0.5, "sub-step-1", { tokens: 100 })
+      tracker.update_step_progress("test-step", 0.5, "sub-step-1", {tokens: 100})
     end
 
     it "gets current step info" do
@@ -425,7 +425,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
     before do
       tracker.start_progress_tracking("test-session", 3)
       tracker.start_step("step1", :analysis)
-      tracker.update_step_progress("step1", 0.5, "sub-step-1", { tokens: 100 })
+      tracker.update_step_progress("step1", 0.5, "sub-step-1", {tokens: 100})
     end
 
     it "gets comprehensive progress summary" do
@@ -577,7 +577,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
     end
 
     it "exports progress data with options" do
-      export = tracker.export_progress_data(:json, { pretty: true })
+      export = tracker.export_progress_data(:json, {pretty: true})
 
       expect(export).to be_a(String)
     end
@@ -702,7 +702,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
       let(:manager) { described_class::StepManager.new }
 
       it "manages step execution" do
-        result = manager.manage_step("test-step", { estimated_duration: 300 })
+        result = manager.manage_step("test-step", {estimated_duration: 300})
 
         expect(result).to include(
           :can_start,
@@ -743,7 +743,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
       let(:manager) { described_class::ParallelStepManager.new }
 
       it "manages parallel step execution" do
-        result = manager.manage_step("test-step", { estimated_duration: 300 })
+        result = manager.manage_step("test-step", {estimated_duration: 300})
 
         expect(result).to include(
           :can_start,
@@ -763,8 +763,8 @@ RSpec.describe Aidp::Harness::ProgressTracker do
 
       it "calculates overall progress" do
         step_metrics = {
-          "step1" => { status: :completed, progress: 1.0 },
-          "step2" => { status: :running, progress: 0.5 }
+          "step1" => {status: :completed, progress: 1.0},
+          "step2" => {status: :running, progress: 0.5}
         }
 
         progress = calculator.calculate_overall_progress(step_metrics, 2)
@@ -989,7 +989,7 @@ RSpec.describe Aidp::Harness::ProgressTracker do
       50.times do |i|
         tracker.start_step("step#{i}", :analysis)
         10.times do |j|
-          tracker.update_step_progress("step#{i}", j / 10.0, "sub-step#{j}", { tokens: j * 10 })
+          tracker.update_step_progress("step#{i}", j / 10.0, "sub-step#{j}", {tokens: j * 10})
         end
         tracker.complete_step("step#{i}")
       end

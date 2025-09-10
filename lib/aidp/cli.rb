@@ -45,24 +45,22 @@ module Aidp
           all_options = options.merge(custom_options)
           runner.run_step(step_name, all_options)
         end
-      else
+      elsif should_use_harness?(options)
         # No step specified - use harness by default
-        if should_use_harness?(options)
-          puts "🚀 Starting execute mode harness - will run all steps automatically..."
-          puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
-          harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, options.merge(custom_options))
-          result = harness_runner.run
-          display_harness_result(result)
-          result
-        else
-          # Traditional mode - list available steps
-          puts "Available execute steps:"
-          Aidp::Execute::Steps::SPEC.keys.each { |step| puts "  - #{step}" }
-          progress = Aidp::Execute::Progress.new(project_dir)
-          next_step = progress.next_step
-          puts "\n💡 Use 'aidp execute' without arguments to run all steps with harness mode"
-          {status: "success", message: "Available steps listed", next_step: next_step}
-        end
+        puts "🚀 Starting execute mode harness - will run all steps automatically..."
+        puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
+        harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, options.merge(custom_options))
+        result = harness_runner.run
+        display_harness_result(result)
+        result
+      else
+        # Traditional mode - list available steps
+        puts "Available execute steps:"
+        Aidp::Execute::Steps::SPEC.keys.each { |step| puts "  - #{step}" }
+        progress = Aidp::Execute::Progress.new(project_dir)
+        next_step = progress.next_step
+        puts "\n💡 Use 'aidp execute' without arguments to run all steps with harness mode"
+        {status: "success", message: "Available steps listed", next_step: next_step}
       end
     end
 
@@ -185,32 +183,30 @@ module Aidp
           end
           {status: "error", message: "Step not found"}
         end
-      else
+      elsif should_use_harness?(options)
         # No step specified - use harness by default
-        if should_use_harness?(options)
-          puts "🚀 Starting analyze mode harness - will run all steps automatically..."
-          puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
-          harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, options.merge(custom_options))
-          result = harness_runner.run
-          display_harness_result(result)
-          result
-        else
-          # Traditional mode - list available steps
-          puts "Available analyze steps:"
-          Aidp::Analyze::Steps::SPEC.keys.each_with_index do |step, index|
-            status = progress.step_completed?(step) ? "✅" : "⏳"
-            puts "  #{status} #{sprintf("%02d", index + 1)}: #{step}"
-          end
-
-          next_step = progress.next_step
-          if next_step
-            puts "\n💡 Run 'aidp analyze next' or 'aidp analyze #{next_step.match(/^(\d+)/)[1]}' to run the next step"
-          end
-          puts "\n💡 Use 'aidp analyze' without arguments to run all steps with harness mode"
-
-          {status: "success", message: "Available steps listed", next_step: next_step,
-           completed_steps: progress.completed_steps}
+        puts "🚀 Starting analyze mode harness - will run all steps automatically..."
+        puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
+        harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, options.merge(custom_options))
+        result = harness_runner.run
+        display_harness_result(result)
+        result
+      else
+        # Traditional mode - list available steps
+        puts "Available analyze steps:"
+        Aidp::Analyze::Steps::SPEC.keys.each_with_index do |step, index|
+          status = progress.step_completed?(step) ? "✅" : "⏳"
+          puts "  #{status} #{sprintf("%02d", index + 1)}: #{step}"
         end
+
+        next_step = progress.next_step
+        if next_step
+          puts "\n💡 Run 'aidp analyze next' or 'aidp analyze #{next_step.match(/^(\d+)/)[1]}' to run the next step"
+        end
+        puts "\n💡 Use 'aidp analyze' without arguments to run all steps with harness mode"
+
+        {status: "success", message: "Available steps listed", next_step: next_step,
+         completed_steps: progress.completed_steps}
       end
     end
 
@@ -315,27 +311,26 @@ module Aidp
           status = harness_runner.detailed_status
 
           puts "   State: #{status[:harness][:state]}"
-          puts "   Current Step: #{status[:harness][:current_step] || 'None'}"
-          puts "   Current Provider: #{status[:harness][:current_provider] || 'None'}"
+          puts "   Current Step: #{status[:harness][:current_step] || "None"}"
+          puts "   Current Provider: #{status[:harness][:current_provider] || "None"}"
           puts "   Duration: #{format_duration(status[:harness][:duration])}"
           puts "   User Input Count: #{status[:harness][:user_input_count]}"
 
           progress = status[:harness][:progress]
           puts "   Progress: #{progress[:completed_steps]}/#{progress[:total_steps]} steps completed"
-          puts "   Next Step: #{progress[:next_step] || 'All completed'}"
+          puts "   Next Step: #{progress[:next_step] || "All completed"}"
 
           puts "   Configuration:"
           puts "     Default Provider: #{status[:configuration][:default_provider]}"
-          puts "     Fallback Providers: #{status[:configuration][:fallback_providers].join(', ')}"
+          puts "     Fallback Providers: #{status[:configuration][:fallback_providers].join(", ")}"
           puts "     Max Retries: #{status[:configuration][:max_retries]}"
 
           provider_status = status[:provider_manager]
           puts "   Provider Status:"
           puts "     Current: #{provider_status[:current_provider]}"
-          puts "     Available: #{provider_status[:available_providers].join(', ')}"
-          puts "     Rate Limited: #{provider_status[:rate_limited_providers].join(', ') || 'None'}"
+          puts "     Available: #{provider_status[:available_providers].join(", ")}"
+          puts "     Rate Limited: #{provider_status[:rate_limited_providers].join(", ") || "None"}"
           puts "     Total Switches: #{provider_status[:total_switches]}"
-
         rescue => e
           puts "   Error: #{e.message}"
         end

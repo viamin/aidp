@@ -50,19 +50,13 @@ module Aidp
       end
 
       # Get harness context
-      def harness_context
-        @harness_context
-      end
+      attr_reader :harness_context
 
       # Get project directory
-      def project_dir
-        @project_dir
-      end
+      attr_reader :project_dir
 
       # Get job type
-      def job_type
-        @job_type
-      end
+      attr_reader :job_type
 
       # Log with harness context
       def log_harness_info(message, metadata = {})
@@ -116,28 +110,27 @@ module Aidp
       # Store harness-specific log entry
       def store_harness_log(level, message, metadata)
         # Try to store in database if available
-        begin
-          require_relative "../database_connection"
 
-          Aidp::DatabaseConnection.connection.exec_params(
-            <<~SQL,
-              INSERT INTO harness_job_logs (
-                job_id, level, message, metadata, created_at
-              )
-              VALUES ($1, $2, $3, $4, $5)
-            SQL
-            [
-              que_attrs[:job_id],
-              level,
-              message,
-              metadata.to_json,
-              Time.now
-            ]
-          )
-        rescue => e
-          # Database not available or table doesn't exist - continue
-          log_info("Could not store harness log: #{e.message}") if ENV["AIDP_DEBUG"]
-        end
+        require_relative "../database_connection"
+
+        Aidp::DatabaseConnection.connection.exec_params(
+          <<~SQL,
+            INSERT INTO harness_job_logs (
+              job_id, level, message, metadata, created_at
+            )
+            VALUES ($1, $2, $3, $4, $5)
+          SQL
+          [
+            que_attrs[:job_id],
+            level,
+            message,
+            metadata.to_json,
+            Time.now
+          ]
+        )
+      rescue => e
+        # Database not available or table doesn't exist - continue
+        log_info("Could not store harness log: #{e.message}") if ENV["AIDP_DEBUG"]
       end
 
       # Get job progress (override in subclasses)

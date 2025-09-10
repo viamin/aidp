@@ -131,10 +131,10 @@ module Aidp
         return nil unless provider_config
 
         provider_overrides = overrides[:providers]&.dig(provider_name.to_sym) ||
-                            overrides[:providers]&.dig(provider_name.to_s) ||
-                            overrides["providers"]&.dig(provider_name.to_s) ||
-                            overrides["providers"]&.dig(provider_name.to_sym) ||
-                            {}
+          overrides[:providers]&.dig(provider_name.to_s) ||
+          overrides["providers"]&.dig(provider_name.to_s) ||
+          overrides["providers"]&.dig(provider_name.to_sym) ||
+          {}
 
         deep_merge(provider_config, provider_overrides)
       end
@@ -191,10 +191,10 @@ module Aidp
         return nil unless config
 
         env_config = config[:environments]&.dig(environment.to_sym) ||
-                    config[:environments]&.dig(environment.to_s) ||
-                    config["environments"]&.dig(environment.to_s) ||
-                    config["environments"]&.dig(environment.to_sym) ||
-                    {}
+          config[:environments]&.dig(environment.to_s) ||
+          config["environments"]&.dig(environment.to_s) ||
+          config["environments"]&.dig(environment.to_sym) ||
+          {}
 
         merge_overrides(config, env_config)
       end
@@ -205,10 +205,10 @@ module Aidp
         return nil unless config
 
         step_config = config[:steps]&.dig(step_name.to_sym) ||
-                     config[:steps]&.dig(step_name.to_s) ||
-                     config["steps"]&.dig(step_name.to_s) ||
-                     config["steps"]&.dig(step_name.to_sym) ||
-                     {}
+          config[:steps]&.dig(step_name.to_s) ||
+          config["steps"]&.dig(step_name.to_s) ||
+          config["steps"]&.dig(step_name.to_sym) ||
+          {}
 
         merge_overrides(config, step_config)
       end
@@ -223,10 +223,10 @@ module Aidp
         features.each do |feature, enabled|
           if enabled
             feature_config = config[:features]&.dig(feature.to_sym) ||
-                           config[:features]&.dig(feature.to_s) ||
-                           config["features"]&.dig(feature.to_s) ||
-                           config["features"]&.dig(feature.to_sym) ||
-                           {}
+              config[:features]&.dig(feature.to_s) ||
+              config["features"]&.dig(feature.to_s) ||
+              config["features"]&.dig(feature.to_sym) ||
+              {}
             feature_overrides = deep_merge(feature_overrides, feature_config)
           end
         end
@@ -241,10 +241,10 @@ module Aidp
         return nil unless config
 
         user_config = config[:users]&.dig(user_id.to_sym) ||
-                     config[:users]&.dig(user_id.to_s) ||
-                     config["users"]&.dig(user_id.to_s) ||
-                     config["users"]&.dig(user_id.to_sym) ||
-                     {}
+          config[:users]&.dig(user_id.to_s) ||
+          config["users"]&.dig(user_id.to_s) ||
+          config["users"]&.dig(user_id.to_sym) ||
+          {}
 
         merge_overrides(config, user_config)
       end
@@ -332,10 +332,10 @@ module Aidp
         result = base.dup
 
         override.each do |key, value|
-          if result[key].is_a?(Hash) && value.is_a?(Hash)
-            result[key] = deep_merge(result[key], value)
+          result[key] = if result[key].is_a?(Hash) && value.is_a?(Hash)
+            deep_merge(result[key], value)
           else
-            result[key] = value
+            value
           end
         end
 

@@ -65,10 +65,10 @@ RSpec.describe Aidp::Analyze::Runner do
 
   describe "step execution" do
     let(:step_name) { "01_REPOSITORY_ANALYSIS" }
-    let(:options) { { mock_mode: true } }
+    let(:options) { {mock_mode: true} }
 
     it "executes step in harness mode" do
-      allow(runner).to receive(:run_step_with_harness).and_return({ status: "completed" })
+      allow(runner).to receive(:run_step_with_harness).and_return({status: "completed"})
 
       result = runner.run_step(step_name, options)
 
@@ -77,7 +77,7 @@ RSpec.describe Aidp::Analyze::Runner do
     end
 
     it "executes step in standalone mode" do
-      allow(standalone_runner).to receive(:run_step_standalone).and_return({ status: "completed" })
+      allow(standalone_runner).to receive(:run_step_standalone).and_return({status: "completed"})
 
       result = standalone_runner.run_step(step_name, options)
 
@@ -86,7 +86,7 @@ RSpec.describe Aidp::Analyze::Runner do
     end
 
     it "handles mock mode execution" do
-      result = runner.run_step(step_name, { mock_mode: true })
+      result = runner.run_step(step_name, {mock_mode: true})
 
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
@@ -94,13 +94,13 @@ RSpec.describe Aidp::Analyze::Runner do
     end
 
     it "adds focus areas to mock result" do
-      result = runner.run_step(step_name, { mock_mode: true, focus: "security,performance" })
+      result = runner.run_step(step_name, {mock_mode: true, focus: "security,performance"})
 
       expect(result[:focus_areas]).to eq(["security", "performance"])
     end
 
     it "adds export formats to mock result" do
-      result = runner.run_step(step_name, { mock_mode: true, format: "json,yaml" })
+      result = runner.run_step(step_name, {mock_mode: true, format: "json,yaml"})
 
       expect(result[:export_formats]).to eq(["json", "yaml"])
     end
@@ -141,12 +141,12 @@ RSpec.describe Aidp::Analyze::Runner do
 
   describe "harness-aware step execution" do
     let(:step_name) { "01_REPOSITORY_ANALYSIS" }
-    let(:options) { { focus: "security,performance", format: "json" } }
+    let(:options) { {focus: "security,performance", format: "json"} }
 
     before do
       allow(harness_runner).to receive(:instance_variable_get).with(:@current_provider).and_return("claude")
       allow(harness_runner).to receive(:instance_variable_get).with(:@current_step).and_return("01_REPOSITORY_ANALYSIS")
-      allow(harness_runner).to receive(:instance_variable_get).with(:@user_input).and_return({ "focus_areas" => "security,performance" })
+      allow(harness_runner).to receive(:instance_variable_get).with(:@user_input).and_return({"focus_areas" => "security,performance"})
       allow(harness_runner).to receive(:instance_variable_get).with(:@execution_log).and_return([])
       allow(harness_runner).to receive(:instance_variable_get).with(:@provider_manager).and_return(instance_double("ProviderManager"))
     end
@@ -154,9 +154,9 @@ RSpec.describe Aidp::Analyze::Runner do
     it "executes step with harness context" do
       provider_manager = instance_double("ProviderManager")
       allow(harness_runner).to receive(:instance_variable_get).with(:@provider_manager).and_return(provider_manager)
-      allow(provider_manager).to receive(:execute_with_provider).and_return({ status: "completed", output: "Analysis completed" })
+      allow(provider_manager).to receive(:execute_with_provider).and_return({status: "completed", output: "Analysis completed"})
 
-      result = runner.run_step_with_harness(step_name, options)
+      runner.run_step_with_harness(step_name, options)
 
       expect(provider_manager).to have_received(:execute_with_provider).with(
         "claude",
@@ -181,7 +181,7 @@ RSpec.describe Aidp::Analyze::Runner do
         status: "completed",
         provider: "claude",
         output: "Analysis completed",
-        token_usage: { input: 150, output: 300 },
+        token_usage: {input: 150, output: 300},
         focus_areas: ["security", "performance"],
         export_formats: ["json"]
       }
@@ -200,7 +200,7 @@ RSpec.describe Aidp::Analyze::Runner do
       expect(processed_result[:provider]).to eq("claude")
       expect(processed_result[:step_name]).to eq(step_name)
       expect(processed_result[:output]).to eq("Analysis completed")
-      expect(processed_result[:token_usage]).to eq({ input: 150, output: 300 })
+      expect(processed_result[:token_usage]).to eq({input: 150, output: 300})
       expect(processed_result[:focus_areas]).to eq(["security", "performance"])
       expect(processed_result[:export_formats]).to eq(["json"])
       expect(processed_result[:metadata][:harness_mode]).to be true

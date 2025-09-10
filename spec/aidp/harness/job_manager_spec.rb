@@ -37,7 +37,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job creation" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     it "creates a harness job successfully" do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
@@ -89,7 +89,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job status updates" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
     let(:job_id) do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
       job_manager.create_harness_job(job_class, args)
@@ -153,7 +153,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job queries" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     before do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
@@ -215,7 +215,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job retry" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     it "retries a failed job successfully" do
       allow(job_class).to receive(:enqueue).and_return("que_job_123", "que_job_456")
@@ -254,7 +254,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job cancellation" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     it "cancels a queued job successfully" do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
@@ -303,7 +303,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job summary" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     before do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
@@ -343,7 +343,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job output" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     it "provides job output information" do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
@@ -363,34 +363,34 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "job logging" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     it "logs job messages" do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
 
       job_id = job_manager.create_harness_job(job_class, args)
 
-      job_manager.log_job_message(job_id, "Test message", "info", { key: "value" })
+      job_manager.log_job_message(job_id, "Test message", "info", {key: "value"})
 
       job = job_manager.get_harness_job(job_id)
       expect(job[:logs]).to be_an(Array)
       expect(job[:logs].size).to eq(1)
       expect(job[:logs].first[:message]).to eq("Test message")
       expect(job[:logs].first[:level]).to eq("info")
-      expect(job[:logs].first[:metadata]).to eq({ key: "value" })
+      expect(job[:logs].first[:metadata]).to eq({key: "value"})
 
       expect(harness_runner).to have_received(:log_job_message).with(
         job_id,
         "Test message",
         "info",
-        { key: "value" }
+        {key: "value"}
       )
     end
   end
 
   describe "cleanup" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     it "cleans up old completed jobs" do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")
@@ -410,7 +410,7 @@ RSpec.describe Aidp::Harness::JobManager do
 
   describe "wait for completion" do
     let(:job_class) { double("job_class", name: "TestJob") }
-    let(:args) { { step_name: "test_step", provider_type: "claude" } }
+    let(:args) { {step_name: "test_step", provider_type: "claude"} }
 
     it "waits for jobs to complete" do
       allow(job_class).to receive(:enqueue).and_return("que_job_123")

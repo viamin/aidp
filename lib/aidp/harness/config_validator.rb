@@ -23,7 +23,7 @@ module Aidp
 
       # Validate existing configuration
       def validate_existing
-        return { valid: false, errors: ["No configuration file found"], warnings: [] } unless @config_file
+        return {valid: false, errors: ["No configuration file found"], warnings: []} unless @config_file
 
         load_config
         validate_config
@@ -100,7 +100,7 @@ module Aidp
 
       # Get configuration summary
       def get_summary
-        return { error: "No configuration file found" } unless @config_file
+        return {error: "No configuration file found"} unless @config_file
 
         load_config
         summary = {
@@ -122,13 +122,13 @@ module Aidp
 
       # Validate specific provider configuration
       def validate_provider(provider_name)
-        return { valid: false, errors: ["No configuration file found"], warnings: [] } unless @config_file
+        return {valid: false, errors: ["No configuration file found"], warnings: []} unless @config_file
 
         load_config
         providers_config = @config[:providers] || @config["providers"] || {}
         provider_config = providers_config[provider_name] || providers_config[provider_name.to_sym]
 
-        return { valid: false, errors: ["Provider '#{provider_name}' not found"], warnings: [] } unless provider_config
+        return {valid: false, errors: ["Provider '#{provider_name}' not found"], warnings: []} unless provider_config
 
         # Create a minimal config with just this provider for validation
         test_config = {
@@ -222,8 +222,6 @@ module Aidp
           config_file
         elsif File.exist?(legacy_config_file)
           legacy_config_file
-        else
-          nil
         end
       end
 

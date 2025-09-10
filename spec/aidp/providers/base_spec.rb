@@ -253,7 +253,7 @@ RSpec.describe Aidp::Providers::Base do
     it "extracts token usage from result" do
       token_result = {
         output: "test output",
-        token_usage: { total: 150, cost: 0.02 },
+        token_usage: {total: 150, cost: 0.02},
         rate_limited: false
       }
       allow(provider).to receive(:send).and_return(token_result)

@@ -44,7 +44,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
 
       it "switches with context" do
-        context = { error_type: "rate_limit", retry_count: 1 }
+        context = {error_type: "rate_limit", retry_count: 1}
         next_model = manager.switch_model("rate_limit", context)
         expect(next_model).to eq("claude-3-5-haiku-20241022")
       end
@@ -379,7 +379,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
     describe "#select_model_by_weight" do
       it "selects model by weight" do
-        weights = { "claude-3-5-sonnet-20241022" => 3, "claude-3-5-haiku-20241022" => 2, "claude-3-opus-20240229" => 1 }
+        weights = {"claude-3-5-sonnet-20241022" => 3, "claude-3-5-haiku-20241022" => 2, "claude-3-opus-20240229" => 1}
         manager.configure_model_weights("claude", weights)
 
         available_models = ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
@@ -388,7 +388,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
 
       it "handles zero total weight" do
-        weights = { "claude-3-5-sonnet-20241022" => 0, "claude-3-5-haiku-20241022" => 0, "claude-3-opus-20240229" => 0 }
+        weights = {"claude-3-5-sonnet-20241022" => 0, "claude-3-5-haiku-20241022" => 0, "claude-3-opus-20240229" => 0}
         manager.configure_model_weights("claude", weights)
 
         available_models = ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
@@ -467,7 +467,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
   describe "model configuration" do
     describe "#configure_model_weights" do
       it "configures model weights" do
-        weights = { "claude-3-5-sonnet-20241022" => 3, "claude-3-5-haiku-20241022" => 2 }
+        weights = {"claude-3-5-sonnet-20241022" => 3, "claude-3-5-haiku-20241022" => 2}
         manager.configure_model_weights("claude", weights)
 
         expect(manager.status[:model_weights]["claude"]).to eq(weights)

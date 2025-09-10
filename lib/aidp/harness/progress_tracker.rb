@@ -538,9 +538,7 @@ module Aidp
 
         end_time = timer[:end_time] || Time.now
         total_duration = end_time - timer[:start_time]
-        active_duration = total_duration - (timer[:paused_time] || 0.0)
-
-        active_duration
+        total_duration - (timer[:paused_time] || 0.0)
       end
 
       def calculate_total_duration
@@ -548,9 +546,7 @@ module Aidp
 
         end_time = @end_time || Time.now
         total_duration = end_time - @start_time
-        active_duration = total_duration - @paused_time
-
-        active_duration
+        total_duration - @paused_time
       end
 
       def estimate_remaining_time

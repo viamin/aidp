@@ -35,12 +35,12 @@ module Aidp
 
         # Check if we should retry
         if should_retry?(error_info, strategy)
-          retry_result = execute_retry(error_info, strategy, context)
-          return retry_result
+          execute_retry(error_info, strategy, context)
+
         else
           # No retry, attempt recovery
-          recovery_result = attempt_recovery(error_info, context)
-          return recovery_result
+          attempt_recovery(error_info, context)
+
         end
       end
 
@@ -128,17 +128,17 @@ module Aidp
 
         case recovery_plan[:action]
         when :switch_provider
-          return attempt_provider_switch(error_info, recovery_plan)
+          attempt_provider_switch(error_info, recovery_plan)
         when :switch_model
-          return attempt_model_switch(error_info, recovery_plan)
+          attempt_model_switch(error_info, recovery_plan)
         when :circuit_breaker
-          return open_circuit_breaker(error_info, recovery_plan)
+          open_circuit_breaker(error_info, recovery_plan)
         when :escalate
-          return escalate_error(error_info, recovery_plan)
+          escalate_error(error_info, recovery_plan)
         when :abort
-          return abort_execution(error_info, recovery_plan)
+          abort_execution(error_info, recovery_plan)
         else
-          return {
+          {
             success: false,
             action: :unknown_recovery,
             error: "Unknown recovery action: #{recovery_plan[:action]}"
@@ -167,12 +167,12 @@ module Aidp
 
       # Reset retry counts for a specific provider/model combination
       def reset_retry_counts(provider, model = nil)
-        if model
+        keys_to_reset = if model
           # Reset specific model
-          keys_to_reset = @retry_counts.keys.select { |k| k.start_with?("#{provider}:#{model}:") }
+          @retry_counts.keys.select { |k| k.start_with?("#{provider}:#{model}:") }
         else
           # Reset all models for provider
-          keys_to_reset = @retry_counts.keys.select { |k| k.start_with?("#{provider}:") }
+          @retry_counts.keys.select { |k| k.start_with?("#{provider}:") }
         end
 
         keys_to_reset.each { |key| @retry_counts.delete(key) }
@@ -180,15 +180,15 @@ module Aidp
 
       # Get retry status for a provider/model
       def get_retry_status(provider, model = nil)
-        if model
-          keys = @retry_counts.keys.select { |k| k.start_with?("#{provider}:#{model}:") }
+        keys = if model
+          @retry_counts.keys.select { |k| k.start_with?("#{provider}:#{model}:") }
         else
-          keys = @retry_counts.keys.select { |k| k.start_with?("#{provider}:") }
+          @retry_counts.keys.select { |k| k.start_with?("#{provider}:") }
         end
 
         status = {}
         keys.each do |key|
-          error_type = key.split(':').last
+          error_type = key.split(":").last
           status[error_type] = {
             retry_count: @retry_counts[key],
             max_retries: get_retry_strategy(error_type.to_sym)[:max_retries]
@@ -448,7 +448,7 @@ module Aidp
         def calculate_delay(retry_count, strategy, base_delay, max_delay)
           case strategy
           when :exponential
-            delay = base_delay * (2 ** (retry_count - 1))
+            delay = base_delay * (2**(retry_count - 1))
           when :linear
             delay = base_delay * retry_count
           when :fixed

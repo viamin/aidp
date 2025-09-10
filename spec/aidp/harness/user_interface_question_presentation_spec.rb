@@ -9,8 +9,8 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#display_question_presentation_header" do
       it "displays question presentation header" do
         questions = [
-          { question: "What is your name?", type: "text", required: true },
-          { question: "What is your age?", type: "number", required: false }
+          {question: "What is your name?", type: "text", required: true},
+          {question: "What is your age?", type: "number", required: false}
         ]
 
         expect { ui.display_question_presentation_header(questions, nil) }.to output(/Agent needs your feedback/).to_stdout
@@ -19,7 +19,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "displays context summary when provided" do
         questions = [
-          { question: "What is your name?", type: "text", required: true }
+          {question: "What is your name?", type: "text", required: true}
         ]
 
         context = {
@@ -37,9 +37,9 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#display_question_overview" do
       it "displays question overview statistics" do
         questions = [
-          { question: "What is your name?", type: "text", required: true },
-          { question: "What is your age?", type: "number", required: false },
-          { question: "Do you want to continue?", type: "confirmation", required: true }
+          {question: "What is your name?", type: "text", required: true},
+          {question: "What is your age?", type: "number", required: false},
+          {question: "Do you want to continue?", type: "confirmation", required: true}
         ]
 
         expect { ui.display_question_overview(questions) }.to output(/Overview:/).to_stdout
@@ -51,8 +51,8 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "displays estimated completion time" do
         questions = [
-          { question: "What is your name?", type: "text", required: true },
-          { question: "What is your age?", type: "number", required: false }
+          {question: "What is your name?", type: "text", required: true},
+          {question: "What is your age?", type: "number", required: false}
         ]
 
         expect { ui.display_question_overview(questions) }.to output(/Estimated time:/).to_stdout
@@ -62,7 +62,7 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#estimate_completion_time" do
       it "estimates time for text questions" do
         questions = [
-          { question: "What is your name?", type: "text", required: true }
+          {question: "What is your name?", type: "text", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -71,7 +71,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "estimates time for choice questions" do
         questions = [
-          { question: "Choose an option:", type: "choice", required: true }
+          {question: "Choose an option:", type: "choice", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -80,7 +80,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "estimates time for confirmation questions" do
         questions = [
-          { question: "Do you want to continue?", type: "confirmation", required: true }
+          {question: "Do you want to continue?", type: "confirmation", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -89,7 +89,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "estimates time for file questions" do
         questions = [
-          { question: "Select a file:", type: "file", required: true }
+          {question: "Select a file:", type: "file", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -98,7 +98,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "estimates time for number questions" do
         questions = [
-          { question: "What is your age?", type: "number", required: true }
+          {question: "What is your age?", type: "number", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -107,7 +107,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "estimates time for email questions" do
         questions = [
-          { question: "What is your email?", type: "email", required: true }
+          {question: "What is your email?", type: "email", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -116,7 +116,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "estimates time for URL questions" do
         questions = [
-          { question: "What is your website?", type: "url", required: true }
+          {question: "What is your website?", type: "url", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -125,9 +125,9 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "estimates time for multiple questions" do
         questions = [
-          { question: "What is your name?", type: "text", required: true },
-          { question: "What is your age?", type: "number", required: true },
-          { question: "Do you want to continue?", type: "confirmation", required: true }
+          {question: "What is your name?", type: "text", required: true},
+          {question: "What is your age?", type: "number", required: true},
+          {question: "Do you want to continue?", type: "confirmation", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -136,7 +136,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "handles unknown question types" do
         questions = [
-          { question: "Unknown question", type: "unknown", required: true }
+          {question: "Unknown question", type: "unknown", required: true}
         ]
 
         time = ui.estimate_completion_time(questions)
@@ -306,8 +306,8 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#display_question_completion_summary" do
       it "displays completion summary" do
         questions = [
-          { question: "What is your name?", type: "text", required: true },
-          { question: "What is your age?", type: "number", required: false }
+          {question: "What is your name?", type: "text", required: true},
+          {question: "What is your age?", type: "number", required: false}
         ]
 
         responses = {
@@ -325,7 +325,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "displays response summary" do
         questions = [
-          { question: "What is your name?", type: "text", required: true }
+          {question: "What is your name?", type: "text", required: true}
         ]
 
         responses = {
@@ -338,7 +338,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "displays skipped responses" do
         questions = [
-          { question: "What is your age?", type: "number", required: false }
+          {question: "What is your age?", type: "number", required: false}
         ]
 
         responses = {
@@ -350,7 +350,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "truncates long responses" do
         questions = [
-          { question: "What is your name?", type: "text", required: true }
+          {question: "What is your name?", type: "text", required: true}
         ]
 
         long_response = "A" * 60

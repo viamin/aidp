@@ -194,7 +194,7 @@ module Aidp
         clear_display
         remaining = reset_time - Time.now
         puts "\n🚫 Rate limit reached"
-        puts "   Waiting for reset at #{reset_time.strftime('%H:%M:%S')}"
+        puts "   Waiting for reset at #{reset_time.strftime("%H:%M:%S")}"
         puts "   Remaining: #{format_duration(remaining)}"
         puts "   Press Ctrl+C to cancel"
       end
@@ -350,9 +350,9 @@ module Aidp
 
         puts "\n🔄 Harness Status"
         puts "   Duration: #{format_duration(duration)}"
-        puts "   Step: #{@current_step || 'Starting...'}"
-        puts "   Provider: #{@current_provider || 'Initializing...'}"
-        puts "   Model: #{@current_model || 'N/A'}"
+        puts "   Step: #{@current_step || "Starting..."}"
+        puts "   Provider: #{@current_provider || "Initializing..."}"
+        puts "   Model: #{@current_model || "N/A"}"
         puts "   Status: Running"
 
         # Show key metrics
@@ -374,21 +374,21 @@ module Aidp
 
         puts "\n🔄 Harness Status - Detailed"
         puts "   Duration: #{format_duration(duration)}"
-        puts "   Current Step: #{@current_step || 'Starting...'}"
-        puts "   Provider: #{@current_provider || 'Initializing...'}"
-        puts "   Model: #{@current_model || 'N/A'}"
+        puts "   Current Step: #{@current_step || "Starting..."}"
+        puts "   Provider: #{@current_provider || "Initializing..."}"
+        puts "   Model: #{@current_model || "N/A"}"
         puts "   Status: Running"
 
         # Provider information
         if @provider_status[:available_providers]
-          puts "   Available Providers: #{@provider_status[:available_providers].join(', ')}"
+          puts "   Available Providers: #{@provider_status[:available_providers].join(", ")}"
         end
 
         # Circuit breaker status
         if @circuit_breaker_status.any?
           open_circuits = @circuit_breaker_status.select { |_, status| status[:state] == :open }
           if open_circuits.any?
-            puts "   Open Circuit Breakers: #{open_circuits.keys.join(', ')}"
+            puts "   Open Circuit Breakers: #{open_circuits.keys.join(", ")}"
           end
         end
 
@@ -405,7 +405,7 @@ module Aidp
 
       def display_minimal_status
         duration = @start_time ? Time.now - @start_time : 0
-        puts "\r🔄 #{@current_step || 'Starting'} | #{@current_provider || 'Init'} | #{format_duration(duration)}"
+        puts "\r🔄 #{@current_step || "Starting"} | #{@current_provider || "Init"} | #{format_duration(duration)}"
       end
 
       def display_full_status
@@ -427,7 +427,7 @@ module Aidp
         display_alerts
 
         puts "=" * 80
-        puts "Press Ctrl+C to stop | Last updated: #{Time.now.strftime('%H:%M:%S')}"
+        puts "Press Ctrl+C to stop | Last updated: #{Time.now.strftime("%H:%M:%S")}"
       end
 
       def display_basic_info
@@ -435,9 +435,9 @@ module Aidp
 
         puts "\n📊 BASIC INFORMATION"
         puts "   Duration: #{format_duration(duration)}"
-        puts "   Current Step: #{@current_step || 'Starting...'}"
-        puts "   Provider: #{@current_provider || 'Initializing...'}"
-        puts "   Model: #{@current_model || 'N/A'}"
+        puts "   Current Step: #{@current_step || "Starting..."}"
+        puts "   Provider: #{@current_provider || "Initializing..."}"
+        puts "   Model: #{@current_model || "N/A"}"
         puts "   Status: Running"
         puts "   Update Interval: #{@update_interval}s"
       end
@@ -447,7 +447,7 @@ module Aidp
 
         puts "\n🔌 PROVIDER INFORMATION"
         if @provider_status[:available_providers]
-          puts "   Available Providers: #{@provider_status[:available_providers].join(', ')}"
+          puts "   Available Providers: #{@provider_status[:available_providers].join(", ")}"
         end
         if @provider_status[:provider_health]
           puts "   Provider Health:"
@@ -501,7 +501,7 @@ module Aidp
 
         puts "\n🔒 CIRCUIT BREAKER STATUS"
         @circuit_breaker_status.each do |key, status|
-          state_icons = { closed: "🟢", open: "🔴", half_open: "🟡" }
+          state_icons = {closed: "🟢", open: "🔴", half_open: "🟡"}
           state_icon = state_icons[status[:state]] || "⚪"
           puts "   #{state_icon} #{key}: #{status[:state]} (failures: #{status[:failure_count]})"
         end
@@ -528,7 +528,7 @@ module Aidp
           models.each do |model, status|
             if status[:rate_limited]
               puts "   #{provider}:#{model}: Rate Limited"
-              puts "     Reset Time: #{status[:reset_time]&.strftime('%H:%M:%S')}"
+              puts "     Reset Time: #{status[:reset_time]&.strftime("%H:%M:%S")}"
               puts "     Retry After: #{status[:retry_after]}s"
               puts "     Quota: #{status[:quota_remaining]}/#{status[:quota_limit]}" if status[:quota_remaining]
             end
@@ -583,7 +583,7 @@ module Aidp
 
         puts "\n🚨 ALERTS"
         alerts.each do |alert|
-          severity_icons = { critical: "🔴", warning: "🟡", info: "🔵" }
+          severity_icons = {critical: "🔴", warning: "🟡", info: "🔵"}
           severity_icon = severity_icons[alert[:severity]] || "⚪"
           puts "   #{severity_icon} #{alert[:message]}"
         end
@@ -608,7 +608,7 @@ module Aidp
           if open_circuits.any?
             alerts << {
               severity: :warning,
-              message: "Open circuit breakers: #{open_circuits.keys.join(', ')}",
+              message: "Open circuit breakers: #{open_circuits.keys.join(", ")}",
               timestamp: Time.now
             }
           end

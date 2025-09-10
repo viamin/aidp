@@ -492,7 +492,7 @@ RSpec.describe Aidp::ConfigCommand do
 
     it "shows configuration in YAML format" do
       allow(validator).to receive(:config_exists?).and_return(true)
-      allow(loader).to receive(:load_config).and_return({ test: "value" })
+      allow(loader).to receive(:load_config).and_return({test: "value"})
 
       expect { config_command.run_show(["--format", "yaml"]) }
         .to output(/test: value/).to_stdout
@@ -500,7 +500,7 @@ RSpec.describe Aidp::ConfigCommand do
 
     it "shows configuration in JSON format" do
       allow(validator).to receive(:config_exists?).and_return(true)
-      allow(loader).to receive(:load_config).and_return({ test: "value" })
+      allow(loader).to receive(:load_config).and_return({test: "value"})
 
       expect { config_command.run_show(["--format", "json"]) }
         .to output(/"test": "value"/).to_stdout

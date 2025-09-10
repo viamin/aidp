@@ -139,7 +139,7 @@ module Aidp
       # Get rate limit status summary
       def get_rate_limit_summary
         {
-          total_providers: @rate_limits.keys.map { |k| k.split(':').first }.uniq.size,
+          total_providers: @rate_limits.keys.map { |k| k.split(":").first }.uniq.size,
           total_models: @rate_limits.size,
           rate_limited_count: @rate_limits.values.count { |rl| rl[:rate_limited] },
           active_countdowns: @countdown_timers.size,
@@ -243,7 +243,7 @@ module Aidp
       def get_rate_limit_statistics
         {
           total_entries: @rate_limit_history.size,
-          providers_tracked: @rate_limits.keys.map { |k| k.split(':').first }.uniq.size,
+          providers_tracked: @rate_limits.keys.map { |k| k.split(":").first }.uniq.size,
           models_tracked: @rate_limits.size,
           active_countdowns: @countdown_timers.size,
           rate_limited_count: @rate_limits.values.count { |rl| rl[:rate_limited] },
@@ -401,12 +401,12 @@ module Aidp
         retry_after = rate_limit_info[:retry_after]
 
         end_time = if reset_time
-                     reset_time
-                   elsif retry_after
-                     Time.now + retry_after
-                   else
-                     Time.now + 60 # Default 1 minute
-                   end
+          reset_time
+        elsif retry_after
+          Time.now + retry_after
+        else
+          Time.now + 60 # Default 1 minute
+        end
 
         @countdown_timers[key] = {
           start_time: Time.now,
@@ -421,7 +421,7 @@ module Aidp
 
       def handle_countdown_completion(key)
         # Handle countdown completion
-        _provider, _model = key.split(':')
+        _provider, _model = key.split(":")
 
         # Remove from countdown timers
         @countdown_timers.delete(key)
@@ -437,7 +437,7 @@ module Aidp
       end
 
       def add_to_history(key, rate_limit_info)
-        provider, model = key.split(':')
+        provider, model = key.split(":")
 
         entry = {
           timestamp: Time.now,
@@ -496,7 +496,7 @@ module Aidp
 
       def get_upcoming_resets
         @rate_limits.select { |_key, rate_limit| rate_limit[:reset_time] && rate_limit[:reset_time] > Time.now }
-                   .sort_by { |_key, rate_limit| rate_limit[:reset_time] }
+          .sort_by { |_key, rate_limit| rate_limit[:reset_time] }
       end
 
       def get_quota_status_summary
@@ -509,7 +509,11 @@ module Aidp
               used: rate_limit[:quota_used],
               limit: rate_limit[:quota_limit],
               percentage: usage_percentage,
-              status: usage_percentage >= 90 ? :critical : usage_percentage >= 75 ? :warning : :available
+              status: if usage_percentage >= 90
+                        :critical
+                      else
+                        (usage_percentage >= 75) ? :warning : :available
+                      end
             }
           end
         end
@@ -564,10 +568,10 @@ module Aidp
 
           if rate_limit_info[:rate_limited]
             remaining = rate_limit_info[:time_until_reset]
-            "Rate limited: #{remaining ? "#{remaining.to_i}s remaining" : 'Unknown'}"
+            "Rate limited: #{remaining ? "#{remaining.to_i}s remaining" : "Unknown"}"
           else
             usage = rate_limit_info[:usage_percentage]
-            "Available: #{usage ? "#{usage}% used" : 'No usage data'}"
+            "Available: #{usage ? "#{usage}% used" : "No usage data"}"
           end
         end
 
@@ -628,11 +632,11 @@ module Aidp
 
           if rate_limit_info[:rate_limited]
             remaining = rate_limit_info[:time_until_reset]
-            "🔴 Rate Limited: #{remaining ? "#{remaining.to_i}s" : 'Unknown'} remaining"
+            "🔴 Rate Limited: #{remaining ? "#{remaining.to_i}s" : "Unknown"} remaining"
           else
             usage = rate_limit_info[:usage_percentage]
-            status_icon = usage && usage >= 75 ? "🟡" : "🟢"
-            "#{status_icon} Available: #{usage ? "#{usage}% used" : 'No usage data'}"
+            status_icon = (usage && usage >= 75) ? "🟡" : "🟢"
+            "#{status_icon} Available: #{usage ? "#{usage}% used" : "No usage data"}"
           end
         end
 
@@ -655,7 +659,7 @@ module Aidp
 
           if rate_limit_info[:rate_limited]
             remaining = rate_limit_info[:time_until_reset]
-            summary += " - Rate Limited (#{remaining ? "#{remaining.to_i}s" : 'Unknown'} remaining)"
+            summary += " - Rate Limited (#{remaining ? "#{remaining.to_i}s" : "Unknown"} remaining)"
           else
             usage = rate_limit_info[:usage_percentage]
             summary += " - Available"

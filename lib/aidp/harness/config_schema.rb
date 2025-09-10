@@ -547,7 +547,7 @@ module Aidp
         # Validate top-level structure
         unless config.is_a?(Hash)
           errors << "Configuration must be a hash"
-          return { valid: false, errors: errors, warnings: warnings }
+          return {valid: false, errors: errors, warnings: warnings}
         end
 
         # Validate harness section
@@ -611,7 +611,7 @@ module Aidp
 
       # Generate example configuration
       def self.generate_example
-        example = {
+        {
           harness: {
             max_retries: 2,
             default_provider: "cursor",
@@ -789,8 +789,6 @@ module Aidp
             }
           }
         }
-
-        example
       end
 
       private
@@ -868,7 +866,7 @@ module Aidp
             errors << "#{path}: must match pattern #{schema[:pattern]}"
           end
           if schema[:enum] && !schema[:enum].include?(data)
-            errors << "#{path}: must be one of #{schema[:enum].join(', ')}"
+            errors << "#{path}: must be one of #{schema[:enum].join(", ")}"
           end
           if schema[:format] == :uri && !valid_uri?(data)
             errors << "#{path}: must be a valid URI"
@@ -938,12 +936,10 @@ module Aidp
               if prop_schema[:type] == :hash && prop_schema[:properties]
                 result[prop_name] = apply_section_defaults(prop_value, prop_schema)
               end
-            else
-              if prop_schema[:default]
-                result[prop_name] = prop_schema[:default]
-              elsif prop_schema[:type] == :hash && prop_schema[:properties]
-                result[prop_name] = apply_section_defaults({}, prop_schema)
-              end
+            elsif prop_schema[:default]
+              result[prop_name] = prop_schema[:default]
+            elsif prop_schema[:type] == :hash && prop_schema[:properties]
+              result[prop_name] = apply_section_defaults({}, prop_schema)
             end
           end
         end
@@ -978,7 +974,11 @@ module Aidp
         when Array
           obj.map { |v| deep_dup(v) }
         else
-          obj.dup rescue obj
+          begin
+            obj.dup
+          rescue
+            obj
+          end
         end
       end
     end

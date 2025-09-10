@@ -269,21 +269,21 @@ module Aidp
       # Health check for circuit breaker
       def health_check(provider, model = nil)
         circuit_breaker = get_circuit_breaker(provider, model)
-        return { healthy: true, reason: "No circuit breaker" } unless circuit_breaker
+        return {healthy: true, reason: "No circuit breaker"} unless circuit_breaker
 
         case circuit_breaker[:state]
         when :closed
-          { healthy: true, reason: "Circuit breaker closed" }
+          {healthy: true, reason: "Circuit breaker closed"}
         when :open
           if check_recovery_timeout(circuit_breaker)
-            { healthy: false, reason: "Circuit breaker open - recovery timeout not reached" }
+            {healthy: false, reason: "Circuit breaker open - recovery timeout not reached"}
           else
-            { healthy: true, reason: "Circuit breaker open - ready for recovery" }
+            {healthy: true, reason: "Circuit breaker open - ready for recovery"}
           end
         when :half_open
-          { healthy: true, reason: "Circuit breaker half-open - testing recovery" }
+          {healthy: true, reason: "Circuit breaker half-open - testing recovery"}
         else
-          { healthy: false, reason: "Unknown circuit breaker state" }
+          {healthy: false, reason: "Unknown circuit breaker state"}
         end
       end
 
@@ -459,7 +459,7 @@ module Aidp
         def check_health(provider, model = nil)
           # This would perform actual health checks
           # For now, return a mock health status
-          { healthy: true, response_time: 100, last_check: Time.now }
+          {healthy: true, response_time: 100, last_check: Time.now}
         end
 
         def get_health_score(provider, model = nil)
@@ -477,7 +477,7 @@ module Aidp
         def test_recovery(provider, model = nil)
           # This would perform recovery tests
           # For now, return a mock test result
-          { success: true, response_time: 150, test_time: Time.now }
+          {success: true, response_time: 150, test_time: Time.now}
         end
 
         def should_attempt_recovery(provider, model = nil)

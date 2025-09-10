@@ -293,7 +293,7 @@ module Aidp
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
       File.exist?(File.join(project_dir, "aidp.yml")) ||
-      File.exist?(File.join(project_dir, ".aidp.yml"))
+        File.exist?(File.join(project_dir, ".aidp.yml"))
     end
 
     # Create example configuration file
@@ -347,12 +347,10 @@ module Aidp
     end
 
     private_class_method def self.load_yaml_config(config_file)
-      begin
-        YAML.load_file(config_file) || {}
-      rescue => e
-        warn "Failed to load configuration file #{config_file}: #{e.message}"
-        {}
-      end
+      YAML.load_file(config_file) || {}
+    rescue => e
+      warn "Failed to load configuration file #{config_file}: #{e.message}"
+      {}
     end
 
     private_class_method def self.merge_harness_defaults(config)

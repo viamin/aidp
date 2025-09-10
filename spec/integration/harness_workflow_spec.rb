@@ -63,8 +63,8 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
       test_state = {
         current_step: "01_REPOSITORY_ANALYSIS",
         current_provider: "claude",
-        user_input: { "question_1" => "test answer" },
-        execution_log: [{ message: "Test execution", timestamp: Time.now }]
+        user_input: {"question_1" => "test answer"},
+        execution_log: [{message: "Test execution", timestamp: Time.now}]
       }
 
       state_manager.save_state(test_state)
@@ -107,15 +107,15 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
       condition_detector = Aidp::Harness::ConditionDetector.new
 
       # Test rate limit detection
-      rate_limited_result = { message: "Rate limit exceeded. Please try again in 60 seconds." }
+      rate_limited_result = {message: "Rate limit exceeded. Please try again in 60 seconds."}
       expect(condition_detector.is_rate_limited?(rate_limited_result)).to be true
 
       # Test user feedback detection
-      feedback_result = { message: "I need your input on the following questions:\n1. What approach would you prefer?" }
+      feedback_result = {message: "I need your input on the following questions:\n1. What approach would you prefer?"}
       expect(condition_detector.needs_user_feedback?(feedback_result)).to be true
 
       # Test work completion detection
-      completion_result = { message: "Analysis completed successfully. All steps finished." }
+      completion_result = {message: "Analysis completed successfully. All steps finished."}
       mock_progress = double("progress", completed_steps: ["step1", "step2"], total_steps: ["step1", "step2"])
       expect(condition_detector.is_work_complete?(completion_result, mock_progress)).to be true
     end
@@ -127,7 +127,7 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
 
       # Test error handling
       error = StandardError.new("Test error")
-      context = { provider: "claude", model: "claude-3-5-sonnet-20241022" }
+      context = {provider: "claude", model: "claude-3-5-sonnet-20241022"}
 
       result = error_handler.handle_error(error, context)
       expect(result).to include(:success, :action)
@@ -138,8 +138,8 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
 
       # Test question extraction
       questions = [
-        { question: "What is your preferred approach?", number: 1, required: true },
-        { question: "Any additional requirements?", number: 2, required: false }
+        {question: "What is your preferred approach?", number: 1, required: true},
+        {question: "Any additional requirements?", number: 2, required: false}
       ]
 
       # Mock user input
@@ -219,7 +219,7 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
       # Set some state data manually
       harness_runner.instance_variable_set(:@current_step, "01_REPOSITORY_ANALYSIS")
       harness_runner.instance_variable_set(:@current_provider, "claude")
-      harness_runner.instance_variable_set(:@user_input, { "question_1" => "test answer" })
+      harness_runner.instance_variable_set(:@user_input, {"question_1" => "test answer"})
 
       # Save state using public method
       harness_runner.send(:save_state)
@@ -259,7 +259,7 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
 
     it "handles CLI options and harness mode switching" do
       # Test harness mode options
-      result = cli.analyze(project_dir, nil, { harness: true })
+      result = cli.analyze(project_dir, nil, {harness: true})
 
       expect(result).to include(:status)
     end

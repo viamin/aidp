@@ -82,9 +82,7 @@ module Aidp
         strategy = @switch_strategies[strategy_name] || @switch_strategies[:default]
 
         # Apply context modifications
-        strategy = apply_context_modifications(strategy, context, rate_limit_info)
-
-        strategy
+        apply_context_modifications(strategy, context, rate_limit_info)
       end
 
       # Check if provider/model is currently rate limited
@@ -284,7 +282,6 @@ module Aidp
       end
 
       def determine_strategy_name(provider, _model, rate_limit_info, context)
-
         # Check if this is a temporary rate limit
         if rate_limit_info[:retry_after] && rate_limit_info[:retry_after] < 60
           return :wait_and_retry
@@ -798,7 +795,7 @@ module Aidp
 
           @quotas.each do |key, quota_info|
             if quota_info[:quota_remaining] > best_quota
-              provider, model = key.split(':', 2)
+              provider, model = key.split(":", 2)
               best_combination = {
                 provider: provider,
                 model: model,

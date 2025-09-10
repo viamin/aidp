@@ -76,7 +76,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "reloads configuration when forced" do
-      config1 = loader.load_config
+      loader.load_config
 
       # Modify the file
       modified_config = valid_config.dup
@@ -506,7 +506,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     it "reloads configuration" do
       File.write(config_file, YAML.dump(valid_config))
 
-      config1 = loader.load_config
+      loader.load_config
 
       # Modify file
       modified_config = valid_config.dup

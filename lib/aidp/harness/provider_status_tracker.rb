@@ -641,7 +641,7 @@ module Aidp
           end
         end
 
-        return { average: 0.0, min: 0.0, max: 0.0 } if total_models == 0
+        return {average: 0.0, min: 0.0, max: 0.0} if total_models == 0
 
         {
           average: total_health / total_models,
@@ -833,19 +833,19 @@ module Aidp
         private
 
         def analyze_health(_data)
-          { health_score: 0.9, issues: [], recommendations: [] }
+          {health_score: 0.9, issues: [], recommendations: []}
         end
 
         def analyze_performance(_data)
-          { performance_score: 0.85, bottlenecks: [], optimizations: [] }
+          {performance_score: 0.85, bottlenecks: [], optimizations: []}
         end
 
         def analyze_availability(_data)
-          { availability_score: 0.95, outages: [], uptime: 0.95 }
+          {availability_score: 0.95, outages: [], uptime: 0.95}
         end
 
         def analyze_reliability(_data)
-          { reliability_score: 0.92, failures: [], recovery_time: 300 }
+          {reliability_score: 0.92, failures: [], recovery_time: 300}
         end
       end
 
@@ -909,9 +909,7 @@ module Aidp
           recommendations
         end
 
-        def last_check_time
-          @last_check_time
-        end
+        attr_reader :last_check_time
 
         private
 
@@ -1086,19 +1084,19 @@ module Aidp
         private
 
         def generate_summary_report(_data)
-          { summary: "System status summary" }
+          {summary: "System status summary"}
         end
 
         def generate_detailed_report(_data)
-          { detailed: "Detailed system status report" }
+          {detailed: "Detailed system status report"}
         end
 
         def generate_realtime_report(_data)
-          { realtime: "Real-time system status" }
+          {realtime: "Real-time system status"}
         end
 
         def generate_historical_report(_data)
-          { historical: "Historical system status report" }
+          {historical: "Historical system status report"}
         end
       end
 
@@ -1165,22 +1163,22 @@ module Aidp
           when :realtime
             validate_realtime(data)
           else
-            { valid: true, errors: [] }
+            {valid: true, errors: []}
           end
         end
 
         private
 
         def validate_basic(_data)
-          { valid: true, errors: [] }
+          {valid: true, errors: []}
         end
 
         def validate_comprehensive(_data)
-          { valid: true, errors: [] }
+          {valid: true, errors: []}
         end
 
         def validate_realtime(_data)
-          { valid: true, errors: [] }
+          {valid: true, errors: []}
         end
       end
 
@@ -1205,15 +1203,15 @@ module Aidp
         private
 
         def optimize_performance(_tracker)
-          { optimizations: ["Performance optimizations applied"] }
+          {optimizations: ["Performance optimizations applied"]}
         end
 
         def optimize_memory(_tracker)
-          { optimizations: ["Memory optimizations applied"] }
+          {optimizations: ["Memory optimizations applied"]}
         end
 
         def optimize_accuracy(_tracker)
-          { optimizations: ["Accuracy optimizations applied"] }
+          {optimizations: ["Accuracy optimizations applied"]}
         end
       end
 

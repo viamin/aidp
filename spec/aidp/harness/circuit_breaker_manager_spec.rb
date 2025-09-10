@@ -100,7 +100,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
   describe "circuit breaker opening" do
     before do
       # Configure circuit breaker with low threshold for testing
-      circuit_breaker_manager.configure_circuit_breaker("claude", nil, { failure_threshold: 3 })
+      circuit_breaker_manager.configure_circuit_breaker("claude", nil, {failure_threshold: 3})
     end
 
     it "opens circuit breaker when failure threshold is exceeded" do
@@ -319,7 +319,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
     end
 
     it "logs configuration changes" do
-      config = { failure_threshold: 10 }
+      config = {failure_threshold: 10}
 
       expect(error_logger).to receive(:log_circuit_breaker_event).with("claude", nil, :configured, "Configuration updated", config)
 

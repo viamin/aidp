@@ -87,7 +87,6 @@ module Aidp
             @state = STATES[:completed]
             log_execution("Harness completed successfully")
           end
-
         rescue => e
           @state = STATES[:error]
           log_execution("Harness error: #{e.message}", {error: e.class.name})
@@ -275,14 +274,14 @@ module Aidp
 
       def should_stop?
         @state == STATES[:stopped] ||
-        @state == STATES[:completed] ||
-        @state == STATES[:error]
+          @state == STATES[:completed] ||
+          @state == STATES[:error]
       end
 
       def should_pause?
         @state == STATES[:paused] ||
-        @state == STATES[:waiting_for_user] ||
-        @state == STATES[:waiting_for_rate_limit]
+          @state == STATES[:waiting_for_user] ||
+          @state == STATES[:waiting_for_rate_limit]
       end
 
       def handle_pause_condition
@@ -292,10 +291,10 @@ module Aidp
           sleep(1)
         when STATES[:waiting_for_user]
           # User interface handles this
-          return
+          nil
         when STATES[:waiting_for_rate_limit]
           # Rate limit handling
-          return
+          nil
         end
       end
 
@@ -362,7 +361,7 @@ module Aidp
         @execution_log << log_entry
 
         # Also log to standard logging if available
-        puts "[#{Time.now.strftime('%H:%M:%S')}] #{message}" if ENV["AIDP_DEBUG"] == "1"
+        puts "[#{Time.now.strftime("%H:%M:%S")}] #{message}" if ENV["AIDP_DEBUG"] == "1"
       end
 
       def get_completion_message

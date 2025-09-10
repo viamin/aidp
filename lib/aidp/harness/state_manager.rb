@@ -41,13 +41,11 @@ module Aidp
         return {} unless has_state?
 
         with_lock do
-          begin
-            content = File.read(@state_file)
-            JSON.parse(content, symbolize_names: true)
-          rescue JSON::ParserError => e
-            warn "Failed to parse state file: #{e.message}"
-            {}
-          end
+          content = File.read(@state_file)
+          JSON.parse(content, symbolize_names: true)
+        rescue JSON::ParserError => e
+          warn "Failed to parse state file: #{e.message}"
+          {}
         end
       end
 
@@ -207,9 +205,7 @@ module Aidp
       # Progress tracking integration methods
 
       # Get the underlying progress tracker
-      def progress_tracker
-        @progress_tracker
-      end
+      attr_reader :progress_tracker
 
       # Get completed steps from progress tracker
       def completed_steps

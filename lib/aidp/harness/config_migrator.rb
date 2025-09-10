@@ -18,7 +18,7 @@ module Aidp
 
       # Migrate from legacy configuration format
       def migrate_from_legacy(options = {})
-        return { success: false, message: "No legacy configuration found" } unless legacy_config_exists?
+        return {success: false, message: "No legacy configuration found"} unless legacy_config_exists?
 
         # Create backup
         backup_result = create_backup(options[:backup] != false)
@@ -26,11 +26,11 @@ module Aidp
 
         # Load legacy configuration
         legacy_config = load_legacy_config
-        return { success: false, message: "Failed to load legacy configuration" } unless legacy_config
+        return {success: false, message: "Failed to load legacy configuration"} unless legacy_config
 
         # Convert to new format
         new_config = convert_legacy_to_new(legacy_config)
-        return { success: false, message: "Failed to convert legacy configuration" } unless new_config
+        return {success: false, message: "Failed to convert legacy configuration"} unless new_config
 
         # Validate new configuration
         validator = ConfigValidator.new(@project_dir)
@@ -52,7 +52,7 @@ module Aidp
         else
           {
             success: false,
-            message: "Converted configuration is invalid: #{validation_result[:errors].join(', ')}",
+            message: "Converted configuration is invalid: #{validation_result[:errors].join(", ")}",
             errors: validation_result[:errors]
           }
         end
@@ -60,7 +60,7 @@ module Aidp
 
       # Migrate from old harness configuration format
       def migrate_harness_format(options = {})
-        return { success: false, message: "No configuration found" } unless config_exists?
+        return {success: false, message: "No configuration found"} unless config_exists?
 
         # Create backup
         backup_result = create_backup(options[:backup] != false)
@@ -68,11 +68,11 @@ module Aidp
 
         # Load current configuration
         current_config = load_current_config
-        return { success: false, message: "Failed to load current configuration" } unless current_config
+        return {success: false, message: "Failed to load current configuration"} unless current_config
 
         # Convert to new harness format
         new_config = convert_to_new_harness_format(current_config)
-        return { success: false, message: "Failed to convert configuration" } unless new_config
+        return {success: false, message: "Failed to convert configuration"} unless new_config
 
         # Validate new configuration
         validator = ConfigValidator.new(@project_dir)
@@ -94,7 +94,7 @@ module Aidp
         else
           {
             success: false,
-            message: "Converted configuration is invalid: #{validation_result[:errors].join(', ')}",
+            message: "Converted configuration is invalid: #{validation_result[:errors].join(", ")}",
             errors: validation_result[:errors]
           }
         end
@@ -102,7 +102,7 @@ module Aidp
 
       # Migrate provider configurations
       def migrate_provider_configs(options = {})
-        return { success: false, message: "No configuration found" } unless config_exists?
+        return {success: false, message: "No configuration found"} unless config_exists?
 
         # Create backup
         backup_result = create_backup(options[:backup] != false)
@@ -110,11 +110,11 @@ module Aidp
 
         # Load current configuration
         current_config = load_current_config
-        return { success: false, message: "Failed to load current configuration" } unless current_config
+        return {success: false, message: "Failed to load current configuration"} unless current_config
 
         # Convert provider configurations
         new_config = convert_provider_configs(current_config)
-        return { success: false, message: "Failed to convert provider configurations" } unless new_config
+        return {success: false, message: "Failed to convert provider configurations"} unless new_config
 
         # Validate new configuration
         validator = ConfigValidator.new(@project_dir)
@@ -136,7 +136,7 @@ module Aidp
         else
           {
             success: false,
-            message: "Converted configuration is invalid: #{validation_result[:errors].join(', ')}",
+            message: "Converted configuration is invalid: #{validation_result[:errors].join(", ")}",
             errors: validation_result[:errors]
           }
         end
@@ -150,7 +150,7 @@ module Aidp
         when "2.0", "2.x"
           migrate_harness_format(options)
         else
-          { success: false, message: "Unknown version: #{version}" }
+          {success: false, message: "Unknown version: #{version}"}
         end
       end
 
@@ -164,10 +164,10 @@ module Aidp
           if needs_migration?(current_config)
             migrate_harness_format(options)
           else
-            { success: true, message: "Configuration is already up to date" }
+            {success: true, message: "Configuration is already up to date"}
           end
         else
-          { success: false, message: "No configuration found to migrate" }
+          {success: false, message: "No configuration found to migrate"}
         end
       end
 
@@ -189,7 +189,7 @@ module Aidp
 
       # Create backup of current configuration
       def create_backup(create_backup = true)
-        return { success: true, backup_file: nil } unless create_backup
+        return {success: true, backup_file: nil} unless create_backup
 
         # Ensure backup directory exists
         FileUtils.mkdir_p(@backup_dir) unless Dir.exist?(@backup_dir)
@@ -201,7 +201,7 @@ module Aidp
         elsif File.exist?(@legacy_config_file)
           source_file = @legacy_config_file
         else
-          return { success: false, message: "No configuration file to backup" }
+          return {success: false, message: "No configuration file to backup"}
         end
 
         # Create backup filename with timestamp
@@ -212,15 +212,15 @@ module Aidp
         # Copy file to backup
         begin
           FileUtils.cp(source_file, backup_file)
-          { success: true, backup_file: backup_file }
+          {success: true, backup_file: backup_file}
         rescue => e
-          { success: false, message: "Failed to create backup: #{e.message}" }
+          {success: false, message: "Failed to create backup: #{e.message}"}
         end
       end
 
       # Restore from backup
       def restore_from_backup(backup_file, _options = {})
-        return { success: false, message: "Backup file not found" } unless File.exist?(backup_file)
+        return {success: false, message: "Backup file not found"} unless File.exist?(backup_file)
 
         # Create backup of current config if it exists
         current_backup = nil
@@ -238,7 +238,7 @@ module Aidp
             current_backup: current_backup&.dig(:backup_file)
           }
         rescue => e
-          { success: false, message: "Failed to restore backup: #{e.message}" }
+          {success: false, message: "Failed to restore backup: #{e.message}"}
         end
       end
 
@@ -260,18 +260,16 @@ module Aidp
       # Clean old backups
       def clean_backups(keep_count = 10)
         backups = list_backups
-        return { success: true, message: "No backups to clean" } if backups.length <= keep_count
+        return {success: true, message: "No backups to clean"} if backups.length <= keep_count
 
         backups_to_delete = backups[keep_count..-1]
         deleted_count = 0
 
         backups_to_delete.each do |backup|
-          begin
-            File.delete(backup[:file])
-            deleted_count += 1
-          rescue
-            # Continue with other deletions
-          end
+          File.delete(backup[:file])
+          deleted_count += 1
+        rescue
+          # Continue with other deletions
         end
 
         {
@@ -336,18 +334,16 @@ module Aidp
       end
 
       def write_config(config, options = {})
-        begin
-          # Apply defaults if requested
-          if options[:apply_defaults] != false
-            config = ConfigSchema.apply_defaults(config)
-          end
-
-          # Write configuration
-          File.write(@config_file, YAML.dump(config))
-          { success: true, message: "Configuration written successfully" }
-        rescue => e
-          { success: false, message: "Failed to write configuration: #{e.message}" }
+        # Apply defaults if requested
+        if options[:apply_defaults] != false
+          config = ConfigSchema.apply_defaults(config)
         end
+
+        # Write configuration
+        File.write(@config_file, YAML.dump(config))
+        {success: true, message: "Configuration written successfully"}
+      rescue => e
+        {success: false, message: "Failed to write configuration: #{e.message}"}
       end
 
       def convert_legacy_to_new(legacy_config)

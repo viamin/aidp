@@ -149,13 +149,11 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       end
 
       it "extracts backtrace information" do
-        begin
-          raise StandardError.new("Test error")
-        rescue => error
-          info = detector.extract_error_info(error)
-          expect(info[:backtrace]).to be_an(Array)
-          expect(info[:backtrace].length).to be <= 5
-        end
+        raise StandardError.new("Test error")
+      rescue => error
+        info = detector.extract_error_info(error)
+        expect(info[:backtrace]).to be_an(Array)
+        expect(info[:backtrace].length).to be <= 5
       end
 
       it "handles non-StandardError objects" do

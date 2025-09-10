@@ -66,9 +66,7 @@ module Aidp
       @harness_job_manager = Aidp::Harness::JobManager.new(@project_dir, harness_runner)
     end
 
-    def harness_job_manager
-      @harness_job_manager
-    end
+    attr_reader :harness_job_manager
 
     def get_all_jobs
       jobs = []
@@ -171,7 +169,7 @@ module Aidp
     def harness_job?(job_class)
       # Check if the job class is a harness job
       job_class.name.include?("Harness") ||
-      job_class.ancestors.include?(Aidp::Jobs::HarnessJob)
+        job_class.ancestors.include?(Aidp::Jobs::HarnessJob)
     rescue
       false
     end

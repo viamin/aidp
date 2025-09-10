@@ -38,7 +38,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
 
       it "switches with context" do
-        context = { error_type: "rate_limit", retry_count: 1 }
+        context = {error_type: "rate_limit", retry_count: 1}
         next_provider = manager.switch_provider("rate_limit", context)
         expect(next_provider).to eq("gemini")
       end
@@ -158,7 +158,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
     describe "#select_provider_by_weight" do
       it "selects provider by weight" do
-        weights = { "claude" => 3, "gemini" => 2, "cursor" => 1 }
+        weights = {"claude" => 3, "gemini" => 2, "cursor" => 1}
         manager.configure_provider_weights(weights)
 
         available_providers = ["claude", "gemini", "cursor"]
@@ -167,7 +167,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
 
       it "handles zero total weight" do
-        weights = { "claude" => 0, "gemini" => 0, "cursor" => 0 }
+        weights = {"claude" => 0, "gemini" => 0, "cursor" => 0}
         manager.configure_provider_weights(weights)
 
         available_providers = ["claude", "gemini", "cursor"]
@@ -354,7 +354,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
   describe "configuration and status" do
     describe "#configure_provider_weights" do
       it "configures provider weights" do
-        weights = { "claude" => 3, "gemini" => 2, "cursor" => 1 }
+        weights = {"claude" => 3, "gemini" => 2, "cursor" => 1}
         manager.configure_provider_weights(weights)
 
         expect(manager.status[:provider_weights]).to eq(weights)

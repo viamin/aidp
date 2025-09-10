@@ -60,7 +60,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       # Create configuration missing harness section
       config = {
         providers: {
-          claude: { type: "api" }
+          claude: {type: "api"}
         }
       }
       File.write(config_file, YAML.dump(config))
@@ -75,9 +75,9 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
     it "handles configuration with invalid provider types" do
       # Create configuration with invalid provider type
       config = {
-        harness: { default_provider: "claude" },
+        harness: {default_provider: "claude"},
         providers: {
-          claude: { type: "invalid_type" }
+          claude: {type: "invalid_type"}
         }
       }
       File.write(config_file, YAML.dump(config))
@@ -97,8 +97,8 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
           fallback_providers: ["gemini", "claude"] # Circular dependency
         },
         providers: {
-          claude: { type: "api", fallback_providers: ["gemini"] },
-          gemini: { type: "api", fallback_providers: ["claude"] }
+          claude: {type: "api", fallback_providers: ["gemini"]},
+          gemini: {type: "api", fallback_providers: ["claude"]}
         }
       }
       File.write(config_file, YAML.dump(config))
@@ -145,7 +145,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       large_content = {
         state: "running",
         current_step: "01_REPOSITORY_ANALYSIS",
-        execution_log: Array.new(10000) { |i| { message: "Log entry #{i}", timestamp: Time.now } }
+        execution_log: Array.new(10000) { |i| {message: "Log entry #{i}", timestamp: Time.now} }
       }
       File.write(large_state_file, JSON.pretty_generate(large_content))
 
@@ -161,7 +161,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       FileUtils.mkdir_p(harness_state_dir)
       protected_state_file = File.join(harness_state_dir, "analyze_state.json")
       File.write(protected_state_file, '{"state": "running"}')
-      File.chmod(0000, protected_state_file)
+      File.chmod(0o000, protected_state_file)
 
       # Should handle permission errors gracefully
       expect {
@@ -170,7 +170,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       }.to raise_error(Errno::EACCES)
 
       # Clean up permissions
-      File.chmod(0644, protected_state_file)
+      File.chmod(0o644, protected_state_file)
     end
 
     it "handles concurrent state file access gracefully" do
@@ -190,12 +190,10 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
 
       # All threads should complete (some may timeout due to locking, which is expected behavior)
       threads.each do |thread|
-        begin
-          thread.join
-        rescue RuntimeError => e
-          # Expected timeout due to concurrent access protection
-          expect(e.message).to include("Could not acquire state lock")
-        end
+        thread.join
+      rescue RuntimeError => e
+        # Expected timeout due to concurrent access protection
+        expect(e.message).to include("Could not acquire state lock")
       end
     end
   end
@@ -318,7 +316,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
 
       # Should handle cascading errors gracefully
       expect {
-        result = error_handler.handle_error(StandardError.new("Original error"), { provider: "claude" })
+        result = error_handler.handle_error(StandardError.new("Original error"), {provider: "claude"})
         expect(result).to include(:success, :action)
       }.not_to raise_error
     end
@@ -378,7 +376,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       user_interface = Aidp::Harness::UserInterface.new
 
       # Mock user input with special characters
-      special_input = { "question_1" => "Test with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?" }
+      special_input = {"question_1" => "Test with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?"}
       allow(user_interface).to receive(:collect_feedback).and_return(special_input)
 
       # Should handle special characters gracefully
@@ -392,7 +390,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       user_interface = Aidp::Harness::UserInterface.new
 
       # Mock user input with long content
-      long_input = { "question_1" => "A" * 10000 }
+      long_input = {"question_1" => "A" * 10000}
       allow(user_interface).to receive(:collect_feedback).and_return(long_input)
 
       # Should handle long content gracefully
@@ -431,9 +429,9 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
 
       # Should handle missing message gracefully
       expect {
-        expect(condition_detector.is_rate_limited?({ status: "error" })).to be false
-        expect(condition_detector.needs_user_feedback?({ status: "success" })).to be false
-        expect(condition_detector.is_work_complete?({ status: "completed" }, nil)).to be false
+        expect(condition_detector.is_rate_limited?({status: "error"})).to be false
+        expect(condition_detector.needs_user_feedback?({status: "success"})).to be false
+        expect(condition_detector.is_work_complete?({status: "completed"}, nil)).to be false
       }.not_to raise_error
     end
 
@@ -442,9 +440,9 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
 
       # Should handle invalid message type gracefully
       expect {
-        expect(condition_detector.is_rate_limited?({ message: 123 })).to be false
-        expect(condition_detector.needs_user_feedback?({ message: [] })).to be false
-        expect(condition_detector.is_work_complete?({ message: {} }, nil)).to be false
+        expect(condition_detector.is_rate_limited?({message: 123})).to be false
+        expect(condition_detector.needs_user_feedback?({message: []})).to be false
+        expect(condition_detector.is_work_complete?({message: {}}, nil)).to be false
       }.not_to raise_error
     end
 
@@ -454,9 +452,9 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       # Should handle long message gracefully
       long_message = "A" * 100000
       expect {
-        expect(condition_detector.is_rate_limited?({ message: long_message })).to be false
-        expect(condition_detector.needs_user_feedback?({ message: long_message })).to be false
-        expect(condition_detector.is_work_complete?({ message: long_message }, nil)).to be false
+        expect(condition_detector.is_rate_limited?({message: long_message})).to be false
+        expect(condition_detector.needs_user_feedback?({message: long_message})).to be false
+        expect(condition_detector.is_work_complete?({message: long_message}, nil)).to be false
       }.not_to raise_error
     end
   end
@@ -661,7 +659,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       user_interface = Aidp::Harness::UserInterface.new
 
       # Mock malicious input
-      malicious_input = { "question_1" => "<script>alert('xss')</script>" }
+      malicious_input = {"question_1" => "<script>alert('xss')</script>"}
       allow(user_interface).to receive(:collect_feedback).and_return(malicious_input)
 
       # Should handle malicious input gracefully
@@ -675,7 +673,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       user_interface = Aidp::Harness::UserInterface.new
 
       # Mock SQL injection attempt
-      sql_injection = { "question_1" => "'; DROP TABLE users; --" }
+      sql_injection = {"question_1" => "'; DROP TABLE users; --"}
       allow(user_interface).to receive(:collect_feedback).and_return(sql_injection)
 
       # Should handle SQL injection gracefully
@@ -689,7 +687,7 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       user_interface = Aidp::Harness::UserInterface.new
 
       # Mock path traversal attempt
-      path_traversal = { "question_1" => "../../../etc/passwd" }
+      path_traversal = {"question_1" => "../../../etc/passwd"}
       allow(user_interface).to receive(:collect_feedback).and_return(path_traversal)
 
       # Should handle path traversal gracefully

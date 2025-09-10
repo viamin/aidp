@@ -380,7 +380,7 @@ module Aidp
       end
 
       def get_error_summary(time_range)
-        errors = @log_storage.get_errors({ time_range: time_range })
+        errors = @log_storage.get_errors({time_range: time_range})
 
         {
           total_errors: errors.size,
@@ -393,7 +393,7 @@ module Aidp
       end
 
       def get_recovery_summary(time_range)
-        recoveries = @log_storage.get_recoveries({ time_range: time_range })
+        recoveries = @log_storage.get_recoveries({time_range: time_range})
 
         {
           total_recoveries: recoveries.size,
@@ -406,7 +406,7 @@ module Aidp
       end
 
       def get_switch_summary(time_range)
-        switches = @log_storage.get_switches({ time_range: time_range })
+        switches = @log_storage.get_switches({time_range: time_range})
 
         {
           total_switches: switches.size,
@@ -418,7 +418,7 @@ module Aidp
       end
 
       def get_retry_summary(time_range)
-        retries = @log_storage.get_retries({ time_range: time_range })
+        retries = @log_storage.get_retries({time_range: time_range})
 
         {
           total_retries: retries.size,
@@ -431,7 +431,7 @@ module Aidp
       end
 
       def get_circuit_breaker_summary(time_range)
-        circuit_breakers = @log_storage.get_circuit_breakers({ time_range: time_range })
+        circuit_breakers = @log_storage.get_circuit_breakers({time_range: time_range})
 
         {
           total_events: circuit_breakers.size,

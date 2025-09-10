@@ -77,10 +77,10 @@ module Aidp
         # Log state change to job if in background mode
         if @job_context
           level = case state
-                  when :completed then "info"
-                  when :failed then "error"
-                  else "debug"
-                  end
+          when :completed then "info"
+          when :failed then "error"
+          else "debug"
+          end
 
           log_to_job(message || "Provider state changed to #{state}", level)
         end

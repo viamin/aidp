@@ -14,8 +14,8 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     allow(provider_manager).to receive(:switch_model_for_error).and_return("model2")
 
     # Mock configuration methods
-    allow(configuration).to receive(:retry_config).and_return({ strategies: {} })
-    allow(configuration).to receive(:circuit_breaker_config).and_return({ timeout: 300 })
+    allow(configuration).to receive(:retry_config).and_return({strategies: {}})
+    allow(configuration).to receive(:circuit_breaker_config).and_return({timeout: 300})
 
     # Mock metrics manager methods
     allow(metrics_manager).to receive(:record_error)
@@ -48,7 +48,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
   end
 
   describe "error handling" do
-    let(:context) { { provider: "claude", model: "model1" } }
+    let(:context) { {provider: "claude", model: "model1"} }
 
     it "handles network errors with retry" do
       error = Net::TimeoutError.new("Connection timeout")
@@ -290,7 +290,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         message: "Repeated failure"
       }
 
-      result = error_handler.open_circuit_breaker(error_info, { failure_count: 5, threshold: 5 })
+      result = error_handler.open_circuit_breaker(error_info, {failure_count: 5, threshold: 5})
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq(:circuit_breaker_opened)
@@ -307,7 +307,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         model: "model1"
       }
 
-      error_handler.open_circuit_breaker(error_info, { failure_count: 5, threshold: 5 })
+      error_handler.open_circuit_breaker(error_info, {failure_count: 5, threshold: 5})
 
       # Check if retry should be prevented
       strategy = error_handler.get_retry_strategy(:server_error)
@@ -324,7 +324,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         model: "model1"
       }
 
-      error_handler.open_circuit_breaker(error_info, { failure_count: 5, threshold: 5 })
+      error_handler.open_circuit_breaker(error_info, {failure_count: 5, threshold: 5})
 
       # Simulate time passing
       allow(Time).to receive(:now).and_return(Time.now + 400)
@@ -342,7 +342,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         model: "model1"
       }
 
-      error_handler.open_circuit_breaker(error_info, { failure_count: 5, threshold: 5 })
+      error_handler.open_circuit_breaker(error_info, {failure_count: 5, threshold: 5})
 
       # Reset circuit breaker
       error_handler.reset_circuit_breaker("claude", "model1")
@@ -353,11 +353,11 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "resets all circuit breakers" do
       # Open multiple circuit breakers
-      error_info1 = { error_type: :server_error, provider: "claude", model: "model1" }
-      error_info2 = { error_type: :server_error, provider: "gemini", model: "model1" }
+      error_info1 = {error_type: :server_error, provider: "claude", model: "model1"}
+      error_info2 = {error_type: :server_error, provider: "gemini", model: "model1"}
 
-      error_handler.open_circuit_breaker(error_info1, { failure_count: 5, threshold: 5 })
-      error_handler.open_circuit_breaker(error_info2, { failure_count: 5, threshold: 5 })
+      error_handler.open_circuit_breaker(error_info1, {failure_count: 5, threshold: 5})
+      error_handler.open_circuit_breaker(error_info2, {failure_count: 5, threshold: 5})
 
       # Reset all circuit breakers
       error_handler.reset_all_circuit_breakers
@@ -388,8 +388,8 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "resets retry counts for all models of a provider" do
       # Generate retry counts for multiple models
-      error_info1 = { error_type: :network_error, provider: "claude", model: "model1" }
-      error_info2 = { error_type: :network_error, provider: "claude", model: "model2" }
+      error_info1 = {error_type: :network_error, provider: "claude", model: "model1"}
+      error_info2 = {error_type: :network_error, provider: "claude", model: "model2"}
 
       strategy = error_handler.get_retry_strategy(:network_error)
       error_handler.execute_retry(error_info1, strategy, {})
@@ -409,9 +409,9 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       error1 = StandardError.new("Error 1")
       error2 = StandardError.new("Error 2")
 
-      error_handler.handle_error(error1, { provider: "claude", model: "model1" })
+      error_handler.handle_error(error1, {provider: "claude", model: "model1"})
       sleep(0.01) # Ensure different timestamps
-      error_handler.handle_error(error2, { provider: "claude", model: "model1" })
+      error_handler.handle_error(error2, {provider: "claude", model: "model1"})
 
       # Get history within time range
       time_range = (Time.now - 1)..Time.now
@@ -423,7 +423,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     it "clears error history" do
       # Add some errors
       error = StandardError.new("Test error")
-      error_handler.handle_error(error, { provider: "claude", model: "model1" })
+      error_handler.handle_error(error, {provider: "claude", model: "model1"})
 
       # Clear history
       error_handler.clear_error_history
@@ -533,7 +533,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       let(:planner) { described_class::RecoveryPlanner.new }
 
       it "plans provider switch for rate limit errors" do
-        error_info = { error_type: :rate_limit, provider: "claude", model: "model1" }
+        error_info = {error_type: :rate_limit, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
@@ -542,7 +542,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       end
 
       it "plans model switch for timeout errors" do
-        error_info = { error_type: :timeout, provider: "claude", model: "model1" }
+        error_info = {error_type: :timeout, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
@@ -551,7 +551,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       end
 
       it "plans escalation for authentication errors" do
-        error_info = { error_type: :authentication, provider: "claude", model: "model1" }
+        error_info = {error_type: :authentication, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
@@ -560,7 +560,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       end
 
       it "plans provider switch for network errors" do
-        error_info = { error_type: :network_error, provider: "claude", model: "model1" }
+        error_info = {error_type: :network_error, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
@@ -569,7 +569,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       end
 
       it "plans provider switch for server errors" do
-        error_info = { error_type: :server_error, provider: "claude", model: "model1" }
+        error_info = {error_type: :server_error, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
@@ -578,7 +578,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       end
 
       it "plans provider switch for unknown errors" do
-        error_info = { error_type: :unknown, provider: "claude", model: "model1" }
+        error_info = {error_type: :unknown, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 

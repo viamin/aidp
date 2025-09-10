@@ -233,7 +233,7 @@ module Aidp
 
         jobs_to_remove = @harness_jobs.select do |_job_id, job|
           [:completed, :cancelled].include?(job[:status]) &&
-          job[:updated_at] < cutoff_time
+            job[:updated_at] < cutoff_time
         end
 
         jobs_to_remove.each do |job_id, _job|

@@ -517,7 +517,7 @@ RSpec.describe Aidp::Harness::RateLimitDisplay do
     end
 
     it "exports rate limit data with options" do
-      export = display.export_rate_limit_data(:json, { pretty: true })
+      export = display.export_rate_limit_data(:json, {pretty: true})
 
       expect(export).to be_a(String)
     end

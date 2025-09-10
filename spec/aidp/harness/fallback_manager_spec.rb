@@ -16,7 +16,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     allow(provider_manager).to receive(:set_current_model).and_return(true)
 
     # Mock configuration methods
-    allow(configuration).to receive(:fallback_config).and_return({ strategies: {} })
+    allow(configuration).to receive(:fallback_config).and_return({strategies: {}})
 
     # Mock metrics manager methods
     allow(metrics_manager).to receive(:record_fallback_attempt)
@@ -49,7 +49,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
   end
 
   describe "retry exhaustion handling" do
-    let(:context) { { retry_count: 3, error_message: "Max retries exceeded" } }
+    let(:context) { {retry_count: 3, error_message: "Max retries exceeded"} }
 
     it "handles retry exhaustion with provider switch" do
       result = fallback_manager.handle_retry_exhaustion("claude", "model1", :network_error, context)
@@ -125,7 +125,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "applies context modifications to strategy" do
-      context = { priority: :critical, max_attempts: 5 }
+      context = {priority: :critical, max_attempts: 5}
       strategy = fallback_manager.get_fallback_strategy(:rate_limit, context)
 
       expect(strategy[:priority]).to eq(:critical)
@@ -133,13 +133,13 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "uses context-specific fallback strategy" do
-      context = { fallback_strategy: :custom_strategy }
+      context = {fallback_strategy: :custom_strategy}
       allow(fallback_manager).to receive(:configure_fallback_strategies).with({
-        custom_strategy: { name: "custom", action: :escalate }
+        custom_strategy: {name: "custom", action: :escalate}
       })
 
       fallback_manager.configure_fallback_strategies({
-        custom_strategy: { name: "custom", action: :escalate }
+        custom_strategy: {name: "custom", action: :escalate}
       })
 
       strategy = fallback_manager.get_fallback_strategy(:rate_limit, context)
@@ -251,7 +251,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes provider switch fallback" do
-      strategy = { name: "test", action: :switch_provider, selection_strategy: :round_robin }
+      strategy = {name: "test", action: :switch_provider, selection_strategy: :round_robin}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -261,7 +261,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes model switch fallback" do
-      strategy = { name: "test", action: :switch_model, selection_strategy: :performance_based }
+      strategy = {name: "test", action: :switch_model, selection_strategy: :performance_based}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -272,7 +272,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes provider-model switch fallback" do
-      strategy = { name: "test", action: :switch_provider_model, selection_strategy: :health_based }
+      strategy = {name: "test", action: :switch_provider_model, selection_strategy: :health_based}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -281,7 +281,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes load balanced switch fallback" do
-      strategy = { name: "test", action: :load_balance, selection_strategy: :load_balanced }
+      strategy = {name: "test", action: :load_balance, selection_strategy: :load_balanced}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -291,7 +291,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes circuit breaker fallback" do
-      strategy = { name: "test", action: :circuit_breaker, selection_strategy: :circuit_breaker_aware }
+      strategy = {name: "test", action: :circuit_breaker, selection_strategy: :circuit_breaker_aware}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -301,7 +301,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes escalation fallback" do
-      strategy = { name: "test", action: :escalate, selection_strategy: :none }
+      strategy = {name: "test", action: :escalate, selection_strategy: :none}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -311,7 +311,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes abort fallback" do
-      strategy = { name: "test", action: :abort, selection_strategy: :none }
+      strategy = {name: "test", action: :abort, selection_strategy: :none}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -320,7 +320,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "executes default fallback for unknown action" do
-      strategy = { name: "test", action: :unknown_action, selection_strategy: :round_robin }
+      strategy = {name: "test", action: :unknown_action, selection_strategy: :round_robin}
 
       result = fallback_manager.execute_fallback(fallback_info, strategy)
 
@@ -342,7 +342,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "selects provider using health-based strategy" do
-      strategy = { selection_strategy: :health_based }
+      strategy = {selection_strategy: :health_based}
       available_providers = ["gemini", "cursor"]
 
       selected = fallback_manager.send(:select_provider, available_providers, strategy, fallback_info)
@@ -351,7 +351,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "selects provider using load-balanced strategy" do
-      strategy = { selection_strategy: :load_balanced }
+      strategy = {selection_strategy: :load_balanced}
       available_providers = ["gemini", "cursor"]
 
       selected = fallback_manager.send(:select_provider, available_providers, strategy, fallback_info)
@@ -360,7 +360,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "selects provider using circuit-breaker-aware strategy" do
-      strategy = { selection_strategy: :circuit_breaker_aware }
+      strategy = {selection_strategy: :circuit_breaker_aware}
       available_providers = ["gemini", "cursor"]
 
       selected = fallback_manager.send(:select_provider, available_providers, strategy, fallback_info)
@@ -369,7 +369,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "selects provider using performance-based strategy" do
-      strategy = { selection_strategy: :performance_based }
+      strategy = {selection_strategy: :performance_based}
       available_providers = ["gemini", "cursor"]
 
       selected = fallback_manager.send(:select_provider, available_providers, strategy, fallback_info)
@@ -378,7 +378,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "selects provider using round-robin strategy" do
-      strategy = { selection_strategy: :round_robin }
+      strategy = {selection_strategy: :round_robin}
       available_providers = ["gemini", "cursor"]
 
       # Test multiple selections to verify round-robin behavior
@@ -395,7 +395,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "selects model using performance-based strategy" do
-      strategy = { selection_strategy: :performance_based }
+      strategy = {selection_strategy: :performance_based}
       available_models = ["model2"]
 
       selected = fallback_manager.send(:select_model, available_models, strategy, fallback_info)
@@ -404,7 +404,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
     end
 
     it "selects model using health-based strategy" do
-      strategy = { selection_strategy: :health_based }
+      strategy = {selection_strategy: :health_based}
       available_models = ["model2"]
 
       selected = fallback_manager.send(:select_model, available_models, strategy, fallback_info)
@@ -510,7 +510,7 @@ RSpec.describe Aidp::Harness::FallbackManager do
 
       it "selects providers using load balancing" do
         providers = ["claude", "gemini", "cursor"]
-        strategy = { name: "test" }
+        strategy = {name: "test"}
 
         selected = load_balancer.select_provider(providers, strategy)
 

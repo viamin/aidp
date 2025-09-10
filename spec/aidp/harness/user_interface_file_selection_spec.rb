@@ -61,14 +61,14 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#determine_search_paths" do
       it "returns default paths when no directories specified" do
-        search_options = { directories: [] }
+        search_options = {directories: []}
         paths = ui.determine_search_paths(search_options)
 
         expect(paths).to include(".", "lib", "spec", "app", "src", "docs", "templates")
       end
 
       it "returns specified directories when provided" do
-        search_options = { directories: ["lib", "spec"] }
+        search_options = {directories: ["lib", "spec"]}
         paths = ui.determine_search_paths(search_options)
 
         expect(paths).to eq(["lib", "spec"])
@@ -77,14 +77,14 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#build_glob_pattern" do
       it "builds pattern for specific extensions" do
-        search_options = { extensions: [".rb", ".js"] }
+        search_options = {extensions: [".rb", ".js"]}
         pattern = ui.build_glob_pattern("lib", search_options)
 
         expect(pattern).to eq("lib/**/*{.rb,.js}")
       end
 
       it "builds pattern for all files" do
-        search_options = { extensions: [] }
+        search_options = {extensions: []}
         pattern = ui.build_glob_pattern("lib", search_options)
 
         expect(pattern).to eq("lib/**/*")
@@ -93,7 +93,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#matches_filters?" do
       it "matches files by term" do
-        search_options = { term: "config", case_sensitive: false }
+        search_options = {term: "config", case_sensitive: false}
 
         expect(ui.matches_filters?("config.yml", search_options)).to be true
         expect(ui.matches_filters?("app_config.rb", search_options)).to be true
@@ -101,7 +101,7 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "matches files by patterns" do
-        search_options = { patterns: ["config", "spec"], case_sensitive: false }
+        search_options = {patterns: ["config", "spec"], case_sensitive: false}
 
         expect(ui.matches_filters?("config.yml", search_options)).to be true
         expect(ui.matches_filters?("spec_helper.rb", search_options)).to be true
@@ -109,14 +109,14 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles case sensitivity" do
-        search_options = { term: "Config", case_sensitive: true }
+        search_options = {term: "Config", case_sensitive: true}
 
         expect(ui.matches_filters?("Config.yml", search_options)).to be true
         expect(ui.matches_filters?("config.yml", search_options)).to be false
       end
 
       it "matches all files when term is empty" do
-        search_options = { term: "", case_sensitive: false }
+        search_options = {term: "", case_sensitive: false}
 
         expect(ui.matches_filters?("any_file.rb", search_options)).to be true
         expect(ui.matches_filters?("another_file.js", search_options)).to be true
@@ -126,7 +126,7 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#sort_files" do
       it "sorts files by relevance" do
         files = ["config.yml", "app_config.rb", "README.md"]
-        search_options = { term: "config" }
+        search_options = {term: "config"}
 
         sorted = ui.sort_files(files, search_options)
 
@@ -137,7 +137,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "prioritizes file types" do
         files = ["script.sh", "app.rb", "data.json"]
-        search_options = { term: "" }
+        search_options = {term: ""}
 
         sorted = ui.sort_files(files, search_options)
 
@@ -148,7 +148,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "prioritizes directories" do
         files = ["README.md", "lib/app.rb", "spec/app_spec.rb"]
-        search_options = { term: "" }
+        search_options = {term: ""}
 
         sorted = ui.sort_files(files, search_options)
 

@@ -40,12 +40,12 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "validates number input with range validation" do
-        result = ui.validate_input_type("5", "number", { min: 1, max: 10 })
+        result = ui.validate_input_type("5", "number", {min: 1, max: 10})
         expect(result[:valid]).to be true
       end
 
       it "validates number input with range errors" do
-        result = ui.validate_input_type("15", "number", { min: 1, max: 10 })
+        result = ui.validate_input_type("15", "number", {min: 1, max: 10})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Number must be at most 10")
       end
@@ -95,19 +95,19 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "validates text input with length validation" do
-        result = ui.validate_input_type("Hi", "text", { min_length: 5, max_length: 10 })
+        result = ui.validate_input_type("Hi", "text", {min_length: 5, max_length: 10})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Text must be at least 5 characters")
       end
 
       it "validates choice input correctly" do
-        result = ui.validate_input_type("1", "choice", { choices: ["Option A", "Option B"] })
+        result = ui.validate_input_type("1", "choice", {choices: ["Option A", "Option B"]})
         expect(result[:valid]).to be true
         expect(result[:error_message]).to be_nil
       end
 
       it "validates choice input with errors" do
-        result = ui.validate_input_type("5", "choice", { choices: ["Option A", "Option B"] })
+        result = ui.validate_input_type("5", "choice", {choices: ["Option A", "Option B"]})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Invalid selection number")
         expect(result[:suggestions]).to include("Enter a number between 1 and 2")
@@ -223,10 +223,10 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "validates number ranges" do
-        result = ui.validate_number("5", { min: 1, max: 10 })
+        result = ui.validate_number("5", {min: 1, max: 10})
         expect(result[:valid]).to be true
 
-        result = ui.validate_number("15", { min: 1, max: 10 })
+        result = ui.validate_number("15", {min: 1, max: 10})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Number must be at most 10")
       end
@@ -259,16 +259,16 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "validates float ranges" do
-        result = ui.validate_float("5.5", { min: 1.0, max: 10.0 })
+        result = ui.validate_float("5.5", {min: 1.0, max: 10.0})
         expect(result[:valid]).to be true
 
-        result = ui.validate_float("15.5", { min: 1.0, max: 10.0 })
+        result = ui.validate_float("15.5", {min: 1.0, max: 10.0})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Number must be at most 10.0")
       end
 
       it "validates precision" do
-        result = ui.validate_float("3.14159", { precision: 2 })
+        result = ui.validate_float("3.14159", {precision: 2})
         expect(result[:valid]).to be true
         expect(result[:warnings]).to include("Number has more decimal places than expected (5 > 2)")
       end
@@ -320,10 +320,10 @@ RSpec.describe Aidp::Harness::UserInterface do
         temp_file = Tempfile.new(["test", ".txt"])
         temp_file.close
 
-        result = ui.validate_file_path(temp_file.path, { allowed_extensions: [".txt", ".md"] })
+        result = ui.validate_file_path(temp_file.path, {allowed_extensions: [".txt", ".md"]})
         expect(result[:valid]).to be true
 
-        result = ui.validate_file_path(temp_file.path, { allowed_extensions: [".rb", ".js"] })
+        result = ui.validate_file_path(temp_file.path, {allowed_extensions: [".rb", ".js"]})
         expect(result[:valid]).to be true
         expect(result[:warnings]).to include("Unexpected file extension: .txt")
 
@@ -346,32 +346,32 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#validate_text" do
       it "validates text with length constraints" do
-        result = ui.validate_text("Hello", { min_length: 3, max_length: 10 })
+        result = ui.validate_text("Hello", {min_length: 3, max_length: 10})
         expect(result[:valid]).to be true
 
-        result = ui.validate_text("Hi", { min_length: 3, max_length: 10 })
+        result = ui.validate_text("Hi", {min_length: 3, max_length: 10})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Text must be at least 3 characters")
 
-        result = ui.validate_text("Hello World", { min_length: 3, max_length: 10 })
+        result = ui.validate_text("Hello World", {min_length: 3, max_length: 10})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Text must be at most 10 characters")
       end
 
       it "validates text with patterns" do
-        result = ui.validate_text("ABC123", { pattern: /\A[A-Z0-9]+\z/ })
+        result = ui.validate_text("ABC123", {pattern: /\A[A-Z0-9]+\z/})
         expect(result[:valid]).to be true
 
-        result = ui.validate_text("abc123", { pattern: /\A[A-Z0-9]+\z/ })
+        result = ui.validate_text("abc123", {pattern: /\A[A-Z0-9]+\z/})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Text does not match required pattern")
       end
 
       it "validates text with forbidden words" do
-        result = ui.validate_text("Hello World", { forbidden_words: ["bad", "inappropriate"] })
+        result = ui.validate_text("Hello World", {forbidden_words: ["bad", "inappropriate"]})
         expect(result[:valid]).to be true
 
-        result = ui.validate_text("This is bad", { forbidden_words: ["bad", "inappropriate"] })
+        result = ui.validate_text("This is bad", {forbidden_words: ["bad", "inappropriate"]})
         expect(result[:valid]).to be true
         expect(result[:warnings]).to include("Text contains potentially inappropriate content")
       end
@@ -379,24 +379,24 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#validate_choice" do
       it "validates numeric choices" do
-        result = ui.validate_choice("1", { choices: ["Option A", "Option B"] })
+        result = ui.validate_choice("1", {choices: ["Option A", "Option B"]})
         expect(result[:valid]).to be true
 
-        result = ui.validate_choice("2", { choices: ["Option A", "Option B"] })
+        result = ui.validate_choice("2", {choices: ["Option A", "Option B"]})
         expect(result[:valid]).to be true
       end
 
       it "validates text choices" do
-        result = ui.validate_choice("Option A", { choices: ["Option A", "Option B"] })
+        result = ui.validate_choice("Option A", {choices: ["Option A", "Option B"]})
         expect(result[:valid]).to be true
       end
 
       it "validates invalid choices" do
-        result = ui.validate_choice("5", { choices: ["Option A", "Option B"] })
+        result = ui.validate_choice("5", {choices: ["Option A", "Option B"]})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Invalid selection number")
 
-        result = ui.validate_choice("Option C", { choices: ["Option A", "Option B"] })
+        result = ui.validate_choice("Option C", {choices: ["Option A", "Option B"]})
         expect(result[:valid]).to be false
         expect(result[:error_message]).to eq("Invalid choice")
       end
@@ -450,7 +450,7 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#handle_input_error" do
       it "handles input errors with retry options" do
         error = StandardError.new("Test error")
-        question_data = { question: "Test question", type: "text" }
+        question_data = {question: "Test question", type: "text"}
 
         # Mock Readline to return "1" (try again)
         allow(Readline).to receive(:readline).and_return("1")
@@ -461,7 +461,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "handles maximum retries exceeded" do
         error = StandardError.new("Test error")
-        question_data = { question: "Test question", type: "text" }
+        question_data = {question: "Test question", type: "text"}
 
         result = ui.handle_input_error(error, question_data, 3)
         expect(result).to eq(:skip)
@@ -470,7 +470,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#show_question_help" do
       it "shows help for text questions" do
-        question_data = { question: "What is your name?", type: "text" }
+        question_data = {question: "What is your name?", type: "text"}
 
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")
@@ -480,7 +480,7 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "shows help for choice questions" do
-        question_data = { question: "Choose an option:", type: "choice" }
+        question_data = {question: "Choose an option:", type: "choice"}
 
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")

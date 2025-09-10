@@ -84,13 +84,11 @@ module Aidp
       private
 
       def get_provider(provider_type)
-        begin
-          require_relative "../provider_manager"
-          Aidp::ProviderManager.get_provider(provider_type)
-        rescue => e
-          log_harness_error("Failed to get provider #{provider_type}: #{e.message}")
-          nil
-        end
+        require_relative "../provider_manager"
+        Aidp::ProviderManager.get_provider(provider_type)
+      rescue => e
+        log_harness_error("Failed to get provider #{provider_type}: #{e.message}")
+        nil
       end
 
       def get_harness_runner
@@ -156,8 +154,6 @@ module Aidp
           result[:token_usage]
         elsif result[:usage]
           result[:usage]
-        else
-          nil
         end
       end
 
@@ -174,31 +170,29 @@ module Aidp
       end
 
       def store_step_result(result)
-        begin
-          require_relative "../database_connection"
+        require_relative "../database_connection"
 
-          Aidp::DatabaseConnection.connection.exec_params(
-            <<~SQL,
-              INSERT INTO harness_step_results (
-                step_name, provider_type, result_data, token_usage,
-                rate_limited, executed_at, job_id, created_at
-              )
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            SQL
-            [
-              result[:step_name],
-              result[:provider_type],
-              result[:result].to_json,
-              result[:token_usage]&.to_json,
-              result[:rate_limited],
-              result[:executed_at],
-              result[:job_id],
-              Time.now
-            ]
-          )
-        rescue => e
-          log_harness_warning("Could not store step result: #{e.message}")
-        end
+        Aidp::DatabaseConnection.connection.exec_params(
+          <<~SQL,
+            INSERT INTO harness_step_results (
+              step_name, provider_type, result_data, token_usage,
+              rate_limited, executed_at, job_id, created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          SQL
+          [
+            result[:step_name],
+            result[:provider_type],
+            result[:result].to_json,
+            result[:token_usage]&.to_json,
+            result[:rate_limited],
+            result[:executed_at],
+            result[:job_id],
+            Time.now
+          ]
+        )
+      rescue => e
+        log_harness_warning("Could not store step result: #{e.message}")
       end
 
       def cleanup_on_cancellation

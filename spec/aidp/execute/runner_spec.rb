@@ -47,10 +47,10 @@ RSpec.describe Aidp::Execute::Runner do
 
   describe "step execution" do
     let(:step_name) { "00_PRD" }
-    let(:options) { { mock_mode: true } }
+    let(:options) { {mock_mode: true} }
 
     it "executes step in harness mode" do
-      allow(runner).to receive(:run_step_with_harness).and_return({ status: "completed" })
+      allow(runner).to receive(:run_step_with_harness).and_return({status: "completed"})
 
       result = runner.run_step(step_name, options)
 
@@ -59,7 +59,7 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "executes step in standalone mode" do
-      allow(standalone_runner).to receive(:run_step_standalone).and_return({ status: "completed" })
+      allow(standalone_runner).to receive(:run_step_standalone).and_return({status: "completed"})
 
       result = standalone_runner.run_step(step_name, options)
 
@@ -72,7 +72,7 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "handles mock mode execution" do
-      result = runner.run_step(step_name, { mock_mode: true })
+      result = runner.run_step(step_name, {mock_mode: true})
 
       expect(result[:status]).to eq("completed")
       expect(result[:provider]).to eq("mock")
@@ -81,7 +81,7 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "handles mock mode with simulated error" do
-      result = runner.run_step(step_name, { mock_mode: true, simulate_error: "Test error" })
+      result = runner.run_step(step_name, {mock_mode: true, simulate_error: "Test error"})
 
       expect(result[:status]).to eq("error")
       expect(result[:error]).to eq("Test error")
@@ -227,12 +227,12 @@ RSpec.describe Aidp::Execute::Runner do
 
   describe "harness-aware step execution" do
     let(:step_name) { "00_PRD" }
-    let(:options) { { user_input: { "project_name" => "Test Project" } } }
+    let(:options) { {user_input: {"project_name" => "Test Project"}} }
 
     before do
       allow(harness_runner).to receive(:instance_variable_get).with(:@current_provider).and_return("claude")
       allow(harness_runner).to receive(:instance_variable_get).with(:@current_step).and_return("00_PRD")
-      allow(harness_runner).to receive(:instance_variable_get).with(:@user_input).and_return({ "project_name" => "Test Project" })
+      allow(harness_runner).to receive(:instance_variable_get).with(:@user_input).and_return({"project_name" => "Test Project"})
       allow(harness_runner).to receive(:instance_variable_get).with(:@execution_log).and_return([])
       allow(harness_runner).to receive(:instance_variable_get).with(:@provider_manager).and_return(instance_double("ProviderManager"))
     end
@@ -240,9 +240,9 @@ RSpec.describe Aidp::Execute::Runner do
     it "executes step with harness context" do
       provider_manager = instance_double("ProviderManager")
       allow(harness_runner).to receive(:instance_variable_get).with(:@provider_manager).and_return(provider_manager)
-      allow(provider_manager).to receive(:execute_with_provider).and_return({ status: "completed", output: "Test output" })
+      allow(provider_manager).to receive(:execute_with_provider).and_return({status: "completed", output: "Test output"})
 
-      result = runner.run_step_with_harness(step_name, options)
+      runner.run_step_with_harness(step_name, options)
 
       expect(provider_manager).to have_received(:execute_with_provider).with(
         "claude",
@@ -267,7 +267,7 @@ RSpec.describe Aidp::Execute::Runner do
         status: "completed",
         provider: "claude",
         output: "Test output",
-        token_usage: { input: 100, output: 200 }
+        token_usage: {input: 100, output: 200}
       }
 
       processed_result = runner.send(:process_result_for_harness, raw_result, step_name, options)
@@ -284,7 +284,7 @@ RSpec.describe Aidp::Execute::Runner do
       expect(processed_result[:provider]).to eq("claude")
       expect(processed_result[:step_name]).to eq(step_name)
       expect(processed_result[:output]).to eq("Test output")
-      expect(processed_result[:token_usage]).to eq({ input: 100, output: 200 })
+      expect(processed_result[:token_usage]).to eq({input: 100, output: 200})
       expect(processed_result[:metadata][:harness_mode]).to be true
       expect(processed_result[:metadata][:project_dir]).to eq(project_dir)
     end
@@ -305,13 +305,13 @@ RSpec.describe Aidp::Execute::Runner do
       raw_result = {
         status: "rate_limited",
         rate_limited: true,
-        rate_limit_info: { reset_time: Time.now + 300 }
+        rate_limit_info: {reset_time: Time.now + 300}
       }
 
       processed_result = runner.send(:process_result_for_harness, raw_result, step_name, options)
 
       expect(processed_result[:rate_limited]).to be true
-      expect(processed_result[:rate_limit_info]).to eq({ reset_time: Time.now + 300 })
+      expect(processed_result[:rate_limit_info]).to eq({reset_time: Time.now + 300})
     end
 
     it "handles user feedback requests" do
@@ -330,7 +330,7 @@ RSpec.describe Aidp::Execute::Runner do
 
   describe "template composition" do
     let(:step_name) { "00_PRD" }
-    let(:options) { { project_name: "Test Project", description: "Test Description" } }
+    let(:options) { {project_name: "Test Project", description: "Test Description"} }
 
     before do
       allow(runner).to receive(:find_template).and_return("/path/to/template.md")
@@ -377,7 +377,7 @@ RSpec.describe Aidp::Execute::Runner do
 
     before do
       allow(Aidp::Jobs::ProviderExecutionJob).to receive(:enqueue).and_return(123)
-      allow(standalone_runner).to receive(:wait_for_job_completion).and_return({ status: "completed" })
+      allow(standalone_runner).to receive(:wait_for_job_completion).and_return({status: "completed"})
     end
 
     it "enqueues job for standalone execution" do
@@ -432,8 +432,8 @@ RSpec.describe Aidp::Execute::Runner do
 
   describe "mock mode detection" do
     it "detects mock mode from options" do
-      expect(runner.send(:should_use_mock_mode?, { mock_mode: true })).to be true
-      expect(runner.send(:should_use_mock_mode?, { mock_mode: false })).to be false
+      expect(runner.send(:should_use_mock_mode?, {mock_mode: true})).to be true
+      expect(runner.send(:should_use_mock_mode?, {mock_mode: false})).to be false
     end
 
     it "detects mock mode from environment" do

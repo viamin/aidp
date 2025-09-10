@@ -50,7 +50,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       # Condition detector initialization
       times[:condition_detector] = Benchmark.realtime do
         condition_detector = Aidp::Harness::ConditionDetector.new
-        condition_detector.is_rate_limited?({ message: "test" })
+        condition_detector.is_rate_limited?({message: "test"})
       end
 
       # User interface initialization
@@ -81,7 +81,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       provider_manager = Aidp::Harness::ProviderManager.new(configuration)
       error_handler = Aidp::Harness::ErrorHandler.new(provider_manager, configuration)
       condition_detector = Aidp::Harness::ConditionDetector.new
-      user_interface = Aidp::Harness::UserInterface.new
+      Aidp::Harness::UserInterface.new
       status_display = Aidp::Harness::StatusDisplay.new
 
       # Measure basic operation times
@@ -109,9 +109,9 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       # Condition detection
       times[:condition_detection] = Benchmark.realtime do
         100.times do
-          condition_detector.is_rate_limited?({ message: "Rate limit exceeded" })
-          condition_detector.needs_user_feedback?({ message: "Please provide input" })
-          condition_detector.is_work_complete?({ message: "Work completed" }, nil)
+          condition_detector.is_rate_limited?({message: "Rate limit exceeded"})
+          condition_detector.needs_user_feedback?({message: "Please provide input"})
+          condition_detector.is_work_complete?({message: "Work completed"}, nil)
         end
       end
 
@@ -178,7 +178,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
         times[count] = Benchmark.realtime do
           count.times do
             provider_manager.switch_provider
-            condition_detector.is_rate_limited?({ message: "test" })
+            condition_detector.is_rate_limited?({message: "test"})
             status_display.get_status_data
           end
         end
@@ -212,7 +212,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
         time = Benchmark.realtime do
           100.times do
             provider_manager.switch_provider
-            condition_detector.is_rate_limited?({ message: "test" })
+            condition_detector.is_rate_limited?({message: "test"})
           end
         end
         run_times << time
@@ -222,7 +222,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       average_time = run_times.sum / run_times.size
       min_time = run_times.min
       max_time = run_times.max
-      variance = run_times.map { |t| (t - average_time) ** 2 }.sum / run_times.size
+      variance = run_times.map { |t| (t - average_time)**2 }.sum / run_times.size
       standard_deviation = Math.sqrt(variance)
 
       # Performance should be consistent
@@ -349,7 +349,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
 
       # Condition detection
       actual_times[:condition_detection] = Benchmark.realtime do
-        condition_detector.is_rate_limited?({ message: "test" })
+        condition_detector.is_rate_limited?({message: "test"})
       end
 
       # Status retrieval

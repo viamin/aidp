@@ -36,8 +36,8 @@ RSpec.describe Aidp::Harness::MetricsManager do
   end
 
   describe "request recording" do
-    let(:request_data) { { prompt: "test prompt", max_tokens: 100 } }
-    let(:response_data) { { response: "test response", token_count: 50 } }
+    let(:request_data) { {prompt: "test prompt", max_tokens: 100} }
+    let(:response_data) { {response: "test response", token_count: 50} }
 
     it "records a successful request" do
       event = metrics_manager.record_request("claude", "model1", request_data, response_data, 1.5, true)
@@ -60,7 +60,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
     end
 
     it "sanitizes sensitive data from request" do
-      sensitive_request = { prompt: "test", api_key: "secret", password: "password" }
+      sensitive_request = {prompt: "test", api_key: "secret", password: "password"}
       event = metrics_manager.record_request("claude", "model1", sensitive_request, response_data, 1.0, true)
 
       expect(event[:request_data]).not_to include(:api_key, :password)
@@ -68,7 +68,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
     end
 
     it "sanitizes sensitive data from response" do
-      sensitive_response = { response: "test", api_key: "secret", token: "token" }
+      sensitive_response = {response: "test", api_key: "secret", token: "token"}
       event = metrics_manager.record_request("claude", "model1", request_data, sensitive_response, 1.0, true)
 
       expect(event[:response_data]).not_to include(:api_key, :token)
@@ -78,7 +78,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
 
   describe "provider switch recording" do
     it "records provider switch event" do
-      event = metrics_manager.record_provider_switch("claude", "gemini", "rate_limit", { switch_duration: 0.5 })
+      event = metrics_manager.record_provider_switch("claude", "gemini", "rate_limit", {switch_duration: 0.5})
 
       expect(event[:event_type]).to eq("provider_switch")
       expect(event[:from_provider]).to eq("claude")
@@ -90,7 +90,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
 
   describe "model switch recording" do
     it "records model switch event" do
-      event = metrics_manager.record_model_switch("claude", "model1", "model2", "performance", { switch_duration: 0.3 })
+      event = metrics_manager.record_model_switch("claude", "model1", "model2", "performance", {switch_duration: 0.3})
 
       expect(event[:event_type]).to eq("model_switch")
       expect(event[:provider]).to eq("claude")
@@ -111,7 +111,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
     end
 
     it "records rate limit event" do
-      event = metrics_manager.record_rate_limit("claude", "model1", rate_limit_info, { context: "test" })
+      event = metrics_manager.record_rate_limit("claude", "model1", rate_limit_info, {context: "test"})
 
       expect(event[:event_type]).to eq("rate_limit")
       expect(event[:provider]).to eq("claude")
@@ -409,8 +409,8 @@ RSpec.describe Aidp::Harness::MetricsManager do
   describe "benchmark management" do
     it "sets up benchmarks" do
       benchmark_config = {
-        response_time: { threshold: 2.0 },
-        success_rate: { threshold: 0.95 }
+        response_time: {threshold: 2.0},
+        success_rate: {threshold: 0.95}
       }
 
       expect { metrics_manager.setup_benchmarks(benchmark_config) }.not_to raise_error
@@ -432,8 +432,8 @@ RSpec.describe Aidp::Harness::MetricsManager do
   describe "alert management" do
     it "configures alerts" do
       alert_config = {
-        response_time: { threshold: 5.0, severity: "warning" },
-        error_rate: { threshold: 0.1, severity: "critical" }
+        response_time: {threshold: 5.0, severity: "warning"},
+        error_rate: {threshold: 0.1, severity: "critical"}
       }
 
       expect { metrics_manager.configure_alerts(alert_config) }.not_to raise_error
@@ -471,7 +471,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
       let(:metrics_store) { described_class::MetricsStore.new }
 
       it "stores and retrieves events" do
-        event = { event_type: "request", timestamp: Time.now, provider: "claude" }
+        event = {event_type: "request", timestamp: Time.now, provider: "claude"}
 
         metrics_store.store_event(event)
         events = metrics_store.get_events("request", "claude")
@@ -480,8 +480,8 @@ RSpec.describe Aidp::Harness::MetricsManager do
       end
 
       it "filters events by time range" do
-        old_event = { event_type: "request", timestamp: Time.now - 3600, provider: "claude" }
-        new_event = { event_type: "request", timestamp: Time.now, provider: "claude" }
+        old_event = {event_type: "request", timestamp: Time.now - 3600, provider: "claude"}
+        new_event = {event_type: "request", timestamp: Time.now, provider: "claude"}
 
         metrics_store.store_event(old_event)
         metrics_store.store_event(new_event)
@@ -494,7 +494,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
       end
 
       it "updates real-time metrics" do
-        event = { success: true, duration: 1.5 }
+        event = {success: true, duration: 1.5}
 
         metrics_store.update_realtime_metrics("claude", "model1", event)
 
@@ -508,9 +508,9 @@ RSpec.describe Aidp::Harness::MetricsManager do
 
       it "calculates performance score" do
         events = [
-          { success: true, duration: 1.0 },
-          { success: true, duration: 2.0 },
-          { success: false, duration: 3.0 }
+          {success: true, duration: 1.0},
+          {success: true, duration: 2.0},
+          {success: false, duration: 3.0}
         ]
 
         score = analyzer.calculate_performance_score(events)
@@ -521,9 +521,9 @@ RSpec.describe Aidp::Harness::MetricsManager do
 
       it "calculates reliability score" do
         events = [
-          { success: true },
-          { success: true },
-          { success: false }
+          {success: true},
+          {success: true},
+          {success: false}
         ]
 
         score = analyzer.calculate_reliability_score(events)
@@ -533,12 +533,12 @@ RSpec.describe Aidp::Harness::MetricsManager do
 
       it "calculates system health score" do
         request_events = [
-          { success: true },
-          { success: true },
-          { success: false }
+          {success: true},
+          {success: true},
+          {success: false}
         ]
-        switch_events = [{ type: "switch" }]
-        rate_limit_events = [{ type: "rate_limit" }]
+        switch_events = [{type: "switch"}]
+        rate_limit_events = [{type: "rate_limit"}]
 
         score = analyzer.calculate_system_health_score(request_events, switch_events, rate_limit_events)
 
@@ -585,7 +585,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
       let(:alert_manager) { described_class::AlertManager.new }
 
       it "configures alerts" do
-        config = { response_time: { threshold: 5.0 } }
+        config = {response_time: {threshold: 5.0}}
 
         expect { alert_manager.configure_alerts(config) }.not_to raise_error
       end
@@ -611,7 +611,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
       let(:generator) { described_class::ReportGenerator.new }
 
       it "generates JSON reports" do
-        data = { test: "data" }
+        data = {test: "data"}
         report = generator.generate_report(data, :json)
 
         expect(report).to be_a(String)
@@ -619,7 +619,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
       end
 
       it "generates YAML reports" do
-        data = { test: "data" }
+        data = {test: "data"}
         report = generator.generate_report(data, :yaml)
 
         expect(report).to be_a(String)
@@ -627,7 +627,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
       end
 
       it "generates CSV reports" do
-        data = { test: "data" }
+        data = {test: "data"}
         report = generator.generate_report(data, :csv)
 
         expect(report).to be_a(String)
@@ -650,7 +650,7 @@ RSpec.describe Aidp::Harness::MetricsManager do
       let(:benchmark_manager) { described_class::BenchmarkManager.new }
 
       it "sets up benchmarks" do
-        config = { response_time: { threshold: 2.0 } }
+        config = {response_time: {threshold: 2.0}}
 
         expect { benchmark_manager.setup_benchmarks(config) }.not_to raise_error
       end

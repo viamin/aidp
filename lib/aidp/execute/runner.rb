@@ -181,7 +181,7 @@ module Aidp
           context_parts << "\n## Execution History"
           recent_logs = execution_log.last(5) # Last 5 entries
           recent_logs.each do |log|
-            context_parts << "- #{log[:message]} (#{log[:timestamp].strftime('%H:%M:%S')})"
+            context_parts << "- #{log[:message]} (#{log[:timestamp].strftime("%H:%M:%S")})"
           end
         end
 
@@ -194,13 +194,11 @@ module Aidp
         provider_manager = @harness_runner.instance_variable_get(:@provider_manager)
 
         # Execute with provider
-        result = provider_manager.execute_with_provider(provider_type, prompt, {
+        provider_manager.execute_with_provider(provider_type, prompt, {
           step_name: step_name,
           project_dir: @project_dir,
           harness_mode: true
         })
-
-        result
       end
 
       # Process result for harness consumption

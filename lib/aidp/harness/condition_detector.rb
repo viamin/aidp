@@ -315,7 +315,7 @@ module Aidp
           result[:body]
         ].compact.join(" ")
 
-        feedback_info = {
+        {
           detected_at: Time.now,
           feedback_type: detect_feedback_type(text_content),
           questions: extract_questions(result),
@@ -323,8 +323,6 @@ module Aidp
           urgency: detect_urgency(text_content),
           input_type: detect_input_type(text_content)
         }
-
-        feedback_info
       end
 
       # Detect the type of feedback needed
@@ -485,7 +483,7 @@ module Aidp
 
         # Check if all steps are completed
         if progress && progress.completed_steps && progress.total_steps &&
-           progress.completed_steps.size == progress.total_steps
+            progress.completed_steps.size == progress.total_steps
           return true
         end
 
@@ -525,7 +523,7 @@ module Aidp
 
         # Check progress-based completion
         if progress && progress.completed_steps && progress.total_steps &&
-           progress.completed_steps.size == progress.total_steps
+            progress.completed_steps.size == progress.total_steps
           completion_info[:is_complete] = true
           completion_info[:completion_type] = "all_steps_completed"
           completion_info[:confidence] = 1.0
@@ -816,7 +814,7 @@ module Aidp
         if error_message.match?(/timeout/i) || error_class.include?("timeout")
           :timeout
         elsif error_message.match?(/connection/i) || error_message.match?(/network/i) ||
-              error_class.include?("connection") || error_class.include?("network")
+            error_class.include?("connection") || error_class.include?("network")
           :network
         elsif error_message.match?(/dns/i) || error_message.match?(/resolve/i)
           :dns_resolution
@@ -825,10 +823,10 @@ module Aidp
 
         # Authentication and authorization errors
         elsif error_message.match?(/authentication/i) || error_message.match?(/unauthorized/i) ||
-              error_message.match?(/401/i) || error_class.include?("authentication")
+            error_message.match?(/401/i) || error_class.include?("authentication")
           :authentication
         elsif error_message.match?(/permission/i) || error_message.match?(/forbidden/i) ||
-              error_message.match?(/403/i) || error_class.include?("permission")
+            error_message.match?(/403/i) || error_class.include?("permission")
           :permission
         elsif error_message.match?(/access.*denied/i) || error_message.match?(/insufficient.*privileges/i)
           :access_denied
@@ -837,13 +835,13 @@ module Aidp
         elsif error_message.match?(/not found/i) || error_message.match?(/404/i)
           :not_found
         elsif error_message.match?(/server error/i) || error_message.match?(/500/i) ||
-              error_message.match?(/internal.*error/i)
+            error_message.match?(/internal.*error/i)
           :server_error
         elsif error_message.match?(/bad request/i) || error_message.match?(/400/i) ||
-              error_message.match?(/invalid.*request/i)
+            error_message.match?(/invalid.*request/i)
           :bad_request
         elsif error_message.match?(/rate limit/i) || error_message.match?(/429/i) ||
-              error_message.match?(/too many requests/i)
+            error_message.match?(/too many requests/i)
           :rate_limit
         elsif error_message.match?(/quota.*exceeded/i) || error_message.match?(/usage.*limit/i)
           :quota_exceeded
@@ -860,14 +858,14 @@ module Aidp
 
         # Memory and resource errors
         elsif error_message.match?(/memory/i) || error_message.match?(/out of memory/i) ||
-              error_class.include?("memory")
+            error_class.include?("memory")
           :memory_error
         elsif error_message.match?(/resource.*unavailable/i) || error_message.match?(/resource.*exhausted/i)
           :resource_exhausted
 
         # Configuration and setup errors
         elsif error_message.match?(/configuration/i) || error_message.match?(/config/i) ||
-              error_class.include?("configuration")
+            error_class.include?("configuration")
           :configuration
         elsif error_message.match?(/missing.*dependency/i) || error_message.match?(/gem.*not found/i)
           :missing_dependency
@@ -886,14 +884,14 @@ module Aidp
 
         # Parsing and format errors
         elsif error_message.match?(/parse/i) || error_message.match?(/json/i) ||
-              error_message.match?(/syntax/i) || error_class.include?("parse")
+            error_message.match?(/syntax/i) || error_class.include?("parse")
           :parsing_error
         elsif error_message.match?(/format/i) || error_message.match?(/invalid.*format/i)
           :format_error
 
         # Validation errors
         elsif error_message.match?(/validation/i) || error_message.match?(/invalid.*input/i) ||
-              error_class.include?("validation")
+            error_class.include?("validation")
           :validation_error
         elsif error_message.match?(/argument/i) || error_message.match?(/parameter/i)
           :argument_error
@@ -902,7 +900,7 @@ module Aidp
         elsif error_message.match?(/system/i) || error_class.include?("system")
           :system_error
         elsif error_message.match?(/interrupt/i) || error_message.match?(/sigint/i) ||
-              error_class.include?("interrupt")
+            error_class.include?("interrupt")
           :interrupted
 
         else
@@ -990,7 +988,7 @@ module Aidp
 
         case retry_strategy[:strategy]
         when :exponential_backoff
-          retry_strategy[:base_delay] * (2 ** (attempt_number - 1))
+          retry_strategy[:base_delay] * (2**(attempt_number - 1))
         when :fixed_delay
           retry_strategy[:delay]
         when :no_retry
@@ -1471,8 +1469,8 @@ module Aidp
         return false unless completion_info
 
         !completion_info[:is_complete] &&
-        completion_info[:progress_status] != "waiting_for_input" &&
-        completion_info[:progress_status] != "has_errors"
+          completion_info[:progress_status] != "waiting_for_input" &&
+          completion_info[:progress_status] != "has_errors"
       end
 
       # Check if work is waiting for input
@@ -1480,7 +1478,7 @@ module Aidp
         return false unless completion_info
 
         completion_info[:progress_status] == "waiting_for_input" ||
-        completion_info[:next_actions].include?("collect_user_input")
+          completion_info[:next_actions].include?("collect_user_input")
       end
 
       # Check if work has errors
@@ -1488,7 +1486,7 @@ module Aidp
         return false unless completion_info
 
         completion_info[:progress_status] == "has_errors" ||
-        completion_info[:next_actions].include?("handle_errors")
+          completion_info[:next_actions].include?("handle_errors")
       end
 
       # Get progress status description

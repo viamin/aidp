@@ -440,7 +440,7 @@ RSpec.describe Aidp::Harness::TokenMonitor do
   describe "quota status" do
     before do
       monitor.record_token_usage("claude", "claude-3-5-sonnet", 100, 200, 0.01)
-      monitor.set_token_limits("claude", "claude-3-5-sonnet", { daily_limit: 10000, monthly_limit: 100000 })
+      monitor.set_token_limits("claude", "claude-3-5-sonnet", {daily_limit: 10000, monthly_limit: 100000})
     end
 
     it "gets quota status for specific model" do
@@ -617,7 +617,7 @@ RSpec.describe Aidp::Harness::TokenMonitor do
     end
 
     it "exports token data with options" do
-      export = monitor.export_token_data(:json, { pretty: true })
+      export = monitor.export_token_data(:json, {pretty: true})
 
       expect(export).to be_a(String)
     end
@@ -661,7 +661,7 @@ RSpec.describe Aidp::Harness::TokenMonitor do
 
   describe "token limits management" do
     it "sets token limits for provider and model" do
-      limits = { daily_limit: 10000, monthly_limit: 100000 }
+      limits = {daily_limit: 10000, monthly_limit: 100000}
       monitor.set_token_limits("claude", "claude-3-5-sonnet", limits)
 
       retrieved_limits = monitor.get_token_limits("claude", "claude-3-5-sonnet")
@@ -669,7 +669,7 @@ RSpec.describe Aidp::Harness::TokenMonitor do
     end
 
     it "gets token limits for provider" do
-      limits = { daily_limit: 10000, monthly_limit: 100000 }
+      limits = {daily_limit: 10000, monthly_limit: 100000}
       monitor.set_token_limits("claude", "claude-3-5-sonnet", limits)
 
       provider_limits = monitor.get_token_limits("claude")

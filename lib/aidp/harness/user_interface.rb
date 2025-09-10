@@ -114,7 +114,7 @@ module Aidp
         puts "  Total questions: #{total_questions}"
         puts "  Required: #{required_questions}"
         puts "  Optional: #{optional_questions}"
-        puts "  Question types: #{question_types.join(', ')}"
+        puts "  Question types: #{question_types.join(", ")}"
 
         # Estimate completion time
         estimated_time = estimate_completion_time(questions)
@@ -151,23 +151,23 @@ module Aidp
         questions.each do |question|
           question_type = question[:type] || "text"
 
-          case question_type
+          total_time += case question_type
           when "text"
-            total_time += 30 # 30 seconds for text input
+            30 # 30 seconds for text input
           when "choice"
-            total_time += 15 # 15 seconds for choice selection
+            15 # 15 seconds for choice selection
           when "confirmation"
-            total_time += 10 # 10 seconds for yes/no
+            10 # 10 seconds for yes/no
           when "file"
-            total_time += 45 # 45 seconds for file selection
+            45 # 45 seconds for file selection
           when "number"
-            total_time += 20 # 20 seconds for number input
+            20 # 20 seconds for number input
           when "email"
-            total_time += 25 # 25 seconds for email input
+            25 # 25 seconds for email input
           when "url"
-            total_time += 30 # 30 seconds for URL input
+            30 # 30 seconds for URL input
           else
-            total_time += 30 # Default 30 seconds
+            30 # Default 30 seconds
           end
         end
 
@@ -372,7 +372,7 @@ module Aidp
           if value.nil? || value.to_s.strip.empty?
             puts "  #{question_number}. [Skipped]"
           else
-            display_value = value.to_s.length > 50 ? "#{value.to_s[0..47]}..." : value.to_s
+            display_value = (value.to_s.length > 50) ? "#{value.to_s[0..47]}..." : value.to_s
             puts "  #{question_number}. #{display_value}"
           end
         end
@@ -404,7 +404,7 @@ module Aidp
 
         # Options
         if options && !options.empty?
-          info_parts << "Options: #{options.join(', ')}"
+          info_parts << "Options: #{options.join(", ")}"
         end
 
         # Default value
@@ -413,13 +413,13 @@ module Aidp
         end
 
         # Required status
-        if required
-          info_parts << "Required: Yes"
+        info_parts << if required
+          "Required: Yes"
         else
-          info_parts << "Required: No"
+          "Required: No"
         end
 
-        puts "   #{info_parts.join(' | ')}"
+        puts "   #{info_parts.join(" | ")}"
       end
 
       # Get response for a specific question with enhanced validation
@@ -470,23 +470,23 @@ module Aidp
           case choice&.strip
           when "1"
             puts "🔄 Retrying..."
-            return :retry
+            :retry
           when "2"
             puts "⏭️  Skipping question..."
-            return :skip
+            :skip
           when "3"
             show_question_help(question_data)
-            return :retry
+            :retry
           when "4"
             puts "❌ Cancelling all questions..."
-            return :cancel
+            :cancel
           else
             puts "❌ Invalid choice. Retrying..."
-            return :retry
+            :retry
           end
         else
           puts "\n❌ Maximum retries exceeded. Skipping question..."
-          return :skip
+          :skip
         end
       end
 
@@ -636,7 +636,7 @@ module Aidp
           end
 
           # Enhanced validation for choice
-          validation_result = validate_input_type(input.strip, "choice", { choices: options })
+          validation_result = validate_input_type(input.strip, "choice", {choices: options})
 
           unless validation_result[:valid]
             display_validation_error(validation_result, "choice")
@@ -660,7 +660,7 @@ module Aidp
 
       # Get confirmation response with enhanced validation
       def get_confirmation_response(default_value, required)
-        default = default_value.nil? ? true : default_value
+        default = default_value.nil? || default_value
         default_text = default ? "Y/n" : "y/N"
         prompt = "Your response [#{default_text}]"
         prompt += required ? ": " : " (optional): "
@@ -861,40 +861,31 @@ module Aidp
 
       # Comprehensive input validation system
       def validate_input_type(input, expected_type, options = {})
-        validation_result = {
-          valid: false,
-          error_message: nil,
-          suggestions: [],
-          warnings: []
-        }
-
         case expected_type
         when "email"
-          validation_result = validate_email(input, options)
+          validate_email(input, options)
         when "url"
-          validation_result = validate_url(input, options)
+          validate_url(input, options)
         when "number", "integer"
-          validation_result = validate_number(input, options)
+          validate_number(input, options)
         when "float", "decimal"
-          validation_result = validate_float(input, options)
+          validate_float(input, options)
         when "boolean"
-          validation_result = validate_boolean(input, options)
+          validate_boolean(input, options)
         when "file", "path"
-          validation_result = validate_file_path(input, options)
+          validate_file_path(input, options)
         when "text"
-          validation_result = validate_text(input, options)
+          validate_text(input, options)
         when "choice"
-          validation_result = validate_choice(input, options)
+          validate_choice(input, options)
         else
-          validation_result = validate_generic(input, options)
+          validate_generic(input, options)
         end
-
-        validation_result
       end
 
       # Validate email input
       def validate_email(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         # Basic email regex
         email_regex = /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
@@ -936,7 +927,7 @@ module Aidp
         # Check for common typos
         common_domains = %w[gmail.com yahoo.com hotmail.com outlook.com]
         if common_domains.any? { |d| domain.include?(d) && domain != d }
-          result[:suggestions] << "Did you mean #{domain.gsub(/[^a-z.]/, '')}?"
+          result[:suggestions] << "Did you mean #{domain.gsub(/[^a-z.]/, "")}?"
         end
 
         result[:valid] = true
@@ -945,7 +936,7 @@ module Aidp
 
       # Validate URL input
       def validate_url(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           if options[:required]
@@ -991,7 +982,6 @@ module Aidp
           if uri.scheme == "http" && !uri.host.include?("localhost")
             result[:warnings] << "Consider using HTTPS for security"
           end
-
         rescue URI::InvalidURIError
           result[:error_message] = "Invalid URL format"
           result[:suggestions] = [
@@ -1008,7 +998,7 @@ module Aidp
 
       # Validate number input
       def validate_number(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           result[:error_message] = "Number cannot be empty"
@@ -1052,7 +1042,7 @@ module Aidp
 
       # Validate float input
       def validate_float(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           result[:error_message] = "Number cannot be empty"
@@ -1099,7 +1089,7 @@ module Aidp
 
       # Validate boolean input
       def validate_boolean(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           if options[:required]
@@ -1131,7 +1121,7 @@ module Aidp
 
       # Validate file path input
       def validate_file_path(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           result[:error_message] = "File path cannot be empty"
@@ -1182,7 +1172,7 @@ module Aidp
           ext = File.extname(file_path).downcase
           if !options[:allowed_extensions].include?(ext)
             result[:warnings] << "Unexpected file extension: #{ext}"
-            result[:suggestions] << "Expected extensions: #{options[:allowed_extensions].join(', ')}"
+            result[:suggestions] << "Expected extensions: #{options[:allowed_extensions].join(", ")}"
           end
         end
 
@@ -1192,7 +1182,7 @@ module Aidp
 
       # Validate text input
       def validate_text(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           if options[:required]
@@ -1238,7 +1228,7 @@ module Aidp
 
       # Validate choice input
       def validate_choice(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           result[:error_message] = "Please make a selection"
@@ -1254,20 +1244,18 @@ module Aidp
             result[:error_message] = "Invalid selection number"
             result[:suggestions] = [
               "Enter a number between 1 and #{options[:choices].length}",
-              "Available options: #{options[:choices].join(', ')}"
+              "Available options: #{options[:choices].join(", ")}"
             ]
             return result
           end
-        else
+        elsif options[:choices] && !options[:choices].include?(choice)
           # Check if it's a direct choice
-          if options[:choices] && !options[:choices].include?(choice)
-            result[:error_message] = "Invalid choice"
-            result[:suggestions] = [
-              "Available options: #{options[:choices].join(', ')}",
-              "Or enter the number of your choice"
-            ]
-            return result
-          end
+          result[:error_message] = "Invalid choice"
+          result[:suggestions] = [
+            "Available options: #{options[:choices].join(", ")}",
+            "Or enter the number of your choice"
+          ]
+          return result
         end
 
         result[:valid] = true
@@ -1276,7 +1264,7 @@ module Aidp
 
       # Validate generic input
       def validate_generic(input, options = {})
-        result = { valid: false, error_message: nil, suggestions: [], warnings: [] }
+        result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         if input.nil? || input.strip.empty?
           if options[:required]
@@ -1347,13 +1335,13 @@ module Aidp
             show_file_preview(selected_file)
           end
 
-          return selected_file
+          selected_file
         elsif selection == -1
           # User wants to refine search
-          return handle_file_selection("@#{search_term}")
+          handle_file_selection("@#{search_term}")
         else
           puts "❌ Invalid selection. Please try again."
-          return nil
+          nil
         end
       end
 
@@ -1476,7 +1464,7 @@ module Aidp
 
         # Check term match
         if search_options[:term].empty?
-          return true
+          true
         elsif search_options[:patterns].any?
           # Check if any pattern matches
           search_options[:patterns].any? do |pattern|
@@ -1554,7 +1542,7 @@ module Aidp
       # Display advanced file selection menu
       def display_advanced_file_menu(files, search_options)
         puts "\n📁 Available files:"
-        puts "Search: #{search_options[:term]} | Extensions: #{search_options[:extensions].join(', ')} | Directories: #{search_options[:directories].join(', ')}"
+        puts "Search: #{search_options[:term]} | Extensions: #{search_options[:extensions].join(", ")} | Directories: #{search_options[:directories].join(", ")}"
         puts "-" * 80
 
         files.each_with_index do |file, index|
@@ -1630,7 +1618,7 @@ module Aidp
 
       # Display file selection menu (legacy method for compatibility)
       def display_file_menu(files)
-        display_advanced_file_menu(files, { term: "", extensions: [], directories: [] })
+        display_advanced_file_menu(files, {term: "", extensions: [], directories: []})
       end
 
       # Get advanced file selection from user
@@ -1711,7 +1699,7 @@ module Aidp
           puts "📊 File Info:"
           puts "  Size: #{format_file_size(File.size(file_path))}"
           puts "  Lines: #{lines.count}"
-          puts "  Modified: #{File.mtime(file_path).strftime('%Y-%m-%d %H:%M:%S')}"
+          puts "  Modified: #{File.mtime(file_path).strftime("%Y-%m-%d %H:%M:%S")}"
           puts "  Type: #{get_file_type(file_path)}"
 
           puts "\n📝 Content Preview (first 20 lines):"
@@ -1724,7 +1712,6 @@ module Aidp
           if lines.count > 20
             puts "... (#{lines.count - 20} more lines)"
           end
-
         rescue => e
           puts "❌ Error reading file: #{e.message}"
         end
@@ -1735,7 +1722,7 @@ module Aidp
 
       # Get file selection from user (legacy method for compatibility)
       def get_file_selection(max_files)
-        get_advanced_file_selection(max_files, { term: "", extensions: [], directories: [] })
+        get_advanced_file_selection(max_files, {term: "", extensions: [], directories: []})
       end
 
       # Get confirmation from user
@@ -2198,35 +2185,33 @@ module Aidp
       # Control interface main loop
       def control_interface_loop
         loop do
-          begin
-            input = Readline.readline("Control> ", true)
+          input = Readline.readline("Control> ", true)
 
-            case input&.strip&.downcase
-            when "p", "pause"
-              request_pause
-            when "r", "resume"
-              request_resume
-            when "s", "stop"
-              request_stop
-            when "h", "help"
-              show_control_help
-            when "q", "quit"
-              stop_control_interface
-              break
-            when ""
-              # Empty input, continue
-              next
-            else
-              puts "❌ Invalid command. Type 'h' for help."
-            end
-          rescue Interrupt
-            puts "\n🛑 Control interface interrupted. Stopping..."
+          case input&.strip&.downcase
+          when "p", "pause"
+            request_pause
+          when "r", "resume"
+            request_resume
+          when "s", "stop"
             request_stop
+          when "h", "help"
+            show_control_help
+          when "q", "quit"
+            stop_control_interface
             break
-          rescue => e
-            puts "❌ Control interface error: #{e.message}"
-            puts "   Type 'h' for help or 'q' to quit."
+          when ""
+            # Empty input, continue
+            next
+          else
+            puts "❌ Invalid command. Type 'h' for help."
           end
+        rescue Interrupt
+          puts "\n🛑 Control interface interrupted. Stopping..."
+          request_stop
+          break
+        rescue => e
+          puts "❌ Control interface error: #{e.message}"
+          puts "   Type 'h' for help or 'q' to quit."
         end
       end
 
@@ -2279,11 +2264,11 @@ module Aidp
 
         puts "\n🎮 Control Interface Status"
         puts "=" * 40
-        puts "Enabled: #{status[:enabled] ? '✅ Yes' : '❌ No'}"
-        puts "Pause Requested: #{status[:pause_requested] ? '⏸️  Yes' : '▶️  No'}"
-        puts "Stop Requested: #{status[:stop_requested] ? '🛑 Yes' : '▶️  No'}"
-        puts "Resume Requested: #{status[:resume_requested] ? '▶️  Yes' : '⏸️  No'}"
-        puts "Control Thread: #{status[:control_thread_alive] ? '🟢 Active' : '🔴 Inactive'}"
+        puts "Enabled: #{status[:enabled] ? "✅ Yes" : "❌ No"}"
+        puts "Pause Requested: #{status[:pause_requested] ? "⏸️  Yes" : "▶️  No"}"
+        puts "Stop Requested: #{status[:stop_requested] ? "🛑 Yes" : "▶️  No"}"
+        puts "Resume Requested: #{status[:resume_requested] ? "▶️  Yes" : "⏸️  No"}"
+        puts "Control Thread: #{status[:control_thread_alive] ? "🟢 Active" : "🔴 Inactive"}"
         puts "=" * 40
       end
 

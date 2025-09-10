@@ -44,7 +44,7 @@ module Aidp
         else
           # Not rate limited, clear any existing rate limits
           clear_rate_limit(provider_name, model_name)
-          { success: true, action: "continue", provider: provider_name, model: model_name }
+          {success: true, action: "continue", provider: provider_name, model: model_name}
         end
       end
 
@@ -140,7 +140,7 @@ module Aidp
         strategy = get_retry_strategy(error_type, context)
 
         # Check if we should retry
-        return { success: false, action: "no_retry", reason: "max_retries_exceeded" } unless should_retry?(strategy, context)
+        return {success: false, action: "no_retry", reason: "max_retries_exceeded"} unless should_retry?(strategy, context)
 
         # Calculate delay
         delay = strategy[:backoff_delay]
@@ -307,19 +307,19 @@ module Aidp
       def execute_rotation(provider_name, model_name, strategy, rate_limit_info)
         start_time = Time.now
 
-        case strategy
+        result = case strategy
         when "provider_first"
-          result = rotate_provider_first(provider_name, model_name, rate_limit_info)
+          rotate_provider_first(provider_name, model_name, rate_limit_info)
         when "model_first"
-          result = rotate_model_first(provider_name, model_name, rate_limit_info)
+          rotate_model_first(provider_name, model_name, rate_limit_info)
         when "cost_optimized"
-          result = rotate_cost_optimized(provider_name, model_name, rate_limit_info)
+          rotate_cost_optimized(provider_name, model_name, rate_limit_info)
         when "performance_optimized"
-          result = rotate_performance_optimized(provider_name, model_name, rate_limit_info)
+          rotate_performance_optimized(provider_name, model_name, rate_limit_info)
         when "quota_aware"
-          result = rotate_quota_aware(provider_name, model_name, rate_limit_info)
+          rotate_quota_aware(provider_name, model_name, rate_limit_info)
         else
-          result = rotate_default(provider_name, model_name, rate_limit_info)
+          rotate_default(provider_name, model_name, rate_limit_info)
         end
 
         # Record rotation
@@ -687,12 +687,12 @@ module Aidp
 
         # Provider reset times
         @provider_manager.instance_variable_get(:@rate_limit_info).each do |provider, info|
-          reset_times << { provider: provider, reset_time: info[:reset_time] } if info[:reset_time]
+          reset_times << {provider: provider, reset_time: info[:reset_time]} if info[:reset_time]
         end
 
         # Model reset times
         @provider_manager.instance_variable_get(:@model_rate_limit_info)&.each do |model_key, info|
-          reset_times << { model: model_key, reset_time: info[:reset_time] } if info[:reset_time]
+          reset_times << {model: model_key, reset_time: info[:reset_time]} if info[:reset_time]
         end
 
         reset_times.sort_by { |r| r[:reset_time] }
@@ -735,7 +735,7 @@ module Aidp
           @provider_manager.get_provider_models(provider).each do |model|
             next if @provider_manager.is_model_rate_limited?(provider, model)
 
-            combinations << { provider: provider, model: model }
+            combinations << {provider: provider, model: model}
           end
         end
 
@@ -751,14 +751,13 @@ module Aidp
         avg_response_time = provider_metrics[:total_duration] / [provider_metrics[:successful_requests], 1].max
 
         # Higher score is better
-        score = success_rate * 100 - avg_response_time
-        score
+        success_rate * 100 - avg_response_time
       end
 
       # Helper classes
       class BackoffCalculator
         def calculate_delay(base_delay, max_delay, exponential_base, retry_count)
-          delay = base_delay * (exponential_base ** retry_count)
+          delay = base_delay * (exponential_base**retry_count)
           [delay, max_delay].min
         end
       end
@@ -781,7 +780,7 @@ module Aidp
               retry_after: 3600
             }
           else
-            { is_rate_limited: false }
+            {is_rate_limited: false}
           end
         end
 
@@ -828,7 +827,7 @@ module Aidp
           # This would be implemented with actual quota checking
           # For now, return a simple fallback
           _ = context # Suppress unused argument warning
-          { provider: current_provider, model: current_model, quota_remaining: 1000 }
+          {provider: current_provider, model: current_model, quota_remaining: 1000}
         end
 
         def get_status
@@ -860,7 +859,7 @@ module Aidp
         def get_cost_optimized_combination(current_provider, current_model, _context)
           # Find most cost-effective combination
           # This would be implemented with actual cost models
-          { provider: current_provider, model: current_model, cost_savings: 0.1 }
+          {provider: current_provider, model: current_model, cost_savings: 0.1}
         end
 
         def optimize_for_rate_limit(provider_name, model_name, _rate_limit_info)

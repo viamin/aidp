@@ -84,9 +84,7 @@ module Aidp
         strategy = @fallback_strategies[error_type] || @fallback_strategies[:default]
 
         # Apply context modifications
-        strategy = apply_context_modifications(strategy, context)
-
-        strategy
+        apply_context_modifications(strategy, context)
       end
 
       # Check if provider is exhausted
@@ -565,7 +563,7 @@ module Aidp
 
       def update_fallback_attempts(provider, model, error_type, result)
         key = "#{provider}:#{model}:#{error_type}"
-        @fallback_attempts[key] ||= { count: 0, last_attempt: nil, results: [] }
+        @fallback_attempts[key] ||= {count: 0, last_attempt: nil, results: []}
 
         @fallback_attempts[key][:count] += 1
         @fallback_attempts[key][:last_attempt] = Time.now
