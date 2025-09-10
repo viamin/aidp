@@ -14,8 +14,11 @@ module Aidp
     option :harness, type: :boolean, desc: "Use harness mode (default when no step specified)"
     option :no_harness, type: :boolean, desc: "Disable harness mode and use traditional step-by-step execution"
     def execute(project_dir = Dir.pwd, step_name = nil, custom_options = {})
+      # Merge Thor options with custom options
+      all_options = options.merge(custom_options)
+
       # Handle reset flag
-      if options[:reset] || options["reset"]
+      if all_options[:reset] || all_options["reset"]
         progress = Aidp::Execute::Progress.new(project_dir)
         progress.reset
         puts "🔄 Reset execute mode progress"
@@ -23,8 +26,8 @@ module Aidp
       end
 
       # Handle approve flag
-      if options[:approve] || options["approve"]
-        step_name = options[:approve] || options["approve"]
+      if all_options[:approve] || all_options["approve"]
+        step_name = all_options[:approve] || all_options["approve"]
         progress = Aidp::Execute::Progress.new(project_dir)
         progress.mark_step_completed(step_name)
         puts "✅ Approved execute step: #{step_name}"
@@ -33,23 +36,22 @@ module Aidp
 
       if step_name
         # Run specific step - check if harness mode is requested
-        if should_use_harness?(options)
+        if should_use_harness?(all_options)
           puts "🚀 Running execute step '#{step_name}' with harness..."
-          harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, options.merge(custom_options))
+          harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, all_options)
           result = harness_runner.run
           display_harness_result(result)
           result
         else
           # Traditional step-by-step execution
           runner = Aidp::Execute::Runner.new(project_dir)
-          all_options = options.merge(custom_options)
           runner.run_step(step_name, all_options)
         end
-      elsif should_use_harness?(options)
+      elsif should_use_harness?(all_options)
         # No step specified - use harness by default
         puts "🚀 Starting execute mode harness - will run all steps automatically..."
         puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, options.merge(custom_options))
+        harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, all_options)
         result = harness_runner.run
         display_harness_result(result)
         result
@@ -81,25 +83,6 @@ module Aidp
     option :harness, type: :boolean, desc: "Use harness mode (default when no step specified)"
     option :no_harness, type: :boolean, desc: "Disable harness mode and use traditional step-by-step execution"
     def analyze(*args)
-      # Handle reset flag
-      if options[:reset] || options["reset"]
-        project_dir = Dir.pwd
-        progress = Aidp::Analyze::Progress.new(project_dir)
-        progress.reset
-        puts "🔄 Reset analyze mode progress"
-        return {status: "success", message: "Progress reset"}
-      end
-
-      # Handle approve flag
-      if options[:approve] || options["approve"]
-        project_dir = Dir.pwd
-        step_name = options[:approve] || options["approve"]
-        progress = Aidp::Analyze::Progress.new(project_dir)
-        progress.mark_step_completed(step_name)
-        puts "✅ Approved analyze step: #{step_name}"
-        return {status: "success", step: step_name}
-      end
-
       # Handle both old and new calling patterns for backwards compatibility
       case args.length
       when 0
@@ -142,6 +125,26 @@ module Aidp
         raise ArgumentError, "Wrong number of arguments (given #{args.length}, expected 0..3)"
       end
 
+      # Merge Thor options with custom options
+      all_options = options.merge(custom_options)
+
+      # Handle reset flag
+      if all_options[:reset] || all_options["reset"]
+        progress = Aidp::Analyze::Progress.new(project_dir)
+        progress.reset
+        puts "🔄 Reset analyze mode progress"
+        return {status: "success", message: "Progress reset"}
+      end
+
+      # Handle approve flag
+      if all_options[:approve] || all_options["approve"]
+        step_name = all_options[:approve] || all_options["approve"]
+        progress = Aidp::Analyze::Progress.new(project_dir)
+        progress.mark_step_completed(step_name)
+        puts "✅ Approved analyze step: #{step_name}"
+        return {status: "success", step: step_name}
+      end
+
       progress = Aidp::Analyze::Progress.new(project_dir)
 
       if step_name
@@ -150,16 +153,15 @@ module Aidp
 
         if resolved_step
           # Check if harness mode is requested
-          if should_use_harness?(options)
+          if should_use_harness?(all_options)
             puts "🚀 Running analyze step '#{resolved_step}' with harness..."
-            harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, options.merge(custom_options))
+            harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, all_options)
             result = harness_runner.run
             display_harness_result(result)
             result
           else
             # Traditional step-by-step execution
             runner = Aidp::Analyze::Runner.new(project_dir)
-            all_options = options.merge(custom_options)
             result = runner.run_step(resolved_step, all_options)
 
             # Display the result
@@ -183,11 +185,11 @@ module Aidp
           end
           {status: "error", message: "Step not found"}
         end
-      elsif should_use_harness?(options)
+      elsif should_use_harness?(all_options)
         # No step specified - use harness by default
         puts "🚀 Starting analyze mode harness - will run all steps automatically..."
         puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, options.merge(custom_options))
+        harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, all_options)
         result = harness_runner.run
         display_harness_result(result)
         result
@@ -340,7 +342,7 @@ module Aidp
     desc "harness reset", "Reset harness state for specified mode"
     option :mode, type: :string, desc: "Mode to reset (analyze or execute)", required: true
     def harness_reset
-      mode = options[:mode].to_sym
+      mode = options[:mode]&.to_sym
 
       unless [:analyze, :execute].include?(mode)
         puts "❌ Invalid mode. Use 'analyze' or 'execute'"

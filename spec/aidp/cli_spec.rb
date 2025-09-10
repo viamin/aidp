@@ -143,6 +143,9 @@ RSpec.describe Aidp::CLI do
       it "uses harness for specific step when requested" do
         options = {harness: true}
 
+        # Mock the step resolution to return a valid step
+        allow(cli).to receive(:resolve_analyze_step).with("test_step", anything).and_return("01_REPOSITORY_ANALYSIS")
+
         expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :analyze, options)
         expect(mock_harness_runner).to receive(:run)
 
@@ -153,11 +156,14 @@ RSpec.describe Aidp::CLI do
         options = {no_harness: true}
         mock_runner = double("runner")
 
+        # Mock the step resolution to return a valid step
+        allow(cli).to receive(:resolve_analyze_step).with("test_step", anything).and_return("01_REPOSITORY_ANALYSIS")
+
         allow(Aidp::Analyze::Runner).to receive(:new).and_return(mock_runner)
-        allow(mock_runner).to receive(:run_step)
+        allow(mock_runner).to receive(:run_step).and_return({status: "completed", provider: "test"})
 
         expect(Aidp::Analyze::Runner).to receive(:new).with(temp_dir)
-        expect(mock_runner).to receive(:run_step).with("test_step", options)
+        expect(mock_runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", options)
 
         cli.analyze(temp_dir, "test_step", options)
       end
@@ -221,6 +227,7 @@ RSpec.describe Aidp::CLI do
     end
 
     it "resets harness state for analyze mode" do
+      allow(cli).to receive(:options).and_return({mode: "analyze"})
       expect(mock_state_manager).to receive(:reset_all)
 
       expect { cli.harness_reset }.to output(
@@ -229,6 +236,7 @@ RSpec.describe Aidp::CLI do
     end
 
     it "resets harness state for execute mode" do
+      allow(cli).to receive(:options).and_return({mode: "execute"})
       expect(mock_state_manager).to receive(:reset_all)
 
       expect { cli.harness_reset }.to output(
@@ -237,6 +245,8 @@ RSpec.describe Aidp::CLI do
     end
 
     it "shows error for invalid mode" do
+      allow(cli).to receive(:options).and_return({mode: "invalid"})
+
       expect { cli.harness_reset }.to output(
         /❌ Invalid mode. Use 'analyze' or 'execute'/
       ).to_stdout
