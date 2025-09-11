@@ -90,7 +90,7 @@ module Aidp
         }
 
         # Get provider rate limit status
-        @provider_manager.configured_providers.each do |provider|
+        @provider_manager.get_available_providers.each do |provider|
           status[:providers][provider] = {
             rate_limited: @provider_manager.is_rate_limited?(provider),
             reset_time: get_provider_reset_time(provider),
@@ -100,7 +100,7 @@ module Aidp
         end
 
         # Get model rate limit status
-        @provider_manager.configured_providers.each do |provider|
+        @provider_manager.get_available_providers.each do |provider|
           status[:models][provider] = {}
           @provider_manager.get_provider_models(provider).each do |model|
             status[:models][provider][model] = {
@@ -120,6 +120,7 @@ module Aidp
 
       # Get retry strategy for error type
       def get_retry_strategy(error_type, context = {})
+        error_type = error_type.to_sym if error_type.is_a?(String)
         strategy = @retry_strategies[error_type] || @retry_strategies[:default]
 
         # Customize strategy based on context
@@ -291,11 +292,7 @@ module Aidp
         when "quota_exceeded"
           "quota_aware"
         when "rate_limit"
-          if @cost_optimizer.should_optimize_cost?(provider_name, model_name)
-            "cost_optimized"
-          else
-            "performance_optimized"
-          end
+          "provider_first"  # Default to provider_first for rate_limit
         when "burst_limit"
           "model_first"
         else
@@ -729,7 +726,7 @@ module Aidp
       def get_all_available_combinations(_current_provider, _current_model)
         combinations = []
 
-        @provider_manager.configured_providers.each do |provider|
+        @provider_manager.get_available_providers.each do |provider|
           next if @provider_manager.is_rate_limited?(provider)
 
           @provider_manager.get_provider_models(provider).each do |model|
@@ -765,7 +762,7 @@ module Aidp
       class RateLimitDetector
         def detect_rate_limit(response, error)
           # Detect rate limit from response or error
-          if error&.message&.include?("rate limit")
+          if error&.message&.include?("rate limit") || response&.include?("rate limit")
             {
               is_rate_limited: true,
               type: "rate_limit",

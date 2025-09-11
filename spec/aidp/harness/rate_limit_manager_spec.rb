@@ -9,7 +9,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
 
   before do
     # Mock provider manager methods
-    allow(provider_manager).to receive(:configured_providers).and_return(["claude", "gemini", "cursor"])
+    allow(provider_manager).to receive(:get_available_providers).and_return(["claude", "gemini", "cursor"])
     allow(provider_manager).to receive(:is_rate_limited?).and_return(false)
     allow(provider_manager).to receive(:is_model_rate_limited?).and_return(false)
     allow(provider_manager).to receive(:switch_provider).and_return("gemini")
@@ -88,7 +88,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
     end
 
     it "records rate limit information" do
-      expect(provider_manager).to receive(:mark_rate_limited).with("claude", rate_limit_info[:reset_time])
+      expect(provider_manager).to receive(:mark_model_rate_limited).with("claude", "model1", kind_of(Time))
 
       rate_limit_manager.handle_rate_limit("claude", "model1", "rate limit exceeded", nil)
     end
@@ -434,7 +434,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
 
   describe "error handling" do
     it "handles missing provider manager methods gracefully" do
-      allow(provider_manager).to receive(:configured_providers).and_raise(NoMethodError)
+      allow(provider_manager).to receive(:get_available_providers).and_raise(NoMethodError)
 
       expect {
         rate_limit_manager.get_rate_limit_status
@@ -445,7 +445,7 @@ RSpec.describe Aidp::Harness::RateLimitManager do
       allow(configuration).to receive(:rate_limit_config).and_raise(NoMethodError)
 
       expect {
-        rate_limit_manager.get_retry_strategy("rate_limit", {})
+        rate_limit_manager.get_next_available_combination("claude", "model1", {})
       }.to raise_error(NoMethodError)
     end
   end
