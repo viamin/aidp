@@ -212,6 +212,17 @@ module Aidp
         end
       end
 
+      # Validate configuration data (public method for external use)
+      def validate_config(config_data = nil)
+        if config_data
+          # Validate provided configuration data
+          @config = config_data
+        end
+        return unless @config
+
+        @validation_result = ConfigSchema.validate(@config)
+      end
+
       private
 
       def find_config_file
@@ -241,11 +252,6 @@ module Aidp
         end
       end
 
-      def validate_config
-        return unless @config
-
-        @validation_result = ConfigSchema.validate(@config)
-      end
 
       def normalize_keys(hash)
         return hash unless hash.is_a?(Hash)

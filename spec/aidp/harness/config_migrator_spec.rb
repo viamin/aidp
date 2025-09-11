@@ -323,7 +323,7 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
 
       backups = migrator.list_backups
 
-      expect(backups).to have(2).items
+      expect(backups.length).to eq(2)
       expect(backups.first[:filename]).to include("20240102")
       expect(backups.last[:filename]).to include("20240101")
     end
@@ -341,7 +341,7 @@ RSpec.describe Aidp::Harness::ConfigMigrator do
       expect(result[:deleted_count]).to eq(5)
 
       backups = migrator.list_backups
-      expect(backups).to have(10).items
+      expect(backups.length).to eq(10)
     end
   end
 

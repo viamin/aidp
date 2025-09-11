@@ -403,6 +403,21 @@ module Aidp
           new_config["harness"] = {
             "default_provider" => provider_name
           }
+
+          # Ensure the default provider has a configuration
+          new_config["providers"] ||= {}
+          unless new_config["providers"][provider_name]
+            new_config["providers"][provider_name] = {
+              "type" => "package",
+              "priority" => 1,
+              "models" => ["default"],
+              "features" => {
+                "file_upload" => true,
+                "code_generation" => true,
+                "analysis" => true
+              }
+            }
+          end
         end
 
         # Convert old retry format
@@ -419,10 +434,11 @@ module Aidp
         end
 
         # Convert old provider format
-        if new_config["provider"] && !new_config["providers"]
+        if new_config["provider"]
           provider_name = new_config["provider"]
-          new_config["providers"] = {
-            provider_name => {
+          new_config["providers"] ||= {}
+          unless new_config["providers"][provider_name]
+            new_config["providers"][provider_name] = {
               "type" => "package",
               "priority" => 1,
               "models" => ["default"],
@@ -432,7 +448,7 @@ module Aidp
                 "analysis" => true
               }
             }
-          }
+          end
           new_config.delete("provider")
         end
 
