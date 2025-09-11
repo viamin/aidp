@@ -991,7 +991,8 @@ module Aidp
             success_count: health[:success_count],
             circuit_breaker_open: health[:circuit_breaker_open],
             last_updated: health[:last_updated],
-            last_used: health[:last_used]
+            last_used: health[:last_used],
+            last_rate_limited: health[:last_rate_limited]
           }
         end
       end
