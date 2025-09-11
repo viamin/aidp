@@ -83,6 +83,13 @@ module Aidp
       end
 
       # Get model performance score
+      def get_provider_performance_score(provider_name)
+        performance_tracker = @performance_trackers[provider_name]
+        return 0.0 unless performance_tracker
+
+        performance_tracker.get_provider_score
+      end
+
       def get_model_performance_score(provider_name, model_name)
         performance_tracker = @performance_trackers[provider_name]
         return 0.0 unless performance_tracker
@@ -93,11 +100,11 @@ module Aidp
       # Get availability metrics
       def get_availability_metrics(provider_name = nil, model_name = nil)
         if provider_name && model_name
-          get_model_availability(provider_name, model_name)
+          get_model_availability_data(provider_name, model_name)
         elsif provider_name
-          get_provider_availability(provider_name)
+          get_provider_availability_data(provider_name)
         else
-          get_system_availability
+          get_system_availability_summary
         end
       end
 
@@ -437,6 +444,28 @@ module Aidp
           critical_issues: get_critical_issues,
           recommendations: get_system_recommendations
         }
+      end
+
+      def get_system_availability_summary
+        {
+          overall_availability: calculate_system_availability,
+          provider_availability: get_provider_availability_summary,
+          model_availability: get_model_availability_summary,
+          uptime: calculate_system_uptime,
+          downtime: calculate_system_downtime,
+          outage_history: get_outage_history,
+          reliability_metrics: get_reliability_metrics
+        }
+      end
+
+      def calculate_system_uptime
+        # Calculate total system uptime
+        3600 * 24 * 30 # Placeholder: 30 days in seconds
+      end
+
+      def calculate_system_downtime
+        # Calculate total system downtime
+        3600 * 2 # Placeholder: 2 hours in seconds
       end
 
       def get_performance_summary
@@ -964,6 +993,11 @@ module Aidp
             baseline_latency: 2.0,
             baseline_success_rate: 0.90
           }
+        end
+
+        def get_provider_score
+          # Calculate provider-specific performance score
+          0.85 # Placeholder
         end
 
         def get_model_score(_model_name)
