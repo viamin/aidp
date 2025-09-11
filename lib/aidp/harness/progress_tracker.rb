@@ -67,6 +67,9 @@ module Aidp
 
       # Start a new step
       def start_step(step_name, step_type = :general, dependencies = [], estimated_duration = nil)
+        # Set start time if not already set
+        @start_time ||= Time.now
+
         # End current step if running
         end_current_step if @current_step
 
@@ -191,7 +194,7 @@ module Aidp
         @step_metrics[step_name][:end_time] = Time.now
         @step_metrics[step_name][:errors] << {
           message: error.message,
-          backtrace: error.backtrace&.first(5),
+          backtrace: error.backtrace&.first(5) || [],
           timestamp: Time.now
         }
         @step_metrics[step_name][:metrics].merge!(final_metrics)
@@ -510,8 +513,18 @@ module Aidp
       def update_status_display
         return unless @status_display
 
-        @status_display.update_current_step(@current_step) if @current_step
-        @status_display.update_work_completion_status(@overall_progress, @step_metrics.size)
+        begin
+          @status_display.update_current_step(@current_step) if @current_step
+          @status_display.update_work_completion_status({
+            progress: @overall_progress,
+            total_steps: @step_metrics.size,
+            completed_steps: @step_metrics.count { |_, step| step[:status] == :completed },
+            is_complete: @overall_progress >= 1.0
+          })
+        rescue NoMethodError, StandardError
+          # Gracefully handle missing methods or other errors
+          # This allows the progress tracker to continue working even if status display has issues
+        end
       end
 
       def add_to_history(step_name, status)
@@ -553,7 +566,7 @@ module Aidp
         return nil unless @overall_progress > 0 && @start_time
 
         elapsed_time = calculate_total_duration
-        return nil unless elapsed_time
+        return nil unless elapsed_time && elapsed_time > 0
 
         estimated_total_time = elapsed_time / @overall_progress
         remaining_time = estimated_total_time - elapsed_time
