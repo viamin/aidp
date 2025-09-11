@@ -58,7 +58,7 @@ module Aidp
 
       # Log provider switch
       def log_provider_switch(from_provider, to_provider, reason, context = {})
-        switch_entry = build_switch_entry(:provider_switch, from_provider, to_provider, reason, context)
+        switch_entry = build_switch_entry(:provider_switch, from_provider, from_provider, to_provider, reason, context)
 
         @log_storage.store_switch(switch_entry)
         @recovery_tracker.track_switch(switch_entry)
@@ -265,12 +265,13 @@ module Aidp
         }
       end
 
-      def build_switch_entry(switch_type, from, to, reason, context)
+      def build_switch_entry(switch_type, provider, from, to, reason, context)
         {
           id: generate_log_id,
           type: :switch,
           timestamp: Time.now,
           switch_type: switch_type,
+          provider: provider,
           from: from,
           to: to,
           reason: reason,
@@ -316,7 +317,7 @@ module Aidp
 
       def determine_error_severity(error)
         case error
-        when Net::TimeoutError, Timeout::Error
+        when Timeout::Error, Timeout::Error
           :warning
         when Net::HTTPError
           case error.response.code.to_i
@@ -338,7 +339,7 @@ module Aidp
 
       def categorize_error(error)
         case error
-        when Net::TimeoutError, Timeout::Error
+        when Timeout::Error, Timeout::Error
           :timeout
         when Net::HTTPError
           case error.response.code.to_i
@@ -377,6 +378,11 @@ module Aidp
 
       def default_time_range
         (Time.now - 86400)..Time.now
+      end
+
+      def track_recovery_actions(error_entry)
+        # Track recovery actions for the error entry
+        # This is a placeholder implementation
       end
 
       def get_error_summary(time_range)

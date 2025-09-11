@@ -200,6 +200,11 @@ module Aidp
         File.join(@project_dir, "aidp.yml")
       end
 
+      # Get logging configuration
+      def logging_config
+        harness_config[:logging] || get_default_logging_config
+      end
+
       # Check if configuration file exists
       def config_exists?
         Aidp::Config.config_exists?(@project_dir)
@@ -428,6 +433,18 @@ module Aidp
           timeout: 1800, # 30 minutes
           sticky_sessions: true,
           session_affinity: "provider_model" # provider, model, provider_model
+        }
+      end
+
+      def get_default_logging_config
+        {
+          log_level: :info,
+          retention_days: 30,
+          max_file_size: 10485760, # 10MB
+          max_files: 5,
+          format: :json,
+          include_stack_traces: true,
+          include_context: true
         }
       end
 

@@ -57,7 +57,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
     let(:context) { {provider: "claude", model: "model1", session_id: "session123"} }
 
     it "logs network timeout errors" do
-      error = Net::TimeoutError.new("Connection timeout")
+      error = Timeout::Error.new("Connection timeout")
 
       entry = error_logger.log_error(error, context)
 
@@ -65,7 +65,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       expect(entry[:type]).to eq(:error)
       expect(entry[:severity]).to eq(:warning)
       expect(entry[:category]).to eq(:timeout)
-      expect(entry[:error][:class]).to eq("Net::TimeoutError")
+      expect(entry[:error][:class]).to eq("Timeout::Error")
       expect(entry[:error][:message]).to eq("Connection timeout")
     end
 
@@ -332,7 +332,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
     before do
       # Add some test logs
       error_logger.log_error(StandardError.new("Error 1"), {provider: "claude", model: "model1"})
-      error_logger.log_error(Net::TimeoutError.new("Timeout"), {provider: "gemini", model: "model1"})
+      error_logger.log_error(Timeout::Error.new("Timeout"), {provider: "gemini", model: "model1"})
       error_logger.log_recovery_action(:provider_switch, {success: true, duration: 2.0}, {})
       error_logger.log_provider_switch("claude", "gemini", "rate_limit", {duration: 0.5})
       error_logger.log_retry_attempt(:network_error, 1, 1.0, {success: true})
@@ -422,7 +422,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
       yaml_export = error_logger.export_logs(:yaml)
 
       expect(yaml_export).to be_a(String)
-      expect { YAML.safe_load(yaml_export) }.not_to raise_error
+      expect { YAML.safe_load(yaml_export, permitted_classes: [Symbol, Time]) }.not_to raise_error
     end
 
     it "exports logs in CSV format" do
@@ -560,7 +560,7 @@ RSpec.describe Aidp::Harness::ErrorLogger do
         log_storage.store_error(old_entry)
         log_storage.store_error(new_entry)
 
-        log_storage.clear_old_logs(0.5) # 30 minutes
+        log_storage.clear_old_logs(0.02) # ~30 minutes (0.02 days)
 
         errors = log_storage.get_errors
         expect(errors).to include(new_entry)

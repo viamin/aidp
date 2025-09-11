@@ -69,6 +69,56 @@ module Aidp
         event
       end
 
+      # Record an error event (for ErrorLogger compatibility)
+      def record_error_event(error_entry)
+        event = build_error_event_from_entry(error_entry)
+
+        @metrics_store.store_event(event)
+        update_error_metrics(event[:provider], event[:model], event)
+
+        event
+      end
+
+      # Record a recovery event
+      def record_recovery_event(recovery_entry)
+        event = build_recovery_event_from_entry(recovery_entry)
+
+        @metrics_store.store_event(event)
+        update_recovery_metrics(event[:provider], event[:model], event)
+
+        event
+      end
+
+      # Record a switch event
+      def record_switch_event(switch_entry)
+        event = build_switch_event_from_entry(switch_entry)
+
+        @metrics_store.store_event(event)
+        update_switch_metrics(event[:from_provider], event[:to_provider], event)
+
+        event
+      end
+
+      # Record a retry event
+      def record_retry_event(retry_entry)
+        event = build_retry_event_from_entry(retry_entry)
+
+        @metrics_store.store_event(event)
+        update_retry_metrics(event[:provider], event[:model], event)
+
+        event
+      end
+
+      # Record a circuit breaker event
+      def record_circuit_breaker_event(circuit_breaker_entry)
+        event = build_circuit_breaker_event_from_entry(circuit_breaker_entry)
+
+        @metrics_store.store_event(event)
+        update_circuit_breaker_metrics(event[:provider], event[:model], event)
+
+        event
+      end
+
       # Record a rate limit event
       def record_rate_limit(provider_name, model_name, rate_limit_info, context = {})
         event = build_rate_limit_event(provider_name, model_name, rate_limit_info, context)
@@ -334,6 +384,67 @@ module Aidp
         }
       end
 
+      def build_error_event_from_entry(error_entry)
+        {
+          event_type: "error",
+          timestamp: error_entry[:timestamp] || Time.now,
+          provider: error_entry[:provider] || "unknown",
+          model: error_entry[:model] || "unknown",
+          error_info: error_entry,
+          error_type: error_entry[:category] || error_entry[:error_type] || "unknown",
+          error_message: error_entry[:message] || "Unknown error",
+          success: false
+        }
+      end
+
+      def build_recovery_event_from_entry(recovery_entry)
+        {
+          event_type: "recovery",
+          timestamp: recovery_entry[:timestamp] || Time.now,
+          provider: recovery_entry[:provider] || "unknown",
+          model: recovery_entry[:model] || "unknown",
+          recovery_info: recovery_entry,
+          action_type: recovery_entry[:action_type] || "unknown",
+          success: recovery_entry[:success] || false
+        }
+      end
+
+      def build_switch_event_from_entry(switch_entry)
+        {
+          event_type: "switch",
+          timestamp: switch_entry[:timestamp] || Time.now,
+          from_provider: switch_entry[:from_provider] || "unknown",
+          to_provider: switch_entry[:to_provider] || "unknown",
+          switch_info: switch_entry,
+          switch_type: switch_entry[:switch_type] || "unknown",
+          success: switch_entry[:success] || false
+        }
+      end
+
+      def build_retry_event_from_entry(retry_entry)
+        {
+          event_type: "retry",
+          timestamp: retry_entry[:timestamp] || Time.now,
+          provider: retry_entry[:provider] || "unknown",
+          model: retry_entry[:model] || "unknown",
+          retry_info: retry_entry,
+          retry_count: retry_entry[:retry_count] || 0,
+          success: retry_entry[:success] || false
+        }
+      end
+
+      def build_circuit_breaker_event_from_entry(circuit_breaker_entry)
+        {
+          event_type: "circuit_breaker",
+          timestamp: circuit_breaker_entry[:timestamp] || Time.now,
+          provider: circuit_breaker_entry[:provider] || "unknown",
+          model: circuit_breaker_entry[:model] || "unknown",
+          circuit_breaker_info: circuit_breaker_entry,
+          state: circuit_breaker_entry[:state] || "unknown",
+          success: circuit_breaker_entry[:success] || false
+        }
+      end
+
       def update_realtime_metrics(provider_name, model_name, event)
         @metrics_store.update_realtime_metrics(provider_name, model_name, event)
       end
@@ -351,6 +462,18 @@ module Aidp
       end
 
       def update_error_metrics(provider_name, model_name, event)
+        @metrics_store.update_realtime_metrics(provider_name, model_name, event)
+      end
+
+      def update_recovery_metrics(provider_name, model_name, event)
+        @metrics_store.update_realtime_metrics(provider_name, model_name, event)
+      end
+
+      def update_retry_metrics(provider_name, model_name, event)
+        @metrics_store.update_realtime_metrics(provider_name, model_name, event)
+      end
+
+      def update_circuit_breaker_metrics(provider_name, model_name, event)
         @metrics_store.update_realtime_metrics(provider_name, model_name, event)
       end
 
