@@ -116,7 +116,7 @@ module Aidp
         @question_patterns = [
           # Numbered questions
           /^\d+\.\s+(.+)\?/,
-          /^(\d+)\)\s+(.+)/,
+          /^(\d+)\)\s+(.+)\?/,
           /^(\d+\.\s+.+)\?$/m,
           # Bullet point questions
           /^[-*]\s+(.+)\?/,
@@ -147,8 +147,8 @@ module Aidp
           /retry.*after.*(\d+).*seconds/i,
           /wait.*(\d+).*seconds/i,
           /(\d+).*seconds.*until.*reset/i,
-          /reset.*at.*(\d{4}-\d{2}-\d{2}.*\d{2}:\d{2}:\d{2})/i,
-          /retry.*after.*(\d{4}-\d{2}-\d{2}.*\d{2}:\d{2}:\d{2})/i
+          /reset.*at.*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i,
+          /retry.*after.*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i
         ]
       end
 
@@ -230,9 +230,9 @@ module Aidp
       def extract_retry_after(text_content)
         # Look for retry-after header or similar
         retry_patterns = [
-          /retry.*after.*(\d+)/i,
-          /wait.*(\d+).*seconds/i,
-          /(\d+).*seconds.*until/i
+          /retry\s+after\s+(\d+)/i,
+          /wait\s+(\d+)\s+seconds/i,
+          /(\d+)\s+seconds\s+until/i
         ]
 
         retry_patterns.each do |pattern|
@@ -357,8 +357,19 @@ module Aidp
           /important/i
         ]
 
+        low_urgency_patterns = [
+          /when you have time/i,
+          /when convenient/i,
+          /at your convenience/i,
+          /when possible/i,
+          /no rush/i,
+          /take your time/i
+        ]
+
         if urgent_patterns.any? { |pattern| text_content.match?(pattern) }
           "high"
+        elsif low_urgency_patterns.any? { |pattern| text_content.match?(pattern) }
+          "low"
         elsif text_content.match?(/please/i) || text_content.match?(/can you/i)
           "medium"
         else
@@ -376,9 +387,14 @@ module Aidp
           "url"
         elsif text_content.match?(/path/i) || text_content.match?(/directory/i)
           "path"
-        elsif text_content.match?(/number/i) || text_content.match?(/\d+/)
+        elsif text_content.match?(/number/i) || text_content.match?(/\d+/) ||
+              text_content.match?(/how many/i) || text_content.match?(/how much/i) ||
+              text_content.match?(/count/i) || text_content.match?(/quantity/i) ||
+              text_content.match?(/amount/i)
           "number"
-        elsif text_content.match?(/yes/i) || text_content.match?(/no/i) || text_content.match?(/confirm/i)
+        elsif text_content.match?(/yes/i) || text_content.match?(/no/i) || text_content.match?(/confirm/i) ||
+              text_content.match?(/should i/i) || text_content.match?(/can i/i) || text_content.match?(/may i/i) ||
+              text_content.match?(/proceed/i) || text_content.match?(/continue/i) || text_content.match?(/approve/i)
           "boolean"
         else
           "text"
@@ -406,17 +422,29 @@ module Aidp
           matches = text_content.scan(pattern)
           matches.each do |match|
             if match.is_a?(Array)
-              # Pattern with capture groups
-              number = match[0]
-              question = match[1]
-              next if number.nil? || question.nil?
+              if match.length == 2
+                # Pattern with two capture groups (number and question)
+                number = match[0]
+                question = match[1]
+                next if number.nil? || question.nil?
 
-              questions << {
-                number: number,
-                question: question.strip,
-                type: detect_question_type(question),
-                input_type: detect_input_type(question)
-              }
+                questions << {
+                  number: number,
+                  question: question.strip,
+                  type: detect_question_type(question),
+                  input_type: detect_input_type(question)
+                }
+              elsif match.length == 1
+                # Pattern with one capture group (just question)
+                question = match[0]
+                next if question.nil?
+
+                questions << {
+                  question: question.strip,
+                  type: detect_question_type(question),
+                  input_type: detect_input_type(question)
+                }
+              end
             else
               # Single capture group
               next if match.nil?
