@@ -4,9 +4,11 @@ require "tty-progressbar"
 require "tty-spinner"
 require "tty-table"
 require "colorize"
+require_relative "../output_helper"
 
 module Aidp
   class ProgressVisualizer
+    include Aidp::OutputHelper
     # Progress bar styles
     PROGRESS_STYLES = {
       default: {complete: "█", incomplete: "░", head: "█"},

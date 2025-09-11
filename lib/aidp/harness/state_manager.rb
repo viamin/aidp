@@ -507,9 +507,9 @@ module Aidp
       end
 
       def with_lock(&_block)
-        # Simple file-based locking
+        # Improved file-based locking with Async for better concurrency
         lock_acquired = false
-        timeout = 30 # 30 seconds timeout
+        timeout = ENV['RACK_ENV'] == 'test' ? 2 : 30 # 2 seconds in test, 30 seconds in production
 
         begin
           # Try to acquire lock
@@ -518,10 +518,20 @@ module Aidp
             yield
           end
         rescue Errno::EEXIST
-          # Lock file exists, wait for it to be released
-          start_time = Time.now
-          while File.exist?(@lock_file) && (Time.now - start_time) < timeout
-            sleep(0.1)
+          # Lock file exists, wait for it to be released using Async
+          require "async"
+          if Async::Task.current?
+            # Use Async for better concurrency control
+            start_time = Time.now
+            while File.exist?(@lock_file) && (Time.now - start_time) < timeout
+              Async::Task.current.sleep(0.1) # Non-blocking sleep
+            end
+          else
+            # Fallback to regular sleep for non-Async contexts
+            start_time = Time.now
+            while File.exist?(@lock_file) && (Time.now - start_time) < timeout
+              sleep(0.1)
+            end
           end
 
           if File.exist?(@lock_file)

@@ -11,14 +11,14 @@ module Aidp
 
       # Initialize with default settings
       def initialize
-        @enabled = true
-        @output_stream = $stdout
-        @test_mode = false
+        self.enabled = true
+        self.output_stream = $stdout
+        self.test_mode = false
       end
 
       # Check if we're in test mode (RSpec environment)
       def test_mode?
-        @test_mode
+        test_mode
       end
 
       # Main output method - replaces puts
@@ -26,9 +26,9 @@ module Aidp
         return if !enabled? || test_mode?
 
         if args.empty?
-          @output_stream.puts
+          output_stream.puts
         else
-          args.each { |arg| @output_stream.puts(arg) }
+          args.each { |arg| output_stream.puts(arg) }
         end
       end
 
@@ -36,62 +36,62 @@ module Aidp
       def print(*args)
         return if !enabled? || test_mode?
 
-        args.each { |arg| @output_stream.print(arg) }
+        args.each { |arg| output_stream.print(arg) }
       end
 
       # Flush output buffer
       def flush
         return if !enabled? || test_mode?
 
-        @output_stream.flush
+        output_stream.flush
       end
 
       # Check if output is enabled
       def enabled?
-        @enabled
+        enabled
       end
 
       # Disable all output
       def disable!
-        @enabled = false
+        self.enabled = false
       end
 
       # Enable output
       def enable!
-        @enabled = true
+        self.enabled = true
       end
 
       # Set test mode (suppresses output)
       def test_mode!
-        @test_mode = true
+        self.test_mode = true
       end
 
       # Exit test mode
       def normal_mode!
-        @test_mode = false
+        self.test_mode = false
       end
 
       # Redirect output to a different stream
       def redirect_to(stream)
-        @output_stream = stream
+        self.output_stream = stream
       end
 
       # Reset to default settings
       def reset!
-        @enabled = true
-        @output_stream = $stdout
-        @test_mode = false
+        self.enabled = true
+        self.output_stream = $stdout
+        self.test_mode = false
       end
 
       # Capture output to a string (useful for testing)
       def capture_output
-        original_stream = @output_stream
+        original_stream = output_stream
         captured = StringIO.new
-        @output_stream = captured
+        self.output_stream = captured
         yield
         captured.string
       ensure
-        @output_stream = original_stream
+        self.output_stream = original_stream
       end
 
       # Conditional output based on verbosity level

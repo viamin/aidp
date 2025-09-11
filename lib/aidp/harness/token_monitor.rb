@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 require "securerandom"
+require_relative "../output_helper"
 
 module Aidp
   module Harness
     # Comprehensive token usage monitoring and display system
     class TokenMonitor
+      include Aidp::OutputHelper
       def initialize(provider_manager, metrics_manager, status_display)
         @provider_manager = provider_manager
         @metrics_manager = metrics_manager

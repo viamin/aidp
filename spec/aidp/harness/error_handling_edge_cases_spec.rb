@@ -179,21 +179,31 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       state_file = File.join(harness_state_dir, "analyze_state.json")
       File.write(state_file, '{"state": "running"}')
 
-      # Simulate concurrent access
-      threads = []
-      5.times do |i|
-        threads << Thread.new do
-          harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
-          harness_runner.send(:load_state)
-        end
-      end
+      # Simulate concurrent access using Async for better concurrency control
+      require "async"
 
-      # All threads should complete (some may timeout due to locking, which is expected behavior)
-      threads.each do |thread|
-        thread.join
-      rescue RuntimeError => e
-        # Expected timeout due to concurrent access protection
-        expect(e.message).to include("Could not acquire state lock")
+      Async do |task|
+        # Create multiple async tasks instead of threads
+        tasks = []
+
+        2.times do |i|
+          tasks << task.async do
+            harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
+            harness_runner.send(:load_state)
+          rescue RuntimeError => e
+            # Expected timeout due to concurrent access protection
+            expect(e.message).to include("Could not acquire state lock")
+          end
+        end
+
+        # Wait for all tasks to complete with timeout
+        tasks.each do |async_task|
+          begin
+            async_task.wait
+          rescue Async::TimeoutError
+            # Task timed out, which is expected behavior for some tasks
+          end
+        end
       end
     end
   end

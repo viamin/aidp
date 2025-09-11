@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 require_relative "agent_supervisor"
+require_relative "../output_helper"
 
 module Aidp
   module Providers
     # Base class for providers that use the agent supervisor
     class SupervisedBase
+      include Aidp::OutputHelper
       # Timeout constants are now configurable via environment variables for flexibility
       DEFAULT_TIMEOUT = Integer(ENV.fetch("AIDP_DEFAULT_TIMEOUT", "300"))             # 5 minutes for general operations
       QUICK_MODE_TIMEOUT = Integer(ENV.fetch("AIDP_QUICK_MODE_TIMEOUT", "120"))       # 2 minutes for testing

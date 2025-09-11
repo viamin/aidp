@@ -5,10 +5,12 @@ require "que"
 require "sequel"
 require_relative "steps"
 require_relative "progress"
+require_relative "../output_helper"
 
 module Aidp
   module Analyze
     class Runner
+      include Aidp::OutputHelper
       def initialize(project_dir, harness_runner = nil)
         @project_dir = project_dir
         @harness_runner = harness_runner
@@ -151,19 +153,22 @@ module Aidp
         dbname = (ENV["RACK_ENV"] == "test") ? "aidp_test" : (ENV["AIDP_DB_NAME"] || "aidp")
 
         # Use Sequel for connection pooling with timeout
-        Timeout.timeout(10) do
-          Que.connection = Sequel.connect(
-            adapter: "postgres",
-            host: ENV["AIDP_DB_HOST"] || "localhost",
-            port: ENV["AIDP_DB_PORT"] || 5432,
-            database: dbname,
-            user: ENV["AIDP_DB_USER"] || ENV["USER"],
-            password: ENV["AIDP_DB_PASSWORD"],
-            max_connections: 10,
-            pool_timeout: 30
-          )
+        require "async"
+        Async do |task|
+          task.with_timeout(10) do
+            Que.connection = Sequel.connect(
+              adapter: "postgres",
+              host: ENV["AIDP_DB_HOST"] || "localhost",
+              port: ENV["AIDP_DB_PORT"] || 5432,
+              database: dbname,
+              user: ENV["AIDP_DB_USER"] || ENV["USER"],
+              password: ENV["AIDP_DB_PASSWORD"],
+              max_connections: 10,
+              pool_timeout: 30
+            )
 
-          Que.migrate!(version: Que::Migrations::CURRENT_VERSION)
+            Que.migrate!(version: Que::Migrations::CURRENT_VERSION)
+          end
         end
       rescue Timeout::Error
         puts "Database connection timed out"

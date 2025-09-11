@@ -3,7 +3,7 @@
 require "spec_helper"
 require "net/http"
 
-RSpec.describe "Analyze Mode Integration Workflow", type: :integration, :pending => "Complex integration tests - not critical for unit testing" do
+RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_integration_test") }
   let(:cli) { Aidp::CLI.new }
   let(:progress_file) { File.join(project_dir, ".aidp-analyze-progress.yml") }

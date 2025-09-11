@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
+require_relative "../output_helper"
+
 module Aidp
   module Harness
     # Comprehensive rate limit countdown and status display system
     class RateLimitDisplay
+      include Aidp::OutputHelper
       def initialize(provider_manager, status_display, rate_limit_manager)
         @provider_manager = provider_manager
         @status_display = status_display

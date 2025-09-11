@@ -6,7 +6,7 @@ require "aidp/analyze/runner"
 require "aidp/execute/progress"
 require "aidp/analyze/progress"
 
-RSpec.describe "Existing Project Compatibility", type: :integration, :pending => "Complex integration tests - not critical for unit testing" do
+RSpec.describe "Existing Project Compatibility", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_existing_project_test") }
   let(:cli) { Aidp::CLI.new }
   let(:execute_runner) { Aidp::Execute::Runner.new(project_dir) }

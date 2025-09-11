@@ -3,10 +3,12 @@
 require_relative "../harness/config_migrator"
 require_relative "../harness/config_validator"
 require_relative "../harness/config_loader"
+require_relative "../output_helper"
 
 module Aidp
   # Configuration management command
   class ConfigCommand
+    include Aidp::OutputHelper
     def initialize(project_dir = Dir.pwd)
       @project_dir = project_dir
       @migrator = Aidp::Harness::ConfigMigrator.new(project_dir)

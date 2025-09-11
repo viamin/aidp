@@ -2,10 +2,12 @@
 
 require "json"
 require "tty-table"
+require_relative "../output_helper"
 
 module Aidp
   module Analysis
     class KBInspector
+      include Aidp::OutputHelper
       def initialize(kb_dir = ".aidp/kb")
         @kb_dir = File.expand_path(kb_dir)
         @data = load_kb_data

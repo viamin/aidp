@@ -162,19 +162,31 @@ RSpec.describe Aidp::Analysis::KBInspector do
     end
 
     it "shows file counts" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Files analyzed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Files analyzed")
     end
 
     it "shows symbol counts" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Symbols/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Symbols")
     end
 
     it "shows seam types" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Seam Types/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Seam Types")
     end
 
     it "shows top hotspots" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Top 5 Hotspots/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Top 5 Hotspots")
     end
   end
 

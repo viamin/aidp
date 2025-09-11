@@ -42,17 +42,22 @@ module Aidp
       results = {}
       threads = []
 
-      tools.each do |tool_name, tool_options|
-        thread = Thread.new do
-          results[tool_name] = execute_tool(tool_name, tool_options)
-        rescue => e
-          results[tool_name] = {error: e.message, status: "failed"}
-        end
-        threads << thread
-      end
+      # Use Async for better concurrency control
+      require "async"
+      Async do |task|
+        tasks = []
 
-      # Wait for all threads to complete
-      threads.each(&:join)
+        tools.each do |tool_name, tool_options|
+          tasks << task.async do
+            results[tool_name] = execute_tool(tool_name, tool_options)
+          rescue => e
+            results[tool_name] = {error: e.message, status: "failed"}
+          end
+        end
+
+        # Wait for all tasks to complete
+        tasks.each(&:wait)
+      end
 
       results
     end
@@ -171,8 +176,11 @@ module Aidp
       command = build_tool_command(tool_name, options)
       working_dir = options[:working_dir] || @project_dir
 
-      Timeout.timeout(@timeout) do
-        execute_command(command, working_dir, options)
+      require "async"
+      Async do |task|
+        task.with_timeout(@timeout) do
+          execute_command(command, working_dir, options)
+        end
       end
     end
 

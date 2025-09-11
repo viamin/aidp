@@ -8,10 +8,12 @@ require "etc"
 
 require_relative "tree_sitter_grammar_loader"
 require_relative "seams"
+require_relative "../output_helper"
 
 module Aidp
   module Analysis
     class TreeSitterScan
+      include Aidp::OutputHelper
       def initialize(root: Dir.pwd, kb_dir: ".aidp/kb", langs: %w[ruby], threads: Etc.nprocessors)
         @root = File.expand_path(root)
         @kb_dir = File.expand_path(kb_dir, @root)

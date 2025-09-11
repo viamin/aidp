@@ -3,9 +3,11 @@
 require "pg"
 require "que"
 require "sequel"
+require_relative "output_helper"
 
 module Aidp
   class DatabaseConnection
+    extend Aidp::OutputHelper
     class << self
       def initialize_mutex
         @mutex ||= Mutex.new

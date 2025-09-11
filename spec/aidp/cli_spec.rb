@@ -37,33 +37,41 @@ RSpec.describe Aidp::CLI do
     it "displays completed status" do
       result = {status: "completed", message: "All done"}
 
-      expect { cli.send(:display_harness_result, result) }.to output(
-        /✅ Harness completed successfully!/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("✅ Harness completed successfully!")
     end
 
     it "displays stopped status" do
       result = {status: "stopped", message: "User stopped"}
 
-      expect { cli.send(:display_harness_result, result) }.to output(
-        /⏹️  Harness stopped by user/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("⏹️  Harness stopped by user")
     end
 
     it "displays error status" do
       result = {status: "error", message: "Something went wrong"}
 
-      expect { cli.send(:display_harness_result, result) }.to output(
-        /❌ Harness encountered an error/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("❌ Harness encountered an error")
     end
 
     it "displays unknown status" do
       result = {status: "unknown", message: "Unknown state"}
 
-      expect { cli.send(:display_harness_result, result) }.to output(
-        /🔄 Harness finished/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("🔄 Harness finished")
     end
   end
 
@@ -204,15 +212,19 @@ RSpec.describe Aidp::CLI do
     end
 
     it "displays harness status for both modes" do
-      expect { cli.harness_status }.to output(
-        /🔧 Harness Status/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.harness_status
+      end
+
+      expect(output).to include("🔧 Harness Status")
     end
 
     it "displays harness status for specific mode" do
-      expect { cli.harness_status }.to output(
-        /📋 Analyze Mode:/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.harness_status
+      end
+
+      expect(output).to include("📋 Analyze Mode:")
     end
   end
 
@@ -230,26 +242,32 @@ RSpec.describe Aidp::CLI do
       allow(cli).to receive(:options).and_return({mode: "analyze"})
       expect(mock_state_manager).to receive(:reset_all)
 
-      expect { cli.harness_reset }.to output(
-        /✅ Reset harness state for analyze mode/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.harness_reset
+      end
+
+      expect(output).to include("✅ Reset harness state for analyze mode")
     end
 
     it "resets harness state for execute mode" do
       allow(cli).to receive(:options).and_return({mode: "execute"})
       expect(mock_state_manager).to receive(:reset_all)
 
-      expect { cli.harness_reset }.to output(
-        /✅ Reset harness state for execute mode/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.harness_reset
+      end
+
+      expect(output).to include("✅ Reset harness state for execute mode")
     end
 
     it "shows error for invalid mode" do
       allow(cli).to receive(:options).and_return({mode: "invalid"})
 
-      expect { cli.harness_reset }.to output(
-        /❌ Invalid mode. Use 'analyze' or 'execute'/
-      ).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        cli.harness_reset
+      end
+
+      expect(output).to include("❌ Invalid mode. Use 'analyze' or 'execute'")
     end
   end
 end

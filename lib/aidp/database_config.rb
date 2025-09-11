@@ -2,9 +2,11 @@
 
 require "yaml"
 require "fileutils"
+require_relative "output_helper"
 
 module Aidp
   class DatabaseConfig
+    extend Aidp::OutputHelper
     DEFAULT_CONFIG = {
       "database" => {
         "adapter" => "postgresql",

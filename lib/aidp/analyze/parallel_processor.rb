@@ -269,7 +269,7 @@ module Aidp
           result
         rescue => e
           if attempt < retry_attempts
-            sleep(2**attempt) # Exponential backoff
+            Async::Task.current.sleep(2**attempt) # Exponential backoff
             retry
           else
             {
@@ -333,13 +333,16 @@ module Aidp
           running: true
         }
 
-        # Start monitoring thread
-        Thread.new do
-          while monitor[:running]
-            monitor[:usage][:memory] << get_memory_usage
-            monitor[:usage][:cpu] << get_cpu_usage
-            monitor[:usage][:disk] << get_disk_usage
-            sleep(1)
+        # Start monitoring task using Async
+        require "async"
+        Async do |task|
+          task.async do
+            while monitor[:running]
+              monitor[:usage][:memory] << get_memory_usage
+              monitor[:usage][:cpu] << get_cpu_usage
+              monitor[:usage][:disk] << get_disk_usage
+              Async::Task.current.sleep(1) # Non-blocking sleep
+            end
           end
         end
 
@@ -400,7 +403,7 @@ module Aidp
 
       def wait_for_resources(resource_monitor)
         # Wait until resources are available
-        sleep(1)
+        Async::Task.current.sleep(1)
       end
 
       def get_memory_usage

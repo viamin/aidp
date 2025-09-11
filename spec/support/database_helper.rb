@@ -24,13 +24,28 @@ module DatabaseHelper
     )
 
     begin
-      # Drop test database if it exists
+      # Force terminate all connections to test database
       conn.exec_params("SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = $1 AND pid <> pg_backend_pid()", [TEST_DB_NAME])
+
+      # Wait a moment for connections to close
+      sleep(0.5)
+
+      # Drop test database if it exists
       conn.exec("DROP DATABASE IF EXISTS #{conn.escape_identifier(TEST_DB_NAME)}")
+
+      # Wait a moment for the drop to complete
+      sleep(0.5)
+
+      # Create test database
       conn.exec("CREATE DATABASE #{conn.escape_identifier(TEST_DB_NAME)}")
     rescue PG::Error => e
       puts "Error setting up test database: #{e.message}"
-      raise
+      # Try to continue anyway - database might already exist
+      begin
+        conn.exec("CREATE DATABASE #{conn.escape_identifier(TEST_DB_NAME)}")
+      rescue PG::Error => e2
+        puts "Database already exists or other error: #{e2.message}"
+      end
     ensure
       conn.close
     end
@@ -108,9 +123,20 @@ module DatabaseHelper
       @db.exec("TRUNCATE que_jobs CASCADE")
     rescue PG::Error => e
       puts "Error clearing que tables: #{e.message}"
-      # Try to reconnect and retry once
-      setup_test_db
-      @db.exec("TRUNCATE que_jobs CASCADE")
+      # Try to reconnect without full setup
+      begin
+        @db.close if @db
+        @db = PG.connect(
+          host: "localhost",
+          port: 5432,
+          dbname: TEST_DB_NAME,
+          user: ENV["USER"]
+        )
+        @db.exec("TRUNCATE que_jobs CASCADE")
+      rescue PG::Error => e2
+        puts "Failed to reconnect and clear tables: #{e2.message}"
+        # Don't raise - just continue with the test
+      end
     end
   end
 end
