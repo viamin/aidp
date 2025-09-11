@@ -5,6 +5,7 @@ require "rspec"
 require "timeout"
 
 ENV["RACK_ENV"] = "test"
+ENV["RSPEC_RUNNING"] = "true"  # Signal that we're running tests
 
 # Workaround for Ruby 3.4.2 compatibility with RSpec 3.12.x
 module RSpec
@@ -56,7 +57,16 @@ RSpec.configure do |config|
   config.around(:each) do |example|
     # Ensure each test starts with a clean connection
     Aidp::DatabaseConnection.disconnect
+
+    # Configure output logger for tests (only for non-logger tests)
+    unless example.full_description.include?('OutputLogger') || example.full_description.include?('OutputHelper')
+      Aidp::OutputLogger.test_mode!
+    end
+
     example.run
+
+    # Reset output logger after test
+    Aidp::OutputLogger.normal_mode!
     Aidp::DatabaseConnection.disconnect
   end
 end

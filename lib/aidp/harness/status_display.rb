@@ -4,6 +4,7 @@ module Aidp
   module Harness
     # Real-time status updates and monitoring interface
     class StatusDisplay
+      include Aidp::OutputHelper
       def initialize(provider_manager = nil, metrics_manager = nil, circuit_breaker_manager = nil, error_logger = nil)
         @provider_manager = provider_manager
         @metrics_manager = metrics_manager

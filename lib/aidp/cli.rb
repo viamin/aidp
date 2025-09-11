@@ -6,6 +6,7 @@ require_relative "harness/runner"
 module Aidp
   # CLI interface for both execute and analyze modes
   class CLI < Thor
+    include Aidp::OutputHelper
     desc "execute [STEP]", "Run execute mode step(s) or all steps with harness"
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"

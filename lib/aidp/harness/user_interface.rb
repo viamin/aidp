@@ -6,6 +6,7 @@ module Aidp
   module Harness
     # Handles user interaction and feedback collection
     class UserInterface
+      include Aidp::OutputHelper
       def initialize
         @input_history = []
         @file_selection_enabled = false
