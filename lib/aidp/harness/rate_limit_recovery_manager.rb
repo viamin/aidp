@@ -88,7 +88,7 @@ module Aidp
       # Check if provider/model is currently rate limited
       def is_rate_limited?(provider, model = nil)
         if model
-          @active_rate_limits.dig(provider, model)
+          @active_rate_limits.dig(provider, model) != nil
         else
           @active_rate_limits.key?(provider)
         end
@@ -370,19 +370,52 @@ module Aidp
 
         if selected_provider
           # Switch to selected provider
-          @provider_manager.set_current_provider(selected_provider)
+          provider_switch_result = @provider_manager.set_current_provider(selected_provider)
 
-          # Record switch cooldown
-          record_switch_cooldown(recovery_info[:provider], strategy)
+          if provider_switch_result
+            # Record switch cooldown
+            record_switch_cooldown(recovery_info[:provider], strategy)
 
-          {
-            success: true,
-            action: :provider_switch,
-            new_provider: selected_provider,
-            reason: "Rate limit recovery - immediate provider switch",
-            recovery_info: recovery_info,
-            strategy: strategy[:name]
-          }
+            {
+              success: true,
+              action: :provider_switch,
+              new_provider: selected_provider,
+              reason: "Rate limit recovery - immediate provider switch",
+              recovery_info: recovery_info,
+              strategy: strategy[:name]
+            }
+          else
+            # Provider switch failed, try model switch
+            available_models = get_available_models(recovery_info[:provider])
+            if available_models.any?
+              model_switch_result = @provider_manager.set_current_model(recovery_info[:provider], available_models.first)
+              if model_switch_result
+                {
+                  success: true,
+                  action: :model_switch,
+                  new_provider: recovery_info[:provider],
+                  new_model: available_models.first,
+                  reason: "Rate limit recovery - fallback to model switch",
+                  recovery_info: recovery_info,
+                  strategy: strategy[:name]
+                }
+              else
+                {
+                  success: false,
+                  action: :switch_failed,
+                  error: "Both provider and model switches failed",
+                  recovery_info: recovery_info
+                }
+              end
+            else
+              {
+                success: false,
+                action: :no_models_available,
+                error: "No available models for fallback",
+                recovery_info: recovery_info
+              }
+            end
+          end
         else
           {
             success: false,
