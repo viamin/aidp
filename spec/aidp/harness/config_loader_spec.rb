@@ -356,14 +356,14 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         time_based: {
           hours: {
-            9..17 => {
+            "9-17" => {
               harness: {
                 max_retries: 1
               }
             }
           },
           days: {
-            monday: {
+            "monday" => {
               harness: {
                 max_retries: 5
               }
@@ -383,8 +383,8 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "gets time-based configuration for business hours" do
-      # Mock Time.now to return 10 AM
-      allow(Time).to receive(:now).and_return(Time.new(2024, 1, 15, 10, 0, 0))
+      # Mock Time.now to return 10 AM on Tuesday (not Monday)
+      allow(Time).to receive(:now).and_return(Time.new(2024, 1, 16, 10, 0, 0))
 
       config = loader.get_time_based_config
 
@@ -486,6 +486,8 @@ RSpec.describe Aidp::Harness::ConfigLoader do
 
       File.write(config_file, YAML.dump(config_with_issues))
 
+      # Load the configuration first
+      loader.load_config
       fixed = loader.fix_config_issues
 
       expect(fixed).to be true

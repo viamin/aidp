@@ -195,6 +195,7 @@ module Aidp
         return nil unless @config_file
 
         load_config
+        validate_config
         validated_config = get_validated_config
         return nil unless validated_config
 
