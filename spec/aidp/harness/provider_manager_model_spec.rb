@@ -279,7 +279,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "updates model health" do
         manager.mark_model_rate_limited("claude", "claude-3-5-sonnet-20241022")
         health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
-        expect(health[:last_rate_limited]).to be_present
+        expect(health[:last_rate_limited]).not_to be_nil
       end
     end
 
@@ -314,7 +314,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         expect(metrics[:successful_requests]).to eq(0)
         expect(metrics[:failed_requests]).to eq(1)
         expect(metrics[:last_error]).to eq("Test error")
-        expect(metrics[:last_error_time]).to be_present
+        expect(metrics[:last_error_time]).not_to be_nil
       end
 
       it "updates model health on success" do
@@ -363,7 +363,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
     describe "#select_model_by_load_balancing" do
       it "selects model with lowest load" do
         model = manager.select_model_by_load_balancing("claude")
-        expect(model).to be_in(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"])
+        expect(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]).to include(model)
       end
 
       it "returns nil when no models available" do
@@ -384,7 +384,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
         available_models = ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
         model = manager.select_model_by_weight("claude", available_models)
-        expect(model).to be_in(available_models)
+        expect(available_models).to include(model)
       end
 
       it "handles zero total weight" do
@@ -449,7 +449,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
     describe "#find_any_available_model" do
       it "finds any available model for provider" do
         model = manager.find_any_available_model("claude")
-        expect(model).to be_in(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"])
+        expect(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]).to include(model)
       end
 
       it "returns nil when no models available" do
