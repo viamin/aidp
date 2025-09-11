@@ -16,6 +16,15 @@ module Aidp
 
       # Load and validate configuration
       def load_and_validate
+        unless @config_file
+          @validation_result = {
+            valid: false,
+            errors: ["No configuration file found"],
+            warnings: []
+          }
+          return @validation_result
+        end
+
         load_config
         validate_config
         @validation_result
@@ -219,6 +228,9 @@ module Aidp
           @config = config_data
         end
         return unless @config
+
+        # Don't override validation result if it was already set due to loading errors
+        return if @validation_result && !@validation_result[:valid]
 
         @validation_result = ConfigSchema.validate(@config)
       end

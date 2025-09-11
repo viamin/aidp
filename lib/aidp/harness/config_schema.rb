@@ -798,31 +798,58 @@ module Aidp
         warnings = []
 
         # Check if section is required
-        if schema[:required] && (data.nil? || data.empty?)
+        if schema[:required] && data.nil?
           errors << "#{path}: section is required"
           return [errors, warnings]
         end
 
-        return [errors, warnings] unless data.is_a?(Hash)
+        # Check if string is empty and required
+        if schema[:required] && schema[:type] == :string && data.is_a?(String) && data.empty?
+          errors << "#{path}: is required"
+          return [errors, warnings]
+        end
 
-        # Validate type
+        # For non-hash types, validate the type and return
+        unless data.is_a?(Hash)
+          # Validate type
+          if schema[:type] == :array && !data.is_a?(Array)
+            errors << "#{path}: must be an array"
+          elsif schema[:type] == :string && !data.is_a?(String)
+            errors << "#{path}: must be a string"
+          elsif schema[:type] == :integer && !data.is_a?(Integer)
+            errors << "#{path}: must be an integer"
+          elsif schema[:type] == :number && !data.is_a?(Numeric)
+            errors << "#{path}: must be a number"
+          elsif schema[:type] == :boolean && !data.is_a?(TrueClass) && !data.is_a?(FalseClass)
+            errors << "#{path}: must be a boolean"
+          end
+
+          # Validate string pattern if specified
+          if schema[:type] == :string && data.is_a?(String) && schema[:pattern] && !data.match?(schema[:pattern])
+            errors << "#{path}: must match pattern"
+          end
+
+          # Validate enum values
+          if schema[:enum] && !schema[:enum].include?(data)
+            errors << "#{path}: must be one of #{schema[:enum].join(', ')}"
+          end
+
+          # Validate numeric constraints
+          if schema[:type] == :integer && data.is_a?(Integer)
+            if schema[:min] && data < schema[:min]
+              errors << "#{path}: must be >= #{schema[:min]}"
+            end
+            if schema[:max] && data > schema[:max]
+              errors << "#{path}: must be <= #{schema[:max]}"
+            end
+          end
+
+          return [errors, warnings]
+        end
+
+        # Validate hash type
         if schema[:type] == :hash && !data.is_a?(Hash)
           errors << "#{path}: must be a hash"
-          return [errors, warnings]
-        elsif schema[:type] == :array && !data.is_a?(Array)
-          errors << "#{path}: must be an array"
-          return [errors, warnings]
-        elsif schema[:type] == :string && !data.is_a?(String)
-          errors << "#{path}: must be a string"
-          return [errors, warnings]
-        elsif schema[:type] == :integer && !data.is_a?(Integer)
-          errors << "#{path}: must be an integer"
-          return [errors, warnings]
-        elsif schema[:type] == :number && !data.is_a?(Numeric)
-          errors << "#{path}: must be a number"
-          return [errors, warnings]
-        elsif schema[:type] == :boolean && !data.is_a?(TrueClass) && !data.is_a?(FalseClass)
-          errors << "#{path}: must be a boolean"
           return [errors, warnings]
         end
 
@@ -832,12 +859,36 @@ module Aidp
             prop_path = "#{path}.#{prop_name}"
 
             if data.key?(prop_name) || data.key?(prop_name.to_s)
-              prop_value = data[prop_name] || data[prop_name.to_s]
+              prop_value = data.key?(prop_name) ? data[prop_name] : data[prop_name.to_s]
               prop_errors, prop_warnings = validate_section(prop_value, prop_schema, prop_path)
               errors.concat(prop_errors)
               warnings.concat(prop_warnings)
             elsif prop_schema[:required]
               errors << "#{prop_path}: is required"
+            end
+          end
+        end
+
+        # Validate pattern properties for hash types
+        if schema[:type] == :hash && schema[:pattern_properties]
+          data.each do |key, value|
+            # Find matching pattern
+            matching_pattern = nil
+            matching_schema = nil
+
+            schema[:pattern_properties].each do |pattern, pattern_schema|
+              if key.to_s.match?(pattern)
+                matching_pattern = pattern
+                matching_schema = pattern_schema
+                break
+              end
+            end
+
+            if matching_schema
+              prop_path = "#{path}.#{key}"
+              prop_errors, prop_warnings = validate_section(value, matching_schema, prop_path)
+              errors.concat(prop_errors)
+              warnings.concat(prop_warnings)
             end
           end
         end
