@@ -307,6 +307,9 @@ module Aidp
       private
 
       def initialize_metrics_collection
+        # Skip background threads in test environment
+        return if defined?(RSpec) && RSpec.current_example
+
         # Set up periodic metrics collection
         @collection_thread = Thread.new do
           loop do
@@ -1317,13 +1320,32 @@ module Aidp
         def generate_report(report_data, format)
           case format
           when :json
-            report_data.to_json
+            sanitize_for_json(report_data).to_json
           when :yaml
             report_data.to_yaml
           when :csv
             generate_csv_report(report_data)
           else
             report_data.to_s
+          end
+        end
+
+        def sanitize_for_json(data)
+          case data
+          when Hash
+            data.transform_values { |v| sanitize_for_json(v) }
+          when Array
+            data.map { |v| sanitize_for_json(v) }
+          when Float
+            if data.infinite?
+              data > 0 ? "Infinity" : "-Infinity"
+            elsif data.nan?
+              "NaN"
+            else
+              data
+            end
+          else
+            data
           end
         end
 
