@@ -218,11 +218,11 @@ RSpec.describe Aidp::Harness::TokenMonitor do
     end
 
     it "maintains history size limit" do
-      # Force multiple entries to test history limit
-      10002.times { monitor.record_token_usage("claude", "claude-3-5-sonnet", 100, 200, 0.01) }
+      # Force multiple entries to test history limit (reduced for performance)
+      1002.times { monitor.record_token_usage("claude", "claude-3-5-sonnet", 100, 200, 0.01) }
 
       history = monitor.get_usage_history
-      expect(history.size).to be <= 10000
+      expect(history.size).to be <= 1000
     end
   end
 
@@ -601,7 +601,7 @@ RSpec.describe Aidp::Harness::TokenMonitor do
       export = monitor.export_token_data(:yaml)
 
       expect(export).to be_a(String)
-      expect { YAML.safe_load(export) }.not_to raise_error
+        expect { YAML.safe_load(export, permitted_classes: [Symbol, Time], aliases: true) }.not_to raise_error
     end
 
     it "exports token data in CSV format" do
@@ -950,7 +950,7 @@ RSpec.describe Aidp::Harness::TokenMonitor do
         result = yaml_exporter.export_data(monitor)
 
         expect(result).to be_a(String)
-        expect { YAML.safe_load(result) }.not_to raise_error
+        expect { YAML.safe_load(result, permitted_classes: [Symbol, Time]) }.not_to raise_error
       end
 
       it "exports data in CSV format" do

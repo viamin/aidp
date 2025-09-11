@@ -19,10 +19,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#start_control_interface" do
       it "starts the control interface" do
-        expect { ui.start_control_interface }.to output(/Control Interface Started/).to_stdout
-        expect { ui.start_control_interface }.to output(/Press 'p' \+ Enter to pause/).to_stdout
-        expect { ui.start_control_interface }.to output(/Press 'r' \+ Enter to resume/).to_stdout
-        expect { ui.start_control_interface }.to output(/Press 's' \+ Enter to stop/).to_stdout
+        expect { ui.start_control_interface }.to output(/Control Interface Started.*Press 'p' \+ Enter to pause.*Press 'r' \+ Enter to resume.*Press 's' \+ Enter to stop/m).to_stdout
       end
 
       it "does not start multiple control interfaces" do

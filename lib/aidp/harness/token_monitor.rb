@@ -406,8 +406,13 @@ module Aidp
       def update_status_display(provider, model)
         return unless @status_display
 
-        current_usage = get_current_usage(provider, model)
-        @status_display.update_token_usage(provider, model, current_usage[:total_tokens], current_usage[:remaining_tokens])
+        begin
+          current_usage = get_current_usage(provider, model)
+          @status_display.update_token_usage(provider, model, current_usage[:total_tokens], current_usage[:remaining_tokens])
+        rescue NoMethodError, StandardError => e
+          # Handle missing methods gracefully
+          puts "Token monitor display error: #{e.message}" if @display_config&.dig(:show_errors)
+        end
       end
 
       def get_model_usage(provider, model)

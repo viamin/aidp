@@ -457,6 +457,18 @@ module Aidp
         end
       end
 
+      def display_token_info
+        return unless @token_usage.any?
+
+        puts "\n🎫 TOKEN USAGE"
+        @token_usage.each do |provider, models|
+          puts "   #{provider}:"
+          models.each do |model, usage|
+            puts "     #{model}: #{usage[:used]} used, #{usage[:remaining]} remaining"
+          end
+        end
+      end
+
       def display_performance_info
         return unless @performance_metrics.any?
 

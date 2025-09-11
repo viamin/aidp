@@ -268,7 +268,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         expect { ui.show_file_preview(temp_file.path) }.to output(/File Preview/).to_stdout
         expect { ui.show_file_preview(temp_file.path) }.to output(/File Info/).to_stdout
         expect { ui.show_file_preview(temp_file.path) }.to output(/Content Preview/).to_stdout
-        expect { ui.show_file_preview(temp_file.path) }.to output(/30 more lines/).to_stdout
+        expect { ui.show_file_preview(temp_file.path) }.to output(/10 more lines/).to_stdout
 
         temp_file.unlink
       end

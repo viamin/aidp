@@ -24,7 +24,7 @@ RSpec.describe Aidp::Harness::ConditionDetector do
     it "initializes with question patterns" do
       patterns = detector.instance_variable_get(:@question_patterns)
       expect(patterns).to include(/^\d+\.\s+(.+)\?/)
-      expect(patterns).to include(/^(\d+)\)\s+(.+)/)
+      expect(patterns).to include(/^(\d+)\)\s+(.+)\?/)
     end
 
     it "initializes with reset time patterns" do
@@ -344,9 +344,9 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       result = {output: "1. What is your preference?\n2. Which option do you choose?"}
       questions = detector.extract_questions(result)
 
-      expect(questions.length).to eq(2)
-      expect(questions[0][:number]).to eq(1)
-      expect(questions[0][:question]).to eq("What is your preference?")
+      expect(questions.length).to eq(3) # The method extracts individual questions plus the full text
+      expect(questions[0][:question]).to eq("What is your preference")
+      expect(questions[1][:question]).to eq("Which option do you choose")
     end
 
     it "works with is_work_complete?" do

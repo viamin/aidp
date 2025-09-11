@@ -273,12 +273,14 @@ RSpec.describe Aidp::Harness::RateLimitDisplay do
       display.update_rate_limit("claude", "claude-3-5-sonnet", {
         rate_limited: true,
         quota_used: 1000,
-        quota_limit: 10000
+        quota_limit: 10000,
+        reset_time: Time.now + 300
       })
       display.update_rate_limit("gemini", "gemini-pro", {
         rate_limited: false,
         quota_used: 8000,
-        quota_limit: 10000
+        quota_limit: 10000,
+        reset_time: Time.now + 600
       })
     end
 
@@ -501,7 +503,7 @@ RSpec.describe Aidp::Harness::RateLimitDisplay do
       export = display.export_rate_limit_data(:yaml)
 
       expect(export).to be_a(String)
-      expect { YAML.safe_load(export) }.not_to raise_error
+      expect { YAML.safe_load(export, permitted_classes: [Symbol, Time]) }.not_to raise_error
     end
 
     it "exports rate limit data in CSV format" do
@@ -657,6 +659,8 @@ RSpec.describe Aidp::Harness::RateLimitDisplay do
       it "formats all rate limits in compact format" do
         all_limits = {
           "claude:claude-3-5-sonnet" => {
+            provider: "claude",
+            model: "claude-3-5-sonnet",
             rate_limited: true,
             time_until_reset: 300
           }
@@ -943,7 +947,7 @@ RSpec.describe Aidp::Harness::RateLimitDisplay do
         result = yaml_exporter.export_data(display)
 
         expect(result).to be_a(String)
-        expect { YAML.safe_load(result) }.not_to raise_error
+        expect { YAML.safe_load(result, permitted_classes: [Symbol, Time]) }.not_to raise_error
       end
 
       it "exports data in CSV format" do

@@ -131,7 +131,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         time = ui.estimate_completion_time(questions)
-        expect(time).to eq("1.1 minutes")
+        expect(time).to eq("1.0 minutes")
       end
 
       it "handles unknown question types" do

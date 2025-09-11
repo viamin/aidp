@@ -20,6 +20,17 @@ module Aidp
         initialize_retry_strategies
       end
 
+      # Get error statistics
+      def error_stats
+        {
+          total_errors: @error_history.size,
+          error_types: @error_history.group_by { |e| e[:error_type] }.transform_values(&:size),
+          recent_errors: @error_history.last(10),
+          retry_counts: @retry_counts.dup,
+          circuit_breaker_states: @circuit_breakers.transform_values { |cb| cb[:state] }
+        }
+      end
+
       # Main entry point for error handling
       def handle_error(error, context = {})
         error_info = @error_classifier.classify_error(error, context)

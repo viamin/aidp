@@ -38,7 +38,11 @@ module Aidp
 
       # Start rate limit display
       def start_display
-        return if @display_running
+        return {
+          status: :started,
+          update_interval: @display_config[:update_interval],
+          features: get_enabled_features
+        } if @display_running
 
         @display_running = true
         @start_time = Time.now
@@ -53,7 +57,10 @@ module Aidp
 
       # Stop rate limit display
       def stop_display
-        return unless @display_running
+        return {
+          status: :stopped,
+          display_duration: 0
+        } unless @display_running
 
         @display_running = false
         @display_thread&.join(2) # Wait up to 2 seconds for thread to finish
@@ -67,6 +74,9 @@ module Aidp
       # Update rate limit information
       def update_rate_limit(provider, model, rate_limit_info)
         key = "#{provider}:#{model}"
+
+        # Handle nil rate_limit_info gracefully
+        rate_limit_info ||= {}
 
         @rate_limits[key] = {
           provider: provider,
@@ -351,8 +361,15 @@ module Aidp
         return unless @status_display
 
         # Update status display with current rate limit information
-        summary = get_rate_limit_summary
-        @status_display.update_rate_limit_status(summary)
+        begin
+          @rate_limits.each do |key, rate_limit_info|
+            provider, model = key.split(':', 2)
+            @status_display.update_rate_limit_status(provider, model, rate_limit_info)
+          end
+        rescue NoMethodError, StandardError => e
+          # Handle missing methods gracefully
+          puts "Rate limit display error: #{e.message}" if @display_config[:show_errors]
+        end
       end
 
       def check_alerts
@@ -495,8 +512,8 @@ module Aidp
       end
 
       def get_upcoming_resets
-        @rate_limits.select { |_key, rate_limit| rate_limit[:reset_time] && rate_limit[:reset_time] > Time.now }
-          .sort_by { |_key, rate_limit| rate_limit[:reset_time] }
+        upcoming = @rate_limits.select { |_key, rate_limit| rate_limit[:reset_time] && rate_limit[:reset_time] > Time.now }
+        upcoming.sort_by { |_key, rate_limit| rate_limit[:reset_time] }.to_h
       end
 
       def get_quota_status_summary
@@ -571,7 +588,7 @@ module Aidp
             "Rate limited: #{remaining ? "#{remaining.to_i}s remaining" : "Unknown"}"
           else
             usage = rate_limit_info[:usage_percentage]
-            "Available: #{usage ? "#{usage}% used" : "No usage data"}"
+            "Available: #{usage ? "#{usage.to_i}% used" : "No usage data"}"
           end
         end
 
@@ -636,7 +653,7 @@ module Aidp
           else
             usage = rate_limit_info[:usage_percentage]
             status_icon = (usage && usage >= 75) ? "🟡" : "🟢"
-            "#{status_icon} Available: #{usage ? "#{usage}% used" : "No usage data"}"
+            "#{status_icon} Available: #{usage ? "#{usage.to_i}% used" : "No usage data"}"
           end
         end
 

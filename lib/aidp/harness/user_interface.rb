@@ -1377,13 +1377,16 @@ module Aidp
         # Parse special options
         if search_term.include?("preview")
           options[:preview] = true
-          options[:term] = search_term.gsub("preview", "").strip
+          options[:term] = options[:term].gsub("preview", "").strip
         end
 
         if search_term.include?("case")
           options[:case_sensitive] = true
-          options[:term] = search_term.gsub("case", "").strip
+          options[:term] = options[:term].gsub("case", "").strip
         end
+
+        # Clean up multiple spaces
+        options[:term] = options[:term].gsub(/\s+/, " ").strip
 
         options
       end
@@ -1459,13 +1462,13 @@ module Aidp
           term_to_check = search_options[:term]
         else
           filename_to_check = filename.downcase
-          term_to_check = search_options[:term].downcase
+          term_to_check = search_options[:term]&.downcase
         end
 
         # Check term match
-        if search_options[:term].empty?
+        if search_options[:term]&.empty?
           true
-        elsif search_options[:patterns].any?
+        elsif search_options[:patterns]&.any?
           # Check if any pattern matches
           search_options[:patterns].any? do |pattern|
             pattern_to_check = search_options[:case_sensitive] ? pattern : pattern.downcase

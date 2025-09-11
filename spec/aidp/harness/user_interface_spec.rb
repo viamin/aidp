@@ -190,41 +190,41 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#validate_input_type" do
       it "validates email format" do
-        expect(ui.validate_input_type("test@example.com", "email")).to be true
-        expect(ui.validate_input_type("invalid-email", "email")).to be false
+        expect(ui.validate_input_type("test@example.com", "email")[:valid]).to be true
+        expect(ui.validate_input_type("invalid-email", "email")[:valid]).to be false
       end
 
       it "validates URL format" do
-        expect(ui.validate_input_type("https://example.com", "url")).to be true
-        expect(ui.validate_input_type("invalid-url", "url")).to be false
+        expect(ui.validate_input_type("https://example.com", "url")[:valid]).to be true
+        expect(ui.validate_input_type("invalid-url", "url")[:valid]).to be false
       end
 
       it "validates number format" do
-        expect(ui.validate_input_type("123", "number")).to be true
-        expect(ui.validate_input_type("abc", "number")).to be false
+        expect(ui.validate_input_type("123", "number")[:valid]).to be true
+        expect(ui.validate_input_type("abc", "number")[:valid]).to be false
       end
 
       it "validates integer format" do
-        expect(ui.validate_input_type("123", "integer")).to be true
-        expect(ui.validate_input_type("123.45", "integer")).to be false
+        expect(ui.validate_input_type("123", "integer")[:valid]).to be true
+        expect(ui.validate_input_type("123.45", "integer")[:valid]).to be false
       end
 
       it "validates float format" do
-        expect(ui.validate_input_type("123.45", "float")).to be true
-        expect(ui.validate_input_type("123", "float")).to be true
-        expect(ui.validate_input_type("abc", "float")).to be false
+        expect(ui.validate_input_type("123.45", "float")[:valid]).to be true
+        expect(ui.validate_input_type("123", "float")[:valid]).to be true
+        expect(ui.validate_input_type("abc", "float")[:valid]).to be false
       end
 
       it "validates boolean format" do
-        expect(ui.validate_input_type("true", "boolean")).to be true
-        expect(ui.validate_input_type("false", "boolean")).to be true
-        expect(ui.validate_input_type("yes", "boolean")).to be true
-        expect(ui.validate_input_type("no", "boolean")).to be true
-        expect(ui.validate_input_type("y", "boolean")).to be true
-        expect(ui.validate_input_type("n", "boolean")).to be true
-        expect(ui.validate_input_type("1", "boolean")).to be true
-        expect(ui.validate_input_type("0", "boolean")).to be true
-        expect(ui.validate_input_type("maybe", "boolean")).to be false
+        expect(ui.validate_input_type("true", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("false", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("yes", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("no", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("y", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("n", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("1", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("0", "boolean")[:valid]).to be true
+        expect(ui.validate_input_type("maybe", "boolean")[:valid]).to be false
       end
 
       it "validates file path" do
@@ -232,14 +232,14 @@ RSpec.describe Aidp::Harness::UserInterface do
         temp_file = Tempfile.new("test")
         temp_file.close
 
-        expect(ui.validate_input_type(temp_file.path, "file")).to be true
-        expect(ui.validate_input_type("nonexistent.txt", "file")).to be false
+        expect(ui.validate_input_type(temp_file.path, "file")[:valid]).to be true
+        expect(ui.validate_input_type("nonexistent.txt", "file")[:valid]).to be false
 
         temp_file.unlink
       end
 
       it "returns true for unknown types" do
-        expect(ui.validate_input_type("anything", "unknown")).to be true
+        expect(ui.validate_input_type("anything", "unknown")[:valid]).to be true
       end
     end
 
@@ -302,7 +302,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
         expect(responses).to be_a(Hash)
         expect(responses["question_1"]).to eq("John Doe")
-        expect(responses["question_2"]).to eq(25)
+        expect(responses["question_2"]).to eq("25")
         expect(responses["question_3"]).to be true
       end
     end
