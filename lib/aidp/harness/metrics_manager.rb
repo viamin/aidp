@@ -119,6 +119,16 @@ module Aidp
         event
       end
 
+      # Record a fallback attempt
+      def record_fallback_attempt(fallback_info)
+        event = build_fallback_event_from_info(fallback_info)
+
+        @metrics_store.store_event(event)
+        update_fallback_metrics(event[:provider], event[:model], event)
+
+        event
+      end
+
       # Record a rate limit event
       def record_rate_limit(provider_name, model_name, rate_limit_info, context = {})
         event = build_rate_limit_event(provider_name, model_name, rate_limit_info, context)
@@ -445,6 +455,19 @@ module Aidp
         }
       end
 
+      def build_fallback_event_from_info(fallback_info)
+        {
+          event_type: "fallback",
+          timestamp: fallback_info[:timestamp] || Time.now,
+          provider: fallback_info[:provider] || "unknown",
+          model: fallback_info[:model] || "unknown",
+          fallback_info: fallback_info,
+          error_type: fallback_info[:error_type] || "unknown",
+          retry_count: fallback_info[:retry_count] || 0,
+          success: fallback_info[:success] || false
+        }
+      end
+
       def update_realtime_metrics(provider_name, model_name, event)
         @metrics_store.update_realtime_metrics(provider_name, model_name, event)
       end
@@ -474,6 +497,10 @@ module Aidp
       end
 
       def update_circuit_breaker_metrics(provider_name, model_name, event)
+        @metrics_store.update_realtime_metrics(provider_name, model_name, event)
+      end
+
+      def update_fallback_metrics(provider_name, model_name, event)
         @metrics_store.update_realtime_metrics(provider_name, model_name, event)
       end
 

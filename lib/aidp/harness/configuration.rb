@@ -205,6 +205,11 @@ module Aidp
         harness_config[:logging] || get_default_logging_config
       end
 
+      # Get fallback configuration
+      def fallback_config
+        harness_config[:fallback] || get_default_fallback_config
+      end
+
       # Check if configuration file exists
       def config_exists?
         Aidp::Config.config_exists?(@project_dir)
@@ -445,6 +450,50 @@ module Aidp
           format: :json,
           include_stack_traces: true,
           include_context: true
+        }
+      end
+
+      def get_default_fallback_config
+        {
+          strategies: {
+            rate_limit: {
+              action: :switch_provider,
+              priority: :high,
+              max_attempts: 3,
+              cooldown_period: 300
+            },
+            network_error: {
+              action: :switch_provider,
+              priority: :high,
+              max_attempts: 2,
+              cooldown_period: 60
+            },
+            server_error: {
+              action: :switch_provider,
+              priority: :medium,
+              max_attempts: 2,
+              cooldown_period: 120
+            },
+            timeout: {
+              action: :switch_model,
+              priority: :medium,
+              max_attempts: 2,
+              cooldown_period: 60
+            },
+            authentication: {
+              action: :escalate,
+              priority: :critical,
+              max_attempts: 0,
+              cooldown_period: 0
+            }
+          },
+          selection_strategies: {
+            health_based: :health_based,
+            load_balanced: :load_balanced,
+            circuit_breaker_aware: :circuit_breaker_aware,
+            performance_based: :performance_based,
+            round_robin: :round_robin
+          }
         }
       end
 

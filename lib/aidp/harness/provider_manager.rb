@@ -48,6 +48,11 @@ module Aidp
         "#{current_provider}:#{current_model}"
       end
 
+      # Get configured providers from configuration
+      def configured_providers
+        @configuration.configured_providers
+      end
+
       # Switch to next available provider with sophisticated fallback logic
       def switch_provider(reason = "manual_switch", context = {})
         # Get fallback chain for current provider
