@@ -23,7 +23,7 @@ module Aidp
         recovery_info = build_recovery_info(provider, model, rate_limit_info, context)
 
         # Record in metrics if available
-        @metrics_manager&.record_rate_limit_recovery(recovery_info)
+        @metrics_manager&.record_rate_limit(provider, model, rate_limit_info, context)
 
         # Add to recovery history
         @recovery_history << recovery_info
@@ -105,7 +105,7 @@ module Aidp
 
       # Get available providers (not rate limited)
       def get_available_providers
-        all_providers = @provider_manager.configured_providers
+        all_providers = @provider_manager.get_available_providers
         all_providers.reject { |provider| is_rate_limited?(provider) }
       end
 
@@ -475,16 +475,40 @@ module Aidp
         if best_combination
           if best_combination[:provider] != recovery_info[:provider]
             # Switch provider
-            @provider_manager.set_current_provider(best_combination[:provider])
-            action = :provider_switch
-            new_provider = best_combination[:provider]
-            new_model = nil
+            provider_switch_result = @provider_manager.set_current_provider(best_combination[:provider])
+            if provider_switch_result
+              action = :quota_aware_switch
+              new_provider = best_combination[:provider]
+              new_model = nil
+            else
+              # Provider switch failed, try model switch
+              model_switch_result = @provider_manager.set_current_model(recovery_info[:provider], best_combination[:model])
+              if model_switch_result
+                action = :quota_aware_switch
+                new_provider = recovery_info[:provider]
+                new_model = best_combination[:model]
+              else
+                return {
+                  success: false,
+                  action: :quota_aware_switch_failed,
+                  error: "Both provider and model switches failed"
+                }
+              end
+            end
           else
             # Switch model
-            @provider_manager.set_current_model(best_combination[:provider], best_combination[:model])
-            action = :model_switch
-            new_provider = best_combination[:provider]
-            new_model = best_combination[:model]
+            model_switch_result = @provider_manager.set_current_model(best_combination[:provider], best_combination[:model])
+            if model_switch_result
+              action = :quota_aware_switch
+              new_provider = best_combination[:provider]
+              new_model = best_combination[:model]
+            else
+              return {
+                success: false,
+                action: :quota_aware_switch_failed,
+                error: "Model switch failed"
+              }
+            end
           end
 
           {
@@ -564,7 +588,7 @@ module Aidp
       end
 
       def execute_wait_and_retry(recovery_info, strategy)
-        wait_time = strategy[:wait_time] || recovery_info[:retry_after] || 60
+        wait_time = recovery_info[:retry_after] || strategy[:wait_time] || 60
 
         {
           success: true,

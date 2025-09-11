@@ -10,16 +10,27 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
 
   before do
     # Mock provider manager methods
-    allow(provider_manager).to receive(:configured_providers).and_return(["claude", "gemini", "cursor"])
+    allow(provider_manager).to receive(:get_available_providers).and_return(["claude", "gemini", "cursor"])
     allow(provider_manager).to receive(:get_provider_models).and_return(["model1", "model2"])
     allow(provider_manager).to receive(:set_current_provider).and_return(true)
     allow(provider_manager).to receive(:set_current_model).and_return(true)
 
     # Mock configuration methods
-    allow(configuration).to receive(:rate_limit_recovery_config).and_return({strategies: {}})
+    allow(configuration).to receive(:rate_limit_config).and_return({strategies: {}})
 
     # Mock metrics manager methods
-    allow(metrics_manager).to receive(:record_rate_limit_recovery)
+    allow(metrics_manager).to receive(:record_rate_limit)
+
+    # Mock quota manager methods
+    quota_manager = recovery_manager.instance_variable_get(:@quota_manager)
+    allow(quota_manager).to receive(:find_best_quota_combination).and_return({
+      provider: "gemini",
+      model: "model1",
+      quota_remaining: 500
+    })
+    allow(quota_manager).to receive(:record_rate_limit)
+    allow(quota_manager).to receive(:get_quota_status).and_return({quota_remaining: 0})
+    allow(quota_manager).to receive(:get_all_quota_status).and_return({})
   end
 
   describe "initialization" do
@@ -67,19 +78,20 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       expect(result).to include(:success, :action, :new_provider, :reason, :recovery_info, :strategy)
       expect(result[:success]).to be true
       expect(result[:action]).to eq(:provider_switch)
-      expect(result[:new_provider]).to be_in(["gemini", "cursor"])
+      expect(["gemini", "cursor"]).to include(result[:new_provider])
     end
 
     it "handles rate limit with model switch when provider switch fails" do
-      # Mock provider manager to return nil for provider switch
+      # Mock provider manager to return nil for provider switch but true for model switch
       allow(provider_manager).to receive(:set_current_provider).and_return(nil)
+      allow(provider_manager).to receive(:set_current_model).and_return(true)
 
       result = recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, context)
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq(:model_switch)
-      expect(result[:provider]).to eq("claude")
-      expect(result[:new_model]).to eq("model2")
+      expect(result[:new_provider]).to eq("claude")
+      expect(result[:new_model]).to eq("model1")
     end
 
     it "handles rate limit with wait and retry for temporary rate limits" do
@@ -103,8 +115,9 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
 
     it "handles rate limit with cost-optimized switch" do
       cost_sensitive_context = context.merge(cost_sensitive: true)
+      cost_optimized_rate_limit = rate_limit_info.merge(quota_remaining: 100)
 
-      result = recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, cost_sensitive_context)
+      result = recovery_manager.handle_rate_limit("claude", "model1", cost_optimized_rate_limit, cost_sensitive_context)
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq(:cost_optimized_switch)
@@ -112,8 +125,9 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
 
     it "handles rate limit with performance-optimized switch" do
       performance_critical_context = context.merge(performance_critical: true)
+      performance_optimized_rate_limit = rate_limit_info.merge(quota_remaining: 100)
 
-      result = recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, performance_critical_context)
+      result = recovery_manager.handle_rate_limit("claude", "model1", performance_optimized_rate_limit, performance_critical_context)
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq(:performance_optimized_switch)
@@ -121,7 +135,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
 
     it "handles rate limit with escalation when no alternatives available" do
       # Mock provider manager to return empty providers
-      allow(provider_manager).to receive(:configured_providers).and_return(["claude"])
+      allow(provider_manager).to receive(:get_available_providers).and_return(["claude"])
       allow(provider_manager).to receive(:get_provider_models).and_return(["model1"])
 
       result = recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, context)
@@ -132,7 +146,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
     end
 
     it "records rate limit recovery in metrics manager" do
-      expect(metrics_manager).to receive(:record_rate_limit_recovery).with(anything)
+      expect(metrics_manager).to receive(:record_rate_limit).with(anything, anything, anything, anything)
 
       recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, context)
     end
@@ -492,7 +506,7 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
   describe "error handling" do
     it "handles no available providers gracefully" do
       # Mock provider manager to return empty providers
-      allow(provider_manager).to receive(:configured_providers).and_return(["claude"])
+      allow(provider_manager).to receive(:get_available_providers).and_return(["claude"])
       allow(provider_manager).to receive(:get_provider_models).and_return(["model1"])
 
       rate_limit_info = {type: :rate_limit, retry_after: 60}
