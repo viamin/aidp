@@ -362,7 +362,6 @@ module Aidp
 
       def attempt_model_switch(error_info, _recovery_plan)
         new_model = @provider_manager.switch_model_for_error(
-          error_info[:provider],
           error_info[:error_type],
           error_info[:context]
         )

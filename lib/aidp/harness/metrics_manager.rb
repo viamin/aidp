@@ -59,6 +59,16 @@ module Aidp
         event
       end
 
+      # Record an error event
+      def record_error(provider_name, model_name, error_info)
+        event = build_error_event(provider_name, model_name, error_info)
+
+        @metrics_store.store_event(event)
+        update_error_metrics(provider_name, model_name, event)
+
+        event
+      end
+
       # Record a rate limit event
       def record_rate_limit(provider_name, model_name, rate_limit_info, context = {})
         event = build_rate_limit_event(provider_name, model_name, rate_limit_info, context)
@@ -311,6 +321,19 @@ module Aidp
         }
       end
 
+      def build_error_event(provider_name, model_name, error_info)
+        {
+          event_type: "error",
+          timestamp: Time.now,
+          provider: provider_name,
+          model: model_name,
+          error_info: error_info,
+          error_type: error_info[:error_type],
+          error_message: error_info[:message],
+          success: false
+        }
+      end
+
       def update_realtime_metrics(provider_name, model_name, event)
         @metrics_store.update_realtime_metrics(provider_name, model_name, event)
       end
@@ -325,6 +348,10 @@ module Aidp
 
       def update_rate_limit_metrics(provider_name, model_name, event)
         @metrics_store.update_rate_limit_metrics(provider_name, model_name, event)
+      end
+
+      def update_error_metrics(provider_name, model_name, event)
+        @metrics_store.update_realtime_metrics(provider_name, model_name, event)
       end
 
       def get_basic_provider_metrics(provider_name, time_range)
