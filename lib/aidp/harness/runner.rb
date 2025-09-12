@@ -67,8 +67,8 @@ module Aidp
               # Running a specific step - return same as analyze runner
               return {status: "completed", provider: "mock", message: "Mock execution"}
             else
-              # Starting the workflow - return completed to match analyze runner behavior
-              return {status: "completed", provider: "mock", message: "Mock execution"}
+              # Starting the workflow - return success with next step
+              return {status: "success", next_step: "01_REPOSITORY_ANALYSIS", provider: "mock"}
             end
           else
             return {status: @state, message: "Test mode - harness completed", provider: "mock"}
