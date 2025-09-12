@@ -3,12 +3,10 @@
 require "open3"
 require "json"
 require "fileutils"
-require_relative "../output_helper"
 
 module Aidp
   module Analyze
     class RubyMaatIntegration
-      include Aidp::OutputHelper
       def initialize(project_dir = Dir.pwd)
         @project_dir = project_dir
       end

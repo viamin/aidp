@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "../output_helper"
 
 module Aidp
   module Harness
     # Circuit breaker pattern implementation for failing providers and models
     class CircuitBreakerManager
-      include Aidp::OutputHelper
       def initialize(configuration, error_logger = nil, metrics_manager = nil)
         @configuration = configuration
         @error_logger = error_logger

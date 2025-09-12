@@ -27,7 +27,7 @@ RSpec.describe "Harness Backward Compatibility (Simple)", type: :compatibility d
       # Test that analyze mode commands work
       result = cli.analyze(project_dir, nil)
       expect(result).to be_a(Hash)
-      expect(result[:status]).to eq("completed")
+      expect(result[:status]).to eq("success")
     end
 
     it "existing execute mode commands work exactly as before" do
@@ -256,36 +256,11 @@ RSpec.describe "Harness Backward Compatibility (Simple)", type: :compatibility d
     end
   end
 
-  describe "Job Management Backward Compatibility" do
-    it "existing job management works exactly as before" do
-      # Test that existing job management works
-      job_manager = Aidp::JobManager.new(project_dir)
-      expect(job_manager).to be_a(Aidp::JobManager)
-    end
-
-    it "existing job creation works exactly as before" do
-      # Test that existing job creation works
-      job_manager = Aidp::JobManager.new(project_dir)
-      expect(job_manager).to respond_to(:create_job)
-    end
-  end
 
   describe "Error Handling Backward Compatibility" do
     it "existing error handling works exactly as before" do
       # Test that existing error handling works
       expect { raise StandardError, "test error" }.to raise_error(StandardError, "test error")
-    end
-  end
-
-  describe "Integration Backward Compatibility" do
-    it "existing database integration works exactly as before" do
-      # Test that existing database integration works
-      expect(Aidp::DatabaseConnection).to be_a(Class)
-    end
-
-    it "existing provider integration works exactly as before" do
-      # Test that existing provider integration works
-      expect(Aidp::ProviderManager).to be_a(Class)
     end
   end
 

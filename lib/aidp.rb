@@ -8,11 +8,6 @@ require_relative "aidp/version"
 require_relative "aidp/config"
 require_relative "aidp/workspace"
 require_relative "aidp/util"
-require_relative "aidp/output_logger"
-require_relative "aidp/output_helper"
-
-# Initialize the output logger
-Aidp::OutputLogger.initialize
 require_relative "aidp/cli"
 require_relative "aidp/cli/jobs_command"
 require_relative "aidp/project_detector"
@@ -85,4 +80,3 @@ require_relative "aidp/harness/token_monitor"
 require_relative "aidp/harness/provider_status_tracker"
 
 # CLI commands
-require_relative "aidp/cli/config_command"

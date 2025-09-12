@@ -20,24 +20,9 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 
-  # Add timeout to prevent hanging tests and configure output logger
+  # Add timeout to prevent hanging tests
   config.around(:each) do |example|
-    # Configure output logger for tests (only for non-logger and non-output tests)
-    unless example.full_description.include?('OutputLogger') ||
-           example.full_description.include?('OutputHelper') ||
-           example.full_description.include?('control interface') ||
-           example.full_description.include?('displays') ||
-           example.full_description.include?('output') ||
-           example.full_description.include?('CLI') ||
-           example.full_description.include?('cli') ||
-           example.full_description.include?('KBInspector')
-      Aidp::OutputLogger.test_mode!
-    end
-
     example.run
-
-    # Reset output logger after test
-    Aidp::OutputLogger.normal_mode!
   end
 
 

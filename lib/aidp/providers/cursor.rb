@@ -4,12 +4,10 @@ require "open3"
 require "timeout"
 require_relative "base"
 require_relative "../util"
-require_relative "../output_helper"
 
 module Aidp
   module Providers
     class Cursor < Base
-      include Aidp::OutputHelper
       def self.available?
         !!Aidp::Util.which("cursor-agent")
       end

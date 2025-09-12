@@ -2,13 +2,11 @@
 
 require_relative "steps"
 require_relative "progress"
-require_relative "../output_helper"
 require_relative "../storage/file_manager"
 
 module Aidp
   module Analyze
     class Runner
-      include Aidp::OutputHelper
       def initialize(project_dir, harness_runner = nil)
         @project_dir = project_dir
         @harness_runner = harness_runner

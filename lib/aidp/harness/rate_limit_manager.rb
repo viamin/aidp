@@ -4,7 +4,6 @@ module Aidp
   module Harness
     # Manages rate limiting, provider rotation, and intelligent retry strategies
     class RateLimitManager
-      include Aidp::OutputHelper
       def initialize(provider_manager, configuration)
         @provider_manager = provider_manager
         @configuration = configuration

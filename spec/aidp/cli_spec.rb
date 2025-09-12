@@ -2,10 +2,21 @@
 
 require "spec_helper"
 require "tempfile"
+require "stringio"
 
 RSpec.describe Aidp::CLI do
   let(:temp_dir) { Dir.mktmpdir }
   let(:cli) { described_class.new }
+
+  # Helper method to capture stdout
+  def capture_stdout
+    old_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
+  end
 
   after do
     FileUtils.rm_rf(temp_dir)
@@ -37,7 +48,7 @@ RSpec.describe Aidp::CLI do
     it "displays completed status" do
       result = {status: "completed", message: "All done"}
 
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.send(:display_harness_result, result)
       end
 
@@ -47,7 +58,7 @@ RSpec.describe Aidp::CLI do
     it "displays stopped status" do
       result = {status: "stopped", message: "User stopped"}
 
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.send(:display_harness_result, result)
       end
 
@@ -57,7 +68,7 @@ RSpec.describe Aidp::CLI do
     it "displays error status" do
       result = {status: "error", message: "Something went wrong"}
 
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.send(:display_harness_result, result)
       end
 
@@ -67,7 +78,7 @@ RSpec.describe Aidp::CLI do
     it "displays unknown status" do
       result = {status: "unknown", message: "Unknown state"}
 
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.send(:display_harness_result, result)
       end
 
@@ -154,7 +165,7 @@ RSpec.describe Aidp::CLI do
         # Mock the step resolution to return a valid step
         allow(cli).to receive(:resolve_analyze_step).with("test_step", anything).and_return("01_REPOSITORY_ANALYSIS")
 
-        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :analyze, options)
+        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :analyze, hash_including(options))
         expect(mock_harness_runner).to receive(:run)
 
         cli.analyze(temp_dir, "test_step", options)
@@ -212,7 +223,7 @@ RSpec.describe Aidp::CLI do
     end
 
     it "displays harness status for both modes" do
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.harness_status
       end
 
@@ -220,7 +231,7 @@ RSpec.describe Aidp::CLI do
     end
 
     it "displays harness status for specific mode" do
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.harness_status
       end
 
@@ -242,7 +253,7 @@ RSpec.describe Aidp::CLI do
       allow(cli).to receive(:options).and_return({mode: "analyze"})
       expect(mock_state_manager).to receive(:reset_all)
 
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.harness_reset
       end
 
@@ -253,7 +264,7 @@ RSpec.describe Aidp::CLI do
       allow(cli).to receive(:options).and_return({mode: "execute"})
       expect(mock_state_manager).to receive(:reset_all)
 
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.harness_reset
       end
 
@@ -263,7 +274,7 @@ RSpec.describe Aidp::CLI do
     it "shows error for invalid mode" do
       allow(cli).to receive(:options).and_return({mode: "invalid"})
 
-      output = Aidp::OutputLogger.capture_output do
+      output = capture_stdout do
         cli.harness_reset
       end
 

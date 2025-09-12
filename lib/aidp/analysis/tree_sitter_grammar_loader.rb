@@ -2,12 +2,10 @@
 
 require "tree_sitter"
 require "fileutils"
-require_relative "../output_helper"
 
 module Aidp
   module Analysis
     class TreeSitterGrammarLoader
-      include Aidp::OutputHelper
       # Default grammar configurations
       GRAMMAR_CONFIGS = {
         "ruby" => {

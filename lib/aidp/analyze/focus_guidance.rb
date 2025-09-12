@@ -3,12 +3,10 @@
 require_relative "prioritizer"
 require_relative "ruby_maat_integration"
 require_relative "feature_analyzer"
-require_relative "../output_helper"
 
 module Aidp
   module Analyze
     class FocusGuidance
-      include Aidp::OutputHelper
       def initialize(project_dir = Dir.pwd)
         @project_dir = project_dir
         @prioritizer = AnalysisPrioritizer.new(project_dir)

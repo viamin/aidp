@@ -2,13 +2,11 @@
 
 require "timeout"
 require "open3"
-require_relative "../output_helper"
 
 module Aidp
   module Providers
     # Supervisor for managing agent execution with progressive warnings instead of hard timeouts
     class AgentSupervisor
-      include Aidp::OutputHelper
       # Execution states
       STATES = {
         idle: "⏳",

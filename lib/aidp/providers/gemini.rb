@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
 require_relative "base"
-require_relative "../output_helper"
 
 module Aidp
   module Providers
     class Gemini < Base
-      include Aidp::OutputHelper
       def self.available?
         !!Aidp::Util.which("gemini")
       end

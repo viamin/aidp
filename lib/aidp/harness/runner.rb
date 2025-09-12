@@ -9,13 +9,11 @@ require_relative "provider_manager"
 require_relative "user_interface"
 require_relative "error_handler"
 require_relative "status_display"
-require_relative "../output_helper"
 
 module Aidp
   module Harness
     # Main harness runner that orchestrates the execution loop
     class Runner
-      include Aidp::OutputHelper
       # Harness execution states
       STATES = {
         idle: "idle",

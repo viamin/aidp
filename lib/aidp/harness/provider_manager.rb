@@ -4,7 +4,6 @@ module Aidp
   module Harness
     # Manages provider switching and fallback logic
     class ProviderManager
-      include Aidp::OutputHelper
       def initialize(configuration)
         @configuration = configuration
         @current_provider = nil
