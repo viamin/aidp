@@ -7,6 +7,7 @@ This guide helps you migrate from the traditional step-by-step AIDP workflow to 
 ## What's Changing
 
 ### Before (Step-by-Step Mode)
+
 - Manual execution of individual steps
 - Manual provider management
 - Manual error handling and retries
@@ -14,6 +15,7 @@ This guide helps you migrate from the traditional step-by-step AIDP workflow to 
 - Manual user input collection
 
 ### After (Harness Mode)
+
 - Automatic execution of complete workflows
 - Intelligent provider switching and management
 - Automatic error recovery and retry logic
@@ -23,12 +25,14 @@ This guide helps you migrate from the traditional step-by-step AIDP workflow to 
 ## Migration Benefits
 
 ### Immediate Benefits
+
 - **Automation**: Complete workflows run without manual intervention
 - **Intelligence**: Smart provider switching and error recovery
 - **Efficiency**: Reduced manual overhead and faster execution
 - **Reliability**: Better error handling and recovery mechanisms
 
 ### Long-term Benefits
+
 - **Scalability**: Handle larger, more complex projects
 - **Consistency**: Standardized execution across different environments
 - **Monitoring**: Better visibility into execution progress and performance
@@ -150,6 +154,7 @@ aidp config migrate --input=.aidp.yml.backup --output=aidp.yml
 ### Common Configuration Mappings
 
 #### Provider Configuration
+
 ```yaml
 # Old format (if any)
 provider: "claude"
@@ -166,6 +171,7 @@ providers:
 ```
 
 #### Retry Configuration
+
 ```yaml
 # Old format (if any)
 max_retries: 3
@@ -181,6 +187,7 @@ harness:
 ```
 
 #### Timeout Configuration
+
 ```yaml
 # Old format (if any)
 timeout: 30
@@ -198,6 +205,7 @@ providers:
 ### Analyze Mode Migration
 
 #### Before (Step-by-Step)
+
 ```bash
 # Manual step execution
 aidp analyze 01_REPOSITORY_ANALYSIS
@@ -210,6 +218,7 @@ aidp analyze 07_REFACTORING_RECOMMENDATIONS
 ```
 
 #### After (Harness Mode)
+
 ```bash
 # Automatic execution
 aidp analyze
@@ -218,6 +227,7 @@ aidp analyze
 ### Execute Mode Migration
 
 #### Before (Step-by-Step)
+
 ```bash
 # Manual step execution
 aidp execute 00_PRD
@@ -240,6 +250,7 @@ aidp execute 15_POST_RELEASE
 ```
 
 #### After (Harness Mode)
+
 ```bash
 # Automatic execution
 aidp execute
@@ -276,6 +287,7 @@ aidp status
 ### API Key Migration
 
 #### Before
+
 ```bash
 # Manual API key management
 export ANTHROPIC_API_KEY="your-key"
@@ -283,6 +295,7 @@ export GEMINI_API_KEY="your-key"
 ```
 
 #### After
+
 ```bash
 # Standardized API key management
 export AIDP_CLAUDE_API_KEY="your-key"
@@ -292,6 +305,7 @@ export AIDP_GEMINI_API_KEY="your-key"
 ### Provider Configuration Migration
 
 #### Before
+
 ```yaml
 # Old provider configuration (if any)
 provider: "claude"
@@ -300,6 +314,7 @@ max_tokens: 100000
 ```
 
 #### After
+
 ```yaml
 # New provider configuration
 harness:
@@ -323,6 +338,7 @@ providers:
 ## Error Handling Migration
 
 ### Before (Manual Error Handling)
+
 ```bash
 # Manual retry on failure
 aidp analyze 01_REPOSITORY_ANALYSIS
@@ -331,6 +347,7 @@ aidp analyze 01_REPOSITORY_ANALYSIS --provider=gemini
 ```
 
 ### After (Automatic Error Handling)
+
 ```yaml
 # Automatic error handling configuration
 harness:
@@ -353,6 +370,7 @@ harness:
 ## User Interaction Migration
 
 ### Before (Manual Input)
+
 ```bash
 # Manual step execution with manual input
 aidp execute 00_PRD
@@ -362,6 +380,7 @@ aidp execute 01_NFRS
 ```
 
 ### After (Interactive Input)
+
 ```bash
 # Automatic execution with interactive input
 aidp execute
@@ -371,6 +390,7 @@ aidp execute
 ## Monitoring Migration
 
 ### Before (Manual Monitoring)
+
 ```bash
 # Manual progress checking
 aidp status
@@ -379,6 +399,7 @@ aidp jobs
 ```
 
 ### After (Real-time Monitoring)
+
 ```bash
 # Real-time status display
 aidp harness status
@@ -539,6 +560,7 @@ cp aidp.yml aidp.yml.$(date +%Y%m%d)
 **Symptoms**: Harness not starting, configuration errors
 
 **Solution**:
+
 ```bash
 # Validate configuration
 aidp config validate
@@ -555,6 +577,7 @@ echo "harness:\n  enabled: true" > aidp.yml
 **Symptoms**: Authentication errors, provider not working
 
 **Solution**:
+
 ```bash
 # Check environment variables
 echo $AIDP_CLAUDE_API_KEY
@@ -570,6 +593,7 @@ export AIDP_GEMINI_API_KEY="your-key"
 **Symptoms**: Harness can't resume, state errors
 
 **Solution**:
+
 ```bash
 # Reset state
 aidp harness reset --mode=analyze
@@ -583,6 +607,7 @@ aidp harness restore --backup=backup-2024-01-01.json
 **Symptoms**: Slow execution, timeouts
 
 **Solution**:
+
 ```yaml
 # Optimize configuration
 harness:
@@ -597,6 +622,7 @@ providers:
 ## Migration Checklist
 
 ### Pre-Migration
+
 - [ ] Update AIDP to latest version
 - [ ] Backup existing configuration
 - [ ] Backup existing progress and state
@@ -604,6 +630,7 @@ providers:
 - [ ] Test basic functionality
 
 ### Migration
+
 - [ ] Create basic configuration
 - [ ] Test single step execution
 - [ ] Test complete workflow
@@ -611,6 +638,7 @@ providers:
 - [ ] Test error handling
 
 ### Post-Migration
+
 - [ ] Monitor performance
 - [ ] Check logs for errors
 - [ ] Test all common workflows
@@ -655,6 +683,7 @@ The migration to harness mode transforms AIDP from a manual tool into an intelli
 Take your time with the migration, test thoroughly, and don't hesitate to rollback if needed. The harness is designed to be backward compatible, so you can always fall back to traditional mode if necessary.
 
 Once migrated, you'll enjoy the benefits of:
+
 - Automatic workflow execution
 - Intelligent provider management
 - Robust error handling

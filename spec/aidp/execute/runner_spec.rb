@@ -390,23 +390,12 @@ RSpec.describe Aidp::Execute::Runner do
     let(:step_name) { "00_PRD" }
     let(:options) { {} }
 
-    before do
-      allow(Aidp::Jobs::ProviderExecutionJob).to receive(:enqueue).and_return(123)
-      allow(standalone_runner).to receive(:wait_for_job_completion).and_return({status: "completed"})
-    end
-
-    it "enqueues job for standalone execution" do
+    it "executes step synchronously" do
       result = standalone_runner.run_step_standalone(step_name, options)
 
-      expect(Aidp::Jobs::ProviderExecutionJob).to have_received(:enqueue).with(
-        provider_type: "cursor",
-        prompt: anything,
-        metadata: {
-          step_name: step_name,
-          project_dir: project_dir
-        }
-      )
       expect(result[:status]).to eq("completed")
+      expect(result[:provider]).to eq("cursor")
+      expect(result[:message]).to include("Execution step #{step_name} completed successfully")
     end
   end
 

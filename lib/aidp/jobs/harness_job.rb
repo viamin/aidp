@@ -1,52 +1,92 @@
 # frozen_string_literal: true
 
-require_relative "base_job"
+require "async"
+require "async/job/processor/generic"
+require "securerandom"
+require_relative "../storage/file_manager"
 
 module Aidp
   module Jobs
-    # Base job class for harness workflows
-    class HarnessJob < BaseJob
+    # Simple harness job using async-job gem only
+    class HarnessJob
       # Default settings for harness jobs
-      self.retry_interval = 60.0 # 1 minute between retries
-      self.maximum_retry_count = 2 # Fewer retries for harness jobs
+      RETRY_INTERVAL = 60.0 # 1 minute between retries
+      MAXIMUM_RETRY_COUNT = 2 # Fewer retries for harness jobs
 
-      def run(harness_context:, **args)
+      attr_reader :id, :status, :harness_context, :project_dir, :job_type, :start_time, :end_time, :result, :error
+
+      def initialize(harness_context:, **args)
+        @id = SecureRandom.uuid
+        @status = :pending
         @harness_context = harness_context
-        @job_start_time = Time.now
-
-        # Extract harness information
         @project_dir = harness_context[:project_dir]
         @harness_runner_id = harness_context[:harness_runner_id]
         @job_type = harness_context[:job_type] || :harness_step
-
-        # Log job start
-        log_info("Starting harness job: #{self.class.name}")
-        log_info("Project: #{@project_dir}")
-        log_info("Job type: #{@job_type}")
-
-        # Execute the job
-        result = execute_harness_job(**args)
-
-        # Log completion
-        duration = Time.now - @job_start_time
-        log_info("Harness job completed in #{format_duration(duration)}")
-
-        result
-      rescue => error
-        # Log error with harness context
-        log_error("Harness job failed: #{error.message}")
-        log_error("Project: #{@project_dir}")
-        log_error("Job type: #{@job_type}")
-
-        # Re-raise to trigger retry mechanism
-        raise
+        @start_time = nil
+        @end_time = nil
+        @result = nil
+        @error = nil
+        @retry_count = 0
+        @file_manager = Aidp::Storage::FileManager.new(File.join(@project_dir, ".aidp"))
       end
 
-      protected
+      # Execute the job using async-job
+      def perform
+        @status = :running
+        @start_time = Time.now
 
-      # Override in subclasses to implement job logic
-      def execute_harness_job(**args)
-        raise NotImplementedError, "#{self.class} must implement #execute_harness_job"
+        log_harness_info("Starting harness job: #{self.class.name}")
+        log_harness_info("Project: #{@project_dir}")
+        log_harness_info("Job type: #{@job_type}")
+
+        begin
+          # Execute the job
+          @result = execute_harness_job
+          @status = :completed
+          @end_time = Time.now
+
+          duration = @end_time - @start_time
+          log_harness_info("Harness job completed in #{format_duration(duration)}")
+
+          @result
+        rescue => error
+          @error = error
+          @status = :failed
+          @end_time = Time.now
+
+          log_harness_error("Harness job failed: #{error.message}")
+
+          # Simple retry logic
+          if @retry_count < MAXIMUM_RETRY_COUNT
+            @retry_count += 1
+            @status = :retrying
+            log_harness_info("Retrying job (attempt #{@retry_count}/#{MAXIMUM_RETRY_COUNT})")
+
+            # Schedule retry using async-job
+            Async do |task|
+              task.sleep(RETRY_INTERVAL)
+              perform
+            end
+          else
+            @status = :failed
+            log_harness_error("Job failed after #{MAXIMUM_RETRY_COUNT} retries")
+            raise error
+          end
+        end
+      end
+
+      # Enqueue the job using async-job
+      def enqueue
+        # Create a simple delegate for async-job
+        delegate = HarnessJobDelegate.new(self)
+        @processor = Async::Job::Processor::Generic.new(delegate)
+        @processor.start
+        self
+      end
+
+      # Stop the job processor
+      def stop
+        @processor&.stop
       end
 
       # Get harness context
@@ -67,8 +107,8 @@ module Aidp
           project_dir: @project_dir,
           job_type: @job_type,
           harness_runner_id: @harness_runner_id,
-          job_id: que_attrs[:job_id],
-          attempt: que_attrs[:error_count] + 1
+          job_id: @id,
+          attempt: @retry_count + 1
         }.merge(metadata)
 
         # Store in job logs if available
@@ -83,8 +123,8 @@ module Aidp
           project_dir: @project_dir,
           job_type: @job_type,
           harness_runner_id: @harness_runner_id,
-          job_id: que_attrs[:job_id],
-          attempt: que_attrs[:error_count] + 1
+          job_id: @id,
+          attempt: @retry_count + 1
         }.merge(metadata)
 
         # Store in job logs if available
@@ -99,50 +139,23 @@ module Aidp
           project_dir: @project_dir,
           job_type: @job_type,
           harness_runner_id: @harness_runner_id,
-          job_id: que_attrs[:job_id],
-          attempt: que_attrs[:error_count] + 1
+          job_id: @id,
+          attempt: @retry_count + 1
         }.merge(metadata)
 
         # Store in job logs if available
         store_harness_log("warning", message, harness_metadata)
       end
 
-      # Store harness-specific log entry
-      def store_harness_log(level, message, metadata)
-        # Try to store in database if available
-
-        require_relative "../database_connection"
-
-        Aidp::DatabaseConnection.connection.exec_params(
-          <<~SQL,
-            INSERT INTO harness_job_logs (
-              job_id, level, message, metadata, created_at
-            )
-            VALUES ($1, $2, $3, $4, $5)
-          SQL
-          [
-            que_attrs[:job_id],
-            level,
-            message,
-            metadata.to_json,
-            Time.now
-          ]
-        )
-      rescue => e
-        # Database not available or table doesn't exist - continue
-        log_info("Could not store harness log: #{e.message}") if ENV["AIDP_DEBUG"]
-      end
-
-      # Get job progress (override in subclasses)
+      # Get job progress information
       def get_job_progress
         {
-          job_id: que_attrs[:job_id],
-          job_class: self.class.name,
+          job_id: @id,
           status: :running,
           start_time: @job_start_time,
           current_time: Time.now,
           duration: Time.now - @job_start_time,
-          attempt: que_attrs[:error_count] + 1,
+          attempt: @retry_count + 1,
           harness_context: {
             project_dir: @project_dir,
             job_type: @job_type
@@ -154,29 +167,19 @@ module Aidp
       def update_job_progress(progress_data)
         log_harness_info("Job progress update", progress_data)
 
-        # Store progress in database if available
+        # Store progress in JSON file storage
         begin
-          require_relative "../database_connection"
+          storage = Aidp::Analyze::JsonFileStorage.new
+          progress_entry = {
+            job_id: @id,
+            progress_data: progress_data,
+            updated_at: Time.now.iso8601
+          }
 
-          Aidp::DatabaseConnection.connection.exec_params(
-            <<~SQL,
-              INSERT INTO harness_job_progress (
-                job_id, progress_data, updated_at
-              )
-              VALUES ($1, $2, $3)
-              ON CONFLICT (job_id)
-              DO UPDATE SET
-                progress_data = EXCLUDED.progress_data,
-                updated_at = EXCLUDED.updated_at
-            SQL
-            [
-              que_attrs[:job_id],
-              progress_data.to_json,
-              Time.now
-            ]
-          )
+          # Store in harness progress directory
+          storage.store_data("harness_progress/#{@id}", progress_entry)
         rescue => e
-          # Database not available or table doesn't exist - continue
+          # Storage not available - continue
           log_info("Could not store job progress: #{e.message}") if ENV["AIDP_DEBUG"]
         end
       end
@@ -223,13 +226,13 @@ module Aidp
       # Get job result summary
       def get_job_result_summary
         {
-          job_id: que_attrs[:job_id],
+          job_id: @id,
           job_class: self.class.name,
           status: :completed,
           start_time: @job_start_time,
           end_time: Time.now,
           duration: Time.now - @job_start_time,
-          attempt: que_attrs[:error_count] + 1,
+          attempt: @retry_count + 1,
           harness_context: {
             project_dir: @project_dir,
             job_type: @job_type
@@ -237,10 +240,61 @@ module Aidp
         }
       end
 
+      protected
+
+      # Override in subclasses to implement job logic
+      def execute_harness_job(**args)
+        raise NotImplementedError, "#{self.class} must implement #execute_harness_job"
+      end
+
+      # Store harness-specific log entry
+      def store_harness_log(level, message, metadata)
+        # Use file-based storage for harness logs
+        begin
+          log_entry = {
+            job_id: @id,
+            level: level,
+            message: message,
+            metadata: metadata,
+            created_at: Time.now.iso8601
+          }
+
+          # Store in harness logs directory
+          @file_manager.store_json("harness_logs/#{@id}", log_entry)
+        rescue => e
+          # Storage not available - continue
+          puts "Could not store harness log: #{e.message}" if ENV["AIDP_DEBUG"]
+        end
+      end
+
       private
 
       def log_warning(message)
-        Que.logger.warn "[#{self.class.name}] #{message}"
+        puts "⚠️  [#{self.class.name}] #{message}"
+      end
+    end
+
+    # Simple delegate for async-job integration
+    class HarnessJobDelegate
+      def initialize(harness_job)
+        @harness_job = harness_job
+        @running = false
+      end
+
+      def start
+        @running = true
+        puts "Harness job delegate started"
+      end
+
+      def stop
+        @running = false
+        puts "Harness job delegate stopped"
+      end
+
+      def call(job)
+        return unless @running
+        puts "Executing harness job: #{@harness_job.id}"
+        @harness_job.perform
       end
     end
   end

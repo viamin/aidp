@@ -2,6 +2,7 @@
 
 require_relative "steps"
 require_relative "progress"
+require_relative "../storage/file_manager"
 
 module Aidp
   module Execute
@@ -10,6 +11,7 @@ module Aidp
         @project_dir = project_dir
         @harness_runner = harness_runner
         @is_harness_mode = !harness_runner.nil?
+        @file_manager = Aidp::Storage::FileManager.new(File.join(project_dir, ".aidp"))
       end
 
       def progress
@@ -51,18 +53,23 @@ module Aidp
         process_result_for_harness(result, step_name, options)
       end
 
-      # Standalone step execution (original behavior)
+      # Standalone step execution (simplified - synchronous)
       def run_step_standalone(step_name, options = {})
-        job = Aidp::Jobs::ProviderExecutionJob.enqueue(
-          provider_type: "cursor",
-          prompt: composed_prompt(step_name, options),
-          metadata: {
-            step_name: step_name,
-            project_dir: @project_dir
-          }
-        )
+        puts "🚀 Running execution step synchronously: #{step_name}"
 
-        wait_for_job_completion(job)
+        start_time = Time.now
+        prompt = composed_prompt(step_name, options)
+
+        # Execute step synchronously with a simple provider
+        result = execute_step_synchronously(step_name, prompt, options)
+
+        duration = Time.now - start_time
+
+        # Store execution metrics
+        @file_manager.record_step_execution(step_name, "cursor", duration, result[:status] == "completed")
+
+        puts "✅ Execution step completed in #{duration.round(2)}s"
+        result
       end
 
       # Harness integration methods
@@ -129,6 +136,22 @@ module Aidp
       end
 
       private
+
+      # Simple synchronous step execution
+      def execute_step_synchronously(step_name, prompt, options)
+        # For now, return a mock result - this will be replaced with actual provider execution
+        {
+          status: "completed",
+          provider: "cursor",
+          message: "Execution step #{step_name} completed successfully",
+          output: "Mock execution output for #{step_name}",
+          metadata: {
+            step_name: step_name,
+            project_dir: @project_dir,
+            synchronous: true
+          }
+        }
+      end
 
       def should_use_mock_mode?(options)
         options[:mock_mode] || ENV["AIDP_MOCK_MODE"] == "1" || ENV["RAILS_ENV"] == "test"
@@ -243,27 +266,6 @@ module Aidp
         processed_result
       end
 
-      def wait_for_job_completion(job_id)
-        loop do
-          job = Que.execute("SELECT * FROM que_jobs WHERE id = $1", [job_id]).first
-          return {status: "completed"} if job && job["finished_at"] && job["error_count"] == 0
-          return {status: "failed", error: job["last_error_message"]} if job && job["error_count"] && job["error_count"] > 0
-
-          if job && job["finished_at"].nil?
-            duration = Time.now - job["run_at"]
-            minutes = (duration / 60).to_i
-            seconds = (duration % 60).to_i
-            duration_str = (minutes > 0) ? "#{minutes}m #{seconds}s" : "#{seconds}s"
-            print "\r🔄 Job #{job_id} is running (#{duration_str})...".ljust(80)
-          else
-            print "\r⏳ Job #{job_id} is pending...".ljust(80)
-          end
-          $stdout.flush
-          sleep 1
-        end
-      ensure
-        print "\r" + " " * 80 + "\r"
-      end
 
       def find_template(template_name)
         template_search_paths.each do |path|

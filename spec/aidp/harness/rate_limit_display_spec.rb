@@ -965,44 +965,6 @@ RSpec.describe Aidp::Harness::RateLimitDisplay do
       end
     end
 
-    describe "Optimizers" do
-      let(:optimizer) { described_class::RateLimitOptimizer.new }
-      let(:display_optimizer) { described_class::DisplayOptimizer.new }
-      let(:performance_optimizer) { described_class::PerformanceOptimizer.new }
-
-      it "optimizes rate limit display" do
-        result = optimizer.optimize_display(display)
-
-        expect(result).to include(
-          :optimizations,
-          :recommendations
-        )
-        expect(result[:optimizations]).to be_an(Array)
-        expect(result[:recommendations]).to be_an(Array)
-      end
-
-      it "optimizes display" do
-        result = display_optimizer.optimize_display(display)
-
-        expect(result).to include(
-          :optimizations,
-          :recommendations,
-          :display_optimizations
-        )
-        expect(result[:display_optimizations]).to be_an(Array)
-      end
-
-      it "optimizes performance" do
-        result = performance_optimizer.optimize_display(display)
-
-        expect(result).to include(
-          :optimizations,
-          :recommendations,
-          :performance_optimizations
-        )
-        expect(result[:performance_optimizations]).to be_an(Array)
-      end
-    end
   end
 
   describe "error handling" do

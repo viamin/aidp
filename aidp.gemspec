@@ -20,14 +20,10 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
   s.required_ruby_version = ">= 3.0"
 
-  s.add_runtime_dependency "async", "~> 2.0"
+  s.add_runtime_dependency "async-job", "~> 0.11"
   s.add_runtime_dependency "colorize", "~> 1.1"
-  s.add_runtime_dependency "concurrent-ruby", "~> 1.2"
   s.add_runtime_dependency "csv", "~> 3.2"
   s.add_runtime_dependency "logger", "~> 1.5"
-  s.add_runtime_dependency "pg", "~> 1.5"
-  s.add_runtime_dependency "que", "~> 2.4"
-  s.add_runtime_dependency "sequel", "~> 5.77"
   s.add_runtime_dependency "thor", "~> 1.3"
   s.add_runtime_dependency "tty-box", "~> 0.7"
   s.add_runtime_dependency "tty-cursor", "~> 0.7"

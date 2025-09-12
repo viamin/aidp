@@ -184,6 +184,7 @@ In harness mode, AIDP intelligently manages multiple providers with automatic sw
 - **Cursor CLI** - IDE-integrated provider for code-specific tasks
 
 The harness automatically switches providers when:
+
 - Rate limits are hit
 - Providers fail or timeout
 - Cost limits are reached

@@ -46,11 +46,13 @@ tail -f .aidp/logs/*.log
 ### 1. Harness Won't Start
 
 #### Symptoms
+
 - `aidp analyze` or `aidp execute` fails to start
 - Error: "Harness initialization failed"
 - No progress display appears
 
 #### Diagnosis
+
 ```bash
 # Check if harness is enabled
 aidp config show harness.enabled
@@ -65,6 +67,7 @@ aidp version
 #### Solutions
 
 **Configuration Issues**
+
 ```bash
 # Reset to default configuration
 aidp config reset
@@ -74,6 +77,7 @@ echo "harness:\n  enabled: true\n  default_provider: claude" > aidp.yml
 ```
 
 **Missing Dependencies**
+
 ```bash
 # Reinstall AIDP
 gem install aidp
@@ -83,6 +87,7 @@ gem update aidp
 ```
 
 **Permission Issues**
+
 ```bash
 # Check file permissions
 ls -la aidp.yml
@@ -96,11 +101,13 @@ chmod -R 755 .aidp/
 ### 2. Provider Authentication Errors
 
 #### Symptoms
+
 - Error: "Authentication failed"
 - Error: "Invalid API key"
 - Error: "Provider not configured"
 
 #### Diagnosis
+
 ```bash
 # Check provider configuration
 aidp config show providers
@@ -116,6 +123,7 @@ aidp analyze 01_REPOSITORY_ANALYSIS
 #### Solutions
 
 **Missing API Keys**
+
 ```bash
 # Set Claude API key
 export AIDP_CLAUDE_API_KEY="your-claude-api-key"
@@ -129,6 +137,7 @@ echo 'export AIDP_GEMINI_API_KEY="your-gemini-api-key"' >> ~/.bashrc
 ```
 
 **Invalid API Keys**
+
 ```bash
 # Verify API key format
 # Claude: sk-ant-api03-...
@@ -141,6 +150,7 @@ curl -H "Authorization: Bearer $AIDP_CLAUDE_API_KEY" \
 ```
 
 **Provider Configuration Issues**
+
 ```yaml
 # aidp.yml - Fix provider configuration
 providers:
@@ -157,11 +167,13 @@ providers:
 ### 3. Rate Limit Issues
 
 #### Symptoms
+
 - Error: "Rate limit exceeded"
 - Harness pauses frequently
 - Slow execution with long waits
 
 #### Diagnosis
+
 ```bash
 # Check rate limit status
 aidp harness status
@@ -176,6 +188,7 @@ aidp config show harness.rate_limit_strategy
 #### Solutions
 
 **Configure Fallback Providers**
+
 ```yaml
 # aidp.yml - Add fallback providers
 harness:
@@ -185,6 +198,7 @@ harness:
 ```
 
 **Adjust Rate Limit Strategy**
+
 ```yaml
 # aidp.yml - Try different strategies
 harness:
@@ -193,6 +207,7 @@ harness:
 ```
 
 **Increase Rate Limits**
+
 ```yaml
 # aidp.yml - Increase provider limits
 providers:
@@ -205,11 +220,13 @@ providers:
 ### 4. Harness Stuck in Loop
 
 #### Symptoms
+
 - Harness keeps retrying the same step
 - No progress for extended periods
 - High CPU usage
 
 #### Diagnosis
+
 ```bash
 # Check current step
 aidp status
@@ -224,6 +241,7 @@ tail -f .aidp/logs/errors.log
 #### Solutions
 
 **Stop and Reset**
+
 ```bash
 # Stop harness
 aidp harness stop
@@ -236,6 +254,7 @@ aidp harness reset --mode=analyze --step=01_REPOSITORY_ANALYSIS
 ```
 
 **Check for Infinite Loops**
+
 ```bash
 # Check configuration for problematic settings
 aidp config show harness.error_recovery
@@ -245,6 +264,7 @@ aidp config set harness.max_retries 1
 ```
 
 **Manual Step Completion**
+
 ```bash
 # Mark step as completed manually
 aidp progress mark-completed 01_REPOSITORY_ANALYSIS
@@ -256,11 +276,13 @@ aidp analyze
 ### 5. User Input Issues
 
 #### Symptoms
+
 - Harness waits indefinitely for user input
 - Input validation errors
 - File selection not working
 
 #### Diagnosis
+
 ```bash
 # Check user interface configuration
 aidp config show harness.user_interface
@@ -272,6 +294,7 @@ aidp harness status
 #### Solutions
 
 **Input Timeout Issues**
+
 ```yaml
 # aidp.yml - Set input timeout
 harness:
@@ -280,6 +303,7 @@ harness:
 ```
 
 **File Selection Problems**
+
 ```yaml
 # aidp.yml - Enable file selection
 harness:
@@ -288,6 +312,7 @@ harness:
 ```
 
 **Input Validation Errors**
+
 ```bash
 # Check input format
 # Make sure to answer questions in the expected format
@@ -299,11 +324,13 @@ aidp harness reset --mode=analyze --clear-user-input
 ### 6. Performance Issues
 
 #### Symptoms
+
 - Slow execution
 - High memory usage
 - Timeout errors
 
 #### Diagnosis
+
 ```bash
 # Check performance metrics
 aidp metrics show
@@ -319,6 +346,7 @@ htop
 #### Solutions
 
 **Optimize Provider Configuration**
+
 ```yaml
 # aidp.yml - Optimize for performance
 providers:
@@ -331,6 +359,7 @@ providers:
 ```
 
 **Reduce Memory Usage**
+
 ```yaml
 # aidp.yml - Reduce memory usage
 harness:
@@ -340,6 +369,7 @@ harness:
 ```
 
 **Increase Timeouts**
+
 ```yaml
 # aidp.yml - Increase timeouts
 providers:
@@ -352,11 +382,13 @@ providers:
 ### 7. State Corruption Issues
 
 #### Symptoms
+
 - Error: "State file corrupted"
 - Harness can't resume from previous state
 - Inconsistent progress tracking
 
 #### Diagnosis
+
 ```bash
 # Check state files
 ls -la .aidp/harness/
@@ -371,6 +403,7 @@ ls -la .aidp-*-progress.yml
 #### Solutions
 
 **Reset State**
+
 ```bash
 # Reset harness state
 aidp harness reset --mode=analyze
@@ -380,6 +413,7 @@ aidp harness reset --mode=analyze --clear-all
 ```
 
 **Backup and Restore**
+
 ```bash
 # Backup current state
 aidp harness backup
@@ -389,6 +423,7 @@ aidp harness restore --backup=backup-2024-01-01.json
 ```
 
 **Manual State Repair**
+
 ```bash
 # Remove corrupted state files
 rm -f .aidp/harness/analyze_state.json
@@ -401,11 +436,13 @@ aidp analyze
 ### 8. Configuration Issues
 
 #### Symptoms
+
 - Error: "Invalid configuration"
 - Configuration not loading
 - Default values not working
 
 #### Diagnosis
+
 ```bash
 # Validate configuration
 aidp config validate
@@ -420,6 +457,7 @@ aidp config show --path
 #### Solutions
 
 **Fix Configuration Syntax**
+
 ```yaml
 # aidp.yml - Fix common syntax errors
 harness:
@@ -429,6 +467,7 @@ harness:
 ```
 
 **Reset Configuration**
+
 ```bash
 # Reset to defaults
 aidp config reset
@@ -439,6 +478,7 @@ aidp config init
 ```
 
 **Check Configuration Priority**
+
 ```bash
 # Check which configuration is being used
 aidp config show --path
@@ -453,11 +493,13 @@ aidp config show --path
 ### 9. Provider Switching Issues
 
 #### Symptoms
+
 - Providers not switching when expected
 - Fallback providers not working
 - Provider rotation not working
 
 #### Diagnosis
+
 ```bash
 # Check provider configuration
 aidp config show providers
@@ -472,6 +514,7 @@ aidp config show harness.rate_limit_strategy
 #### Solutions
 
 **Configure Fallback Providers**
+
 ```yaml
 # aidp.yml - Ensure fallback providers are configured
 harness:
@@ -480,6 +523,7 @@ harness:
 ```
 
 **Check Provider Availability**
+
 ```bash
 # Test each provider manually
 aidp analyze 01_REPOSITORY_ANALYSIS --provider=claude
@@ -488,6 +532,7 @@ aidp analyze 01_REPOSITORY_ANALYSIS --provider=cursor
 ```
 
 **Adjust Rotation Strategy**
+
 ```yaml
 # aidp.yml - Try different rotation strategies
 harness:
@@ -497,11 +542,13 @@ harness:
 ### 10. Job Management Issues
 
 #### Symptoms
+
 - Background jobs not starting
 - Jobs stuck in queue
 - Job cleanup not working
 
 #### Diagnosis
+
 ```bash
 # Check job status
 aidp jobs
@@ -516,6 +563,7 @@ tail -f .aidp/logs/jobs.log
 #### Solutions
 
 **Clear Job Queue**
+
 ```bash
 # Clear all jobs
 aidp jobs clear
@@ -525,6 +573,7 @@ aidp jobs clear --type=harness
 ```
 
 **Restart Job Manager**
+
 ```bash
 # Stop job manager
 aidp jobs stop
@@ -534,6 +583,7 @@ aidp jobs start
 ```
 
 **Check Job Configuration**
+
 ```yaml
 # aidp.yml - Configure job management
 harness:
@@ -683,6 +733,7 @@ aidp logs search --query="rate limit"
 ### Best Practices
 
 1. **Regular Backups**
+
    ```bash
    # Backup configuration
    aidp config backup
@@ -692,6 +743,7 @@ aidp logs search --query="rate limit"
    ```
 
 2. **Monitor Usage**
+
    ```bash
    # Check usage regularly
    aidp metrics show
@@ -701,6 +753,7 @@ aidp logs search --query="rate limit"
    ```
 
 3. **Test Configuration**
+
    ```bash
    # Test before production use
    aidp config validate
@@ -710,6 +763,7 @@ aidp logs search --query="rate limit"
    ```
 
 4. **Keep Updated**
+
    ```bash
    # Update AIDP regularly
    gem update aidp

@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-require "que"
+# require "que" # Removed - using async instead
 require "json"
-require_relative "../jobs/base_job"
 
 module Aidp
   module Harness

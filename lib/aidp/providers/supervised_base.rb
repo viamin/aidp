@@ -353,20 +353,29 @@ module Aidp
       end
 
       def get_adaptive_timeout
-        # Try to get timeout recommendations from metrics storage
+        # Try to get timeout recommendations from file-based storage
         begin
-          require_relative "../analyze/metrics_storage"
-          storage = Aidp::Analyze::MetricsStorage.new(Dir.pwd)
-          recommendations = storage.calculate_timeout_recommendations
+          require_relative "../storage/file_manager"
+          storage = Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
+
+          # Get metrics summary for timeout recommendations
+          metrics_summary = storage.get_step_executions_summary
+          return nil unless metrics_summary && metrics_summary[:total_rows] > 0
 
           # Get current step name from environment or context
           step_name = ENV["AIDP_CURRENT_STEP"] || "unknown"
 
-          if recommendations[step_name]
-            recommended = recommendations[step_name][:recommended_timeout]
-            # Add buffer for safety
-            return (recommended * ADAPTIVE_TIMEOUT_BUFFER).ceil
-          end
+          # Calculate average duration for this step type
+          step_executions = storage.get_step_executions({ "step_name" => step_name })
+          return nil if step_executions.empty?
+
+          # Calculate average duration and add buffer
+          total_duration = step_executions.sum { |exec| exec["duration"].to_f }
+          average_duration = total_duration / step_executions.length
+          recommended = (average_duration * ADAPTIVE_TIMEOUT_BUFFER).ceil
+
+          log_info("Using adaptive timeout based on #{step_executions.length} previous executions: #{recommended}s")
+          return recommended
         rescue => e
           log_warning("Could not get adaptive timeout: #{e.message}") if ENV["AIDP_DEBUG"]
         end

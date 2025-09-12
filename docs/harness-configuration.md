@@ -721,6 +721,7 @@ aidp config show providers
 ### Common Validation Errors
 
 #### Missing API Keys
+
 ```yaml
 # Error: Missing API key for Claude
 providers:
@@ -732,6 +733,7 @@ providers:
 **Solution**: Set the environment variable or add the API key to the configuration.
 
 #### Invalid Provider Type
+
 ```yaml
 # Error: Invalid provider type
 providers:
@@ -742,6 +744,7 @@ providers:
 **Solution**: Use `"api"` for API-based providers or `"package"` for package-based providers.
 
 #### Invalid Rotation Strategy
+
 ```yaml
 # Error: Invalid rotation strategy
 harness:
@@ -897,6 +900,7 @@ aidp config set harness.rate_limit_strategy model_first
 The AIDP Harness configuration system provides powerful customization options while maintaining simplicity for basic use cases. Start with the minimal configuration and gradually add complexity as you become more familiar with the system.
 
 Remember to:
+
 - Use environment variables for sensitive data
 - Set appropriate cost and rate limits
 - Test your configuration before production use

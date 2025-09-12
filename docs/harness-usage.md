@@ -33,26 +33,31 @@ aidp execute 00_PRD
 ## Harness States
 
 ### Running State
+
 - **Status**: `🚀 Running`
 - **Description**: Actively executing steps
 - **User Action**: Can pause, stop, or wait for completion
 
 ### Paused for User Input
+
 - **Status**: `⏸️ Waiting for user input`
 - **Description**: Agent has asked questions and is waiting for your response
 - **User Action**: Answer questions or provide feedback
 
 ### Paused for Rate Limit
+
 - **Status**: `⏳ Rate limited - waiting 2m 30s`
 - **Description**: Provider hit rate limit, waiting for cooldown
 - **User Action**: Wait for automatic resume or cancel
 
 ### Error State
+
 - **Status**: `❌ Error - retrying`
 - **Description**: Encountered error, attempting recovery
 - **User Action**: Monitor recovery or cancel if needed
 
 ### Completed State
+
 - **Status**: `✅ Completed`
 - **Description**: All steps finished successfully
 - **User Action**: Review results or start new workflow
@@ -365,6 +370,7 @@ aidp harness reset --mode=analyze
 ### Common Issues
 
 #### Harness Won't Start
+
 ```bash
 # Check configuration
 aidp config validate
@@ -374,6 +380,7 @@ aidp harness reset --mode=analyze
 ```
 
 #### Provider Errors
+
 ```bash
 # Check provider status
 aidp harness status
@@ -383,6 +390,7 @@ aidp analyze 01_REPOSITORY_ANALYSIS
 ```
 
 #### Stuck in Loop
+
 ```bash
 # Stop harness
 aidp harness stop
@@ -395,6 +403,7 @@ aidp harness reset --mode=analyze
 ```
 
 #### Rate Limit Issues
+
 ```bash
 # Check rate limit status
 aidp harness status
@@ -471,6 +480,7 @@ providers:
 If you're used to running individual steps:
 
 ### Before (Step-by-Step)
+
 ```bash
 aidp analyze 01_REPOSITORY_ANALYSIS
 aidp analyze 02_ARCHITECTURE_ANALYSIS
@@ -479,6 +489,7 @@ aidp analyze 03_TEST_ANALYSIS
 ```
 
 ### After (Harness Mode)
+
 ```bash
 aidp analyze  # Runs all steps automatically
 ```

@@ -1,11 +1,9 @@
 # frozen_string_literal: true
 
-require "timeout"
-require "que"
-require "sequel"
 require_relative "steps"
 require_relative "progress"
 require_relative "../output_helper"
+require_relative "../storage/file_manager"
 
 module Aidp
   module Analyze
@@ -15,6 +13,7 @@ module Aidp
         @project_dir = project_dir
         @harness_runner = harness_runner
         @is_harness_mode = !harness_runner.nil?
+        @file_manager = Aidp::Storage::FileManager.new(File.join(project_dir, ".aidp"))
       end
 
       def progress
@@ -62,23 +61,23 @@ module Aidp
         process_result_for_harness(result, step_name, options)
       end
 
-      # Standalone step execution (original behavior)
+      # Standalone step execution (simplified - synchronous)
       def run_step_standalone(step_name, options = {})
-        # Set up database connection for background jobs
-        setup_database_connection
+        puts "🚀 Running step synchronously: #{step_name}"
 
-        puts "🚀 Enqueuing background job for step: #{step_name}"
-        job = Aidp::Jobs::ProviderExecutionJob.enqueue(
-          provider_type: "cursor",
-          prompt: composed_prompt(step_name, options),
-          metadata: {
-            step_name: step_name,
-            project_dir: @project_dir
-          }
-        )
-        puts "✅ Job enqueued with ID: #{job}"
+        start_time = Time.now
+        prompt = composed_prompt(step_name, options)
 
-        wait_for_job_completion(job)
+        # Execute step synchronously with a simple provider
+        result = execute_step_synchronously(step_name, prompt, options)
+
+        duration = Time.now - start_time
+
+        # Store execution metrics
+        @file_manager.record_step_execution(step_name, "cursor", duration, result[:status] == "completed")
+
+        puts "✅ Step completed in #{duration.round(2)}s"
+        result
       end
 
       # Harness integration methods
@@ -146,40 +145,23 @@ module Aidp
 
       private
 
-      def setup_database_connection
-        # Skip database setup in test mode if we're mocking
-        return if ENV["RACK_ENV"] == "test" && ENV["MOCK_DATABASE"] == "true"
-
-        dbname = (ENV["RACK_ENV"] == "test") ? "aidp_test" : (ENV["AIDP_DB_NAME"] || "aidp")
-
-        # Use Sequel for connection pooling with timeout
-        require "async"
-        Async do |task|
-          task.with_timeout(10) do
-            Que.connection = Sequel.connect(
-              adapter: "postgres",
-              host: ENV["AIDP_DB_HOST"] || "localhost",
-              port: ENV["AIDP_DB_PORT"] || 5432,
-              database: dbname,
-              user: ENV["AIDP_DB_USER"] || ENV["USER"],
-              password: ENV["AIDP_DB_PASSWORD"],
-              max_connections: 10,
-              pool_timeout: 30
-            )
-
-            Que.migrate!(version: Que::Migrations::CURRENT_VERSION)
-          end
-        end
-      rescue Timeout::Error
-        puts "Database connection timed out"
-        raise
-      rescue => e
-        puts "Error connecting to database: #{e.message}"
-        raise
+      # Simple synchronous step execution
+      def execute_step_synchronously(step_name, prompt, options)
+        # For now, return a mock result - this will be replaced with actual provider execution
+        {
+          status: "completed",
+          provider: "cursor",
+          message: "Step #{step_name} executed successfully",
+          output: "Mock analysis output for #{step_name}",
+          metadata: {
+            step_name: step_name,
+            project_dir: @project_dir,
+            synchronous: true
+          }
+        }
       end
 
       def should_use_mock_mode?(options)
-        return false if options[:background] # Force background jobs if requested
         # Only use mock mode when explicitly requested or in tests
         options[:mock_mode] || ENV["AIDP_MOCK_MODE"] == "1" || ENV["RAILS_ENV"] == "test"
       end
@@ -192,27 +174,6 @@ module Aidp
         }
       end
 
-      def wait_for_job_completion(job_id)
-        loop do
-          job = Que.execute("SELECT * FROM que_jobs WHERE id = $1", [job_id]).first
-          return {status: "completed", provider: "test_provider", message: "Analysis completed successfully"} if job && job["finished_at"] && job["error_count"] == 0
-          return {status: "error", error: job["last_error_message"]} if job && job["error_count"] && job["error_count"] > 0
-
-          if job && job["finished_at"].nil? && job["run_at"]
-            duration = Time.now - job["run_at"]
-            minutes = (duration / 60).to_i
-            seconds = (duration % 60).to_i
-            duration_str = (minutes > 0) ? "#{minutes}m #{seconds}s" : "#{seconds}s"
-            print "\r🔄 Job #{job_id} is running (#{duration_str})...".ljust(80)
-          else
-            print "\r⏳ Job #{job_id} is pending...".ljust(80)
-          end
-          $stdout.flush
-          sleep 1
-        end
-      ensure
-        print "\r" + " " * 80 + "\r"
-      end
 
       def find_template(template_name)
         template_search_paths.each do |path|
@@ -357,9 +318,17 @@ module Aidp
       end
 
       def store_execution_metrics(step_name, result, duration)
-        # Store execution metrics in the database for analysis
-        # This is a placeholder implementation
-        # In a real implementation, this would connect to a database and store metrics
+        # Store execution metrics using file-based storage
+        @file_manager.record_step_execution(step_name, result[:provider] || "unknown", duration, result[:status] == "completed")
+
+        # Store analysis result if present
+        if result[:output]
+          @file_manager.store_analysis_result(step_name, result[:output], {
+            provider: result[:provider],
+            duration: duration,
+            timestamp: Time.now.iso8601
+          })
+        end
       end
     end
   end

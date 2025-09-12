@@ -10,10 +10,7 @@ ENV["RSPEC_RUNNING"] = "true"  # Signal that we're running tests
 require "aidp"
 require "tempfile"
 require "fileutils"
-require "que"
 require "logger"
-require_relative "support/database_helper"
-require_relative "support/job_helper"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -25,9 +22,6 @@ RSpec.configure do |config|
 
   # Add timeout to prevent hanging tests and configure output logger
   config.around(:each) do |example|
-    # Ensure each test starts with a clean connection
-    Aidp::DatabaseConnection.disconnect
-
     # Configure output logger for tests (only for non-logger and non-output tests)
     unless example.full_description.include?('OutputLogger') ||
            example.full_description.include?('OutputHelper') ||
@@ -44,24 +38,7 @@ RSpec.configure do |config|
 
     # Reset output logger after test
     Aidp::OutputLogger.normal_mode!
-    Aidp::DatabaseConnection.disconnect
   end
 
-  # Configure Que for testing
-  config.before(:suite) do
-    DatabaseHelper.setup_test_db
-    Que.logger = Logger.new(nil)
-    ENV["QUE_QUEUE"] = "test_queue"
-  end
-
-  config.after(:suite) do
-    DatabaseHelper.drop_test_db
-  end
-
-  # Only clear database tables for tests that actually need it
-  # This reduces database connection overhead
-  config.before(:each, :database) do
-    DatabaseHelper.clear_que_tables
-  end
 
 end
