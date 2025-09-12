@@ -151,7 +151,7 @@ module Aidp
         delay = apply_jitter(delay, strategy[:jitter]) if strategy[:jitter]
 
         # Wait for delay
-        sleep(delay) if delay > 0
+        Async::Task.current.sleep(delay) if delay > 0
 
         # Get next available combination
         next_combination = get_next_available_combination(provider_name, model_name, context)

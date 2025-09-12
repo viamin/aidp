@@ -2015,8 +2015,12 @@ module Aidp
         @control_mutex.synchronize do
           return if @control_thread&.alive?
 
-          @control_thread = Thread.new do
-            control_interface_loop
+          # Start control interface using Async (skip in test mode)
+          unless ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            require "async"
+            Async do |task|
+              task.async { control_interface_loop }
+            end
           end
         end
 
@@ -2107,7 +2111,7 @@ module Aidp
             handle_resume_state
             break
           else
-            sleep(0.1) # Small delay to prevent busy waiting
+            Async::Task.current.sleep(0.1) # Small delay to prevent busy waiting
           end
         end
       end
@@ -2352,7 +2356,7 @@ module Aidp
             puts "\n⏰ Control interface timeout reached. Continuing execution..."
             break
           else
-            sleep(0.1)
+            Async::Task.current.sleep(0.1)
           end
         end
       end

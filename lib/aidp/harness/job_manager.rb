@@ -263,7 +263,7 @@ module Aidp
           running_jobs = get_running_jobs
           return true if running_jobs.empty?
 
-          sleep(1)
+          Async::Task.current.sleep(1)
         end
 
         false # Timeout reached

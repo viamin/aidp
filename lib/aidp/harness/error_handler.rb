@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "net/http"
+require "async"
 
 module Aidp
   module Harness
@@ -74,7 +75,7 @@ module Aidp
 
             strategy = get_retry_strategy(error_info[:error_type])
             if should_retry?(error_info, strategy)
-              sleep(calculate_delay(attempt, strategy, 1, 10))
+              Async::Task.current.sleep(calculate_delay(attempt, strategy, 1, 10))
               retry
             end
           end
@@ -118,7 +119,7 @@ module Aidp
         )
 
         # Wait for backoff delay
-        sleep(delay) if delay > 0
+        Async::Task.current.sleep(delay) if delay > 0
 
         # Execute the retry
         retry_result = execute_retry_attempt(error_info, strategy, context)

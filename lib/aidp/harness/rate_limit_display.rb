@@ -49,7 +49,13 @@ module Aidp
 
         @display_running = true
         @start_time = Time.now
-        @display_thread = Thread.new { display_loop }
+        # Start display loop using Async (skip in test mode)
+        unless ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          require "async"
+          Async do |task|
+            task.async { display_loop }
+          end
+        end
 
         {
           status: :started,
@@ -324,11 +330,11 @@ module Aidp
         while @display_running
           begin
             update_display
-            sleep(@display_config[:update_interval])
+            Async::Task.current.sleep(@display_config[:update_interval])
           rescue => e
             # Log error but continue display loop
             puts "Rate limit display error: #{e.message}"
-            sleep(1)
+            Async::Task.current.sleep(1)
           end
         end
       end

@@ -48,15 +48,21 @@ module Aidp
         @display_mode = display_mode
         @last_update = Time.now
 
-        @status_thread = Thread.new do
-          while @running
-            begin
-              collect_status_data
-              display_status
-              check_alerts
-              sleep(@update_interval)
-            rescue => e
-              handle_display_error(e)
+        # Start status display using Async (skip in test mode)
+        unless ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          require "async"
+          Async do |task|
+            task.async do
+              while @running
+                begin
+                  collect_status_data
+                  display_status
+                  check_alerts
+                  Async::Task.current.sleep(@update_interval)
+                rescue => e
+                  handle_display_error(e)
+                end
+              end
             end
           end
         end

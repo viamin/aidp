@@ -310,19 +310,24 @@ module Aidp
         # Skip background threads in test environment
         return if defined?(RSpec) && RSpec.current_example
 
-        # Set up periodic metrics collection
-        @collection_thread = Thread.new do
-          loop do
-            collect_system_metrics
-            sleep(@configuration.metrics_config[:collection_interval] || 60)
+        # Set up periodic metrics collection using Async
+        require "async"
+        Async do |task|
+          task.async do
+            loop do
+              collect_system_metrics
+              Async::Task.current.sleep(@configuration.metrics_config[:collection_interval] || 60)
+            end
           end
         end
 
-        # Set up periodic cleanup
-        @cleanup_thread = Thread.new do
-          loop do
-            cleanup_old_metrics
-            sleep(3600) # Run cleanup every hour
+        # Set up periodic cleanup using Async
+        Async do |task|
+          task.async do
+            loop do
+              cleanup_old_metrics
+              Async::Task.current.sleep(3600) # Run cleanup every hour
+            end
           end
         end
       end

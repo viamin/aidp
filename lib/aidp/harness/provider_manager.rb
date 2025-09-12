@@ -129,7 +129,7 @@ module Aidp
           retry_count += 1
 
           # Wait before retrying
-          sleep(calculate_retry_delay(retry_count))
+          Async::Task.current.sleep(calculate_retry_delay(retry_count))
         end
 
         nil
@@ -214,7 +214,7 @@ module Aidp
           retry_count += 1
 
           # Wait before retrying
-          sleep(calculate_retry_delay(retry_count))
+          Async::Task.current.sleep(calculate_retry_delay(retry_count))
         end
 
         nil
