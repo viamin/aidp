@@ -151,7 +151,13 @@ module Aidp
         delay = apply_jitter(delay, strategy[:jitter]) if strategy[:jitter]
 
         # Wait for delay
-        Async::Task.current.sleep(delay) if delay > 0
+        if delay > 0
+          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            sleep(delay)
+          else
+            Async::Task.current.sleep(delay)
+          end
+        end
 
         # Get next available combination
         next_combination = get_next_available_combination(provider_name, model_name, context)

@@ -2111,7 +2111,11 @@ module Aidp
             handle_resume_state
             break
           else
-            Async::Task.current.sleep(0.1) # Small delay to prevent busy waiting
+            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+              sleep(0.1) # Small delay to prevent busy waiting
+            else
+              Async::Task.current.sleep(0.1)
+            end
           end
         end
       end
@@ -2356,7 +2360,11 @@ module Aidp
             Aidp::OutputLogger.puts "\n⏰ Control interface timeout reached. Continuing execution..."
             break
           else
-            Async::Task.current.sleep(0.1)
+            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+              sleep(0.1)
+            else
+              Async::Task.current.sleep(0.1)
+            end
           end
         end
       end

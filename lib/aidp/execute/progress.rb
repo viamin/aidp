@@ -61,8 +61,8 @@ module Aidp
       private
 
       def load_progress
-        # In test mode, return empty progress to avoid file operations
-        if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        # In test mode, only skip file operations if no progress file exists
+        if (ENV['RACK_ENV'] == 'test' || defined?(RSpec)) && !File.exist?(@progress_file)
           @progress = {}
           return
         end

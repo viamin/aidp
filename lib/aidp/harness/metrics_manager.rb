@@ -316,7 +316,12 @@ module Aidp
           task.async do
             loop do
               collect_system_metrics
-              Async::Task.current.sleep(@configuration.metrics_config[:collection_interval] || 60)
+              interval = @configuration.metrics_config[:collection_interval] || 60
+              if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+                sleep(interval)
+              else
+                Async::Task.current.sleep(interval)
+              end
             end
           end
         end
@@ -326,7 +331,11 @@ module Aidp
           task.async do
             loop do
               cleanup_old_metrics
-              Async::Task.current.sleep(3600) # Run cleanup every hour
+              if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+                sleep(3600) # Run cleanup every hour
+              else
+                Async::Task.current.sleep(3600) # Run cleanup every hour
+              end
             end
           end
         end

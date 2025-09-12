@@ -67,8 +67,8 @@ module Aidp
               # Running a specific step - return same as analyze runner
               return {status: "completed", provider: "mock", message: "Mock execution"}
             else
-              # Starting the workflow - return success with next step
-              return {status: "success", next_step: "01_REPOSITORY_ANALYSIS", provider: "mock"}
+              # Starting the workflow - return completed to match analyze runner behavior
+              return {status: "completed", provider: "mock", message: "Mock execution"}
             end
           else
             return {status: @state, message: "Test mode - harness completed", provider: "mock"}
@@ -294,7 +294,11 @@ module Aidp
         while Time.now < reset_time && @state == STATES[:waiting_for_rate_limit]
           remaining = reset_time - Time.now
           @status_display.update_rate_limit_countdown(remaining)
-          Async::Task.current.sleep(1)
+          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            sleep(1)
+          else
+            Async::Task.current.sleep(1)
+          end
         end
       end
 
@@ -314,7 +318,11 @@ module Aidp
         case @state
         when STATES[:paused]
           # Wait for user to resume
-          Async::Task.current.sleep(1)
+          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            sleep(1)
+          else
+            Async::Task.current.sleep(1)
+          end
         when STATES[:waiting_for_user]
           # User interface handles this
           nil

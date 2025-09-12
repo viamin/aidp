@@ -58,7 +58,11 @@ module Aidp
                   collect_status_data
                   display_status
                   check_alerts
-                  Async::Task.current.sleep(@update_interval)
+                  if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+                    sleep(@update_interval)
+                  else
+                    Async::Task.current.sleep(@update_interval)
+                  end
                 rescue => e
                   handle_display_error(e)
                 end

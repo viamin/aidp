@@ -330,11 +330,19 @@ module Aidp
         while @display_running
           begin
             update_display
-            Async::Task.current.sleep(@display_config[:update_interval])
+            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+              sleep(@display_config[:update_interval])
+            else
+              Async::Task.current.sleep(@display_config[:update_interval])
+            end
           rescue => e
             # Log error but continue display loop
             puts "Rate limit display error: #{e.message}"
-            Async::Task.current.sleep(1)
+            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+              sleep(1)
+            else
+              Async::Task.current.sleep(1)
+            end
           end
         end
       end

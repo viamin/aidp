@@ -263,7 +263,11 @@ module Aidp
           running_jobs = get_running_jobs
           return true if running_jobs.empty?
 
-          Async::Task.current.sleep(1)
+          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            sleep(1)
+          else
+            Async::Task.current.sleep(1)
+          end
         end
 
         false # Timeout reached

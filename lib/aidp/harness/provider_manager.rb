@@ -129,7 +129,12 @@ module Aidp
           retry_count += 1
 
           # Wait before retrying
-          Async::Task.current.sleep(calculate_retry_delay(retry_count))
+          delay = calculate_retry_delay(retry_count)
+          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            sleep(delay)
+          else
+            Async::Task.current.sleep(delay)
+          end
         end
 
         nil
@@ -214,7 +219,12 @@ module Aidp
           retry_count += 1
 
           # Wait before retrying
-          Async::Task.current.sleep(calculate_retry_delay(retry_count))
+          delay = calculate_retry_delay(retry_count)
+          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            sleep(delay)
+          else
+            Async::Task.current.sleep(delay)
+          end
         end
 
         nil
