@@ -19,19 +19,31 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#start_control_interface" do
       it "starts the control interface" do
-        expect { ui.start_control_interface }.to output(/Control Interface Started.*Press 'p' \+ Enter to pause.*Press 'r' \+ Enter to resume.*Press 's' \+ Enter to stop/m).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+          ui.start_control_interface
+        end
+        expect(output).to include("Control Interface Started")
+        expect(output).to include("Press 'p' + Enter to pause")
+        expect(output).to include("Press 'r' + Enter to resume")
+        expect(output).to include("Press 's' + Enter to stop")
       end
 
       it "does not start multiple control interfaces" do
         ui.start_control_interface
-        expect { ui.start_control_interface }.not_to output(/Control Interface Started/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+          ui.start_control_interface
+        end
+        expect(output).not_to include("Control Interface Started")
       end
     end
 
     describe "#stop_control_interface" do
       it "stops the control interface" do
         ui.start_control_interface
-        expect { ui.stop_control_interface }.to output(/Control Interface Stopped/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+          ui.stop_control_interface
+        end
+        expect(output).to include("Control Interface Stopped")
       end
     end
 
@@ -80,7 +92,10 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "displays pause message" do
-          expect { ui.request_pause }.to output(/Pause requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+            ui.request_pause
+          end
+          expect(output).to include("Pause requested")
         end
       end
 
@@ -93,7 +108,10 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "displays stop message" do
-          expect { ui.request_stop }.to output(/Stop requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.request_stop
+      end
+      expect(output).to match(/Stop requested/)
         end
       end
 
@@ -106,7 +124,10 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "displays resume message" do
-          expect { ui.request_resume }.to output(/Resume requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.request_resume
+      end
+      expect(output).to match(/Resume requested/)
         end
       end
 
@@ -131,75 +152,144 @@ RSpec.describe Aidp::Harness::UserInterface do
           # Mock Readline to return "r" (resume)
           allow(Readline).to receive(:readline).and_return("r")
 
-          expect { ui.handle_pause_state }.to output(/HARNESS PAUSED/).to_stdout
-          expect { ui.handle_pause_state }.to output(/Control Options/).to_stdout
-          expect { ui.handle_pause_state }.to output(/Resume execution/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/HARNESS PAUSED/)
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/Control Options/)
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/Resume execution/)
         end
 
         it "handles resume command" do
           # Mock Readline to return "r" (resume)
           allow(Readline).to receive(:readline).and_return("r")
 
-          expect { ui.handle_pause_state }.to output(/Resume requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/Resume requested/)
         end
 
         it "handles stop command" do
           # Mock Readline to return "s" (stop)
           allow(Readline).to receive(:readline).and_return("s")
 
-          expect { ui.handle_pause_state }.to output(/Stop requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/Stop requested/)
         end
 
         it "handles help command" do
           # Mock Readline to return "h" then "r"
           allow(Readline).to receive(:readline).and_return("h", "r")
 
-          expect { ui.handle_pause_state }.to output(/Control Interface Help/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/Control Interface Help/)
         end
 
         it "handles quit command" do
           # Mock Readline to return "q" (quit)
           allow(Readline).to receive(:readline).and_return("q")
 
-          expect { ui.handle_pause_state }.to output(/Control Interface Stopped/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/Control Interface Stopped/)
         end
 
         it "handles invalid commands" do
           # Mock Readline to return "invalid" then "r"
           allow(Readline).to receive(:readline).and_return("invalid", "r")
 
-          expect { ui.handle_pause_state }.to output(/Invalid command/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_pause_state
+      end
+      expect(output).to match(/Invalid command/)
         end
       end
 
       describe "#handle_stop_state" do
         it "displays stop state information" do
-          expect { ui.handle_stop_state }.to output(/HARNESS STOPPED/).to_stdout
-          expect { ui.handle_stop_state }.to output(/Execution has been stopped/).to_stdout
-          expect { ui.handle_stop_state }.to output(/You can restart the harness/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_stop_state
+      end
+      expect(output).to match(/HARNESS STOPPED/)
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_stop_state
+      end
+      expect(output).to match(/Execution has been stopped/)
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_stop_state
+      end
+      expect(output).to match(/You can restart the harness/)
         end
       end
 
       describe "#handle_resume_state" do
         it "displays resume state information" do
-          expect { ui.handle_resume_state }.to output(/HARNESS RESUMED/).to_stdout
-          expect { ui.handle_resume_state }.to output(/Execution has been resumed/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_resume_state
+      end
+      expect(output).to match(/HARNESS RESUMED/)
+          output = Aidp::OutputLogger.capture_output do
+        ui.handle_resume_state
+      end
+      expect(output).to match(/Execution has been resumed/)
         end
       end
     end
 
     describe "#show_control_help" do
       it "displays comprehensive help information" do
-        expect { ui.show_control_help }.to output(/Control Interface Help/).to_stdout
-        expect { ui.show_control_help }.to output(/Available Commands/).to_stdout
-        expect { ui.show_control_help }.to output(/pause.*- Pause the harness execution/).to_stdout
-        expect { ui.show_control_help }.to output(/resume.*- Resume the harness execution/).to_stdout
-        expect { ui.show_control_help }.to output(/stop.*- Stop the harness execution/).to_stdout
-        expect { ui.show_control_help }.to output(/Control States/).to_stdout
-        expect { ui.show_control_help }.to output(/Running.*- Harness is executing normally/).to_stdout
-        expect { ui.show_control_help }.to output(/Paused.*- Harness is paused/).to_stdout
-        expect { ui.show_control_help }.to output(/Stopped.*- Harness has been stopped/).to_stdout
-        expect { ui.show_control_help }.to output(/Tips/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/Control Interface Help/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/Available Commands/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/pause.*- Pause the harness execution/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/resume.*- Resume the harness execution/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/stop.*- Stop the harness execution/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/Control States/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/Running.*- Harness is executing normally/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/Paused.*- Harness is paused/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/Stopped.*- Harness has been stopped/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_help
+      end
+      expect(output).to match(/Tips/)
       end
     end
 
@@ -240,7 +330,10 @@ RSpec.describe Aidp::Harness::UserInterface do
           ui.disable_control_interface
           ui.enable_control_interface
 
-          expect { ui.enable_control_interface }.to output(/Control interface enabled/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.enable_control_interface
+      end
+      expect(output).to match(/Control interface enabled/)
         end
       end
 
@@ -249,7 +342,10 @@ RSpec.describe Aidp::Harness::UserInterface do
           ui.start_control_interface
           ui.disable_control_interface
 
-          expect { ui.disable_control_interface }.to output(/Control interface disabled/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.disable_control_interface
+      end
+      expect(output).to match(/Control interface disabled/)
         end
       end
     end
@@ -284,20 +380,44 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#display_control_status" do
       it "displays control status information" do
-        expect { ui.display_control_status }.to output(/Control Interface Status/).to_stdout
-        expect { ui.display_control_status }.to output(/Enabled: ✅ Yes/).to_stdout
-        expect { ui.display_control_status }.to output(/Pause Requested: ▶️  No/).to_stdout
-        expect { ui.display_control_status }.to output(/Stop Requested: ▶️  No/).to_stdout
-        expect { ui.display_control_status }.to output(/Resume Requested: ⏸️  No/).to_stdout
-        expect { ui.display_control_status }.to output(/Control Thread: 🔴 Inactive/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Control Interface Status/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Enabled: ✅ Yes/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Pause Requested: ▶️  No/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Stop Requested: ▶️  No/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Resume Requested: ⏸️  No/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Control Thread: 🔴 Inactive/)
       end
 
       it "displays active control states" do
         ui.request_pause
         ui.start_control_interface
 
-        expect { ui.display_control_status }.to output(/Pause Requested: ⏸️  Yes/).to_stdout
-        expect { ui.display_control_status }.to output(/Control Thread: 🟢 Active/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Pause Requested: ⏸️  Yes/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.display_control_status
+      end
+      expect(output).to match(/Control Thread: 🟢 Active/)
       end
     end
 
@@ -306,92 +426,152 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return "8" (exit)
         allow(Readline).to receive(:readline).and_return("8")
 
-        expect { ui.show_control_menu }.to output(/Harness Control Menu/).to_stdout
-        expect { ui.show_control_menu }.to output(/Start Control Interface/).to_stdout
-        expect { ui.show_control_menu }.to output(/Stop Control Interface/).to_stdout
-        expect { ui.show_control_menu }.to output(/Pause Harness/).to_stdout
-        expect { ui.show_control_menu }.to output(/Resume Harness/).to_stdout
-        expect { ui.show_control_menu }.to output(/Stop Harness/).to_stdout
-        expect { ui.show_control_menu }.to output(/Show Control Status/).to_stdout
-        expect { ui.show_control_menu }.to output(/Show Help/).to_stdout
-        expect { ui.show_control_menu }.to output(/Exit Menu/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Harness Control Menu/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Start Control Interface/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Stop Control Interface/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Pause Harness/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Resume Harness/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Stop Harness/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Show Control Status/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Show Help/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Exit Menu/)
       end
 
       it "handles menu option 1 (start control interface)" do
         # Mock Readline to return "1" then "8"
         allow(Readline).to receive(:readline).and_return("1", "8")
 
-        expect { ui.show_control_menu }.to output(/Control Interface Started/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Control Interface Started/)
       end
 
       it "handles menu option 2 (stop control interface)" do
         # Mock Readline to return "2" then "8"
         allow(Readline).to receive(:readline).and_return("2", "8")
 
-        expect { ui.show_control_menu }.to output(/Control Interface Stopped/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Control Interface Stopped/)
       end
 
       it "handles menu option 3 (pause harness)" do
         # Mock Readline to return "3" then "8"
         allow(Readline).to receive(:readline).and_return("3", "8")
 
-        expect { ui.show_control_menu }.to output(/Pause requested/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Pause requested/)
       end
 
       it "handles menu option 4 (resume harness)" do
         # Mock Readline to return "4" then "8"
         allow(Readline).to receive(:readline).and_return("4", "8")
 
-        expect { ui.show_control_menu }.to output(/Resume requested/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Resume requested/)
       end
 
       it "handles menu option 5 (stop harness)" do
         # Mock Readline to return "5" then "8"
         allow(Readline).to receive(:readline).and_return("5", "8")
 
-        expect { ui.show_control_menu }.to output(/Stop requested/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Stop requested/)
       end
 
       it "handles menu option 6 (show control status)" do
         # Mock Readline to return "6" then "8"
         allow(Readline).to receive(:readline).and_return("6", "8")
 
-        expect { ui.show_control_menu }.to output(/Control Interface Status/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Control Interface Status/)
       end
 
       it "handles menu option 7 (show help)" do
         # Mock Readline to return "7" then "8"
         allow(Readline).to receive(:readline).and_return("7", "8")
 
-        expect { ui.show_control_menu }.to output(/Control Interface Help/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Control Interface Help/)
       end
 
       it "handles invalid menu options" do
         # Mock Readline to return "99" then "8"
         allow(Readline).to receive(:readline).and_return("99", "8")
 
-        expect { ui.show_control_menu }.to output(/Invalid option/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_control_menu
+      end
+      expect(output).to match(/Invalid option/)
       end
     end
 
     describe "quick control commands" do
       describe "#quick_pause" do
         it "requests pause and displays message" do
-          expect { ui.quick_pause }.to output(/Quick pause requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.quick_pause
+      end
+      expect(output).to match(/Quick pause requested/)
           expect(ui.pause_requested?).to be true
         end
       end
 
       describe "#quick_resume" do
         it "requests resume and displays message" do
-          expect { ui.quick_resume }.to output(/Quick resume requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.quick_resume
+      end
+      expect(output).to match(/Quick resume requested/)
           expect(ui.resume_requested?).to be true
         end
       end
 
       describe "#quick_stop" do
         it "requests stop and displays message" do
-          expect { ui.quick_stop }.to output(/Quick stop requested/).to_stdout
+          output = Aidp::OutputLogger.capture_output do
+        ui.quick_stop
+      end
+      expect(output).to match(/Quick stop requested/)
           expect(ui.stop_requested?).to be true
         end
       end
@@ -403,7 +583,10 @@ RSpec.describe Aidp::Harness::UserInterface do
         start_time = Time.now
         allow(Time).to receive(:now).and_return(start_time, start_time + 31)
 
-        expect { ui.control_interface_with_timeout(30) }.to output(/Control interface timeout reached/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.control_interface_with_timeout(30)
+      end
+      expect(output).to match(/Control interface timeout reached/)
       end
 
       it "handles pause request within timeout" do
@@ -412,23 +595,44 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return "r" (resume)
         allow(Readline).to receive(:readline).and_return("r")
 
-        expect { ui.control_interface_with_timeout(30) }.to output(/HARNESS PAUSED/).to_stdout
-        expect { ui.control_interface_with_timeout(30) }.to output(/HARNESS RESUMED/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.control_interface_with_timeout(30)
+      end
+      expect(output).to match(/HARNESS PAUSED/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.control_interface_with_timeout(30)
+      end
+      expect(output).to match(/HARNESS RESUMED/)
       end
 
       it "handles stop request within timeout" do
         ui.request_stop
 
-        expect { ui.control_interface_with_timeout(30) }.to output(/HARNESS STOPPED/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.control_interface_with_timeout(30)
+      end
+      expect(output).to match(/HARNESS STOPPED/)
       end
     end
 
     describe "#emergency_stop" do
       it "initiates emergency stop" do
-        expect { ui.emergency_stop }.to output(/EMERGENCY STOP INITIATED/).to_stdout
-        expect { ui.emergency_stop }.to output(/All execution will be halted/).to_stdout
-        expect { ui.emergency_stop }.to output(/This action cannot be undone/).to_stdout
-        expect { ui.emergency_stop }.to output(/Emergency stop completed/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.emergency_stop
+      end
+      expect(output).to match(/EMERGENCY STOP INITIATED/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.emergency_stop
+      end
+      expect(output).to match(/All execution will be halted/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.emergency_stop
+      end
+      expect(output).to match(/This action cannot be undone/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.emergency_stop
+      end
+      expect(output).to match(/Emergency stop completed/)
       end
 
       it "sets stop requested and clears other requests" do
@@ -446,7 +650,10 @@ RSpec.describe Aidp::Harness::UserInterface do
         ui.start_control_interface
         ui.emergency_stop
 
-        expect { ui.emergency_stop }.to output(/Control Interface Stopped/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.emergency_stop
+      end
+      expect(output).to match(/Control Interface Stopped/)
       end
     end
 

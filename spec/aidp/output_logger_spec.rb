@@ -19,17 +19,26 @@ RSpec.describe Aidp::OutputLogger do
   describe "basic functionality" do
     it "outputs text when enabled" do
       Aidp::OutputLogger.normal_mode!
-      expect { Aidp::OutputLogger.puts("Hello World") }.to output("Hello World\n").to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.puts("Hello World")
+      end
+      expect(output).to include("Hello World")
     end
 
     it "suppresses output in test mode" do
       Aidp::OutputLogger.test_mode!
-      expect { Aidp::OutputLogger.puts("Hello World") }.not_to output.to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.puts("Hello World")
+      end
+      expect(output).to be_empty
     end
 
     it "suppresses output when disabled" do
       Aidp::OutputLogger.disable!
-      expect { Aidp::OutputLogger.puts("Hello World") }.not_to output.to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.puts("Hello World")
+      end
+      expect(output).to be_empty
     end
   end
 
@@ -58,19 +67,31 @@ RSpec.describe Aidp::OutputLogger do
     end
 
     it "handles error output" do
-      expect { Aidp::OutputLogger.error_puts("Error message") }.to output("Error message\n").to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.error_puts("Error message")
+      end
+      expect(output).to include("Error message")
     end
 
     it "handles warning output" do
-      expect { Aidp::OutputLogger.warning_puts("Warning message") }.to output("Warning message\n").to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.warning_puts("Warning message")
+      end
+      expect(output).to include("Warning message")
     end
 
     it "handles success output" do
-      expect { Aidp::OutputLogger.success_puts("Success message") }.to output("Success message\n").to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.success_puts("Success message")
+      end
+      expect(output).to include("Success message")
     end
 
     it "handles info output" do
-      expect { Aidp::OutputLogger.info_puts("Info message") }.to output("Info message\n").to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.info_puts("Info message")
+      end
+      expect(output).to include("Info message")
     end
   end
 
@@ -80,21 +101,33 @@ RSpec.describe Aidp::OutputLogger do
     end
 
     it "suppresses verbose output when not in verbose mode" do
-      expect { Aidp::OutputLogger.verbose_puts("Verbose message") }.not_to output.to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.verbose_puts("Verbose message")
+      end
+      expect(output).to be_empty
     end
 
     it "shows verbose output when in verbose mode" do
       allow(Aidp::OutputLogger).to receive(:verbose_mode?).and_return(true)
-      expect { Aidp::OutputLogger.verbose_puts("Verbose message") }.to output("Verbose message\n").to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.verbose_puts("Verbose message")
+      end
+      expect(output).to include("Verbose message")
     end
 
     it "suppresses debug output when not in debug mode" do
-      expect { Aidp::OutputLogger.debug_puts("Debug message") }.not_to output.to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.debug_puts("Debug message")
+      end
+      expect(output).to be_empty
     end
 
     it "shows debug output when in debug mode" do
       allow(Aidp::OutputLogger).to receive(:debug_mode?).and_return(true)
-      expect { Aidp::OutputLogger.debug_puts("Debug message") }.to output("Debug message\n").to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        Aidp::OutputLogger.debug_puts("Debug message")
+      end
+      expect(output).to include("Debug message")
     end
   end
 
@@ -136,19 +169,41 @@ RSpec.describe Aidp::OutputHelper do
 
   it "provides puts method through helper" do
     Aidp::OutputLogger.normal_mode!
-    expect { instance.puts("Hello from helper") }.to output("Hello from helper\n").to_stdout
+    output = Aidp::OutputLogger.capture_output do
+      instance.puts("Hello from helper")
+    end
+    expect(output).to include("Hello from helper")
   end
 
   it "suppresses output in test mode through helper" do
     Aidp::OutputLogger.test_mode!
-    expect { instance.puts("Hello from helper") }.not_to output.to_stdout
+    output = Aidp::OutputLogger.capture_output do
+      instance.puts("Hello from helper")
+    end
+    expect(output).to be_empty
   end
 
   it "provides specialized output methods" do
     Aidp::OutputLogger.normal_mode!
-    expect { instance.error_puts("Error") }.to output("Error\n").to_stdout
-    expect { instance.success_puts("Success") }.to output("Success\n").to_stdout
-    expect { instance.warning_puts("Warning") }.to output("Warning\n").to_stdout
-    expect { instance.info_puts("Info") }.to output("Info\n").to_stdout
+
+    output = Aidp::OutputLogger.capture_output do
+      instance.error_puts("Error")
+    end
+    expect(output).to include("Error")
+
+    output = Aidp::OutputLogger.capture_output do
+      instance.success_puts("Success")
+    end
+    expect(output).to include("Success")
+
+    output = Aidp::OutputLogger.capture_output do
+      instance.warning_puts("Warning")
+    end
+    expect(output).to include("Warning")
+
+    output = Aidp::OutputLogger.capture_output do
+      instance.info_puts("Info")
+    end
+    expect(output).to include("Info")
   end
 end

@@ -514,9 +514,10 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
       let(:state_notifier) { described_class::StateNotifier.new }
 
       it "notifies state changes" do
-        expect {
-          state_notifier.notify_state_change("claude", "model1", :closed, :open, "Test")
-        }.to output(/Circuit breaker state change/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        state_notifier.notify_state_change("claude", "model1", :closed, :open, "Test")
+      end
+      expect(output).to match(/Circuit breaker state change/)
       end
 
       it "allows adding notifiers" do

@@ -36,7 +36,8 @@ RSpec.configure do |config|
              example.full_description.include?('displays') ||
              example.full_description.include?('output') ||
              example.full_description.include?('CLI') ||
-             example.full_description.include?('cli')
+             example.full_description.include?('cli') ||
+             example.full_description.include?('KBInspector')
         Aidp::OutputLogger.test_mode!
       end
 

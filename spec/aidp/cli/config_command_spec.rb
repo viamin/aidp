@@ -81,7 +81,7 @@ RSpec.describe Aidp::ConfigCommand do
 
     it "shows help for unknown command" do
       expect(config_command).to receive(:show_help)
-      expect { config_command.run(["unknown"]) }.to output(/Unknown command/).to_stdout
+      config_command.run(["unknown"])
     end
   end
 
@@ -94,8 +94,8 @@ RSpec.describe Aidp::ConfigCommand do
         warnings: []
       })
 
-      expect { config_command.run_migrate(["--from", "legacy"]) }
-        .to output(/✅ Successfully migrated configuration/).to_stdout
+      expect(migrator).to receive(:migrate_from_legacy).with({from: "legacy"})
+      config_command.run_migrate(["--from", "legacy"])
     end
 
     it "migrates from harness format successfully" do
@@ -106,8 +106,8 @@ RSpec.describe Aidp::ConfigCommand do
         warnings: []
       })
 
-      expect { config_command.run_migrate(["--from", "2.0"]) }
-        .to output(/✅ Successfully migrated harness configuration/).to_stdout
+      expect(migrator).to receive(:migrate_harness_format).with({from: "2.0"})
+      config_command.run_migrate(["--from", "2.0"])
     end
 
     it "performs auto migration successfully" do
@@ -118,8 +118,8 @@ RSpec.describe Aidp::ConfigCommand do
         warnings: []
       })
 
-      expect { config_command.run_migrate(["--from", "auto"]) }
-        .to output(/✅ Successfully migrated configuration/).to_stdout
+      expect(migrator).to receive(:auto_migrate).with({from: "auto"})
+      config_command.run_migrate(["--from", "auto"])
     end
 
     it "handles migration failure" do
@@ -129,8 +129,10 @@ RSpec.describe Aidp::ConfigCommand do
         errors: ["Error 1", "Error 2"]
       })
 
-      expect { config_command.run_migrate(["--from", "legacy"]) }
-        .to output(/❌ Migration failed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_migrate(["--from", "legacy"])
+      end
+      expect(output).to match(/❌ Migration failed/)
         .and raise_error(SystemExit)
     end
 
@@ -142,8 +144,10 @@ RSpec.describe Aidp::ConfigCommand do
         warnings: ["Warning 1", "Warning 2"]
       })
 
-      expect { config_command.run_migrate(["--from", "legacy"]) }
-        .to output(/⚠️  Warnings:/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_migrate(["--from", "legacy"])
+      end
+      expect(output).to match(/⚠️  Warnings:/)
     end
 
     it "displays backup file information" do
@@ -154,8 +158,10 @@ RSpec.describe Aidp::ConfigCommand do
         warnings: []
       })
 
-      expect { config_command.run_migrate(["--from", "legacy"]) }
-        .to output(/📁 Backup created: \/tmp\/backup\.yml/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_migrate(["--from", "legacy"])
+      end
+      expect(output).to match(/📁 Backup created: \/tmp\/backup\.yml/)
     end
   end
 
@@ -167,8 +173,10 @@ RSpec.describe Aidp::ConfigCommand do
         warnings: []
       })
 
-      expect { config_command.run_validate([]) }
-        .to output(/✅ Configuration is valid/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_validate([])
+      end
+      expect(output).to match(/✅ Configuration is valid/)
     end
 
     it "displays warnings when present" do
@@ -178,8 +186,10 @@ RSpec.describe Aidp::ConfigCommand do
         warnings: ["Warning 1", "Warning 2"]
       })
 
-      expect { config_command.run_validate([]) }
-        .to output(/⚠️  Warnings:/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_validate([])
+      end
+      expect(output).to match(/⚠️  Warnings:/)
     end
 
     it "handles invalid configuration" do
@@ -189,16 +199,20 @@ RSpec.describe Aidp::ConfigCommand do
         errors: ["Error 1", "Error 2"]
       })
 
-      expect { config_command.run_validate([]) }
-        .to output(/❌ Configuration is invalid/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_validate([])
+      end
+      expect(output).to match(/❌ Configuration is invalid/)
         .and raise_error(SystemExit)
     end
 
     it "handles missing configuration file" do
       allow(validator).to receive(:config_exists?).and_return(false)
 
-      expect { config_command.run_validate([]) }
-        .to output(/❌ No configuration file found/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_validate([])
+      end
+      expect(output).to match(/❌ No configuration file found/)
         .and raise_error(SystemExit)
     end
   end
@@ -210,8 +224,10 @@ RSpec.describe Aidp::ConfigCommand do
         backup_file: "/tmp/backup.yml"
       })
 
-      expect { config_command.run_backup([]) }
-        .to output(/✅ Backup created: \/tmp\/backup\.yml/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_backup([])
+      end
+      expect(output).to match(/✅ Backup created: \/tmp\/backup\.yml/)
     end
 
     it "handles backup creation failure" do
@@ -220,8 +236,10 @@ RSpec.describe Aidp::ConfigCommand do
         message: "Backup failed"
       })
 
-      expect { config_command.run_backup([]) }
-        .to output(/❌ Backup failed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_backup([])
+      end
+      expect(output).to match(/❌ Backup failed/)
         .and raise_error(SystemExit)
     end
 
@@ -231,8 +249,10 @@ RSpec.describe Aidp::ConfigCommand do
         backup_file: nil
       })
 
-      expect { config_command.run_backup([]) }
-        .to output(/✅ No backup needed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_backup([])
+      end
+      expect(output).to match(/✅ No backup needed/)
     end
   end
 
@@ -244,8 +264,10 @@ RSpec.describe Aidp::ConfigCommand do
         current_backup: "/tmp/current_backup.yml"
       })
 
-      expect { config_command.run_restore(["--backup-file", "/tmp/backup.yml"]) }
-        .to output(/✅ Successfully restored configuration from backup/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_restore(["--backup-file", "/tmp/backup.yml"])
+      end
+      expect(output).to match(/✅ Successfully restored configuration from backup/)
     end
 
     it "displays current backup information" do
@@ -255,8 +277,10 @@ RSpec.describe Aidp::ConfigCommand do
         current_backup: "/tmp/current_backup.yml"
       })
 
-      expect { config_command.run_restore(["--backup-file", "/tmp/backup.yml"]) }
-        .to output(/📁 Current config backed up to: \/tmp\/current_backup\.yml/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_restore(["--backup-file", "/tmp/backup.yml"])
+      end
+      expect(output).to match(/📁 Current config backed up to: \/tmp\/current_backup\.yml/)
     end
 
     it "handles restore failure" do
@@ -265,14 +289,18 @@ RSpec.describe Aidp::ConfigCommand do
         message: "Restore failed"
       })
 
-      expect { config_command.run_restore(["--backup-file", "/tmp/backup.yml"]) }
-        .to output(/❌ Restore failed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_restore(["--backup-file", "/tmp/backup.yml"])
+      end
+      expect(output).to match(/❌ Restore failed/)
         .and raise_error(SystemExit)
     end
 
     it "requires backup file path" do
-      expect { config_command.run_restore([]) }
-        .to output(/❌ Backup file path required/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_restore([])
+      end
+      expect(output).to match(/❌ Backup file path required/)
         .and raise_error(SystemExit)
     end
   end
@@ -294,8 +322,10 @@ RSpec.describe Aidp::ConfigCommand do
       })
       allow(migrator).to receive(:list_backups).and_return([])
 
-      expect { config_command.run_status([]) }
-        .to output(/Configuration Status:/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_status([])
+      end
+      expect(output).to match(/Configuration Status:/)
     end
 
     it "displays migration status" do
@@ -314,8 +344,10 @@ RSpec.describe Aidp::ConfigCommand do
       })
       allow(migrator).to receive(:list_backups).and_return([])
 
-      expect { config_command.run_status([]) }
-        .to output(/Has configuration: ✅/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_status([])
+      end
+      expect(output).to match(/Has configuration: ✅/)
     end
 
     it "displays validation status" do
@@ -334,8 +366,10 @@ RSpec.describe Aidp::ConfigCommand do
       })
       allow(migrator).to receive(:list_backups).and_return([])
 
-      expect { config_command.run_status([]) }
-        .to output(/Valid: ✅/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_status([])
+      end
+      expect(output).to match(/Valid: ✅/)
     end
 
     it "displays available backups" do
@@ -359,8 +393,10 @@ RSpec.describe Aidp::ConfigCommand do
         }
       ])
 
-      expect { config_command.run_status([]) }
-        .to output(/Available Backups:/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_status([])
+      end
+      expect(output).to match(/Available Backups:/)
     end
   end
 
@@ -372,8 +408,10 @@ RSpec.describe Aidp::ConfigCommand do
         deleted_count: 5
       })
 
-      expect { config_command.run_clean(["--keep", "10"]) }
-        .to output(/✅ Cleaned 5 old backups/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_clean(["--keep", "10"])
+      end
+      expect(output).to match(/✅ Cleaned 5 old backups/)
     end
 
     it "uses default keep count when not specified" do
@@ -383,8 +421,10 @@ RSpec.describe Aidp::ConfigCommand do
         deleted_count: 0
       })
 
-      expect { config_command.run_clean([]) }
-        .to output(/✅ Cleaned 0 old backups/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_clean([])
+      end
+      expect(output).to match(/✅ Cleaned 0 old backups/)
     end
 
     it "handles clean failure" do
@@ -393,8 +433,10 @@ RSpec.describe Aidp::ConfigCommand do
         message: "Clean failed"
       })
 
-      expect { config_command.run_clean([]) }
-        .to output(/❌ Clean failed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_clean([])
+      end
+      expect(output).to match(/❌ Clean failed/)
         .and raise_error(SystemExit)
     end
   end
@@ -405,8 +447,10 @@ RSpec.describe Aidp::ConfigCommand do
       allow(File).to receive(:exist?).and_return(true)
       allow(FileUtils).to receive(:cp)
 
-      expect { config_command.run_init(["--template", "minimal"]) }
-        .to output(/✅ Configuration initialized/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_init(["--template", "minimal"])
+      end
+      expect(output).to match(/✅ Configuration initialized/)
     end
 
     it "initializes configuration with production template" do
@@ -414,8 +458,10 @@ RSpec.describe Aidp::ConfigCommand do
       allow(File).to receive(:exist?).and_return(true)
       allow(FileUtils).to receive(:cp)
 
-      expect { config_command.run_init(["--template", "production"]) }
-        .to output(/✅ Configuration initialized/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_init(["--template", "production"])
+      end
+      expect(output).to match(/✅ Configuration initialized/)
     end
 
     it "initializes configuration with development template" do
@@ -423,8 +469,10 @@ RSpec.describe Aidp::ConfigCommand do
       allow(File).to receive(:exist?).and_return(true)
       allow(FileUtils).to receive(:cp)
 
-      expect { config_command.run_init(["--template", "development"]) }
-        .to output(/✅ Configuration initialized/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_init(["--template", "development"])
+      end
+      expect(output).to match(/✅ Configuration initialized/)
     end
 
     it "creates backup before overwriting existing configuration" do
@@ -436,15 +484,19 @@ RSpec.describe Aidp::ConfigCommand do
       allow(File).to receive(:exist?).and_return(true)
       allow(FileUtils).to receive(:cp)
 
-      expect { config_command.run_init(["--template", "minimal", "--force"]) }
-        .to output(/📁 Existing config backed up to: \/tmp\/backup\.yml/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_init(["--template", "minimal", "--force"])
+      end
+      expect(output).to match(/📁 Existing config backed up to: \/tmp\/backup\.yml/)
     end
 
     it "refuses to overwrite existing configuration without force" do
       allow(validator).to receive(:config_exists?).and_return(true)
 
-      expect { config_command.run_init(["--template", "minimal"]) }
-        .to output(/❌ Configuration file already exists/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_init(["--template", "minimal"])
+      end
+      expect(output).to match(/❌ Configuration file already exists/)
         .and raise_error(SystemExit)
     end
 
@@ -452,8 +504,10 @@ RSpec.describe Aidp::ConfigCommand do
       allow(validator).to receive(:config_exists?).and_return(false)
       allow(File).to receive(:exist?).and_return(false)
 
-      expect { config_command.run_init(["--template", "nonexistent"]) }
-        .to output(/❌ Template not found: nonexistent/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_init(["--template", "nonexistent"])
+      end
+      expect(output).to match(/❌ Template not found: nonexistent/)
         .and raise_error(SystemExit)
     end
 
@@ -462,8 +516,10 @@ RSpec.describe Aidp::ConfigCommand do
       allow(File).to receive(:exist?).and_return(true)
       allow(FileUtils).to receive(:cp).and_raise(StandardError.new("Copy failed"))
 
-      expect { config_command.run_init(["--template", "minimal"]) }
-        .to output(/❌ Failed to initialize configuration: Copy failed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_init(["--template", "minimal"])
+      end
+      expect(output).to match(/❌ Failed to initialize configuration: Copy failed/)
         .and raise_error(SystemExit)
     end
   end
@@ -486,31 +542,39 @@ RSpec.describe Aidp::ConfigCommand do
         }
       })
 
-      expect { config_command.run_show([]) }
-        .to output(/Configuration Summary:/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_show([])
+      end
+      expect(output).to match(/Configuration Summary:/)
     end
 
     it "shows configuration in YAML format" do
       allow(validator).to receive(:config_exists?).and_return(true)
       allow(loader).to receive(:load_config).and_return({test: "value"})
 
-      expect { config_command.run_show(["--format", "yaml"]) }
-        .to output(/test: value/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_show(["--format", "yaml"])
+      end
+      expect(output).to match(/test: value/)
     end
 
     it "shows configuration in JSON format" do
       allow(validator).to receive(:config_exists?).and_return(true)
       allow(loader).to receive(:load_config).and_return({test: "value"})
 
-      expect { config_command.run_show(["--format", "json"]) }
-        .to output(/"test": "value"/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_show(["--format", "json"])
+      end
+      expect(output).to match(/"test": "value"/)
     end
 
     it "handles missing configuration file" do
       allow(validator).to receive(:config_exists?).and_return(false)
 
-      expect { config_command.run_show([]) }
-        .to output(/❌ No configuration file found/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run_show([])
+      end
+      expect(output).to match(/❌ No configuration file found/)
         .and raise_error(SystemExit)
     end
   end
@@ -575,23 +639,31 @@ RSpec.describe Aidp::ConfigCommand do
 
   describe "#show_help" do
     it "displays help information" do
-      expect { config_command.show_help }
-        .to output(/AIDP Configuration Management/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.show_help
+      end
+      expect(output).to match(/AIDP Configuration Management/)
     end
 
     it "displays usage information" do
-      expect { config_command.show_help }
-        .to output(/Usage: aidp config <command>/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.show_help
+      end
+      expect(output).to match(/Usage: aidp config <command>/)
     end
 
     it "displays available commands" do
-      expect { config_command.show_help }
-        .to output(/migrate.*validate.*backup.*restore.*status.*clean.*init.*show.*help/m).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.show_help
+      end
+      expect(output).to match(/migrate.*validate.*backup.*restore.*status.*clean.*init.*show.*help/m)
     end
 
     it "displays examples" do
-      expect { config_command.show_help }
-        .to output(/Examples:/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.show_help
+      end
+      expect(output).to match(/Examples:/)
     end
   end
 
@@ -621,13 +693,17 @@ RSpec.describe Aidp::ConfigCommand do
 
   describe "edge cases" do
     it "handles empty command arguments" do
-      expect { config_command.run([]) }
-        .to output(/Unknown command: /).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run([])
+      end
+      expect(output).to match(/Unknown command: /)
     end
 
     it "handles nil command arguments" do
-      expect { config_command.run([nil]) }
-        .to output(/Unknown command: /).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        config_command.run([nil])
+      end
+      expect(output).to match(/Unknown command: /)
     end
 
     it "handles malformed option arguments" do

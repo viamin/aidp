@@ -42,7 +42,7 @@ module Aidp
 
           # Validate response if required
           if question_data[:required] != false && (response.nil? || response.to_s.strip.empty?)
-            puts "❌ This question is required. Please provide a response."
+            Aidp::OutputLogger.puts "❌ This question is required. Please provide a response."
             redo
           end
 
@@ -59,11 +59,11 @@ module Aidp
 
       # Display feedback context
       def display_feedback_context(context)
-        puts "\n📋 Context:"
-        puts "-" * 30
+        Aidp::OutputLogger.puts "\n📋 Context:"
+        Aidp::OutputLogger.puts "-" * 30
 
         if context[:type]
-          puts "Type: #{context[:type]}"
+          Aidp::OutputLogger.puts "Type: #{context[:type]}"
         end
 
         if context[:urgency]
@@ -73,23 +73,23 @@ module Aidp
             "low" => "🟢"
           }
           urgency_emoji = urgency_emojis[context[:urgency]] || "ℹ️"
-          puts "Urgency: #{urgency_emoji} #{context[:urgency].capitalize}"
+          Aidp::OutputLogger.puts "Urgency: #{urgency_emoji} #{context[:urgency].capitalize}"
         end
 
         if context[:description]
-          puts "Description: #{context[:description]}"
+          Aidp::OutputLogger.puts "Description: #{context[:description]}"
         end
 
         if context[:agent_output]
-          puts "\nAgent Output:"
-          puts context[:agent_output]
+          Aidp::OutputLogger.puts "\nAgent Output:"
+          Aidp::OutputLogger.puts context[:agent_output]
         end
       end
 
       # Display question presentation header
       def display_question_presentation_header(questions, context)
-        puts "\n🤖 Agent needs your feedback:"
-        puts "=" * 60
+        Aidp::OutputLogger.puts "\n🤖 Agent needs your feedback:"
+        Aidp::OutputLogger.puts "=" * 60
 
         # Display question overview
         display_question_overview(questions)
@@ -99,8 +99,8 @@ module Aidp
           display_context_summary(context)
         end
 
-        puts "\n📝 Questions to answer:"
-        puts "-" * 40
+        Aidp::OutputLogger.puts "\n📝 Questions to answer:"
+        Aidp::OutputLogger.puts "-" * 40
       end
 
       # Display question overview
@@ -111,23 +111,23 @@ module Aidp
 
         question_types = questions.map { |q| q[:type] || "text" }.uniq
 
-        puts "📊 Overview:"
-        puts "  Total questions: #{total_questions}"
-        puts "  Required: #{required_questions}"
-        puts "  Optional: #{optional_questions}"
-        puts "  Question types: #{question_types.join(", ")}"
+        Aidp::OutputLogger.puts "📊 Overview:"
+        Aidp::OutputLogger.puts "  Total questions: #{total_questions}"
+        Aidp::OutputLogger.puts "  Required: #{required_questions}"
+        Aidp::OutputLogger.puts "  Optional: #{optional_questions}"
+        Aidp::OutputLogger.puts "  Question types: #{question_types.join(", ")}"
 
         # Estimate completion time
         estimated_time = estimate_completion_time(questions)
-        puts "  Estimated time: #{estimated_time}"
+        Aidp::OutputLogger.puts "  Estimated time: #{estimated_time}"
       end
 
       # Display context summary
       def display_context_summary(context)
-        puts "\n📋 Context Summary:"
+        Aidp::OutputLogger.puts "\n📋 Context Summary:"
 
         if context[:type]
-          puts "  Type: #{context[:type]}"
+          Aidp::OutputLogger.puts "  Type: #{context[:type]}"
         end
 
         if context[:urgency]
@@ -137,11 +137,11 @@ module Aidp
             "low" => "🟢"
           }
           urgency_emoji = urgency_emojis[context[:urgency]] || "ℹ️"
-          puts "  Urgency: #{urgency_emoji} #{context[:urgency].capitalize}"
+          Aidp::OutputLogger.puts "  Urgency: #{urgency_emoji} #{context[:urgency].capitalize}"
         end
 
         if context[:description]
-          puts "  Description: #{context[:description]}"
+          Aidp::OutputLogger.puts "  Description: #{context[:description]}"
         end
       end
 
@@ -190,9 +190,9 @@ module Aidp
         required = question_data[:required] != false
 
         # Display question header
-        puts "\n" + "=" * 60
-        puts "📝 Question #{question_number} of #{total_questions}"
-        puts "=" * 60
+        Aidp::OutputLogger.puts "\n" + "=" * 60
+        Aidp::OutputLogger.puts "📝 Question #{question_number} of #{total_questions}"
+        Aidp::OutputLogger.puts "=" * 60
 
         # Display question text with formatting
         display_question_text(question_text, question_type)
@@ -203,7 +203,7 @@ module Aidp
         # Display question instructions
         display_question_instructions(question_type, options, default_value, required)
 
-        puts "\n" + "-" * 60
+        Aidp::OutputLogger.puts "\n" + "-" * 60
       end
 
       # Display question text with formatting
@@ -220,96 +220,96 @@ module Aidp
         }
         type_emoji = type_emojis[question_type] || "❓"
 
-        puts "#{type_emoji} #{question_text}"
+        Aidp::OutputLogger.puts "#{type_emoji} #{question_text}"
       end
 
       # Display question metadata
       def display_question_metadata(question_type, expected_input, options, default_value, required)
-        puts "\n📋 Question Details:"
+        Aidp::OutputLogger.puts "\n📋 Question Details:"
 
         # Question type
-        puts "  Type: #{question_type.capitalize}"
+        Aidp::OutputLogger.puts "  Type: #{question_type.capitalize}"
 
         # Expected input
         if expected_input != "text"
-          puts "  Expected input: #{expected_input}"
+          Aidp::OutputLogger.puts "  Expected input: #{expected_input}"
         end
 
         # Options
         if options && !options.empty?
-          puts "  Options: #{options.length} available"
+          Aidp::OutputLogger.puts "  Options: #{options.length} available"
         end
 
         # Default value
         if default_value
-          puts "  Default: #{default_value}"
+          Aidp::OutputLogger.puts "  Default: #{default_value}"
         end
 
         # Required status
         status = required ? "Required" : "Optional"
         status_emoji = required ? "🔴" : "🟢"
-        puts "  Status: #{status_emoji} #{status}"
+        Aidp::OutputLogger.puts "  Status: #{status_emoji} #{status}"
       end
 
       # Display question instructions
       def display_question_instructions(question_type, options, default_value, required)
-        puts "\n💡 Instructions:"
+        Aidp::OutputLogger.puts "\n💡 Instructions:"
 
         case question_type
         when "text"
-          puts "  • Enter your text response"
-          puts "  • Use @ for file selection if needed"
-          puts "  • Press Enter when done"
+          Aidp::OutputLogger.puts "  • Enter your text response"
+          Aidp::OutputLogger.puts "  • Use @ for file selection if needed"
+          Aidp::OutputLogger.puts "  • Press Enter when done"
         when "choice"
-          puts "  • Select from the numbered options below"
-          puts "  • Enter the number of your choice"
-          puts "  • Press Enter to confirm"
+          Aidp::OutputLogger.puts "  • Select from the numbered options below"
+          Aidp::OutputLogger.puts "  • Enter the number of your choice"
+          Aidp::OutputLogger.puts "  • Press Enter to confirm"
         when "confirmation"
-          puts "  • Enter 'y' or 'yes' for Yes"
-          puts "  • Enter 'n' or 'no' for No"
-          puts "  • Press Enter for default"
+          Aidp::OutputLogger.puts "  • Enter 'y' or 'yes' for Yes"
+          Aidp::OutputLogger.puts "  • Enter 'n' or 'no' for No"
+          Aidp::OutputLogger.puts "  • Press Enter for default"
         when "file"
-          puts "  • Enter file path directly"
-          puts "  • Use @ to browse and select files"
-          puts "  • File must exist and be readable"
+          Aidp::OutputLogger.puts "  • Enter file path directly"
+          Aidp::OutputLogger.puts "  • Use @ to browse and select files"
+          Aidp::OutputLogger.puts "  • File must exist and be readable"
         when "number"
-          puts "  • Enter a valid number"
-          puts "  • Use decimal point for decimals"
-          puts "  • Press Enter when done"
+          Aidp::OutputLogger.puts "  • Enter a valid number"
+          Aidp::OutputLogger.puts "  • Use decimal point for decimals"
+          Aidp::OutputLogger.puts "  • Press Enter when done"
         when "email"
-          puts "  • Enter a valid email address"
-          puts "  • Format: user@domain.com"
-          puts "  • Press Enter when done"
+          Aidp::OutputLogger.puts "  • Enter a valid email address"
+          Aidp::OutputLogger.puts "  • Format: user@domain.com"
+          Aidp::OutputLogger.puts "  • Press Enter when done"
         when "url"
-          puts "  • Enter a valid URL"
-          puts "  • Format: https://example.com"
-          puts "  • Press Enter when done"
+          Aidp::OutputLogger.puts "  • Enter a valid URL"
+          Aidp::OutputLogger.puts "  • Format: https://example.com"
+          Aidp::OutputLogger.puts "  • Press Enter when done"
         end
 
         # Additional instructions based on options
         if options && !options.empty?
-          puts "\n📋 Available Options:"
+          Aidp::OutputLogger.puts "\n📋 Available Options:"
           options.each_with_index do |option, index|
             marker = (default_value && option == default_value) ? " (default)" : ""
-            puts "  #{index + 1}. #{option}#{marker}"
+            Aidp::OutputLogger.puts "  #{index + 1}. #{option}#{marker}"
           end
         end
 
         # Default value instructions
         if default_value
-          puts "\n⚡ Quick Answer:"
-          puts "  • Press Enter to use default: #{default_value}"
+          Aidp::OutputLogger.puts "\n⚡ Quick Answer:"
+          Aidp::OutputLogger.puts "  • Press Enter to use default: #{default_value}"
         end
 
         # Required field instructions
         if required
-          puts "\n⚠️  Required Field:"
-          puts "  • This question must be answered"
-          puts "  • Cannot be left blank"
+          Aidp::OutputLogger.puts "\n⚠️  Required Field:"
+          Aidp::OutputLogger.puts "  • This question must be answered"
+          Aidp::OutputLogger.puts "  • Cannot be left blank"
         else
-          puts "\n✅ Optional Field:"
-          puts "  • This question can be skipped"
-          puts "  • Press Enter to leave blank"
+          Aidp::OutputLogger.puts "\n✅ Optional Field:"
+          Aidp::OutputLogger.puts "  • This question can be skipped"
+          Aidp::OutputLogger.puts "  • Press Enter to leave blank"
         end
       end
 
@@ -318,13 +318,13 @@ module Aidp
         progress_percentage = (current_index.to_f / total_questions * 100).round(1)
         progress_bar = generate_progress_bar(progress_percentage)
 
-        puts "\n📊 Progress: #{progress_bar} #{progress_percentage}% (#{current_index}/#{total_questions})"
+        Aidp::OutputLogger.puts "\n📊 Progress: #{progress_bar} #{progress_percentage}% (#{current_index}/#{total_questions})"
 
         # Show estimated time remaining
         if current_index < total_questions
           remaining_questions = total_questions - current_index
           estimated_remaining = estimate_remaining_time(remaining_questions)
-          puts "⏱️  Estimated time remaining: #{estimated_remaining}"
+          Aidp::OutputLogger.puts "⏱️  Estimated time remaining: #{estimated_remaining}"
         end
       end
 
@@ -351,34 +351,34 @@ module Aidp
 
       # Display question completion summary
       def display_question_completion_summary(responses, questions)
-        puts "\n" + "=" * 60
-        puts "✅ Question Completion Summary"
-        puts "=" * 60
+        Aidp::OutputLogger.puts "\n" + "=" * 60
+        Aidp::OutputLogger.puts "✅ Question Completion Summary"
+        Aidp::OutputLogger.puts "=" * 60
 
         # Show completion statistics
         total_questions = questions.length
         answered_questions = responses.values.count { |v| !v.nil? && !v.to_s.strip.empty? }
         skipped_questions = total_questions - answered_questions
 
-        puts "📊 Statistics:"
-        puts "  Total questions: #{total_questions}"
-        puts "  Answered: #{answered_questions}"
-        puts "  Skipped: #{skipped_questions}"
-        puts "  Completion rate: #{(answered_questions.to_f / total_questions * 100).round(1)}%"
+        Aidp::OutputLogger.puts "📊 Statistics:"
+        Aidp::OutputLogger.puts "  Total questions: #{total_questions}"
+        Aidp::OutputLogger.puts "  Answered: #{answered_questions}"
+        Aidp::OutputLogger.puts "  Skipped: #{skipped_questions}"
+        Aidp::OutputLogger.puts "  Completion rate: #{(answered_questions.to_f / total_questions * 100).round(1)}%"
 
         # Show response summary
-        puts "\n📝 Response Summary:"
+        Aidp::OutputLogger.puts "\n📝 Response Summary:"
         responses.each do |key, value|
           question_number = key.gsub("question_", "")
           if value.nil? || value.to_s.strip.empty?
-            puts "  #{question_number}. [Skipped]"
+            Aidp::OutputLogger.puts "  #{question_number}. [Skipped]"
           else
             display_value = (value.to_s.length > 50) ? "#{value.to_s[0..47]}..." : value.to_s
-            puts "  #{question_number}. #{display_value}"
+            Aidp::OutputLogger.puts "  #{question_number}. #{display_value}"
           end
         end
 
-        puts "\n🚀 Continuing execution..."
+        Aidp::OutputLogger.puts "\n🚀 Continuing execution..."
       end
 
       # Display question information (legacy method for compatibility)
@@ -420,7 +420,7 @@ module Aidp
           "Required: No"
         end
 
-        puts "   #{info_parts.join(" | ")}"
+        Aidp::OutputLogger.puts "   #{info_parts.join(" | ")}"
       end
 
       # Get response for a specific question with enhanced validation
@@ -456,37 +456,37 @@ module Aidp
       def handle_input_error(error, question_data, retry_count = 0)
         max_retries = 3
 
-        puts "\n🚨 Input Error:"
-        puts "  #{error.message}"
+        Aidp::OutputLogger.puts "\n🚨 Input Error:"
+        Aidp::OutputLogger.puts "  #{error.message}"
 
         if retry_count < max_retries
-          puts "\n🔄 Retry Options:"
-          puts "  1. Try again"
-          puts "  2. Skip this question"
-          puts "  3. Get help"
-          puts "  4. Cancel all questions"
+          Aidp::OutputLogger.puts "\n🔄 Retry Options:"
+          Aidp::OutputLogger.puts "  1. Try again"
+          Aidp::OutputLogger.puts "  2. Skip this question"
+          Aidp::OutputLogger.puts "  3. Get help"
+          Aidp::OutputLogger.puts "  4. Cancel all questions"
 
           choice = Readline.readline("Your choice (1-4): ", true)
 
           case choice&.strip
           when "1"
-            puts "🔄 Retrying..."
+            Aidp::OutputLogger.puts "🔄 Retrying..."
             :retry
           when "2"
-            puts "⏭️  Skipping question..."
+            Aidp::OutputLogger.puts "⏭️  Skipping question..."
             :skip
           when "3"
             show_question_help(question_data)
             :retry
           when "4"
-            puts "❌ Cancelling all questions..."
+            Aidp::OutputLogger.puts "❌ Cancelling all questions..."
             :cancel
           else
-            puts "❌ Invalid choice. Retrying..."
+            Aidp::OutputLogger.puts "❌ Invalid choice. Retrying..."
             :retry
           end
         else
-          puts "\n❌ Maximum retries exceeded. Skipping question..."
+          Aidp::OutputLogger.puts "\n❌ Maximum retries exceeded. Skipping question..."
           :skip
         end
       end
@@ -495,74 +495,74 @@ module Aidp
       def show_question_help(question_data)
         question_type = question_data[:type] || "text"
 
-        puts "\n📖 Help for #{question_type.capitalize} Question:"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n📖 Help for #{question_type.capitalize} Question:"
+        Aidp::OutputLogger.puts "=" * 50
 
         case question_type
         when "text"
-          puts "• Enter any text response"
-          puts "• Use @ for file selection if needed"
-          puts "• Press Enter when done"
+          Aidp::OutputLogger.puts "• Enter any text response"
+          Aidp::OutputLogger.puts "• Use @ for file selection if needed"
+          Aidp::OutputLogger.puts "• Press Enter when done"
         when "choice"
-          puts "• Select from the numbered options"
-          puts "• Enter the number of your choice"
-          puts "• Or type the option text directly"
+          Aidp::OutputLogger.puts "• Select from the numbered options"
+          Aidp::OutputLogger.puts "• Enter the number of your choice"
+          Aidp::OutputLogger.puts "• Or type the option text directly"
         when "confirmation"
-          puts "• Enter 'y' or 'yes' for Yes"
-          puts "• Enter 'n' or 'no' for No"
-          puts "• Press Enter for default"
+          Aidp::OutputLogger.puts "• Enter 'y' or 'yes' for Yes"
+          Aidp::OutputLogger.puts "• Enter 'n' or 'no' for No"
+          Aidp::OutputLogger.puts "• Press Enter for default"
         when "file"
-          puts "• Enter file path directly"
-          puts "• Use @ to browse and select files"
-          puts "• File must exist and be readable"
+          Aidp::OutputLogger.puts "• Enter file path directly"
+          Aidp::OutputLogger.puts "• Use @ to browse and select files"
+          Aidp::OutputLogger.puts "• File must exist and be readable"
         when "number"
-          puts "• Enter a valid number"
-          puts "• Use decimal point for decimals"
-          puts "• Check range requirements"
+          Aidp::OutputLogger.puts "• Enter a valid number"
+          Aidp::OutputLogger.puts "• Use decimal point for decimals"
+          Aidp::OutputLogger.puts "• Check range requirements"
         when "email"
-          puts "• Enter a valid email address"
-          puts "• Format: user@domain.com"
-          puts "• Check for typos"
+          Aidp::OutputLogger.puts "• Enter a valid email address"
+          Aidp::OutputLogger.puts "• Format: user@domain.com"
+          Aidp::OutputLogger.puts "• Check for typos"
         when "url"
-          puts "• Enter a valid URL"
-          puts "• Format: https://example.com"
-          puts "• Include protocol (http:// or https://)"
+          Aidp::OutputLogger.puts "• Enter a valid URL"
+          Aidp::OutputLogger.puts "• Format: https://example.com"
+          Aidp::OutputLogger.puts "• Include protocol (http:// or https://)"
         end
 
-        puts "\nPress Enter to continue..."
+        Aidp::OutputLogger.puts "\nPress Enter to continue..."
         Readline.readline
       end
 
       # Enhanced error handling and validation display
       def display_validation_error(validation_result, _input_type)
-        puts "\n❌ Validation Error:"
-        puts "  #{validation_result[:error_message]}"
+        Aidp::OutputLogger.puts "\n❌ Validation Error:"
+        Aidp::OutputLogger.puts "  #{validation_result[:error_message]}"
 
         if validation_result[:suggestions].any?
-          puts "\n💡 Suggestions:"
+          Aidp::OutputLogger.puts "\n💡 Suggestions:"
           validation_result[:suggestions].each do |suggestion|
-            puts "  • #{suggestion}"
+            Aidp::OutputLogger.puts "  • #{suggestion}"
           end
         end
 
         if validation_result[:warnings].any?
-          puts "\n⚠️  Warnings:"
+          Aidp::OutputLogger.puts "\n⚠️  Warnings:"
           validation_result[:warnings].each do |warning|
-            puts "  • #{warning}"
+            Aidp::OutputLogger.puts "  • #{warning}"
           end
         end
 
-        puts "\n🔄 Please try again..."
+        Aidp::OutputLogger.puts "\n🔄 Please try again..."
       end
 
       # Display validation warnings
       def display_validation_warnings(validation_result)
         if validation_result[:warnings].any?
-          puts "\n⚠️  Warnings:"
+          Aidp::OutputLogger.puts "\n⚠️  Warnings:"
           validation_result[:warnings].each do |warning|
-            puts "  • #{warning}"
+            Aidp::OutputLogger.puts "  • #{warning}"
           end
-          puts "\nPress Enter to continue or type 'fix' to correct..."
+          Aidp::OutputLogger.puts "\nPress Enter to continue or type 'fix' to correct..."
 
           input = Readline.readline("", true)
           return input&.strip&.downcase == "fix"
@@ -584,7 +584,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ This field is required. Please provide a response."
+              Aidp::OutputLogger.puts "❌ This field is required. Please provide a response."
               next
             else
               return nil
@@ -612,10 +612,10 @@ module Aidp
       def get_choice_response(options, default_value, required)
         return nil if options.nil? || options.empty?
 
-        puts "\n   Available options:"
+        Aidp::OutputLogger.puts "\n   Available options:"
         options.each_with_index do |option, index|
           marker = (default_value && option == default_value) ? " (default)" : ""
-          puts "     #{index + 1}. #{option}#{marker}"
+          Aidp::OutputLogger.puts "     #{index + 1}. #{option}#{marker}"
         end
 
         loop do
@@ -629,7 +629,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please make a selection."
+              Aidp::OutputLogger.puts "❌ Please make a selection."
               next
             else
               return nil
@@ -709,7 +709,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide a file path."
+              Aidp::OutputLogger.puts "❌ Please provide a file path."
               next
             else
               return nil
@@ -752,7 +752,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide a number."
+              Aidp::OutputLogger.puts "❌ Please provide a number."
               next
             else
               return nil
@@ -780,7 +780,7 @@ module Aidp
               return Float(input.strip)
             end
           rescue ArgumentError
-            puts "❌ Please enter a valid #{expected_input}."
+            Aidp::OutputLogger.puts "❌ Please enter a valid #{expected_input}."
             next
           end
         end
@@ -799,7 +799,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide an email address."
+              Aidp::OutputLogger.puts "❌ Please provide an email address."
               next
             else
               return nil
@@ -836,7 +836,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide a URL."
+              Aidp::OutputLogger.puts "❌ Please provide a URL."
               next
             else
               return nil
@@ -1288,7 +1288,7 @@ module Aidp
 
           # Handle empty input
           if input.nil? || input.strip.empty?
-            puts "Please provide a response."
+            Aidp::OutputLogger.puts "Please provide a response."
             next
           end
 
@@ -1316,8 +1316,8 @@ module Aidp
         available_files = find_files_advanced(search_options)
 
         if available_files.empty?
-          puts "No files found matching '#{search_options[:term]}'. Please try again."
-          puts "💡 Try: @ (all files), @.rb (Ruby files), @config (files with 'config'), @lib/ (files in lib directory)"
+          Aidp::OutputLogger.puts "No files found matching '#{search_options[:term]}'. Please try again."
+          Aidp::OutputLogger.puts "💡 Try: @ (all files), @.rb (Ruby files), @config (files with 'config'), @lib/ (files in lib directory)"
           return nil
         end
 
@@ -1329,7 +1329,7 @@ module Aidp
 
         if selection && selection >= 0 && selection < available_files.size
           selected_file = available_files[selection]
-          puts "✅ Selected: #{selected_file}"
+          Aidp::OutputLogger.puts "✅ Selected: #{selected_file}"
 
           # Show file preview if requested
           if search_options[:preview]
@@ -1341,7 +1341,7 @@ module Aidp
           # User wants to refine search
           handle_file_selection("@#{search_term}")
         else
-          puts "❌ Invalid selection. Please try again."
+          Aidp::OutputLogger.puts "❌ Invalid selection. Please try again."
           nil
         end
       end
@@ -1545,21 +1545,21 @@ module Aidp
 
       # Display advanced file selection menu
       def display_advanced_file_menu(files, search_options)
-        puts "\n📁 Available files:"
-        puts "Search: #{search_options[:term]} | Extensions: #{search_options[:extensions].join(", ")} | Directories: #{search_options[:directories].join(", ")}"
-        puts "-" * 80
+        Aidp::OutputLogger.puts "\n📁 Available files:"
+        Aidp::OutputLogger.puts "Search: #{search_options[:term]} | Extensions: #{search_options[:extensions].join(", ")} | Directories: #{search_options[:directories].join(", ")}"
+        Aidp::OutputLogger.puts "-" * 80
 
         files.each_with_index do |file, index|
           file_info = get_file_info(file)
-          puts "  #{index + 1}. #{file_info[:display_name]}"
-          puts "     📄 #{file_info[:size]} | 📅 #{file_info[:modified]} | 🏷️  #{file_info[:type]}"
+          Aidp::OutputLogger.puts "  #{index + 1}. #{file_info[:display_name]}"
+          Aidp::OutputLogger.puts "     📄 #{file_info[:size]} | 📅 #{file_info[:modified]} | 🏷️  #{file_info[:type]}"
         end
 
-        puts "\nOptions:"
-        puts "  0. Cancel"
-        puts "  -1. Refine search"
-        puts "  p. Preview selected file"
-        puts "  h. Show help"
+        Aidp::OutputLogger.puts "\nOptions:"
+        Aidp::OutputLogger.puts "  0. Cancel"
+        Aidp::OutputLogger.puts "  -1. Refine search"
+        Aidp::OutputLogger.puts "  p. Preview selected file"
+        Aidp::OutputLogger.puts "  h. Show help"
       end
 
       # Get file information for display
@@ -1631,7 +1631,7 @@ module Aidp
           input = Readline.readline("Select file (0-#{max_files}, -1=refine, p=preview, h=help): ", true)
 
           if input.nil? || input.strip.empty?
-            puts "Please enter a selection."
+            Aidp::OutputLogger.puts "Please enter a selection."
             next
           end
 
@@ -1643,7 +1643,7 @@ module Aidp
             show_file_selection_help
             next
           when "p", "preview"
-            puts "💡 Select a file number first, then use 'p' to preview it."
+            Aidp::OutputLogger.puts "💡 Select a file number first, then use 'p' to preview it."
             next
           end
 
@@ -1656,71 +1656,71 @@ module Aidp
             elsif selection >= 1 && selection <= max_files
               return selection - 1 # Convert to 0-based index
             else
-              puts "Please enter a number between 0 and #{max_files}, or use -1, p, h."
+              Aidp::OutputLogger.puts "Please enter a number between 0 and #{max_files}, or use -1, p, h."
             end
           rescue ArgumentError
-            puts "Please enter a valid number or command (0-#{max_files}, -1, p, h)."
+            Aidp::OutputLogger.puts "Please enter a valid number or command (0-#{max_files}, -1, p, h)."
           end
         end
       end
 
       # Show file selection help
       def show_file_selection_help
-        puts "\n📖 File Selection Help:"
-        puts "=" * 40
+        Aidp::OutputLogger.puts "\n📖 File Selection Help:"
+        Aidp::OutputLogger.puts "=" * 40
 
-        puts "\n🔍 Search Examples:"
-        puts "  @                    - Show all files"
-        puts "  @.rb                 - Show Ruby files only"
-        puts "  @config              - Show files with 'config' in name"
-        puts "  @lib/                - Show files in lib directory"
-        puts "  @spec preview        - Show spec files with preview option"
-        puts "  @.js case            - Show JavaScript files (case sensitive)"
+        Aidp::OutputLogger.puts "\n🔍 Search Examples:"
+        Aidp::OutputLogger.puts "  @                    - Show all files"
+        Aidp::OutputLogger.puts "  @.rb                 - Show Ruby files only"
+        Aidp::OutputLogger.puts "  @config              - Show files with 'config' in name"
+        Aidp::OutputLogger.puts "  @lib/                - Show files in lib directory"
+        Aidp::OutputLogger.puts "  @spec preview        - Show spec files with preview option"
+        Aidp::OutputLogger.puts "  @.js case            - Show JavaScript files (case sensitive)"
 
-        puts "\n⌨️  Selection Commands:"
-        puts "  1-50                 - Select file by number"
-        puts "  0                    - Cancel selection"
-        puts "  -1                   - Refine search"
-        puts "  p                    - Preview selected file"
-        puts "  h                    - Show this help"
+        Aidp::OutputLogger.puts "\n⌨️  Selection Commands:"
+        Aidp::OutputLogger.puts "  1-50                 - Select file by number"
+        Aidp::OutputLogger.puts "  0                    - Cancel selection"
+        Aidp::OutputLogger.puts "  -1                   - Refine search"
+        Aidp::OutputLogger.puts "  p                    - Preview selected file"
+        Aidp::OutputLogger.puts "  h                    - Show this help"
 
-        puts "\n💡 Tips:"
-        puts "  • Files are sorted by relevance and type"
-        puts "  • Use extension filters for specific file types"
-        puts "  • Use directory filters to limit search scope"
-        puts "  • Preview option shows file content before selection"
+        Aidp::OutputLogger.puts "\n💡 Tips:"
+        Aidp::OutputLogger.puts "  • Files are sorted by relevance and type"
+        Aidp::OutputLogger.puts "  • Use extension filters for specific file types"
+        Aidp::OutputLogger.puts "  • Use directory filters to limit search scope"
+        Aidp::OutputLogger.puts "  • Preview option shows file content before selection"
       end
 
       # Show file preview
       def show_file_preview(file_path)
-        puts "\n📄 File Preview: #{file_path}"
-        puts "=" * 60
+        Aidp::OutputLogger.puts "\n📄 File Preview: #{file_path}"
+        Aidp::OutputLogger.puts "=" * 60
 
         begin
           content = File.read(file_path)
           lines = content.lines
 
-          puts "📊 File Info:"
-          puts "  Size: #{format_file_size(File.size(file_path))}"
-          puts "  Lines: #{lines.count}"
-          puts "  Modified: #{File.mtime(file_path).strftime("%Y-%m-%d %H:%M:%S")}"
-          puts "  Type: #{get_file_type(file_path)}"
+          Aidp::OutputLogger.puts "📊 File Info:"
+          Aidp::OutputLogger.puts "  Size: #{format_file_size(File.size(file_path))}"
+          Aidp::OutputLogger.puts "  Lines: #{lines.count}"
+          Aidp::OutputLogger.puts "  Modified: #{File.mtime(file_path).strftime("%Y-%m-%d %H:%M:%S")}"
+          Aidp::OutputLogger.puts "  Type: #{get_file_type(file_path)}"
 
-          puts "\n📝 Content Preview (first 20 lines):"
-          puts "-" * 40
+          Aidp::OutputLogger.puts "\n📝 Content Preview (first 20 lines):"
+          Aidp::OutputLogger.puts "-" * 40
 
           lines.first(20).each_with_index do |line, index|
-            puts "#{(index + 1).to_s.rjust(3)}: #{line.chomp}"
+            Aidp::OutputLogger.puts "#{(index + 1).to_s.rjust(3)}: #{line.chomp}"
           end
 
           if lines.count > 20
-            puts "... (#{lines.count - 20} more lines)"
+            Aidp::OutputLogger.puts "... (#{lines.count - 20} more lines)"
           end
         rescue => e
-          puts "❌ Error reading file: #{e.message}"
+          Aidp::OutputLogger.puts "❌ Error reading file: #{e.message}"
         end
 
-        puts "\nPress Enter to continue..."
+        Aidp::OutputLogger.puts "\nPress Enter to continue..."
         Readline.readline
       end
 
@@ -1748,17 +1748,17 @@ module Aidp
           when "n", "no"
             return false
           else
-            puts "Please enter 'y' or 'n'."
+            Aidp::OutputLogger.puts "Please enter 'y' or 'n'."
           end
         end
       end
 
       # Get choice from multiple options
       def get_choice(message, options, default: nil)
-        puts "\n#{message}"
+        Aidp::OutputLogger.puts "\n#{message}"
         options.each_with_index do |option, index|
           marker = (default && index == default) ? " (default)" : ""
-          puts "  #{index + 1}. #{option}#{marker}"
+          Aidp::OutputLogger.puts "  #{index + 1}. #{option}#{marker}"
         end
 
         loop do
@@ -1766,7 +1766,7 @@ module Aidp
 
           if input.nil? || input.strip.empty?
             return default if default
-            puts "Please make a selection."
+            Aidp::OutputLogger.puts "Please make a selection."
             next
           end
 
@@ -1775,10 +1775,10 @@ module Aidp
             if choice >= 1 && choice <= options.size
               return choice - 1 # Convert to 0-based index
             else
-              puts "Please enter a number between 1 and #{options.size}."
+              Aidp::OutputLogger.puts "Please enter a number between 1 and #{options.size}."
             end
           rescue ArgumentError
-            puts "Please enter a valid number."
+            Aidp::OutputLogger.puts "Please enter a valid number."
           end
         end
       end
@@ -1807,43 +1807,43 @@ module Aidp
 
       # Display interactive help
       def show_help
-        puts "\n📖 Interactive Prompt Help:"
-        puts "=" * 40
+        Aidp::OutputLogger.puts "\n📖 Interactive Prompt Help:"
+        Aidp::OutputLogger.puts "=" * 40
 
-        puts "\n🔤 Input Types:"
-        puts "  • Text: Free-form text input"
-        puts "  • Choice: Select from predefined options"
-        puts "  • Confirmation: Yes/No questions"
-        puts "  • File: File path with @ browsing"
-        puts "  • Number: Integer or decimal numbers"
-        puts "  • Email: Email address format"
-        puts "  • URL: Web URL format"
+        Aidp::OutputLogger.puts "\n🔤 Input Types:"
+        Aidp::OutputLogger.puts "  • Text: Free-form text input"
+        Aidp::OutputLogger.puts "  • Choice: Select from predefined options"
+        Aidp::OutputLogger.puts "  • Confirmation: Yes/No questions"
+        Aidp::OutputLogger.puts "  • File: File path with @ browsing"
+        Aidp::OutputLogger.puts "  • Number: Integer or decimal numbers"
+        Aidp::OutputLogger.puts "  • Email: Email address format"
+        Aidp::OutputLogger.puts "  • URL: Web URL format"
 
-        puts "\n⌨️  Special Commands:"
-        puts "  • @: Browse and select files"
-        puts "  • Enter: Use default value (if available)"
-        puts "  • Ctrl+C: Cancel operation"
+        Aidp::OutputLogger.puts "\n⌨️  Special Commands:"
+        Aidp::OutputLogger.puts "  • @: Browse and select files"
+        Aidp::OutputLogger.puts "  • Enter: Use default value (if available)"
+        Aidp::OutputLogger.puts "  • Ctrl+C: Cancel operation"
 
-        puts "\n📁 File Selection:"
-        puts "  • Type @ to browse files"
-        puts "  • Type @search to filter files"
-        puts "  • Select by number or type 0 to cancel"
+        Aidp::OutputLogger.puts "\n📁 File Selection:"
+        Aidp::OutputLogger.puts "  • Type @ to browse files"
+        Aidp::OutputLogger.puts "  • Type @search to filter files"
+        Aidp::OutputLogger.puts "  • Select by number or type 0 to cancel"
 
-        puts "\n✅ Validation:"
-        puts "  • Required fields must be filled"
-        puts "  • Input format is validated automatically"
-        puts "  • Invalid input shows error and retries"
+        Aidp::OutputLogger.puts "\n✅ Validation:"
+        Aidp::OutputLogger.puts "  • Required fields must be filled"
+        Aidp::OutputLogger.puts "  • Input format is validated automatically"
+        Aidp::OutputLogger.puts "  • Invalid input shows error and retries"
 
-        puts "\n💡 Tips:"
-        puts "  • Use Tab for auto-completion"
-        puts "  • Arrow keys for history navigation"
-        puts "  • Default values are shown in prompts"
+        Aidp::OutputLogger.puts "\n💡 Tips:"
+        Aidp::OutputLogger.puts "  • Use Tab for auto-completion"
+        Aidp::OutputLogger.puts "  • Arrow keys for history navigation"
+        Aidp::OutputLogger.puts "  • Default values are shown in prompts"
       end
 
       # Display question summary
       def display_question_summary(questions)
-        puts "\n📋 Question Summary:"
-        puts "-" * 30
+        Aidp::OutputLogger.puts "\n📋 Question Summary:"
+        Aidp::OutputLogger.puts "-" * 30
 
         questions.each_with_index do |question_data, index|
           question_number = question_data[:number] || (index + 1)
@@ -1863,14 +1863,14 @@ module Aidp
           }
           type_emoji = type_emojis[question_type] || "❓"
 
-          puts "  #{question_number}. #{type_emoji} #{question_text} (#{status})"
+          Aidp::OutputLogger.puts "  #{question_number}. #{type_emoji} #{question_text} (#{status})"
         end
       end
 
       # Get user preferences for feedback collection
       def get_user_preferences
-        puts "\n⚙️  User Preferences:"
-        puts "-" * 25
+        Aidp::OutputLogger.puts "\n⚙️  User Preferences:"
+        Aidp::OutputLogger.puts "-" * 25
 
         preferences = {}
 
@@ -1932,14 +1932,14 @@ module Aidp
         # Show help if needed
         if should_show_help?(questions.first&.dig(:type), seen_types)
           show_help
-          puts "\nPress Enter to continue..."
+          Aidp::OutputLogger.puts "\nPress Enter to continue..."
           Readline.readline
         end
 
         # Display question summary if verbose
         if @verbose_mode
           display_question_summary(questions)
-          puts "\nPress Enter to start answering questions..."
+          Aidp::OutputLogger.puts "\nPress Enter to start answering questions..."
           Readline.readline
         end
 
@@ -1960,7 +1960,7 @@ module Aidp
         default_value = options[:default]
         required = options[:required] != false
 
-        puts "\n❓ #{question}"
+        Aidp::OutputLogger.puts "\n❓ #{question}"
 
         case question_type
         when "text"
@@ -1978,8 +1978,8 @@ module Aidp
       def collect_batch_feedback(questions)
         responses = {}
 
-        puts "\n📝 Quick Feedback Collection:"
-        puts "=" * 35
+        Aidp::OutputLogger.puts "\n📝 Quick Feedback Collection:"
+        Aidp::OutputLogger.puts "=" * 35
 
         questions.each_with_index do |question_data, index|
           question_number = index + 1
@@ -1988,7 +1988,7 @@ module Aidp
           default_value = question_data[:default]
           required = question_data[:required] != false
 
-          puts "\n#{question_number}. #{question_text}"
+          Aidp::OutputLogger.puts "\n#{question_number}. #{question_text}"
 
           response = get_quick_feedback(question_text, {
             type: question_type,
@@ -2000,7 +2000,7 @@ module Aidp
           responses["question_#{question_number}"] = response
         end
 
-        puts "\n✅ Batch feedback collected."
+        Aidp::OutputLogger.puts "\n✅ Batch feedback collected."
         responses
       end
 
@@ -2024,13 +2024,13 @@ module Aidp
           end
         end
 
-        puts "\n🎮 Control Interface Started"
-        puts "   Press 'p' + Enter to pause"
-        puts "   Press 'r' + Enter to resume"
-        puts "   Press 's' + Enter to stop"
-        puts "   Press 'h' + Enter for help"
-        puts "   Press 'q' + Enter to quit control interface"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🎮 Control Interface Started"
+        Aidp::OutputLogger.puts "   Press 'p' + Enter to pause"
+        Aidp::OutputLogger.puts "   Press 'r' + Enter to resume"
+        Aidp::OutputLogger.puts "   Press 's' + Enter to stop"
+        Aidp::OutputLogger.puts "   Press 'h' + Enter for help"
+        Aidp::OutputLogger.puts "   Press 'q' + Enter to quit control interface"
+        Aidp::OutputLogger.puts "=" * 50
       end
 
       # Stop the control interface
@@ -2042,7 +2042,7 @@ module Aidp
           end
         end
 
-        puts "\n🛑 Control Interface Stopped"
+        Aidp::OutputLogger.puts "\n🛑 Control Interface Stopped"
       end
 
       # Check if pause is requested
@@ -2066,7 +2066,7 @@ module Aidp
           @pause_requested = true
           @resume_requested = false
         end
-        puts "\n⏸️  Pause requested..."
+        Aidp::OutputLogger.puts "\n⏸️  Pause requested..."
       end
 
       # Request stop
@@ -2076,7 +2076,7 @@ module Aidp
           @pause_requested = false
           @resume_requested = false
         end
-        puts "\n🛑 Stop requested..."
+        Aidp::OutputLogger.puts "\n🛑 Stop requested..."
       end
 
       # Request resume
@@ -2085,7 +2085,7 @@ module Aidp
           @resume_requested = true
           @pause_requested = false
         end
-        puts "\n▶️  Resume requested..."
+        Aidp::OutputLogger.puts "\n▶️  Resume requested..."
       end
 
       # Clear all control requests
@@ -2118,14 +2118,14 @@ module Aidp
 
       # Handle pause state
       def handle_pause_state
-        puts "\n⏸️  HARNESS PAUSED"
-        puts "=" * 50
-        puts "🎮 Control Options:"
-        puts "   'r' + Enter: Resume execution"
-        puts "   's' + Enter: Stop execution"
-        puts "   'h' + Enter: Show help"
-        puts "   'q' + Enter: Quit control interface"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n⏸️  HARNESS PAUSED"
+        Aidp::OutputLogger.puts "=" * 50
+        Aidp::OutputLogger.puts "🎮 Control Options:"
+        Aidp::OutputLogger.puts "   'r' + Enter: Resume execution"
+        Aidp::OutputLogger.puts "   's' + Enter: Stop execution"
+        Aidp::OutputLogger.puts "   'h' + Enter: Show help"
+        Aidp::OutputLogger.puts "   'q' + Enter: Quit control interface"
+        Aidp::OutputLogger.puts "=" * 50
 
         loop do
           input = Readline.readline("Paused> ", true)
@@ -2143,51 +2143,51 @@ module Aidp
             stop_control_interface
             break
           else
-            puts "❌ Invalid command. Type 'h' for help."
+            Aidp::OutputLogger.puts "❌ Invalid command. Type 'h' for help."
           end
         end
       end
 
       # Handle stop state
       def handle_stop_state
-        puts "\n🛑 HARNESS STOPPED"
-        puts "=" * 50
-        puts "Execution has been stopped by user request."
-        puts "You can restart the harness from where it left off."
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🛑 HARNESS STOPPED"
+        Aidp::OutputLogger.puts "=" * 50
+        Aidp::OutputLogger.puts "Execution has been stopped by user request."
+        Aidp::OutputLogger.puts "You can restart the harness from where it left off."
+        Aidp::OutputLogger.puts "=" * 50
       end
 
       # Handle resume state
       def handle_resume_state
-        puts "\n▶️  HARNESS RESUMED"
-        puts "=" * 50
-        puts "Execution has been resumed."
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n▶️  HARNESS RESUMED"
+        Aidp::OutputLogger.puts "=" * 50
+        Aidp::OutputLogger.puts "Execution has been resumed."
+        Aidp::OutputLogger.puts "=" * 50
       end
 
       # Show control help
       def show_control_help
-        puts "\n📖 Control Interface Help"
-        puts "=" * 50
-        puts "🎮 Available Commands:"
-        puts "   'p' or 'pause'    - Pause the harness execution"
-        puts "   'r' or 'resume'   - Resume the harness execution"
-        puts "   's' or 'stop'     - Stop the harness execution"
-        puts "   'h' or 'help'     - Show this help message"
-        puts "   'q' or 'quit'     - Quit the control interface"
-        puts ""
-        puts "📋 Control States:"
-        puts "   Running  - Harness is executing normally"
-        puts "   Paused   - Harness is paused, waiting for resume"
-        puts "   Stopped  - Harness has been stopped by user"
-        puts "   Resumed  - Harness has been resumed from pause"
-        puts ""
-        puts "💡 Tips:"
-        puts "   • You can pause/resume/stop at any time during execution"
-        puts "   • The harness will save its state when paused/stopped"
-        puts "   • You can restart from where you left off"
-        puts "   • Use 'h' for help at any time"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n📖 Control Interface Help"
+        Aidp::OutputLogger.puts "=" * 50
+        Aidp::OutputLogger.puts "🎮 Available Commands:"
+        Aidp::OutputLogger.puts "   'p' or 'pause'    - Pause the harness execution"
+        Aidp::OutputLogger.puts "   'r' or 'resume'   - Resume the harness execution"
+        Aidp::OutputLogger.puts "   's' or 'stop'     - Stop the harness execution"
+        Aidp::OutputLogger.puts "   'h' or 'help'     - Show this help message"
+        Aidp::OutputLogger.puts "   'q' or 'quit'     - Quit the control interface"
+        Aidp::OutputLogger.puts ""
+        Aidp::OutputLogger.puts "📋 Control States:"
+        Aidp::OutputLogger.puts "   Running  - Harness is executing normally"
+        Aidp::OutputLogger.puts "   Paused   - Harness is paused, waiting for resume"
+        Aidp::OutputLogger.puts "   Stopped  - Harness has been stopped by user"
+        Aidp::OutputLogger.puts "   Resumed  - Harness has been resumed from pause"
+        Aidp::OutputLogger.puts ""
+        Aidp::OutputLogger.puts "💡 Tips:"
+        Aidp::OutputLogger.puts "   • You can pause/resume/stop at any time during execution"
+        Aidp::OutputLogger.puts "   • The harness will save its state when paused/stopped"
+        Aidp::OutputLogger.puts "   • You can restart from where you left off"
+        Aidp::OutputLogger.puts "   • Use 'h' for help at any time"
+        Aidp::OutputLogger.puts "=" * 50
       end
 
       # Control interface main loop
@@ -2211,15 +2211,15 @@ module Aidp
             # Empty input, continue
             next
           else
-            puts "❌ Invalid command. Type 'h' for help."
+            Aidp::OutputLogger.puts "❌ Invalid command. Type 'h' for help."
           end
         rescue Interrupt
-          puts "\n🛑 Control interface interrupted. Stopping..."
+          Aidp::OutputLogger.puts "\n🛑 Control interface interrupted. Stopping..."
           request_stop
           break
         rescue => e
-          puts "❌ Control interface error: #{e.message}"
-          puts "   Type 'h' for help or 'q' to quit."
+          Aidp::OutputLogger.puts "❌ Control interface error: #{e.message}"
+          Aidp::OutputLogger.puts "   Type 'h' for help or 'q' to quit."
         end
       end
 
@@ -2243,14 +2243,14 @@ module Aidp
       # Enable control interface
       def enable_control_interface
         @control_interface_enabled = true
-        puts "🎮 Control interface enabled"
+        Aidp::OutputLogger.puts "🎮 Control interface enabled"
       end
 
       # Disable control interface
       def disable_control_interface
         @control_interface_enabled = false
         stop_control_interface
-        puts "🎮 Control interface disabled"
+        Aidp::OutputLogger.puts "🎮 Control interface disabled"
       end
 
       # Get control status
@@ -2270,29 +2270,29 @@ module Aidp
       def display_control_status
         status = get_control_status
 
-        puts "\n🎮 Control Interface Status"
-        puts "=" * 40
-        puts "Enabled: #{status[:enabled] ? "✅ Yes" : "❌ No"}"
-        puts "Pause Requested: #{status[:pause_requested] ? "⏸️  Yes" : "▶️  No"}"
-        puts "Stop Requested: #{status[:stop_requested] ? "🛑 Yes" : "▶️  No"}"
-        puts "Resume Requested: #{status[:resume_requested] ? "▶️  Yes" : "⏸️  No"}"
-        puts "Control Thread: #{status[:control_thread_alive] ? "🟢 Active" : "🔴 Inactive"}"
-        puts "=" * 40
+        Aidp::OutputLogger.puts "\n🎮 Control Interface Status"
+        Aidp::OutputLogger.puts "=" * 40
+        Aidp::OutputLogger.puts "Enabled: #{status[:enabled] ? "✅ Yes" : "❌ No"}"
+        Aidp::OutputLogger.puts "Pause Requested: #{status[:pause_requested] ? "⏸️  Yes" : "▶️  No"}"
+        Aidp::OutputLogger.puts "Stop Requested: #{status[:stop_requested] ? "🛑 Yes" : "▶️  No"}"
+        Aidp::OutputLogger.puts "Resume Requested: #{status[:resume_requested] ? "▶️  Yes" : "⏸️  No"}"
+        Aidp::OutputLogger.puts "Control Thread: #{status[:control_thread_alive] ? "🟢 Active" : "🔴 Inactive"}"
+        Aidp::OutputLogger.puts "=" * 40
       end
 
       # Interactive control menu
       def show_control_menu
-        puts "\n🎮 Harness Control Menu"
-        puts "=" * 50
-        puts "1. Start Control Interface"
-        puts "2. Stop Control Interface"
-        puts "3. Pause Harness"
-        puts "4. Resume Harness"
-        puts "5. Stop Harness"
-        puts "6. Show Control Status"
-        puts "7. Show Help"
-        puts "8. Exit Menu"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🎮 Harness Control Menu"
+        Aidp::OutputLogger.puts "=" * 50
+        Aidp::OutputLogger.puts "1. Start Control Interface"
+        Aidp::OutputLogger.puts "2. Stop Control Interface"
+        Aidp::OutputLogger.puts "3. Pause Harness"
+        Aidp::OutputLogger.puts "4. Resume Harness"
+        Aidp::OutputLogger.puts "5. Stop Harness"
+        Aidp::OutputLogger.puts "6. Show Control Status"
+        Aidp::OutputLogger.puts "7. Show Help"
+        Aidp::OutputLogger.puts "8. Exit Menu"
+        Aidp::OutputLogger.puts "=" * 50
 
         loop do
           choice = Readline.readline("Select option (1-8): ", true)
@@ -2313,10 +2313,10 @@ module Aidp
           when "7"
             show_control_help
           when "8"
-            puts "👋 Exiting control menu..."
+            Aidp::OutputLogger.puts "👋 Exiting control menu..."
             break
           else
-            puts "❌ Invalid option. Please select 1-8."
+            Aidp::OutputLogger.puts "❌ Invalid option. Please select 1-8."
           end
         end
       end
@@ -2324,17 +2324,17 @@ module Aidp
       # Quick control commands
       def quick_pause
         request_pause
-        puts "⏸️  Quick pause requested. Use 'r' to resume."
+        Aidp::OutputLogger.puts "⏸️  Quick pause requested. Use 'r' to resume."
       end
 
       def quick_resume
         request_resume
-        puts "▶️  Quick resume requested."
+        Aidp::OutputLogger.puts "▶️  Quick resume requested."
       end
 
       def quick_stop
         request_stop
-        puts "🛑 Quick stop requested."
+        Aidp::OutputLogger.puts "🛑 Quick stop requested."
       end
 
       # Control interface with timeout
@@ -2353,7 +2353,7 @@ module Aidp
             handle_resume_state
             break
           elsif Time.now - start_time > timeout_seconds
-            puts "\n⏰ Control interface timeout reached. Continuing execution..."
+            Aidp::OutputLogger.puts "\n⏰ Control interface timeout reached. Continuing execution..."
             break
           else
             Async::Task.current.sleep(0.1)
@@ -2363,11 +2363,11 @@ module Aidp
 
       # Emergency stop
       def emergency_stop
-        puts "\n🚨 EMERGENCY STOP INITIATED"
-        puts "=" * 50
-        puts "All execution will be halted immediately."
-        puts "This action cannot be undone."
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🚨 EMERGENCY STOP INITIATED"
+        Aidp::OutputLogger.puts "=" * 50
+        Aidp::OutputLogger.puts "All execution will be halted immediately."
+        Aidp::OutputLogger.puts "This action cannot be undone."
+        Aidp::OutputLogger.puts "=" * 50
 
         @control_mutex.synchronize do
           @stop_requested = true
@@ -2376,7 +2376,7 @@ module Aidp
         end
 
         stop_control_interface
-        puts "🛑 Emergency stop completed."
+        Aidp::OutputLogger.puts "🛑 Emergency stop completed."
       end
     end
   end

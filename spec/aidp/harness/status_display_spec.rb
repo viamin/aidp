@@ -231,19 +231,31 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "displays compact status" do
-      expect { status_display.send(:display_compact_status) }.to output(/Harness Status/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_compact_status)
+      end
+      expect(output).to match(/Harness Status/)
     end
 
     it "displays detailed status" do
-      expect { status_display.send(:display_detailed_status) }.to output(/Harness Status - Detailed/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_detailed_status)
+      end
+      expect(output).to match(/Harness Status - Detailed/)
     end
 
     it "displays minimal status" do
-      expect { status_display.send(:display_minimal_status) }.to output(/Test Step/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_minimal_status)
+      end
+      expect(output).to match(/Test Step/)
     end
 
     it "displays full status" do
-      expect { status_display.send(:display_full_status) }.to output(/AIDP HARNESS - FULL STATUS REPORT/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_full_status)
+      end
+      expect(output).to match(/AIDP HARNESS - FULL STATUS REPORT/)
     end
   end
 
@@ -256,7 +268,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "displays basic information" do
-      expect { status_display.send(:display_basic_info) }.to output(/BASIC INFORMATION/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_basic_info)
+      end
+      expect(output).to match(/BASIC INFORMATION/)
     end
 
     it "displays provider information" do
@@ -265,7 +280,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         provider_health: {"claude" => {status: "healthy", health_score: 0.95}}
       })
 
-      expect { status_display.send(:display_provider_info) }.to output(/PROVIDER INFORMATION/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_provider_info)
+      end
+      expect(output).to match(/PROVIDER INFORMATION/)
     end
 
     it "displays performance information" do
@@ -276,7 +294,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         error_rate: 0.05
       })
 
-      expect { status_display.send(:display_performance_info) }.to output(/PERFORMANCE METRICS/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_performance_info)
+      end
+      expect(output).to match(/PERFORMANCE METRICS/)
     end
 
     it "displays error information" do
@@ -289,7 +310,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         }
       })
 
-      expect { status_display.send(:display_error_info) }.to output(/ERROR INFORMATION/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_error_info)
+      end
+      expect(output).to match(/ERROR INFORMATION/)
     end
 
     it "displays circuit breaker information" do
@@ -298,7 +322,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         "gemini" => {state: :open, failure_count: 5}
       })
 
-      expect { status_display.send(:display_circuit_breaker_info) }.to output(/CIRCUIT BREAKER STATUS/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_circuit_breaker_info)
+      end
+      expect(output).to match(/CIRCUIT BREAKER STATUS/)
     end
 
     it "displays token usage information" do
@@ -308,7 +335,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         }
       })
 
-      expect { status_display.send(:display_token_usage) }.to output(/TOKEN USAGE/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_token_usage)
+      end
+      expect(output).to match(/TOKEN USAGE/)
     end
 
     it "displays rate limit information" do
@@ -324,7 +354,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         }
       })
 
-      expect { status_display.send(:display_rate_limit_info) }.to output(/RATE LIMIT STATUS/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_rate_limit_info)
+      end
+      expect(output).to match(/RATE LIMIT STATUS/)
     end
 
     it "displays recovery information" do
@@ -332,7 +365,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         provider_switch: {status: :success, details: {new_provider: "gemini"}}
       })
 
-      expect { status_display.send(:display_recovery_info) }.to output(/RECOVERY STATUS/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_recovery_info)
+      end
+      expect(output).to match(/RECOVERY STATUS/)
     end
 
     it "displays user feedback information" do
@@ -340,7 +376,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         question: {status: :waiting, details: {question_count: 3}}
       })
 
-      expect { status_display.send(:display_user_feedback_info) }.to output(/USER FEEDBACK STATUS/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_user_feedback_info)
+      end
+      expect(output).to match(/USER FEEDBACK STATUS/)
     end
 
     it "displays work completion information" do
@@ -350,7 +389,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         total_steps: 5
       })
 
-      expect { status_display.send(:display_work_completion_info) }.to output(/WORK COMPLETION STATUS/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_work_completion_info)
+      end
+      expect(output).to match(/WORK COMPLETION STATUS/)
     end
 
     it "displays alerts" do
@@ -359,7 +401,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         {severity: :warning, message: "High error rate", timestamp: Time.now}
       ])
 
-      expect { status_display.send(:display_alerts) }.to output(/ALERTS/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:display_alerts)
+      end
+      expect(output).to match(/ALERTS/)
     end
   end
 
@@ -548,32 +593,53 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "special status displays" do
     it "shows paused status" do
-      expect { status_display.show_paused_status }.to output(/Harness PAUSED/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.show_paused_status
+      end
+      expect(output).to match(/Harness PAUSED/)
     end
 
     it "shows resumed status" do
-      expect { status_display.show_resumed_status }.to output(/Harness RESUMED/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.show_resumed_status
+      end
+      expect(output).to match(/Harness RESUMED/)
     end
 
     it "shows stopped status" do
-      expect { status_display.show_stopped_status }.to output(/Harness STOPPED/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.show_stopped_status
+      end
+      expect(output).to match(/Harness STOPPED/)
     end
 
     it "shows rate limit wait" do
       reset_time = Time.now + 60
-      expect { status_display.show_rate_limit_wait(reset_time) }.to output(/Rate limit reached/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.show_rate_limit_wait(reset_time)
+      end
+      expect(output).to match(/Rate limit reached/)
     end
 
     it "updates rate limit countdown", :pending => "Rate limit countdown display not fully implemented" do
-      expect { status_display.update_rate_limit_countdown(30) }.to output(/Rate limit - waiting/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.update_rate_limit_countdown(30)
+      end
+      expect(output).to match(/Rate limit - waiting/)
     end
 
     it "shows completion status" do
-      expect { status_display.show_completion_status(120, 5, 5) }.to output(/Harness COMPLETED/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.show_completion_status(120, 5, 5)
+      end
+      expect(output).to match(/Harness COMPLETED/)
     end
 
     it "shows error status" do
-      expect { status_display.show_error_status("Test error") }.to output(/Harness ERROR/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.show_error_status("Test error")
+      end
+      expect(output).to match(/Harness ERROR/)
     end
   end
 
@@ -643,7 +709,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "handles display errors gracefully" do
       allow(status_display).to receive(:collect_status_data).and_raise(StandardError.new("Test error"))
 
-      expect { status_display.send(:handle_display_error, StandardError.new("Test error")) }.to output(/Display Error/).to_stdout
+      output = Aidp::OutputLogger.capture_output do
+        status_display.send(:handle_display_error, StandardError.new("Test error"))
+      end
+      expect(output).to match(/Display Error/)
     end
 
     it "handles missing manager methods gracefully", :pending => "Error handling for missing methods not fully implemented" do

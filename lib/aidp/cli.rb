@@ -156,7 +156,8 @@ module Aidp
           # Check if harness mode is requested
           if should_use_harness?(all_options)
             puts "🚀 Running analyze step '#{resolved_step}' with harness..."
-            harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, all_options)
+            harness_options = all_options.merge(step_name: resolved_step)
+            harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, harness_options)
             result = harness_runner.run
             display_harness_result(result)
             result

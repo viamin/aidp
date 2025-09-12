@@ -30,8 +30,8 @@ module Aidp
         when "summary"
           show_summary(format)
         else
-          puts "Unknown KB type: #{type}"
-          puts "Available types: seams, hotspots, cycles, apis, symbols, imports, summary"
+          Aidp::OutputLogger.puts "Unknown KB type: #{type}"
+          Aidp::OutputLogger.puts "Available types: seams, hotspots, cycles, apis, symbols, imports, summary"
         end
       end
 
@@ -44,8 +44,8 @@ module Aidp
         when "cycles"
           generate_cycle_graph(format, output)
         else
-          puts "Unknown graph type: #{type}"
-          puts "Available types: imports, calls, cycles"
+          Aidp::OutputLogger.puts "Unknown graph type: #{type}"
+          Aidp::OutputLogger.puts "Available types: imports, calls, cycles"
         end
       end
 
@@ -71,7 +71,7 @@ module Aidp
             begin
               data[type.to_sym] = JSON.parse(File.read(file_path), symbolize_names: true)
             rescue JSON::ParserError => e
-              puts "Warning: Could not parse #{file_path}: #{e.message}"
+              Aidp::OutputLogger.puts "Warning: Could not parse #{file_path}: #{e.message}"
               data[type.to_sym] = []
             end
           else
@@ -83,32 +83,32 @@ module Aidp
       end
 
       def show_summary(_format)
-        puts "\n📊 Knowledge Base Summary"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n📊 Knowledge Base Summary"
+        Aidp::OutputLogger.puts "=" * 50
 
-        puts "📁 KB Directory: #{@kb_dir}"
-        puts "📄 Files analyzed: #{count_files}"
-        puts "🏗️  Symbols: #{@data[:symbols]&.length || 0}"
-        puts "📦 Imports: #{@data[:imports]&.length || 0}"
-        puts "🔗 Calls: #{@data[:calls]&.length || 0}"
-        puts "📏 Metrics: #{@data[:metrics]&.length || 0}"
-        puts "🔧 Seams: #{@data[:seams]&.length || 0}"
-        puts "🔥 Hotspots: #{@data[:hotspots]&.length || 0}"
-        puts "🧪 Tests: #{@data[:tests]&.length || 0}"
-        puts "🔄 Cycles: #{@data[:cycles]&.length || 0}"
+        Aidp::OutputLogger.puts "📁 KB Directory: #{@kb_dir}"
+        Aidp::OutputLogger.puts "📄 Files analyzed: #{count_files}"
+        Aidp::OutputLogger.puts "🏗️  Symbols: #{@data[:symbols]&.length || 0}"
+        Aidp::OutputLogger.puts "📦 Imports: #{@data[:imports]&.length || 0}"
+        Aidp::OutputLogger.puts "🔗 Calls: #{@data[:calls]&.length || 0}"
+        Aidp::OutputLogger.puts "📏 Metrics: #{@data[:metrics]&.length || 0}"
+        Aidp::OutputLogger.puts "🔧 Seams: #{@data[:seams]&.length || 0}"
+        Aidp::OutputLogger.puts "🔥 Hotspots: #{@data[:hotspots]&.length || 0}"
+        Aidp::OutputLogger.puts "🧪 Tests: #{@data[:tests]&.length || 0}"
+        Aidp::OutputLogger.puts "🔄 Cycles: #{@data[:cycles]&.length || 0}"
 
         if @data[:seams]&.any?
-          puts "\n🔧 Seam Types:"
+          Aidp::OutputLogger.puts "\n🔧 Seam Types:"
           seam_types = @data[:seams].group_by { |s| s[:kind] }
           seam_types.each do |type, seams|
-            puts "  #{type}: #{seams.length}"
+            Aidp::OutputLogger.puts "  #{type}: #{seams.length}"
           end
         end
 
         if @data[:hotspots]&.any?
-          puts "\n🔥 Top 5 Hotspots:"
+          Aidp::OutputLogger.puts "\n🔥 Top 5 Hotspots:"
           @data[:hotspots].first(5).each_with_index do |hotspot, i|
-            puts "  #{i + 1}. #{hotspot[:file]}:#{hotspot[:method]} (score: #{hotspot[:score]})"
+            Aidp::OutputLogger.puts "  #{i + 1}. #{hotspot[:file]}:#{hotspot[:method]} (score: #{hotspot[:score]})"
           end
         end
       end
@@ -118,7 +118,7 @@ module Aidp
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:seams])
+          Aidp::OutputLogger.puts JSON.pretty_generate(@data[:seams])
         when "table"
           show_seams_table
         else
@@ -140,30 +140,30 @@ module Aidp
           end
         )
 
-        puts "\n🔧 Seams Analysis"
-        puts "=" * 80
-        puts table.render
+        Aidp::OutputLogger.puts "\n🔧 Seams Analysis"
+        Aidp::OutputLogger.puts "=" * 80
+        Aidp::OutputLogger.puts table.render
       end
 
       def show_seams_summary
-        puts "\n🔧 Seams Analysis"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🔧 Seams Analysis"
+        Aidp::OutputLogger.puts "=" * 50
 
         seam_types = @data[:seams].group_by { |s| s[:kind] }
 
         seam_types.each do |type, seams|
-          puts "\n📌 #{type.upcase} (#{seams.length} found)"
-          puts "-" * 30
+          Aidp::OutputLogger.puts "\n📌 #{type.upcase} (#{seams.length} found)"
+          Aidp::OutputLogger.puts "-" * 30
 
           seams.first(10).each do |seam|
-            puts "  #{seam[:file]}:#{seam[:line]}"
-            puts "    Symbol: #{seam[:symbol_id]&.split(":")&.last}"
-            puts "    Suggestion: #{seam[:suggestion]}"
-            puts
+            Aidp::OutputLogger.puts "  #{seam[:file]}:#{seam[:line]}"
+            Aidp::OutputLogger.puts "    Symbol: #{seam[:symbol_id]&.split(":")&.last}"
+            Aidp::OutputLogger.puts "    Suggestion: #{seam[:suggestion]}"
+            Aidp::OutputLogger.puts
           end
 
           if seams.length > 10
-            puts "  ... and #{seams.length - 10} more"
+            Aidp::OutputLogger.puts "  ... and #{seams.length - 10} more"
           end
         end
       end
@@ -173,7 +173,7 @@ module Aidp
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:hotspots])
+          Aidp::OutputLogger.puts JSON.pretty_generate(@data[:hotspots])
         when "table"
           show_hotspots_table
         else
@@ -196,19 +196,19 @@ module Aidp
           end
         )
 
-        puts "\n🔥 Code Hotspots"
-        puts "=" * 80
-        puts table.render
+        Aidp::OutputLogger.puts "\n🔥 Code Hotspots"
+        Aidp::OutputLogger.puts "=" * 80
+        Aidp::OutputLogger.puts table.render
       end
 
       def show_hotspots_summary
-        puts "\n🔥 Code Hotspots (Top 20)"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🔥 Code Hotspots (Top 20)"
+        Aidp::OutputLogger.puts "=" * 50
 
         @data[:hotspots].each_with_index do |hotspot, i|
-          puts "#{i + 1}. #{hotspot[:file]}:#{hotspot[:method]}"
-          puts "   Score: #{hotspot[:score]} (Complexity: #{hotspot[:complexity]}, Touches: #{hotspot[:touches]})"
-          puts
+          Aidp::OutputLogger.puts "#{i + 1}. #{hotspot[:file]}:#{hotspot[:method]}"
+          Aidp::OutputLogger.puts "   Score: #{hotspot[:score]} (Complexity: #{hotspot[:complexity]}, Touches: #{hotspot[:touches]})"
+          Aidp::OutputLogger.puts
         end
       end
 
@@ -217,23 +217,23 @@ module Aidp
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:cycles])
+          Aidp::OutputLogger.puts JSON.pretty_generate(@data[:cycles])
         else
           show_cycles_summary
         end
       end
 
       def show_cycles_summary
-        puts "\n🔄 Import Cycles"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🔄 Import Cycles"
+        Aidp::OutputLogger.puts "=" * 50
 
         @data[:cycles].each_with_index do |cycle, i|
-          puts "Cycle #{i + 1}:"
+          Aidp::OutputLogger.puts "Cycle #{i + 1}:"
           cycle[:members].each do |member|
-            puts "  - #{member}"
+            Aidp::OutputLogger.puts "  - #{member}"
           end
-          puts "  Weight: #{cycle[:weight]}" if cycle[:weight]
-          puts
+          Aidp::OutputLogger.puts "  Weight: #{cycle[:weight]}" if cycle[:weight]
+          Aidp::OutputLogger.puts
         end
       end
 
@@ -244,28 +244,28 @@ module Aidp
 
         case format
         when "json"
-          puts JSON.pretty_generate(untested_apis)
+          Aidp::OutputLogger.puts JSON.pretty_generate(untested_apis)
         else
           show_apis_summary(untested_apis)
         end
       end
 
       def show_apis_summary(untested_apis)
-        puts "\n🧪 Untested Public APIs"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🧪 Untested Public APIs"
+        Aidp::OutputLogger.puts "=" * 50
 
         if untested_apis.empty?
-          puts "✅ All public APIs have associated tests!"
+          Aidp::OutputLogger.puts "✅ All public APIs have associated tests!"
         else
-          puts "Found #{untested_apis.length} untested public APIs:"
-          puts
+          Aidp::OutputLogger.puts "Found #{untested_apis.length} untested public APIs:"
+          Aidp::OutputLogger.puts
 
           untested_apis.each do |api|
             symbol = @data[:symbols]&.find { |s| s[:id] == api[:symbol_id] }
             if symbol
-              puts "  #{symbol[:file]}:#{symbol[:line]} - #{symbol[:name]}"
-              puts "    Suggestion: Create characterization tests"
-              puts
+              Aidp::OutputLogger.puts "  #{symbol[:file]}:#{symbol[:line]} - #{symbol[:name]}"
+              Aidp::OutputLogger.puts "    Suggestion: Create characterization tests"
+              Aidp::OutputLogger.puts
             end
           end
         end
@@ -276,7 +276,7 @@ module Aidp
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:symbols])
+          Aidp::OutputLogger.puts JSON.pretty_generate(@data[:symbols])
         when "table"
           show_symbols_table
         else
@@ -298,19 +298,19 @@ module Aidp
           end
         )
 
-        puts "\n🏗️  Symbols"
-        puts "=" * 80
-        puts table.render
+        Aidp::OutputLogger.puts "\n🏗️  Symbols"
+        Aidp::OutputLogger.puts "=" * 80
+        Aidp::OutputLogger.puts table.render
       end
 
       def show_symbols_summary
-        puts "\n🏗️  Symbols Summary"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n🏗️  Symbols Summary"
+        Aidp::OutputLogger.puts "=" * 50
 
         symbol_types = @data[:symbols].group_by { |s| s[:kind] }
 
         symbol_types.each do |type, symbols|
-          puts "#{type.capitalize}: #{symbols.length}"
+          Aidp::OutputLogger.puts "#{type.capitalize}: #{symbols.length}"
         end
       end
 
@@ -319,7 +319,7 @@ module Aidp
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:imports])
+          Aidp::OutputLogger.puts JSON.pretty_generate(@data[:imports])
         when "table"
           show_imports_table
         else
@@ -340,24 +340,24 @@ module Aidp
           end
         )
 
-        puts "\n📦 Imports"
-        puts "=" * 80
-        puts table.render
+        Aidp::OutputLogger.puts "\n📦 Imports"
+        Aidp::OutputLogger.puts "=" * 80
+        Aidp::OutputLogger.puts table.render
       end
 
       def show_imports_summary
-        puts "\n📦 Imports Summary"
-        puts "=" * 50
+        Aidp::OutputLogger.puts "\n📦 Imports Summary"
+        Aidp::OutputLogger.puts "=" * 50
 
         import_types = @data[:imports].group_by { |i| i[:kind] }
 
         import_types.each do |type, imports|
-          puts "#{type.capitalize}: #{imports.length}"
+          Aidp::OutputLogger.puts "#{type.capitalize}: #{imports.length}"
         end
       end
 
       def generate_import_graph(format, output)
-        puts "Generating import graph in #{format} format..."
+        Aidp::OutputLogger.puts "Generating import graph in #{format} format..."
 
         case format
         when "dot"
@@ -367,7 +367,7 @@ module Aidp
         when "json"
           generate_json_graph(output)
         else
-          puts "Unsupported graph format: #{format}"
+          Aidp::OutputLogger.puts "Unsupported graph format: #{format}"
         end
       end
 
@@ -386,9 +386,9 @@ module Aidp
 
         if output
           File.write(output, content.join("\n"))
-          puts "Graph written to #{output}"
+          Aidp::OutputLogger.puts "Graph written to #{output}"
         else
-          puts content.join("\n")
+          Aidp::OutputLogger.puts content.join("\n")
         end
       end
 
@@ -403,9 +403,9 @@ module Aidp
 
         if output
           File.write(output, content.join("\n"))
-          puts "Graph written to #{output}"
+          Aidp::OutputLogger.puts "Graph written to #{output}"
         else
-          puts content.join("\n")
+          Aidp::OutputLogger.puts content.join("\n")
         end
       end
 
@@ -434,20 +434,20 @@ module Aidp
 
         if output
           File.write(output, JSON.pretty_generate(graph_data))
-          puts "Graph written to #{output}"
+          Aidp::OutputLogger.puts "Graph written to #{output}"
         else
-          puts JSON.pretty_generate(graph_data)
+          Aidp::OutputLogger.puts JSON.pretty_generate(graph_data)
         end
       end
 
       def generate_call_graph(_format, _output)
         # Similar to import graph but for method calls
-        puts "Call graph generation not yet implemented"
+        Aidp::OutputLogger.puts "Call graph generation not yet implemented"
       end
 
       def generate_cycle_graph(_format, _output)
         # Generate graph showing only the cycles
-        puts "Cycle graph generation not yet implemented"
+        Aidp::OutputLogger.puts "Cycle graph generation not yet implemented"
       end
 
       def count_files

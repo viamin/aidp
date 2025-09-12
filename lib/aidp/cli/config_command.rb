@@ -39,7 +39,7 @@ module Aidp
       when "help"
         show_help
       else
-        puts "Unknown command: #{command}"
+        Aidp::OutputLogger.puts "Unknown command: #{command}"
         show_help
       end
     end
@@ -49,7 +49,7 @@ module Aidp
     def run_migrate(args)
       options = parse_options(args)
 
-      puts "Starting configuration migration..."
+      Aidp::OutputLogger.puts "Starting configuration migration..."
 
       result = case options[:from]
       when "legacy"
@@ -63,19 +63,19 @@ module Aidp
       end
 
       if result[:success]
-        puts "✅ #{result[:message]}"
+        Aidp::OutputLogger.puts "✅ #{result[:message]}"
         if result[:backup_file]
-          puts "📁 Backup created: #{result[:backup_file]}"
+          Aidp::OutputLogger.puts "📁 Backup created: #{result[:backup_file]}"
         end
         if result[:warnings] && !result[:warnings].empty?
-          puts "⚠️  Warnings:"
-          result[:warnings].each { |warning| puts "   - #{warning}" }
+          Aidp::OutputLogger.puts "⚠️  Warnings:"
+          result[:warnings].each { |warning| Aidp::OutputLogger.puts "   - #{warning}" }
         end
       else
-        puts "❌ #{result[:message]}"
+        Aidp::OutputLogger.puts "❌ #{result[:message]}"
         if result[:errors]
-          puts "Errors:"
-          result[:errors].each { |error| puts "   - #{error}" }
+          Aidp::OutputLogger.puts "Errors:"
+          result[:errors].each { |error| Aidp::OutputLogger.puts "   - #{error}" }
         end
         exit 1
       end
@@ -84,25 +84,25 @@ module Aidp
     def run_validate(args)
       _options = parse_options(args)
 
-      puts "Validating configuration..."
+      Aidp::OutputLogger.puts "Validating configuration..."
 
       if @validator.config_exists?
         validation_result = @validator.validate_existing
 
         if validation_result[:valid]
-          puts "✅ Configuration is valid"
+          Aidp::OutputLogger.puts "✅ Configuration is valid"
           if validation_result[:warnings] && !validation_result[:warnings].empty?
-            puts "⚠️  Warnings:"
+            Aidp::OutputLogger.puts "⚠️  Warnings:"
             validation_result[:warnings].each { |warning| puts "   - #{warning}" }
           end
         else
-          puts "❌ Configuration is invalid"
-          puts "Errors:"
+          Aidp::OutputLogger.puts "❌ Configuration is invalid"
+          Aidp::OutputLogger.puts "Errors:"
           validation_result[:errors].each { |error| puts "   - #{error}" }
           exit 1
         end
       else
-        puts "❌ No configuration file found"
+        Aidp::OutputLogger.puts "❌ No configuration file found"
         exit 1
       end
     end
@@ -110,18 +110,18 @@ module Aidp
     def run_backup(args)
       options = parse_options(args)
 
-      puts "Creating configuration backup..."
+      Aidp::OutputLogger.puts "Creating configuration backup..."
 
       result = @migrator.create_backup(options[:backup] != false)
 
       if result[:success]
         if result[:backup_file]
-          puts "✅ Backup created: #{result[:backup_file]}"
+          Aidp::OutputLogger.puts "✅ Backup created: #{result[:backup_file]}"
         else
-          puts "✅ No backup needed (no configuration file found)"
+          Aidp::OutputLogger.puts "✅ No backup needed (no configuration file found)"
         end
       else
-        puts "❌ #{result[:message]}"
+        Aidp::OutputLogger.puts "❌ #{result[:message]}"
         exit 1
       end
     end
@@ -130,22 +130,22 @@ module Aidp
       options = parse_options(args)
 
       if options[:backup_file]
-        puts "Restoring configuration from: #{options[:backup_file]}"
+        Aidp::OutputLogger.puts "Restoring configuration from: #{options[:backup_file]}"
 
         result = @migrator.restore_from_backup(options[:backup_file], options)
 
         if result[:success]
-          puts "✅ #{result[:message]}"
+          Aidp::OutputLogger.puts "✅ #{result[:message]}"
           if result[:current_backup]
-            puts "📁 Current config backed up to: #{result[:current_backup]}"
+            Aidp::OutputLogger.puts "📁 Current config backed up to: #{result[:current_backup]}"
           end
         else
-          puts "❌ #{result[:message]}"
+          Aidp::OutputLogger.puts "❌ #{result[:message]}"
           exit 1
         end
       else
-        puts "❌ Backup file path required"
-        puts "Usage: aidp config restore --backup-file <path>"
+        Aidp::OutputLogger.puts "❌ Backup file path required"
+        Aidp::OutputLogger.puts "Usage: aidp config restore --backup-file <path>"
         exit 1
       end
     end
@@ -153,49 +153,49 @@ module Aidp
     def run_status(args)
       _options = parse_options(args)
 
-      puts "Configuration Status:"
-      puts "=" * 50
+      Aidp::OutputLogger.puts "Configuration Status:"
+      Aidp::OutputLogger.puts "=" * 50
 
       status = @migrator.get_migration_status
 
-      puts "Has configuration: #{status[:has_config] ? "✅" : "❌"}"
-      puts "Has legacy configuration: #{status[:has_legacy_config] ? "✅" : "❌"}"
-      puts "Needs migration: #{status[:needs_migration] ? "⚠️  Yes" : "✅ No"}"
-      puts "Config version: #{status[:config_version]}"
+      Aidp::OutputLogger.puts "Has configuration: #{status[:has_config] ? "✅" : "❌"}"
+      Aidp::OutputLogger.puts "Has legacy configuration: #{status[:has_legacy_config] ? "✅" : "❌"}"
+      Aidp::OutputLogger.puts "Needs migration: #{status[:needs_migration] ? "⚠️  Yes" : "✅ No"}"
+      Aidp::OutputLogger.puts "Config version: #{status[:config_version]}"
 
       if status[:last_modified]
-        puts "Last modified: #{status[:last_modified].strftime("%Y-%m-%d %H:%M:%S")}"
+        Aidp::OutputLogger.puts "Last modified: #{status[:last_modified].strftime("%Y-%m-%d %H:%M:%S")}"
       end
 
       if status[:has_config] || status[:has_legacy_config]
-        puts "\nValidation Status:"
-        puts "-" * 30
+        Aidp::OutputLogger.puts "\nValidation Status:"
+        Aidp::OutputLogger.puts "-" * 30
 
         if @validator.config_exists?
           validation_result = @validator.validate_existing
-          puts "Valid: #{validation_result[:valid] ? "✅" : "❌"}"
+          Aidp::OutputLogger.puts "Valid: #{validation_result[:valid] ? "✅" : "❌"}"
 
           if validation_result[:errors] && !validation_result[:errors].empty?
-            puts "Errors: #{validation_result[:errors].length}"
+            Aidp::OutputLogger.puts "Errors: #{validation_result[:errors].length}"
           end
 
           if validation_result[:warnings] && !validation_result[:warnings].empty?
-            puts "Warnings: #{validation_result[:warnings].length}"
+            Aidp::OutputLogger.puts "Warnings: #{validation_result[:warnings].length}"
           end
         else
-          puts "Valid: ❌ (no config file)"
+          Aidp::OutputLogger.puts "Valid: ❌ (no config file)"
         end
       end
 
       # Show available backups
       backups = @migrator.list_backups
       if backups.any?
-        puts "\nAvailable Backups:"
-        puts "-" * 30
+        Aidp::OutputLogger.puts "\nAvailable Backups:"
+        Aidp::OutputLogger.puts "-" * 30
         backups.first(5).each do |backup|
-          puts "#{backup[:filename]} (#{backup[:created].strftime("%Y-%m-%d %H:%M:%S")})"
+          Aidp::OutputLogger.puts "#{backup[:filename]} (#{backup[:created].strftime("%Y-%m-%d %H:%M:%S")})"
         end
-        puts "..." if backups.length > 5
+        Aidp::OutputLogger.puts "..." if backups.length > 5
       end
     end
 
@@ -203,14 +203,14 @@ module Aidp
       options = parse_options(args)
       keep_count = options[:keep] || 10
 
-      puts "Cleaning old backups (keeping #{keep_count})..."
+      Aidp::OutputLogger.puts "Cleaning old backups (keeping #{keep_count})..."
 
       result = @migrator.clean_backups(keep_count)
 
       if result[:success]
-        puts "✅ #{result[:message]}"
+        Aidp::OutputLogger.puts "✅ #{result[:message]}"
       else
-        puts "❌ #{result[:message]}"
+        Aidp::OutputLogger.puts "❌ #{result[:message]}"
         exit 1
       end
     end
@@ -219,12 +219,12 @@ module Aidp
       options = parse_options(args)
       template = options[:template] || "minimal"
 
-      puts "Initializing configuration with #{template} template..."
+      Aidp::OutputLogger.puts "Initializing configuration with #{template} template..."
 
       # Check if config already exists
       if @validator.config_exists?
         unless options[:force]
-          puts "❌ Configuration file already exists. Use --force to overwrite."
+          Aidp::OutputLogger.puts "❌ Configuration file already exists. Use --force to overwrite."
           exit 1
         end
       end
@@ -233,7 +233,7 @@ module Aidp
       if @validator.config_exists?
         backup_result = @migrator.create_backup(true)
         if backup_result[:success] && backup_result[:backup_file]
-          puts "📁 Existing config backed up to: #{backup_result[:backup_file]}"
+          Aidp::OutputLogger.puts "📁 Existing config backed up to: #{backup_result[:backup_file]}"
         end
       end
 
@@ -242,17 +242,17 @@ module Aidp
       config_file = File.join(@project_dir, "aidp.yml")
 
       unless File.exist?(template_file)
-        puts "❌ Template not found: #{template}"
-        puts "Available templates: minimal, production, development"
+        Aidp::OutputLogger.puts "❌ Template not found: #{template}"
+        Aidp::OutputLogger.puts "Available templates: minimal, production, development"
         exit 1
       end
 
       begin
         FileUtils.cp(template_file, config_file)
-        puts "✅ Configuration initialized: #{config_file}"
-        puts "📝 Edit the configuration file to customize your settings"
+        Aidp::OutputLogger.puts "✅ Configuration initialized: #{config_file}"
+        Aidp::OutputLogger.puts "📝 Edit the configuration file to customize your settings"
       rescue => e
-        puts "❌ Failed to initialize configuration: #{e.message}"
+        Aidp::OutputLogger.puts "❌ Failed to initialize configuration: #{e.message}"
         exit 1
       end
     end
@@ -264,34 +264,34 @@ module Aidp
         config = @loader.load_config
 
         if options[:format] == "yaml"
-          puts YAML.dump(config)
+          Aidp::OutputLogger.puts YAML.dump(config)
         elsif options[:format] == "json"
           require "json"
-          puts JSON.pretty_generate(config)
+          Aidp::OutputLogger.puts JSON.pretty_generate(config)
         else
           # Show summary
-          puts "Configuration Summary:"
-          puts "=" * 50
+          Aidp::OutputLogger.puts "Configuration Summary:"
+          Aidp::OutputLogger.puts "=" * 50
 
           if config[:harness]
-            puts "Harness Configuration:"
-            puts "  Default Provider: #{config[:harness][:default_provider] || "Not set"}"
-            puts "  Max Retries: #{config[:harness][:max_retries] || "Not set"}"
-            puts "  Fallback Providers: #{config[:harness][:fallback_providers]&.join(", ") || "None"}"
+            Aidp::OutputLogger.puts "Harness Configuration:"
+            Aidp::OutputLogger.puts "  Default Provider: #{config[:harness][:default_provider] || "Not set"}"
+            Aidp::OutputLogger.puts "  Max Retries: #{config[:harness][:max_retries] || "Not set"}"
+            Aidp::OutputLogger.puts "  Fallback Providers: #{config[:harness][:fallback_providers]&.join(", ") || "None"}"
           end
 
           if config[:providers]
-            puts "\nProviders:"
+            Aidp::OutputLogger.puts "\nProviders:"
             config[:providers].each do |name, provider_config|
-              puts "  #{name}:"
-              puts "    Type: #{provider_config[:type] || "Not set"}"
-              puts "    Priority: #{provider_config[:priority] || "Not set"}"
-              puts "    Models: #{provider_config[:models]&.join(", ") || "None"}"
+              Aidp::OutputLogger.puts "  #{name}:"
+              Aidp::OutputLogger.puts "    Type: #{provider_config[:type] || "Not set"}"
+              Aidp::OutputLogger.puts "    Priority: #{provider_config[:priority] || "Not set"}"
+              Aidp::OutputLogger.puts "    Models: #{provider_config[:models]&.join(", ") || "None"}"
             end
           end
         end
       else
-        puts "❌ No configuration file found"
+        Aidp::OutputLogger.puts "❌ No configuration file found"
         exit 1
       end
     end
@@ -336,7 +336,7 @@ module Aidp
     end
 
     def show_help
-      puts <<~HELP
+      Aidp::OutputLogger.puts <<~HELP
         AIDP Configuration Management
 
         Usage: aidp config <command> [options]

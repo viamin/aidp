@@ -10,6 +10,9 @@ require "aidp/workspace"
 require "aidp/util"
 require "aidp/output_logger"
 require "aidp/output_helper"
+
+# Initialize the output logger
+Aidp::OutputLogger.initialize
 require "aidp/cli"
 require "aidp/cli/jobs_command"
 require "aidp/project_detector"

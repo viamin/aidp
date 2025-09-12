@@ -265,10 +265,22 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")
 
-        expect { ui.show_file_preview(temp_file.path) }.to output(/File Preview/).to_stdout
-        expect { ui.show_file_preview(temp_file.path) }.to output(/File Info/).to_stdout
-        expect { ui.show_file_preview(temp_file.path) }.to output(/Content Preview/).to_stdout
-        expect { ui.show_file_preview(temp_file.path) }.to output(/10 more lines/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_preview(temp_file.path)
+      end
+      expect(output).to match(/File Preview/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_preview(temp_file.path)
+      end
+      expect(output).to match(/File Info/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_preview(temp_file.path)
+      end
+      expect(output).to match(/Content Preview/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_preview(temp_file.path)
+      end
+      expect(output).to match(/10 more lines/)
 
         temp_file.unlink
       end
@@ -277,16 +289,31 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")
 
-        expect { ui.show_file_preview("nonexistent.txt") }.to output(/Error reading file/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_preview("nonexistent.txt")
+      end
+      expect(output).to match(/Error reading file/)
       end
     end
 
     describe "#show_file_selection_help" do
       it "displays help information" do
-        expect { ui.show_file_selection_help }.to output(/File Selection Help/).to_stdout
-        expect { ui.show_file_selection_help }.to output(/Search Examples/).to_stdout
-        expect { ui.show_file_selection_help }.to output(/Selection Commands/).to_stdout
-        expect { ui.show_file_selection_help }.to output(/Tips/).to_stdout
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_selection_help
+      end
+      expect(output).to match(/File Selection Help/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_selection_help
+      end
+      expect(output).to match(/Search Examples/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_selection_help
+      end
+      expect(output).to match(/Selection Commands/)
+        output = Aidp::OutputLogger.capture_output do
+        ui.show_file_selection_help
+      end
+      expect(output).to match(/Tips/)
       end
     end
 
