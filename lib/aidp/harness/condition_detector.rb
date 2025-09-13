@@ -231,7 +231,7 @@ module Aidp
         # Look for retry-after header or similar
         retry_patterns = [
           /retry\s+after\s+(\d+)/i,
-          /wait[^\d]*(\d+)[^\d]*seconds/i,
+          /wait\s+(\d+)\s+seconds/i,
           /(\d+)\s+seconds\s+until/i
         ]
 
