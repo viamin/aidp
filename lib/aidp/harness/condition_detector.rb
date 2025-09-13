@@ -13,36 +13,36 @@ module Aidp
             /too many requests/i,
             /quota exceeded/i,
             /429/i,
-            /rate.*exceeded/i,
+            /rate.{0,20}exceeded/i,
             /throttled/i,
-            /limit.*exceeded/i
+            /limit.{0,20}exceeded/i
           ],
           # Anthropic/Claude specific
           anthropic: [
             /rate limit exceeded/i,
             /too many requests/i,
-            /quota.*exceeded/i,
-            /anthropic.*rate.*limit/i
+            /quota.{0,20}exceeded/i,
+            /anthropic.{0,20}rate.{0,20}limit/i
           ],
           # OpenAI specific
           openai: [
             /rate limit exceeded/i,
             /requests per minute/i,
             /tokens per minute/i,
-            /openai.*rate.*limit/i
+            /openai.{0,20}rate.{0,20}limit/i
           ],
           # Google/Gemini specific
           google: [
             /quota exceeded/i,
             /rate limit exceeded/i,
-            /google.*api.*limit/i,
-            /gemini.*rate.*limit/i
+            /google.{0,20}api.{0,20}limit/i,
+            /gemini.{0,20}rate.{0,20}limit/i
           ],
           # Cursor specific
           cursor: [
-            /cursor.*rate.*limit/i,
-            /package.*limit/i,
-            /usage.*limit/i
+            /cursor.{0,20}rate.{0,20}limit/i,
+            /package.{0,20}limit/i,
+            /usage.{0,20}limit/i
           ]
         }
 
@@ -53,8 +53,8 @@ module Aidp
             /please provide/i,
             /can you provide/i,
             /could you provide/i,
-            /i need.*input/i,
-            /i require.*input/i,
+            /i need.{0,20}input/i,
+            /i require.{0,20}input/i,
             /please give me/i,
             /can you give me/i
           ],
@@ -71,14 +71,14 @@ module Aidp
           choices: [
             /what would you like/i,
             /what do you prefer/i,
-            /which.*would you prefer/i,
-            /which.*do you want/i,
+            /which.{0,20}would you prefer/i,
+            /which.{0,20}do you want/i,
             /do you want/i,
             /should i/i,
             /would you like/i,
             /which option/i,
             /choose between/i,
-            /select.*from/i
+            /select.{0,20}from/i
           ],
           # Confirmation requests
           confirmation: [
@@ -87,28 +87,28 @@ module Aidp
             /should i proceed/i,
             /can i continue/i,
             /is this what you want/i,
-            /confirm.*this/i,
-            /approve.*this/i
+            /confirm.{0,20}this/i,
+            /approve.{0,20}this/i
           ],
           # File/input requests
           file_requests: [
             /please upload/i,
             /can you upload/i,
-            /i need.*file/i,
-            /please provide.*file/i,
-            /attach.*file/i,
-            /send.*file/i
+            /i need.{0,20}file/i,
+            /please provide.{0,20}file/i,
+            /attach.{0,20}file/i,
+            /send.{0,20}file/i
           ],
           # Specific information requests
           information: [
-            /what is.*name/i,
-            /what is.*email/i,
-            /what is.*url/i,
-            /what is.*path/i,
-            /enter.*name/i,
-            /enter.*email/i,
-            /enter.*url/i,
-            /enter.*path/i
+            /what is.{0,20}name/i,
+            /what is.{0,20}email/i,
+            /what is.{0,20}url/i,
+            /what is.{0,20}path/i,
+            /enter.{0,20}name/i,
+            /enter.{0,20}email/i,
+            /enter.{0,20}url/i,
+            /enter.{0,20}path/i
           ]
         }
 
@@ -132,23 +132,23 @@ module Aidp
 
         # Context patterns that indicate user interaction is needed
         @context_patterns = [
-          /waiting for.*input/i,
-          /awaiting.*response/i,
-          /need.*feedback/i,
-          /require.*confirmation/i,
-          /pending.*approval/i,
-          /user.*interaction.*required/i,
-          /manual.*intervention/i
+          /waiting for.{0,20}input/i,
+          /awaiting.{0,20}response/i,
+          /need.{0,20}feedback/i,
+          /require.{0,20}confirmation/i,
+          /pending.{0,20}approval/i,
+          /user.{0,20}interaction.{0,20}required/i,
+          /manual.{0,20}intervention/i
         ]
 
         # Rate limit reset time patterns
         @reset_time_patterns = [
-          /reset.*in.*(\d+).*seconds/i,
-          /retry.*after.*(\d+).*seconds/i,
-          /wait.*(\d+).*seconds/i,
-          /(\d+).*seconds.*until.*reset/i,
-          /reset.*at.*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i,
-          /retry.*after.*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i
+          /reset.{0,20}in.{0,20}(\d+).{0,20}seconds/i,
+          /retry.{0,20}after.{0,20}(\d+).{0,20}seconds/i,
+          /wait[^\d]*(\d+)[^\d]*seconds/i,
+          /(\d+).{0,20}seconds.{0,20}until.{0,20}reset/i,
+          /reset.{0,20}at.{0,20}(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i,
+          /retry.{0,20}after.{0,20}(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i
         ]
       end
 
@@ -231,7 +231,7 @@ module Aidp
         # Look for retry-after header or similar
         retry_patterns = [
           /retry\s+after\s+(\d+)/i,
-          /wait\s+(\d+)\s+seconds/i,
+          /wait[^\d]*(\d+)[^\d]*seconds/i,
           /(\d+)\s+seconds\s+until/i
         ]
 
@@ -270,9 +270,9 @@ module Aidp
             "general_rate_limit"
           end
         when "cursor"
-          if text_content.match?(/package.*limit/i)
+          if text_content.match?(/package\s+limit/i)
             "package_limit"
-          elsif text_content.match?(/usage.*limit/i)
+          elsif text_content.match?(/usage\s+limit/i)
             "usage_limit"
           else
             "general_rate_limit"
@@ -460,7 +460,7 @@ module Aidp
 
         # If no structured questions found, look for general questions
         if questions.empty?
-          general_questions = text_content.scan(/([^.!?]*\?)/)
+          general_questions = text_content.scan(/([^.!?]{1,500}\?)/)
           general_questions.each_with_index do |match, index|
             question_text = match[0].strip
             next if question_text.length < 10 # Skip very short questions
@@ -482,17 +482,17 @@ module Aidp
       def detect_question_type(question_text)
         question_lower = question_text.downcase
 
-        if question_lower.match?(/what.*name/i) || question_lower.match?(/what.*email/i)
+        if question_lower.match?(/what.{0,20}name/i) || question_lower.match?(/what.{0,20}email/i)
           "information"
-        elsif question_lower.match?(/which.*prefer/i) || question_lower.match?(/which.*want/i)
+        elsif question_lower.match?(/which.{0,20}prefer/i) || question_lower.match?(/which.{0,20}want/i)
           "choice"
-        elsif question_lower.match?(/should.*i/i) || question_lower.match?(/can.*i/i)
+        elsif question_lower.match?(/should.{0,20}i/i) || question_lower.match?(/can.{0,20}i/i)
           "permission"
-        elsif question_lower.match?(/is.*correct/i) || question_lower.match?(/does.*look/i)
+        elsif question_lower.match?(/is.{0,20}correct/i) || question_lower.match?(/does.{0,20}look/i)
           "confirmation"
-        elsif question_lower.match?(/can.*you/i) || question_lower.match?(/could.*you/i)
+        elsif question_lower.match?(/can.{0,20}you/i) || question_lower.match?(/could.{0,20}you/i)
           "request"
-        elsif question_lower.match?(/how.*many/i) || question_lower.match?(/how.*much/i)
+        elsif question_lower.match?(/how.{0,20}many/i) || question_lower.match?(/how.{0,20}much/i)
           "quantity"
         elsif question_lower.match?(/when/i)
           "time"
@@ -690,8 +690,8 @@ module Aidp
           /status: complete/i,
           /status: finished/i,
           /status: done/i,
-          /phase.*complete/i,
-          /stage.*complete/i
+          /phase.{0,20}complete/i,
+          /stage.{0,20}complete/i
         ]
 
         found_indicators = []
@@ -749,8 +749,8 @@ module Aidp
           /continue with/i,
           /proceed to/i,
           /move to/i,
-          /now.*will/i,
-          /next.*will/i
+          /now\s+will/i,
+          /next\s+will/i
         ]
 
         if next_action_patterns.any? { |pattern| text_content.match?(pattern) }
@@ -763,8 +763,8 @@ module Aidp
           /waiting for/i,
           /pending/i,
           /awaiting/i,
-          /need.*input/i,
-          /require.*input/i
+          /need\s+input/i,
+          /require\s+input/i
         ]
 
         if waiting_patterns.any? { |pattern| text_content.match?(pattern) }
@@ -862,46 +862,46 @@ module Aidp
         elsif error_message.match?(/permission/i) || error_message.match?(/forbidden/i) ||
             error_message.match?(/403/i) || error_class.include?("permission")
           :permission
-        elsif error_message.match?(/access.*denied/i) || error_message.match?(/insufficient.*privileges/i)
+        elsif error_message.match?(/access.{0,20}denied/i) || error_message.match?(/insufficient.{0,20}privileges/i)
           :access_denied
 
         # File and I/O errors (check these first as they're more specific)
-        elsif error_message.match?(/file.*not found/i) || error_message.match?(/no such file/i)
+        elsif error_message.match?(/file.{0,20}not.{0,20}found/i) || error_message.match?(/no.{0,20}such.{0,20}file/i)
           :file_not_found
 
         # HTTP and API errors
         elsif error_message.match?(/not found/i) || error_message.match?(/404/i)
           :not_found
         elsif error_message.match?(/server error/i) || error_message.match?(/500/i) ||
-            error_message.match?(/internal.*error/i)
+            error_message.match?(/internal.{0,20}error/i)
           :server_error
         elsif error_message.match?(/bad request/i) || error_message.match?(/400/i) ||
-            error_message.match?(/invalid.*request/i)
+            error_message.match?(/invalid.{0,20}request/i)
           :bad_request
         elsif error_message.match?(/rate limit/i) || error_message.match?(/429/i) ||
             error_message.match?(/too many requests/i)
           :rate_limit
-        elsif error_message.match?(/quota.*exceeded/i) || error_message.match?(/usage.*limit/i)
+        elsif error_message.match?(/quota.{0,20}exceeded/i) || error_message.match?(/usage.{0,20}limit/i)
           :quota_exceeded
-        elsif error_message.match?(/permission.*denied/i) || error_message.match?(/eacces/i)
+        elsif error_message.match?(/permission.{0,20}denied/i) || error_message.match?(/eacces/i)
           :file_permission
-        elsif error_message.match?(/disk.*full/i) || error_message.match?(/no space/i)
+        elsif error_message.match?(/disk.{0,20}full/i) || error_message.match?(/no.{0,20}space/i)
           :disk_full
-        elsif error_message.match?(/read.*only/i) || error_message.match?(/eacces/i)
+        elsif error_message.match?(/read.{0,20}only/i) || error_message.match?(/eacces/i)
           :read_only_filesystem
 
         # Memory and resource errors
         elsif error_message.match?(/memory/i) || error_message.match?(/out of memory/i) ||
             error_class.include?("memory")
           :memory_error
-        elsif error_message.match?(/resource.*unavailable/i) || error_message.match?(/resource.*exhausted/i)
+        elsif error_message.match?(/resource.{0,20}unavailable/i) || error_message.match?(/resource.{0,20}exhausted/i)
           :resource_exhausted
 
         # Configuration and setup errors
         elsif error_message.match?(/configuration/i) || error_message.match?(/config/i) ||
             error_class.include?("configuration")
           :configuration
-        elsif error_message.match?(/missing.*dependency/i) || error_message.match?(/gem.*not found/i)
+        elsif error_message.match?(/missing.{0,20}dependency/i) || error_message.match?(/gem.{0,20}not found/i)
           :missing_dependency
         elsif error_message.match?(/environment/i) || error_message.match?(/env/i)
           :environment
@@ -920,11 +920,11 @@ module Aidp
         elsif error_message.match?(/parse/i) || error_message.match?(/json/i) ||
             error_message.match?(/syntax/i) || error_class.include?("parse")
           :parsing_error
-        elsif error_message.match?(/format/i) || error_message.match?(/invalid.*format/i)
+        elsif error_message.match?(/format/i) || error_message.match?(/invalid.{0,20}format/i)
           :format_error
 
         # Validation errors
-        elsif error_message.match?(/validation/i) || error_message.match?(/invalid.*input/i) ||
+        elsif error_message.match?(/validation/i) || error_message.match?(/invalid.{0,20}input/i) ||
             error_class.include?("validation")
           :validation_error
         elsif error_message.match?(/argument/i) || error_message.match?(/parameter/i)
@@ -1227,16 +1227,16 @@ module Aidp
         timeout_patterns = [
           /timeout/i,
           /timed out/i,
-          /time.*out/i,
-          /request.*timeout/i,
-          /connection.*timeout/i,
-          /read.*timeout/i,
-          /write.*timeout/i,
-          /operation.*timeout/i,
-          /execution.*timeout/i,
-          /deadline.*exceeded/i,
-          /time.*limit.*exceeded/i,
-          /time.*expired/i
+          /time.{0,20}out/i,
+          /request.{0,20}timeout/i,
+          /connection.{0,20}timeout/i,
+          /read.{0,20}timeout/i,
+          /write.{0,20}timeout/i,
+          /operation.{0,20}timeout/i,
+          /execution.{0,20}timeout/i,
+          /deadline.{0,20}exceeded/i,
+          /time.{0,20}limit.{0,20}exceeded/i,
+          /time.{0,20}expired/i
         ]
 
         timeout_patterns.any? { |pattern| text_content.match?(pattern) }
@@ -1290,16 +1290,16 @@ module Aidp
         timeout_patterns = [
           /timeout/i,
           /timed out/i,
-          /time.*out/i,
-          /request.*timeout/i,
-          /connection.*timeout/i,
-          /read.*timeout/i,
-          /write.*timeout/i,
-          /operation.*timeout/i,
-          /execution.*timeout/i,
-          /deadline.*exceeded/i,
-          /time.*limit.*exceeded/i,
-          /time.*expired/i
+          /time.{0,20}out/i,
+          /request.{0,20}timeout/i,
+          /connection.{0,20}timeout/i,
+          /read.{0,20}timeout/i,
+          /write.{0,20}timeout/i,
+          /operation.{0,20}timeout/i,
+          /execution.{0,20}timeout/i,
+          /deadline.{0,20}exceeded/i,
+          /time.{0,20}limit.{0,20}exceeded/i,
+          /time.{0,20}expired/i
         ]
 
         found_indicators = []

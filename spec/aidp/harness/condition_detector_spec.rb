@@ -29,8 +29,8 @@ RSpec.describe Aidp::Harness::ConditionDetector do
 
     it "initializes with reset time patterns" do
       patterns = detector.instance_variable_get(:@reset_time_patterns)
-      expect(patterns).to include(/reset.*in.*(\d+).*seconds/i)
-      expect(patterns).to include(/retry.*after.*(\d+).*seconds/i)
+      expect(patterns).to include(/reset.{0,20}in.{0,20}(\d+).{0,20}seconds/i)
+      expect(patterns).to include(/retry.{0,20}after.{0,20}(\d+).{0,20}seconds/i)
     end
   end
 
