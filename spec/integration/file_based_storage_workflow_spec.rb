@@ -74,9 +74,6 @@ RSpec.describe "File-based Storage Workflow Integration" do
         "version" => "1.0.0"
       }
       expect(file_manager.load_config).to eq(expected_config)
-      # In simplified system, data loading is simplified
-      # These tests are no longer relevant with the simplified approach
-      expect(true).to be true
 
       # Verify metrics
       metrics = file_manager.get_metrics({ "step_name" => "code_analysis" })
@@ -104,23 +101,8 @@ RSpec.describe "File-based Storage Workflow Integration" do
       expect(File.exist?(File.join(temp_dir, "provider_activities.csv"))).to be true
     end
 
-    it "handles backup and restore operations" do
-      # In simplified system, backup/restore operations are simplified
-      # This test is no longer relevant with the simplified approach
-      expect(true).to be true
-    end
 
-    it "provides summary statistics" do
-      # In simplified system, summary statistics are simplified
-      # This test is no longer relevant with the simplified approach
-      expect(true).to be true
-    end
 
-    it "handles concurrent access gracefully" do
-      # In simplified system, concurrent access is simplified
-      # This test is no longer relevant with the simplified approach
-      expect(true).to be true
-    end
 
     it "handles file corruption gracefully" do
       # Store some data

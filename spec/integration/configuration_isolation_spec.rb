@@ -19,23 +19,8 @@ RSpec.describe "Configuration Isolation", type: :integration do
   end
 
   describe "Progress File Isolation" do
-    it "execute mode uses .aidp-progress.yml" do
-      # In simplified system, progress tracking is simplified for tests
-      # This test is no longer relevant with the simplified approach
-      expect(true).to be true
-    end
 
-    it "analyze mode uses .aidp-analyze-progress.yml" do
-      # In simplified system, progress tracking is simplified for tests
-      # This test is no longer relevant with the simplified approach
-      expect(true).to be true
-    end
 
-    it "progress files are completely isolated" do
-      # In simplified system, progress tracking is simplified for tests
-      # This test is no longer relevant with the simplified approach
-      expect(true).to be true
-    end
   end
 
   describe "Configuration File Isolation" do

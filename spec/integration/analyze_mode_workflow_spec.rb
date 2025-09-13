@@ -207,7 +207,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
       run_complete_analysis
 
       # In mock mode, just verify the steps completed
-      expect(true).to be true # Mock mode doesn't generate actual files
+      # Mock mode doesn't generate actual files - test passes by reaching this point
     end
 
     it "exports data to database" do

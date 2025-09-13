@@ -88,9 +88,6 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
 
       scanner.run
 
-      # In simplified system, tree-sitter analysis is simplified
-      # These tests are no longer relevant with the simplified approach
-      expect(true).to be true
     end
 
     it "generates hotspots data" do

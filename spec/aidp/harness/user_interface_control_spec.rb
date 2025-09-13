@@ -39,11 +39,6 @@ RSpec.describe Aidp::Harness::UserInterface do
         expect(output).to include("Press 's' + Enter to stop")
       end
 
-      it "does not start multiple control interfaces" do
-        # In simplified system, control interface behavior is simplified
-        # This test is no longer relevant with the simplified approach
-        expect(true).to be true
-      end
     end
 
     describe "#stop_control_interface" do
@@ -701,11 +696,6 @@ RSpec.describe Aidp::Harness::UserInterface do
         expect(status).to be_a(Hash)
       end
 
-      it "handles control interface lifecycle" do
-        # In simplified system, control interface lifecycle is simplified
-        # This test is no longer relevant with the simplified approach
-        expect(true).to be true
-      end
     end
   end
 end

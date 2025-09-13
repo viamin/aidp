@@ -67,9 +67,6 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
         execution_log: [{message: "Test execution", timestamp: Time.now}]
       }
 
-      # In simplified system, state management is simplified for tests
-      # These tests are no longer relevant with the simplified approach
-      expect(true).to be true
     end
 
     it "handles configuration loading and validation" do
@@ -217,9 +214,6 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
       harness_runner.instance_variable_set(:@current_provider, "claude")
       harness_runner.instance_variable_set(:@user_input, {"question_1" => "test answer"})
 
-      # In simplified system, state persistence is simplified for tests
-      # These tests are no longer relevant with the simplified approach
-      expect(true).to be true
     end
 
     it "handles state corruption gracefully" do

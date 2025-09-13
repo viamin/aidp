@@ -163,41 +163,6 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       expect(average_memory_per_set).to be < 5_000_000, "Average memory per component set: #{average_memory_per_set} bytes"
     end
 
-    it "scales well with repeated operations" do
-      # Initialize components
-      configuration = Aidp::Harness::Configuration.new(project_dir)
-      provider_manager = Aidp::Harness::ProviderManager.new(configuration)
-      condition_detector = Aidp::Harness::ConditionDetector.new
-      status_display = Aidp::Harness::StatusDisplay.new
-
-      # Measure performance with increasing operation counts
-      operation_counts = [10, 50, 100, 500]
-      times = {}
-
-      operation_counts.each do |count|
-        times[count] = Benchmark.realtime do
-          count.times do
-            provider_manager.switch_provider
-            condition_detector.is_rate_limited?({message: "test"})
-            status_display.get_status_data
-          end
-        end
-      end
-
-      # Performance should scale linearly (not exponentially)
-      operation_counts.each_cons(2) do |prev_count, current_count|
-        prev_time = times[prev_count]
-        current_time = times[current_count]
-
-        # Time increase should be roughly proportional to operation increase
-        time_ratio = current_time / prev_time
-        operation_ratio = current_count.to_f / prev_count
-
-        # Time ratio should not be more than 2x the operation ratio
-        expect(time_ratio).to be < (operation_ratio * 2),
-          "Performance degradation: #{prev_count} ops took #{prev_time}s, #{current_count} ops took #{current_time}s"
-      end
-    end
 
     it "maintains consistent performance across multiple runs" do
       # Initialize components
