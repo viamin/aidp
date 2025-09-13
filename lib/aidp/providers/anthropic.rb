@@ -11,6 +11,10 @@ module Aidp
 
       def name = "anthropic"
 
+      def available?
+        self.class.available?
+      end
+
       def send(prompt:, session: nil)
         raise "claude CLI not available" unless self.class.available?
 

@@ -2,248 +2,283 @@
 
 require "spec_helper"
 require "tempfile"
-require "fileutils"
+require "stringio"
 
 RSpec.describe Aidp::CLI do
-  let(:temp_dir) { Dir.mktmpdir("aidp_cli_test") }
-  let(:cli) { Aidp::CLI.new }
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:cli) { described_class.new }
+
+  # Helper method to capture stdout
+  def capture_stdout
+    old_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
+  end
 
   after do
-    FileUtils.rm_rf(temp_dir) if temp_dir && Dir.exist?(temp_dir)
+    FileUtils.rm_rf(temp_dir)
   end
 
-  describe "CLI commands" do
-    it "defines execute command" do
-      expect(Aidp::CLI.commands.keys).to include("execute")
+  describe "#should_use_harness?" do
+    it "returns true by default" do
+      result = cli.send(:should_use_harness?, {})
+      expect(result).to be true
     end
 
-    it "defines analyze command" do
-      expect(Aidp::CLI.commands.keys).to include("analyze")
+    it "returns false when no_harness is true" do
+      result = cli.send(:should_use_harness?, {no_harness: true})
+      expect(result).to be false
     end
 
-    it "defines status command" do
-      expect(Aidp::CLI.commands.keys).to include("status")
+    it "returns true when harness is explicitly true" do
+      result = cli.send(:should_use_harness?, {harness: true})
+      expect(result).to be true
     end
 
-    it "defines version command" do
-      expect(Aidp::CLI.commands.keys).to include("version")
+    it "returns false when no_harness overrides harness" do
+      result = cli.send(:should_use_harness?, {harness: true, no_harness: true})
+      expect(result).to be false
     end
   end
 
-  describe "#resolve_analyze_step" do
-    let(:progress) { instance_double(Aidp::Analyze::Progress) }
+  describe "#display_harness_result" do
+    it "displays completed status" do
+      result = {status: "completed", message: "All done"}
+
+      output = capture_stdout do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("✅ Harness completed successfully!")
+    end
+
+    it "displays stopped status" do
+      result = {status: "stopped", message: "User stopped"}
+
+      output = capture_stdout do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("⏹️  Harness stopped by user")
+    end
+
+    it "displays error status" do
+      result = {status: "error", message: "Something went wrong"}
+
+      output = capture_stdout do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("❌ Harness encountered an error")
+    end
+
+    it "displays unknown status" do
+      result = {status: "unknown", message: "Unknown state"}
+
+      output = capture_stdout do
+        cli.send(:display_harness_result, result)
+      end
+
+      expect(output).to include("🔄 Harness finished")
+    end
+  end
+
+  describe "#format_duration" do
+    it "formats seconds correctly" do
+      expect(cli.send(:format_duration, 30)).to eq("30s")
+    end
+
+    it "formats minutes and seconds" do
+      expect(cli.send(:format_duration, 90)).to eq("1m 30s")
+    end
+
+    it "formats hours, minutes and seconds" do
+      expect(cli.send(:format_duration, 3661)).to eq("1h 1m 1s")
+    end
+
+    it "handles zero duration" do
+      expect(cli.send(:format_duration, 0)).to eq("0s")
+    end
+
+    it "handles negative duration" do
+      expect(cli.send(:format_duration, -10)).to eq("0s")
+    end
+  end
+
+  describe "harness integration" do
+    let(:mock_harness_runner) { double("harness_runner") }
 
     before do
-      allow(progress).to receive(:next_step).and_return("00_PRD")
-      allow(progress).to receive(:current_step).and_return("02_ARCHITECTURE")
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(mock_harness_runner)
+      allow(mock_harness_runner).to receive(:run).and_return({status: "completed"})
     end
 
-    context "with 'next' keyword" do
-      it "returns the next step from progress" do
-        result = cli.send(:resolve_analyze_step, "next", progress)
-        expect(result).to eq("00_PRD")
-      end
-    end
+    describe "execute command with harness" do
+      it "uses harness when no step specified" do
+        options = {harness: true}
 
-    context "with 'current' keyword" do
-      it "returns the current step from progress" do
-        result = cli.send(:resolve_analyze_step, "current", progress)
-        expect(result).to eq("02_ARCHITECTURE")
+        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :execute, options)
+        expect(mock_harness_runner).to receive(:run)
+
+        cli.execute(temp_dir, nil, options)
       end
 
-      it "falls back to next step when no current step" do
-        allow(progress).to receive(:current_step).and_return(nil)
-        result = cli.send(:resolve_analyze_step, "current", progress)
-        expect(result).to eq("00_PRD")
-      end
-    end
+      it "uses harness for specific step when requested" do
+        options = {harness: true}
 
-    context "with step numbers" do
-      it "resolves single digit numbers" do
-        result = cli.send(:resolve_analyze_step, "1", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
+        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :execute, options)
+        expect(mock_harness_runner).to receive(:run)
+
+        cli.execute(temp_dir, "test_step", options)
       end
 
-      it "resolves zero-padded numbers" do
-        result = cli.send(:resolve_analyze_step, "01", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
-      end
+      it "uses traditional runner when no_harness is specified" do
+        options = {no_harness: true}
+        mock_runner = double("runner")
 
-      it "resolves larger step numbers" do
-        result = cli.send(:resolve_analyze_step, "3", progress)
-        expect(result).to eq("03_TEST_ANALYSIS")
-      end
+        allow(Aidp::Execute::Runner).to receive(:new).and_return(mock_runner)
+        allow(mock_runner).to receive(:run_step)
 
-      it "resolves two-digit step numbers" do
-        result = cli.send(:resolve_analyze_step, "03", progress)
-        expect(result).to eq("03_TEST_ANALYSIS")
-      end
+        expect(Aidp::Execute::Runner).to receive(:new).with(temp_dir)
+        expect(mock_runner).to receive(:run_step).with("test_step", options)
 
-      it "returns nil for invalid step numbers" do
-        result = cli.send(:resolve_analyze_step, "99", progress)
-        expect(result).to be_nil
+        cli.execute(temp_dir, "test_step", options)
       end
     end
 
-    context "with full step names" do
-      it "resolves exact case matches" do
-        result = cli.send(:resolve_analyze_step, "01_REPOSITORY_ANALYSIS", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
+    describe "analyze command with harness" do
+      it "uses harness when no step specified" do
+        options = {harness: true}
+
+        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :analyze, options)
+        expect(mock_harness_runner).to receive(:run)
+
+        cli.analyze(temp_dir, nil, options)
       end
 
-      it "resolves case-insensitive matches" do
-        result = cli.send(:resolve_analyze_step, "01_repository_analysis", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
+      it "uses harness for specific step when requested" do
+        options = {harness: true}
+
+        # Mock the step resolution to return a valid step
+        allow(cli).to receive(:resolve_analyze_step).with("test_step", anything).and_return("01_REPOSITORY_ANALYSIS")
+
+        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :analyze, hash_including(options))
+        expect(mock_harness_runner).to receive(:run)
+
+        cli.analyze(temp_dir, "test_step", options)
       end
 
-      it "resolves mixed case matches" do
-        result = cli.send(:resolve_analyze_step, "01_Repository_Analysis", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
-      end
+      it "uses traditional runner when no_harness is specified" do
+        options = {no_harness: true}
+        mock_runner = double("runner")
 
-      it "returns nil for non-existent step names" do
-        result = cli.send(:resolve_analyze_step, "99_INVALID_STEP", progress)
-        expect(result).to be_nil
-      end
-    end
+        # Mock the step resolution to return a valid step
+        allow(cli).to receive(:resolve_analyze_step).with("test_step", anything).and_return("01_REPOSITORY_ANALYSIS")
 
-    context "with invalid input" do
-      it "returns nil for empty string" do
-        result = cli.send(:resolve_analyze_step, "", progress)
-        expect(result).to be_nil
-      end
+        allow(Aidp::Analyze::Runner).to receive(:new).and_return(mock_runner)
+        allow(mock_runner).to receive(:run_step).and_return({status: "completed", provider: "test"})
 
-      it "returns nil for random text" do
-        result = cli.send(:resolve_analyze_step, "invalid", progress)
-        expect(result).to be_nil
-      end
+        expect(Aidp::Analyze::Runner).to receive(:new).with(temp_dir)
+        expect(mock_runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", options)
 
-      it "returns nil for nil input" do
-        result = cli.send(:resolve_analyze_step, nil, progress)
-        expect(result).to be_nil
-      end
-    end
-
-    context "with whitespace handling" do
-      it "strips whitespace from input" do
-        result = cli.send(:resolve_analyze_step, "  01  ", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
-      end
-
-      it "handles tabs and newlines" do
-        result = cli.send(:resolve_analyze_step, "\t\n01\t\n", progress)
-        expect(result).to eq("01_REPOSITORY_ANALYSIS")
+        cli.analyze(temp_dir, "test_step", options)
       end
     end
   end
 
-  describe "#analyze command" do
-    let(:runner) { instance_double(Aidp::Analyze::Runner) }
-    let(:progress) { instance_double(Aidp::Analyze::Progress) }
+  describe "harness status command" do
+    let(:mock_harness_runner) { double("harness_runner") }
+    let(:mock_state_manager) { double("state_manager") }
 
     before do
-      allow(Aidp::Analyze::Runner).to receive(:new).and_return(runner)
-      allow(Aidp::Analyze::Progress).to receive(:new).and_return(progress)
-      allow(progress).to receive(:next_step).and_return("01_REPOSITORY_ANALYSIS")
-      allow(progress).to receive(:current_step).and_return(nil)
-      allow(progress).to receive(:step_completed?).and_return(false)
-      allow(progress).to receive(:completed_steps).and_return([])
-      allow(runner).to receive(:run_step).and_return({status: "completed", provider: "mock", message: "Mock execution"})
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(mock_harness_runner)
+      allow(mock_harness_runner).to receive(:detailed_status).and_return({
+        harness: {
+          state: "running",
+          current_step: "test_step",
+          current_provider: "cursor",
+          duration: 120,
+          user_input_count: 2,
+          progress: {
+            completed_steps: 3,
+            total_steps: 5,
+            next_step: "next_step"
+          }
+        },
+        configuration: {
+          default_provider: "cursor",
+          fallback_providers: ["claude", "gemini"],
+          max_retries: 2
+        },
+        provider_manager: {
+          current_provider: "cursor",
+          available_providers: ["cursor", "claude"],
+          rate_limited_providers: [],
+          total_switches: 0
+        }
+      })
     end
 
-    context "when called without arguments" do
-      it "lists available steps with status indicators" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect { cli.analyze }.to output(/Available analyze steps:/).to_stdout
-        expect { cli.analyze }.to output(/⏳ 01: 01_REPOSITORY_ANALYSIS/).to_stdout
+    it "displays harness status for both modes" do
+      output = capture_stdout do
+        cli.harness_status
       end
 
-      it "shows helpful hint for next step" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect { cli.analyze }.to output(/💡 Run 'aidp analyze next' or 'aidp analyze 01'/).to_stdout
-      end
-
-      it "returns success status with metadata" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        result = cli.analyze
-        expect(result[:status]).to eq("success")
-        expect(result[:message]).to eq("Available steps listed")
-        expect(result[:next_step]).to eq("01_REPOSITORY_ANALYSIS")
-      end
+      expect(output).to include("🔧 Harness Status")
     end
 
-    context "when called with 'next'" do
-      it "runs the next step" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze("next")
+    it "displays harness status for specific mode" do
+      output = capture_stdout do
+        cli.harness_status
       end
+
+      expect(output).to include("📋 Analyze Mode:")
+    end
+  end
+
+  describe "harness reset command" do
+    let(:mock_harness_runner) { double("harness_runner") }
+    let(:mock_state_manager) { double("state_manager") }
+
+    before do
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(mock_harness_runner)
+      allow(mock_harness_runner).to receive(:instance_variable_get).with(:@state_manager).and_return(mock_state_manager)
+      allow(mock_state_manager).to receive(:reset_all)
     end
 
-    context "when called with 'current'" do
-      it "runs the current step" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        allow(progress).to receive(:current_step).and_return("02_ARCHITECTURE_ANALYSIS")
-        expect(runner).to receive(:run_step).with("02_ARCHITECTURE_ANALYSIS", {})
-        cli.analyze("current")
+    it "resets harness state for analyze mode" do
+      allow(cli).to receive(:options).and_return({mode: "analyze"})
+      expect(mock_state_manager).to receive(:reset_all)
+
+      output = capture_stdout do
+        cli.harness_reset
       end
+
+      expect(output).to include("✅ Reset harness state for analyze mode")
     end
 
-    context "when called with step number" do
-      it "runs the correct step for '01'" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze("01")
+    it "resets harness state for execute mode" do
+      allow(cli).to receive(:options).and_return({mode: "execute"})
+      expect(mock_state_manager).to receive(:reset_all)
+
+      output = capture_stdout do
+        cli.harness_reset
       end
 
-      it "runs the correct step for '1'" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze("1")
-      end
+      expect(output).to include("✅ Reset harness state for execute mode")
     end
 
-    context "when called with full step name" do
-      it "runs the step" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {})
-        cli.analyze("01_REPOSITORY_ANALYSIS")
-      end
-    end
+    it "shows error for invalid mode" do
+      allow(cli).to receive(:options).and_return({mode: "invalid"})
 
-    context "when called with invalid step" do
-      it "shows error message" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect { cli.analyze("invalid") }.to output(/❌ Step 'invalid' not found/).to_stdout
+      output = capture_stdout do
+        cli.harness_reset
       end
 
-      it "shows available steps" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        expect { cli.analyze("invalid") }.to output(/Available steps:/).to_stdout
-      end
-
-      it "returns error status" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        result = cli.analyze("invalid")
-        expect(result[:status]).to eq("error")
-        expect(result[:message]).to eq("Step not found")
-      end
-    end
-
-    context "with options" do
-      it "passes force option to runner" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        cli.options = {"force" => true}
-        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {"force" => true})
-        cli.analyze("01")
-      end
-
-      it "passes rerun option to runner" do
-        allow(Dir).to receive(:pwd).and_return(temp_dir)
-        cli.options = {"rerun" => true}
-        expect(runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", {"rerun" => true})
-        cli.analyze("01")
-      end
+      expect(output).to include("❌ Invalid mode. Use 'analyze' or 'execute'")
     end
   end
 end

@@ -96,7 +96,7 @@ module Aidp
           if retry_count <= max_retries
             delay = base_delay * (2**(retry_count - 1))
             logger.warn("Retrying operation in #{delay} seconds (attempt #{retry_count}/#{max_retries})")
-            sleep(delay)
+            Async::Task.current.sleep(delay)
             retry
           else
             logger.error("Operation failed after #{max_retries} retries: #{e.message}")
@@ -247,7 +247,7 @@ module Aidp
         logger.warn("HTTP error: #{error.message}")
         case error.response&.code
         when "429" # Rate limited
-          sleep(60) # Wait 1 minute
+          Async::Task.current.sleep(60) # Wait 1 minute
           retry_with_backoff(-> { context[:operation].call }, max_retries: 2)
         when "500".."599" # Server errors
           retry_with_backoff(-> { context[:operation].call }, max_retries: 3)

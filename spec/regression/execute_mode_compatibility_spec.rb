@@ -300,11 +300,6 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
   end
 
   describe "Integration Compatibility" do
-    it "execute mode integration with external tools is unchanged" do
-      # Test that integration with external tools works exactly as before
-      # This would test any external tool integrations that execute mode uses
-      expect(true).to be true # Placeholder for actual integration tests
-    end
 
     it "execute mode file system operations are unchanged" do
       # Test that file system operations work exactly as before
