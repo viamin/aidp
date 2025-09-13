@@ -324,7 +324,9 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
       it "classifies rate limit errors from HTTP status" do
         error = Net::HTTPError.new("429 Too Many Requests", nil)
-        allow(error.response).to receive(:code).and_return("429")
+        response = double("response")
+        allow(response).to receive(:code).and_return("429")
+        allow(error).to receive(:response).and_return(response)
 
         result = classifier.classify_error(error, {})
 
@@ -333,7 +335,9 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
       it "classifies authentication errors from HTTP status" do
         error = Net::HTTPError.new("401 Unauthorized", nil)
-        allow(error.response).to receive(:code).and_return("401")
+        response = double("response")
+        allow(response).to receive(:code).and_return("401")
+        allow(error).to receive(:response).and_return(response)
 
         result = classifier.classify_error(error, {})
 
@@ -342,7 +346,9 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
       it "classifies server errors from HTTP status" do
         error = Net::HTTPError.new("500 Internal Server Error", nil)
-        allow(error.response).to receive(:code).and_return("500")
+        response = double("response")
+        allow(response).to receive(:code).and_return("500")
+        allow(error).to receive(:response).and_return(response)
 
         result = classifier.classify_error(error, {})
 

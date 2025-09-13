@@ -1,9 +1,20 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
   let(:ui) { described_class.new }
+
+  # Helper method to capture stdout
+  def capture_stdout
+    old_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
+  end
 
   describe "numbered question presentation system" do
     describe "#display_question_presentation_header" do
@@ -13,11 +24,11 @@ RSpec.describe Aidp::Harness::UserInterface do
           {question: "What is your age?", type: "number", required: false}
         ]
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_presentation_header(questions, nil)
       end
       expect(output).to match(/Agent needs your feedback/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_presentation_header(questions, nil)
       end
       expect(output).to match(/Questions to answer/)
@@ -34,15 +45,15 @@ RSpec.describe Aidp::Harness::UserInterface do
           description: "Please provide your information"
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_presentation_header(questions, context)
       end
       expect(output).to match(/Context Summary/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_presentation_header(questions, context)
       end
       expect(output).to match(/Type: user_registration/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_presentation_header(questions, context)
       end
       expect(output).to match(/Urgency: 🔴 High/)
@@ -57,23 +68,23 @@ RSpec.describe Aidp::Harness::UserInterface do
           {question: "Do you want to continue?", type: "confirmation", required: true}
         ]
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_overview(questions)
       end
       expect(output).to match(/Overview:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_overview(questions)
       end
       expect(output).to match(/Total questions: 3/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_overview(questions)
       end
       expect(output).to match(/Required: 2/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_overview(questions)
       end
       expect(output).to match(/Optional: 1/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_overview(questions)
       end
       expect(output).to match(/Question types: text, number, confirmation/)
@@ -85,7 +96,7 @@ RSpec.describe Aidp::Harness::UserInterface do
           {question: "What is your age?", type: "number", required: false}
         ]
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_overview(questions)
       end
       expect(output).to match(/Estimated time:/)
@@ -186,19 +197,19 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: true
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Question 1 of 3/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/📝 What is your name/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Question Details:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Instructions:/)
@@ -212,11 +223,11 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: true
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Type: Text/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Status: 🔴 Required/)
@@ -230,7 +241,7 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: false
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Status: 🟢 Optional/)
@@ -245,15 +256,15 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: true
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Options: 3 available/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Default: Option A/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_numbered_question(question_data, 1, 1, 3)
       end
       expect(output).to match(/Available Options:/)
@@ -263,11 +274,11 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#display_question_instructions" do
       it "displays text question instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, true)
       end
       expect(output).to match(/Enter your text response/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, true)
       end
       expect(output).to match(/Use @ for file selection/)
@@ -275,107 +286,107 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "displays choice question instructions" do
         options = ["Option A", "Option B"]
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("choice", options, nil, true)
       end
       expect(output).to match(/Select from the numbered options/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("choice", options, nil, true)
       end
       expect(output).to match(/Enter the number of your choice/)
       end
 
       it "displays confirmation question instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("confirmation", nil, nil, true)
       end
       expect(output).to match(/Enter 'y' or 'yes' for Yes/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("confirmation", nil, nil, true)
       end
       expect(output).to match(/Enter 'n' or 'no' for No/)
       end
 
       it "displays file question instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("file", nil, nil, true)
       end
       expect(output).to match(/Enter file path directly/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("file", nil, nil, true)
       end
       expect(output).to match(/Use @ to browse and select files/)
       end
 
       it "displays number question instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("number", nil, nil, true)
       end
       expect(output).to match(/Enter a valid number/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("number", nil, nil, true)
       end
       expect(output).to match(/Use decimal point for decimals/)
       end
 
       it "displays email question instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("email", nil, nil, true)
       end
       expect(output).to match(/Enter a valid email address/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("email", nil, nil, true)
       end
       expect(output).to match(/Format: user@domain.com/)
       end
 
       it "displays URL question instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("url", nil, nil, true)
       end
       expect(output).to match(/Enter a valid URL/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("url", nil, nil, true)
       end
       expect(output).to match(/Format: https:\/\/example.com/)
       end
 
       it "displays default value instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, "Default Value", true)
       end
       expect(output).to match(/Quick Answer:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, "Default Value", true)
       end
       expect(output).to match(/Press Enter to use default: Default Value/)
       end
 
       it "displays required field instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, true)
       end
       expect(output).to match(/Required Field:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, true)
       end
       expect(output).to match(/This question must be answered/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, true)
       end
       expect(output).to match(/Cannot be left blank/)
       end
 
       it "displays optional field instructions" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, false)
       end
       expect(output).to match(/Optional Field:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, false)
       end
       expect(output).to match(/This question can be skipped/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_instructions("text", nil, nil, false)
       end
       expect(output).to match(/Press Enter to leave blank/)
@@ -384,11 +395,11 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#display_question_progress" do
       it "displays progress bar and percentage" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_progress(2, 5)
       end
       expect(output).to match(/Progress:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_progress(2, 5)
       end
       expect(output).to match(/40.0%/)
@@ -396,14 +407,14 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "displays estimated time remaining" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_progress(2, 5)
       end
       expect(output).to match(/Estimated time remaining:/)
       end
 
       it "does not display time remaining for last question" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_progress(5, 5)
       end
       expect(output).not_to match(/Estimated time remaining:/)
@@ -456,27 +467,27 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_2" => nil
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/Question Completion Summary/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/Statistics:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/Total questions: 2/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/Answered: 1/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/Skipped: 1/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/Completion rate: 50.0%/)
@@ -491,11 +502,11 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_1" => "John Doe"
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/Response Summary:/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/1. John Doe/)
@@ -510,7 +521,7 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_1" => nil
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/1. \[Skipped\]/)
@@ -526,7 +537,7 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_1" => long_response
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_question_completion_summary(responses, questions)
       end
       expect(output).to match(/1. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.../)

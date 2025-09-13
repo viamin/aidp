@@ -71,7 +71,9 @@ RSpec.describe Aidp::Harness::ErrorLogger do
 
     it "logs rate limit errors" do
       error = Net::HTTPError.new("429 Too Many Requests", nil)
-      allow(error.response).to receive(:code).and_return("429")
+      response = double("response")
+      allow(response).to receive(:code).and_return("429")
+      allow(error).to receive(:response).and_return(response)
 
       entry = error_logger.log_error(error, context)
 
@@ -81,7 +83,9 @@ RSpec.describe Aidp::Harness::ErrorLogger do
 
     it "logs server errors" do
       error = Net::HTTPError.new("500 Internal Server Error", nil)
-      allow(error.response).to receive(:code).and_return("500")
+      response = double("response")
+      allow(response).to receive(:code).and_return("500")
+      allow(error).to receive(:response).and_return(response)
 
       entry = error_logger.log_error(error, context)
 
@@ -91,7 +95,9 @@ RSpec.describe Aidp::Harness::ErrorLogger do
 
     it "logs authentication errors" do
       error = Net::HTTPError.new("401 Unauthorized", nil)
-      allow(error.response).to receive(:code).and_return("401")
+      response = double("response")
+      allow(response).to receive(:code).and_return("401")
+      allow(error).to receive(:response).and_return(response)
 
       entry = error_logger.log_error(error, context)
 

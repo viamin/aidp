@@ -1,9 +1,20 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
   let(:ui) { described_class.new }
+
+  # Helper method to capture stdout
+  def capture_stdout
+    old_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
+  end
 
   describe "file selection interface with @ character" do
     describe "#parse_file_search_options" do
@@ -265,19 +276,19 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_preview(temp_file.path)
       end
       expect(output).to match(/File Preview/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_preview(temp_file.path)
       end
       expect(output).to match(/File Info/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_preview(temp_file.path)
       end
       expect(output).to match(/Content Preview/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_preview(temp_file.path)
       end
       expect(output).to match(/10 more lines/)
@@ -289,7 +300,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_preview("nonexistent.txt")
       end
       expect(output).to match(/Error reading file/)
@@ -298,19 +309,19 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#show_file_selection_help" do
       it "displays help information" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_selection_help
       end
       expect(output).to match(/File Selection Help/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_selection_help
       end
       expect(output).to match(/Search Examples/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_selection_help
       end
       expect(output).to match(/Selection Commands/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_file_selection_help
       end
       expect(output).to match(/Tips/)

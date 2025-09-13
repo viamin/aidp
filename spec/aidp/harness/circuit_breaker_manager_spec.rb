@@ -1,8 +1,19 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
 
 RSpec.describe Aidp::Harness::CircuitBreakerManager do
+
+  # Helper method to capture stdout
+  def capture_stdout
+    old_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
+  end
   let(:configuration) { instance_double("Aidp::Harness::Configuration") }
   let(:error_logger) { instance_double("Aidp::Harness::ErrorLogger") }
   let(:metrics_manager) { instance_double("Aidp::Harness::MetricsManager") }
@@ -514,7 +525,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
       let(:state_notifier) { described_class::StateNotifier.new }
 
       it "notifies state changes" do
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         state_notifier.notify_state_change("claude", "model1", :closed, :open, "Test")
       end
       expect(output).to match(/Circuit breaker state change/)

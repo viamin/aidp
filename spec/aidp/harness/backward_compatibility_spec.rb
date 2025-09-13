@@ -11,10 +11,6 @@ RSpec.describe "Harness Backward Compatibility", type: :compatibility do
     ENV["AIDP_MOCK_MODE"] = "1"
     # Create a mock project structure
     setup_mock_project
-
-    # Mock Que for jobs command
-    allow(Que).to receive(:connection).and_return(double("connection"))
-    allow(Que).to receive(:execute).and_return([])
   end
 
   after do

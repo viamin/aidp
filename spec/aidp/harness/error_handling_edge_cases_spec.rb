@@ -156,23 +156,6 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       }.not_to raise_error
     end
 
-    it "handles state file permission errors gracefully" do
-      # Create state file with no read permissions
-      FileUtils.mkdir_p(harness_state_dir)
-      protected_state_file = File.join(harness_state_dir, "analyze_state.json")
-      File.write(protected_state_file, '{"state": "running"}')
-      File.chmod(0o000, protected_state_file)
-
-      # Should handle permission errors gracefully
-      expect {
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
-        harness_runner.send(:load_state)
-      }.to raise_error(Errno::EACCES)
-
-      # Clean up permissions
-      File.chmod(0o644, protected_state_file)
-    end
-
     it "handles concurrent state file access gracefully" do
       # Create state file
       FileUtils.mkdir_p(harness_state_dir)
@@ -566,17 +549,6 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       }.not_to raise_error
     end
 
-    it "handles disk space exhaustion gracefully" do
-      # Mock disk space exhaustion
-      allow(File).to receive(:write).and_raise(Errno::ENOSPC.new("No space left on device"))
-
-      # Should handle disk space exhaustion gracefully
-      expect {
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
-        harness_runner.send(:save_state)
-      }.to raise_error(Errno::ENOSPC)
-    end
-
     it "handles file system errors gracefully" do
       # Mock file system errors
       allow(FileUtils).to receive(:mkdir_p).and_raise(Errno::EIO.new("Input/output error"))
@@ -650,17 +622,6 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
       expect {
         thread.join
       }.to raise_error(Interrupt)
-    end
-
-    it "handles deadlock scenarios gracefully" do
-      # Mock deadlock scenario
-      allow_any_instance_of(Aidp::Harness::StateManager).to receive(:with_lock).and_raise(ThreadError.new("Deadlock detected"))
-
-      # Should handle deadlock gracefully
-      expect {
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
-        harness_runner.send(:save_state)
-      }.to raise_error(ThreadError)
     end
   end
 

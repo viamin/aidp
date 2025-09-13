@@ -1,9 +1,20 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
   let(:ui) { described_class.new }
+
+  # Helper method to capture stdout
+  def capture_stdout
+    old_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
+  end
 
   describe "input validation and error handling" do
     describe "#validate_input_type" do
@@ -423,19 +434,19 @@ RSpec.describe Aidp::Harness::UserInterface do
           warnings: ["Local part is very long"]
         }
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_validation_error(validation_result, "email")
       end
       expect(output).to match(/Validation Error/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_validation_error(validation_result, "email")
       end
       expect(output).to match(/Invalid email format/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_validation_error(validation_result, "email")
       end
       expect(output).to match(/Suggestions/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.display_validation_error(validation_result, "email")
       end
       expect(output).to match(/Warnings/)
@@ -499,11 +510,11 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_question_help(question_data)
       end
       expect(output).to match(/Help for Text Question/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_question_help(question_data)
       end
       expect(output).to match(/Enter any text response/)
@@ -515,11 +526,11 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock Readline to return empty input
         allow(Readline).to receive(:readline).and_return("")
 
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_question_help(question_data)
       end
       expect(output).to match(/Help for Choice Question/)
-        output = Aidp::OutputLogger.capture_output do
+        output = capture_stdout do
         ui.show_question_help(question_data)
       end
       expect(output).to match(/Select from the numbered options/)
