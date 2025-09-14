@@ -1027,7 +1027,7 @@ module Aidp
         end
       end
 
-      private_class_method :validate_section, :apply_section_defaults, :apply_providers_defaults, :valid_uri?, :deep_dup
+      private_class_method :validate_section, :apply_providers_defaults, :valid_uri?, :deep_dup
     end
   end
 end

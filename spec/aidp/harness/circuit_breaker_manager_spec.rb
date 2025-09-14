@@ -125,7 +125,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
   describe "circuit breaker opening" do
     before do
       # Configure circuit breaker with low threshold for testing
-      circuit_breaker_manager.configure_circuit_breaker("claude", nil, {failure_threshold: 3})
+      circuit_breaker_manager.configure_circuit_breaker("claude", {failure_threshold: 3})
     end
 
     it "opens circuit breaker when failure threshold is exceeded" do
@@ -323,7 +323,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
         timeout: 120
       }
 
-      circuit_breaker_manager.configure_circuit_breaker("claude", nil, config)
+      circuit_breaker_manager.configure_circuit_breaker("claude", config)
 
       status = circuit_breaker_manager.get_status("claude")
       expect(status[:failure_threshold]).to eq(10)
@@ -339,7 +339,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
       }
 
       expect {
-        circuit_breaker_manager.configure_circuit_breaker("claude", nil, invalid_config)
+        circuit_breaker_manager.configure_circuit_breaker("claude", invalid_config)
       }.to raise_error(ArgumentError)
     end
 
@@ -348,7 +348,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
 
       expect(error_logger).to receive(:log_circuit_breaker_event).with("claude", nil, :configured, "Configuration updated", config)
 
-      circuit_breaker_manager.configure_circuit_breaker("claude", nil, config)
+      circuit_breaker_manager.configure_circuit_breaker("claude", config)
     end
   end
 
@@ -440,7 +440,7 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
   describe "failure rate threshold" do
     before do
       # Configure circuit breaker with failure rate threshold
-      circuit_breaker_manager.configure_circuit_breaker("claude", nil, {
+      circuit_breaker_manager.configure_circuit_breaker("claude", {
         failure_threshold: 100, # High threshold
         failure_rate_threshold: 0.5,
         minimum_requests: 10
