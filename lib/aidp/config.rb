@@ -256,7 +256,7 @@ module Aidp
 
       # Validate providers section
       providers_config = config[:providers] || config["providers"]
-      if providers_config
+      if providers_config&.any?
         providers_config.each do |provider_name, provider_config|
           validate_provider_config(provider_name, provider_config, errors)
         end

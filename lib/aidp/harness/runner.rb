@@ -50,7 +50,7 @@ module Aidp
       # Main execution method - runs the harness loop
       def run
         # In test mode, handle simulated errors or return early to avoid hanging
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
+        if ENV["RACK_ENV"] == "test" || defined?(RSpec) || ENV["AIDP_MOCK_MODE"] == "1"
           # Check for simulated errors first
           if @options && @options[:simulate_error]
             @state = STATES[:error]

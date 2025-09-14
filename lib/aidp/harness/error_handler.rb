@@ -499,8 +499,8 @@ module Aidp
           {
             error: error,
             error_type: error_type,
-            provider: (context && context.is_a?(Hash) && context[:provider]) || "unknown",
-            model: (context && context.is_a?(Hash) && context[:model]) || "unknown",
+            provider: (context&.is_a?(Hash) && context[:provider]) || "unknown",
+            model: (context&.is_a?(Hash) && context[:model]) || "unknown",
             timestamp: Time.now,
             context: context || {},
             message: error&.message || "Unknown error",

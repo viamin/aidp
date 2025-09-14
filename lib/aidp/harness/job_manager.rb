@@ -62,9 +62,7 @@ module Aidp
         update_job_metrics(:queued)
 
         # Notify harness runner if available
-        if @harness_runner
-          @harness_runner.record_job_created(job_id, job_class.name, harness_args)
-        end
+        @harness_runner&.record_job_created(job_id, job_class.name, harness_args)
 
         job_id
       end
@@ -104,9 +102,7 @@ module Aidp
         end
 
         # Notify harness runner if available
-        if @harness_runner
-          @harness_runner.record_job_status_change(job_id, old_status, status, error, result)
-        end
+        @harness_runner&.record_job_status_change(job_id, old_status, status, error, result)
 
         # Log status change
         log_job_status_change(job_id, old_status, status, error)
@@ -157,9 +153,7 @@ module Aidp
 
           update_job_metrics(:queued)
 
-          if @harness_runner
-            @harness_runner.record_job_retry(job_id, job[:metrics][:retry_count])
-          end
+          @harness_runner&.record_job_retry(job_id, job[:metrics][:retry_count])
 
           true
         rescue => e
@@ -197,9 +191,7 @@ module Aidp
 
         update_job_metrics(:cancelled)
 
-        if @harness_runner
-          @harness_runner.record_job_cancelled(job_id, old_status)
-        end
+        @harness_runner&.record_job_cancelled(job_id, old_status)
 
         true
       end
@@ -338,9 +330,7 @@ module Aidp
         end
 
         # Also log to harness runner if available
-        if @harness_runner
-          @harness_runner.log_job_message(job_id, message, level, metadata)
-        end
+        @harness_runner&.log_job_message(job_id, message, level, metadata)
       end
 
       private

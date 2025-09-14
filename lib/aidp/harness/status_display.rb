@@ -592,11 +592,10 @@ module Aidp
         puts "\n✅ WORK COMPLETION STATUS"
         if @work_completion_status[:is_complete]
           puts "   Status: Complete"
-          puts "   Steps Completed: #{@work_completion_status[:completed_steps]}/#{@work_completion_status[:total_steps]}"
         else
           puts "   Status: In Progress"
-          puts "   Steps Completed: #{@work_completion_status[:completed_steps]}/#{@work_completion_status[:total_steps]}"
         end
+        puts "   Steps Completed: #{@work_completion_status[:completed_steps]}/#{@work_completion_status[:total_steps]}"
       end
 
       def display_alerts

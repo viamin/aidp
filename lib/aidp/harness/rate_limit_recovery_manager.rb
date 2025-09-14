@@ -88,7 +88,7 @@ module Aidp
       # Check if provider/model is currently rate limited
       def is_rate_limited?(provider, model = nil)
         if model
-          @active_rate_limits.dig(provider, model) != nil
+          !@active_rate_limits.dig(provider, model).nil?
         else
           @active_rate_limits.key?(provider)
         end

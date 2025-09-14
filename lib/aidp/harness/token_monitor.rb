@@ -409,7 +409,7 @@ module Aidp
         begin
           current_usage = get_current_usage(provider, model)
           @status_display.update_token_usage(provider, model, current_usage[:total_tokens], current_usage[:remaining_tokens])
-        rescue NoMethodError, StandardError => e
+        rescue => e
           # Handle missing methods gracefully
           puts "Token monitor display error: #{e.message}" if @display_config&.dig(:show_errors)
         end
@@ -836,7 +836,7 @@ module Aidp
       end
 
       class ProviderTokenOptimizer < TokenUsageOptimizer
-        def optimize_usage(provider, model = nil, monitor)
+        def optimize_usage(provider, monitor, model = nil)
           super
         end
       end

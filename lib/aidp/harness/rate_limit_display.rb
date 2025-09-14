@@ -384,7 +384,7 @@ module Aidp
             provider, model = key.split(":", 2)
             @status_display.update_rate_limit_status(provider, model, rate_limit_info)
           end
-        rescue NoMethodError, StandardError => e
+        rescue => e
           # Handle missing methods gracefully
           puts "Rate limit display error: #{e.message}" if @display_config[:show_errors]
         end

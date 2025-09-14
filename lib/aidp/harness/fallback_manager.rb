@@ -138,11 +138,10 @@ module Aidp
         if error_type
           @exhausted_models[provider]&.[](model)&.delete(error_type)
           @exhausted_models[provider]&.delete(model) if @exhausted_models[provider] && @exhausted_models[provider][model] && @exhausted_models[provider][model].empty?
-          @exhausted_models.delete(provider) if @exhausted_models[provider] && @exhausted_models[provider].empty?
         else
           @exhausted_models[provider]&.delete(model)
-          @exhausted_models.delete(provider) if @exhausted_models[provider] && @exhausted_models[provider].empty?
         end
+        @exhausted_models.delete(provider) if @exhausted_models[provider] && @exhausted_models[provider].empty?
       end
 
       # Reset all exhaustion status

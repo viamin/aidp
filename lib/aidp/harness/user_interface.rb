@@ -893,11 +893,10 @@ module Aidp
         if input.nil? || input.strip.empty?
           if options[:required]
             result[:error_message] = "Email address cannot be empty"
-            return result
           else
             result[:valid] = true
-            return result
           end
+          return result
         end
 
         if !email_regex.match?(input.strip)
@@ -941,11 +940,10 @@ module Aidp
         if input.nil? || input.strip.empty?
           if options[:required]
             result[:error_message] = "URL cannot be empty"
-            return result
           else
             result[:valid] = true
-            return result
           end
+          return result
         end
 
         url = input.strip
@@ -1094,11 +1092,10 @@ module Aidp
         if input.nil? || input.strip.empty?
           if options[:required]
             result[:error_message] = "Please enter a yes/no response"
-            return result
           else
             result[:valid] = true
-            return result
           end
+          return result
         end
 
         response = input.strip.downcase
@@ -1187,11 +1184,10 @@ module Aidp
         if input.nil? || input.strip.empty?
           if options[:required]
             result[:error_message] = "Text input is required"
-            return result
           else
             result[:valid] = true
-            return result
           end
+          return result
         end
 
         text = input.strip
@@ -1218,7 +1214,7 @@ module Aidp
         end
 
         # Content validation
-        if options[:forbidden_words] && options[:forbidden_words].any? { |word| text.downcase.include?(word.downcase) }
+        if options[:forbidden_words]&.any? { |word| text.downcase.include?(word.downcase) }
           result[:warnings] << "Text contains potentially inappropriate content"
         end
 
@@ -1269,11 +1265,10 @@ module Aidp
         if input.nil? || input.strip.empty?
           if options[:required]
             result[:error_message] = "Input is required"
-            return result
           else
             result[:valid] = true
-            return result
           end
+          return result
         end
 
         result[:valid] = true
@@ -1306,7 +1301,7 @@ module Aidp
       # Handle file selection interface
       def handle_file_selection(input)
         # Remove @ character and any following text
-        search_term = input[1..-1].strip
+        search_term = input[1..].strip
 
         # Parse search options
         search_options = parse_file_search_options(search_term)
@@ -1615,7 +1610,7 @@ module Aidp
         when ".txt"
           "Text"
         else
-          ext.empty? ? "File" : ext[1..-1].upcase
+          ext.empty? ? "File" : ext[1..].upcase
         end
       end
 
@@ -1652,7 +1647,7 @@ module Aidp
               return nil # Cancel
             elsif selection == -1
               return -1 # Refine search
-            elsif selection >= 1 && selection <= max_files
+            elsif selection.between?(1, max_files)
               return selection - 1 # Convert to 0-based index
             else
               puts "Please enter a number between 0 and #{max_files}, or use -1, p, h."
@@ -1771,7 +1766,7 @@ module Aidp
 
           begin
             choice = input.strip.to_i
-            if choice >= 1 && choice <= options.size
+            if choice.between?(1, options.size)
               return choice - 1 # Convert to 0-based index
             else
               puts "Please enter a number between 1 and #{options.size}."

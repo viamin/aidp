@@ -89,15 +89,6 @@ module Aidp
         @processor&.stop
       end
 
-      # Get harness context
-      attr_reader :harness_context
-
-      # Get project directory
-      attr_reader :project_dir
-
-      # Get job type
-      attr_reader :job_type
-
       # Log with harness context
       def log_harness_info(message, metadata = {})
         log_info("[HARNESS] #{message}")

@@ -791,8 +791,6 @@ module Aidp
         }
       end
 
-      private
-
       def self.validate_section(data, schema, path)
         errors = []
         warnings = []
@@ -961,15 +959,13 @@ module Aidp
         end
 
         # Validate that models in model_weights exist in models array
-        if providers_config
-          providers_config.each do |provider_name, provider_config|
-            models = provider_config[:models] || provider_config["models"] || []
-            model_weights = provider_config[:model_weights] || provider_config["model_weights"] || {}
+        providers_config&.each do |provider_name, provider_config|
+          models = provider_config[:models] || provider_config["models"] || []
+          model_weights = provider_config[:model_weights] || provider_config["model_weights"] || {}
 
-            model_weights.each do |model, _weight|
-              unless models.include?(model)
-                warnings << "Model weight specified for model '#{model}' not in models array for provider '#{provider_name}'"
-              end
+          model_weights.each do |model, _weight|
+            unless models.include?(model)
+              warnings << "Model weight specified for model '#{model}' not in models array for provider '#{provider_name}'"
             end
           end
         end
@@ -980,18 +976,16 @@ module Aidp
       def self.apply_section_defaults(data, schema)
         result = data.dup
 
-        if schema[:properties]
-          schema[:properties].each do |prop_name, prop_schema|
-            if result.key?(prop_name) || result.key?(prop_name.to_s)
-              prop_value = result[prop_name] || result[prop_name.to_s]
-              if prop_schema[:type] == :hash && prop_schema[:properties]
-                result[prop_name] = apply_section_defaults(prop_value, prop_schema)
-              end
-            elsif prop_schema[:default]
-              result[prop_name] = prop_schema[:default]
-            elsif prop_schema[:type] == :hash && prop_schema[:properties]
-              result[prop_name] = apply_section_defaults({}, prop_schema)
+        schema[:properties]&.each do |prop_name, prop_schema|
+          if result.key?(prop_name) || result.key?(prop_name.to_s)
+            prop_value = result[prop_name] || result[prop_name.to_s]
+            if prop_schema[:type] == :hash && prop_schema[:properties]
+              result[prop_name] = apply_section_defaults(prop_value, prop_schema)
             end
+          elsif prop_schema[:default]
+            result[prop_name] = prop_schema[:default]
+          elsif prop_schema[:type] == :hash && prop_schema[:properties]
+            result[prop_name] = apply_section_defaults({}, prop_schema)
           end
         end
 
@@ -1032,6 +1026,8 @@ module Aidp
           end
         end
       end
+
+      private_class_method :validate_section, :apply_section_defaults, :apply_providers_defaults, :valid_uri?, :deep_dup
     end
   end
 end

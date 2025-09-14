@@ -259,7 +259,7 @@ module Aidp
       end
 
       # Configure circuit breaker settings
-      def configure_circuit_breaker(provider, model = nil, config)
+      def configure_circuit_breaker(provider, config, model = nil)
         circuit_breaker = get_or_create_circuit_breaker(provider, model)
 
         # Update configuration

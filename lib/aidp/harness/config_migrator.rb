@@ -262,7 +262,7 @@ module Aidp
         backups = list_backups
         return {success: true, message: "No backups to clean"} if backups.length <= keep_count
 
-        backups_to_delete = backups[keep_count..-1]
+        backups_to_delete = backups[keep_count..]
         deleted_count = 0
 
         backups_to_delete.each do |backup|

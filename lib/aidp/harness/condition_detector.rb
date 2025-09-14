@@ -510,7 +510,7 @@ module Aidp
         return false unless result.is_a?(Hash)
 
         # Check if all steps are completed
-        if progress && progress.completed_steps && progress.total_steps &&
+        if progress&.completed_steps && progress.total_steps &&
             progress.completed_steps.size == progress.total_steps
           return true
         end
@@ -550,7 +550,7 @@ module Aidp
         }
 
         # Check progress-based completion
-        if progress && progress.completed_steps && progress.total_steps &&
+        if progress&.completed_steps && progress.total_steps &&
             progress.completed_steps.size == progress.total_steps
           completion_info[:is_complete] = true
           completion_info[:completion_type] = "all_steps_completed"
@@ -1515,7 +1515,7 @@ module Aidp
           return true
         end
 
-        if completion_info[:next_actions] && completion_info[:next_actions].include?("collect_user_input")
+        if completion_info[:next_actions]&.include?("collect_user_input")
           return true
         end
 
@@ -1530,7 +1530,7 @@ module Aidp
           return true
         end
 
-        if completion_info[:next_actions] && completion_info[:next_actions].include?("handle_errors")
+        if completion_info[:next_actions]&.include?("handle_errors")
           return true
         end
 

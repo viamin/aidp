@@ -317,7 +317,7 @@ module Aidp
 
       def determine_error_severity(error)
         case error
-        when Timeout::Error, Timeout::Error
+        when Timeout::Error
           :warning
         when Net::HTTPError
           case error.response.code.to_i
@@ -339,7 +339,7 @@ module Aidp
 
       def categorize_error(error)
         case error
-        when Timeout::Error, Timeout::Error
+        when Timeout::Error
           :timeout
         when Net::HTTPError
           case error.response.code.to_i

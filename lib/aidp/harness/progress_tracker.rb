@@ -521,7 +521,7 @@ module Aidp
             completed_steps: @step_metrics.count { |_, step| step[:status] == :completed },
             is_complete: @overall_progress >= 1.0
           })
-        rescue NoMethodError, StandardError
+        rescue
           # Gracefully handle missing methods or other errors
           # This allows the progress tracker to continue working even if status display has issues
         end

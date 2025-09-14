@@ -159,7 +159,6 @@ module Aidp
             harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, harness_options)
             result = harness_runner.run
             display_harness_result(result)
-            result
           else
             # Traditional step-by-step execution
             runner = Aidp::Analyze::Runner.new(project_dir)
@@ -175,8 +174,8 @@ module Aidp
               puts "   Error: #{result[:error]}" if result[:error]
             end
 
-            result
           end
+          result
         else
           puts "❌ Step '#{step_name}' not found or not available"
           puts "\nAvailable steps:"

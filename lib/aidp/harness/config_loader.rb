@@ -262,11 +262,9 @@ module Aidp
           time_config = config[:time_based]
 
           # Check for hour-based overrides
-          if time_config[:hours]
-            time_config[:hours].each do |hour_range, hour_config|
-              if hour_in_range?(current_hour, hour_range)
-                time_overrides = deep_merge(time_overrides, hour_config)
-              end
+          time_config[:hours]&.each do |hour_range, hour_config|
+            if hour_in_range?(current_hour, hour_range)
+              time_overrides = deep_merge(time_overrides, hour_config)
             end
           end
 
@@ -362,7 +360,7 @@ module Aidp
           # Parse "9-17" format
           if range.include?("-")
             start_hour, end_hour = range.split("-").map(&:to_i)
-            hour >= start_hour && hour <= end_hour
+            hour.between?(start_hour, end_hour)
           else
             hour == range.to_i
           end

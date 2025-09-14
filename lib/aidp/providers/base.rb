@@ -186,9 +186,7 @@ module Aidp
         @harness_metrics[:average_response_time] = total_time / @harness_metrics[:total_requests]
 
         # Notify harness context if available
-        if @harness_context
-          @harness_context.record_provider_metrics(name, @harness_metrics)
-        end
+        @harness_context&.record_provider_metrics(name, @harness_metrics)
       end
 
       # Get provider health status for harness

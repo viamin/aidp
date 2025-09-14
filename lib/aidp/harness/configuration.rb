@@ -253,10 +253,8 @@ module Aidp
         end
 
         # Validate model configurations
-        if config[:models_config]
-          config[:models_config].each do |model_name, model_config|
-            validate_model_config(provider_name, model_name, model_config, errors)
-          end
+        config[:models_config]&.each do |model_name, model_config|
+          validate_model_config(provider_name, model_name, model_config, errors)
         end
 
         errors

@@ -199,9 +199,7 @@ module Aidp
         end
 
         # Notify harness context if available
-        if @harness_context
-          @harness_context.record_provider_metrics(provider_name, @harness_metrics)
-        end
+        @harness_context&.record_provider_metrics(provider_name, @harness_metrics)
       end
 
       # Get provider health status for harness
