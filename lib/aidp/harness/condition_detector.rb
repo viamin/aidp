@@ -230,9 +230,9 @@ module Aidp
       def extract_retry_after(text_content)
         # Look for retry-after header or similar
         retry_patterns = [
-          /retry\s+after\s+(\d+)/i,
-          /wait\s+(\d+)\s+seconds/i,
-          /(\d+)\s+seconds\s+until/i
+          /retry\s+after\s+(\d{1,6})/i,
+          /wait\s+(\d{1,6})\s+seconds/i,
+          /(\d{1,6})\s+seconds\s+until/i
         ]
 
         retry_patterns.each do |pattern|
@@ -388,13 +388,13 @@ module Aidp
         elsif text_content.match?(/path/i) || text_content.match?(/directory/i)
           "path"
         elsif text_content.match?(/number/i) || text_content.match?(/\d+/) ||
-              text_content.match?(/how many/i) || text_content.match?(/how much/i) ||
-              text_content.match?(/count/i) || text_content.match?(/quantity/i) ||
-              text_content.match?(/amount/i)
+            text_content.match?(/how many/i) || text_content.match?(/how much/i) ||
+            text_content.match?(/count/i) || text_content.match?(/quantity/i) ||
+            text_content.match?(/amount/i)
           "number"
         elsif text_content.match?(/yes/i) || text_content.match?(/no/i) || text_content.match?(/confirm/i) ||
-              text_content.match?(/should i/i) || text_content.match?(/can i/i) || text_content.match?(/may i/i) ||
-              text_content.match?(/proceed/i) || text_content.match?(/continue/i) || text_content.match?(/approve/i)
+            text_content.match?(/should i/i) || text_content.match?(/can i/i) || text_content.match?(/may i/i) ||
+            text_content.match?(/proceed/i) || text_content.match?(/continue/i) || text_content.match?(/approve/i)
           "boolean"
         else
           "text"
@@ -1435,7 +1435,7 @@ module Aidp
 
         case expected_input_type
         when "email"
-          response.match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
+          response.match?(/\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i)
         when "url"
           response.match?(/\Ahttps?:\/\/.+/i)
         when "number"
@@ -1519,7 +1519,7 @@ module Aidp
           return true
         end
 
-        return false
+        false
       end
 
       # Check if work has errors
@@ -1534,7 +1534,7 @@ module Aidp
           return true
         end
 
-        return false
+        false
       end
 
       # Get progress status description
