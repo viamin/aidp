@@ -488,13 +488,7 @@ bundle exec rake build
 The following system dependencies are required for development:
 
 - **Tree-sitter** - System library for parsing (install via `brew install tree-sitter` or package manager)
-- **PostgreSQL** - Database for job management
 - **Ruby gems** - All required gems are specified in `aidp.gemspec` and installed via `bundle install`
-
-Optional gems with fallbacks:
-
-- **`concurrent-ruby`** - Parallel processing (fallback to basic threading if not available)
-- **`tty-table`** - Table rendering (fallback to basic ASCII tables if not available)
 
 ## Contributing
 

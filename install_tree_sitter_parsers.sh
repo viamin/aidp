@@ -21,7 +21,7 @@ echo "📋 System: $OS $ARCH"
 # Map architecture to download format
 case "$ARCH" in
   "x86_64")
-    ARCH_SUFFIX="x86_64"
+    ARCH_SUFFIX="x64"
     ;;
   "arm64"|"aarch64")
     ARCH_SUFFIX="arm64"
@@ -35,7 +35,7 @@ esac
 # Map OS to download format
 case "$OS" in
   "Darwin")
-    OS_SUFFIX="darwin"
+    OS_SUFFIX="macos"
     ;;
   "Linux")
     OS_SUFFIX="linux"
