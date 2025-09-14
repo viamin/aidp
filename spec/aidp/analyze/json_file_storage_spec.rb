@@ -24,7 +24,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
     it "creates storage directory on initialization" do
       storage_dir = File.join(temp_dir, "test_storage")
-      custom_storage = described_class.new(temp_dir, "test_storage")
+      described_class.new(temp_dir, "test_storage")
 
       expect(Dir.exist?(storage_dir)).to be true
     end
@@ -32,7 +32,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
   describe "#store_data" do
     let(:filename) { "test_data.json" }
-    let(:data) { { "key" => "value", "number" => 42, "array" => [1, 2, 3] } }
+    let(:data) { {"key" => "value", "number" => 42, "array" => [1, 2, 3]} }
 
     it "stores data successfully" do
       result = storage.store_data(filename, data)
@@ -65,7 +65,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
     it "overwrites existing files" do
       # Store initial data
-      storage.store_data(filename, { "old" => "data" })
+      storage.store_data(filename, {"old" => "data"})
 
       # Store new data
       storage.store_data(filename, data)
@@ -78,8 +78,8 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     it "handles complex nested data" do
       complex_data = {
         "users" => [
-          { "id" => 1, "name" => "Alice", "preferences" => { "theme" => "dark" } },
-          { "id" => 2, "name" => "Bob", "preferences" => { "theme" => "light" } }
+          {"id" => 1, "name" => "Alice", "preferences" => {"theme" => "dark"}},
+          {"id" => 2, "name" => "Bob", "preferences" => {"theme" => "light"}}
         ],
         "settings" => {
           "debug" => true,
@@ -98,7 +98,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
   describe "#get_data" do
     let(:filename) { "test_data.json" }
-    let(:data) { { "key" => "value", "number" => 42 } }
+    let(:data) { {"key" => "value", "number" => 42} }
 
     before do
       storage.store_data(filename, data)
@@ -135,7 +135,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     let(:filename) { "test_data.json" }
 
     it "returns true for existing file" do
-      storage.store_data(filename, { "test" => "data" })
+      storage.store_data(filename, {"test" => "data"})
 
       expect(storage.data_exists?(filename)).to be true
     end
@@ -149,7 +149,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     let(:filename) { "test_data.json" }
 
     before do
-      storage.store_data(filename, { "test" => "data" })
+      storage.store_data(filename, {"test" => "data"})
     end
 
     it "deletes existing file" do
@@ -173,9 +173,9 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
   describe "#list_files" do
     before do
-      storage.store_data("file1.json", { "data" => 1 })
-      storage.store_data("nested/file2.json", { "data" => 2 })
-      storage.store_data("file3.json", { "data" => 3 })
+      storage.store_data("file1.json", {"data" => 1})
+      storage.store_data("nested/file2.json", {"data" => 2})
+      storage.store_data("file3.json", {"data" => 3})
     end
 
     it "lists all JSON files" do
@@ -210,7 +210,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
   end
 
   describe "project configuration methods" do
-    let(:config_data) { { "project_name" => "test_project", "version" => "1.0.0" } }
+    let(:config_data) { {"project_name" => "test_project", "version" => "1.0.0"} }
 
     describe "#store_project_config" do
       it "stores project configuration" do
@@ -235,7 +235,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
   end
 
   describe "runtime status methods" do
-    let(:status_data) { { "status" => "running", "started_at" => Time.now.iso8601 } }
+    let(:status_data) { {"status" => "running", "started_at" => Time.now.iso8601} }
 
     describe "#store_runtime_status" do
       it "stores runtime status" do
@@ -260,7 +260,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
   end
 
   describe "simple metrics methods" do
-    let(:metrics_data) { { "total_analyses" => 10, "success_rate" => 0.95 } }
+    let(:metrics_data) { {"total_analyses" => 10, "success_rate" => 0.95} }
 
     describe "#store_simple_metrics" do
       it "stores simple metrics" do
@@ -286,7 +286,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
   describe "analysis session methods" do
     let(:session_id) { "session_123" }
-    let(:session_data) { { "step" => "analysis", "progress" => 0.5 } }
+    let(:session_data) { {"step" => "analysis", "progress" => 0.5} }
 
     describe "#store_analysis_session" do
       it "stores analysis session" do
@@ -311,8 +311,8 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
     describe "#list_analysis_sessions" do
       before do
-        storage.store_analysis_session("session_1", { "data" => 1 })
-        storage.store_analysis_session("session_2", { "data" => 2 })
+        storage.store_analysis_session("session_1", {"data" => 1})
+        storage.store_analysis_session("session_2", {"data" => 2})
       end
 
       it "lists all analysis sessions" do
@@ -339,7 +339,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
   end
 
   describe "user preferences methods" do
-    let(:preferences_data) { { "theme" => "dark", "language" => "en" } }
+    let(:preferences_data) { {"theme" => "dark", "language" => "en"} }
 
     describe "#store_user_preferences" do
       it "stores user preferences" do
@@ -365,7 +365,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
   describe "cache methods" do
     let(:cache_key) { "test_cache" }
-    let(:cache_data) { { "result" => "cached_data" } }
+    let(:cache_data) { {"result" => "cached_data"} }
 
     describe "#store_cache" do
       it "stores cache data without TTL" do
@@ -430,9 +430,9 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     describe "#clear_expired_cache" do
       before do
         # Store some cache entries
-        storage.store_cache("expired1", { "data" => 1 }, 0.001)
-        storage.store_cache("expired2", { "data" => 2 }, 0.001)
-        storage.store_cache("valid", { "data" => 3 }, 3600)
+        storage.store_cache("expired1", {"data" => 1}, 0.001)
+        storage.store_cache("expired2", {"data" => 2}, 0.001)
+        storage.store_cache("valid", {"data" => 3}, 3600)
 
         # Wait for expiration
         sleep(0.002)
@@ -444,7 +444,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         expect(cleared_count).to eq(2)
         expect(storage.get_cache("expired1")).to be_nil
         expect(storage.get_cache("expired2")).to be_nil
-        expect(storage.get_cache("valid")).to eq({ "data" => 3 })
+        expect(storage.get_cache("valid")).to eq({"data" => 3})
       end
 
       it "handles invalid JSON files" do
@@ -463,9 +463,9 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
   describe "#get_storage_statistics" do
     before do
-      storage.store_data("file1.json", { "data" => 1 })
-      storage.store_data("nested/file2.json", { "data" => 2 })
-      storage.store_data("file3.json", { "data" => 3 })
+      storage.store_data("file1.json", {"data" => 1})
+      storage.store_data("nested/file2.json", {"data" => 2})
+      storage.store_data("file3.json", {"data" => 3})
     end
 
     it "returns comprehensive statistics" do
@@ -477,7 +477,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       expect(stats[:storage_directory]).to eq(File.join(temp_dir, ".aidp/json"))
       expect(stats[:oldest_file]).to be_a(Time)
       expect(stats[:newest_file]).to be_a(Time)
-      expect(stats[:file_types]).to eq({ ".json" => 3 })
+      expect(stats[:file_types]).to eq({".json" => 3})
     end
 
     it "handles empty storage" do
@@ -493,8 +493,8 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
   describe "#export_all_data" do
     before do
-      storage.store_data("file1.json", { "data" => 1 })
-      storage.store_data("nested/file2.json", { "data" => 2 })
+      storage.store_data("file1.json", {"data" => 1})
+      storage.store_data("nested/file2.json", {"data" => 2})
     end
 
     it "exports all data to a single file" do
@@ -525,8 +525,8 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
       expect(export_data["files"]).to have_key("file1.json")
       expect(export_data["files"]).to have_key("nested/file2.json")
-      expect(export_data["files"]["file1.json"]["data"]).to eq({ "data" => 1 })
-      expect(export_data["files"]["nested/file2.json"]["data"]).to eq({ "data" => 2 })
+      expect(export_data["files"]["file1.json"]["data"]).to eq({"data" => 1})
+      expect(export_data["files"]["nested/file2.json"]["data"]).to eq({"data" => 2})
     end
   end
 
@@ -536,12 +536,12 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         "exported_at" => Time.now.iso8601,
         "files" => {
           "imported1.json" => {
-            "data" => { "imported" => "data1" },
-            "metadata" => { "size" => 100, "modified_at" => Time.now.iso8601 }
+            "data" => {"imported" => "data1"},
+            "metadata" => {"size" => 100, "modified_at" => Time.now.iso8601}
           },
           "imported2.json" => {
-            "data" => { "imported" => "data2" },
-            "metadata" => { "size" => 200, "modified_at" => Time.now.iso8601 }
+            "data" => {"imported" => "data2"},
+            "metadata" => {"size" => 200, "modified_at" => Time.now.iso8601}
           }
         }
       }
@@ -560,8 +560,8 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       expect(result[:imported_at]).to be_a(Time)
 
       # Verify imported data
-      expect(storage.get_data("imported1.json")).to eq({ "imported" => "data1" })
-      expect(storage.get_data("imported2.json")).to eq({ "imported" => "data2" })
+      expect(storage.get_data("imported1.json")).to eq({"imported" => "data1"})
+      expect(storage.get_data("imported2.json")).to eq({"imported" => "data2"})
     end
 
     it "raises error for non-existent import file" do
@@ -578,7 +578,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
     it "raises error for invalid import file format" do
       # Create file without 'files' key
-      storage.store_data("invalid_format.json", { "no_files_key" => true })
+      storage.store_data("invalid_format.json", {"no_files_key" => true})
 
       expect { storage.import_data("invalid_format.json") }.to raise_error(/Invalid import file format/)
     end
@@ -600,7 +600,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       # Start multiple threads that store data simultaneously
       5.times do |i|
         threads << Thread.new do
-          result = storage.store_data("concurrent_#{i}.json", { "thread" => i })
+          result = storage.store_data("concurrent_#{i}.json", {"thread" => i})
           results << result
         end
       end

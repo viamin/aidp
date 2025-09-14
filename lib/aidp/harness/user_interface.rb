@@ -888,7 +888,7 @@ module Aidp
         result = {valid: false, error_message: nil, suggestions: [], warnings: []}
 
         # Basic email regex
-        email_regex = /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
+        email_regex = /\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i
 
         if input.nil? || input.strip.empty?
           if options[:required]
@@ -1466,7 +1466,7 @@ module Aidp
         end
 
         # Check term match
-        if search_options[:term]&.empty?
+        if search_options[:term] && search_options[:term].empty?
           true
         elsif search_options[:patterns]&.any?
           # Check if any pattern matches
@@ -2015,7 +2015,7 @@ module Aidp
           return if @control_thread&.alive?
 
           # Start control interface using Async (skip in test mode)
-          unless ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
             require "async"
             Async do |task|
               task.async { control_interface_loop }
@@ -2109,12 +2109,10 @@ module Aidp
           elsif resume_requested?
             handle_resume_state
             break
+          elsif ENV["RACK_ENV"] == "test" || defined?(RSpec)
+            sleep(0.1)
           else
-            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
-              sleep(0.1) # Small delay to prevent busy waiting
-            else
-              Async::Task.current.sleep(0.1)
-            end
+            Async::Task.current.sleep(0.1)
           end
         end
       end
@@ -2358,12 +2356,10 @@ module Aidp
           elsif Time.now - start_time > timeout_seconds
             puts "\n⏰ Control interface timeout reached. Continuing execution..."
             break
+          elsif ENV["RACK_ENV"] == "test" || defined?(RSpec)
+            sleep(0.1)
           else
-            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
-              sleep(0.1)
-            else
-              Async::Task.current.sleep(0.1)
-            end
+            Async::Task.current.sleep(0.1)
           end
         end
       end

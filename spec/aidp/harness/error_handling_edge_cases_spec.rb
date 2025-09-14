@@ -181,11 +181,9 @@ RSpec.describe "Harness Error Handling and Edge Cases", type: :integration do
 
         # Wait for all tasks to complete with timeout
         tasks.each do |async_task|
-          begin
-            async_task.wait
-          rescue Async::TimeoutError
-            # Task timed out, which is expected behavior for some tasks
-          end
+          async_task.wait
+        rescue Async::TimeoutError
+          # Task timed out, which is expected behavior for some tasks
         end
       end
     end

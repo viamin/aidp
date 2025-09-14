@@ -192,22 +192,22 @@ module Aidp
             FileUtils.cp_r(item, destination_dir)
           end
         end
-        { success: true, backup_location: destination_dir }
+        {success: true, backup_location: destination_dir}
       rescue => error
-        { success: false, error: error.message }
+        {success: false, error: error.message}
       end
 
       def restore_from(source_dir)
-        return { success: false, error: "Source directory does not exist" } unless Dir.exist?(source_dir)
+        return {success: false, error: "Source directory does not exist"} unless Dir.exist?(source_dir)
 
         # Clear existing data
         FileUtils.rm_rf(@base_dir) if Dir.exist?(@base_dir)
 
         # Copy from source
         FileUtils.cp_r(source_dir, @base_dir)
-        { success: true, restored_from: source_dir }
+        {success: true, restored_from: source_dir}
       rescue => error
-        { success: false, error: error.message }
+        {success: false, error: error.message}
       end
     end
   end

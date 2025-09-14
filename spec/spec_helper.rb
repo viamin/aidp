@@ -24,6 +24,4 @@ RSpec.configure do |config|
   config.around(:each) do |example|
     example.run
   end
-
-
 end

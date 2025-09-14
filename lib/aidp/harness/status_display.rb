@@ -48,7 +48,7 @@ module Aidp
         @last_update = Time.now
 
         # Start status display using Async (skip in test mode)
-        unless ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
           require "async"
           Async do |task|
             task.async do
@@ -57,7 +57,7 @@ module Aidp
                   collect_status_data
                   display_status
                   check_alerts
-                  if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+                  if ENV["RACK_ENV"] == "test" || defined?(RSpec)
                     sleep(@update_interval)
                   else
                     Async::Task.current.sleep(@update_interval)

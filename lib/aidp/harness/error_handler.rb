@@ -76,7 +76,7 @@ module Aidp
             strategy = get_retry_strategy(error_info[:error_type])
             if should_retry?(error_info, strategy)
               delay = calculate_delay(attempt, strategy, 1, 10)
-              if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+              if ENV["RACK_ENV"] == "test" || defined?(RSpec)
                 sleep(delay)
               else
                 Async::Task.current.sleep(delay)
@@ -125,7 +125,7 @@ module Aidp
 
         # Wait for backoff delay
         if delay > 0
-          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(delay)
           else
             Async::Task.current.sleep(delay)

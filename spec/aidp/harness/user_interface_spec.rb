@@ -196,9 +196,9 @@ RSpec.describe Aidp::Harness::UserInterface do
 
         # Capture output
         output = capture_stdout do
-        ui.collect_feedback(questions, context)
-      end
-      expect(output).to match(/Context:/)
+          ui.collect_feedback(questions, context)
+        end
+        expect(output).to match(/Context:/)
       end
     end
 
@@ -357,29 +357,29 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#show_help" do
       it "displays help information" do
         output = capture_stdout do
-        ui.show_help
-      end
-      expect(output).to match(/Interactive Prompt Help/)
+          ui.show_help
+        end
+        expect(output).to match(/Interactive Prompt Help/)
         output = capture_stdout do
-        ui.show_help
-      end
-      expect(output).to match(/Input Types/)
+          ui.show_help
+        end
+        expect(output).to match(/Input Types/)
         output = capture_stdout do
-        ui.show_help
-      end
-      expect(output).to match(/Special Commands/)
+          ui.show_help
+        end
+        expect(output).to match(/Special Commands/)
         output = capture_stdout do
-        ui.show_help
-      end
-      expect(output).to match(/File Selection/)
+          ui.show_help
+        end
+        expect(output).to match(/File Selection/)
         output = capture_stdout do
-        ui.show_help
-      end
-      expect(output).to match(/Validation/)
+          ui.show_help
+        end
+        expect(output).to match(/Validation/)
         output = capture_stdout do
-        ui.show_help
-      end
-      expect(output).to match(/Tips/)
+          ui.show_help
+        end
+        expect(output).to match(/Tips/)
       end
     end
 
@@ -401,17 +401,17 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         output = capture_stdout do
-        ui.display_question_summary(questions)
-      end
-      expect(output).to match(/Question Summary/)
+          ui.display_question_summary(questions)
+        end
+        expect(output).to match(/Question Summary/)
         output = capture_stdout do
-        ui.display_question_summary(questions)
-      end
-      expect(output).to match(/What is your name/)
+          ui.display_question_summary(questions)
+        end
+        expect(output).to match(/What is your name/)
         output = capture_stdout do
-        ui.display_question_summary(questions)
-      end
-      expect(output).to match(/What is your age/)
+          ui.display_question_summary(questions)
+        end
+        expect(output).to match(/What is your age/)
       end
     end
 
@@ -425,65 +425,65 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_feedback_context(context)
-      end
-      expect(output).to match(/Context:/)
+          ui.display_feedback_context(context)
+        end
+        expect(output).to match(/Context:/)
         output = capture_stdout do
-        ui.display_feedback_context(context)
-      end
-      expect(output).to match(/Type: user_registration/)
+          ui.display_feedback_context(context)
+        end
+        expect(output).to match(/Type: user_registration/)
         output = capture_stdout do
-        ui.display_feedback_context(context)
-      end
-      expect(output).to match(/Urgency: 🔴 High/)
+          ui.display_feedback_context(context)
+        end
+        expect(output).to match(/Urgency: 🔴 High/)
         output = capture_stdout do
-        ui.display_feedback_context(context)
-      end
-      expect(output).to match(/Description: Please provide your information/)
+          ui.display_feedback_context(context)
+        end
+        expect(output).to match(/Description: Please provide your information/)
         output = capture_stdout do
-        ui.display_feedback_context(context)
-      end
-      expect(output).to match(/Agent Output:/)
+          ui.display_feedback_context(context)
+        end
+        expect(output).to match(/Agent Output:/)
       end
     end
 
     describe "#display_question_info" do
       it "displays question information for text questions" do
         output = capture_stdout do
-        ui.display_question_info("text", "text", nil, nil, true)
-      end
-      expect(output).to match(/📝 Text/)
+          ui.display_question_info("text", "text", nil, nil, true)
+        end
+        expect(output).to match(/📝 Text/)
         output = capture_stdout do
-        ui.display_question_info("text", "text", nil, nil, true)
-      end
-      expect(output).to match(/Required: Yes/)
+          ui.display_question_info("text", "text", nil, nil, true)
+        end
+        expect(output).to match(/Required: Yes/)
       end
 
       it "displays question information for choice questions" do
         options = ["Option A", "Option B"]
         output = capture_stdout do
-        ui.display_question_info("choice", "text", options, "Option A", true)
-      end
-      expect(output).to match(/🔘 Choice/)
+          ui.display_question_info("choice", "text", options, "Option A", true)
+        end
+        expect(output).to match(/🔘 Choice/)
         output = capture_stdout do
-        ui.display_question_info("choice", "text", options, "Option A", true)
-      end
-      expect(output).to match(/Options: Option A, Option B/)
+          ui.display_question_info("choice", "text", options, "Option A", true)
+        end
+        expect(output).to match(/Options: Option A, Option B/)
         output = capture_stdout do
-        ui.display_question_info("choice", "text", options, "Option A", true)
-      end
-      expect(output).to match(/Default: Option A/)
+          ui.display_question_info("choice", "text", options, "Option A", true)
+        end
+        expect(output).to match(/Default: Option A/)
       end
 
       it "displays question information for email questions" do
         output = capture_stdout do
-        ui.display_question_info("email", "email", nil, nil, true)
-      end
-      expect(output).to match(/📧 Email/)
+          ui.display_question_info("email", "email", nil, nil, true)
+        end
+        expect(output).to match(/📧 Email/)
         output = capture_stdout do
-        ui.display_question_info("email", "email", nil, nil, true)
-      end
-      expect(output).to match(/Expected: email/)
+          ui.display_question_info("email", "email", nil, nil, true)
+        end
+        expect(output).to match(/Expected: email/)
       end
     end
   end

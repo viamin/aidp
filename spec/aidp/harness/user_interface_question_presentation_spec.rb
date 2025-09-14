@@ -25,13 +25,13 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         output = capture_stdout do
-        ui.display_question_presentation_header(questions, nil)
-      end
-      expect(output).to match(/Agent needs your feedback/)
+          ui.display_question_presentation_header(questions, nil)
+        end
+        expect(output).to match(/Agent needs your feedback/)
         output = capture_stdout do
-        ui.display_question_presentation_header(questions, nil)
-      end
-      expect(output).to match(/Questions to answer/)
+          ui.display_question_presentation_header(questions, nil)
+        end
+        expect(output).to match(/Questions to answer/)
       end
 
       it "displays context summary when provided" do
@@ -46,17 +46,17 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_question_presentation_header(questions, context)
-      end
-      expect(output).to match(/Context Summary/)
+          ui.display_question_presentation_header(questions, context)
+        end
+        expect(output).to match(/Context Summary/)
         output = capture_stdout do
-        ui.display_question_presentation_header(questions, context)
-      end
-      expect(output).to match(/Type: user_registration/)
+          ui.display_question_presentation_header(questions, context)
+        end
+        expect(output).to match(/Type: user_registration/)
         output = capture_stdout do
-        ui.display_question_presentation_header(questions, context)
-      end
-      expect(output).to match(/Urgency: 🔴 High/)
+          ui.display_question_presentation_header(questions, context)
+        end
+        expect(output).to match(/Urgency: 🔴 High/)
       end
     end
 
@@ -69,25 +69,25 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         output = capture_stdout do
-        ui.display_question_overview(questions)
-      end
-      expect(output).to match(/Overview:/)
+          ui.display_question_overview(questions)
+        end
+        expect(output).to match(/Overview:/)
         output = capture_stdout do
-        ui.display_question_overview(questions)
-      end
-      expect(output).to match(/Total questions: 3/)
+          ui.display_question_overview(questions)
+        end
+        expect(output).to match(/Total questions: 3/)
         output = capture_stdout do
-        ui.display_question_overview(questions)
-      end
-      expect(output).to match(/Required: 2/)
+          ui.display_question_overview(questions)
+        end
+        expect(output).to match(/Required: 2/)
         output = capture_stdout do
-        ui.display_question_overview(questions)
-      end
-      expect(output).to match(/Optional: 1/)
+          ui.display_question_overview(questions)
+        end
+        expect(output).to match(/Optional: 1/)
         output = capture_stdout do
-        ui.display_question_overview(questions)
-      end
-      expect(output).to match(/Question types: text, number, confirmation/)
+          ui.display_question_overview(questions)
+        end
+        expect(output).to match(/Question types: text, number, confirmation/)
       end
 
       it "displays estimated completion time" do
@@ -97,9 +97,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         output = capture_stdout do
-        ui.display_question_overview(questions)
-      end
-      expect(output).to match(/Estimated time:/)
+          ui.display_question_overview(questions)
+        end
+        expect(output).to match(/Estimated time:/)
       end
     end
 
@@ -198,21 +198,21 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Question 1 of 3/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Question 1 of 3/)
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/📝 What is your name/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/📝 What is your name/)
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Question Details:/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Question Details:/)
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Instructions:/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Instructions:/)
       end
 
       it "displays question metadata" do
@@ -224,13 +224,13 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Type: Text/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Type: Text/)
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Status: 🔴 Required/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Status: 🔴 Required/)
       end
 
       it "displays optional question status" do
@@ -242,9 +242,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Status: 🟢 Optional/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Status: 🟢 Optional/)
       end
 
       it "displays choice question options" do
@@ -257,17 +257,17 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Options: 3 available/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Options: 3 available/)
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Default: Option A/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Default: Option A/)
         output = capture_stdout do
-        ui.display_numbered_question(question_data, 1, 1, 3)
-      end
-      expect(output).to match(/Available Options:/)
+          ui.display_numbered_question(question_data, 1, 1, 3)
+        end
+        expect(output).to match(/Available Options:/)
         expect { ui.display_numbered_question(question_data, 1, 1, 3) }.to output(/1. Option A \(default\)/).to_stdout
       end
     end
@@ -275,149 +275,149 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#display_question_instructions" do
       it "displays text question instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, true)
-      end
-      expect(output).to match(/Enter your text response/)
+          ui.display_question_instructions("text", nil, nil, true)
+        end
+        expect(output).to match(/Enter your text response/)
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, true)
-      end
-      expect(output).to match(/Use @ for file selection/)
+          ui.display_question_instructions("text", nil, nil, true)
+        end
+        expect(output).to match(/Use @ for file selection/)
       end
 
       it "displays choice question instructions" do
         options = ["Option A", "Option B"]
         output = capture_stdout do
-        ui.display_question_instructions("choice", options, nil, true)
-      end
-      expect(output).to match(/Select from the numbered options/)
+          ui.display_question_instructions("choice", options, nil, true)
+        end
+        expect(output).to match(/Select from the numbered options/)
         output = capture_stdout do
-        ui.display_question_instructions("choice", options, nil, true)
-      end
-      expect(output).to match(/Enter the number of your choice/)
+          ui.display_question_instructions("choice", options, nil, true)
+        end
+        expect(output).to match(/Enter the number of your choice/)
       end
 
       it "displays confirmation question instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("confirmation", nil, nil, true)
-      end
-      expect(output).to match(/Enter 'y' or 'yes' for Yes/)
+          ui.display_question_instructions("confirmation", nil, nil, true)
+        end
+        expect(output).to match(/Enter 'y' or 'yes' for Yes/)
         output = capture_stdout do
-        ui.display_question_instructions("confirmation", nil, nil, true)
-      end
-      expect(output).to match(/Enter 'n' or 'no' for No/)
+          ui.display_question_instructions("confirmation", nil, nil, true)
+        end
+        expect(output).to match(/Enter 'n' or 'no' for No/)
       end
 
       it "displays file question instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("file", nil, nil, true)
-      end
-      expect(output).to match(/Enter file path directly/)
+          ui.display_question_instructions("file", nil, nil, true)
+        end
+        expect(output).to match(/Enter file path directly/)
         output = capture_stdout do
-        ui.display_question_instructions("file", nil, nil, true)
-      end
-      expect(output).to match(/Use @ to browse and select files/)
+          ui.display_question_instructions("file", nil, nil, true)
+        end
+        expect(output).to match(/Use @ to browse and select files/)
       end
 
       it "displays number question instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("number", nil, nil, true)
-      end
-      expect(output).to match(/Enter a valid number/)
+          ui.display_question_instructions("number", nil, nil, true)
+        end
+        expect(output).to match(/Enter a valid number/)
         output = capture_stdout do
-        ui.display_question_instructions("number", nil, nil, true)
-      end
-      expect(output).to match(/Use decimal point for decimals/)
+          ui.display_question_instructions("number", nil, nil, true)
+        end
+        expect(output).to match(/Use decimal point for decimals/)
       end
 
       it "displays email question instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("email", nil, nil, true)
-      end
-      expect(output).to match(/Enter a valid email address/)
+          ui.display_question_instructions("email", nil, nil, true)
+        end
+        expect(output).to match(/Enter a valid email address/)
         output = capture_stdout do
-        ui.display_question_instructions("email", nil, nil, true)
-      end
-      expect(output).to match(/Format: user@domain.com/)
+          ui.display_question_instructions("email", nil, nil, true)
+        end
+        expect(output).to match(/Format: user@domain.com/)
       end
 
       it "displays URL question instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("url", nil, nil, true)
-      end
-      expect(output).to match(/Enter a valid URL/)
+          ui.display_question_instructions("url", nil, nil, true)
+        end
+        expect(output).to match(/Enter a valid URL/)
         output = capture_stdout do
-        ui.display_question_instructions("url", nil, nil, true)
-      end
-      expect(output).to match(/Format: https:\/\/example.com/)
+          ui.display_question_instructions("url", nil, nil, true)
+        end
+        expect(output).to match(/Format: https:\/\/example.com/)
       end
 
       it "displays default value instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, "Default Value", true)
-      end
-      expect(output).to match(/Quick Answer:/)
+          ui.display_question_instructions("text", nil, "Default Value", true)
+        end
+        expect(output).to match(/Quick Answer:/)
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, "Default Value", true)
-      end
-      expect(output).to match(/Press Enter to use default: Default Value/)
+          ui.display_question_instructions("text", nil, "Default Value", true)
+        end
+        expect(output).to match(/Press Enter to use default: Default Value/)
       end
 
       it "displays required field instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, true)
-      end
-      expect(output).to match(/Required Field:/)
+          ui.display_question_instructions("text", nil, nil, true)
+        end
+        expect(output).to match(/Required Field:/)
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, true)
-      end
-      expect(output).to match(/This question must be answered/)
+          ui.display_question_instructions("text", nil, nil, true)
+        end
+        expect(output).to match(/This question must be answered/)
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, true)
-      end
-      expect(output).to match(/Cannot be left blank/)
+          ui.display_question_instructions("text", nil, nil, true)
+        end
+        expect(output).to match(/Cannot be left blank/)
       end
 
       it "displays optional field instructions" do
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, false)
-      end
-      expect(output).to match(/Optional Field:/)
+          ui.display_question_instructions("text", nil, nil, false)
+        end
+        expect(output).to match(/Optional Field:/)
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, false)
-      end
-      expect(output).to match(/This question can be skipped/)
+          ui.display_question_instructions("text", nil, nil, false)
+        end
+        expect(output).to match(/This question can be skipped/)
         output = capture_stdout do
-        ui.display_question_instructions("text", nil, nil, false)
-      end
-      expect(output).to match(/Press Enter to leave blank/)
+          ui.display_question_instructions("text", nil, nil, false)
+        end
+        expect(output).to match(/Press Enter to leave blank/)
       end
     end
 
     describe "#display_question_progress" do
       it "displays progress bar and percentage" do
         output = capture_stdout do
-        ui.display_question_progress(2, 5)
-      end
-      expect(output).to match(/Progress:/)
+          ui.display_question_progress(2, 5)
+        end
+        expect(output).to match(/Progress:/)
         output = capture_stdout do
-        ui.display_question_progress(2, 5)
-      end
-      expect(output).to match(/40.0%/)
+          ui.display_question_progress(2, 5)
+        end
+        expect(output).to match(/40.0%/)
         expect { ui.display_question_progress(2, 5) }.to output(/\(2\/5\)/).to_stdout
       end
 
       it "displays estimated time remaining" do
         output = capture_stdout do
-        ui.display_question_progress(2, 5)
-      end
-      expect(output).to match(/Estimated time remaining:/)
+          ui.display_question_progress(2, 5)
+        end
+        expect(output).to match(/Estimated time remaining:/)
       end
 
       it "does not display time remaining for last question" do
         output = capture_stdout do
-        ui.display_question_progress(5, 5)
-      end
-      expect(output).not_to match(/Estimated time remaining:/)
+          ui.display_question_progress(5, 5)
+        end
+        expect(output).not_to match(/Estimated time remaining:/)
       end
     end
 
@@ -468,29 +468,29 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/Question Completion Summary/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/Question Completion Summary/)
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/Statistics:/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/Statistics:/)
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/Total questions: 2/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/Total questions: 2/)
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/Answered: 1/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/Answered: 1/)
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/Skipped: 1/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/Skipped: 1/)
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/Completion rate: 50.0%/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/Completion rate: 50.0%/)
       end
 
       it "displays response summary" do
@@ -503,13 +503,13 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/Response Summary:/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/Response Summary:/)
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/1. John Doe/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/1. John Doe/)
       end
 
       it "displays skipped responses" do
@@ -522,9 +522,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/1. \[Skipped\]/)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/1. \[Skipped\]/)
       end
 
       it "truncates long responses" do
@@ -538,9 +538,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_question_completion_summary(responses, questions)
-      end
-      expect(output).to match(/1. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.../)
+          ui.display_question_completion_summary(responses, questions)
+        end
+        expect(output).to match(/1. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.../)
       end
     end
 

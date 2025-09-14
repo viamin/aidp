@@ -57,16 +57,15 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
     end
 
     it "handles harness state management" do
-      state_manager = Aidp::Harness::StateManager.new(project_dir, :analyze)
+      Aidp::Harness::StateManager.new(project_dir, :analyze)
 
       # Test state persistence
-      test_state = {
+      {
         current_step: "01_REPOSITORY_ANALYSIS",
         current_provider: "claude",
         user_input: {"question_1" => "test answer"},
         execution_log: [{message: "Test execution", timestamp: Time.now}]
       }
-
     end
 
     it "handles configuration loading and validation" do
@@ -213,7 +212,6 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
       harness_runner.instance_variable_set(:@current_step, "01_REPOSITORY_ANALYSIS")
       harness_runner.instance_variable_set(:@current_provider, "claude")
       harness_runner.instance_variable_set(:@user_input, {"question_1" => "test answer"})
-
     end
 
     it "handles state corruption gracefully" do

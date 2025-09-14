@@ -87,12 +87,12 @@ module Aidp
       # Delete file
       def delete(filename)
         file_path = get_file_path(filename)
-        return { success: true, message: "File does not exist" } unless File.exist?(file_path)
+        return {success: true, message: "File does not exist"} unless File.exist?(file_path)
 
         File.delete(file_path)
-        { success: true, message: "File deleted" }
+        {success: true, message: "File deleted"}
       rescue => error
-        { success: false, error: error.message }
+        {success: false, error: error.message}
       end
 
       # List all JSON files

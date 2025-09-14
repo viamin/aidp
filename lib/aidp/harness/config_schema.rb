@@ -831,7 +831,7 @@ module Aidp
 
           # Validate enum values
           if schema[:enum] && !schema[:enum].include?(data)
-            errors << "#{path}: must be one of #{schema[:enum].join(', ')}"
+            errors << "#{path}: must be one of #{schema[:enum].join(", ")}"
           end
 
           # Validate numeric constraints

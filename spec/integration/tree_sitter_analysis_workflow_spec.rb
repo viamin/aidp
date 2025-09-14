@@ -87,7 +87,6 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       )
 
       scanner.run
-
     end
 
     it "generates hotspots data" do

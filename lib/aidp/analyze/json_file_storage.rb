@@ -185,7 +185,6 @@ module Aidp
 
         cleared_count = 0
         Dir.glob(File.join(cache_dir, "*.json")).each do |file_path|
-        begin
           cache_data = JSON.parse(File.read(file_path))
           if cache_data["ttl_seconds"] && cache_data["cached_at"]
             cached_at = Time.parse(cache_data["cached_at"])
@@ -195,10 +194,9 @@ module Aidp
             end
           end
         rescue JSON::ParserError
-            # Invalid JSON, delete the file
-            File.delete(file_path)
-            cleared_count += 1
-          end
+          # Invalid JSON, delete the file
+          File.delete(file_path)
+          cleared_count += 1
         end
 
         cleared_count

@@ -163,7 +163,6 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       expect(average_memory_per_set).to be < 5_000_000, "Average memory per component set: #{average_memory_per_set} bytes"
     end
 
-
     it "maintains consistent performance across multiple runs" do
       # Initialize components
       configuration = Aidp::Harness::Configuration.new(project_dir)

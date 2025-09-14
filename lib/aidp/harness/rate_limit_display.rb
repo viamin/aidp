@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Aidp
   module Harness
     # Comprehensive rate limit countdown and status display system
@@ -39,16 +38,18 @@ module Aidp
 
       # Start rate limit display
       def start_display
-        return {
-          status: :started,
-          update_interval: @display_config[:update_interval],
-          features: get_enabled_features
-        } if @display_running
+        if @display_running
+          return {
+            status: :started,
+            update_interval: @display_config[:update_interval],
+            features: get_enabled_features
+          }
+        end
 
         @display_running = true
         @start_time = Time.now
         # Start display loop using Async (skip in test mode)
-        unless ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
           require "async"
           Async do |task|
             task.async { display_loop }
@@ -64,10 +65,12 @@ module Aidp
 
       # Stop rate limit display
       def stop_display
-        return {
-          status: :stopped,
-          display_duration: 0
-        } unless @display_running
+        unless @display_running
+          return {
+            status: :stopped,
+            display_duration: 0
+          }
+        end
 
         @display_running = false
         @display_thread&.join(2) # Wait up to 2 seconds for thread to finish
@@ -328,7 +331,7 @@ module Aidp
         while @display_running
           begin
             update_display
-            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            if ENV["RACK_ENV"] == "test" || defined?(RSpec)
               sleep(@display_config[:update_interval])
             else
               Async::Task.current.sleep(@display_config[:update_interval])
@@ -336,7 +339,7 @@ module Aidp
           rescue => e
             # Log error but continue display loop
             puts "Rate limit display error: #{e.message}"
-            if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+            if ENV["RACK_ENV"] == "test" || defined?(RSpec)
               sleep(1)
             else
               Async::Task.current.sleep(1)
@@ -378,7 +381,7 @@ module Aidp
         # Update status display with current rate limit information
         begin
           @rate_limits.each do |key, rate_limit_info|
-            provider, model = key.split(':', 2)
+            provider, model = key.split(":", 2)
             @status_display.update_rate_limit_status(provider, model, rate_limit_info)
           end
         rescue NoMethodError, StandardError => e

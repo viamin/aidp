@@ -364,7 +364,7 @@ module Aidp
           step_name = ENV["AIDP_CURRENT_STEP"] || "unknown"
 
           # Calculate average duration for this step type
-          step_executions = storage.get_step_executions({ "step_name" => step_name })
+          step_executions = storage.get_step_executions({"step_name" => step_name})
           return nil if step_executions.empty?
 
           # Calculate average duration and add buffer

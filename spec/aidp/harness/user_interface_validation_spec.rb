@@ -435,21 +435,21 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         output = capture_stdout do
-        ui.display_validation_error(validation_result, "email")
-      end
-      expect(output).to match(/Validation Error/)
+          ui.display_validation_error(validation_result, "email")
+        end
+        expect(output).to match(/Validation Error/)
         output = capture_stdout do
-        ui.display_validation_error(validation_result, "email")
-      end
-      expect(output).to match(/Invalid email format/)
+          ui.display_validation_error(validation_result, "email")
+        end
+        expect(output).to match(/Invalid email format/)
         output = capture_stdout do
-        ui.display_validation_error(validation_result, "email")
-      end
-      expect(output).to match(/Suggestions/)
+          ui.display_validation_error(validation_result, "email")
+        end
+        expect(output).to match(/Suggestions/)
         output = capture_stdout do
-        ui.display_validation_error(validation_result, "email")
-      end
-      expect(output).to match(/Warnings/)
+          ui.display_validation_error(validation_result, "email")
+        end
+        expect(output).to match(/Warnings/)
       end
     end
 
@@ -511,13 +511,13 @@ RSpec.describe Aidp::Harness::UserInterface do
         allow(Readline).to receive(:readline).and_return("")
 
         output = capture_stdout do
-        ui.show_question_help(question_data)
-      end
-      expect(output).to match(/Help for Text Question/)
+          ui.show_question_help(question_data)
+        end
+        expect(output).to match(/Help for Text Question/)
         output = capture_stdout do
-        ui.show_question_help(question_data)
-      end
-      expect(output).to match(/Enter any text response/)
+          ui.show_question_help(question_data)
+        end
+        expect(output).to match(/Enter any text response/)
       end
 
       it "shows help for choice questions" do
@@ -527,13 +527,13 @@ RSpec.describe Aidp::Harness::UserInterface do
         allow(Readline).to receive(:readline).and_return("")
 
         output = capture_stdout do
-        ui.show_question_help(question_data)
-      end
-      expect(output).to match(/Help for Choice Question/)
+          ui.show_question_help(question_data)
+        end
+        expect(output).to match(/Help for Choice Question/)
         output = capture_stdout do
-        ui.show_question_help(question_data)
-      end
-      expect(output).to match(/Select from the numbered options/)
+          ui.show_question_help(question_data)
+        end
+        expect(output).to match(/Select from the numbered options/)
       end
     end
   end

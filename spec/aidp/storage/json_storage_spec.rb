@@ -13,7 +13,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
 
   describe "#store" do
     it "stores data as JSON file" do
-      data = { "test" => "value", "number" => 42 }
+      data = {"test" => "value", "number" => 42}
       result = storage.store("test_file", data)
 
       expect(result[:success]).to be true
@@ -25,7 +25,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
       nested_dir = File.join(temp_dir, "nested", "path")
       nested_storage = described_class.new(nested_dir)
 
-      data = { "test" => "value" }
+      data = {"test" => "value"}
       result = nested_storage.store("test_file", data)
 
       expect(result[:success]).to be true
@@ -36,7 +36,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
       # Create a read-only directory to simulate error
       FileUtils.chmod(0o444, temp_dir)
 
-      data = { "test" => "value" }
+      data = {"test" => "value"}
       result = storage.store("test_file", data)
 
       expect(result[:success]).to be false
@@ -46,7 +46,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
 
   describe "#load" do
     it "loads data from JSON file" do
-      data = { "test" => "value", "number" => 42 }
+      data = {"test" => "value", "number" => 42}
       storage.store("test_file", data)
 
       loaded_data = storage.load("test_file")
@@ -69,10 +69,10 @@ RSpec.describe Aidp::Storage::JsonStorage do
 
   describe "#update" do
     it "updates existing data" do
-      original_data = { "test" => "original" }
+      original_data = {"test" => "original"}
       storage.store("test_file", original_data)
 
-      updated_data = { "test" => "updated" }
+      updated_data = {"test" => "updated"}
       result = storage.update("test_file", updated_data)
 
       expect(result[:success]).to be true
@@ -80,7 +80,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
     end
 
     it "creates new file if it doesn't exist" do
-      data = { "test" => "new" }
+      data = {"test" => "new"}
       result = storage.update("new_file", data)
 
       expect(result[:success]).to be true
@@ -90,7 +90,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
 
   describe "#exists?" do
     it "returns true for existing file" do
-      storage.store("test_file", { "test" => "value" })
+      storage.store("test_file", {"test" => "value"})
       expect(storage.exists?("test_file")).to be true
     end
 
@@ -101,7 +101,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
 
   describe "#delete" do
     it "deletes existing file" do
-      storage.store("test_file", { "test" => "value" })
+      storage.store("test_file", {"test" => "value"})
       result = storage.delete("test_file")
 
       expect(result[:success]).to be true
@@ -116,9 +116,9 @@ RSpec.describe Aidp::Storage::JsonStorage do
 
   describe "#list" do
     it "lists all JSON files" do
-      storage.store("file1", { "test" => "1" })
-      storage.store("file2", { "test" => "2" })
-      storage.store("file3", { "test" => "3" })
+      storage.store("file1", {"test" => "1"})
+      storage.store("file2", {"test" => "2"})
+      storage.store("file3", {"test" => "3"})
 
       files = storage.list
       expect(files).to contain_exactly("file1", "file2", "file3")
@@ -132,7 +132,7 @@ RSpec.describe Aidp::Storage::JsonStorage do
 
   describe "#metadata" do
     it "returns file metadata" do
-      data = { "test" => "value" }
+      data = {"test" => "value"}
       storage.store("test_file", data)
 
       metadata = storage.metadata("test_file")

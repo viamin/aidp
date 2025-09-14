@@ -601,7 +601,7 @@ RSpec.describe Aidp::Harness::TokenMonitor do
       export = monitor.export_token_data(:yaml)
 
       expect(export).to be_a(String)
-        expect { YAML.safe_load(export, permitted_classes: [Symbol, Time], aliases: true) }.not_to raise_error
+      expect { YAML.safe_load(export, permitted_classes: [Symbol, Time], aliases: true) }.not_to raise_error
     end
 
     it "exports token data in CSV format" do

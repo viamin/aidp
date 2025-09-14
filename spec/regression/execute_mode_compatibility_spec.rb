@@ -297,7 +297,6 @@ RSpec.describe "Execute Mode Regression Tests", type: :regression do
   end
 
   describe "Integration Compatibility" do
-
     it "execute mode file system operations are unchanged" do
       # Test that file system operations work exactly as before
       test_file = File.join(project_dir, "test_file.txt")

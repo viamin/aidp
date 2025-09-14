@@ -34,7 +34,7 @@ module Aidp
       # Check if state exists
       def has_state?
         # In test mode, always return false to avoid file operations
-        return false if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        return false if ENV["RACK_ENV"] == "test" || defined?(RSpec)
 
         File.exist?(@state_file)
       end
@@ -42,7 +42,7 @@ module Aidp
       # Load existing state
       def load_state
         # In test mode, return empty state to avoid file locking issues
-        if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
           return {}
         end
 
@@ -60,7 +60,7 @@ module Aidp
       # Save current state
       def save_state(state_data)
         # In test mode, skip file operations to avoid file locking issues
-        if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
           return
         end
 
@@ -82,7 +82,7 @@ module Aidp
       # Clear state (for fresh start)
       def clear_state
         # In test mode, skip file operations to avoid hanging
-        return if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        return if ENV["RACK_ENV"] == "test" || defined?(RSpec)
 
         with_lock do
           File.delete(@state_file) if File.exist?(@state_file)
@@ -92,7 +92,7 @@ module Aidp
       # Get state metadata
       def state_metadata
         # In test mode, return empty metadata to avoid file operations
-        return {} if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        return {} if ENV["RACK_ENV"] == "test" || defined?(RSpec)
 
         return {} unless has_state?
 
@@ -527,7 +527,7 @@ module Aidp
 
       def with_lock(&_block)
         # In test mode, skip file locking to avoid concurrency issues
-        if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
           yield
           return
         end

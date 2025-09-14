@@ -362,7 +362,6 @@ RSpec.describe "Harness Backward Compatibility", type: :compatibility do
   end
 
   describe "Integration Backward Compatibility" do
-
     it "existing provider integration works exactly as before" do
       # Test that existing provider integration works
       expect(Aidp::ProviderManager).to be_a(Class)
@@ -438,7 +437,6 @@ RSpec.describe "Harness Backward Compatibility", type: :compatibility do
       expect(progress.completed_steps).to include("01_REPOSITORY_ANALYSIS")
       expect(progress.current_step).to eq("02_ARCHITECTURE_ANALYSIS")
     end
-
   end
 
   describe "Feature Flag Compatibility" do

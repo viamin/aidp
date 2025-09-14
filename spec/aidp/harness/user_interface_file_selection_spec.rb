@@ -277,21 +277,21 @@ RSpec.describe Aidp::Harness::UserInterface do
         allow(Readline).to receive(:readline).and_return("")
 
         output = capture_stdout do
-        ui.show_file_preview(temp_file.path)
-      end
-      expect(output).to match(/File Preview/)
+          ui.show_file_preview(temp_file.path)
+        end
+        expect(output).to match(/File Preview/)
         output = capture_stdout do
-        ui.show_file_preview(temp_file.path)
-      end
-      expect(output).to match(/File Info/)
+          ui.show_file_preview(temp_file.path)
+        end
+        expect(output).to match(/File Info/)
         output = capture_stdout do
-        ui.show_file_preview(temp_file.path)
-      end
-      expect(output).to match(/Content Preview/)
+          ui.show_file_preview(temp_file.path)
+        end
+        expect(output).to match(/Content Preview/)
         output = capture_stdout do
-        ui.show_file_preview(temp_file.path)
-      end
-      expect(output).to match(/10 more lines/)
+          ui.show_file_preview(temp_file.path)
+        end
+        expect(output).to match(/10 more lines/)
 
         temp_file.unlink
       end
@@ -301,30 +301,30 @@ RSpec.describe Aidp::Harness::UserInterface do
         allow(Readline).to receive(:readline).and_return("")
 
         output = capture_stdout do
-        ui.show_file_preview("nonexistent.txt")
-      end
-      expect(output).to match(/Error reading file/)
+          ui.show_file_preview("nonexistent.txt")
+        end
+        expect(output).to match(/Error reading file/)
       end
     end
 
     describe "#show_file_selection_help" do
       it "displays help information" do
         output = capture_stdout do
-        ui.show_file_selection_help
-      end
-      expect(output).to match(/File Selection Help/)
+          ui.show_file_selection_help
+        end
+        expect(output).to match(/File Selection Help/)
         output = capture_stdout do
-        ui.show_file_selection_help
-      end
-      expect(output).to match(/Search Examples/)
+          ui.show_file_selection_help
+        end
+        expect(output).to match(/Search Examples/)
         output = capture_stdout do
-        ui.show_file_selection_help
-      end
-      expect(output).to match(/Selection Commands/)
+          ui.show_file_selection_help
+        end
+        expect(output).to match(/Selection Commands/)
         output = capture_stdout do
-        ui.show_file_selection_help
-      end
-      expect(output).to match(/Tips/)
+          ui.show_file_selection_help
+        end
+        expect(output).to match(/Tips/)
       end
     end
 

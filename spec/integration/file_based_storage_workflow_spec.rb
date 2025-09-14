@@ -76,17 +76,17 @@ RSpec.describe "File-based Storage Workflow Integration" do
       expect(file_manager.load_config).to eq(expected_config)
 
       # Verify metrics
-      metrics = file_manager.get_metrics({ "step_name" => "code_analysis" })
+      metrics = file_manager.get_metrics({"step_name" => "code_analysis"})
       expect(metrics.length).to eq(2)
       expect(metrics.any? { |m| m["metric_name"] == "execution_time" }).to be true
 
       # Verify step executions
-      executions = file_manager.get_step_executions({ "step_name" => "code_analysis" })
+      executions = file_manager.get_step_executions({"step_name" => "code_analysis"})
       expect(executions.length).to eq(1)
       expect(executions.first["success"]).to eq("true")
 
       # Verify provider activities
-      activities = file_manager.get_provider_activities({ "provider_name" => "cursor" })
+      activities = file_manager.get_provider_activities({"provider_name" => "cursor"})
       expect(activities.length).to eq(1)
       expect(activities.first["final_state"]).to eq("completed")
 
@@ -101,12 +101,9 @@ RSpec.describe "File-based Storage Workflow Integration" do
       expect(File.exist?(File.join(temp_dir, "provider_activities.csv"))).to be true
     end
 
-
-
-
     it "handles file corruption gracefully" do
       # Store some data
-      file_manager.store_config({ "test" => "value" })
+      file_manager.store_config({"test" => "value"})
 
       # Corrupt the file
       config_file = File.join(temp_dir, "config.json")
@@ -117,9 +114,9 @@ RSpec.describe "File-based Storage Workflow Integration" do
       expect(config).to be_nil
 
       # Should still be able to store new data
-      result = file_manager.store_config({ "new_test" => "new_value" })
+      result = file_manager.store_config({"new_test" => "new_value"})
       expect(result[:success]).to be true
-      expect(file_manager.load_config).to eq({ "new_test" => "new_value" })
+      expect(file_manager.load_config).to eq({"new_test" => "new_value"})
     end
   end
 
@@ -136,11 +133,11 @@ RSpec.describe "File-based Storage Workflow Integration" do
       expect(duration).to be < 5.0
 
       # Verify all data was stored
-      metrics = file_manager.get_metrics({ "step_name" => "performance_test" })
+      metrics = file_manager.get_metrics({"step_name" => "performance_test"})
       expect(metrics.length).to eq(1000)
 
       # Verify we can filter efficiently
-      filtered = file_manager.get_metrics({ "step_name" => "performance_test", "metric_name" => "metric_500" })
+      filtered = file_manager.get_metrics({"step_name" => "performance_test", "metric_name" => "metric_500"})
       expect(filtered.length).to eq(1)
       expect(filtered.first["value"]).to eq("500")
     end

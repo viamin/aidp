@@ -50,7 +50,7 @@ module Aidp
       # Main execution method - runs the harness loop
       def run
         # In test mode, handle simulated errors or return early to avoid hanging
-        if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
           # Check for simulated errors first
           if @options && @options[:simulate_error]
             @state = STATES[:error]
@@ -292,7 +292,7 @@ module Aidp
         while Time.now < reset_time && @state == STATES[:waiting_for_rate_limit]
           remaining = reset_time - Time.now
           @status_display.update_rate_limit_countdown(remaining)
-          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(1)
           else
             Async::Task.current.sleep(1)
@@ -316,7 +316,7 @@ module Aidp
         case @state
         when STATES[:paused]
           # Wait for user to resume
-          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(1)
           else
             Async::Task.current.sleep(1)

@@ -61,7 +61,7 @@ module Aidp
 
       def load_progress
         # In test mode, only skip file operations if no progress file exists
-        if (ENV['RACK_ENV'] == 'test' || defined?(RSpec)) && !File.exist?(@progress_file)
+        if (ENV["RACK_ENV"] == "test" || defined?(RSpec)) && !File.exist?(@progress_file)
           @progress = {}
           return
         end
@@ -75,7 +75,7 @@ module Aidp
 
       def save_progress
         # In test mode, skip file operations to avoid hanging
-        return if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+        return if ENV["RACK_ENV"] == "test" || defined?(RSpec)
 
         File.write(@progress_file, @progress.to_yaml)
       end

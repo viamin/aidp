@@ -264,7 +264,6 @@ module Aidp
         end
       end
 
-
       def normalize_keys(hash)
         return hash unless hash.is_a?(Hash)
 

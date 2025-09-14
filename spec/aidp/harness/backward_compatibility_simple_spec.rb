@@ -256,7 +256,6 @@ RSpec.describe "Harness Backward Compatibility (Simple)", type: :compatibility d
     end
   end
 
-
   describe "Error Handling Backward Compatibility" do
     it "existing error handling works exactly as before" do
       # Test that existing error handling works

@@ -172,7 +172,6 @@ module Aidp
         }
       end
 
-
       def find_template(template_name)
         template_search_paths.each do |path|
           template_path = File.join(path, template_name)

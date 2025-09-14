@@ -51,24 +51,22 @@ module Aidp
         return jobs unless Dir.exist?(harness_logs_dir)
 
         Dir.glob(File.join(harness_logs_dir, "*.json")).each do |log_file|
-          begin
-            log_data = JSON.parse(File.read(log_file))
-            job_id = File.basename(log_file, ".json")
+          log_data = JSON.parse(File.read(log_file))
+          job_id = File.basename(log_file, ".json")
 
-            # Get job metadata from the log
-            job_info = {
-              id: job_id,
-              status: determine_job_status(log_data),
-              created_at: log_data["created_at"],
-              message: log_data["message"],
-              level: log_data["level"],
-              metadata: log_data["metadata"] || {}
-            }
+          # Get job metadata from the log
+          job_info = {
+            id: job_id,
+            status: determine_job_status(log_data),
+            created_at: log_data["created_at"],
+            message: log_data["message"],
+            level: log_data["level"],
+            metadata: log_data["metadata"] || {}
+          }
 
-            jobs << job_info
-          rescue JSON::ParserError => e
-            @io.puts "Warning: Could not parse harness log #{log_file}: #{e.message}" if ENV["AIDP_DEBUG"]
-          end
+          jobs << job_info
+        rescue JSON::ParserError => e
+          @io.puts "Warning: Could not parse harness log #{log_file}: #{e.message}" if ENV["AIDP_DEBUG"]
         end
 
         # Sort by creation time (newest first)
@@ -142,9 +140,6 @@ module Aidp
           message
         end
       end
-
-
-
     end
   end
 end

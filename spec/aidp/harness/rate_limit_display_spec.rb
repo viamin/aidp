@@ -964,7 +964,6 @@ RSpec.describe Aidp::Harness::RateLimitDisplay do
         expect(result).to eq("Text export would be implemented here")
       end
     end
-
   end
 
   describe "error handling" do

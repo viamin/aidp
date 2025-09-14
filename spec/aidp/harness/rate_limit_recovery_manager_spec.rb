@@ -202,7 +202,6 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
       expect(strategy).to include(:name, :action, :priority, :selection_strategy)
     end
 
-
     it "applies context modifications to strategy" do
       context = {priority: :critical, cooldown_period: 120}
       strategy = recovery_manager.get_switch_strategy("claude", "model1", rate_limit_info, context)
@@ -306,7 +305,6 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
 
       expect(quota_status).to be_a(Hash)
     end
-
   end
 
   describe "recovery history management" do
@@ -502,7 +500,6 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
   end
 
   describe "error handling" do
-
     it "handles missing provider manager methods gracefully" do
       allow(provider_manager).to receive(:set_current_provider).and_raise(NoMethodError)
 
@@ -512,6 +509,5 @@ RSpec.describe Aidp::Harness::RateLimitRecoveryManager do
         recovery_manager.handle_rate_limit("claude", "model1", rate_limit_info, {})
       }.to raise_error(NoMethodError)
     end
-
   end
 end

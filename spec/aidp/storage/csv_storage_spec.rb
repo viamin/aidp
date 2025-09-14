@@ -13,7 +13,7 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#append" do
     it "creates new CSV file with headers and data" do
-      row_data = { "name" => "test", "value" => 42 }
+      row_data = {"name" => "test", "value" => 42}
       result = storage.append("test_file", row_data)
 
       expect(result[:success]).to be true
@@ -22,8 +22,8 @@ RSpec.describe Aidp::Storage::CsvStorage do
     end
 
     it "appends to existing CSV file" do
-      row1 = { "name" => "test1", "value" => 42 }
-      row2 = { "name" => "test2", "value" => 84 }
+      row1 = {"name" => "test1", "value" => 42}
+      row2 = {"name" => "test2", "value" => 84}
 
       storage.append("test_file", row1)
       result = storage.append("test_file", row2)
@@ -33,7 +33,7 @@ RSpec.describe Aidp::Storage::CsvStorage do
     end
 
     it "adds timestamp automatically" do
-      row_data = { "name" => "test" }
+      row_data = {"name" => "test"}
       storage.append("test_file", row_data)
 
       rows = storage.read_all("test_file")
@@ -43,8 +43,8 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#read_all" do
     it "reads all rows from CSV file" do
-      row1 = { "name" => "test1", "value" => 42 }
-      row2 = { "name" => "test2", "value" => 84 }
+      row1 = {"name" => "test1", "value" => 42}
+      row2 = {"name" => "test2", "value" => 84}
 
       storage.append("test_file", row1)
       storage.append("test_file", row2)
@@ -63,22 +63,22 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#read_filtered" do
     it "filters rows based on criteria" do
-      row1 = { "name" => "test1", "value" => 42, "type" => "A" }
-      row2 = { "name" => "test2", "value" => 84, "type" => "B" }
-      row3 = { "name" => "test3", "value" => 126, "type" => "A" }
+      row1 = {"name" => "test1", "value" => 42, "type" => "A"}
+      row2 = {"name" => "test2", "value" => 84, "type" => "B"}
+      row3 = {"name" => "test3", "value" => 126, "type" => "A"}
 
       storage.append("test_file", row1)
       storage.append("test_file", row2)
       storage.append("test_file", row3)
 
-      filtered = storage.read_filtered("test_file", { "type" => "A" })
+      filtered = storage.read_filtered("test_file", {"type" => "A"})
       expect(filtered.length).to eq(2)
       expect(filtered.all? { |row| row["type"] == "A" }).to be true
     end
 
     it "returns all rows when no filters provided" do
-      row1 = { "name" => "test1" }
-      row2 = { "name" => "test2" }
+      row1 = {"name" => "test1"}
+      row2 = {"name" => "test2"}
 
       storage.append("test_file", row1)
       storage.append("test_file", row2)
@@ -90,8 +90,8 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#count_rows" do
     it "counts rows correctly" do
-      row1 = { "name" => "test1" }
-      row2 = { "name" => "test2" }
+      row1 = {"name" => "test1"}
+      row2 = {"name" => "test2"}
 
       storage.append("test_file", row1)
       expect(storage.count_rows("test_file")).to eq(1)
@@ -107,9 +107,9 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#unique_values" do
     it "returns unique values for a column" do
-      row1 = { "name" => "test1", "type" => "A" }
-      row2 = { "name" => "test2", "type" => "B" }
-      row3 = { "name" => "test3", "type" => "A" }
+      row1 = {"name" => "test1", "type" => "A"}
+      row2 = {"name" => "test2", "type" => "B"}
+      row3 = {"name" => "test3", "type" => "A"}
 
       storage.append("test_file", row1)
       storage.append("test_file", row2)
@@ -122,9 +122,9 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#summary" do
     it "generates summary statistics" do
-      row1 = { "name" => "test1", "value" => 10 }
-      row2 = { "name" => "test2", "value" => 20 }
-      row3 = { "name" => "test3", "value" => 30 }
+      row1 = {"name" => "test1", "value" => 10}
+      row2 = {"name" => "test2", "value" => 20}
+      row3 = {"name" => "test3", "value" => 30}
 
       storage.append("test_file", row1)
       storage.append("test_file", row2)
@@ -147,7 +147,7 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#exists?" do
     it "returns true for existing file" do
-      storage.append("test_file", { "name" => "test" })
+      storage.append("test_file", {"name" => "test"})
       expect(storage.exists?("test_file")).to be true
     end
 
@@ -158,7 +158,7 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#delete" do
     it "deletes existing file" do
-      storage.append("test_file", { "name" => "test" })
+      storage.append("test_file", {"name" => "test"})
       result = storage.delete("test_file")
 
       expect(result[:success]).to be true
@@ -173,9 +173,9 @@ RSpec.describe Aidp::Storage::CsvStorage do
 
   describe "#list" do
     it "lists all CSV files" do
-      storage.append("file1", { "test" => "1" })
-      storage.append("file2", { "test" => "2" })
-      storage.append("file3", { "test" => "3" })
+      storage.append("file1", {"test" => "1"})
+      storage.append("file2", {"test" => "2"})
+      storage.append("file3", {"test" => "3"})
 
       files = storage.list
       expect(files).to contain_exactly("file1", "file2", "file3")

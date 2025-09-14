@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Aidp
   module Harness
     # Circuit breaker pattern implementation for failing providers and models

@@ -151,7 +151,7 @@ module Aidp
 
         # Wait for delay
         if delay > 0
-          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(delay)
           else
             Async::Task.current.sleep(delay)

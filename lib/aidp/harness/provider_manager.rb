@@ -129,7 +129,7 @@ module Aidp
 
           # Wait before retrying
           delay = calculate_retry_delay(retry_count)
-          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(delay)
           else
             Async::Task.current.sleep(delay)
@@ -219,7 +219,7 @@ module Aidp
 
           # Wait before retrying
           delay = calculate_retry_delay(retry_count)
-          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(delay)
           else
             Async::Task.current.sleep(delay)

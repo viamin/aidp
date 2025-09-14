@@ -317,7 +317,7 @@ module Aidp
             loop do
               collect_system_metrics
               interval = @configuration.metrics_config[:collection_interval] || 60
-              if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+              if ENV["RACK_ENV"] == "test" || defined?(RSpec)
                 sleep(interval)
               else
                 Async::Task.current.sleep(interval)
@@ -331,7 +331,7 @@ module Aidp
           task.async do
             loop do
               cleanup_old_metrics
-              if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+              if ENV["RACK_ENV"] == "test" || defined?(RSpec)
                 sleep(3600) # Run cleanup every hour
               else
                 Async::Task.current.sleep(3600) # Run cleanup every hour
@@ -1352,7 +1352,7 @@ module Aidp
             data.map { |v| sanitize_for_json(v) }
           when Float
             if data.infinite?
-              data > 0 ? "Infinity" : "-Infinity"
+              (data > 0) ? "Infinity" : "-Infinity"
             elsif data.nan?
               "NaN"
             else

@@ -4,7 +4,6 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::CircuitBreakerManager do
-
   # Helper method to capture stdout
   def capture_stdout
     old_stdout = $stdout
@@ -526,9 +525,9 @@ RSpec.describe Aidp::Harness::CircuitBreakerManager do
 
       it "notifies state changes" do
         output = capture_stdout do
-        state_notifier.notify_state_change("claude", "model1", :closed, :open, "Test")
-      end
-      expect(output).to match(/Circuit breaker state change/)
+          state_notifier.notify_state_change("claude", "model1", :closed, :open, "Test")
+        end
+        expect(output).to match(/Circuit breaker state change/)
       end
 
       it "allows adding notifiers" do

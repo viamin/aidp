@@ -250,21 +250,20 @@ module Aidp
       # Store harness-specific log entry
       def store_harness_log(level, message, metadata)
         # Use file-based storage for harness logs
-        begin
-          log_entry = {
-            job_id: @id,
-            level: level,
-            message: message,
-            metadata: metadata,
-            created_at: Time.now.iso8601
-          }
 
-          # Store in harness logs directory
-          @file_manager.store_json("harness_logs/#{@id}", log_entry)
-        rescue => e
-          # Storage not available - continue
-          puts "Could not store harness log: #{e.message}" if ENV["AIDP_DEBUG"]
-        end
+        log_entry = {
+          job_id: @id,
+          level: level,
+          message: message,
+          metadata: metadata,
+          created_at: Time.now.iso8601
+        }
+
+        # Store in harness logs directory
+        @file_manager.store_json("harness_logs/#{@id}", log_entry)
+      rescue => e
+        # Storage not available - continue
+        puts "Could not store harness log: #{e.message}" if ENV["AIDP_DEBUG"]
       end
 
       private

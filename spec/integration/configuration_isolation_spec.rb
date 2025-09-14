@@ -19,8 +19,6 @@ RSpec.describe "Configuration Isolation", type: :integration do
   end
 
   describe "Progress File Isolation" do
-
-
   end
 
   describe "Configuration File Isolation" do

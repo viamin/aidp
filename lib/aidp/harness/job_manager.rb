@@ -262,7 +262,7 @@ module Aidp
           running_jobs = get_running_jobs
           return true if running_jobs.empty?
 
-          if ENV['RACK_ENV'] == 'test' || defined?(RSpec)
+          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(1)
           else
             Async::Task.current.sleep(1)
