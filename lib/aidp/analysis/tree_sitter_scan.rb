@@ -3,7 +3,6 @@
 require "json"
 require "fileutils"
 require "digest"
-require "concurrent"
 require "etc"
 
 require_relative "tree_sitter_grammar_loader"
@@ -157,21 +156,10 @@ module Aidp
           # Load grammar for this language
           grammar = @grammar_loader.load_grammar(lang)
 
-          # Process files in parallel using Concurrent gem
-          pool = Concurrent::FixedThreadPool.new(@threads)
-          futures = []
-
+          # Process files synchronously (simplified)
           lang_files.each do |file|
-            future = Concurrent::Promise.execute(executor: pool) do
-              parse_file(file, grammar)
-            end
-            futures << future
+            parse_file(file, grammar)
           end
-
-          # Wait for all futures to complete
-          futures.each(&:value!)
-          pool.shutdown
-          pool.wait_for_termination
         end
 
         save_cache

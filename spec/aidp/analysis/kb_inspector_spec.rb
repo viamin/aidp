@@ -3,11 +3,22 @@
 require "spec_helper"
 require "fileutils"
 require "tempfile"
+require "stringio"
 
 RSpec.describe Aidp::Analysis::KBInspector do
   let(:temp_dir) { Dir.mktmpdir("aidp_kb_inspector_test") }
   let(:kb_dir) { File.join(temp_dir, ".aidp", "kb") }
   let(:inspector) { described_class.new(kb_dir) }
+
+  # Helper method to capture stdout
+  def capture_stdout
+    old_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
+  end
 
   before do
     FileUtils.mkdir_p(kb_dir)
@@ -162,19 +173,31 @@ RSpec.describe Aidp::Analysis::KBInspector do
     end
 
     it "shows file counts" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Files analyzed/).to_stdout
+      output = capture_stdout do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Files analyzed")
     end
 
     it "shows symbol counts" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Symbols/).to_stdout
+      output = capture_stdout do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Symbols")
     end
 
     it "shows seam types" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Seam Types/).to_stdout
+      output = capture_stdout do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Seam Types")
     end
 
     it "shows top hotspots" do
-      expect { described_class.new(kb_dir).send(:show_summary, "summary") }.to output(/Top 5 Hotspots/).to_stdout
+      output = capture_stdout do
+        described_class.new(kb_dir).send(:show_summary, "summary")
+      end
+      expect(output).to include("Top 5 Hotspots")
     end
   end
 

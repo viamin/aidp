@@ -1,0 +1,373 @@
+# Development AIDP Configuration
+# This is a development-friendly configuration with debugging features enabled
+# Copy this file to your project root as 'aidp.yml' and customize as needed
+
+# Harness configuration
+harness:
+  # Default provider to use
+  default_provider: "cursor"
+
+  # Fallback providers
+  fallback_providers: ["claude"]
+
+  # Development settings
+  max_retries: 1
+  request_timeout: 60
+  user_feedback_timeout: 60
+  work_completion_timeout: 300
+
+  # Development features
+  auto_switch_on_error: true
+  auto_switch_on_rate_limit: true
+  max_concurrent_requests: 2
+
+  # Circuit breaker configuration (relaxed for development)
+  circuit_breaker:
+    enabled: false
+    failure_threshold: 10
+    timeout: 60
+    half_open_max_calls: 5
+
+  # Retry configuration (minimal for development)
+  retry:
+    enabled: true
+    max_attempts: 1
+    base_delay: 0.5
+    max_delay: 5.0
+    exponential_base: 2.0
+    jitter: false
+
+  # Rate limiting configuration (relaxed for development)
+  rate_limit:
+    enabled: false
+    default_reset_time: 60
+    burst_limit: 100
+    sustained_limit: 50
+
+  # Load balancing configuration
+  load_balancing:
+    enabled: false
+    strategy: "round_robin"
+    health_check_interval: 300
+    unhealthy_threshold: 10
+
+  # Health check configuration (relaxed for development)
+  health_check:
+    enabled: false
+    interval: 300
+    timeout: 30
+    failure_threshold: 10
+    success_threshold: 1
+
+  # Metrics configuration (minimal for development)
+  metrics:
+    enabled: true
+    retention_days: 1
+    aggregation_interval: 60
+    export_interval: 300
+
+  # Session configuration
+  session:
+    enabled: true
+    timeout: 600
+    sticky_sessions: false
+    session_affinity: "provider"
+
+  # User interface configuration (enhanced for development)
+  ui:
+    enabled: true
+    interactive_mode: true
+    file_selection: true
+    progress_display: true
+    status_updates: true
+    pause_resume: true
+
+  # Error handling configuration (enhanced for development)
+  error_handling:
+    enabled: true
+    log_errors: true
+    retry_on_error: false
+    fallback_on_error: true
+    error_notification: true
+
+  # Performance optimization (disabled for development)
+  performance:
+    enabled: false
+    cache_responses: false
+    parallel_processing: false
+    batch_requests: false
+    connection_pooling: false
+
+  # Security configuration (relaxed for development)
+  security:
+    enabled: false
+    ssl_verify: false
+    allowed_hosts: []
+    blocked_hosts: []
+    api_key_rotation: false
+    audit_logging: false
+
+# Provider configurations
+providers:
+  # Cursor provider (primary for development)
+  cursor:
+    type: "package"
+    priority: 1
+    default_flags: []
+
+    # Available models
+    models: ["cursor-default", "cursor-fast"]
+
+    # Model weights for load balancing
+    model_weights:
+      cursor-default: 2
+      cursor-fast: 1
+
+    # Model-specific configurations
+    models_config:
+      cursor-default:
+        flags: []
+        timeout: 120
+      cursor-fast:
+        flags: ["--fast"]
+        timeout: 60
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+      streaming: true
+
+    # Monitoring configuration (enhanced for development)
+    monitoring:
+      enabled: true
+      metrics_interval: 10
+
+    # Rate limiting configuration (disabled for development)
+    rate_limit:
+      enabled: false
+      requests_per_minute: 1000
+      requests_per_hour: 10000
+      burst_limit: 100
+
+    # Retry configuration (minimal for development)
+    retry:
+      enabled: true
+      max_attempts: 1
+      base_delay: 0.5
+      max_delay: 5.0
+      exponential_base: 2.0
+      jitter: false
+
+    # Circuit breaker configuration (disabled for development)
+    circuit_breaker:
+      enabled: false
+      failure_threshold: 100
+      timeout: 60
+      half_open_max_calls: 10
+
+    # Cost tracking
+    cost:
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+      fixed_cost_per_request: 0.0
+      currency: "USD"
+
+    # Health check configuration (disabled for development)
+    health_check:
+      enabled: false
+      interval: 300
+      timeout: 30
+      failure_threshold: 100
+      success_threshold: 1
+
+    # Logging configuration (enhanced for development)
+    log:
+      enabled: true
+      level: "debug"
+      file: "logs/cursor-dev.log"
+      max_size: 10485760  # 10MB
+      max_files: 3
+      format: "text"
+      log_requests: true
+      log_responses: true
+
+    # Cache configuration (disabled for development)
+    cache:
+      enabled: false
+      ttl: 60
+      max_size: 10
+      strategy: "lru"
+
+    # Security configuration (relaxed for development)
+    security:
+      ssl_verify: false
+      allowed_hosts: []
+      blocked_hosts: []
+      timeout: 60
+      max_redirects: 10
+
+  # Claude provider (fallback for development)
+  claude:
+    type: "api"
+    priority: 2
+    max_tokens: 10000
+    default_flags: ["--dangerously-skip-permissions"]
+
+    # Available models (limited for development)
+    models: ["claude-3-5-haiku-20241022"]
+
+    # Model weights for load balancing
+    model_weights:
+      claude-3-5-haiku-20241022: 1
+
+    # Model-specific configurations
+    models_config:
+      claude-3-5-haiku-20241022:
+        flags: ["--dangerously-skip-permissions"]
+        max_tokens: 10000
+        timeout: 60
+
+    # Authentication configuration
+    auth:
+      api_key_env: "ANTHROPIC_API_KEY"
+
+    # Endpoint configuration
+    endpoints:
+      default: "https://api.anthropic.com/v1/messages"
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+      vision: true
+      streaming: true
+      function_calling: true
+      tool_use: true
+
+    # Monitoring configuration (enhanced for development)
+    monitoring:
+      enabled: true
+      metrics_interval: 10
+
+    # Rate limiting configuration (relaxed for development)
+    rate_limit:
+      enabled: false
+      requests_per_minute: 100
+      requests_per_hour: 1000
+      tokens_per_minute: 10000
+      tokens_per_hour: 100000
+      burst_limit: 20
+
+    # Retry configuration (minimal for development)
+    retry:
+      enabled: true
+      max_attempts: 1
+      base_delay: 0.5
+      max_delay: 5.0
+      exponential_base: 2.0
+      jitter: false
+      retry_on_rate_limit: false
+
+    # Circuit breaker configuration (disabled for development)
+    circuit_breaker:
+      enabled: false
+      failure_threshold: 100
+      timeout: 60
+      half_open_max_calls: 10
+
+    # Cost tracking
+    cost:
+      input_cost_per_token: 0.000003
+      output_cost_per_token: 0.000015
+      fixed_cost_per_request: 0.0
+      currency: "USD"
+
+    # Health check configuration (disabled for development)
+    health_check:
+      enabled: false
+      interval: 300
+      timeout: 30
+      failure_threshold: 100
+      success_threshold: 1
+      check_url: "https://api.anthropic.com/v1/messages"
+
+    # Logging configuration (enhanced for development)
+    log:
+      enabled: true
+      level: "debug"
+      file: "logs/claude-dev.log"
+      max_size: 10485760  # 10MB
+      max_files: 3
+      format: "text"
+      log_requests: true
+      log_responses: true
+
+    # Cache configuration (disabled for development)
+    cache:
+      enabled: false
+      ttl: 60
+      max_size: 10
+      strategy: "lru"
+
+    # Security configuration (relaxed for development)
+    security:
+      ssl_verify: false
+      allowed_hosts: []
+      blocked_hosts: []
+      timeout: 60
+      max_redirects: 10
+
+# Environment-specific configurations
+environments:
+  development:
+    harness:
+      max_retries: 1
+      request_timeout: 60
+    providers:
+      cursor:
+        log:
+          level: "debug"
+        monitoring:
+          enabled: true
+      claude:
+        rate_limit:
+          enabled: false
+        log:
+          level: "debug"
+        monitoring:
+          enabled: true
+
+# Feature flags for development
+features:
+  debugging:
+    harness:
+      log_errors: true
+      error_notification: true
+    providers:
+      cursor:
+        log:
+          level: "debug"
+          log_requests: true
+          log_responses: true
+      claude:
+        log:
+          level: "debug"
+          log_requests: true
+          log_responses: true
+
+# Configuration tips for development:
+# - Use minimal retry settings for faster feedback
+# - Enable detailed logging for debugging
+# - Disable rate limiting for testing
+# - Use relaxed timeouts for development
+# - Enable request/response logging
+# - Disable caching to see fresh results
+# - Use minimal health checks
+# - Disable circuit breakers for testing
+# - Use text format logs for readability
+# - Set up proper API keys in environment variables
+# - Use fast models for quicker iteration
+# - Enable all debugging features

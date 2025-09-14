@@ -262,7 +262,7 @@ module Aidp
           }
         end
 
-        sleep(interval)
+        Async::Task.current.sleep(interval)
       end
 
       monitoring_data[:end_time] = Time.now

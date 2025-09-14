@@ -1,50 +1,82 @@
 # frozen_string_literal: true
 
 # Core extensions
-require "aidp/core_ext/class_attribute"
+require_relative "aidp/core_ext/class_attribute"
 
 # Shared modules
-require "aidp/version"
-require "aidp/config"
-require "aidp/workspace"
-require "aidp/util"
-require "aidp/cli"
-require "aidp/cli/jobs_command"
-require "aidp/project_detector"
-require "aidp/sync"
+require_relative "aidp/version"
+require_relative "aidp/config"
+require_relative "aidp/workspace"
+require_relative "aidp/util"
+require_relative "aidp/cli"
+require_relative "aidp/cli/jobs_command"
+require_relative "aidp/project_detector"
+require_relative "aidp/sync"
 
-# Database
-require "aidp/database_connection"
-
-# Job infrastructure
-require "aidp/job_manager"
-require "aidp/jobs/base_job"
-require "aidp/jobs/provider_execution_job"
+# Job infrastructure (simplified - only harness jobs)
+require_relative "aidp/jobs/harness_job"
 
 # Providers
-require "aidp/providers/base"
-require "aidp/providers/cursor"
-require "aidp/providers/anthropic"
-require "aidp/providers/gemini"
-require "aidp/providers/macos_ui"
-require "aidp/provider_manager"
+require_relative "aidp/providers/base"
+require_relative "aidp/providers/cursor"
+require_relative "aidp/providers/anthropic"
+require_relative "aidp/providers/gemini"
+require_relative "aidp/providers/macos_ui"
+require_relative "aidp/providers/supervised_base"
+require_relative "aidp/providers/supervised_cursor"
+require_relative "aidp/provider_manager"
 
-# Analyze mode
-require "aidp/analyze/error_handler"
-require "aidp/analyze/parallel_processor"
-require "aidp/analyze/repository_chunker"
-require "aidp/analyze/ruby_maat_integration"
-require "aidp/analyze/runner"
-require "aidp/analyze/steps"
-require "aidp/analyze/progress"
+# Simple file-based storage
+require_relative "aidp/storage/json_storage"
+require_relative "aidp/storage/csv_storage"
+require_relative "aidp/storage/file_manager"
+
+# Analyze mode (simplified - file-based storage only)
+require_relative "aidp/analyze/json_file_storage"
+require_relative "aidp/analyze/error_handler"
+require_relative "aidp/analyze/repository_chunker"
+require_relative "aidp/analyze/ruby_maat_integration"
+require_relative "aidp/analyze/runner"
+require_relative "aidp/analyze/steps"
+require_relative "aidp/analyze/progress"
 
 # Tree-sitter analysis
-require "aidp/analysis/tree_sitter_grammar_loader"
-require "aidp/analysis/seams"
-require "aidp/analysis/tree_sitter_scan"
-require "aidp/analysis/kb_inspector"
+require_relative "aidp/analysis/tree_sitter_grammar_loader"
+require_relative "aidp/analysis/seams"
+require_relative "aidp/analysis/tree_sitter_scan"
+require_relative "aidp/analysis/kb_inspector"
 
 # Execute mode
-require "aidp/execute/steps"
-require "aidp/execute/runner"
-require "aidp/execute/progress"
+require_relative "aidp/execute/steps"
+require_relative "aidp/execute/runner"
+require_relative "aidp/execute/progress"
+
+# Harness mode
+require_relative "aidp/harness/configuration"
+require_relative "aidp/harness/config_schema"
+require_relative "aidp/harness/config_validator"
+require_relative "aidp/harness/config_loader"
+require_relative "aidp/harness/config_manager"
+require_relative "aidp/harness/config_migrator"
+require_relative "aidp/harness/condition_detector"
+require_relative "aidp/harness/user_interface"
+require_relative "aidp/harness/provider_manager"
+require_relative "aidp/harness/provider_config"
+require_relative "aidp/harness/provider_factory"
+require_relative "aidp/harness/state_manager"
+require_relative "aidp/harness/error_handler"
+require_relative "aidp/harness/error_logger"
+require_relative "aidp/harness/status_display"
+require_relative "aidp/harness/runner"
+require_relative "aidp/harness/job_manager"
+require_relative "aidp/harness/progress_tracker"
+require_relative "aidp/harness/metrics_manager"
+require_relative "aidp/harness/circuit_breaker_manager"
+require_relative "aidp/harness/fallback_manager"
+require_relative "aidp/harness/rate_limit_manager"
+require_relative "aidp/harness/rate_limit_recovery_manager"
+require_relative "aidp/harness/rate_limit_display"
+require_relative "aidp/harness/token_monitor"
+require_relative "aidp/harness/provider_status_tracker"
+
+# CLI commands

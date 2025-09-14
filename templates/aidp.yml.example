@@ -1,0 +1,598 @@
+# AIDP Configuration File
+# This file configures the AI Dev Pipeline harness and providers
+# Copy this file to your project root as 'aidp.yml' and customize as needed
+
+# Harness configuration
+harness:
+  # Maximum number of retries for failed operations
+  max_retries: 2
+
+  # Default provider to use when starting execution
+  default_provider: "cursor"
+
+  # Fallback providers in order of preference
+  fallback_providers: ["claude", "gemini"]
+
+  # Restrict to non-BYOK (Bring Your Own Key) providers only
+  restrict_to_non_byok: true
+
+  # Provider weights for load balancing (higher = more preferred)
+  provider_weights:
+    cursor: 3
+    claude: 2
+    gemini: 1
+
+  # Advanced harness features
+  auto_switch_on_error: true        # Automatically switch providers on errors
+  auto_switch_on_rate_limit: true   # Automatically switch providers on rate limits
+  max_concurrent_requests: 5        # Maximum concurrent requests per provider
+  request_timeout: 300              # Global request timeout in seconds
+  user_feedback_timeout: 300        # Timeout for user feedback requests
+  work_completion_timeout: 1800     # Timeout for work completion detection
+
+  # Circuit breaker configuration
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5      # Open circuit after 5 failures
+    timeout: 300              # Keep circuit open for 5 minutes
+    half_open_max_calls: 3    # Test with 3 calls when half-open
+
+  # Retry configuration
+  retry:
+    enabled: true
+    max_attempts: 3
+    base_delay: 1.0           # Initial delay in seconds
+    max_delay: 60.0           # Maximum delay in seconds
+    exponential_base: 2.0     # Exponential backoff multiplier
+    jitter: true              # Add random jitter to delays
+
+  # Rate limiting configuration
+  rate_limit:
+    enabled: true
+    default_reset_time: 3600  # Default reset time in seconds (1 hour)
+    burst_limit: 10           # Maximum burst requests
+    sustained_limit: 5        # Sustained request limit
+
+  # Load balancing configuration
+  load_balancing:
+    enabled: true
+    strategy: "weighted_round_robin"  # weighted_round_robin, least_connections, random
+    health_check_interval: 30        # Health check interval in seconds
+    unhealthy_threshold: 3           # Mark unhealthy after 3 failed checks
+
+  # Model switching configuration
+  model_switching:
+    enabled: true
+    auto_switch_on_error: true       # Auto-switch models on errors
+    auto_switch_on_rate_limit: true  # Auto-switch models on rate limits
+    fallback_strategy: "sequential"  # sequential, load_balanced, random
+
+  # Health check configuration
+  health_check:
+    enabled: true
+    interval: 60              # Health check interval in seconds
+    timeout: 10               # Health check timeout in seconds
+    failure_threshold: 3      # Mark unhealthy after 3 failures
+    success_threshold: 2      # Mark healthy after 2 successes
+
+  # Metrics configuration
+  metrics:
+    enabled: true
+    retention_days: 30        # Keep metrics for 30 days
+    aggregation_interval: 300 # Aggregate metrics every 5 minutes
+    export_interval: 3600     # Export metrics every hour
+
+  # Session configuration
+  session:
+    enabled: true
+    timeout: 1800             # Session timeout in seconds (30 minutes)
+    sticky_sessions: true     # Enable sticky sessions
+    session_affinity: "provider_model"  # provider, model, provider_model
+
+  # User interface configuration
+  ui:
+    enabled: true
+    interactive_mode: true    # Enable interactive prompts
+    file_selection: true      # Enable @ file selection
+    progress_display: true    # Show real-time progress
+    status_updates: true      # Show status updates
+    pause_resume: true        # Enable pause/resume controls
+
+  # Error handling configuration
+  error_handling:
+    enabled: true
+    log_errors: true          # Log all errors
+    retry_on_error: true      # Retry on recoverable errors
+    fallback_on_error: true   # Use fallback providers on errors
+    error_notification: true  # Notify user of errors
+
+  # Performance optimization
+  performance:
+    enabled: true
+    cache_responses: true     # Cache provider responses
+    parallel_processing: true # Enable parallel processing
+    batch_requests: true      # Batch multiple requests
+    connection_pooling: true  # Use connection pooling
+
+  # Security configuration
+  security:
+    enabled: true
+    ssl_verify: true          # Verify SSL certificates
+    allowed_hosts: []         # List of allowed hosts (empty = all)
+    blocked_hosts: []         # List of blocked hosts
+    api_key_rotation: false   # Enable API key rotation
+    audit_logging: true       # Enable audit logging
+
+# Provider configurations
+providers:
+  # Cursor provider (package-based)
+  cursor:
+    type: "package"           # package, api, or byok
+    priority: 1               # Provider priority (higher = more preferred)
+    default_flags: []         # Default command-line flags for this provider
+
+    # Available models for this provider
+    models: ["cursor-default", "cursor-fast", "cursor-precise"]
+
+    # Model weights for load balancing
+    model_weights:
+      cursor-default: 3
+      cursor-fast: 2
+      cursor-precise: 1
+
+    # Model-specific configurations
+    models_config:
+      cursor-default:
+        flags: []
+        timeout: 600          # 10 minutes
+      cursor-fast:
+        flags: ["--fast"]
+        timeout: 300          # 5 minutes
+      cursor-precise:
+        flags: ["--precise"]
+        timeout: 900          # 15 minutes
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      metrics_interval: 60    # Metrics collection interval in seconds
+
+    # Rate limiting configuration
+    rate_limit:
+      enabled: true
+      requests_per_minute: 60
+      requests_per_hour: 1000
+      burst_limit: 10
+
+    # Retry configuration
+    retry:
+      enabled: true
+      max_attempts: 3
+      base_delay: 1.0
+      max_delay: 60.0
+      exponential_base: 2.0
+      jitter: true
+
+    # Circuit breaker configuration
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      timeout: 300
+      half_open_max_calls: 3
+
+    # Cost tracking
+    cost:
+      input_cost_per_token: 0.0    # Package-based pricing
+      output_cost_per_token: 0.0
+      fixed_cost_per_request: 0.0
+      currency: "USD"
+
+    # Health check configuration
+    health_check:
+      enabled: true
+      interval: 60
+      timeout: 10
+      failure_threshold: 3
+      success_threshold: 2
+
+    # Logging configuration
+    log:
+      enabled: true
+      level: "info"
+      file: "logs/cursor.log"
+      max_size: 10485760  # 10MB
+      max_files: 5
+      format: "json"
+
+    # Cache configuration
+    cache:
+      enabled: true
+      ttl: 3600           # 1 hour
+      max_size: 100
+      strategy: "lru"
+
+    # Security configuration
+    security:
+      ssl_verify: true
+      allowed_hosts: []
+      blocked_hosts: []
+      timeout: 30
+      max_redirects: 5
+
+  # Claude provider (API-based)
+  claude:
+    type: "api"
+    priority: 2
+    max_tokens: 100000        # Maximum tokens per request
+    default_flags: ["--dangerously-skip-permissions"]
+
+    # Available models for this provider
+    models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
+
+    # Model weights for load balancing
+    model_weights:
+      claude-3-5-sonnet-20241022: 3
+      claude-3-5-haiku-20241022: 2
+      claude-3-opus-20240229: 1
+
+    # Model-specific configurations
+    models_config:
+      claude-3-5-sonnet-20241022:
+        flags: ["--dangerously-skip-permissions"]
+        max_tokens: 200000
+        timeout: 300          # 5 minutes
+      claude-3-5-haiku-20241022:
+        flags: ["--dangerously-skip-permissions"]
+        max_tokens: 200000
+        timeout: 180          # 3 minutes
+      claude-3-opus-20240229:
+        flags: ["--dangerously-skip-permissions"]
+        max_tokens: 200000
+        timeout: 600          # 10 minutes
+
+    # Authentication configuration
+    auth:
+      api_key_env: "ANTHROPIC_API_KEY"  # Environment variable for API key
+
+    # Endpoint configuration
+    endpoints:
+      default: "https://api.anthropic.com/v1/messages"
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+      vision: true
+
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      metrics_interval: 60
+
+  # Gemini provider (API-based)
+  gemini:
+    type: "api"
+    priority: 3
+    max_tokens: 50000
+    default_flags: []
+
+    # Available models for this provider
+    models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+
+    # Model weights for load balancing
+    model_weights:
+      gemini-1.5-pro: 3
+      gemini-1.5-flash: 2
+      gemini-1.0-pro: 1
+
+    # Model-specific configurations
+    models_config:
+      gemini-1.5-pro:
+        flags: []
+        max_tokens: 100000
+        timeout: 300          # 5 minutes
+      gemini-1.5-flash:
+        flags: []
+        max_tokens: 100000
+        timeout: 180          # 3 minutes
+      gemini-1.0-pro:
+        flags: []
+        max_tokens: 30000
+        timeout: 300          # 5 minutes
+
+    # Authentication configuration
+    auth:
+      api_key_env: "GEMINI_API_KEY"  # Environment variable for API key
+
+    # Endpoint configuration
+    endpoints:
+      default: "https://generativelanguage.googleapis.com/v1beta/models"
+
+    # Provider features
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+      vision: true
+
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      metrics_interval: 60
+
+    # Rate limiting configuration
+    rate_limit:
+      enabled: true
+      requests_per_minute: 60
+      requests_per_hour: 1500
+      tokens_per_minute: 32000
+      tokens_per_hour: 1000000
+      burst_limit: 10
+
+    # Retry configuration
+    retry:
+      enabled: true
+      max_attempts: 3
+      base_delay: 1.0
+      max_delay: 60.0
+      exponential_base: 2.0
+      jitter: true
+      retry_on_rate_limit: true
+
+    # Circuit breaker configuration
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      timeout: 300
+      half_open_max_calls: 3
+
+    # Cost tracking
+    cost:
+      input_cost_per_token: 0.00000125  # $1.25 per 1M input tokens
+      output_cost_per_token: 0.000005   # $5 per 1M output tokens
+      fixed_cost_per_request: 0.0
+      currency: "USD"
+
+    # Health check configuration
+    health_check:
+      enabled: true
+      interval: 60
+      timeout: 10
+      failure_threshold: 3
+      success_threshold: 2
+      check_url: "https://generativelanguage.googleapis.com/v1beta/models"
+
+    # Logging configuration
+    log:
+      enabled: true
+      level: "info"
+      file: "logs/gemini.log"
+      max_size: 10485760  # 10MB
+      max_files: 5
+      format: "json"
+      log_requests: true
+      log_responses: false
+
+    # Cache configuration
+    cache:
+      enabled: true
+      ttl: 1800           # 30 minutes
+      max_size: 200
+      strategy: "lru"
+
+    # Security configuration
+    security:
+      ssl_verify: true
+      allowed_hosts: ["generativelanguage.googleapis.com"]
+      blocked_hosts: []
+      timeout: 30
+      max_redirects: 5
+
+  # Example BYOK provider
+  # openai:
+  #   type: "byok"
+  #   priority: 4
+  #   default_flags: ["--model", "gpt-4"]
+  #   models: ["gpt-4", "gpt-3.5-turbo"]
+  #   model_weights:
+  #     gpt-4: 3
+  #     gpt-3.5-turbo: 2
+  #   models_config:
+  #     gpt-4:
+  #       flags: ["--model", "gpt-4"]
+  #       max_tokens: 128000
+  #       timeout: 300
+  #     gpt-3.5-turbo:
+  #       flags: ["--model", "gpt-3.5-turbo"]
+  #       max_tokens: 16000
+  #       timeout: 180
+  #   auth:
+  #     api_key_env: "OPENAI_API_KEY"
+  #   endpoints:
+  #     default: "https://api.openai.com/v1/chat/completions"
+  #   features:
+  #     file_upload: true
+  #     code_generation: true
+  #     analysis: true
+  #   monitoring:
+  #     enabled: true
+  #     metrics_interval: 60
+
+# Provider types explained:
+# - "package": Uses package-based pricing (e.g., Cursor Pro)
+# - "api": Uses API-based pricing with token limits
+# - "byok": Bring Your Own Key (user provides API key)
+
+# Environment-specific configurations
+environments:
+  development:
+    harness:
+      max_retries: 1
+      request_timeout: 60
+    providers:
+      cursor:
+        monitoring:
+          enabled: false
+        log:
+          level: "debug"
+      claude:
+        rate_limit:
+          requests_per_minute: 10
+        log:
+          level: "debug"
+
+  production:
+    harness:
+      max_retries: 3
+      request_timeout: 300
+    providers:
+      cursor:
+        monitoring:
+          enabled: true
+        log:
+          level: "warn"
+      claude:
+        rate_limit:
+          requests_per_minute: 50
+        log:
+          level: "info"
+
+# Mode-specific configurations
+analyze_mode:
+  harness:
+    max_retries: 2
+    request_timeout: 600
+  providers:
+    cursor:
+      models: ["cursor-default", "cursor-precise"]
+    claude:
+      models: ["claude-3-5-sonnet-20241022"]
+
+execute_mode:
+  harness:
+    max_retries: 3
+    request_timeout: 300
+  providers:
+    cursor:
+      models: ["cursor-default", "cursor-fast"]
+    claude:
+      models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"]
+
+# Feature flags
+features:
+  high_performance:
+    harness:
+      parallel_processing: true
+      batch_requests: true
+    providers:
+      cursor:
+        cache:
+          ttl: 7200  # 2 hours
+      claude:
+        cache:
+          ttl: 3600  # 1 hour
+
+  debugging:
+    harness:
+      log_errors: true
+      error_notification: true
+    providers:
+      cursor:
+        log:
+          level: "debug"
+          log_requests: true
+          log_responses: true
+      claude:
+        log:
+          level: "debug"
+          log_requests: true
+          log_responses: true
+
+# Time-based configurations
+time_based:
+  hours:
+    9..17:  # Business hours
+      harness:
+        max_retries: 2
+        request_timeout: 180
+      providers:
+        claude:
+          rate_limit:
+            requests_per_minute: 60
+    18..8:  # Off hours
+      harness:
+        max_retries: 1
+        request_timeout: 300
+      providers:
+        claude:
+          rate_limit:
+            requests_per_minute: 30
+  days:
+    monday:
+      harness:
+        max_retries: 3
+    friday:
+      harness:
+        max_retries: 1
+
+# Step-specific configurations
+steps:
+  analysis:
+    harness:
+      request_timeout: 600
+    providers:
+      cursor:
+        models: ["cursor-precise"]
+      claude:
+        models: ["claude-3-5-sonnet-20241022"]
+  implementation:
+    harness:
+      request_timeout: 300
+    providers:
+      cursor:
+        models: ["cursor-default", "cursor-fast"]
+      claude:
+        models: ["claude-3-5-haiku-20241022"]
+
+# User-specific configurations
+users:
+  developer1:
+    harness:
+      max_retries: 2
+    providers:
+      cursor:
+        priority: 1
+      claude:
+        priority: 2
+  developer2:
+    harness:
+      max_retries: 3
+    providers:
+      claude:
+        priority: 1
+      cursor:
+        priority: 2
+
+# Configuration tips:
+# - Set max_tokens based on your API plan limits
+# - Use default_flags to customize provider behavior
+# - Configure fallback_providers for automatic failover
+# - Set restrict_to_non_byok: true to avoid BYOK providers
+# - Adjust provider_weights to control load balancing
+# - Configure model_weights for model selection within providers
+# - Set appropriate timeouts for different models
+# - Enable monitoring for production environments
+# - Use session_affinity for consistent user experience
+# - Use environment-specific configs for different deployment stages
+# - Use mode-specific configs for different execution modes
+# - Use feature flags to enable/disable functionality
+# - Use time-based configs for different usage patterns
+# - Use step-specific configs for different workflow steps
+# - Use user-specific configs for personalized experiences

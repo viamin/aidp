@@ -30,6 +30,17 @@ module Aidp
           total_duration: 0.0
         }
         @job_context = nil
+        @harness_context = nil
+        @harness_metrics = {
+          total_requests: 0,
+          successful_requests: 0,
+          failed_requests: 0,
+          rate_limited_requests: 0,
+          total_tokens_used: 0,
+          total_cost: 0.0,
+          average_response_time: 0.0,
+          last_request_time: nil
+        }
       end
 
       # Abstract method - must be implemented by subclasses
@@ -52,7 +63,7 @@ module Aidp
       end
 
       # Execute with supervision and recovery
-      def send(prompt:, session: nil)
+      def send(prompt:, _session: nil)
         timeout_seconds = calculate_timeout
         debug = ENV["AIDP_DEBUG"] == "1"
 
@@ -146,7 +157,167 @@ module Aidp
         # No-op for supervised providers - supervisor handles this
       end
 
+      # Harness integration methods
+
+      # Set harness context for provider
+      def set_harness_context(harness_runner)
+        @harness_context = harness_runner
+      end
+
+      # Check if provider is operating in harness mode
+      def harness_mode?
+        !@harness_context.nil?
+      end
+
+      # Get harness metrics
+      def harness_metrics
+        @harness_metrics.dup
+      end
+
+      # Record harness request metrics
+      def record_harness_request(success:, tokens_used: 0, cost: 0.0, response_time: 0.0, rate_limited: false)
+        @harness_metrics[:total_requests] += 1
+        @harness_metrics[:last_request_time] = Time.now
+
+        if success
+          @harness_metrics[:successful_requests] += 1
+        else
+          @harness_metrics[:failed_requests] += 1
+        end
+
+        if rate_limited
+          @harness_metrics[:rate_limited_requests] += 1
+        end
+
+        @harness_metrics[:total_tokens_used] += tokens_used
+        @harness_metrics[:total_cost] += cost
+
+        # Update average response time
+        if @harness_metrics[:total_requests] > 0
+          total_time = @harness_metrics[:average_response_time] * (@harness_metrics[:total_requests] - 1) + response_time
+          @harness_metrics[:average_response_time] = total_time / @harness_metrics[:total_requests]
+        end
+
+        # Notify harness context if available
+        @harness_context&.record_provider_metrics(provider_name, @harness_metrics)
+      end
+
+      # Get provider health status for harness
+      def harness_health_status
+        {
+          provider: provider_name,
+          activity_state: @last_execution_result&.dig(:state) || :idle,
+          stuck: false, # Supervisor handles stuck detection
+          success_rate: calculate_success_rate,
+          average_response_time: @harness_metrics[:average_response_time],
+          total_requests: @harness_metrics[:total_requests],
+          rate_limit_ratio: calculate_rate_limit_ratio,
+          last_activity: @last_execution_result&.dig(:end_time),
+          health_score: calculate_health_score
+        }
+      end
+
+      # Check if provider is healthy for harness use
+      def harness_healthy?
+        return false if @harness_metrics[:total_requests] > 0 && calculate_success_rate < 0.5
+        return false if calculate_rate_limit_ratio > 0.3
+
+        true
+      end
+
+      # Get provider configuration for harness
+      def harness_config
+        {
+          name: provider_name,
+          supports_activity_monitoring: supports_activity_monitoring?,
+          default_timeout: DEFAULT_TIMEOUT,
+          available: available?,
+          health_status: harness_health_status
+        }
+      end
+
+      # Check if provider is available (override in subclasses)
+      def available?
+        true # Default to true, override in subclasses
+      end
+
+      # Enhanced send method that integrates with harness
+      def send_with_harness(prompt:, session: nil, _options: {})
+        start_time = Time.now
+        success = false
+        rate_limited = false
+        tokens_used = 0
+        cost = 0.0
+        error_message = nil
+
+        begin
+          # Call the original send method
+          result = send(prompt: prompt, session: session)
+          success = true
+
+          # Extract token usage and cost if available
+          if result.is_a?(Hash) && result[:token_usage]
+            tokens_used = result[:token_usage][:total] || 0
+            cost = result[:token_usage][:cost] || 0.0
+          end
+
+          # Check for rate limiting in result
+          if result.is_a?(Hash) && result[:rate_limited]
+            rate_limited = true
+          end
+
+          result
+        rescue => e
+          error_message = e.message
+
+          # Check if error is rate limiting
+          if e.message.match?(/rate.?limit/i) || e.message.match?(/quota/i)
+            rate_limited = true
+          end
+
+          raise e
+        ensure
+          response_time = Time.now - start_time
+          record_harness_request(
+            success: success,
+            tokens_used: tokens_used,
+            cost: cost,
+            response_time: response_time,
+            rate_limited: rate_limited
+          )
+
+          # Log to harness context if available
+          if @harness_context && error_message
+            @harness_context.record_provider_error(provider_name, error_message, rate_limited)
+          end
+        end
+      end
+
       private
+
+      # Calculate success rate for harness metrics
+      def calculate_success_rate
+        return 1.0 if @harness_metrics[:total_requests] == 0
+        @harness_metrics[:successful_requests].to_f / @harness_metrics[:total_requests]
+      end
+
+      # Calculate rate limit ratio for harness metrics
+      def calculate_rate_limit_ratio
+        return 0.0 if @harness_metrics[:total_requests] == 0
+        @harness_metrics[:rate_limited_requests].to_f / @harness_metrics[:total_requests]
+      end
+
+      # Calculate overall health score for harness
+      def calculate_health_score
+        return 100.0 if @harness_metrics[:total_requests] == 0
+
+        success_rate = calculate_success_rate
+        rate_limit_ratio = calculate_rate_limit_ratio
+        response_time_score = [100 - (@harness_metrics[:average_response_time] * 10), 0].max
+
+        # Weighted health score
+        (success_rate * 50) + ((1 - rate_limit_ratio) * 30) + (response_time_score * 0.2)
+      end
 
       def calculate_timeout
         # Priority order for timeout calculation:
@@ -178,20 +349,29 @@ module Aidp
       end
 
       def get_adaptive_timeout
-        # Try to get timeout recommendations from metrics storage
+        # Try to get timeout recommendations from file-based storage
         begin
-          require_relative "../analyze/metrics_storage"
-          storage = Aidp::Analyze::MetricsStorage.new(Dir.pwd)
-          recommendations = storage.calculate_timeout_recommendations
+          require_relative "../storage/file_manager"
+          storage = Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
+
+          # Get metrics summary for timeout recommendations
+          metrics_summary = storage.get_step_executions_summary
+          return nil unless metrics_summary && metrics_summary[:total_rows] > 0
 
           # Get current step name from environment or context
           step_name = ENV["AIDP_CURRENT_STEP"] || "unknown"
 
-          if recommendations[step_name]
-            recommended = recommendations[step_name][:recommended_timeout]
-            # Add buffer for safety
-            return (recommended * ADAPTIVE_TIMEOUT_BUFFER).ceil
-          end
+          # Calculate average duration for this step type
+          step_executions = storage.get_step_executions({"step_name" => step_name})
+          return nil if step_executions.empty?
+
+          # Calculate average duration and add buffer
+          total_duration = step_executions.sum { |exec| exec["duration"].to_f }
+          average_duration = total_duration / step_executions.length
+          recommended = (average_duration * ADAPTIVE_TIMEOUT_BUFFER).ceil
+
+          log_info("Using adaptive timeout based on #{step_executions.length} previous executions: #{recommended}s")
+          return recommended
         rescue => e
           log_warning("Could not get adaptive timeout: #{e.message}") if ENV["AIDP_DEBUG"]
         end
