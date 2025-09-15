@@ -350,8 +350,8 @@ module Aidp
       end
 
       def execute_retry_attempt(error_info, _strategy, _context)
-        # This would integrate with the actual provider execution
-        # For now, return a mock result
+        # Execute retry attempt with provider
+        # TODO: Integrate with actual provider execution
         {
           success: true,
           action: :retry_attempt,

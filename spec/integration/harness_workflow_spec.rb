@@ -12,16 +12,18 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
 
   before do
     # Set up mock mode for tests
-    ENV["AIDP_MOCK_MODE"] = "1"
+    # Mock CLI operations
     # Create a mock project structure
     setup_mock_project
+
+    # Mock CLI operations to avoid real execution
+    mock_cli_operations()
     # Create harness configuration
     setup_harness_config
   end
 
   after do
     FileUtils.remove_entry(project_dir)
-    ENV.delete("AIDP_MOCK_MODE")
   end
 
   describe "Harness Component Integration" do
@@ -306,6 +308,9 @@ RSpec.describe "Harness Workflow Integration", type: :integration do
   private
 
   def setup_mock_project
+
+    # Mock CLI operations to avoid real execution
+    mock_cli_operations()
     # Create basic project structure
     FileUtils.mkdir_p(File.join(project_dir, "lib"))
     FileUtils.mkdir_p(File.join(project_dir, "spec"))

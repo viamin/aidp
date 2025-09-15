@@ -9,6 +9,7 @@ require_relative "provider_manager"
 require_relative "user_interface"
 require_relative "error_handler"
 require_relative "status_display"
+require_relative "completion_checker"
 
 module Aidp
   module Harness
@@ -34,8 +35,12 @@ module Aidp
         @start_time = nil
         @current_step = nil
         @current_provider = nil
-        @user_input = {}
+        @user_input = options[:user_input] || {}  # Include user input from workflow selection
         @execution_log = []
+
+        # Store workflow configuration
+        @selected_steps = options[:selected_steps]
+        @workflow_type = options[:workflow_type]
 
         # Initialize components
         @configuration = Configuration.new(project_dir)
@@ -45,34 +50,11 @@ module Aidp
         @user_interface = UserInterface.new
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @status_display = StatusDisplay.new
+        @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end
 
       # Main execution method - runs the harness loop
       def run
-        # In test mode, handle simulated errors or return early to avoid hanging
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec) || ENV["AIDP_MOCK_MODE"] == "1"
-          # Check for simulated errors first
-          if @options && @options[:simulate_error]
-            @state = STATES[:error]
-            return {status: @state, error: @options[:simulate_error], provider: "mock"}
-          end
-
-          @state = STATES[:completed]
-          # Return appropriate information based on mode
-          if @mode == :analyze
-            # Check if we're running a specific step or starting the workflow
-            if @options && @options[:step_name]
-              # Running a specific step - return same as analyze runner
-              return {status: "completed", provider: "mock", message: "Mock execution"}
-            else
-              # Starting the workflow - return success with next step
-              return {status: "success", next_step: "01_REPOSITORY_ANALYSIS", provider: "mock"}
-            end
-          else
-            return {status: @state, message: "Test mode - harness completed", provider: "mock"}
-          end
-        end
-
         @state = STATES[:running]
         @start_time = Time.now
 
@@ -106,10 +88,26 @@ module Aidp
             update_state
           end
 
-          # Mark as completed if we finished all steps
+          # Mark as completed if we finished all steps AND all completion criteria are met
           if all_steps_completed?(runner)
-            @state = STATES[:completed]
-            log_execution("Harness completed successfully")
+            completion_status = @completion_checker.completion_status
+            if completion_status[:all_complete]
+              @state = STATES[:completed]
+              log_execution("Harness completed successfully - all criteria met", completion_status)
+            else
+              log_execution("Steps completed but completion criteria not met", completion_status)
+              puts "\n⚠️  All steps completed but some completion criteria not met:"
+              puts completion_status[:summary]
+
+              # Ask user if they want to continue anyway
+              if @user_interface.get_confirmation("Continue anyway? This may indicate issues that should be addressed.", default: false)
+                @state = STATES[:completed]
+                log_execution("Harness completed with user override")
+              else
+                @state = STATES[:error]
+                log_execution("Harness stopped due to unmet completion criteria")
+              end
+            end
           end
         rescue => e
           @state = STATES[:error]

@@ -3,24 +3,26 @@
 module Aidp
   module Execute
     module Steps
+      # Simplified step specifications with fewer gates
       SPEC = {
         "00_PRD" => {
           "templates" => ["prd.md"],
           "description" => "Generate Product Requirements Document",
           "outs" => ["docs/prd.md"],
-          "gate" => true
+          "gate" => false,  # Now auto-generated from user input
+          "interactive" => true  # Uses collected user input
         },
         "01_NFRS" => {
           "templates" => ["nfrs.md"],
           "description" => "Define Non-Functional Requirements",
           "outs" => ["docs/nfrs.md"],
-          "gate" => true
+          "gate" => false  # Auto-generated
         },
         "02_ARCHITECTURE" => {
           "templates" => ["architecture.md"],
           "description" => "Design System Architecture",
           "outs" => ["docs/architecture.md"],
-          "gate" => true
+          "gate" => false  # Auto-generated
         },
         "02A_ARCH_GATE_QUESTIONS" => {
           "templates" => ["arch_gate_questions.md"],
@@ -38,13 +40,13 @@ module Aidp
           "templates" => ["domain_decomposition.md"],
           "description" => "Decompose Domain into Components",
           "outs" => ["docs/domain_decomposition.md"],
-          "gate" => true
+          "gate" => false  # Auto-generated
         },
         "05_API_DESIGN" => {
           "templates" => ["api_design.md"],
           "description" => "Design APIs and Interfaces",
           "outs" => ["docs/api_design.md"],
-          "gate" => true
+          "gate" => false  # Auto-generated
         },
         "06_DATA_MODEL" => {
           "templates" => ["data_model.md"],
@@ -74,7 +76,7 @@ module Aidp
           "templates" => ["testing_strategy.md"],
           "description" => "Define Testing Strategy",
           "outs" => ["docs/testing_strategy.md"],
-          "gate" => true
+          "gate" => false  # Auto-generated
         },
         "11_STATIC_ANALYSIS" => {
           "templates" => ["static_analysis.md"],
@@ -104,7 +106,15 @@ module Aidp
           "templates" => ["post_release.md"],
           "description" => "Post-Release Review",
           "outs" => ["docs/post_release.md"],
-          "gate" => true
+          "gate" => false  # Auto-generated
+        },
+        # New implementation step for actual development work
+        "16_IMPLEMENTATION" => {
+          "templates" => ["implementation.md"],
+          "description" => "Execute Implementation Tasks",
+          "outs" => ["implementation_log.md"],
+          "gate" => false,
+          "implementation" => true  # Special step that runs development tasks
         }
       }.freeze
     end

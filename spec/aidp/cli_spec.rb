@@ -120,7 +120,17 @@ RSpec.describe Aidp::CLI do
       it "uses harness when no step specified" do
         options = {harness: true}
 
-        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :execute, options)
+        # Mock WorkflowSelector to avoid user interaction
+        mock_workflow_selector = instance_double(Aidp::Execute::WorkflowSelector)
+        allow(Aidp::Execute::WorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
+        allow(mock_workflow_selector).to receive(:select_workflow).and_return({
+          workflow_type: :exploration,
+          steps: ["00_PRD", "IMPLEMENTATION"],
+          user_input: {project_description: "Test project"}
+        })
+
+        # Expect the harness to be called with workflow configuration
+        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :execute, hash_including(options))
         expect(mock_harness_runner).to receive(:run)
 
         cli.execute(temp_dir, nil, options)

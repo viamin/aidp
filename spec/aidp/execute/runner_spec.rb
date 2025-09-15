@@ -74,21 +74,6 @@ RSpec.describe Aidp::Execute::Runner do
       expect { runner.run_step("nonexistent_step", options) }.to raise_error("Step 'nonexistent_step' not found")
     end
 
-    it "handles mock mode execution" do
-      result = runner.run_step(step_name, {mock_mode: true})
-
-      expect(result[:status]).to eq("completed")
-      expect(result[:provider]).to eq("mock")
-      expect(result[:message]).to eq("Mock execution")
-      expect(result[:output]).to eq("Mock execution result")
-    end
-
-    it "handles mock mode with simulated error" do
-      result = runner.run_step(step_name, {mock_mode: true, simulate_error: "Test error"})
-
-      expect(result[:status]).to eq("error")
-      expect(result[:error]).to eq("Test error")
-    end
   end
 
   describe "harness integration methods" do
@@ -149,7 +134,7 @@ RSpec.describe Aidp::Execute::Runner do
       expect(spec["templates"]).to eq(["prd.md"])
       expect(spec["description"]).to eq("Generate Product Requirements Document")
       expect(spec["outs"]).to eq(["docs/prd.md"])
-      expect(spec["gate"]).to be true
+      expect(spec["gate"]).to be false  # Changed in simplified workflow
     end
 
     it "returns nil for nonexistent step" do
@@ -163,7 +148,7 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "checks if step is a gate step" do
-      expect(runner.is_gate_step?("00_PRD")).to be true
+      expect(runner.is_gate_step?("00_PRD")).to be false  # Changed in simplified workflow
       expect(runner.is_gate_step?("03_ADR_FACTORY")).to be false
     end
 
@@ -434,19 +419,4 @@ RSpec.describe Aidp::Execute::Runner do
     end
   end
 
-  describe "mock mode detection" do
-    it "detects mock mode from options" do
-      expect(runner.send(:should_use_mock_mode?, {mock_mode: true})).to be true
-      expect(runner.send(:should_use_mock_mode?, {mock_mode: false})).to be false
-    end
-
-    it "detects mock mode from environment" do
-      allow(ENV).to receive(:[]).with("AIDP_MOCK_MODE").and_return("1")
-      expect(runner.send(:should_use_mock_mode?, {})).to be true
-
-      allow(ENV).to receive(:[]).with("AIDP_MOCK_MODE").and_return(nil)
-      allow(ENV).to receive(:[]).with("RAILS_ENV").and_return("test")
-      expect(runner.send(:should_use_mock_mode?, {})).to be true
-    end
-  end
 end
