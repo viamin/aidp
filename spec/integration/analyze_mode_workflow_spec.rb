@@ -15,7 +15,7 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
     setup_mock_project
 
     # Mock CLI operations to avoid real execution
-    mock_cli_operations()
+    mock_cli_operations
 
     # Mock analyze command to avoid real execution
     # Return different values based on whether step is specified
@@ -248,9 +248,8 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   private
 
   def setup_mock_project
-
     # Mock CLI operations to avoid real execution
-    mock_cli_operations()
+    mock_cli_operations
     # Create basic project structure
     FileUtils.mkdir_p(File.join(project_dir, "app", "controllers"))
     FileUtils.mkdir_p(File.join(project_dir, "app", "models"))

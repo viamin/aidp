@@ -87,7 +87,6 @@ RSpec.describe Aidp::Analyze::Runner do
       expect(standalone_runner).to have_received(:run_step_standalone).with(step_name, options)
       expect(result[:status]).to eq("completed")
     end
-
   end
 
   describe "harness status" do

@@ -69,7 +69,7 @@ module Aidp
       # Harness integration methods
       def all_steps
         # Use selected steps from harness if available, otherwise all steps
-        if @is_harness_mode && @harness_runner && @harness_runner.instance_variable_get(:@selected_steps)
+        if @is_harness_mode && @harness_runner&.instance_variable_get(:@selected_steps)
           @harness_runner.instance_variable_get(:@selected_steps)
         else
           Aidp::Execute::Steps::SPEC.keys
@@ -151,7 +151,6 @@ module Aidp
           }
         }
       end
-
 
       # Compose prompt with harness context and user input
       def composed_prompt_with_harness_context(step_name, options = {})

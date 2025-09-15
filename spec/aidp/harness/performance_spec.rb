@@ -13,7 +13,7 @@ RSpec.describe "Harness Performance Testing", type: :performance do
     # Set up mock mode for tests
     # Create a mock project structure
     setup_mock_project
-    mock_cli_operations()
+    mock_cli_operations
     # Create harness configuration
     setup_harness_config
   end
@@ -378,7 +378,7 @@ RSpec.describe "Harness Performance Testing", type: :performance do
   private
 
   def setup_mock_project
-    mock_cli_operations()
+    mock_cli_operations
     # Create basic project structure
     FileUtils.mkdir_p(File.join(project_dir, "lib"))
     FileUtils.mkdir_p(File.join(project_dir, "spec"))

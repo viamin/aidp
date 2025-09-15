@@ -73,7 +73,6 @@ RSpec.describe Aidp::Execute::Runner do
     it "validates step exists before execution" do
       expect { runner.run_step("nonexistent_step", options) }.to raise_error("Step 'nonexistent_step' not found")
     end
-
   end
 
   describe "harness integration methods" do
@@ -418,5 +417,4 @@ RSpec.describe Aidp::Execute::Runner do
       expect(runner).to respond_to(:harness_status)
     end
   end
-
 end
