@@ -24,7 +24,7 @@ module Aidp
           @frame.open(formatted_title) do
             yield if block_given?
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to open frame: #{e.message}"
         end
 
@@ -33,7 +33,7 @@ module Aidp
 
           formatted_text = @formatter.format_divider_text(text)
           @frame.divider(formatted_text)
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to create divider: #{e.message}"
         end
 
@@ -44,7 +44,7 @@ module Aidp
           @frame.open(formatted_title) do
             yield if block_given?
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to create section: #{e.message}"
         end
 
@@ -55,7 +55,7 @@ module Aidp
           @frame.open(formatted_title) do
             yield if block_given?
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to create subsection: #{e.message}"
         end
 
@@ -66,7 +66,7 @@ module Aidp
           @frame.open(formatted_title) do
             yield if block_given?
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to create workflow frame: #{e.message}"
         end
 
@@ -77,7 +77,7 @@ module Aidp
           @frame.open(formatted_title) do
             yield if block_given?
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to create step frame: #{e.message}"
         end
 

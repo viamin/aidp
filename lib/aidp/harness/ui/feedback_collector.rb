@@ -29,7 +29,7 @@ module Aidp
             display_feedback_header(questions, context)
             collect_questions_with_context(questions, context)
           end
-        rescue StandardError => e
+        rescue => e
           raise CollectionError, "Failed to collect feedback: #{e.message}"
         end
 
@@ -42,7 +42,7 @@ module Aidp
             display_quick_feedback_result(response)
             response
           end
-        rescue StandardError => e
+        rescue => e
           raise CollectionError, "Failed to collect quick feedback: #{e.message}"
         end
 
@@ -53,7 +53,7 @@ module Aidp
             display_batch_header(questions)
             collect_questions_batch(questions)
           end
-        rescue StandardError => e
+        rescue => e
           raise CollectionError, "Failed to collect batch feedback: #{e.message}"
         end
 
@@ -79,7 +79,7 @@ module Aidp
 
         def display_question_summary(questions)
           CLI::UI.puts("📋 Total Questions: #{questions.length}")
-          CLI::UI.puts("📊 Question Types: #{get_question_types(questions).join(', ')}")
+          CLI::UI.puts("📊 Question Types: #{get_question_types(questions).join(", ")}")
         end
 
         def display_context_info(context)
@@ -119,8 +119,8 @@ module Aidp
 
         def display_question_context(question, number, total)
           CLI::UI.puts("Question #{number} of #{total}")
-          CLI::UI.puts("Type: #{question[:type] || 'text'}")
-          CLI::UI.puts("Required: #{question[:required] ? 'Yes' : 'No'}")
+          CLI::UI.puts("Type: #{question[:type] || "text"}")
+          CLI::UI.puts("Required: #{question[:required] ? "Yes" : "No"}")
         end
 
         def collect_questions_batch(questions)
@@ -162,7 +162,7 @@ module Aidp
         end
 
         def get_question_types(questions)
-          questions.map { |q| q[:type] || 'text' }.uniq
+          questions.map { |q| q[:type] || "text" }.uniq
         end
 
         def format_urgency(urgency)

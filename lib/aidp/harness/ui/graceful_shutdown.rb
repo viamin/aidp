@@ -26,7 +26,7 @@ module Aidp
           shutdown_result = perform_graceful_shutdown(workflow_id, shutdown_type)
           record_shutdown_event(workflow_id, shutdown_type, shutdown_result)
           shutdown_result
-        rescue StandardError => e
+        rescue => e
           raise ShutdownError, "Failed to perform graceful shutdown: #{e.message}"
         end
 
@@ -72,7 +72,7 @@ module Aidp
         def validate_shutdown_type(shutdown_type)
           valid_types = [:stop, :abort, :terminate, :restart]
           unless valid_types.include?(shutdown_type)
-            raise ShutdownError, "Invalid shutdown type: #{shutdown_type}. Must be one of: #{valid_types.join(', ')}"
+            raise ShutdownError, "Invalid shutdown type: #{shutdown_type}. Must be one of: #{valid_types.join(", ")}"
           end
         end
 
@@ -97,8 +97,7 @@ module Aidp
             shutdown_result[:phases_completed] = execute_shutdown_phases(workflow_id, shutdown_type)
             shutdown_result[:success] = true
             shutdown_result[:completed_at] = Time.now
-
-          rescue StandardError => e
+          rescue => e
             shutdown_result[:errors] << e.message
             shutdown_result[:completed_at] = Time.now
           end
@@ -157,8 +156,7 @@ module Aidp
             end
 
             phase_result[:success] = true
-
-          rescue StandardError => e
+          rescue => e
             phase_result[:error] = e.message
           ensure
             phase_result[:duration] = Time.now - start_time
@@ -193,11 +191,9 @@ module Aidp
         def execute_shutdown_handlers(workflow_id, shutdown_type)
           # Execute custom shutdown handlers
           @shutdown_handlers.each do |handler|
-            begin
-              handler.call(workflow_id, shutdown_type)
-            rescue StandardError => e
-              CLI::UI.puts(@formatter.format_handler_error(handler, e.message))
-            end
+            handler.call(workflow_id, shutdown_type)
+          rescue => e
+            CLI::UI.puts(@formatter.format_handler_error(handler, e.message))
           end
         end
 

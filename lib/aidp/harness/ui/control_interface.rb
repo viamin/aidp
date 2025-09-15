@@ -34,7 +34,7 @@ module Aidp
           start_status_refresh
 
           CLI::UI.puts(@formatter.format_interface_started)
-        rescue StandardError => e
+        rescue => e
           raise InterfaceError, "Failed to start control interface: #{e.message}"
         end
 
@@ -46,7 +46,7 @@ module Aidp
           @workflow_controller.stop_control_interface
 
           CLI::UI.puts(@formatter.format_interface_stopped)
-        rescue StandardError => e
+        rescue => e
           raise InterfaceError, "Failed to stop control interface: #{e.message}"
         end
 
@@ -79,21 +79,21 @@ module Aidp
           return unless @interface_active
 
           case input.downcase
-          when 'status', 's'
+          when "status", "s"
             display_control_status
-          when 'help', 'h', '?'
+          when "help", "h", "?"
             display_control_help
-          when 'pause', 'p'
+          when "pause", "p"
             handle_pause_request
-          when 'resume', 'r'
+          when "resume", "r"
             handle_resume_request
-          when 'cancel', 'c'
+          when "cancel", "c"
             handle_cancel_request
-          when 'stop', 'st'
+          when "stop", "st"
             handle_stop_request
-          when 'quit', 'q'
+          when "quit", "q"
             handle_quit_request
-          when 'refresh', 'rf'
+          when "refresh", "rf"
             display_control_status
           else
             CLI::UI.puts(@formatter.format_unknown_command(input))
@@ -134,8 +134,8 @@ module Aidp
 
         def display_interface_status
           CLI::UI.puts("Interface Status:")
-          CLI::UI.puts("  Active: #{@interface_active ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Status Display: #{@status_display_enabled ? 'Enabled' : 'Disabled'}")
+          CLI::UI.puts("  Active: #{@interface_active ? "Yes" : "No"}")
+          CLI::UI.puts("  Status Display: #{@status_display_enabled ? "Enabled" : "Disabled"}")
           CLI::UI.puts("  Auto Refresh: #{@auto_refresh_interval}s")
         end
 
@@ -144,10 +144,10 @@ module Aidp
 
           CLI::UI.puts("\nWorkflow Status:")
           CLI::UI.puts("  State: #{@formatter.format_workflow_state(workflow_status[:state])}")
-          CLI::UI.puts("  Can Pause: #{workflow_status[:can_pause] ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Can Resume: #{workflow_status[:can_resume] ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Can Cancel: #{workflow_status[:can_cancel] ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Can Stop: #{workflow_status[:can_stop] ? 'Yes' : 'No'}")
+          CLI::UI.puts("  Can Pause: #{workflow_status[:can_pause] ? "Yes" : "No"}")
+          CLI::UI.puts("  Can Resume: #{workflow_status[:can_resume] ? "Yes" : "No"}")
+          CLI::UI.puts("  Can Cancel: #{workflow_status[:can_cancel] ? "Yes" : "No"}")
+          CLI::UI.puts("  Can Stop: #{workflow_status[:can_stop] ? "Yes" : "No"}")
         end
 
         def display_keyboard_shortcuts

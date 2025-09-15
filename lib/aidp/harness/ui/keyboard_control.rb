@@ -12,16 +12,16 @@ module Aidp
         class ShortcutConflictError < KeyboardError; end
 
         DEFAULT_SHORTCUTS = {
-          'p' => :pause,
-          'r' => :resume,
-          'c' => :cancel,
-          's' => :stop,
-          'q' => :quit,
-          'h' => :help,
-          '?' => :help,
-          'esc' => :back,
-          'ctrl+c' => :interrupt,
-          'ctrl+z' => :suspend
+          "p" => :pause,
+          "r" => :resume,
+          "c" => :cancel,
+          "s" => :stop,
+          "q" => :quit,
+          "h" => :help,
+          "?" => :help,
+          "esc" => :back,
+          "ctrl+c" => :interrupt,
+          "ctrl+z" => :suspend
         }.freeze
 
         def initialize(ui_components = {})
@@ -63,7 +63,7 @@ module Aidp
           return unless action
 
           execute_shortcut_action(action, key)
-        rescue StandardError => e
+        rescue => e
           raise KeyboardError, "Failed to handle key input: #{e.message}"
         end
 
@@ -239,11 +239,11 @@ module Aidp
 
         def format_key_display(key)
           case key
-          when 'ctrl+c'
+          when "ctrl+c"
             "Ctrl+C"
-          when 'ctrl+z'
+          when "ctrl+z"
             "Ctrl+Z"
-          when 'esc'
+          when "esc"
             "Esc"
           else
             key.upcase

@@ -33,7 +33,7 @@ module Aidp
               track_workflow_status(workflow_name, spinner, &block)
             end
           end
-        rescue StandardError => e
+        rescue => e
           raise UpdateError, "Failed to show workflow status: #{e.message}"
         end
 
@@ -45,7 +45,7 @@ module Aidp
               track_step_status(step_name, spinner, &block)
             end
           end
-        rescue StandardError => e
+        rescue => e
           raise UpdateError, "Failed to show step status: #{e.message}"
         end
 
@@ -55,7 +55,7 @@ module Aidp
           @frame_manager.section("Concurrent Operations") do
             @spinner_group.run_concurrent_operations(operations, &block)
           end
-        rescue StandardError => e
+        rescue => e
           raise UpdateError, "Failed to show concurrent statuses: #{e.message}"
         end
 
@@ -118,7 +118,7 @@ module Aidp
         def get_status_summary
           {
             active_statuses: @active_statuses.size,
-            completed_statuses: @status_history.count { |h| h[:status] == 'completed' },
+            completed_statuses: @status_history.count { |h| h[:status] == "completed" },
             total_statuses: @status_history.size,
             status_history: @status_history.dup
           }
@@ -154,7 +154,7 @@ module Aidp
         def validate_status_type(type)
           valid_types = [:info, :success, :warning, :error, :loading]
           unless valid_types.include?(type)
-            raise InvalidStatusError, "Invalid status type: #{type}. Must be one of: #{valid_types.join(', ')}"
+            raise InvalidStatusError, "Invalid status type: #{type}. Must be one of: #{valid_types.join(", ")}"
           end
         end
 
@@ -162,27 +162,20 @@ module Aidp
           raise InvalidStatusError, "Tracker name cannot be empty" if name.to_s.strip.empty?
         end
 
-        def track_workflow_status(workflow_name, spinner, &block)
-          current_step = 0
-          total_steps = 1 # Will be updated dynamically
-
-          begin
-            yield(spinner) if block_given?
-            @status_widget.show_success_status("Completed #{workflow_name}")
-          rescue StandardError => e
-            @status_widget.show_error_status("Failed #{workflow_name}: #{e.message}")
-            raise
-          end
+        def track_workflow_status(workflow_name, spinner, &block) # Will be updated dynamically
+          yield(spinner) if block_given?
+          @status_widget.show_success_status("Completed #{workflow_name}")
+        rescue => e
+          @status_widget.show_error_status("Failed #{workflow_name}: #{e.message}")
+          raise
         end
 
         def track_step_status(step_name, spinner, &block)
-          begin
-            yield(spinner) if block_given?
-            @status_widget.show_success_status("Completed #{step_name}")
-          rescue StandardError => e
-            @status_widget.show_error_status("Failed #{step_name}: #{e.message}")
-            raise
-          end
+          yield(spinner) if block_given?
+          @status_widget.show_success_status("Completed #{step_name}")
+        rescue => e
+          @status_widget.show_error_status("Failed #{step_name}: #{e.message}")
+          raise
         end
 
         def update_status_display(status, message, type)
@@ -198,7 +191,7 @@ module Aidp
 
         def complete_status_display(status, final_message)
           status[:message] = final_message
-          status[:status] = 'completed'
+          status[:status] = "completed"
           status[:completed_at] = Time.now
 
           # Show final status
@@ -221,12 +214,12 @@ module Aidp
             type: :info,
             created_at: Time.now,
             last_updated: Time.now,
-            status: 'active'
+            status: "active"
           }
         end
 
         def generate_status_id(name)
-          "#{name.downcase.gsub(/\s+/, '_')}_#{Time.now.to_i}"
+          "#{name.downcase.gsub(/\s+/, "_")}_#{Time.now.to_i}"
         end
 
         def record_status_creation(status_id, name, initial_message)
@@ -234,7 +227,7 @@ module Aidp
             status_id: status_id,
             name: name,
             message: initial_message,
-            status: 'created',
+            status: "created",
             timestamp: Time.now
           }
         end
@@ -244,7 +237,7 @@ module Aidp
             status_id: status_id,
             message: message,
             type: type,
-            status: 'updated',
+            status: "updated",
             timestamp: Time.now
           }
         end
@@ -253,7 +246,7 @@ module Aidp
           @status_history << {
             status_id: status_id,
             message: final_message,
-            status: 'completed',
+            status: "completed",
             timestamp: Time.now
           }
         end
@@ -262,7 +255,7 @@ module Aidp
           @status_history << {
             type: type,
             message: message,
-            status: 'event',
+            status: "event",
             timestamp: Time.now
           }
         end
@@ -303,7 +296,7 @@ module Aidp
         end
 
         def format_status_tracker(tracker)
-          status_emoji = tracker[:status] == 'completed' ? '✅' : '🔄'
+          status_emoji = (tracker[:status] == "completed") ? "✅" : "🔄"
           CLI::UI.fmt("#{status_emoji} {{bold:#{tracker[:name]}}} - {{dim:#{tracker[:message]}}}")
         end
       end

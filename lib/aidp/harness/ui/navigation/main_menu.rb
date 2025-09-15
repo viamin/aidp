@@ -45,7 +45,7 @@ module Aidp
               selection = prompt_for_selection
               break if handle_selection(selection) == :exit
             end
-          rescue StandardError => e
+          rescue => e
             raise NavigationError, "Failed to show menu: #{e.message}"
           end
 
@@ -59,7 +59,7 @@ module Aidp
             @current_level += 1
 
             submenu.show_menu(submenu_title)
-          rescue StandardError => e
+          rescue => e
             raise NavigationError, "Failed to navigate to submenu: #{e.message}"
           end
 
@@ -157,11 +157,11 @@ module Aidp
           end
 
           def execute_action(item)
-            item.action.call if item.action
+            item.action&.call
           end
 
           def execute_workflow(item)
-            item.workflow.call if item.workflow
+            item.workflow&.call
           end
         end
       end

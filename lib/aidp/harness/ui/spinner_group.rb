@@ -25,7 +25,7 @@ module Aidp
               add_operation(spin_group, operation)
             end
           end
-        rescue StandardError => e
+        rescue => e
           raise ExecutionError, "Failed to run concurrent operations: #{e.message}"
         end
 
@@ -34,7 +34,7 @@ module Aidp
 
           operations = convert_steps_to_operations(steps)
           run_concurrent_operations(operations)
-        rescue StandardError => e
+        rescue => e
           raise ExecutionError, "Failed to run workflow steps: #{e.message}"
         end
 
@@ -43,7 +43,7 @@ module Aidp
 
           operations = convert_tasks_to_operations(tasks)
           run_concurrent_operations(operations)
-        rescue StandardError => e
+        rescue => e
           raise ExecutionError, "Failed to run analysis tasks: #{e.message}"
         end
 
@@ -52,7 +52,7 @@ module Aidp
 
           operations = convert_provider_operations(provider_operations)
           run_concurrent_operations(operations)
-        rescue StandardError => e
+        rescue => e
           raise ExecutionError, "Failed to run provider operations: #{e.message}"
         end
 
@@ -99,7 +99,7 @@ module Aidp
 
         def execute_operation_with_error_handling(operation, spinner)
           operation[:block].call(spinner)
-        rescue StandardError => e
+        rescue => e
           spinner.update_title(@formatter.format_error_title(operation[:title], e.message))
           raise
         end

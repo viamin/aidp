@@ -55,7 +55,7 @@ module Aidp
           end
 
           error_info
-        rescue StandardError => e
+        rescue => e
           raise ErrorHandlerError, "Failed to handle job error: #{e.message}"
         end
 
@@ -80,7 +80,7 @@ module Aidp
 
           CLI::UI.puts(@formatter.format_retry_scheduled(job_id, retry_count, retry_info[:delay]))
           retry_info
-        rescue StandardError => e
+        rescue => e
           raise RetryError, "Failed to retry job: #{e.message}"
         end
 
@@ -89,12 +89,10 @@ module Aidp
           ready_retries = @retry_queue.select { |retry_info| retry_info[:scheduled_at] <= current_time }
 
           ready_retries.each do |retry_info|
-            begin
-              execute_retry(retry_info)
-              @retry_queue.delete(retry_info)
-            rescue StandardError => e
-              CLI::UI.puts(@formatter.format_retry_execution_error(retry_info[:job_id], e.message))
-            end
+            execute_retry(retry_info)
+            @retry_queue.delete(retry_info)
+          rescue => e
+            CLI::UI.puts(@formatter.format_retry_execution_error(retry_info[:job_id], e.message))
           end
 
           ready_retries.size
@@ -164,7 +162,7 @@ module Aidp
 
         def validate_retry_strategy(strategy)
           unless RETRY_STRATEGIES.key?(strategy)
-            raise ErrorHandlerError, "Invalid retry strategy: #{strategy}. Must be one of: #{RETRY_STRATEGIES.keys.join(', ')}"
+            raise ErrorHandlerError, "Invalid retry strategy: #{strategy}. Must be one of: #{RETRY_STRATEGIES.keys.join(", ")}"
           end
         end
 
@@ -255,7 +253,7 @@ module Aidp
           when :immediate
             0
           when :exponential_backoff
-            @retry_delay * (2 ** (retry_count - 1))
+            @retry_delay * (2**(retry_count - 1))
           when :linear_backoff
             @retry_delay * retry_count
           when :fixed_delay
@@ -288,7 +286,7 @@ module Aidp
           else
             # Simulate another error
             error = StandardError.new("Retry attempt #{retry_count} failed")
-            handle_job_error(job_id, error, { retry_count: retry_count })
+            handle_job_error(job_id, error, {retry_count: retry_count})
           end
         end
 

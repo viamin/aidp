@@ -25,7 +25,7 @@ module Aidp
           cleanup_result = perform_cleanup(workflow_id, cleanup_type)
           record_cleanup_event(workflow_id, cleanup_type, cleanup_result)
           cleanup_result
-        rescue StandardError => e
+        rescue => e
           raise CleanupError, "Failed to cleanup workflow: #{e.message}"
         end
 
@@ -74,7 +74,7 @@ module Aidp
         def validate_cleanup_type(cleanup_type)
           valid_types = [:cancel, :stop, :abort, :reset]
           unless valid_types.include?(cleanup_type)
-            raise CleanupError, "Invalid cleanup type: #{cleanup_type}. Must be one of: #{valid_types.join(', ')}"
+            raise CleanupError, "Invalid cleanup type: #{cleanup_type}. Must be one of: #{valid_types.join(", ")}"
           end
         end
 
@@ -97,8 +97,7 @@ module Aidp
             cleanup_result[:resources_cleaned] = cleanup_workflow_resources(workflow_id, cleanup_type)
             cleanup_result[:success] = true
             cleanup_result[:completed_at] = Time.now
-
-          rescue StandardError => e
+          rescue => e
             cleanup_result[:errors] << e.message
             cleanup_result[:completed_at] = Time.now
           end
@@ -130,13 +129,11 @@ module Aidp
 
           temp_patterns.each do |pattern|
             Dir.glob(pattern).each do |file|
-              begin
-                File.delete(file) if File.exist?(file)
-                cleaned_files << { type: :file, path: file, action: :deleted }
-              rescue StandardError => e
-                # Log error but continue cleanup
-                cleaned_files << { type: :file, path: file, action: :error, error: e.message }
-              end
+              File.delete(file) if File.exist?(file)
+              cleaned_files << {type: :file, path: file, action: :deleted}
+            rescue => e
+              # Log error but continue cleanup
+              cleaned_files << {type: :file, path: file, action: :error, error: e.message}
             end
           end
 
@@ -149,8 +146,8 @@ module Aidp
           # Clean up memory caches, variables, etc.
           # This is a placeholder for actual memory cleanup logic
 
-          cleaned_memory << { type: :memory, resource: "workflow_cache_#{workflow_id}", action: :cleared }
-          cleaned_memory << { type: :memory, resource: "state_cache_#{workflow_id}", action: :cleared }
+          cleaned_memory << {type: :memory, resource: "workflow_cache_#{workflow_id}", action: :cleared}
+          cleaned_memory << {type: :memory, resource: "state_cache_#{workflow_id}", action: :cleared}
 
           cleaned_memory
         end
@@ -161,8 +158,8 @@ module Aidp
           # Clean up network connections, HTTP clients, etc.
           # This is a placeholder for actual network cleanup logic
 
-          cleaned_network << { type: :network, resource: "http_client_#{workflow_id}", action: :closed }
-          cleaned_network << { type: :network, resource: "websocket_#{workflow_id}", action: :closed }
+          cleaned_network << {type: :network, resource: "http_client_#{workflow_id}", action: :closed}
+          cleaned_network << {type: :network, resource: "websocket_#{workflow_id}", action: :closed}
 
           cleaned_network
         end
@@ -173,8 +170,8 @@ module Aidp
           # Clean up background processes, threads, etc.
           # This is a placeholder for actual process cleanup logic
 
-          cleaned_processes << { type: :process, resource: "worker_thread_#{workflow_id}", action: :terminated }
-          cleaned_processes << { type: :process, resource: "background_job_#{workflow_id}", action: :cancelled }
+          cleaned_processes << {type: :process, resource: "worker_thread_#{workflow_id}", action: :terminated}
+          cleaned_processes << {type: :process, resource: "background_job_#{workflow_id}", action: :cancelled}
 
           cleaned_processes
         end
@@ -200,7 +197,7 @@ module Aidp
             else
               resource_result[:error] = "Unknown resource type: #{resource[:type]}"
             end
-          rescue StandardError => e
+          rescue => e
             resource_result[:error] = e.message
           end
 
@@ -208,7 +205,7 @@ module Aidp
         end
 
         def cleanup_file_resource(resource)
-          result = { resource: resource, success: false, action: nil, error: nil }
+          result = {resource: resource, success: false, action: nil, error: nil}
 
           if File.exist?(resource[:path])
             File.delete(resource[:path])
@@ -222,21 +219,18 @@ module Aidp
         end
 
         def cleanup_memory_resource(resource)
-          result = { resource: resource, success: true, action: :cleared, error: nil }
+          {resource: resource, success: true, action: :cleared, error: nil}
           # Placeholder for actual memory cleanup
-          result
         end
 
         def cleanup_network_resource(resource)
-          result = { resource: resource, success: true, action: :closed, error: nil }
+          {resource: resource, success: true, action: :closed, error: nil}
           # Placeholder for actual network cleanup
-          result
         end
 
         def cleanup_process_resource(resource)
-          result = { resource: resource, success: true, action: :terminated, error: nil }
+          {resource: resource, success: true, action: :terminated, error: nil}
           # Placeholder for actual process cleanup
-          result
         end
 
         def record_cleanup_event(workflow_id, cleanup_type, cleanup_result)

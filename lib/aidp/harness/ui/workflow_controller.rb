@@ -43,7 +43,7 @@ module Aidp
             record_state_change(:paused, reason)
             @status_manager.show_warning_status("Workflow paused: #{reason}")
           end
-        rescue StandardError => e
+        rescue => e
           raise ControlError, "Failed to pause workflow: #{e.message}"
         end
 
@@ -56,7 +56,7 @@ module Aidp
             record_state_change(:running, reason, pause_duration)
             @status_manager.show_success_status("Workflow resumed: #{reason}")
           end
-        rescue StandardError => e
+        rescue => e
           raise ControlError, "Failed to resume workflow: #{e.message}"
         end
 
@@ -69,7 +69,7 @@ module Aidp
             @status_manager.show_warning_status("Workflow cancelled: #{reason}")
             cleanup_workflow_resources
           end
-        rescue StandardError => e
+        rescue => e
           raise ControlError, "Failed to cancel workflow: #{e.message}"
         end
 
@@ -82,7 +82,7 @@ module Aidp
             @status_manager.show_error_status("Workflow stopped: #{reason}")
             cleanup_workflow_resources
           end
-        rescue StandardError => e
+        rescue => e
           raise ControlError, "Failed to stop workflow: #{e.message}"
         end
 
@@ -94,7 +94,7 @@ module Aidp
             record_state_change(:completed, reason)
             @status_manager.show_success_status("Workflow completed: #{reason}")
           end
-        rescue StandardError => e
+        rescue => e
           raise ControlError, "Failed to complete workflow: #{e.message}"
         end
 
@@ -228,21 +228,19 @@ module Aidp
           end
 
           CLI::UI.puts("\nAvailable Actions:")
-          CLI::UI.puts("  Pause: #{status[:can_pause] ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Resume: #{status[:can_resume] ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Cancel: #{status[:can_cancel] ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Stop: #{status[:can_stop] ? 'Yes' : 'No'}")
-          CLI::UI.puts("  Complete: #{status[:can_complete] ? 'Yes' : 'No'}")
+          CLI::UI.puts("  Pause: #{status[:can_pause] ? "Yes" : "No"}")
+          CLI::UI.puts("  Resume: #{status[:can_resume] ? "Yes" : "No"}")
+          CLI::UI.puts("  Cancel: #{status[:can_cancel] ? "Yes" : "No"}")
+          CLI::UI.puts("  Stop: #{status[:can_stop] ? "Yes" : "No"}")
+          CLI::UI.puts("  Complete: #{status[:can_complete] ? "Yes" : "No"}")
         end
 
         def control_interface_loop
           loop do
-            begin
-              handle_control_input
-              sleep(0.1) # Small delay to prevent excessive CPU usage
-            rescue StandardError => e
-              @status_manager.show_error_status("Control interface error: #{e.message}")
-            end
+            handle_control_input
+            sleep(0.1) # Small delay to prevent excessive CPU usage
+          rescue => e
+            @status_manager.show_error_status("Control interface error: #{e.message}")
           end
         end
 

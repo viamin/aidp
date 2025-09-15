@@ -30,7 +30,7 @@ module Aidp
             display_progressive_header(title)
             display_current_level_items
             handle_progressive_interaction
-          rescue StandardError => e
+          rescue => e
             raise DisclosureError, "Failed to show progressive menu: #{e.message}"
           end
 
@@ -70,13 +70,9 @@ module Aidp
             @disclosure_levels[level] || []
           end
 
-          def current_level
-            @current_level
-          end
+          attr_reader :current_level
 
-          def max_visible_level
-            @max_visible_level
-          end
+          attr_reader :max_visible_level
 
           def set_max_visible_level(level)
             validate_level(level)

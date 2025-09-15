@@ -28,7 +28,7 @@ module Aidp
 
           record_preservation_event(workflow_id, snapshot)
           snapshot
-        rescue StandardError => e
+        rescue => e
           raise PreservationError, "Failed to preserve workflow state: #{e.message}"
         end
 
@@ -41,7 +41,7 @@ module Aidp
           restored_state = restore_from_snapshot(snapshot)
           record_restoration_event(workflow_id, snapshot)
           restored_state
-        rescue StandardError => e
+        rescue => e
           raise RestorationError, "Failed to restore workflow state: #{e.message}"
         end
 

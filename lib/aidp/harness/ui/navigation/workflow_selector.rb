@@ -41,7 +41,7 @@ module Aidp
             selected_mode = parse_selection(selection)
             record_selection(selected_mode)
             selected_mode
-          rescue StandardError => e
+          rescue => e
             raise SelectionError, "Failed to select workflow mode: #{e.message}"
           end
 
@@ -116,7 +116,7 @@ module Aidp
 
           def validate_mode(mode)
             unless WORKFLOW_MODES.key?(mode)
-              raise InvalidModeError, "Invalid mode: #{mode}. Must be one of: #{WORKFLOW_MODES.keys.join(', ')}"
+              raise InvalidModeError, "Invalid mode: #{mode}. Must be one of: #{WORKFLOW_MODES.keys.join(", ")}"
             end
           end
 

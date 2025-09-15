@@ -98,12 +98,12 @@ module Aidp
         CLI::UI::Frame.open("Background Jobs") do
           jobs.each do |job|
             status_icon = case job[:status]
-                         when "completed" then "✅"
-                         when "running" then "🔄"
-                         when "failed" then "❌"
-                         when "pending" then "⏳"
-                         else "❓"
-                         end
+            when "completed" then "✅"
+            when "running" then "🔄"
+            when "failed" then "❌"
+            when "pending" then "⏳"
+            else "❓"
+            end
 
             CLI::UI::Frame.open("#{status_icon} #{job[:id][0..7]}") do
               puts "Status: #{job[:status]}"

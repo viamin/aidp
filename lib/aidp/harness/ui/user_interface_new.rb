@@ -45,7 +45,7 @@ module Aidp
             display_feedback_context(context) if context
             collect_questions_with_progress(questions)
           end
-        rescue StandardError => e
+        rescue => e
           @error_handler.handle_feedback_error(e, context)
           raise FeedbackError, "Failed to collect feedback: #{e.message}"
         end
@@ -58,7 +58,7 @@ module Aidp
             files = find_files(search_term)
             display_file_selection_menu(files, max_files)
           end
-        rescue StandardError => e
+        rescue => e
           @error_handler.handle_file_selection_error(e, search_term)
           raise FileSelectionError, "Failed to select files: #{e.message}"
         end

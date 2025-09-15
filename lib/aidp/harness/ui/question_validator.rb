@@ -13,9 +13,9 @@ module Aidp
         class RequiredFieldError < ValidationError; end
 
         VALIDATION_RULES = {
-          email: /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i,
-          url: /\Ahttps?:\/\/[\w\-]+(\.[\w\-]+)+([\w\-\.,@?^=%&:\/~\+#]*[\w\-\@?^=%&\/~\+#])?\z/i,
-          phone: /\A[\+]?[1-9][\d\s\-\(\)]{7,15}\z/,
+          email: /\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i,
+          url: /\Ahttps?:\/\/[\w-]+(\.[\w-]+)+([\w\-.,@?^=%&:\/~+#]*[\w\-@?^=%&\/~+#])?\z/i,
+          phone: /\A\+?[1-9][\d\s\-()]{7,15}\z/,
           number: /\A-?\d+(\.\d+)?\z/,
           integer: /\A-?\d+\z/,
           float: /\A-?\d+\.\d+\z/,
@@ -65,7 +65,7 @@ module Aidp
           return true unless question[:options]
 
           unless question[:options].include?(response)
-            raise InvalidInputError, "Response must be one of: #{question[:options].join(', ')}"
+            raise InvalidInputError, "Response must be one of: #{question[:options].join(", ")}"
           end
 
           true
@@ -160,7 +160,7 @@ module Aidp
           when Numeric
             response
           when String
-            if response.include?('.')
+            if response.include?(".")
               response.to_f
             else
               response.to_i
@@ -184,7 +184,7 @@ module Aidp
           end
 
           if question[:examples]
-            CLI::UI.puts(CLI::UI.fmt("{{dim:Examples: #{question[:examples].join(', ')}}}"))
+            CLI::UI.puts(CLI::UI.fmt("{{dim:Examples: #{question[:examples].join(", ")}}}"))
           end
         end
 
@@ -210,19 +210,19 @@ module Aidp
 
         def format_format_requirement(format_rule)
           case format_rule
-          when 'email'
+          when "email"
             CLI::UI.fmt("{{dim:Format: email address}}")
-          when 'url'
+          when "url"
             CLI::UI.fmt("{{dim:Format: URL}}")
-          when 'phone'
+          when "phone"
             CLI::UI.fmt("{{dim:Format: phone number}}")
-          when 'number'
+          when "number"
             CLI::UI.fmt("{{dim:Format: number}}")
-          when 'integer'
+          when "integer"
             CLI::UI.fmt("{{dim:Format: integer}}")
-          when 'float'
+          when "float"
             CLI::UI.fmt("{{dim:Format: decimal number}}")
-          when 'boolean'
+          when "boolean"
             CLI::UI.fmt("{{dim:Format: true/false}}")
           else
             CLI::UI.fmt("{{dim:Format: #{format_rule}}}")

@@ -24,7 +24,7 @@ module Aidp
           @spinner.spin(formatted_message) do |spinner|
             yield(spinner) if block_given?
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to show status: #{e.message}"
         end
 
@@ -33,7 +33,7 @@ module Aidp
 
           formatted_message = @formatter.format_status_message(message)
           spinner.update_title(formatted_message)
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to update status: #{e.message}"
         end
 
@@ -42,7 +42,7 @@ module Aidp
 
           message = @formatter.format_loading_message(operation_name)
           show_status(message, &block)
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to show loading status: #{e.message}"
         end
 
@@ -51,7 +51,7 @@ module Aidp
 
           formatted_message = @formatter.format_success_message(message)
           CLI::UI.puts(formatted_message)
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to show success status: #{e.message}"
         end
 
@@ -60,7 +60,7 @@ module Aidp
 
           formatted_message = @formatter.format_error_message(message)
           CLI::UI.puts(formatted_message)
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to show error status: #{e.message}"
         end
 
@@ -69,7 +69,7 @@ module Aidp
 
           formatted_message = @formatter.format_warning_message(message)
           CLI::UI.puts(formatted_message)
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to show warning status: #{e.message}"
         end
 

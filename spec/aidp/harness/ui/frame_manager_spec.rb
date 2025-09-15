@@ -66,7 +66,7 @@ RSpec.describe Aidp::Harness::UI::FrameManager do
 
     context "when frame data is provided" do
       it "includes frame data in display" do
-        frame_data = { status: :running, progress: 50 }
+        frame_data = {status: :running, progress: 50}
         expect { frame_manager.open_frame(:section, "Test", frame_data) }
           .to output(/Running/).to_stdout
       end

@@ -38,7 +38,7 @@ module Aidp
           persist_history if @persistence_enabled
 
           event
-        rescue StandardError => e
+        rescue => e
           raise HistoryError, "Failed to record job event: #{e.message}"
         end
 
@@ -59,7 +59,7 @@ module Aidp
 
           @history.select do |event|
             event_date = event[:timestamp]
-            event_date >= start_date && event_date <= end_date
+            event_date.between?(start_date, end_date)
           end
         end
 
@@ -99,7 +99,7 @@ module Aidp
 
           CLI::UI.puts(@formatter.format_export_success(file_path, @history.size))
           file_path
-        rescue StandardError => e
+        rescue => e
           raise PersistenceError, "Failed to export history: #{e.message}"
         end
 
@@ -119,7 +119,7 @@ module Aidp
           end
 
           CLI::UI.puts(@formatter.format_import_success(file_path, @history.size))
-        rescue StandardError => e
+        rescue => e
           raise PersistenceError, "Failed to import history: #{e.message}"
         end
 
@@ -194,14 +194,14 @@ module Aidp
         def validate_export_format(format)
           valid_formats = [:json, :csv, :yaml]
           unless valid_formats.include?(format)
-            raise PersistenceError, "Invalid export format: #{format}. Must be one of: #{valid_formats.join(', ')}"
+            raise PersistenceError, "Invalid export format: #{format}. Must be one of: #{valid_formats.join(", ")}"
           end
         end
 
         def validate_import_format(format)
           valid_formats = [:json, :csv, :yaml]
           unless valid_formats.include?(format)
-            raise PersistenceError, "Invalid import format: #{format}. Must be one of: #{valid_formats.join(', ')}"
+            raise PersistenceError, "Invalid import format: #{format}. Must be one of: #{valid_formats.join(", ")}"
           end
         end
 
@@ -243,7 +243,7 @@ module Aidp
           begin
             history_data = JSON.parse(File.read(@storage_path), symbolize_names: true)
             @history = history_data[:events] || []
-          rescue StandardError => e
+          rescue => e
             CLI::UI.puts(@formatter.format_load_error(e.message))
             @history = []
           end
@@ -259,7 +259,7 @@ module Aidp
           }
 
           File.write(@storage_path, JSON.pretty_generate(history_data))
-        rescue StandardError => e
+        rescue => e
           CLI::UI.puts(@formatter.format_persistence_error(e.message))
         end
 
@@ -280,10 +280,10 @@ module Aidp
         end
 
         def export_to_csv(file_path)
-          require 'csv'
+          require "csv"
 
-          CSV.open(file_path, 'w') do |csv|
-            csv << ['ID', 'Job ID', 'Event Type', 'Timestamp', 'Data']
+          CSV.open(file_path, "w") do |csv|
+            csv << ["ID", "Job ID", "Event Type", "Timestamp", "Data"]
 
             @history.each do |event|
               csv << [
@@ -298,7 +298,7 @@ module Aidp
         end
 
         def export_to_yaml(file_path)
-          require 'yaml'
+          require "yaml"
 
           history_data = {
             version: "1.0",
@@ -320,16 +320,16 @@ module Aidp
         end
 
         def import_from_csv(file_path)
-          require 'csv'
+          require "csv"
 
           CSV.foreach(file_path, headers: true) do |row|
             event = {
-              id: row['ID'],
-              job_id: row['Job ID'],
-              event_type: row['Event Type'],
-              timestamp: Time.parse(row['Timestamp']),
-              data: JSON.parse(row['Data'], symbolize_names: true),
-              metadata: { version: "1.0", source: "imported" }
+              id: row["ID"],
+              job_id: row["Job ID"],
+              event_type: row["Event Type"],
+              timestamp: Time.parse(row["Timestamp"]),
+              data: JSON.parse(row["Data"], symbolize_names: true),
+              metadata: {version: "1.0", source: "imported"}
             }
 
             @history << event
@@ -340,7 +340,7 @@ module Aidp
         end
 
         def import_from_yaml(file_path)
-          require 'yaml'
+          require "yaml"
 
           history_data = YAML.load_file(file_path)
           imported_events = history_data[:events] || []
@@ -359,7 +359,7 @@ module Aidp
           when :date_range
             start_date, end_date = value[:start], value[:end]
             events.select do |event|
-              event[:timestamp] >= start_date && event[:timestamp] <= end_date
+              event[:timestamp].between?(start_date, end_date)
             end
           when :data_contains
             events.select do |event|
@@ -371,10 +371,10 @@ module Aidp
         end
 
         def get_date_range
-          return { start: nil, end: nil } if @history.empty?
+          return {start: nil, end: nil} if @history.empty?
 
           timestamps = @history.map { |event| event[:timestamp] }
-          { start: timestamps.min, end: timestamps.max }
+          {start: timestamps.min, end: timestamps.max}
         end
       end
 
@@ -386,7 +386,7 @@ module Aidp
 
           CLI::UI.puts("Total events: {{bold:#{summary[:total_events]}}}")
           CLI::UI.puts("Storage path: {{dim:#{summary[:storage_path]}}}")
-          CLI::UI.puts("Persistence: #{summary[:persistence_enabled] ? 'Enabled' : 'Disabled'}")
+          CLI::UI.puts("Persistence: #{summary[:persistence_enabled] ? "Enabled" : "Disabled"}")
 
           if summary[:date_range][:start]
             CLI::UI.puts("Date range: {{dim:#{summary[:date_range][:start]} to #{summary[:date_range][:end]}}}")

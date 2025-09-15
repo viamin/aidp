@@ -84,13 +84,9 @@ module Aidp
             @menu_stack.dup
           end
 
-          def current_menu
-            @current_menu
-          end
+          attr_reader :current_menu
 
-          def last_selection
-            @last_selection
-          end
+          attr_reader :last_selection
 
           def menu_depth
             @menu_stack.size

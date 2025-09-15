@@ -12,19 +12,19 @@ module Aidp
           class InvalidKeyError < KeyboardError; end
 
           KEYBOARD_SHORTCUTS = {
-            'j' => :down,
-            'k' => :up,
-            'h' => :left,
-            'l' => :right,
-            'enter' => :select,
-            'space' => :select,
-            'q' => :quit,
-            'esc' => :back,
-            'b' => :back,
-            'r' => :refresh,
-            '?' => :help,
-            'tab' => :next,
-            'shift+tab' => :previous
+            "j" => :down,
+            "k" => :up,
+            "h" => :left,
+            "l" => :right,
+            "enter" => :select,
+            "space" => :select,
+            "q" => :quit,
+            "esc" => :back,
+            "b" => :back,
+            "r" => :refresh,
+            "?" => :help,
+            "tab" => :next,
+            "shift+tab" => :previous
           }.freeze
 
           def initialize(ui_components = {})
@@ -55,7 +55,7 @@ module Aidp
 
             action = parse_key_action(key)
             execute_key_action(action)
-          rescue StandardError => e
+          rescue => e
             raise KeyboardError, "Failed to handle key input: #{e.message}"
           end
 
@@ -96,7 +96,7 @@ module Aidp
           end
 
           def validate_selection_index(index)
-            raise InvalidKeyError, "Selection index must be within bounds" unless (0...@menu_items.size).include?(index)
+            raise InvalidKeyError, "Selection index must be within bounds" unless (0...@menu_items.size).cover?(index)
           end
 
           def parse_key_action(key)
@@ -162,8 +162,7 @@ module Aidp
           def select_current_item
             return nil if @menu_items.empty?
 
-            selected_item = @menu_items[@current_selection]
-            selected_item
+            @menu_items[@current_selection]
           end
 
           def highlight_current_selection

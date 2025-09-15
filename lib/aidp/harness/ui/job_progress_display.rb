@@ -43,7 +43,7 @@ module Aidp
           end
 
           record_display_event(job_id, display_type, progress_data)
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to display job progress: #{e.message}"
         end
 
@@ -58,7 +58,7 @@ module Aidp
           end
 
           CLI::UI.puts(@formatter.format_auto_refresh_started(@auto_refresh_interval))
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to start auto refresh: #{e.message}"
         end
 
@@ -111,7 +111,7 @@ module Aidp
         def validate_display_type(display_type)
           valid_types = [:standard, :detailed, :minimal, :spinner]
           unless valid_types.include?(display_type)
-            raise ProgressDisplayError, "Invalid display type: #{display_type}. Must be one of: #{valid_types.join(', ')}"
+            raise ProgressDisplayError, "Invalid display type: #{display_type}. Must be one of: #{valid_types.join(", ")}"
           end
         end
 
@@ -265,7 +265,7 @@ module Aidp
             begin
               refresh_active_displays
               sleep(@auto_refresh_interval)
-            rescue StandardError => e
+            rescue => e
               CLI::UI.puts(@formatter.format_refresh_error(e.message))
             end
           end
@@ -273,11 +273,9 @@ module Aidp
 
         def refresh_active_displays
           @active_displays.each do |job_id, display_type|
-            begin
-              display_job_progress(job_id, display_type)
-            rescue StandardError => e
-              CLI::UI.puts(@formatter.format_display_error(job_id, e.message))
-            end
+            display_job_progress(job_id, display_type)
+          rescue => e
+            CLI::UI.puts(@formatter.format_display_error(job_id, e.message))
           end
         end
 

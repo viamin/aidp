@@ -282,9 +282,9 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
   def build_sample_menu_items
     [
-      { id: "option1", title: "Option 1", description: "First option" },
-      { id: "option2", title: "Option 2", description: "Second option" },
-      { id: "option3", title: "Option 3", description: "Third option" }
+      {id: "option1", title: "Option 1", description: "First option"},
+      {id: "option2", title: "Option 2", description: "Second option"},
+      {id: "option3", title: "Option 3", description: "Third option"}
     ]
   end
 end

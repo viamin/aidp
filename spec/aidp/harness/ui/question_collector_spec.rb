@@ -45,7 +45,7 @@ RSpec.describe Aidp::Harness::UI::QuestionCollector do
 
     context "when questions have validation errors" do
       it "raises ValidationError for invalid question format" do
-        invalid_questions = [{ invalid: "question" }]
+        invalid_questions = [{invalid: "question"}]
 
         expect {
           question_collector.collect_questions(invalid_questions)
@@ -65,7 +65,7 @@ RSpec.describe Aidp::Harness::UI::QuestionCollector do
 
     context "with invalid questions" do
       it "returns false for questions missing required fields" do
-        invalid_questions = [{ text: "Question without type" }]
+        invalid_questions = [{text: "Question without type"}]
 
         result = question_collector.validate_questions(invalid_questions)
 
@@ -85,7 +85,7 @@ RSpec.describe Aidp::Harness::UI::QuestionCollector do
 
     context "when questions have validation issues" do
       it "returns array of error messages" do
-        invalid_questions = [{ text: "Question without type" }]
+        invalid_questions = [{text: "Question without type"}]
 
         errors = question_collector.get_validation_errors(invalid_questions)
 

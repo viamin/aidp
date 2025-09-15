@@ -48,11 +48,11 @@ module Aidp
           response = get_user_input("#{message} [#{default_text}]")
 
           case response.downcase
-          when 'y', 'yes'
+          when "y", "yes"
             true
-          when 'n', 'no'
+          when "n", "no"
             false
-          when ''
+          when ""
             default
           else
             get_confirmation(message, default: default)
@@ -231,7 +231,7 @@ module Aidp
         end
 
         def show_question_help(question_data)
-          CLI::UI.puts("Help: #{question_data[:help_text] || 'No help available'}")
+          CLI::UI.puts("Help: #{question_data[:help_text] || "No help available"}")
         end
 
         def display_validation_error(validation_result, input_type)
@@ -261,13 +261,13 @@ module Aidp
 
         def handle_control_command(command)
           case command.downcase
-          when 'pause', 'p'
+          when "pause", "p"
             request_pause
-          when 'stop', 's'
+          when "stop", "s"
             request_stop
-          when 'resume', 'r'
+          when "resume", "r"
             request_resume
-          when 'help', 'h'
+          when "help", "h"
             show_control_help
           else
             CLI::UI.puts("Unknown command: #{command}")
@@ -294,10 +294,10 @@ module Aidp
         def display_control_status
           status = get_control_status
           CLI::UI.puts("Control Status:")
-          CLI::UI.puts("  Pause: #{status[:pause_requested] ? 'Requested' : 'No'}")
-          CLI::UI.puts("  Stop: #{status[:stop_requested] ? 'Requested' : 'No'}")
-          CLI::UI.puts("  Resume: #{status[:resume_requested] ? 'Requested' : 'No'}")
-          CLI::UI.puts("  Interface: #{status[:control_enabled] ? 'Enabled' : 'Disabled'}")
+          CLI::UI.puts("  Pause: #{status[:pause_requested] ? "Requested" : "No"}")
+          CLI::UI.puts("  Stop: #{status[:stop_requested] ? "Requested" : "No"}")
+          CLI::UI.puts("  Resume: #{status[:resume_requested] ? "Requested" : "No"}")
+          CLI::UI.puts("  Interface: #{status[:control_enabled] ? "Enabled" : "Disabled"}")
         end
 
         private

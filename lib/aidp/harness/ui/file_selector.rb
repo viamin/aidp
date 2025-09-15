@@ -28,7 +28,7 @@ module Aidp
             files = find_files_with_progress(search_term, options)
             display_file_selection_menu(files, max_files, options)
           end
-        rescue StandardError => e
+        rescue => e
           raise FileSelectionError, "Failed to select files: #{e.message}"
         end
 
@@ -48,7 +48,7 @@ module Aidp
             files = list_directory_contents(directory, options)
             display_directory_browser(files, directory, options)
           end
-        rescue StandardError => e
+        rescue => e
           raise FileSelectionError, "Failed to browse directory: #{e.message}"
         end
 
@@ -60,7 +60,7 @@ module Aidp
             display_search_results(files, pattern)
             files
           end
-        rescue StandardError => e
+        rescue => e
           raise FileSelectionError, "Failed to find files: #{e.message}"
         end
 
@@ -181,13 +181,13 @@ module Aidp
         def get_file_type(file)
           if File.directory?(file)
             "directory"
-          elsif file.end_with?('.rb')
+          elsif file.end_with?(".rb")
             "ruby"
-          elsif file.end_with?('.md')
+          elsif file.end_with?(".md")
             "markdown"
-          elsif file.end_with?('.json')
+          elsif file.end_with?(".json")
             "json"
-          elsif file.end_with?('.yml', '.yaml')
+          elsif file.end_with?(".yml", ".yaml")
             "yaml"
           else
             "file"
@@ -222,9 +222,8 @@ module Aidp
 
           return [] if input.strip.empty?
 
-          indices = input.split(',').map(&:strip).map(&:to_i)
-          selected_files = indices.map { |i| files[i - 1] }.compact.first(max_files)
-          selected_files
+          indices = input.split(",").map(&:strip).map(&:to_i)
+          indices.map { |i| files[i - 1] }.compact.first(max_files)
         end
 
         def display_selection_summary(selected_files)
@@ -233,7 +232,7 @@ module Aidp
         end
 
         def list_directory_contents(directory, options)
-          entries = Dir.entries(directory).reject { |entry| entry.start_with?('.') }
+          entries = Dir.entries(directory).reject { |entry| entry.start_with?(".") }
           entries.map { |entry| File.join(directory, entry) }
         end
 

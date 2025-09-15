@@ -23,7 +23,7 @@ module Aidp
           questions.map.with_index do |question, index|
             collect_single_question(question, index + 1)
           end
-        rescue StandardError => e
+        rescue => e
           raise CollectionError, "Failed to collect questions: #{e.message}"
         end
 
@@ -35,7 +35,7 @@ module Aidp
 
           validate_response(response, question)
           response
-        rescue StandardError => e
+        rescue => e
           raise QuestionError, "Failed to collect question #{number}: #{e.message}"
         end
 
@@ -97,7 +97,7 @@ module Aidp
         def validate_options(response, question)
           return unless question[:options]
           return if question[:options].include?(response)
-          raise ValidationError, "Response must be one of: #{question[:options].join(', ')}"
+          raise ValidationError, "Response must be one of: #{question[:options].join(", ")}"
         end
       end
     end

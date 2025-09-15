@@ -53,7 +53,7 @@ module Aidp
             record_job_event(job_id, :registered, job_data)
             notify_callbacks(:job_registered, job)
           end
-        rescue StandardError => e
+        rescue => e
           raise MonitorError, "Failed to register job: #{e.message}"
         end
 
@@ -70,10 +70,10 @@ module Aidp
             job[:last_updated] = Time.now
             job.merge!(additional_data)
 
-            record_job_event(job_id, :status_changed, { from: old_status, to: status })
+            record_job_event(job_id, :status_changed, {from: old_status, to: status})
             notify_callbacks(:job_status_changed, job, old_status)
           end
-        rescue StandardError => e
+        rescue => e
           raise MonitorError, "Failed to update job status: #{e.message}"
         end
 
@@ -116,7 +116,7 @@ module Aidp
           end
 
           CLI::UI.puts(@formatter.format_monitoring_started(interval_seconds))
-        rescue StandardError => e
+        rescue => e
           raise MonitorError, "Failed to start monitoring: #{e.message}"
         end
 
@@ -128,7 +128,7 @@ module Aidp
           @monitor_thread = nil
 
           CLI::UI.puts(@formatter.format_monitoring_stopped)
-        rescue StandardError => e
+        rescue => e
           raise MonitorError, "Failed to stop monitoring: #{e.message}"
         end
 
@@ -186,13 +186,13 @@ module Aidp
 
         def validate_job_status(status)
           unless JOB_STATUSES.key?(status)
-            raise JobMonitorError, "Invalid job status: #{status}. Must be one of: #{JOB_STATUSES.keys.join(', ')}"
+            raise JobMonitorError, "Invalid job status: #{status}. Must be one of: #{JOB_STATUSES.keys.join(", ")}"
           end
         end
 
         def validate_job_priority(priority)
           unless JOB_PRIORITIES.key?(priority)
-            raise JobMonitorError, "Invalid job priority: #{priority}. Must be one of: #{JOB_PRIORITIES.keys.join(', ')}"
+            raise JobMonitorError, "Invalid job priority: #{priority}. Must be one of: #{JOB_PRIORITIES.keys.join(", ")}"
           end
         end
 
@@ -233,11 +233,9 @@ module Aidp
 
         def notify_callbacks(event_type, job, additional_data = nil)
           @update_callbacks.each do |callback|
-            begin
-              callback.call(event_type, job, additional_data)
-            rescue StandardError => e
-              CLI::UI.puts(@formatter.format_callback_error(callback, e.message))
-            end
+            callback.call(event_type, job, additional_data)
+          rescue => e
+            CLI::UI.puts(@formatter.format_callback_error(callback, e.message))
           end
         end
 
@@ -248,7 +246,7 @@ module Aidp
             begin
               perform_monitoring_cycle
               sleep(interval_seconds)
-            rescue StandardError => e
+            rescue => e
               CLI::UI.puts(@formatter.format_monitoring_error(e.message))
             end
           end
@@ -267,7 +265,7 @@ module Aidp
 
           @jobs.each do |job_id, job|
             if job[:status] == :running && (current_time - job[:last_updated]) > stuck_threshold
-              update_job_status(job_id, :failed, { error_message: "Job appears to be stuck" })
+              update_job_status(job_id, :failed, {error_message: "Job appears to be stuck"})
             end
           end
         end
@@ -278,7 +276,7 @@ module Aidp
             if job[:status] == :running && job[:current_step] < job[:total_steps]
               # Simulate progress update - in real implementation, this would come from the job
               new_progress = [(job[:current_step] + 1).to_f / job[:total_steps] * 100, 100].min
-              update_job_status(job_id, :running, { progress: new_progress })
+              update_job_status(job_id, :running, {progress: new_progress})
             end
           end
         end
@@ -290,12 +288,12 @@ module Aidp
 
           jobs_to_remove = @jobs.select do |job_id, job|
             (job[:status] == :completed || job[:status] == :failed) &&
-            (current_time - job[:last_updated]) > cleanup_threshold
+              (current_time - job[:last_updated]) > cleanup_threshold
           end
 
           jobs_to_remove.each do |job_id, _|
             @jobs.delete(job_id)
-            record_job_event(job_id, :cleaned_up, { reason: "Old completed job" })
+            record_job_event(job_id, :cleaned_up, {reason: "Old completed job"})
           end
         end
 
@@ -331,7 +329,7 @@ module Aidp
             progress = @formatter.format_job_progress_short(job[:progress])
             created = job[:created_at].strftime("%H:%M:%S")
 
-            CLI::UI.puts("#{job_id}".ljust(20) + "#{status}".ljust(12) + "#{priority}".ljust(10) + "#{progress}".ljust(10) + "#{created}")
+            CLI::UI.puts(job_id.to_s.ljust(20) + status.to_s.ljust(12) + priority.to_s.ljust(10) + progress.to_s.ljust(10) + created.to_s)
           end
         end
       end
@@ -455,7 +453,7 @@ module Aidp
         def format_monitoring_summary(summary)
           CLI::UI.fmt("{{bold:{{blue:📊 Job Monitoring Summary}}}}")
           CLI::UI.fmt("Total jobs: {{bold:#{summary[:total_jobs]}}}")
-          CLI::UI.fmt("Monitoring: #{summary[:monitoring_active] ? 'Active' : 'Inactive'}")
+          CLI::UI.fmt("Monitoring: #{summary[:monitoring_active] ? "Active" : "Inactive"}")
           CLI::UI.fmt("Total events: {{dim:#{summary[:total_events]}}}")
 
           if summary[:jobs_by_status].any?

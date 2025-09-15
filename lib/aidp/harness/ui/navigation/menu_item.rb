@@ -93,7 +93,7 @@ module Aidp
 
           def validate_type
             unless VALID_TYPES.include?(@type)
-              raise InvalidTypeError, "Invalid type: #{@type}. Must be one of: #{VALID_TYPES.join(', ')}"
+              raise InvalidTypeError, "Invalid type: #{@type}. Must be one of: #{VALID_TYPES.join(", ")}"
             end
           end
 
@@ -121,15 +121,15 @@ module Aidp
           end
 
           def execute_action
-            @action.call if @action
+            @action&.call
           end
 
           def execute_workflow
-            @workflow.call if @workflow
+            @workflow&.call
           end
 
           def execute_submenu
-            @submenu.show_menu(@title) if @submenu
+            @submenu&.show_menu(@title)
           end
 
           def execute_separator

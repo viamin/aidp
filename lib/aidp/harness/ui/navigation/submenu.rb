@@ -40,7 +40,7 @@ module Aidp
             display_submenu_header
             display_submenu_items
             handle_submenu_interaction
-          rescue StandardError => e
+          rescue => e
             raise SubMenuError, "Failed to show submenu: #{e.message}"
           end
 
@@ -185,7 +185,7 @@ module Aidp
           def navigate_to_main_menu
             # Navigate to the root menu
             root_menu = find_root_menu
-            root_menu.show_menu if root_menu
+            root_menu&.show_menu
           end
 
           def find_root_menu

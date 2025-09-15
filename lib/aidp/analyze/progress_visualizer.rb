@@ -223,7 +223,7 @@ module Aidp
 
     def create_progress_bar(total, title, options = {})
       style = options[:style] || @style
-      progress_style = PROGRESS_STYLES[style] || PROGRESS_STYLES[:default]
+      PROGRESS_STYLES[style] || PROGRESS_STYLES[:default]
 
       # Use CLI UI progress instead of TTY::ProgressBar
       CLI::UI::Progress.progress(title, total) do |progress|

@@ -33,7 +33,7 @@ module Aidp
               track_workflow_steps(workflow_name, total_steps, bar, &block)
             end
           end
-        rescue StandardError => e
+        rescue => e
           raise TrackingError, "Failed to track workflow progress: #{e.message}"
         end
 
@@ -43,7 +43,7 @@ module Aidp
           @frame_manager.step_frame(step_name, 1, 1) do
             @progress_display.show_step_progress(step_name, total_substeps, &block)
           end
-        rescue StandardError => e
+        rescue => e
           raise TrackingError, "Failed to track step progress: #{e.message}"
         end
 
@@ -53,7 +53,7 @@ module Aidp
           @frame_manager.section("Concurrent Operations") do
             @spinner_group.run_concurrent_operations(operations, &block)
           end
-        rescue StandardError => e
+        rescue => e
           raise TrackingError, "Failed to track concurrent operations: #{e.message}"
         end
 
@@ -61,7 +61,7 @@ module Aidp
           validate_message(message)
 
           @status_widget.show_loading_status(message, &block)
-        rescue StandardError => e
+        rescue => e
           raise TrackingError, "Failed to track indeterminate progress: #{e.message}"
         end
 
@@ -102,7 +102,7 @@ module Aidp
         def get_tracking_summary
           {
             active_trackers: @active_trackers.size,
-            completed_trackers: @tracking_history.count { |h| h[:status] == 'completed' },
+            completed_trackers: @tracking_history.count { |h| h[:status] == "completed" },
             total_trackers: @tracking_history.size,
             tracking_history: @tracking_history.dup
           }
@@ -182,18 +182,18 @@ module Aidp
             message: "Starting #{name}",
             created_at: Time.now,
             last_updated: Time.now,
-            status: 'active'
+            status: "active"
           }
         end
 
         def complete_tracker(tracker)
-          tracker[:status] = 'completed'
+          tracker[:status] = "completed"
           tracker[:completed_at] = Time.now
           tracker[:message] = "Completed #{tracker[:name]}"
         end
 
         def generate_tracker_id(name)
-          "#{name.downcase.gsub(/\s+/, '_')}_#{Time.now.to_i}"
+          "#{name.downcase.gsub(/\s+/, "_")}_#{Time.now.to_i}"
         end
 
         def record_tracker_creation(tracker_id, name, total_items)
@@ -201,7 +201,7 @@ module Aidp
             tracker_id: tracker_id,
             name: name,
             total_items: total_items,
-            status: 'created',
+            status: "created",
             timestamp: Time.now
           }
         end
@@ -209,7 +209,7 @@ module Aidp
         def record_tracker_completion(tracker_id)
           @tracking_history << {
             tracker_id: tracker_id,
-            status: 'completed',
+            status: "completed",
             timestamp: Time.now
           }
         end
@@ -219,7 +219,7 @@ module Aidp
             workflow: workflow_name,
             step: current_step,
             total_steps: total_steps,
-            status: 'step_completed',
+            status: "step_completed",
             timestamp: Time.now
           }
         end
@@ -252,7 +252,7 @@ module Aidp
         end
 
         def format_tracker_status(tracker)
-          status_emoji = tracker[:status] == 'completed' ? '✅' : '🔄'
+          status_emoji = (tracker[:status] == "completed") ? "✅" : "🔄"
           CLI::UI.fmt("#{status_emoji} {{bold:#{tracker[:name]}}} - {{dim:#{tracker[:message]}}}")
         end
       end

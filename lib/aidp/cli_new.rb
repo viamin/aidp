@@ -27,11 +27,11 @@ module Aidp
       end
 
       if step_name
-        return execute_single_step(project_dir, step_name, all_options)
+        execute_single_step(project_dir, step_name, all_options)
       elsif should_use_harness?(all_options)
-        return execute_workflow(project_dir, all_options)
+        execute_workflow(project_dir, all_options)
       else
-        return list_execute_steps(project_dir)
+        list_execute_steps(project_dir)
       end
     end
 
@@ -65,11 +65,11 @@ module Aidp
       end
 
       if step_name
-        return analyze_single_step(project_dir, step_name, all_options)
+        analyze_single_step(project_dir, step_name, all_options)
       elsif should_use_harness?(all_options)
-        return analyze_workflow(project_dir, all_options)
+        analyze_workflow(project_dir, all_options)
       else
-        return list_analyze_steps(project_dir)
+        list_analyze_steps(project_dir)
       end
     end
 

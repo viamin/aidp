@@ -39,7 +39,7 @@ RSpec.describe Aidp::Harness::UI::StatusWidget do
       end
 
       it "includes error details when provided" do
-        error_data = { message: "Connection failed", code: 500 }
+        error_data = {message: "Connection failed", code: 500}
         expect { status_widget.display_status(:error, "Error occurred", error_data) }
           .to output(/Connection failed/).to_stdout
       end
@@ -150,9 +150,9 @@ RSpec.describe Aidp::Harness::UI::StatusWidget do
     context "when displaying multiple status items" do
       it "shows all status items" do
         status_items = [
-          { type: :success, message: "Task 1 completed" },
-          { type: :loading, message: "Task 2 in progress" },
-          { type: :error, message: "Task 3 failed" }
+          {type: :success, message: "Task 1 completed"},
+          {type: :loading, message: "Task 2 in progress"},
+          {type: :error, message: "Task 3 failed"}
         ]
 
         expect { status_widget.display_multiple_status(status_items) }

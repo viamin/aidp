@@ -30,7 +30,7 @@ module Aidp
           record_restoration_event(workflow_id, restored_state)
 
           restored_state
-        rescue StandardError => e
+        rescue => e
           raise RestorationError, "Failed to restore workflow state: #{e.message}"
         end
 
@@ -38,10 +38,9 @@ module Aidp
           validate_workflow_id(workflow_id)
 
           snapshot = @state_preservation.get_preserved_state(workflow_id)
-          return { safe: false, reason: "No preserved state found" } unless snapshot
+          return {safe: false, reason: "No preserved state found"} unless snapshot
 
-          validation_result = perform_safety_validation(snapshot, current_state)
-          validation_result
+          perform_safety_validation(snapshot, current_state)
         end
 
         def get_restoration_candidates
@@ -163,13 +162,13 @@ module Aidp
         end
 
         def perform_safety_validation(snapshot, current_state)
-          safety_result = { safe: true, warnings: [], errors: [] }
+          safety_result = {safe: true, warnings: [], errors: []}
 
           # Check for conflicts with current state
           if current_state.any?
             conflicts = detect_state_conflicts(snapshot[:state_data], current_state)
             if conflicts.any?
-              safety_result[:warnings] << "Potential conflicts detected: #{conflicts.join(', ')}"
+              safety_result[:warnings] << "Potential conflicts detected: #{conflicts.join(", ")}"
             end
           end
 
@@ -182,7 +181,7 @@ module Aidp
           # Check for missing required fields
           missing_fields = check_required_fields(snapshot[:state_data])
           if missing_fields.any?
-            safety_result[:errors] << "Missing required fields: #{missing_fields.join(', ')}"
+            safety_result[:errors] << "Missing required fields: #{missing_fields.join(", ")}"
             safety_result[:safe] = false
           end
 

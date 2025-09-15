@@ -23,7 +23,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       end
 
       it "sets default values for missing fields" do
-        minimal_job_data = { status: :running }
+        minimal_job_data = {status: :running}
         job_monitor.register_job("minimal_job", minimal_job_data)
 
         job_status = job_monitor.get_job_status("minimal_job")
@@ -68,7 +68,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       end
 
       it "merges additional data" do
-        additional_data = { progress: 50, current_step: 2 }
+        additional_data = {progress: 50, current_step: 2}
         job_monitor.update_job_status("test_job", :running, additional_data)
 
         job_status = job_monitor.get_job_status("test_job")

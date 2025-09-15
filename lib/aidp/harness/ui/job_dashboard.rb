@@ -43,7 +43,7 @@ module Aidp
           start_dashboard_refresh
 
           CLI::UI.puts(@formatter.format_dashboard_started)
-        rescue StandardError => e
+        rescue => e
           raise DashboardError, "Failed to start dashboard: #{e.message}"
         end
 
@@ -83,23 +83,23 @@ module Aidp
           return unless @dashboard_active
 
           case input.downcase
-          when 'overview', 'o'
+          when "overview", "o"
             display_dashboard(:overview)
-          when 'jobs', 'j'
+          when "jobs", "j"
             display_dashboard(:jobs)
-          when 'metrics', 'm'
+          when "metrics", "m"
             display_dashboard(:metrics)
-          when 'errors', 'e'
+          when "errors", "e"
             display_dashboard(:errors)
-          when 'history', 'h'
+          when "history", "h"
             display_dashboard(:history)
-          when 'settings', 's'
+          when "settings", "s"
             display_dashboard(:settings)
-          when 'help', '?'
+          when "help", "?"
             display_help
-          when 'quit', 'q'
+          when "quit", "q"
             handle_quit
-          when 'refresh', 'r'
+          when "refresh", "r"
             display_dashboard(@current_view)
           else
             CLI::UI.puts(@formatter.format_unknown_command(input))
@@ -126,7 +126,7 @@ module Aidp
         def validate_view(view)
           valid_views = [:overview, :jobs, :metrics, :errors, :history, :settings]
           unless valid_views.include?(view)
-            raise DisplayError, "Invalid view: #{view}. Must be one of: #{valid_views.join(', ')}"
+            raise DisplayError, "Invalid view: #{view}. Must be one of: #{valid_views.join(", ")}"
           end
         end
 
@@ -152,7 +152,7 @@ module Aidp
             begin
               refresh_current_view
               sleep(@refresh_interval)
-            rescue StandardError => e
+            rescue => e
               CLI::UI.puts(@formatter.format_refresh_error(e.message))
             end
           end
@@ -215,12 +215,12 @@ module Aidp
           CLI::UI.puts(@formatter.format_dashboard_header)
           CLI::UI.puts("Current view: {{bold:#{@current_view.to_s.capitalize}}}")
           CLI::UI.puts("Refresh interval: {{bold:#{@refresh_interval}s}}")
-          CLI::UI.puts("Status: #{@dashboard_active ? 'Active' : 'Inactive'}")
+          CLI::UI.puts("Status: #{@dashboard_active ? "Active" : "Inactive"}")
         end
 
         def display_quick_stats
           monitor_summary = @job_monitor.get_monitoring_summary
-          metrics_summary = @job_metrics.get_metrics_summary
+          @job_metrics.get_metrics_summary
           error_summary = @error_handler.get_error_summary
 
           CLI::UI.puts("\n{{bold:Quick Stats:}}")
@@ -240,7 +240,7 @@ module Aidp
             CLI::UI.puts("  {{dim:No recent activity}}")
           else
             recent_history.last(5).each do |event|
-              CLI::UI.puts("  {{dim:#{event[:timestamp].strftime('%H:%M:%S')}}} #{event[:event_type]} - #{event[:job_id]}")
+              CLI::UI.puts("  {{dim:#{event[:timestamp].strftime("%H:%M:%S")}}} #{event[:event_type]} - #{event[:job_id]}")
             end
           end
         end
@@ -338,7 +338,7 @@ module Aidp
           CLI::UI.puts("{{bold:History Summary:}}")
           CLI::UI.puts("  Total events: {{bold:#{history_summary[:total_events]}}}")
           CLI::UI.puts("  Storage path: {{dim:#{history_summary[:storage_path]}}}")
-          CLI::UI.puts("  Persistence: #{history_summary[:persistence_enabled] ? 'Enabled' : 'Disabled'}")
+          CLI::UI.puts("  Persistence: #{history_summary[:persistence_enabled] ? "Enabled" : "Disabled"}")
         end
 
         def display_recent_history
@@ -349,7 +349,7 @@ module Aidp
             CLI::UI.puts("  {{dim:No recent history}}")
           else
             recent_history.last(10).each do |event|
-              CLI::UI.puts("  {{dim:#{event[:timestamp].strftime('%H:%M:%S')}}} #{event[:event_type]} - #{event[:job_id]}")
+              CLI::UI.puts("  {{dim:#{event[:timestamp].strftime("%H:%M:%S")}}} #{event[:event_type]} - #{event[:job_id]}")
             end
           end
         end
@@ -363,14 +363,14 @@ module Aidp
           CLI::UI.puts("{{bold:Dashboard Settings:}}")
           CLI::UI.puts("  Refresh interval: {{bold:#{@refresh_interval}s}}")
           CLI::UI.puts("  Current view: {{bold:#{@current_view}}}")
-          CLI::UI.puts("  Dashboard active: #{@dashboard_active ? 'Yes' : 'No'}")
+          CLI::UI.puts("  Dashboard active: #{@dashboard_active ? "Yes" : "No"}")
         end
 
         def display_monitoring_settings
           monitor_summary = @job_monitor.get_monitoring_summary
 
           CLI::UI.puts("\n{{bold:Monitoring Settings:}}")
-          CLI::UI.puts("  Monitoring active: #{monitor_summary[:monitoring_active] ? 'Yes' : 'No'}")
+          CLI::UI.puts("  Monitoring active: #{monitor_summary[:monitoring_active] ? "Yes" : "No"}")
         end
 
         def display_display_settings

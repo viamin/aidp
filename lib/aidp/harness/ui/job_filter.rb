@@ -38,7 +38,7 @@ module Aidp
           super()
           @formatter = ui_components[:formatter] || JobFilterFormatter.new
           @active_filters = {}
-          @sort_options = { field: :created_at, order: :desc }
+          @sort_options = {field: :created_at, order: :desc}
           @filter_history = []
         end
 
@@ -54,7 +54,7 @@ module Aidp
 
           record_filter_event(filter_criteria, filtered_jobs.size)
           filtered_jobs
-        rescue StandardError => e
+        rescue => e
           raise FilterError, "Failed to apply filter: #{e.message}"
         end
 
@@ -72,12 +72,12 @@ module Aidp
             b_value = extract_sort_value(b[1], sort_field)
 
             comparison = compare_values(a_value, b_value)
-            sort_order == :desc ? -comparison : comparison
+            (sort_order == :desc) ? -comparison : comparison
           end
 
           record_sort_event(sort_field, sort_order, sorted_jobs.size)
           sorted_jobs
-        rescue StandardError => e
+        rescue => e
           raise FilterError, "Failed to sort jobs: #{e.message}"
         end
 
@@ -88,16 +88,14 @@ module Aidp
           filtered_jobs = filter_criteria.any? ? apply_filter(jobs, filter_criteria) : jobs
 
           # Then sort
-          sorted_jobs = sort_jobs(filtered_jobs, sort_field, sort_order)
-
-          sorted_jobs
+          sort_jobs(filtered_jobs, sort_field, sort_order)
         end
 
         def set_default_sort(field, order)
           validate_sort_field(field)
           validate_sort_order(order)
 
-          @sort_options = { field: field, order: order }
+          @sort_options = {field: field, order: order}
           CLI::UI.puts(@formatter.format_default_sort_set(field, order))
         end
 
@@ -139,13 +137,13 @@ module Aidp
 
         def validate_sort_field(sort_field)
           unless SORT_OPTIONS.key?(sort_field)
-            raise InvalidSortError, "Invalid sort field: #{sort_field}. Must be one of: #{SORT_OPTIONS.keys.join(', ')}"
+            raise InvalidSortError, "Invalid sort field: #{sort_field}. Must be one of: #{SORT_OPTIONS.keys.join(", ")}"
           end
         end
 
         def validate_sort_order(sort_order)
           unless SORT_ORDERS.key?(sort_order)
-            raise InvalidSortError, "Invalid sort order: #{sort_order}. Must be one of: #{SORT_ORDERS.keys.join(', ')}"
+            raise InvalidSortError, "Invalid sort order: #{sort_order}. Must be one of: #{SORT_ORDERS.keys.join(", ")}"
           end
         end
 
@@ -191,7 +189,7 @@ module Aidp
           jobs.select do |_, job|
             job_date = job[:created_at]
             (start_date.nil? || job_date >= start_date) &&
-            (end_date.nil? || job_date <= end_date)
+              (end_date.nil? || job_date <= end_date)
           end
         end
 
@@ -201,7 +199,7 @@ module Aidp
 
           jobs.select do |_, job|
             progress = job[:progress] || 0
-            progress >= min_progress && progress <= max_progress
+            progress.between?(min_progress, max_progress)
           end
         end
 
@@ -212,7 +210,7 @@ module Aidp
 
             jobs.select do |_, job|
               count = job[:retry_count] || 0
-              count >= min_retries && count <= max_retries
+              count.between?(min_retries, max_retries)
             end
           else
             jobs.select { |_, job| (job[:retry_count] || 0) == retry_count }
@@ -222,7 +220,7 @@ module Aidp
         def filter_by_error_contains(jobs, error_text)
           jobs.select do |_, job|
             error_message = job[:error_message]
-            error_message && error_message.downcase.include?(error_text.downcase)
+            error_message&.downcase&.include?(error_text.downcase)
           end
         end
 
@@ -333,7 +331,7 @@ module Aidp
         end
 
         def format_filter_applied(criteria, result_count)
-          CLI::UI.fmt("{{blue:🔍 Filter applied: #{criteria.keys.join(', ')} (#{result_count} results)}}")
+          CLI::UI.fmt("{{blue:🔍 Filter applied: #{criteria.keys.join(", ")} (#{result_count} results)}}")
         end
 
         def format_sort_applied(field, order, result_count)
@@ -351,7 +349,7 @@ module Aidp
           criteria.map do |key, value|
             case value
             when Array
-              "#{key}: [#{value.join(', ')}]"
+              "#{key}: [#{value.join(", ")}]"
             when Hash
               "#{key}: #{value}"
             else

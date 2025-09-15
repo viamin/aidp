@@ -42,7 +42,7 @@ module Aidp
           record_metric_event(job_id, metric_type, value)
 
           metric
-        rescue StandardError => e
+        rescue => e
           raise MetricsError, "Failed to record job metric: #{e.message}"
         end
 
@@ -67,7 +67,7 @@ module Aidp
           start_time = end_time - time_window
 
           relevant_jobs = @metrics_history.select do |metric|
-            metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
+            metric[:timestamp].between?(start_time, end_time)
           end
 
           throughput = relevant_jobs.size.to_f / time_window
@@ -85,7 +85,7 @@ module Aidp
 
           relevant_metrics = @metrics_history.select do |metric|
             metric[:job_id].in?(job_ids) &&
-            metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
+              metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
           end
 
           return 0.0 if relevant_metrics.empty?
@@ -106,7 +106,7 @@ module Aidp
 
           relevant_metrics = @metrics_history.select do |metric|
             metric[:job_id].in?(job_ids) &&
-            metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
+              metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
           end
 
           return 0.0 if relevant_metrics.empty?
@@ -127,7 +127,7 @@ module Aidp
 
           relevant_metrics = @metrics_history.select do |metric|
             metric[:job_id].in?(job_ids) &&
-            metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
+              metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
           end
 
           return 0.0 if relevant_metrics.empty?
@@ -152,7 +152,7 @@ module Aidp
           start_time = end_time - time_window
 
           relevant_metrics = @metrics_history.select do |metric|
-            metric[:timestamp] >= start_time && metric[:timestamp] <= end_time
+            metric[:timestamp].between?(start_time, end_time)
           end
 
           aggregate_system_metrics(relevant_metrics)
@@ -202,7 +202,7 @@ module Aidp
 
           CLI::UI.puts(@formatter.format_export_success(file_path, @metrics_history.size))
           file_path
-        rescue StandardError => e
+        rescue => e
           raise MetricsError, "Failed to export metrics: #{e.message}"
         end
 
@@ -236,7 +236,7 @@ module Aidp
 
         def validate_metric_type(metric_type)
           unless METRIC_TYPES.key?(metric_type)
-            raise MetricsError, "Invalid metric type: #{metric_type}. Must be one of: #{METRIC_TYPES.keys.join(', ')}"
+            raise MetricsError, "Invalid metric type: #{metric_type}. Must be one of: #{METRIC_TYPES.keys.join(", ")}"
           end
         end
 
@@ -257,7 +257,7 @@ module Aidp
         def validate_export_format(format)
           valid_formats = [:json, :csv, :yaml]
           unless valid_formats.include?(format)
-            raise MetricsError, "Invalid export format: #{format}. Must be one of: #{valid_formats.join(', ')}"
+            raise MetricsError, "Invalid export format: #{format}. Must be one of: #{valid_formats.join(", ")}"
           end
         end
 
@@ -391,10 +391,10 @@ module Aidp
         end
 
         def export_to_csv(file_path)
-          require 'csv'
+          require "csv"
 
-          CSV.open(file_path, 'w') do |csv|
-            csv << ['ID', 'Job ID', 'Metric Type', 'Value', 'Timestamp', 'Metadata']
+          CSV.open(file_path, "w") do |csv|
+            csv << ["ID", "Job ID", "Metric Type", "Value", "Timestamp", "Metadata"]
 
             @metrics_history.each do |metric|
               csv << [
@@ -410,7 +410,7 @@ module Aidp
         end
 
         def export_to_yaml(file_path)
-          require 'yaml'
+          require "yaml"
 
           metrics_data = {
             version: "1.0",
@@ -431,7 +431,7 @@ module Aidp
 
           CLI::UI.puts("Total metrics: {{bold:#{summary[:total_metrics]}}}")
           CLI::UI.puts("Aggregation window: {{bold:#{summary[:aggregation_window]}s}}")
-          CLI::UI.puts("Metrics enabled: #{summary[:metrics_enabled] ? 'Yes' : 'No'}")
+          CLI::UI.puts("Metrics enabled: #{summary[:metrics_enabled] ? "Yes" : "No"}")
 
           if summary[:metrics_by_type].any?
             CLI::UI.puts("\nMetrics by type:")
@@ -466,7 +466,7 @@ module Aidp
           CLI::UI.puts(CLI::UI.fmt("{{bold:{{blue:📊 System Metrics}}}}"))
           CLI::UI.puts("─" * 50)
 
-          CLI::UI.puts("Time window: {{bold:#{time_window || 'default'}s}}")
+          CLI::UI.puts("Time window: {{bold:#{time_window || "default"}s}}")
           CLI::UI.puts("Total metrics: {{bold:#{metrics[:total_metrics]}}}")
           CLI::UI.puts("Throughput: {{bold:#{format_throughput(metrics[:throughput])}}}")
           CLI::UI.puts("Success rate: {{green:#{format_percentage(metrics[:success_rate])}}}")

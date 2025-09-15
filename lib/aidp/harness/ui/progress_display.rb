@@ -23,7 +23,7 @@ module Aidp
           @progress.progress do |bar|
             execute_progress_steps(bar, total_steps, &block)
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to display progress: #{e.message}"
         end
 
@@ -32,7 +32,7 @@ module Aidp
 
           bar.tick
           bar.update_title(message) if message
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to update progress: #{e.message}"
         end
 
@@ -43,7 +43,7 @@ module Aidp
           @progress.progress do |bar|
             execute_substeps(bar, total_substeps, formatted_title, &block)
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to display step progress: #{e.message}"
         end
 
@@ -54,7 +54,7 @@ module Aidp
             bar.update_title(message)
             yield(bar) if block_given?
           end
-        rescue StandardError => e
+        rescue => e
           raise DisplayError, "Failed to display indeterminate progress: #{e.message}"
         end
 
