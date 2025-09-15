@@ -10,4 +10,5 @@ group :development, :test do
   gem "standard"
   gem "reline"  # Suppress Ruby 3.5.0 deprecation warning
   gem "benchmark"  # Suppress Ruby 3.5.0 deprecation warning
+  gem "aruba"  # System testing framework
 end
