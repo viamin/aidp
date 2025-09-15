@@ -647,7 +647,7 @@ module Aidp
 
       def generate_hotspots
         # Merge structural metrics with git churn data
-        # For now, create mock hotspots based on complexity
+        # Generate hotspots based on complexity and change frequency
         @hotspots = @metrics.select { |m| m[:symbol_id] }
           .map do |metric|
             {

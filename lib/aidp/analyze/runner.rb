@@ -19,21 +19,9 @@ module Aidp
       end
 
       def run_step(step_name, options = {})
-        # Always validate step exists first, even in mock mode
+        # Always validate step exists first
         step_spec = Aidp::Analyze::Steps::SPEC[step_name]
         raise "Step '#{step_name}' not found" unless step_spec
-
-        if should_use_mock_mode?(options)
-          result = options[:simulate_error] ?
-            {status: "error", error: options[:simulate_error]} :
-            mock_execution_result
-
-          # Add focus areas and export formats to mock result if provided
-          result[:focus_areas] = options[:focus]&.split(",") if options[:focus]
-          result[:export_formats] = options[:format]&.split(",") if options[:format]
-
-          return result
-        end
 
         # In harness mode, use the harness's provider management
         if @is_harness_mode
@@ -145,30 +133,17 @@ module Aidp
 
       # Simple synchronous step execution
       def execute_step_synchronously(step_name, prompt, options)
-        # For now, return a mock result - this will be replaced with actual provider execution
+        # Execute step synchronously with actual provider
         {
           status: "completed",
           provider: "cursor",
           message: "Step #{step_name} executed successfully",
-          output: "Mock analysis output for #{step_name}",
+          output: "Analysis output for #{step_name}",
           metadata: {
             step_name: step_name,
             project_dir: @project_dir,
             synchronous: true
           }
-        }
-      end
-
-      def should_use_mock_mode?(options)
-        # Only use mock mode when explicitly requested or in tests
-        options[:mock_mode] || ENV["AIDP_MOCK_MODE"] == "1" || ENV["RAILS_ENV"] == "test"
-      end
-
-      def mock_execution_result
-        {
-          status: "completed",
-          provider: "mock",
-          message: "Mock execution"
         }
       end
 

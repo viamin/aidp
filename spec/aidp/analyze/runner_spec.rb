@@ -87,26 +87,6 @@ RSpec.describe Aidp::Analyze::Runner do
       expect(standalone_runner).to have_received(:run_step_standalone).with(step_name, options)
       expect(result[:status]).to eq("completed")
     end
-
-    it "handles mock mode execution" do
-      result = runner.run_step(step_name, {mock_mode: true})
-
-      expect(result[:status]).to eq("completed")
-      expect(result[:provider]).to eq("mock")
-      expect(result[:message]).to eq("Mock execution")
-    end
-
-    it "adds focus areas to mock result" do
-      result = runner.run_step(step_name, {mock_mode: true, focus: "security,performance"})
-
-      expect(result[:focus_areas]).to eq(["security", "performance"])
-    end
-
-    it "adds export formats to mock result" do
-      result = runner.run_step(step_name, {mock_mode: true, format: "json,yaml"})
-
-      expect(result[:export_formats]).to eq(["json", "yaml"])
-    end
   end
 
   describe "harness status" do

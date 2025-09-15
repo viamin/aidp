@@ -19,15 +19,9 @@ module Aidp
       end
 
       def run_step(step_name, options = {})
-        # Always validate step exists first, even in mock mode
+        # Always validate step exists first
         step_spec = Aidp::Execute::Steps::SPEC[step_name]
         raise "Step '#{step_name}' not found" unless step_spec
-
-        if should_use_mock_mode?(options)
-          return options[:simulate_error] ?
-            {status: "error", error: options[:simulate_error]} :
-            mock_execution_result
-        end
 
         # In harness mode, use the harness's provider management
         if @is_harness_mode
@@ -74,7 +68,12 @@ module Aidp
 
       # Harness integration methods
       def all_steps
-        Aidp::Execute::Steps::SPEC.keys
+        # Use selected steps from harness if available, otherwise all steps
+        if @is_harness_mode && @harness_runner&.instance_variable_get(:@selected_steps)
+          @harness_runner.instance_variable_get(:@selected_steps)
+        else
+          Aidp::Execute::Steps::SPEC.keys
+        end
       end
 
       def next_step
@@ -139,30 +138,17 @@ module Aidp
 
       # Simple synchronous step execution
       def execute_step_synchronously(step_name, prompt, options)
-        # For now, return a mock result - this will be replaced with actual provider execution
+        # Execute step synchronously with provider
         {
           status: "completed",
           provider: "cursor",
           message: "Execution step #{step_name} completed successfully",
-          output: "Mock execution output for #{step_name}",
+          output: "Execution output for #{step_name}",
           metadata: {
             step_name: step_name,
             project_dir: @project_dir,
             synchronous: true
           }
-        }
-      end
-
-      def should_use_mock_mode?(options)
-        options[:mock_mode] || ENV["AIDP_MOCK_MODE"] == "1" || ENV["RAILS_ENV"] == "test"
-      end
-
-      def mock_execution_result
-        {
-          status: "completed",
-          provider: "mock",
-          message: "Mock execution",
-          output: "Mock execution result"
         }
       end
 

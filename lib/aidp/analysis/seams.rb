@@ -164,8 +164,8 @@ module Aidp
       end
 
       private_class_method def self.extract_io_calls(_method_node)
-        # This would extract I/O calls from the method's AST
-        # For now, return mock data
+        # Extract I/O calls from the method's AST
+        # TODO: Implement actual AST analysis
         []
       end
 

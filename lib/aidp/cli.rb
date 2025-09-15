@@ -2,6 +2,7 @@
 
 require "thor"
 require_relative "harness/runner"
+require_relative "execute/workflow_selector"
 
 module Aidp
   # CLI interface for both execute and analyze modes
@@ -48,10 +49,21 @@ module Aidp
           runner.run_step(step_name, all_options)
         end
       elsif should_use_harness?(all_options)
-        # No step specified - use harness by default
-        puts "🚀 Starting execute mode harness - will run all steps automatically..."
-        puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, all_options)
+        # No step specified - start interactive workflow selection
+        workflow_selector = Aidp::Execute::WorkflowSelector.new
+        workflow_config = workflow_selector.select_workflow
+
+        puts "\n🚀 Starting harness with #{workflow_config[:workflow_type]} workflow..."
+        puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode\n"
+
+        # Pass workflow configuration to harness
+        harness_options = all_options.merge(
+          workflow_type: workflow_config[:workflow_type],
+          selected_steps: workflow_config[:steps],
+          user_input: workflow_config[:user_input]
+        )
+
+        harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, harness_options)
         result = harness_runner.run
         display_harness_result(result)
         result

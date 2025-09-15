@@ -724,8 +724,8 @@ module Aidp
       end
 
       def find_cost_optimized_combination(_recovery_info)
-        # This would integrate with cost metrics to find the most cost-effective alternative
-        # For now, return a mock result
+        # Find the most cost-effective alternative provider combination
+        # TODO: Integrate with cost metrics
         {
           provider: "gemini",
           model: "model1",
@@ -734,8 +734,8 @@ module Aidp
       end
 
       def find_performance_optimized_combination(_recovery_info)
-        # This would integrate with performance metrics to find the highest performing alternative
-        # For now, return a mock result
+        # Find the highest performing alternative provider combination
+        # TODO: Integrate with performance metrics
         {
           provider: "cursor",
           model: "model2",
