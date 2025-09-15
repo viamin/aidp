@@ -12,6 +12,19 @@ require "tempfile"
 require "fileutils"
 require "logger"
 
+# Aruba configuration for system tests
+if ENV["ARUBA_RUNNING"]
+  require "aruba/cucumber"
+
+  Aruba.configure do |config|
+    config.command_launcher = :in_process
+    config.main_class = Aidp::CLINew
+    config.working_directory = "tmp/aruba"
+    config.exit_timeout = 30
+    config.io_wait_timeout = 1
+  end
+end
+
 # Load test support files
 Dir[File.expand_path("support/**/*.rb", __dir__)].each { |f| require f }
 

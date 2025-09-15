@@ -13,7 +13,7 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @spinner = ui_components[:spinner] || CLI::UI::Spinner
+          @spinner = ui_components[:spinner] || (defined?(CLI::UI) ? CLI::UI::Spinner : nil)
           @formatter = ui_components[:formatter] || StatusFormatter.new
         end
 

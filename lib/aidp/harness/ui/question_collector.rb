@@ -13,7 +13,7 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @prompt = ui_components[:prompt] || CLI::UI::Prompt
+          @prompt = ui_components[:prompt] || (defined?(CLI::UI) ? CLI::UI::Prompt : nil)
           @validator = ui_components[:validator] || QuestionValidator.new
         end
 

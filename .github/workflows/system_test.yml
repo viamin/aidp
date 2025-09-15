@@ -1,0 +1,66 @@
+name: System Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  system-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        ruby-version: ['3.1', '3.2', '3.3']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby ${{ matrix.ruby-version }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+        bundler-cache: true
+
+    - name: Install dependencies
+      run: |
+        bundle install
+        bundle exec gem install aidp --local
+
+    - name: Set up test environment
+      run: |
+        mkdir -p tmp/aruba
+        export ARUBA_RUNNING=true
+
+    - name: Run system tests
+      run: |
+        bundle exec cucumber spec/system/features/ --format progress --format json --out system_test_results.json
+      env:
+        ARUBA_RUNNING: true
+        CI: true
+
+    - name: Upload system test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: system-test-results-${{ matrix.ruby-version }}
+        path: system_test_results.json
+
+    - name: Run system tests with coverage
+      if: matrix.ruby-version == '3.2'
+      run: |
+        bundle exec cucumber spec/system/features/ --format progress
+      env:
+        ARUBA_RUNNING: true
+        CI: true
+        COVERAGE: true
+
+    - name: Upload coverage reports
+      if: matrix.ruby-version == '3.2' && env.COVERAGE == 'true'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/coverage.xml
+        flags: system-tests
+        name: system-test-coverage

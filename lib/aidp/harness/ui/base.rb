@@ -15,6 +15,7 @@ module Aidp
         private
 
         def ensure_cli_ui_enabled
+          return unless defined?(CLI::UI)
           return if CLI::UI::StdoutRouter.enabled?
 
           CLI::UI::StdoutRouter.enable
