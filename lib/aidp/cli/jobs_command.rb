@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require "tty-cursor"
-require "tty-screen"
-require "tty-table"
+require "cli/ui"
 require "io/console"
 require "json"
 require_relative "terminal_io"
@@ -13,9 +11,8 @@ module Aidp
     class JobsCommand
       def initialize(input: $stdin, output: $stdout)
         @io = TerminalIO.new(input, output)
-        @cursor = TTY::Cursor
-        @screen_width = TTY::Screen.width
-        @screen_height = TTY::Screen.height
+        # Use CLI UI for terminal operations
+        CLI::UI::StdoutRouter.enable unless CLI::UI::StdoutRouter.enabled?
         @running = true
         @view_mode = :list
         @selected_job_id = nil
@@ -97,20 +94,24 @@ module Aidp
         @io.puts "-" * @screen_width
         @io.puts
 
-        # Create simple table
-        table = TTY::Table.new(
-          header: ["ID", "Status", "Created", "Message"],
-          rows: jobs.map do |job|
-            [
-              job[:id][0..7], # Show first 8 characters of UUID
-              job[:status],
-              format_time(job[:created_at]),
-              truncate_message(job[:message])
-            ]
-          end
-        )
+        # Create simple table using CLI UI
+        CLI::UI::Frame.open("Background Jobs") do
+          jobs.each do |job|
+            status_icon = case job[:status]
+                         when "completed" then "✅"
+                         when "running" then "🔄"
+                         when "failed" then "❌"
+                         when "pending" then "⏳"
+                         else "❓"
+                         end
 
-        @io.puts table.render(:unicode, padding: [0, 1], width: @screen_width)
+            CLI::UI::Frame.open("#{status_icon} #{job[:id][0..7]}") do
+              puts "Status: #{job[:status]}"
+              puts "Created: #{format_time(job[:created_at])}"
+              puts "Message: #{truncate_message(job[:message])}"
+            end
+          end
+        end
         @io.puts
         @io.puts "Total: #{jobs.length} harness job(s)"
         @io.puts

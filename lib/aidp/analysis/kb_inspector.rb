@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require "tty-table"
+require "cli/ui"
 
 module Aidp
   module Analysis
@@ -57,7 +57,16 @@ module Aidp
       end
 
       def create_table(header, rows)
-        TTY::Table.new(header: header, rows: rows)
+        # Use CLI UI for table display instead of TTY::Table
+        CLI::UI::Frame.open("Knowledge Base Data") do
+          rows.each_with_index do |row, index|
+            CLI::UI::Frame.open("Row #{index + 1}") do
+              header.each_with_index do |col_header, col_index|
+                puts "#{col_header}: #{row[col_index]}"
+              end
+            end
+          end
+        end
       end
 
       def load_kb_data

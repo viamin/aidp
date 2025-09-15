@@ -1,6 +1,6 @@
 # AI Dev Pipeline (aidp) - Ruby Gem
 
-A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants. Now with **Harness Mode** - autonomous execution that runs complete workflows automatically with intelligent provider management and error recovery.
+A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants. Now with **Enhanced TUI** and **Harness Mode** - autonomous execution with a rich terminal interface that runs complete workflows automatically with intelligent provider management and error recovery.
 
 ## Quick Start
 
@@ -18,9 +18,18 @@ aidp execute
 aidp analyze
 ```
 
-## 🚀 New: Harness Mode
+## 🚀 New: Enhanced TUI with Harness Mode
 
-AIDP now features **Harness Mode** - an autonomous execution system that transforms AIDP from a step-by-step tool into an intelligent development assistant. The harness runs complete workflows automatically, handling rate limits, user feedback, error recovery, and provider switching.
+AIDP now features **Enhanced TUI** and **Harness Mode** - a rich terminal interface with autonomous execution that transforms AIDP from a step-by-step tool into an intelligent development assistant. The enhanced TUI provides beautiful, interactive terminal components while the harness runs complete workflows automatically, handling rate limits, user feedback, error recovery, and provider switching.
+
+### Enhanced TUI Features
+
+- **🎨 Rich Terminal Interface**: Beautiful CLI UI components with progress bars, spinners, and frames
+- **📋 Interactive Navigation**: Hierarchical menu system with breadcrumb navigation
+- **⌨️ Keyboard Shortcuts**: Full keyboard navigation and control
+- **📊 Real-time Dashboards**: Live monitoring of jobs, progress, and system status
+- **🔄 Workflow Control**: Pause, resume, cancel, and stop workflows with visual feedback
+- **💬 Smart Question Collection**: Interactive prompts with validation and error handling
 
 ### Harness Features
 
@@ -45,6 +54,77 @@ aidp harness status
 
 # View real-time progress
 aidp status
+
+# Access TUI dashboard
+aidp dashboard
+
+# Show enhanced status with TUI
+aidp status
+
+# Manage background jobs
+aidp jobs
+```
+
+## 🎨 Enhanced TUI Commands
+
+The new Terminal User Interface provides rich, interactive terminal components for a better user experience:
+
+### Dashboard and Monitoring
+
+```bash
+# Access the main TUI dashboard
+aidp dashboard
+
+# Show specific dashboard views
+aidp dashboard --view jobs      # Job monitoring view
+aidp dashboard --view metrics   # Performance metrics view
+aidp dashboard --view errors    # Error tracking view
+
+# Enhanced status display with TUI formatting
+aidp status
+
+# Detailed harness status with TUI components
+aidp harness status --mode analyze
+aidp harness status --mode execute
+```
+
+### Workflow Control
+
+```bash
+# Run workflows with enhanced TUI (default)
+aidp execute                    # TUI-enabled execute workflow
+aidp analyze                    # TUI-enabled analyze workflow
+
+# Run in traditional mode (no TUI)
+aidp execute --no-harness      # Traditional step-by-step mode
+aidp analyze --no-harness      # Traditional step-by-step mode
+
+# TUI workflow control
+aidp execute --dashboard       # Show TUI dashboard during execution
+aidp analyze --dashboard       # Show TUI dashboard during analysis
+```
+
+### Background Job Management
+
+```bash
+# Manage background jobs with TUI
+aidp jobs                      # Interactive job management interface
+
+# Job monitoring and control
+aidp jobs --status running     # Show running jobs
+aidp jobs --status completed   # Show completed jobs
+aidp jobs --status failed      # Show failed jobs
+```
+
+### Harness Management
+
+```bash
+# Reset harness state with TUI confirmation
+aidp harness reset --mode analyze
+aidp harness reset --mode execute
+
+# Show detailed harness status
+aidp harness status
 ```
 
 ### Harness Configuration
