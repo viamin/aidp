@@ -28,7 +28,7 @@ module Aidp
 
           def initialize(ui_components = {})
             super()
-            @prompt = ui_components[:prompt] || CLI::UI::Prompt
+            @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
             @formatter = ui_components[:formatter] || WorkflowFormatter.new
             @state_manager = ui_components[:state_manager]
           end

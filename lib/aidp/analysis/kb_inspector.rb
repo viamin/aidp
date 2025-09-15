@@ -58,9 +58,9 @@ module Aidp
 
       def create_table(header, rows)
         # Use CLI UI for table display instead of TTY::Table
-        CLI::UI::Frame.open("Knowledge Base Data") do
+        ::CLI::UI::Frame.open("Knowledge Base Data") do
           rows.each_with_index do |row, index|
-            CLI::UI::Frame.open("Row #{index + 1}") do
+            ::CLI::UI::Frame.open("Row #{index + 1}") do
               header.each_with_index do |col_header, col_index|
                 puts "#{col_header}: #{row[col_index]}"
               end
@@ -137,7 +137,10 @@ module Aidp
       end
 
       def show_seams_table
-        table = create_table(
+        puts "\n🔧 Seams Analysis"
+        puts "=" * 80
+
+        create_table(
           ["Type", "File", "Line", "Symbol", "Suggestion"],
           @data[:seams].map do |seam|
             [
@@ -149,10 +152,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n🔧 Seams Analysis"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_seams_summary
@@ -192,7 +191,10 @@ module Aidp
       end
 
       def show_hotspots_table
-        table = create_table(
+        puts "\n🔥 Code Hotspots"
+        puts "=" * 80
+
+        create_table(
           ["Rank", "File", "Method", "Score", "Complexity", "Touches"],
           @data[:hotspots].map.with_index do |hotspot, i|
             [
@@ -205,10 +207,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n🔥 Code Hotspots"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_hotspots_summary
@@ -295,7 +293,10 @@ module Aidp
       end
 
       def show_symbols_table
-        table = create_table(
+        puts "\n🏗️  Symbols"
+        puts "=" * 80
+
+        create_table(
           ["Type", "Name", "File", "Line", "Visibility"],
           @data[:symbols].map do |symbol|
             [
@@ -307,10 +308,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n🏗️  Symbols"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_symbols_summary
@@ -338,7 +335,10 @@ module Aidp
       end
 
       def show_imports_table
-        table = create_table(
+        puts "\n📦 Imports"
+        puts "=" * 80
+
+        create_table(
           ["Type", "Target", "File", "Line"],
           @data[:imports].map do |import|
             [
@@ -349,10 +349,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n📦 Imports"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_imports_summary

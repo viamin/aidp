@@ -73,6 +73,8 @@ module Aidp
             record_job_event(job_id, :status_changed, {from: old_status, to: status})
             notify_callbacks(:job_status_changed, job, old_status)
           end
+        rescue JobNotFoundError => e
+          raise e
         rescue => e
           raise MonitorError, "Failed to update job status: #{e.message}"
         end
@@ -87,6 +89,11 @@ module Aidp
           end
         end
 
+        def has_job?(job_id)
+          validate_job_id(job_id)
+          @monitor_mutex.synchronize { @jobs.key?(job_id) }
+        end
+
         def get_all_jobs
           @monitor_mutex.synchronize { @jobs.dup }
         end
@@ -97,6 +104,8 @@ module Aidp
           @monitor_mutex.synchronize do
             @jobs.select { |_, job| job[:status] == status }
           end
+        rescue JobMonitorError => e
+          raise MonitorError, "Failed to get jobs by status: #{e.message}"
         end
 
         def get_jobs_by_priority(priority)
@@ -115,7 +124,7 @@ module Aidp
             monitoring_loop(interval_seconds)
           end
 
-          CLI::UI.puts(@formatter.format_monitoring_started(interval_seconds))
+          ::CLI::UI.puts(@formatter.format_monitoring_started(interval_seconds))
         rescue => e
           raise MonitorError, "Failed to start monitoring: #{e.message}"
         end
@@ -127,14 +136,20 @@ module Aidp
           @monitor_thread&.join
           @monitor_thread = nil
 
-          CLI::UI.puts(@formatter.format_monitoring_stopped)
+          ::CLI::UI.puts(@formatter.format_monitoring_stopped)
         rescue => e
           raise MonitorError, "Failed to stop monitoring: #{e.message}"
+        end
+
+        def monitoring_active?
+          @monitoring_active
         end
 
         def add_update_callback(callback)
           validate_callback(callback)
           @update_callbacks << callback
+        rescue JobMonitorError => e
+          raise MonitorError, "Failed to add update callback: #{e.message}"
         end
 
         def remove_update_callback(callback)
@@ -235,7 +250,7 @@ module Aidp
           @update_callbacks.each do |callback|
             callback.call(event_type, job, additional_data)
           rescue => e
-            CLI::UI.puts(@formatter.format_callback_error(callback, e.message))
+            ::CLI::UI.puts(@formatter.format_callback_error(callback, e.message))
           end
         end
 
@@ -247,7 +262,7 @@ module Aidp
               perform_monitoring_cycle
               sleep(interval_seconds)
             rescue => e
-              CLI::UI.puts(@formatter.format_monitoring_error(e.message))
+              ::CLI::UI.puts(@formatter.format_monitoring_error(e.message))
             end
           end
         end
@@ -298,30 +313,30 @@ module Aidp
         end
 
         def display_job_details(job)
-          CLI::UI.puts("Job ID: #{job[:id]}")
-          CLI::UI.puts("Status: #{@formatter.format_job_status(job[:status])}")
-          CLI::UI.puts("Priority: #{@formatter.format_job_priority(job[:priority])}")
-          CLI::UI.puts("Progress: #{@formatter.format_job_progress(job[:progress])}")
-          CLI::UI.puts("Created: #{job[:created_at]}")
-          CLI::UI.puts("Last Updated: #{job[:last_updated]}")
+          ::CLI::UI.puts("Job ID: #{job[:id]}")
+          ::CLI::UI.puts("Status: #{@formatter.format_job_status(job[:status])}")
+          ::CLI::UI.puts("Priority: #{@formatter.format_job_priority(job[:priority])}")
+          ::CLI::UI.puts("Progress: #{@formatter.format_job_progress(job[:progress])}")
+          ::CLI::UI.puts("Created: #{job[:created_at]}")
+          ::CLI::UI.puts("Last Updated: #{job[:last_updated]}")
 
           if job[:error_message]
-            CLI::UI.puts("Error: #{@formatter.format_job_error(job[:error_message])}")
+            ::CLI::UI.puts("Error: #{@formatter.format_job_error(job[:error_message])}")
           end
 
           if job[:retry_count] > 0
-            CLI::UI.puts("Retries: #{job[:retry_count]}/#{job[:max_retries]}")
+            ::CLI::UI.puts("Retries: #{job[:retry_count]}/#{job[:max_retries]}")
           end
         end
 
         def display_jobs_table(jobs)
           if jobs.empty?
-            CLI::UI.puts("No jobs found.")
+            ::CLI::UI.puts("No jobs found.")
             return
           end
 
-          CLI::UI.puts("ID".ljust(20) + "Status".ljust(12) + "Priority".ljust(10) + "Progress".ljust(10) + "Created")
-          CLI::UI.puts("-" * 70)
+          ::CLI::UI.puts("ID".ljust(20) + "Status".ljust(12) + "Priority".ljust(10) + "Progress".ljust(10) + "Created")
+          ::CLI::UI.puts("-" * 70)
 
           jobs.each do |job_id, job|
             status = @formatter.format_job_status_short(job[:status])
@@ -329,7 +344,7 @@ module Aidp
             progress = @formatter.format_job_progress_short(job[:progress])
             created = job[:created_at].strftime("%H:%M:%S")
 
-            CLI::UI.puts(job_id.to_s.ljust(20) + status.to_s.ljust(12) + priority.to_s.ljust(10) + progress.to_s.ljust(10) + created.to_s)
+            ::CLI::UI.puts(job_id.to_s.ljust(20) + status.to_s.ljust(12) + priority.to_s.ljust(10) + progress.to_s.ljust(10) + created.to_s)
           end
         end
       end
@@ -339,127 +354,127 @@ module Aidp
         def format_job_status(status)
           case status
           when :pending
-            CLI::UI.fmt("{{yellow:⏳ Pending}}")
+            ::CLI::UI.fmt("{{yellow:⏳ Pending}}")
           when :running
-            CLI::UI.fmt("{{blue:🔄 Running}}")
+            ::CLI::UI.fmt("{{blue:🔄 Running}}")
           when :completed
-            CLI::UI.fmt("{{green:✅ Completed}}")
+            ::CLI::UI.fmt("{{green:✅ Completed}}")
           when :failed
-            CLI::UI.fmt("{{red:❌ Failed}}")
+            ::CLI::UI.fmt("{{red:❌ Failed}}")
           when :cancelled
-            CLI::UI.fmt("{{red:🚫 Cancelled}}")
+            ::CLI::UI.fmt("{{red:🚫 Cancelled}}")
           when :retrying
-            CLI::UI.fmt("{{yellow:🔄 Retrying}}")
+            ::CLI::UI.fmt("{{yellow:🔄 Retrying}}")
           else
-            CLI::UI.fmt("{{dim:❓ #{status.to_s.capitalize}}}")
+            ::CLI::UI.fmt("{{blue:❓ #{status.to_s.capitalize}}}")
           end
         end
 
         def format_job_status_short(status)
           case status
           when :pending
-            CLI::UI.fmt("{{yellow:⏳}}")
+            ::CLI::UI.fmt("{{yellow:⏳}}")
           when :running
-            CLI::UI.fmt("{{blue:🔄}}")
+            ::CLI::UI.fmt("{{blue:🔄}}")
           when :completed
-            CLI::UI.fmt("{{green:✅}}")
+            ::CLI::UI.fmt("{{green:✅}}")
           when :failed
-            CLI::UI.fmt("{{red:❌}}")
+            ::CLI::UI.fmt("{{red:❌}}")
           when :cancelled
-            CLI::UI.fmt("{{red:🚫}}")
+            ::CLI::UI.fmt("{{red:🚫}}")
           when :retrying
-            CLI::UI.fmt("{{yellow:🔄}}")
+            ::CLI::UI.fmt("{{yellow:🔄}}")
           else
-            CLI::UI.fmt("{{dim:❓}}")
+            ::CLI::UI.fmt("{{blue:❓}}")
           end
         end
 
         def format_job_priority(priority)
           case priority
           when :low
-            CLI::UI.fmt("{{dim:🔽 Low}}")
+            ::CLI::UI.fmt("{{blue:🔽 Low}}")
           when :normal
-            CLI::UI.fmt("{{blue:➡️ Normal}}")
+            ::CLI::UI.fmt("{{blue:➡️ Normal}}")
           when :high
-            CLI::UI.fmt("{{yellow:🔼 High}}")
+            ::CLI::UI.fmt("{{yellow:🔼 High}}")
           when :urgent
-            CLI::UI.fmt("{{red:🚨 Urgent}}")
+            ::CLI::UI.fmt("{{red:🚨 Urgent}}")
           else
-            CLI::UI.fmt("{{dim:❓ #{priority.to_s.capitalize}}}")
+            ::CLI::UI.fmt("{{blue:❓ #{priority.to_s.capitalize}}}")
           end
         end
 
         def format_job_priority_short(priority)
           case priority
           when :low
-            CLI::UI.fmt("{{dim:🔽}}")
+            ::CLI::UI.fmt("{{blue:🔽}}")
           when :normal
-            CLI::UI.fmt("{{blue:➡️}}")
+            ::CLI::UI.fmt("{{blue:➡️}}")
           when :high
-            CLI::UI.fmt("{{yellow:🔼}}")
+            ::CLI::UI.fmt("{{yellow:🔼}}")
           when :urgent
-            CLI::UI.fmt("{{red:🚨}}")
+            ::CLI::UI.fmt("{{red:🚨}}")
           else
-            CLI::UI.fmt("{{dim:❓}}")
+            ::CLI::UI.fmt("{{blue:❓}}")
           end
         end
 
         def format_job_progress(progress)
           progress_int = progress.to_i
           if progress_int >= 100
-            CLI::UI.fmt("{{green:100%}}")
+            ::CLI::UI.fmt("{{green:100%}}")
           elsif progress_int >= 75
-            CLI::UI.fmt("{{blue:#{progress_int}%}}")
+            ::CLI::UI.fmt("{{blue:#{progress_int}%}}")
           elsif progress_int >= 50
-            CLI::UI.fmt("{{yellow:#{progress_int}%}}")
+            ::CLI::UI.fmt("{{yellow:#{progress_int}%}}")
           else
-            CLI::UI.fmt("{{dim:#{progress_int}%}}")
+            ::CLI::UI.fmt("{{blue:#{progress_int}%}}")
           end
         end
 
         def format_job_progress_short(progress)
           progress_int = progress.to_i
           if progress_int >= 100
-            CLI::UI.fmt("{{green:100%}}")
+            ::CLI::UI.fmt("{{green:100%}}")
           elsif progress_int >= 75
-            CLI::UI.fmt("{{blue:#{progress_int}%}}")
+            ::CLI::UI.fmt("{{blue:#{progress_int}%}}")
           elsif progress_int >= 50
-            CLI::UI.fmt("{{yellow:#{progress_int}%}}")
+            ::CLI::UI.fmt("{{yellow:#{progress_int}%}}")
           else
-            CLI::UI.fmt("{{dim:#{progress_int}%}}")
+            ::CLI::UI.fmt("{{blue:#{progress_int}%}}")
           end
         end
 
         def format_job_error(error_message)
-          CLI::UI.fmt("{{red:❌ #{error_message}}}")
+          ::CLI::UI.fmt("{{red:❌ #{error_message}}}")
         end
 
         def format_monitoring_started(interval_seconds)
-          CLI::UI.fmt("{{green:✅ Job monitoring started (interval: #{interval_seconds}s)}}")
+          ::CLI::UI.fmt("{{green:✅ Job monitoring started (interval: #{interval_seconds}s)}}")
         end
 
         def format_monitoring_stopped
-          CLI::UI.fmt("{{red:❌ Job monitoring stopped}}")
+          ::CLI::UI.fmt("{{red:❌ Job monitoring stopped}}")
         end
 
         def format_monitoring_error(error_message)
-          CLI::UI.fmt("{{red:❌ Monitoring error: #{error_message}}}")
+          ::CLI::UI.fmt("{{red:❌ Monitoring error: #{error_message}}}")
         end
 
         def format_callback_error(callback, error_message)
-          CLI::UI.fmt("{{red:❌ Callback error: #{error_message}}}")
+          ::CLI::UI.fmt("{{red:❌ Callback error: #{error_message}}}")
         end
 
         def format_monitoring_summary(summary)
-          CLI::UI.fmt("{{bold:{{blue:📊 Job Monitoring Summary}}}}")
-          CLI::UI.fmt("Total jobs: {{bold:#{summary[:total_jobs]}}}")
-          CLI::UI.fmt("Monitoring: #{summary[:monitoring_active] ? "Active" : "Inactive"}")
-          CLI::UI.fmt("Total events: {{dim:#{summary[:total_events]}}}")
+          ::CLI::UI.fmt("{{bold:{{blue:📊 Job Monitoring Summary}}}}")
+          ::CLI::UI.fmt("Total jobs: {{bold:#{summary[:total_jobs]}}}")
+          ::CLI::UI.fmt("Monitoring: #{summary[:monitoring_active] ? "Active" : "Inactive"}")
+          ::CLI::UI.fmt("Total events: {{blue:#{summary[:total_events]}}}")
 
           if summary[:jobs_by_status].any?
-            CLI::UI.fmt("Jobs by status:")
+            ::CLI::UI.fmt("Jobs by status:")
             summary[:jobs_by_status].each do |status, count|
-              CLI::UI.fmt("  {{dim:#{status}: #{count}}}")
+              ::CLI::UI.fmt("  {{blue:#{status}: #{count}}}")
             end
           end
         end

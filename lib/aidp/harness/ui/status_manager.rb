@@ -264,40 +264,40 @@ module Aidp
       # Formats status management display
       class StatusManagerFormatter
         def format_workflow_status(workflow_name)
-          CLI::UI.fmt("{{bold:{{blue:🔄 #{workflow_name} Workflow}}}}")
+          ::CLI::UI.fmt("{{bold:{{blue:🔄 #{workflow_name} Workflow}}}}")
         end
 
         def format_step_status(step_name)
-          CLI::UI.fmt("{{bold:{{green:⚡ #{step_name}}}}}")
+          ::CLI::UI.fmt("{{bold:{{green:⚡ #{step_name}}}}}")
         end
 
         def format_status_message(message, type)
           case type
           when :success
-            CLI::UI.fmt("{{green:✅ #{message}}}")
+            ::CLI::UI.fmt("{{green:✅ #{message}}}")
           when :error
-            CLI::UI.fmt("{{red:❌ #{message}}}")
+            ::CLI::UI.fmt("{{red:❌ #{message}}}")
           when :warning
-            CLI::UI.fmt("{{yellow:⚠️ #{message}}}")
+            ::CLI::UI.fmt("{{yellow:⚠️ #{message}}}")
           when :info
-            CLI::UI.fmt("{{blue:ℹ️ #{message}}}")
+            ::CLI::UI.fmt("{{blue:ℹ️ #{message}}}")
           when :loading
-            CLI::UI.fmt("{{dim:⏳ #{message}}}")
+            ::CLI::UI.fmt("{{dim:⏳ #{message}}}")
           else
-            CLI::UI.fmt("{{dim:#{message}}}")
+            ::CLI::UI.fmt("{{dim:#{message}}}")
           end
         end
 
         def format_status_summary(summary)
-          CLI::UI.fmt("{{bold:{{blue:📊 Status Summary}}}}")
-          CLI::UI.fmt("Active statuses: {{bold:#{summary[:active_statuses]}}}")
-          CLI::UI.fmt("Completed statuses: {{bold:#{summary[:completed_statuses]}}}")
-          CLI::UI.fmt("Total statuses: {{bold:#{summary[:total_statuses]}}}")
+          ::CLI::UI.fmt("{{bold:{{blue:📊 Status Summary}}}}")
+          ::CLI::UI.fmt("Active statuses: {{bold:#{summary[:active_statuses]}}}")
+          ::CLI::UI.fmt("Completed statuses: {{bold:#{summary[:completed_statuses]}}}")
+          ::CLI::UI.fmt("Total statuses: {{bold:#{summary[:total_statuses]}}}")
         end
 
         def format_status_tracker(tracker)
           status_emoji = (tracker[:status] == "completed") ? "✅" : "🔄"
-          CLI::UI.fmt("#{status_emoji} {{bold:#{tracker[:name]}}} - {{dim:#{tracker[:message]}}}")
+          ::CLI::UI.fmt("#{status_emoji} {{bold:#{tracker[:name]}}} - {{dim:#{tracker[:message]}}}")
         end
       end
     end

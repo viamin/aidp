@@ -13,16 +13,21 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @prompt = ui_components[:prompt] || (defined?(CLI::UI) ? CLI::UI::Prompt : nil)
+          @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
           @validator = ui_components[:validator] || QuestionValidator.new
         end
 
         def collect_questions(questions)
           validate_questions_input(questions)
 
-          questions.map.with_index do |question, index|
-            collect_single_question(question, index + 1)
+          responses = {}
+          questions.each_with_index do |question, index|
+            question_key = question[:key] || "question_#{index + 1}"
+            responses[question_key] = collect_single_question(question, index + 1)
           end
+          responses
+        rescue ValidationError => e
+          raise e
         rescue => e
           raise CollectionError, "Failed to collect questions: #{e.message}"
         end
@@ -43,7 +48,7 @@ module Aidp
 
         def validate_questions_input(questions)
           raise ValidationError, "Questions must be an array" unless questions.is_a?(Array)
-          raise ValidationError, "Questions array cannot be empty" if questions.empty?
+          # Allow empty array - return empty hash
         end
 
         def validate_question_format(question)
@@ -98,6 +103,30 @@ module Aidp
           return unless question[:options]
           return if question[:options].include?(response)
           raise ValidationError, "Response must be one of: #{question[:options].join(", ")}"
+        end
+
+        # New methods expected by tests
+        def validate_questions(questions)
+          return true if questions.empty?
+
+          questions.all? do |question|
+            validate_question_format(question)
+            true
+          rescue ValidationError
+            false
+          end
+        end
+
+        def get_validation_errors(questions)
+          errors = []
+
+          questions.each_with_index do |question, index|
+            validate_question_format(question)
+          rescue ValidationError => e
+            errors << "Question #{index + 1}: #{e.message}"
+          end
+
+          errors
         end
       end
     end

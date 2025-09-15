@@ -65,7 +65,7 @@ module Aidp
         end
 
         def display_user_friendly_error(message)
-          CLI::UI.puts(CLI::UI.fmt("{{red:Error:}} #{message}"))
+          ::CLI::UI.puts(::CLI::UI.fmt("{{red:Error:}} #{message}"))
         end
 
         def display_generic_error(error)

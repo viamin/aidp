@@ -203,12 +203,12 @@ module Aidp
 
           # Use CLI::UI::Spinner for running jobs
           if progress_data[:status] == :running
-            CLI::UI::Spinner.spin("Processing #{job_id}") do |spinner|
+            ::CLI::UI::Spinner.spin("Processing #{job_id}") do |spinner|
               spinner.update_title("#{status_icon} #{job_id}: #{progress}%")
               sleep(0.1) # Simulate work
             end
           else
-            CLI::UI.puts("#{status_icon} #{job_id}: #{progress}%")
+            ::CLI::UI.puts("#{status_icon} #{job_id}: #{progress}%")
           end
         end
 

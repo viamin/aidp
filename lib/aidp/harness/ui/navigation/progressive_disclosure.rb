@@ -13,7 +13,7 @@ module Aidp
 
           def initialize(ui_components = {})
             super()
-            @prompt = ui_components[:prompt] || CLI::UI::Prompt
+            @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
             @formatter = ui_components[:formatter] || DisclosureFormatter.new
             @disclosure_levels = {}
             @current_level = 0

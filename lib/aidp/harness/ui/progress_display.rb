@@ -13,8 +13,12 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @progress = ui_components[:progress] || CLI::UI::Progress
+          @progress = ui_components[:progress] || ::CLI::UI::Progress
           @formatter = ui_components[:formatter] || ProgressFormatter.new
+          @display_history = []
+          @auto_refresh_enabled = false
+          @refresh_interval = 1.0
+          @refresh_thread = nil
         end
 
         def show_progress(total_steps, &block)
@@ -117,6 +121,71 @@ module Aidp
           format_duration(eta_seconds)
         end
 
+        # New methods expected by tests
+        def display_progress(progress_data, display_type = :standard)
+          validate_progress_data(progress_data)
+          validate_display_type(display_type)
+
+          case display_type
+          when :standard
+            display_standard_progress(progress_data)
+          when :detailed
+            display_detailed_progress(progress_data)
+          when :minimal
+            display_minimal_progress(progress_data)
+          end
+
+          record_display_history(progress_data, display_type)
+        rescue InvalidProgressError => e
+          raise e
+        rescue => e
+          raise DisplayError, "Failed to display progress: #{e.message}"
+        end
+
+        def start_auto_refresh(interval_seconds)
+          return if @auto_refresh_enabled
+
+          @auto_refresh_enabled = true
+          @refresh_interval = interval_seconds
+          @refresh_thread = Thread.new do
+            loop do
+              break unless @auto_refresh_enabled
+              sleep(@refresh_interval)
+              refresh_display if @auto_refresh_enabled
+            end
+          end
+        end
+
+        def stop_auto_refresh
+          @auto_refresh_enabled = false
+          @refresh_thread&.join
+          @refresh_thread = nil
+        end
+
+        def auto_refresh_enabled?
+          @auto_refresh_enabled
+        end
+
+        attr_reader :refresh_interval
+
+        def display_multiple_progress(progress_items, display_type = :standard)
+          return if progress_items.empty?
+
+          progress_items.each do |item|
+            display_progress(item, display_type)
+          end
+        rescue => e
+          raise DisplayError, "Failed to display multiple progress: #{e.message}"
+        end
+
+        def get_display_history
+          @display_history.dup
+        end
+
+        def clear_display_history
+          @display_history.clear
+        end
+
         private
 
         def format_duration(seconds)
@@ -129,6 +198,62 @@ module Aidp
             minutes = ((seconds % 3600) / 60).round
             "#{hours}h #{minutes}m"
           end
+        end
+
+        def display_standard_progress(progress_data)
+          progress_bar = create_progress_bar(progress_data[:progress])
+          ::CLI::UI.puts("#{progress_data[:id]}: #{progress_bar} #{progress_data[:progress]}%")
+
+          if progress_data[:current_step] && progress_data[:total_steps]
+            ::CLI::UI.puts("Step: #{progress_data[:current_step]}/#{progress_data[:total_steps]}")
+          end
+        end
+
+        def display_detailed_progress(progress_data)
+          ::CLI::UI.puts("Progress: #{progress_data[:progress]}%")
+          ::CLI::UI.puts("Created: #{progress_data[:created_at]}")
+          ::CLI::UI.puts("Last Updated: #{progress_data[:last_updated]}")
+
+          if progress_data[:estimated_completion]
+            ::CLI::UI.puts("ETA: #{progress_data[:estimated_completion]}")
+          end
+        end
+
+        def display_minimal_progress(progress_data)
+          ::CLI::UI.puts("#{progress_data[:progress]}%")
+        end
+
+        def create_progress_bar(progress)
+          bar_length = 20
+          filled_length = (progress * bar_length / 100).round
+          bar = "█" * filled_length + "░" * (bar_length - filled_length)
+          "[#{bar}]"
+        end
+
+        def validate_progress_data(progress_data)
+          raise InvalidProgressError, "Progress data cannot be nil" if progress_data.nil?
+          raise InvalidProgressError, "Progress data must be a hash" unless progress_data.is_a?(Hash)
+          raise InvalidProgressError, "Progress must be between 0 and 100" if progress_data[:progress] < 0 || progress_data[:progress] > 100
+        end
+
+        def validate_display_type(display_type)
+          valid_types = [:standard, :detailed, :minimal]
+          unless valid_types.include?(display_type)
+            raise InvalidProgressError, "Invalid display type: #{display_type}. Must be one of: #{valid_types.join(", ")}"
+          end
+        end
+
+        def record_display_history(progress_data, display_type)
+          @display_history << {
+            data: progress_data.dup,
+            display_type: display_type,
+            timestamp: Time.now
+          }
+        end
+
+        def refresh_display
+          # This would refresh the current display
+          # Implementation depends on what's currently being displayed
         end
       end
     end

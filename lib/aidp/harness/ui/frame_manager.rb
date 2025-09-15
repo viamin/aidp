@@ -13,19 +13,192 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @frame = ui_components[:frame] || CLI::UI::Frame
+          @frame = ui_components[:frame] || ::CLI::UI::Frame
           @formatter = ui_components[:formatter] || FrameFormatter.new
+          @frame_open = false
+          @frame_stack = []
+          @frame_history = []
+          @frame_stats = {
+            total_frames: 0,
+            frame_types: Hash.new(0),
+            status_counts: Hash.new(0)
+          }
         end
 
-        def open_frame(title, &block)
+        def open_frame(frame_type, title, frame_data = nil, &block)
+          validate_frame_type(frame_type)
           validate_title(title)
 
-          formatted_title = @formatter.format_frame_title(title)
+          formatted_title = @formatter.format_frame_title(frame_type, title, frame_data)
+          @frame_open = true
+          frame_info = {type: frame_type, title: title, data: frame_data}
+          @frame_stack.push(frame_info)
+          @frame_history.push(frame_info.dup)
+
+          # Update statistics
+          @frame_stats[:total_frames] += 1
+          @frame_stats[:frame_types][frame_type] += 1
+          if frame_data && frame_data[:status]
+            @frame_stats[:status_counts][frame_data[:status]] += 1
+          end
+
           @frame.open(formatted_title) do
             yield if block_given?
           end
+        rescue InvalidFrameError => e
+          raise e
         rescue => e
           raise DisplayError, "Failed to open frame: #{e.message}"
+        end
+
+        def nested_frame(frame_type, title, frame_data = nil, &block)
+          validate_frame_type(frame_type)
+          validate_title(title)
+          raise DisplayError, "No parent frame exists for nesting" if @frame_stack.empty?
+
+          formatted_title = @formatter.format_frame_title(frame_type, title, frame_data)
+          @frame_stack.push({type: frame_type, title: title, data: frame_data})
+          @frame.open(formatted_title) do
+            yield if block_given?
+          end
+        rescue InvalidFrameError => e
+          raise e
+        rescue => e
+          raise DisplayError, "Failed to create nested frame: #{e.message}"
+        end
+
+        def close_frame
+          @frame_open = false
+          @frame_stack.pop unless @frame_stack.empty?
+        end
+
+        def frame_open?
+          @frame_open
+        end
+
+        def frame_depth
+          @frame_stack.length
+        end
+
+        def update_frame_status(status)
+          raise DisplayError, "No frame is currently open" if @frame_stack.empty?
+
+          current_frame = @frame_stack.last
+          current_frame[:data] ||= {}
+          current_frame[:data][:status] = status
+
+          # Display status update
+          status_text = case status
+          when :running then "Running"
+          when :completed then "Completed"
+          when :failed then "Failed"
+          else status.to_s.capitalize
+          end
+          puts "Status: #{status_text}"
+        end
+
+        def current_frame_status
+          return nil if @frame_stack.empty?
+
+          current_frame = @frame_stack.last
+          current_frame[:data]&.dig(:status)
+        end
+
+        def current_frame_type
+          return nil if @frame_stack.empty?
+
+          @frame_stack.last[:type]
+        end
+
+        def current_frame_title
+          return nil if @frame_stack.empty?
+
+          @frame_stack.last[:title]
+        end
+
+        def get_frame_stack
+          @frame_stack.dup
+        end
+
+        def display_frame_summary
+          puts "\n📊 Frame Summary"
+          puts "=" * 50
+
+          if @frame_stats[:total_frames] == 0
+            puts "No frames used"
+            return
+          end
+
+          puts "Total Frames: #{@frame_stats[:total_frames]}"
+
+          unless @frame_stats[:frame_types].empty?
+            puts "\nFrame Types:"
+            @frame_stats[:frame_types].each do |type, count|
+              emoji = case type
+              when :section then "📋"
+              when :subsection then "📝"
+              when :workflow then "⚙️"
+              when :step then "🔧"
+              else "📋"
+              end
+              puts "  #{emoji} #{type.to_s.capitalize}: #{count}"
+            end
+          end
+
+          unless @frame_stats[:status_counts].empty?
+            puts "\nStatus Counts:"
+            @frame_stats[:status_counts].each do |status, count|
+              status_emoji = case status
+              when :running then "🔄"
+              when :completed then "✅"
+              when :failed then "❌"
+              else "❓"
+              end
+              puts "  #{status_emoji} #{status.to_s.capitalize}: #{count}"
+            end
+          end
+
+          puts "\nCurrent Frame Depth: #{@frame_depth}"
+          puts "Frames in History: #{@frame_history.length}"
+        end
+
+        def clear_frame_history
+          @frame_history.clear
+          @frame_stack.clear
+          @frame_open = false
+          @frame_stats = {
+            total_frames: 0,
+            frame_types: Hash.new(0),
+            status_counts: Hash.new(0)
+          }
+        end
+
+        def frame_with_block(frame_type, title, frame_data = nil, &block)
+          validate_frame_type(frame_type)
+          validate_title(title)
+          raise ArgumentError, "Block required for frame_with_block" unless block_given?
+
+          formatted_title = @formatter.format_frame_title(frame_type, title, frame_data)
+          @frame_open = true
+          @frame_stack.push({type: frame_type, title: title, data: frame_data})
+
+          begin
+            result = @frame.open(formatted_title) do
+              yield
+            end
+
+            @frame_open = false
+            @frame_stack.pop unless @frame_stack.empty?
+            result
+          rescue InvalidFrameError => e
+            @frame_open = false
+            @frame_stack.pop unless @frame_stack.empty?
+            raise e
+          rescue => e
+            @frame_open = false
+            @frame_stack.pop unless @frame_stack.empty?
+            raise e  # Re-raise the original exception
+          end
         end
 
         def divider(text)
@@ -83,6 +256,13 @@ module Aidp
 
         private
 
+        def validate_frame_type(frame_type)
+          valid_types = [:section, :subsection, :workflow, :step]
+          unless valid_types.include?(frame_type)
+            raise InvalidFrameError, "Invalid frame type: #{frame_type}. Must be one of: #{valid_types.join(", ")}"
+          end
+        end
+
         def validate_title(title)
           raise InvalidFrameError, "Title cannot be empty" if title.to_s.strip.empty?
         end
@@ -105,8 +285,28 @@ module Aidp
 
       # Formats frame display text
       class FrameFormatter
-        def format_frame_title(title)
-          "📋 #{title}"
+        def format_frame_title(frame_type, title, frame_data = nil)
+          emoji = case frame_type
+          when :section then "📋"
+          when :subsection then "📝"
+          when :workflow then "⚙️"
+          when :step then "🔧"
+          else "📋"
+          end
+
+          base_title = "#{emoji} #{title}"
+
+          if frame_data && frame_data[:status]
+            status_text = case frame_data[:status]
+            when :running then "Running"
+            when :completed then "Completed"
+            when :failed then "Failed"
+            else frame_data[:status].to_s.capitalize
+            end
+            base_title += " (#{status_text})"
+          end
+
+          base_title
         end
 
         def format_divider_text(text)

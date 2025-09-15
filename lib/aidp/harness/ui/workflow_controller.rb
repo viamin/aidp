@@ -43,6 +43,8 @@ module Aidp
             record_state_change(:paused, reason)
             @status_manager.show_warning_status("Workflow paused: #{reason}")
           end
+        rescue InvalidStateError => e
+          raise e
         rescue => e
           raise ControlError, "Failed to pause workflow: #{e.message}"
         end
@@ -56,6 +58,8 @@ module Aidp
             record_state_change(:running, reason, pause_duration)
             @status_manager.show_success_status("Workflow resumed: #{reason}")
           end
+        rescue InvalidStateError => e
+          raise e
         rescue => e
           raise ControlError, "Failed to resume workflow: #{e.message}"
         end
@@ -69,6 +73,8 @@ module Aidp
             @status_manager.show_warning_status("Workflow cancelled: #{reason}")
             cleanup_workflow_resources
           end
+        rescue InvalidStateError => e
+          raise e
         rescue => e
           raise ControlError, "Failed to cancel workflow: #{e.message}"
         end
@@ -94,6 +100,8 @@ module Aidp
             record_state_change(:completed, reason)
             @status_manager.show_success_status("Workflow completed: #{reason}")
           end
+        rescue InvalidStateError => e
+          raise e
         rescue => e
           raise ControlError, "Failed to complete workflow: #{e.message}"
         end
@@ -103,23 +111,23 @@ module Aidp
         end
 
         def running?
-          current_state == :running
+          @current_state == :running
         end
 
         def paused?
-          current_state == :paused
+          @current_state == :paused
         end
 
         def cancelled?
-          current_state == :cancelled
+          @current_state == :cancelled
         end
 
         def stopped?
-          current_state == :stopped
+          @current_state == :stopped
         end
 
         def completed?
-          current_state == :completed
+          @current_state == :completed
         end
 
         def can_pause?
@@ -220,19 +228,19 @@ module Aidp
         end
 
         def display_status_info(status)
-          CLI::UI.puts("Current State: #{@formatter.format_state(status[:state])}")
-          CLI::UI.puts("State Name: #{status[:state_name]}")
+          ::CLI::UI.puts("Current State: #{@formatter.format_state(status[:state])}")
+          ::CLI::UI.puts("State Name: #{status[:state_name]}")
 
           if status[:pause_time]
-            CLI::UI.puts("Paused Since: #{status[:pause_time]}")
+            ::CLI::UI.puts("Paused Since: #{status[:pause_time]}")
           end
 
-          CLI::UI.puts("\nAvailable Actions:")
-          CLI::UI.puts("  Pause: #{status[:can_pause] ? "Yes" : "No"}")
-          CLI::UI.puts("  Resume: #{status[:can_resume] ? "Yes" : "No"}")
-          CLI::UI.puts("  Cancel: #{status[:can_cancel] ? "Yes" : "No"}")
-          CLI::UI.puts("  Stop: #{status[:can_stop] ? "Yes" : "No"}")
-          CLI::UI.puts("  Complete: #{status[:can_complete] ? "Yes" : "No"}")
+          ::CLI::UI.puts("\nAvailable Actions:")
+          ::CLI::UI.puts("  Pause: #{status[:can_pause] ? "Yes" : "No"}")
+          ::CLI::UI.puts("  Resume: #{status[:can_resume] ? "Yes" : "No"}")
+          ::CLI::UI.puts("  Cancel: #{status[:can_cancel] ? "Yes" : "No"}")
+          ::CLI::UI.puts("  Stop: #{status[:can_stop] ? "Yes" : "No"}")
+          ::CLI::UI.puts("  Complete: #{status[:can_complete] ? "Yes" : "No"}")
         end
 
         def control_interface_loop
@@ -255,43 +263,43 @@ module Aidp
         def format_state(state)
           case state
           when :running
-            CLI::UI.fmt("{{green:🟢 Running}}")
+            ::CLI::UI.fmt("{{green:🟢 Running}}")
           when :paused
-            CLI::UI.fmt("{{yellow:🟡 Paused}}")
+            ::CLI::UI.fmt("{{yellow:🟡 Paused}}")
           when :cancelled
-            CLI::UI.fmt("{{red:🔴 Cancelled}}")
+            ::CLI::UI.fmt("{{red:🔴 Cancelled}}")
           when :stopped
-            CLI::UI.fmt("{{red:⏹️ Stopped}}")
+            ::CLI::UI.fmt("{{red:⏹️ Stopped}}")
           when :completed
-            CLI::UI.fmt("{{green:✅ Completed}}")
+            ::CLI::UI.fmt("{{green:✅ Completed}}")
           else
-            CLI::UI.fmt("{{dim:❓ #{state.to_s.capitalize}}}")
+            ::CLI::UI.fmt("{{dim:❓ #{state.to_s.capitalize}}}")
           end
         end
 
         def format_state_transition(from_state, to_state)
-          CLI::UI.fmt("{{bold:{{blue:🔄 #{from_state.to_s.capitalize} → #{to_state.to_s.capitalize}}}}}")
+          ::CLI::UI.fmt("{{bold:{{blue:🔄 #{from_state.to_s.capitalize} → #{to_state.to_s.capitalize}}}}}")
         end
 
         def format_control_action(action)
           case action
           when :pause
-            CLI::UI.fmt("{{yellow:⏸️ Pause}}")
+            ::CLI::UI.fmt("{{yellow:⏸️ Pause}}")
           when :resume
-            CLI::UI.fmt("{{green:▶️ Resume}}")
+            ::CLI::UI.fmt("{{green:▶️ Resume}}")
           when :cancel
-            CLI::UI.fmt("{{red:❌ Cancel}}")
+            ::CLI::UI.fmt("{{red:❌ Cancel}}")
           when :stop
-            CLI::UI.fmt("{{red:⏹️ Stop}}")
+            ::CLI::UI.fmt("{{red:⏹️ Stop}}")
           when :complete
-            CLI::UI.fmt("{{green:✅ Complete}}")
+            ::CLI::UI.fmt("{{green:✅ Complete}}")
           else
-            CLI::UI.fmt("{{dim:❓ #{action.to_s.capitalize}}}")
+            ::CLI::UI.fmt("{{dim:❓ #{action.to_s.capitalize}}}")
           end
         end
 
         def format_control_help
-          CLI::UI.fmt("{{bold:{{blue:⌨️ Workflow Control Help}}}}")
+          ::CLI::UI.fmt("{{bold:{{blue:⌨️ Workflow Control Help}}}}")
         end
       end
     end

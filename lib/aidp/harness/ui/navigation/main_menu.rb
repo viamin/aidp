@@ -3,6 +3,7 @@
 require_relative "../base"
 require_relative "menu_item"
 require_relative "menu_state"
+require_relative "menu_formatter"
 
 module Aidp
   module Harness
@@ -16,7 +17,7 @@ module Aidp
 
           def initialize(ui_components = {})
             super()
-            @prompt = ui_components[:prompt] || CLI::UI::Prompt
+            @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
             @formatter = ui_components[:formatter] || MenuFormatter.new
             @state_manager = ui_components[:state_manager] || MenuState.new
             @menu_items = []

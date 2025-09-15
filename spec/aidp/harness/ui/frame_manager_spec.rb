@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "cli/ui"
 require_relative "../../../../lib/aidp/harness/ui/frame_manager"
 
 RSpec.describe Aidp::Harness::UI::FrameManager do

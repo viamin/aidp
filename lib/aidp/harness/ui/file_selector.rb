@@ -18,7 +18,7 @@ module Aidp
           @frame_manager = ui_components[:frame_manager] || FrameManager.new
           @status_widget = ui_components[:status_widget] || StatusWidget.new
           @formatter = ui_components[:formatter] || FileSelectorFormatter.new
-          @prompt = ui_components[:prompt] || CLI::UI::Prompt
+          @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
         end
 
         def select_files(search_term = nil, max_files = 1, options = {})

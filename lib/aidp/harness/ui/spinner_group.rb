@@ -13,7 +13,7 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @spin_group = ui_components[:spin_group] || CLI::UI::SpinGroup
+          @spin_group = ui_components[:spin_group] || ::CLI::UI::SpinGroup
           @formatter = ui_components[:formatter] || SpinnerGroupFormatter.new
         end
 
