@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "pastel"
 require_relative "base"
 require_relative "status_widget"
 require_relative "spinner_group"
@@ -263,41 +264,47 @@ module Aidp
 
       # Formats status management display
       class StatusManagerFormatter
+        def initialize
+          @pastel = Pastel.new
+        end
+
         def format_workflow_status(workflow_name)
-          ::CLI::UI.fmt("{{bold:{{blue:🔄 #{workflow_name} Workflow}}}}")
+          @pastel.bold(@pastel.blue("🔄 #{workflow_name} Workflow"))
         end
 
         def format_step_status(step_name)
-          ::CLI::UI.fmt("{{bold:{{green:⚡ #{step_name}}}}}")
+          @pastel.bold(@pastel.green("⚡ #{step_name}"))
         end
 
         def format_status_message(message, type)
           case type
           when :success
-            ::CLI::UI.fmt("{{green:✅ #{message}}}")
+            @pastel.green("✅ #{message}")
           when :error
-            ::CLI::UI.fmt("{{red:❌ #{message}}}")
+            @pastel.red("❌ #{message}")
           when :warning
-            ::CLI::UI.fmt("{{yellow:⚠️ #{message}}}")
+            @pastel.yellow("⚠️ #{message}")
           when :info
-            ::CLI::UI.fmt("{{blue:ℹ️ #{message}}}")
+            @pastel.blue("ℹ️ #{message}")
           when :loading
-            ::CLI::UI.fmt("{{dim:⏳ #{message}}}")
+            @pastel.dim("⏳ #{message}")
           else
-            ::CLI::UI.fmt("{{dim:#{message}}}")
+            @pastel.dim(message)
           end
         end
 
         def format_status_summary(summary)
-          ::CLI::UI.fmt("{{bold:{{blue:📊 Status Summary}}}}")
-          ::CLI::UI.fmt("Active statuses: {{bold:#{summary[:active_statuses]}}}")
-          ::CLI::UI.fmt("Completed statuses: {{bold:#{summary[:completed_statuses]}}}")
-          ::CLI::UI.fmt("Total statuses: {{bold:#{summary[:total_statuses]}}}")
+          result = []
+          result << @pastel.bold(@pastel.blue("📊 Status Summary"))
+          result << "Active statuses: #{@pastel.bold(summary[:active_statuses])}"
+          result << "Completed statuses: #{@pastel.bold(summary[:completed_statuses])}"
+          result << "Total statuses: #{@pastel.bold(summary[:total_statuses])}"
+          result.join("\n")
         end
 
         def format_status_tracker(tracker)
           status_emoji = (tracker[:status] == "completed") ? "✅" : "🔄"
-          ::CLI::UI.fmt("#{status_emoji} {{bold:#{tracker[:name]}}} - {{dim:#{tracker[:message]}}}")
+          "#{status_emoji} #{@pastel.bold(tracker[:name])} - #{@pastel.dim(tracker[:message])}"
         end
       end
     end

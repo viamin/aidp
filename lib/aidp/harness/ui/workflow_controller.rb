@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "pastel"
 require_relative "base"
 require_relative "status_manager"
 require_relative "frame_manager"
@@ -228,19 +229,19 @@ module Aidp
         end
 
         def display_status_info(status)
-          ::CLI::UI.puts("Current State: #{@formatter.format_state(status[:state])}")
-          ::CLI::UI.puts("State Name: #{status[:state_name]}")
+          puts("Current State: #{@formatter.format_state(status[:state])}")
+          puts("State Name: #{status[:state_name]}")
 
           if status[:pause_time]
-            ::CLI::UI.puts("Paused Since: #{status[:pause_time]}")
+            puts("Paused Since: #{status[:pause_time]}")
           end
 
-          ::CLI::UI.puts("\nAvailable Actions:")
-          ::CLI::UI.puts("  Pause: #{status[:can_pause] ? "Yes" : "No"}")
-          ::CLI::UI.puts("  Resume: #{status[:can_resume] ? "Yes" : "No"}")
-          ::CLI::UI.puts("  Cancel: #{status[:can_cancel] ? "Yes" : "No"}")
-          ::CLI::UI.puts("  Stop: #{status[:can_stop] ? "Yes" : "No"}")
-          ::CLI::UI.puts("  Complete: #{status[:can_complete] ? "Yes" : "No"}")
+          puts("\nAvailable Actions:")
+          puts("  Pause: #{status[:can_pause] ? "Yes" : "No"}")
+          puts("  Resume: #{status[:can_resume] ? "Yes" : "No"}")
+          puts("  Cancel: #{status[:can_cancel] ? "Yes" : "No"}")
+          puts("  Stop: #{status[:can_stop] ? "Yes" : "No"}")
+          puts("  Complete: #{status[:can_complete] ? "Yes" : "No"}")
         end
 
         def control_interface_loop
@@ -260,46 +261,50 @@ module Aidp
 
       # Formats workflow controller display
       class WorkflowControllerFormatter
+        def initialize
+          @pastel = Pastel.new
+        end
+
         def format_state(state)
           case state
           when :running
-            ::CLI::UI.fmt("{{green:🟢 Running}}")
+            @pastel.green("🟢 Running")
           when :paused
-            ::CLI::UI.fmt("{{yellow:🟡 Paused}}")
+            @pastel.yellow("🟡 Paused")
           when :cancelled
-            ::CLI::UI.fmt("{{red:🔴 Cancelled}}")
+            @pastel.red("🔴 Cancelled")
           when :stopped
-            ::CLI::UI.fmt("{{red:⏹️ Stopped}}")
+            @pastel.red("⏹️ Stopped")
           when :completed
-            ::CLI::UI.fmt("{{green:✅ Completed}}")
+            @pastel.green("✅ Completed")
           else
-            ::CLI::UI.fmt("{{dim:❓ #{state.to_s.capitalize}}}")
+            @pastel.dim("❓ #{state.to_s.capitalize}")
           end
         end
 
         def format_state_transition(from_state, to_state)
-          ::CLI::UI.fmt("{{bold:{{blue:🔄 #{from_state.to_s.capitalize} → #{to_state.to_s.capitalize}}}}}")
+          @pastel.bold(@pastel.blue("🔄 #{from_state.to_s.capitalize} → #{to_state.to_s.capitalize}"))
         end
 
         def format_control_action(action)
           case action
           when :pause
-            ::CLI::UI.fmt("{{yellow:⏸️ Pause}}")
+            @pastel.yellow("⏸️ Pause")
           when :resume
-            ::CLI::UI.fmt("{{green:▶️ Resume}}")
+            @pastel.green("▶️ Resume")
           when :cancel
-            ::CLI::UI.fmt("{{red:❌ Cancel}}")
+            @pastel.red("❌ Cancel")
           when :stop
-            ::CLI::UI.fmt("{{red:⏹️ Stop}}")
+            @pastel.red("⏹️ Stop")
           when :complete
-            ::CLI::UI.fmt("{{green:✅ Complete}}")
+            @pastel.green("✅ Complete")
           else
-            ::CLI::UI.fmt("{{dim:❓ #{action.to_s.capitalize}}}")
+            @pastel.dim("❓ #{action.to_s.capitalize}")
           end
         end
 
         def format_control_help
-          ::CLI::UI.fmt("{{bold:{{blue:⌨️ Workflow Control Help}}}}")
+          @pastel.bold(@pastel.blue("⌨️ Workflow Control Help"))
         end
       end
     end

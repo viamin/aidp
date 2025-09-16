@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tty-progressbar"
+require "pastel"
 require_relative "base"
 
 module Aidp
@@ -13,7 +15,8 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @progress = ui_components[:progress] || ::CLI::UI::Progress
+          @progress = ui_components[:progress] || TTY::ProgressBar
+          @pastel = Pastel.new
           @formatter = ui_components[:formatter] || ProgressFormatter.new
           @display_history = []
           @auto_refresh_enabled = false
@@ -24,9 +27,13 @@ module Aidp
         def show_progress(total_steps, &block)
           validate_total_steps(total_steps)
 
-          @progress.progress do |bar|
-            execute_progress_steps(bar, total_steps, &block)
-          end
+          progress_bar = @progress.new(
+            "[:bar] :percent% :current/:total",
+            total: total_steps,
+            width: 30
+          )
+
+          execute_progress_steps(progress_bar, total_steps, &block)
         rescue => e
           raise DisplayError, "Failed to display progress: #{e.message}"
         end
@@ -202,25 +209,25 @@ module Aidp
 
         def display_standard_progress(progress_data)
           progress_bar = create_progress_bar(progress_data[:progress])
-          ::CLI::UI.puts("#{progress_data[:id]}: #{progress_bar} #{progress_data[:progress]}%")
+          puts("#{progress_data[:id]}: #{progress_bar} #{progress_data[:progress]}%")
 
           if progress_data[:current_step] && progress_data[:total_steps]
-            ::CLI::UI.puts("Step: #{progress_data[:current_step]}/#{progress_data[:total_steps]}")
+            puts("Step: #{progress_data[:current_step]}/#{progress_data[:total_steps]}")
           end
         end
 
         def display_detailed_progress(progress_data)
-          ::CLI::UI.puts("Progress: #{progress_data[:progress]}%")
-          ::CLI::UI.puts("Created: #{progress_data[:created_at]}")
-          ::CLI::UI.puts("Last Updated: #{progress_data[:last_updated]}")
+          puts("Progress: #{progress_data[:progress]}%")
+          puts("Created: #{progress_data[:created_at]}")
+          puts("Last Updated: #{progress_data[:last_updated]}")
 
           if progress_data[:estimated_completion]
-            ::CLI::UI.puts("ETA: #{progress_data[:estimated_completion]}")
+            puts("ETA: #{progress_data[:estimated_completion]}")
           end
         end
 
         def display_minimal_progress(progress_data)
-          ::CLI::UI.puts("#{progress_data[:progress]}%")
+          puts("#{progress_data[:progress]}%")
         end
 
         def create_progress_bar(progress)
@@ -249,11 +256,6 @@ module Aidp
             display_type: display_type,
             timestamp: Time.now
           }
-        end
-
-        def refresh_display
-          # This would refresh the current display
-          # Implementation depends on what's currently being displayed
         end
       end
     end

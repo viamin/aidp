@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
+require "pastel"
 require_relative "question_collector"
 require_relative "progress_display"
 require_relative "status_widget"
@@ -14,13 +16,15 @@ require_relative "navigation/menu_state"
 module Aidp
   module Harness
     module UI
-      # New UserInterface class using CLI UI components
+      # New UserInterface class using TTY components
       class UserInterfaceNew
         class UIError < StandardError; end
         class FeedbackError < UIError; end
         class FileSelectionError < UIError; end
 
         def initialize(ui_components = {})
+          @prompt = TTY::Prompt.new
+          @pastel = Pastel.new
           @question_collector = ui_components[:question_collector] || QuestionCollector.new
           @progress_display = ui_components[:progress_display] || ProgressDisplay.new
           @status_widget = ui_components[:status_widget] || StatusWidget.new
@@ -164,16 +168,16 @@ module Aidp
           end
         end
 
-        def display_context_info(context)
-          CLI::UI.puts("Type: #{context[:type]}") if context[:type]
-          CLI::UI.puts("Urgency: #{format_urgency(context[:urgency])}") if context[:urgency]
-          CLI::UI.puts("Description: #{context[:description]}") if context[:description]
+          def display_context_info(context)
+            @prompt.say("Type: #{context[:type]}") if context[:type]
+            @prompt.say("Urgency: #{format_urgency(context[:urgency])}") if context[:urgency]
+            @prompt.say("Description: #{context[:description]}") if context[:description]
 
-          if context[:agent_output]
-            CLI::UI.puts("\nAgent Output:")
-            CLI::UI.puts(context[:agent_output])
+            if context[:agent_output]
+              @prompt.say("\nAgent Output:")
+              @prompt.say(context[:agent_output])
+            end
           end
-        end
 
         def format_urgency(urgency)
           urgency_emojis = {
@@ -207,10 +211,10 @@ module Aidp
         end
 
         def display_completion_summary(responses, questions)
-          @frame_manager.subsection("Completion Summary") do
-            CLI::UI.puts("✅ Collected #{responses.size} responses")
-            CLI::UI.puts("📊 Total questions: #{questions.length}")
-          end
+            @frame_manager.subsection("Completion Summary") do
+              @prompt.say("✅ Collected #{responses.size} responses")
+              @prompt.say("📊 Total questions: #{questions.length}")
+            end
         end
 
         def find_files(search_term)
@@ -222,13 +226,13 @@ module Aidp
 
         def display_file_selection_menu(files, max_files)
           if files.empty?
-            CLI::UI.puts("No files found matching the search term.")
+            @prompt.say("No files found matching the search term.")
             return []
           end
 
-          CLI::UI.puts("Found #{files.length} files:")
+          @prompt.say("Found #{files.length} files:")
           files.each_with_index do |file, index|
-            CLI::UI.puts("#{index + 1}. #{file}")
+            @prompt.say("#{index + 1}. #{file}")
           end
 
           # For now, return first file - can be enhanced with interactive selection

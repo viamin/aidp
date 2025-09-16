@@ -7,6 +7,7 @@ require "tty-box"
 require "tty-table"
 require "tty-progressbar"
 require "tty-spinner"
+require "tty-prompt"
 require "pastel"
 
 module Aidp
@@ -23,6 +24,7 @@ module Aidp
           @screen = TTY::Screen
           @reader = TTY::Reader.new
           @pastel = Pastel.new
+          @prompt = TTY::Prompt.new
 
           @jobs = {}
           @jobs_visible = false
@@ -109,121 +111,65 @@ module Aidp
 
         # Input methods using TTY
         def get_user_input(prompt = "💬 You: ")
-          @reader.read_line(prompt)
+          begin
+            puts prompt  # Display the prompt on its own line
+            response = @reader.read_line("> ")  # Use a simple prompt for input
+            puts  # Add spacing after user input
+            response
+          rescue TTY::Reader::InputInterrupt
+            # Clean exit without error trace
+            puts "\n\n👋 Goodbye!"
+            exit(0)
+          end
         end
 
         def get_confirmation(message, default: true)
           default_text = default ? "Y/n" : "y/N"
-          response = @reader.read_line("#{message} [#{default_text}]: ")
+          begin
+            puts "#{message} [#{default_text}]"  # Display the message on its own line
+            response = @reader.read_line("> ")  # Use a simple prompt for input
+            puts  # Add spacing after user input
 
-          case response.downcase
-          when "y", "yes"
-            true
-          when "n", "no"
-            false
-          when ""
-            default
-          else
-            get_confirmation(message, default: default)
+            case response.downcase
+            when "y", "yes"
+              true
+            when "n", "no"
+              false
+            when ""
+              default
+            else
+              get_confirmation(message, default: default)
+            end
+          rescue TTY::Reader::InputInterrupt
+            # Clean exit without error trace
+            puts "\n\n👋 Goodbye!"
+            exit(0)
           end
         end
 
-        # Multiselect interface with arrow keys + space bar (like modern GUIs)
+        # Single-select interface using TTY::Prompt (much better!)
+        def single_select(title, items, default: 0)
+          begin
+            @prompt.select(title, items, default: default, cycle: true)
+          rescue TTY::Reader::InputInterrupt
+            # Clean exit without error trace
+            puts "\n\n👋 Goodbye!"
+            exit(0)
+          end
+        end
+
+        # Multiselect interface using TTY::Prompt (much better!)
         def multiselect(title, items, selected: [])
-          @multiselect_items = items
-          @multiselect_selected = selected.dup
-          @multiselect_cursor = 0
-
-          # Show initial interface
-          show_multiselect_interface(title)
-
-          # Handle keyboard input with tty-reader
-          @reader.on(:keypress) do |event|
-            case event.key.name
-            when :up
-              @multiselect_cursor = [@multiselect_cursor - 1, 0].max
-              show_multiselect_interface(title)
-            when :down
-              @multiselect_cursor = [@multiselect_cursor + 1, @multiselect_items.length - 1].min
-              show_multiselect_interface(title)
-            when :space
-              item = @multiselect_items[@multiselect_cursor]
-              if @multiselect_selected.include?(item)
-                @multiselect_selected.delete(item)
-              else
-                @multiselect_selected << item
-              end
-              show_multiselect_interface(title)
-            when :return
-              @reader.stop
-            when :ctrl_c
-              @reader.stop
-              raise Interrupt
-            end
+          begin
+            @prompt.multi_select(title, items, default: selected)
+          rescue TTY::Reader::InputInterrupt
+            # Clean exit without error trace
+            puts "\n\n👋 Goodbye!"
+            exit(0)
           end
-
-          # Start reading input
-          @reader.read_line
-
-          @multiselect_selected
         end
 
-        private
 
-        def show_multiselect_interface(title)
-          # Clear screen and show interface
-          @cursor.clear_screen
-          @cursor.move_to(1, 1)
-
-          # Create a box for the multiselect
-          box = TTY::Box.frame(
-            width: @screen.width - 4,
-            height: @multiselect_items.length + 6,
-            title: {top_left: title, bottom_right: "Multiselect"},
-            border: {
-              type: :thick,
-              top_left: "┌",
-              top_right: "┐",
-              bottom_left: "└",
-              bottom_right: "┘",
-              top: "─",
-              bottom: "─",
-              left: "│",
-              right: "│"
-            }
-          )
-
-          # Build content
-          content = []
-          content << @pastel.bold("Use ↑↓ to navigate, SPACE to select/deselect, ENTER to confirm")
-          content << ""
-
-          @multiselect_items.each_with_index do |item, index|
-            # Selection indicator
-            if @multiselect_selected.include?(item)
-              indicator = @pastel.green("☑")
-            else
-              indicator = @pastel.dim("☐")
-            end
-
-            # Cursor indicator
-            if index == @multiselect_cursor
-              cursor = @pastel.yellow("▶")
-              item_text = @pastel.bold.white(item)
-            else
-              cursor = " "
-              item_text = item
-            end
-
-            content << "#{cursor} #{indicator} #{item_text}"
-          end
-
-          content << ""
-          content << @pastel.dim("Selected: #{@multiselect_selected.length} items")
-
-          # Display the box
-          puts box.render(content.join("\n"))
-        end
 
         # Display methods using TTY
         def show_message(message, type = :info)
@@ -314,60 +260,115 @@ module Aidp
 
         # Enhanced workflow display
         def show_workflow_status(workflow_data)
-          ::CLI::UI::Frame.open("📋 Workflow Status") do
-            ::CLI::UI.puts "{{bold:Type:}} #{workflow_data[:workflow_type]}"
-            ::CLI::UI.puts "{{bold:Steps:}} #{workflow_data[:steps]&.length || 0} total"
-            ::CLI::UI.puts "{{bold:Completed:}} #{workflow_data[:completed_steps] || 0}"
-            ::CLI::UI.puts "{{bold:Current:}} #{workflow_data[:current_step] || 'None'}"
+          content = []
+          content << "#{@pastel.bold("Type:")} #{workflow_data[:workflow_type]}"
+          content << "#{@pastel.bold("Steps:")} #{workflow_data[:steps]&.length || 0} total"
+          content << "#{@pastel.bold("Completed:")} #{workflow_data[:completed_steps] || 0}"
+          content << "#{@pastel.bold("Current:")} #{workflow_data[:current_step] || 'None'}"
 
-            if workflow_data[:progress_percentage]
-              ::CLI::UI::Progress.progress do |bar|
-                bar.percentage = workflow_data[:progress_percentage]
-                bar.format = "{{bold:Progress:}} {{bar}} {{percent}}%"
-              end
-            end
+          if workflow_data[:progress_percentage]
+            progress_bar = TTY::ProgressBar.new(
+              "#{@pastel.bold("Progress:")} [:bar] :percent%",
+              total: 100,
+              width: 30
+            )
+            progress_bar.current = workflow_data[:progress_percentage]
+            content << progress_bar.render
           end
+
+          box = TTY::Box.frame(
+            content.join("\n"),
+            title: { top_left: "📋 Workflow Status" },
+            border: :thick,
+            padding: [1, 2]
+          )
+          puts box
         end
 
         # Input area with border (like Claude Code)
         def show_input_area(prompt = "💬 You: ")
-          ::CLI::UI::Frame.open("Input", color: :blue) do
-            ::CLI::UI.puts "{{blue:#{prompt}}}"
-            ::CLI::UI.puts "{{dim:Type your message and press Enter}}"
-          end
+          content = []
+          content << @pastel.blue(prompt)
+          content << @pastel.dim("Type your message and press Enter")
+
+          box = TTY::Box.frame(
+            content.join("\n"),
+            title: { top_left: "Input" },
+            border: :thick,
+            padding: [1, 2],
+            style: {
+              border: { fg: :blue }
+            }
+          )
+          puts box
         end
 
         # Enhanced step execution display
         def show_step_execution(step_name, status, details = {})
           case status
           when :starting
-            ::CLI::UI::Frame.open("🚀 Executing Step: #{step_name}") do
-              ::CLI::UI.puts "{{blue:Starting execution...}}"
-              if details[:provider]
-                ::CLI::UI.puts "{{dim:Provider: #{details[:provider]}}}"
-              end
+            content = []
+            content << @pastel.blue("Starting execution...")
+            if details[:provider]
+              content << @pastel.dim("Provider: #{details[:provider]}")
             end
+
+            box = TTY::Box.frame(
+              content.join("\n"),
+              title: { top_left: "🚀 Executing Step: #{step_name}" },
+              border: :thick,
+              padding: [1, 2],
+              style: { border: { fg: :blue } }
+            )
+            puts box
+
           when :running
-            ::CLI::UI::Frame.open("⏳ Running Step: #{step_name}") do
-              ::CLI::UI.puts "{{yellow:Step is running...}}"
-              if details[:message]
-                ::CLI::UI.puts "{{dim:#{details[:message]}}}"
-              end
+            content = []
+            content << @pastel.yellow("Step is running...")
+            if details[:message]
+              content << @pastel.dim(details[:message])
             end
+
+            box = TTY::Box.frame(
+              content.join("\n"),
+              title: { top_left: "⏳ Running Step: #{step_name}" },
+              border: :thick,
+              padding: [1, 2],
+              style: { border: { fg: :yellow } }
+            )
+            puts box
+
           when :completed
-            ::CLI::UI::Frame.open("✅ Completed Step: #{step_name}") do
-              ::CLI::UI.puts "{{green:Step completed successfully}}"
-              if details[:duration]
-                ::CLI::UI.puts "{{dim:Duration: #{details[:duration].round(2)}s}}"
-              end
+            content = []
+            content << @pastel.green("Step completed successfully")
+            if details[:duration]
+              content << @pastel.dim("Duration: #{details[:duration].round(2)}s")
             end
+
+            box = TTY::Box.frame(
+              content.join("\n"),
+              title: { top_left: "✅ Completed Step: #{step_name}" },
+              border: :thick,
+              padding: [1, 2],
+              style: { border: { fg: :green } }
+            )
+            puts box
+
           when :failed
-            ::CLI::UI::Frame.open("❌ Failed Step: #{step_name}") do
-              ::CLI::UI.puts "{{red:Step failed}}"
-              if details[:error]
-                ::CLI::UI.puts "{{red:Error: #{details[:error]}}}"
-              end
+            content = []
+            content << @pastel.red("Step failed")
+            if details[:error]
+              content << @pastel.red("Error: #{details[:error]}")
             end
+
+            box = TTY::Box.frame(
+              content.join("\n"),
+              title: { top_left: "❌ Failed Step: #{step_name}" },
+              border: :thick,
+              padding: [1, 2],
+              style: { border: { fg: :red } }
+            )
+            puts box
           end
         end
 
@@ -528,11 +529,6 @@ module Aidp
             stop_display_loop
             exit(0)
           end
-        end
-
-        def refresh_display
-          # CLI::UI handles most of the display management
-          # This method can be used for periodic updates if needed
         end
 
         def status_color(status)

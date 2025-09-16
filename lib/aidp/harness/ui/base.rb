@@ -15,9 +15,8 @@ module Aidp
         private
 
         def ensure_cli_ui_enabled
-          return if ::CLI::UI::StdoutRouter.enabled?
-
-          ::CLI::UI::StdoutRouter.enable
+          # TTY components handle terminal setup automatically
+          # No manual setup required
         end
       end
     end

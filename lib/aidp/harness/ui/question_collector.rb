@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
 require_relative "base"
 
 module Aidp
@@ -13,7 +14,7 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
+          @prompt = ui_components[:prompt] || TTY::Prompt.new
           @validator = ui_components[:validator] || QuestionValidator.new
         end
 

@@ -104,19 +104,19 @@ module Aidp
           end
 
           def display_submenu_header
-            CLI::UI.puts(@formatter.format_submenu_title(@title))
-            CLI::UI.puts(@formatter.format_separator)
+            @prompt.say(@formatter.format_submenu_title(@title))
+            @prompt.say(@formatter.format_separator)
 
             if has_parent?
               parent_path = get_parent_path.join(" > ")
-              CLI::UI.puts(@formatter.format_parent_path(parent_path))
+              @prompt.say(@formatter.format_parent_path(parent_path))
             end
           end
 
           def display_submenu_items
             @submenu_items.each_with_index do |item, index|
               formatted_item = @formatter.format_submenu_item(item, index + 1)
-              CLI::UI.puts(formatted_item)
+              @prompt.say(formatted_item)
             end
           end
 

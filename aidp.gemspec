@@ -21,7 +21,6 @@ Gem::Specification.new do |s|
   s.required_ruby_version = ">= 3.0"
 
   s.add_runtime_dependency "async-job", "~> 0.11"
-  s.add_runtime_dependency "cli-ui", "~> 1.0"
   s.add_runtime_dependency "colorize", "~> 1.1"
   s.add_runtime_dependency "csv", "~> 3.2"
   s.add_runtime_dependency "logger", "~> 1.5"
@@ -33,6 +32,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "tty-table", "~> 0.12"
   s.add_runtime_dependency "tty-progressbar", "~> 0.18"
   s.add_runtime_dependency "tty-spinner", "~> 0.9"
+  s.add_runtime_dependency "tty-prompt", "~> 0.23"
   s.add_runtime_dependency "pastel", "~> 0.8"
   s.add_runtime_dependency "ruby_tree_sitter", "~> 2.0"
 end

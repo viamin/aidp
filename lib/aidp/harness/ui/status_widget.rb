@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tty-spinner"
+require "pastel"
 require_relative "base"
 
 module Aidp
@@ -13,7 +15,8 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @spinner = ui_components[:spinner] || ::CLI::UI::Spinner
+          @spinner = ui_components[:spinner] || TTY::Spinner
+          @pastel = Pastel.new
           @formatter = ui_components[:formatter] || StatusFormatter.new
           @status_history = []
           @current_spinner = nil
@@ -53,7 +56,7 @@ module Aidp
           validate_message(message)
 
           formatted_message = @formatter.format_success_message(message)
-          ::CLI::UI.puts(formatted_message)
+          puts(formatted_message)
         rescue => e
           raise DisplayError, "Failed to show success status: #{e.message}"
         end
@@ -62,7 +65,7 @@ module Aidp
           validate_message(message)
 
           formatted_message = @formatter.format_error_message(message)
-          ::CLI::UI.puts(formatted_message)
+          puts(formatted_message)
         rescue => e
           raise DisplayError, "Failed to show error status: #{e.message}"
         end
@@ -71,7 +74,7 @@ module Aidp
           validate_message(message)
 
           formatted_message = @formatter.format_warning_message(message)
-          ::CLI::UI.puts(formatted_message)
+          puts(formatted_message)
         rescue => e
           raise DisplayError, "Failed to show warning status: #{e.message}"
         end
@@ -103,19 +106,19 @@ module Aidp
         end
 
         def format_success_message(message)
-          ::CLI::UI.fmt("{{green:✓}} #{message}")
+          "#{@pastel.green("✓")} #{message}"
         end
 
         def format_error_message(message)
-          ::CLI::UI.fmt("{{red:✗}} #{message}")
+          "#{@pastel.red("✗")} #{message}"
         end
 
         def format_warning_message(message)
-          ::CLI::UI.fmt("{{yellow:⚠}} #{message}")
+          "#{@pastel.yellow("⚠")} #{message}"
         end
 
         def format_info_message(message)
-          ::CLI::UI.fmt("{{blue:ℹ}} #{message}")
+          "#{@pastel.blue("ℹ")} #{message}"
         end
 
         def format_step_message(step_name, status)
@@ -225,22 +228,22 @@ module Aidp
         private
 
         def display_loading_status(message)
-          ::CLI::UI.puts("⏳ #{message}")
+          puts("⏳ #{message}")
         end
 
         def display_success_status(message)
-          ::CLI::UI.puts("✅ #{message}")
+          puts("✅ #{message}")
         end
 
         def display_error_status(message, error_data)
-          ::CLI::UI.puts("❌ #{message}")
+          puts("❌ #{message}")
           if error_data && error_data[:details]
-            ::CLI::UI.puts("  Details: #{error_data[:details]}")
+            puts("  Details: #{error_data[:details]}")
           end
         end
 
         def display_warning_status(message)
-          ::CLI::UI.puts("⚠️ #{message}")
+          puts("⚠️ #{message}")
         end
 
         def validate_status_type(status_type)

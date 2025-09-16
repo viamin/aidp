@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
+require "pastel"
 require_relative "../base"
 require_relative "menu_item"
 
@@ -28,7 +30,8 @@ module Aidp
 
           def initialize(ui_components = {})
             super()
-            @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
+            @prompt = ui_components[:prompt] || TTY::Prompt.new
+            @pastel = Pastel.new
             @formatter = ui_components[:formatter] || WorkflowFormatter.new
             @state_manager = ui_components[:state_manager]
           end
@@ -72,23 +75,23 @@ module Aidp
           private
 
           def display_mode_selection
-            CLI::UI.puts(@formatter.format_selector_title)
-            CLI::UI.puts(@formatter.format_separator)
+            @prompt.say(@formatter.format_selector_title)
+            @prompt.say(@formatter.format_separator)
 
             WORKFLOW_MODES.each_with_index do |(key, info), index|
               display_mode_option(key, info, index + 1)
             end
 
-            CLI::UI.puts(@formatter.format_separator)
+            @prompt.say(@formatter.format_separator)
           end
 
           def display_mode_option(mode_key, mode_info, index)
             formatted_option = @formatter.format_mode_option(mode_key, mode_info, index)
-            CLI::UI.puts(formatted_option)
+            @prompt.say(formatted_option)
           end
 
           def display_mode_info(mode_info)
-            CLI::UI.puts(@formatter.format_mode_info(mode_info))
+            @prompt.say(@formatter.format_mode_info(mode_info))
           end
 
           def prompt_for_mode_selection
@@ -127,8 +130,12 @@ module Aidp
 
         # Formats workflow selection display
         class WorkflowFormatter
+          def initialize
+            @pastel = Pastel.new
+          end
+
           def format_selector_title
-            CLI::UI.fmt("{{bold:{{blue:🎯 Workflow Mode Selection}}}}")
+            @pastel.bold(@pastel.blue("🎯 Workflow Mode Selection"))
           end
 
           def format_separator
@@ -140,8 +147,7 @@ module Aidp
             name = mode_info[:name]
             description = mode_info[:description]
 
-            CLI::UI.fmt("{{bold:#{index}.}} {{bold:#{icon} #{name}}}}")
-            CLI::UI.fmt("   {{dim:#{description}}}")
+            "#{@pastel.bold("#{index}.")} #{@pastel.bold("#{icon} #{name}")}\n   #{@pastel.dim(description)}"
           end
 
           def format_mode_info(mode_info)
@@ -149,20 +155,19 @@ module Aidp
             name = mode_info[:name]
             description = mode_info[:description]
 
-            CLI::UI.fmt("{{bold:{{green:#{icon} #{name}}}}}")
-            CLI::UI.fmt("{{dim:#{description}}}")
+            "#{@pastel.bold(@pastel.green("#{icon} #{name}"))}\n#{@pastel.dim(description)}"
           end
 
           def format_selected_mode(mode)
             mode_info = WorkflowSelector::WORKFLOW_MODES[mode]
-            CLI::UI.fmt("{{green:✓ Selected:}} {{bold:#{mode_info[:icon]} #{mode_info[:name]}}}")
+            "#{@pastel.green("✓ Selected:")} #{@pastel.bold("#{mode_info[:icon]} #{mode_info[:name]}")}"
           end
 
           def format_mode_switch(from_mode, to_mode)
             from_info = WorkflowSelector::WORKFLOW_MODES[from_mode]
             to_info = WorkflowSelector::WORKFLOW_MODES[to_mode]
 
-            CLI::UI.fmt("{{yellow:🔄 Switching from}} {{bold:#{from_info[:name]}}} {{yellow:to}} {{bold:#{to_info[:name]}}}")
+            "#{@pastel.yellow("🔄 Switching from")} #{@pastel.bold(from_info[:name])} #{@pastel.yellow("to")} #{@pastel.bold(to_info[:name])}"
           end
         end
       end

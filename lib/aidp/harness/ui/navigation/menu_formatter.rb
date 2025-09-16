@@ -1,13 +1,18 @@
 # frozen_string_literal: true
 
+require "pastel"
+
 module Aidp
   module Harness
     module UI
       module Navigation
         # Formats menu display elements
         class MenuFormatter
+          def initialize
+            @pastel = Pastel.new
+          end
           def format_menu_title(title)
-            CLI::UI.fmt("{{bold:{{blue:📋 #{title}}}}}")
+            @pastel.bold(@pastel.blue("📋 #{title}"))
           end
 
           def format_separator
@@ -16,7 +21,7 @@ module Aidp
 
           def format_breadcrumb(breadcrumbs)
             breadcrumb_text = breadcrumbs.join(" > ")
-            CLI::UI.fmt("{{dim:📍 #{breadcrumb_text}}}")
+            @pastel.dim("📍 #{breadcrumb_text}")
           end
 
           def format_menu_item(item, index)
@@ -31,81 +36,81 @@ module Aidp
           end
 
           def format_item_prefix(index)
-            CLI::UI.fmt("{{bold:#{index}.}}")
+            @pastel.bold("#{index}.")
           end
 
           def format_item_title(item)
             if item.disabled?
-              CLI::UI.fmt("{{dim:#{item.title}}}")
+              @pastel.dim(item.title)
             elsif item.hidden?
-              CLI::UI.fmt("{{dim:#{item.title}}}")
+              @pastel.dim(item.title)
             else
-              CLI::UI.fmt("{{bold:#{item.title}}}")
+              @pastel.bold(item.title)
             end
           end
 
           def format_item_description(item)
             return "" unless item.description
 
-            CLI::UI.fmt(" {{dim:- #{item.description}}}")
+            " #{@pastel.dim("- #{item.description}")}"
           end
 
           def format_item_status(item)
-            return CLI::UI.fmt(" {{red:[DISABLED]}}") if item.disabled?
-            return CLI::UI.fmt(" {{yellow:[HIDDEN]}}") if item.hidden?
+            return " #{@pastel.red("[DISABLED]")}" if item.disabled?
+            return " #{@pastel.yellow("[HIDDEN]")}" if item.hidden?
             ""
           end
 
           def format_separator_item
-            CLI::UI.fmt("{{dim:────────────────────────────────────────}}")
+            @pastel.dim("────────────────────────────────────────")
           end
 
           def format_shortcut(shortcut)
-            CLI::UI.fmt("{{dim:(#{shortcut})}}")
+            @pastel.dim("(#{shortcut})")
           end
 
           def format_menu_depth(depth)
-            CLI::UI.fmt("{{dim:Level #{depth}}}")
+            @pastel.dim("Level #{depth}")
           end
 
           def format_navigation_prompt
-            CLI::UI.fmt("{{bold:Select an option:}}")
+            @pastel.bold("Select an option:")
           end
 
           def format_back_option
-            CLI::UI.fmt("{{dim:← Back}}")
+            @pastel.dim("← Back")
           end
 
           def format_exit_option
-            CLI::UI.fmt("{{red:✗ Exit}}")
+            @pastel.red("✗ Exit")
           end
 
           def format_workflow_title(workflow_name)
-            CLI::UI.fmt("{{bold:{{green:🔄 #{workflow_name} Workflow}}}}")
+            @pastel.bold(@pastel.green("🔄 #{workflow_name} Workflow"))
           end
 
           def format_action_title(action_name)
-            CLI::UI.fmt("{{bold:{{blue:⚡ #{action_name}}}}}")
+            @pastel.bold(@pastel.blue("⚡ #{action_name}"))
           end
 
           def format_submenu_title(submenu_name)
-            CLI::UI.fmt("{{bold:{{yellow:📁 #{submenu_name}}}}}")
+            @pastel.bold(@pastel.yellow("📁 #{submenu_name}"))
           end
 
           def format_error_message(error)
-            CLI::UI.fmt("{{red:❌ Error:}} #{error}")
+            "#{@pastel.red("❌ Error:")} #{error}"
           end
 
           def format_success_message(message)
-            CLI::UI.fmt("{{green:✅ #{message}}}")
+            @pastel.green("✅ #{message}")
           end
 
           def format_warning_message(message)
-            CLI::UI.fmt("{{yellow:⚠️ #{message}}}")
+            @pastel.yellow("⚠️ #{message}")
           end
 
           def format_info_message(message)
-            CLI::UI.fmt("{{blue:ℹ️ #{message}}}")
+            @pastel.blue("ℹ️ #{message}")
           end
         end
       end

@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
-require "cli/ui"
+require "tty-spinner"
+require "tty-progressbar"
+require "tty-table"
+require "pastel"
 require "colorize"
 
 module Aidp
@@ -18,6 +21,7 @@ module Aidp
       @quiet = config[:quiet] || false
       @style = config[:style] || :default
       @show_details = config[:show_details] || true
+      @pastel = Pastel.new
     end
 
     # Display analysis progress
@@ -57,12 +61,8 @@ module Aidp
     def show_spinner(message, options = {})
       return if @quiet
 
-      # Use CLI UI spinner instead of TTY::Spinner
-      CLI::UI::Spinner.spin(message) do |spinner|
-        # Spinner will be managed by CLI UI
-      end
-
-      spinner.auto_spin
+      spinner = TTY::Spinner.new(message, format: :dots)
+      spinner.start
       spinner
     end
 
@@ -225,10 +225,13 @@ module Aidp
       style = options[:style] || @style
       PROGRESS_STYLES[style] || PROGRESS_STYLES[:default]
 
-      # Use CLI UI progress instead of TTY::ProgressBar
-      CLI::UI::Progress.progress(title, total) do |progress|
-        # Progress will be managed by CLI UI
-      end
+      # Use TTY progress bar
+      progress_bar = TTY::ProgressBar.new(
+        "[:bar] :percent% :current/:total",
+        total: total,
+        width: 30
+      )
+      progress_bar
     end
 
     def create_simple_progress_bar(percentage, message)
@@ -264,16 +267,9 @@ module Aidp
         ]
       end
 
-      # Use CLI UI for table display instead of TTY::Table
-      CLI::UI::Frame.open("Analysis Results") do
-        rows.each_with_index do |row, index|
-          CLI::UI::Frame.open("Row #{index + 1}") do
-            headers.each_with_index do |header, col_index|
-              puts "#{header}: #{row[col_index]}"
-            end
-          end
-        end
-      end
+      # Use TTY::Table for table display
+      table = TTY::Table.new(headers, rows)
+      puts table.render(:ascii)
     end
 
     def show_step_details(step_details)

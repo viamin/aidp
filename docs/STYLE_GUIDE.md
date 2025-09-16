@@ -1,16 +1,15 @@
 # AIDP Style Guide
 
-This document outlines the coding standards, architectural patterns, and best practices for the AI Dev Pipeline (AIDP) project. Following these guidelines ensures code consistency, maintainability, and readability across the codebase.
+Coding standards, architectural patterns, and best practices for the AI Dev Pipeline (AIDP) project.
 
 ## Table of Contents
 
 - [Code Organization](#code-organization)
 - [Sandi Metz's Rules](#sandi-metzs-rules)
 - [Ruby Conventions](#ruby-conventions)
-- [CLI UI Patterns](#cli-ui-patterns)
+- [TTY Toolkit Guidelines](#tty-toolkit-guidelines)
 - [Testing Guidelines](#testing-guidelines)
 - [Error Handling](#error-handling)
-- [Documentation](#documentation)
 
 ## Code Organization
 
@@ -79,71 +78,15 @@ Follow these rules to maintain clean, maintainable code. **These are guidelines,
 
 ### Example: Breaking Up a Large Method
 
-**Before (violates rules):**
+**Before (violates rules):** 25-line method doing multiple things
+**After (follows rules):** 5-line method delegating to focused private methods
 
 ```ruby
 def collect_feedback(questions, context = nil)
-  responses = {}
-
-  if context
-    display_feedback_context(context)
-  end
-
-  display_question_presentation_header(questions, context)
-
-  questions.each_with_index do |question_data, index|
-    question_number = question_data[:number] || (index + 1)
-    display_numbered_question(question_data, question_number, index + 1, questions.length)
-    response = get_question_response(question_data, question_number)
-
-    if question_data[:required] != false && (response.nil? || response.to_s.strip.empty?)
-      puts "❌ This question is required. Please provide a response."
-      redo
-    end
-
-    responses["question_#{question_number}"] = response
-    display_question_progress(index + 1, questions.length)
-  end
-
-  display_question_completion_summary(responses, questions)
-  responses
-end
-```
-
-**After (follows rules):**
-
-```ruby
-def collect_feedback(questions, context = nil)
-  responses = {}
-
   display_feedback_intro(questions, context)
   responses = process_questions(questions)
   display_completion_summary(responses, questions)
-
   responses
-end
-
-private
-
-def display_feedback_intro(questions, context)
-  display_feedback_context(context) if context
-  display_question_presentation_header(questions, context)
-end
-
-def process_questions(questions)
-  questions.each_with_index.with_object({}) do |(question_data, index), responses|
-    question_number = question_data[:number] || (index + 1)
-    response = process_single_question(question_data, question_number, index, questions.length)
-    responses["question_#{question_number}"] = response
-  end
-end
-
-def process_single_question(question_data, question_number, index, total_questions)
-  display_numbered_question(question_data, question_number, index + 1, total_questions)
-  response = get_question_response(question_data, question_number)
-  validate_required_response(question_data, response)
-  display_question_progress(index + 1, total_questions)
-  response
 end
 ```
 
@@ -158,116 +101,305 @@ end
 
 ### Method Design
 
-```ruby
-# Good: Clear, descriptive method names
-def validate_user_input(input, options = {})
-  # method body
-end
-
-# Good: Use keyword arguments for clarity
-def create_user(name:, email:, role: :user)
-  # method body
-end
-
-# Bad: Unclear method names
-def process(data, opts)
-  # method body
-end
-```
+- Use clear, descriptive method names (`validate_user_input` not `process`)
+- Use keyword arguments for clarity (`create_user(name:, email:)`)
+- Follow StandardRB guidelines
 
 ### Error Handling
 
+- Use specific error types, not generic `rescue => e`
+- Provide meaningful error messages
+- Let it crash for internal errors, handle external dependency errors gracefully
+
+
+## TTY Toolkit Guidelines
+
+### Overview
+
+**Use the [TTY Toolkit](https://ttytoolkit.org/) for all terminal user interface (TUI) elements instead of writing custom TTY methods.** The TTY toolkit provides battle-tested, cross-platform components that handle terminal complexities, edge cases, and user interactions properly.
+
+### Core TTY Components
+
+**Use TTY components instead of custom TTY code:**
+
 ```ruby
-# Good: Specific error handling
-def load_configuration(file_path)
-  raise ArgumentError, "Configuration file path cannot be nil" if file_path.nil?
-  raise FileNotFoundError, "Configuration file not found: #{file_path}" unless File.exist?(file_path)
+require "tty-prompt"
+require "tty-progressbar"
+require "tty-spinner"
+require "tty-table"
+require "tty-config"
+require "tty-logger"
+require "pastel"
 
-  # load configuration
-rescue JSON::ParserError => e
-  raise ConfigurationError, "Invalid JSON in configuration file: #{e.message}"
-end
+prompt = TTY::Prompt.new
+pastel = Pastel.new
 
-# Bad: Generic error handling
-def load_configuration(file_path)
-  # load configuration
-rescue => e
-  puts "Error: #{e.message}"
+# User-facing output (preferred)
+prompt.say("Welcome to the application!")
+prompt.say(pastel.green("Success message"))
+prompt.say(pastel.red("Error message"))
+
+# Interactive elements
+choice = prompt.select("Choose mode", ["Analyze", "Execute"])
+selected = prompt.multi_select("Select templates", ["PRD", "Architecture"])
+name = prompt.ask("Project name?") { |q| q.required true }
+
+# Progress indicators
+bar = TTY::ProgressBar.new("Processing [:bar] :percent", total: 100)
+spinner = TTY::Spinner.new("Loading...", format: :dots)
+
+# Data display
+table = TTY::Table.new(["Name", "Status"], [["Step 1", "Complete"]])
+puts table.render(:unicode)
+
+# Configuration and logging
+config = TTY::Config.new
+logger = TTY::Logger.new
+```
+
+### User Output Best Practices
+
+**For user-facing terminal output:**
+
+```ruby
+# ✅ Preferred: TTY::Prompt.say() for user messages
+prompt = TTY::Prompt.new
+prompt.say("Welcome to the application!")
+prompt.say(pastel.green("Success!"))
+
+# ✅ Acceptable: puts + Pastel for simple output
+puts pastel.red("Error occurred")
+
+# ❌ Avoid: TTY::Logger for user output (it's for application logging)
+logger = TTY::Logger.new
+logger.info("This goes to log files, not user terminal")
+```
+
+**When to use each:**
+- **`TTY::Prompt.say()`** - User-facing messages, status updates, interactive feedback
+- **`puts + Pastel`** - Simple output, data display, fallback when TTY::Prompt not available
+- **`TTY::Logger`** - Application logging, debugging, error tracking (not user-facing)
+
+### What NOT to Do
+
+**Don't write custom TTY methods** - use TTY components instead:
+
+```ruby
+# Bad: Custom implementations
+def custom_select(items) # Use tty-prompt instead
+def custom_progress_bar(current, total) # Use tty-progressbar instead
+def custom_table(data) # Use tty-table instead
+```
+
+### Testing Interactive TUI Elements
+
+**Use `expect` for testing interactive TUI elements** since `bundle exec aidp` requires live user interaction that cannot be automated with standard RSpec.
+
+### AI Coding Agent TUI Testing Guidelines
+
+**Important**: AI agents **cannot** test by running `bundle exec aidp` directly (requires live user interaction). Use these approaches instead:
+
+#### 1. Unit Testing with Mocks
+
+```ruby
+# Mock TTY components
+let(:mock_prompt) { instance_double(TTY::Prompt) }
+allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
+expect(mock_prompt).to receive(:select).with("Choose mode", items, default: 1)
+```
+
+#### 2. Integration Testing with expect Scripts
+
+```expect
+#!/usr/bin/expect -f
+spawn bundle exec aidp
+expect "Choose your mode"
+send "\r"
+expect "Starting in Analyze Mode"
+send "\003"
+expect eof
+```
+
+#### 3. Testing TUI Logic
+
+```ruby
+# Mock TUI interactions
+allow(tui).to receive(:single_select).and_return("Web Application")
+allow(tui).to receive(:ask).and_return("my-app")
+result = selector.select_workflow(harness_mode: false, mode: :execute)
+```
+
+#### Key Principles for AI Agents
+
+1. **Never test by running `bundle exec aidp`** - requires live user interaction
+2. **Mock TTY components** - use `instance_double` and `allow().to receive()`
+3. **Test logic, not interaction** - focus on business logic and state management
+4. **Use expect scripts** - for integration testing of full user flows
+5. **Test error handling** - ensure graceful handling of interrupts
+
+#### Setting Up expect Tests
+
+```bash
+# Install expect (macOS)
+brew install expect
+
+# Install expect (Ubuntu/Debian)
+sudo apt-get install expect
+```
+
+#### Example expect Test Script
+
+```expect
+#!/usr/bin/expect -f
+
+# Test the mode selection interface
+spawn bundle exec aidp
+
+# Wait for the prompt
+expect "Choose your mode"
+
+# Send down arrow to select second option
+send "\033\[B"
+
+# Send enter to confirm selection
+send "\r"
+
+# Wait for the next prompt or completion
+expect "Starting in Execute Mode"
+
+# Exit cleanly
+send "\003"
+expect eof
+```
+
+#### Integration with RSpec
+
+```ruby
+# spec/system/tui_interaction_spec.rb
+RSpec.describe "TUI Interactions" do
+  describe "mode selection" do
+    it "allows user to select analyze mode" do
+      result = system("expect -f spec/support/expect_scripts/select_analyze_mode.exp")
+      expect(result).to be true
+    end
+
+    it "allows user to select execute mode" do
+      result = system("expect -f spec/support/expect_scripts/select_execute_mode.exp")
+      expect(result).to be true
+    end
+
+    it "handles Ctrl+C gracefully" do
+      result = system("expect -f spec/support/expect_scripts/ctrl_c_exit.exp")
+      expect(result).to be true
+    end
+  end
 end
 ```
 
-## CLI UI Patterns
+#### expect Script Best Practices
 
-### Component Organization
+```expect
+# Good: Clear, descriptive expect scripts
+#!/usr/bin/expect -f
 
-When using CLI UI, organize components by responsibility:
+# Test multiselect with space bar
+spawn bundle exec aidp
+
+expect "Select templates to use"
+
+# Navigate to first item and select with space
+send "\033\[B"  # Down arrow
+send " "        # Space to select
+
+# Navigate to third item and select with space
+send "\033\[B"  # Down arrow
+send "\033\[B"  # Down arrow
+send " "        # Space to select
+
+# Confirm selection
+send "\r"
+
+expect "Selected: 2 items"
+```
+
+### TTY Component Selection Guide
+
+| Use Case | TTY Component | Example |
+|----------|---------------|---------|
+| Single selection | `tty-prompt#select` | Mode selection, file picking |
+| Multi-selection | `tty-prompt#multi_select` | Template selection, feature flags |
+| Text input | `tty-prompt#ask` | Project name, API keys |
+| Confirmation | `tty-prompt#yes?` | Destructive operations |
+| Progress tracking | `tty-progressbar` | File processing, API calls |
+| Indeterminate progress | `tty-spinner` | Loading states |
+| Data tables | `tty-table` | Results display, status reports |
+| Rich text | `tty-markdown` | Documentation, help text |
+| Configuration | `tty-config` | Settings management |
+| File operations | `tty-file` | Template copying, file creation |
+| Cursor control | `tty-cursor` | Custom layouts (use sparingly) |
+| Screen info | `tty-screen` | Responsive layouts |
+| Structured logging | `tty-logger` | Application logging |
+
+### TUI Component Organization
+
+**Organize TUI components by responsibility, using TTY components as building blocks:**
 
 ```ruby
-module Aidp
-  module Harness
-    module UI
-      class QuestionCollector
-        def initialize(ui_components = {})
-          @prompt = ui_components[:prompt] || CLI::UI::Prompt
-          @frame = ui_components[:frame] || CLI::UI::Frame
-        end
+class QuestionCollector
+  def initialize(tty_components = {})
+    @prompt = tty_components[:prompt] || TTY::Prompt.new
+    @logger = tty_components[:logger] || TTY::Logger.new
+  end
 
-        def collect_questions(questions)
-          @frame.open("Collecting User Feedback") do
-            questions.map.with_index do |question, index|
-              collect_single_question(question, index + 1)
-            end
-          end
-        end
-
-        private
-
-        def collect_single_question(question, number)
-          @prompt.ask("Question #{number}: #{question[:text]}") do |handler|
-            question[:options]&.each { |option| handler.option(option) }
-          end
-        end
+  def collect_questions(questions)
+    questions.map.with_index do |question, index|
+      case question[:type]
+      when "choice"
+        @prompt.select("Question #{index + 1}: #{question[:text]}", question[:options])
+      when "multiselect"
+        @prompt.multi_select("Question #{index + 1}: #{question[:text]}", question[:options])
+      else
+        @prompt.ask("Question #{index + 1}: #{question[:text]}")
       end
     end
   end
 end
 ```
 
-### State Management
+### TUI State Management
 
-Keep UI state separate from business logic:
+**Keep UI state separate from business logic:**
 
 ```ruby
-module Aidp
-  module Harness
-    class UIState
-      attr_reader :current_step, :user_responses, :is_paused
+class TUIState
+  attr_reader :current_step, :user_responses, :is_paused
 
-      def initialize
-        @current_step = nil
-        @user_responses = {}
-        @is_paused = false
-      end
+  def initialize
+    @current_step = nil
+    @user_responses = {}
+    @is_paused = false
+  end
 
-      def update_step(step_name)
-        @current_step = step_name
-      end
+  def update_step(step_name)
+    @current_step = step_name
+  end
 
-      def add_response(question_id, response)
-        @user_responses[question_id] = response
-      end
-
-      def pause
-        @is_paused = true
-      end
-
-      def resume
-        @is_paused = false
-      end
-    end
+  def add_response(question_id, response)
+    @user_responses[question_id] = response
   end
 end
 ```
+
+### Benefits of Using TTY Toolkit
+
+1. **Cross-platform compatibility**: Works on all major operating systems and terminal emulators
+2. **Battle-tested**: Handles edge cases, terminal quirks, and user interactions properly
+3. **Consistent UX**: Provides familiar, polished user experiences
+4. **Maintainable**: Reduces custom TTY code that's difficult to test and maintain
+5. **Accessible**: Built-in support for screen readers and accessibility features
+6. **Performance**: Optimized for terminal performance and memory usage
+7. **Composable**: Components can be easily combined to create complex interfaces
+8. **Testable**: TTY components are designed with testing in mind
 
 ## Testing Guidelines
 
@@ -277,264 +409,77 @@ end
 
 #### Test Descriptions
 
-Each test should have a clear, unambiguous title that describes the expected behavior:
-
-```ruby
-# Good: Describes expected behavior
-it "enqueues an email after successful validation" do
-  # test body
-end
-
-it "returns error when configuration file is missing" do
-  # test body
-end
-
-# Bad: Describes outcome
-it "works" do
-  # test body
-end
-
-it "does the thing" do
-  # test body
-end
-```
+- Use clear, unambiguous titles that describe expected behavior
+- Good: `"enqueues an email after successful validation"`
+- Bad: `"works"` or `"does the thing"`
 
 #### Context and Describe Blocks
 
-Use descriptive context and describe blocks:
-
-```ruby
-# Good: Clear, descriptive context
-describe "UserInterface" do
-  describe "#collect_feedback" do
-    context "when the user has filled the optional age dropdown" do
-      it "includes the age in the response hash" do
-        # test body
-      end
-    end
-
-    context "when no questions are provided" do
-      it "returns an empty hash" do
-        # test body
-      end
-    end
-  end
-end
-
-# Bad: Unclear context
-describe "UserInterface" do
-  describe "#collect_feedback" do
-    context "age entered" do
-      it "works" do
-        # test body
-      end
-    end
-  end
-end
-```
+- Use descriptive context and describe blocks
+- Good: `context "when the user has filled the optional age dropdown"`
+- Bad: `context "age entered"`
 
 #### Before Callbacks with Metadata
 
-Use descriptive metadata for before callbacks:
-
-```ruby
-# Good: Clear metadata with descriptive names
-before(with_logged_in_user: true) { login(:user) }
-before(with_mock_provider: true) { setup_mock_provider }
-
-context "when viewing a post", :with_logged_in_user do
-  it "displays the post content" do
-    # test body
-  end
-end
-
-context "when provider is rate limited", :with_mock_provider do
-  it "switches to fallback provider" do
-    # test body
-  end
-end
-
-# Bad: Unclear before callbacks
-before { login(:user) }
-before { setup_mock_provider }
-
-context "show post" do
-  it "works" do
-    # test body
-  end
-end
-```
+- Use descriptive metadata for before callbacks
+- Good: `before(with_logged_in_user: true) { login(:user) }`
+- Bad: `before { login(:user) }`
 
 ### Test Organization
 
-```ruby
-# Good: Well-organized test file
-RSpec.describe Aidp::Harness::UserInterface do
-  let(:user_interface) { described_class.new }
-  let(:sample_questions) { build_questions }
-
-  describe "#collect_feedback" do
-    context "with valid questions" do
-      it "returns a hash of responses" do
-        result = user_interface.collect_feedback(sample_questions)
-        expect(result).to be_a(Hash)
-      end
-
-      it "includes all question responses" do
-        result = user_interface.collect_feedback(sample_questions)
-        expect(result.keys).to match_array(["question_1", "question_2"])
-      end
-    end
-
-    context "with empty questions array" do
-      it "returns an empty hash" do
-        result = user_interface.collect_feedback([])
-        expect(result).to eq({})
-      end
-    end
-  end
-
-  private
-
-  def build_questions
-    [
-      { question: "What is your name?", type: "text", required: true },
-      { question: "What is your age?", type: "number", required: false }
-    ]
-  end
-end
-```
+- Use `let` for test data setup
+- Group related tests with `context` blocks
+- Use descriptive test names
+- Keep helper methods in `private` section
 
 ### Mocking and Stubbing
 
 **Only mock external dependencies** - never mock application code. User input can be considered an external dependency.
 
 ```ruby
-# Good: Mock external dependencies only
-describe "ProviderManager" do
-  let(:mock_provider) { instance_double("Provider") }
-  let(:provider_manager) { described_class.new }
-
-  before do
-    allow(mock_provider).to receive(:available?).and_return(true)
-    allow(mock_provider).to receive(:make_request).and_return(success_response)
-  end
-
-  it "switches to fallback when primary provider fails" do
-    allow(mock_provider).to receive(:make_request).and_raise(ProviderError)
-
-    result = provider_manager.execute_request("test prompt")
-
-    expect(result[:status]).to eq("completed")
-    expect(result[:provider]).to eq("fallback")
-  end
-end
-
-# Good: Mock user input (external dependency)
-describe "UserInterface" do
-  it "collects user responses" do
-    allow(Readline).to receive(:readline).and_return("user response")
-
-    result = user_interface.collect_feedback(questions)
-
-    expect(result).to include("question_1" => "user response")
-  end
-end
+# Good: Mock external dependencies
+allow(mock_provider).to receive(:make_request).and_return(success_response)
+allow(Readline).to receive(:readline).and_return("user response")
 
 # Bad: Mocking application code
-describe "UserInterface" do
-  it "processes questions" do
-    allow(user_interface).to receive(:validate_question).and_return(true) # Don't do this!
-
-    result = user_interface.collect_feedback(questions)
-
-    expect(result).to be_present
-  end
-end
+allow(user_interface).to receive(:validate_question).and_return(true) # Don't do this!
 ```
 
 ### Sandi Metz's Testing Rules
 
-Based on [Sandi Metz's testing philosophy](https://gist.github.com/Integralist/7944948), focus on testing the interface, not the implementation:
+Focus on testing the interface, not the implementation:
 
 #### Message Types
-
-- **Queries**: Messages that "return something" and "change nothing" (getters)
-- **Commands**: Messages that "return nothing" and "change something" (setters)
+- **Queries**: Return something, change nothing (getters)
+- **Commands**: Return nothing, change something (setters)
 
 #### What to Test
-
-- **Incoming query messages**: Make assertions about what they send back
-- **Incoming command messages**: Make assertions about direct public side effects
+- **Incoming query messages**: Assert what they return
+- **Incoming command messages**: Assert direct public side effects
 
 #### What NOT to Test
-
-- Messages sent from within the object itself (private methods)
-- Outgoing query messages (they have no public side effects)
-- Outgoing command messages (use mocks and set expectations on behavior)
-- Incoming messages that have no dependents (just remove those tests)
+- Private methods (messages sent from within the object)
+- Outgoing query messages (no public side effects)
+- Outgoing command messages (use mocks instead)
 
 #### Mocking Strategy
-
 - **Command messages**: Should be mocked
 - **Query messages**: Should be stubbed
-
-```ruby
-# Good: Testing incoming query message
-describe "UserInterface" do
-  it "returns collected responses" do
-    result = user_interface.collect_feedback(questions)
-
-    expect(result).to be_a(Hash)
-    expect(result.keys).to include("question_1")
-  end
-end
-
-# Good: Testing incoming command message by side effects
-describe "StateManager" do
-  it "saves state to file" do
-    state_manager.save_state(test_state)
-
-    expect(File.exist?(state_file)).to be true
-    expect(File.read(state_file)).to include("test_data")
-  end
-end
-
-# Good: Mocking outgoing command message
-describe "ProviderManager" do
-  it "logs provider switch" do
-    expect(logger).to receive(:info).with("Switching from primary to fallback")
-
-    provider_manager.switch_provider
-  end
-end
-```
 
 ## Error Handling
 
 ### When to Crash vs. When to Handle
 
-**It's okay for exceptions to cause a crash if the crash will NOT cause:**
-
-- Data loss
-- Unrecoverable state
-- Data corruption
-- Security vulnerabilities
+**It's okay to crash if it won't cause:**
+- Data loss, corruption, or security vulnerabilities
 - Silent failures that mask bugs
 
-**Crashing is a good source of signal** - since this is a developer tool, we should not shy away from crashing when appropriate. Use good judgement and don't be overly eager to rescue exceptions.
-
 **Exception Guidelines:**
-
-- **Don't swallow exceptions** that could indicate a bug that should be fixed
-- **Do handle exceptions** from external dependencies (unless they indicate user error or misconfiguration)
-- **Do crash** when internal state becomes inconsistent
-- **Do crash** when configuration is invalid
-- **Do crash** when required resources are unavailable
+- **Don't swallow exceptions** that indicate bugs
+- **Do handle exceptions** from external dependencies
+- **Do crash** on invalid configuration or internal state corruption
 
 ### Error Classes
-
-Create specific error classes for different error types:
 
 ```ruby
 module Aidp
@@ -543,7 +488,7 @@ module Aidp
     class ProviderError < StandardError; end
     class ValidationError < StandardError; end
     class StateError < StandardError; end
-    class UserError < StandardError; end  # For user input/configuration errors
+    class UserError < StandardError; end
   end
 end
 ```
@@ -554,9 +499,7 @@ end
 # Good: Let it crash for internal errors
 def execute_step(step_name)
   validate_step_name(step_name)  # Will crash if invalid - that's good!
-  result = run_step_logic(step_name)
-  log_step_completion(step_name, result)
-  result
+  run_step_logic(step_name)
 end
 
 # Good: Handle external dependency errors gracefully
@@ -565,87 +508,19 @@ def make_provider_request(prompt)
 rescue ProviderError => e
   if e.message.include?("rate limit")
     handle_rate_limit(e)
-  elsif e.message.include?("authentication")
-    raise UserError, "Invalid API key. Please check your configuration."
   else
-    raise  # Re-raise unexpected provider errors
+    raise  # Re-raise unexpected errors
   end
 end
 
-# Good: Crash on configuration errors (user should fix these)
-def load_configuration(file_path)
-  raise ArgumentError, "Configuration file path cannot be nil" if file_path.nil?
-  raise UserError, "Configuration file not found: #{file_path}" unless File.exist?(file_path)
-
-  JSON.parse(File.read(file_path))
-rescue JSON::ParserError => e
-  raise UserError, "Invalid JSON in configuration file: #{e.message}"
-end
-
-# Bad: Swallowing exceptions that indicate bugs
+# Bad: Swallowing exceptions
 def process_data(data)
   # ... processing logic ...
 rescue => e
-  puts "Something went wrong"  # Don't do this! We're hiding a potential bug
-end
-
-# Bad: Over-eager exception handling
-def simple_calculation(a, b)
-  a + b
-rescue => e
-  # Don't rescue basic operations - if this fails, we want to know why
-  handle_error(e)
+  puts "Something went wrong"  # Don't do this!
 end
 ```
 
-### Error Recovery Strategies
-
-```ruby
-# Good: Recover from external dependency failures
-def execute_with_fallback(step_name)
-  primary_provider.execute(step_name)
-rescue ProviderError => e
-  if fallback_provider.available?
-    fallback_provider.execute(step_name)
-  else
-    raise UserError, "All providers unavailable. Please check your configuration."
-  end
-end
-
-# Good: Don't recover from internal state corruption
-def update_state(new_state)
-  validate_state(new_state)  # Will crash if state is invalid - that's correct!
-  @current_state = new_state
-  save_state
-end
-```
-
-## Documentation
-
-### Code Documentation
-
-```ruby
-# Good: Clear, concise documentation
-class UserInterface
-  # Collects user feedback for a list of questions
-  #
-  # @param questions [Array<Hash>] Array of question hashes with :question, :type, :required keys
-  # @param context [Hash, nil] Optional context information to display before questions
-  # @return [Hash] Hash of responses keyed by question number
-  # @raise [ValidationError] If questions array is invalid
-  def collect_feedback(questions, context = nil)
-    # method implementation
-  end
-end
-```
-
-### README Updates
-
-When adding new features:
-
-- Update the main README with usage examples
-- Add new commands to the CLI help text
-- Document any breaking changes in CHANGELOG.md
 
 ## Code Review Guidelines
 
@@ -654,8 +529,7 @@ When adding new features:
 - **Sandi Metz's Rules**: Classes < 100 lines, methods < 5 lines, max 4 parameters
 - **Test Readability**: Clear descriptions, proper context blocks, descriptive metadata
 - **Error Handling**: Specific error types, proper error messages
-- **Documentation**: Clear method documentation, updated README
-- **CLI UI Patterns**: Proper component organization, state separation
+- **TTY Toolkit Usage**: Using TTY components instead of custom TTY code
 
 ### Review Checklist
 
@@ -663,74 +537,9 @@ When adding new features:
 - [ ] Methods follow size limits (5 lines max)
 - [ ] Test descriptions are clear and behavior-focused
 - [ ] Error handling is specific and informative
-- [ ] Documentation is updated
 - [ ] Code follows StandardRB guidelines
 - [ ] No external dependencies in tests (all mocked)
 
-## Examples
-
-### Good Example: Small, Focused Class
-
-```ruby
-# frozen_string_literal: true
-
-module Aidp
-  module Harness
-    class QuestionValidator
-      def initialize(question)
-        @question = question
-      end
-
-      def valid?
-        has_required_fields? && valid_type? && valid_options?
-      end
-
-      def error_message
-        return "Missing required fields" unless has_required_fields?
-        return "Invalid question type" unless valid_type?
-        return "Invalid options for type" unless valid_options?
-      end
-
-      private
-
-      def has_required_fields?
-        @question[:question] && @question[:type]
-      end
-
-      def valid_type?
-        %w[text choice confirmation file number email url].include?(@question[:type])
-      end
-
-      def valid_options?
-        return true unless @question[:type] == "choice"
-        @question[:options] && @question[:options].any?
-      end
-    end
-  end
-end
-```
-
-### Bad Example: Large, Complex Class
-
-```ruby
-# This violates multiple rules - too large, too many responsibilities
-class UserInterface
-  def initialize
-    @input_history = []
-    @file_selection_enabled = false
-    @control_interface_enabled = true
-    @pause_requested = false
-    @stop_requested = false
-    @resume_requested = false
-    @control_thread = nil
-    @control_mutex = Mutex.new
-    # ... 2000+ more lines
-  end
-
-  # ... hundreds of methods doing different things
-end
-```
-
 ---
 
-Remember: **Good code is not just code that works, but code that is easy to understand, modify, and extend.** Following these guidelines helps ensure that AIDP remains maintainable as it grows.
+**Good code is not just code that works, but code that is easy to understand, modify, and extend.**

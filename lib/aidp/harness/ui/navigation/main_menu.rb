@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
+require "pastel"
 require_relative "../base"
 require_relative "menu_item"
 require_relative "menu_state"
@@ -17,7 +19,8 @@ module Aidp
 
           def initialize(ui_components = {})
             super()
-            @prompt = ui_components[:prompt] || ::CLI::UI::Prompt
+            @prompt = ui_components[:prompt] || TTY::Prompt.new
+            @pastel = Pastel.new
             @formatter = ui_components[:formatter] || MenuFormatter.new
             @state_manager = ui_components[:state_manager] || MenuState.new
             @menu_items = []
@@ -96,21 +99,21 @@ module Aidp
 
           def display_menu_header(title)
             formatted_title = @formatter.format_menu_title(title)
-            CLI::UI.puts(formatted_title)
-            CLI::UI.puts(@formatter.format_separator)
+            puts(formatted_title)
+            puts(@formatter.format_separator)
           end
 
           def display_breadcrumb
             return if @breadcrumb.empty?
 
             breadcrumb_text = @formatter.format_breadcrumb(@breadcrumb)
-            CLI::UI.puts(breadcrumb_text)
+            puts(breadcrumb_text)
           end
 
           def display_menu_items
             @menu_items.each_with_index do |item, index|
               formatted_item = @formatter.format_menu_item(item, index + 1)
-              CLI::UI.puts(formatted_item)
+              puts(formatted_item)
             end
           end
 

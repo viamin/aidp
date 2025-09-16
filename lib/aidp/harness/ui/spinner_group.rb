@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tty-spinner"
 require_relative "base"
 
 module Aidp
@@ -13,16 +14,34 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @spin_group = ui_components[:spin_group] || ::CLI::UI::SpinGroup
+          @spinner_class = ui_components[:spinner_class] || TTY::Spinner
           @formatter = ui_components[:formatter] || SpinnerGroupFormatter.new
+          @spinners = {}
         end
 
         def run_concurrent_operations(operations)
           validate_operations(operations)
 
-          @spin_group.new do |spin_group|
-            operations.each do |operation|
-              add_operation(spin_group, operation)
+          # Create individual spinners for each operation
+          operations.each do |operation|
+            spinner = @spinner_class.new(
+              "#{operation[:name]}...",
+              format: :dots,
+              success_mark: "✓",
+              error_mark: "✗"
+            )
+            @spinners[operation[:id]] = spinner
+            spinner.start
+          end
+
+          # Execute operations
+          operations.each do |operation|
+            begin
+              result = operation[:block].call
+              @spinners[operation[:id]].success(operation[:name])
+            rescue => e
+              @spinners[operation[:id]].error(operation[:name])
+              raise e
             end
           end
         rescue => e

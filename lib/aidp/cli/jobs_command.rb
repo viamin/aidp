@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require "cli/ui"
+require "tty-box"
+require "pastel"
 require "io/console"
 require "json"
 require_relative "terminal_io"
@@ -11,8 +12,7 @@ module Aidp
     class JobsCommand
       def initialize(input: $stdin, output: $stdout)
         @io = TerminalIO.new(input, output)
-        # Use CLI UI for terminal operations
-        ::CLI::UI::StdoutRouter.enable unless ::CLI::UI::StdoutRouter.enabled?
+        @pastel = Pastel.new
         @running = true
         @view_mode = :list
         @selected_job_id = nil
@@ -95,24 +95,34 @@ module Aidp
         @io.puts "-" * @screen_width
         @io.puts
 
-        # Create simple table using CLI UI
-        ::CLI::UI::Frame.open("Background Jobs") do
-          jobs.each do |job|
-            status_icon = case job[:status]
-            when "completed" then "✅"
-            when "running" then "🔄"
-            when "failed" then "❌"
-            when "pending" then "⏳"
-            else "❓"
-            end
-
-            ::CLI::UI::Frame.open("#{status_icon} #{job[:id][0..7]}") do
-              puts "Status: #{job[:status]}"
-              puts "Created: #{format_time(job[:created_at])}"
-              puts "Message: #{truncate_message(job[:message])}"
-            end
+        # Create job content for TTY::Box
+        job_content = []
+        jobs.each do |job|
+          status_icon = case job[:status]
+          when "completed" then "✅"
+          when "running" then "🔄"
+          when "failed" then "❌"
+          when "pending" then "⏳"
+          else "❓"
           end
+
+          job_info = []
+          job_info << "#{status_icon} #{job[:id][0..7]}"
+          job_info << "Status: #{@pastel.bold(job[:status])}"
+          job_info << "Created: #{format_time(job[:created_at])}"
+          job_info << "Message: #{truncate_message(job[:message])}"
+          job_content << job_info.join("\n")
         end
+
+        # Create main box with all jobs
+        box = TTY::Box.frame(
+          job_content.join("\n\n"),
+          title: { top_left: "Background Jobs" },
+          border: :thick,
+          padding: [1, 2]
+        )
+        puts box
+
         @io.puts
         @io.puts "Total: #{jobs.length} harness job(s)"
         @io.puts

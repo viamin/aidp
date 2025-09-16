@@ -9,7 +9,7 @@ require_relative "ui/status_widget"
 
 module Aidp
   module Harness
-    # Enhanced harness runner with modern CLI::UI-based TUI
+    # Enhanced harness runner with modern TTY-based TUI
     class EnhancedRunner
       STATES = {
         idle: "idle",
@@ -31,6 +31,7 @@ module Aidp
         @current_step = nil
         @current_provider = nil
         @user_input = options[:user_input] || {}
+        @user_input = {} if @user_input.nil?  # Ensure it's never nil
         @execution_log = []
 
         # Store workflow configuration
@@ -66,6 +67,9 @@ module Aidp
           # Start TUI display loop
           @tui.start_display_loop
 
+          # Show spinner while initializing
+          @tui.show_progress("Initializing #{@mode} workflow...")
+
           # Load existing state if resuming
           load_state if @state_manager.has_state?
 
@@ -75,8 +79,12 @@ module Aidp
           # Register main workflow job
           register_workflow_job
 
-          # Show initial workflow status
+          # Hide spinner and show initial workflow status
+          @tui.hide_progress
           show_workflow_status(runner)
+
+          # Show mode-specific feedback
+          show_mode_specific_feedback
 
           # Main execution loop
           loop do
@@ -117,7 +125,6 @@ module Aidp
         rescue => e
           @state = STATES[:error]
           @workflow_controller.stop_workflow("Error occurred: #{e.message}")
-          @tui.show_message("❌ Harness error: #{e.message}", :error)
           handle_error(e)
         ensure
           # Save state before exiting
@@ -385,14 +392,34 @@ module Aidp
         })
       end
 
+      def show_mode_specific_feedback
+        case @mode
+        when :analyze
+          @tui.show_message("🔬 Starting codebase analysis...", :info)
+          @tui.show_message("Press 'j' to view background jobs, 'h' for help", :info)
+        when :execute
+          @tui.show_message("🏗️ Starting development workflow...", :info)
+          @tui.show_message("Press 'j' to view background jobs, 'h' for help", :info)
+        end
+      end
+
       def handle_error(error)
-        @tui.show_message("Error details: #{error.class.name}: #{error.message}", :error)
+        # Single comprehensive error report
+        @tui.show_message("❌ Harness error: #{error.message}", :error)
+        @tui.show_message("Error type: #{error.class.name}", :error)
+
+        # Log error details for debugging
         @execution_log << {
           timestamp: Time.now,
           level: :error,
           message: error.message,
           backtrace: error.backtrace&.first(5)
         }
+
+        # Show backtrace in debug mode only
+        if ENV['DEBUG']
+          @tui.show_message("Backtrace: #{error.backtrace&.first(3)&.join("\n")}", :error)
+        end
       end
 
       def handle_completion_criteria_not_met(completion_status)

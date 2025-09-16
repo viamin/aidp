@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tty-box"
 require_relative "base"
 
 module Aidp
@@ -13,7 +14,7 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
-          @frame = ui_components[:frame] || ::CLI::UI::Frame
+          @frame = ui_components[:frame] || TTY::Box
           @formatter = ui_components[:formatter] || FrameFormatter.new
           @frame_open = false
           @frame_stack = []

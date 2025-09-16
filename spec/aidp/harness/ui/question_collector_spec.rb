@@ -10,7 +10,7 @@ RSpec.describe Aidp::Harness::UI::QuestionCollector do
   describe "#collect_questions" do
     context "when valid questions are provided" do
       it "returns a hash of responses" do
-        allow(CLI::UI::Prompt).to receive(:ask).and_return("test response")
+        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "test response"))
 
         result = question_collector.collect_questions(sample_questions)
 
@@ -18,7 +18,7 @@ RSpec.describe Aidp::Harness::UI::QuestionCollector do
       end
 
       it "includes responses for all questions" do
-        allow(CLI::UI::Prompt).to receive(:ask).and_return("test response")
+        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "test response"))
 
         result = question_collector.collect_questions(sample_questions)
 
@@ -27,7 +27,7 @@ RSpec.describe Aidp::Harness::UI::QuestionCollector do
 
       it "validates required questions" do
         required_questions = build_required_questions
-        allow(CLI::UI::Prompt).to receive(:ask).and_return("", "valid response")
+        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "valid response"))
 
         result = question_collector.collect_questions(required_questions)
 

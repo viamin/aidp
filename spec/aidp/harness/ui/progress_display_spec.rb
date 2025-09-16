@@ -132,7 +132,7 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
   describe "#get_display_history" do
     context "when progress has been displayed" do
       before do
-        allow(CLI::UI::Prompt).to receive(:ask).and_return("response")
+        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "response"))
         progress_display.display_progress(sample_progress_data, :standard)
       end
 
@@ -156,7 +156,7 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
   describe "#clear_display_history" do
     context "when history exists" do
       before do
-        allow(CLI::UI::Prompt).to receive(:ask).and_return("response")
+        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "response"))
         progress_display.display_progress(sample_progress_data, :standard)
       end
 

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "pastel"
+
 module Aidp
   module Harness
     module UI
@@ -65,7 +67,8 @@ module Aidp
         end
 
         def display_user_friendly_error(message)
-          ::CLI::UI.puts(::CLI::UI.fmt("{{red:Error:}} #{message}"))
+          pastel = Pastel.new
+          puts("#{pastel.red("Error:")} #{message}")
         end
 
         def display_generic_error(error)

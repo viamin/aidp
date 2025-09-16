@@ -3,77 +3,114 @@
 require "thor"
 require_relative "harness/runner"
 require_relative "execute/workflow_selector"
+require_relative "harness/ui/enhanced_tui"
+require_relative "harness/ui/enhanced_workflow_selector"
+require_relative "harness/enhanced_runner"
 
 module Aidp
   # CLI interface for both execute and analyze modes
   class CLI < Thor
-    desc "execute [STEP]", "Run execute mode step(s) or all steps with harness"
+    default_task :start
+    desc "start", "Start the interactive TUI to choose between analyze or execute mode"
     option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
     option :rerun, type: :boolean, desc: "Re-run a completed step"
     option :approve, type: :string, desc: "Approve a completed execute gate step"
-    option :reset, type: :boolean, desc: "Reset execute mode progress"
-    def execute(project_dir = Dir.pwd, step_name = nil, custom_options = {})
+    option :reset, type: :boolean, desc: "Reset mode progress"
+    def start(project_dir = Dir.pwd, custom_options = {})
       # Merge Thor options with custom options
       all_options = options.merge(custom_options)
 
       # Handle reset flag
       if all_options[:reset] || all_options["reset"]
-        progress = Aidp::Execute::Progress.new(project_dir)
-        progress.reset
-        puts "🔄 Reset execute mode progress"
+        # Reset both analyze and execute progress
+        analyze_progress = Aidp::Analyze::Progress.new(project_dir)
+        execute_progress = Aidp::Execute::Progress.new(project_dir)
+        analyze_progress.reset
+        execute_progress.reset
+        puts "🔄 Reset all mode progress"
         return {status: "success", message: "Progress reset"}
       end
 
-      # Handle approve flag
-      if all_options[:approve] || all_options["approve"]
-        step_name = all_options[:approve] || all_options["approve"]
-        progress = Aidp::Execute::Progress.new(project_dir)
-        progress.mark_step_completed(step_name)
-        puts "✅ Approved execute step: #{step_name}"
-        return {status: "success", step: step_name}
-      end
+      # Start the interactive TUI
+      puts "🚀 Starting AI Dev Pipeline..."
+      puts "   Press Ctrl+C to stop\n"
 
-      if step_name
-        # Run specific step with harness
-        puts "🚀 Running execute step '#{step_name}' with harness..."
-        harness_runner = Aidp::Harness::EnhancedRunner.new(project_dir, :execute, all_options)
-      else
-        # No step specified - start interactive workflow selection
-        workflow_selector = Aidp::Execute::WorkflowSelector.new
-        workflow_config = workflow_selector.select_workflow(harness_mode: true)
+      # Initialize the enhanced TUI
+      tui = Aidp::Harness::UI::EnhancedTUI.new
+      workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui)
 
-        puts "\n🚀 Starting harness with #{workflow_config[:workflow_type]} workflow..."
-        puts "   Press Ctrl+C to stop\n"
+      # Start TUI display loop
+      tui.start_display_loop
+
+      begin
+        # First question: Choose mode
+        mode = select_mode_interactive(tui)
+
+        # Get workflow configuration based on mode
+        workflow_config = workflow_selector.select_workflow(harness_mode: false, mode: mode)
 
         # Pass workflow configuration to harness
         harness_options = all_options.merge(
+          mode: mode,
           workflow_type: workflow_config[:workflow_type],
           selected_steps: workflow_config[:steps],
           user_input: workflow_config[:user_input]
         )
 
-        harness_runner = Aidp::Harness::EnhancedRunner.new(project_dir, :execute, harness_options)
+        # Create and run the enhanced harness
+        harness_runner = Aidp::Harness::EnhancedRunner.new(project_dir, mode, harness_options)
+        result = harness_runner.run
+        display_harness_result(result)
+        result
+      ensure
+        tui.stop_display_loop
       end
-      result = harness_runner.run
-      display_harness_result(result)
-      result
     end
 
-    desc "analyze [STEP]", "Run analyze mode step(s) or all steps with harness"
-    long_desc <<~DESC
-      Run analyze mode steps. STEP can be:
-      - A full step name (e.g., 01_REPOSITORY_ANALYSIS)
-      - A step number (e.g., 01, 02, 03)
-      - 'next' to run the next unfinished step
-      - 'current' to run the current step
-      - Empty to run all steps with harness mode (default)
-    DESC
-    option :force, type: :boolean, desc: "Force execution even if dependencies are not met"
-    option :rerun, type: :boolean, desc: "Re-run a completed step"
-    option :background, type: :boolean, desc: "Run analysis in background jobs (requires database setup)"
-    option :approve, type: :string, desc: "Approve a completed analyze gate step"
-    option :reset, type: :boolean, desc: "Reset analyze mode progress"
+    private
+
+    def select_mode_interactive(tui)
+      tui.show_message("Welcome to AI Dev Pipeline! Let's get started.", :info)
+
+      mode_options = [
+        "🔬 Analyze Mode - Analyze your codebase for insights and recommendations",
+        "🏗️ Execute Mode - Build new features with guided development workflow"
+      ]
+
+      selected = tui.single_select("Choose your mode", mode_options, default: 1)
+
+      if selected == mode_options[0]
+        tui.show_message("🔬 Starting in Analyze Mode - let's explore your codebase!", :info)
+        :analyze
+      elsif selected == mode_options[1]
+        tui.show_message("🏗️ Starting in Execute Mode - let's build something amazing!", :info)
+        :execute
+      else
+        tui.show_message("Defaulting to Analyze Mode", :warning)
+        :analyze
+      end
+    end
+
+    # Legacy analyze command - redirects to new unified interface
+    desc "analyze [STEP]", "Run analyze mode (redirects to interactive TUI)"
     def analyze(*args)
+      puts "🔄 The 'analyze' command has been replaced with the interactive TUI."
+      puts "   Running 'aidp start' instead..."
+      puts
+      start(*args)
+    end
+
+    # Legacy execute command - redirects to new unified interface
+    desc "execute [STEP]", "Run execute mode (redirects to interactive TUI)"
+    def execute(*args)
+      puts "🔄 The 'execute' command has been replaced with the interactive TUI."
+      puts "   Running 'aidp start' instead..."
+      puts
+      start(*args)
+    end
+
+    # Keep the old analyze method for backwards compatibility but mark as deprecated
+    def analyze_old(*args)
       # Handle both old and new calling patterns for backwards compatibility
       case args.length
       when 0
