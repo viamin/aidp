@@ -26,6 +26,13 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "csv", "~> 3.2"
   s.add_runtime_dependency "logger", "~> 1.5"
   s.add_runtime_dependency "thor", "~> 1.3"
-  # TTY gems removed - replaced with CLI UI components
+  s.add_runtime_dependency "tty-cursor", "~> 0.7"
+  s.add_runtime_dependency "tty-screen", "~> 0.8"
+  s.add_runtime_dependency "tty-reader", "~> 0.9"
+  s.add_runtime_dependency "tty-box", "~> 0.7"
+  s.add_runtime_dependency "tty-table", "~> 0.12"
+  s.add_runtime_dependency "tty-progressbar", "~> 0.18"
+  s.add_runtime_dependency "tty-spinner", "~> 0.9"
+  s.add_runtime_dependency "pastel", "~> 0.8"
   s.add_runtime_dependency "ruby_tree_sitter", "~> 2.0"
 end

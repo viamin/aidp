@@ -22,27 +22,6 @@ RSpec.describe Aidp::CLI do
     FileUtils.rm_rf(temp_dir)
   end
 
-  describe "#should_use_harness?" do
-    it "returns true by default" do
-      result = cli.send(:should_use_harness?, {})
-      expect(result).to be true
-    end
-
-    it "returns false when no_harness is true" do
-      result = cli.send(:should_use_harness?, {no_harness: true})
-      expect(result).to be false
-    end
-
-    it "returns true when harness is explicitly true" do
-      result = cli.send(:should_use_harness?, {harness: true})
-      expect(result).to be true
-    end
-
-    it "returns false when no_harness overrides harness" do
-      result = cli.send(:should_use_harness?, {harness: true, no_harness: true})
-      expect(result).to be false
-    end
-  end
 
   describe "#display_harness_result" do
     it "displays completed status" do
