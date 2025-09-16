@@ -75,12 +75,9 @@ module Aidp
 
             strategy = get_retry_strategy(error_info[:error_type])
             if should_retry?(error_info, strategy)
-              delay = calculate_delay(attempt, strategy, 1, 10)
-              if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-                sleep(delay)
-              else
-                Async::Task.current.sleep(delay)
-              end
+              delay = @backoff_calculator.calculate_delay(attempt, strategy[:backoff_strategy] || :exponential, 1, 10)
+              # Use regular sleep for now (async not needed in this context)
+              sleep(delay)
               retry
             end
           end
@@ -125,11 +122,8 @@ module Aidp
 
         # Wait for backoff delay
         if delay > 0
-          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            sleep(delay)
-          else
-            Async::Task.current.sleep(delay)
-          end
+          # Use regular sleep for now (async not needed in this context)
+          sleep(delay)
         end
 
         # Execute the retry
@@ -172,6 +166,11 @@ module Aidp
       # Get retry strategy for error type
       def get_retry_strategy(error_type)
         @retry_strategies[error_type] || @retry_strategies[:default]
+      end
+
+      # Get maximum retry attempts
+      def max_attempts
+        @configuration.respond_to?(:max_retries) ? @configuration.max_retries : 3
       end
 
       # Check if we should retry based on error type and strategy

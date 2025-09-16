@@ -47,8 +47,6 @@ module Aidp
         end
 
         def select_analyze_workflow_interactive
-          @tui.show_message("🔬 Let's analyze your codebase!", :info)
-
           # For analyze mode, we don't need complex project setup
           # Just use default values and start analysis
           @user_input = {

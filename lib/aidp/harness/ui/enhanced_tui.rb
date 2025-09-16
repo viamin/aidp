@@ -28,34 +28,23 @@ module Aidp
 
           @jobs = {}
           @jobs_visible = false
-          @current_selection = nil
-          @selection_mode = false
-          @multiselect_items = []
-          @multiselect_selected = []
-          @multiselect_cursor = 0
-          @main_content = []
-          @current_progress = nil
-          @display_active = false
-          @display_thread = nil
+          @input_mode = false
+          @input_prompt = ""
           @input_buffer = ""
           @input_position = 0
-
-          # Layout dimensions
-          @job_area_height = 8
-          @input_area_height = 3
-          @main_area_height = @screen.height - @job_area_height - @input_area_height - 2
+          @display_active = false
+          @display_thread = nil
 
           setup_signal_handlers
-          initialize_display
         end
 
-        # Main display loop - shows jobs, main content, and input area
+        # Smart display loop - only shows input overlay when needed
         def start_display_loop
           @display_active = true
           @display_thread = Thread.new do
             loop do
               break unless @display_active
-              refresh_display
+              refresh_display if @input_mode
               sleep 0.1
             end
           end
@@ -65,6 +54,14 @@ module Aidp
           @display_active = false
           @display_thread&.join
           restore_screen
+        end
+
+        def pause_display_loop
+          @input_mode = false
+        end
+
+        def resume_display_loop
+          @input_mode = true
         end
 
         # Job monitoring methods
@@ -111,11 +108,20 @@ module Aidp
 
         # Input methods using TTY
         def get_user_input(prompt = "💬 You: ")
-          puts prompt  # Display the prompt on its own line
+          @input_prompt = prompt
+          @input_buffer = ""
+          @input_position = 0
+          @input_mode = true
+
+          # Start the display loop if not already running
+          start_display_loop unless @display_active
+
           response = @reader.read_line("> ")  # Use a simple prompt for input
+          @input_mode = false
           puts  # Add spacing after user input
           response
         rescue TTY::Reader::InputInterrupt
+          @input_mode = false
           # Clean exit without error trace
           puts "\n\n👋 Goodbye!"
           exit(0)
@@ -123,9 +129,19 @@ module Aidp
 
         def get_confirmation(message, default: true)
           default_text = default ? "Y/n" : "y/N"
+          prompt = "#{message} [#{default_text}]"
+
+          @input_prompt = prompt
+          @input_buffer = ""
+          @input_position = 0
+          @input_mode = true
+
+          # Start the display loop if not already running
+          start_display_loop unless @display_active
+
           begin
-            puts "#{message} [#{default_text}]"  # Display the message on its own line
             response = @reader.read_line("> ")  # Use a simple prompt for input
+            @input_mode = false
             puts  # Add spacing after user input
 
             case response.downcase
@@ -139,6 +155,7 @@ module Aidp
               get_confirmation(message, default: default)
             end
           rescue TTY::Reader::InputInterrupt
+            @input_mode = false
             # Clean exit without error trace
             puts "\n\n👋 Goodbye!"
             exit(0)
@@ -183,13 +200,11 @@ module Aidp
         end
 
         def add_message(message, type = :info)
-          @main_content << {message: message, type: type, timestamp: Time.now}
-          @main_content = @main_content.last(50) # Keep only last 50 messages
+          # Just add to a simple message log - no recursion
+          # This method is used by job monitoring, not for display
         end
 
         def show_progress(message, progress = 0)
-          @current_progress = {message: message, progress: progress}
-
           if progress > 0
             progress_bar = TTY::ProgressBar.new(
               "⏳ #{message} [:bar] :percent",
@@ -199,14 +214,18 @@ module Aidp
             progress_bar.current = progress
             progress_bar.render
           else
-            spinner = TTY::Spinner.new("⏳ #{message} :spinner", format: :dots)
+            # Show a simple loading message first
+            puts "⏳ #{message}..."
+            $stdout.flush
+
+            # Then start the spinner
+            spinner = TTY::Spinner.new("   :spinner", format: :pulse)
             spinner.start
             @current_spinner = spinner
           end
         end
 
         def hide_progress
-          @current_progress = nil
           @current_spinner&.stop
           @current_spinner = nil
         end
@@ -241,7 +260,7 @@ module Aidp
 
           # Display in a box
           box = TTY::Box.frame(
-            width: @screen.width - 4,
+            width: 80,  # Fixed width instead of @screen.width
             height: @jobs.length + 3,
             title: {top_left: "🔄 Background Jobs"},
             border: {type: :thick}
@@ -273,24 +292,6 @@ module Aidp
             title: {top_left: "📋 Workflow Status"},
             border: :thick,
             padding: [1, 2]
-          )
-          puts box
-        end
-
-        # Input area with border (like Claude Code)
-        def show_input_area(prompt = "💬 You: ")
-          content = []
-          content << @pastel.blue(prompt)
-          content << @pastel.dim("Type your message and press Enter")
-
-          box = TTY::Box.frame(
-            content.join("\n"),
-            title: {top_left: "Input"},
-            border: :thick,
-            padding: [1, 2],
-            style: {
-              border: {fg: :blue}
-            }
           )
           puts box
         end
@@ -368,8 +369,6 @@ module Aidp
 
         def initialize_display
           @cursor.hide
-          @cursor.clear_screen
-          @cursor.move_to(1, 1)
         end
 
         def restore_screen
@@ -379,136 +378,42 @@ module Aidp
         end
 
         def refresh_display
+          return unless @input_mode
+
           @cursor.save
-          @cursor.move_to(1, 1)
+          @cursor.move_to(1, @screen.height)
 
-          # Clear screen
-          print "\e[2J"
+          # Clear the bottom line
+          print " " * @screen.width
 
-          # Draw jobs area
-          draw_jobs_area if @jobs_visible
-
-          # Draw main content area
-          draw_main_area
-
-          # Draw input area (if not in selection mode)
-          draw_input_area unless @selection_mode
+          # Draw input overlay at the bottom
+          draw_input_overlay
 
           @cursor.restore
         end
 
-        def draw_jobs_area
-          return unless @jobs_visible
+        def draw_input_overlay
+          # Get terminal width and ensure we don't exceed it
+          width = @screen.width
+          max_width = width - 4  # Leave some margin
 
-          # Draw jobs header
-          header = @pastel.bold.blue("🔄 Background Jobs")
-          print @cursor.move_to(1, 1) + header
+          # Create the input line
+          input_line = @input_prompt + @input_buffer
 
-          # Draw jobs table
-          y_pos = 2
-          @jobs.each_with_index do |(job_id, job), index|
-            break if y_pos > @job_area_height
-
-            status_color = case job[:status]
-            when :running then @pastel.green
-            when :completed then @pastel.blue
-            when :failed then @pastel.red
-            when :pending then @pastel.yellow
-            else @pastel.white
-            end
-
-            elapsed = Time.now - job[:started_at]
-            elapsed_str = format_elapsed_time(elapsed)
-
-            # Job name and status
-            job_line = "#{status_color.call("●")} #{job[:name]} #{status_color.call(job[:status].to_s.capitalize)}"
-            print @cursor.move_to(1, y_pos) + job_line
-
-            # Progress bar
-            if job[:status] == :running && job[:progress]
-              progress_width = 30
-              filled = (job[:progress] * progress_width / 100).to_i
-              bar = "[" + "█" * filled + "░" * (progress_width - filled) + "]"
-              print @cursor.move_to(1, y_pos + 1) + bar
-            end
-
-            # Elapsed time and message
-            info_line = "  #{elapsed_str} | #{job[:provider]} | #{job[:message]}"
-            print @cursor.move_to(1, y_pos + 2) + info_line
-
-            y_pos += 3
+          # Truncate if too long
+          if input_line.length > max_width
+            input_line = input_line[0...max_width] + "..."
           end
 
-          # Draw separator
-          separator = "─" * @screen.width
-          print @cursor.move_to(1, @job_area_height + 1) + @pastel.dim(separator)
-        end
+          # Draw the input overlay at the bottom
+          @cursor.move_to(1, @screen.height)
+          print @pastel.blue("┌") + "─" * (width - 2) + @pastel.blue("┐")
 
-        def draw_main_area
-          start_y = @jobs_visible ? @job_area_height + 2 : 1
-          end_y = @screen.height - @input_area_height - 1
+          @cursor.move_to(1, @screen.height + 1)
+          print @pastel.blue("│") + input_line + " " * (width - input_line.length - 2) + @pastel.blue("│")
 
-          # Clear main area
-          (start_y..end_y).each do |y|
-            print @cursor.move_to(1, y) + " " * @screen.width
-          end
-
-          # Draw main content
-          if @main_content
-            content_y = start_y
-            @main_content.last(end_y - start_y + 1).each do |item|
-              break if content_y > end_y
-
-              timestamp = item[:timestamp].strftime("%H:%M:%S")
-              line = "[#{timestamp}] #{item[:message]}"
-
-              # Truncate if too long
-              if line.length > @screen.width
-                line = line[0...(@screen.width - 3)] + "..."
-              end
-
-              print @cursor.move_to(1, content_y) + line
-              content_y += 1
-            end
-          end
-
-          # Draw current progress
-          if @current_progress
-            progress_y = end_y - 1
-            progress_line = @pastel.cyan("⏳ #{@current_progress[:message]}")
-            print @cursor.move_to(1, progress_y) + progress_line
-
-            # Progress bar
-            if @current_progress[:progress] > 0
-              progress_width = 40
-              filled = (@current_progress[:progress] * progress_width / 100).to_i
-              bar = "[" + "█" * filled + "░" * (progress_width - filled) + "] #{@current_progress[:progress]}%"
-              print @cursor.move_to(1, progress_y + 1) + @pastel.cyan(bar)
-            end
-          end
-        end
-
-        def draw_input_area
-          input_y = @screen.height - @input_area_height
-
-          # Draw input border
-          border = "┌" + "─" * (@screen.width - 2) + "┐"
-          print @cursor.move_to(1, input_y) + @pastel.blue(border)
-
-          # Draw input prompt and text
-          prompt = "💬 You: "
-          input_line = prompt + @input_buffer
-
-          # Handle cursor position
-          cursor_x = prompt.length + @input_position + 1
-          cursor_y = input_y + 1
-
-          print @cursor.move_to(1, input_y + 1) + input_line
-          print @cursor.move_to(cursor_x, cursor_y)
-
-          # Draw bottom border
-          bottom_border = "└" + "─" * (@screen.width - 2) + "┘"
-          print @cursor.move_to(1, input_y + 2) + @pastel.blue(bottom_border)
+          @cursor.move_to(1, @screen.height + 2)
+          print @pastel.blue("└") + "─" * (width - 2) + @pastel.blue("┘")
         end
 
         def setup_signal_handlers
@@ -520,16 +425,6 @@ module Aidp
           Signal.trap("TERM") do
             stop_display_loop
             exit(0)
-          end
-        end
-
-        def status_color(status)
-          case status
-          when :running then :green
-          when :completed then :blue
-          when :failed then :red
-          when :pending then :yellow
-          else :white
           end
         end
 

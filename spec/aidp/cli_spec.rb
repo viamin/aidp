@@ -81,7 +81,8 @@ RSpec.describe Aidp::CLI do
         cli.send(:display_harness_result, result)
       end
 
-      expect(output).to include("❌ Harness encountered an error")
+      # Error message is now handled by the harness, not the CLI
+      expect(output).to eq("")
     end
 
     it "displays unknown status" do

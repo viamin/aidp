@@ -32,7 +32,6 @@ module Aidp
       end
 
       # Start the interactive TUI
-      puts "🚀 Starting AI Dev Pipeline..."
       puts "   Press Ctrl+C to stop\n"
 
       # Initialize the enhanced TUI
@@ -46,8 +45,12 @@ module Aidp
         # First question: Choose mode
         mode = select_mode_interactive(tui)
 
-        # Get workflow configuration based on mode
-        workflow_config = workflow_selector.select_workflow(harness_mode: false, mode: mode)
+        # Show animated spinner while getting workflow configuration
+        workflow_config = show_animated_spinner("Setting up #{mode} workflow...") do
+          # Add a small delay to make spinner visible
+          sleep(0.5)
+          workflow_selector.select_workflow(harness_mode: false, mode: mode)
+        end
 
         # Pass workflow configuration to harness
         harness_options = all_options.merge(
@@ -214,24 +217,44 @@ module Aidp
 
     private
 
-    def select_mode_interactive(tui)
-      tui.show_message("Welcome to AI Dev Pipeline! Let's get started.", :info)
+    def show_animated_spinner(message)
+      spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+      spinner_index = 0
 
+      # Start spinner in a separate thread
+      spinner_thread = Thread.new do
+        loop do
+          print "\r#{spinner_chars[spinner_index]} #{message}"
+          $stdout.flush
+          spinner_index = (spinner_index + 1) % spinner_chars.length
+          sleep 0.1
+        end
+      end
+
+      # Execute the block
+      result = yield
+
+      # Stop spinner and show completion
+      spinner_thread.kill
+      print "\r✅ #{message} completed\n"  # Show completion instead of clearing
+      $stdout.flush
+
+      result
+    end
+
+    def select_mode_interactive(tui)
       mode_options = [
         "🔬 Analyze Mode - Analyze your codebase for insights and recommendations",
         "🏗️ Execute Mode - Build new features with guided development workflow"
       ]
 
-      selected = tui.single_select("Choose your mode", mode_options, default: 1)
+      selected = tui.single_select("Welcome to AI Dev Pipeline! Choose your mode", mode_options, default: 1)
 
       if selected == mode_options[0]
-        tui.show_message("🔬 Starting in Analyze Mode - let's explore your codebase!", :info)
         :analyze
       elsif selected == mode_options[1]
-        tui.show_message("🏗️ Starting in Execute Mode - let's build something amazing!", :info)
         :execute
       else
-        tui.show_message("Defaulting to Analyze Mode", :warning)
         :analyze
       end
     end
@@ -246,8 +269,7 @@ module Aidp
         puts "\n⏹️  Harness stopped by user"
         puts "   Execution terminated manually"
       when "error"
-        puts "\n❌ Harness encountered an error"
-        puts "   Error: #{result[:message]}" if result[:message]
+        # Error message already displayed by harness - don't duplicate
       else
         puts "\n🔄 Harness finished"
         puts "   Status: #{result[:status]}"
