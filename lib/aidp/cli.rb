@@ -36,7 +36,7 @@ module Aidp
       if step_name
         # Run specific step with harness
         puts "🚀 Running execute step '#{step_name}' with harness..."
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, all_options)
+        harness_runner = Aidp::Harness::EnhancedRunner.new(project_dir, :execute, all_options)
       else
         # No step specified - start interactive workflow selection
         workflow_selector = Aidp::Execute::WorkflowSelector.new
@@ -52,7 +52,7 @@ module Aidp
           user_input: workflow_config[:user_input]
         )
 
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :execute, harness_options)
+        harness_runner = Aidp::Harness::EnhancedRunner.new(project_dir, :execute, harness_options)
       end
       result = harness_runner.run
       display_harness_result(result)
@@ -146,7 +146,7 @@ module Aidp
           # Run step with harness
           puts "🚀 Running analyze step '#{resolved_step}' with harness..."
           harness_options = all_options.merge(step_name: resolved_step)
-          harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, harness_options)
+          harness_runner = Aidp::Harness::EnhancedRunner.new(project_dir, :analyze, harness_options)
           result = harness_runner.run
           display_harness_result(result)
           result
@@ -163,7 +163,7 @@ module Aidp
         # No step specified - use harness by default
         puts "🚀 Starting analyze mode harness - will run all steps automatically..."
         puts "   Press Ctrl+C to stop"
-        harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze, all_options)
+        harness_runner = Aidp::Harness::EnhancedRunner.new(project_dir, :analyze, all_options)
         result = harness_runner.run
         display_harness_result(result)
         result
