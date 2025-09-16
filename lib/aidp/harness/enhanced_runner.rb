@@ -153,7 +153,7 @@ module Aidp
         @tui.add_job(step_job_id, step_job_data)
 
         # Show step execution display
-        @tui.show_step_execution(step_name, :starting, { provider: @current_provider })
+        @tui.show_step_execution(step_name, :starting, {provider: @current_provider})
 
         # Mark step as in progress
         runner.mark_step_in_progress(step_name)
@@ -176,7 +176,7 @@ module Aidp
             progress: 100,
             message: "Completed successfully"
           })
-          @tui.show_step_execution(step_name, :completed, { duration: duration })
+          @tui.show_step_execution(step_name, :completed, {duration: duration})
           runner.mark_step_completed(step_name)
         else
           @tui.update_job(step_job_id, {
@@ -417,7 +417,7 @@ module Aidp
         }
 
         # Show backtrace in debug mode only
-        if ENV['DEBUG']
+        if ENV["DEBUG"]
           @tui.show_message("Backtrace: #{error.backtrace&.first(3)&.join("\n")}", :error)
         end
       end

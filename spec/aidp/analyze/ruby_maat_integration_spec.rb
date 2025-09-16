@@ -8,6 +8,5 @@ RSpec.describe Aidp::Analyze::RubyMaatIntegration do
       # Test placeholder for RubyMaat integration functionality
       expect(Aidp::Analyze::RubyMaatIntegration).to be_a(Class)
     end
-
   end
 end

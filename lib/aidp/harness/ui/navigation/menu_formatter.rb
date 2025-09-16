@@ -11,6 +11,7 @@ module Aidp
           def initialize
             @pastel = Pastel.new
           end
+
           def format_menu_title(title)
             @pastel.bold(@pastel.blue("📋 #{title}"))
           end

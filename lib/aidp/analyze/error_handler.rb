@@ -35,9 +35,6 @@ module Aidp
 
       # Handle specific error types with custom logic
 
-
-
-
       # Recovery strategies
       def retry_with_backoff(operation, max_retries: 3, base_delay: 1)
         retry_count = 0
@@ -79,7 +76,6 @@ module Aidp
           recovery_success_rate: calculate_recovery_success_rate
         }
       end
-
 
       # Cleanup and resource management
       def cleanup

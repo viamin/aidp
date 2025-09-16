@@ -77,7 +77,6 @@ module Aidp
         @loaded_grammars[language] = create_parser(language, config)
       end
 
-
       # Get file patterns for a language
       def file_patterns_for_language(language)
         config = GRAMMAR_CONFIGS[language]
@@ -85,7 +84,6 @@ module Aidp
 
         config[:file_patterns]
       end
-
 
       private
 

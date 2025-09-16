@@ -226,12 +226,11 @@ module Aidp
       PROGRESS_STYLES[style] || PROGRESS_STYLES[:default]
 
       # Use TTY progress bar
-      progress_bar = TTY::ProgressBar.new(
+      TTY::ProgressBar.new(
         "[:bar] :percent% :current/:total",
         total: total,
         width: 30
       )
-      progress_bar
     end
 
     def create_simple_progress_bar(percentage, message)

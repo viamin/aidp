@@ -69,7 +69,7 @@ module Aidp
 
         box = TTY::Box.frame(
           content.join("\n\n"),
-          title: { top_left: "Knowledge Base Data" },
+          title: {top_left: "Knowledge Base Data"},
           border: :thick,
           padding: [1, 2]
         )

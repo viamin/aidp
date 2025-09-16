@@ -236,7 +236,6 @@ module Aidp
       end
     end
 
-
     # Display harness execution result
     def display_harness_result(result)
       case result[:status]

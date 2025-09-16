@@ -7,7 +7,7 @@ require "stringio"
 RSpec.describe Aidp::CLI do
   let(:temp_dir) { Dir.mktmpdir }
   let(:cli) { described_class.new }
-  
+
   # Mock TUI components to prevent interactive prompts
   let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI) }
   let(:mock_workflow_selector) { instance_double(Aidp::Harness::UI::EnhancedWorkflowSelector) }
@@ -18,20 +18,20 @@ RSpec.describe Aidp::CLI do
     allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
     allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
     allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(mock_harness_runner)
-    
+
     # Mock TUI methods
     allow(mock_tui).to receive(:start_display_loop)
     allow(mock_tui).to receive(:stop_display_loop)
     allow(mock_tui).to receive(:show_message)
     allow(mock_tui).to receive(:single_select).and_return("🔬 Analyze Mode - Analyze your codebase for insights and recommendations")
-    
+
     # Mock workflow selector
     allow(mock_workflow_selector).to receive(:select_workflow).and_return({
       workflow_type: :simple,
       steps: ["01_REPOSITORY_ANALYSIS"],
       user_input: {}
     })
-    
+
     # Mock harness runner
     allow(mock_harness_runner).to receive(:run).and_return({
       status: "completed",
@@ -52,7 +52,6 @@ RSpec.describe Aidp::CLI do
   after do
     FileUtils.rm_rf(temp_dir)
   end
-
 
   describe "#display_harness_result" do
     it "displays completed status" do
@@ -117,7 +116,6 @@ RSpec.describe Aidp::CLI do
       expect(cli.send(:format_duration, -10)).to eq("0s")
     end
   end
-
 
   describe "harness status command" do
     let(:mock_harness_runner) { double("harness_runner") }

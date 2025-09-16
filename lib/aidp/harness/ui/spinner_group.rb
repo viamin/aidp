@@ -36,13 +36,11 @@ module Aidp
 
           # Execute operations
           operations.each do |operation|
-            begin
-              result = operation[:block].call
-              @spinners[operation[:id]].success(operation[:name])
-            rescue => e
-              @spinners[operation[:id]].error(operation[:name])
-              raise e
-            end
+            operation[:block].call
+            @spinners[operation[:id]].success(operation[:name])
+          rescue => e
+            @spinners[operation[:id]].error(operation[:name])
+            raise e
           end
         rescue => e
           raise ExecutionError, "Failed to run concurrent operations: #{e.message}"

@@ -456,7 +456,6 @@ module Aidp
         end
       end
 
-
       def extract_identifier_name(identifier_node, file_path)
         # Extract the actual identifier name from the source code using node position
         extract_node_text_from_source(identifier_node, file_path)

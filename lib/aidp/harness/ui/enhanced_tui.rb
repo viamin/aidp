@@ -111,16 +111,14 @@ module Aidp
 
         # Input methods using TTY
         def get_user_input(prompt = "💬 You: ")
-          begin
-            puts prompt  # Display the prompt on its own line
-            response = @reader.read_line("> ")  # Use a simple prompt for input
-            puts  # Add spacing after user input
-            response
-          rescue TTY::Reader::InputInterrupt
-            # Clean exit without error trace
-            puts "\n\n👋 Goodbye!"
-            exit(0)
-          end
+          puts prompt  # Display the prompt on its own line
+          response = @reader.read_line("> ")  # Use a simple prompt for input
+          puts  # Add spacing after user input
+          response
+        rescue TTY::Reader::InputInterrupt
+          # Clean exit without error trace
+          puts "\n\n👋 Goodbye!"
+          exit(0)
         end
 
         def get_confirmation(message, default: true)
@@ -149,27 +147,21 @@ module Aidp
 
         # Single-select interface using TTY::Prompt (much better!)
         def single_select(title, items, default: 0)
-          begin
-            @prompt.select(title, items, default: default, cycle: true)
-          rescue TTY::Reader::InputInterrupt
-            # Clean exit without error trace
-            puts "\n\n👋 Goodbye!"
-            exit(0)
-          end
+          @prompt.select(title, items, default: default, cycle: true)
+        rescue TTY::Reader::InputInterrupt
+          # Clean exit without error trace
+          puts "\n\n👋 Goodbye!"
+          exit(0)
         end
 
         # Multiselect interface using TTY::Prompt (much better!)
         def multiselect(title, items, selected: [])
-          begin
-            @prompt.multi_select(title, items, default: selected)
-          rescue TTY::Reader::InputInterrupt
-            # Clean exit without error trace
-            puts "\n\n👋 Goodbye!"
-            exit(0)
-          end
+          @prompt.multi_select(title, items, default: selected)
+        rescue TTY::Reader::InputInterrupt
+          # Clean exit without error trace
+          puts "\n\n👋 Goodbye!"
+          exit(0)
         end
-
-
 
         # Display methods using TTY
         def show_message(message, type = :info)
@@ -191,12 +183,12 @@ module Aidp
         end
 
         def add_message(message, type = :info)
-          @main_content << { message: message, type: type, timestamp: Time.now }
+          @main_content << {message: message, type: type, timestamp: Time.now}
           @main_content = @main_content.last(50) # Keep only last 50 messages
         end
 
         def show_progress(message, progress = 0)
-          @current_progress = { message: message, progress: progress }
+          @current_progress = {message: message, progress: progress}
 
           if progress > 0
             progress_bar = TTY::ProgressBar.new(
@@ -228,12 +220,12 @@ module Aidp
 
           @jobs.each do |job_id, job|
             status_icon = case job[:status]
-                         when :running then @pastel.green("●")
-                         when :completed then @pastel.blue("●")
-                         when :failed then @pastel.red("●")
-                         when :pending then @pastel.yellow("●")
-                         else @pastel.white("●")
-                         end
+            when :running then @pastel.green("●")
+            when :completed then @pastel.blue("●")
+            when :failed then @pastel.red("●")
+            when :pending then @pastel.yellow("●")
+            else @pastel.white("●")
+            end
 
             elapsed = format_elapsed_time(Time.now - job[:started_at])
             status_text = "#{status_icon} #{job[:status].to_s.capitalize}"
@@ -264,7 +256,7 @@ module Aidp
           content << "#{@pastel.bold("Type:")} #{workflow_data[:workflow_type]}"
           content << "#{@pastel.bold("Steps:")} #{workflow_data[:steps]&.length || 0} total"
           content << "#{@pastel.bold("Completed:")} #{workflow_data[:completed_steps] || 0}"
-          content << "#{@pastel.bold("Current:")} #{workflow_data[:current_step] || 'None'}"
+          content << "#{@pastel.bold("Current:")} #{workflow_data[:current_step] || "None"}"
 
           if workflow_data[:progress_percentage]
             progress_bar = TTY::ProgressBar.new(
@@ -278,7 +270,7 @@ module Aidp
 
           box = TTY::Box.frame(
             content.join("\n"),
-            title: { top_left: "📋 Workflow Status" },
+            title: {top_left: "📋 Workflow Status"},
             border: :thick,
             padding: [1, 2]
           )
@@ -293,11 +285,11 @@ module Aidp
 
           box = TTY::Box.frame(
             content.join("\n"),
-            title: { top_left: "Input" },
+            title: {top_left: "Input"},
             border: :thick,
             padding: [1, 2],
             style: {
-              border: { fg: :blue }
+              border: {fg: :blue}
             }
           )
           puts box
@@ -315,10 +307,10 @@ module Aidp
 
             box = TTY::Box.frame(
               content.join("\n"),
-              title: { top_left: "🚀 Executing Step: #{step_name}" },
+              title: {top_left: "🚀 Executing Step: #{step_name}"},
               border: :thick,
               padding: [1, 2],
-              style: { border: { fg: :blue } }
+              style: {border: {fg: :blue}}
             )
             puts box
 
@@ -331,10 +323,10 @@ module Aidp
 
             box = TTY::Box.frame(
               content.join("\n"),
-              title: { top_left: "⏳ Running Step: #{step_name}" },
+              title: {top_left: "⏳ Running Step: #{step_name}"},
               border: :thick,
               padding: [1, 2],
-              style: { border: { fg: :yellow } }
+              style: {border: {fg: :yellow}}
             )
             puts box
 
@@ -347,10 +339,10 @@ module Aidp
 
             box = TTY::Box.frame(
               content.join("\n"),
-              title: { top_left: "✅ Completed Step: #{step_name}" },
+              title: {top_left: "✅ Completed Step: #{step_name}"},
               border: :thick,
               padding: [1, 2],
-              style: { border: { fg: :green } }
+              style: {border: {fg: :green}}
             )
             puts box
 
@@ -363,10 +355,10 @@ module Aidp
 
             box = TTY::Box.frame(
               content.join("\n"),
-              title: { top_left: "❌ Failed Step: #{step_name}" },
+              title: {top_left: "❌ Failed Step: #{step_name}"},
               border: :thick,
               padding: [1, 2],
-              style: { border: { fg: :red } }
+              style: {border: {fg: :red}}
             )
             puts box
           end
@@ -418,18 +410,18 @@ module Aidp
             break if y_pos > @job_area_height
 
             status_color = case job[:status]
-                          when :running then @pastel.green
-                          when :completed then @pastel.blue
-                          when :failed then @pastel.red
-                          when :pending then @pastel.yellow
-                          else @pastel.white
-                          end
+            when :running then @pastel.green
+            when :completed then @pastel.blue
+            when :failed then @pastel.red
+            when :pending then @pastel.yellow
+            else @pastel.white
+            end
 
             elapsed = Time.now - job[:started_at]
             elapsed_str = format_elapsed_time(elapsed)
 
             # Job name and status
-            job_line = "#{status_color.call('●')} #{job[:name]} #{status_color.call(job[:status].to_s.capitalize)}"
+            job_line = "#{status_color.call("●")} #{job[:name]} #{status_color.call(job[:status].to_s.capitalize)}"
             print @cursor.move_to(1, y_pos) + job_line
 
             # Progress bar
@@ -464,7 +456,7 @@ module Aidp
           # Draw main content
           if @main_content
             content_y = start_y
-            @main_content.last((end_y - start_y + 1)).each do |item|
+            @main_content.last(end_y - start_y + 1).each do |item|
               break if content_y > end_y
 
               timestamp = item[:timestamp].strftime("%H:%M:%S")

@@ -23,8 +23,6 @@ module Aidp
         /include Singleton/, /extend Singleton/, /@singleton/
       ].freeze
 
-
-
       def self.detect_seams_in_ast(ast_nodes, file_path)
         seams = []
 

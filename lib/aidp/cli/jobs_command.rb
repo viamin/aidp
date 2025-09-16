@@ -117,7 +117,7 @@ module Aidp
         # Create main box with all jobs
         box = TTY::Box.frame(
           job_content.join("\n\n"),
-          title: { top_left: "Background Jobs" },
+          title: {top_left: "Background Jobs"},
           border: :thick,
           padding: [1, 2]
         )
