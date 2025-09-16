@@ -12,8 +12,6 @@ module Aidp
     option :rerun, type: :boolean, desc: "Re-run a completed step"
     option :approve, type: :string, desc: "Approve a completed execute gate step"
     option :reset, type: :boolean, desc: "Reset execute mode progress"
-    option :harness, type: :boolean, desc: "Use enhanced harness mode (default)"
-    option :no_harness, type: :boolean, desc: "Disable harness mode and use traditional execution"
     option :dashboard, type: :boolean, desc: "Show TUI dashboard during execution"
     def execute(project_dir = Dir.pwd, step_name = nil, custom_options = {})
       all_options = options.merge(custom_options)
@@ -28,10 +26,8 @@ module Aidp
 
       if step_name
         execute_single_step(project_dir, step_name, all_options)
-      elsif should_use_harness?(all_options)
-        execute_workflow(project_dir, all_options)
       else
-        list_execute_steps(project_dir)
+        execute_workflow(project_dir, all_options)
       end
     end
 
@@ -49,8 +45,6 @@ module Aidp
     option :background, type: :boolean, desc: "Run analysis in background jobs"
     option :approve, type: :string, desc: "Approve a completed analyze gate step"
     option :reset, type: :boolean, desc: "Reset analyze mode progress"
-    option :harness, type: :boolean, desc: "Use enhanced harness mode (default)"
-    option :no_harness, type: :boolean, desc: "Disable harness mode and use traditional execution"
     option :dashboard, type: :boolean, desc: "Show TUI dashboard during execution"
     def analyze(*args)
       project_dir, step_name, custom_options = parse_analyze_args(args)
@@ -66,10 +60,8 @@ module Aidp
 
       if step_name
         analyze_single_step(project_dir, step_name, all_options)
-      elsif should_use_harness?(all_options)
-        analyze_workflow(project_dir, all_options)
       else
-        list_analyze_steps(project_dir)
+        analyze_workflow(project_dir, all_options)
       end
     end
 
@@ -189,24 +181,19 @@ module Aidp
     end
 
     def execute_single_step(project_dir, step_name, all_options)
-      if should_use_harness?(all_options)
-        puts "🚀 Running execute step '#{step_name}' with enhanced TUI harness..."
-        harness_runner = Aidp::Harness::RunnerNew.new(project_dir, :execute, all_options)
-        result = harness_runner.run
-        display_enhanced_harness_result(result)
-        result
-      else
-        runner = Aidp::Execute::Runner.new(project_dir)
-        runner.run_step(step_name, all_options)
-      end
+      puts "🚀 Running execute step '#{step_name}' with enhanced TUI harness..."
+      harness_runner = Aidp::Harness::RunnerNew.new(project_dir, :execute, all_options)
+      result = harness_runner.run
+      display_enhanced_harness_result(result)
+      result
     end
 
     def execute_workflow(project_dir, all_options)
       workflow_selector = Aidp::Execute::WorkflowSelector.new
-      workflow_config = workflow_selector.select_workflow
+      workflow_config = workflow_selector.select_workflow(harness_mode: true)
 
       puts "\n🚀 Starting enhanced TUI harness with #{workflow_config[:workflow_type]} workflow..."
-      puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode\n"
+      puts "   Press Ctrl+C to stop\n"
 
       harness_options = all_options.merge(
         workflow_type: workflow_config[:workflow_type],
@@ -234,17 +221,11 @@ module Aidp
       resolved_step = resolve_analyze_step(step_name, progress)
 
       if resolved_step
-        if should_use_harness?(all_options)
-          puts "🚀 Running analyze step '#{resolved_step}' with enhanced TUI harness..."
-          harness_options = all_options.merge(step_name: resolved_step)
-          harness_runner = Aidp::Harness::RunnerNew.new(project_dir, :analyze, harness_options)
-          result = harness_runner.run
-          display_enhanced_harness_result(result)
-        else
-          runner = Aidp::Analyze::Runner.new(project_dir)
-          result = runner.run_step(resolved_step, all_options)
-          display_step_result(resolved_step, result)
-        end
+        puts "🚀 Running analyze step '#{resolved_step}' with enhanced TUI harness..."
+        harness_options = all_options.merge(step_name: resolved_step)
+        harness_runner = Aidp::Harness::RunnerNew.new(project_dir, :analyze, harness_options)
+        result = harness_runner.run
+        display_enhanced_harness_result(result)
         result
       else
         puts "❌ Step '#{step_name}' not found or not available"
@@ -255,7 +236,7 @@ module Aidp
 
     def analyze_workflow(project_dir, all_options)
       puts "🚀 Starting analyze mode with enhanced TUI harness..."
-      puts "   Press Ctrl+C to stop, or use --no-harness for traditional mode"
+      puts "   Press Ctrl+C to stop"
       harness_runner = Aidp::Harness::RunnerNew.new(project_dir, :analyze, all_options)
       result = harness_runner.run
       display_enhanced_harness_result(result)
@@ -443,12 +424,6 @@ module Aidp
       rescue => e
         puts "❌ Error resetting harness: #{e.message}"
       end
-    end
-
-    def should_use_harness?(options)
-      return false if options[:no_harness] || options["no_harness"]
-      return true if options[:harness] || options["harness"]
-      true
     end
 
     def display_enhanced_harness_result(result)

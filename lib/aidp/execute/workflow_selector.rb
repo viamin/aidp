@@ -11,7 +11,19 @@ module Aidp
       end
 
       # Main entry point for interactive workflow selection
-      def select_workflow
+      def select_workflow(harness_mode: false)
+        if harness_mode
+          # In harness mode, use default values to avoid blocking
+          select_workflow_with_defaults
+        else
+          # Interactive mode for standalone usage
+          select_workflow_interactive
+        end
+      end
+
+      private
+
+      def select_workflow_interactive
         puts "\n🚀 Welcome to AI Dev Pipeline!"
         puts "Let's set up your development workflow.\n\n"
 
@@ -22,6 +34,30 @@ module Aidp
         workflow_type = choose_workflow_type
 
         # Step 3: Generate workflow steps
+        steps = generate_workflow_steps(workflow_type)
+
+        {
+          workflow_type: workflow_type,
+          steps: steps,
+          user_input: @user_input
+        }
+      end
+
+      def select_workflow_with_defaults
+        puts "\n🚀 Starting harness with default workflow configuration..."
+
+        # Use default project information
+        @user_input = {
+          project_description: "AI-powered development pipeline project",
+          tech_stack: "Ruby/Rails",
+          target_users: "developers",
+          success_criteria: "Successful automation of development workflows"
+        }
+
+        # Default to exploration workflow for harness mode
+        workflow_type = :exploration
+
+        # Generate workflow steps
         steps = generate_workflow_steps(workflow_type)
 
         {

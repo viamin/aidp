@@ -12,12 +12,13 @@ module Aidp
       def initialize(input: $stdin, output: $stdout)
         @io = TerminalIO.new(input, output)
         # Use CLI UI for terminal operations
-        CLI::UI::StdoutRouter.enable unless CLI::UI::StdoutRouter.enabled?
+        ::CLI::UI::StdoutRouter.enable unless ::CLI::UI::StdoutRouter.enabled?
         @running = true
         @view_mode = :list
         @selected_job_id = nil
         @jobs_displayed = false  # Track if we've displayed jobs in interactive mode
         @file_manager = Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
+        @screen_width = 80  # Default screen width
       end
 
       def run
@@ -95,7 +96,7 @@ module Aidp
         @io.puts
 
         # Create simple table using CLI UI
-        CLI::UI::Frame.open("Background Jobs") do
+        ::CLI::UI::Frame.open("Background Jobs") do
           jobs.each do |job|
             status_icon = case job[:status]
             when "completed" then "✅"
@@ -105,7 +106,7 @@ module Aidp
             else "❓"
             end
 
-            CLI::UI::Frame.open("#{status_icon} #{job[:id][0..7]}") do
+            ::CLI::UI::Frame.open("#{status_icon} #{job[:id][0..7]}") do
               puts "Status: #{job[:status]}"
               puts "Created: #{format_time(job[:created_at])}"
               puts "Message: #{truncate_message(job[:message])}"

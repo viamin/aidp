@@ -32,13 +32,11 @@ jobs:
     - name: Set up test environment
       run: |
         mkdir -p tmp/aruba
-        export ARUBA_RUNNING=true
 
     - name: Run system tests
       run: |
-        bundle exec cucumber spec/system/features/ --format progress --format json --out system_test_results.json
+        bundle exec rspec spec/system/ --format progress --format json --out system_test_results.json
       env:
-        ARUBA_RUNNING: true
         CI: true
 
     - name: Upload system test results
@@ -51,9 +49,8 @@ jobs:
     - name: Run system tests with coverage
       if: matrix.ruby-version == '3.2'
       run: |
-        bundle exec cucumber spec/system/features/ --format progress
+        bundle exec rspec spec/system/ --format progress
       env:
-        ARUBA_RUNNING: true
         CI: true
         COVERAGE: true
 
