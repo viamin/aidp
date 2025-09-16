@@ -43,7 +43,7 @@ module Aidp
             @frame_stats[:status_counts][frame_data[:status]] += 1
           end
 
-          @frame.open(formatted_title) do
+          puts TTY::Box.frame(formatted_title) do
             yield if block_given?
           end
         rescue InvalidFrameError => e
@@ -59,7 +59,7 @@ module Aidp
 
           formatted_title = @formatter.format_frame_title(frame_type, title, frame_data)
           @frame_stack.push({type: frame_type, title: title, data: frame_data})
-          @frame.open(formatted_title) do
+          puts TTY::Box.frame(formatted_title) do
             yield if block_given?
           end
         rescue InvalidFrameError => e
@@ -215,7 +215,7 @@ module Aidp
           validate_title(title)
 
           formatted_title = @formatter.format_section_title(title)
-          @frame.open(formatted_title) do
+          puts TTY::Box.frame(formatted_title) do
             yield if block_given?
           end
         rescue => e
@@ -226,7 +226,7 @@ module Aidp
           validate_title(title)
 
           formatted_title = @formatter.format_subsection_title(title)
-          @frame.open(formatted_title) do
+          puts TTY::Box.frame(formatted_title) do
             yield if block_given?
           end
         rescue => e
@@ -237,7 +237,7 @@ module Aidp
           validate_workflow_name(workflow_name)
 
           formatted_title = @formatter.format_workflow_title(workflow_name)
-          @frame.open(formatted_title) do
+          puts TTY::Box.frame(formatted_title) do
             yield if block_given?
           end
         rescue => e
@@ -248,7 +248,7 @@ module Aidp
           validate_step_inputs(step_name, step_number, total_steps)
 
           formatted_title = @formatter.format_step_title(step_name, step_number, total_steps)
-          @frame.open(formatted_title) do
+          puts TTY::Box.frame(formatted_title) do
             yield if block_given?
           end
         rescue => e

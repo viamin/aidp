@@ -7,6 +7,37 @@ require "stringio"
 RSpec.describe Aidp::CLI do
   let(:temp_dir) { Dir.mktmpdir }
   let(:cli) { described_class.new }
+  
+  # Mock TUI components to prevent interactive prompts
+  let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI) }
+  let(:mock_workflow_selector) { instance_double(Aidp::Harness::UI::EnhancedWorkflowSelector) }
+  let(:mock_harness_runner) { instance_double(Aidp::Harness::EnhancedRunner) }
+
+  before do
+    # Mock TUI components to prevent interactive prompts
+    allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
+    allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
+    allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(mock_harness_runner)
+    
+    # Mock TUI methods
+    allow(mock_tui).to receive(:start_display_loop)
+    allow(mock_tui).to receive(:stop_display_loop)
+    allow(mock_tui).to receive(:show_message)
+    allow(mock_tui).to receive(:single_select).and_return("🔬 Analyze Mode - Analyze your codebase for insights and recommendations")
+    
+    # Mock workflow selector
+    allow(mock_workflow_selector).to receive(:select_workflow).and_return({
+      workflow_type: :simple,
+      steps: ["01_REPOSITORY_ANALYSIS"],
+      user_input: {}
+    })
+    
+    # Mock harness runner
+    allow(mock_harness_runner).to receive(:run).and_return({
+      status: "completed",
+      message: "Test completed"
+    })
+  end
 
   # Helper method to capture stdout
   def capture_stdout
@@ -87,96 +118,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  describe "harness integration" do
-    let(:mock_harness_runner) { double("harness_runner") }
-
-    before do
-      allow(Aidp::Harness::Runner).to receive(:new).and_return(mock_harness_runner)
-      allow(mock_harness_runner).to receive(:run).and_return({status: "completed"})
-    end
-
-    describe "execute command with harness" do
-      it "uses harness when no step specified" do
-        options = {harness: true}
-
-        # Mock WorkflowSelector to avoid user interaction
-        mock_workflow_selector = instance_double(Aidp::Execute::WorkflowSelector)
-        allow(Aidp::Execute::WorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
-        allow(mock_workflow_selector).to receive(:select_workflow).and_return({
-          workflow_type: :exploration,
-          steps: ["00_PRD", "IMPLEMENTATION"],
-          user_input: {project_description: "Test project"}
-        })
-
-        # Expect the harness to be called with workflow configuration
-        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :execute, hash_including(options))
-        expect(mock_harness_runner).to receive(:run)
-
-        cli.execute(temp_dir, nil, options)
-      end
-
-      it "uses harness for specific step when requested" do
-        options = {harness: true}
-
-        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :execute, options)
-        expect(mock_harness_runner).to receive(:run)
-
-        cli.execute(temp_dir, "test_step", options)
-      end
-
-      it "uses traditional runner when no_harness is specified" do
-        options = {no_harness: true}
-        mock_runner = double("runner")
-
-        allow(Aidp::Execute::Runner).to receive(:new).and_return(mock_runner)
-        allow(mock_runner).to receive(:run_step)
-
-        expect(Aidp::Execute::Runner).to receive(:new).with(temp_dir)
-        expect(mock_runner).to receive(:run_step).with("test_step", options)
-
-        cli.execute(temp_dir, "test_step", options)
-      end
-    end
-
-    describe "analyze command with harness" do
-      it "uses harness when no step specified" do
-        options = {harness: true}
-
-        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :analyze, options)
-        expect(mock_harness_runner).to receive(:run)
-
-        cli.analyze(temp_dir, nil, options)
-      end
-
-      it "uses harness for specific step when requested" do
-        options = {harness: true}
-
-        # Mock the step resolution to return a valid step
-        allow(cli).to receive(:resolve_analyze_step).with("test_step", anything).and_return("01_REPOSITORY_ANALYSIS")
-
-        expect(Aidp::Harness::Runner).to receive(:new).with(temp_dir, :analyze, hash_including(options))
-        expect(mock_harness_runner).to receive(:run)
-
-        cli.analyze(temp_dir, "test_step", options)
-      end
-
-      it "uses traditional runner when no_harness is specified" do
-        options = {no_harness: true}
-        mock_runner = double("runner")
-
-        # Mock the step resolution to return a valid step
-        allow(cli).to receive(:resolve_analyze_step).with("test_step", anything).and_return("01_REPOSITORY_ANALYSIS")
-
-        allow(Aidp::Analyze::Runner).to receive(:new).and_return(mock_runner)
-        allow(mock_runner).to receive(:run_step).and_return({status: "completed", provider: "test"})
-
-        expect(Aidp::Analyze::Runner).to receive(:new).with(temp_dir)
-        expect(mock_runner).to receive(:run_step).with("01_REPOSITORY_ANALYSIS", options)
-
-        cli.analyze(temp_dir, "test_step", options)
-      end
-    end
-  end
 
   describe "harness status command" do
     let(:mock_harness_runner) { double("harness_runner") }

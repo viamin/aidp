@@ -456,10 +456,6 @@ module Aidp
         end
       end
 
-      def extract_string_content(string_content_node, _line_number)
-        # Extract the actual string content from the source code using node position
-        extract_node_text_from_source(string_content_node)
-      end
 
       def extract_identifier_name(identifier_node, file_path)
         # Extract the actual identifier name from the source code using node position

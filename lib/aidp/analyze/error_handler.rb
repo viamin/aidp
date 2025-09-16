@@ -34,57 +34,9 @@ module Aidp
       end
 
       # Handle specific error types with custom logic
-      def handle_network_error(error, context: {})
-        case error
-        when Net::TimeoutError
-          handle_timeout_error(error, context)
-        when Net::HTTPError
-          handle_http_error(error, context)
-        when SocketError
-          handle_socket_error(error, context)
-        else
-          handle_generic_network_error(error, context)
-        end
-      end
 
-      def handle_file_system_error(error, context: {})
-        case error
-        when Errno::ENOENT
-          handle_file_not_found(error, context)
-        when Errno::EACCES
-          handle_permission_denied(error, context)
-        when Errno::ENOSPC
-          handle_disk_full(error, context)
-        else
-          handle_generic_file_error(error, context)
-        end
-      end
 
-      def handle_database_error(error, context: {})
-        case error
-        when SQLite3::BusyException
-          handle_database_busy(error, context)
-        when SQLite3::CorruptException
-          handle_database_corrupt(error, context)
-        when SQLite3::ReadOnlyException
-          handle_database_readonly(error, context)
-        else
-          handle_generic_database_error(error, context)
-        end
-      end
 
-      def handle_analysis_error(error, context: {})
-        case error
-        when AnalysisTimeoutError
-          handle_analysis_timeout(error, context)
-        when AnalysisDataError
-          handle_analysis_data_error(error, context)
-        when AnalysisToolError
-          handle_analysis_tool_error(error, context)
-        else
-          handle_generic_analysis_error(error, context)
-        end
-      end
 
       # Recovery strategies
       def retry_with_backoff(operation, max_retries: 3, base_delay: 1)
@@ -128,27 +80,6 @@ module Aidp
         }
       end
 
-      def get_error_recommendations
-        recommendations = []
-
-        if @error_counts[Net::TimeoutError] > 5
-          recommendations << "Consider increasing timeout values for network operations"
-        end
-
-        if @error_counts[Errno::ENOSPC] > 0
-          recommendations << "Check available disk space and implement cleanup procedures"
-        end
-
-        if @error_counts[SQLite3::BusyException] > 3
-          recommendations << "Consider implementing database connection pooling"
-        end
-
-        if @error_counts[AnalysisTimeoutError] > 2
-          recommendations << "Consider chunking large analysis tasks or increasing timeouts"
-        end
-
-        recommendations
-      end
 
       # Cleanup and resource management
       def cleanup

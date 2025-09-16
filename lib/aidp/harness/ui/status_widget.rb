@@ -97,6 +97,10 @@ module Aidp
 
       # Formats status display messages
       class StatusFormatter
+        def initialize
+          @pastel = Pastel.new
+        end
+
         def format_status_message(message)
           "⏳ #{message}"
         end
