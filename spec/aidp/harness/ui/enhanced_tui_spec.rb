@@ -41,13 +41,13 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
   end
 
   describe "#get_user_input" do
-    it "calls TTY::Reader read_line method" do
-      # Mock the TTY::Reader to avoid actual interactive input
-      mock_reader = instance_double(TTY::Reader)
-      allow(TTY::Reader).to receive(:new).and_return(mock_reader)
-      allow(mock_reader).to receive(:read_line).with("> ").and_return("test input")
+    it "calls TTY::Prompt ask method" do
+      # Mock the TTY::Prompt to avoid actual interactive input
+      mock_prompt = instance_double(TTY::Prompt)
+      allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
+      allow(mock_prompt).to receive(:ask).with("Test prompt: ").and_return("test input")
 
-      # Create a new TUI instance with the mocked reader
+      # Create a new TUI instance with the mocked prompt
       tui_with_mock = described_class.new
 
       result = tui_with_mock.get_user_input("Test prompt: ")
