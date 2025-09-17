@@ -278,21 +278,6 @@ module Aidp
       end
 
       # Control methods
-      def pause
-        return unless @state == STATES[:running]
-
-        @state = STATES[:paused]
-        @workflow_controller.pause_workflow("User requested pause")
-        @tui.show_message("⏸️ Harness paused by user", :warning)
-      end
-
-      def resume
-        return unless @state == STATES[:paused]
-
-        @state = STATES[:running]
-        @workflow_controller.resume_workflow("User requested resume")
-        @tui.show_message("▶️ Harness resumed by user", :success)
-      end
 
       def stop
         @state = STATES[:stopped]
@@ -389,7 +374,7 @@ module Aidp
         if @state_manager.has_state?
           state = @state_manager.load_state
           # Ensure state is not nil before accessing it
-          if state&.is_a?(Hash)
+          if state.is_a?(Hash)
             @user_input.merge!(state[:user_input] || {})
           end
         end
@@ -449,7 +434,7 @@ module Aidp
         end
       end
 
-      def handle_rate_limit(result)
+      def handle_rate_limit(_result)
         @state = STATES[:waiting_for_rate_limit]
         @tui.show_message("⏳ Rate limit detected, switching provider", :warning)
 
