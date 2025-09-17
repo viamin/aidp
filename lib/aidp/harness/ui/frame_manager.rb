@@ -43,8 +43,11 @@ module Aidp
             @frame_stats[:status_counts][frame_data[:status]] += 1
           end
 
-          puts TTY::Box.frame(formatted_title) do
-            yield if block_given?
+          if block_given?
+            content = yield
+            puts TTY::Box.frame(formatted_title, content, width: 80)
+          else
+            puts TTY::Box.frame(formatted_title, width: 80)
           end
         rescue InvalidFrameError => e
           raise e
@@ -59,7 +62,7 @@ module Aidp
 
           formatted_title = @formatter.format_frame_title(frame_type, title, frame_data)
           @frame_stack.push({type: frame_type, title: title, data: frame_data})
-          puts TTY::Box.frame(formatted_title) do
+          puts TTY::Box.frame(formatted_title, width: 80) do
             yield if block_given?
           end
         rescue InvalidFrameError => e
@@ -184,13 +187,12 @@ module Aidp
           @frame_stack.push({type: frame_type, title: title, data: frame_data})
 
           begin
-            result = @frame.open(formatted_title) do
-              yield
-            end
+            content = yield
+            puts TTY::Box.frame(formatted_title, content, width: 80)
 
             @frame_open = false
             @frame_stack.pop unless @frame_stack.empty?
-            result
+            content
           rescue InvalidFrameError => e
             @frame_open = false
             @frame_stack.pop unless @frame_stack.empty?
@@ -215,8 +217,11 @@ module Aidp
           validate_title(title)
 
           formatted_title = @formatter.format_section_title(title)
-          puts TTY::Box.frame(formatted_title) do
-            yield if block_given?
+          if block_given?
+            content = yield
+            puts TTY::Box.frame(formatted_title, content, width: 80)
+          else
+            puts TTY::Box.frame(formatted_title, width: 80)
           end
         rescue => e
           raise DisplayError, "Failed to create section: #{e.message}"
@@ -226,7 +231,7 @@ module Aidp
           validate_title(title)
 
           formatted_title = @formatter.format_subsection_title(title)
-          puts TTY::Box.frame(formatted_title) do
+          puts TTY::Box.frame(formatted_title, width: 80) do
             yield if block_given?
           end
         rescue => e
@@ -237,7 +242,7 @@ module Aidp
           validate_workflow_name(workflow_name)
 
           formatted_title = @formatter.format_workflow_title(workflow_name)
-          puts TTY::Box.frame(formatted_title) do
+          puts TTY::Box.frame(formatted_title, width: 80) do
             yield if block_given?
           end
         rescue => e
@@ -248,7 +253,7 @@ module Aidp
           validate_step_inputs(step_name, step_number, total_steps)
 
           formatted_title = @formatter.format_step_title(step_name, step_number, total_steps)
-          puts TTY::Box.frame(formatted_title) do
+          puts TTY::Box.frame(formatted_title, width: 80) do
             yield if block_given?
           end
         rescue => e

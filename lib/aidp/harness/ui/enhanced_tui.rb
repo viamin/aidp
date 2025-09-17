@@ -40,14 +40,9 @@ module Aidp
 
         # Smart display loop - only shows input overlay when needed
         def start_display_loop
+          # Display loop is no longer needed since we use TTY::Prompt for input
+          # Keep this method for compatibility but don't start the loop
           @display_active = true
-          @display_thread = Thread.new do
-            loop do
-              break unless @display_active
-              refresh_display if @input_mode
-              sleep 0.1
-            end
-          end
         end
 
         def stop_display_loop
@@ -108,58 +103,21 @@ module Aidp
 
         # Input methods using TTY
         def get_user_input(prompt = "💬 You: ")
-          @input_prompt = prompt
-          @input_buffer = ""
-          @input_position = 0
-          @input_mode = true
-
-          # Start the display loop if not already running
-          start_display_loop unless @display_active
-
-          response = @reader.read_line("> ")  # Use a simple prompt for input
-          @input_mode = false
-          puts  # Add spacing after user input
-          response
+          # Use TTY::Prompt for better input handling - no display loop needed
+          @prompt.ask(prompt)
         rescue TTY::Reader::InputInterrupt
-          @input_mode = false
           # Clean exit without error trace
           puts "\n\n👋 Goodbye!"
           exit(0)
         end
 
         def get_confirmation(message, default: true)
-          default_text = default ? "Y/n" : "y/N"
-          prompt = "#{message} [#{default_text}]"
-
-          @input_prompt = prompt
-          @input_buffer = ""
-          @input_position = 0
-          @input_mode = true
-
-          # Start the display loop if not already running
-          start_display_loop unless @display_active
-
-          begin
-            response = @reader.read_line("> ")  # Use a simple prompt for input
-            @input_mode = false
-            puts  # Add spacing after user input
-
-            case response.downcase
-            when "y", "yes"
-              true
-            when "n", "no"
-              false
-            when ""
-              default
-            else
-              get_confirmation(message, default: default)
-            end
-          rescue TTY::Reader::InputInterrupt
-            @input_mode = false
-            # Clean exit without error trace
-            puts "\n\n👋 Goodbye!"
-            exit(0)
-          end
+          # Use TTY::Prompt for better input handling - no display loop needed
+          @prompt.yes?(message)
+        rescue TTY::Reader::InputInterrupt
+          # Clean exit without error trace
+          puts "\n\n👋 Goodbye!"
+          exit(0)
         end
 
         # Single-select interface using TTY::Prompt (much better!)
@@ -214,14 +172,9 @@ module Aidp
             progress_bar.current = progress
             progress_bar.render
           else
-            # Show a simple loading message first
-            puts "⏳ #{message}..."
-            $stdout.flush
-
-            # Then start the spinner
-            spinner = TTY::Spinner.new("   :spinner", format: :pulse)
-            spinner.start
-            @current_spinner = spinner
+            # Use the unified spinner helper for indeterminate progress
+            @current_spinner = TTY::Spinner.new("⏳ #{message} :spinner", format: :pulse)
+            @current_spinner.start
           end
         end
 

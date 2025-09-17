@@ -45,12 +45,8 @@ module Aidp
         # First question: Choose mode
         mode = select_mode_interactive(tui)
 
-        # Show animated spinner while getting workflow configuration
-        workflow_config = show_animated_spinner("Setting up #{mode} workflow...") do
-          # Add a small delay to make spinner visible
-          sleep(0.5)
-          workflow_selector.select_workflow(harness_mode: false, mode: mode)
-        end
+        # Get workflow configuration (no spinner - may wait for user input)
+        workflow_config = workflow_selector.select_workflow(harness_mode: false, mode: mode)
 
         # Pass workflow configuration to harness
         harness_options = all_options.merge(
@@ -218,28 +214,10 @@ module Aidp
     private
 
     def show_animated_spinner(message)
-      spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-      spinner_index = 0
-
-      # Start spinner in a separate thread
-      spinner_thread = Thread.new do
-        loop do
-          print "\r#{spinner_chars[spinner_index]} #{message}"
-          $stdout.flush
-          spinner_index = (spinner_index + 1) % spinner_chars.length
-          sleep 0.1
-        end
+      # Use the unified spinner helper
+      Aidp::Harness::UI.with_loading_spinner(message) do
+        yield
       end
-
-      # Execute the block
-      result = yield
-
-      # Stop spinner and show completion
-      spinner_thread.kill
-      print "\r✅ #{message} completed\n"  # Show completion instead of clearing
-      $stdout.flush
-
-      result
     end
 
     def select_mode_interactive(tui)

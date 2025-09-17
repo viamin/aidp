@@ -317,30 +317,33 @@ module Aidp
         end
 
         def display_job_details(job)
-          @prompt.say("Job ID: #{job[:id]}")
-          @prompt.say("Status: #{@formatter.format_job_status(job[:status])}")
-          @prompt.say("Priority: #{@formatter.format_job_priority(job[:priority])}")
-          @prompt.say("Progress: #{@formatter.format_job_progress(job[:progress])}")
-          @prompt.say("Created: #{job[:created_at]}")
-          @prompt.say("Last Updated: #{job[:last_updated]}")
+          details = []
+          details << "Job ID: #{job[:id]}"
+          details << "Status: #{@formatter.format_job_status(job[:status])}"
+          details << "Priority: #{@formatter.format_job_priority(job[:priority])}"
+          details << "Progress: #{@formatter.format_job_progress(job[:progress])}"
+          details << "Created: #{job[:created_at]}"
+          details << "Last Updated: #{job[:last_updated]}"
 
           if job[:error_message]
-            @prompt.say("Error: #{@formatter.format_job_error(job[:error_message])}")
+            details << "Error: #{@formatter.format_job_error(job[:error_message])}"
           end
 
           if job[:retry_count] > 0
-            @prompt.say("Retries: #{job[:retry_count]}/#{job[:max_retries]}")
+            details << "Retries: #{job[:retry_count]}/#{job[:max_retries]}"
           end
+
+          details.join("\n")
         end
 
         def display_jobs_table(jobs)
           if jobs.empty?
-            @prompt.say("No jobs found.")
-            return
+            return "No jobs found."
           end
 
-          @prompt.say("ID".ljust(20) + "Status".ljust(12) + "Priority".ljust(10) + "Progress".ljust(10) + "Created")
-          @prompt.say("-" * 70)
+          lines = []
+          lines << "ID".ljust(20) + "Status".ljust(12) + "Priority".ljust(10) + "Progress".ljust(10) + "Created"
+          lines << "-" * 70
 
           jobs.each do |job_id, job|
             status = @formatter.format_job_status_short(job[:status])
@@ -348,8 +351,10 @@ module Aidp
             progress = @formatter.format_job_progress_short(job[:progress])
             created = job[:created_at].strftime("%H:%M:%S")
 
-            @prompt.say(job_id.to_s.ljust(20) + status.to_s.ljust(12) + priority.to_s.ljust(10) + progress.to_s.ljust(10) + created.to_s)
+            lines << job_id.to_s.ljust(20) + status.to_s.ljust(12) + priority.to_s.ljust(10) + progress.to_s.ljust(10) + created.to_s
           end
+
+          lines.join("\n")
         end
       end
 

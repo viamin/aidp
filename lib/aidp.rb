@@ -66,4 +66,7 @@ require_relative "aidp/harness/status_display"
 require_relative "aidp/harness/runner"
 require_relative "aidp/harness/circuit_breaker_manager"
 
+# UI components
+require_relative "aidp/harness/ui/spinner_helper"
+
 # CLI commands

@@ -32,9 +32,4 @@ RSpec.configure do |config|
   config.expect_with :rspec do |c|
     c.syntax = :expect
   end
-
-  # Add timeout to prevent hanging tests
-  config.around(:each) do |example|
-    example.run
-  end
 end

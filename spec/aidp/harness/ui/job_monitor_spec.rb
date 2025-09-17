@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
 require_relative "../../../../lib/aidp/harness/ui/job_monitor"
 
 RSpec.describe Aidp::Harness::UI::JobMonitor do
@@ -301,9 +302,15 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
     end
 
     it "includes job information" do
-      expect { job_monitor.display_all_jobs }
-        .to output(/job1/).to_stdout
-        .and output(/job2/).to_stdout
+      output = StringIO.new
+      original_stdout = $stdout
+      $stdout = output
+      job_monitor.display_all_jobs
+      $stdout = original_stdout
+
+      output_string = output.string
+      expect(output_string).to include("job1")
+      expect(output_string).to include("job2")
     end
   end
 

@@ -16,8 +16,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
       it "displays all menu items" do
         expect { main_menu.display_menu("Test Menu", sample_menu_items) }
-          .to output(/Option 1/).to_stdout
-          .and output(/Option 2/).to_stdout
+          .to output(/Option 1.*Option 2/m).to_stdout
       end
 
       it "includes navigation instructions" do
@@ -97,8 +96,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
       it "displays breadcrumb navigation" do
         expect { main_menu.display_breadcrumb }
-          .to output(/Section 1/).to_stdout
-          .and output(/Subsection 1/).to_stdout
+          .to output(/Section 1.*Subsection 1/m).to_stdout
       end
 
       it "includes breadcrumb separators" do
@@ -252,9 +250,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
     it "includes keyboard shortcuts" do
       expect { main_menu.display_navigation_help }
-        .to output(/Arrow keys/).to_stdout
-        .and output(/Enter/).to_stdout
-        .and output(/Escape/).to_stdout
+        .to output(/Arrow keys.*Enter.*Escape/m).to_stdout
     end
   end
 
@@ -282,9 +278,9 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
   def build_sample_menu_items
     [
-      {id: "option1", title: "Option 1", description: "First option"},
-      {id: "option2", title: "Option 2", description: "Second option"},
-      {id: "option3", title: "Option 3", description: "Third option"}
+      Aidp::Harness::UI::Navigation::MenuItem.new("Option 1", :action, {description: "First option", action: -> { "option1" }}),
+      Aidp::Harness::UI::Navigation::MenuItem.new("Option 2", :action, {description: "Second option", action: -> { "option2" }}),
+      Aidp::Harness::UI::Navigation::MenuItem.new("Option 3", :action, {description: "Third option", action: -> { "option3" }})
     ]
   end
 end

@@ -318,28 +318,10 @@ module Aidp
       private
 
       def show_step_spinner(message)
-        spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-        spinner_index = 0
-
-        # Start spinner in a separate thread
-        spinner_thread = Thread.new do
-          loop do
-            print "\r#{spinner_chars[spinner_index]} #{message}"
-            $stdout.flush
-            spinner_index = (spinner_index + 1) % spinner_chars.length
-            sleep 0.1
-          end
+        # Use the unified spinner helper
+        Aidp::Harness::UI.with_processing_spinner(message) do
+          yield
         end
-
-        # Execute the block
-        result = yield
-
-        # Stop spinner and show completion
-        spinner_thread.kill
-        print "\r✅ #{message} completed\n"
-        $stdout.flush
-
-        result
       end
 
       def get_mode_runner

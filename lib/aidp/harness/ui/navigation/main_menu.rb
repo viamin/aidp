@@ -53,6 +53,29 @@ module Aidp
             raise NavigationError, "Failed to show menu: #{e.message}"
           end
 
+          def display_menu(title, menu_items)
+            # Handle nil title case
+            title = "Main Menu" if title.nil?
+            validate_title(title)
+            validate_menu_items(menu_items)
+
+            # Set the menu items for display
+            @menu_items = menu_items
+
+            display_menu_header(title)
+            display_breadcrumb
+            display_menu_items
+
+            # Add navigation instructions if items exist
+            if menu_items.any?
+              puts "Use arrow keys to navigate, Enter to select"
+            else
+              puts "No options available"
+            end
+          rescue => e
+            raise NavigationError, "Failed to display menu: #{e.message}"
+          end
+
           def navigate_to_submenu(submenu_title)
             validate_title(submenu_title)
 
@@ -83,6 +106,127 @@ module Aidp
             @current_level
           end
 
+          # Methods expected by tests
+          def select_option(menu_items)
+            @menu_items = menu_items
+            display_menu_items
+
+            max_attempts = 10  # Prevent infinite loops
+            attempts = 0
+
+            loop do
+              attempts += 1
+              break if attempts > max_attempts
+
+              # Use get_user_input for testing compatibility
+              input = get_user_input("Select an option: ")
+
+              # Handle cancel/quit
+              if input.downcase == "q" || input.downcase == "quit" || input.downcase == "cancel"
+                return nil
+              end
+
+              # Handle numeric input
+              if input.match?(/^\d+$/)
+                index = input.to_i - 1
+                if index >= 0 && index < menu_items.length
+                  return menu_items[index]
+                else
+                  puts "Invalid selection"
+                  next
+                end
+              else
+                # Handle text input
+                selected_item = menu_items.find { |item| item.title.downcase == input.downcase }
+                if selected_item
+                  return selected_item
+                else
+                  puts "Invalid selection"
+                  next
+                end
+              end
+            end
+
+            # If we get here, we've exceeded max attempts
+            puts "Too many invalid attempts. Returning first option."
+            menu_items.first
+          end
+
+          def get_user_input(prompt)
+            # Mock method for testing - will be stubbed in tests
+            @prompt.ask(prompt)
+          end
+
+          def navigate_to(section_name)
+            @breadcrumb << section_name
+            @current_level += 1
+          end
+
+          def navigate_back
+            return false if @breadcrumb.empty?
+
+            @breadcrumb.pop
+            @current_level -= 1
+            true
+          end
+
+          def navigate_to_root
+            @breadcrumb.clear
+            @current_level = 0
+          end
+
+          def get_navigation_history
+            # Return history in the format expected by tests
+            history = []
+            @breadcrumb.each do |section|
+              history << {action: :navigate_to, section: section}
+            end
+            history
+          end
+
+          def clear_navigation_history
+            @breadcrumb.clear
+            @current_level = 0
+          end
+
+          def at_root?
+            @breadcrumb.empty?
+          end
+
+          def display_navigation_help
+            puts "Navigation Help"
+            puts "Use arrow keys to navigate"
+            puts "Press Enter to select"
+            puts "Press Escape to go back"
+          end
+
+          # Additional methods expected by tests
+          def current_section
+            @breadcrumb.last || "Home"
+          end
+
+          def get_breadcrumb_path
+            ["Home"] + @breadcrumb
+          end
+
+          def navigation_depth
+            @current_level
+          end
+
+          def can_navigate_back?
+            !@breadcrumb.empty?
+          end
+
+          # Make display_breadcrumb public for testing
+          def display_breadcrumb
+            if @breadcrumb.empty?
+              puts "Home"
+            else
+              breadcrumb_text = @formatter.format_breadcrumb(@breadcrumb)
+              puts(breadcrumb_text)
+            end
+          end
+
           private
 
           def validate_menu_item(item)
@@ -101,13 +245,6 @@ module Aidp
             formatted_title = @formatter.format_menu_title(title)
             puts(formatted_title)
             puts(@formatter.format_separator)
-          end
-
-          def display_breadcrumb
-            return if @breadcrumb.empty?
-
-            breadcrumb_text = @formatter.format_breadcrumb(@breadcrumb)
-            puts(breadcrumb_text)
           end
 
           def display_menu_items
