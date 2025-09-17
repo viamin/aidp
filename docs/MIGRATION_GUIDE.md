@@ -5,6 +5,7 @@ This guide helps you migrate from the legacy AIDP interface to the new Enhanced 
 ## Overview
 
 The Enhanced TUI is a complete overhaul of the AIDP interface that provides:
+
 - Rich terminal components with progress bars, spinners, and status indicators
 - Interactive navigation with hierarchical menus
 - Real-time dashboards and monitoring
@@ -37,6 +38,7 @@ The Enhanced TUI is a complete overhaul of the AIDP interface that provides:
 ### 1. Update Your Workflow
 
 #### Before (Legacy)
+
 ```bash
 # Simple step-by-step execution
 aidp execute next
@@ -45,6 +47,7 @@ aidp status
 ```
 
 #### After (Enhanced TUI)
+
 ```bash
 # Rich TUI experience (default)
 aidp execute                    # Full TUI workflow
@@ -61,6 +64,7 @@ aidp execute --no-harness      # Legacy behavior
 ### 2. Update Your Scripts
 
 #### Before
+
 ```bash
 #!/bin/bash
 # Legacy script
@@ -72,6 +76,7 @@ fi
 ```
 
 #### After
+
 ```bash
 #!/bin/bash
 # Enhanced TUI script
@@ -85,6 +90,7 @@ fi
 ### 3. Update Your CI/CD
 
 #### Before
+
 ```yaml
 # Legacy CI configuration
 - name: Run AIDP Analysis
@@ -94,6 +100,7 @@ fi
 ```
 
 #### After
+
 ```yaml
 # Enhanced TUI CI configuration
 - name: Run AIDP Analysis
@@ -105,6 +112,7 @@ fi
 ### 4. Update Your Configuration
 
 #### Before
+
 ```yaml
 # aidp.yml (legacy)
 providers:
@@ -113,6 +121,7 @@ providers:
 ```
 
 #### After
+
 ```yaml
 # aidp.yml (enhanced)
 providers:
@@ -219,6 +228,7 @@ aidp harness status --mode execute
 
 **Symptoms**: Commands show plain text instead of rich TUI
 **Solution**:
+
 ```bash
 # Check terminal compatibility
 aidp status
@@ -231,6 +241,7 @@ aidp execute --no-harness
 
 **Symptoms**: Keyboard navigation doesn't work
 **Solution**:
+
 ```bash
 # Use traditional mode
 aidp execute --no-harness
@@ -242,6 +253,7 @@ aidp execute --no-harness
 
 **Symptoms**: TUI is slow or unresponsive
 **Solution**:
+
 ```bash
 # Disable animations
 aidp execute --no-dashboard
@@ -254,6 +266,7 @@ aidp execute --no-harness
 
 **Symptoms**: Existing scripts fail with TUI
 **Solution**:
+
 ```bash
 # Add --no-harness to scripts
 aidp execute --no-harness

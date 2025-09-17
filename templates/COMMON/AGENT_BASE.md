@@ -23,6 +23,7 @@ This template provides common capabilities and guidelines for AI agents in both 
 ### User Interaction Guidelines
 
 #### TUI-Based Interaction
+
 - **Interactive Questions**: Present questions through the harness TUI system for real-time user input
 - **Validation**: Use built-in validation for user responses (required fields, format validation, etc.)
 - **Error Handling**: Provide clear error messages and allow users to correct invalid input

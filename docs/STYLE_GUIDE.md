@@ -111,7 +111,6 @@ end
 - Provide meaningful error messages
 - Let it crash for internal errors, handle external dependency errors gracefully
 
-
 ## TTY Toolkit Guidelines
 
 ### Overview
@@ -176,6 +175,7 @@ logger.info("This goes to log files, not user terminal")
 ```
 
 **When to use each:**
+
 - **`TTY::Prompt.say()`** - User-facing messages, status updates, interactive feedback
 - **`puts + Pastel`** - Simple output, data display, fallback when TTY::Prompt not available
 - **`TTY::Logger`** - Application logging, debugging, error tracking (not user-facing)
@@ -450,19 +450,23 @@ allow(user_interface).to receive(:validate_question).and_return(true) # Don't do
 Focus on testing the interface, not the implementation:
 
 #### Message Types
+
 - **Queries**: Return something, change nothing (getters)
 - **Commands**: Return nothing, change something (setters)
 
 #### What to Test
+
 - **Incoming query messages**: Assert what they return
 - **Incoming command messages**: Assert direct public side effects
 
 #### What NOT to Test
+
 - Private methods (messages sent from within the object)
 - Outgoing query messages (no public side effects)
 - Outgoing command messages (use mocks instead)
 
 #### Mocking Strategy
+
 - **Command messages**: Should be mocked
 - **Query messages**: Should be stubbed
 
@@ -471,10 +475,12 @@ Focus on testing the interface, not the implementation:
 ### When to Crash vs. When to Handle
 
 **It's okay to crash if it won't cause:**
+
 - Data loss, corruption, or security vulnerabilities
 - Silent failures that mask bugs
 
 **Exception Guidelines:**
+
 - **Don't swallow exceptions** that indicate bugs
 - **Do handle exceptions** from external dependencies
 - **Do crash** on invalid configuration or internal state corruption
@@ -520,7 +526,6 @@ rescue => e
   puts "Something went wrong"  # Don't do this!
 end
 ```
-
 
 ## Code Review Guidelines
 
