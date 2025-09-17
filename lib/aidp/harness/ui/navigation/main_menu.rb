@@ -17,16 +17,17 @@ module Aidp
           class InvalidMenuError < MenuError; end
           class NavigationError < MenuError; end
 
-          def initialize(ui_components = {})
-            super()
-            @prompt = ui_components[:prompt] || TTY::Prompt.new
-            @pastel = Pastel.new
-            @formatter = ui_components[:formatter] || MenuFormatter.new
-            @state_manager = ui_components[:state_manager] || MenuState.new
-            @menu_items = []
-            @current_level = 0
-            @breadcrumb = []
-          end
+        def initialize(ui_components = {})
+          super()
+          @prompt = ui_components[:prompt] || TTY::Prompt.new
+          @pastel = Pastel.new
+          @formatter = ui_components[:formatter] || MenuFormatter.new
+          @state_manager = ui_components[:state_manager] || MenuState.new
+          @menu_items = []
+          @current_level = 0
+          @breadcrumb = []
+          @navigation_history = []  # Track all navigation actions
+        end
 
           def add_menu_item(item)
             validate_menu_item(item)
@@ -160,13 +161,15 @@ module Aidp
           def navigate_to(section_name)
             @breadcrumb << section_name
             @current_level += 1
+            @navigation_history << {action: :navigate_to, section: section_name}
           end
 
           def navigate_back
             return false if @breadcrumb.empty?
 
-            @breadcrumb.pop
+            section = @breadcrumb.pop
             @current_level -= 1
+            @navigation_history << {action: :navigate_back, section: section}
             true
           end
 
@@ -176,17 +179,14 @@ module Aidp
           end
 
           def get_navigation_history
-            # Return history in the format expected by tests
-            history = []
-            @breadcrumb.each do |section|
-              history << {action: :navigate_to, section: section}
-            end
-            history
+            # Return the complete navigation history
+            @navigation_history
           end
 
           def clear_navigation_history
             @breadcrumb.clear
             @current_level = 0
+            @navigation_history.clear
           end
 
           def at_root?

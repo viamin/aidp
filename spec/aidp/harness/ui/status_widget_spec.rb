@@ -156,9 +156,7 @@ RSpec.describe Aidp::Harness::UI::StatusWidget do
         ]
 
         expect { status_widget.display_multiple_status(status_items) }
-          .to output(/Task 1 completed/).to_stdout
-          .and output(/Task 2 in progress/).to_stdout
-          .and output(/Task 3 failed/).to_stdout
+          .to output(/Task 1 completed.*Task 2 in progress.*Task 3 failed/m).to_stdout
       end
     end
 

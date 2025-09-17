@@ -10,17 +10,13 @@ require_relative "aidp/util"
 require_relative "aidp/cli"
 require_relative "aidp/cli/jobs_command"
 
-# Job infrastructure (simplified - only harness jobs)
-require_relative "aidp/jobs/harness_job"
-
 # Providers
 require_relative "aidp/providers/base"
 require_relative "aidp/providers/cursor"
 require_relative "aidp/providers/anthropic"
 require_relative "aidp/providers/gemini"
 require_relative "aidp/providers/macos_ui"
-require_relative "aidp/providers/supervised_base"
-require_relative "aidp/providers/supervised_cursor"
+# Supervised providers removed - using direct execution model
 require_relative "aidp/provider_manager"
 
 # Simple file-based storage
@@ -60,7 +56,6 @@ require_relative "aidp/harness/provider_config"
 require_relative "aidp/harness/provider_factory"
 require_relative "aidp/harness/state_manager"
 require_relative "aidp/harness/error_handler"
-require_relative "aidp/harness/error_logger"
 require_relative "aidp/harness/status_display"
 require_relative "aidp/harness/runner"
 

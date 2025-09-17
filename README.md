@@ -43,83 +43,30 @@ AIDP now features **Enhanced TUI** and **Harness Mode** - a rich terminal interf
 ### Quick Harness Start
 
 ```bash
-# Run complete analysis workflow automatically
+# Start the interactive TUI (default)
+aidp start
+
+# Run complete analysis workflow (redirects to TUI)
 aidp analyze
 
-# Run complete development workflow automatically
+# Run complete development workflow (redirects to TUI)
 aidp execute
 
 # Check harness status
 aidp harness status
 
-# View real-time progress
-aidp status
-
-# Access TUI dashboard
-aidp dashboard
-
-# Show enhanced status with TUI
-aidp status
-
-# Manage background jobs
-aidp jobs
+# Run code analysis with tree-sitter
+aidp analyze-code
 ```
 
 ## 🎨 Enhanced TUI Commands
 
 The new Terminal User Interface provides rich, interactive terminal components for a better user experience:
 
-### Dashboard and Monitoring
-
-```bash
-# Access the main TUI dashboard
-aidp dashboard
-
-# Show specific dashboard views
-aidp dashboard --view jobs      # Job monitoring view
-aidp dashboard --view metrics   # Performance metrics view
-aidp dashboard --view errors    # Error tracking view
-
-# Enhanced status display with TUI formatting
-aidp status
-
-# Detailed harness status with TUI components
-aidp harness status --mode analyze
-aidp harness status --mode execute
-```
-
-### Workflow Control
-
-```bash
-# Run workflows with enhanced TUI (default)
-aidp execute                    # TUI-enabled execute workflow
-aidp analyze                    # TUI-enabled analyze workflow
-
-# Run in traditional mode (no TUI)
-aidp execute --no-harness      # Traditional step-by-step mode
-aidp analyze --no-harness      # Traditional step-by-step mode
-
-# TUI workflow control
-aidp execute --dashboard       # Show TUI dashboard during execution
-aidp analyze --dashboard       # Show TUI dashboard during analysis
-```
-
-### Background Job Management
-
-```bash
-# Manage background jobs with TUI
-aidp jobs                      # Interactive job management interface
-
-# Job monitoring and control
-aidp jobs --status running     # Show running jobs
-aidp jobs --status completed   # Show completed jobs
-aidp jobs --status failed      # Show failed jobs
-```
-
 ### Harness Management
 
 ```bash
-# Reset harness state with TUI confirmation
+# Reset harness state
 aidp harness reset --mode analyze
 aidp harness reset --mode execute
 
@@ -152,63 +99,32 @@ providers:
     type: "package"
 ```
 
-### Traditional Mode Still Available
-
-You can still run individual steps manually:
-
-```bash
-# Traditional step-by-step mode
-aidp execute next
-aidp analyze 01_REPOSITORY_ANALYSIS
-```
-
 ## User Workflow
 
 The gem automates a complete development pipeline with **human-in-the-loop gates** at key decision points. Here's the simplest workflow:
 
-### 1. Start Your Project
+### 1. Start the TUI
 
 ```bash
 cd /your/project
-aidp status                   # Check current progress
-aidp execute next             # Run the next pending step
+aidp start                    # Start the interactive TUI
 ```
 
-### 2. Handle Gate Steps
+### 2. Choose Your Mode
 
-When you reach a **gate step** (PRD, Architecture, Tasks, Implementation), the AI will:
+The TUI will guide you through choosing between:
 
-1. **Generate questions** in a file (e.g., `PRD_QUESTIONS.md`) if it needs more information
-2. **Create the main output** (e.g., `docs/PRD.md`)
-3. **Wait for your approval** before proceeding
+1. **Analyze Mode** - Analyze your codebase for insights and recommendations
+2. **Execute Mode** - Build new features with guided development workflow
 
-**Your actions at gates:**
+### 3. Follow the Interactive Workflow
 
-```bash
-# Review the generated files
-cat PRD_QUESTIONS.md          # Check if AI needs more information
-cat docs/PRD.md              # Review the output
+The TUI will guide you through each step, providing:
 
-# If PRD_QUESTIONS.md exists, answer the questions:
-# Edit the questions file directly with your answers
-nano PRD_QUESTIONS.md         # Add your answers below each question
-
-# Re-run the step to use your answers
-aidp execute prd              # AI will read your answers and complete the step
-
-# Once satisfied with the output, approve and continue
-aidp approve current          # Mark the step complete
-aidp execute next             # Continue to next step
-```
-
-### 3. Continue the Pipeline
-
-For non-gate steps, the AI runs automatically:
-
-```bash
-aidp execute next             # Run next step automatically
-aidp status                   # Check progress
-```
+- **Interactive Prompts** - Answer questions and provide input
+- **Real-time Progress** - See your progress through the workflow
+- **Visual Feedback** - Beautiful UI components show status and progress
+- **Keyboard Navigation** - Use arrow keys and shortcuts to navigate
 
 ### 4. Complete the Workflow
 
@@ -222,35 +138,25 @@ The pipeline includes 15 steps total:
 ### Harness Mode Commands
 
 ```bash
-aidp execute                  # Run complete development workflow automatically
-aidp analyze                  # Run complete analysis workflow automatically
-aidp harness status           # Show detailed harness status and configuration
+aidp start                    # Start the interactive TUI (default)
+aidp analyze                  # Run complete analysis workflow (redirects to TUI)
+aidp execute                  # Run complete development workflow (redirects to TUI)
+aidp harness status          # Show detailed harness status and configuration
 aidp harness reset --mode=analyze  # Reset harness state for analyze mode
 aidp harness reset --mode=execute  # Reset harness state for execute mode
-aidp config show              # Show current configuration
-aidp config validate          # Validate configuration file
 ```
 
-### Traditional Mode Commands
+### Available Commands
 
 ```bash
-aidp status                   # Show progress of all steps
-aidp execute next             # Run next pending step
-aidp approve current          # Approve current gate step
-aidp jobs                     # Monitor background jobs (real-time)
-aidp detect                   # See which AI provider will be used
-aidp execute <step>           # Run specific step (e.g., prd, arch, tasks)
-aidp approve <step>           # Approve specific step
-aidp reset                    # Reset all progress (start over)
-```
-
-### Universal Commands
-
-```bash
-aidp status                   # Show progress of all steps (works in both modes)
-aidp jobs                     # Monitor background jobs (real-time)
-aidp version                  # Show version information
-aidp help                     # Show help information
+aidp start                   # Start the interactive TUI (default)
+aidp analyze                 # Run analyze mode (redirects to TUI)
+aidp execute                 # Run execute mode (redirects to TUI)
+aidp analyze-code           # Run code analysis with tree-sitter
+aidp harness status         # Show harness status
+aidp harness reset          # Reset harness state
+aidp version                # Show version information
+aidp help                   # Show help information
 ```
 
 ## AI Providers
@@ -371,31 +277,16 @@ source ~/.zshrc
 
 ```bash
 # Run Tree-sitter static analysis
-aidp analyze code
+aidp analyze-code
 
 # Analyze specific languages
-aidp analyze code --langs ruby,javascript,typescript
+aidp analyze-code --langs ruby,javascript,typescript
 
 # Use multiple threads for faster analysis
-aidp analyze code --threads 8
-
-# Rebuild knowledge base from scratch
-aidp analyze code --rebuild
+aidp analyze-code --threads 8
 
 # Specify custom KB directory
-aidp analyze code --kb-dir .aidp/custom-kb
-
-# Inspect generated knowledge base
-aidp kb show
-
-# Show specific KB data
-aidp kb show symbols
-aidp kb show imports
-aidp kb show seams
-
-# Generate dependency graphs
-aidp kb graph imports
-aidp kb graph calls
+aidp analyze-code --kb-dir .aidp/custom-kb
 ```
 
 ### Knowledge Base Structure
@@ -425,51 +316,6 @@ The Tree-sitter analysis specifically supports:
 
 AIDP uses background jobs to handle all AI provider executions, providing better reliability and real-time monitoring capabilities.
 
-### Job Monitoring
-
-Monitor running and completed jobs in real-time:
-
-```bash
-aidp jobs                     # Show job status with real-time updates
-```
-
-The jobs view displays:
-
-- **Running jobs** with live progress updates
-- **Queued jobs** waiting to be processed
-- **Completed jobs** with execution results
-- **Failed jobs** with error details
-
-### Job Controls
-
-From the jobs view, you can:
-
-- **Retry failed jobs** by pressing `r` on a failed job
-- **View job details** by pressing `d` on any job
-- **Exit monitoring** by pressing `q`
-
-### Job Persistence
-
-- Jobs persist across CLI restarts
-- Job history is preserved for analysis
-- Failed jobs can be retried at any time
-- All job metadata and logs are stored
-
-### Database Setup
-
-AIDP uses PostgreSQL for job management. Ensure PostgreSQL is installed and running:
-
-```bash
-# macOS (using Homebrew)
-brew install postgresql
-brew services start postgresql
-
-# Ubuntu/Debian
-sudo apt-get install postgresql postgresql-contrib
-sudo systemctl start postgresql
-
-# The database will be created automatically on first use
-```
 
 ## File-Based Interaction
 

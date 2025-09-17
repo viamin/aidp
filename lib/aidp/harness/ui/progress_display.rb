@@ -13,6 +13,8 @@ module Aidp
         class InvalidProgressError < ProgressError; end
         class DisplayError < ProgressError; end
 
+        attr_reader :refresh_interval
+
         def initialize(ui_components = {})
           super()
           @progress = ui_components[:progress] || TTY::ProgressBar
@@ -22,6 +24,7 @@ module Aidp
           @auto_refresh_enabled = false
           @refresh_interval = 1.0
           @refresh_thread = nil
+          @output = ui_components[:output] || $stdout
         end
 
         def show_progress(total_steps, &block)
@@ -30,7 +33,8 @@ module Aidp
           progress_bar = @progress.new(
             "[:bar] :percent% :current/:total",
             total: total_steps,
-            width: 30
+            width: 30,
+            output: @output
           )
 
           execute_progress_steps(progress_bar, total_steps, &block)
@@ -69,6 +73,70 @@ module Aidp
           raise DisplayError, "Failed to display indeterminate progress: #{e.message}"
         end
 
+        def display_progress(progress_data, display_type = :standard)
+          validate_progress_data(progress_data)
+          validate_display_type(display_type)
+
+          case display_type
+          when :standard
+            display_standard_progress(progress_data)
+          when :detailed
+            display_detailed_progress(progress_data)
+          when :minimal
+            display_minimal_progress(progress_data)
+          end
+
+          record_display_history(progress_data, display_type)
+        rescue InvalidProgressError => e
+          raise e
+        rescue => e
+          raise DisplayError, "Failed to display progress: #{e.message}"
+        end
+
+        def display_multiple_progress(progress_items, display_type = :standard)
+          raise ArgumentError, "Progress items must be an array" unless progress_items.is_a?(Array)
+
+          if progress_items.empty?
+            @output.puts @pastel.dim("No progress items to display.")
+            return
+          end
+
+          progress_items.each do |item|
+            display_progress(item, display_type)
+          end
+        end
+
+        def get_display_history
+          @display_history.dup
+        end
+
+        def clear_display_history
+          @display_history = []
+        end
+
+        def start_auto_refresh(interval)
+          return if @auto_refresh_enabled
+
+          @refresh_interval = interval
+          @auto_refresh_enabled = true
+          @refresh_thread = Thread.new do
+            while @auto_refresh_enabled
+              yield if block_given?
+              sleep @refresh_interval
+            end
+          end
+        end
+
+        def stop_auto_refresh
+          @auto_refresh_enabled = false
+          @refresh_thread&.join
+          @refresh_thread = nil
+        end
+
+        def auto_refresh_enabled?
+          @auto_refresh_enabled
+        end
+
         private
 
         def validate_total_steps(total_steps)
@@ -105,55 +173,15 @@ module Aidp
           end
         end
 
-        # New methods expected by tests
-        def display_progress(progress_data, display_type = :standard)
-          validate_progress_data(progress_data)
-          validate_display_type(display_type)
-
-          case display_type
-          when :standard
-            display_standard_progress(progress_data)
-          when :detailed
-            display_detailed_progress(progress_data)
-          when :minimal
-            display_minimal_progress(progress_data)
-          end
-
-          record_display_history(progress_data, display_type)
-        rescue InvalidProgressError => e
-          raise e
-        rescue => e
-          raise DisplayError, "Failed to display progress: #{e.message}"
-        end
-
-        def display_multiple_progress(progress_items, display_type = :standard)
-          raise ArgumentError, "Progress items must be an array" unless progress_items.is_a?(Array)
-
-          if progress_items.empty?
-            puts @pastel.dim("No progress items to display.")
-            return
-          end
-
-          progress_items.each do |item|
-            display_progress(item, display_type)
-          end
-        end
-
-        def get_display_history
-          @display_history.dup
-        end
-
-        def clear_display_history
-          @display_history = []
-        end
-
         def display_standard_progress(progress_data)
           progress = progress_data[:progress] || 0
           message = progress_data[:message] || "Processing..."
-          step_info = progress_data[:current_step] ? " (Step: #{progress_data[:current_step]})" : ""
+          step_info = progress_data[:current_step] && progress_data[:total_steps] ?
+            " (Step: #{progress_data[:current_step]}/#{progress_data[:total_steps]})" :
+            " (Step: #{progress_data[:current_step]})"
+          task_id = progress_data[:id] ? "[#{progress_data[:id]}] " : ""
 
-          bar = create_progress_bar(progress)
-          puts "#{bar.render} #{message}#{step_info}"
+          @output.puts "#{task_id}#{progress}% #{message}#{step_info}"
         end
 
         def display_detailed_progress(progress_data)
@@ -164,14 +192,13 @@ module Aidp
           started_at = progress_data[:started_at] ? progress_data[:started_at].strftime("%H:%M:%S") : "N/A"
           eta = progress_data[:eta] || "N/A"
 
-          bar = create_progress_bar(progress)
-          puts "#{bar.render} #{message} (Step: #{current_step}/#{total_steps}, Started: #{started_at}, ETA: #{eta})"
+          @output.puts "Progress: #{progress}% - #{message} (Step: #{current_step}/#{total_steps}, Started: #{started_at}, ETA: #{eta})"
         end
 
         def display_minimal_progress(progress_data)
           progress = progress_data[:progress] || 0
           message = progress_data[:message] || "Processing..."
-          puts "#{@pastel.blue("Progress:")} #{progress}% - #{message}"
+          @output.puts "#{@pastel.blue("Progress:")} #{progress}% - #{message}"
         end
 
         def create_progress_bar(progress)
@@ -179,7 +206,8 @@ module Aidp
             "#{@pastel.green("[:bar]")} :percent",
             total: 100,
             width: 30,
-            current: progress
+            current: progress,
+            output: @output
           )
         end
 
@@ -200,7 +228,7 @@ module Aidp
 
         def record_display_history(progress_data, display_type)
           @display_history << {
-            data: progress_data.dup,
+            progress_data: progress_data.dup,
             display_type: display_type,
             timestamp: Time.now
           }

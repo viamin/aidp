@@ -21,6 +21,10 @@ module Aidp
         def collect_questions(questions)
           validate_questions_input(questions)
 
+          # Validate all questions first
+          errors = get_validation_errors(questions)
+          raise ValidationError, errors.join("\n") unless errors.empty?
+
           responses = {}
           questions.each_with_index do |question, index|
             question_key = question[:key] || "question_#{index + 1}"
@@ -45,17 +49,47 @@ module Aidp
           raise QuestionError, "Failed to collect question #{number}: #{e.message}"
         end
 
-        private
+        def validate_questions(questions)
+          return true if questions.empty?
 
-        def validate_questions_input(questions)
-          raise ValidationError, "Questions must be an array" unless questions.is_a?(Array)
-          # Allow empty array - return empty hash
+          questions.all? do |question|
+            validate_question_format(question)
+            true
+          rescue ValidationError
+            false
+          end
+        end
+
+        def get_validation_errors(questions)
+          errors = []
+
+          questions.each_with_index do |question, index|
+            validate_question_format(question)
+          rescue ValidationError => e
+            errors << "Question #{index + 1}: #{e.message}"
+          end
+
+          errors
         end
 
         def validate_question_format(question)
           raise ValidationError, "Question must be a hash" unless question.is_a?(Hash)
           raise ValidationError, "Question must have :text key" unless question.key?(:text)
           raise ValidationError, "Question text cannot be empty" if question[:text].to_s.strip.empty?
+          unless question.key?(:type) && question.key?(:required)
+            raise ValidationError, "Question missing required fields"
+          end
+        end
+
+        def validate_questions_input(questions)
+          raise ValidationError, "Questions must be an array" unless questions.is_a?(Array)
+          # Allow empty array - return empty hash
+        end
+
+        private
+
+        def validate_response(response, question)
+          @validator.validate(response, question)
         end
 
         def format_question_text(question, number)
@@ -72,10 +106,6 @@ module Aidp
           return unless question[:options]
 
           question[:options].each { |option| handler.option(option) }
-        end
-
-        def validate_response(response, question)
-          @validator.validate(response, question)
         end
       end
 
@@ -104,30 +134,6 @@ module Aidp
           return unless question[:options]
           return if question[:options].include?(response)
           raise ValidationError, "Response must be one of: #{question[:options].join(", ")}"
-        end
-
-        # New methods expected by tests
-        def validate_questions(questions)
-          return true if questions.empty?
-
-          questions.all? do |question|
-            validate_question_format(question)
-            true
-          rescue ValidationError
-            false
-          end
-        end
-
-        def get_validation_errors(questions)
-          errors = []
-
-          questions.each_with_index do |question, index|
-            validate_question_format(question)
-          rescue ValidationError => e
-            errors << "Question #{index + 1}: #{e.message}"
-          end
-
-          errors
         end
       end
     end

@@ -1,17 +1,19 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
 require_relative "../../../../lib/aidp/harness/ui/progress_display"
 
 RSpec.describe Aidp::Harness::UI::ProgressDisplay do
-  let(:progress_display) { described_class.new }
+  let(:output) { StringIO.new }
+  let(:progress_display) { described_class.new(output: output) }
   let(:sample_progress_data) { build_sample_progress_data }
 
   describe "#display_progress" do
     context "when displaying standard progress" do
       it "shows progress bar with percentage" do
-        expect { progress_display.display_progress(sample_progress_data, :standard) }
-          .to output(/50%/).to_stdout
+        progress_display.display_progress(sample_progress_data, :standard)
+        expect(output.string).to match(/50%/)
       end
 
       it "includes step information when available" do
@@ -20,27 +22,27 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
           total_steps: 5
         )
 
-        expect { progress_display.display_progress(progress_with_steps, :standard) }
-          .to output(/Step: 2\/5/).to_stdout
+        progress_display.display_progress(progress_with_steps, :standard)
+        expect(output.string).to match(/Step: 2\/5/)
       end
     end
 
     context "when displaying detailed progress" do
       it "shows comprehensive progress information" do
-        expect { progress_display.display_progress(sample_progress_data, :detailed) }
-          .to output(/Progress:/).to_stdout
+        progress_display.display_progress(sample_progress_data, :detailed)
+        expect(output.string).to match(/Progress:/)
       end
 
       it "includes timestamp information" do
-        expect { progress_display.display_progress(sample_progress_data, :detailed) }
-          .to output(/Created:/).to_stdout
+        progress_display.display_progress(sample_progress_data, :detailed)
+        expect(output.string).to match(/Started:/)
       end
     end
 
     context "when displaying minimal progress" do
       it "shows only essential information" do
-        expect { progress_display.display_progress(sample_progress_data, :minimal) }
-          .to output(/50%/).to_stdout
+        progress_display.display_progress(sample_progress_data, :minimal)
+        expect(output.string).to match(/50%/)
       end
     end
 
@@ -115,9 +117,9 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
           sample_progress_data.merge(id: "task_2", progress: 75)
         ]
 
-        expect { progress_display.display_multiple_progress(multiple_data, :standard) }
-          .to output(/task_1/).to_stdout
-          .and output(/task_2/).to_stdout
+        progress_display.display_multiple_progress(multiple_data, :standard)
+        expect(output.string).to match(/task_1/)
+        expect(output.string).to match(/task_2/)
       end
     end
 

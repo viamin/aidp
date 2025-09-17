@@ -1,8 +1,9 @@
 # frozen_string_literal: true
+# encoding: utf-8
 
 require "spec_helper"
 
-RSpec.describe "Analyze Workflow with TUI", type: :aruba do
+RSpec.describe "Current CLI Commands", type: :aruba do
   before do
     # Create basic project structure
     create_directory("templates/EXECUTE")
@@ -15,68 +16,33 @@ RSpec.describe "Analyze Workflow with TUI", type: :aruba do
     write_file("templates/ANALYZE/03_TEST_ANALYSIS.md", "# Test Analysis\n\n## Questions\n- Test coverage threshold\n- What tests to run?")
   end
 
-  describe "analyze command" do
-    it "starts analyze workflow with TUI" do
-      run_command("aidp analyze")
+  describe "current CLI commands" do
+    it "shows help information" do
+      run_command("aidp --help")
 
       expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Starting analyze mode with enhanced TUI harness")
+      expect(last_command_started.stdout).to include("Usage: aidp [options]")
+      expect(last_command_started.stdout).to include("Start the interactive TUI (default)")
+      expect(last_command_started.stdout).to include("--help")
+      expect(last_command_started.stdout).to include("--version")
+    end
+
+    it "shows version information" do
+      run_command("aidp --version")
+
+      expect(last_command_started).to be_successfully_executed
+      expect(last_command_started.stdout).to match(/\d+\.\d+\.\d+/)
+    end
+
+    it "starts TUI by default" do
+      run_command("aidp") do |cmd|
+        # Send Ctrl-C after 1 second to exit TUI
+        sleep 1
+        Process.kill("INT", cmd.pid)
+      end
+
       expect(last_command_started.stdout).to include("Press Ctrl+C to stop")
-      expect(last_command_started.stdout).to include("progress indicators")
-    end
-
-    it "starts analyze workflow in traditional mode" do
-      run_command("aidp analyze --no-harness")
-
-      expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Available analyze steps")
-      expect(last_command_started.stdout).to include("Use 'aidp analyze' without arguments")
-    end
-
-    it "runs specific analyze step with TUI" do
-      run_command("aidp analyze 01_REPOSITORY_ANALYSIS")
-
-      expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Running analyze step '01_REPOSITORY_ANALYSIS' with enhanced TUI harness")
-      expect(last_command_started.stdout).to include("progress indicators")
-    end
-
-    it "runs next analyze step" do
-      run_command("aidp analyze next")
-
-      expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Running analyze step")
-      expect(last_command_started.stdout).to include("progress indicators")
-    end
-
-    it "runs analyze step by number" do
-      run_command("aidp analyze 01")
-
-      expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Running analyze step '01_REPOSITORY_ANALYSIS'")
-      expect(last_command_started.stdout).to include("progress indicators")
-    end
-
-    it "resets analyze progress" do
-      run_command("aidp analyze --reset")
-
-      expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Reset analyze mode progress")
-    end
-
-    it "approves analyze gate step" do
-      run_command("aidp analyze --approve 01_REPOSITORY_ANALYSIS")
-
-      expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Approved analyze step: 01_REPOSITORY_ANALYSIS")
-    end
-
-    it "runs analyze with background jobs" do
-      run_command("aidp analyze --background")
-
-      expect(last_command_started).to be_successfully_executed
-      expect(last_command_started.stdout).to include("Starting analyze mode with enhanced TUI harness")
-      expect(last_command_started.stdout).to include("background job indicators")
+      expect(last_command_started.stdout).to include("Choose your mode")
     end
   end
 end

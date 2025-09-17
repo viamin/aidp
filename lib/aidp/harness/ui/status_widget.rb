@@ -79,6 +79,106 @@ module Aidp
           raise DisplayError, "Failed to show warning status: #{e.message}"
         end
 
+        # Methods expected by tests
+        def display_status(status_type, message, error_data = nil)
+          validate_status_type(status_type)
+          validate_message(message)
+
+          case status_type
+          when :loading
+            display_loading_status(message)
+          when :success
+            display_success_status(message)
+          when :error
+            display_error_status(message, error_data)
+          when :warning
+            display_warning_status(message)
+          end
+
+          record_status_history(status_type, message, error_data)
+        rescue InvalidStatusError => e
+          raise e
+        rescue => e
+          raise DisplayError, "Failed to display status: #{e.message}"
+        end
+
+        def start_spinner(message)
+          validate_message(message)
+          stop_spinner if @spinner_active
+
+          @spinner_active = true
+          @current_spinner = @spinner.new("⏳ #{message} :spinner", format: :pulse)
+          @current_spinner.start
+        end
+
+        def stop_spinner
+          return unless @spinner_active
+
+          @current_spinner&.stop
+          @spinner_active = false
+          @current_spinner = nil
+        end
+
+        def update_spinner_message(message)
+          validate_message(message)
+          raise DisplayError, "No active spinner to update" unless @spinner_active
+
+          @current_spinner&.stop
+          @current_spinner = @spinner.new("⏳ #{message} :spinner", format: :pulse)
+          @current_spinner.start
+        end
+
+        def display_status_with_duration(status_type, message, duration)
+          validate_status_type(status_type)
+          validate_message(message)
+
+          formatted_duration = format_duration(duration)
+          message_with_duration = "#{message} (#{formatted_duration})"
+          display_status(status_type, message_with_duration)
+        end
+
+        def display_multiple_status(status_items)
+          return if status_items.empty?
+
+          status_items.each do |item|
+            display_status(item[:type], item[:message], item[:error_data])
+          end
+        end
+
+        def get_status_history
+          @status_history.dup
+        end
+
+        def clear_status_history
+          @status_history.clear
+        end
+
+        def format_duration(seconds)
+          return "0s" if seconds <= 0
+
+          if seconds < 60
+            "#{seconds.round(1)}s"
+          elsif seconds < 3600
+            minutes = (seconds / 60).floor
+            remaining_seconds = (seconds % 60).floor
+            "#{minutes}m #{remaining_seconds}s"
+          else
+            hours = (seconds / 3600).floor
+            minutes = ((seconds % 3600) / 60).floor
+            remaining_seconds = (seconds % 60).floor
+            "#{hours}h #{minutes}m #{remaining_seconds}s"
+          end
+        end
+
+        def spinner_active?
+          @spinner_active
+        end
+
+        def current_spinner_message
+          return nil unless @spinner_active
+          @current_spinner&.message&.to_s&.gsub(/⏳\s+|\s+:spinner/, "")
+        end
+
         private
 
         def validate_message(message)
@@ -92,6 +192,41 @@ module Aidp
 
         def validate_operation_name(operation_name)
           raise InvalidStatusError, "Operation name cannot be empty" if operation_name.to_s.strip.empty?
+        end
+
+        def validate_status_type(status_type)
+          valid_types = [:loading, :success, :error, :warning]
+          unless valid_types.include?(status_type)
+            raise InvalidStatusError, "Invalid status type: #{status_type}. Must be one of: #{valid_types.join(", ")}"
+          end
+        end
+
+        def record_status_history(status_type, message, error_data)
+          @status_history << {
+            type: status_type,
+            message: message,
+            error_data: error_data,
+            timestamp: Time.now
+          }
+        end
+
+        def display_loading_status(message)
+          puts("⏳ #{message}")
+        end
+
+        def display_success_status(message)
+          puts("✅ #{message}")
+        end
+
+        def display_error_status(message, error_data)
+          puts("❌ #{message}")
+          if error_data && error_data[:message]
+            puts("  #{error_data[:message]}")
+          end
+        end
+
+        def display_warning_status(message)
+          puts("⚠️ #{message}")
         end
       end
 
@@ -138,132 +273,6 @@ module Aidp
           else
             "#{step_name}: #{status}"
           end
-        end
-
-        # New methods expected by tests
-        def display_status(status_type, message, error_data = nil)
-          validate_status_type(status_type)
-          validate_message(message)
-
-          case status_type
-          when :loading
-            display_loading_status(message)
-          when :success
-            display_success_status(message)
-          when :error
-            display_error_status(message, error_data)
-          when :warning
-            display_warning_status(message)
-          end
-
-          record_status_history(status_type, message, error_data)
-        rescue InvalidStatusError => e
-          raise e
-        rescue => e
-          raise DisplayError, "Failed to display status: #{e.message}"
-        end
-
-        def start_spinner(message)
-          validate_message(message)
-          return if @spinner_active
-
-          @spinner_active = true
-          @current_spinner = @spinner.spin(message) do |spinner|
-            @current_spinner = spinner
-          end
-        end
-
-        def stop_spinner
-          return unless @spinner_active
-
-          @spinner_active = false
-          @current_spinner = nil
-        end
-
-        def update_spinner_message(message)
-          validate_message(message)
-          raise DisplayError, "No active spinner to update" unless @spinner_active
-
-          @current_spinner&.update_title(message)
-        end
-
-        def display_status_with_duration(status_type, message, duration)
-          validate_status_type(status_type)
-          validate_message(message)
-
-          formatted_duration = format_duration(duration)
-          message_with_duration = "#{message} (#{formatted_duration})"
-          display_status(status_type, message_with_duration)
-        end
-
-        def display_multiple_status(status_items)
-          return if status_items.empty?
-
-          status_items.each do |item|
-            display_status(item[:type], item[:message], item[:error_data])
-          end
-        end
-
-        def get_status_history
-          @status_history.dup
-        end
-
-        def clear_status_history
-          @status_history.clear
-        end
-
-        def format_duration(seconds)
-          return "0s" if seconds <= 0
-
-          if seconds < 60
-            "#{seconds.round(1)}s"
-          elsif seconds < 3600
-            minutes = (seconds / 60).round
-            remaining_seconds = (seconds % 60).round
-            "#{minutes}m #{remaining_seconds}s"
-          else
-            hours = (seconds / 3600).round
-            minutes = ((seconds % 3600) / 60).round
-            remaining_seconds = (seconds % 60).round
-            "#{hours}h #{minutes}m #{remaining_seconds}s"
-          end
-        end
-
-        private
-
-        def display_loading_status(message)
-          puts("⏳ #{message}")
-        end
-
-        def display_success_status(message)
-          puts("✅ #{message}")
-        end
-
-        def display_error_status(message, error_data)
-          puts("❌ #{message}")
-          if error_data && error_data[:details]
-            puts("  Details: #{error_data[:details]}")
-          end
-        end
-
-        def display_warning_status(message)
-          puts("⚠️ #{message}")
-        end
-
-        def validate_status_type(status_type)
-          valid_types = [:loading, :success, :error, :warning]
-          unless valid_types.include?(status_type)
-            raise InvalidStatusError, "Invalid status type: #{status_type}. Must be one of: #{valid_types.join(", ")}"
-          end
-        end
-
-        def record_status_history(status_type, message, error_data)
-          @status_history << {
-            type: status_type,
-            message: message,
-            error_data: error_data,
-            timestamp: Time.now
-          }
         end
       end
     end

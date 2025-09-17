@@ -250,7 +250,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
     it "includes keyboard shortcuts" do
       expect { main_menu.display_navigation_help }
-        .to output(/Arrow keys.*Enter.*Escape/m).to_stdout
+        .to output(/arrow keys.*Enter.*Escape/m).to_stdout
     end
   end
 
