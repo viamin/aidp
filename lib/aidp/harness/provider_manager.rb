@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "provider_factory"
+
 module Aidp
   module Harness
     # Manages provider switching and fallback logic
@@ -1074,6 +1076,45 @@ module Aidp
         end
 
         recent_sessions.max_by { |_, time| time }&.first
+      end
+
+      # Execute a prompt with a specific provider
+      def execute_with_provider(provider_type, prompt, options = {})
+        # Create provider factory instance
+        provider_factory = ProviderFactory.new
+
+        # Create provider instance
+        provider = provider_factory.create_provider(provider_type, options)
+
+        # Set current provider
+        @current_provider = provider_type
+
+        # Execute the prompt with the provider
+        result = provider.send(prompt: prompt, session: nil)
+
+        # Return structured result
+        {
+          status: "completed",
+          provider: provider_type,
+          output: result,
+          metadata: {
+            provider_type: provider_type,
+            prompt_length: prompt.length,
+            timestamp: Time.now.strftime("%Y-%m-%dT%H:%M:%S.%3N%z")
+          }
+        }
+      rescue => e
+        # Return error result
+        {
+          status: "error",
+          provider: provider_type,
+          error: e.message,
+          metadata: {
+            provider_type: provider_type,
+            error_class: e.class.name,
+            timestamp: Time.now.strftime("%Y-%m-%dT%H:%M:%S.%3N%z")
+          }
+        }
       end
 
       private

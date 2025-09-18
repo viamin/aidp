@@ -9,7 +9,9 @@ module Aidp
         RUBY_PLATFORM.include?("darwin")
       end
 
-      def name = "macos"
+      def name
+        "macos"
+      end
 
       def send(prompt:, session: nil)
         raise "macOS UI not available on this platform" unless self.class.available?

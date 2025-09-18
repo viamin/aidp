@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "open3"
+require "tty-command"
 require "json"
 require "fileutils"
 
@@ -19,18 +19,12 @@ module Aidp
 
         raise "Not a Git repository. RubyMaat requires a Git repository for analysis." unless git_repository?
 
-        cmd = [
-          "git", "log",
-          '--pretty=format:"%h|%an|%ad|%aE|%s"',
-          "--date=short",
-          "--numstat"
-        ]
+        cmd = TTY::Command.new(printer: :null)
+        result = cmd.run("git", "log", '--pretty=format:"%h|%an|%ad|%aE|%s"', "--date=short", "--numstat", chdir: @project_dir)
 
-        stdout, stderr, status = Open3.capture3(*cmd, chdir: @project_dir)
+        raise "Failed to generate Git log: #{result.err}" unless result.success?
 
-        raise "Failed to generate Git log: #{stderr}" unless status.success?
-
-        File.write(output_file, stdout)
+        File.write(output_file, result.out)
         output_file
       end
 
@@ -157,16 +151,15 @@ module Aidp
         raise "Input file not found: #{input_file}" unless File.exist?(input_file)
 
         # Run RubyMaat with the same command-line interface as code-maat
-        cmd = ["bundle", "exec", "ruby-maat", analysis_type, input_file]
+        cmd = TTY::Command.new(printer: :null)
+        result = cmd.run("bundle", "exec", "ruby-maat", analysis_type, input_file, chdir: @project_dir)
 
-        stdout, stderr, status = Open3.capture3(*cmd, chdir: @project_dir)
-
-        if status.success?
+        if result.success?
           # Write the output to the specified file
-          File.write(output_file, stdout)
+          File.write(output_file, result.out)
         else
           # Raise proper error instead of falling back to fake data
-          error_msg = "RubyMaat analysis failed for #{analysis_type}: #{stderr.strip}"
+          error_msg = "RubyMaat analysis failed for #{analysis_type}: #{result.err.strip}"
           error_msg += "\n\nTo install ruby-maat, run: gem install ruby-maat"
           error_msg += "\nOr add it to your Gemfile: gem 'ruby-maat'"
           raise error_msg
@@ -455,10 +448,10 @@ module Aidp
       def git_log_available?
         return false unless git_repository?
 
-        cmd = ["git", "log", "--oneline", "-1"]
-        stdout, _, status = Open3.capture3(*cmd, chdir: @project_dir)
+        cmd = TTY::Command.new(printer: :null)
+        result = cmd.run("git", "log", "--oneline", "-1", chdir: @project_dir)
 
-        status.success? && !stdout.strip.empty?
+        result.success? && !result.out.strip.empty?
       end
     end
   end
