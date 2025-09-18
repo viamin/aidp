@@ -1044,7 +1044,6 @@ module Aidp
         error_info[:severity]
       end
 
-
       # Check if error is high severity
       def high_severity_error?(error)
         [:critical, :high].include?(get_error_severity(error))
@@ -1329,7 +1328,6 @@ module Aidp
         default_timeouts[operation_type] || default_timeouts[:default]
       end
 
-
       # Get time remaining until timeout
       def time_until_timeout(start_time, timeout_duration)
         return 0 unless start_time.is_a?(Time) && timeout_duration
@@ -1394,7 +1392,6 @@ module Aidp
         suggestions.uniq
       end
 
-
       # Validate user response based on expected input type
       def validate_user_response(response, expected_input_type)
         return false if response.nil? || response.strip.empty?
@@ -1426,7 +1423,6 @@ module Aidp
           @user_feedback_patterns.values.flatten
         end
       end
-
 
       # Get completion confidence level
       def get_completion_confidence(completion_info)

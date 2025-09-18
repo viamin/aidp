@@ -25,6 +25,20 @@ module Aidp
           @refresh_interval = 1.0
           @refresh_thread = nil
           @output = ui_components[:output] || $stdout
+          @spinner_class = ui_components[:spinner] || TTY::Spinner rescue nil
+          @spinner = nil
+        end
+
+        # Simple spinner management used by component specs
+        def start_spinner(message = "Loading...")
+          return unless @spinner_class
+          @spinner = @spinner_class.new("#{message} :spinner", format: :dots, output: @output)
+          @spinner.start
+        end
+
+        def stop_spinner
+          @spinner&.stop
+          @spinner = nil
         end
 
         def show_progress(total_steps, &block)
@@ -176,7 +190,7 @@ module Aidp
         def display_standard_progress(progress_data)
           progress = progress_data[:progress] || 0
           message = progress_data[:message] || "Processing..."
-          step_info = progress_data[:current_step] && progress_data[:total_steps] ?
+          step_info = (progress_data[:current_step] && progress_data[:total_steps]) ?
             " (Step: #{progress_data[:current_step]}/#{progress_data[:total_steps]})" :
             " (Step: #{progress_data[:current_step]})"
           task_id = progress_data[:id] ? "[#{progress_data[:id]}] " : ""

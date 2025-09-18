@@ -217,7 +217,6 @@ module Aidp
       merge_harness_defaults(config)
     end
 
-
     # Validate harness configuration
     def self.validate_harness_config(config)
       errors = []
@@ -305,7 +304,6 @@ module Aidp
       File.write(config_path, YAML.dump(example_config))
       true
     end
-
 
     private_class_method def self.load_yaml_config(config_file)
       YAML.load_file(config_file) || {}

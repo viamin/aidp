@@ -17,17 +17,17 @@ module Aidp
           class InvalidMenuError < MenuError; end
           class NavigationError < MenuError; end
 
-        def initialize(ui_components = {})
-          super()
-          @prompt = ui_components[:prompt] || TTY::Prompt.new
-          @pastel = Pastel.new
-          @formatter = ui_components[:formatter] || MenuFormatter.new
-          @state_manager = ui_components[:state_manager] || MenuState.new
-          @menu_items = []
-          @current_level = 0
-          @breadcrumb = []
-          @navigation_history = []  # Track all navigation actions
-        end
+          def initialize(ui_components = {})
+            super()
+            @prompt = ui_components[:prompt] || TTY::Prompt.new
+            @pastel = Pastel.new
+            @formatter = ui_components[:formatter] || MenuFormatter.new
+            @state_manager = ui_components[:state_manager] || MenuState.new
+            @menu_items = []
+            @current_level = 0
+            @breadcrumb = []
+            @navigation_history = []  # Track all navigation actions
+          end
 
           def add_menu_item(item)
             validate_menu_item(item)

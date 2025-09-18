@@ -630,7 +630,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       expect(output).to match(/Rate limit reached/)
     end
 
-    it "updates rate limit countdown", pending: "Rate limit countdown display not fully implemented" do
+    it "updates rate limit countdown" do
       output = capture_stdout do
         status_display.update_rate_limit_countdown(30)
       end
@@ -724,7 +724,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       expect(output).to match(/Display Error/)
     end
 
-    it "handles missing manager methods gracefully", pending: "Error handling for missing methods not fully implemented" do
+    it "handles missing manager methods gracefully" do
       allow(provider_manager).to receive(:current_provider).and_raise(NoMethodError)
 
       expect { status_display.send(:collect_provider_status) }.not_to raise_error

@@ -65,6 +65,17 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
     end
   end
 
+  describe "spinner management" do
+    it "starts and stops spinner" do
+      spinner = double("TTY::Spinner")
+      expect(spinner).to receive(:start)
+      expect(spinner).to receive(:stop)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner)
+      progress_display.start_spinner("Loading...")
+      progress_display.stop_spinner
+    end
+  end
+
   describe "#start_auto_refresh" do
     context "when auto refresh is started" do
       it "enables auto refresh mode" do

@@ -399,6 +399,62 @@ end
 5. **Accessible**: Built-in support for screen readers and accessibility features
 6. **Performance**: Optimized for terminal performance and memory usage
 7. **Composable**: Components can be easily combined to create complex interfaces
+
+## Pending Specs Policy
+
+### Philosophy
+
+The test suite is a living contract with the behavior of the system. Marking specs *pending* (or commenting them out) hides regressions and erodes confidence. Therefore:
+
+**Previously passing specs must NOT be marked as pending or commented out to “make the build green.” Fix the regression or deliberately delete the spec (with rationale) – never silently defer it.**
+
+### When Pending Is Acceptable
+
+Use `pending` (or `xit` / `skip`) only for:
+
+- Clearly identified future work that has not yet begun (a true TODO / planned feature)
+- Documented spikes / exploratory work where behavior isn’t finalized
+- Upstream dependency issues temporarily blocking implementation (include link/reference)
+
+### When Pending Is NOT Acceptable
+
+Do NOT mark a spec pending if:
+
+- It previously passed and now fails (that’s a regression)
+- The code path is in active development (write / adjust the test to the emerging behavior instead)
+- You are uncertain how to fix it (open an issue and keep the failing spec to maintain visibility)
+
+### Required Annotation
+
+Every pending spec MUST include a short reason plus (when possible) a tracking reference (issue ID, PR link, ticket).
+
+Example:
+
+```ruby
+pending("Add retry backoff logic - tracked in GH#123")
+```
+
+### Workflow for Regressions
+
+1. Failing spec detected
+2. Decide: fast fix vs. deeper refactor
+3. If deeper refactor needed – create an issue, *leave the spec failing*, and (optionally) quarantine via a focused tag + build allowlist only if absolutely necessary (avoid unless build blocking)
+4. Track resolution visibly – never hide it behind `pending`
+
+### Deleting a Spec
+
+It is acceptable to delete a spec ONLY if the covered behavior is intentionally removed. The PR must state explicitly: “Removing spec X – feature Y deprecated / removed.”
+
+### Quick Checklist
+
+| Action | Allowed? | Notes |
+|--------|----------|-------|
+| Mark previously green spec as `pending` | ❌ | Fix or intentionally remove instead |
+| Add new pending spec for planned feature | ✅ | Include reason + reference |
+| Comment out failing spec | ❌ | Never – loses history / intent |
+| Skip due to flaky external API | ⚠️ | Only with issue + retry strategy |
+
+Maintaining strict discipline around pending specs keeps the suite honest and actionable.
 8. **Testable**: TTY components are designed with testing in mind
 
 ## Testing Guidelines

@@ -9,7 +9,6 @@ This guide covers the new Terminal User Interface (TUI) features in AIDP, provid
 - [TUI Components](#tui-components)
 - [Navigation](#navigation)
 - [Workflow Control](#workflow-control)
-- [Dashboard Features](#dashboard-features)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Troubleshooting](#troubleshooting)
 
@@ -19,7 +18,7 @@ The Enhanced TUI transforms AIDP from a simple command-line tool into a rich, in
 
 - **Beautiful Visual Components**: Progress bars, spinners, frames, and status indicators
 - **Interactive Navigation**: Hierarchical menus with breadcrumb navigation
-- **Real-time Monitoring**: Live dashboards for job status and system health
+- **Real-time Monitoring**: Live progress tracking and system health
 - **Workflow Control**: Pause, resume, cancel, and stop operations with visual feedback
 - **Smart Question Collection**: Interactive prompts with validation and error handling
 
@@ -28,25 +27,14 @@ The Enhanced TUI transforms AIDP from a simple command-line tool into a rich, in
 ### Basic TUI Usage
 
 ```bash
-# Run with enhanced TUI (default)
-aidp execute
-aidp analyze
+# Start the interactive TUI (default)
+aidp
 
-# Access the main dashboard
-aidp dashboard
+# Show version information
+aidp --version
 
-# Show enhanced status
-aidp status
-```
-
-### Traditional Mode
-
-If you prefer the original step-by-step interface:
-
-```bash
-# Disable TUI and use traditional mode
-aidp execute --no-harness
-aidp analyze --no-harness
+# Show help information
+aidp --help
 ```
 
 ## TUI Components
@@ -55,7 +43,7 @@ aidp analyze --no-harness
 
 The TUI shows real-time progress with beautiful progress bars:
 
-```
+```text
 🔄 Processing Step 2/5: Architecture Analysis
 ████████████████████████████████████████ 80% (4.2s remaining)
 ```
@@ -73,7 +61,7 @@ Different status types with appropriate icons and colors:
 
 Organized content in nested frames:
 
-```
+```text
 📋 Main Workflow
 ├── 📝 Step 1: PRD Generation
 │   ├── 🔧 Question Collection
@@ -87,7 +75,7 @@ Organized content in nested frames:
 
 Interactive prompts with validation:
 
-```
+```text
 ❓ What is the main goal of this feature?
    ┌─────────────────────────────────────┐
    │ To enhance the user interface with  │
@@ -102,26 +90,22 @@ Interactive prompts with validation:
 
 Navigate through nested menus with clear hierarchy:
 
-```
+```text
 🏠 Main Menu
 ├── 🚀 Execute Workflow
 │   ├── 📋 Simple Mode
 │   └── ⚙️ Advanced Mode
-├── 🔍 Analyze Workflow
-│   ├── 📊 Repository Analysis
-│   ├── 🏗️ Architecture Analysis
-│   └── 🧪 Test Analysis
-└── 📊 Dashboard
-    ├── 📈 Overview
-    ├── 🔄 Jobs
-    └── 📊 Metrics
+└── 🔍 Analyze Workflow
+    ├── 📊 Repository Analysis
+    ├── 🏗️ Architecture Analysis
+    └── 🧪 Test Analysis
 ```
 
 ### Breadcrumb Navigation
 
 Always know where you are in the navigation:
 
-```
+```text
 Home > Execute Workflow > Advanced Mode > Step Selection
 ```
 
@@ -137,7 +121,7 @@ Home > Execute Workflow > Advanced Mode > Step Selection
 
 ### Pause and Resume
 
-```bash
+```text
 # During workflow execution, press Ctrl+P to pause
 # The TUI will show:
 ⏸️ Workflow Paused
@@ -152,7 +136,7 @@ Home > Execute Workflow > Advanced Mode > Step Selection
 
 ### Cancel and Stop
 
-```bash
+```text
 # Cancel workflow (graceful shutdown)
 ⏹️ Workflow Cancelled
    All resources cleaned up
@@ -168,60 +152,13 @@ Home > Execute Workflow > Advanced Mode > Step Selection
 
 Monitor workflow progress in real-time:
 
-```
+```text
 🔄 Current Workflow: Execute Mode
 ├── 📊 Progress: 3/7 steps completed (43%)
 ├── ⏱️ Duration: 2m 15s
 ├── 🎯 Current Step: Implementation
 ├── 🤖 Provider: Claude (Primary)
 └── 📈 Success Rate: 100%
-```
-
-## Dashboard Features
-
-### Main Dashboard
-
-Access the comprehensive dashboard:
-
-```bash
-aidp dashboard
-```
-
-The dashboard provides:
-
-- **Overview**: System status and recent activity
-- **Jobs**: Background job monitoring and management
-- **Metrics**: Performance statistics and analytics
-- **Errors**: Error tracking and resolution suggestions
-- **History**: Workflow execution history
-- **Settings**: TUI configuration options
-
-### Job Monitoring
-
-Monitor background jobs in real-time:
-
-```
-🔄 Background Jobs
-├── ✅ Job 1: PRD Generation (Completed - 45s)
-├── 🔄 Job 2: Architecture Analysis (Running - 2m 15s)
-│   └── Progress: ████████████████░░░░ 80%
-└── ⏳ Job 3: Test Generation (Queued)
-```
-
-### Performance Metrics
-
-View system performance:
-
-```
-📊 Performance Metrics
-├── ⚡ Average Response Time: 2.3s
-├── 🎯 Success Rate: 98.5%
-├── 🔄 Total Workflows: 47
-├── ⏱️ Average Duration: 8m 32s
-└── 🤖 Provider Usage:
-    ├── Claude: 65%
-    ├── Gemini: 25%
-    └── Cursor: 10%
 ```
 
 ## Keyboard Shortcuts
@@ -234,8 +171,6 @@ View system performance:
 - **Ctrl+S**: Stop workflow
 - **Ctrl+Q**: Quit application
 - **F1**: Show help
-- **F2**: Toggle dashboard
-- **F3**: Show status
 
 ### Navigation Shortcuts
 
@@ -246,42 +181,33 @@ View system performance:
 - **Tab**: Next field/section
 - **Shift+Tab**: Previous field/section
 
-### Dashboard Shortcuts
-
-- **1-9**: Switch to dashboard view
-- **R**: Refresh data
-- **F**: Filter results
-- **S**: Sort results
-- **H**: Show/hide help
-
 ## Troubleshooting
 
-### Common Issues
+### Common Problems
 
 #### TUI Not Displaying Correctly
 
 ```bash
 # Check terminal compatibility
-aidp status
+aidp --help
 
-# If issues persist, use traditional mode
-aidp execute --no-harness
+# If issues persist, try resizing your terminal window
 ```
 
 #### Navigation Not Working
 
 - Ensure your terminal supports ANSI escape codes
 - Try resizing your terminal window
-- Use traditional mode if keyboard navigation fails
+- Check your terminal's color and Unicode support
 
 #### Performance Issues
 
 ```bash
-# Check system resources
-aidp dashboard --view metrics
+# Enable debug output
+AIDP_DEBUG=1 aidp
 
-# Reduce TUI complexity
-aidp execute --no-dashboard
+# Log to a file
+AIDP_LOG_FILE=aidp.log aidp
 ```
 
 ### Error Messages
@@ -291,8 +217,8 @@ aidp execute --no-dashboard
 This usually indicates a terminal compatibility issue:
 
 1. Try using a different terminal emulator
-2. Use traditional mode: `aidp execute --no-harness`
-3. Check your terminal's color and Unicode support
+2. Check your terminal's color and Unicode support
+3. Ensure your terminal window is large enough
 
 #### "Navigation State Corrupted"
 
@@ -300,29 +226,16 @@ If navigation becomes unresponsive:
 
 1. Press **Escape** multiple times to reset
 2. Use **Ctrl+C** to exit and restart
-3. Clear navigation history: `aidp harness reset --mode execute`
-
-#### "Dashboard Not Responding"
-
-If the dashboard becomes unresponsive:
-
-1. Press **R** to refresh
-2. Press **F2** to toggle dashboard
-3. Restart the application
+3. Start a new session
 
 ### Getting Help
 
 ```bash
-# Show TUI help
-aidp dashboard --help
-
-# Show all available commands
+# Show help information
 aidp --help
 
-# Show specific command help
-aidp execute --help
-aidp analyze --help
-aidp dashboard --help
+# Show version information
+aidp --version
 ```
 
 ### Configuration
@@ -332,12 +245,6 @@ Customize TUI behavior in your `aidp.yml`:
 ```yaml
 tui:
   enabled: true
-  dashboard:
-    auto_refresh: true
-    refresh_interval: 2
-  navigation:
-    show_breadcrumbs: true
-    keyboard_shortcuts: true
   display:
     show_progress: true
     show_animations: true
@@ -348,24 +255,23 @@ tui:
 
 ### Workflow Management
 
-1. **Use the dashboard** to monitor long-running workflows
-2. **Pause workflows** when you need to step away
-3. **Check status regularly** to stay informed
-4. **Use keyboard shortcuts** for faster navigation
+1. **Use keyboard shortcuts** for faster navigation
+2. **Check status regularly** to stay informed
+3. **Save progress** before exiting
+4. **Keep terminal window large enough** for proper display
 
 ### Performance
 
-1. **Close unused dashboard views** to reduce resource usage
-2. **Use traditional mode** for simple, quick operations
-3. **Monitor system resources** through the metrics view
-4. **Clear history periodically** to maintain performance
+1. **Use debug mode** for troubleshooting
+2. **Monitor system resources** if performance degrades
+3. **Keep terminal output clean** for better visibility
 
-### Troubleshooting
+### Troubleshooting Tips
 
-1. **Start with traditional mode** if TUI has issues
-2. **Check terminal compatibility** before using advanced features
-3. **Use the help system** for guidance
-4. **Report issues** with terminal and system information
+1. **Check terminal compatibility** before starting
+2. **Use the help system** for guidance
+3. **Report issues** with terminal and system information
+4. **Keep logs** for debugging
 
 ---
 
