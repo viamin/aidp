@@ -36,7 +36,7 @@ jobs:
 
     - name: Run system tests
       run: |
-        bundle exec rspec spec/system/ --format progress --format json --out system_test_results.json
+        bundle exec rspec spec/system/**/*_spec.rb --format progress --format json --out system_test_results.json
       env:
         CI: true
 
@@ -46,19 +46,3 @@ jobs:
       with:
         name: system-test-results-${{ matrix.ruby-version }}
         path: system_test_results.json
-
-    - name: Run system tests with coverage
-      if: matrix.ruby-version == '3.2'
-      run: |
-        bundle exec rspec spec/system/ --format progress
-      env:
-        CI: true
-        COVERAGE: true
-
-    - name: Upload coverage reports
-      if: matrix.ruby-version == '3.2' && success()
-      uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7
-      with:
-        files: ./coverage/coverage.xml
-        flags: system-tests
-        name: system-test-coverage
