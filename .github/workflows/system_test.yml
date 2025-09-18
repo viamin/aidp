@@ -27,7 +27,8 @@ jobs:
     - name: Install dependencies
       run: |
         bundle install
-        bundle exec gem install aidp --local
+        gem build aidp.gemspec
+        gem install aidp-*.gem
 
     - name: Set up test environment
       run: |
