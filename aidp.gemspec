@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.bindir = "bin"
   s.executables = ["aidp"]
   s.require_paths = ["lib"]
-  s.required_ruby_version = ">= 3.0"
+  s.required_ruby_version = ">= 3.3"
 
   s.add_runtime_dependency "async-job", "~> 0.11"
   s.add_runtime_dependency "colorize", "~> 1.1"
