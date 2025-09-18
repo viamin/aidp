@@ -20,6 +20,17 @@ This template provides common capabilities and guidelines for AI agents in both 
 - **Contextual Relevance**: Ensure recommendations are relevant to the project
 - **Professional Tone**: Maintain a helpful, professional demeanor
 
+### User Interaction Guidelines
+
+#### TUI-Based Interaction
+
+- **Interactive Questions**: Present questions through the harness TUI system for real-time user input
+- **Validation**: Use built-in validation for user responses (required fields, format validation, etc.)
+- **Error Handling**: Provide clear error messages and allow users to correct invalid input
+- **Progress Feedback**: Show progress indicators and status updates during long operations
+- **Rich Interface**: Utilize CLI UI components for beautiful, interactive terminal experience
+- **STDOUT Integration**: Ensure all output flows through the harness system for proper display
+
 ### Quality Standards
 
 - **Accuracy**: Ensure information is correct and up-to-date

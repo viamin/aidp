@@ -12,12 +12,6 @@ module Aidp
       end
 
       # Check if RubyMaat gem is available and accessible
-      def check_prerequisites
-        {
-          git_repository: git_repository?,
-          git_log_available: git_log_available?
-        }
-      end
 
       # Generate Git log for RubyMaat analysis
       def generate_git_log(output_file = nil)
@@ -267,11 +261,6 @@ module Aidp
       end
 
       # Clean up chunk files after analysis
-      def cleanup_chunk_files(git_log_file)
-        Dir.glob("#{git_log_file}.chunk_*").each do |chunk_file|
-          File.delete(chunk_file) if File.exist?(chunk_file)
-        end
-      end
 
       def parse_churn_results(file_path)
         return {files: []} unless File.exist?(file_path)

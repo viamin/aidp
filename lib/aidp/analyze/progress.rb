@@ -71,6 +71,9 @@ module Aidp
         else
           {}
         end
+
+        # Ensure @progress is never nil
+        @progress = {} if @progress.nil?
       end
 
       def save_progress

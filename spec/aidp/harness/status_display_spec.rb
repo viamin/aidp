@@ -16,8 +16,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
   let(:provider_manager) { instance_double("Aidp::Harness::ProviderManager") }
   let(:metrics_manager) { instance_double("Aidp::Harness::MetricsManager") }
   let(:circuit_breaker_manager) { instance_double("Aidp::Harness::CircuitBreakerManager") }
-  let(:error_logger) { instance_double("Aidp::Harness::ErrorLogger") }
-  let(:status_display) { described_class.new(provider_manager, metrics_manager, circuit_breaker_manager, error_logger) }
+  let(:status_display) { described_class.new(provider_manager, metrics_manager, circuit_breaker_manager) }
 
   before do
     # Mock provider manager methods
@@ -40,8 +39,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       "claude" => {state: :closed, failure_count: 0}
     })
 
-    # Mock error logger methods
-    allow(error_logger).to receive(:get_log_summary).and_return({
+    # Initialize error summary directly
+    status_display.instance_variable_set(:@error_summary, {
       error_summary: {total_errors: 2, error_rate: 0.05}
     })
   end
@@ -631,7 +630,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       expect(output).to match(/Rate limit reached/)
     end
 
-    it "updates rate limit countdown", pending: "Rate limit countdown display not fully implemented" do
+    it "updates rate limit countdown" do
       output = capture_stdout do
         status_display.update_rate_limit_countdown(30)
       end
@@ -725,7 +724,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       expect(output).to match(/Display Error/)
     end
 
-    it "handles missing manager methods gracefully", pending: "Error handling for missing methods not fully implemented" do
+    it "handles missing manager methods gracefully" do
       allow(provider_manager).to receive(:current_provider).and_raise(NoMethodError)
 
       expect { status_display.send(:collect_provider_status) }.not_to raise_error

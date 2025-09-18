@@ -2,20 +2,17 @@
 
 ## [0.7.0](https://github.com/viamin/aidp/compare/aidp/v0.6.0...aidp/v0.7.0) (2025-09-07)
 
-
 ### Features
 
 * add Copilot instructions for AIDP project ([2130422](https://github.com/viamin/aidp/commit/21304225b994ed397ab20a5099f29a69aac1eafc))
 * add kb_dir option to kb_show and kb_graph commands for customizable knowledge base directory ([4cbf8ff](https://github.com/viamin/aidp/commit/4cbf8ff98d2aa0b147ffeebed15be5ac5c2504fb))
 * Add Tree-sitter static analysis capabilities and parser installation ([#36](https://github.com/viamin/aidp/issues/36)) ([467fa35](https://github.com/viamin/aidp/commit/467fa357fd9fbeb410353e12eb5f42b7a6f6adfc))
 
-
 ### Bug Fixes
 
 * enhance error handling by adding PG::Error to database error rescue clauses ([30ed108](https://github.com/viamin/aidp/commit/30ed1088430f2ee49a5925841b4e9a59731cb866))
 * update download URL format for Tree-sitter parsers and improve error handling in TreeSitterScan ([e1dc397](https://github.com/viamin/aidp/commit/e1dc397e8dd390dbcfdf7c564e9fec20f8173f49))
 * update path separator handling in TreeSitterScan for cross-platform compatibility ([55b4b67](https://github.com/viamin/aidp/commit/55b4b6792a3d90830eab7f9ea3e80cc6faa80a8c))
-
 
 ### Improvements
 
@@ -24,7 +21,6 @@
 * streamline parser installation script and enhance error handling in TreeSitterScan ([686b10d](https://github.com/viamin/aidp/commit/686b10d13169ed392f8253a491260617342f32c6))
 
 ## [0.6.0](https://github.com/viamin/aidp/compare/aidp-v0.5.4...aidp/v0.6.0) (2025-09-05)
-
 
 ### Features
 
@@ -51,7 +47,6 @@
 * update publish workflow and remove legacy release workflow; bump aidp version to 0.2.0 ([07dc9c7](https://github.com/viamin/aidp/commit/07dc9c761a7d5e989fa3418af85935e5e98168c5))
 * update release-please configuration for Ruby; add changelog sections and pull request title pattern ([b7d01e0](https://github.com/viamin/aidp/commit/b7d01e0c66fe56b6bc777099ebb06f2b67d9024f))
 
-
 ### Bug Fixes
 
 * code scanning alert no. 6: Workflow does not contain permissions ([9120c66](https://github.com/viamin/aidp/commit/9120c66d230ae5252aeed7f66a02474b83ce303c))
@@ -61,7 +56,6 @@
 * rspec setup for testing ([0233047](https://github.com/viamin/aidp/commit/02330472cfe8cef2c024ccee5989d82f825de3ff))
 * update version to match release tags ([d116ead](https://github.com/viamin/aidp/commit/d116ead588d64aae292c0d34c2d57b3dbf6de0e9))
 * update version to match release tags ([ae4d96a](https://github.com/viamin/aidp/commit/ae4d96a9e198ead4fb78ded495fa42222bc62b56))
-
 
 ### Improvements
 
@@ -75,7 +69,6 @@
 * update documentation and integration references from Code Maat to ruby-maat ([65f38bb](https://github.com/viamin/aidp/commit/65f38bba9a116af3dec9fd88b7be2adcff6ff938))
 * update documentation and integration references from Code Maat to ruby-maat ([263d741](https://github.com/viamin/aidp/commit/263d741d085137bb1d1bb7b23676e40171eca799))
 * update gemspec summary and description for clarity and accuracy ([2554b64](https://github.com/viamin/aidp/commit/2554b64693f895ba85399b377d0d3034079cdf28))
-
 
 ### Maintenance
 

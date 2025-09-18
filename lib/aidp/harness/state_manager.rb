@@ -108,7 +108,7 @@ module Aidp
 
       # Update specific state fields
       def update_state(updates)
-        current_state = load_state
+        current_state = load_state || {}
         updated_state = current_state.merge(updates)
         save_state(updated_state)
       end
@@ -116,6 +116,7 @@ module Aidp
       # Get current step from state (legacy method - use progress tracker integration instead)
       def current_step_from_state
         state = load_state
+        return nil unless state
         state[:current_step]
       end
 
@@ -127,6 +128,7 @@ module Aidp
       # Get user input from state
       def user_input
         state = load_state
+        return {} unless state
         state[:user_input] || {}
       end
 
@@ -140,6 +142,7 @@ module Aidp
       # Get execution log
       def execution_log
         state = load_state
+        return [] unless state
         state[:execution_log] || []
       end
 
@@ -562,6 +565,21 @@ module Aidp
       ensure
         # Clean up lock file
         File.delete(@lock_file) if lock_acquired && File.exist?(@lock_file)
+      end
+
+      # Clean up stale lock files (older than 30 seconds)
+      def cleanup_stale_lock
+        return unless File.exist?(@lock_file)
+
+        begin
+          stat = File.stat(@lock_file)
+          if Time.now - stat.mtime > 30
+            File.delete(@lock_file)
+          end
+        rescue => e
+          # Ignore errors when cleaning up stale locks
+          warn "Failed to cleanup stale lock: #{e.message}" if ENV["DEBUG"]
+        end
       end
     end
   end

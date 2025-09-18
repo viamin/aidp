@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require "tty-table"
+require "tty-box"
 
 module Aidp
   module Analysis
@@ -57,7 +57,23 @@ module Aidp
       end
 
       def create_table(header, rows)
-        TTY::Table.new(header: header, rows: rows)
+        # Use TTY::Box for table display
+        content = []
+        rows.each_with_index do |row, index|
+          row_content = []
+          header.each_with_index do |col_header, col_index|
+            row_content << "#{col_header}: #{row[col_index]}"
+          end
+          content << "Row #{index + 1}:\n#{row_content.join("\n")}"
+        end
+
+        box = TTY::Box.frame(
+          content.join("\n\n"),
+          title: {top_left: "Knowledge Base Data"},
+          border: :thick,
+          padding: [1, 2]
+        )
+        puts box
       end
 
       def load_kb_data
@@ -128,7 +144,10 @@ module Aidp
       end
 
       def show_seams_table
-        table = create_table(
+        puts "\n🔧 Seams Analysis"
+        puts "=" * 80
+
+        create_table(
           ["Type", "File", "Line", "Symbol", "Suggestion"],
           @data[:seams].map do |seam|
             [
@@ -140,10 +159,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n🔧 Seams Analysis"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_seams_summary
@@ -183,7 +198,10 @@ module Aidp
       end
 
       def show_hotspots_table
-        table = create_table(
+        puts "\n🔥 Code Hotspots"
+        puts "=" * 80
+
+        create_table(
           ["Rank", "File", "Method", "Score", "Complexity", "Touches"],
           @data[:hotspots].map.with_index do |hotspot, i|
             [
@@ -196,10 +214,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n🔥 Code Hotspots"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_hotspots_summary
@@ -286,7 +300,10 @@ module Aidp
       end
 
       def show_symbols_table
-        table = create_table(
+        puts "\n🏗️  Symbols"
+        puts "=" * 80
+
+        create_table(
           ["Type", "Name", "File", "Line", "Visibility"],
           @data[:symbols].map do |symbol|
             [
@@ -298,10 +315,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n🏗️  Symbols"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_symbols_summary
@@ -329,7 +342,10 @@ module Aidp
       end
 
       def show_imports_table
-        table = create_table(
+        puts "\n📦 Imports"
+        puts "=" * 80
+
+        create_table(
           ["Type", "Target", "File", "Line"],
           @data[:imports].map do |import|
             [
@@ -340,10 +356,6 @@ module Aidp
             ]
           end
         )
-
-        puts "\n📦 Imports"
-        puts "=" * 80
-        puts table.render
       end
 
       def show_imports_summary

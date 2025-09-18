@@ -1,6 +1,6 @@
 # AI Dev Pipeline (aidp) - Ruby Gem
 
-A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants. Now with **Harness Mode** - autonomous execution that runs complete workflows automatically with intelligent provider management and error recovery.
+A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants. Now with **Enhanced TUI** - a rich terminal interface that runs complete workflows with intelligent provider management and error recovery.
 
 ## Quick Start
 
@@ -11,203 +11,55 @@ gem install aidp
 # Navigate to your project
 cd /your/project
 
-# Start the workflow (now with autonomous harness mode)
-aidp execute
-
-# Or run analysis
-aidp analyze
+# Start the interactive TUI (default)
+aidp
 ```
 
-## 🚀 New: Harness Mode
+## Enhanced TUI
 
-AIDP now features **Harness Mode** - an autonomous execution system that transforms AIDP from a step-by-step tool into an intelligent development assistant. The harness runs complete workflows automatically, handling rate limits, user feedback, error recovery, and provider switching.
+AIDP features a rich terminal interface that transforms it from a step-by-step tool into an intelligent development assistant. The enhanced TUI provides beautiful, interactive terminal components while running complete workflows automatically.
 
-### Harness Features
+### Features
 
-- **🔄 Autonomous Execution**: Runs complete workflows from start to finish
-- **🧠 Intelligent Provider Management**: Automatic switching between Claude, Gemini, and Cursor
-- **⚡ Smart Error Recovery**: Handles rate limits, timeouts, and failures automatically
-- **💬 Interactive User Input**: Collects feedback when agents need clarification
-- **📊 Real-time Monitoring**: Live status updates and progress tracking
-- **🔧 Configurable**: Customize behavior through `aidp.yml` configuration
+- **🎨 Rich Terminal Interface**: Beautiful CLI UI components with progress bars, spinners, and frames
+- **📋 Interactive Navigation**: Hierarchical menu system with breadcrumb navigation
+- **⌨️ Keyboard Shortcuts**: Full keyboard navigation and control
+- **📊 Real-time Progress**: Live monitoring of progress and system status
+- **🔄 Workflow Control**: Pause, resume, cancel, and stop workflows with visual feedback
+- **💬 Smart Question Collection**: Interactive prompts with validation and error handling
 
-### Quick Harness Start
+### Usage
 
 ```bash
-# Run complete analysis workflow automatically
-aidp analyze
+# Start the interactive TUI (default)
+aidp
 
-# Run complete development workflow automatically
-aidp execute
+# Show version information
+aidp --version
 
-# Check harness status
-aidp harness status
-
-# View real-time progress
-aidp status
-```
-
-### Harness Configuration
-
-Create an `aidp.yml` file to customize harness behavior:
-
-```yaml
-# aidp.yml
-harness:
-  enabled: true
-  max_retries: 2
-  default_provider: "claude"
-  fallback_providers: ["gemini", "cursor"]
-
-providers:
-  claude:
-    type: "api"
-    api_key: "${AIDP_CLAUDE_API_KEY}"
-    max_tokens: 100000
-  gemini:
-    type: "api"
-    api_key: "${AIDP_GEMINI_API_KEY}"
-    max_tokens: 50000
-  cursor:
-    type: "package"
-```
-
-### Traditional Mode Still Available
-
-You can still run individual steps manually:
-
-```bash
-# Traditional step-by-step mode
-aidp execute next
-aidp analyze 01_REPOSITORY_ANALYSIS
-```
-
-## User Workflow
-
-The gem automates a complete development pipeline with **human-in-the-loop gates** at key decision points. Here's the simplest workflow:
-
-### 1. Start Your Project
-
-```bash
-cd /your/project
-aidp status                   # Check current progress
-aidp execute next             # Run the next pending step
-```
-
-### 2. Handle Gate Steps
-
-When you reach a **gate step** (PRD, Architecture, Tasks, Implementation), the AI will:
-
-1. **Generate questions** in a file (e.g., `PRD_QUESTIONS.md`) if it needs more information
-2. **Create the main output** (e.g., `docs/PRD.md`)
-3. **Wait for your approval** before proceeding
-
-**Your actions at gates:**
-
-```bash
-# Review the generated files
-cat PRD_QUESTIONS.md          # Check if AI needs more information
-cat docs/PRD.md              # Review the output
-
-# If PRD_QUESTIONS.md exists, answer the questions:
-# Edit the questions file directly with your answers
-nano PRD_QUESTIONS.md         # Add your answers below each question
-
-# Re-run the step to use your answers
-aidp execute prd              # AI will read your answers and complete the step
-
-# Once satisfied with the output, approve and continue
-aidp approve current          # Mark the step complete
-aidp execute next             # Continue to next step
-```
-
-### 3. Continue the Pipeline
-
-For non-gate steps, the AI runs automatically:
-
-```bash
-aidp execute next             # Run next step automatically
-aidp status                   # Check progress
-```
-
-### 4. Complete the Workflow
-
-The pipeline includes 15 steps total:
-
-- **Gates**: PRD, Architecture, Tasks, Implementation (require approval)
-- **Auto**: NFRs, ADRs, Domains, Contracts, Threat Model, Test Plan, Scaffolding, Static Analysis, Observability, Delivery, Docs Portal, Post-Release
-
-## Key Commands
-
-### Harness Mode Commands
-
-```bash
-aidp execute                  # Run complete development workflow automatically
-aidp analyze                  # Run complete analysis workflow automatically
-aidp harness status           # Show detailed harness status and configuration
-aidp harness reset --mode=analyze  # Reset harness state for analyze mode
-aidp harness reset --mode=execute  # Reset harness state for execute mode
-aidp config show              # Show current configuration
-aidp config validate          # Validate configuration file
-```
-
-### Traditional Mode Commands
-
-```bash
-aidp status                   # Show progress of all steps
-aidp execute next             # Run next pending step
-aidp approve current          # Approve current gate step
-aidp jobs                     # Monitor background jobs (real-time)
-aidp detect                   # See which AI provider will be used
-aidp execute <step>           # Run specific step (e.g., prd, arch, tasks)
-aidp approve <step>           # Approve specific step
-aidp reset                    # Reset all progress (start over)
-```
-
-### Universal Commands
-
-```bash
-aidp status                   # Show progress of all steps (works in both modes)
-aidp jobs                     # Monitor background jobs (real-time)
-aidp version                  # Show version information
-aidp help                     # Show help information
+# Show help information
+aidp --help
 ```
 
 ## AI Providers
 
-### Harness Mode (Recommended)
-
-In harness mode, AIDP intelligently manages multiple providers with automatic switching:
+AIDP intelligently manages multiple providers with automatic switching:
 
 - **Claude API** - Primary provider for complex analysis and code generation
 - **Gemini API** - Cost-effective fallback for general tasks
 - **Cursor CLI** - IDE-integrated provider for code-specific tasks
 
-The harness automatically switches providers when:
+The TUI automatically switches providers when:
 
 - Rate limits are hit
 - Providers fail or timeout
 - Cost limits are reached
 - Performance optimization is needed
 
-### Traditional Mode
-
-The gem automatically detects and uses the best available AI provider:
-
-- **Cursor CLI** (`cursor-agent`) - Preferred
-- **Claude CLI** (`claude`/`claude-code`) - Fallback
-- **Gemini CLI** (`gemini`/`gemini-cli`) - Fallback
-
 ### Provider Configuration
-
-#### Harness Mode Configuration
 
 ```yaml
 # aidp.yml
-harness:
-  default_provider: "claude"
-  fallback_providers: ["gemini", "cursor"]
-
 providers:
   claude:
     type: "api"
@@ -221,16 +73,12 @@ providers:
     type: "package"
 ```
 
-#### Environment Variables
+### Environment Variables
 
 ```bash
-# Set API keys for harness mode
+# Set API keys
 export AIDP_CLAUDE_API_KEY="your-claude-api-key"
 export AIDP_GEMINI_API_KEY="your-gemini-api-key"
-
-# Traditional mode override
-AIDP_PROVIDER=anthropic aidp execute next
-AIDP_LLM_CMD=/usr/local/bin/claude aidp execute next
 ```
 
 ## Tree-sitter Static Analysis
@@ -287,37 +135,6 @@ echo 'export TREE_SITTER_PARSERS="$(pwd)/.aidp/parsers"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-### Tree-sitter Analysis Commands
-
-```bash
-# Run Tree-sitter static analysis
-aidp analyze code
-
-# Analyze specific languages
-aidp analyze code --langs ruby,javascript,typescript
-
-# Use multiple threads for faster analysis
-aidp analyze code --threads 8
-
-# Rebuild knowledge base from scratch
-aidp analyze code --rebuild
-
-# Specify custom KB directory
-aidp analyze code --kb-dir .aidp/custom-kb
-
-# Inspect generated knowledge base
-aidp kb show
-
-# Show specific KB data
-aidp kb show symbols
-aidp kb show imports
-aidp kb show seams
-
-# Generate dependency graphs
-aidp kb graph imports
-aidp kb graph calls
-```
-
 ### Knowledge Base Structure
 
 The Tree-sitter analysis generates structured JSON files in `.aidp/kb/`:
@@ -341,56 +158,6 @@ The Tree-sitter analysis specifically supports:
 - **Test Coverage**: Identifies untested public APIs
 - **Refactoring Opportunities**: Suggests dependency injection points and seam locations
 
-## Background Jobs
-
-AIDP uses background jobs to handle all AI provider executions, providing better reliability and real-time monitoring capabilities.
-
-### Job Monitoring
-
-Monitor running and completed jobs in real-time:
-
-```bash
-aidp jobs                     # Show job status with real-time updates
-```
-
-The jobs view displays:
-
-- **Running jobs** with live progress updates
-- **Queued jobs** waiting to be processed
-- **Completed jobs** with execution results
-- **Failed jobs** with error details
-
-### Job Controls
-
-From the jobs view, you can:
-
-- **Retry failed jobs** by pressing `r` on a failed job
-- **View job details** by pressing `d` on any job
-- **Exit monitoring** by pressing `q`
-
-### Job Persistence
-
-- Jobs persist across CLI restarts
-- Job history is preserved for analysis
-- Failed jobs can be retried at any time
-- All job metadata and logs are stored
-
-### Database Setup
-
-AIDP uses PostgreSQL for job management. Ensure PostgreSQL is installed and running:
-
-```bash
-# macOS (using Homebrew)
-brew install postgresql
-brew services start postgresql
-
-# Ubuntu/Debian
-sudo apt-get install postgresql postgresql-contrib
-sudo systemctl start postgresql
-
-# The database will be created automatically on first use
-```
-
 ## File-Based Interaction
 
 At gate steps, the AI creates files for interaction instead of requiring real-time chat:
@@ -413,45 +180,13 @@ The questions file is only created when the AI needs additional information beyo
 
 ```bash
 # Enable debug output to see AI provider communication
-AIDP_DEBUG=1 aidp execute next
+AIDP_DEBUG=1 aidp
 
 # Log to a file for debugging
-AIDP_LOG_FILE=aidp.log aidp execute next
+AIDP_LOG_FILE=aidp.log aidp
 
 # Combine both for full debugging
-AIDP_DEBUG=1 AIDP_LOG_FILE=aidp.log aidp execute next
-```
-
-## Workflow Example
-
-Here's a typical session:
-
-```bash
-# 1. Start the workflow
-aidp execute next
-# → Creates docs/PRD.md and PRD_QUESTIONS.md
-
-# 2. Monitor job progress (optional)
-aidp jobs
-# → Shows real-time job status and progress
-
-# 3. Review the questions (if any)
-cat PRD_QUESTIONS.md
-# → If questions exist, edit the file with your answers, then re-run
-
-# 4. Review the PRD
-cat docs/PRD.md
-# → Edit if needed
-
-# 5. Approve and continue
-aidp approve current
-aidp execute next
-# → Creates docs/NFRs.md automatically
-
-# 6. Continue through gates
-aidp execute next
-# → Creates docs/Architecture.md and ARCH_QUESTIONS.md
-# → Repeat review/approve cycle
+AIDP_DEBUG=1 AIDP_LOG_FILE=aidp.log aidp
 ```
 
 ## Development
@@ -494,40 +229,13 @@ The following system dependencies are required for development:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and conventional commit guidelines.
 
-## Pipeline Steps
+## Documentation
 
-The gem automates a complete 15-step development pipeline:
+For detailed information:
 
-### Gate Steps (Require Approval)
-
-- **PRD** → Product Requirements Document (`docs/PRD.md`)
-- **Architecture** → System architecture and ADRs (`docs/Architecture.md`)
-- **Tasks** → Implementation tasks and backlog (`tasks/backlog.yaml`)
-- **Implementation** → Implementation strategy and guidance (`docs/ImplementationGuide.md`)
-
-### Automatic Steps
-
-- **NFRs** → Non-Functional Requirements (`docs/NFRs.md`)
-- **ADRs** → Architecture Decision Records (`docs/adr/`)
-- **Domains** → Domain decomposition (`docs/DomainCharters/`)
-- **Contracts** → API/Event contracts (`contracts/`)
-- **Threat Model** → Security analysis (`docs/ThreatModel.md`)
-- **Test Plan** → Testing strategy (`docs/TestPlan.md`)
-- **Scaffolding** → Project structure guidance (`docs/ScaffoldingGuide.md`)
-- **Static Analysis** → Code quality tools and Tree-sitter analysis (`docs/StaticAnalysis.md`, `.aidp/kb/`)
-- **Observability** → Monitoring and SLOs (`docs/Observability.md`)
-- **Delivery** → Deployment strategy (`docs/DeliveryPlan.md`)
-- **Docs Portal** → Documentation portal (`docs/DocsPortalPlan.md`)
-- **Post-Release** → Post-release analysis (`docs/PostReleaseReport.md`)
-
-## Harness Documentation
-
-For detailed information about harness mode:
-
-- **[Harness Usage Guide](docs/harness-usage.md)** - Complete guide to using harness mode
+- **[TUI User Guide](docs/TUI_USER_GUIDE.md)** - Complete guide to using the enhanced TUI
 - **[Configuration Guide](docs/harness-configuration.md)** - Detailed configuration options and examples
 - **[Troubleshooting Guide](docs/harness-troubleshooting.md)** - Common issues and solutions
-- **[Migration Guide](docs/harness-migration.md)** - Migrating from step-by-step to harness mode
 
 ## Manual Workflow (Alternative)
 

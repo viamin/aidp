@@ -12,6 +12,16 @@ require "tempfile"
 require "fileutils"
 require "logger"
 
+# Aruba configuration for system tests
+require "aruba/rspec"
+
+Aruba.configure do |config|
+  config.command_launcher = :spawn
+  config.working_directory = "tmp/aruba"
+  config.exit_timeout = 30
+  config.io_wait_timeout = 1
+end
+
 # Load test support files
 Dir[File.expand_path("support/**/*.rb", __dir__)].each { |f| require f }
 
@@ -23,8 +33,5 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 
-  # Add timeout to prevent hanging tests
-  config.around(:each) do |example|
-    example.run
-  end
+  config.order = :random
 end

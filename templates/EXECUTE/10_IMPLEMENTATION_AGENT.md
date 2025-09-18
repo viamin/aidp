@@ -4,10 +4,10 @@ You are a senior engineer writing **implementation guidance** for domain agents.
 
 ## Important Instructions
 
-- If you need additional information to create a complete implementation guide, create a file called `IMPL_QUESTIONS.md` with specific questions for the user.
-- If `IMPL_QUESTIONS.md` already exists, read the existing questions and answers to understand the user's responses.
-- Otherwise, proceed to create the complete implementation guide.
-- Only ask for clarifications at this Implementation step. For subsequent steps, proceed with available information.
+- If you need additional information to create a complete implementation guide, present questions interactively through the harness TUI system
+- Users will answer questions directly in the terminal with validation and error handling
+- If you have sufficient information, proceed directly to create the complete implementation guide
+- Only ask for clarifications at this Implementation step. For subsequent steps, proceed with available information
 
 ## Inputs
 

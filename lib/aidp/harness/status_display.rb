@@ -211,8 +211,6 @@ module Aidp
 
       # Update rate limit countdown
       def update_rate_limit_countdown(remaining_seconds)
-        return unless @running
-
         clear_display
         puts "\n🚫 Rate limit - waiting..."
         puts "   Resets in: #{format_duration(remaining_seconds)}"
@@ -301,13 +299,25 @@ module Aidp
 
       def collect_provider_status
         return unless @provider_manager
+        begin
+          @provider_status = {
+            current_provider: safe_manager_call(@provider_manager, :current_provider),
+            current_model: safe_manager_call(@provider_manager, :current_model),
+            available_providers: safe_manager_call(@provider_manager, :get_available_providers) || [],
+            provider_health: safe_manager_call(@provider_manager, :get_provider_health_status) || {}
+          }
+        rescue => e
+          # Log minimal info without breaking display; keep previous provider_status if available
+          @provider_status ||= {}
+          @provider_status[:error] = "provider_status_error: #{e.class}"
+        end
+      end
 
-        @provider_status = {
-          current_provider: @provider_manager.current_provider,
-          current_model: @provider_manager.current_model,
-          available_providers: @provider_manager.get_available_providers,
-          provider_health: @provider_manager.get_provider_health_status
-        }
+      def safe_manager_call(manager, method)
+        return nil unless manager.respond_to?(method, true)
+        manager.public_send(method)
+      rescue NoMethodError
+        nil
       end
 
       def collect_circuit_breaker_status
@@ -503,14 +513,14 @@ module Aidp
         puts "   Total Errors: #{error_summary[:total_errors]}"
         puts "   Error Rate: #{format_percentage(error_summary[:error_rate] || 0)}"
 
-        if error_summary[:errors_by_severity].any?
+        if error_summary[:errors_by_severity].respond_to?(:any?) && error_summary[:errors_by_severity].any?
           puts "   By Severity:"
           error_summary[:errors_by_severity].each do |severity, count|
             puts "     #{severity}: #{count}"
           end
         end
 
-        if error_summary[:errors_by_provider].any?
+        if error_summary[:errors_by_provider].respond_to?(:any?) && error_summary[:errors_by_provider].any?
           puts "   By Provider:"
           error_summary[:errors_by_provider].each do |provider, count|
             puts "     #{provider}: #{count}"

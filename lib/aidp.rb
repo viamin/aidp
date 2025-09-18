@@ -6,15 +6,9 @@ require_relative "aidp/core_ext/class_attribute"
 # Shared modules
 require_relative "aidp/version"
 require_relative "aidp/config"
-require_relative "aidp/workspace"
 require_relative "aidp/util"
 require_relative "aidp/cli"
 require_relative "aidp/cli/jobs_command"
-require_relative "aidp/project_detector"
-require_relative "aidp/sync"
-
-# Job infrastructure (simplified - only harness jobs)
-require_relative "aidp/jobs/harness_job"
 
 # Providers
 require_relative "aidp/providers/base"
@@ -22,8 +16,7 @@ require_relative "aidp/providers/cursor"
 require_relative "aidp/providers/anthropic"
 require_relative "aidp/providers/gemini"
 require_relative "aidp/providers/macos_ui"
-require_relative "aidp/providers/supervised_base"
-require_relative "aidp/providers/supervised_cursor"
+# Supervised providers removed - using direct execution model
 require_relative "aidp/provider_manager"
 
 # Simple file-based storage
@@ -34,7 +27,6 @@ require_relative "aidp/storage/file_manager"
 # Analyze mode (simplified - file-based storage only)
 require_relative "aidp/analyze/json_file_storage"
 require_relative "aidp/analyze/error_handler"
-require_relative "aidp/analyze/repository_chunker"
 require_relative "aidp/analyze/ruby_maat_integration"
 require_relative "aidp/analyze/runner"
 require_relative "aidp/analyze/steps"
@@ -57,7 +49,6 @@ require_relative "aidp/harness/config_schema"
 require_relative "aidp/harness/config_validator"
 require_relative "aidp/harness/config_loader"
 require_relative "aidp/harness/config_manager"
-require_relative "aidp/harness/config_migrator"
 require_relative "aidp/harness/condition_detector"
 require_relative "aidp/harness/user_interface"
 require_relative "aidp/harness/provider_manager"
@@ -65,18 +56,10 @@ require_relative "aidp/harness/provider_config"
 require_relative "aidp/harness/provider_factory"
 require_relative "aidp/harness/state_manager"
 require_relative "aidp/harness/error_handler"
-require_relative "aidp/harness/error_logger"
 require_relative "aidp/harness/status_display"
 require_relative "aidp/harness/runner"
-require_relative "aidp/harness/job_manager"
-require_relative "aidp/harness/progress_tracker"
-require_relative "aidp/harness/metrics_manager"
-require_relative "aidp/harness/circuit_breaker_manager"
-require_relative "aidp/harness/fallback_manager"
-require_relative "aidp/harness/rate_limit_manager"
-require_relative "aidp/harness/rate_limit_recovery_manager"
-require_relative "aidp/harness/rate_limit_display"
-require_relative "aidp/harness/token_monitor"
-require_relative "aidp/harness/provider_status_tracker"
+
+# UI components
+require_relative "aidp/harness/ui/spinner_helper"
 
 # CLI commands

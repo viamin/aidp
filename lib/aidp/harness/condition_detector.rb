@@ -1044,11 +1044,6 @@ module Aidp
         error_info[:severity]
       end
 
-      # Check if error is critical
-      def critical_error?(error)
-        get_error_severity(error) == :critical
-      end
-
       # Check if error is high severity
       def high_severity_error?(error)
         [:critical, :high].include?(get_error_severity(error))
@@ -1333,14 +1328,6 @@ module Aidp
         default_timeouts[operation_type] || default_timeouts[:default]
       end
 
-      # Check if operation is approaching timeout
-      def approaching_timeout?(start_time, timeout_duration, warning_threshold = 0.8)
-        return false unless start_time.is_a?(Time) && timeout_duration
-
-        elapsed = Time.now - start_time
-        elapsed > (timeout_duration * warning_threshold)
-      end
-
       # Get time remaining until timeout
       def time_until_timeout(start_time, timeout_duration)
         return 0 unless start_time.is_a?(Time) && timeout_duration
@@ -1405,30 +1392,6 @@ module Aidp
         suggestions.uniq
       end
 
-      # Create timeout error
-      def create_timeout_error(timeout_info, operation_type = nil)
-        timeout_messages = {
-          "explicit" => "Operation timed out: explicit timeout detected",
-          "duration" => timeout_info[:exceeded_by] ?
-            "Operation timed out: exceeded duration by #{timeout_info[:exceeded_by].round(2)} seconds" :
-            "Operation timed out: duration exceeded"
-        }
-
-        error_message = timeout_messages[timeout_info[:timeout_type]] || "Operation timed out"
-
-        # Add operation context if available
-        if operation_type
-          error_message += " (operation: #{operation_type})"
-        end
-
-        # Add duration information if available
-        if timeout_info[:duration]
-          error_message += " (duration: #{timeout_info[:duration].round(2)}s)"
-        end
-
-        StandardError.new(error_message)
-      end
-
       # Validate user response based on expected input type
       def validate_user_response(response, expected_input_type)
         return false if response.nil? || response.strip.empty?
@@ -1459,12 +1422,6 @@ module Aidp
         else
           @user_feedback_patterns.values.flatten
         end
-      end
-
-      # Check if text contains any user feedback patterns
-      def contains_user_feedback?(text, feedback_type = nil)
-        patterns = get_user_feedback_patterns(feedback_type)
-        patterns.any? { |pattern| text.match?(pattern) }
       end
 
       # Get completion confidence level

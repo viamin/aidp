@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-require "tty-progressbar"
 require "tty-spinner"
+require "tty-progressbar"
 require "tty-table"
+require "pastel"
 require "colorize"
 
 module Aidp
@@ -20,6 +21,7 @@ module Aidp
       @quiet = config[:quiet] || false
       @style = config[:style] || :default
       @show_details = config[:show_details] || true
+      @pastel = Pastel.new
     end
 
     # Display analysis progress
@@ -59,15 +61,8 @@ module Aidp
     def show_spinner(message, options = {})
       return if @quiet
 
-      spinner = TTY::Spinner.new(
-        "[:spinner] #{message}",
-        format: :dots,
-        success_mark: "✓",
-        error_mark: "✗",
-        hide_cursor: true
-      )
-
-      spinner.auto_spin
+      spinner = TTY::Spinner.new(message, format: :dots)
+      spinner.start
       spinner
     end
 
@@ -228,15 +223,13 @@ module Aidp
 
     def create_progress_bar(total, title, options = {})
       style = options[:style] || @style
-      progress_style = PROGRESS_STYLES[style] || PROGRESS_STYLES[:default]
+      PROGRESS_STYLES[style] || PROGRESS_STYLES[:default]
 
+      # Use TTY progress bar
       TTY::ProgressBar.new(
-        "#{title} [:bar] :percent :current/:total",
+        "[:bar] :percent% :current/:total",
         total: total,
-        width: 50,
-        complete: progress_style[:complete],
-        incomplete: progress_style[:incomplete],
-        head: progress_style[:head]
+        width: 30
       )
     end
 
@@ -273,7 +266,9 @@ module Aidp
         ]
       end
 
-      TTY::Table.new(headers, rows)
+      # Use TTY::Table for table display
+      table = TTY::Table.new(headers, rows)
+      puts table.render(:ascii)
     end
 
     def show_step_details(step_details)

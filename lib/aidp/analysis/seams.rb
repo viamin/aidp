@@ -23,35 +23,6 @@ module Aidp
         /include Singleton/, /extend Singleton/, /@singleton/
       ].freeze
 
-      # Constructor with work indicators
-      CONSTRUCTOR_WORK_INDICATORS = [
-        /File\./, /IO\./, /Net::/, /HTTP/, /Database/, /Redis/,
-        /system\(/, /exec\(/, /spawn\(/, /fork\(/
-      ].freeze
-
-      def self.io_call?(receiver, method)
-        fq = [receiver, method].compact.join(".")
-        IO_PATTERNS.any? { |pattern| fq.match?(pattern) }
-      end
-
-      def self.external_service_call?(receiver, method)
-        fq = [receiver, method].compact.join(".")
-        EXTERNAL_SERVICE_PATTERNS.any? { |pattern| fq.match?(pattern) }
-      end
-
-      def self.global_or_singleton?(ast_node_texts)
-        ast_node_texts.any? { |text| GLOBAL_PATTERNS.any? { |pattern| text.match?(pattern) } }
-      end
-
-      def self.constructor_with_work?(node, metrics)
-        return false unless node[:type] == "method" && node[:name] == "initialize"
-
-        # Check if constructor has significant work based on metrics
-        metrics[:branch_count].to_i > 2 ||
-          metrics[:fan_out].to_i > 3 ||
-          metrics[:lines].to_i > 10
-      end
-
       def self.detect_seams_in_ast(ast_nodes, file_path)
         seams = []
 

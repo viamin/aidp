@@ -77,25 +77,12 @@ module Aidp
         @loaded_grammars[language] = create_parser(language, config)
       end
 
-      # Get supported languages
-      def supported_languages
-        GRAMMAR_CONFIGS.keys
-      end
-
       # Get file patterns for a language
       def file_patterns_for_language(language)
         config = GRAMMAR_CONFIGS[language]
         return [] unless config
 
         config[:file_patterns]
-      end
-
-      # Get node types for a language
-      def node_types_for_language(language)
-        config = GRAMMAR_CONFIGS[language]
-        return {} unless config
-
-        config[:node_types]
       end
 
       private

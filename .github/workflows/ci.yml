@@ -26,3 +26,8 @@ jobs:
       contents: read   # For repository access
       actions: write   # For cache operations
     uses: ./.github/workflows/lint.yml
+  system-tests:
+    permissions:
+      contents: read
+      actions: write
+    uses: ./.github/workflows/system_test.yml

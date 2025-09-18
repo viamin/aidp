@@ -18,3 +18,4 @@ code_maat_analysis_report.md
 # Temporary files
 *.tmp
 *.log
+tmp/aruba/*

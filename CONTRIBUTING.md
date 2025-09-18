@@ -9,12 +9,27 @@ bundle install
 # Run tests
 bundle exec rspec
 
+# Run system tests
+bundle exec cucumber
+
 # Run linter
 bundle exec standardrb
 
 # Auto-fix linting issues
 bundle exec standardrb --fix
 ```
+
+## Code Style and Standards
+
+**All code must follow our [Style Guide](docs/STYLE_GUIDE.md)** which includes:
+
+- **Sandi Metz's Rules**: Classes < 100 lines, methods < 5 lines, max 4 parameters
+- **Testing Guidelines**: Test the interface, not the implementation
+- **Error Handling**: Crash when appropriate, don't swallow exceptions that indicate bugs
+- **Mocking Rules**: Only mock external dependencies, never application code
+- **Ruby Conventions**: Follow StandardRB and Ruby best practices
+
+Please read the style guide before contributing to ensure your code meets our standards.
 
 ## Conventional Commits
 

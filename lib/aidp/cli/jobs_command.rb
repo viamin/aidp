@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-require "tty-cursor"
-require "tty-screen"
-require "tty-table"
+require "tty-box"
+require "pastel"
 require "io/console"
 require "json"
 require_relative "terminal_io"
@@ -13,14 +12,13 @@ module Aidp
     class JobsCommand
       def initialize(input: $stdin, output: $stdout)
         @io = TerminalIO.new(input, output)
-        @cursor = TTY::Cursor
-        @screen_width = TTY::Screen.width
-        @screen_height = TTY::Screen.height
+        @pastel = Pastel.new
         @running = true
         @view_mode = :list
         @selected_job_id = nil
         @jobs_displayed = false  # Track if we've displayed jobs in interactive mode
         @file_manager = Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
+        @screen_width = 80  # Default screen width
       end
 
       def run
@@ -97,20 +95,34 @@ module Aidp
         @io.puts "-" * @screen_width
         @io.puts
 
-        # Create simple table
-        table = TTY::Table.new(
-          header: ["ID", "Status", "Created", "Message"],
-          rows: jobs.map do |job|
-            [
-              job[:id][0..7], # Show first 8 characters of UUID
-              job[:status],
-              format_time(job[:created_at]),
-              truncate_message(job[:message])
-            ]
+        # Create job content for TTY::Box
+        job_content = []
+        jobs.each do |job|
+          status_icon = case job[:status]
+          when "completed" then "✅"
+          when "running" then "🔄"
+          when "failed" then "❌"
+          when "pending" then "⏳"
+          else "❓"
           end
-        )
 
-        @io.puts table.render(:unicode, padding: [0, 1], width: @screen_width)
+          job_info = []
+          job_info << "#{status_icon} #{job[:id][0..7]}"
+          job_info << "Status: #{@pastel.bold(job[:status])}"
+          job_info << "Created: #{format_time(job[:created_at])}"
+          job_info << "Message: #{truncate_message(job[:message])}"
+          job_content << job_info.join("\n")
+        end
+
+        # Create main box with all jobs
+        box = TTY::Box.frame(
+          job_content.join("\n\n"),
+          title: {top_left: "Background Jobs"},
+          border: :thick,
+          padding: [1, 2]
+        )
+        puts box
+
         @io.puts
         @io.puts "Total: #{jobs.length} harness job(s)"
         @io.puts
