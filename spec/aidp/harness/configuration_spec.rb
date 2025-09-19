@@ -9,21 +9,26 @@ RSpec.describe Aidp::Harness::Configuration do
 
   before do
     # Mock the configuration loading
-    allow(Aidp::Config).to receive(:load_harness_config).and_return(mock_config)
-    allow(Aidp::Config).to receive(:validate_harness_config).and_return([])
+    allow(Aidp::Config).to receive(:load_harness_config).with(project_dir).and_return(mock_config)
+    allow(Aidp::Config).to receive(:validate_harness_config).with(mock_config, project_dir).and_return([])
+
+    # Mock the ConfigValidator
+    mock_validator = double("ConfigValidator")
+    allow(Aidp::Harness::ConfigValidator).to receive(:new).with(project_dir).and_return(mock_validator)
+    allow(mock_validator).to receive(:validate_provider).and_return({valid: true, errors: [], warnings: []})
   end
 
   let(:mock_config) do
     {
       harness: {
         max_retries: 3,
-        default_provider: "claude",
-        fallback_providers: ["gemini", "cursor"],
+        default_provider: "anthropic",
+        fallback_providers: ["cursor", "macos"],
         restrict_to_non_byok: false,
         provider_weights: {
-          "claude" => 3,
-          "gemini" => 2,
-          "cursor" => 1
+          "anthropic" => 3,
+          "cursor" => 2,
+          "macos" => 1
         },
         circuit_breaker: {
           enabled: true,
@@ -61,23 +66,23 @@ RSpec.describe Aidp::Harness::Configuration do
         }
       },
       providers: {
-        claude: {
-          type: "api",
+        anthropic: {
+          type: "usage_based",
           priority: 1,
           max_tokens: 100_000,
           default_flags: ["--dangerously-skip-permissions"],
-          models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
+          models: ["anthropic-3-5-sonnet-20241022", "anthropic-3-5-haiku-20241022"],
           model_weights: {
-            "claude-3-5-sonnet-20241022" => 3,
-            "claude-3-5-haiku-20241022" => 2
+            "anthropic-3-5-sonnet-20241022" => 3,
+            "anthropic-3-5-haiku-20241022" => 2
           },
           models_config: {
-            "claude-3-5-sonnet-20241022" => {
+            "anthropic-3-5-sonnet-20241022" => {
               flags: ["--dangerously-skip-permissions"],
               max_tokens: 200_000,
               timeout: 300
             },
-            "claude-3-5-haiku-20241022" => {
+            "anthropic-3-5-haiku-20241022" => {
               flags: ["--dangerously-skip-permissions"],
               max_tokens: 200_000,
               timeout: 180
@@ -99,52 +104,15 @@ RSpec.describe Aidp::Harness::Configuration do
             metrics_interval: 60
           }
         },
-        gemini: {
-          type: "api",
-          priority: 2,
-          max_tokens: 50_000,
-          default_flags: [],
-          models: ["gemini-1.5-pro", "gemini-1.5-flash"],
-          model_weights: {
-            "gemini-1.5-pro" => 3,
-            "gemini-1.5-flash" => 2
-          },
-          models_config: {
-            "gemini-1.5-pro" => {
-              flags: [],
-              max_tokens: 100_000,
-              timeout: 300
-            },
-            "gemini-1.5-flash" => {
-              flags: [],
-              max_tokens: 100_000,
-              timeout: 180
-            }
-          },
-          auth: {
-            api_key_env: "GEMINI_API_KEY"
-          },
-          endpoints: {
-            default: "https://generativelanguage.googleapis.com/v1beta/models"
-          },
-          features: {
-            file_upload: true,
-            code_generation: true,
-            vision: true
-          },
-          monitoring: {
-            enabled: true,
-            metrics_interval: 60
-          }
-        },
         cursor: {
-          type: "package",
-          priority: 3,
+          type: "subscription",
+          priority: 2,
           default_flags: [],
-          models: ["cursor-default", "cursor-fast"],
+          models: ["cursor-default", "cursor-fast", "cursor-precise"],
           model_weights: {
             "cursor-default" => 3,
-            "cursor-fast" => 2
+            "cursor-fast" => 2,
+            "cursor-precise" => 1
           },
           models_config: {
             "cursor-default" => {
@@ -154,15 +122,32 @@ RSpec.describe Aidp::Harness::Configuration do
             "cursor-fast" => {
               flags: ["--fast"],
               timeout: 300
+            },
+            "cursor-precise" => {
+              flags: ["--precise"],
+              timeout: 900
             }
           },
           features: {
             file_upload: true,
-            code_generation: true
+            code_generation: true,
+            analysis: true
           },
           monitoring: {
             enabled: true,
             metrics_interval: 60
+          }
+        },
+        macos: {
+          type: "passthrough",
+          priority: 3,
+          underlying_service: "cursor",
+          models: ["cursor-chat"],
+          features: {
+            file_upload: false,
+            code_generation: true,
+            analysis: true,
+            interactive: true
           }
         }
       }
@@ -175,7 +160,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "validates configuration on initialization" do
-      expect(Aidp::Config).to receive(:validate_harness_config).with(mock_config)
+      expect(Aidp::Config).to receive(:validate_harness_config).with(mock_config, project_dir)
       described_class.new(project_dir)
     end
 
@@ -192,15 +177,15 @@ RSpec.describe Aidp::Harness::Configuration do
     it "returns harness configuration" do
       harness_config = configuration.harness_config
       expect(harness_config[:max_retries]).to eq(3)
-      expect(harness_config[:default_provider]).to eq("claude")
+      expect(harness_config[:default_provider]).to eq("anthropic")
     end
 
     it "returns default provider" do
-      expect(configuration.default_provider).to eq("claude")
+      expect(configuration.default_provider).to eq("anthropic")
     end
 
     it "returns fallback providers" do
-      expect(configuration.fallback_providers).to eq(["gemini", "cursor"])
+      expect(configuration.fallback_providers).to eq(["cursor", "macos"])
     end
 
     it "returns max retries" do
@@ -214,85 +199,85 @@ RSpec.describe Aidp::Harness::Configuration do
 
   describe "provider configuration" do
     it "returns provider configuration" do
-      claude_config = configuration.provider_config("claude")
-      expect(claude_config[:type]).to eq("api")
-      expect(claude_config[:max_tokens]).to eq(100_000)
+      anthropic_config = configuration.provider_config("anthropic")
+      expect(anthropic_config[:type]).to eq("usage_based")
+      expect(anthropic_config[:max_tokens]).to eq(100_000)
     end
 
     it "returns configured providers" do
       providers = configuration.configured_providers
-      expect(providers).to include("claude", "gemini", "cursor")
+      expect(providers).to include("anthropic", "cursor", "macos")
     end
 
     it "returns provider type" do
-      expect(configuration.provider_type("claude")).to eq("api")
-      expect(configuration.provider_type("cursor")).to eq("package")
+      expect(configuration.provider_type("anthropic")).to eq("usage_based")
+      expect(configuration.provider_type("cursor")).to eq("subscription")
     end
 
     it "returns max tokens for provider" do
-      expect(configuration.max_tokens("claude")).to eq(100_000)
-      expect(configuration.max_tokens("gemini")).to eq(50_000)
+      expect(configuration.max_tokens("anthropic")).to eq(100_000)
+      expect(configuration.max_tokens("cursor")).to be_nil
     end
 
     it "returns default flags for provider" do
-      expect(configuration.default_flags("claude")).to eq(["--dangerously-skip-permissions"])
-      expect(configuration.default_flags("gemini")).to eq([])
+      expect(configuration.default_flags("anthropic")).to eq(["--dangerously-skip-permissions"])
+      expect(configuration.default_flags("cursor")).to eq([])
     end
 
     it "checks if provider is configured" do
-      expect(configuration.provider_configured?("claude")).to be true
+      expect(configuration.provider_configured?("anthropic")).to be true
       expect(configuration.provider_configured?("nonexistent")).to be false
     end
 
-    it "returns available providers" do
-      providers = configuration.available_providers
-      expect(providers).to include("claude", "gemini", "cursor")
+    it "returns configured providers" do
+      providers = configuration.configured_providers
+      expect(providers).to include("anthropic", "cursor", "macos")
     end
 
     it "filters BYOK providers when restricted" do
       allow(configuration).to receive(:restrict_to_non_byok?).and_return(true)
-      allow(configuration).to receive(:provider_type).with("claude").and_return("api")
-      allow(configuration).to receive(:provider_type).with("gemini").and_return("api")
-      allow(configuration).to receive(:provider_type).with("cursor").and_return("package")
+      allow(configuration).to receive(:provider_type).with("anthropic").and_return("usage_based")
+      allow(configuration).to receive(:provider_type).with("cursor").and_return("subscription")
+      allow(configuration).to receive(:provider_type).with("macos").and_return("passthrough")
 
-      providers = configuration.available_providers
-      expect(providers).to include("claude", "gemini", "cursor")
+      providers = configuration.configured_providers
+      expect(providers).to include("anthropic", "cursor", "macos")
     end
   end
 
   describe "model configuration" do
     it "returns provider models" do
-      claude_models = configuration.provider_models("claude")
-      expect(claude_models).to include("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022")
+      anthropic_models = configuration.provider_models("anthropic")
+      expect(anthropic_models).to include("anthropic-3-5-sonnet-20241022", "anthropic-3-5-haiku-20241022")
     end
 
     it "returns default model for provider" do
-      expect(configuration.default_model("claude")).to eq("claude-3-5-sonnet-20241022")
+      expect(configuration.default_model("anthropic")).to eq("anthropic-3-5-sonnet-20241022")
     end
 
     it "returns model configuration" do
-      model_config = configuration.model_config("claude", "claude-3-5-sonnet-20241022")
+      model_config = configuration.model_config("anthropic", "anthropic-3-5-sonnet-20241022")
       expect(model_config[:max_tokens]).to eq(200_000)
       expect(model_config[:timeout]).to eq(300)
     end
 
     it "returns model-specific flags" do
-      flags = configuration.model_flags("claude", "claude-3-5-sonnet-20241022")
+      flags = configuration.model_flags("anthropic", "anthropic-3-5-sonnet-20241022")
       expect(flags).to eq(["--dangerously-skip-permissions"])
     end
 
     it "returns model-specific max tokens" do
-      max_tokens = configuration.model_max_tokens("claude", "claude-3-5-sonnet-20241022")
+      max_tokens = configuration.model_max_tokens("anthropic", "anthropic-3-5-sonnet-20241022")
       expect(max_tokens).to eq(200_000)
     end
 
     it "returns model-specific timeout" do
-      timeout = configuration.model_timeout("claude", "claude-3-5-sonnet-20241022")
+      timeout = configuration.model_timeout("anthropic", "anthropic-3-5-sonnet-20241022")
       expect(timeout).to eq(300)
     end
 
     it "falls back to provider max tokens for model" do
-      max_tokens = configuration.model_max_tokens("claude", "nonexistent-model")
+      max_tokens = configuration.model_max_tokens("anthropic", "nonexistent-model")
       expect(max_tokens).to eq(100_000)
     end
   end
@@ -300,15 +285,15 @@ RSpec.describe Aidp::Harness::Configuration do
   describe "load balancing configuration" do
     it "returns provider weights" do
       weights = configuration.provider_weights
-      expect(weights["claude"]).to eq(3)
-      expect(weights["gemini"]).to eq(2)
-      expect(weights["cursor"]).to eq(1)
+      expect(weights["anthropic"]).to eq(3)
+      expect(weights["cursor"]).to eq(2)
+      expect(weights["macos"]).to eq(1)
     end
 
     it "returns model weights for provider" do
-      weights = configuration.model_weights("claude")
-      expect(weights["claude-3-5-sonnet-20241022"]).to eq(3)
-      expect(weights["claude-3-5-haiku-20241022"]).to eq(2)
+      weights = configuration.model_weights("anthropic")
+      expect(weights["anthropic-3-5-sonnet-20241022"]).to eq(3)
+      expect(weights["anthropic-3-5-haiku-20241022"]).to eq(2)
     end
   end
 
@@ -366,40 +351,40 @@ RSpec.describe Aidp::Harness::Configuration do
 
   describe "provider metadata" do
     it "returns provider priority" do
-      expect(configuration.provider_priority("claude")).to eq(1)
-      expect(configuration.provider_priority("gemini")).to eq(2)
-      expect(configuration.provider_priority("cursor")).to eq(3)
+      expect(configuration.provider_priority("anthropic")).to eq(1)
+      expect(configuration.provider_priority("cursor")).to eq(2)
+      expect(configuration.provider_priority("macos")).to eq(3)
     end
 
     it "returns provider cost configuration" do
-      cost_config = configuration.provider_cost_config("claude")
+      cost_config = configuration.provider_cost_config("anthropic")
       expect(cost_config).to eq({})
     end
 
     it "returns provider regions" do
-      regions = configuration.provider_regions("claude")
+      regions = configuration.provider_regions("anthropic")
       expect(regions).to eq([])
     end
 
     it "returns provider authentication configuration" do
-      auth_config = configuration.provider_auth_config("claude")
+      auth_config = configuration.provider_auth_config("anthropic")
       expect(auth_config[:api_key_env]).to eq("ANTHROPIC_API_KEY")
     end
 
     it "returns provider endpoints" do
-      endpoints = configuration.provider_endpoints("claude")
+      endpoints = configuration.provider_endpoints("anthropic")
       expect(endpoints[:default]).to eq("https://api.anthropic.com/v1/messages")
     end
 
     it "returns provider features" do
-      features = configuration.provider_features("claude")
+      features = configuration.provider_features("anthropic")
       expect(features[:file_upload]).to be true
       expect(features[:code_generation]).to be true
       expect(features[:vision]).to be true
     end
 
     it "returns provider monitoring configuration" do
-      monitoring_config = configuration.provider_monitoring_config("claude")
+      monitoring_config = configuration.provider_monitoring_config("anthropic")
       expect(monitoring_config[:enabled]).to be true
       expect(monitoring_config[:metrics_interval]).to eq(60)
     end
@@ -407,7 +392,7 @@ RSpec.describe Aidp::Harness::Configuration do
 
   describe "validation" do
     it "validates provider configuration" do
-      errors = configuration.validate_provider_config("claude")
+      errors = configuration.validate_provider_config("anthropic")
       expect(errors).to be_empty
     end
 
@@ -418,7 +403,7 @@ RSpec.describe Aidp::Harness::Configuration do
         timeout: 300,
         flags: ["--test"]
       }
-      configuration.validate_model_config("claude", "test-model", model_config, errors)
+      configuration.validate_model_config("anthropic", "test-model", model_config, errors)
       expect(errors).to be_empty
     end
 
@@ -429,10 +414,10 @@ RSpec.describe Aidp::Harness::Configuration do
         timeout: "invalid",
         flags: "invalid"
       }
-      configuration.validate_model_config("claude", "test-model", model_config, errors)
-      expect(errors).to include("Model 'claude:test-model' max_tokens must be integer")
-      expect(errors).to include("Model 'claude:test-model' timeout must be integer")
-      expect(errors).to include("Model 'claude:test-model' flags must be array")
+      configuration.validate_model_config("anthropic", "test-model", model_config, errors)
+      expect(errors).to include("Model 'anthropic:test-model' max_tokens must be integer")
+      expect(errors).to include("Model 'anthropic:test-model' timeout must be integer")
+      expect(errors).to include("Model 'anthropic:test-model' flags must be array")
     end
   end
 
@@ -440,7 +425,7 @@ RSpec.describe Aidp::Harness::Configuration do
     it "returns configuration summary" do
       summary = configuration.configuration_summary
       expect(summary[:providers]).to eq(3)
-      expect(summary[:default_provider]).to eq("claude")
+      expect(summary[:default_provider]).to eq("anthropic")
       expect(summary[:fallback_providers]).to eq(2)
       expect(summary[:max_retries]).to eq(3)
       expect(summary[:restrict_to_non_byok]).to be false
@@ -454,26 +439,23 @@ RSpec.describe Aidp::Harness::Configuration do
 
   describe "default configurations" do
     it "returns default models for provider" do
-      claude_models = configuration.send(:get_default_models_for_provider, "claude")
-      expect(claude_models).to include("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229")
-
-      gemini_models = configuration.send(:get_default_models_for_provider, "gemini")
-      expect(gemini_models).to include("gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro")
+      anthropic_models = configuration.send(:get_default_models_for_provider, "anthropic")
+      expect(anthropic_models).to include("anthropic-3-5-sonnet-20241022", "anthropic-3-5-haiku-20241022", "anthropic-3-opus-20240229")
 
       cursor_models = configuration.send(:get_default_models_for_provider, "cursor")
       expect(cursor_models).to include("cursor-default", "cursor-fast", "cursor-precise")
     end
 
     it "returns default model for provider" do
-      expect(configuration.send(:get_default_model_for_provider, "claude")).to eq("claude-3-5-sonnet-20241022")
-      expect(configuration.send(:get_default_model_for_provider, "gemini")).to eq("gemini-1.5-pro")
+      expect(configuration.send(:get_default_model_for_provider, "anthropic")).to eq("anthropic-3-5-sonnet-20241022")
       expect(configuration.send(:get_default_model_for_provider, "cursor")).to eq("cursor-default")
+      expect(configuration.send(:get_default_model_for_provider, "macos")).to eq("default")
     end
 
     it "returns default timeout for provider" do
-      expect(configuration.send(:get_default_timeout_for_provider, "claude")).to eq(300)
-      expect(configuration.send(:get_default_timeout_for_provider, "gemini")).to eq(300)
-      expect(configuration.send(:get_default_timeout_for_provider, "cursor")).to eq(600)
+      expect(configuration.send(:get_default_timeout_for_provider, "anthropic")).to eq(300)
+      expect(configuration.send(:get_default_timeout_for_provider, "cursor")).to eq(300)
+      expect(configuration.send(:get_default_timeout_for_provider, "macos")).to eq(300)
     end
 
     it "returns default circuit breaker configuration" do

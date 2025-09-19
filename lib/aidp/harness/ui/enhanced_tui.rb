@@ -28,7 +28,7 @@ module Aidp
           # Headless (non-interactive) detection for test/CI environments:
           # - RSpec defined or RSPEC_RUNNING env set
           # - STDIN not a TTY (captured by PTY/tmux harness)
-          @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || !STDIN.tty?)
+          @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || !$stdin.tty?)
           @current_mode = nil
           @workflow_active = false
           @current_step = nil

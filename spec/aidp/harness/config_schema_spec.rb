@@ -30,7 +30,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 1,
             default_flags: [],
             models: ["cursor-default"],
@@ -40,7 +40,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
             }
           },
           claude: {
-            type: "api",
+            type: "usage_based",
             priority: 2,
             max_tokens: 100_000,
             default_flags: ["--dangerously-skip-permissions"],
@@ -76,7 +76,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -134,7 +134,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -153,7 +153,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             models: ["cursor-default"],
             model_weights: {
               "cursor-default" => 3,
@@ -181,7 +181,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 15 # Should be <= 10
           }
         }
@@ -222,7 +222,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -256,7 +256,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -266,7 +266,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
       expect(result[:harness][:default_provider]).to eq("cursor")
       expect(result[:harness][:max_retries]).to eq(2) # Applied default
       expect(result[:harness][:circuit_breaker][:enabled]).to be true # Applied default
-      expect(result[:providers][:cursor][:type]).to eq("package")
+      expect(result[:providers][:cursor][:type]).to eq("subscription")
       expect(result[:providers][:cursor][:default_flags]).to eq([]) # Applied default
     end
 
@@ -308,13 +308,13 @@ RSpec.describe Aidp::Harness::ConfigSchema do
 
       # Check providers section
       expect(example[:providers][:cursor]).to be_a(Hash)
-      expect(example[:providers][:claude]).to be_a(Hash)
-      expect(example[:providers][:gemini]).to be_a(Hash)
+      expect(example[:providers][:anthropic]).to be_a(Hash)
+      expect(example[:providers][:macos]).to be_a(Hash)
 
       # Check provider configurations
-      expect(example[:providers][:cursor][:type]).to eq("package")
-      expect(example[:providers][:claude][:type]).to eq("api")
-      expect(example[:providers][:gemini][:type]).to eq("api")
+      expect(example[:providers][:cursor][:type]).to eq("subscription")
+      expect(example[:providers][:anthropic][:type]).to eq("usage_based")
+      expect(example[:providers][:macos][:type]).to eq("passthrough")
     end
 
     it "generates valid example configuration" do
@@ -356,7 +356,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -422,11 +422,11 @@ RSpec.describe Aidp::Harness::ConfigValidator do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 1
           },
           claude: {
-            type: "api",
+            type: "usage_based",
             max_tokens: 100_000,
             auth: {
               api_key_env: "ANTHROPIC_API_KEY"
@@ -462,7 +462,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
       provider_config = validator.get_provider_config("cursor")
 
       expect(provider_config).to be_a(Hash)
-      expect(provider_config[:type]).to eq("package")
+      expect(provider_config[:type]).to eq("subscription")
       expect(provider_config[:priority]).to eq(1)
     end
 
@@ -503,7 +503,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }

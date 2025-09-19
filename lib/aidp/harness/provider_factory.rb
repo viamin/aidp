@@ -16,7 +16,7 @@ module Aidp
         "cursor" => Aidp::Providers::Cursor,
         "anthropic" => Aidp::Providers::Anthropic,
         "gemini" => Aidp::Providers::Gemini,
-        "macos_ui" => Aidp::Providers::MacOSUI,
+        "macos" => Aidp::Providers::MacOSUI,
         "opencode" => Aidp::Providers::Opencode
       }.freeze
 
@@ -190,7 +190,7 @@ module Aidp
         end
 
         # Check required configuration
-        if provider_config.api_provider?(options)
+        if provider_config.usage_based_provider?(options)
           api_key = provider_config.get_api_key(options)
           unless api_key && !api_key.empty?
             errors << "API key not configured for provider '#{provider_name}'"

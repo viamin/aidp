@@ -139,8 +139,13 @@ module Aidp
 
         return {valid: false, errors: ["Provider '#{provider_name}' not found"], warnings: []} unless provider_config
 
-        # Create a minimal config with just this provider for validation
+        # Create a minimal config with harness section and just this provider for validation
         test_config = {
+          harness: {
+            max_retries: 2,
+            default_provider: provider_name,
+            fallback_providers: [provider_name]
+          },
           providers: {
             provider_name => provider_config
           }
@@ -178,8 +183,8 @@ module Aidp
         provider_type = provider_config[:type] || provider_config["type"]
         return false unless provider_type
 
-        # For API providers, check for required fields
-        if provider_type == "api"
+        # For usage-based providers, check for required fields
+        if provider_type == "usage_based"
           max_tokens = provider_config[:max_tokens] || provider_config["max_tokens"]
           return false unless max_tokens&.positive?
         end
@@ -311,7 +316,7 @@ module Aidp
         @config[:providers].each do |_provider_name, provider_config|
           # Ensure type is specified
           unless provider_config[:type]
-            provider_config[:type] = "api" # Default to API
+            provider_config[:type] = "subscription" # Default to subscription
           end
 
           # Ensure default_flags is an array

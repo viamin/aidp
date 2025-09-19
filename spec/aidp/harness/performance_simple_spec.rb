@@ -357,50 +357,47 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
 
   def setup_harness_config
     config = {
-      harness: {
-        default_provider: "claude",
-        max_retries: 3,
-        fallback_providers: ["gemini", "cursor"],
-        auto_switch_on_error: true,
-        auto_switch_on_rate_limit: true,
-        concurrent_requests: 1,
-        timeout: 300,
-        ui: {
-          interactive: true,
-          show_progress: true
+      "harness" => {
+        "default_provider" => "anthropic",
+        "max_retries" => 3,
+        "fallback_providers" => ["cursor", "macos"],
+        "auto_switch_on_error" => true,
+        "auto_switch_on_rate_limit" => true,
+        "concurrent_requests" => 1,
+        "timeout" => 300,
+        "ui" => {
+          "interactive" => true,
+          "show_progress" => true
         },
-        error_handling: {
-          retry_on_error: true,
-          max_retries: 3
+        "error_handling" => {
+          "retry_on_error" => true,
+          "max_retries" => 3
         },
-        performance: {
-          enable_metrics: true,
-          enable_caching: true
+        "performance" => {
+          "enable_metrics" => true,
+          "enable_caching" => true
         }
       },
-      providers: {
-        claude: {
-          type: "api",
-          priority: 1,
-          max_tokens: 100_000,
-          models: ["claude-3-5-sonnet-20241022"],
-          auth: {
-            api_key_env: "ANTHROPIC_API_KEY"
+      "providers" => {
+        "anthropic" => {
+          "type" => "usage_based",
+          "priority" => 1,
+          "max_tokens" => 100_000,
+          "models" => ["anthropic-3-5-sonnet-20241022"],
+          "auth" => {
+            "api_key_env" => "ANTHROPIC_API_KEY"
           }
         },
-        gemini: {
-          type: "api",
-          priority: 2,
-          max_tokens: 50_000,
-          models: ["gemini-1.5-pro"],
-          auth: {
-            api_key_env: "GEMINI_API_KEY"
-          }
+        "cursor" => {
+          "type" => "subscription",
+          "priority" => 2,
+          "models" => ["cursor-default"]
         },
-        cursor: {
-          type: "package",
-          priority: 3,
-          models: ["cursor-default"]
+        "macos" => {
+          "type" => "passthrough",
+          "priority" => 3,
+          "underlying_service" => "cursor",
+          "models" => ["cursor-chat"]
         }
       }
     }

@@ -285,7 +285,7 @@ module Aidp
 
       # Get available providers (not rate limited, healthy, and circuit breaker closed)
       def get_available_providers
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
         all_providers.select do |provider|
           !is_rate_limited?(provider) &&
             is_provider_healthy?(provider) &&
@@ -455,7 +455,7 @@ module Aidp
 
       # Build default fallback chain
       def build_default_fallback_chain(provider_name)
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
         fallback_chain = all_providers.dup
         fallback_chain.delete(provider_name)
         fallback_chain.unshift(provider_name) # Put current provider first
@@ -1122,7 +1122,7 @@ module Aidp
       # Initialize fallback chains
       def initialize_fallback_chains
         @fallback_chains.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           build_default_fallback_chain(provider)
@@ -1132,7 +1132,7 @@ module Aidp
       # Initialize provider health
       def initialize_provider_health
         @provider_health.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           @provider_health[provider] = {
@@ -1149,7 +1149,7 @@ module Aidp
       # Initialize model configurations
       def initialize_model_configs
         @model_configs.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           @model_configs[provider] = get_default_models_for_provider(provider)
@@ -1159,7 +1159,7 @@ module Aidp
       # Initialize model health
       def initialize_model_health
         @model_health.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           @model_health[provider] = {}

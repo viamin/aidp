@@ -27,11 +27,6 @@ module Aidp
         debug_provider("cursor", "Starting execution", {timeout: timeout_seconds})
         debug_log("📝 Sending prompt to cursor-agent (length: #{prompt.length})", level: :info)
 
-        # Check if prompt is too large and warn
-        if prompt.length > 3000
-          debug_log("⚠️  Large prompt detected (#{prompt.length} chars) - this may cause rate limiting", level: :warn)
-        end
-
         # Set up activity monitoring
         setup_activity_monitoring("cursor-agent", method(:activity_callback))
         record_activity("Starting cursor-agent execution")

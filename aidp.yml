@@ -4,30 +4,42 @@
 # Harness configuration
 harness:
   # Default provider to use
-  default_provider: "cursor"
+  default_provider: "macos"
 
   # Fallback providers
-  fallback_providers: ["anthropic"]
+  fallback_providers: ["cursor"]
 
   # Basic retry configuration
   max_retries: 2
 
 # Provider configurations
 providers:
-  # Cursor provider (package-based)
-  cursor:
-    type: "package"
+  # MacOS UI provider (uses Cursor via AppleScript)
+  macos:
+    type: "passthrough"
     priority: 1
-    models: ["cursor-default"]
+    models: ["cursor-chat"]
+    underlying_service: "cursor"
+    features:
+      file_upload: false
+      code_generation: true
+      analysis: true
+      interactive: true
+
+  # Cursor provider (subscription-based)
+  cursor:
+    type: "subscription"
+    priority: 2
+    models: ["Auto"]
     features:
       file_upload: true
       code_generation: true
       analysis: true
 
-  # Anthropic provider (API-based)
+  # Anthropic provider (usage-based)
   anthropic:
-    type: "api"
-    priority: 2
+    type: "usage_based"
+    priority: 3
     max_tokens: 100000
     models: ["claude-3-5-sonnet-20241022"]
     auth:

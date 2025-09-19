@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 require_relative "config_manager"
+require_relative "provider_type_checker"
 
 module Aidp
   module Harness
     # Provider-specific configuration management
     class ProviderConfig
+      include ProviderTypeChecker
+
       def initialize(provider_name, config_manager = nil)
         @provider_name = provider_name.to_s
         @config_manager = config_manager || ConfigManager.new
@@ -25,26 +28,13 @@ module Aidp
         @provider_config || {}
       end
 
-      # Get provider type (api, package, byok)
+      # Get provider type (usage_based, subscription)
       def get_type(options = {})
         config = get_config(options)
-        config[:type] || config["type"] || "package"
+        config[:type] || config["type"] || "subscription"
       end
 
-      # Check if provider is API type
-      def api_provider?(options = {})
-        get_type(options) == "api"
-      end
-
-      # Check if provider is package type
-      def package_provider?(options = {})
-        get_type(options) == "package"
-      end
-
-      # Check if provider is BYOK type
-      def byok_provider?(options = {})
-        get_type(options) == "byok"
-      end
+      # Provider type checking methods are now provided by ProviderTypeChecker module
 
       # Get provider priority
       def get_priority(options = {})

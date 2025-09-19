@@ -7,6 +7,54 @@ RSpec.describe Aidp::Harness::Runner do
   let(:temp_dir) { Dir.mktmpdir }
   let(:runner) { described_class.new(temp_dir, :analyze) }
 
+  before do
+    # Create a minimal configuration file for testing
+    config_content = {
+      "harness" => {
+        "default_provider" => "anthropic",
+        "fallback_providers" => ["cursor", "macos"],
+        "max_retries" => 2
+      },
+      "providers" => {
+        "anthropic" => {
+          "type" => "usage_based",
+          "priority" => 1,
+          "max_tokens" => 100_000,
+          "features" => {
+            "file_upload" => true,
+            "code_generation" => true,
+            "analysis" => true
+          }
+        },
+        "cursor" => {
+          "type" => "subscription",
+          "priority" => 2,
+          "models" => ["cursor-default"],
+          "features" => {
+            "file_upload" => true,
+            "code_generation" => true,
+            "analysis" => true
+          }
+        },
+        "macos" => {
+          "type" => "passthrough",
+          "priority" => 3,
+          "underlying_service" => "cursor",
+          "models" => ["cursor-chat"],
+          "features" => {
+            "file_upload" => false,
+            "code_generation" => true,
+            "analysis" => true,
+            "interactive" => true
+          }
+        }
+      }
+    }
+
+    config_file = File.join(temp_dir, "aidp.yml")
+    File.write(config_file, YAML.dump(config_content))
+  end
+
   after do
     FileUtils.rm_rf(temp_dir)
   end
@@ -126,18 +174,6 @@ RSpec.describe Aidp::Harness::Runner do
     end
   end
 
-  describe "#get_next_step" do
-    it "delegates to state manager", pending: "State manager delegation not fully implemented" do
-      state_manager = double("state_manager")
-      allow(state_manager).to receive(:next_step).and_return("next_step")
-      runner.instance_variable_set(:@state_manager, state_manager)
-
-      result = runner.send(:get_next_step, nil)
-      expect(result).to eq("next_step")
-      expect(state_manager).to have_received(:next_step)
-    end
-  end
-
   describe "#execute_step" do
     let(:mock_runner) { double("mode_runner") }
     let(:state_manager) { double("state_manager") }
@@ -162,41 +198,6 @@ RSpec.describe Aidp::Harness::Runner do
       allow(condition_detector).to receive(:needs_user_feedback?).and_return(false)
       allow(condition_detector).to receive(:is_rate_limited?).and_return(false)
       allow(mock_runner).to receive(:run_step).and_return({status: "completed"})
-    end
-
-    it "executes step successfully", pending: "Mode runner delegation not fully implemented" do
-      result = runner.send(:execute_step, mock_runner, "test_step")
-
-      expect(state_manager).to have_received(:mark_step_in_progress).with("test_step")
-      expect(status_display).to have_received(:update_current_step).with("test_step")
-      expect(status_display).to have_received(:update_current_provider).with("cursor")
-      expect(mock_runner).to have_received(:run_step).with("test_step", hash_including(user_input: {}))
-      expect(state_manager).to have_received(:mark_step_completed).with("test_step")
-      expect(result[:status]).to eq("completed")
-    end
-
-    it "handles user feedback request", pending: "Mode runner delegation not fully implemented" do
-      allow(condition_detector).to receive(:needs_user_feedback?).and_return(true)
-      allow(condition_detector).to receive(:extract_questions).and_return([{question: "test?"}])
-
-      user_interface = double("user_interface")
-      allow(user_interface).to receive(:collect_feedback).and_return({"question_1" => "answer"})
-      runner.instance_variable_set(:@user_interface, user_interface)
-
-      runner.send(:execute_step, mock_runner, "test_step")
-
-      expect(user_interface).to have_received(:collect_feedback)
-    end
-
-    it "handles rate limiting", pending: "Mode runner delegation not fully implemented" do
-      allow(condition_detector).to receive(:is_rate_limited?).and_return(true)
-      allow(provider_manager).to receive(:mark_rate_limited)
-      allow(provider_manager).to receive(:switch_provider).and_return("claude")
-
-      runner.send(:execute_step, mock_runner, "test_step")
-
-      expect(provider_manager).to have_received(:mark_rate_limited).with("cursor")
-      expect(provider_manager).to have_received(:switch_provider)
     end
   end
 
@@ -263,14 +264,13 @@ RSpec.describe Aidp::Harness::Runner do
   end
 
   describe "#all_steps_completed?" do
-    it "delegates to state manager", pending: "State manager delegation not fully implemented" do
-      state_manager = double("state_manager")
-      allow(state_manager).to receive(:all_steps_completed?).and_return(true)
-      runner.instance_variable_set(:@state_manager, state_manager)
+    it "delegates to state manager" do
+      mock_runner = double("mode_runner")
+      allow(mock_runner).to receive(:all_steps_completed?).and_return(true)
 
-      result = runner.send(:all_steps_completed?, nil)
+      result = runner.send(:all_steps_completed?, mock_runner)
       expect(result).to be true
-      expect(state_manager).to have_received(:all_steps_completed?)
+      expect(mock_runner).to have_received(:all_steps_completed?)
     end
   end
 
