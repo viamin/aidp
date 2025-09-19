@@ -349,9 +349,11 @@ module Aidp
                   error_msg = "ConnectError: #{connect_error_match[1]}"
                 end
               elsif error_msg.include?("exit status:")
-                exit_match = error_msg.match(/exit status: (\d+).*stderr: ([^\n\r]+)/m)
-                if exit_match
-                  error_msg = "Exit status: #{exit_match[1]}, Error: #{exit_match[2]}"
+                # Extract exit status and stderr using string operations to avoid ReDoS
+                exit_status_match = error_msg.match(/exit status: (\d+)/)
+                stderr_match = error_msg.match(/stderr: ([^\n\r]+)/)
+                if exit_status_match && stderr_match
+                  error_msg = "Exit status: #{exit_status_match[1]}, Error: #{stderr_match[1]}"
                 end
               elsif error_msg.length > 200
                 # For other long errors, truncate but keep the beginning
