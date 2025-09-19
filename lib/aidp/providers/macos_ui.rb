@@ -80,7 +80,8 @@ module Aidp
 
       def escape_for_applescript(text)
         # Escape special characters for AppleScript
-        text.gsub('"', '\\"').gsub("'", "\\'").gsub("\n", "\\n")
+        # Must escape backslashes first to avoid double-escaping
+        text.gsub('\\', '\\\\').gsub('"', '\\"').gsub("'", "\\'").gsub("\n", "\\n")
       end
 
       def fallback_dialog(prompt)
