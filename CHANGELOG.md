@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.8.0](https://github.com/viamin/aidp/compare/aidp/v0.7.0...aidp/v0.8.0) (2025-09-19)
+
+
+### Features
+
+* add Opencode provider for enhanced functionality ([400da5c](https://github.com/viamin/aidp/commit/400da5c99ea0b7de3062c46b416455be6b47ea58))
+* enhance CLI with new system tests and improved workflow management ([4f5b284](https://github.com/viamin/aidp/commit/4f5b2842b1ba513ac22070d8dab0980d14176ea3))
+* enhance debugging capabilities and add configuration file ([32ed1e2](https://github.com/viamin/aidp/commit/32ed1e2e9942597c6d4ba31fadc58afcda094d33))
+* enhance provider and model management with advanced configurations ([7bde12a](https://github.com/viamin/aidp/commit/7bde12ae8db3eed7cdfd6cabc3b7a2e64e7c7902))
+* enhance user interface with control features and feedback presentation ([2564103](https://github.com/viamin/aidp/commit/25641030936e8bf66f66d15938963b73df4172bf))
+* implement circuit breaker and error handling enhancements ([3c90f22](https://github.com/viamin/aidp/commit/3c90f220b078ed5f8a7a9777e394e6a1dda06bec))
+* implement comprehensive tracking systems for progress, provider status, rate limits, and token usage ([d995917](https://github.com/viamin/aidp/commit/d9959176925d09092bdcff3bc8ac873f61f7f0cf))
+* implement enhanced harness configuration management and provider integration ([c308ea4](https://github.com/viamin/aidp/commit/c308ea44d44f866bd387b2481e280c33772ed6e8))
+* implement harness mode in CLI and enhance configuration management ([e845e2c](https://github.com/viamin/aidp/commit/e845e2c37af65f5198e94dd641666cc1709c0019))
+* implement navigation system with keyboard support and menu management ([6b1e86a](https://github.com/viamin/aidp/commit/6b1e86ad0a74bf5e43ddb023d173688c148980e1))
+* integrate harness support across job management and execution ([fe377c3](https://github.com/viamin/aidp/commit/fe377c34dda198a338f17ed297081530ebe0e1ee))
+* introduce EnhancedRunner and UI components for improved workflow management ([70528a0](https://github.com/viamin/aidp/commit/70528a0a18fbc44ff8f5864e17552dc85704ebc6))
+* introduce Harness Mode for autonomous execution and enhanced user interaction ([1f44d48](https://github.com/viamin/aidp/commit/1f44d4833c17d2da360bfe18059e17859a5b6f82))
+* introduce job monitoring and management UI components ([00ee7aa](https://github.com/viamin/aidp/commit/00ee7aadbb9d25d73a8e1bf01b79c87d12e1a365))
+
+
+### Improvements
+
+* enhance state management and UI components with CLI UI integration ([77eabb8](https://github.com/viamin/aidp/commit/77eabb81bdabb04fcc6f0c5a3d24c822d54f22f2))
+* enhance user experience with animated spinners and improved error handling ([880237d](https://github.com/viamin/aidp/commit/880237d5bc9a9393daf6cbd83acb3ec34508dd40))
+* integrate TTY libraries for enhanced terminal UI experience ([827ed11](https://github.com/viamin/aidp/commit/827ed1110956a1667c16bb1426754be2a7172b37))
+* remove database dependencies and switch to async-job ([aa93464](https://github.com/viamin/aidp/commit/aa934644fc3e32947886a130fa41d8cc91ce9a28))
+* separate out CI steps into their own workflows ([7a63f24](https://github.com/viamin/aidp/commit/7a63f24a02a9fd67f1c12d9875b0826b356d83c1))
+* streamline configuration command structure and enhance error handling ([ca8e935](https://github.com/viamin/aidp/commit/ca8e935811f308f19af892df8704212d024508b0))
+* transition to Enhanced TUI and remove TTY dependencies ([b5d4b2e](https://github.com/viamin/aidp/commit/b5d4b2e398cbcab1b92c6d19cf2c29df28ef2192))
+* unify spinner management and enhance UI components ([b49f11a](https://github.com/viamin/aidp/commit/b49f11a07662cb2254e8467b8c6292740e9780d7))
+* update gemspec and UI components for TTY integration ([1b95a0a](https://github.com/viamin/aidp/commit/1b95a0a5cbfc933cd633cbd3a4e636452d84e0a2))
+
+
+### Documentation
+
+* update migration guide and style guide for Enhanced TUI integration ([8746a76](https://github.com/viamin/aidp/commit/8746a76ccabb1b54d3778537ac52289ca9dc94ed))
+* update README and add LLM style guide ([3932e01](https://github.com/viamin/aidp/commit/3932e01c3aad399a014b49ac79148531c1cf0280))
+* update README for CLI command changes and TUI integration ([76cff4b](https://github.com/viamin/aidp/commit/76cff4b44857edc2f4a20995903828af2ad2f52b))
+
 ## [0.7.0](https://github.com/viamin/aidp/compare/aidp/v0.6.0...aidp/v0.7.0) (2025-09-07)
 
 ### Features
