@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 require "net/http"
-require "async"
+require_relative "../debug_mixin"
 
 module Aidp
   module Harness
     # Handles error recovery, retry strategies, and fallback mechanisms
     class ErrorHandler
+      include Aidp::DebugMixin
+
       def initialize(provider_manager, configuration, metrics_manager = nil)
         @provider_manager = provider_manager
         @configuration = configuration
@@ -36,6 +38,14 @@ module Aidp
       def handle_error(error, context = {})
         error_info = @error_classifier.classify_error(error, context)
 
+        # Debug logging
+        debug_error(error, context)
+        debug_log("🔧 ErrorHandler: Processing error", level: :info, data: {
+          error_type: error_info[:error_type],
+          provider: error_info[:provider],
+          model: error_info[:model]
+        })
+
         # Record error in metrics if available
         @metrics_manager&.record_error(error_info[:provider], error_info[:model], error_info)
 
@@ -47,10 +57,18 @@ module Aidp
 
         # Check if we should retry
         if should_retry?(error_info, strategy)
+          debug_log("🔄 ErrorHandler: Attempting retry", level: :info, data: {
+            strategy: strategy[:name],
+            max_retries: strategy[:max_retries]
+          })
           execute_retry(error_info, strategy, context)
 
         else
           # No retry, attempt recovery
+          debug_log("🚨 ErrorHandler: No retry, attempting recovery", level: :warn, data: {
+            error_type: error_info[:error_type],
+            reason: "Retry not applicable or exhausted"
+          })
           attempt_recovery(error_info, context)
 
         end

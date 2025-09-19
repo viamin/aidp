@@ -6,6 +6,7 @@ require_relative "../providers/cursor"
 require_relative "../providers/anthropic"
 require_relative "../providers/gemini"
 require_relative "../providers/macos_ui"
+require_relative "../providers/opencode"
 
 module Aidp
   module Harness
@@ -15,7 +16,8 @@ module Aidp
         "cursor" => Aidp::Providers::Cursor,
         "anthropic" => Aidp::Providers::Anthropic,
         "gemini" => Aidp::Providers::Gemini,
-        "macos_ui" => Aidp::Providers::MacOSUI
+        "macos" => Aidp::Providers::MacOSUI,
+        "opencode" => Aidp::Providers::Opencode
       }.freeze
 
       def initialize(config_manager = nil)
@@ -188,7 +190,7 @@ module Aidp
         end
 
         # Check required configuration
-        if provider_config.api_provider?(options)
+        if provider_config.usage_based_provider?(options)
           api_key = provider_config.get_api_key(options)
           unless api_key && !api_key.empty?
             errors << "API key not configured for provider '#{provider_name}'"

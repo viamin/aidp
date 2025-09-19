@@ -184,17 +184,6 @@ module Aidp
         configured_providers.include?(provider_name.to_s)
       end
 
-      # Get available providers (filtered by restrictions)
-      def available_providers
-        providers = configured_providers
-
-        if restrict_to_non_byok?
-          providers = providers.select { |p| provider_type(p) != "byok" }
-        end
-
-        providers
-      end
-
       # Get configuration path
       def config_path
         File.join(@project_dir, "aidp.yml")
@@ -223,41 +212,6 @@ module Aidp
       # Get raw configuration
       def raw_config
         @config.dup
-      end
-
-      # Validate provider configuration
-      def validate_provider_config(provider_name)
-        errors = []
-        config = provider_config(provider_name)
-
-        # Validate required fields
-        unless config[:type]
-          errors << "Provider '#{provider_name}' missing type"
-        end
-
-        # Validate type-specific fields
-        case config[:type]
-        when "api"
-          unless config[:max_tokens]
-            errors << "API provider '#{provider_name}' missing max_tokens"
-          end
-        when "byok"
-          unless config[:auth] && config[:auth][:api_key]
-            errors << "BYOK provider '#{provider_name}' missing API key configuration"
-          end
-        end
-
-        # Validate models configuration
-        if config[:models] && !config[:models].is_a?(Array)
-          errors << "Provider '#{provider_name}' models must be an array"
-        end
-
-        # Validate model configurations
-        config[:models_config]&.each do |model_name, model_config|
-          validate_model_config(provider_name, model_name, model_config, errors)
-        end
-
-        errors
       end
 
       # Validate model configuration
@@ -292,10 +246,40 @@ module Aidp
         }
       end
 
+      # Validate provider configuration
+      def validate_provider_config(provider_name)
+        errors = []
+
+        unless provider_configured?(provider_name)
+          errors << "Provider '#{provider_name}' not configured"
+          return errors
+        end
+
+        # Validate provider type
+        provider_type = provider_type(provider_name)
+        unless %w[usage_based subscription passthrough].include?(provider_type)
+          errors << "Provider '#{provider_name}' has invalid type: #{provider_type}"
+        end
+
+        # Validate required fields based on type
+        case provider_type
+        when "usage_based"
+          unless max_tokens(provider_name)
+            errors << "Provider '#{provider_name}' missing max_tokens for usage_based type"
+          end
+        when "passthrough"
+          unless provider_config(provider_name)[:underlying_service]
+            errors << "Provider '#{provider_name}' missing underlying_service for passthrough type"
+          end
+        end
+
+        errors
+      end
+
       private
 
       def validate_configuration!
-        errors = Aidp::Config.validate_harness_config(@config)
+        errors = Aidp::Config.validate_harness_config(@config, @project_dir)
 
         # Additional harness-specific validation
         unless harness_config[:default_provider]
@@ -313,10 +297,14 @@ module Aidp
           end
         end
 
-        # Validate each provider configuration
+        # Validate each provider configuration using config_validator
         configured_providers.each do |provider|
-          provider_errors = validate_provider_config(provider)
-          errors.concat(provider_errors)
+          require_relative "config_validator"
+          validator = ConfigValidator.new(@project_dir)
+          validation_result = validator.validate_provider(provider)
+          unless validation_result[:valid]
+            errors.concat(validation_result[:errors])
+          end
         end
 
         raise ConfigurationError, errors.join(", ") if errors.any?
@@ -327,10 +315,8 @@ module Aidp
       # Default configuration methods
       def get_default_models_for_provider(provider_name)
         case provider_name
-        when "claude"
-          ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
-        when "gemini"
-          ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"]
+        when "anthropic"
+          ["anthropic-3-5-sonnet-20241022", "anthropic-3-5-haiku-20241022", "anthropic-3-opus-20240229"]
         when "cursor"
           ["cursor-default", "cursor-fast", "cursor-precise"]
         else
@@ -340,10 +326,8 @@ module Aidp
 
       def get_default_model_for_provider(provider_name)
         case provider_name
-        when "claude"
-          "claude-3-5-sonnet-20241022"
-        when "gemini"
-          "gemini-1.5-pro"
+        when "anthropic"
+          "anthropic-3-5-sonnet-20241022"
         when "cursor"
           "cursor-default"
         else
@@ -352,16 +336,7 @@ module Aidp
       end
 
       def get_default_timeout_for_provider(provider_name)
-        case provider_name
-        when "claude"
-          300 # 5 minutes
-        when "gemini"
-          300 # 5 minutes
-        when "cursor"
-          600 # 10 minutes
-        else
-          300 # 5 minutes
-        end
+        300 # 5 minutes - default timeout for all providers
       end
 
       def get_default_circuit_breaker_config

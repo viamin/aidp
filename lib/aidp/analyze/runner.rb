@@ -3,10 +3,13 @@
 require_relative "steps"
 require_relative "progress"
 require_relative "../storage/file_manager"
+require_relative "../debug_mixin"
 
 module Aidp
   module Analyze
     class Runner
+      include Aidp::DebugMixin
+
       def initialize(project_dir, harness_runner = nil)
         @project_dir = project_dir
         @harness_runner = harness_runner
@@ -23,6 +26,11 @@ module Aidp
         step_spec = Aidp::Analyze::Steps::SPEC[step_name]
         raise "Step '#{step_name}' not found" unless step_spec
 
+        debug_step(step_name, "Starting execution", {
+          harness_mode: @is_harness_mode,
+          options: options.keys
+        })
+
         # In harness mode, use the harness's provider management
         if @is_harness_mode
           run_step_with_harness(step_name, options)
@@ -37,11 +45,26 @@ module Aidp
         current_provider = @harness_runner.instance_variable_get(:@current_provider)
         provider_type = current_provider || "cursor"
 
+        debug_step(step_name, "Harness execution", {
+          provider: provider_type,
+          project_dir: @project_dir
+        })
+
         # Compose prompt with harness context
         prompt = composed_prompt_with_harness_context(step_name, options)
 
+        debug_log("📝 Composed prompt for #{step_name}", level: :info, data: {
+          prompt_length: prompt.length,
+          provider: provider_type
+        })
+
         # Execute with harness error handling
         result = execute_with_harness_provider(provider_type, prompt, step_name, options)
+
+        debug_step(step_name, "Harness execution completed", {
+          status: result[:status],
+          provider: result[:provider]
+        })
 
         # Process result for harness
         process_result_for_harness(result, step_name, options)

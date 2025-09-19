@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "provider_factory"
+
 module Aidp
   module Harness
     # Manages provider switching and fallback logic
@@ -283,7 +285,7 @@ module Aidp
 
       # Get available providers (not rate limited, healthy, and circuit breaker closed)
       def get_available_providers
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
         all_providers.select do |provider|
           !is_rate_limited?(provider) &&
             is_provider_healthy?(provider) &&
@@ -453,7 +455,7 @@ module Aidp
 
       # Build default fallback chain
       def build_default_fallback_chain(provider_name)
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
         fallback_chain = all_providers.dup
         fallback_chain.delete(provider_name)
         fallback_chain.unshift(provider_name) # Put current provider first
@@ -1076,12 +1078,51 @@ module Aidp
         recent_sessions.max_by { |_, time| time }&.first
       end
 
+      # Execute a prompt with a specific provider
+      def execute_with_provider(provider_type, prompt, options = {})
+        # Create provider factory instance
+        provider_factory = ProviderFactory.new
+
+        # Create provider instance
+        provider = provider_factory.create_provider(provider_type, options)
+
+        # Set current provider
+        @current_provider = provider_type
+
+        # Execute the prompt with the provider
+        result = provider.send(prompt: prompt, session: nil)
+
+        # Return structured result
+        {
+          status: "completed",
+          provider: provider_type,
+          output: result,
+          metadata: {
+            provider_type: provider_type,
+            prompt_length: prompt.length,
+            timestamp: Time.now.strftime("%Y-%m-%dT%H:%M:%S.%3N%z")
+          }
+        }
+      rescue => e
+        # Return error result
+        {
+          status: "error",
+          provider: provider_type,
+          error: e.message,
+          metadata: {
+            provider_type: provider_type,
+            error_class: e.class.name,
+            timestamp: Time.now.strftime("%Y-%m-%dT%H:%M:%S.%3N%z")
+          }
+        }
+      end
+
       private
 
       # Initialize fallback chains
       def initialize_fallback_chains
         @fallback_chains.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           build_default_fallback_chain(provider)
@@ -1091,7 +1132,7 @@ module Aidp
       # Initialize provider health
       def initialize_provider_health
         @provider_health.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           @provider_health[provider] = {
@@ -1108,7 +1149,7 @@ module Aidp
       # Initialize model configurations
       def initialize_model_configs
         @model_configs.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           @model_configs[provider] = get_default_models_for_provider(provider)
@@ -1118,7 +1159,7 @@ module Aidp
       # Initialize model health
       def initialize_model_health
         @model_health.clear
-        all_providers = @configuration.available_providers
+        all_providers = @configuration.configured_providers
 
         all_providers.each do |provider|
           @model_health[provider] = {}

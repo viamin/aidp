@@ -28,7 +28,7 @@ module Aidp
           # Headless (non-interactive) detection for test/CI environments:
           # - RSpec defined or RSPEC_RUNNING env set
           # - STDIN not a TTY (captured by PTY/tmux harness)
-          @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || !STDIN.tty?)
+          @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || !$stdin.tty?)
           @current_mode = nil
           @workflow_active = false
           @current_step = nil
@@ -174,7 +174,7 @@ module Aidp
         def announce_mode(mode)
           @current_mode = mode
           if @headless
-            header = mode == :analyze ? "Analyze Mode" : "Execute Mode"
+            header = (mode == :analyze) ? "Analyze Mode" : "Execute Mode"
             puts header
             puts "Select workflow"
           end
@@ -188,7 +188,7 @@ module Aidp
           questions = extract_questions_for_step(step_name)
           questions.each { |q| puts q }
           # Simulate quick completion
-          puts "#{step_name.split('_').first} completed" if step_name.start_with?("00_PRD")
+          puts "#{step_name.split("_").first} completed" if step_name.start_with?("00_PRD")
         end
 
         def add_message(message, type = :info)
@@ -338,7 +338,31 @@ module Aidp
             content = []
             content << @pastel.red("Step failed")
             if details[:error]
-              content << @pastel.red("Error: #{details[:error]}")
+              # Extract the most relevant error information
+              error_msg = details[:error]
+
+              # Look for key error patterns and extract them
+              if error_msg.include?("ConnectError:")
+                # Extract ConnectError and what comes after it
+                connect_error_match = error_msg.match(/ConnectError: ([^\\n]+)/)
+                if connect_error_match
+                  error_msg = "ConnectError: #{connect_error_match[1]}"
+                end
+              elsif error_msg.include?("exit status:")
+                # Extract exit status and stderr using string operations to avoid ReDoS
+                exit_status_match = error_msg.match(/exit status: (\d+)/)
+                stderr_match = error_msg.match(/stderr: ([^\n\r]+)/)
+                if exit_status_match && stderr_match
+                  error_msg = "Exit status: #{exit_status_match[1]}, Error: #{stderr_match[1]}"
+                end
+              elsif error_msg.length > 200
+                # For other long errors, truncate but keep the beginning
+                error_msg = error_msg[0..200] + "..."
+              end
+
+              # Wrap long lines
+              wrapped_error = error_msg.gsub(/.{80}/, "\\&\n")
+              content << @pastel.red("Error: #{wrapped_error}")
             end
 
             box = TTY::Box.frame(
@@ -346,13 +370,15 @@ module Aidp
               title: {top_left: "❌ Failed Step: #{step_name}"},
               border: :thick,
               padding: [1, 2],
-              style: {border: {fg: :red}}
+              style: {border: {fg: :red}},
+              width: 80
             )
             puts box
           end
         end
 
         private
+
         # Very lightweight key listener just for spec expectations (F1 help, Ctrl shortcuts)
         def start_key_listener
           return if @key_thread
@@ -385,12 +411,20 @@ module Aidp
                     # Detect simple F1 sequence variants: some tmux sends ESC O P, or just O then P in tests
                     if ch == "O"
                       # Peek next char non blocking
-                      nxt = ($stdin.read_nonblock(1) rescue nil)
+                      nxt = begin
+                        $stdin.read_nonblock(1)
+                      rescue
+                        nil
+                      end
                       if nxt == "P"
                         show_help_overlay
                       end
                     elsif ch == "\e"
-                      seq = ($stdin.read_nonblock(2) rescue "")
+                      seq = begin
+                        $stdin.read_nonblock(2)
+                      rescue
+                        ""
+                      end
                       show_help_overlay if seq.include?("OP")
                     end
                   end
@@ -411,18 +445,18 @@ module Aidp
           return [] unless @headless
           root = ENV["AIDP_ROOT"] || Dir.pwd
           dir = if @current_mode == :execute
-                  File.join(root, "templates", "EXECUTE")
-                else
-                  File.join(root, "templates", "ANALYZE")
-                end
+            File.join(root, "templates", "EXECUTE")
+          else
+            File.join(root, "templates", "ANALYZE")
+          end
           pattern = if step_name.start_with?("00_PRD")
-                      "00_PRD.md"
-                    else
-                      "*.md"
-                    end
+            "00_PRD.md"
+          else
+            "*.md"
+          end
           files = Dir.glob(File.join(dir, pattern))
           return [] if files.empty?
-            
+
           content = File.read(files.first)
           questions_section = content.split(/## Questions/i)[1]
           return [] unless questions_section

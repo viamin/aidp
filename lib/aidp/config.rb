@@ -10,12 +10,12 @@ module Aidp
       harness: {
         max_retries: 2,
         default_provider: "cursor",
-        fallback_providers: ["claude", "gemini"],
+        fallback_providers: ["cursor"],
         restrict_to_non_byok: false,
         provider_weights: {
           "cursor" => 3,
-          "claude" => 2,
-          "gemini" => 1
+          "anthropic" => 2,
+          "macos" => 1
         },
         circuit_breaker: {
           enabled: true,
@@ -104,8 +104,8 @@ module Aidp
             metrics_interval: 60
           }
         },
-        claude: {
-          type: "api",
+        anthropic: {
+          type: "usage_based",
           priority: 2,
           max_tokens: 100_000,
           default_flags: ["--dangerously-skip-permissions"],
@@ -149,49 +149,16 @@ module Aidp
             metrics_interval: 60
           }
         },
-        gemini: {
-          type: "api",
-          priority: 3,
-          max_tokens: 50_000,
-          default_flags: [],
-          models: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"],
-          model_weights: {
-            "gemini-1.5-pro" => 3,
-            "gemini-1.5-flash" => 2,
-            "gemini-1.0-pro" => 1
-          },
-          models_config: {
-            "gemini-1.5-pro" => {
-              flags: [],
-              max_tokens: 100_000,
-              timeout: 300
-            },
-            "gemini-1.5-flash" => {
-              flags: [],
-              max_tokens: 100_000,
-              timeout: 180
-            },
-            "gemini-1.0-pro" => {
-              flags: [],
-              max_tokens: 30_000,
-              timeout: 300
-            }
-          },
-          auth: {
-            api_key_env: "GEMINI_API_KEY"
-          },
-          endpoints: {
-            default: "https://generativelanguage.googleapis.com/v1beta/models"
-          },
+        macos: {
+          type: "passthrough",
+          priority: 4,
+          underlying_service: "cursor",
+          models: ["cursor-chat"],
           features: {
-            file_upload: true,
+            file_upload: false,
             code_generation: true,
             analysis: true,
-            vision: true
-          },
-          monitoring: {
-            enabled: true,
-            metrics_interval: 60
+            interactive: true
           }
         }
       }
@@ -218,10 +185,10 @@ module Aidp
     end
 
     # Validate harness configuration
-    def self.validate_harness_config(config)
+    def self.validate_harness_config(config, project_dir = Dir.pwd)
       errors = []
 
-      # Validate harness section
+      # Validate harness section (check the merged config, not original)
       harness_config = config[:harness] || config["harness"]
       if harness_config
         unless harness_config[:default_provider] || harness_config["default_provider"]
@@ -229,11 +196,19 @@ module Aidp
         end
       end
 
-      # Validate providers section
-      providers_config = config[:providers] || config["providers"]
-      if providers_config&.any?
-        providers_config.each do |provider_name, provider_config|
-          validate_provider_config(provider_name, provider_config, errors)
+      # Validate providers section using config_validator
+      # Only validate providers that exist in the original YAML file, not merged defaults
+      original_config = load(project_dir)
+      original_providers = original_config[:providers] || original_config["providers"]
+      if original_providers&.any?
+        require_relative "harness/config_validator"
+        validator = Aidp::Harness::ConfigValidator.new(project_dir)
+
+        original_providers.each do |provider_name, _provider_config|
+          validation_result = validator.validate_provider(provider_name)
+          unless validation_result[:valid]
+            errors.concat(validation_result[:errors])
+          end
         end
       end
 
@@ -280,7 +255,7 @@ module Aidp
         harness: {
           max_retries: 2,
           default_provider: "cursor",
-          fallback_providers: ["claude", "gemini"],
+          fallback_providers: ["cursor"],
           restrict_to_non_byok: false
         },
         providers: {
@@ -340,30 +315,6 @@ module Aidp
         new_key = key.is_a?(String) ? key.to_sym : key
         new_value = value.is_a?(Hash) ? symbolize_keys(value) : value
         result[new_key] = new_value
-      end
-    end
-
-    private_class_method def self.validate_provider_config(provider_name, provider_config, errors)
-      # Validate provider type
-      valid_types = %w[api package byok]
-      provider_type = provider_config[:type] || provider_config["type"]
-
-      unless valid_types.include?(provider_type)
-        errors << "Provider '#{provider_name}' has invalid type: #{provider_type}"
-      end
-
-      # Validate API provider settings
-      if provider_type == "api"
-        max_tokens = provider_config[:max_tokens] || provider_config["max_tokens"]
-        unless max_tokens&.positive?
-          errors << "API provider '#{provider_name}' must specify max_tokens"
-        end
-      end
-
-      # Validate flags
-      default_flags = provider_config[:default_flags] || provider_config["default_flags"]
-      if default_flags && !default_flags.is_a?(Array)
-        errors << "Provider '#{provider_name}' default_flags must be an array"
       end
     end
   end

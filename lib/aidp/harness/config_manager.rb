@@ -2,11 +2,14 @@
 
 require_relative "config_loader"
 require_relative "config_schema"
+require_relative "provider_type_checker"
 
 module Aidp
   module Harness
     # Unified configuration manager for harness
     class ConfigManager
+      include ProviderTypeChecker
+
       def initialize(project_dir = Dir.pwd)
         @project_dir = project_dir
         @loader = ConfigLoader.new(project_dir)
@@ -273,20 +276,7 @@ module Aidp
         provider_config[:type] || provider_config["type"]
       end
 
-      # Check if provider is API type
-      def api_provider?(provider_name, options = {})
-        get_provider_type(provider_name, options) == "api"
-      end
-
-      # Check if provider is package type
-      def package_provider?(provider_name, options = {})
-        get_provider_type(provider_name, options) == "package"
-      end
-
-      # Check if provider is BYOK type
-      def byok_provider?(provider_name, options = {})
-        get_provider_type(provider_name, options) == "byok"
-      end
+      # Provider type checking methods are now provided by ProviderTypeChecker module
 
       # Get provider max tokens
       def get_provider_max_tokens(provider_name, options = {})

@@ -59,8 +59,8 @@ RSpec.describe Aidp::Config do
       expect(config[:harness][:default_provider]).to eq("cursor")
       expect(config[:harness][:max_retries]).to eq(2)
       expect(config[:providers]).to have_key(:cursor)
-      expect(config[:providers]).to have_key(:claude)
-      expect(config[:providers]).to have_key(:gemini)
+      expect(config[:providers]).to have_key(:anthropic)
+      expect(config[:providers]).to have_key(:macos)
     end
 
     it "merges user configuration with defaults" do
@@ -71,7 +71,7 @@ RSpec.describe Aidp::Config do
         },
         providers: {
           custom_provider: {
-            type: "api",
+            type: "usage_based",
             max_tokens: 200000
           }
         }
@@ -81,7 +81,7 @@ RSpec.describe Aidp::Config do
 
       expect(config[:harness][:default_provider]).to eq("custom_provider")
       expect(config[:harness][:max_retries]).to eq(5)
-      expect(config[:providers][:custom_provider][:type]).to eq("api")
+      expect(config[:providers][:custom_provider][:type]).to eq("usage_based")
       expect(config[:providers][:custom_provider][:max_tokens]).to eq(200000)
 
       # Default providers should still be present
@@ -97,7 +97,7 @@ RSpec.describe Aidp::Config do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             default_flags: []
           }
         }
@@ -108,7 +108,8 @@ RSpec.describe Aidp::Config do
     end
 
     it "returns errors for invalid configuration" do
-      config = {
+      # Create a YAML file with invalid configuration
+      invalid_config = {
         harness: {
           default_provider: "nonexistent"
         },
@@ -119,9 +120,11 @@ RSpec.describe Aidp::Config do
         }
       }
 
-      errors = described_class.validate_harness_config(config)
+      File.write(config_file, YAML.dump(invalid_config))
+
+      errors = described_class.validate_harness_config(invalid_config, temp_dir)
       expect(errors).not_to be_empty
-      expect(errors).to include(match(/invalid type/))
+      expect(errors).to include(match(/must be one of usage_based, subscription, passthrough/))
     end
   end
 

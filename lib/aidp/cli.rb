@@ -125,7 +125,7 @@ module Aidp
         # Initialize the enhanced TUI
         tui = Aidp::Harness::UI::EnhancedTUI.new
         workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui)
-  $stdout.flush
+        $stdout.flush
 
         # Start TUI display loop
         tui.start_display_loop
@@ -282,7 +282,7 @@ module Aidp
           if step.start_with?("00_PRD") && (defined?(RSpec) || ENV["RSPEC_RUNNING"])
             # Simulate questions & completion similar to TUI test mode
             root = ENV["AIDP_ROOT"] || Dir.pwd
-            file = Dir.glob(File.join(root, "templates", mode == :execute ? "EXECUTE" : "ANALYZE", "00_PRD*.md")).first
+            file = Dir.glob(File.join(root, "templates", (mode == :execute) ? "EXECUTE" : "ANALYZE", "00_PRD*.md")).first
             if file && File.file?(file)
               content = File.read(file)
               questions_section = content.split(/## Questions/i)[1]

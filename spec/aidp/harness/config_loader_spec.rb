@@ -39,16 +39,26 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 1,
-            models: ["cursor-default"]
+            models: ["cursor-default"],
+            features: {
+              file_upload: true,
+              code_generation: true,
+              analysis: true
+            }
           },
           claude: {
-            type: "api",
+            type: "usage_based",
             priority: 2,
             max_tokens: 100_000,
             auth: {
               api_key_env: "ANTHROPIC_API_KEY"
+            },
+            features: {
+              file_upload: true,
+              code_generation: true,
+              analysis: true
             }
           }
         }
@@ -64,7 +74,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
 
       expect(config).to be_a(Hash)
       expect(config[:harness][:default_provider]).to eq("cursor")
-      expect(config[:providers][:cursor][:type]).to eq("package")
+      expect(config[:providers][:cursor][:type]).to eq("subscription")
     end
 
     it "caches configuration on subsequent loads" do
@@ -100,8 +110,8 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       cursor_config = loader.get_provider_config("cursor")
       claude_config = loader.get_provider_config("claude")
 
-      expect(cursor_config[:type]).to eq("package")
-      expect(claude_config[:type]).to eq("api")
+      expect(cursor_config[:type]).to eq("subscription")
+      expect(claude_config[:type]).to eq("usage_based")
       expect(claude_config[:max_tokens]).to eq(100_000)
     end
 
@@ -110,8 +120,8 @@ RSpec.describe Aidp::Harness::ConfigLoader do
 
       expect(all_providers).to have_key(:cursor)
       expect(all_providers).to have_key(:claude)
-      expect(all_providers[:cursor][:type]).to eq("package")
-      expect(all_providers[:claude][:type]).to eq("api")
+      expect(all_providers[:cursor][:type]).to eq("subscription")
+      expect(all_providers[:claude][:type]).to eq("usage_based")
     end
 
     it "gets configured provider names" do
@@ -130,7 +140,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 1
           }
         }
@@ -184,7 +194,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
 
       provider_config = loader.get_provider_config_with_overrides("cursor", overrides)
 
-      expect(provider_config[:type]).to eq("package")
+      expect(provider_config[:type]).to eq("subscription")
       expect(provider_config[:priority]).to eq(3)
     end
   end
@@ -208,7 +218,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -258,7 +268,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -313,7 +323,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -372,7 +382,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -409,7 +419,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -459,7 +469,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           }
         }
       }
@@ -479,7 +489,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         },
         "providers" => {
           "cursor" => {
-            "type" => "package"
+            "type" => "subscription"
           }
         }
       }
@@ -588,7 +598,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 1,
             models: ["cursor-default", "cursor-fast"],
             model_weights: {
@@ -617,7 +627,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
             }
           },
           claude: {
-            type: "api",
+            type: "usage_based",
             priority: 2,
             max_tokens: 100_000,
             default_flags: ["--dangerously-skip-permissions"],
@@ -662,8 +672,8 @@ RSpec.describe Aidp::Harness::ConfigManager do
       cursor_config = manager.get_provider_config("cursor")
       claude_config = manager.get_provider_config("claude")
 
-      expect(cursor_config[:type]).to eq("package")
-      expect(claude_config[:type]).to eq("api")
+      expect(cursor_config[:type]).to eq("subscription")
+      expect(claude_config[:type]).to eq("usage_based")
     end
 
     it "gets all providers" do
@@ -758,7 +768,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 1,
             models: ["cursor-default"],
             model_weights: {
@@ -873,7 +883,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             priority: 1,
             models: ["cursor-default", "cursor-fast"],
             model_weights: {
@@ -902,7 +912,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
             }
           },
           claude: {
-            type: "api",
+            type: "usage_based",
             priority: 2,
             max_tokens: 100_000,
             default_flags: ["--dangerously-skip-permissions"],
@@ -988,15 +998,15 @@ RSpec.describe Aidp::Harness::ConfigManager do
       cursor_type = manager.get_provider_type("cursor")
       claude_type = manager.get_provider_type("claude")
 
-      expect(cursor_type).to eq("package")
-      expect(claude_type).to eq("api")
+      expect(cursor_type).to eq("subscription")
+      expect(claude_type).to eq("usage_based")
     end
 
     it "checks provider types" do
-      expect(manager.package_provider?("cursor")).to be true
-      expect(manager.api_provider?("cursor")).to be false
-      expect(manager.api_provider?("claude")).to be true
-      expect(manager.package_provider?("claude")).to be false
+      expect(manager.subscription_provider?("cursor")).to be true
+      expect(manager.usage_based_provider?("cursor")).to be false
+      expect(manager.usage_based_provider?("claude")).to be true
+      expect(manager.subscription_provider?("claude")).to be false
     end
 
     it "gets provider max tokens" do
@@ -1040,7 +1050,12 @@ RSpec.describe Aidp::Harness::ConfigManager do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription",
+            features: {
+              file_upload: true,
+              code_generation: true,
+              analysis: true
+            }
           }
         }
       }
@@ -1071,10 +1086,10 @@ RSpec.describe Aidp::Harness::ConfigManager do
         },
         providers: {
           cursor: {
-            type: "package"
+            type: "subscription"
           },
           claude: {
-            type: "api",
+            type: "usage_based",
             max_tokens: 100_000
           }
         }

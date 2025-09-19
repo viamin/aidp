@@ -8,7 +8,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
   before do
     allow(configuration).to receive(:default_provider).and_return("claude")
-    allow(configuration).to receive(:available_providers).and_return(["claude", "gemini", "cursor"])
+    allow(configuration).to receive(:configured_providers).and_return(["claude", "gemini", "cursor"])
     allow(configuration).to receive(:provider_configured?).and_return(true)
   end
 

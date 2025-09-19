@@ -7,29 +7,34 @@ require_relative "../debug_mixin"
 
 module Aidp
   module Providers
-    class Cursor < Base
+    class Opencode < Base
       include Aidp::DebugMixin
 
       def self.available?
-        !!Aidp::Util.which("cursor-agent")
+        !!Aidp::Util.which("opencode")
       end
 
       def name
-        "cursor"
+        "opencode"
       end
 
       def send(prompt:, session: nil)
-        raise "cursor-agent not available" unless self.class.available?
+        raise "opencode not available" unless self.class.available?
 
         # Smart timeout calculation
         timeout_seconds = calculate_timeout
 
-        debug_provider("cursor", "Starting execution", {timeout: timeout_seconds})
-        debug_log("📝 Sending prompt to cursor-agent (length: #{prompt.length})", level: :info)
+        debug_provider("opencode", "Starting execution", {timeout: timeout_seconds})
+        debug_log("📝 Sending prompt to opencode (length: #{prompt.length})", level: :info)
+
+        # Check if prompt is too large and warn
+        if prompt.length > 3000
+          debug_log("⚠️  Large prompt detected (#{prompt.length} chars) - this may cause rate limiting", level: :warn)
+        end
 
         # Set up activity monitoring
-        setup_activity_monitoring("cursor-agent", method(:activity_callback))
-        record_activity("Starting cursor-agent execution")
+        setup_activity_monitoring("opencode", method(:activity_callback))
+        record_activity("Starting opencode execution")
 
         # Start activity display thread with timeout
         activity_display_thread = Thread.new do
@@ -47,17 +52,12 @@ module Aidp
 
         begin
           # Use debug_execute_command for better debugging
-          # Try agent command first (better for large prompts), fallback to -p mode
-          begin
-            result = debug_execute_command("cursor-agent", args: ["agent"], input: prompt, timeout: timeout_seconds)
-          rescue => e
-            # Fallback to -p mode if agent command fails
-            debug_log("🔄 Falling back to -p mode: #{e.message}", level: :warn)
-            result = debug_execute_command("cursor-agent", args: ["-p"], input: prompt, timeout: timeout_seconds)
-          end
+          # opencode run command with prompt and model
+          model = ENV["OPENCODE_MODEL"] || "github-copilot/claude-3.5-sonnet"
+          result = debug_execute_command("opencode", args: ["run", "-m", model, prompt], timeout: timeout_seconds)
 
           # Log the results
-          debug_command("cursor-agent", args: ["-p"], input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
+          debug_command("opencode", args: ["run", "-m", model, prompt], input: nil, output: result.out, error: result.err, exit_code: result.exit_status)
 
           # Stop activity display
           activity_display_thread.kill if activity_display_thread.alive?
@@ -68,17 +68,17 @@ module Aidp
             mark_completed
             result.out
           else
-            mark_failed("cursor-agent failed with exit code #{result.exit_status}")
-            debug_error(StandardError.new("cursor-agent failed"), {exit_code: result.exit_status, stderr: result.err})
-            raise "cursor-agent failed with exit code #{result.exit_status}: #{result.err}"
+            mark_failed("opencode failed with exit code #{result.exit_status}")
+            debug_error(StandardError.new("opencode failed"), {exit_code: result.exit_status, stderr: result.err})
+            raise "opencode failed with exit code #{result.exit_status}: #{result.err}"
           end
         rescue => e
           # Stop activity display
           activity_display_thread.kill if activity_display_thread.alive?
           activity_display_thread.join(0.1) # Give it 100ms to finish
           clear_activity_status
-          mark_failed("cursor-agent execution failed: #{e.message}")
-          debug_error(e, {provider: "cursor", prompt_length: prompt.length})
+          mark_failed("opencode execution failed: #{e.message}")
+          debug_error(e, {provider: "opencode", prompt_length: prompt.length})
           raise
         end
       end
@@ -86,14 +86,14 @@ module Aidp
       private
 
       def print_activity_status(elapsed)
-        # Print activity status during cursor execution with elapsed time
+        # Print activity status during opencode execution with elapsed time
         minutes = (elapsed / 60).to_i
         seconds = (elapsed % 60).to_i
 
         if minutes > 0
-          print "\r🔄 cursor-agent is running... (#{minutes}m #{seconds}s)"
+          print "\r🔄 opencode is running... (#{minutes}m #{seconds}s)"
         else
-          print "\r🔄 cursor-agent is running... (#{seconds}s)"
+          print "\r🔄 opencode is running... (#{seconds}s)"
         end
         $stdout.flush
       end
@@ -116,8 +116,8 @@ module Aidp
           return 120
         end
 
-        if ENV["AIDP_CURSOR_TIMEOUT"]
-          return ENV["AIDP_CURSOR_TIMEOUT"].to_i
+        if ENV["AIDP_OPENCODE_TIMEOUT"]
+          return ENV["AIDP_OPENCODE_TIMEOUT"].to_i
         end
 
         # Adaptive timeout based on step type
@@ -160,13 +160,34 @@ module Aidp
         # This is now handled by the animated display thread
         # Only print static messages for state changes
         case state
-        when :stuck
-          puts "\n⚠️  cursor appears stuck: #{message}"
+        when :starting
+          puts "🚀 Starting opencode execution..."
         when :completed
-          puts "\n✅ cursor completed: #{message}"
+          puts "✅ opencode execution completed"
         when :failed
-          puts "\n❌ cursor failed: #{message}"
+          puts "❌ opencode execution failed: #{message}"
         end
+      end
+
+      def setup_activity_monitoring(provider_name, callback)
+        @activity_callback = callback
+        @activity_state = :starting
+        @activity_start_time = Time.now
+      end
+
+      def record_activity(message)
+        @activity_state = :running
+        @activity_callback&.call(:running, message, "opencode")
+      end
+
+      def mark_completed
+        @activity_state = :completed
+        @activity_callback&.call(:completed, "Execution completed", "opencode")
+      end
+
+      def mark_failed(reason)
+        @activity_state = :failed
+        @activity_callback&.call(:failed, reason, "opencode")
       end
     end
   end

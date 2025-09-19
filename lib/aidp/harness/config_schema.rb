@@ -380,7 +380,7 @@ module Aidp
                 type: {
                   type: :string,
                   required: true,
-                  enum: ["api", "package", "byok"]
+                  enum: ["usage_based", "subscription", "passthrough"]
                 },
                 priority: {
                   type: :integer,
@@ -615,12 +615,12 @@ module Aidp
           harness: {
             max_retries: 2,
             default_provider: "cursor",
-            fallback_providers: ["claude", "gemini"],
+            fallback_providers: ["cursor"],
             restrict_to_non_byok: false,
             provider_weights: {
               "cursor" => 3,
-              "claude" => 2,
-              "gemini" => 1
+              "anthropic" => 2,
+              "macos" => 1
             },
             circuit_breaker: {
               enabled: true,
@@ -676,7 +676,7 @@ module Aidp
           },
           providers: {
             cursor: {
-              type: "package",
+              type: "subscription",
               priority: 1,
               default_flags: [],
               models: ["cursor-default", "cursor-fast", "cursor-precise"],
@@ -709,8 +709,8 @@ module Aidp
                 metrics_interval: 60
               }
             },
-            claude: {
-              type: "api",
+            anthropic: {
+              type: "usage_based",
               priority: 2,
               max_tokens: 100_000,
               default_flags: ["--dangerously-skip-permissions"],
@@ -748,43 +748,16 @@ module Aidp
                 metrics_interval: 60
               }
             },
-            gemini: {
-              type: "api",
-              priority: 3,
-              max_tokens: 50_000,
-              default_flags: [],
-              models: ["gemini-1.5-pro", "gemini-1.5-flash"],
-              model_weights: {
-                "gemini-1.5-pro" => 3,
-                "gemini-1.5-flash" => 2
-              },
-              models_config: {
-                "gemini-1.5-pro" => {
-                  flags: [],
-                  max_tokens: 100_000,
-                  timeout: 300
-                },
-                "gemini-1.5-flash" => {
-                  flags: [],
-                  max_tokens: 100_000,
-                  timeout: 180
-                }
-              },
-              auth: {
-                api_key_env: "GEMINI_API_KEY"
-              },
-              endpoints: {
-                default: "https://generativelanguage.googleapis.com/v1beta/models"
-              },
+            macos: {
+              type: "passthrough",
+              priority: 4,
+              underlying_service: "cursor",
+              models: ["cursor-chat"],
               features: {
-                file_upload: true,
+                file_upload: false,
                 code_generation: true,
                 analysis: true,
-                vision: true
-              },
-              monitoring: {
-                enabled: true,
-                metrics_interval: 60
+                interactive: true
               }
             }
           }

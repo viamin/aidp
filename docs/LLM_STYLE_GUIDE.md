@@ -109,7 +109,6 @@ end
 
 ## 14. Anti‑Patterns (Reject in PRs)
 
-
 - Pending or skipped *regressions*
 - Copy/paste ANSI / cursor escape spaghetti
 - Mega-methods controlling flow + formatting + persistence
