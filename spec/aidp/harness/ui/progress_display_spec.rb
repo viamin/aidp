@@ -149,6 +149,11 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
         progress_display.display_progress(sample_progress_data, :standard)
       end
 
+      after do
+        # Clean up the global TTY::Prompt stub
+        RSpec::Mocks.space.proxy_for(TTY::Prompt).reset
+      end
+
       it "returns display history" do
         history = progress_display.get_display_history
 
@@ -171,6 +176,11 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
       before do
         allow(TTY::Prompt).to receive(:new).and_return(double(ask: "response"))
         progress_display.display_progress(sample_progress_data, :standard)
+      end
+
+      after do
+        # Clean up the global TTY::Prompt stub
+        RSpec::Mocks.space.proxy_for(TTY::Prompt).reset
       end
 
       it "clears the display history" do

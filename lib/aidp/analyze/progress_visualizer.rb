@@ -4,7 +4,6 @@ require "tty-spinner"
 require "tty-progressbar"
 require "tty-table"
 require "pastel"
-require "colorize"
 
 module Aidp
   class ProgressVisualizer
@@ -295,21 +294,21 @@ module Aidp
     end
 
     def colorize(text, color)
-      return text unless defined?((+"").colorize)
+      return text unless @pastel
 
-      text.to_s.colorize(color)
+      @pastel.decorate(text.to_s, color)
     end
 
     def coverage_colorize(percentage, color)
-      return percentage unless defined?((+"").colorize)
+      return percentage unless @pastel
 
-      percentage.to_s.colorize(color)
+      @pastel.decorate(percentage.to_s, color)
     end
 
     def priority_colorize(text, color)
-      return text unless defined?((+"").colorize)
+      return text unless @pastel
 
-      text.to_s.colorize(color)
+      @pastel.decorate(text.to_s, color)
     end
   end
 end

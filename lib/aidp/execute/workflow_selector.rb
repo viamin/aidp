@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "readline"
+require "tty-prompt"
 
 module Aidp
   module Execute
@@ -8,6 +8,7 @@ module Aidp
     class WorkflowSelector
       def initialize
         @user_input = {}
+        @prompt = TTY::Prompt.new
       end
 
       # Main entry point for interactive workflow selection
@@ -189,22 +190,23 @@ module Aidp
 
       def prompt_required(question)
         loop do
-          response = Readline.readline("#{question}: ", true)&.strip
-          return response unless response.nil? || response.empty?
-          puts "This field is required. Please provide an answer."
+          input = @prompt.ask("#{question}:")
+
+          if input.nil? || input.strip.empty?
+            puts "❌ This field is required. Please provide an answer."
+            next
+          end
+
+          return input.strip
         end
       end
 
       def prompt_optional(question)
-        Readline.readline("#{question} (optional): ", true)&.strip
+        @prompt.ask("#{question} (optional):")
       end
 
       def prompt_choice(question, valid_choices)
-        loop do
-          response = Readline.readline("#{question} (#{valid_choices.join("/")}): ", true)&.strip&.downcase
-          return response if valid_choices.map(&:downcase).include?(response)
-          puts "Please choose one of: #{valid_choices.join(", ")}"
-        end
+        @prompt.select("#{question}:", valid_choices, per_page: valid_choices.length)
       end
     end
   end

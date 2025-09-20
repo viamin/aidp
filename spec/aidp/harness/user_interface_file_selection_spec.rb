@@ -4,7 +4,20 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:ui) { described_class.new }
+  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:ui) do
+    # Create a new instance and directly inject the mock prompt
+    ui_instance = described_class.new
+    # Replace the @prompt instance variable with our mock
+    ui_instance.instance_variable_set(:@prompt, mock_prompt)
+
+    # Set default stub behaviors to prevent hanging
+    allow(mock_prompt).to receive(:ask).and_return("")
+    allow(mock_prompt).to receive(:select).and_return("")
+    allow(mock_prompt).to receive(:keypress).and_return("")
+
+    ui_instance
+  end
 
   # Helper method to capture stdout
   def capture_stdout
@@ -273,8 +286,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         temp_file.write("Line 1\nLine 2\nLine 3\n" * 10) # 30 lines
         temp_file.close
 
-        # Mock Readline to return empty input
-        allow(Readline).to receive(:readline).and_return("")
+        # Mock TTY::Prompt to return empty input
+        allow(mock_prompt).to receive(:ask).and_return("")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_file_preview(temp_file.path)
@@ -297,8 +311,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles file read errors" do
-        # Mock Readline to return empty input
-        allow(Readline).to receive(:readline).and_return("")
+        # Mock TTY::Prompt to return empty input
+        allow(mock_prompt).to receive(:ask).and_return("")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_file_preview("nonexistent.txt")
@@ -383,8 +398,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock file selection
         allow(ui).to receive(:get_advanced_file_selection).and_return(0)
 
-        # Mock Readline for file response
-        allow(Readline).to receive(:readline).and_return("@config")
+        # Mock TTY::Prompt for file response
+        allow(mock_prompt).to receive(:ask).and_return("@config")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         result = ui.get_file_response("text", nil, true)
 

@@ -28,7 +28,7 @@ module Aidp
           # Headless (non-interactive) detection for test/CI environments:
           # - RSpec defined or RSPEC_RUNNING env set
           # - STDIN not a TTY (captured by PTY/tmux harness)
-          @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || !$stdin.tty?)
+          @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || $stdin.nil? || !$stdin.tty?)
           @current_mode = nil
           @workflow_active = false
           @current_step = nil
@@ -382,7 +382,7 @@ module Aidp
         # Very lightweight key listener just for spec expectations (F1 help, Ctrl shortcuts)
         def start_key_listener
           return if @key_thread
-          return unless $stdin.tty? || @headless
+          return unless $stdin&.tty? || @headless
 
           @key_thread = Thread.new do
             while @display_active

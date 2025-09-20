@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "readline"
+require "tty-prompt"
 
 module Aidp
   module Harness
@@ -9,6 +9,47 @@ module Aidp
       def initialize
         @input_history = []
         @file_selection_enabled = false
+        @prompt = TTY::Prompt.new
+        @control_mutex = Mutex.new
+        @pause_requested = false
+        @stop_requested = false
+        @resume_requested = false
+        @control_interface_enabled = false
+        @control_thread = nil
+      end
+
+      private
+
+      # Helper method to handle input consistently with TTY::Prompt
+      # Fixed to avoid keystroke loss issues with TTY::Prompt's required validation
+      def get_input_with_prompt(message, required: false, default: nil)
+        loop do
+          # Always use simple ask without built-in validation to avoid echo issues
+          input = if default
+            @prompt.ask("#{message} (default: #{default}): ")
+          else
+            @prompt.ask("#{message}: ")
+          end
+
+          # Handle empty input
+          if input.nil? || input.strip.empty?
+            if default
+              return default
+            elsif required
+              puts "❌ This field is required. Please provide a response."
+              next
+            else
+              return nil
+            end
+          end
+
+          return input.strip
+        end
+      end
+
+      public
+
+      def setup_control_interface
         @control_interface_enabled = true
         @pause_requested = false
         @stop_requested = false
@@ -465,9 +506,14 @@ module Aidp
           puts "  3. Get help"
           puts "  4. Cancel all questions"
 
-          choice = Readline.readline("Your choice (1-4): ", true)
+          choice = @prompt.select("Choose an option:", {
+            "Try again" => "1",
+            "Skip this question" => "2",
+            "Get help" => "3",
+            "Cancel all questions" => "4"
+          })
 
-          case choice&.strip
+          case choice
           when "1"
             puts "🔄 Retrying..."
             :retry
@@ -529,7 +575,7 @@ module Aidp
         end
 
         puts "\nPress Enter to continue..."
-        Readline.readline
+        @prompt.keypress("Press any key to continue...")
       end
 
       # Enhanced error handling and validation display
@@ -563,7 +609,7 @@ module Aidp
           end
           puts "\nPress Enter to continue or type 'fix' to correct..."
 
-          input = Readline.readline("", true)
+          input = @prompt.ask("")
           return input&.strip&.downcase == "fix"
         end
         false
@@ -573,21 +619,16 @@ module Aidp
       def get_text_response(expected_input, default_value, required, options = {})
         prompt = "Your response"
         prompt += " (default: #{default_value})" if default_value
-        prompt += required ? ": " : " (optional): "
+        prompt_text = prompt + (required ? "" : " (optional)")
 
         loop do
-          input = Readline.readline(prompt, true)
+          input = get_input_with_prompt(prompt_text, required: required, default: default_value)
 
-          # Handle empty input
-          if input.nil? || input.strip.empty?
-            if default_value
-              return default_value
-            elsif required
-              puts "❌ This field is required. Please provide a response."
-              next
-            else
-              return nil
-            end
+          # get_input_with_prompt already handles required validation and returns non-empty input
+          # Only validate the type/format if we got input
+          if input.nil?
+            # This should only happen for non-required fields
+            return nil
           end
 
           # Enhanced validation
@@ -622,7 +663,7 @@ module Aidp
           prompt += " (default: #{default_value})" if default_value
           prompt += required ? ": " : " (optional): "
 
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           if input.nil? || input.strip.empty?
             if default_value
@@ -666,7 +707,7 @@ module Aidp
         prompt += required ? ": " : " (optional): "
 
         loop do
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           if input.nil? || input.strip.empty?
             return default
@@ -702,7 +743,7 @@ module Aidp
         prompt += required ? ": " : " (optional): "
 
         loop do
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           if input.nil? || input.strip.empty?
             if default_value
@@ -745,7 +786,7 @@ module Aidp
         prompt += required ? ": " : " (optional): "
 
         loop do
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           if input.nil? || input.strip.empty?
             if default_value
@@ -792,7 +833,7 @@ module Aidp
         prompt += required ? ": " : " (optional): "
 
         loop do
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           if input.nil? || input.strip.empty?
             if default_value
@@ -829,7 +870,7 @@ module Aidp
         prompt += required ? ": " : " (optional): "
 
         loop do
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           if input.nil? || input.strip.empty?
             if default_value
@@ -1278,7 +1319,7 @@ module Aidp
       # Get user input with support for file selection
       def get_user_input(prompt)
         loop do
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           # Handle empty input
           if input.nil? || input.strip.empty?
@@ -1622,7 +1663,7 @@ module Aidp
       # Get advanced file selection from user
       def get_advanced_file_selection(max_files, _search_options)
         loop do
-          input = Readline.readline("Select file (0-#{max_files}, -1=refine, p=preview, h=help): ", true)
+          input = @prompt.ask("Select file (0-#{max_files}, -1=refine, p=preview, h=help): ")
 
           if input.nil? || input.strip.empty?
             puts "Please enter a selection."
@@ -1715,7 +1756,7 @@ module Aidp
         end
 
         puts "\nPress Enter to continue..."
-        Readline.readline
+        @prompt.keypress("Press any key to continue...")
       end
 
       # Get file selection from user (legacy method for compatibility)
@@ -1729,7 +1770,7 @@ module Aidp
         prompt = "#{message} [#{default_text}]: "
 
         loop do
-          input = Readline.readline(prompt, true)
+          input = @prompt.ask(prompt)
 
           if input.nil? || input.strip.empty?
             return default
@@ -1756,7 +1797,7 @@ module Aidp
         end
 
         loop do
-          input = Readline.readline("Your choice (1-#{options.size}): ", true)
+          input = @prompt.ask("Your choice (1-#{options.size}): ")
 
           if input.nil? || input.strip.empty?
             return default if default
@@ -1927,14 +1968,14 @@ module Aidp
         if should_show_help?(questions.first&.dig(:type), seen_types)
           show_help
           puts "\nPress Enter to continue..."
-          Readline.readline
+          @prompt.keypress("Press any key to continue...")
         end
 
         # Display question summary if verbose
         if @verbose_mode
           display_question_summary(questions)
           puts "\nPress Enter to start answering questions..."
-          Readline.readline
+          @prompt.keypress("Press any key to continue...")
         end
 
         # Collect feedback
@@ -2041,17 +2082,17 @@ module Aidp
 
       # Check if pause is requested
       def pause_requested?
-        @control_mutex.synchronize { @pause_requested }
+        @control_mutex.synchronize { !!@pause_requested }
       end
 
       # Check if stop is requested
       def stop_requested?
-        @control_mutex.synchronize { @stop_requested }
+        @control_mutex.synchronize { !!@stop_requested }
       end
 
       # Check if resume is requested
       def resume_requested?
-        @control_mutex.synchronize { @resume_requested }
+        @control_mutex.synchronize { !!@resume_requested }
       end
 
       # Request pause
@@ -2124,7 +2165,7 @@ module Aidp
         puts "=" * 50
 
         loop do
-          input = Readline.readline("Paused> ", true)
+          input = @prompt.ask("Paused>")
 
           case input&.strip&.downcase
           when "r", "resume"
@@ -2189,7 +2230,7 @@ module Aidp
       # Control interface main loop
       def control_interface_loop
         loop do
-          input = Readline.readline("Control> ", true)
+          input = @prompt.ask("Control> ")
 
           case input&.strip&.downcase
           when "p", "pause"
@@ -2253,11 +2294,11 @@ module Aidp
       def get_control_status
         @control_mutex.synchronize do
           {
-            enabled: @control_interface_enabled,
-            pause_requested: @pause_requested,
-            stop_requested: @stop_requested,
-            resume_requested: @resume_requested,
-            control_thread_alive: @control_thread&.alive? || false
+            enabled: !!@control_interface_enabled,
+            pause_requested: !!@pause_requested,
+            stop_requested: !!@stop_requested,
+            resume_requested: !!@resume_requested,
+            control_thread_alive: !!@control_thread&.alive?
           }
         end
       end
@@ -2291,7 +2332,7 @@ module Aidp
         puts "=" * 50
 
         loop do
-          choice = Readline.readline("Select option (1-8): ", true)
+          choice = @prompt.ask("Select option (1-8): ")
 
           case choice&.strip
           when "1"

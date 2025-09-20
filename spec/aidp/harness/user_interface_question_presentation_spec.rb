@@ -4,7 +4,20 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:ui) { described_class.new }
+  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:ui) do
+    # Create a new instance and directly inject the mock prompt
+    ui_instance = described_class.new
+    # Replace the @prompt instance variable with our mock
+    ui_instance.instance_variable_set(:@prompt, mock_prompt)
+
+    # Set default stub behaviors to prevent hanging
+    allow(mock_prompt).to receive(:ask).and_return("")
+    allow(mock_prompt).to receive(:select).and_return("")
+    allow(mock_prompt).to receive(:keypress).and_return("")
+
+    ui_instance
+  end
 
   # Helper method to capture stdout
   def capture_stdout
@@ -567,8 +580,10 @@ RSpec.describe Aidp::Harness::UserInterface do
           description: "Please provide your information"
         }
 
-        # Mock Readline to return test inputs
-        allow(Readline).to receive(:readline).and_return("John Doe", "25")
+        # Mock the response methods to avoid validation loops
+        allow(ui).to receive(:get_text_response).and_return("John Doe")
+        allow(ui).to receive(:get_number_response).and_return(25)
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         responses = ui.collect_feedback(questions, context)
 

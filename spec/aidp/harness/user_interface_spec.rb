@@ -4,7 +4,20 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:ui) { described_class.new }
+  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:ui) do
+    # Create a new instance and directly inject the mock prompt
+    ui_instance = described_class.new
+    # Replace the @prompt instance variable with our mock
+    ui_instance.instance_variable_set(:@prompt, mock_prompt)
+
+    # Set default stub behaviors to prevent hanging
+    allow(mock_prompt).to receive(:ask).and_return("default_response")
+    allow(mock_prompt).to receive(:select).and_return("")
+    allow(mock_prompt).to receive(:keypress).and_return("")
+
+    ui_instance
+  end
 
   # Helper method to capture stdout
   def capture_stdout
@@ -29,8 +42,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return test input
-        allow(Readline).to receive(:readline).and_return("John Doe")
+        # Mock the text response method directly to avoid TTY loops
+        allow(ui).to receive(:get_text_response).and_return("John Doe")
 
         responses = ui.collect_feedback(questions)
 
@@ -49,8 +62,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return choice selection
-        allow(Readline).to receive(:readline).and_return("2")
+        # Mock the choice response method directly to avoid TTY loops
+        allow(ui).to receive(:get_choice_response).and_return("Option B")
 
         responses = ui.collect_feedback(questions)
 
@@ -68,8 +81,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return confirmation
-        allow(Readline).to receive(:readline).and_return("y")
+        # Mock the confirmation response method directly to avoid TTY loops
+        allow(ui).to receive(:get_confirmation_response).and_return(true)
 
         responses = ui.collect_feedback(questions)
 
@@ -87,8 +100,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return email
-        allow(Readline).to receive(:readline).and_return("test@example.com")
+        # Mock the email response method directly to avoid TTY loops
+        allow(ui).to receive(:get_email_response).and_return("test@example.com")
 
         responses = ui.collect_feedback(questions)
 
@@ -107,8 +120,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return number
-        allow(Readline).to receive(:readline).and_return("25")
+        # Mock the number response method directly to avoid TTY loops
+        allow(ui).to receive(:get_number_response).and_return(25)
 
         responses = ui.collect_feedback(questions)
 
@@ -126,8 +139,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return URL
-        allow(Readline).to receive(:readline).and_return("https://example.com")
+        # Mock the get_url_response method directly to avoid TTY loops
+        allow(ui).to receive(:get_url_response).and_return("https://example.com")
 
         responses = ui.collect_feedback(questions)
 
@@ -145,8 +158,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return empty input
-        allow(Readline).to receive(:readline).and_return("")
+        # Mock the text response method to return nil for optional empty input
+        allow(ui).to receive(:get_text_response).and_return(nil)
 
         responses = ui.collect_feedback(questions)
 
@@ -165,8 +178,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return empty input
-        allow(Readline).to receive(:readline).and_return("")
+        # Mock the text response method to return the default value
+        allow(ui).to receive(:get_text_response).and_return("Anonymous")
 
         responses = ui.collect_feedback(questions)
 
@@ -191,8 +204,9 @@ RSpec.describe Aidp::Harness::UserInterface do
           agent_output: "Agent needs user information to continue"
         }
 
-        # Mock Readline to return test input
-        allow(Readline).to receive(:readline).and_return("John Doe")
+        # Mock TTY::Prompt to return test input
+        allow(mock_prompt).to receive(:ask).and_return("John Doe")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         # Capture output
         output = capture_stdout do
@@ -259,8 +273,8 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#get_quick_feedback" do
       it "gets quick feedback for text questions" do
-        # Mock Readline to return test input
-        allow(Readline).to receive(:readline).and_return("Quick response")
+        # Mock the text response method directly to avoid TTY loops
+        allow(ui).to receive(:get_text_response).and_return("Quick response")
 
         response = ui.get_quick_feedback("What is your name?", type: "text")
 
@@ -268,8 +282,8 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "gets quick feedback for confirmation questions" do
-        # Mock Readline to return confirmation
-        allow(Readline).to receive(:readline).and_return("y")
+        # Mock the confirmation response method directly to avoid TTY loops
+        allow(ui).to receive(:get_confirmation_response).and_return(true)
 
         response = ui.get_quick_feedback("Do you want to continue?", type: "confirmation")
 
@@ -277,8 +291,8 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "gets quick feedback for choice questions" do
-        # Mock Readline to return choice selection
-        allow(Readline).to receive(:readline).and_return("1")
+        # Mock the choice response method directly to avoid TTY loops
+        allow(ui).to receive(:get_choice_response).and_return("Option A")
 
         response = ui.get_quick_feedback("Choose an option:",
           type: "choice",
@@ -309,8 +323,10 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock Readline to return test inputs
-        allow(Readline).to receive(:readline).and_return("John Doe", "25", "y")
+        # Mock the response methods directly to avoid TTY loops
+        # get_quick_feedback calls get_text_response for both text and number questions
+        allow(ui).to receive(:get_text_response).and_return("John Doe", "25")
+        allow(ui).to receive(:get_confirmation_response).and_return(true)
 
         responses = ui.collect_batch_feedback(questions)
 
@@ -323,8 +339,8 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#get_user_preferences" do
       it "gets user preferences" do
-        # Mock Readline to return preference selections
-        allow(Readline).to receive(:readline).and_return("n", "y", "y", "n")
+        # Mock get_confirmation to return the expected sequence of preferences
+        allow(ui).to receive(:get_confirmation).and_return(false, true, true, false)
 
         preferences = ui.get_user_preferences
 

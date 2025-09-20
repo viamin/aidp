@@ -4,7 +4,20 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:ui) { described_class.new }
+  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:ui) do
+    # Create a new instance and directly inject the mock prompt
+    ui_instance = described_class.new
+    # Replace the @prompt instance variable with our mock
+    ui_instance.instance_variable_set(:@prompt, mock_prompt)
+
+    # Set default stub behaviors to prevent hanging
+    allow(mock_prompt).to receive(:ask).and_return("")
+    allow(mock_prompt).to receive(:select).and_return("")
+    allow(mock_prompt).to receive(:keypress).and_return("")
+
+    ui_instance
+  end
 
   # Helper method to capture stdout
   def capture_stdout
@@ -24,7 +37,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     after do
       # Clean up after tests
-      ui.stop_control_interface
+      ui.disable_control_interface  # This also calls stop_control_interface
       ui.clear_control_requests
     end
 
@@ -152,8 +165,9 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "control state handling" do
       describe "#handle_pause_state" do
         it "displays pause state information" do
-          # Mock Readline to return "r" (resume)
-          allow(Readline).to receive(:readline).and_return("r")
+          # Mock TTY::Prompt to return "r" (resume)
+          allow(mock_prompt).to receive(:ask).and_return("r")
+          allow(mock_prompt).to receive(:keypress).and_return("")
 
           output = capture_stdout do
             ui.handle_pause_state
@@ -170,8 +184,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "handles resume command" do
-          # Mock Readline to return "r" (resume)
-          allow(Readline).to receive(:readline).and_return("r")
+          # Mock TTY::Prompt to return "r" (resume)
+          allow(mock_prompt).to receive(:ask).and_return("r")
+          allow(mock_prompt).to receive(:keypress).and_return("")
 
           output = capture_stdout do
             ui.handle_pause_state
@@ -180,8 +195,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "handles stop command" do
-          # Mock Readline to return "s" (stop)
-          allow(Readline).to receive(:readline).and_return("s")
+          # Mock TTY::Prompt to return "s" (stop)
+          allow(mock_prompt).to receive(:ask).and_return("s")
+          allow(mock_prompt).to receive(:keypress).and_return("")
 
           output = capture_stdout do
             ui.handle_pause_state
@@ -190,8 +206,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "handles help command" do
-          # Mock Readline to return "h" then "r"
-          allow(Readline).to receive(:readline).and_return("h", "r")
+          # Mock TTY::Prompt to return "h" then "r"
+          allow(mock_prompt).to receive(:ask).and_return("h", "r")
+          allow(mock_prompt).to receive(:keypress).and_return("")
 
           output = capture_stdout do
             ui.handle_pause_state
@@ -200,8 +217,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "handles quit command" do
-          # Mock Readline to return "q" (quit)
-          allow(Readline).to receive(:readline).and_return("q")
+          # Mock TTY::Prompt to return "q" (quit)
+          allow(mock_prompt).to receive(:ask).and_return("q")
+          allow(mock_prompt).to receive(:keypress).and_return("")
 
           output = capture_stdout do
             ui.handle_pause_state
@@ -210,8 +228,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         it "handles invalid commands" do
-          # Mock Readline to return "invalid" then "r"
-          allow(Readline).to receive(:readline).and_return("invalid", "r")
+          # Mock TTY::Prompt to return "invalid" then "r"
+          allow(mock_prompt).to receive(:ask).and_return("invalid", "r")
+          allow(mock_prompt).to receive(:keypress).and_return("")
 
           output = capture_stdout do
             ui.handle_pause_state
@@ -305,8 +324,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       it "handles pause request" do
         ui.request_pause
 
-        # Mock Readline to return "r" (resume)
-        allow(Readline).to receive(:readline).and_return("r")
+        # Mock TTY::Prompt to return "r" (resume)
+        allow(mock_prompt).to receive(:ask).and_return("r")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         result = ui.check_control_input
         expect(result).to be_nil
@@ -428,8 +448,9 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#show_control_menu" do
       it "displays control menu options" do
-        # Mock Readline to return "8" (exit)
-        allow(Readline).to receive(:readline).and_return("8")
+        # Mock TTY::Prompt to return "8" (exit)
+        allow(mock_prompt).to receive(:ask).and_return("8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -470,8 +491,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles menu option 1 (start control interface)" do
-        # Mock Readline to return "1" then "8"
-        allow(Readline).to receive(:readline).and_return("1", "8")
+        # Mock TTY::Prompt to return "1" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("1", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -480,8 +502,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles menu option 2 (stop control interface)" do
-        # Mock Readline to return "2" then "8"
-        allow(Readline).to receive(:readline).and_return("2", "8")
+        # Mock TTY::Prompt to return "2" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("2", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -490,8 +513,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles menu option 3 (pause harness)" do
-        # Mock Readline to return "3" then "8"
-        allow(Readline).to receive(:readline).and_return("3", "8")
+        # Mock TTY::Prompt to return "3" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("3", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -500,8 +524,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles menu option 4 (resume harness)" do
-        # Mock Readline to return "4" then "8"
-        allow(Readline).to receive(:readline).and_return("4", "8")
+        # Mock TTY::Prompt to return "4" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("4", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -510,8 +535,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles menu option 5 (stop harness)" do
-        # Mock Readline to return "5" then "8"
-        allow(Readline).to receive(:readline).and_return("5", "8")
+        # Mock TTY::Prompt to return "5" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("5", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -520,8 +546,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles menu option 6 (show control status)" do
-        # Mock Readline to return "6" then "8"
-        allow(Readline).to receive(:readline).and_return("6", "8")
+        # Mock TTY::Prompt to return "6" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("6", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -530,8 +557,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles menu option 7 (show help)" do
-        # Mock Readline to return "7" then "8"
-        allow(Readline).to receive(:readline).and_return("7", "8")
+        # Mock TTY::Prompt to return "7" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("7", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -540,8 +568,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
 
       it "handles invalid menu options" do
-        # Mock Readline to return "99" then "8"
-        allow(Readline).to receive(:readline).and_return("99", "8")
+        # Mock TTY::Prompt to return "99" then "8"
+        allow(mock_prompt).to receive(:ask).and_return("99", "8")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_control_menu
@@ -597,8 +626,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       it "handles pause request within timeout" do
         ui.request_pause
 
-        # Mock Readline to return "r" (resume)
-        allow(Readline).to receive(:readline).and_return("r")
+        # Mock TTY::Prompt to return "r" (resume)
+        allow(mock_prompt).to receive(:ask).and_return("r")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.control_interface_with_timeout(30)

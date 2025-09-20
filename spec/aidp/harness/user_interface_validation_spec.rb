@@ -4,7 +4,20 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:ui) { described_class.new }
+  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:ui) do
+    # Create a new instance and directly inject the mock prompt
+    ui_instance = described_class.new
+    # Replace the @prompt instance variable with our mock
+    ui_instance.instance_variable_set(:@prompt, mock_prompt)
+
+    # Set default stub behaviors to prevent hanging
+    allow(mock_prompt).to receive(:ask).and_return("")
+    allow(mock_prompt).to receive(:select).and_return("")
+    allow(mock_prompt).to receive(:keypress).and_return("")
+
+    ui_instance
+  end
 
   # Helper method to capture stdout
   def capture_stdout
@@ -462,10 +475,15 @@ RSpec.describe Aidp::Harness::UserInterface do
           warnings: ["This is a warning"]
         }
 
-        # Mock Readline to return "fix"
-        allow(Readline).to receive(:readline).and_return("fix")
+        # Mock TTY::Prompt to return "fix" specifically for this call
+        # Note: The default stub from the let block returns "" so we need to override it
+        expect(mock_prompt).to receive(:ask).with("").and_return("fix")
 
-        result = ui.display_validation_warnings(validation_result)
+        result = nil
+        capture_stdout do
+          result = ui.display_validation_warnings(validation_result)
+        end
+
         expect(result).to be true
       end
 
@@ -487,8 +505,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         error = StandardError.new("Test error")
         question_data = {question: "Test question", type: "text"}
 
-        # Mock Readline to return "1" (try again)
-        allow(Readline).to receive(:readline).and_return("1")
+        # Mock TTY::Prompt to return "1" (try again)
+        allow(mock_prompt).to receive(:select).and_return("1")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         result = ui.handle_input_error(error, question_data, 0)
         expect(result).to eq(:retry)
@@ -507,8 +526,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       it "shows help for text questions" do
         question_data = {question: "What is your name?", type: "text"}
 
-        # Mock Readline to return empty input
-        allow(Readline).to receive(:readline).and_return("")
+        # Mock TTY::Prompt to return empty input
+        allow(mock_prompt).to receive(:ask).and_return("")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_question_help(question_data)
@@ -523,8 +543,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       it "shows help for choice questions" do
         question_data = {question: "Choose an option:", type: "choice"}
 
-        # Mock Readline to return empty input
-        allow(Readline).to receive(:readline).and_return("")
+        # Mock TTY::Prompt to return empty input
+        allow(mock_prompt).to receive(:ask).and_return("")
+        allow(mock_prompt).to receive(:keypress).and_return("")
 
         output = capture_stdout do
           ui.show_question_help(question_data)

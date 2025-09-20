@@ -12,6 +12,18 @@ require "tempfile"
 require "fileutils"
 require "logger"
 
+# Global TTY::Prompt mocks for testing
+RSpec.configure do |config|
+  config.before(:each) do
+    allow_any_instance_of(TTY::Prompt).to receive(:keypress).and_return("")
+  end
+
+  config.after(:each) do
+    # Clean up any TTY::Prompt class-level stubs to prevent order-dependent failures
+    RSpec::Mocks.space.proxy_for(TTY::Prompt)&.reset
+  end
+end
+
 # Aruba configuration for system tests
 require "aruba/rspec"
 
