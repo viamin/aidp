@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1](https://github.com/viamin/aidp/compare/aidp/v0.8.0...aidp/v0.8.1) (2025-09-20)
+
+
+### Bug Fixes
+
+* add Pathname requirement to tree_sitter_grammar_loader.rb ([30ab408](https://github.com/viamin/aidp/commit/30ab4085a36ef5145ac6704ac795ddd4bb685e0d))
+* add Pathname requirement to tree_sitter_grammar_loader.rb ([#46](https://github.com/viamin/aidp/issues/46)) ([95b8564](https://github.com/viamin/aidp/commit/95b8564c8d6c53b81b6257d9850f86d401e88d6e))
+
 ## [0.8.0](https://github.com/viamin/aidp/compare/aidp/v0.7.0...aidp/v0.8.0) (2025-09-19)
 
 
