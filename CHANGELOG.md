@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/viamin/aidp/compare/aidp/v0.8.1...aidp/v0.8.2) (2025-09-20)
+
+
+### Bug Fixes
+
+* better handling of TTY::Prompt for input ([ea39c88](https://github.com/viamin/aidp/commit/ea39c88a7e8e9dc1dc7b57900e524339e3915418))
+
 ## [0.8.1](https://github.com/viamin/aidp/compare/aidp/v0.8.0...aidp/v0.8.1) (2025-09-20)
 
 
