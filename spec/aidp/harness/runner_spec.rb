@@ -75,7 +75,7 @@ RSpec.describe Aidp::Harness::Runner do
       expect(runner.instance_variable_get(:@state_manager)).to be_a(Aidp::Harness::StateManager)
       expect(runner.instance_variable_get(:@condition_detector)).to be_a(Aidp::Harness::ConditionDetector)
       expect(runner.instance_variable_get(:@provider_manager)).to be_a(Aidp::Harness::ProviderManager)
-      expect(runner.instance_variable_get(:@user_interface)).to be_a(Aidp::Harness::UserInterface)
+      expect(runner.instance_variable_get(:@user_interface)).to be_a(Aidp::Harness::SimpleUserInterface)
       expect(runner.instance_variable_get(:@error_handler)).to be_a(Aidp::Harness::ErrorHandler)
       expect(runner.instance_variable_get(:@status_display)).to be_a(Aidp::Harness::StatusDisplay)
     end
