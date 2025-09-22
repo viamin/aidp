@@ -6,7 +6,7 @@ require_relative "configuration"
 require_relative "state_manager"
 require_relative "condition_detector"
 require_relative "provider_manager"
-require_relative "user_interface"
+require_relative "simple_user_interface"
 require_relative "error_handler"
 require_relative "status_display"
 require_relative "completion_checker"
@@ -47,7 +47,7 @@ module Aidp
         @state_manager = StateManager.new(project_dir, @mode)
         @condition_detector = ConditionDetector.new
         @provider_manager = ProviderManager.new(@configuration)
-        @user_interface = UserInterface.new
+        @user_interface = SimpleUserInterface.new
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @status_display = StatusDisplay.new
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
