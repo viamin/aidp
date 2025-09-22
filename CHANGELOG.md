@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.3](https://github.com/viamin/aidp/compare/aidp/v0.8.2...aidp/v0.8.3) (2025-09-22)
+
+
+### Improvements
+
+* implement SimpleUserInterface for streamlined user feedback collection ([23bbf06](https://github.com/viamin/aidp/commit/23bbf066621da38da6ed030fb7e16473949ad07d))
+* implement SimpleUserInterface for streamlined user feedback collection ([#49](https://github.com/viamin/aidp/issues/49)) ([d2ff754](https://github.com/viamin/aidp/commit/d2ff754e1829623b31d925ea6e1edb0f50a9dbba))
+
 ## [0.8.2](https://github.com/viamin/aidp/compare/aidp/v0.8.1...aidp/v0.8.2) (2025-09-20)
 
 
