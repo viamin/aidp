@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.2](https://github.com/viamin/aidp/compare/aidp/v0.9.1...aidp/v0.9.2) (2025-09-23)
+
+
+### Bug Fixes
+
+* improve number format validation in user interface ([286e9e3](https://github.com/viamin/aidp/commit/286e9e3bbbebc989b9d34f70c871d1ceec821caf))
+* improve number format validation in user interface ([#57](https://github.com/viamin/aidp/issues/57)) ([3461bb6](https://github.com/viamin/aidp/commit/3461bb6200d4a8aad6c0def527f549abb1201864))
+
 ## [0.9.1](https://github.com/viamin/aidp/compare/aidp/v0.9.0...aidp/v0.9.1) (2025-09-23)
 
 
