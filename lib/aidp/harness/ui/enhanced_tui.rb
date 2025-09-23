@@ -2,7 +2,6 @@
 
 require "tty-cursor"
 require "tty-screen"
-require "tty-reader"
 require "tty-box"
 require "tty-table"
 require "tty-progressbar"
@@ -22,7 +21,6 @@ module Aidp
         def initialize
           @cursor = TTY::Cursor
           @screen = TTY::Screen
-          @reader = TTY::Reader.new
           @pastel = Pastel.new
           @prompt = TTY::Prompt.new
           # Headless (non-interactive) detection for test/CI environments:
@@ -35,41 +33,18 @@ module Aidp
 
           @jobs = {}
           @jobs_visible = false
-          @input_mode = false
-          @input_prompt = ""
-          @input_buffer = ""
-          @input_position = 0
-          @display_active = false
-          @display_thread = nil
 
           setup_signal_handlers
         end
 
-        # Smart display loop - only shows input overlay when needed
+        # Simple display initialization - no background threads
         def start_display_loop
-          # Display loop is no longer needed since we use TTY::Prompt for input
-          # Keep this method for compatibility but don't start the loop
-          @display_active = true
-          start_key_listener
-          # Always emit a visible menu header once so outer harness/system tests
-          # (tmux sessions that may appear TTY) can detect readiness reliably.
-          puts "Choose your mode"
+          # Display loop is now just a no-op for compatibility
         end
 
         def stop_display_loop
-          @display_active = false
-          @display_thread&.join
-          @key_thread&.kill
-          @key_thread = nil
+          # Simple cleanup - no background threads to stop
           restore_screen
-        end
-
-        def pause_display_loop
-          @input_mode = false
-        end
-
-        def resume_display_loop
-          @input_mode = true
         end
 
         # Job monitoring methods
@@ -84,90 +59,53 @@ module Aidp
             provider: job_data[:provider] || "unknown"
           }
           @jobs_visible = true
-          add_message("🔄 Started job: #{@jobs[job_id][:name]}", :info)
         end
 
         def update_job(job_id, updates)
           return unless @jobs[job_id]
 
-          old_status = @jobs[job_id][:status]
           @jobs[job_id].merge!(updates)
           @jobs[job_id][:updated_at] = Time.now
-
-          # Show status change messages
-          if old_status != @jobs[job_id][:status]
-            case @jobs[job_id][:status]
-            when :completed
-              add_message("✅ Completed job: #{@jobs[job_id][:name]}", :success)
-            when :failed
-              add_message("❌ Failed job: #{@jobs[job_id][:name]}", :error)
-            when :running
-              add_message("🔄 Running job: #{@jobs[job_id][:name]}", :info)
-            end
-          end
         end
 
         def remove_job(job_id)
-          job_name = @jobs[job_id]&.dig(:name)
           @jobs.delete(job_id)
           @jobs_visible = @jobs.any?
-          add_message("🗑️ Removed job: #{job_name}", :info) if job_name
         end
 
-        # Input methods using TTY
+        # Input methods using TTY::Prompt only - no background threads
         def get_user_input(prompt = "💬 You: ")
-          # Use TTY::Prompt for better input handling - no display loop needed
           @prompt.ask(prompt)
-        rescue TTY::Reader::InputInterrupt
-          # Clean exit without error trace
-          puts "\n\n👋 Goodbye!"
-          exit(0)
         end
 
         def get_confirmation(message, default: true)
-          # Use TTY::Prompt for better input handling - no display loop needed
           @prompt.yes?(message)
-        rescue TTY::Reader::InputInterrupt
-          # Clean exit without error trace
-          puts "\n\n👋 Goodbye!"
-          exit(0)
         end
 
-        # Single-select interface using TTY::Prompt (much better!)
+        # Single-select interface using TTY::Prompt
         def single_select(title, items, default: 0)
           @prompt.select(title, items, default: default, cycle: true)
-        rescue TTY::Reader::InputInterrupt
-          # Clean exit without error trace
-          puts "\n\n👋 Goodbye!"
-          exit(0)
         end
 
-        # Multiselect interface using TTY::Prompt (much better!)
+        # Multiselect interface using TTY::Prompt
         def multiselect(title, items, selected: [])
           @prompt.multi_select(title, items, default: selected)
-        rescue TTY::Reader::InputInterrupt
-          # Clean exit without error trace
-          puts "\n\n👋 Goodbye!"
-          exit(0)
         end
 
-        # Display methods using TTY
+        # Display methods using TTY::Prompt
         def show_message(message, type = :info)
           case type
           when :info
-            puts @pastel.blue("ℹ") + " #{message}"
+            @prompt.say("ℹ #{message}", color: :blue)
           when :success
-            puts @pastel.green("✓") + " #{message}"
+            @prompt.say("✓ #{message}", color: :green)
           when :warning
-            puts @pastel.yellow("⚠") + " #{message}"
+            @prompt.say("⚠ #{message}", color: :yellow)
           when :error
-            puts @pastel.red("✗") + " #{message}"
+            @prompt.say("✗ #{message}", color: :red)
           else
-            puts message
+            @prompt.say(message)
           end
-
-          # Add to main content for history
-          add_message(message, type)
         end
 
         # Called by CLI after mode selection in interactive flow (added helper)
@@ -175,8 +113,8 @@ module Aidp
           @current_mode = mode
           if @headless
             header = (mode == :analyze) ? "Analyze Mode" : "Execute Mode"
-            puts header
-            puts "Select workflow"
+            @prompt.say(header)
+            @prompt.say("Select workflow")
           end
         end
 
@@ -186,74 +124,9 @@ module Aidp
           @workflow_active = true
           @current_step = step_name
           questions = extract_questions_for_step(step_name)
-          questions.each { |q| puts q }
+          questions.each { |q| @prompt.say(q) }
           # Simulate quick completion
-          puts "#{step_name.split("_").first} completed" if step_name.start_with?("00_PRD")
-        end
-
-        def add_message(message, type = :info)
-          # Just add to a simple message log - no recursion
-          # This method is used by job monitoring, not for display
-        end
-
-        def show_progress(message, progress = 0)
-          if progress > 0
-            progress_bar = TTY::ProgressBar.new(
-              "⏳ #{message} [:bar] :percent",
-              total: 100,
-              width: 40
-            )
-            progress_bar.current = progress
-            progress_bar.render
-          else
-            # Use the unified spinner helper for indeterminate progress
-            @current_spinner = TTY::Spinner.new("⏳ #{message} :spinner", format: :pulse)
-            @current_spinner.start
-          end
-        end
-
-        def hide_progress
-          @current_spinner&.stop
-          @current_spinner = nil
-        end
-
-        # Job display methods
-        def show_jobs_dashboard
-          return unless @jobs_visible && @jobs.any?
-
-          # Create jobs table
-          table = TTY::Table.new(header: ["Status", "Job", "Provider", "Elapsed", "Message"])
-
-          @jobs.each do |job_id, job|
-            status_icon = case job[:status]
-            when :running then @pastel.green("●")
-            when :completed then @pastel.blue("●")
-            when :failed then @pastel.red("●")
-            when :pending then @pastel.yellow("●")
-            else @pastel.white("●")
-            end
-
-            elapsed = format_elapsed_time(Time.now - job[:started_at])
-            status_text = "#{status_icon} #{job[:status].to_s.capitalize}"
-
-            table << [
-              status_text,
-              job[:name],
-              job[:provider],
-              elapsed,
-              job[:message]
-            ]
-          end
-
-          # Display in a box
-          box = TTY::Box.frame(
-            width: 80,  # Fixed width instead of @screen.width
-            height: @jobs.length + 3,
-            title: {top_left: "🔄 Background Jobs"},
-            border: {type: :thick}
-          )
-
-          puts box.render(table.render(:unicode, padding: [0, 1]))
+          @prompt.say("#{step_name.split("_").first} completed") if step_name.start_with?("00_PRD")
         end
 
         # Enhanced workflow display
@@ -379,68 +252,6 @@ module Aidp
 
         private
 
-        # Very lightweight key listener just for spec expectations (F1 help, Ctrl shortcuts)
-        def start_key_listener
-          return if @key_thread
-          return unless $stdin&.tty? || @headless
-
-          @key_thread = Thread.new do
-            while @display_active
-              begin
-                if IO.select([$stdin], nil, nil, 0.1)
-                  ch = $stdin.getc
-                  next unless ch
-                  code = ch.ord
-                  case code
-                  when 16 # Ctrl+P
-                    if @workflow_active
-                      puts "Workflow Paused"
-                    end
-                  when 18 # Ctrl+R
-                    if @workflow_active
-                      puts "Workflow Resumed"
-                    end
-                  when 19 # Ctrl+S
-                    if @workflow_active
-                      puts "Workflow Stopped"
-                      @workflow_active = false
-                    end
-                  when 27 # ESC - re-show menu header hint
-                    puts "Choose your mode"
-                  else
-                    # Detect simple F1 sequence variants: some tmux sends ESC O P, or just O then P in tests
-                    if ch == "O"
-                      # Peek next char non blocking
-                      nxt = begin
-                        $stdin.read_nonblock(1)
-                      rescue
-                        nil
-                      end
-                      if nxt == "P"
-                        show_help_overlay
-                      end
-                    elsif ch == "\e"
-                      seq = begin
-                        $stdin.read_nonblock(2)
-                      rescue
-                        ""
-                      end
-                      show_help_overlay if seq.include?("OP")
-                    end
-                  end
-                end
-              rescue IOError
-                # ignore
-              end
-            end
-          end
-        end
-
-        def show_help_overlay
-          puts "Keyboard Shortcuts"
-          puts "Ctrl+P Pause | Ctrl+R Resume | Ctrl+S Stop | Esc Back"
-        end
-
         def extract_questions_for_step(step_name)
           return [] unless @headless
           root = ENV["AIDP_ROOT"] || Dir.pwd
@@ -465,53 +276,10 @@ module Aidp
           []
         end
 
-        def initialize_display
-          @cursor.hide
-        end
-
         def restore_screen
           @cursor.show
           @cursor.clear_screen
           @cursor.move_to(1, 1)
-        end
-
-        def refresh_display
-          return unless @input_mode
-
-          @cursor.save
-          @cursor.move_to(1, @screen.height)
-
-          # Clear the bottom line
-          print " " * @screen.width
-
-          # Draw input overlay at the bottom
-          draw_input_overlay
-
-          @cursor.restore
-        end
-
-        def draw_input_overlay
-          # Get terminal width and ensure we don't exceed it
-          width = @screen.width
-          max_width = width - 4  # Leave some margin
-
-          # Create the input line
-          input_line = @input_prompt + @input_buffer
-
-          # Truncate if too long
-          if input_line.length > max_width
-            input_line = input_line[0...max_width] + "..."
-          end
-
-          # Draw the input overlay at the bottom
-          @cursor.move_to(1, @screen.height)
-          print @pastel.blue("┌") + "─" * (width - 2) + @pastel.blue("┐")
-
-          @cursor.move_to(1, @screen.height + 1)
-          print @pastel.blue("│") + input_line + " " * (width - input_line.length - 2) + @pastel.blue("│")
-
-          @cursor.move_to(1, @screen.height + 2)
-          print @pastel.blue("└") + "─" * (width - 2) + @pastel.blue("┘")
         end
 
         def setup_signal_handlers

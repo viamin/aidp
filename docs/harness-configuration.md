@@ -53,8 +53,8 @@ harness:
   # Fallback provider chain
   fallback_providers: ["gemini", "cursor"]
 
-  # Restrict to non-BYOK providers only
-  restrict_to_non_byok: false
+  # Only use providers that don't require API keys
+  no_api_keys_required: false
 ```
 
 ### Rate Limit Configuration

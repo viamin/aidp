@@ -125,26 +125,13 @@ module Aidp
         end
 
         def collect_project_info_interactive
-          @tui.show_message("📋 Project Setup", :info)
-          @tui.show_message("Let's set up your development workflow", :info)
-
           @user_input[:project_description] = @tui.get_user_input("What do you want to build? (Be specific about features and goals)")
-          @tui.show_message("✅ Project description captured", :success)
-
           @user_input[:tech_stack] = @tui.get_user_input("What technology stack are you using? (e.g., Ruby/Rails, Node.js, Python/Django) [optional]")
-          @tui.show_message("✅ Tech stack captured", :success)
-
           @user_input[:target_users] = @tui.get_user_input("Who are the target users? (e.g., developers, end users, internal team) [optional]")
-          @tui.show_message("✅ Target users captured", :success)
-
           @user_input[:success_criteria] = @tui.get_user_input("How will you know this is successful? (e.g., performance metrics, user adoption) [optional]")
-          @tui.show_message("✅ Success criteria captured", :success)
         end
 
         def choose_workflow_type_interactive
-          @tui.show_message("🛠️ Workflow Selection", :info)
-          @tui.show_message("Choose your development approach:", :info)
-
           workflow_options = [
             "🔬 Exploration/Experiment - Quick prototype or proof of concept",
             "🏗️ Full Development - Production-ready feature or system"
@@ -154,10 +141,8 @@ module Aidp
           @user_input[:workflow_type] = selected
 
           if selected.include?("Exploration")
-            @tui.show_message("🔬 Using exploration workflow - fast iteration, minimal documentation", :info)
             :exploration
           else
-            @tui.show_message("🏗️ Using full development workflow - comprehensive planning and documentation", :info)
             :full
           end
         end
@@ -174,7 +159,6 @@ module Aidp
         end
 
         def generate_exploration_steps
-          @tui.show_message("🔬 Using exploration workflow - fast iteration, minimal documentation", :info)
           [
             "00_PRD",           # Generate PRD from user input (no manual gate)
             "10_TESTING_STRATEGY", # Ensure we have tests
@@ -184,9 +168,6 @@ module Aidp
         end
 
         def generate_full_steps_interactive
-          @tui.show_message("🏗️ Customize Full Workflow", :info)
-          @tui.show_message("Customizing your full development workflow", :info)
-
           available_steps = [
             "00_PRD - Product Requirements Document (required)",
             "01_NFRS - Non-Functional Requirements (optional)",
@@ -212,8 +193,6 @@ module Aidp
 
           # Add implementation at the end
           selected_steps << "16_IMPLEMENTATION"
-
-          @tui.show_message("✅ Selected #{selected_steps.length} steps for your workflow", :success)
           selected_steps
         end
 

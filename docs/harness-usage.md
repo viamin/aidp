@@ -232,7 +232,7 @@ harness:
   max_retries: 3
   default_provider: "claude"
   fallback_providers: ["gemini", "cursor"]
-  restrict_to_non_byok: false
+  no_api_keys_required: false
 
   # Rate limit handling
   rate_limit_strategy: "provider_first"

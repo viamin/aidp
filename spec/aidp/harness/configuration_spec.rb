@@ -24,7 +24,7 @@ RSpec.describe Aidp::Harness::Configuration do
         max_retries: 3,
         default_provider: "anthropic",
         fallback_providers: ["cursor", "macos"],
-        restrict_to_non_byok: false,
+        no_api_keys_required: false,
         provider_weights: {
           "anthropic" => 3,
           "cursor" => 2,
@@ -192,8 +192,8 @@ RSpec.describe Aidp::Harness::Configuration do
       expect(configuration.max_retries).to eq(3)
     end
 
-    it "returns restrict to non-BYOK setting" do
-      expect(configuration.restrict_to_non_byok?).to be false
+    it "returns no API keys required setting" do
+      expect(configuration.no_api_keys_required?).to be false
     end
   end
 
@@ -234,8 +234,8 @@ RSpec.describe Aidp::Harness::Configuration do
       expect(providers).to include("anthropic", "cursor", "macos")
     end
 
-    it "filters BYOK providers when restricted" do
-      allow(configuration).to receive(:restrict_to_non_byok?).and_return(true)
+    it "filters providers requiring API keys when restricted" do
+      allow(configuration).to receive(:no_api_keys_required?).and_return(true)
       allow(configuration).to receive(:provider_type).with("anthropic").and_return("usage_based")
       allow(configuration).to receive(:provider_type).with("cursor").and_return("subscription")
       allow(configuration).to receive(:provider_type).with("macos").and_return("passthrough")
@@ -428,7 +428,7 @@ RSpec.describe Aidp::Harness::Configuration do
       expect(summary[:default_provider]).to eq("anthropic")
       expect(summary[:fallback_providers]).to eq(2)
       expect(summary[:max_retries]).to eq(3)
-      expect(summary[:restrict_to_non_byok]).to be false
+      expect(summary[:no_api_keys_required]).to be false
       expect(summary[:load_balancing_enabled]).to be true
       expect(summary[:model_switching_enabled]).to be true
       expect(summary[:circuit_breaker_enabled]).to be true

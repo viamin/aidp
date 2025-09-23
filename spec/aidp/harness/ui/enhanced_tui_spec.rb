@@ -56,23 +56,34 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
   end
 
   describe "display loop control" do
-    it "has no-op display loop methods" do
-      # The display loop methods are now no-ops
+    it "has simple display methods" do
+      # Simple display methods without background threads
       expect { tui.start_display_loop }.not_to raise_error
       expect { tui.stop_display_loop }.not_to raise_error
-      expect { tui.pause_display_loop }.not_to raise_error
-      expect { tui.resume_display_loop }.not_to raise_error
     end
   end
 
   describe "#show_message" do
     it "displays messages with appropriate formatting" do
-      # Test that show_message outputs to stdout without mocking Pastel
-      # (Pastel is complex to mock and the actual output is what matters)
-      expect { tui.show_message("Test info message", :info) }.to output(/Test info message/).to_stdout
-      expect { tui.show_message("Test success message", :success) }.to output(/Test success message/).to_stdout
-      expect { tui.show_message("Test warning message", :warning) }.to output(/Test warning message/).to_stdout
-      expect { tui.show_message("Test error message", :error) }.to output(/Test error message/).to_stdout
+      # Mock TTY::Prompt to verify the correct say calls are made
+      mock_prompt = instance_double(TTY::Prompt)
+      allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
+
+      # Create a new TUI instance with the mocked prompt
+      tui_with_mock = described_class.new
+
+      # Test that show_message calls the correct TTY::Prompt.say methods
+      expect(mock_prompt).to receive(:say).with("ℹ Test info message", color: :blue)
+      tui_with_mock.show_message("Test info message", :info)
+
+      expect(mock_prompt).to receive(:say).with("✓ Test success message", color: :green)
+      tui_with_mock.show_message("Test success message", :success)
+
+      expect(mock_prompt).to receive(:say).with("⚠ Test warning message", color: :yellow)
+      tui_with_mock.show_message("Test warning message", :warning)
+
+      expect(mock_prompt).to receive(:say).with("✗ Test error message", color: :red)
+      tui_with_mock.show_message("Test error message", :error)
     end
   end
 end
