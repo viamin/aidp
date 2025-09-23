@@ -1,12 +1,12 @@
 ---
-:harness:
-  :max_retries: 2
-  :default_provider: cursor
-  :fallback_providers:
+harness:
+  max_retries: 2
+  default_provider: cursor
+  fallback_providers:
   - macos
-  :no_api_keys_required: true
-:providers:
-  :cursor:
+  no_api_keys_required: true
+providers:
+  cursor:
     type: subscription
     priority: 2
     models:
@@ -15,7 +15,7 @@
       file_upload: true
       code_generation: true
       analysis: true
-  :macos:
+  macos:
     type: passthrough
     priority: 1
     models:

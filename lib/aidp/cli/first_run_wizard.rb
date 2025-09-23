@@ -188,17 +188,17 @@ module Aidp
 
         provider_section = {}
         providers.each do |prov|
-          provider_section[prov.to_sym] = {type: (prov == "cursor") ? "package" : "usage_based", default_flags: []}
+          provider_section[prov] = {"type" => (prov == "cursor") ? "package" : "usage_based", "default_flags" => []}
         end
 
         data = {
-          harness: {
-            max_retries: 2,
-            default_provider: provider_name,
-            fallback_providers: fallback_providers,
-            no_api_keys_required: restrict
+          "harness" => {
+            "max_retries" => 2,
+            "default_provider" => provider_name,
+            "fallback_providers" => fallback_providers,
+            "no_api_keys_required" => restrict
           },
-          providers: provider_section
+          "providers" => provider_section
         }
         File.write(dest, YAML.dump(data))
         dest
@@ -248,18 +248,25 @@ module Aidp
         providers.each do |prov|
           # Try to preserve existing provider config if it exists
           existing_provider = providers_config[prov.to_sym] || providers_config[prov.to_s]
-          provider_section[prov.to_sym] = (existing_provider || {type: (prov == "cursor") ? "package" : "usage_based", default_flags: []})
+          if existing_provider
+            # Convert existing provider config to string keys
+            converted_provider = {}
+            existing_provider.each { |k, v| converted_provider[k.to_s] = v }
+            provider_section[prov] = converted_provider
+          else
+            provider_section[prov] = {"type" => (prov == "cursor") ? "package" : "usage_based", "default_flags" => []}
+          end
         end
 
         # Build the new config
         data = {
-          harness: {
-            max_retries: harness_config[:max_retries] || harness_config["max_retries"] || 2,
-            default_provider: provider_name,
-            fallback_providers: fallback_providers,
-            no_api_keys_required: restrict_input
+          "harness" => {
+            "max_retries" => harness_config[:max_retries] || harness_config["max_retries"] || 2,
+            "default_provider" => provider_name,
+            "fallback_providers" => fallback_providers,
+            "no_api_keys_required" => restrict_input
           },
-          providers: provider_section
+          "providers" => provider_section
         }
 
         File.write(dest, YAML.dump(data))
