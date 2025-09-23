@@ -1091,7 +1091,7 @@ module Aidp
         number_str = input.strip
 
         # Check for valid float format
-        if !number_str.match?(/\A-?\d+\.?\d*\z/)
+        if !number_str.match?(/\A-?\d+(?:\.\d+)?\z/)
           result[:error_message] = "Invalid number format"
           result[:suggestions] = [
             "Enter a number (e.g., 25, 3.14, -10.5)",
