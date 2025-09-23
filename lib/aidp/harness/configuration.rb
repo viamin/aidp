@@ -298,7 +298,9 @@ module Aidp
         end
 
         # Validate each provider configuration using config_validator
-        configured_providers.each do |provider|
+        # Only validate providers that are actually referenced in the harness configuration
+        providers_to_validate = [default_provider] + fallback_providers
+        providers_to_validate.uniq.each do |provider|
           require_relative "config_validator"
           validator = ConfigValidator.new(@project_dir)
           validation_result = validator.validate_provider(provider)
