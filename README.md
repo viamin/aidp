@@ -15,6 +15,20 @@ cd /your/project
 aidp
 ```
 
+### First-Time Setup
+
+On the first run in a project without an `aidp.yml`, AIDP now launches a **First-Time Setup Wizard** instead of failing with a configuration error. You'll be prompted to choose one of:
+
+1. Minimal (single provider: cursor)
+2. Development template (multiple providers, safe defaults)
+3. Production template (full-feature example – review before committing)
+4. Full example (verbose documented config)
+5. Custom (interactive prompts for providers and defaults)
+
+Non-interactive environments (CI, scripts, pipes) automatically receive a minimal `aidp.yml` so workflows can proceed without manual intervention.
+
+You can re-run the wizard manually by removing `aidp.yml` and starting `aidp` again.
+
 ## Enhanced TUI
 
 AIDP features a rich terminal interface that transforms it from a step-by-step tool into an intelligent development assistant. The enhanced TUI provides beautiful, interactive terminal components while running complete workflows automatically.

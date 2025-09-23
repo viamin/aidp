@@ -102,7 +102,7 @@ The `harness` section controls the overall behavior of the harness system:
 
 The `providers` section defines individual provider settings:
 
-- `type`: Provider type (package, api, byok)
+- `type`: Provider type (package, api, passthrough)
 - `priority`: Provider priority (higher = more preferred)
 - `models`: Available models for the provider
 - `features`: Provider capabilities
@@ -186,11 +186,11 @@ time_based:
 - **Examples**: Claude, Gemini
 - **Configuration**: Requires API keys
 
-### BYOK Providers
+### Passthrough Providers
 
-- **Type**: `byok`
-- **Pricing**: User provides their own API key
-- **Examples**: OpenAI, custom APIs
+- **Type**: `passthrough`
+- **Pricing**: Uses underlying service pricing
+- **Examples**: macOS UI automation, custom integrations
 - **Configuration**: User manages API keys
 
 ## Best Practices
@@ -198,7 +198,7 @@ time_based:
 ### Security
 
 - Store API keys in environment variables, not in the config file
-- Use `restrict_to_non_byok: true` to avoid BYOK providers
+- Use `no_api_keys_required: true` to avoid providers that require API keys
 - Enable SSL verification in production
 - Configure allowed/blocked hosts appropriately
 

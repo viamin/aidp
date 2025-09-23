@@ -6,6 +6,7 @@ require_relative "execute/workflow_selector"
 require_relative "harness/ui/enhanced_tui"
 require_relative "harness/ui/enhanced_workflow_selector"
 require_relative "harness/enhanced_runner"
+require_relative "cli/first_run_wizard"
 
 module Aidp
   # CLI interface for AIDP
@@ -122,6 +123,21 @@ module Aidp
         puts "   Press Ctrl+C to stop\n"
         $stdout.flush
 
+        # Handle configuration setup
+        if options[:setup_config]
+          # Force setup/reconfigure even if config exists
+          unless Aidp::CLI::FirstRunWizard.setup_config(Dir.pwd, input: $stdin, output: $stdout, non_interactive: ENV["CI"] == "true")
+            puts "Configuration setup cancelled. Aborting startup."
+            return 1
+          end
+        else
+          # First-time setup wizard (before TUI to avoid noisy errors)
+          unless Aidp::CLI::FirstRunWizard.ensure_config(Dir.pwd, input: $stdin, output: $stdout, non_interactive: ENV["CI"] == "true")
+            puts "Configuration required. Aborting startup."
+            return 1
+          end
+        end
+
         # Initialize the enhanced TUI
         tui = Aidp::Harness::UI::EnhancedTUI.new
         workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui)
@@ -175,6 +191,7 @@ module Aidp
 
           opts.on("-h", "--help", "Show this help message") { options[:help] = true }
           opts.on("-v", "--version", "Show version information") { options[:version] = true }
+          opts.on("--setup-config", "Setup or reconfigure config file with current values as defaults") { options[:setup_config] = true }
         end
 
         parser.parse!(args)

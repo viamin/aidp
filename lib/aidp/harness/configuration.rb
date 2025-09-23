@@ -42,9 +42,9 @@ module Aidp
         harness_config[:max_retries]
       end
 
-      # Check if restricted to non-BYOK providers
-      def restrict_to_non_byok?
-        harness_config[:restrict_to_non_byok]
+      # Check if restricted to providers that don't require API keys
+      def no_api_keys_required?
+        harness_config[:no_api_keys_required]
       end
 
       # Get provider type (api, package, etc.)
@@ -237,7 +237,7 @@ module Aidp
           default_provider: default_provider,
           fallback_providers: fallback_providers.size,
           max_retries: max_retries,
-          restrict_to_non_byok: restrict_to_non_byok?,
+          no_api_keys_required: no_api_keys_required?,
           load_balancing_enabled: load_balancing_config[:enabled],
           model_switching_enabled: model_switching_config[:enabled],
           circuit_breaker_enabled: circuit_breaker_config[:enabled],

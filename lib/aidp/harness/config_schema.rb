@@ -33,7 +33,7 @@ module Aidp
                 pattern: /^[a-zA-Z0-9_-]+$/
               }
             },
-            restrict_to_non_byok: {
+            no_api_keys_required: {
               type: :boolean,
               required: false,
               default: false
@@ -616,7 +616,7 @@ module Aidp
             max_retries: 2,
             default_provider: "cursor",
             fallback_providers: ["cursor"],
-            restrict_to_non_byok: false,
+            no_api_keys_required: false,
             provider_weights: {
               "cursor" => 3,
               "anthropic" => 2,

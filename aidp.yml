@@ -1,53 +1,28 @@
-# AIDP Configuration for development
-# This configuration enables the cursor provider for local development
-
-# Harness configuration
-harness:
-  # Default provider to use
-  default_provider: "macos"
-
-  # Fallback providers
-  fallback_providers: ["cursor"]
-
-  # Basic retry configuration
-  max_retries: 2
-
-# Provider configurations
-providers:
-  # MacOS UI provider (uses Cursor via AppleScript)
-  macos:
-    type: "passthrough"
+---
+:harness:
+  :max_retries: 2
+  :default_provider: cursor
+  :fallback_providers:
+  - macos
+  :no_api_keys_required: true
+:providers:
+  :cursor:
+    type: subscription
+    priority: 2
+    models:
+    - Auto
+    features:
+      file_upload: true
+      code_generation: true
+      analysis: true
+  :macos:
+    type: passthrough
     priority: 1
-    models: ["cursor-chat"]
-    underlying_service: "cursor"
+    models:
+    - cursor-chat
+    underlying_service: cursor
     features:
       file_upload: false
       code_generation: true
       analysis: true
       interactive: true
-
-  # Cursor provider (subscription-based)
-  cursor:
-    type: "subscription"
-    priority: 2
-    models: ["Auto"]
-    features:
-      file_upload: true
-      code_generation: true
-      analysis: true
-
-  # Anthropic provider (usage-based)
-  anthropic:
-    type: "usage_based"
-    priority: 3
-    max_tokens: 100000
-    models: ["claude-3-5-sonnet-20241022"]
-    auth:
-      api_key_env: "ANTHROPIC_API_KEY"
-    endpoints:
-      default: "https://api.anthropic.com/v1/messages"
-    features:
-      file_upload: true
-      code_generation: true
-      analysis: true
-      vision: true

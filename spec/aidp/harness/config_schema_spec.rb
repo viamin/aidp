@@ -12,7 +12,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
           max_retries: 2,
           default_provider: "cursor",
           fallback_providers: ["claude"],
-          restrict_to_non_byok: false,
+          no_api_keys_required: false,
           provider_weights: {
             "cursor" => 3,
             "claude" => 2
@@ -111,7 +111,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           invalid_provider: {
-            type: "invalid_type", # Should be api, package, or byok
+            type: "invalid_type", # Should be api, package, or passthrough
             max_tokens: -1, # Should be positive
             default_flags: "not_an_array" # Should be array
           }

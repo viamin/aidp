@@ -13,8 +13,8 @@ harness:
   # Fallback providers in order of preference
   fallback_providers: ["claude", "gemini"]
 
-  # Restrict to non-BYOK (Bring Your Own Key) providers only
-  restrict_to_non_byok: true
+  # Only use providers that don't require API keys
+  no_api_keys_required: true
 
   # Provider weights for load balancing (higher = more preferred)
   provider_weights:
@@ -127,7 +127,7 @@ harness:
 providers:
   # Cursor provider (package-based)
   cursor:
-    type: "package"           # package, api, or byok
+    type: "package"           # package, api, or passthrough
     priority: 1               # Provider priority (higher = more preferred)
     default_flags: []         # Default command-line flags for this provider
 
@@ -395,9 +395,9 @@ providers:
       timeout: 30
       max_redirects: 5
 
-  # Example BYOK provider
+  # Example passthrough provider
   # openai:
-  #   type: "byok"
+  #   type: "passthrough"
   #   priority: 4
   #   default_flags: ["--model", "gpt-4"]
   #   models: ["gpt-4", "gpt-3.5-turbo"]
@@ -428,7 +428,7 @@ providers:
 # Provider types explained:
 # - "package": Uses package-based pricing (e.g., Cursor Pro)
 # - "api": Uses API-based pricing with token limits
-# - "byok": Bring Your Own Key (user provides API key)
+# - "passthrough": Uses underlying service (user manages API keys)
 
 # Environment-specific configurations
 environments:
@@ -584,7 +584,7 @@ users:
 # - Set max_tokens based on your API plan limits
 # - Use default_flags to customize provider behavior
 # - Configure fallback_providers for automatic failover
-# - Set restrict_to_non_byok: true to avoid BYOK providers
+# - Set no_api_keys_required: true to avoid providers that require API keys
 # - Adjust provider_weights to control load balancing
 # - Configure model_weights for model selection within providers
 # - Set appropriate timeouts for different models
