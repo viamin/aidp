@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/viamin/aidp/compare/aidp/v0.9.0...aidp/v0.9.1) (2025-09-23)
+
+
+### Bug Fixes
+
+* update aidp configuration structure and provider validation ([0c43a99](https://github.com/viamin/aidp/commit/0c43a99217263e4fc3105884d2d2204e3564d134))
+* update aidp configuration structure and provider validation ([#55](https://github.com/viamin/aidp/issues/55)) ([d8be9fb](https://github.com/viamin/aidp/commit/d8be9fb763b21543efc1d25f38e52a5843fb76e4))
+
 ## [0.9.0](https://github.com/viamin/aidp/compare/aidp/v0.8.3...aidp/v0.9.0) (2025-09-23)
 
 
