@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/viamin/aidp/compare/aidp/v0.8.3...aidp/v0.9.0) (2025-09-23)
+
+
+### Features
+
+* introduce first-time setup wizard for aidp configuration ([2d5125f](https://github.com/viamin/aidp/commit/2d5125f5bd60a0afed5ad894d94f3006754bbb6b))
+* introduce first-time setup wizard for aidp configuration ([#53](https://github.com/viamin/aidp/issues/53)) ([6c403cf](https://github.com/viamin/aidp/commit/6c403cfd78df006d202d2d8e18c414761b03a077))
+
 ## [0.8.3](https://github.com/viamin/aidp/compare/aidp/v0.8.2...aidp/v0.8.3) (2025-09-22)
 
 
