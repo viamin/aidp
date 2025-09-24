@@ -15,9 +15,9 @@ harness:
 
 # Provider configurations
 providers:
-  # Cursor provider (package-based)
+  # Cursor provider (subscription-based)
   cursor:
-    type: "package"
+    type: "subscription"
     priority: 1
     models: ["cursor-default"]
     features:
@@ -27,7 +27,7 @@ providers:
 
   # Claude provider (API-based)
   claude:
-    type: "api"
+    type: "usage_based"
     priority: 2
     max_tokens: 100000
     models: ["claude-3-5-sonnet-20241022"]

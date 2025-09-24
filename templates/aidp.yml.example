@@ -127,7 +127,7 @@ harness:
 providers:
   # Cursor provider (package-based)
   cursor:
-    type: "package"           # package, api, or passthrough
+    type: "subscription"      # subscription, usage_based, or passthrough
     priority: 1               # Provider priority (higher = more preferred)
     default_flags: []         # Default command-line flags for this provider
 
@@ -227,7 +227,7 @@ providers:
 
   # Claude provider (API-based)
   claude:
-    type: "api"
+    type: "usage_based"
     priority: 2
     max_tokens: 100000        # Maximum tokens per request
     default_flags: ["--dangerously-skip-permissions"]
@@ -278,7 +278,7 @@ providers:
 
   # Gemini provider (API-based)
   gemini:
-    type: "api"
+    type: "usage_based"
     priority: 3
     max_tokens: 50000
     default_flags: []
