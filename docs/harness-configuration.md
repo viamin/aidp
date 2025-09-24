@@ -31,8 +31,8 @@ providers:
   gemini:
     type: "api"
     max_tokens: 50000
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
 ```
 
 ## Harness Configuration
@@ -186,13 +186,13 @@ providers:
       cost_per_token: 0.00001
 ```
 
-#### Package Providers (Cursor)
+#### Subscription Providers (Cursor)
 
 ```yaml
 providers:
-  cursor:
-    type: "package"
-    # No API key needed for package providers
+    cursor:
+      type: "subscription"
+     # No API key needed for subscription providers
     default_flags: []
     retry_count: 1
     timeout: 60
@@ -268,8 +268,8 @@ providers:
 
 ```yaml
 providers:
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
     default_flags: []
     retry_count: 1
     timeout: 60
@@ -281,12 +281,12 @@ providers:
     # Rate limit handling
     rate_limit_handling:
       strategy: "provider_first"
-      cooldown_period: 0  # No rate limits for package providers
+      cooldown_period: 0  # No rate limits for subscription providers
       max_retries: 1
 
     # Cost optimization
     cost_optimization:
-      enabled: false  # No cost tracking for package providers
+      enabled: false  # No cost tracking for subscription providers
 ```
 
 ## Advanced Configuration
@@ -459,8 +459,8 @@ providers:
     retry_count: 2
     timeout: 45
 
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
     retry_count: 1
     timeout: 60
 ```
@@ -593,12 +593,12 @@ providers:
       max_daily_cost: 50.0
       max_monthly_cost: 500.0
 
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
     retry_count: 1
     timeout: 60
 
-    # No cost tracking for package providers
+    # No cost tracking for subscription providers
     cost_tracking:
       enabled: false
 ```
@@ -649,8 +649,8 @@ providers:
       target_response_time: 2.0
       max_response_time: 5.0
 
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
     retry_count: 2
     timeout: 60
 
@@ -738,10 +738,10 @@ providers:
 # Error: Invalid provider type
 providers:
   claude:
-    type: "invalid_type"  # Should be "api" or "package"
+     type: "invalid_type"  # Should be "usage_based" or "subscription"
 ```
 
-**Solution**: Use `"api"` for API-based providers or `"package"` for package-based providers.
+**Solution**: Use `"usage_based"` for API-based providers or `"subscription"` for subscription-based providers.
 
 #### Invalid Rotation Strategy
 

@@ -219,8 +219,8 @@ providers:
   gemini:
     type: "api"
     max_tokens: 50000
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
 ```
 
 ### Advanced Configuration
@@ -260,8 +260,8 @@ providers:
     retry_count: 2
     timeout: 45
 
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
     default_flags: []
     retry_count: 1
     timeout: 60

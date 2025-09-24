@@ -111,7 +111,7 @@ RSpec.describe Aidp::Harness::ConfigSchema do
         },
         providers: {
           invalid_provider: {
-            type: "invalid_type", # Should be api, package, or passthrough
+            type: "invalid_type", # Should be usage_based, subscription, or passthrough
             max_tokens: -1, # Should be positive
             default_flags: "not_an_array" # Should be array
           }

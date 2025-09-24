@@ -125,7 +125,7 @@ harness:
 
 # Provider configurations
 providers:
-  # Cursor provider (package-based)
+  # Cursor provider (subscription-based)
   cursor:
     type: "subscription"      # subscription, usage_based, or passthrough
     priority: 1               # Provider priority (higher = more preferred)
@@ -188,7 +188,7 @@ providers:
 
     # Cost tracking
     cost:
-      input_cost_per_token: 0.0    # Package-based pricing
+      input_cost_per_token: 0.0    # Subscription-based pricing
       output_cost_per_token: 0.0
       fixed_cost_per_request: 0.0
       currency: "USD"
@@ -426,8 +426,8 @@ providers:
   #     metrics_interval: 60
 
 # Provider types explained:
-# - "package": Uses package-based pricing (e.g., Cursor Pro)
-# - "api": Uses API-based pricing with token limits
+# - "subscription": Uses subscription-based pricing (e.g., Cursor Pro)
+# - "usage_based": Uses API-based pricing with token limits
 # - "passthrough": Uses underlying service (user manages API keys)
 
 # Environment-specific configurations
