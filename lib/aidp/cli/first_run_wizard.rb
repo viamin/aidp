@@ -49,11 +49,8 @@ module Aidp
         loop do
           choice = ask_choice
           case choice
-          when "1" then return finish(write_minimal_config(@project_dir))
-          when "2" then return finish(copy_template("aidp-development.yml.example"))
-          when "3" then return finish(copy_template("aidp-production.yml.example"))
-          when "4" then return finish(write_example_config(@project_dir))
-          when "5" then return finish(run_custom)
+          when "1" then return finish(write_quick_config(@project_dir))
+          when "2" then return finish(run_custom)
           when "q", "Q" then @output.puts("Exiting without creating configuration.")
                              return false
           else
@@ -93,11 +90,8 @@ module Aidp
       def ask_choice
         @output.puts "Choose a configuration style:" unless @asking
         @output.puts <<~MENU
-          1) Minimal (single provider: cursor)
-          2) Development template (multiple providers, safe defaults)
-          3) Production template (full features, review required)
-          4) Full example (verbose example config)
-          5) Custom (interactive prompts)
+          1) Quick setup (cursor + macos, no API keys needed)
+          2) Custom setup (choose your own providers and settings)
           q) Quit
         MENU
         @output.print "Enter choice [1]: "
@@ -142,6 +136,31 @@ module Aidp
           "providers" => {
             "cursor" => {
               "type" => "subscription",
+              "default_flags" => []
+            }
+          }
+        }
+        File.write(dest, YAML.dump(data))
+        dest
+      end
+
+      def write_quick_config(project_dir)
+        dest = File.join(project_dir, "aidp.yml")
+        return dest if File.exist?(dest)
+        data = {
+          "harness" => {
+            "max_retries" => 2,
+            "default_provider" => "cursor",
+            "fallback_providers" => ["macos"],
+            "no_api_keys_required" => true
+          },
+          "providers" => {
+            "cursor" => {
+              "type" => "subscription",
+              "default_flags" => []
+            },
+            "macos" => {
+              "type" => "usage_based",
               "default_flags" => []
             }
           }
@@ -252,6 +271,12 @@ module Aidp
             # Convert existing provider config to string keys
             converted_provider = {}
             existing_provider.each { |k, v| converted_provider[k.to_s] = v }
+            # Ensure the type is correct (fix old "package" and "api" types)
+            if converted_provider["type"] == "package"
+              converted_provider["type"] = "subscription"
+            elsif converted_provider["type"] == "api"
+              converted_provider["type"] = "usage_based"
+            end
             provider_section[prov] = converted_provider
           else
             provider_section[prov] = {"type" => (prov == "cursor") ? "subscription" : "usage_based", "default_flags" => []}
