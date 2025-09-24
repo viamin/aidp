@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.4](https://github.com/viamin/aidp/compare/aidp/v0.9.3...aidp/v0.9.4) (2025-09-24)
+
+
+### Bug Fixes
+
+* standardize provider types from package to subscription and api to usage_based ([f3bad0b](https://github.com/viamin/aidp/commit/f3bad0be94f86a394f8c03e35ca25166b91a7a42))
+* standardize provider types from package to subscription and api to usage_based ([#61](https://github.com/viamin/aidp/issues/61)) ([8875e17](https://github.com/viamin/aidp/commit/8875e17c0a44e54c9fe2a5376a9544684161e5cc))
+
 ## [0.9.3](https://github.com/viamin/aidp/compare/aidp/v0.9.2...aidp/v0.9.3) (2025-09-24)
 
 
