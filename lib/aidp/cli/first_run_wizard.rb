@@ -188,7 +188,7 @@ module Aidp
 
         provider_section = {}
         providers.each do |prov|
-          provider_section[prov] = {"type" => (prov == "cursor") ? "package" : "usage_based", "default_flags" => []}
+          provider_section[prov] = {"type" => (prov == "cursor") ? "subscription" : "usage_based", "default_flags" => []}
         end
 
         data = {
@@ -254,7 +254,7 @@ module Aidp
             existing_provider.each { |k, v| converted_provider[k.to_s] = v }
             provider_section[prov] = converted_provider
           else
-            provider_section[prov] = {"type" => (prov == "cursor") ? "package" : "usage_based", "default_flags" => []}
+            provider_section[prov] = {"type" => (prov == "cursor") ? "subscription" : "usage_based", "default_flags" => []}
           end
         end
 

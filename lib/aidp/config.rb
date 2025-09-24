@@ -71,7 +71,7 @@ module Aidp
       },
       providers: {
         cursor: {
-          type: "package",
+          type: "subscription",
           priority: 1,
           default_flags: [],
           models: ["cursor-default", "cursor-fast", "cursor-precise"],
@@ -266,16 +266,16 @@ module Aidp
         },
         providers: {
           cursor: {
-            type: "package",
+            type: "subscription",
             default_flags: []
           },
           claude: {
-            type: "api",
+            type: "usage_based",
             max_tokens: 100_000,
             default_flags: ["--dangerously-skip-permissions"]
           },
           gemini: {
-            type: "api",
+            type: "usage_based",
             max_tokens: 50_000,
             default_flags: []
           }
