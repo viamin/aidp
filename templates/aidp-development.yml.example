@@ -110,8 +110,8 @@ harness:
 # Provider configurations
 providers:
   # Cursor provider (primary for development)
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
     priority: 1
     default_flags: []
 

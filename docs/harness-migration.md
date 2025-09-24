@@ -93,8 +93,8 @@ providers:
     type: "api"
     api_key: "${AIDP_GEMINI_API_KEY}"
     max_tokens: 50000
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
 EOF
 ```
 
@@ -331,8 +331,8 @@ providers:
     type: "api"
     api_key: "${AIDP_GEMINI_API_KEY}"
     max_tokens: 50000
-  cursor:
-    type: "package"
+    cursor:
+      type: "subscription"
 ```
 
 ## Error Handling Migration

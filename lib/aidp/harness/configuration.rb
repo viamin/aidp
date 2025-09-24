@@ -47,7 +47,7 @@ module Aidp
         harness_config[:no_api_keys_required]
       end
 
-      # Get provider type (api, package, etc.)
+      # Get provider type (usage_based, subscription, etc.)
       def provider_type(provider_name)
         provider_config(provider_name)[:type] || "unknown"
       end

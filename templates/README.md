@@ -102,7 +102,7 @@ The `harness` section controls the overall behavior of the harness system:
 
 The `providers` section defines individual provider settings:
 
-- `type`: Provider type (package, api, passthrough)
+- `type`: Provider type (subscription, usage_based, passthrough)
 - `priority`: Provider priority (higher = more preferred)
 - `models`: Available models for the provider
 - `features`: Provider capabilities
@@ -172,9 +172,9 @@ time_based:
 
 ## Provider Types
 
-### Package Providers
+### Subscription Providers
 
-- **Type**: `package`
+- **Type**: `subscription`
 - **Pricing**: Fixed monthly/yearly subscription
 - **Examples**: Cursor Pro
 - **Configuration**: No API keys needed

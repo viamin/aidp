@@ -133,16 +133,16 @@ module Aidp
         dest = File.join(project_dir, "aidp.yml")
         return dest if File.exist?(dest)
         data = {
-          harness: {
-            max_retries: 2,
-            default_provider: "cursor",
-            fallback_providers: ["cursor"],
-            no_api_keys_required: false
+          "harness" => {
+            "max_retries" => 2,
+            "default_provider" => "cursor",
+            "fallback_providers" => ["cursor"],
+            "no_api_keys_required" => false
           },
-          providers: {
-            cursor: {
-              type: "package",
-              default_flags: []
+          "providers" => {
+            "cursor" => {
+              "type" => "subscription",
+              "default_flags" => []
             }
           }
         }
