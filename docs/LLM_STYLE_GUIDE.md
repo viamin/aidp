@@ -124,7 +124,14 @@ end
 - Silent swallowed exceptions
 - **Mock methods in production code** (use dependency injection instead)
 
-## 15. Commit Hygiene
+## 15. Ruby Version Management
+
+- **ALWAYS use mise** for Ruby version management in this project
+- Commands running Ruby or Bundler MUST use `mise exec` to ensure correct versions
+- Examples: `mise exec -- ruby script.rb`, `mise exec -- bundle install`, `mise exec -- bundle exec rspec`
+- Never use system Ruby directly - always go through mise
+
+## 16. Commit Hygiene
 
 - One logical change per commit (or tightly coupled set)
 - Include rationale when refactoring behavior

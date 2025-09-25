@@ -69,4 +69,84 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       expect(test_prompt.messages.length).to eq(4)
     end
   end
+
+  describe "job management methods" do
+    describe "#add_job" do
+      it "adds a job with the provided data" do
+        job_data = {
+          name: "Test Job",
+          status: :running,
+          progress: 50,
+          provider: "test_provider",
+          message: "Processing..."
+        }
+
+        tui.add_job("test_job_1", job_data)
+
+        # Access the internal jobs hash to verify the job was added
+        jobs = tui.instance_variable_get(:@jobs)
+        expect(jobs).to have_key("test_job_1")
+        expect(jobs["test_job_1"][:name]).to eq("Test Job")
+        expect(jobs["test_job_1"][:status]).to eq(:running)
+        expect(jobs["test_job_1"][:progress]).to eq(50)
+        expect(jobs["test_job_1"][:provider]).to eq("test_provider")
+        expect(jobs["test_job_1"][:message]).to eq("Processing...")
+        expect(jobs["test_job_1"][:created_at]).to be_a(Time)
+      end
+
+      it "uses job_id as name when name is not provided" do
+        tui.add_job("test_job_2", {status: :pending})
+
+        jobs = tui.instance_variable_get(:@jobs)
+        expect(jobs["test_job_2"][:name]).to eq("test_job_2")
+      end
+    end
+
+    describe "#update_job" do
+      it "updates an existing job" do
+        # First add a job
+        tui.add_job("test_job_3", {name: "Test Job", status: :running, progress: 0})
+
+        # Then update it
+        tui.update_job("test_job_3", {status: :completed, progress: 100, message: "Done!"})
+
+        jobs = tui.instance_variable_get(:@jobs)
+        expect(jobs["test_job_3"][:status]).to eq(:completed)
+        expect(jobs["test_job_3"][:progress]).to eq(100)
+        expect(jobs["test_job_3"][:message]).to eq("Done!")
+        expect(jobs["test_job_3"][:updated_at]).to be_a(Time)
+      end
+
+      it "does nothing if job doesn't exist" do
+        expect { tui.update_job("nonexistent_job", {status: :completed}) }.not_to raise_error
+      end
+    end
+
+    describe "#remove_job" do
+      it "removes an existing job" do
+        # First add a job
+        tui.add_job("test_job_4", {name: "Test Job", status: :running})
+
+        jobs = tui.instance_variable_get(:@jobs)
+        expect(jobs).to have_key("test_job_4")
+
+        # Then remove it
+        tui.remove_job("test_job_4")
+
+        expect(jobs).not_to have_key("test_job_4")
+      end
+
+      it "does nothing if job doesn't exist" do
+        expect { tui.remove_job("nonexistent_job") }.not_to raise_error
+      end
+    end
+  end
+
+  describe "#show_input_area" do
+    it "displays input area message" do
+      expect { tui.show_input_area("Please provide feedback") }.not_to raise_error
+      expect(test_prompt.messages.length).to eq(1)
+      expect(test_prompt.messages.first[:message]).to include("Please provide feedback")
+    end
+  end
 end

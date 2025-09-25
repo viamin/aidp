@@ -226,6 +226,34 @@ module Aidp
           end
         end
 
+        # Job management methods - interface for EnhancedRunner
+        def add_job(job_id, job_data)
+          @jobs[job_id] = {
+            id: job_id,
+            name: job_data[:name] || job_id,
+            status: job_data[:status] || :pending,
+            progress: job_data[:progress] || 0,
+            provider: job_data[:provider],
+            message: job_data[:message],
+            created_at: Time.now
+          }
+        end
+
+        def update_job(job_id, updates)
+          return unless @jobs[job_id]
+
+          @jobs[job_id].merge!(updates)
+          @jobs[job_id][:updated_at] = Time.now
+        end
+
+        def remove_job(job_id)
+          @jobs.delete(job_id)
+        end
+
+        def show_input_area(message)
+          @prompt.say("📝 #{message}", color: :cyan)
+        end
+
         private
 
         def extract_questions_for_step(step_name)
