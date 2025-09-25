@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.6](https://github.com/viamin/aidp/compare/aidp/v0.9.5...aidp/v0.9.6) (2025-09-25)
+
+
+### Bug Fixes
+
+* implement missing job management methods in EnhancedTUI ([75defba](https://github.com/viamin/aidp/commit/75defbad7e64473fa3aeeb86584c32a820d9f54c))
+* implement missing job management methods in EnhancedTUI ([#65](https://github.com/viamin/aidp/issues/65)) ([1b01242](https://github.com/viamin/aidp/commit/1b0124274e57547ebbc3808f0b7f6d1aa798611d))
+
 ## [0.9.5](https://github.com/viamin/aidp/compare/aidp/v0.9.4...aidp/v0.9.5) (2025-09-25)
 
 
