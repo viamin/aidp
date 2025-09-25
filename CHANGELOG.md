@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.5](https://github.com/viamin/aidp/compare/aidp/v0.9.4...aidp/v0.9.5) (2025-09-25)
+
+
+### Bug Fixes
+
+* update first run wizard for quick configuration setup ([f01ff70](https://github.com/viamin/aidp/commit/f01ff7092879683062693b593c6be7247516137c))
+
+
+### Improvements
+
+* enhance user interface with TTY::Prompt integration ([8d876c7](https://github.com/viamin/aidp/commit/8d876c74d8b7c11955d82b490712d0f174f16ca6))
+
 ## [0.9.4](https://github.com/viamin/aidp/compare/aidp/v0.9.3...aidp/v0.9.4) (2025-09-24)
 
 
