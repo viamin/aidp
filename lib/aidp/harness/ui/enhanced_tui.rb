@@ -18,15 +18,17 @@ module Aidp
         class InputError < TUIError; end
         class DisplayError < TUIError; end
 
-        def initialize
+        def initialize(prompt: TTY::Prompt.new)
           @cursor = TTY::Cursor
           @screen = TTY::Screen
           @pastel = Pastel.new
-          @prompt = TTY::Prompt.new
+          @prompt = prompt
+
           # Headless (non-interactive) detection for test/CI environments:
           # - RSpec defined or RSPEC_RUNNING env set
           # - STDIN not a TTY (captured by PTY/tmux harness)
           @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || $stdin.nil? || !$stdin.tty?)
+
           @current_mode = nil
           @workflow_active = false
           @current_step = nil
@@ -45,32 +47,6 @@ module Aidp
         def stop_display_loop
           # Simple cleanup - no background threads to stop
           restore_screen
-        end
-
-        # Job monitoring methods
-        def add_job(job_id, job_data)
-          @jobs[job_id] = {
-            id: job_id,
-            name: job_data[:name] || job_id,
-            status: job_data[:status] || :pending,
-            progress: job_data[:progress] || 0,
-            started_at: Time.now,
-            message: job_data[:message] || "",
-            provider: job_data[:provider] || "unknown"
-          }
-          @jobs_visible = true
-        end
-
-        def update_job(job_id, updates)
-          return unless @jobs[job_id]
-
-          @jobs[job_id].merge!(updates)
-          @jobs[job_id][:updated_at] = Time.now
-        end
-
-        def remove_job(job_id)
-          @jobs.delete(job_id)
-          @jobs_visible = @jobs.any?
         end
 
         # Input methods using TTY::Prompt only - no background threads

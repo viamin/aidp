@@ -31,9 +31,9 @@ module Aidp
           urgent: "Urgent"
         }.freeze
 
-        def initialize(ui_components = {})
+        def initialize(ui_components = {}, prompt: TTY::Prompt.new)
           super()
-          @prompt = TTY::Prompt.new
+          @prompt = prompt
           @pastel = Pastel.new
           @status_manager = ui_components[:status_manager] || StatusManager.new
           @frame_manager = ui_components[:frame_manager] || FrameManager.new

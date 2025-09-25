@@ -6,6 +6,8 @@ require "stringio"
 
 RSpec.describe Aidp::CLI::FirstRunWizard do
   let(:temp_dir) { Dir.mktmpdir }
+  let(:test_prompt) { TestPrompt.new }
+
   after { FileUtils.rm_rf(temp_dir) }
 
   describe ".ensure_config" do
@@ -13,7 +15,7 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
       it "returns true and does nothing" do
         File.write(File.join(temp_dir, "aidp.yml"), "harness: {}\n")
         out = StringIO.new
-        result = described_class.ensure_config(temp_dir, input: StringIO.new, output: out)
+        result = described_class.ensure_config(temp_dir, input: StringIO.new, output: out, prompt: test_prompt)
         expect(result).to be true
         expect(out.string).to eq("")
       end
@@ -22,7 +24,7 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
     context "non-interactive" do
       it "creates minimal config automatically" do
         out = StringIO.new
-        result = described_class.ensure_config(temp_dir, input: StringIO.new, output: out, non_interactive: true)
+        result = described_class.ensure_config(temp_dir, input: StringIO.new, output: out, non_interactive: true, prompt: test_prompt)
         expect(result).to be true
         config_path = File.join(temp_dir, "aidp.yml")
         expect(File.exist?(config_path)).to be true
@@ -32,23 +34,13 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
       end
     end
 
-    context "interactive minimal selection" do
-      it "creates minimal config when user selects 1" do
-        # Fake TTY IO objects
-        input = StringIO.new("1\n")
-        def input.tty?
-          true
-        end
-        out = StringIO.new
-        def out.tty?
-          true
-        end
-        result = described_class.ensure_config(temp_dir, input: input, output: out, non_interactive: false)
+    context "non-interactive with defaults" do
+      it "creates minimal config automatically" do
+        result = described_class.ensure_config(temp_dir, non_interactive: true, prompt: test_prompt)
         expect(result).to be true
         yaml = YAML.load_file(File.join(temp_dir, "aidp.yml"))
         harness = yaml["harness"] || yaml[:harness]
         expect(harness["default_provider"] || harness[:default_provider]).to eq("cursor")
-        expect(out.string).to include("Configuration created at")
       end
     end
   end

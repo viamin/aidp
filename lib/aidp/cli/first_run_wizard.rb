@@ -10,10 +10,10 @@ module Aidp
     class FirstRunWizard
       TEMPLATES_DIR = File.expand_path(File.join(__dir__, "..", "..", "..", "templates"))
 
-      def self.ensure_config(project_dir, input: $stdin, output: $stdout, non_interactive: false)
+      def self.ensure_config(project_dir, input: $stdin, output: $stdout, non_interactive: false, prompt: TTY::Prompt.new)
         return true if Aidp::Config.config_exists?(project_dir)
 
-        wizard = new(project_dir, input: input, output: output)
+        wizard = new(project_dir, input: input, output: output, prompt: prompt)
 
         if non_interactive || !input.tty? || !output.tty?
           # Non-interactive environment - create minimal config silently
@@ -25,8 +25,8 @@ module Aidp
         wizard.run
       end
 
-      def self.setup_config(project_dir, input: $stdin, output: $stdout, non_interactive: false)
-        wizard = new(project_dir, input: input, output: output)
+      def self.setup_config(project_dir, input: $stdin, output: $stdout, non_interactive: false, prompt: TTY::Prompt.new)
+        wizard = new(project_dir, input: input, output: output, prompt: prompt)
 
         if non_interactive || !input.tty? || !output.tty?
           # Non-interactive environment - skip setup
@@ -37,11 +37,11 @@ module Aidp
         wizard.run_setup_config
       end
 
-      def initialize(project_dir, input: $stdin, output: $stdout)
+      def initialize(project_dir, input: $stdin, output: $stdout, prompt: TTY::Prompt.new)
         @project_dir = project_dir
         @input = input
         @output = output
-        @prompt = TTY::Prompt.new
+        @prompt = prompt
       end
 
       def run
@@ -89,16 +89,14 @@ module Aidp
 
       def ask_choice
         @output.puts "Choose a configuration style:" unless @asking
-        @output.puts <<~MENU
-          1) Quick setup (cursor + macos, no API keys needed)
-          2) Custom setup (choose your own providers and settings)
-          q) Quit
-        MENU
-        @output.print "Enter choice [1]: "
-        @output.flush
-        ans = @input.gets&.strip
-        ans = "1" if ans.nil? || ans.empty?
-        ans
+
+        options = {
+          "Quick setup (cursor + macos, no API keys needed)" => "1",
+          "Custom setup (choose your own providers and settings)" => "2",
+          "Quit" => "q"
+        }
+
+        @prompt.select("Select an option:", options, default: "Quick setup (cursor + macos, no API keys needed)")
       end
 
       def finish(path)

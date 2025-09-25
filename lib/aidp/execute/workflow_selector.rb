@@ -6,9 +6,9 @@ module Aidp
   module Execute
     # Handles interactive workflow selection and project setup
     class WorkflowSelector
-      def initialize
+      def initialize(prompt: TTY::Prompt.new)
         @user_input = {}
-        @prompt = TTY::Prompt.new
+        @prompt = prompt
       end
 
       # Main entry point for interactive workflow selection

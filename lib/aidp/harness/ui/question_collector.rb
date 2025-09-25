@@ -12,9 +12,9 @@ module Aidp
         class ValidationError < QuestionError; end
         class CollectionError < QuestionError; end
 
-        def initialize(ui_components = {})
+        def initialize(ui_components = {}, prompt: nil)
           super()
-          @prompt = ui_components[:prompt] || TTY::Prompt.new
+          @prompt = prompt || ui_components[:prompt] || TTY::Prompt.new
           @validator = ui_components[:validator] || QuestionValidator.new
         end
 

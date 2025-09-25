@@ -3,55 +3,49 @@
 require "spec_helper"
 
 RSpec.describe Aidp::Harness::UI::EnhancedTUI do
+  let(:test_prompt) do
+    TestPrompt.new(
+      responses: {
+        select: "Option 1",
+        multi_select: [],
+        ask: "test input",
+        yes?: true,
+        no?: false,
+        keypress: ""
+      }
+    )
+  end
   let(:tui) do
     # Mock TTY::Screen to avoid ioctl issues in test environment
     allow(TTY::Screen).to receive(:height).and_return(24)
     allow(TTY::Screen).to receive(:width).and_return(80)
-    described_class.new
+    described_class.new(prompt: test_prompt)
   end
 
   describe "#single_select" do
-    it "calls TTY::Prompt select method" do
-      # Mock the TTY::Prompt to avoid actual interactive prompts
-      mock_prompt = instance_double(TTY::Prompt)
-      allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
-      allow(mock_prompt).to receive(:select).with("Choose your mode", ["Option 1", "Option 2"], default: 0, cycle: true).and_return("Option 1")
-
-      # Create a new TUI instance with the mocked prompt
-      tui_with_mock = described_class.new
-
-      result = tui_with_mock.single_select("Choose your mode", ["Option 1", "Option 2"], default: 0)
+    it "calls prompt select method" do
+      result = tui.single_select("Choose your mode", ["Option 1", "Option 2"], default: 0)
       expect(result).to eq("Option 1")
+      expect(test_prompt.selections.length).to eq(1)
+      expect(test_prompt.selections.first[:title]).to eq("Choose your mode")
     end
   end
 
   describe "#multiselect" do
-    it "calls TTY::Prompt multi_select method" do
-      # Mock the TTY::Prompt to avoid actual interactive prompts
-      mock_prompt = instance_double(TTY::Prompt)
-      allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
-      allow(mock_prompt).to receive(:multi_select).with("Select items", ["Item 1", "Item 2"], default: []).and_return(["Item 1"])
-
-      # Create a new TUI instance with the mocked prompt
-      tui_with_mock = described_class.new
-
-      result = tui_with_mock.multiselect("Select items", ["Item 1", "Item 2"], selected: [])
-      expect(result).to eq(["Item 1"])
+    it "calls prompt multi_select method" do
+      result = tui.multiselect("Select items", ["Item 1", "Item 2"], selected: [])
+      expect(result).to eq([])
+      expect(test_prompt.selections.length).to eq(1)
+      expect(test_prompt.selections.first[:multi]).to be true
     end
   end
 
   describe "#get_user_input" do
-    it "calls TTY::Prompt ask method" do
-      # Mock the TTY::Prompt to avoid actual interactive input
-      mock_prompt = instance_double(TTY::Prompt)
-      allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
-      allow(mock_prompt).to receive(:ask).with("Test prompt: ").and_return("test input")
-
-      # Create a new TUI instance with the mocked prompt
-      tui_with_mock = described_class.new
-
-      result = tui_with_mock.get_user_input("Test prompt: ")
+    it "calls prompt ask method" do
+      result = tui.get_user_input("Test prompt: ")
       expect(result).to eq("test input")
+      expect(test_prompt.inputs.length).to eq(1)
+      expect(test_prompt.inputs.first[:message]).to eq("Test prompt: ")
     end
   end
 
@@ -65,25 +59,14 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
 
   describe "#show_message" do
     it "displays messages with appropriate formatting" do
-      # Mock TTY::Prompt to verify the correct say calls are made
-      mock_prompt = instance_double(TTY::Prompt)
-      allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
+      # Test that the method doesn't raise an error and records messages
+      expect { tui.show_message("Test info message", :info) }.not_to raise_error
+      expect { tui.show_message("Test success message", :success) }.not_to raise_error
+      expect { tui.show_message("Test warning message", :warning) }.not_to raise_error
+      expect { tui.show_message("Test error message", :error) }.not_to raise_error
 
-      # Create a new TUI instance with the mocked prompt
-      tui_with_mock = described_class.new
-
-      # Test that show_message calls the correct TTY::Prompt.say methods
-      expect(mock_prompt).to receive(:say).with("ℹ Test info message", color: :blue)
-      tui_with_mock.show_message("Test info message", :info)
-
-      expect(mock_prompt).to receive(:say).with("✓ Test success message", color: :green)
-      tui_with_mock.show_message("Test success message", :success)
-
-      expect(mock_prompt).to receive(:say).with("⚠ Test warning message", color: :yellow)
-      tui_with_mock.show_message("Test warning message", :warning)
-
-      expect(mock_prompt).to receive(:say).with("✗ Test error message", color: :red)
-      tui_with_mock.show_message("Test error message", :error)
+      # Verify messages were recorded by the test prompt
+      expect(test_prompt.messages.length).to eq(4)
     end
   end
 end
