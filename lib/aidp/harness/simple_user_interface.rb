@@ -7,8 +7,8 @@ module Aidp
     # Simple, focused user interface for collecting feedback
     # Replaces the bloated UserInterface with minimal, clean code
     class SimpleUserInterface
-      def initialize
-        @prompt = TTY::Prompt.new
+      def initialize(prompt: TTY::Prompt.new)
+        @prompt = prompt
       end
 
       # Main method - collect responses for questions

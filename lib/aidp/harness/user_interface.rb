@@ -6,10 +6,10 @@ module Aidp
   module Harness
     # Handles user interaction and feedback collection
     class UserInterface
-      def initialize
+      def initialize(prompt: TTY::Prompt.new)
         @input_history = []
         @file_selection_enabled = false
-        @prompt = TTY::Prompt.new
+        @prompt = prompt
         @control_mutex = Mutex.new
         @pause_requested = false
         @stop_requested = false

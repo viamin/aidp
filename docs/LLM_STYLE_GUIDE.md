@@ -31,14 +31,22 @@
 ## 5. TTY / TUI
 
 - Always use TTY Toolkit components (prompt, progressbar, spinner, table).
-- Output hierarchy: `TTY::Prompt.say` > `puts + Pastel` > logging.
 - Never re‑implement progress bars, selectors, or tables.
+- **Never use `puts`, `print`, or `$stdout.puts`** - use `prompt.say()` instead.
 
 ## 6. Testing Contracts
 
-- Test public behavior; don’t mock internal private methods.
+- Test public behavior; don't mock internal private methods.
 - Mock ONLY external boundaries (network, filesystem, user input, provider APIs).
 - Keep failing regressions visible—do **not** mark them pending.
+- **NEVER put mock methods in production code** - use dependency injection instead.
+
+### Interactive & External Service Testing
+
+- **Use constructor dependency injection** for TTY::Prompt, HTTP clients, file I/O.
+- **Pattern**: `def initialize(prompt: TTY::Prompt.new)` → inject test doubles in specs.
+- **Create test doubles** that implement the same interface as real dependencies.
+- **Shared test utilities** for common mocks (e.g., `TestPrompt` in `spec/support/`).
 
 ### Pending Specs Policy (Strict)
 
@@ -114,6 +122,7 @@ end
 - Mega-methods controlling flow + formatting + persistence
 - Hidden sleeps / magic timeouts
 - Silent swallowed exceptions
+- **Mock methods in production code** (use dependency injection instead)
 
 ## 15. Commit Hygiene
 

@@ -191,6 +191,43 @@ def custom_progress_bar(current, total) # Use tty-progressbar instead
 def custom_table(data) # Use tty-table instead
 ```
 
+### Avoid puts and Common Output Methods
+
+**Always use TTY::Prompt for user communication instead of puts, print, or other common methods.**
+
+```ruby
+# ❌ Bad: Using puts, print, or other common methods
+puts "Welcome to the application!"
+print "Enter your name: "
+$stdout.puts "Debug message"
+STDOUT.puts "Status update"
+
+# ✅ Good: Using TTY::Prompt methods
+prompt = TTY::Prompt.new
+prompt.say("Welcome to the application!")
+name = prompt.ask("Enter your name: ")
+prompt.say("Debug message", color: :yellow)
+prompt.say("Status update", color: :green)
+```
+
+**Why use TTY::Prompt instead of puts?**
+
+- **Consistent styling**: TTY::Prompt provides consistent colors, formatting, and styling
+- **Better UX**: Interactive elements with arrow key navigation, validation, and error handling
+- **Cross-platform compatibility**: Handles terminal differences across operating systems
+- **Accessibility**: Built-in support for screen readers and accessibility features
+- **Testing**: Easier to mock and test than raw output methods
+
+**When TTY::Prompt is not available (rare cases):**
+
+```ruby
+# Only use puts + Pastel as a fallback when TTY::Prompt is not available
+require "pastel"
+pastel = Pastel.new
+puts pastel.green("Success message")
+puts pastel.red("Error message")
+```
+
 ### Testing Interactive TUI Elements
 
 **Use `expect` for testing interactive TUI elements** since `bundle exec aidp` requires live user interaction that cannot be automated with standard RSpec.
@@ -499,6 +536,166 @@ allow(Readline).to receive(:readline).and_return("user response")
 
 # Bad: Mocking application code
 allow(user_interface).to receive(:validate_question).and_return(true) # Don't do this!
+```
+
+### Never Put Mock Methods in Production Code
+
+**CRITICAL: Mocking should only be done in tests, never in production code.**
+
+```ruby
+# ❌ BAD: Mock methods in production code
+class UserInterface
+  def initialize
+    if defined?(RSpec) || ENV["RSPEC_RUNNING"]
+      @prompt = create_mock_prompt  # Never do this!
+    else
+      @prompt = TTY::Prompt.new
+    end
+  end
+
+  private
+
+  def create_mock_prompt
+    # Mock implementation in production code - NEVER DO THIS!
+  end
+end
+
+# ✅ GOOD: Use dependency injection for testability
+class UserInterface
+  def initialize(prompt: nil)
+    @prompt = prompt || TTY::Prompt.new
+  end
+end
+
+# In tests:
+let(:mock_prompt) { instance_double(TTY::Prompt) }
+let(:ui) { UserInterface.new(prompt: mock_prompt) }
+```
+
+**Why this matters:**
+
+- **Production code should be production-ready** - no test-specific logic
+- **Separation of concerns** - tests handle mocking, production code handles business logic
+- **Maintainability** - easier to understand and modify when concerns are separated
+- **Reliability** - production code paths are cleaner and more predictable
+
+**Proper approach:**
+
+1. **Use dependency injection** - allow tests to inject mocks via constructor parameters
+2. **Keep mocking in tests** - all mock setup should be in spec files only
+3. **Test the real behavior** - production code should only contain real implementation
+
+### Testing Interactive Elements and External Services
+
+**Use dependency injection pattern for testing components that interact with users or external services.**
+
+This pattern is essential for testing classes that use:
+- **Interactive prompts** (TTY::Prompt, user input)
+- **External APIs** (HTTP requests, third-party services)
+- **File system operations** (reading/writing files)
+- **Network operations** (database connections, web requests)
+
+#### Pattern: Constructor Dependency Injection
+
+```ruby
+# ✅ GOOD: Production class with dependency injection
+class UserInterface
+  def initialize(prompt: TTY::Prompt.new)
+    @prompt = prompt
+  end
+
+  def ask_user(question)
+    @prompt.ask(question)
+  end
+
+  def show_menu(options)
+    @prompt.select("Choose an option:", options)
+  end
+end
+
+class ApiClient
+  def initialize(http_client: Net::HTTP)
+    @http_client = http_client
+  end
+
+  def fetch_data(url)
+    @http_client.get(url)
+  end
+end
+```
+
+#### Testing with Mock Objects
+
+Create test doubles that implement the same interface as the real dependencies:
+
+```ruby
+# ✅ GOOD: Test with mock objects
+RSpec.describe UserInterface do
+  # Create a test double that implements TTY::Prompt interface
+  class TestPrompt
+    attr_reader :questions_asked, :menus_shown
+
+    def initialize(responses: {})
+      @responses = responses
+      @questions_asked = []
+      @menus_shown = []
+    end
+
+    def ask(question)
+      @questions_asked << question
+      @responses[:ask] || "default response"
+    end
+
+    def select(title, options)
+      @menus_shown << { title: title, options: options }
+      @responses[:select] || options.first
+    end
+  end
+
+  let(:test_prompt) { TestPrompt.new(responses: { ask: "user input" }) }
+  let(:ui) { UserInterface.new(prompt: test_prompt) }
+
+  it "asks the user a question" do
+    result = ui.ask_user("What's your name?")
+
+    expect(result).to eq("user input")
+    expect(test_prompt.questions_asked).to include("What's your name?")
+  end
+
+  it "shows a menu to the user" do
+    ui.show_menu(["Option 1", "Option 2"])
+
+    expect(test_prompt.menus_shown.length).to eq(1)
+    expect(test_prompt.menus_shown.first[:title]).to eq("Choose an option:")
+  end
+end
+```
+
+#### Benefits of This Pattern
+
+1. **Fast Tests** - No actual user interaction or network calls during testing
+2. **Reliable Tests** - Tests don't depend on external services being available
+3. **Comprehensive Testing** - Can test error conditions and edge cases easily
+4. **Clean Production Code** - No test-specific logic in production classes
+5. **Easy Debugging** - Test doubles can record interactions for verification
+
+#### Shared Test Utilities
+
+For commonly mocked dependencies, create shared test utilities:
+
+```ruby
+# spec/support/test_prompt.rb
+class TestPrompt
+  # Comprehensive test double for TTY::Prompt
+  # (See actual implementation in spec/support/test_prompt.rb)
+end
+
+# Use in multiple specs
+RSpec.describe SomeClass do
+  let(:test_prompt) { TestPrompt.new }
+  let(:instance) { SomeClass.new(prompt: test_prompt) }
+  # ...
+end
 ```
 
 ### Sandi Metz's Testing Rules

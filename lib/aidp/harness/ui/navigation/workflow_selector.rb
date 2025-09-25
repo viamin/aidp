@@ -28,9 +28,9 @@ module Aidp
             }
           }.freeze
 
-          def initialize(ui_components = {})
+          def initialize(ui_components = {}, prompt: nil)
             super()
-            @prompt = ui_components[:prompt] || TTY::Prompt.new
+            @prompt = prompt || ui_components[:prompt] || TTY::Prompt.new
             @pastel = Pastel.new
             @formatter = ui_components[:formatter] || WorkflowFormatter.new
             @state_manager = ui_components[:state_manager]
