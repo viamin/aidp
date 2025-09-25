@@ -7,6 +7,7 @@ Coding standards, architectural patterns, and best practices for the AI Dev Pipe
 - [Code Organization](#code-organization)
 - [Sandi Metz's Rules](#sandi-metzs-rules)
 - [Ruby Conventions](#ruby-conventions)
+- [Ruby Version Management](#ruby-version-management)
 - [TTY Toolkit Guidelines](#tty-toolkit-guidelines)
 - [Testing Guidelines](#testing-guidelines)
 - [Error Handling](#error-handling)
@@ -110,6 +111,60 @@ end
 - Use specific error types, not generic `rescue => e`
 - Provide meaningful error messages
 - Let it crash for internal errors, handle external dependency errors gracefully
+
+## Ruby Version Management
+
+### mise Usage
+
+**This project uses [mise](https://mise.jdx.dev/) for Ruby version management.** All commands that run Ruby or Bundler must use mise to ensure the correct Ruby version is used.
+
+#### Required Commands
+
+```bash
+# ✅ CORRECT: Use mise exec for Ruby commands
+mise exec -- ruby script.rb
+mise exec -- bundle install
+mise exec -- bundle exec rspec
+mise exec -- bundle exec aidp --setup-config
+
+# ❌ INCORRECT: Never use system Ruby directly
+ruby script.rb                    # Uses system Ruby (wrong version)
+bundle install                    # Uses system Ruby's bundler
+bundle exec rspec                  # Uses system Ruby
+```
+
+#### Why mise?
+
+- **Version consistency**: Ensures all developers and CI use the same Ruby version
+- **Project isolation**: Different projects can use different Ruby versions
+- **Automatic switching**: mise automatically switches to the correct Ruby version when entering the project directory
+- **Tool management**: Can also manage other development tools beyond Ruby
+
+#### Development Workflow
+
+```bash
+# Install mise (if not already installed)
+curl https://mise.run | sh
+
+# Install project Ruby version (defined in .mise.toml)
+mise install
+
+# Run commands through mise
+mise exec -- bundle install
+mise exec -- bundle exec rspec
+mise exec -- ruby bin/aidp --help
+```
+
+#### Troubleshooting
+
+If you encounter Ruby version issues:
+
+1. **Check mise is installed**: `mise --version`
+2. **Verify Ruby version**: `mise exec -- ruby --version`
+3. **Install project Ruby**: `mise install`
+4. **Check mise configuration**: `cat .mise.toml`
+
+**Never bypass mise** - it ensures consistent Ruby versions across all environments.
 
 ## TTY Toolkit Guidelines
 
@@ -590,6 +645,7 @@ let(:ui) { UserInterface.new(prompt: mock_prompt) }
 **Use dependency injection pattern for testing components that interact with users or external services.**
 
 This pattern is essential for testing classes that use:
+
 - **Interactive prompts** (TTY::Prompt, user input)
 - **External APIs** (HTTP requests, third-party services)
 - **File system operations** (reading/writing files)
