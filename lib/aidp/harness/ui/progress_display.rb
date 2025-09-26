@@ -24,7 +24,7 @@ module Aidp
           @auto_refresh_enabled = false
           @refresh_interval = 1.0
           @refresh_thread = nil
-          @output = ui_components[:output] || $stdout
+          @output = ui_components[:output]
           @spinner_class = begin
             ui_components[:spinner] || TTY::Spinner
           rescue

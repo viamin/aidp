@@ -4,55 +4,56 @@ require "spec_helper"
 require_relative "../../../../lib/aidp/harness/ui/frame_manager"
 
 RSpec.describe Aidp::Harness::UI::FrameManager do
-  let(:frame_manager) { described_class.new }
+  let(:test_prompt) { TestPrompt.new }
+  let(:frame_manager) { described_class.new({output: test_prompt}) }
   let(:sample_frame_data) { build_sample_frame_data }
 
   describe "#open_frame" do
     context "when opening a section frame" do
       it "displays frame with correct title" do
-        expect { frame_manager.open_frame(:section, "Test Section") }
-          .to output(/Test Section/).to_stdout
+        frame_manager.open_frame(:section, "Test Section")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Test Section/) }).to be true
       end
 
       it "includes section emoji" do
-        expect { frame_manager.open_frame(:section, "My Section") }
-          .to output(/📋/).to_stdout
+        frame_manager.open_frame(:section, "My Section")
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("📋") }).to be true
       end
     end
 
     context "when opening a subsection frame" do
       it "displays subsection frame" do
-        expect { frame_manager.open_frame(:subsection, "Test Subsection") }
-          .to output(/Test Subsection/).to_stdout
+        frame_manager.open_frame(:subsection, "Test Subsection")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Test Subsection/) }).to be true
       end
 
       it "includes subsection emoji" do
-        expect { frame_manager.open_frame(:subsection, "My Subsection") }
-          .to output(/📝/).to_stdout
+        frame_manager.open_frame(:subsection, "My Subsection")
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("📝") }).to be true
       end
     end
 
     context "when opening a workflow frame" do
       it "displays workflow frame" do
-        expect { frame_manager.open_frame(:workflow, "Test Workflow") }
-          .to output(/Test Workflow/).to_stdout
+        frame_manager.open_frame(:workflow, "Test Workflow")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Test Workflow/) }).to be true
       end
 
       it "includes workflow emoji" do
-        expect { frame_manager.open_frame(:workflow, "My Workflow") }
-          .to output(/⚙️/).to_stdout
+        frame_manager.open_frame(:workflow, "My Workflow")
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("⚙️") }).to be true
       end
     end
 
     context "when opening a step frame" do
       it "displays step frame" do
-        expect { frame_manager.open_frame(:step, "Test Step") }
-          .to output(/Test Step/).to_stdout
+        frame_manager.open_frame(:step, "Test Step")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Test Step/) }).to be true
       end
 
       it "includes step emoji" do
-        expect { frame_manager.open_frame(:step, "My Step") }
-          .to output(/🔧/).to_stdout
+        frame_manager.open_frame(:step, "My Step")
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("🔧") }).to be true
       end
     end
 
@@ -67,8 +68,8 @@ RSpec.describe Aidp::Harness::UI::FrameManager do
     context "when frame data is provided" do
       it "includes frame data in display" do
         frame_data = {status: :running, progress: 50}
-        expect { frame_manager.open_frame(:section, "Test", frame_data) }
-          .to output(/Running/).to_stdout
+        frame_manager.open_frame(:section, "Test", frame_data)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Running/) }).to be true
       end
     end
   end
@@ -153,8 +154,8 @@ RSpec.describe Aidp::Harness::UI::FrameManager do
       end
 
       it "displays status update" do
-        expect { frame_manager.update_frame_status(:running) }
-          .to output(/Running/).to_stdout
+        frame_manager.update_frame_status(:running)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Running/) }).to be true
       end
     end
 
@@ -201,20 +202,20 @@ RSpec.describe Aidp::Harness::UI::FrameManager do
       end
 
       it "displays frame usage summary" do
-        expect { frame_manager.display_frame_summary }
-          .to output(/Frame Summary/).to_stdout
+        frame_manager.display_frame_summary
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Frame Summary/) }).to be true
       end
 
       it "includes frame statistics" do
-        expect { frame_manager.display_frame_summary }
-          .to output(/Total Frames/).to_stdout
+        frame_manager.display_frame_summary
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Total Frames/) }).to be true
       end
     end
 
     context "when no frames have been used" do
       it "displays empty summary" do
-        expect { frame_manager.display_frame_summary }
-          .to output(/No frames used/).to_stdout
+        frame_manager.display_frame_summary
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/No frames used/) }).to be true
       end
     end
   end

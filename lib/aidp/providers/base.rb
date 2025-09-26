@@ -17,7 +17,7 @@ module Aidp
 
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name
 
-      def initialize
+      def initialize(output: nil)
         @activity_state = :idle
         @last_activity_time = Time.now
         @start_time = nil
@@ -28,6 +28,7 @@ module Aidp
         @last_output_time = Time.now
         @job_context = nil
         @harness_context = nil
+        @output = output
         @harness_metrics = {
           total_requests: 0,
           successful_requests: 0,

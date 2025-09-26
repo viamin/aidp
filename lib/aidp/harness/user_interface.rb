@@ -1836,13 +1836,11 @@ module Aidp
       # Display progress message
       def show_progress(message)
         print "\r#{message}".ljust(80)
-        $stdout.flush
       end
 
       # Clear progress message
       def clear_progress
         print "\r" + " " * 80 + "\r"
-        $stdout.flush
       end
 
       # Get input history

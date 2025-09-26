@@ -5,9 +5,9 @@ require "stringio"
 module Aidp
   class CLI
     class TerminalIO
-      def initialize(input = $stdin, output = $stdout)
-        @input = input
-        @output = output
+      def initialize(input: nil, output: nil)
+        @input = input || $stdin
+        @output = output || $stdout
       end
 
       def ready?

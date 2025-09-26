@@ -10,8 +10,6 @@ RSpec.describe Aidp::Harness::UserInterface do
     described_class.new(prompt: test_prompt)
   end
 
-  # Helper method to capture stdout
-
   describe "interactive prompt system" do
     describe "#collect_feedback" do
       it "collects feedback for text questions" do

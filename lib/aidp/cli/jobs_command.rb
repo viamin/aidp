@@ -10,8 +10,8 @@ require_relative "../storage/file_manager"
 module Aidp
   class CLI
     class JobsCommand
-      def initialize(input: $stdin, output: $stdout)
-        @io = TerminalIO.new(input, output)
+      def initialize(input: nil, output: nil)
+        @io = TerminalIO.new(input: input, output: output)
         @pastel = Pastel.new
         @running = true
         @view_mode = :list

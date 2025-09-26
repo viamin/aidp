@@ -2,13 +2,16 @@
 
 require "spec_helper"
 require_relative "../../../../lib/aidp/harness/ui/workflow_controller"
+require_relative "../../../support/test_prompt"
 
 RSpec.describe Aidp::Harness::UI::WorkflowController do
-  let(:workflow_controller) { described_class.new }
+  let(:test_prompt) { TestPrompt.new }
+  let(:frame_manager) { Aidp::Harness::UI::FrameManager.new({output: test_prompt}) }
+  let(:workflow_controller) { described_class.new({frame_manager: frame_manager, output: test_prompt}) }
 
   describe "#pause_workflow" do
     context "when workflow is running" do
-      before { workflow_controller.instance_variable_set(:@current_state, :running) }
+      before { workflow_controller.set_state_for_testing(:running) }
 
       it "changes state to paused" do
         workflow_controller.pause_workflow("Test pause")
@@ -24,7 +27,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
     end
 
     context "when workflow is not running" do
-      before { workflow_controller.instance_variable_set(:@current_state, :paused) }
+      before { workflow_controller.set_state_for_testing(:paused) }
 
       it "raises InvalidStateError" do
         expect {
@@ -36,7 +39,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
 
   describe "#resume_workflow" do
     context "when workflow is paused" do
-      before { workflow_controller.instance_variable_set(:@current_state, :paused) }
+      before { workflow_controller.set_state_for_testing(:paused) }
 
       it "changes state to running" do
         workflow_controller.resume_workflow("Test resume")
@@ -54,7 +57,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
     end
 
     context "when workflow is not paused" do
-      before { workflow_controller.instance_variable_set(:@current_state, :running) }
+      before { workflow_controller.set_state_for_testing(:running) }
 
       it "raises InvalidStateError" do
         expect {
@@ -66,7 +69,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
 
   describe "#cancel_workflow" do
     context "when workflow can be cancelled" do
-      before { workflow_controller.instance_variable_set(:@current_state, :running) }
+      before { workflow_controller.set_state_for_testing(:running) }
 
       it "changes state to cancelled" do
         workflow_controller.cancel_workflow("Test cancel")
@@ -82,7 +85,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
     end
 
     context "when workflow cannot be cancelled" do
-      before { workflow_controller.instance_variable_set(:@current_state, :completed) }
+      before { workflow_controller.set_state_for_testing(:completed) }
 
       it "raises InvalidStateError" do
         expect {
@@ -94,7 +97,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
 
   describe "#stop_workflow" do
     context "when workflow can be stopped" do
-      before { workflow_controller.instance_variable_set(:@current_state, :running) }
+      before { workflow_controller.set_state_for_testing(:running) }
 
       it "changes state to stopped" do
         workflow_controller.stop_workflow("Test stop")
@@ -112,7 +115,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
 
   describe "#complete_workflow" do
     context "when workflow can be completed" do
-      before { workflow_controller.instance_variable_set(:@current_state, :running) }
+      before { workflow_controller.set_state_for_testing(:running) }
 
       it "changes state to completed" do
         workflow_controller.complete_workflow("Test complete")
@@ -122,7 +125,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
     end
 
     context "when workflow cannot be completed" do
-      before { workflow_controller.instance_variable_set(:@current_state, :paused) }
+      before { workflow_controller.set_state_for_testing(:paused) }
 
       it "raises InvalidStateError" do
         expect {
@@ -134,7 +137,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
 
   describe "state query methods" do
     context "when workflow is running" do
-      before { workflow_controller.instance_variable_set(:@current_state, :running) }
+      before { workflow_controller.set_state_for_testing(:running) }
 
       it "returns correct state queries" do
         expect(workflow_controller.running?).to be true
@@ -146,7 +149,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
     end
 
     context "when workflow is paused" do
-      before { workflow_controller.instance_variable_set(:@current_state, :paused) }
+      before { workflow_controller.set_state_for_testing(:paused) }
 
       it "returns correct state queries" do
         expect(workflow_controller.running?).to be false
@@ -160,7 +163,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
 
   describe "action availability methods" do
     context "when workflow is running" do
-      before { workflow_controller.instance_variable_set(:@current_state, :running) }
+      before { workflow_controller.set_state_for_testing(:running) }
 
       it "returns correct action availability" do
         expect(workflow_controller.can_pause?).to be true
@@ -172,7 +175,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
     end
 
     context "when workflow is paused" do
-      before { workflow_controller.instance_variable_set(:@current_state, :paused) }
+      before { workflow_controller.set_state_for_testing(:paused) }
 
       it "returns correct action availability" do
         expect(workflow_controller.can_pause?).to be false
@@ -251,18 +254,18 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
 
   describe "#display_workflow_status" do
     it "displays workflow status information" do
-      expect { workflow_controller.display_workflow_status }
-        .to output(/Workflow Status/).to_stdout
+      workflow_controller.display_workflow_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Workflow Status/) }).to be true
     end
 
     it "includes current state information" do
-      expect { workflow_controller.display_workflow_status }
-        .to output(/Current State/).to_stdout
+      workflow_controller.display_workflow_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Current State/) }).to be true
     end
 
     it "includes available actions" do
-      expect { workflow_controller.display_workflow_status }
-        .to output(/Available Actions/).to_stdout
+      workflow_controller.display_workflow_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Available Actions/) }).to be true
     end
   end
 end

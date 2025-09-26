@@ -10,12 +10,12 @@ module Aidp
     class FirstRunWizard
       TEMPLATES_DIR = File.expand_path(File.join(__dir__, "..", "..", "..", "templates"))
 
-      def self.ensure_config(project_dir, input: $stdin, output: $stdout, non_interactive: false, prompt: TTY::Prompt.new)
+      def self.ensure_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new)
         return true if Aidp::Config.config_exists?(project_dir)
 
-        wizard = new(project_dir, input: input, output: output, prompt: prompt)
+        wizard = new(project_dir, prompt: prompt)
 
-        if non_interactive || !input.tty? || !output.tty?
+        if non_interactive
           # Non-interactive environment - create minimal config silently
           path = wizard.send(:write_minimal_config, project_dir)
           wizard.send(:display_message, "Created minimal configuration at #{wizard.send(:relative, path)} (non-interactive default)", type: :success)
@@ -25,10 +25,10 @@ module Aidp
         wizard.run
       end
 
-      def self.setup_config(project_dir, input: $stdin, output: $stdout, non_interactive: false, prompt: TTY::Prompt.new)
-        wizard = new(project_dir, input: input, output: output, prompt: prompt)
+      def self.setup_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new)
+        wizard = new(project_dir, prompt: prompt)
 
-        if non_interactive || !input.tty? || !output.tty?
+        if non_interactive
           # Non-interactive environment - skip setup
           wizard.send(:display_message, "Configuration setup skipped in non-interactive environment", type: :info)
           return true
@@ -37,10 +37,8 @@ module Aidp
         wizard.run_setup_config
       end
 
-      def initialize(project_dir, input: $stdin, output: $stdout, prompt: TTY::Prompt.new)
+      def initialize(project_dir, prompt: TTY::Prompt.new)
         @project_dir = project_dir
-        @input = input
-        @output = output
         @prompt = prompt
       end
 

@@ -757,7 +757,6 @@ module Aidp
       def clear_display
         # Clear the current line and move cursor to beginning
         print "\r" + " " * 80 + "\r"
-        $stdout.flush
       end
 
       def format_duration(seconds)

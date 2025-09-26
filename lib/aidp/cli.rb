@@ -170,21 +170,20 @@ module Aidp
           return 0
         end
 
-        # Start the interactive TUI (early banner + flush for system tests/tmux)
+        # Start the interactive TUI
         display_message("AIDP initializing...", type: :info)
         display_message("   Press Ctrl+C to stop\n", type: :highlight)
-        $stdout.flush
 
         # Handle configuration setup
         if options[:setup_config]
           # Force setup/reconfigure even if config exists
-          unless Aidp::CLI::FirstRunWizard.setup_config(Dir.pwd, input: $stdin, output: $stdout, non_interactive: ENV["CI"] == "true")
+          unless Aidp::CLI::FirstRunWizard.setup_config(Dir.pwd, prompt: @prompt, non_interactive: ENV["CI"] == "true")
             display_message("Configuration setup cancelled. Aborting startup.", type: :info)
             return 1
           end
         else
           # First-time setup wizard (before TUI to avoid noisy errors)
-          unless Aidp::CLI::FirstRunWizard.ensure_config(Dir.pwd, input: $stdin, output: $stdout, non_interactive: ENV["CI"] == "true")
+          unless Aidp::CLI::FirstRunWizard.ensure_config(Dir.pwd, prompt: @prompt, non_interactive: ENV["CI"] == "true")
             display_message("Configuration required. Aborting startup.", type: :info)
             return 1
           end
@@ -193,7 +192,6 @@ module Aidp
         # Initialize the enhanced TUI
         tui = Aidp::Harness::UI::EnhancedTUI.new
         workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui)
-        $stdout.flush
 
         # Start TUI display loop
         tui.start_display_loop

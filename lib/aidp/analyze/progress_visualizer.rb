@@ -15,12 +15,13 @@ module Aidp
       arrows: {complete: "▶", incomplete: "▷", head: "▶"}
     }.freeze
 
-    def initialize(config = {})
+    def initialize(config = {}, output: nil)
       @config = config
       @quiet = config[:quiet] || false
       @style = config[:style] || :default
       @show_details = config[:show_details] || true
       @pastel = Pastel.new
+      @output = output
     end
 
     # Display analysis progress
@@ -188,9 +189,6 @@ module Aidp
 
       progress_bar = create_simple_progress_bar(percentage, message)
       print progress_bar
-
-      # Flush output
-      $stdout.flush
     end
 
     # Display completion message

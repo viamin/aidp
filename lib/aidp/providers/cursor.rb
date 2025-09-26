@@ -95,13 +95,11 @@ module Aidp
         else
           print "\r🔄 cursor-agent is running... (#{seconds}s)"
         end
-        $stdout.flush
       end
 
       def clear_activity_status
         # Clear the activity status line
         print "\r" + " " * 50 + "\r"
-        $stdout.flush
       end
 
       def calculate_timeout
