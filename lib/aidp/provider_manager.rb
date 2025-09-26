@@ -142,6 +142,8 @@ module Aidp
           Aidp::Providers::Gemini.new
         when "macos_ui"
           Aidp::Providers::MacOSUI.new
+        when "github_copilot"
+          Aidp::Providers::GithubCopilot.new
         end
       end
     end

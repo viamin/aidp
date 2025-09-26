@@ -7,6 +7,7 @@ require_relative "../providers/anthropic"
 require_relative "../providers/gemini"
 require_relative "../providers/macos_ui"
 require_relative "../providers/opencode"
+require_relative "../providers/github_copilot"
 
 module Aidp
   module Harness
@@ -17,7 +18,8 @@ module Aidp
         "anthropic" => Aidp::Providers::Anthropic,
         "gemini" => Aidp::Providers::Gemini,
         "macos" => Aidp::Providers::MacOSUI,
-        "opencode" => Aidp::Providers::Opencode
+        "opencode" => Aidp::Providers::Opencode,
+        "github_copilot" => Aidp::Providers::GithubCopilot
       }.freeze
 
       def initialize(config_manager = nil)
