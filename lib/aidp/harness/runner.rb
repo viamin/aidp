@@ -27,6 +27,9 @@ module Aidp
         error: "error"
       }.freeze
 
+      # Public accessors for testing and integration
+      attr_reader :current_provider, :current_step, :user_input, :execution_log, :provider_manager
+
       def initialize(project_dir, mode = :analyze, options = {})
         @project_dir = project_dir
         @mode = mode.to_sym

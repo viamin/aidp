@@ -38,7 +38,7 @@
 
 - Test public behavior; don't mock internal private methods.
 - Mock ONLY external boundaries (network, filesystem, user input, provider APIs).
-- Keep failing regressions visible—do **not** mark them pending.
+- Keep failing regressions visible — do **not** mark them pending.
 - **NEVER put mock methods in production code** - use dependency injection instead.
 
 ### Interactive & External Service Testing
@@ -107,10 +107,10 @@ Every `pending` MUST have: short reason + tracking reference.
 module Aidp
   module Errors
     class ConfigurationError < StandardError; end
-    class ProviderError       < StandardError; end
-    class ValidationError     < StandardError; end
-    class StateError          < StandardError; end
-    class UserError           < StandardError; end
+    class ProviderError      < StandardError; end
+    class ValidationError    < StandardError; end
+    class StateError         < StandardError; end
+    class UserError          < StandardError; end
   end
 end
 ```

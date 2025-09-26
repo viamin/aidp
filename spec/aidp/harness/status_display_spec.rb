@@ -4,19 +4,11 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::StatusDisplay do
-  # Helper method to capture stdout
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
-  end
+  let(:test_prompt) { TestPrompt.new }
   let(:provider_manager) { instance_double("Aidp::Harness::ProviderManager") }
   let(:metrics_manager) { instance_double("Aidp::Harness::MetricsManager") }
   let(:circuit_breaker_manager) { instance_double("Aidp::Harness::CircuitBreakerManager") }
-  let(:status_display) { described_class.new(provider_manager, metrics_manager, circuit_breaker_manager) }
+  let(:status_display) { described_class.new(provider_manager, metrics_manager, circuit_breaker_manager, nil, prompt: test_prompt) }
 
   before do
     # Mock provider manager methods
@@ -240,31 +232,23 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "displays compact status" do
-      output = capture_stdout do
-        status_display.send(:display_compact_status)
-      end
-      expect(output).to match(/Harness Status/)
+      status_display.send(:display_compact_status)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Harness Status/) }).to be true
     end
 
     it "displays detailed status" do
-      output = capture_stdout do
-        status_display.send(:display_detailed_status)
-      end
-      expect(output).to match(/Harness Status - Detailed/)
+      status_display.send(:display_detailed_status)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Harness Status - Detailed/) }).to be true
     end
 
     it "displays minimal status" do
-      output = capture_stdout do
-        status_display.send(:display_minimal_status)
-      end
-      expect(output).to match(/Test Step/)
+      status_display.send(:display_minimal_status)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Test Step/) }).to be true
     end
 
     it "displays full status" do
-      output = capture_stdout do
-        status_display.send(:display_full_status)
-      end
-      expect(output).to match(/AIDP HARNESS - FULL STATUS REPORT/)
+      status_display.send(:display_full_status)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/AIDP HARNESS - FULL STATUS REPORT/) }).to be true
     end
   end
 
@@ -277,10 +261,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "displays basic information" do
-      output = capture_stdout do
-        status_display.send(:display_basic_info)
-      end
-      expect(output).to match(/BASIC INFORMATION/)
+      status_display.send(:display_basic_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/BASIC INFORMATION/) }).to be true
     end
 
     it "displays provider information" do
@@ -289,10 +271,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         provider_health: {"claude" => {status: "healthy", health_score: 0.95}}
       })
 
-      output = capture_stdout do
-        status_display.send(:display_provider_info)
-      end
-      expect(output).to match(/PROVIDER INFORMATION/)
+      status_display.send(:display_provider_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/PROVIDER INFORMATION/) }).to be true
     end
 
     it "displays performance information" do
@@ -303,10 +283,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         error_rate: 0.05
       })
 
-      output = capture_stdout do
-        status_display.send(:display_performance_info)
-      end
-      expect(output).to match(/PERFORMANCE METRICS/)
+      status_display.send(:display_performance_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/PERFORMANCE METRICS/) }).to be true
     end
 
     it "displays error information" do
@@ -319,10 +297,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         }
       })
 
-      output = capture_stdout do
-        status_display.send(:display_error_info)
-      end
-      expect(output).to match(/ERROR INFORMATION/)
+      status_display.send(:display_error_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/ERROR INFORMATION/) }).to be true
     end
 
     it "displays circuit breaker information" do
@@ -331,10 +307,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         "gemini" => {state: :open, failure_count: 5}
       })
 
-      output = capture_stdout do
-        status_display.send(:display_circuit_breaker_info)
-      end
-      expect(output).to match(/CIRCUIT BREAKER STATUS/)
+      status_display.send(:display_circuit_breaker_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/CIRCUIT BREAKER STATUS/) }).to be true
     end
 
     it "displays token usage information" do
@@ -344,10 +318,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         }
       })
 
-      output = capture_stdout do
-        status_display.send(:display_token_usage)
-      end
-      expect(output).to match(/TOKEN USAGE/)
+      status_display.send(:display_token_usage)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/TOKEN USAGE/) }).to be true
     end
 
     it "displays rate limit information" do
@@ -363,10 +335,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         }
       })
 
-      output = capture_stdout do
-        status_display.send(:display_rate_limit_info)
-      end
-      expect(output).to match(/RATE LIMIT STATUS/)
+      status_display.send(:display_rate_limit_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/RATE LIMIT STATUS/) }).to be true
     end
 
     it "displays recovery information" do
@@ -374,10 +344,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         provider_switch: {status: :success, details: {new_provider: "gemini"}}
       })
 
-      output = capture_stdout do
-        status_display.send(:display_recovery_info)
-      end
-      expect(output).to match(/RECOVERY STATUS/)
+      status_display.send(:display_recovery_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/RECOVERY STATUS/) }).to be true
     end
 
     it "displays user feedback information" do
@@ -385,10 +353,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         question: {status: :waiting, details: {question_count: 3}}
       })
 
-      output = capture_stdout do
-        status_display.send(:display_user_feedback_info)
-      end
-      expect(output).to match(/USER FEEDBACK STATUS/)
+      status_display.send(:display_user_feedback_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/USER FEEDBACK STATUS/) }).to be true
     end
 
     it "displays work completion information" do
@@ -398,10 +364,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         total_steps: 5
       })
 
-      output = capture_stdout do
-        status_display.send(:display_work_completion_info)
-      end
-      expect(output).to match(/WORK COMPLETION STATUS/)
+      status_display.send(:display_work_completion_info)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/WORK COMPLETION STATUS/) }).to be true
     end
 
     it "displays alerts" do
@@ -410,10 +374,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
         {severity: :warning, message: "High error rate", timestamp: Time.now}
       ])
 
-      output = capture_stdout do
-        status_display.send(:display_alerts)
-      end
-      expect(output).to match(/ALERTS/)
+      status_display.send(:display_alerts)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/ALERTS/) }).to be true
     end
   end
 
@@ -602,53 +564,39 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "special status displays" do
     it "shows paused status" do
-      output = capture_stdout do
-        status_display.show_paused_status
-      end
-      expect(output).to match(/Harness PAUSED/)
+      status_display.show_paused_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Harness PAUSED/) }).to be true
     end
 
     it "shows resumed status" do
-      output = capture_stdout do
-        status_display.show_resumed_status
-      end
-      expect(output).to match(/Harness RESUMED/)
+      status_display.show_resumed_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Harness RESUMED/) }).to be true
     end
 
     it "shows stopped status" do
-      output = capture_stdout do
-        status_display.show_stopped_status
-      end
-      expect(output).to match(/Harness STOPPED/)
+      status_display.show_stopped_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Harness STOPPED/) }).to be true
     end
 
     it "shows rate limit wait" do
       reset_time = Time.now + 60
-      output = capture_stdout do
-        status_display.show_rate_limit_wait(reset_time)
-      end
-      expect(output).to match(/Rate limit reached/)
+      status_display.show_rate_limit_wait(reset_time)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Rate limit reached/) }).to be true
     end
 
     it "updates rate limit countdown" do
-      output = capture_stdout do
-        status_display.update_rate_limit_countdown(30)
-      end
-      expect(output).to match(/Rate limit - waiting/)
+      status_display.update_rate_limit_countdown(30)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Rate limit - waiting/) }).to be true
     end
 
     it "shows completion status" do
-      output = capture_stdout do
-        status_display.show_completion_status(120, 5, 5)
-      end
-      expect(output).to match(/Harness COMPLETED/)
+      status_display.show_completion_status(120, 5, 5)
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Harness COMPLETED/) }).to be true
     end
 
     it "shows error status" do
-      output = capture_stdout do
-        status_display.show_error_status("Test error")
-      end
-      expect(output).to match(/Harness ERROR/)
+      status_display.show_error_status("Test error")
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Harness ERROR/) }).to be true
     end
   end
 
@@ -718,10 +666,8 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "handles display errors gracefully" do
       allow(status_display).to receive(:collect_status_data).and_raise(StandardError.new("Test error"))
 
-      output = capture_stdout do
-        status_display.send(:handle_display_error, StandardError.new("Test error"))
-      end
-      expect(output).to match(/Display Error/)
+      status_display.send(:handle_display_error, StandardError.new("Test error"))
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Display Error/) }).to be true
     end
 
     it "handles missing manager methods gracefully" do

@@ -4,29 +4,10 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:test_prompt) { TestPrompt.new }
   let(:ui) do
-    # Create a new instance and directly inject the mock prompt
-    ui_instance = described_class.new
-    # Replace the @prompt instance variable with our mock
-    ui_instance.instance_variable_set(:@prompt, mock_prompt)
-
-    # Set default stub behaviors to prevent hanging
-    allow(mock_prompt).to receive(:ask).and_return("")
-    allow(mock_prompt).to receive(:select).and_return("")
-    allow(mock_prompt).to receive(:keypress).and_return("")
-
-    ui_instance
-  end
-
-  # Helper method to capture stdout
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
+    # Use proper dependency injection via constructor
+    described_class.new(prompt: test_prompt)
   end
 
   describe "file selection interface with @ character" do
@@ -286,60 +267,42 @@ RSpec.describe Aidp::Harness::UserInterface do
         temp_file.write("Line 1\nLine 2\nLine 3\n" * 10) # 30 lines
         temp_file.close
 
-        # Mock TTY::Prompt to return empty input
-        allow(mock_prompt).to receive(:ask).and_return("")
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        # Configure TestPrompt to return empty input
+        test_prompt = TestPrompt.new(responses: {ask: "", keypress: ""})
+        ui = described_class.new(prompt: test_prompt)
 
-        output = capture_stdout do
-          ui.show_file_preview(temp_file.path)
-        end
-        expect(output).to match(/File Preview/)
-        output = capture_stdout do
-          ui.show_file_preview(temp_file.path)
-        end
-        expect(output).to match(/File Info/)
-        output = capture_stdout do
-          ui.show_file_preview(temp_file.path)
-        end
-        expect(output).to match(/Content Preview/)
-        output = capture_stdout do
-          ui.show_file_preview(temp_file.path)
-        end
-        expect(output).to match(/10 more lines/)
+        ui.show_file_preview(temp_file.path)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/File Preview/) }).to be true
+        ui.show_file_preview(temp_file.path)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/File Info/) }).to be true
+        ui.show_file_preview(temp_file.path)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Content Preview/) }).to be true
+        ui.show_file_preview(temp_file.path)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/10 more lines/) }).to be true
 
         temp_file.unlink
       end
 
       it "handles file read errors" do
-        # Mock TTY::Prompt to return empty input
-        allow(mock_prompt).to receive(:ask).and_return("")
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        # Configure TestPrompt to return empty input
+        test_prompt = TestPrompt.new(responses: {ask: "", keypress: ""})
+        ui = described_class.new(prompt: test_prompt)
 
-        output = capture_stdout do
-          ui.show_file_preview("nonexistent.txt")
-        end
-        expect(output).to match(/Error reading file/)
+        ui.show_file_preview("nonexistent.txt")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Error reading file/) }).to be true
       end
     end
 
     describe "#show_file_selection_help" do
       it "displays help information" do
-        output = capture_stdout do
-          ui.show_file_selection_help
-        end
-        expect(output).to match(/File Selection Help/)
-        output = capture_stdout do
-          ui.show_file_selection_help
-        end
-        expect(output).to match(/Search Examples/)
-        output = capture_stdout do
-          ui.show_file_selection_help
-        end
-        expect(output).to match(/Selection Commands/)
-        output = capture_stdout do
-          ui.show_file_selection_help
-        end
-        expect(output).to match(/Tips/)
+        ui.show_file_selection_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/File Selection Help/) }).to be true
+        ui.show_file_selection_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Search Examples/) }).to be true
+        ui.show_file_selection_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Selection Commands/) }).to be true
+        ui.show_file_selection_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Tips/) }).to be true
       end
     end
 
@@ -389,22 +352,21 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "integration with file response" do
       it "integrates with file response method" do
-        # Mock file finding
-        allow(ui).to receive(:find_files_advanced).and_return(["config.yml"])
+        # Create a temporary file for the test
+        temp_file = Tempfile.new(["test", ".yml"])
+        temp_file.write("test content")
+        temp_file.close
 
-        # Mock file menu display
-        allow(ui).to receive(:display_advanced_file_menu)
+        # Configure TestPrompt for file response - provide the actual file path
+        test_prompt = TestPrompt.new(responses: {ask: temp_file.path, keypress: ""})
+        ui_with_test_prompt = described_class.new(prompt: test_prompt)
 
-        # Mock file selection
-        allow(ui).to receive(:get_advanced_file_selection).and_return(0)
+        result = ui_with_test_prompt.get_file_response("text", nil, true)
 
-        # Mock TTY::Prompt for file response
-        allow(mock_prompt).to receive(:ask).and_return("@config")
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        expect(result).to eq(temp_file.path)
 
-        result = ui.get_file_response("text", nil, true)
-
-        expect(result).to eq("config.yml")
+        # Clean up
+        temp_file.unlink
       end
     end
   end

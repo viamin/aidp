@@ -4,30 +4,13 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:test_prompt) { TestPrompt.new(responses: {ask: "test response"}) }
   let(:ui) do
-    # Create a new instance and directly inject the mock prompt
-    ui_instance = described_class.new
-    # Replace the @prompt instance variable with our mock
-    ui_instance.instance_variable_set(:@prompt, mock_prompt)
-
-    # Set default stub behaviors to prevent hanging
-    allow(mock_prompt).to receive(:ask).and_return("default_response")
-    allow(mock_prompt).to receive(:select).and_return("")
-    allow(mock_prompt).to receive(:keypress).and_return("")
-
-    ui_instance
+    # Use proper dependency injection via constructor
+    described_class.new(prompt: test_prompt)
   end
 
   # Helper method to capture stdout
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
-  end
 
   describe "interactive prompt system" do
     describe "#collect_feedback" do
@@ -204,15 +187,12 @@ RSpec.describe Aidp::Harness::UserInterface do
           agent_output: "Agent needs user information to continue"
         }
 
-        # Mock TTY::Prompt to return test input
-        allow(mock_prompt).to receive(:ask).and_return("John Doe")
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        # Configure TestPrompt with responses
+        test_prompt = TestPrompt.new(responses: {ask: "John Doe", keypress: ""})
+        ui = described_class.new(prompt: test_prompt)
 
-        # Capture output
-        output = capture_stdout do
-          ui.collect_feedback(questions, context)
-        end
-        expect(output).to match(/Context:/)
+        ui.collect_feedback(questions, context)
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Context:") }).to be true
       end
     end
 
@@ -372,30 +352,18 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#show_help" do
       it "displays help information" do
-        output = capture_stdout do
-          ui.show_help
-        end
-        expect(output).to match(/Interactive Prompt Help/)
-        output = capture_stdout do
-          ui.show_help
-        end
-        expect(output).to match(/Input Types/)
-        output = capture_stdout do
-          ui.show_help
-        end
-        expect(output).to match(/Special Commands/)
-        output = capture_stdout do
-          ui.show_help
-        end
-        expect(output).to match(/File Selection/)
-        output = capture_stdout do
-          ui.show_help
-        end
-        expect(output).to match(/Validation/)
-        output = capture_stdout do
-          ui.show_help
-        end
-        expect(output).to match(/Tips/)
+        ui.show_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Interactive Prompt Help/) }).to be true
+        ui.show_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Input Types/) }).to be true
+        ui.show_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Special Commands/) }).to be true
+        ui.show_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/File Selection/) }).to be true
+        ui.show_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Validation/) }).to be true
+        ui.show_help
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Tips/) }).to be true
       end
     end
 
@@ -416,18 +384,12 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        output = capture_stdout do
-          ui.display_question_summary(questions)
-        end
-        expect(output).to match(/Question Summary/)
-        output = capture_stdout do
-          ui.display_question_summary(questions)
-        end
-        expect(output).to match(/What is your name/)
-        output = capture_stdout do
-          ui.display_question_summary(questions)
-        end
-        expect(output).to match(/What is your age/)
+        ui.display_question_summary(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Question Summary/) }).to be true
+        ui.display_question_summary(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/What is your name/) }).to be true
+        ui.display_question_summary(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/What is your age/) }).to be true
       end
     end
 
@@ -440,66 +402,40 @@ RSpec.describe Aidp::Harness::UserInterface do
           agent_output: "Agent needs user information to continue"
         }
 
-        output = capture_stdout do
-          ui.display_feedback_context(context)
-        end
-        expect(output).to match(/Context:/)
-        output = capture_stdout do
-          ui.display_feedback_context(context)
-        end
-        expect(output).to match(/Type: user_registration/)
-        output = capture_stdout do
-          ui.display_feedback_context(context)
-        end
-        expect(output).to match(/Urgency: 🔴 High/)
-        output = capture_stdout do
-          ui.display_feedback_context(context)
-        end
-        expect(output).to match(/Description: Please provide your information/)
-        output = capture_stdout do
-          ui.display_feedback_context(context)
-        end
-        expect(output).to match(/Agent Output:/)
+        ui.display_feedback_context(context)
+
+        # Check that the TestPrompt recorded the messages
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Context:") }).to be true
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Type: user_registration") }).to be true
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Urgency: 🔴 High") }).to be true
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Description: Please provide your information") }).to be true
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Agent Output:") }).to be true
       end
     end
 
     describe "#display_question_info" do
       it "displays question information for text questions" do
-        output = capture_stdout do
-          ui.display_question_info("text", "text", nil, nil, true)
-        end
-        expect(output).to match(/📝 Text/)
-        output = capture_stdout do
-          ui.display_question_info("text", "text", nil, nil, true)
-        end
-        expect(output).to match(/Required: Yes/)
+        ui.display_question_info("text", "text", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/📝 Text/) }).to be true
+        ui.display_question_info("text", "text", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Required: Yes/) }).to be true
       end
 
       it "displays question information for choice questions" do
         options = ["Option A", "Option B"]
-        output = capture_stdout do
-          ui.display_question_info("choice", "text", options, "Option A", true)
-        end
-        expect(output).to match(/🔘 Choice/)
-        output = capture_stdout do
-          ui.display_question_info("choice", "text", options, "Option A", true)
-        end
-        expect(output).to match(/Options: Option A, Option B/)
-        output = capture_stdout do
-          ui.display_question_info("choice", "text", options, "Option A", true)
-        end
-        expect(output).to match(/Default: Option A/)
+        ui.display_question_info("choice", "text", options, "Option A", true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/🔘 Choice/) }).to be true
+        ui.display_question_info("choice", "text", options, "Option A", true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Options: Option A, Option B/) }).to be true
+        ui.display_question_info("choice", "text", options, "Option A", true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Default: Option A/) }).to be true
       end
 
       it "displays question information for email questions" do
-        output = capture_stdout do
-          ui.display_question_info("email", "email", nil, nil, true)
-        end
-        expect(output).to match(/📧 Email/)
-        output = capture_stdout do
-          ui.display_question_info("email", "email", nil, nil, true)
-        end
-        expect(output).to match(/Expected: email/)
+        ui.display_question_info("email", "email", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/📧 Email/) }).to be true
+        ui.display_question_info("email", "email", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Expected: email/) }).to be true
       end
     end
   end

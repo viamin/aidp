@@ -4,29 +4,10 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:test_prompt) { TestPrompt.new }
   let(:ui) do
-    # Create a new instance and directly inject the mock prompt
-    ui_instance = described_class.new
-    # Replace the @prompt instance variable with our mock
-    ui_instance.instance_variable_set(:@prompt, mock_prompt)
-
-    # Set default stub behaviors to prevent hanging
-    allow(mock_prompt).to receive(:ask).and_return("")
-    allow(mock_prompt).to receive(:select).and_return("")
-    allow(mock_prompt).to receive(:keypress).and_return("")
-
-    ui_instance
-  end
-
-  # Helper method to capture stdout
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
+    # Use proper dependency injection via constructor
+    described_class.new(prompt: test_prompt)
   end
 
   describe "numbered question presentation system" do
@@ -37,14 +18,10 @@ RSpec.describe Aidp::Harness::UserInterface do
           {question: "What is your age?", type: "number", required: false}
         ]
 
-        output = capture_stdout do
-          ui.display_question_presentation_header(questions, nil)
-        end
-        expect(output).to match(/Agent needs your feedback/)
-        output = capture_stdout do
-          ui.display_question_presentation_header(questions, nil)
-        end
-        expect(output).to match(/Questions to answer/)
+        ui.display_question_presentation_header(questions, nil)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Agent needs your feedback/) }).to be true
+        ui.display_question_presentation_header(questions, nil)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Questions to answer/) }).to be true
       end
 
       it "displays context summary when provided" do
@@ -58,18 +35,12 @@ RSpec.describe Aidp::Harness::UserInterface do
           description: "Please provide your information"
         }
 
-        output = capture_stdout do
-          ui.display_question_presentation_header(questions, context)
-        end
-        expect(output).to match(/Context Summary/)
-        output = capture_stdout do
-          ui.display_question_presentation_header(questions, context)
-        end
-        expect(output).to match(/Type: user_registration/)
-        output = capture_stdout do
-          ui.display_question_presentation_header(questions, context)
-        end
-        expect(output).to match(/Urgency: 🔴 High/)
+        ui.display_question_presentation_header(questions, context)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Context Summary/) }).to be true
+        ui.display_question_presentation_header(questions, context)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Type: user_registration/) }).to be true
+        ui.display_question_presentation_header(questions, context)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Urgency: 🔴 High/) }).to be true
       end
     end
 
@@ -81,26 +52,16 @@ RSpec.describe Aidp::Harness::UserInterface do
           {question: "Do you want to continue?", type: "confirmation", required: true}
         ]
 
-        output = capture_stdout do
-          ui.display_question_overview(questions)
-        end
-        expect(output).to match(/Overview:/)
-        output = capture_stdout do
-          ui.display_question_overview(questions)
-        end
-        expect(output).to match(/Total questions: 3/)
-        output = capture_stdout do
-          ui.display_question_overview(questions)
-        end
-        expect(output).to match(/Required: 2/)
-        output = capture_stdout do
-          ui.display_question_overview(questions)
-        end
-        expect(output).to match(/Optional: 1/)
-        output = capture_stdout do
-          ui.display_question_overview(questions)
-        end
-        expect(output).to match(/Question types: text, number, confirmation/)
+        ui.display_question_overview(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Overview:/) }).to be true
+        ui.display_question_overview(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Total questions: 3/) }).to be true
+        ui.display_question_overview(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Required: 2/) }).to be true
+        ui.display_question_overview(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Optional: 1/) }).to be true
+        ui.display_question_overview(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Question types: text, number, confirmation/) }).to be true
       end
 
       it "displays estimated completion time" do
@@ -109,10 +70,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           {question: "What is your age?", type: "number", required: false}
         ]
 
-        output = capture_stdout do
-          ui.display_question_overview(questions)
-        end
-        expect(output).to match(/Estimated time:/)
+        ui.display_question_overview(questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Estimated time:/) }).to be true
       end
     end
 
@@ -210,22 +169,14 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: true
         }
 
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Question 1 of 3/)
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/📝 What is your name/)
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Question Details:/)
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Instructions:/)
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Question 1 of 3/) }).to be true
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/📝 What is your name/) }).to be true
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Question Details:/) }).to be true
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Instructions:/) }).to be true
       end
 
       it "displays question metadata" do
@@ -236,14 +187,10 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: true
         }
 
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Type: Text/)
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Status: 🔴 Required/)
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Type: Text/) }).to be true
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Status: 🔴 Required/) }).to be true
       end
 
       it "displays optional question status" do
@@ -254,10 +201,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: false
         }
 
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Status: 🟢 Optional/)
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Status: 🟢 Optional/) }).to be true
       end
 
       it "displays choice question options" do
@@ -269,168 +214,112 @@ RSpec.describe Aidp::Harness::UserInterface do
           required: true
         }
 
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Options: 3 available/)
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Default: Option A/)
-        output = capture_stdout do
-          ui.display_numbered_question(question_data, 1, 1, 3)
-        end
-        expect(output).to match(/Available Options:/)
-        expect { ui.display_numbered_question(question_data, 1, 1, 3) }.to output(/1. Option A \(default\)/).to_stdout
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Options: 3 available/) }).to be true
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Default: Option A/) }).to be true
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Available Options:/) }).to be true
+        ui.display_numbered_question(question_data, 1, 1, 3)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/1\. Option A \(default\)/) }).to be true
       end
     end
 
     describe "#display_question_instructions" do
       it "displays text question instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, true)
-        end
-        expect(output).to match(/Enter your text response/)
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, true)
-        end
-        expect(output).to match(/Use @ for file selection/)
+        ui.display_question_instructions("text", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter your text response/) }).to be true
+        ui.display_question_instructions("text", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Use @ for file selection/) }).to be true
       end
 
       it "displays choice question instructions" do
         options = ["Option A", "Option B"]
-        output = capture_stdout do
-          ui.display_question_instructions("choice", options, nil, true)
-        end
-        expect(output).to match(/Select from the numbered options/)
-        output = capture_stdout do
-          ui.display_question_instructions("choice", options, nil, true)
-        end
-        expect(output).to match(/Enter the number of your choice/)
+        ui.display_question_instructions("choice", options, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Select from the numbered options/) }).to be true
+        ui.display_question_instructions("choice", options, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter the number of your choice/) }).to be true
       end
 
       it "displays confirmation question instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("confirmation", nil, nil, true)
-        end
-        expect(output).to match(/Enter 'y' or 'yes' for Yes/)
-        output = capture_stdout do
-          ui.display_question_instructions("confirmation", nil, nil, true)
-        end
-        expect(output).to match(/Enter 'n' or 'no' for No/)
+        ui.display_question_instructions("confirmation", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter 'y' or 'yes' for Yes/) }).to be true
+        ui.display_question_instructions("confirmation", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter 'n' or 'no' for No/) }).to be true
       end
 
       it "displays file question instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("file", nil, nil, true)
-        end
-        expect(output).to match(/Enter file path directly/)
-        output = capture_stdout do
-          ui.display_question_instructions("file", nil, nil, true)
-        end
-        expect(output).to match(/Use @ to browse and select files/)
+        ui.display_question_instructions("file", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter file path directly/) }).to be true
+        ui.display_question_instructions("file", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Use @ to browse and select files/) }).to be true
       end
 
       it "displays number question instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("number", nil, nil, true)
-        end
-        expect(output).to match(/Enter a valid number/)
-        output = capture_stdout do
-          ui.display_question_instructions("number", nil, nil, true)
-        end
-        expect(output).to match(/Use decimal point for decimals/)
+        ui.display_question_instructions("number", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter a valid number/) }).to be true
+        ui.display_question_instructions("number", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Use decimal point for decimals/) }).to be true
       end
 
       it "displays email question instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("email", nil, nil, true)
-        end
-        expect(output).to match(/Enter a valid email address/)
-        output = capture_stdout do
-          ui.display_question_instructions("email", nil, nil, true)
-        end
-        expect(output).to match(/Format: user@domain.com/)
+        ui.display_question_instructions("email", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter a valid email address/) }).to be true
+        ui.display_question_instructions("email", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Format: user@domain.com/) }).to be true
       end
 
       it "displays URL question instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("url", nil, nil, true)
-        end
-        expect(output).to match(/Enter a valid URL/)
-        output = capture_stdout do
-          ui.display_question_instructions("url", nil, nil, true)
-        end
-        expect(output).to match(/Format: https:\/\/example.com/)
+        ui.display_question_instructions("url", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter a valid URL/) }).to be true
+        ui.display_question_instructions("url", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Format: https:\/\/example.com/) }).to be true
       end
 
       it "displays default value instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, "Default Value", true)
-        end
-        expect(output).to match(/Quick Answer:/)
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, "Default Value", true)
-        end
-        expect(output).to match(/Press Enter to use default: Default Value/)
+        ui.display_question_instructions("text", nil, "Default Value", true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Quick Answer:/) }).to be true
+        ui.display_question_instructions("text", nil, "Default Value", true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Press Enter to use default: Default Value/) }).to be true
       end
 
       it "displays required field instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, true)
-        end
-        expect(output).to match(/Required Field:/)
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, true)
-        end
-        expect(output).to match(/This question must be answered/)
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, true)
-        end
-        expect(output).to match(/Cannot be left blank/)
+        ui.display_question_instructions("text", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Required Field:/) }).to be true
+        ui.display_question_instructions("text", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/This question must be answered/) }).to be true
+        ui.display_question_instructions("text", nil, nil, true)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Cannot be left blank/) }).to be true
       end
 
       it "displays optional field instructions" do
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, false)
-        end
-        expect(output).to match(/Optional Field:/)
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, false)
-        end
-        expect(output).to match(/This question can be skipped/)
-        output = capture_stdout do
-          ui.display_question_instructions("text", nil, nil, false)
-        end
-        expect(output).to match(/Press Enter to leave blank/)
+        ui.display_question_instructions("text", nil, nil, false)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Optional Field:/) }).to be true
+        ui.display_question_instructions("text", nil, nil, false)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/This question can be skipped/) }).to be true
+        ui.display_question_instructions("text", nil, nil, false)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Press Enter to leave blank/) }).to be true
       end
     end
 
     describe "#display_question_progress" do
       it "displays progress bar and percentage" do
-        output = capture_stdout do
-          ui.display_question_progress(2, 5)
-        end
-        expect(output).to match(/Progress:/)
-        output = capture_stdout do
-          ui.display_question_progress(2, 5)
-        end
-        expect(output).to match(/40.0%/)
-        expect { ui.display_question_progress(2, 5) }.to output(/\(2\/5\)/).to_stdout
+        ui.display_question_progress(2, 5)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Progress:/) }).to be true
+        ui.display_question_progress(2, 5)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/40.0%/) }).to be true
+        ui.display_question_progress(2, 5)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/\(2\/5\)/) }).to be true
       end
 
       it "displays estimated time remaining" do
-        output = capture_stdout do
-          ui.display_question_progress(2, 5)
-        end
-        expect(output).to match(/Estimated time remaining:/)
+        ui.display_question_progress(2, 5)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Estimated time remaining:/) }).to be true
       end
 
       it "does not display time remaining for last question" do
-        output = capture_stdout do
-          ui.display_question_progress(5, 5)
-        end
-        expect(output).not_to match(/Estimated time remaining:/)
+        ui.display_question_progress(5, 5)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Estimated time remaining:/) }).to be false
       end
     end
 
@@ -480,30 +369,18 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_2" => nil
         }
 
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/Question Completion Summary/)
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/Statistics:/)
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/Total questions: 2/)
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/Answered: 1/)
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/Skipped: 1/)
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/Completion rate: 50.0%/)
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Question Completion Summary/) }).to be true
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Statistics:/) }).to be true
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Total questions: 2/) }).to be true
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Answered: 1/) }).to be true
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Skipped: 1/) }).to be true
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Completion rate: 50.0%/) }).to be true
       end
 
       it "displays response summary" do
@@ -515,14 +392,10 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_1" => "John Doe"
         }
 
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/Response Summary:/)
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/1. John Doe/)
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Response Summary:/) }).to be true
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/1. John Doe/) }).to be true
       end
 
       it "displays skipped responses" do
@@ -534,10 +407,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_1" => nil
         }
 
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/1. \[Skipped\]/)
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/1. \[Skipped\]/) }).to be true
       end
 
       it "truncates long responses" do
@@ -550,10 +421,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           "question_1" => long_response
         }
 
-        output = capture_stdout do
-          ui.display_question_completion_summary(responses, questions)
-        end
-        expect(output).to match(/1. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.../)
+        ui.display_question_completion_summary(responses, questions)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/1. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.../) }).to be true
       end
     end
 
@@ -583,7 +452,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         # Mock the response methods to avoid validation loops
         allow(ui).to receive(:get_text_response).and_return("John Doe")
         allow(ui).to receive(:get_number_response).and_return(25)
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        # TestPrompt handles keypress automatically
 
         responses = ui.collect_feedback(questions, context)
 

@@ -6,7 +6,8 @@ require "stringio"
 
 RSpec.describe Aidp::CLI do
   let(:temp_dir) { Dir.mktmpdir }
-  let(:cli) { described_class.new }
+  let(:test_prompt) { TestPrompt.new }
+  let(:cli) { described_class.new(prompt: test_prompt) }
 
   # Mock TUI components to prevent interactive prompts
   let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI) }
@@ -39,16 +40,6 @@ RSpec.describe Aidp::CLI do
     })
   end
 
-  # Helper method to capture stdout
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
-  end
-
   after do
     FileUtils.rm_rf(temp_dir)
   end
@@ -57,42 +48,30 @@ RSpec.describe Aidp::CLI do
     it "displays completed status" do
       result = {status: "completed", message: "All done"}
 
-      output = capture_stdout do
-        cli.send(:display_harness_result, result)
-      end
-
-      expect(output).to include("✅ Harness completed successfully!")
+      cli.send(:display_harness_result, result)
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("✅ Harness completed successfully!") }).to be true
     end
 
     it "displays stopped status" do
       result = {status: "stopped", message: "User stopped"}
 
-      output = capture_stdout do
-        cli.send(:display_harness_result, result)
-      end
-
-      expect(output).to include("⏹️  Harness stopped by user")
+      cli.send(:display_harness_result, result)
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("⏹️  Harness stopped by user") }).to be true
     end
 
     it "displays error status" do
       result = {status: "error", message: "Something went wrong"}
 
-      output = capture_stdout do
-        cli.send(:display_harness_result, result)
-      end
-
+      cli.send(:display_harness_result, result)
       # Error message is now handled by the harness, not the CLI
-      expect(output).to eq("")
+      expect(test_prompt.messages).to be_empty
     end
 
     it "displays unknown status" do
       result = {status: "unknown", message: "Unknown state"}
 
-      output = capture_stdout do
-        cli.send(:display_harness_result, result)
-      end
-
-      expect(output).to include("🔄 Harness finished")
+      cli.send(:display_harness_result, result)
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("🔄 Harness finished") }).to be true
     end
   end
 
@@ -152,19 +131,13 @@ RSpec.describe Aidp::CLI do
     end
 
     it "displays harness status for both modes" do
-      output = capture_stdout do
-        cli.harness_status
-      end
-
-      expect(output).to include("🔧 Harness Status")
+      cli.harness_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("🔧 Harness Status") }).to be true
     end
 
     it "displays harness status for specific mode" do
-      output = capture_stdout do
-        cli.harness_status
-      end
-
-      expect(output).to include("📋 Analyze Mode:")
+      cli.harness_status
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("📋 Analyze Mode:") }).to be true
     end
   end
 
@@ -182,32 +155,23 @@ RSpec.describe Aidp::CLI do
       allow(cli).to receive(:options).and_return({mode: "analyze"})
       expect(mock_state_manager).to receive(:reset_all)
 
-      output = capture_stdout do
-        cli.harness_reset
-      end
-
-      expect(output).to include("✅ Reset harness state for analyze mode")
+      cli.harness_reset
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("✅ Reset harness state for analyze mode") }).to be true
     end
 
     it "resets harness state for execute mode" do
       allow(cli).to receive(:options).and_return({mode: "execute"})
       expect(mock_state_manager).to receive(:reset_all)
 
-      output = capture_stdout do
-        cli.harness_reset
-      end
-
-      expect(output).to include("✅ Reset harness state for execute mode")
+      cli.harness_reset
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("✅ Reset harness state for execute mode") }).to be true
     end
 
     it "shows error for invalid mode" do
       allow(cli).to receive(:options).and_return({mode: "invalid"})
 
-      output = capture_stdout do
-        cli.harness_reset
-      end
-
-      expect(output).to include("❌ Invalid mode. Use 'analyze' or 'execute'")
+      cli.harness_reset
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("❌ Invalid mode. Use 'analyze' or 'execute'") }).to be true
     end
   end
 end

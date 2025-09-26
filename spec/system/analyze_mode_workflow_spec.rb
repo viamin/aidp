@@ -14,12 +14,11 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
     # Create a mock project structure
     setup_mock_project
 
-    # Mock CLI operations to avoid real execution
-    mock_cli_operations
-
     # Mock analyze command to avoid real execution
     # Return different values based on whether step is specified
-    allow_any_instance_of(Aidp::CLI).to receive(:analyze) do |instance, project_dir, step, options = {}|
+    mock_cli = instance_double(Aidp::CLI)
+    allow(Aidp::CLI).to receive(:new).and_return(mock_cli)
+    allow(mock_cli).to receive(:analyze) do |project_dir, step, options = {}|
       if options[:simulate_error]
         {
           status: "error",
@@ -248,8 +247,6 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   private
 
   def setup_mock_project
-    # Mock CLI operations to avoid real execution
-    mock_cli_operations
     # Create basic project structure
     FileUtils.mkdir_p(File.join(project_dir, "app", "controllers"))
     FileUtils.mkdir_p(File.join(project_dir, "app", "models"))

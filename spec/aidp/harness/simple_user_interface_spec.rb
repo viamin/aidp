@@ -5,11 +5,9 @@ require "stringio"
 require_relative "../../../lib/aidp/harness/simple_user_interface"
 
 RSpec.describe Aidp::Harness::SimpleUserInterface do
-  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:test_prompt) { TestPrompt.new }
   let(:ui) do
-    ui_instance = described_class.new
-    ui_instance.instance_variable_set(:@prompt, mock_prompt)
-    ui_instance
+    described_class.new(prompt: test_prompt)
   end
 
   describe "#collect_feedback" do
@@ -19,9 +17,9 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
         {question: "Comments?", type: "text", required: false, default: "None"}
       ]
 
-      # Mock the prompt responses
-      allow(mock_prompt).to receive(:ask).with("Response:", required: true).and_return("John Doe")
-      allow(mock_prompt).to receive(:ask).with("Response:", required: false, default: "None").and_return("None")
+      # Configure TestPrompt responses
+      test_prompt = TestPrompt.new(responses: {ask: ["John Doe", "None"]})
+      ui = described_class.new(prompt: test_prompt)
 
       responses = ui.collect_feedback(questions)
 
@@ -34,7 +32,8 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
         {question: "Pick a color", type: "choice", options: ["Red", "Blue", "Green"]}
       ]
 
-      allow(mock_prompt).to receive(:select).with("Choose:", ["Red", "Blue", "Green"], default: nil).and_return("Blue")
+      test_prompt = TestPrompt.new(responses: {select: "Blue"})
+      ui = described_class.new(prompt: test_prompt)
 
       responses = ui.collect_feedback(questions)
 
@@ -46,7 +45,8 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
         {question: "Do you agree", type: "confirmation", default: true}
       ]
 
-      allow(mock_prompt).to receive(:yes?).with("Do you agree?", default: true).and_return(true)
+      test_prompt = TestPrompt.new(responses: {yes?: true})
+      ui = described_class.new(prompt: test_prompt)
 
       responses = ui.collect_feedback(questions)
 
@@ -58,11 +58,9 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
         {question: "Your age", type: "number", required: true}
       ]
 
-      # Mock the block configuration object
-      config_double = double
-      allow(config_double).to receive(:convert)
-      allow(config_double).to receive(:validate)
-      allow(mock_prompt).to receive(:ask).with("Number:", default: nil, required: true).and_yield(config_double).and_return(25)
+      # Configure TestPrompt for number input
+      test_prompt = TestPrompt.new(responses: {ask: "25"})
+      ui = described_class.new(prompt: test_prompt)
 
       responses = ui.collect_feedback(questions)
 
@@ -74,7 +72,9 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
         {question: "Config file", type: "file", required: true}
       ]
 
-      allow(mock_prompt).to receive(:ask).with("File path:", default: nil, required: true).and_return("config.yml")
+      # Configure TestPrompt for file input
+      test_prompt = TestPrompt.new(responses: {ask: "config.yml"})
+      ui = described_class.new(prompt: test_prompt)
 
       responses = ui.collect_feedback(questions)
 
@@ -86,11 +86,13 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
         {question: "Config file", type: "file", required: true}
       ]
 
-      # Mock file selection
-      allow(mock_prompt).to receive(:ask).with("File path:", default: nil, required: true).and_return("@config")
+      # Configure TestPrompt for file selection
+      test_prompt = TestPrompt.new(responses: {ask: "@config", select: "config.yml"})
+      ui = described_class.new(prompt: test_prompt)
+
+      # Mock file system operations
       allow(Dir).to receive(:glob).with("**/*config*").and_return(["config.yml", "app_config.rb"])
       allow(File).to receive(:file?).and_return(true)
-      allow(mock_prompt).to receive(:select).with("Select file:", ["config.yml", "app_config.rb"], per_page: 15).and_return("config.yml")
 
       responses = ui.collect_feedback(questions)
 
@@ -101,23 +103,14 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
       questions = [{question: "Name?", type: "text"}]
       context = {description: "User registration"}
 
-      allow(mock_prompt).to receive(:ask).and_return("Test")
+      # Configure TestPrompt for context display
+      test_prompt = TestPrompt.new(responses: {ask: "Test"})
+      ui = described_class.new(prompt: test_prompt)
 
-      output = capture_stdout do
-        ui.collect_feedback(questions, context)
-      end
+      ui.collect_feedback(questions, context)
 
-      expect(output).to include("Agent needs feedback")
-      expect(output).to include("User registration")
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("Agent needs feedback") }).to be true
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("User registration") }).to be true
     end
-  end
-
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
   end
 end

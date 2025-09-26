@@ -3,24 +3,40 @@
 # Shared helper for mocking CLI operations in tests
 module CliMockingHelpers
   def mock_cli_operations(cli_instance = nil)
-    target = cli_instance || allow_any_instance_of(Aidp::CLI)
+    # The CLI class doesn't have analyze/execute instance methods
+    # Instead, create a mock that responds to the expected interface
+    if cli_instance
+      target = allow(cli_instance)
+    else
+      # Create a mock CLI instance that responds to expected methods
+      mock_cli = instance_double(Aidp::CLI)
+      allow(Aidp::CLI).to receive(:new).and_return(mock_cli)
+      target = allow(mock_cli)
+    end
 
+    # Mock the methods that specs expect to exist
     target.to receive(:analyze).and_return({
-      status: "completed",
+      status: "success",
       provider: "cursor",
       message: "Step executed successfully",
-      output: "Analysis complete"
+      output: "Analysis complete",
+      next_step: "01_REPOSITORY_ANALYSIS"
     })
 
     target.to receive(:execute).and_return({
-      status: "completed",
+      status: "success",
       provider: "cursor",
       message: "Step executed successfully",
-      output: "Execution complete"
+      output: "Execution complete",
+      next_step: "00_PRD"
     })
 
-    target.to receive(:help).and_return(nil)
-    target.to receive(:version).and_return("test-version")
+    # Mock other methods that might be called
+    target.to receive(:harness_status).and_return(nil)
+    target.to receive(:harness_reset).and_return(nil)
+
+    # Return the mock instance for further customization
+    cli_instance || mock_cli
   end
 
   def mock_workflow_selector

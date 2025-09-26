@@ -2,13 +2,30 @@
 
 require "json"
 require "tty-box"
+require "tty-prompt"
 
 module Aidp
   module Analysis
     class KBInspector
-      def initialize(kb_dir = ".aidp/kb")
+      def initialize(kb_dir = ".aidp/kb", prompt: TTY::Prompt.new)
         @kb_dir = File.expand_path(kb_dir)
+        @prompt = prompt
         @data = load_kb_data
+      end
+
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+
+        @prompt.say(message, color: color)
       end
 
       def show(type, format: "summary")
@@ -28,8 +45,8 @@ module Aidp
         when "summary"
           show_summary(format)
         else
-          puts "Unknown KB type: #{type}"
-          puts "Available types: seams, hotspots, cycles, apis, symbols, imports, summary"
+          display_message("Unknown KB type: #{type}", type: :error)
+          display_message("Available types: seams, hotspots, cycles, apis, symbols, imports, summary", type: :info)
         end
       end
 
@@ -42,8 +59,8 @@ module Aidp
         when "cycles"
           generate_cycle_graph(format, output)
         else
-          puts "Unknown graph type: #{type}"
-          puts "Available types: imports, calls, cycles"
+          display_message("Unknown graph type: #{type}", type: :error)
+          display_message("Available types: imports, calls, cycles", type: :info)
         end
       end
 
@@ -100,32 +117,32 @@ module Aidp
       end
 
       def show_summary(_format)
-        puts "\n📊 Knowledge Base Summary"
-        puts "=" * 50
+        display_message("\n📊 Knowledge Base Summary", type: :highlight)
+        display_message("=" * 50, type: :info)
 
-        puts "📁 KB Directory: #{@kb_dir}"
-        puts "📄 Files analyzed: #{count_files}"
-        puts "🏗️  Symbols: #{@data[:symbols]&.length || 0}"
-        puts "📦 Imports: #{@data[:imports]&.length || 0}"
-        puts "🔗 Calls: #{@data[:calls]&.length || 0}"
-        puts "📏 Metrics: #{@data[:metrics]&.length || 0}"
-        puts "🔧 Seams: #{@data[:seams]&.length || 0}"
-        puts "🔥 Hotspots: #{@data[:hotspots]&.length || 0}"
-        puts "🧪 Tests: #{@data[:tests]&.length || 0}"
-        puts "🔄 Cycles: #{@data[:cycles]&.length || 0}"
+        display_message("📁 KB Directory: #{@kb_dir}", type: :info)
+        display_message("📄 Files analyzed: #{count_files}", type: :info)
+        display_message("🏗️  Symbols: #{@data[:symbols]&.length || 0}", type: :info)
+        display_message("📦 Imports: #{@data[:imports]&.length || 0}", type: :info)
+        display_message("🔗 Calls: #{@data[:calls]&.length || 0}", type: :info)
+        display_message("📏 Metrics: #{@data[:metrics]&.length || 0}", type: :info)
+        display_message("🔧 Seams: #{@data[:seams]&.length || 0}", type: :info)
+        display_message("🔥 Hotspots: #{@data[:hotspots]&.length || 0}", type: :info)
+        display_message("🧪 Tests: #{@data[:tests]&.length || 0}", type: :info)
+        display_message("🔄 Cycles: #{@data[:cycles]&.length || 0}", type: :info)
 
         if @data[:seams]&.any?
-          puts "\n🔧 Seam Types:"
+          display_message("\n🔧 Seam Types:", type: :info)
           seam_types = @data[:seams].group_by { |s| s[:kind] }
           seam_types.each do |type, seams|
-            puts "  #{type}: #{seams.length}"
+            display_message("  #{type}: #{seams.length}", type: :info)
           end
         end
 
         if @data[:hotspots]&.any?
-          puts "\n🔥 Top 5 Hotspots:"
+          display_message("\n🔥 Top 5 Hotspots:", type: :info)
           @data[:hotspots].first(5).each_with_index do |hotspot, i|
-            puts "  #{i + 1}. #{hotspot[:file]}:#{hotspot[:method]} (score: #{hotspot[:score]})"
+            display_message("  #{i + 1}. #{hotspot[:file]}:#{hotspot[:method]} (score: #{hotspot[:score]})", type: :info)
           end
         end
       end

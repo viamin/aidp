@@ -30,7 +30,7 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
         expect(File.exist?(config_path)).to be true
         yaml = YAML.load_file(config_path)
         expect(yaml.dig(:harness, :default_provider) || yaml.dig("harness", "default_provider")).to eq("cursor")
-        expect(out.string).to include("Created minimal configuration")
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Created minimal configuration") }).to be true
       end
     end
 

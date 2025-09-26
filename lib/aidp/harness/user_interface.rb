@@ -20,6 +20,21 @@ module Aidp
 
       private
 
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+
+        @prompt.say(message, color: color)
+      end
+
       # Helper method to handle input consistently with TTY::Prompt
       # Fixed to avoid keystroke loss issues with TTY::Prompt's required validation
       def get_input_with_prompt(message, required: false, default: nil)
@@ -36,7 +51,7 @@ module Aidp
             if default
               return default
             elsif required
-              puts "❌ This field is required. Please provide a response."
+              display_message("❌ This field is required. Please provide a response.", type: :error)
               next
             else
               return nil
@@ -82,7 +97,7 @@ module Aidp
 
           # Validate response if required
           if question_data[:required] != false && (response.nil? || response.to_s.strip.empty?)
-            puts "❌ This question is required. Please provide a response."
+            display_message("❌ This question is required. Please provide a response.", type: :error)
             redo
           end
 
@@ -99,11 +114,11 @@ module Aidp
 
       # Display feedback context
       def display_feedback_context(context)
-        puts "\n📋 Context:"
-        puts "-" * 30
+        display_message("\n📋 Context:", type: :highlight)
+        display_message("-" * 30, type: :muted)
 
         if context[:type]
-          puts "Type: #{context[:type]}"
+          display_message("Type: #{context[:type]}", type: :info)
         end
 
         if context[:urgency]
@@ -113,23 +128,23 @@ module Aidp
             "low" => "🟢"
           }
           urgency_emoji = urgency_emojis[context[:urgency]] || "ℹ️"
-          puts "Urgency: #{urgency_emoji} #{context[:urgency].capitalize}"
+          display_message("Urgency: #{urgency_emoji} #{context[:urgency].capitalize}", type: :info)
         end
 
         if context[:description]
-          puts "Description: #{context[:description]}"
+          display_message("Description: #{context[:description]}", type: :info)
         end
 
         if context[:agent_output]
-          puts "\nAgent Output:"
-          puts context[:agent_output]
+          display_message("\nAgent Output:", type: :info)
+          display_message(context[:agent_output], type: :info)
         end
       end
 
       # Display question presentation header
       def display_question_presentation_header(questions, context)
-        puts "\n🤖 Agent needs your feedback:"
-        puts "=" * 60
+        display_message("\n🤖 Agent needs your feedback:", type: :highlight)
+        display_message("=" * 60, type: :muted)
 
         # Display question overview
         display_question_overview(questions)
@@ -139,8 +154,8 @@ module Aidp
           display_context_summary(context)
         end
 
-        puts "\n📝 Questions to answer:"
-        puts "-" * 40
+        display_message("\n📝 Questions to answer:", type: :info)
+        display_message("-" * 40, type: :muted)
       end
 
       # Display question overview
@@ -151,23 +166,23 @@ module Aidp
 
         question_types = questions.map { |q| q[:type] || "text" }.uniq
 
-        puts "📊 Overview:"
-        puts "  Total questions: #{total_questions}"
-        puts "  Required: #{required_questions}"
-        puts "  Optional: #{optional_questions}"
-        puts "  Question types: #{question_types.join(", ")}"
+        display_message("📊 Overview:", type: :info)
+        display_message("  Total questions: #{total_questions}", type: :info)
+        display_message("  Required: #{required_questions}", type: :info)
+        display_message("  Optional: #{optional_questions}", type: :info)
+        display_message("  Question types: #{question_types.join(", ")}", type: :info)
 
         # Estimate completion time
         estimated_time = estimate_completion_time(questions)
-        puts "  Estimated time: #{estimated_time}"
+        display_message("  Estimated time: #{estimated_time}", type: :info)
       end
 
       # Display context summary
       def display_context_summary(context)
-        puts "\n📋 Context Summary:"
+        display_message("\n📋 Context Summary:", type: :info)
 
         if context[:type]
-          puts "  Type: #{context[:type]}"
+          display_message("  Type: #{context[:type]}", type: :info)
         end
 
         if context[:urgency]
@@ -177,11 +192,11 @@ module Aidp
             "low" => "🟢"
           }
           urgency_emoji = urgency_emojis[context[:urgency]] || "ℹ️"
-          puts "  Urgency: #{urgency_emoji} #{context[:urgency].capitalize}"
+          display_message("  Urgency: #{urgency_emoji} #{context[:urgency].capitalize}", type: :info)
         end
 
         if context[:description]
-          puts "  Description: #{context[:description]}"
+          display_message("  Description: #{context[:description]}", type: :info)
         end
       end
 
@@ -230,9 +245,9 @@ module Aidp
         required = question_data[:required] != false
 
         # Display question header
-        puts "\n" + "=" * 60
-        puts "📝 Question #{question_number} of #{total_questions}"
-        puts "=" * 60
+        display_message("\n" + "=" * 60, type: :muted)
+        display_message("📝 Question #{question_number} of #{total_questions}", type: :highlight)
+        display_message("=" * 60, type: :muted)
 
         # Display question text with formatting
         display_question_text(question_text, question_type)
@@ -243,7 +258,7 @@ module Aidp
         # Display question instructions
         display_question_instructions(question_type, options, default_value, required)
 
-        puts "\n" + "-" * 60
+        display_message("\n" + "-" * 60, type: :muted)
       end
 
       # Display question text with formatting
@@ -260,96 +275,96 @@ module Aidp
         }
         type_emoji = type_emojis[question_type] || "❓"
 
-        puts "#{type_emoji} #{question_text}"
+        display_message("#{type_emoji} #{question_text}", type: :info)
       end
 
       # Display question metadata
       def display_question_metadata(question_type, expected_input, options, default_value, required)
-        puts "\n📋 Question Details:"
+        display_message("\n📋 Question Details:", type: :info)
 
         # Question type
-        puts "  Type: #{question_type.capitalize}"
+        display_message("  Type: #{question_type.capitalize}", type: :info)
 
         # Expected input
         if expected_input != "text"
-          puts "  Expected input: #{expected_input}"
+          display_message("  Expected input: #{expected_input}", type: :info)
         end
 
         # Options
         if options && !options.empty?
-          puts "  Options: #{options.length} available"
+          display_message("  Options: #{options.length} available", type: :info)
         end
 
         # Default value
         if default_value
-          puts "  Default: #{default_value}"
+          display_message("  Default: #{default_value}", type: :info)
         end
 
         # Required status
         status = required ? "Required" : "Optional"
         status_emoji = required ? "🔴" : "🟢"
-        puts "  Status: #{status_emoji} #{status}"
+        display_message("  Status: #{status_emoji} #{status}", type: :info)
       end
 
       # Display question instructions
       def display_question_instructions(question_type, options, default_value, required)
-        puts "\n💡 Instructions:"
+        display_message("\n💡 Instructions:", type: :info)
 
         case question_type
         when "text"
-          puts "  • Enter your text response"
-          puts "  • Use @ for file selection if needed"
-          puts "  • Press Enter when done"
+          display_message("  • Enter your text response", type: :info)
+          display_message("  • Use @ for file selection if needed", type: :info)
+          display_message("  • Press Enter when done", type: :info)
         when "choice"
-          puts "  • Select from the numbered options below"
-          puts "  • Enter the number of your choice"
-          puts "  • Press Enter to confirm"
+          display_message("  • Select from the numbered options below", type: :info)
+          display_message("  • Enter the number of your choice", type: :info)
+          display_message("  • Press Enter to confirm", type: :info)
         when "confirmation"
-          puts "  • Enter 'y' or 'yes' for Yes"
-          puts "  • Enter 'n' or 'no' for No"
-          puts "  • Press Enter for default"
+          display_message("  • Enter 'y' or 'yes' for Yes", type: :info)
+          display_message("  • Enter 'n' or 'no' for No", type: :info)
+          display_message("  • Press Enter for default", type: :info)
         when "file"
-          puts "  • Enter file path directly"
-          puts "  • Use @ to browse and select files"
-          puts "  • File must exist and be readable"
+          display_message("  • Enter file path directly", type: :info)
+          display_message("  • Use @ to browse and select files", type: :info)
+          display_message("  • File must exist and be readable", type: :info)
         when "number"
-          puts "  • Enter a valid number"
-          puts "  • Use decimal point for decimals"
-          puts "  • Press Enter when done"
+          display_message("  • Enter a valid number", type: :info)
+          display_message("  • Use decimal point for decimals", type: :info)
+          display_message("  • Press Enter when done", type: :info)
         when "email"
-          puts "  • Enter a valid email address"
-          puts "  • Format: user@domain.com"
-          puts "  • Press Enter when done"
+          display_message("  • Enter a valid email address", type: :info)
+          display_message("  • Format: user@domain.com", type: :info)
+          display_message("  • Press Enter when done", type: :info)
         when "url"
-          puts "  • Enter a valid URL"
-          puts "  • Format: https://example.com"
-          puts "  • Press Enter when done"
+          display_message("  • Enter a valid URL", type: :info)
+          display_message("  • Format: https://example.com", type: :info)
+          display_message("  • Press Enter when done", type: :info)
         end
 
         # Additional instructions based on options
         if options && !options.empty?
-          puts "\n📋 Available Options:"
+          display_message("\n📋 Available Options:", type: :info)
           options.each_with_index do |option, index|
             marker = (default_value && option == default_value) ? " (default)" : ""
-            puts "  #{index + 1}. #{option}#{marker}"
+            display_message("  #{index + 1}. #{option}#{marker}", type: :info)
           end
         end
 
         # Default value instructions
         if default_value
-          puts "\n⚡ Quick Answer:"
-          puts "  • Press Enter to use default: #{default_value}"
+          display_message("\n⚡ Quick Answer:", type: :info)
+          display_message("  • Press Enter to use default: #{default_value}", type: :info)
         end
 
         # Required field instructions
         if required
-          puts "\n⚠️  Required Field:"
-          puts "  • This question must be answered"
-          puts "  • Cannot be left blank"
+          display_message("\n⚠️  Required Field:", type: :info)
+          display_message("  • This question must be answered", type: :info)
+          display_message("  • Cannot be left blank", type: :info)
         else
-          puts "\n✅ Optional Field:"
-          puts "  • This question can be skipped"
-          puts "  • Press Enter to leave blank"
+          display_message("\n✅ Optional Field:", type: :info)
+          display_message("  • This question can be skipped", type: :info)
+          display_message("  • Press Enter to leave blank", type: :info)
         end
       end
 
@@ -358,13 +373,13 @@ module Aidp
         progress_percentage = (current_index.to_f / total_questions * 100).round(1)
         progress_bar = generate_progress_bar(progress_percentage)
 
-        puts "\n📊 Progress: #{progress_bar} #{progress_percentage}% (#{current_index}/#{total_questions})"
+        display_message("\n📊 Progress: #{progress_bar} #{progress_percentage}% (#{current_index}/#{total_questions})", type: :info)
 
         # Show estimated time remaining
         if current_index < total_questions
           remaining_questions = total_questions - current_index
           estimated_remaining = estimate_remaining_time(remaining_questions)
-          puts "⏱️  Estimated time remaining: #{estimated_remaining}"
+          display_message("⏱️  Estimated time remaining: #{estimated_remaining}", type: :info)
         end
       end
 
@@ -391,34 +406,34 @@ module Aidp
 
       # Display question completion summary
       def display_question_completion_summary(responses, questions)
-        puts "\n" + "=" * 60
-        puts "✅ Question Completion Summary"
-        puts "=" * 60
+        display_message("\n" + "=" * 60, type: :muted)
+        display_message("✅ Question Completion Summary", type: :success)
+        display_message("=" * 60, type: :muted)
 
         # Show completion statistics
         total_questions = questions.length
         answered_questions = responses.values.count { |v| !v.nil? && !v.to_s.strip.empty? }
         skipped_questions = total_questions - answered_questions
 
-        puts "📊 Statistics:"
-        puts "  Total questions: #{total_questions}"
-        puts "  Answered: #{answered_questions}"
-        puts "  Skipped: #{skipped_questions}"
-        puts "  Completion rate: #{(answered_questions.to_f / total_questions * 100).round(1)}%"
+        display_message("📊 Statistics:", type: :info)
+        display_message("  Total questions: #{total_questions}", type: :info)
+        display_message("  Answered: #{answered_questions}", type: :info)
+        display_message("  Skipped: #{skipped_questions}", type: :info)
+        display_message("  Completion rate: #{(answered_questions.to_f / total_questions * 100).round(1)}%", type: :info)
 
         # Show response summary
-        puts "\n📝 Response Summary:"
+        display_message("\n📝 Response Summary:", type: :info)
         responses.each do |key, value|
           question_number = key.gsub("question_", "")
           if value.nil? || value.to_s.strip.empty?
-            puts "  #{question_number}. [Skipped]"
+            display_message("  #{question_number}. [Skipped]", type: :muted)
           else
             display_value = (value.to_s.length > 50) ? "#{value.to_s[0..47]}..." : value.to_s
-            puts "  #{question_number}. #{display_value}"
+            display_message("  #{question_number}. #{display_value}", type: :info)
           end
         end
 
-        puts "\n🚀 Continuing execution..."
+        display_message("\n🚀 Continuing execution...", type: :success)
       end
 
       # Display question information (legacy method for compatibility)
@@ -460,7 +475,7 @@ module Aidp
           "Required: No"
         end
 
-        puts "   #{info_parts.join(" | ")}"
+        display_message("   #{info_parts.join(" | ")}", type: :info)
       end
 
       # Get response for a specific question with enhanced validation
@@ -496,15 +511,15 @@ module Aidp
       def handle_input_error(error, question_data, retry_count = 0)
         max_retries = 3
 
-        puts "\n🚨 Input Error:"
-        puts "  #{error.message}"
+        display_message("\n🚨 Input Error:", type: :error)
+        display_message("  #{error.message}", type: :error)
 
         if retry_count < max_retries
-          puts "\n🔄 Retry Options:"
-          puts "  1. Try again"
-          puts "  2. Skip this question"
-          puts "  3. Get help"
-          puts "  4. Cancel all questions"
+          display_message("\n🔄 Retry Options:", type: :info)
+          display_message("  1. Try again", type: :info)
+          display_message("  2. Skip this question", type: :info)
+          display_message("  3. Get help", type: :info)
+          display_message("  4. Cancel all questions", type: :info)
 
           choice = @prompt.select("Choose an option:", {
             "Try again" => "1",
@@ -515,23 +530,23 @@ module Aidp
 
           case choice
           when "1"
-            puts "🔄 Retrying..."
+            display_message("🔄 Retrying...", type: :info)
             :retry
           when "2"
-            puts "⏭️  Skipping question..."
+            display_message("⏭️  Skipping question...", type: :warning)
             :skip
           when "3"
             show_question_help(question_data)
             :retry
           when "4"
-            puts "❌ Cancelling all questions..."
+            display_message("❌ Cancelling all questions...", type: :error)
             :cancel
           else
-            puts "❌ Invalid choice. Retrying..."
+            display_message("❌ Invalid choice. Retrying...", type: :error)
             :retry
           end
         else
-          puts "\n❌ Maximum retries exceeded. Skipping question..."
+          display_message("\n❌ Maximum retries exceeded. Skipping question...", type: :error)
           :skip
         end
       end
@@ -540,74 +555,74 @@ module Aidp
       def show_question_help(question_data)
         question_type = question_data[:type] || "text"
 
-        puts "\n📖 Help for #{question_type.capitalize} Question:"
-        puts "=" * 50
+        display_message("\n📖 Help for #{question_type.capitalize} Question:", type: :info)
+        display_message("=" * 50, type: :muted)
 
         case question_type
         when "text"
-          puts "• Enter any text response"
-          puts "• Use @ for file selection if needed"
-          puts "• Press Enter when done"
+          display_message("• Enter any text response", type: :info)
+          display_message("• Use @ for file selection if needed", type: :info)
+          display_message("• Press Enter when done", type: :info)
         when "choice"
-          puts "• Select from the numbered options"
-          puts "• Enter the number of your choice"
-          puts "• Or type the option text directly"
+          display_message("• Select from the numbered options", type: :info)
+          display_message("• Enter the number of your choice", type: :info)
+          display_message("• Or type the option text directly", type: :info)
         when "confirmation"
-          puts "• Enter 'y' or 'yes' for Yes"
-          puts "• Enter 'n' or 'no' for No"
-          puts "• Press Enter for default"
+          display_message("• Enter 'y' or 'yes' for Yes", type: :info)
+          display_message("• Enter 'n' or 'no' for No", type: :info)
+          display_message("• Press Enter for default", type: :info)
         when "file"
-          puts "• Enter file path directly"
-          puts "• Use @ to browse and select files"
-          puts "• File must exist and be readable"
+          display_message("• Enter file path directly", type: :info)
+          display_message("• Use @ to browse and select files", type: :info)
+          display_message("• File must exist and be readable", type: :info)
         when "number"
-          puts "• Enter a valid number"
-          puts "• Use decimal point for decimals"
-          puts "• Check range requirements"
+          display_message("• Enter a valid number", type: :info)
+          display_message("• Use decimal point for decimals", type: :info)
+          display_message("• Check range requirements", type: :info)
         when "email"
-          puts "• Enter a valid email address"
-          puts "• Format: user@domain.com"
-          puts "• Check for typos"
+          display_message("• Enter a valid email address", type: :info)
+          display_message("• Format: user@domain.com", type: :info)
+          display_message("• Check for typos", type: :info)
         when "url"
-          puts "• Enter a valid URL"
-          puts "• Format: https://example.com"
-          puts "• Include protocol (http:// or https://)"
+          display_message("• Enter a valid URL", type: :info)
+          display_message("• Format: https://example.com", type: :info)
+          display_message("• Include protocol (http:// or https://)", type: :info)
         end
 
-        puts "\nPress Enter to continue..."
+        display_message("\nPress Enter to continue...", type: :info)
         @prompt.keypress("Press any key to continue...")
       end
 
       # Enhanced error handling and validation display
       def display_validation_error(validation_result, _input_type)
-        puts "\n❌ Validation Error:"
-        puts "  #{validation_result[:error_message]}"
+        display_message("\n❌ Validation Error:", type: :error)
+        display_message("  #{validation_result[:error_message]}", type: :error)
 
         if validation_result[:suggestions].any?
-          puts "\n💡 Suggestions:"
+          display_message("\n💡 Suggestions:", type: :info)
           validation_result[:suggestions].each do |suggestion|
-            puts "  • #{suggestion}"
+            display_message("  • #{suggestion}", type: :info)
           end
         end
 
         if validation_result[:warnings].any?
-          puts "\n⚠️  Warnings:"
+          display_message("\n⚠️  Warnings:", type: :warning)
           validation_result[:warnings].each do |warning|
-            puts "  • #{warning}"
+            display_message("  • #{warning}", type: :warning)
           end
         end
 
-        puts "\n🔄 Please try again..."
+        display_message("\n🔄 Please try again...", type: :info)
       end
 
       # Display validation warnings
       def display_validation_warnings(validation_result)
         if validation_result[:warnings].any?
-          puts "\n⚠️  Warnings:"
+          display_message("\n⚠️  Warnings:", type: :warning)
           validation_result[:warnings].each do |warning|
-            puts "  • #{warning}"
+            display_message("  • #{warning}", type: :warning)
           end
-          puts "\nPress Enter to continue or type 'fix' to correct..."
+          display_message("\nPress Enter to continue or type 'fix' to correct...", type: :info)
 
           input = @prompt.ask("")
           return input&.strip&.downcase == "fix"
@@ -652,10 +667,10 @@ module Aidp
       def get_choice_response(options, default_value, required)
         return nil if options.nil? || options.empty?
 
-        puts "\n   Available options:"
+        display_message("\n   Available options:", type: :info)
         options.each_with_index do |option, index|
           marker = (default_value && option == default_value) ? " (default)" : ""
-          puts "     #{index + 1}. #{option}#{marker}"
+          display_message("     #{index + 1}. #{option}#{marker}", type: :info)
         end
 
         loop do
@@ -669,7 +684,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please make a selection."
+              display_message("❌ Please make a selection.", type: :error)
               next
             else
               return nil
@@ -749,7 +764,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide a file path."
+              display_message("❌ Please provide a file path.", type: :error)
               next
             else
               return nil
@@ -792,7 +807,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide a number."
+              display_message("❌ Please provide a number.", type: :error)
               next
             else
               return nil
@@ -820,7 +835,7 @@ module Aidp
               return Float(input.strip)
             end
           rescue ArgumentError
-            puts "❌ Please enter a valid #{expected_input}."
+            display_message("❌ Please enter a valid #{expected_input}.", type: :error)
             next
           end
         end
@@ -839,7 +854,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide an email address."
+              display_message("❌ Please provide an email address.", type: :error)
               next
             else
               return nil
@@ -876,7 +891,7 @@ module Aidp
             if default_value
               return default_value
             elsif required
-              puts "❌ Please provide a URL."
+              display_message("❌ Please provide a URL.", type: :error)
               next
             else
               return nil
@@ -1323,7 +1338,7 @@ module Aidp
 
           # Handle empty input
           if input.nil? || input.strip.empty?
-            puts "Please provide a response."
+            display_message("Please provide a response.", type: :error)
             next
           end
 
@@ -1351,8 +1366,8 @@ module Aidp
         available_files = find_files_advanced(search_options)
 
         if available_files.empty?
-          puts "No files found matching '#{search_options[:term]}'. Please try again."
-          puts "💡 Try: @ (all files), @.rb (Ruby files), @config (files with 'config'), @lib/ (files in lib directory)"
+          display_message("No files found matching '#{search_options[:term]}'. Please try again.", type: :warning)
+          display_message("💡 Try: @ (all files), @.rb (Ruby files), @config (files with 'config'), @lib/ (files in lib directory)", type: :info)
           return nil
         end
 
@@ -1364,7 +1379,7 @@ module Aidp
 
         if selection && selection >= 0 && selection < available_files.size
           selected_file = available_files[selection]
-          puts "✅ Selected: #{selected_file}"
+          display_message("✅ Selected: #{selected_file}", type: :success)
 
           # Show file preview if requested
           if search_options[:preview]
@@ -1376,7 +1391,7 @@ module Aidp
           # User wants to refine search
           handle_file_selection("@#{search_term}")
         else
-          puts "❌ Invalid selection. Please try again."
+          display_message("❌ Invalid selection. Please try again.", type: :error)
           nil
         end
       end
@@ -1580,21 +1595,21 @@ module Aidp
 
       # Display advanced file selection menu
       def display_advanced_file_menu(files, search_options)
-        puts "\n📁 Available files:"
-        puts "Search: #{search_options[:term]} | Extensions: #{search_options[:extensions].join(", ")} | Directories: #{search_options[:directories].join(", ")}"
-        puts "-" * 80
+        display_message("\n📁 Available files:", type: :info)
+        display_message("Search: #{search_options[:term]} | Extensions: #{search_options[:extensions].join(", ")} | Directories: #{search_options[:directories].join(", ")}", type: :info)
+        display_message("-" * 80, type: :muted)
 
         files.each_with_index do |file, index|
           file_info = get_file_info(file)
-          puts "  #{index + 1}. #{file_info[:display_name]}"
-          puts "     📄 #{file_info[:size]} | 📅 #{file_info[:modified]} | 🏷️  #{file_info[:type]}"
+          display_message("  #{index + 1}. #{file_info[:display_name]}", type: :info)
+          display_message("     📄 #{file_info[:size]} | 📅 #{file_info[:modified]} | 🏷️  #{file_info[:type]}", type: :muted)
         end
 
-        puts "\nOptions:"
-        puts "  0. Cancel"
-        puts "  -1. Refine search"
-        puts "  p. Preview selected file"
-        puts "  h. Show help"
+        display_message("\nOptions:", type: :info)
+        display_message("  0. Cancel", type: :info)
+        display_message("  -1. Refine search", type: :info)
+        display_message("  p. Preview selected file", type: :info)
+        display_message("  h. Show help", type: :info)
       end
 
       # Get file information for display
@@ -1666,7 +1681,7 @@ module Aidp
           input = @prompt.ask("Select file (0-#{max_files}, -1=refine, p=preview, h=help): ")
 
           if input.nil? || input.strip.empty?
-            puts "Please enter a selection."
+            display_message("Please enter a selection.", type: :error)
             next
           end
 
@@ -1678,7 +1693,7 @@ module Aidp
             show_file_selection_help
             next
           when "p", "preview"
-            puts "💡 Select a file number first, then use 'p' to preview it."
+            display_message("💡 Select a file number first, then use 'p' to preview it.", type: :info)
             next
           end
 
@@ -1691,71 +1706,71 @@ module Aidp
             elsif selection.between?(1, max_files)
               return selection - 1 # Convert to 0-based index
             else
-              puts "Please enter a number between 0 and #{max_files}, or use -1, p, h."
+              display_message("Please enter a number between 0 and #{max_files}, or use -1, p, h.", type: :error)
             end
           rescue ArgumentError
-            puts "Please enter a valid number or command (0-#{max_files}, -1, p, h)."
+            display_message("Please enter a valid number or command (0-#{max_files}, -1, p, h).", type: :error)
           end
         end
       end
 
       # Show file selection help
       def show_file_selection_help
-        puts "\n📖 File Selection Help:"
-        puts "=" * 40
+        display_message("\n📖 File Selection Help:", type: :info)
+        display_message("=" * 40, type: :muted)
 
-        puts "\n🔍 Search Examples:"
-        puts "  @                    - Show all files"
-        puts "  @.rb                 - Show Ruby files only"
-        puts "  @config              - Show files with 'config' in name"
-        puts "  @lib/                - Show files in lib directory"
-        puts "  @spec preview        - Show spec files with preview option"
-        puts "  @.js case            - Show JavaScript files (case sensitive)"
+        display_message("\n🔍 Search Examples:", type: :info)
+        display_message("  @                    - Show all files", type: :info)
+        display_message("  @.rb                 - Show Ruby files only", type: :info)
+        display_message("  @config              - Show files with 'config' in name", type: :info)
+        display_message("  @lib/                - Show files in lib directory", type: :info)
+        display_message("  @spec preview        - Show spec files with preview option", type: :info)
+        display_message("  @.js case            - Show JavaScript files (case sensitive)", type: :info)
 
-        puts "\n⌨️  Selection Commands:"
-        puts "  1-50                 - Select file by number"
-        puts "  0                    - Cancel selection"
-        puts "  -1                   - Refine search"
-        puts "  p                    - Preview selected file"
-        puts "  h                    - Show this help"
+        display_message("\n⌨️  Selection Commands:", type: :info)
+        display_message("  1-50                 - Select file by number", type: :info)
+        display_message("  0                    - Cancel selection", type: :info)
+        display_message("  -1                   - Refine search", type: :info)
+        display_message("  p                    - Preview selected file", type: :info)
+        display_message("  h                    - Show this help", type: :info)
 
-        puts "\n💡 Tips:"
-        puts "  • Files are sorted by relevance and type"
-        puts "  • Use extension filters for specific file types"
-        puts "  • Use directory filters to limit search scope"
-        puts "  • Preview option shows file content before selection"
+        display_message("\n💡 Tips:", type: :info)
+        display_message("  • Files are sorted by relevance and type", type: :info)
+        display_message("  • Use extension filters for specific file types", type: :info)
+        display_message("  • Use directory filters to limit search scope", type: :info)
+        display_message("  • Preview option shows file content before selection", type: :info)
       end
 
       # Show file preview
       def show_file_preview(file_path)
-        puts "\n📄 File Preview: #{file_path}"
-        puts "=" * 60
+        display_message("\n📄 File Preview: #{file_path}", type: :highlight)
+        display_message("=" * 60, type: :muted)
 
         begin
           content = File.read(file_path)
           lines = content.lines
 
-          puts "📊 File Info:"
-          puts "  Size: #{format_file_size(File.size(file_path))}"
-          puts "  Lines: #{lines.count}"
-          puts "  Modified: #{File.mtime(file_path).strftime("%Y-%m-%d %H:%M:%S")}"
-          puts "  Type: #{get_file_type(file_path)}"
+          display_message("📊 File Info:", type: :info)
+          display_message("  Size: #{format_file_size(File.size(file_path))}", type: :info)
+          display_message("  Lines: #{lines.count}", type: :info)
+          display_message("  Modified: #{File.mtime(file_path).strftime("%Y-%m-%d %H:%M:%S")}", type: :info)
+          display_message("  Type: #{get_file_type(file_path)}", type: :info)
 
-          puts "\n📝 Content Preview (first 20 lines):"
-          puts "-" * 40
+          display_message("\n📝 Content Preview (first 20 lines):", type: :info)
+          display_message("-" * 40, type: :muted)
 
           lines.first(20).each_with_index do |line, index|
-            puts "#{(index + 1).to_s.rjust(3)}: #{line.chomp}"
+            display_message("#{(index + 1).to_s.rjust(3)}: #{line.chomp}", type: :info)
           end
 
           if lines.count > 20
-            puts "... (#{lines.count - 20} more lines)"
+            display_message("... (#{lines.count - 20} more lines)", type: :muted)
           end
         rescue => e
-          puts "❌ Error reading file: #{e.message}"
+          display_message("❌ Error reading file: #{e.message}", type: :error)
         end
 
-        puts "\nPress Enter to continue..."
+        display_message("\nPress Enter to continue...", type: :info)
         @prompt.keypress("Press any key to continue...")
       end
 
@@ -1783,17 +1798,17 @@ module Aidp
           when "n", "no"
             return false
           else
-            puts "Please enter 'y' or 'n'."
+            display_message("Please enter 'y' or 'n'.", type: :error)
           end
         end
       end
 
       # Get choice from multiple options
       def get_choice(message, options, default: nil)
-        puts "\n#{message}"
+        display_message("\n#{message}", type: :info)
         options.each_with_index do |option, index|
           marker = (default && index == default) ? " (default)" : ""
-          puts "  #{index + 1}. #{option}#{marker}"
+          display_message("  #{index + 1}. #{option}#{marker}", type: :info)
         end
 
         loop do
@@ -1801,7 +1816,7 @@ module Aidp
 
           if input.nil? || input.strip.empty?
             return default if default
-            puts "Please make a selection."
+            display_message("Please make a selection.", type: :error)
             next
           end
 
@@ -1810,10 +1825,10 @@ module Aidp
             if choice.between?(1, options.size)
               return choice - 1 # Convert to 0-based index
             else
-              puts "Please enter a number between 1 and #{options.size}."
+              display_message("Please enter a number between 1 and #{options.size}.", type: :error)
             end
           rescue ArgumentError
-            puts "Please enter a valid number."
+            display_message("Please enter a valid number.", type: :error)
           end
         end
       end
@@ -1842,43 +1857,43 @@ module Aidp
 
       # Display interactive help
       def show_help
-        puts "\n📖 Interactive Prompt Help:"
-        puts "=" * 40
+        display_message("\n📖 Interactive Prompt Help:", type: :info)
+        display_message("=" * 40, type: :info)
 
-        puts "\n🔤 Input Types:"
-        puts "  • Text: Free-form text input"
-        puts "  • Choice: Select from predefined options"
-        puts "  • Confirmation: Yes/No questions"
-        puts "  • File: File path with @ browsing"
-        puts "  • Number: Integer or decimal numbers"
-        puts "  • Email: Email address format"
-        puts "  • URL: Web URL format"
+        display_message("\n🔤 Input Types:", type: :info)
+        display_message("  • Text: Free-form text input", type: :info)
+        display_message("  • Choice: Select from predefined options", type: :info)
+        display_message("  • Confirmation: Yes/No questions", type: :info)
+        display_message("  • File: File path with @ browsing", type: :info)
+        display_message("  • Number: Integer or decimal numbers", type: :info)
+        display_message("  • Email: Email address format", type: :info)
+        display_message("  • URL: Web URL format", type: :info)
 
-        puts "\n⌨️  Special Commands:"
-        puts "  • @: Browse and select files"
-        puts "  • Enter: Use default value (if available)"
-        puts "  • Ctrl+C: Cancel operation"
+        display_message("\n⌨️  Special Commands:", type: :info)
+        display_message("  • @: Browse and select files", type: :info)
+        display_message("  • Enter: Use default value (if available)", type: :info)
+        display_message("  • Ctrl+C: Cancel operation", type: :info)
 
-        puts "\n📁 File Selection:"
-        puts "  • Type @ to browse files"
-        puts "  • Type @search to filter files"
-        puts "  • Select by number or type 0 to cancel"
+        display_message("\n📁 File Selection:", type: :info)
+        display_message("  • Type @ to browse files", type: :info)
+        display_message("  • Type @search to filter files", type: :info)
+        display_message("  • Select by number or type 0 to cancel", type: :info)
 
-        puts "\n✅ Validation:"
-        puts "  • Required fields must be filled"
-        puts "  • Input format is validated automatically"
-        puts "  • Invalid input shows error and retries"
+        display_message("\n✅ Validation:", type: :info)
+        display_message("  • Required fields must be filled", type: :info)
+        display_message("  • Input format is validated automatically", type: :info)
+        display_message("  • Invalid input shows error and retries", type: :info)
 
-        puts "\n💡 Tips:"
-        puts "  • Use Tab for auto-completion"
-        puts "  • Arrow keys for history navigation"
-        puts "  • Default values are shown in prompts"
+        display_message("\n💡 Tips:", type: :info)
+        display_message("  • Use Tab for auto-completion", type: :info)
+        display_message("  • Arrow keys for history navigation", type: :info)
+        display_message("  • Default values are shown in prompts", type: :info)
       end
 
       # Display question summary
       def display_question_summary(questions)
-        puts "\n📋 Question Summary:"
-        puts "-" * 30
+        display_message("\n📋 Question Summary:", type: :info)
+        display_message("-" * 30, type: :info)
 
         questions.each_with_index do |question_data, index|
           question_number = question_data[:number] || (index + 1)
@@ -1898,14 +1913,14 @@ module Aidp
           }
           type_emoji = type_emojis[question_type] || "❓"
 
-          puts "  #{question_number}. #{type_emoji} #{question_text} (#{status})"
+          display_message("  #{question_number}. #{type_emoji} #{question_text} (#{status})", type: :info)
         end
       end
 
       # Get user preferences for feedback collection
       def get_user_preferences
-        puts "\n⚙️  User Preferences:"
-        puts "-" * 25
+        display_message("\n⚙️  User Preferences:", type: :info)
+        display_message("-" * 25, type: :muted)
 
         preferences = {}
 
@@ -1967,14 +1982,14 @@ module Aidp
         # Show help if needed
         if should_show_help?(questions.first&.dig(:type), seen_types)
           show_help
-          puts "\nPress Enter to continue..."
+          display_message("\nPress Enter to continue...", type: :info)
           @prompt.keypress("Press any key to continue...")
         end
 
         # Display question summary if verbose
         if @verbose_mode
           display_question_summary(questions)
-          puts "\nPress Enter to start answering questions..."
+          display_message("\nPress Enter to start answering questions...", type: :info)
           @prompt.keypress("Press any key to continue...")
         end
 
@@ -1995,7 +2010,7 @@ module Aidp
         default_value = options[:default]
         required = options[:required] != false
 
-        puts "\n❓ #{question}"
+        display_message("\n❓ #{question}", type: :info)
 
         case question_type
         when "text"
@@ -2013,8 +2028,8 @@ module Aidp
       def collect_batch_feedback(questions)
         responses = {}
 
-        puts "\n📝 Quick Feedback Collection:"
-        puts "=" * 35
+        display_message("\n📝 Quick Feedback Collection:", type: :info)
+        display_message("=" * 35, type: :muted)
 
         questions.each_with_index do |question_data, index|
           question_number = index + 1
@@ -2023,7 +2038,7 @@ module Aidp
           default_value = question_data[:default]
           required = question_data[:required] != false
 
-          puts "\n#{question_number}. #{question_text}"
+          display_message("\n#{question_number}. #{question_text}", type: :info)
 
           response = get_quick_feedback(question_text, {
             type: question_type,
@@ -2035,7 +2050,7 @@ module Aidp
           responses["question_#{question_number}"] = response
         end
 
-        puts "\n✅ Batch feedback collected."
+        display_message("\n✅ Batch feedback collected.", type: :success)
         responses
       end
 
@@ -2059,13 +2074,13 @@ module Aidp
           end
         end
 
-        puts "\n🎮 Control Interface Started"
-        puts "   Press 'p' + Enter to pause"
-        puts "   Press 'r' + Enter to resume"
-        puts "   Press 's' + Enter to stop"
-        puts "   Press 'h' + Enter for help"
-        puts "   Press 'q' + Enter to quit control interface"
-        puts "=" * 50
+        display_message("\n🎮 Control Interface Started", type: :success)
+        display_message("   Press 'p' + Enter to pause", type: :info)
+        display_message("   Press 'r' + Enter to resume", type: :info)
+        display_message("   Press 's' + Enter to stop", type: :info)
+        display_message("   Press 'h' + Enter for help", type: :info)
+        display_message("   Press 'q' + Enter to quit control interface", type: :info)
+        display_message("=" * 50, type: :muted)
       end
 
       # Stop the control interface
@@ -2077,7 +2092,7 @@ module Aidp
           end
         end
 
-        puts "\n🛑 Control Interface Stopped"
+        display_message("\n🛑 Control Interface Stopped", type: :info)
       end
 
       # Check if pause is requested
@@ -2101,7 +2116,7 @@ module Aidp
           @pause_requested = true
           @resume_requested = false
         end
-        puts "\n⏸️  Pause requested..."
+        display_message("\n⏸️  Pause requested...", type: :warning)
       end
 
       # Request stop
@@ -2111,7 +2126,7 @@ module Aidp
           @pause_requested = false
           @resume_requested = false
         end
-        puts "\n🛑 Stop requested..."
+        display_message("\n🛑 Stop requested...", type: :error)
       end
 
       # Request resume
@@ -2120,7 +2135,7 @@ module Aidp
           @resume_requested = true
           @pause_requested = false
         end
-        puts "\n▶️  Resume requested..."
+        display_message("\n▶️  Resume requested...", type: :success)
       end
 
       # Clear all control requests
@@ -2155,14 +2170,14 @@ module Aidp
 
       # Handle pause state
       def handle_pause_state
-        puts "\n⏸️  HARNESS PAUSED"
-        puts "=" * 50
-        puts "🎮 Control Options:"
-        puts "   'r' + Enter: Resume execution"
-        puts "   's' + Enter: Stop execution"
-        puts "   'h' + Enter: Show help"
-        puts "   'q' + Enter: Quit control interface"
-        puts "=" * 50
+        display_message("\n⏸️  HARNESS PAUSED", type: :warning)
+        display_message("=" * 50, type: :muted)
+        display_message("🎮 Control Options:", type: :info)
+        display_message("   'r' + Enter: Resume execution", type: :info)
+        display_message("   's' + Enter: Stop execution", type: :info)
+        display_message("   'h' + Enter: Show help", type: :info)
+        display_message("   'q' + Enter: Quit control interface", type: :info)
+        display_message("=" * 50, type: :muted)
 
         loop do
           input = @prompt.ask("Paused>")
@@ -2180,51 +2195,51 @@ module Aidp
             stop_control_interface
             break
           else
-            puts "❌ Invalid command. Type 'h' for help."
+            display_message("❌ Invalid command. Type 'h' for help.", type: :error)
           end
         end
       end
 
       # Handle stop state
       def handle_stop_state
-        puts "\n🛑 HARNESS STOPPED"
-        puts "=" * 50
-        puts "Execution has been stopped by user request."
-        puts "You can restart the harness from where it left off."
-        puts "=" * 50
+        display_message("\n🛑 HARNESS STOPPED", type: :error)
+        display_message("=" * 50, type: :muted)
+        display_message("Execution has been stopped by user request.", type: :info)
+        display_message("You can restart the harness from where it left off.", type: :info)
+        display_message("=" * 50, type: :muted)
       end
 
       # Handle resume state
       def handle_resume_state
-        puts "\n▶️  HARNESS RESUMED"
-        puts "=" * 50
-        puts "Execution has been resumed."
-        puts "=" * 50
+        display_message("\n▶️  HARNESS RESUMED", type: :success)
+        display_message("=" * 50, type: :muted)
+        display_message("Execution has been resumed.", type: :info)
+        display_message("=" * 50, type: :muted)
       end
 
       # Show control help
       def show_control_help
-        puts "\n📖 Control Interface Help"
-        puts "=" * 50
-        puts "🎮 Available Commands:"
-        puts "   'p' or 'pause'    - Pause the harness execution"
-        puts "   'r' or 'resume'   - Resume the harness execution"
-        puts "   's' or 'stop'     - Stop the harness execution"
-        puts "   'h' or 'help'     - Show this help message"
-        puts "   'q' or 'quit'     - Quit the control interface"
-        puts ""
-        puts "📋 Control States:"
-        puts "   Running  - Harness is executing normally"
-        puts "   Paused   - Harness is paused, waiting for resume"
-        puts "   Stopped  - Harness has been stopped by user"
-        puts "   Resumed  - Harness has been resumed from pause"
-        puts ""
-        puts "💡 Tips:"
-        puts "   • You can pause/resume/stop at any time during execution"
-        puts "   • The harness will save its state when paused/stopped"
-        puts "   • You can restart from where you left off"
-        puts "   • Use 'h' for help at any time"
-        puts "=" * 50
+        display_message("\n📖 Control Interface Help", type: :info)
+        display_message("=" * 50, type: :muted)
+        display_message("🎮 Available Commands:", type: :info)
+        display_message("   'p' or 'pause'    - Pause the harness execution", type: :info)
+        display_message("   'r' or 'resume'   - Resume the harness execution", type: :info)
+        display_message("   's' or 'stop'     - Stop the harness execution", type: :info)
+        display_message("   'h' or 'help'     - Show this help message", type: :info)
+        display_message("   'q' or 'quit'     - Quit the control interface", type: :info)
+        display_message("", type: :info)
+        display_message("📋 Control States:", type: :info)
+        display_message("   Running  - Harness is executing normally", type: :info)
+        display_message("   Paused   - Harness is paused, waiting for resume", type: :info)
+        display_message("   Stopped  - Harness has been stopped by user", type: :info)
+        display_message("   Resumed  - Harness has been resumed from pause", type: :info)
+        display_message("", type: :info)
+        display_message("💡 Tips:", type: :info)
+        display_message("   • You can pause/resume/stop at any time during execution", type: :info)
+        display_message("   • The harness will save its state when paused/stopped", type: :info)
+        display_message("   • You can restart from where you left off", type: :info)
+        display_message("   • Use 'h' for help at any time", type: :info)
+        display_message("=" * 50, type: :muted)
       end
 
       # Control interface main loop
@@ -2248,15 +2263,15 @@ module Aidp
             # Empty input, continue
             next
           else
-            puts "❌ Invalid command. Type 'h' for help."
+            display_message("❌ Invalid command. Type 'h' for help.", type: :error)
           end
         rescue Interrupt
-          puts "\n🛑 Control interface interrupted. Stopping..."
+          display_message("\n🛑 Control interface interrupted. Stopping...", type: :error)
           request_stop
           break
         rescue => e
-          puts "❌ Control interface error: #{e.message}"
-          puts "   Type 'h' for help or 'q' to quit."
+          display_message("❌ Control interface error: #{e.message}", type: :error)
+          display_message("   Type 'h' for help or 'q' to quit.", type: :info)
         end
       end
 
@@ -2280,14 +2295,14 @@ module Aidp
       # Enable control interface
       def enable_control_interface
         @control_interface_enabled = true
-        puts "🎮 Control interface enabled"
+        display_message("🎮 Control interface enabled", type: :success)
       end
 
       # Disable control interface
       def disable_control_interface
         @control_interface_enabled = false
         stop_control_interface
-        puts "🎮 Control interface disabled"
+        display_message("🎮 Control interface disabled", type: :info)
       end
 
       # Get control status
@@ -2307,29 +2322,29 @@ module Aidp
       def display_control_status
         status = get_control_status
 
-        puts "\n🎮 Control Interface Status"
-        puts "=" * 40
-        puts "Enabled: #{status[:enabled] ? "✅ Yes" : "❌ No"}"
-        puts "Pause Requested: #{status[:pause_requested] ? "⏸️  Yes" : "▶️  No"}"
-        puts "Stop Requested: #{status[:stop_requested] ? "🛑 Yes" : "▶️  No"}"
-        puts "Resume Requested: #{status[:resume_requested] ? "▶️  Yes" : "⏸️  No"}"
-        puts "Control Thread: #{status[:control_thread_alive] ? "🟢 Active" : "🔴 Inactive"}"
-        puts "=" * 40
+        display_message("\n🎮 Control Interface Status", type: :info)
+        display_message("=" * 40, type: :muted)
+        display_message("Enabled: #{status[:enabled] ? "✅ Yes" : "❌ No"}", type: :info)
+        display_message("Pause Requested: #{status[:pause_requested] ? "⏸️  Yes" : "▶️  No"}", type: :info)
+        display_message("Stop Requested: #{status[:stop_requested] ? "🛑 Yes" : "▶️  No"}", type: :info)
+        display_message("Resume Requested: #{status[:resume_requested] ? "▶️  Yes" : "⏸️  No"}", type: :info)
+        display_message("Control Thread: #{status[:control_thread_alive] ? "🟢 Active" : "🔴 Inactive"}", type: :info)
+        display_message("=" * 40, type: :muted)
       end
 
       # Interactive control menu
       def show_control_menu
-        puts "\n🎮 Harness Control Menu"
-        puts "=" * 50
-        puts "1. Start Control Interface"
-        puts "2. Stop Control Interface"
-        puts "3. Pause Harness"
-        puts "4. Resume Harness"
-        puts "5. Stop Harness"
-        puts "6. Show Control Status"
-        puts "7. Show Help"
-        puts "8. Exit Menu"
-        puts "=" * 50
+        display_message("\n🎮 Harness Control Menu", type: :info)
+        display_message("=" * 50, type: :muted)
+        display_message("1. Start Control Interface", type: :info)
+        display_message("2. Stop Control Interface", type: :info)
+        display_message("3. Pause Harness", type: :info)
+        display_message("4. Resume Harness", type: :info)
+        display_message("5. Stop Harness", type: :info)
+        display_message("6. Show Control Status", type: :info)
+        display_message("7. Show Help", type: :info)
+        display_message("8. Exit Menu", type: :info)
+        display_message("=" * 50, type: :muted)
 
         loop do
           choice = @prompt.ask("Select option (1-8): ")
@@ -2350,10 +2365,10 @@ module Aidp
           when "7"
             show_control_help
           when "8"
-            puts "👋 Exiting control menu..."
+            display_message("👋 Exiting control menu...", type: :info)
             break
           else
-            puts "❌ Invalid option. Please select 1-8."
+            display_message("❌ Invalid option. Please select 1-8.", type: :error)
           end
         end
       end
@@ -2361,17 +2376,17 @@ module Aidp
       # Quick control commands
       def quick_pause
         request_pause
-        puts "⏸️  Quick pause requested. Use 'r' to resume."
+        display_message("⏸️  Quick pause requested. Use 'r' to resume.", type: :warning)
       end
 
       def quick_resume
         request_resume
-        puts "▶️  Quick resume requested."
+        display_message("▶️  Quick resume requested.", type: :success)
       end
 
       def quick_stop
         request_stop
-        puts "🛑 Quick stop requested."
+        display_message("🛑 Quick stop requested.", type: :error)
       end
 
       # Control interface with timeout
@@ -2390,7 +2405,7 @@ module Aidp
             handle_resume_state
             break
           elsif Time.now - start_time > timeout_seconds
-            puts "\n⏰ Control interface timeout reached. Continuing execution..."
+            display_message("\n⏰ Control interface timeout reached. Continuing execution...", type: :warning)
             break
           elsif ENV["RACK_ENV"] == "test" || defined?(RSpec)
             sleep(0.1)
@@ -2402,11 +2417,11 @@ module Aidp
 
       # Emergency stop
       def emergency_stop
-        puts "\n🚨 EMERGENCY STOP INITIATED"
-        puts "=" * 50
-        puts "All execution will be halted immediately."
-        puts "This action cannot be undone."
-        puts "=" * 50
+        display_message("\n🚨 EMERGENCY STOP INITIATED", type: :error)
+        display_message("=" * 50, type: :muted)
+        display_message("All execution will be halted immediately.", type: :error)
+        display_message("This action cannot be undone.", type: :error)
+        display_message("=" * 50, type: :muted)
 
         @control_mutex.synchronize do
           @stop_requested = true
@@ -2415,7 +2430,7 @@ module Aidp
         end
 
         stop_control_interface
-        puts "🛑 Emergency stop completed."
+        display_message("🛑 Emergency stop completed.", type: :error)
       end
     end
   end
