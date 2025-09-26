@@ -5,7 +5,7 @@ require "fileutils"
 require "tempfile"
 require "stringio"
 
-RSpec.describe Aidp::Analysis::KBInspector do
+RSpec.describe Aidp::Analyze::KBInspector do
   let(:temp_dir) { Dir.mktmpdir("aidp_kb_inspector_test") }
   let(:kb_dir) { File.join(temp_dir, ".aidp", "kb") }
   let(:test_prompt) { TestPrompt.new }

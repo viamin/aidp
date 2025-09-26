@@ -3,6 +3,7 @@
 require "spec_helper"
 require "fileutils"
 require "tempfile"
+require_relative "../../lib/aidp/analyze/kb_inspector"
 
 RSpec.describe "Tree-sitter Analysis Workflow" do
   let(:temp_dir) { Dir.mktmpdir("aidp_tree_sitter_integration_test") }
@@ -20,7 +21,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
   describe "complete analysis workflow" do
     it "runs the full Tree-sitter analysis pipeline" do
       # Run the analysis
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby],
@@ -40,7 +41,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     end
 
     it "generates valid JSON files" do
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -57,7 +58,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     end
 
     it "extracts symbols from Ruby files" do
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -80,7 +81,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     end
 
     it "extracts imports from Ruby files" do
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -90,7 +91,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     end
 
     it "generates hotspots data" do
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -111,7 +112,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
 
     it "can be inspected with KB inspector" do
       # First run the analysis
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -120,7 +121,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       scanner.run
 
       # Then inspect the results
-      inspector = Aidp::Analysis::KBInspector.new(kb_dir)
+      inspector = Aidp::Analyze::KBInspector.new(kb_dir)
 
       expect { inspector.show("summary") }.not_to raise_error
       expect { inspector.show("symbols") }.not_to raise_error
@@ -130,7 +131,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
 
     it "can generate graphs from KB data" do
       # First run the analysis
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -139,7 +140,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       scanner.run
 
       # Then generate graphs
-      inspector = Aidp::Analysis::KBInspector.new(kb_dir)
+      inspector = Aidp::Analyze::KBInspector.new(kb_dir)
 
       expect { inspector.generate_graph("imports", format: "dot") }.not_to raise_error
       expect { inspector.generate_graph("imports", format: "mermaid") }.not_to raise_error
@@ -153,16 +154,16 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       # For now, we'll just verify the classes can be instantiated
 
       # Test analyze_code command setup
-      expect { Aidp::Analysis::TreeSitterScan.new(root: temp_dir) }.not_to raise_error
+      expect { Aidp::Analyze::TreeSitterScan.new(root: temp_dir) }.not_to raise_error
 
       # Test kb_show command setup
-      expect { Aidp::Analysis::KBInspector.new(kb_dir) }.not_to raise_error
+      expect { Aidp::Analyze::KBInspector.new(kb_dir) }.not_to raise_error
     end
   end
 
   describe "performance and caching" do
     it "caches parsed results" do
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -172,7 +173,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       scanner.run
 
       # Second run should be faster due to caching
-      scanner2 = Aidp::Analysis::TreeSitterScan.new(
+      scanner2 = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]
@@ -194,7 +195,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       File.write(File.join(temp_dir, "tmp", "ignored.rb"), "class Ignored; end")
       File.write(File.join(temp_dir, "app.log"), "log content")
 
-      scanner = Aidp::Analysis::TreeSitterScan.new(
+      scanner = Aidp::Analyze::TreeSitterScan.new(
         root: temp_dir,
         kb_dir: kb_dir,
         langs: %w[ruby]

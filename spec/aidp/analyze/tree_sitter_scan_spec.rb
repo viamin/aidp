@@ -3,11 +3,13 @@
 require "spec_helper"
 require "fileutils"
 require "tempfile"
+require_relative "../../support/test_prompt"
 
-RSpec.describe Aidp::Analysis::TreeSitterScan do
+RSpec.describe Aidp::Analyze::TreeSitterScan do
   let(:temp_dir) { Dir.mktmpdir("aidp_tree_sitter_test") }
   let(:kb_dir) { File.join(temp_dir, ".aidp", "kb") }
-  let(:scanner) { described_class.new(root: temp_dir, kb_dir: kb_dir, langs: %w[ruby]) }
+  let(:test_prompt) { TestPrompt.new }
+  let(:scanner) { described_class.new(root: temp_dir, kb_dir: kb_dir, langs: %w[ruby], prompt: test_prompt) }
 
   before do
     FileUtils.mkdir_p(temp_dir)

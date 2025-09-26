@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Aidp
-  module Analysis
+  module Analyze
     module Seams
       # I/O and OS integration patterns
       IO_PATTERNS = [
