@@ -50,7 +50,7 @@ module Aidp
         @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
         @condition_detector = ConditionDetector.new
-        @provider_manager = ProviderManager.new(@configuration)
+        @provider_manager = ProviderManager.new(@configuration, prompt: TTY::Prompt.new)
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end
@@ -312,9 +312,9 @@ module Aidp
       def get_mode_runner
         case @mode
         when :analyze
-          Aidp::Analyze::Runner.new(@project_dir, self)
+          Aidp::Analyze::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
         when :execute
-          Aidp::Execute::Runner.new(@project_dir, self)
+          Aidp::Execute::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
         else
           raise ArgumentError, "Unsupported mode: #{@mode}"
         end

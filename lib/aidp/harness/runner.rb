@@ -40,6 +40,7 @@ module Aidp
         @current_provider = nil
         @user_input = options[:user_input] || {}  # Include user input from workflow selection
         @execution_log = []
+        @prompt = options[:prompt] || TTY::Prompt.new
 
         # Store workflow configuration
         @selected_steps = options[:selected_steps]
@@ -49,7 +50,7 @@ module Aidp
         @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
         @condition_detector = ConditionDetector.new
-        @provider_manager = ProviderManager.new(@configuration)
+        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
         @user_interface = SimpleUserInterface.new
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @status_display = StatusDisplay.new
@@ -99,8 +100,8 @@ module Aidp
               log_execution("Harness completed successfully - all criteria met", completion_status)
             else
               log_execution("Steps completed but completion criteria not met", completion_status)
-              puts "\n⚠️  All steps completed but some completion criteria not met:"
-              puts completion_status[:summary]
+              display_message("\n⚠️  All steps completed but some completion criteria not met:", type: :warning)
+              display_message(completion_status[:summary], type: :info)
 
               # Ask user if they want to continue anyway
               if @user_interface.get_confirmation("Continue anyway? This may indicate issues that should be addressed.", default: false)
@@ -184,9 +185,9 @@ module Aidp
       def get_mode_runner
         case @mode
         when :analyze
-          Aidp::Analyze::Runner.new(@project_dir, self)
+          Aidp::Analyze::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
         when :execute
-          Aidp::Execute::Runner.new(@project_dir, self)
+          Aidp::Execute::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
         else
           raise ArgumentError, "Unsupported mode: #{@mode}"
         end
@@ -408,6 +409,21 @@ module Aidp
         else
           "Harness finished in state: #{@state}"
         end
+      end
+
+      private
+
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+        @prompt.say(message, color: color)
       end
     end
   end

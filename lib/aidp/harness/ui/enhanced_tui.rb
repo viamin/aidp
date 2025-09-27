@@ -129,7 +129,7 @@ module Aidp
             border: :thick,
             padding: [1, 2]
           )
-          puts box
+          @prompt.say(box)
         end
 
         # Enhanced step execution display
@@ -149,7 +149,7 @@ module Aidp
               padding: [1, 2],
               style: {border: {fg: :blue}}
             )
-            puts box
+            @prompt.say(box)
 
           when :running
             content = []
@@ -165,7 +165,7 @@ module Aidp
               padding: [1, 2],
               style: {border: {fg: :yellow}}
             )
-            puts box
+            @prompt.say(box)
 
           when :completed
             content = []
@@ -181,7 +181,7 @@ module Aidp
               padding: [1, 2],
               style: {border: {fg: :green}}
             )
-            puts box
+            @prompt.say(box)
 
           when :failed
             content = []
@@ -222,7 +222,7 @@ module Aidp
               style: {border: {fg: :red}},
               width: 80
             )
-            puts box
+            @prompt.say(box)
           end
         end
 

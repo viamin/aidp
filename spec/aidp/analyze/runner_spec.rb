@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../support/test_prompt"
 
 RSpec.describe Aidp::Analyze::Runner do
   let(:project_dir) { "/tmp/test_project" }
+  let(:test_prompt) { TestPrompt.new }
   let(:harness_runner) { instance_double("Aidp::Harness::Runner") }
-  let(:runner) { described_class.new(project_dir, harness_runner) }
-  let(:standalone_runner) { described_class.new(project_dir) }
+  let(:runner) { described_class.new(project_dir, harness_runner, prompt: test_prompt) }
+  let(:standalone_runner) { described_class.new(project_dir, nil, prompt: test_prompt) }
 
   before do
     # Mock file operations for test environment paths only

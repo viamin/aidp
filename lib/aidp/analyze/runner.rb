@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
 require_relative "steps"
 require_relative "progress"
 require_relative "../storage/file_manager"
@@ -10,16 +11,33 @@ module Aidp
     class Runner
       include Aidp::DebugMixin
 
-      def initialize(project_dir, harness_runner = nil)
+      def initialize(project_dir, harness_runner = nil, prompt: TTY::Prompt.new)
         @project_dir = project_dir
         @harness_runner = harness_runner
         @is_harness_mode = !harness_runner.nil?
         @file_manager = Aidp::Storage::FileManager.new(File.join(project_dir, ".aidp"))
+        @prompt = prompt
       end
 
       def progress
         @progress ||= Aidp::Analyze::Progress.new(@project_dir)
       end
+
+      private
+
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        else :white
+        end
+        @prompt.say(message, color: color)
+      end
+
+      public
 
       def run_step(step_name, options = {})
         # Always validate step exists first
@@ -72,7 +90,7 @@ module Aidp
 
       # Standalone step execution (simplified - synchronous)
       def run_step_standalone(step_name, options = {})
-        puts "🚀 Running step synchronously: #{step_name}"
+        display_message("🚀 Running step synchronously: #{step_name}", type: :info)
 
         start_time = Time.now
         prompt = composed_prompt(step_name, options)
@@ -85,7 +103,7 @@ module Aidp
         # Store execution metrics
         @file_manager.record_step_execution(step_name, "cursor", duration, result[:status] == "completed")
 
-        puts "✅ Step completed in #{duration.round(2)}s"
+        display_message("✅ Step completed in #{duration.round(2)}s", type: :success)
         result
       end
 

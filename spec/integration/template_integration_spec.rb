@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../support/test_prompt"
 
 RSpec.describe "Template Integration", type: :integration do
   let(:project_dir) { Dir.pwd }
@@ -23,7 +24,8 @@ RSpec.describe "Template Integration", type: :integration do
     end
 
     it "can resolve templates for all execute steps" do
-      runner = Aidp::Execute::Runner.new(project_dir)
+      test_prompt = TestPrompt.new
+      runner = Aidp::Execute::Runner.new(project_dir, nil, prompt: test_prompt)
       resolution_failures = []
 
       Aidp::Execute::Steps::SPEC.each do |step_name, spec|
@@ -40,7 +42,8 @@ RSpec.describe "Template Integration", type: :integration do
     end
 
     it "can read template content for all execute steps" do
-      runner = Aidp::Execute::Runner.new(project_dir)
+      test_prompt = TestPrompt.new
+      runner = Aidp::Execute::Runner.new(project_dir, nil, prompt: test_prompt)
       read_failures = []
 
       Aidp::Execute::Steps::SPEC.each do |step_name, spec|
@@ -76,7 +79,8 @@ RSpec.describe "Template Integration", type: :integration do
     end
 
     it "can resolve templates for all analyze steps" do
-      runner = Aidp::Analyze::Runner.new(project_dir)
+      test_prompt = TestPrompt.new
+      runner = Aidp::Analyze::Runner.new(project_dir, nil, prompt: test_prompt)
       resolution_failures = []
 
       Aidp::Analyze::Steps::SPEC.each do |step_name, spec|

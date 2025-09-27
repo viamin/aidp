@@ -2,18 +2,24 @@
 
 require "spec_helper"
 require "stringio"
+require_relative "../../../support/test_prompt"
 require_relative "../../../../lib/aidp/harness/ui/progress_display"
 
 RSpec.describe Aidp::Harness::UI::ProgressDisplay do
   let(:output) { StringIO.new }
-  let(:progress_display) { described_class.new(output: output) }
+  let(:test_prompt) { TestPrompt.new }
+  let(:progress_display) { described_class.new(output: output, prompt: test_prompt) }
   let(:sample_progress_data) { build_sample_progress_data }
+
+  def message_texts
+    test_prompt.messages.map { |m| m[:message] }
+  end
 
   describe "#display_progress" do
     context "when displaying standard progress" do
       it "shows progress bar with percentage" do
         progress_display.display_progress(sample_progress_data, :standard)
-        expect(output.string).to match(/50%/)
+        expect(message_texts.join(" ")).to match(/50%/)
       end
 
       it "includes step information when available" do
@@ -23,26 +29,26 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
         )
 
         progress_display.display_progress(progress_with_steps, :standard)
-        expect(output.string).to match(/Step: 2\/5/)
+        expect(message_texts.join(" ")).to match(/Step: 2\/5/)
       end
     end
 
     context "when displaying detailed progress" do
       it "shows comprehensive progress information" do
         progress_display.display_progress(sample_progress_data, :detailed)
-        expect(output.string).to match(/Progress:/)
+        expect(message_texts.join(" ")).to match(/Progress:/)
       end
 
       it "includes timestamp information" do
         progress_display.display_progress(sample_progress_data, :detailed)
-        expect(output.string).to match(/Started:/)
+        expect(message_texts.join(" ")).to match(/Started:/)
       end
     end
 
     context "when displaying minimal progress" do
       it "shows only essential information" do
         progress_display.display_progress(sample_progress_data, :minimal)
-        expect(output.string).to match(/50%/)
+        expect(message_texts.join(" ")).to match(/50%/)
       end
     end
 
@@ -129,8 +135,8 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
         ]
 
         progress_display.display_multiple_progress(multiple_data, :standard)
-        expect(output.string).to match(/task_1/)
-        expect(output.string).to match(/task_2/)
+        expect(message_texts.join(" ")).to match(/task_1/)
+        expect(message_texts.join(" ")).to match(/task_2/)
       end
     end
 

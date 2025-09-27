@@ -154,6 +154,21 @@ module Aidp
     end
 
     class << self
+      # Class-level display_message method for CLI output
+      def display_message(message, type: :info)
+        prompt = TTY::Prompt.new
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+        prompt.say(message, color: color)
+      end
+
       def run(args = ARGV)
         # Handle subcommands first (status, jobs, kb, harness)
         return run_subcommand(args) if subcommand?(args)
@@ -175,15 +190,18 @@ module Aidp
         display_message("   Press Ctrl+C to stop\n", type: :highlight)
 
         # Handle configuration setup
+        # Create a prompt for the wizard
+        prompt = TTY::Prompt.new
+
         if options[:setup_config]
           # Force setup/reconfigure even if config exists
-          unless Aidp::CLI::FirstRunWizard.setup_config(Dir.pwd, prompt: @prompt, non_interactive: ENV["CI"] == "true")
+          unless Aidp::CLI::FirstRunWizard.setup_config(Dir.pwd, prompt: prompt, non_interactive: ENV["CI"] == "true")
             display_message("Configuration setup cancelled. Aborting startup.", type: :info)
             return 1
           end
         else
           # First-time setup wizard (before TUI to avoid noisy errors)
-          unless Aidp::CLI::FirstRunWizard.ensure_config(Dir.pwd, prompt: @prompt, non_interactive: ENV["CI"] == "true")
+          unless Aidp::CLI::FirstRunWizard.ensure_config(Dir.pwd, prompt: prompt, non_interactive: ENV["CI"] == "true")
             display_message("Configuration required. Aborting startup.", type: :info)
             return 1
           end
@@ -281,9 +299,9 @@ module Aidp
       end
 
       def run_jobs_command
-        # Placeholder for job management interface
-        display_message("Jobs Interface", type: :info)
-        display_message("(No active jobs)", type: :info)
+        require_relative "cli/jobs_command"
+        jobs_cmd = Aidp::CLI::JobsCommand.new(prompt: TTY::Prompt.new)
+        jobs_cmd.run
       end
 
       def run_kb_command(args)

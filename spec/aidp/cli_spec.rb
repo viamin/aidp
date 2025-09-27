@@ -174,4 +174,41 @@ RSpec.describe Aidp::CLI do
       expect(test_prompt.messages.any? { |msg| msg[:message].include?("❌ Invalid mode. Use 'analyze' or 'execute'") }).to be true
     end
   end
+
+  describe ".run (class method)" do
+    it "can be called as a class method without raising errors" do
+      # Test that the class method exists and can be called
+      expect { described_class.run(["--help"]) }.not_to raise_error
+    end
+
+    it "returns 0 for successful help command" do
+      result = described_class.run(["--help"])
+      expect(result).to eq(0)
+    end
+
+    it "returns 0 for successful status command" do
+      result = described_class.run(["status"])
+      expect(result).to eq(0)
+    end
+
+    it "has access to display_message as a class method" do
+      # Test that display_message is available as a class method
+      expect { described_class.display_message("Test message") }.not_to raise_error
+    end
+
+    it "can handle the startup path without NoMethodError" do
+      # Test the specific path that was failing - startup with configuration check
+      # Mock the configuration check to avoid interactive prompts
+      allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
+      allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(double("TUI",
+        start_display_loop: nil,
+        stop_display_loop: nil,
+        single_select: "🔬 Analyze Mode - Analyze your codebase for insights and recommendations"))
+      allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(double("Selector",
+        select_workflow: {status: :success, next_step: nil}))
+
+      # This should not raise NoMethodError for display_message
+      expect { described_class.run([]) }.not_to raise_error
+    end
+  end
 end
