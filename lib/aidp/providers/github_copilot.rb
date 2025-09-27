@@ -189,13 +189,11 @@ module Aidp
         else
           print "\r🤖 GitHub Copilot CLI is running... (#{seconds}s)"
         end
-        $stdout.flush
       end
 
       def clear_activity_status
         # Clear the activity status line
         print "\r" + " " * 60 + "\r"
-        $stdout.flush
       end
 
       def calculate_timeout
@@ -206,7 +204,7 @@ module Aidp
         # 4. Default timeout
 
         if ENV["AIDP_QUICK_MODE"]
-          puts "⚡ Quick mode enabled - 2 minute timeout"
+          display_message("⚡ Quick mode enabled - 2 minute timeout", type: :highlight)
           return 120
         end
 
@@ -217,12 +215,12 @@ module Aidp
         # Adaptive timeout based on step type
         step_timeout = get_adaptive_timeout
         if step_timeout
-          puts "🧠 Using adaptive timeout: #{step_timeout} seconds"
+          display_message("🧠 Using adaptive timeout: #{step_timeout} seconds", type: :info)
           return step_timeout
         end
 
         # Default timeout (5 minutes for interactive use)
-        puts "📋 Using default timeout: 5 minutes"
+        display_message("📋 Using default timeout: 5 minutes", type: :info)
         300
       end
 
@@ -254,11 +252,11 @@ module Aidp
         # Handle activity state changes
         case state
         when :stuck
-          puts "\n⚠️  GitHub Copilot CLI appears stuck: #{message}"
+          display_message("\n⚠️  GitHub Copilot CLI appears stuck: #{message}", type: :warning)
         when :completed
-          puts "\n✅ GitHub Copilot CLI completed: #{message}"
+          display_message("\n✅ GitHub Copilot CLI completed: #{message}", type: :success)
         when :failed
-          puts "\n❌ GitHub Copilot CLI failed: #{message}"
+          display_message("\n❌ GitHub Copilot CLI failed: #{message}", type: :error)
         end
       end
     end

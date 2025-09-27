@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../support/test_prompt"
 require_relative "../../../lib/aidp/providers/github_copilot"
 
 RSpec.describe Aidp::Providers::GithubCopilot do
-  let(:provider) { described_class.new }
+  let(:test_prompt) { TestPrompt.new }
+  let(:provider) { described_class.new(prompt: test_prompt) }
 
   describe ".available?" do
     context "when copilot is available" do
@@ -269,6 +271,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       }
 
       test_cases.each do |step_name, expected_timeout|
+        allow(ENV).to receive(:[]).and_call_original
         allow(ENV).to receive(:[]).with("AIDP_CURRENT_STEP").and_return(step_name)
         actual_timeout = provider.__send__(:get_adaptive_timeout)
         expect(actual_timeout).to eq(expected_timeout), "Expected #{expected_timeout} for #{step_name}, got #{actual_timeout}"
