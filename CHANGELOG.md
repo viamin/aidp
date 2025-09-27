@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.0](https://github.com/viamin/aidp/compare/aidp/v0.9.6...aidp/v0.10.0) (2025-09-27)
+
+
+### Features
+
+* add GitHub Copilot provider and integration ([00e0c85](https://github.com/viamin/aidp/commit/00e0c85492aa314b3f0ca8030b8d15120f4b228a))
+* add GitHub Copilot provider and integration ([#68](https://github.com/viamin/aidp/issues/68)) ([6cdf8b3](https://github.com/viamin/aidp/commit/6cdf8b3b6d3536b1354f05f0daf1915850f3dd2e))
+
+
+### Bug Fixes
+
+* use correct template naming conventions in analysis steps ([3ab5f2a](https://github.com/viamin/aidp/commit/3ab5f2af54109ea6377f81d4ad2baef487cf1a6f))
+
+
+### Improvements
+
+* enhance GitHub Copilot provider with prompt integration and standardized message display ([6f2f257](https://github.com/viamin/aidp/commit/6f2f257fbbfa9ad6174e892567b52d70a764fe92))
+* enhance user interface with TTY::Prompt integration ([7db024d](https://github.com/viamin/aidp/commit/7db024de7bea18c775fa2929567f42cd448942cb))
+* integrate TTY::Prompt for consistent message handling across components ([f3d3a1f](https://github.com/viamin/aidp/commit/f3d3a1f8cf61a43c6d7be0796847f8c6c03b78f4))
+* move analysis files into analyze namespace and refactor more puts calls ([5742d09](https://github.com/viamin/aidp/commit/5742d0992e9b4dd9ad79dd14b67957e2c6855c0c))
+* standardize output handling across UI components ([e2d686f](https://github.com/viamin/aidp/commit/e2d686f34213ede95d6a46e8beb74de7286f1c4b))
+
 ## [0.9.6](https://github.com/viamin/aidp/compare/aidp/v0.9.5...aidp/v0.9.6) (2025-09-25)
 
 ### Bug Fixes
