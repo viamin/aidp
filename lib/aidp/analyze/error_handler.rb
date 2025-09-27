@@ -8,7 +8,8 @@ module Aidp
     class ErrorHandler
       attr_reader :logger, :error_counts, :recovery_strategies
 
-      def initialize(log_file: nil, verbose: false)
+      def initialize(log_file: nil, verbose: false, output: nil)
+        @output = output
         @logger = setup_logger(log_file, verbose)
         @error_counts = Hash.new(0)
         @recovery_strategies = setup_recovery_strategies
@@ -87,7 +88,8 @@ module Aidp
       private
 
       def setup_logger(log_file, verbose)
-        logger = Logger.new(log_file || $stdout)
+        output_stream = log_file || @output || $stdout
+        logger = Logger.new(output_stream)
         logger.level = verbose ? Logger::DEBUG : Logger::INFO
         logger.formatter = proc do |severity, datetime, progname, msg|
           "#{datetime.strftime("%Y-%m-%d %H:%M:%S")} [#{severity}] #{msg}\n"

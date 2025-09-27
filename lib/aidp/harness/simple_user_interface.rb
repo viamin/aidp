@@ -26,10 +26,25 @@ module Aidp
 
       private
 
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+
+        @prompt.say(message, color: color)
+      end
+
       def show_context(context)
-        puts "\n🤖 Agent needs feedback"
-        puts "Context: #{context[:description]}" if context[:description]
-        puts ""
+        display_message("\n🤖 Agent needs feedback", type: :info)
+        display_message("Context: #{context[:description]}", type: :info) if context[:description]
+        display_message("", type: :info)
       end
 
       def ask_question(question_data)
@@ -39,7 +54,7 @@ module Aidp
         required = question_data[:required] != false
         options = question_data[:options]
 
-        puts "\n#{question}"
+        display_message("\n#{question}", type: :info)
 
         case type
         when "text"

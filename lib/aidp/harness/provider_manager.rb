@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
 require_relative "provider_factory"
 
 module Aidp
   module Harness
     # Manages provider switching and fallback logic
     class ProviderManager
-      def initialize(configuration)
+      def initialize(configuration, prompt: TTY::Prompt.new)
         @configuration = configuration
+        @prompt = prompt
         @current_provider = nil
         @current_model = nil
         @provider_history = []
@@ -1199,20 +1201,37 @@ module Aidp
         [delay, 60].min # Cap at 60 seconds
       end
 
+      private
+
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+        @prompt.say(message, color: color)
+      end
+
+      public
+
       # Log provider switch
       def log_provider_switch(from_provider, to_provider, reason, context)
-        puts "🔄 Provider switch: #{from_provider} → #{to_provider} (#{reason})"
+        display_message("🔄 Provider switch: #{from_provider} → #{to_provider} (#{reason})", type: :info)
         if context.any?
-          puts "   Context: #{context.inspect}"
+          display_message("   Context: #{context.inspect}", type: :muted)
         end
       end
 
       # Log no providers available
       def log_no_providers_available(reason, context)
-        puts "❌ No providers available for switching (#{reason})"
-        puts "   All providers are rate limited, unhealthy, or circuit breaker open"
+        display_message("❌ No providers available for switching (#{reason})", type: :error)
+        display_message("   All providers are rate limited, unhealthy, or circuit breaker open", type: :warning)
         if context.any?
-          puts "   Context: #{context.inspect}"
+          display_message("   Context: #{context.inspect}", type: :muted)
         end
       end
 
@@ -1220,26 +1239,26 @@ module Aidp
       def log_circuit_breaker_event(provider_name, event)
         case event
         when "opened"
-          puts "🔴 Circuit breaker opened for provider: #{provider_name}"
+          display_message("🔴 Circuit breaker opened for provider: #{provider_name}", type: :error)
         when "reset"
-          puts "🟢 Circuit breaker reset for provider: #{provider_name}"
+          display_message("🟢 Circuit breaker reset for provider: #{provider_name}", type: :success)
         end
       end
 
       # Log model switch
       def log_model_switch(from_model, to_model, reason, context)
-        puts "🔄 Model switch: #{from_model} → #{to_model} (#{reason})"
+        display_message("🔄 Model switch: #{from_model} → #{to_model} (#{reason})", type: :info)
         if context.any?
-          puts "   Context: #{context.inspect}"
+          display_message("   Context: #{context.inspect}", type: :muted)
         end
       end
 
       # Log no models available
       def log_no_models_available(provider_name, reason, context)
-        puts "❌ No models available for provider #{provider_name} (#{reason})"
-        puts "   All models are rate limited, unhealthy, or circuit breaker open"
+        display_message("❌ No models available for provider #{provider_name} (#{reason})", type: :error)
+        display_message("   All models are rate limited, unhealthy, or circuit breaker open", type: :warning)
         if context.any?
-          puts "   Context: #{context.inspect}"
+          display_message("   Context: #{context.inspect}", type: :muted)
         end
       end
 
@@ -1247,9 +1266,9 @@ module Aidp
       def log_model_circuit_breaker_event(provider_name, model_name, event)
         case event
         when "opened"
-          puts "🔴 Circuit breaker opened for model: #{provider_name}:#{model_name}"
+          display_message("🔴 Circuit breaker opened for model: #{provider_name}:#{model_name}", type: :error)
         when "reset"
-          puts "🟢 Circuit breaker reset for model: #{provider_name}:#{model_name}"
+          display_message("🟢 Circuit breaker reset for model: #{provider_name}:#{model_name}", type: :success)
         end
       end
 

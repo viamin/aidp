@@ -5,37 +5,37 @@ module Aidp
     module Steps
       SPEC = {
         "01_REPOSITORY_ANALYSIS" => {
-          "templates" => ["01_repository_analysis.md"],
+          "templates" => ["01_REPOSITORY_ANALYSIS.md"],
           "description" => "Initial code-maat based repository mining",
           "outs" => ["docs/analysis/repository_analysis.md"],
           "gate" => false
         },
         "02_ARCHITECTURE_ANALYSIS" => {
-          "templates" => ["02_architecture_analysis.md"],
+          "templates" => ["02_ARCHITECTURE_ANALYSIS.md"],
           "description" => "Identify architectural patterns, dependencies, and violations",
           "outs" => ["docs/analysis/architecture_analysis.md"],
           "gate" => true
         },
         "03_TEST_ANALYSIS" => {
-          "templates" => ["03_test_analysis.md"],
+          "templates" => ["03_TEST_ANALYSIS.md"],
           "description" => "Analyze existing test coverage and identify gaps",
           "outs" => ["docs/analysis/test_analysis.md"],
           "gate" => false
         },
         "04_FUNCTIONALITY_ANALYSIS" => {
-          "templates" => ["04_functionality_analysis.md"],
+          "templates" => ["04_FUNCTIONALITY_ANALYSIS.md"],
           "description" => "Map features, identify dead code, analyze complexity",
           "outs" => ["docs/analysis/functionality_analysis.md"],
           "gate" => false
         },
         "05_DOCUMENTATION_ANALYSIS" => {
-          "templates" => ["05_documentation_analysis.md"],
+          "templates" => ["05_DOCUMENTATION_ANALYSIS.md"],
           "description" => "Identify missing documentation and generate what's needed",
           "outs" => ["docs/analysis/documentation_analysis.md"],
           "gate" => false
         },
         "06_STATIC_ANALYSIS" => {
-          "templates" => ["06_static_analysis.md"],
+          "templates" => ["06_STATIC_ANALYSIS.md"],
           "description" => "Check for existing tools and recommend improvements",
           "outs" => ["docs/analysis/static_analysis.md"],
           "gate" => false
@@ -47,7 +47,7 @@ module Aidp
           "gate" => false
         },
         "07_REFACTORING_RECOMMENDATIONS" => {
-          "templates" => ["07_refactoring_recommendations.md"],
+          "templates" => ["07_REFACTORING_RECOMMENDATIONS.md"],
           "description" => "Provide actionable refactoring guidance",
           "outs" => ["docs/analysis/refactoring_recommendations.md"],
           "gate" => true

@@ -5,20 +5,11 @@ require "fileutils"
 require "tempfile"
 require "stringio"
 
-RSpec.describe Aidp::Analysis::KBInspector do
+RSpec.describe Aidp::Analyze::KBInspector do
   let(:temp_dir) { Dir.mktmpdir("aidp_kb_inspector_test") }
   let(:kb_dir) { File.join(temp_dir, ".aidp", "kb") }
-  let(:inspector) { described_class.new(kb_dir) }
-
-  # Helper method to capture stdout
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
-  end
+  let(:test_prompt) { TestPrompt.new }
+  let(:inspector) { described_class.new(kb_dir, prompt: test_prompt) }
 
   before do
     FileUtils.mkdir_p(kb_dir)
@@ -173,31 +164,23 @@ RSpec.describe Aidp::Analysis::KBInspector do
     end
 
     it "shows file counts" do
-      output = capture_stdout do
-        described_class.new(kb_dir).send(:show_summary, "summary")
-      end
-      expect(output).to include("Files analyzed")
+      inspector.send(:show_summary, "summary")
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("Files analyzed") }).to be true
     end
 
     it "shows symbol counts" do
-      output = capture_stdout do
-        described_class.new(kb_dir).send(:show_summary, "summary")
-      end
-      expect(output).to include("Symbols")
+      inspector.send(:show_summary, "summary")
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("Symbols") }).to be true
     end
 
     it "shows seam types" do
-      output = capture_stdout do
-        described_class.new(kb_dir).send(:show_summary, "summary")
-      end
-      expect(output).to include("Seam Types")
+      inspector.send(:show_summary, "summary")
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("Seam Types") }).to be true
     end
 
     it "shows top hotspots" do
-      output = capture_stdout do
-        described_class.new(kb_dir).send(:show_summary, "summary")
-      end
-      expect(output).to include("Top 5 Hotspots")
+      inspector.send(:show_summary, "summary")
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("Top 5 Hotspots") }).to be true
     end
   end
 

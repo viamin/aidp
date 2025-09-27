@@ -3,9 +3,12 @@
 require "spec_helper"
 require "stringio"
 require_relative "../../../../lib/aidp/harness/ui/job_monitor"
+require_relative "../../../support/test_prompt"
 
 RSpec.describe Aidp::Harness::UI::JobMonitor do
-  let(:job_monitor) { described_class.new }
+  let(:test_prompt) { TestPrompt.new }
+  let(:frame_manager) { Aidp::Harness::UI::FrameManager.new({output: test_prompt}) }
+  let(:job_monitor) { described_class.new({frame_manager: frame_manager}, prompt: test_prompt) }
   let(:sample_job_data) { build_sample_job_data }
 
   describe "#register_job" do
@@ -280,13 +283,13 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
     before { job_monitor.register_job("test_job", sample_job_data) }
 
     it "displays job status information" do
-      expect { job_monitor.display_job_status("test_job") }
-        .to output(/Job Status: test_job/).to_stdout
+      job_monitor.display_job_status("test_job")
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Job Status: test_job/) }).to be true
     end
 
     it "includes job details" do
-      expect { job_monitor.display_job_status("test_job") }
-        .to output(/Job ID: test_job/).to_stdout
+      job_monitor.display_job_status("test_job")
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Job ID: test_job/) }).to be true
     end
   end
 
@@ -297,20 +300,15 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
     end
 
     it "displays all jobs" do
-      expect { job_monitor.display_all_jobs }
-        .to output(/All Jobs/).to_stdout
+      job_monitor.display_all_jobs
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/All Jobs/) }).to be true
     end
 
     it "includes job information" do
-      output = StringIO.new
-      original_stdout = $stdout
-      $stdout = output
       job_monitor.display_all_jobs
-      $stdout = original_stdout
-
-      output_string = output.string
-      expect(output_string).to include("job1")
-      expect(output_string).to include("job2")
+      message_texts = test_prompt.messages.map { |m| m[:message] }
+      expect(message_texts.join(" ")).to include("job1")
+      expect(message_texts.join(" ")).to include("job2")
     end
   end
 

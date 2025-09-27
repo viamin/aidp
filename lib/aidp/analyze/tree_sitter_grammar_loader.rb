@@ -2,10 +2,11 @@
 
 require "pathname"
 require "tree_sitter"
+require "tty-prompt"
 require "fileutils"
 
 module Aidp
-  module Analysis
+  module Analyze
     class TreeSitterGrammarLoader
       # Default grammar configurations
       GRAMMAR_CONFIGS = {
@@ -61,10 +62,11 @@ module Aidp
         }
       }.freeze
 
-      def initialize(project_dir = Dir.pwd)
+      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new)
         @project_dir = project_dir
         @grammars_dir = File.join(project_dir, ".aidp", "grammars")
         @loaded_grammars = {}
+        @prompt = prompt
       end
 
       # Load grammar for a specific language
@@ -92,7 +94,7 @@ module Aidp
         grammar_path = File.join(@grammars_dir, language)
 
         unless File.exist?(grammar_path)
-          puts "Installing Tree-sitter grammar for #{language}..."
+          display_message("Installing Tree-sitter grammar for #{language}...", type: :info)
           install_grammar(language, config)
         end
       end
@@ -110,7 +112,7 @@ module Aidp
         require "json"
         File.write(File.join(grammar_path, "grammar.json"), JSON.generate(config))
 
-        puts "Grammar for #{language} marked as available"
+        display_message("Grammar for #{language} marked as available", type: :success)
       end
 
       def create_parser(language, config)
@@ -140,7 +142,7 @@ module Aidp
           real: true
         }
       rescue TreeSitter::ParserNotFoundError => e
-        puts "Warning: Tree-sitter parser not found for #{language}: #{e.message}"
+        display_message("Warning: Tree-sitter parser not found for #{language}: #{e.message}", type: :warn)
         create_mock_parser(language)
       end
 
@@ -475,6 +477,21 @@ module Aidp
         end
 
         nodes
+      end
+
+      private
+
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :warn then :yellow
+        when :success then :green
+        when :highlight then :cyan
+        else :white
+        end
+
+        @prompt.say(message, color: color)
       end
     end
   end

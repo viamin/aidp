@@ -1,14 +1,16 @@
 # frozen_string_literal: true
 
 require "tty-command"
+require "tty-prompt"
 require "json"
 require "fileutils"
 
 module Aidp
   module Analyze
     class RubyMaatIntegration
-      def initialize(project_dir = Dir.pwd)
+      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new)
         @project_dir = project_dir
+        @prompt = prompt
       end
 
       # Check if RubyMaat gem is available and accessible
@@ -80,7 +82,7 @@ module Aidp
 
       # Run analysis on large repositories using chunking
       def run_chunked_analysis(git_log_file)
-        puts "Large repository detected. Running chunked analysis..."
+        display_message("Large repository detected. Running chunked analysis...", type: :info)
 
         # Split analysis into chunks
         chunks = create_analysis_chunks(git_log_file)
@@ -93,7 +95,7 @@ module Aidp
         }
 
         chunks.each_with_index do |chunk, index|
-          puts "Processing chunk #{index + 1}/#{chunks.length}..."
+          display_message("Processing chunk #{index + 1}/#{chunks.length}...", type: :info)
 
           chunk_results = analyze_chunk(chunk)
 
@@ -452,6 +454,21 @@ module Aidp
         result = cmd.run("git", "log", "--oneline", "-1", chdir: @project_dir)
 
         result.success? && !result.out.strip.empty?
+      end
+
+      private
+
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :warn then :yellow
+        when :success then :green
+        when :highlight then :cyan
+        else :white
+        end
+
+        @prompt.say(message, color: color)
       end
     end
   end

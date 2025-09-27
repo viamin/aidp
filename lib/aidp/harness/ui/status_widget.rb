@@ -18,6 +18,7 @@ module Aidp
           @spinner = ui_components[:spinner] || TTY::Spinner
           @pastel = Pastel.new
           @formatter = ui_components[:formatter] || StatusFormatter.new
+          @output = ui_components[:output]
           @status_history = []
           @current_spinner = nil
           @spinner_active = false
@@ -56,7 +57,7 @@ module Aidp
           validate_message(message)
 
           formatted_message = @formatter.format_success_message(message)
-          puts(formatted_message)
+          display_message(formatted_message)
         rescue => e
           raise DisplayError, "Failed to show success status: #{e.message}"
         end
@@ -65,7 +66,7 @@ module Aidp
           validate_message(message)
 
           formatted_message = @formatter.format_error_message(message)
-          puts(formatted_message)
+          display_message(formatted_message)
         rescue => e
           raise DisplayError, "Failed to show error status: #{e.message}"
         end
@@ -74,7 +75,7 @@ module Aidp
           validate_message(message)
 
           formatted_message = @formatter.format_warning_message(message)
-          puts(formatted_message)
+          display_message(formatted_message)
         rescue => e
           raise DisplayError, "Failed to show warning status: #{e.message}"
         end
@@ -181,6 +182,14 @@ module Aidp
 
         private
 
+        def display_message(message)
+          if @output
+            @output.say(message)
+          else
+            puts message
+          end
+        end
+
         def validate_message(message)
           raise InvalidStatusError, "Message cannot be empty" if message.to_s.strip.empty?
         end
@@ -211,22 +220,22 @@ module Aidp
         end
 
         def display_loading_status(message)
-          puts("⏳ #{message}")
+          display_message("⏳ #{message}")
         end
 
         def display_success_status(message)
-          puts("✅ #{message}")
+          display_message("✅ #{message}")
         end
 
         def display_error_status(message, error_data)
-          puts("❌ #{message}")
+          display_message("❌ #{message}")
           if error_data && error_data[:message]
-            puts("  #{error_data[:message]}")
+            display_message("  #{error_data[:message]}")
           end
         end
 
         def display_warning_status(message)
-          puts("⚠️ #{message}")
+          display_message("⚠️ #{message}")
         end
       end
 

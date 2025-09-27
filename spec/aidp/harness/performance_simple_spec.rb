@@ -2,10 +2,12 @@
 
 require "spec_helper"
 require "benchmark"
+require_relative "../../support/test_prompt"
 
 RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
   let(:project_dir) { Dir.mktmpdir("aidp_harness_performance_simple_test") }
   let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:test_prompt) { TestPrompt.new }
 
   before do
     # Set up mock mode for tests
@@ -34,14 +36,14 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       # Provider manager initialization
       times[:provider_manager] = Benchmark.realtime do
         configuration = Aidp::Harness::Configuration.new(project_dir)
-        provider_manager = Aidp::Harness::ProviderManager.new(configuration)
+        provider_manager = Aidp::Harness::ProviderManager.new(configuration, prompt: test_prompt)
         provider_manager.current_provider
       end
 
       # Error handler initialization
       times[:error_handler] = Benchmark.realtime do
         configuration = Aidp::Harness::Configuration.new(project_dir)
-        provider_manager = Aidp::Harness::ProviderManager.new(configuration)
+        provider_manager = Aidp::Harness::ProviderManager.new(configuration, prompt: test_prompt)
         error_handler = Aidp::Harness::ErrorHandler.new(provider_manager, configuration)
         error_handler.instance_variable_get(:@retry_strategies)
       end
@@ -77,7 +79,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
     it "performs basic operations efficiently" do
       # Initialize components
       configuration = Aidp::Harness::Configuration.new(project_dir)
-      provider_manager = Aidp::Harness::ProviderManager.new(configuration)
+      provider_manager = Aidp::Harness::ProviderManager.new(configuration, prompt: test_prompt)
       error_handler = Aidp::Harness::ErrorHandler.new(provider_manager, configuration)
       condition_detector = Aidp::Harness::ConditionDetector.new
       Aidp::Harness::UserInterface.new
@@ -135,7 +137,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       components = []
       10.times do
         configuration = Aidp::Harness::Configuration.new(project_dir)
-        provider_manager = Aidp::Harness::ProviderManager.new(configuration)
+        provider_manager = Aidp::Harness::ProviderManager.new(configuration, prompt: test_prompt)
         error_handler = Aidp::Harness::ErrorHandler.new(provider_manager, configuration)
         condition_detector = Aidp::Harness::ConditionDetector.new
         user_interface = Aidp::Harness::UserInterface.new
@@ -165,7 +167,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
     it "maintains consistent performance across multiple runs" do
       # Initialize components
       configuration = Aidp::Harness::Configuration.new(project_dir)
-      provider_manager = Aidp::Harness::ProviderManager.new(configuration)
+      provider_manager = Aidp::Harness::ProviderManager.new(configuration, prompt: test_prompt)
       condition_detector = Aidp::Harness::ConditionDetector.new
 
       # Measure performance across multiple runs
@@ -279,7 +281,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
 
       # Initialize components
       configuration = Aidp::Harness::Configuration.new(project_dir)
-      provider_manager = Aidp::Harness::ProviderManager.new(configuration)
+      provider_manager = Aidp::Harness::ProviderManager.new(configuration, prompt: test_prompt)
       error_handler = Aidp::Harness::ErrorHandler.new(provider_manager, configuration)
       condition_detector = Aidp::Harness::ConditionDetector.new
       status_display = Aidp::Harness::StatusDisplay.new

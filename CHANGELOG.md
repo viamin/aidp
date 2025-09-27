@@ -2,7 +2,6 @@
 
 ## [0.9.6](https://github.com/viamin/aidp/compare/aidp/v0.9.5...aidp/v0.9.6) (2025-09-25)
 
-
 ### Bug Fixes
 
 * implement missing job management methods in EnhancedTUI ([75defba](https://github.com/viamin/aidp/commit/75defbad7e64473fa3aeeb86584c32a820d9f54c))
@@ -10,18 +9,15 @@
 
 ## [0.9.5](https://github.com/viamin/aidp/compare/aidp/v0.9.4...aidp/v0.9.5) (2025-09-25)
 
-
 ### Bug Fixes
 
 * update first run wizard for quick configuration setup ([f01ff70](https://github.com/viamin/aidp/commit/f01ff7092879683062693b593c6be7247516137c))
-
 
 ### Improvements
 
 * enhance user interface with TTY::Prompt integration ([8d876c7](https://github.com/viamin/aidp/commit/8d876c74d8b7c11955d82b490712d0f174f16ca6))
 
 ## [0.9.4](https://github.com/viamin/aidp/compare/aidp/v0.9.3...aidp/v0.9.4) (2025-09-24)
-
 
 ### Bug Fixes
 
@@ -30,14 +26,12 @@
 
 ## [0.9.3](https://github.com/viamin/aidp/compare/aidp/v0.9.2...aidp/v0.9.3) (2025-09-24)
 
-
 ### Bug Fixes
 
 * update provider types from package to subscription and api to usage_based ([b4d661c](https://github.com/viamin/aidp/commit/b4d661c3112375bf9c925295735731da8366c28d))
 * update provider types from package to subscription and api to usage_based ([#59](https://github.com/viamin/aidp/issues/59)) ([29b9f3c](https://github.com/viamin/aidp/commit/29b9f3cef588c147c94a1b39dff0bb6e9001f6a6))
 
 ## [0.9.2](https://github.com/viamin/aidp/compare/aidp/v0.9.1...aidp/v0.9.2) (2025-09-23)
-
 
 ### Bug Fixes
 
@@ -46,14 +40,12 @@
 
 ## [0.9.1](https://github.com/viamin/aidp/compare/aidp/v0.9.0...aidp/v0.9.1) (2025-09-23)
 
-
 ### Bug Fixes
 
 * update aidp configuration structure and provider validation ([0c43a99](https://github.com/viamin/aidp/commit/0c43a99217263e4fc3105884d2d2204e3564d134))
 * update aidp configuration structure and provider validation ([#55](https://github.com/viamin/aidp/issues/55)) ([d8be9fb](https://github.com/viamin/aidp/commit/d8be9fb763b21543efc1d25f38e52a5843fb76e4))
 
 ## [0.9.0](https://github.com/viamin/aidp/compare/aidp/v0.8.3...aidp/v0.9.0) (2025-09-23)
-
 
 ### Features
 
@@ -62,7 +54,6 @@
 
 ## [0.8.3](https://github.com/viamin/aidp/compare/aidp/v0.8.2...aidp/v0.8.3) (2025-09-22)
 
-
 ### Improvements
 
 * implement SimpleUserInterface for streamlined user feedback collection ([23bbf06](https://github.com/viamin/aidp/commit/23bbf066621da38da6ed030fb7e16473949ad07d))
@@ -70,13 +61,11 @@
 
 ## [0.8.2](https://github.com/viamin/aidp/compare/aidp/v0.8.1...aidp/v0.8.2) (2025-09-20)
 
-
 ### Bug Fixes
 
 * better handling of TTY::Prompt for input ([ea39c88](https://github.com/viamin/aidp/commit/ea39c88a7e8e9dc1dc7b57900e524339e3915418))
 
 ## [0.8.1](https://github.com/viamin/aidp/compare/aidp/v0.8.0...aidp/v0.8.1) (2025-09-20)
-
 
 ### Bug Fixes
 
@@ -84,7 +73,6 @@
 * add Pathname requirement to tree_sitter_grammar_loader.rb ([#46](https://github.com/viamin/aidp/issues/46)) ([95b8564](https://github.com/viamin/aidp/commit/95b8564c8d6c53b81b6257d9850f86d401e88d6e))
 
 ## [0.8.0](https://github.com/viamin/aidp/compare/aidp/v0.7.0...aidp/v0.8.0) (2025-09-19)
-
 
 ### Features
 
@@ -103,7 +91,6 @@
 * introduce Harness Mode for autonomous execution and enhanced user interaction ([1f44d48](https://github.com/viamin/aidp/commit/1f44d4833c17d2da360bfe18059e17859a5b6f82))
 * introduce job monitoring and management UI components ([00ee7aa](https://github.com/viamin/aidp/commit/00ee7aadbb9d25d73a8e1bf01b79c87d12e1a365))
 
-
 ### Improvements
 
 * enhance state management and UI components with CLI UI integration ([77eabb8](https://github.com/viamin/aidp/commit/77eabb81bdabb04fcc6f0c5a3d24c822d54f22f2))
@@ -115,7 +102,6 @@
 * transition to Enhanced TUI and remove TTY dependencies ([b5d4b2e](https://github.com/viamin/aidp/commit/b5d4b2e398cbcab1b92c6d19cf2c29df28ef2192))
 * unify spinner management and enhance UI components ([b49f11a](https://github.com/viamin/aidp/commit/b49f11a07662cb2254e8467b8c6292740e9780d7))
 * update gemspec and UI components for TTY integration ([1b95a0a](https://github.com/viamin/aidp/commit/1b95a0a5cbfc933cd633cbd3a4e636452d84e0a2))
-
 
 ### Documentation
 

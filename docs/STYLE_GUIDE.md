@@ -291,13 +291,16 @@ puts pastel.red("Error message")
 
 **Important**: AI agents **cannot** test by running `bundle exec aidp` directly (requires live user interaction). Use these approaches instead:
 
-#### 1. Unit Testing with Mocks
+#### 1. Unit Testing with Dependency Injection
 
 ```ruby
-# Mock TTY components
-let(:mock_prompt) { instance_double(TTY::Prompt) }
-allow(TTY::Prompt).to receive(:new).and_return(mock_prompt)
-expect(mock_prompt).to receive(:select).with("Choose mode", items, default: 1)
+# Use TestPrompt for testing TTY components
+let(:test_prompt) { TestPrompt.new }
+let(:ui) { described_class.new(prompt: test_prompt) }
+
+# Test interactions by checking recorded messages
+ui.display_menu("Choose mode", items)
+expect(test_prompt.messages.any? { |msg| msg[:message].include?("Choose mode") }).to be true
 ```
 
 #### 2. Integration Testing with expect Scripts

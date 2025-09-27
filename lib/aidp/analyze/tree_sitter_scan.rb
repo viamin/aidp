@@ -4,19 +4,21 @@ require "json"
 require "fileutils"
 require "digest"
 require "etc"
+require "tty-prompt"
 
 require_relative "tree_sitter_grammar_loader"
 require_relative "seams"
 
 module Aidp
-  module Analysis
+  module Analyze
     class TreeSitterScan
-      def initialize(root: Dir.pwd, kb_dir: ".aidp/kb", langs: %w[ruby], threads: Etc.nprocessors)
+      def initialize(root: Dir.pwd, kb_dir: ".aidp/kb", langs: %w[ruby], threads: Etc.nprocessors, prompt: TTY::Prompt.new)
         @root = File.expand_path(root)
         @kb_dir = File.expand_path(kb_dir, @root)
         @langs = Array(langs)
         @threads = threads
-        @grammar_loader = TreeSitterGrammarLoader.new(@root)
+        @prompt = prompt
+        @grammar_loader = TreeSitterGrammarLoader.new(@root, prompt: @prompt)
 
         # Data structures to accumulate analysis results
         @symbols = []
@@ -34,14 +36,14 @@ module Aidp
       end
 
       def run
-        puts "🔍 Starting Tree-sitter static analysis..."
-        puts "📁 Root: #{@root}"
-        puts "🗂️  KB Directory: #{@kb_dir}"
-        puts "🌐 Languages: #{@langs.join(", ")}"
-        puts "🧵 Threads: #{@threads}"
+        display_message("🔍 Starting Tree-sitter static analysis...", type: :highlight)
+        display_message("📁 Root: #{@root}", type: :info)
+        display_message("🗂️  KB Directory: #{@kb_dir}", type: :info)
+        display_message("🌐 Languages: #{@langs.join(", ")}", type: :info)
+        display_message("🧵 Threads: #{@threads}", type: :info)
 
         files = discover_files
-        puts "📄 Found #{files.length} files to analyze"
+        display_message("📄 Found #{files.length} files to analyze", type: :info)
 
         prepare_kb_dir
         load_cache
@@ -49,8 +51,8 @@ module Aidp
         parallel_parse(files)
         write_kb_files
 
-        puts "✅ Tree-sitter analysis complete!"
-        puts "📊 Generated KB files in #{@kb_dir}"
+        display_message("✅ Tree-sitter analysis complete!", type: :success)
+        display_message("📊 Generated KB files in #{@kb_dir}", type: :success)
       end
 
       private
@@ -144,14 +146,14 @@ module Aidp
       end
 
       def parallel_parse(files)
-        puts "🔄 Parsing files in parallel..."
+        display_message("🔄 Parsing files in parallel...", type: :info)
 
         # Group files by language for efficient processing
         files_by_lang = files.group_by { |file| detect_language(file) }
 
         # Process each language group
         files_by_lang.each do |lang, lang_files|
-          puts "📝 Processing #{lang_files.length} #{lang} files..."
+          display_message("📝 Processing #{lang_files.length} #{lang} files...", type: :info)
 
           # Load grammar for this language
           grammar = @grammar_loader.load_grammar(lang)
@@ -614,7 +616,7 @@ module Aidp
       end
 
       def write_kb_files
-        puts "💾 Writing knowledge base files..."
+        display_message("💾 Writing knowledge base files...", type: :info)
 
         prepare_kb_dir
 
@@ -637,7 +639,7 @@ module Aidp
       def write_json_file(filename, data)
         file_path = File.join(@kb_dir, filename)
         File.write(file_path, JSON.pretty_generate(data))
-        puts "📄 Written #{filename} (#{data.length} entries)"
+        display_message("📄 Written #{filename} (#{data.length} entries)", type: :success)
       end
 
       def generate_hotspots
@@ -680,6 +682,21 @@ module Aidp
         # Find test files that might test this method
         # This would analyze test file naming and content
         []
+      end
+
+      private
+
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :warn then :yellow
+        when :success then :green
+        when :highlight then :cyan
+        else :white
+        end
+
+        @prompt.say(message, color: color)
       end
     end
   end

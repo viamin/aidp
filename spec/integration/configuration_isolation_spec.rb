@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../support/test_prompt"
 
 RSpec.describe "Configuration Isolation", type: :integration do
   let(:project_dir) { Dir.mktmpdir("aidp_config_test") }
   let(:cli) { Aidp::CLI.new }
   let(:execute_progress) { Aidp::Execute::Progress.new(project_dir) }
-  let(:analyze_config) { Aidp::Analyze::Runner.new(project_dir) }
+  let(:test_prompt) { TestPrompt.new }
+  let(:analyze_config) { Aidp::Analyze::Runner.new(project_dir, nil, prompt: test_prompt) }
 
   before do
     setup_configuration_files

@@ -2,13 +2,30 @@
 
 require "json"
 require "tty-box"
+require "tty-prompt"
 
 module Aidp
-  module Analysis
+  module Analyze
     class KBInspector
-      def initialize(kb_dir = ".aidp/kb")
+      def initialize(kb_dir = ".aidp/kb", prompt: TTY::Prompt.new)
         @kb_dir = File.expand_path(kb_dir)
+        @prompt = prompt
         @data = load_kb_data
+      end
+
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+
+        @prompt.say(message, color: color)
       end
 
       def show(type, format: "summary")
@@ -28,8 +45,8 @@ module Aidp
         when "summary"
           show_summary(format)
         else
-          puts "Unknown KB type: #{type}"
-          puts "Available types: seams, hotspots, cycles, apis, symbols, imports, summary"
+          display_message("Unknown KB type: #{type}", type: :error)
+          display_message("Available types: seams, hotspots, cycles, apis, symbols, imports, summary", type: :info)
         end
       end
 
@@ -42,8 +59,8 @@ module Aidp
         when "cycles"
           generate_cycle_graph(format, output)
         else
-          puts "Unknown graph type: #{type}"
-          puts "Available types: imports, calls, cycles"
+          display_message("Unknown graph type: #{type}", type: :error)
+          display_message("Available types: imports, calls, cycles", type: :info)
         end
       end
 
@@ -73,7 +90,7 @@ module Aidp
           border: :thick,
           padding: [1, 2]
         )
-        puts box
+        display_message(box)
       end
 
       def load_kb_data
@@ -87,7 +104,7 @@ module Aidp
             rescue JSON::ParserError => e
               # Suppress warnings in test mode to avoid CI failures
               unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
-                puts "Warning: Could not parse #{file_path}: #{e.message}"
+                display_message("Warning: Could not parse #{file_path}: #{e.message}", type: :warn)
               end
               data[type.to_sym] = []
             end
@@ -100,42 +117,42 @@ module Aidp
       end
 
       def show_summary(_format)
-        puts "\n📊 Knowledge Base Summary"
-        puts "=" * 50
+        display_message("\n📊 Knowledge Base Summary", type: :highlight)
+        display_message("=" * 50, type: :info)
 
-        puts "📁 KB Directory: #{@kb_dir}"
-        puts "📄 Files analyzed: #{count_files}"
-        puts "🏗️  Symbols: #{@data[:symbols]&.length || 0}"
-        puts "📦 Imports: #{@data[:imports]&.length || 0}"
-        puts "🔗 Calls: #{@data[:calls]&.length || 0}"
-        puts "📏 Metrics: #{@data[:metrics]&.length || 0}"
-        puts "🔧 Seams: #{@data[:seams]&.length || 0}"
-        puts "🔥 Hotspots: #{@data[:hotspots]&.length || 0}"
-        puts "🧪 Tests: #{@data[:tests]&.length || 0}"
-        puts "🔄 Cycles: #{@data[:cycles]&.length || 0}"
+        display_message("📁 KB Directory: #{@kb_dir}", type: :info)
+        display_message("📄 Files analyzed: #{count_files}", type: :info)
+        display_message("🏗️  Symbols: #{@data[:symbols]&.length || 0}", type: :info)
+        display_message("📦 Imports: #{@data[:imports]&.length || 0}", type: :info)
+        display_message("🔗 Calls: #{@data[:calls]&.length || 0}", type: :info)
+        display_message("📏 Metrics: #{@data[:metrics]&.length || 0}", type: :info)
+        display_message("🔧 Seams: #{@data[:seams]&.length || 0}", type: :info)
+        display_message("🔥 Hotspots: #{@data[:hotspots]&.length || 0}", type: :info)
+        display_message("🧪 Tests: #{@data[:tests]&.length || 0}", type: :info)
+        display_message("🔄 Cycles: #{@data[:cycles]&.length || 0}", type: :info)
 
         if @data[:seams]&.any?
-          puts "\n🔧 Seam Types:"
+          display_message("\n🔧 Seam Types:", type: :info)
           seam_types = @data[:seams].group_by { |s| s[:kind] }
           seam_types.each do |type, seams|
-            puts "  #{type}: #{seams.length}"
+            display_message("  #{type}: #{seams.length}", type: :info)
           end
         end
 
         if @data[:hotspots]&.any?
-          puts "\n🔥 Top 5 Hotspots:"
+          display_message("\n🔥 Top 5 Hotspots:", type: :info)
           @data[:hotspots].first(5).each_with_index do |hotspot, i|
-            puts "  #{i + 1}. #{hotspot[:file]}:#{hotspot[:method]} (score: #{hotspot[:score]})"
+            display_message("  #{i + 1}. #{hotspot[:file]}:#{hotspot[:method]} (score: #{hotspot[:score]})", type: :info)
           end
         end
       end
 
       def show_seams(format)
-        return puts "No seams data available" unless @data[:seams]&.any?
+        return display_message("No seams data available") unless @data[:seams]&.any?
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:seams])
+          display_message(JSON.pretty_generate(@data[:seams]))
         when "table"
           show_seams_table
         else
@@ -144,8 +161,8 @@ module Aidp
       end
 
       def show_seams_table
-        puts "\n🔧 Seams Analysis"
-        puts "=" * 80
+        display_message("\n🔧 Seams Analysis")
+        display_message("=" * 80)
 
         create_table(
           ["Type", "File", "Line", "Symbol", "Suggestion"],
@@ -162,34 +179,34 @@ module Aidp
       end
 
       def show_seams_summary
-        puts "\n🔧 Seams Analysis"
-        puts "=" * 50
+        display_message("\n🔧 Seams Analysis")
+        display_message("=" * 50)
 
         seam_types = @data[:seams].group_by { |s| s[:kind] }
 
         seam_types.each do |type, seams|
-          puts "\n📌 #{type.upcase} (#{seams.length} found)"
-          puts "-" * 30
+          display_message("\n📌 #{type.upcase} (#{seams.length} found)")
+          display_message("-" * 30)
 
           seams.first(10).each do |seam|
-            puts "  #{seam[:file]}:#{seam[:line]}"
-            puts "    Symbol: #{seam[:symbol_id]&.split(":")&.last}"
-            puts "    Suggestion: #{seam[:suggestion]}"
-            puts
+            display_message("  #{seam[:file]}:#{seam[:line]}")
+            display_message("    Symbol: #{seam[:symbol_id]&.split(":")&.last}")
+            display_message("    Suggestion: #{seam[:suggestion]}")
+            display_message("")
           end
 
           if seams.length > 10
-            puts "  ... and #{seams.length - 10} more"
+            display_message("  ... and #{seams.length - 10} more")
           end
         end
       end
 
       def show_hotspots(format)
-        return puts "No hotspots data available" unless @data[:hotspots]&.any?
+        return display_message("No hotspots data available") unless @data[:hotspots]&.any?
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:hotspots])
+          display_message(JSON.pretty_generate(@data[:hotspots]))
         when "table"
           show_hotspots_table
         else
@@ -198,8 +215,8 @@ module Aidp
       end
 
       def show_hotspots_table
-        puts "\n🔥 Code Hotspots"
-        puts "=" * 80
+        display_message("\n🔥 Code Hotspots")
+        display_message("=" * 80)
 
         create_table(
           ["Rank", "File", "Method", "Score", "Complexity", "Touches"],
@@ -217,81 +234,81 @@ module Aidp
       end
 
       def show_hotspots_summary
-        puts "\n🔥 Code Hotspots (Top 20)"
-        puts "=" * 50
+        display_message("\n🔥 Code Hotspots (Top 20)")
+        display_message("=" * 50)
 
         @data[:hotspots].each_with_index do |hotspot, i|
-          puts "#{i + 1}. #{hotspot[:file]}:#{hotspot[:method]}"
-          puts "   Score: #{hotspot[:score]} (Complexity: #{hotspot[:complexity]}, Touches: #{hotspot[:touches]})"
-          puts
+          display_message("#{i + 1}. #{hotspot[:file]}:#{hotspot[:method]}")
+          display_message("   Score: #{hotspot[:score]} (Complexity: #{hotspot[:complexity]}, Touches: #{hotspot[:touches]})")
+          display_message("")
         end
       end
 
       def show_cycles(format)
-        return puts "No cycles data available" unless @data[:cycles]&.any?
+        return display_message("No cycles data available") unless @data[:cycles]&.any?
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:cycles])
+          display_message(JSON.pretty_generate(@data[:cycles]))
         else
           show_cycles_summary
         end
       end
 
       def show_cycles_summary
-        puts "\n🔄 Import Cycles"
-        puts "=" * 50
+        display_message("\n🔄 Import Cycles")
+        display_message("=" * 50)
 
         @data[:cycles].each_with_index do |cycle, i|
-          puts "Cycle #{i + 1}:"
+          display_message("Cycle #{i + 1}:")
           cycle[:members].each do |member|
-            puts "  - #{member}"
+            display_message("  - #{member}")
           end
-          puts "  Weight: #{cycle[:weight]}" if cycle[:weight]
-          puts
+          display_message("  Weight: #{cycle[:weight]}") if cycle[:weight]
+          display_message("")
         end
       end
 
       def show_apis(format)
-        return puts "No APIs data available" unless @data[:tests]&.any?
+        return display_message("No APIs data available") unless @data[:tests]&.any?
 
         untested_apis = @data[:tests].select { |t| t[:tests].empty? }
 
         case format
         when "json"
-          puts JSON.pretty_generate(untested_apis)
+          display_message(JSON.pretty_generate(untested_apis))
         else
           show_apis_summary(untested_apis)
         end
       end
 
       def show_apis_summary(untested_apis)
-        puts "\n🧪 Untested Public APIs"
-        puts "=" * 50
+        display_message("\n🧪 Untested Public APIs")
+        display_message("=" * 50)
 
         if untested_apis.empty?
-          puts "✅ All public APIs have associated tests!"
+          display_message("✅ All public APIs have associated tests!")
         else
-          puts "Found #{untested_apis.length} untested public APIs:"
-          puts
+          display_message("Found #{untested_apis.length} untested public APIs:")
+          display_message("")
 
           untested_apis.each do |api|
             symbol = @data[:symbols]&.find { |s| s[:id] == api[:symbol_id] }
             if symbol
-              puts "  #{symbol[:file]}:#{symbol[:line]} - #{symbol[:name]}"
-              puts "    Suggestion: Create characterization tests"
-              puts
+              display_message("  #{symbol[:file]}:#{symbol[:line]} - #{symbol[:name]}")
+              display_message("    Suggestion: Create characterization tests")
+              display_message("")
             end
           end
         end
       end
 
       def show_symbols(format)
-        return puts "No symbols data available" unless @data[:symbols]&.any?
+        return display_message("No symbols data available") unless @data[:symbols]&.any?
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:symbols])
+          display_message(JSON.pretty_generate(@data[:symbols]))
         when "table"
           show_symbols_table
         else
@@ -300,8 +317,8 @@ module Aidp
       end
 
       def show_symbols_table
-        puts "\n🏗️  Symbols"
-        puts "=" * 80
+        display_message("\n🏗️  Symbols")
+        display_message("=" * 80)
 
         create_table(
           ["Type", "Name", "File", "Line", "Visibility"],
@@ -318,22 +335,22 @@ module Aidp
       end
 
       def show_symbols_summary
-        puts "\n🏗️  Symbols Summary"
-        puts "=" * 50
+        display_message("\n🏗️  Symbols Summary")
+        display_message("=" * 50)
 
         symbol_types = @data[:symbols].group_by { |s| s[:kind] }
 
         symbol_types.each do |type, symbols|
-          puts "#{type.capitalize}: #{symbols.length}"
+          display_message("#{type.capitalize}: #{symbols.length}")
         end
       end
 
       def show_imports(format)
-        return puts "No imports data available" unless @data[:imports]&.any?
+        return display_message("No imports data available") unless @data[:imports]&.any?
 
         case format
         when "json"
-          puts JSON.pretty_generate(@data[:imports])
+          display_message(JSON.pretty_generate(@data[:imports]))
         when "table"
           show_imports_table
         else
@@ -342,8 +359,8 @@ module Aidp
       end
 
       def show_imports_table
-        puts "\n📦 Imports"
-        puts "=" * 80
+        display_message("\n📦 Imports")
+        display_message("=" * 80)
 
         create_table(
           ["Type", "Target", "File", "Line"],
@@ -359,18 +376,18 @@ module Aidp
       end
 
       def show_imports_summary
-        puts "\n📦 Imports Summary"
-        puts "=" * 50
+        display_message("\n📦 Imports Summary")
+        display_message("=" * 50)
 
         import_types = @data[:imports].group_by { |i| i[:kind] }
 
         import_types.each do |type, imports|
-          puts "#{type.capitalize}: #{imports.length}"
+          display_message("#{type.capitalize}: #{imports.length}")
         end
       end
 
       def generate_import_graph(format, output)
-        puts "Generating import graph in #{format} format..."
+        display_message("Generating import graph in #{format} format...")
 
         case format
         when "dot"
@@ -380,7 +397,7 @@ module Aidp
         when "json"
           generate_json_graph(output)
         else
-          puts "Unsupported graph format: #{format}"
+          display_message("Unsupported graph format: #{format}")
         end
       end
 
@@ -399,9 +416,9 @@ module Aidp
 
         if output
           File.write(output, content.join("\n"))
-          puts "Graph written to #{output}"
+          display_message("Graph written to #{output}")
         else
-          puts content.join("\n")
+          display_message(content.join("\n"))
         end
       end
 
@@ -416,9 +433,9 @@ module Aidp
 
         if output
           File.write(output, content.join("\n"))
-          puts "Graph written to #{output}"
+          display_message("Graph written to #{output}")
         else
-          puts content.join("\n")
+          display_message(content.join("\n"))
         end
       end
 
@@ -447,20 +464,20 @@ module Aidp
 
         if output
           File.write(output, JSON.pretty_generate(graph_data))
-          puts "Graph written to #{output}"
+          display_message("Graph written to #{output}")
         else
-          puts JSON.pretty_generate(graph_data)
+          display_message(JSON.pretty_generate(graph_data))
         end
       end
 
       def generate_call_graph(_format, _output)
         # Similar to import graph but for method calls
-        puts "Call graph generation not yet implemented"
+        display_message("Call graph generation not yet implemented")
       end
 
       def generate_cycle_graph(_format, _output)
         # Generate graph showing only the cycles
-        puts "Cycle graph generation not yet implemented"
+        display_message("Cycle graph generation not yet implemented")
       end
 
       def count_files

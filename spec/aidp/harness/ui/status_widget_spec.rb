@@ -2,53 +2,55 @@
 
 require "spec_helper"
 require_relative "../../../../lib/aidp/harness/ui/status_widget"
+require_relative "../../../support/test_prompt"
 
 RSpec.describe Aidp::Harness::UI::StatusWidget do
-  let(:status_widget) { described_class.new }
+  let(:test_prompt) { TestPrompt.new }
+  let(:status_widget) { described_class.new({output: test_prompt}) }
   let(:sample_status_data) { build_sample_status_data }
 
   describe "#display_status" do
     context "when displaying loading status" do
       it "shows loading spinner with message" do
-        expect { status_widget.display_status(:loading, "Processing...") }
-          .to output(/Processing/).to_stdout
+        status_widget.display_status(:loading, "Processing...")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Processing/) }).to be true
       end
 
       it "includes loading indicator" do
-        expect { status_widget.display_status(:loading, "Loading data") }
-          .to output(/⏳/).to_stdout
+        status_widget.display_status(:loading, "Loading data")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/⏳/) }).to be true
       end
     end
 
     context "when displaying success status" do
       it "shows success message with checkmark" do
-        expect { status_widget.display_status(:success, "Completed successfully") }
-          .to output(/✅/).to_stdout
+        status_widget.display_status(:success, "Completed successfully")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/✅/) }).to be true
       end
 
       it "includes success message" do
-        expect { status_widget.display_status(:success, "Task completed") }
-          .to output(/Task completed/).to_stdout
+        status_widget.display_status(:success, "Task completed")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Task completed/) }).to be true
       end
     end
 
     context "when displaying error status" do
       it "shows error message with X mark" do
-        expect { status_widget.display_status(:error, "Something went wrong") }
-          .to output(/❌/).to_stdout
+        status_widget.display_status(:error, "Something went wrong")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/❌/) }).to be true
       end
 
       it "includes error details when provided" do
         error_data = {message: "Connection failed", code: 500}
-        expect { status_widget.display_status(:error, "Error occurred", error_data) }
-          .to output(/Connection failed/).to_stdout
+        status_widget.display_status(:error, "Error occurred", error_data)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Connection failed/) }).to be true
       end
     end
 
     context "when displaying warning status" do
       it "shows warning message with warning icon" do
-        expect { status_widget.display_status(:warning, "Please check configuration") }
-          .to output(/⚠️/).to_stdout
+        status_widget.display_status(:warning, "Please check configuration")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/⚠️/) }).to be true
       end
     end
 
@@ -135,13 +137,13 @@ RSpec.describe Aidp::Harness::UI::StatusWidget do
   describe "#display_status_with_duration" do
     context "when displaying status with duration" do
       it "shows status with time information" do
-        expect { status_widget.display_status_with_duration(:success, "Completed", 5.5) }
-          .to output(/5\.5s/).to_stdout
+        status_widget.display_status_with_duration(:success, "Completed", 5.5)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/5\.5s/) }).to be true
       end
 
       it "formats duration correctly" do
-        expect { status_widget.display_status_with_duration(:success, "Done", 125.7) }
-          .to output(/2m 5s/).to_stdout
+        status_widget.display_status_with_duration(:success, "Done", 125.7)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/2m 5s/) }).to be true
       end
     end
   end
@@ -155,8 +157,9 @@ RSpec.describe Aidp::Harness::UI::StatusWidget do
           {type: :error, message: "Task 3 failed"}
         ]
 
-        expect { status_widget.display_multiple_status(status_items) }
-          .to output(/Task 1 completed.*Task 2 in progress.*Task 3 failed/m).to_stdout
+        status_widget.display_multiple_status(status_items)
+        message_texts = test_prompt.messages.map { |m| m[:message] }
+        expect(message_texts.join(" ")).to match(/Task 1 completed.*Task 2 in progress.*Task 3 failed/m)
       end
     end
 

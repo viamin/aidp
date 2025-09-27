@@ -27,6 +27,7 @@ module Aidp
           @status_manager = ui_components[:status_manager] || StatusManager.new
           @frame_manager = ui_components[:frame_manager] || FrameManager.new
           @formatter = ui_components[:formatter] || WorkflowControllerFormatter.new
+          @output = ui_components[:output]
 
           @current_state = :running
           @state_history = []
@@ -187,7 +188,22 @@ module Aidp
           @control_thread = nil
         end
 
+        # Testing helper method to set state
+        def set_state_for_testing(state)
+          @control_mutex.synchronize do
+            @current_state = state
+          end
+        end
+
         private
+
+        def display_message(message)
+          if @output
+            @output.say(message)
+          else
+            puts message
+          end
+        end
 
         def validate_state_transition(action)
           case action
@@ -229,19 +245,19 @@ module Aidp
         end
 
         def display_status_info(status)
-          puts("Current State: #{@formatter.format_state(status[:state])}")
-          puts("State Name: #{status[:state_name]}")
+          display_message("Current State: #{@formatter.format_state(status[:state])}")
+          display_message("State Name: #{status[:state_name]}")
 
           if status[:pause_time]
-            puts("Paused Since: #{status[:pause_time]}")
+            display_message("Paused Since: #{status[:pause_time]}")
           end
 
-          puts("\nAvailable Actions:")
-          puts("  Pause: #{status[:can_pause] ? "Yes" : "No"}")
-          puts("  Resume: #{status[:can_resume] ? "Yes" : "No"}")
-          puts("  Cancel: #{status[:can_cancel] ? "Yes" : "No"}")
-          puts("  Stop: #{status[:can_stop] ? "Yes" : "No"}")
-          puts("  Complete: #{status[:can_complete] ? "Yes" : "No"}")
+          display_message("\nAvailable Actions:")
+          display_message("  Pause: #{status[:can_pause] ? "Yes" : "No"}")
+          display_message("  Resume: #{status[:can_resume] ? "Yes" : "No"}")
+          display_message("  Cancel: #{status[:can_cancel] ? "Yes" : "No"}")
+          display_message("  Stop: #{status[:can_stop] ? "Yes" : "No"}")
+          display_message("  Complete: #{status[:can_complete] ? "Yes" : "No"}")
         end
 
         def control_interface_loop

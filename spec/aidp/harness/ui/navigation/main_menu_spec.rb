@@ -2,40 +2,43 @@
 
 require "spec_helper"
 require_relative "../../../../../lib/aidp/harness/ui/navigation/main_menu"
+require_relative "../../../../support/test_prompt"
 
 RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
-  let(:main_menu) { described_class.new }
+  let(:test_prompt) { TestPrompt.new }
+  let(:main_menu) { described_class.new({prompt: test_prompt, output: test_prompt}) }
   let(:sample_menu_items) { build_sample_menu_items }
 
   describe "#display_menu" do
     context "when displaying main menu" do
       it "shows menu with correct title" do
-        expect { main_menu.display_menu("Test Menu", sample_menu_items) }
-          .to output(/Test Menu/).to_stdout
+        main_menu.display_menu("Test Menu", sample_menu_items)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Test Menu/) }).to be true
       end
 
       it "displays all menu items" do
-        expect { main_menu.display_menu("Test Menu", sample_menu_items) }
-          .to output(/Option 1.*Option 2/m).to_stdout
+        main_menu.display_menu("Test Menu", sample_menu_items)
+        message_texts = test_prompt.messages.map { |m| m[:message] }
+        expect(message_texts.join(" ")).to match(/Option 1.*Option 2/m)
       end
 
       it "includes navigation instructions" do
-        expect { main_menu.display_menu("Test Menu", sample_menu_items) }
-          .to output(/Use arrow keys/).to_stdout
+        main_menu.display_menu("Test Menu", sample_menu_items)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Use arrow keys/) }).to be true
       end
     end
 
     context "when menu items are empty" do
       it "displays empty menu message" do
-        expect { main_menu.display_menu("Empty Menu", []) }
-          .to output(/No options available/).to_stdout
+        main_menu.display_menu("Empty Menu", [])
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/No options available/) }).to be true
       end
     end
 
     context "when menu title is nil" do
       it "uses default title" do
-        expect { main_menu.display_menu(nil, sample_menu_items) }
-          .to output(/Main Menu/).to_stdout
+        main_menu.display_menu(nil, sample_menu_items)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Main Menu/) }).to be true
       end
     end
   end
@@ -43,7 +46,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
   describe "#select_option" do
     context "when valid option is selected" do
       it "returns selected option" do
-        allow(main_menu).to receive(:get_user_input).and_return("1")
+        test_prompt.responses[:ask] = "1"
 
         result = main_menu.select_option(sample_menu_items)
 
@@ -51,7 +54,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
       end
 
       it "handles numeric selection" do
-        allow(main_menu).to receive(:get_user_input).and_return("2")
+        test_prompt.responses[:ask] = "2"
 
         result = main_menu.select_option(sample_menu_items)
 
@@ -61,7 +64,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
     context "when invalid option is selected" do
       it "prompts for valid selection" do
-        allow(main_menu).to receive(:get_user_input).and_return("99", "1")
+        test_prompt.responses[:ask] = ["99", "1"]
 
         result = main_menu.select_option(sample_menu_items)
 
@@ -69,16 +72,16 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
       end
 
       it "shows error message for invalid selection" do
-        allow(main_menu).to receive(:get_user_input).and_return("invalid", "1")
+        test_prompt.responses[:ask] = ["invalid", "1"]
 
-        expect { main_menu.select_option(sample_menu_items) }
-          .to output(/Invalid selection/).to_stdout
+        main_menu.select_option(sample_menu_items)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Invalid selection/) }).to be true
       end
     end
 
     context "when user cancels selection" do
       it "returns nil for cancel" do
-        allow(main_menu).to receive(:get_user_input).and_return("q")
+        test_prompt.responses[:ask] = "q"
 
         result = main_menu.select_option(sample_menu_items)
 
@@ -95,20 +98,21 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
       end
 
       it "displays breadcrumb navigation" do
-        expect { main_menu.display_breadcrumb }
-          .to output(/Section 1.*Subsection 1/m).to_stdout
+        main_menu.display_breadcrumb
+        message_texts = test_prompt.messages.map { |m| m[:message] }
+        expect(message_texts.join(" ")).to match(/Section 1.*Subsection 1/m)
       end
 
       it "includes breadcrumb separators" do
-        expect { main_menu.display_breadcrumb }
-          .to output(/>/).to_stdout
+        main_menu.display_breadcrumb
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/>/) }).to be true
       end
     end
 
     context "when no navigation history exists" do
       it "displays root breadcrumb" do
-        expect { main_menu.display_breadcrumb }
-          .to output(/Home/).to_stdout
+        main_menu.display_breadcrumb
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Home/) }).to be true
       end
     end
   end
@@ -244,13 +248,14 @@ RSpec.describe Aidp::Harness::UI::Navigation::MainMenu do
 
   describe "#display_navigation_help" do
     it "displays navigation help information" do
-      expect { main_menu.display_navigation_help }
-        .to output(/Navigation Help/).to_stdout
+      main_menu.display_navigation_help
+      expect(test_prompt.messages.any? { |msg| msg[:message].match(/Navigation Help/) }).to be true
     end
 
     it "includes keyboard shortcuts" do
-      expect { main_menu.display_navigation_help }
-        .to output(/arrow keys.*Enter.*Escape/m).to_stdout
+      main_menu.display_navigation_help
+      message_texts = test_prompt.messages.map { |m| m[:message] }
+      expect(message_texts.join(" ")).to match(/arrow keys.*Enter.*Escape/m)
     end
   end
 

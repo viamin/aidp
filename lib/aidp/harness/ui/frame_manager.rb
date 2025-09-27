@@ -15,7 +15,8 @@ module Aidp
         def initialize(ui_components = {})
           super()
           @frame = ui_components[:frame] || TTY::Box
-          @formatter = ui_components[:formatter] || FrameFormatter.new
+          @formatter = ui_components[:formatter] || (defined?(FrameFormatter) ? FrameFormatter.new : nil)
+          @output = ui_components[:output]
           @frame_open = false
           @frame_stack = []
           @frame_history = []
@@ -25,6 +26,18 @@ module Aidp
             status_counts: Hash.new(0)
           }
         end
+
+        private
+
+        def display_message(message)
+          if @output
+            @output.say(message)
+          else
+            puts message
+          end
+        end
+
+        public
 
         def open_frame(frame_type, title, frame_data = nil, &block)
           validate_frame_type(frame_type)
@@ -45,9 +58,9 @@ module Aidp
 
           if block_given?
             content = yield
-            puts TTY::Box.frame(formatted_title, content, width: 80)
+            display_message(@frame.frame(formatted_title, content, width: 80))
           else
-            puts TTY::Box.frame(formatted_title, width: 80)
+            display_message(@frame.frame(formatted_title, width: 80))
           end
         rescue InvalidFrameError => e
           raise e
@@ -60,11 +73,18 @@ module Aidp
           validate_title(title)
           raise DisplayError, "No parent frame exists for nesting" if @frame_stack.empty?
 
-          formatted_title = @formatter.format_frame_title(frame_type, title, frame_data)
+          formatted_title = @formatter ? @formatter.format_frame_title(frame_type, title, frame_data) : title.to_s
           @frame_stack.push({type: frame_type, title: title, data: frame_data})
-          puts TTY::Box.frame(formatted_title, width: 80) do
-            yield if block_given?
+
+          frame_result = @frame.frame(formatted_title, width: 80) do
+            if block_given?
+              yield || ""
+            else
+              ""
+            end
           end
+
+          display_message(frame_result)
         rescue InvalidFrameError => e
           raise e
         rescue => e
@@ -98,7 +118,7 @@ module Aidp
           when :failed then "Failed"
           else status.to_s.capitalize
           end
-          puts "Status: #{status_text}"
+          display_message("Status: #{status_text}")
         end
 
         def current_frame_status
@@ -125,18 +145,18 @@ module Aidp
         end
 
         def display_frame_summary
-          puts "\n📊 Frame Summary"
-          puts "=" * 50
+          display_message("\n📊 Frame Summary")
+          display_message("=" * 50)
 
           if @frame_stats[:total_frames] == 0
-            puts "No frames used"
+            display_message("No frames used")
             return
           end
 
-          puts "Total Frames: #{@frame_stats[:total_frames]}"
+          display_message("Total Frames: #{@frame_stats[:total_frames]}")
 
           unless @frame_stats[:frame_types].empty?
-            puts "\nFrame Types:"
+            display_message("\nFrame Types:")
             @frame_stats[:frame_types].each do |type, count|
               emoji = case type
               when :section then "📋"
@@ -145,12 +165,12 @@ module Aidp
               when :step then "🔧"
               else "📋"
               end
-              puts "  #{emoji} #{type.to_s.capitalize}: #{count}"
+              display_message("  #{emoji} #{type.to_s.capitalize}: #{count}")
             end
           end
 
           unless @frame_stats[:status_counts].empty?
-            puts "\nStatus Counts:"
+            display_message("\nStatus Counts:")
             @frame_stats[:status_counts].each do |status, count|
               status_emoji = case status
               when :running then "🔄"
@@ -158,12 +178,12 @@ module Aidp
               when :failed then "❌"
               else "❓"
               end
-              puts "  #{status_emoji} #{status.to_s.capitalize}: #{count}"
+              display_message("  #{status_emoji} #{status.to_s.capitalize}: #{count}")
             end
           end
 
-          puts "\nCurrent Frame Depth: #{@frame_depth}"
-          puts "Frames in History: #{@frame_history.length}"
+          display_message("\nCurrent Frame Depth: #{@frame_depth}")
+          display_message("Frames in History: #{@frame_history.length}")
         end
 
         def clear_frame_history
@@ -182,13 +202,13 @@ module Aidp
           validate_title(title)
           raise ArgumentError, "Block required for frame_with_block" unless block_given?
 
-          formatted_title = @formatter.format_frame_title(frame_type, title, frame_data)
+          formatted_title = @formatter ? @formatter.format_frame_title(frame_type, title, frame_data) : title.to_s
           @frame_open = true
           @frame_stack.push({type: frame_type, title: title, data: frame_data})
 
           begin
             content = yield
-            puts TTY::Box.frame(formatted_title, content, width: 80)
+            display_message(@frame.frame(formatted_title, content, width: 80))
 
             @frame_open = false
             @frame_stack.pop unless @frame_stack.empty?
@@ -207,7 +227,7 @@ module Aidp
         def divider(text)
           validate_text(text)
 
-          formatted_text = @formatter.format_divider_text(text)
+          formatted_text = @formatter ? @formatter.format_divider_text(text) : text
           @frame.divider(formatted_text)
         rescue => e
           raise DisplayError, "Failed to create divider: #{e.message}"
@@ -216,12 +236,12 @@ module Aidp
         def section(title, &block)
           validate_title(title)
 
-          formatted_title = @formatter.format_section_title(title)
+          formatted_title = @formatter ? @formatter.format_section_title(title) : "📋 #{title}"
           if block_given?
             content = yield
-            puts TTY::Box.frame(formatted_title, content, width: 80)
+            display_message(@frame.frame(formatted_title, content, width: 80))
           else
-            puts TTY::Box.frame(formatted_title, width: 80)
+            display_message(@frame.frame(formatted_title, width: 80))
           end
         rescue => e
           raise DisplayError, "Failed to create section: #{e.message}"
@@ -230,10 +250,10 @@ module Aidp
         def subsection(title, &block)
           validate_title(title)
 
-          formatted_title = @formatter.format_subsection_title(title)
-          puts TTY::Box.frame(formatted_title, width: 80) do
+          formatted_title = @formatter ? @formatter.format_subsection_title(title) : "📝 #{title}"
+          display_message(@frame.frame(formatted_title, width: 80) do
             yield if block_given?
-          end
+          end)
         rescue => e
           raise DisplayError, "Failed to create subsection: #{e.message}"
         end
@@ -241,10 +261,10 @@ module Aidp
         def workflow_frame(workflow_name, &block)
           validate_workflow_name(workflow_name)
 
-          formatted_title = @formatter.format_workflow_title(workflow_name)
-          puts TTY::Box.frame(formatted_title, width: 80) do
+          formatted_title = @formatter ? @formatter.format_workflow_title(workflow_name) : "⚙️ #{workflow_name}"
+          display_message(@frame.frame(formatted_title, width: 80) do
             yield if block_given?
-          end
+          end)
         rescue => e
           raise DisplayError, "Failed to create workflow frame: #{e.message}"
         end
@@ -252,10 +272,10 @@ module Aidp
         def step_frame(step_name, step_number, total_steps, &block)
           validate_step_inputs(step_name, step_number, total_steps)
 
-          formatted_title = @formatter.format_step_title(step_name, step_number, total_steps)
-          puts TTY::Box.frame(formatted_title, width: 80) do
+          formatted_title = @formatter ? @formatter.format_step_title(step_name, step_number, total_steps) : "🔧 #{step_name} (#{step_number}/#{total_steps})"
+          display_message(@frame.frame(formatted_title, width: 80) do
             yield if block_given?
-          end
+          end)
         rescue => e
           raise DisplayError, "Failed to create step frame: #{e.message}"
         end

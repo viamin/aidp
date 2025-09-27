@@ -33,10 +33,10 @@ require_relative "aidp/analyze/steps"
 require_relative "aidp/analyze/progress"
 
 # Tree-sitter analysis
-require_relative "aidp/analysis/tree_sitter_grammar_loader"
-require_relative "aidp/analysis/seams"
-require_relative "aidp/analysis/tree_sitter_scan"
-require_relative "aidp/analysis/kb_inspector"
+require_relative "aidp/analyze/tree_sitter_grammar_loader"
+require_relative "aidp/analyze/seams"
+require_relative "aidp/analyze/tree_sitter_scan"
+require_relative "aidp/analyze/kb_inspector"
 
 # Execute mode
 require_relative "aidp/execute/steps"

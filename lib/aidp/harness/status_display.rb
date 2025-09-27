@@ -1,14 +1,17 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
+
 module Aidp
   module Harness
     # Real-time status updates and monitoring interface
     class StatusDisplay
-      def initialize(provider_manager = nil, metrics_manager = nil, circuit_breaker_manager = nil, error_logger = nil)
+      def initialize(provider_manager = nil, metrics_manager = nil, circuit_breaker_manager = nil, error_logger = nil, prompt: TTY::Prompt.new)
         @provider_manager = provider_manager
         @metrics_manager = metrics_manager
         @circuit_breaker_manager = circuit_breaker_manager
         @error_logger = error_logger
+        @prompt = prompt
 
         @start_time = nil
         @current_step = nil
@@ -36,6 +39,21 @@ module Aidp
         @metrics_calculator = MetricsCalculator.new
         @alert_manager = AlertManager.new
         @display_animator = DisplayAnimator.new
+      end
+
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+
+        @prompt.say(message, color: color)
       end
 
       # Start real-time status updates
@@ -177,61 +195,61 @@ module Aidp
       # Show paused status
       def show_paused_status
         clear_display
-        puts "\n⏸️  Harness PAUSED"
-        puts "   Press 'r' to resume, 's' to stop"
-        puts "   Current step: #{@current_step}" if @current_step
-        puts "   Current provider: #{@current_provider}" if @current_provider
-        puts "   Current model: #{@current_model}" if @current_model
-        puts "   Duration: #{format_duration(Time.now - @start_time)}" if @start_time
+        display_message("\n⏸️  Harness PAUSED", type: :warning)
+        display_message("   Press 'r' to resume, 's' to stop", type: :info)
+        display_message("   Current step: #{@current_step}", type: :info) if @current_step
+        display_message("   Current provider: #{@current_provider}", type: :info) if @current_provider
+        display_message("   Current model: #{@current_model}", type: :info) if @current_model
+        display_message("   Duration: #{format_duration(Time.now - @start_time)}", type: :info) if @start_time
       end
 
       # Show resumed status
       def show_resumed_status
         clear_display
-        puts "\n▶️  Harness RESUMED"
-        puts "   Continuing execution..."
+        display_message("\n▶️  Harness RESUMED", type: :success)
+        display_message("   Continuing execution...", type: :info)
       end
 
       # Show stopped status
       def show_stopped_status
         clear_display
-        puts "\n⏹️  Harness STOPPED"
-        puts "   Execution terminated by user"
+        display_message("\n⏹️  Harness STOPPED", type: :error)
+        display_message("   Execution terminated by user", type: :info)
       end
 
       # Show rate limit wait
       def show_rate_limit_wait(reset_time)
         clear_display
         remaining = reset_time - Time.now
-        puts "\n🚫 Rate limit reached"
-        puts "   Waiting for reset at #{reset_time.strftime("%H:%M:%S")}"
-        puts "   Remaining: #{format_duration(remaining)}"
-        puts "   Press Ctrl+C to cancel"
+        display_message("\n🚫 Rate limit reached", type: :error)
+        display_message("   Waiting for reset at #{reset_time.strftime("%H:%M:%S")}", type: :info)
+        display_message("   Remaining: #{format_duration(remaining)}", type: :info)
+        display_message("   Press Ctrl+C to cancel", type: :info)
       end
 
       # Update rate limit countdown
       def update_rate_limit_countdown(remaining_seconds)
         clear_display
-        puts "\n🚫 Rate limit - waiting..."
-        puts "   Resets in: #{format_duration(remaining_seconds)}"
-        puts "   Press Ctrl+C to cancel"
+        display_message("\n🚫 Rate limit - waiting...", type: :warning)
+        display_message("   Resets in: #{format_duration(remaining_seconds)}", type: :info)
+        display_message("   Press Ctrl+C to cancel", type: :info)
       end
 
       # Show completion status
       def show_completion_status(duration, steps_completed, total_steps)
         clear_display
-        puts "\n✅ Harness COMPLETED"
-        puts "   Duration: #{format_duration(duration)}"
-        puts "   Steps completed: #{steps_completed}/#{total_steps}"
-        puts "   All workflows finished successfully!"
+        display_message("\n✅ Harness COMPLETED", type: :success)
+        display_message("   Duration: #{format_duration(duration)}", type: :info)
+        display_message("   Steps completed: #{steps_completed}/#{total_steps}", type: :info)
+        display_message("   All workflows finished successfully!", type: :success)
       end
 
       # Show error status
       def show_error_status(error_message)
         clear_display
-        puts "\n❌ Harness ERROR"
-        puts "   Error: #{error_message}"
-        puts "   Check logs for details"
+        display_message("\n❌ Harness ERROR", type: :error)
+        display_message("   Error: #{error_message}", type: :error)
+        display_message("   Check logs for details", type: :info)
       end
 
       # Cleanup display
@@ -368,47 +386,47 @@ module Aidp
       def display_compact_status
         duration = @start_time ? Time.now - @start_time : 0
 
-        puts "\n🔄 Harness Status"
-        puts "   Duration: #{format_duration(duration)}"
-        puts "   Step: #{@current_step || "Starting..."}"
-        puts "   Provider: #{@current_provider || "Initializing..."}"
-        puts "   Model: #{@current_model || "N/A"}"
-        puts "   Status: Running"
+        display_message("\n🔄 Harness Status", type: :info)
+        display_message("   Duration: #{format_duration(duration)}", type: :info)
+        display_message("   Step: #{@current_step || "Starting..."}", type: :info)
+        display_message("   Provider: #{@current_provider || "Initializing..."}", type: :info)
+        display_message("   Model: #{@current_model || "N/A"}", type: :info)
+        display_message("   Status: Running", type: :info)
 
         # Show key metrics
         if @performance_metrics[:error_rate] && @performance_metrics[:error_rate] > 0
-          puts "   Error Rate: #{format_percentage(@performance_metrics[:error_rate])}"
+          display_message("   Error Rate: #{format_percentage(@performance_metrics[:error_rate])}", type: :warning)
         end
 
         if @token_usage[@current_provider] && @token_usage[@current_provider][@current_model]
           tokens = @token_usage[@current_provider][@current_model]
-          puts "   Tokens: #{tokens[:used]} used"
-          puts "   Remaining: #{tokens[:remaining]}" if tokens[:remaining]
+          display_message("   Tokens: #{tokens[:used]} used", type: :info)
+          display_message("   Remaining: #{tokens[:remaining]}", type: :info) if tokens[:remaining]
         end
 
-        puts "   Press Ctrl+C to stop"
+        display_message("   Press Ctrl+C to stop", type: :info)
       end
 
       def display_detailed_status
         duration = @start_time ? Time.now - @start_time : 0
 
-        puts "\n🔄 Harness Status - Detailed"
-        puts "   Duration: #{format_duration(duration)}"
-        puts "   Current Step: #{@current_step || "Starting..."}"
-        puts "   Provider: #{@current_provider || "Initializing..."}"
-        puts "   Model: #{@current_model || "N/A"}"
-        puts "   Status: Running"
+        display_message("\n🔄 Harness Status - Detailed", type: :info)
+        display_message("   Duration: #{format_duration(duration)}", type: :info)
+        display_message("   Current Step: #{@current_step || "Starting..."}", type: :info)
+        display_message("   Provider: #{@current_provider || "Initializing..."}", type: :info)
+        display_message("   Model: #{@current_model || "N/A"}", type: :info)
+        display_message("   Status: Running", type: :info)
 
         # Provider information
         if @provider_status[:available_providers]
-          puts "   Available Providers: #{@provider_status[:available_providers].join(", ")}"
+          display_message("   Available Providers: #{@provider_status[:available_providers].join(", ")}", type: :info)
         end
 
         # Circuit breaker status
         if @circuit_breaker_status.any?
           open_circuits = @circuit_breaker_status.select { |_, status| status[:state] == :open }
           if open_circuits.any?
-            puts "   Open Circuit Breakers: #{open_circuits.keys.join(", ")}"
+            display_message("   Open Circuit Breakers: #{open_circuits.keys.join(", ")}", type: :warning)
           end
         end
 
@@ -417,22 +435,22 @@ module Aidp
 
         # Error summary
         if @error_summary[:error_summary] && @error_summary[:error_summary][:total_errors] > 0
-          puts "   Errors: #{@error_summary[:error_summary][:total_errors]} total"
+          display_message("   Errors: #{@error_summary[:error_summary][:total_errors]} total", type: :warning)
         end
 
-        puts "   Press Ctrl+C to stop"
+        display_message("   Press Ctrl+C to stop", type: :info)
       end
 
       def display_minimal_status
         duration = @start_time ? Time.now - @start_time : 0
-        puts "\r🔄 #{@current_step || "Starting"} | #{@current_provider || "Init"} | #{format_duration(duration)}"
+        display_message("\r🔄 #{@current_step || "Starting"} | #{@current_provider || "Init"} | #{format_duration(duration)}", type: :info)
       end
 
       def display_full_status
         clear_display
-        puts "\n" + "=" * 80
-        puts "🔄 AIDP HARNESS - FULL STATUS REPORT"
-        puts "=" * 80
+        display_message("\n" + "=" * 80, type: :info)
+        display_message("🔄 AIDP HARNESS - FULL STATUS REPORT", type: :highlight)
+        display_message("=" * 80, type: :info)
 
         display_basic_info
         display_provider_info
@@ -446,33 +464,33 @@ module Aidp
         display_work_completion_info
         display_alerts
 
-        puts "=" * 80
-        puts "Press Ctrl+C to stop | Last updated: #{Time.now.strftime("%H:%M:%S")}"
+        display_message("=" * 80, type: :info)
+        display_message("Press Ctrl+C to stop | Last updated: #{Time.now.strftime("%H:%M:%S")}", type: :muted)
       end
 
       def display_basic_info
         duration = @start_time ? Time.now - @start_time : 0
 
-        puts "\n📊 BASIC INFORMATION"
-        puts "   Duration: #{format_duration(duration)}"
-        puts "   Current Step: #{@current_step || "Starting..."}"
-        puts "   Provider: #{@current_provider || "Initializing..."}"
-        puts "   Model: #{@current_model || "N/A"}"
-        puts "   Status: Running"
-        puts "   Update Interval: #{@update_interval}s"
+        display_message("\n📊 BASIC INFORMATION", type: :info)
+        display_message("   Duration: #{format_duration(duration)}", type: :info)
+        display_message("   Current Step: #{@current_step || "Starting..."}", type: :info)
+        display_message("   Provider: #{@current_provider || "Initializing..."}", type: :info)
+        display_message("   Model: #{@current_model || "N/A"}", type: :info)
+        display_message("   Status: Running", type: :info)
+        display_message("   Update Interval: #{@update_interval}s", type: :info)
       end
 
       def display_provider_info
         return unless @provider_status.any?
 
-        puts "\n🔌 PROVIDER INFORMATION"
+        display_message("\n🔌 PROVIDER INFORMATION", type: :info)
         if @provider_status[:available_providers]
-          puts "   Available Providers: #{@provider_status[:available_providers].join(", ")}"
+          display_message("   Available Providers: #{@provider_status[:available_providers].join(", ")}", type: :info)
         end
         if @provider_status[:provider_health]
-          puts "   Provider Health:"
+          display_message("   Provider Health:", type: :info)
           @provider_status[:provider_health].each do |provider, health|
-            puts "     #{provider}: #{health[:status]} (#{format_percentage(health[:health_score])})"
+            display_message("     #{provider}: #{health[:status]} (#{format_percentage(health[:health_score])})", type: :info)
           end
         end
       end
@@ -480,11 +498,11 @@ module Aidp
       def display_token_info
         return unless @token_usage.any?
 
-        puts "\n🎫 TOKEN USAGE"
+        display_message("\n🎫 TOKEN USAGE", type: :info)
         @token_usage.each do |provider, models|
-          puts "   #{provider}:"
+          display_message("   #{provider}:", type: :info)
           models.each do |model, usage|
-            puts "     #{model}: #{usage[:used]} used, #{usage[:remaining]} remaining"
+            display_message("     #{model}: #{usage[:used]} used, #{usage[:remaining]} remaining", type: :info)
           end
         end
       end
@@ -492,14 +510,14 @@ module Aidp
       def display_performance_info
         return unless @performance_metrics.any?
 
-        puts "\n⚡ PERFORMANCE METRICS"
-        puts "   Uptime: #{format_duration(@performance_metrics[:uptime] || 0)}"
-        puts "   Step Duration: #{format_duration(@performance_metrics[:step_duration] || 0)}"
-        puts "   Provider Switches: #{@performance_metrics[:provider_switch_count] || 0}"
-        puts "   Error Rate: #{format_percentage(@performance_metrics[:error_rate] || 0)}"
+        display_message("\n⚡ PERFORMANCE METRICS", type: :info)
+        display_message("   Uptime: #{format_duration(@performance_metrics[:uptime] || 0)}", type: :info)
+        display_message("   Step Duration: #{format_duration(@performance_metrics[:step_duration] || 0)}", type: :info)
+        display_message("   Provider Switches: #{@performance_metrics[:provider_switch_count] || 0}", type: :info)
+        display_message("   Error Rate: #{format_percentage(@performance_metrics[:error_rate] || 0)}", type: :info)
 
         if @performance_metrics[:throughput]
-          puts "   Throughput: #{@performance_metrics[:throughput]} requests/min"
+          display_message("   Throughput: #{@performance_metrics[:throughput]} requests/min", type: :info)
         end
       end
 
@@ -509,21 +527,21 @@ module Aidp
         error_summary = @error_summary[:error_summary]
         return if error_summary[:total_errors] == 0
 
-        puts "\n❌ ERROR INFORMATION"
-        puts "   Total Errors: #{error_summary[:total_errors]}"
-        puts "   Error Rate: #{format_percentage(error_summary[:error_rate] || 0)}"
+        display_message("\n❌ ERROR INFORMATION", type: :error)
+        display_message("   Total Errors: #{error_summary[:total_errors]}", type: :error)
+        display_message("   Error Rate: #{format_percentage(error_summary[:error_rate] || 0)}", type: :error)
 
         if error_summary[:errors_by_severity].respond_to?(:any?) && error_summary[:errors_by_severity].any?
-          puts "   By Severity:"
+          display_message("   By Severity:", type: :info)
           error_summary[:errors_by_severity].each do |severity, count|
-            puts "     #{severity}: #{count}"
+            display_message("     #{severity}: #{count}", type: :info)
           end
         end
 
         if error_summary[:errors_by_provider].respond_to?(:any?) && error_summary[:errors_by_provider].any?
-          puts "   By Provider:"
+          display_message("   By Provider:", type: :info)
           error_summary[:errors_by_provider].each do |provider, count|
-            puts "     #{provider}: #{count}"
+            display_message("     #{provider}: #{count}", type: :info)
           end
         end
       end
@@ -531,23 +549,23 @@ module Aidp
       def display_circuit_breaker_info
         return unless @circuit_breaker_status.any?
 
-        puts "\n🔒 CIRCUIT BREAKER STATUS"
+        display_message("\n🔒 CIRCUIT BREAKER STATUS", type: :info)
         @circuit_breaker_status.each do |key, status|
           state_icons = {closed: "🟢", open: "🔴", half_open: "🟡"}
           state_icon = state_icons[status[:state]] || "⚪"
-          puts "   #{state_icon} #{key}: #{status[:state]} (failures: #{status[:failure_count]})"
+          display_message("   #{state_icon} #{key}: #{status[:state]} (failures: #{status[:failure_count]})", type: :info)
         end
       end
 
       def display_token_usage
         return unless @token_usage.any?
 
-        puts "\n🎫 TOKEN USAGE"
+        display_message("\n🎫 TOKEN USAGE", type: :info)
         @token_usage.each do |provider, models|
-          puts "   #{provider}:"
+          display_message("   #{provider}:", type: :info)
           models.each do |model, usage|
-            puts "     #{model}: #{usage[:used]} used"
-            puts "       Remaining: #{usage[:remaining]}" if usage[:remaining]
+            display_message("     #{model}: #{usage[:used]} used", type: :info)
+            display_message("       Remaining: #{usage[:remaining]}", type: :info) if usage[:remaining]
           end
         end
       end
@@ -555,14 +573,14 @@ module Aidp
       def display_rate_limit_info
         return unless @rate_limit_status.any?
 
-        puts "\n🚫 RATE LIMIT STATUS"
+        display_message("\n🚫 RATE LIMIT STATUS", type: :warning)
         @rate_limit_status.each do |provider, models|
           models.each do |model, status|
             if status[:rate_limited]
-              puts "   #{provider}:#{model}: Rate Limited"
-              puts "     Reset Time: #{status[:reset_time]&.strftime("%H:%M:%S")}"
-              puts "     Retry After: #{status[:retry_after]}s"
-              puts "     Quota: #{status[:quota_remaining]}/#{status[:quota_limit]}" if status[:quota_remaining]
+              display_message("   #{provider}:#{model}: Rate Limited", type: :warning)
+              display_message("     Reset Time: #{status[:reset_time]&.strftime("%H:%M:%S")}", type: :info)
+              display_message("     Retry After: #{status[:retry_after]}s", type: :info)
+              display_message("     Quota: #{status[:quota_remaining]}/#{status[:quota_limit]}", type: :info) if status[:quota_remaining]
             end
           end
         end
@@ -571,12 +589,12 @@ module Aidp
       def display_recovery_info
         return unless @recovery_status.any?
 
-        puts "\n🔄 RECOVERY STATUS"
+        display_message("\n🔄 RECOVERY STATUS", type: :info)
         @recovery_status.each do |type, status|
-          puts "   #{type}: #{status[:status]}"
+          display_message("   #{type}: #{status[:status]}", type: :info)
           if status[:details].any?
             status[:details].each do |key, value|
-              puts "     #{key}: #{value}"
+              display_message("     #{key}: #{value}", type: :info)
             end
           end
         end
@@ -585,12 +603,12 @@ module Aidp
       def display_user_feedback_info
         return unless @user_feedback_status.any?
 
-        puts "\n💬 USER FEEDBACK STATUS"
+        display_message("\n💬 USER FEEDBACK STATUS", type: :info)
         @user_feedback_status.each do |type, status|
-          puts "   #{type}: #{status[:status]}"
+          display_message("   #{type}: #{status[:status]}", type: :info)
           if status[:details].any?
             status[:details].each do |key, value|
-              puts "     #{key}: #{value}"
+              display_message("     #{key}: #{value}", type: :info)
             end
           end
         end
@@ -599,24 +617,24 @@ module Aidp
       def display_work_completion_info
         return unless @work_completion_status.any?
 
-        puts "\n✅ WORK COMPLETION STATUS"
+        display_message("\n✅ WORK COMPLETION STATUS", type: :info)
         if @work_completion_status[:is_complete]
-          puts "   Status: Complete"
+          display_message("   Status: Complete", type: :success)
         else
-          puts "   Status: In Progress"
+          display_message("   Status: In Progress", type: :info)
         end
-        puts "   Steps Completed: #{@work_completion_status[:completed_steps]}/#{@work_completion_status[:total_steps]}"
+        display_message("   Steps Completed: #{@work_completion_status[:completed_steps]}/#{@work_completion_status[:total_steps]}", type: :info)
       end
 
       def display_alerts
         alerts = get_alerts
         return unless alerts.any?
 
-        puts "\n🚨 ALERTS"
+        display_message("\n🚨 ALERTS", type: :warning)
         alerts.each do |alert|
           severity_icons = {critical: "🔴", warning: "🟡", info: "🔵"}
           severity_icon = severity_icons[alert[:severity]] || "⚪"
-          puts "   #{severity_icon} #{alert[:message]}"
+          display_message("   #{severity_icon} #{alert[:message]}", type: :warning)
         end
       end
 
@@ -661,8 +679,8 @@ module Aidp
       end
 
       def handle_display_error(error)
-        puts "\n❌ Display Error: #{error.message}"
-        puts "   Continuing with status updates..."
+        display_message("\n❌ Display Error: #{error.message}", type: :error)
+        display_message("   Continuing with status updates...", type: :info)
       end
 
       def get_basic_status
@@ -739,7 +757,6 @@ module Aidp
       def clear_display
         # Clear the current line and move cursor to beginning
         print "\r" + " " * 80 + "\r"
-        $stdout.flush
       end
 
       def format_duration(seconds)

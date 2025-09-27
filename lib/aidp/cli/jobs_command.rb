@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
 require "tty-box"
 require "pastel"
 require "io/console"
@@ -10,8 +11,9 @@ require_relative "../storage/file_manager"
 module Aidp
   class CLI
     class JobsCommand
-      def initialize(input: $stdin, output: $stdout)
-        @io = TerminalIO.new(input, output)
+      def initialize(input: nil, output: nil, prompt: TTY::Prompt.new)
+        @io = TerminalIO.new(input: input, output: output)
+        @prompt = prompt
         @pastel = Pastel.new
         @running = true
         @view_mode = :list
@@ -21,18 +23,35 @@ module Aidp
         @screen_width = 80  # Default screen width
       end
 
+      private
+
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+        @prompt.say(message, color: color)
+      end
+
+      public
+
       def run
         # Simple harness jobs display
         jobs = fetch_harness_jobs
 
         if jobs.empty?
-          @io.puts "Harness Jobs"
-          @io.puts "-" * @screen_width
-          @io.puts
-          @io.puts "No harness jobs found"
-          @io.puts
-          @io.puts "Harness jobs are background tasks that run during harness mode."
-          @io.puts "They are stored as JSON files in the .aidp/harness_logs/ directory."
+          display_message("Harness Jobs", type: :info)
+          display_message("-" * @screen_width, type: :muted)
+          display_message("")
+          display_message("No harness jobs found", type: :info)
+          display_message("")
+          display_message("Harness jobs are background tasks that run during harness mode.", type: :info)
+          display_message("They are stored as JSON files in the .aidp/harness_logs/ directory.", type: :info)
         else
           render_harness_jobs(jobs)
         end
@@ -64,7 +83,7 @@ module Aidp
 
           jobs << job_info
         rescue JSON::ParserError => e
-          @io.puts "Warning: Could not parse harness log #{log_file}: #{e.message}" if ENV["AIDP_DEBUG"]
+          display_message("Warning: Could not parse harness log #{log_file}: #{e.message}", type: :warning) if ENV["AIDP_DEBUG"]
         end
 
         # Sort by creation time (newest first)
@@ -91,9 +110,9 @@ module Aidp
 
       # Render harness jobs in a simple table
       def render_harness_jobs(jobs)
-        @io.puts "Harness Jobs"
-        @io.puts "-" * @screen_width
-        @io.puts
+        display_message("Harness Jobs", type: :info)
+        display_message("-" * @screen_width, type: :muted)
+        display_message("")
 
         # Create job content for TTY::Box
         job_content = []
@@ -121,12 +140,12 @@ module Aidp
           border: :thick,
           padding: [1, 2]
         )
-        puts box
+        display_message(box)
 
-        @io.puts
-        @io.puts "Total: #{jobs.length} harness job(s)"
-        @io.puts
-        @io.puts "Note: Harness jobs are stored as JSON files in .aidp/harness_logs/"
+        display_message("")
+        display_message("Total: #{jobs.length} harness job(s)", type: :info)
+        display_message("")
+        display_message("Note: Harness jobs are stored as JSON files in .aidp/harness_logs/", type: :muted)
       end
 
       # Format timestamp for display

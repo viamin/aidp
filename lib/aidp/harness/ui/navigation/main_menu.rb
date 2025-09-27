@@ -23,6 +23,7 @@ module Aidp
             @pastel = Pastel.new
             @formatter = ui_components[:formatter] || MenuFormatter.new
             @state_manager = ui_components[:state_manager] || MenuState.new
+            @output = ui_components[:output]
             @menu_items = []
             @current_level = 0
             @breadcrumb = []
@@ -69,9 +70,9 @@ module Aidp
 
             # Add navigation instructions if items exist
             if menu_items.any?
-              puts "Use arrow keys to navigate, Enter to select"
+              display_message "Use arrow keys to navigate, Enter to select"
             else
-              puts "No options available"
+              display_message "No options available"
             end
           rescue => e
             raise NavigationError, "Failed to display menu: #{e.message}"
@@ -133,7 +134,7 @@ module Aidp
                 if index >= 0 && index < menu_items.length
                   return menu_items[index]
                 else
-                  puts "Invalid selection"
+                  display_message "Invalid selection"
                   next
                 end
               else
@@ -142,14 +143,14 @@ module Aidp
                 if selected_item
                   return selected_item
                 else
-                  puts "Invalid selection"
+                  display_message "Invalid selection"
                   next
                 end
               end
             end
 
             # If we get here, we've exceeded max attempts
-            puts "Too many invalid attempts. Returning first option."
+            display_message "Too many invalid attempts. Returning first option."
             menu_items.first
           end
 
@@ -194,10 +195,10 @@ module Aidp
           end
 
           def display_navigation_help
-            puts "Navigation Help"
-            puts "Use arrow keys to navigate"
-            puts "Press Enter to select"
-            puts "Press Escape to go back"
+            display_message "Navigation Help"
+            display_message "Use arrow keys to navigate"
+            display_message "Press Enter to select"
+            display_message "Press Escape to go back"
           end
 
           # Additional methods expected by tests
@@ -220,14 +221,22 @@ module Aidp
           # Make display_breadcrumb public for testing
           def display_breadcrumb
             if @breadcrumb.empty?
-              puts "Home"
+              display_message "Home"
             else
               breadcrumb_text = @formatter.format_breadcrumb(@breadcrumb)
-              puts(breadcrumb_text)
+              display_message(breadcrumb_text)
             end
           end
 
           private
+
+          def display_message(message)
+            if @output
+              @output.say(message)
+            else
+              puts message
+            end
+          end
 
           def validate_menu_item(item)
             raise InvalidMenuError, "Menu item must be a MenuItem" unless item.is_a?(MenuItem)
@@ -243,14 +252,14 @@ module Aidp
 
           def display_menu_header(title)
             formatted_title = @formatter.format_menu_title(title)
-            puts(formatted_title)
-            puts(@formatter.format_separator)
+            display_message(formatted_title)
+            display_message(@formatter.format_separator)
           end
 
           def display_menu_items
             @menu_items.each_with_index do |item, index|
               formatted_item = @formatter.format_menu_item(item, index + 1)
-              puts(formatted_item)
+              display_message(formatted_item)
             end
           end
 

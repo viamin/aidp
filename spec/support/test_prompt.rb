@@ -4,7 +4,7 @@
 # This provides a mock/spy implementation that records all interactions
 # for testing TTY::Prompt-based classes without actual user interaction.
 class TestPrompt
-  attr_reader :messages, :selections, :inputs
+  attr_reader :messages, :selections, :inputs, :responses
 
   def initialize(responses: {})
     @responses = responses
@@ -23,9 +23,35 @@ class TestPrompt
     @responses[:multi_select] || []
   end
 
-  def ask(message, **options)
+  def ask(message, **options, &block)
     @inputs << {message: message, options: options}
-    @responses[:ask] || ""
+
+    # Handle multiple responses by cycling through them
+    response = if @responses[:ask].is_a?(Array)
+      @responses[:ask][@inputs.length - 1] || @responses[:ask].last
+    else
+      @responses[:ask] || ""
+    end
+
+    # If a block is provided, simulate the conversion logic
+    if block
+      # Create a mock question object that can handle conversion
+      question_mock = Object.new
+      question_mock.define_singleton_method(:convert) do |type|
+        case type
+        when :int
+          response = response.to_i
+        when :float
+          response = response.to_f
+        end
+      end
+      question_mock.define_singleton_method(:validate) do |pattern, message|
+        # Skip validation for test purposes
+      end
+      block.call(question_mock)
+    end
+
+    response
   end
 
   def yes?(message, **options)
@@ -60,7 +86,7 @@ class TestPrompt
 
   def keypress(message, **options)
     @inputs << {message: message, options: options, type: :keypress}
-    @responses[:keypress] || ""
+    @responses[:keypress] || "\n"
   end
 
   # Additional methods that some classes might use

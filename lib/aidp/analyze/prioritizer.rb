@@ -1,14 +1,15 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
 require_relative "ruby_maat_integration"
 require_relative "feature_analyzer"
 
 module Aidp
   module Analyze
     class Prioritizer
-      def initialize(project_dir = Dir.pwd)
+      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new)
         @project_dir = project_dir
-        @code_maat = Aidp::Analyze::RubyMaatIntegration.new(project_dir)
+        @code_maat = Aidp::Analyze::RubyMaatIntegration.new(project_dir, prompt: prompt)
         @feature_analyzer = Aidp::Analyze::FeatureAnalyzer.new(project_dir)
       end
 

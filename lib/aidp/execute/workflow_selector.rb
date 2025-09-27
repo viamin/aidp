@@ -24,9 +24,24 @@ module Aidp
 
       private
 
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+
+        @prompt.say(message, color: color)
+      end
+
       def select_workflow_interactive
-        puts "\n🚀 Welcome to AI Dev Pipeline!"
-        puts "Let's set up your development workflow.\n\n"
+        display_message("\n🚀 Welcome to AI Dev Pipeline!", type: :highlight)
+        display_message("Let's set up your development workflow.\n\n")
 
         # Step 1: Collect project information
         collect_project_info
@@ -45,7 +60,7 @@ module Aidp
       end
 
       def select_workflow_with_defaults
-        puts "\n🚀 Starting harness with default workflow configuration..."
+        display_message("\n🚀 Starting harness with default workflow configuration...", type: :highlight)
 
         # Use default project information
         @user_input = {
@@ -71,7 +86,7 @@ module Aidp
       private
 
       def collect_project_info
-        puts "📋 First, tell us about your project:\n"
+        display_message("📋 First, tell us about your project:\n", type: :highlight)
 
         @user_input[:project_description] = prompt_required(
           "What do you want to build? (Be specific about features and goals)"
@@ -91,17 +106,17 @@ module Aidp
       end
 
       def choose_workflow_type
-        puts "\n🎯 Choose your development approach:\n"
-        puts "1. 🔬 Exploration/Experiment - Quick prototype or proof of concept"
-        puts "   • Fast iteration, minimal documentation"
-        puts "   • Focus on core functionality and validation"
-        puts "   • Steps: PRD → Tasks → Implementation"
-        puts ""
-        puts "2. 🏗️  Full Development - Production-ready feature or system"
-        puts "   • Comprehensive planning and documentation"
-        puts "   • You can customize which steps to include"
-        puts "   • Full enterprise workflow available"
-        puts ""
+        display_message("\n🎯 Choose your development approach:\n", type: :highlight)
+        display_message("1. 🔬 Exploration/Experiment - Quick prototype or proof of concept")
+        display_message("   • Fast iteration, minimal documentation", type: :muted)
+        display_message("   • Focus on core functionality and validation", type: :muted)
+        display_message("   • Steps: PRD → Tasks → Implementation", type: :muted)
+        display_message("")
+        display_message("2. 🏗️  Full Development - Production-ready feature or system")
+        display_message("   • Comprehensive planning and documentation", type: :muted)
+        display_message("   • You can customize which steps to include", type: :muted)
+        display_message("   • Full enterprise workflow available", type: :muted)
+        display_message("")
 
         choice = prompt_choice("Which approach fits your project?", ["1", "2", "exploration", "full"])
 
@@ -111,7 +126,7 @@ module Aidp
         when "2", "full"
           :full
         else
-          puts "Invalid choice. Defaulting to exploration workflow."
+          display_message("Invalid choice. Defaulting to exploration workflow.", type: :warning)
           :exploration
         end
       end
@@ -137,8 +152,8 @@ module Aidp
       end
 
       def full_workflow_steps
-        puts "\n🛠️ Customize your full development workflow:\n"
-        puts "Select the steps you want to include (enter numbers separated by commas):\n"
+        display_message("\n🛠️ Customize your full development workflow:\n", type: :highlight)
+        display_message("Select the steps you want to include (enter numbers separated by commas):\n")
 
         available_steps = {
           "1" => "00_PRD - Product Requirements Document",
@@ -155,8 +170,8 @@ module Aidp
           "12" => "13_DELIVERY_ROLLOUT - Deployment Planning"
         }
 
-        available_steps.each { |num, desc| puts "  #{num}. #{desc}" }
-        puts ""
+        available_steps.each { |num, desc| display_message("  #{num}. #{desc}") }
+        display_message("")
 
         selected = prompt_required("Enter step numbers (e.g., 1,3,5,9,10): ")
         selected_numbers = selected.split(",").map(&:strip).map(&:to_i)
@@ -193,7 +208,7 @@ module Aidp
           input = @prompt.ask("#{question}:")
 
           if input.nil? || input.strip.empty?
-            puts "❌ This field is required. Please provide an answer."
+            display_message("❌ This field is required. Please provide an answer.", type: :error)
             next
           end
 

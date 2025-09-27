@@ -10,38 +10,51 @@ module Aidp
     class FirstRunWizard
       TEMPLATES_DIR = File.expand_path(File.join(__dir__, "..", "..", "..", "templates"))
 
-      def self.ensure_config(project_dir, input: $stdin, output: $stdout, non_interactive: false, prompt: TTY::Prompt.new)
+      def self.ensure_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new)
         return true if Aidp::Config.config_exists?(project_dir)
 
-        wizard = new(project_dir, input: input, output: output, prompt: prompt)
+        wizard = new(project_dir, prompt: prompt)
 
-        if non_interactive || !input.tty? || !output.tty?
+        if non_interactive
           # Non-interactive environment - create minimal config silently
           path = wizard.send(:write_minimal_config, project_dir)
-          output.puts "Created minimal configuration at #{wizard.send(:relative, path)} (non-interactive default)"
+          wizard.send(:display_message, "Created minimal configuration at #{wizard.send(:relative, path)} (non-interactive default)", type: :success)
           return true
         end
 
         wizard.run
       end
 
-      def self.setup_config(project_dir, input: $stdin, output: $stdout, non_interactive: false, prompt: TTY::Prompt.new)
-        wizard = new(project_dir, input: input, output: output, prompt: prompt)
+      def self.setup_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new)
+        wizard = new(project_dir, prompt: prompt)
 
-        if non_interactive || !input.tty? || !output.tty?
+        if non_interactive
           # Non-interactive environment - skip setup
-          output.puts "Configuration setup skipped in non-interactive environment"
+          wizard.send(:display_message, "Configuration setup skipped in non-interactive environment", type: :info)
           return true
         end
 
         wizard.run_setup_config
       end
 
-      def initialize(project_dir, input: $stdin, output: $stdout, prompt: TTY::Prompt.new)
+      def initialize(project_dir, prompt: TTY::Prompt.new)
         @project_dir = project_dir
-        @input = input
-        @output = output
         @prompt = prompt
+      end
+
+      # Helper method for consistent message display using TTY::Prompt
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+
+        @prompt.say(message, color: color)
       end
 
       def run
@@ -51,10 +64,10 @@ module Aidp
           case choice
           when "1" then return finish(write_quick_config(@project_dir))
           when "2" then return finish(run_custom)
-          when "q", "Q" then @output.puts("Exiting without creating configuration.")
+          when "q", "Q" then display_message("Exiting without creating configuration.")
                              return false
           else
-            @output.puts "Invalid selection. Please choose one of the listed options."
+            display_message("Invalid selection. Please choose one of the listed options.", type: :warning)
           end
         end
       end
@@ -81,14 +94,14 @@ module Aidp
       private
 
       def banner
-        @output.puts "\n🚀 First-time setup detected"
-        @output.puts "No 'aidp.yml' configuration file found in #{relative(@project_dir)}."
-        @output.puts "Let's create one so you can start using AI Dev Pipeline."
-        @output.puts
+        display_message("\n🚀 First-time setup detected", type: :highlight)
+        display_message("No 'aidp.yml' configuration file found in #{relative(@project_dir)}.")
+        display_message("Let's create one so you can start using AI Dev Pipeline.")
+        display_message("")
       end
 
       def ask_choice
-        @output.puts "Choose a configuration style:" unless @asking
+        display_message("Choose a configuration style:") unless @asking
 
         options = {
           "Quick setup (cursor + macos, no API keys needed)" => "1",
@@ -101,11 +114,11 @@ module Aidp
 
       def finish(path)
         if path
-          @output.puts "\n✅ Configuration created at #{relative(path)}"
-          @output.puts "You can edit this file anytime. Continuing startup...\n"
+          display_message("\n✅ Configuration created at #{relative(path)}", type: :success)
+          display_message("You can edit this file anytime. Continuing startup...\n")
           true
         else
-          @output.puts "❌ Failed to create configuration file."
+          display_message("❌ Failed to create configuration file.", type: :error)
           false
         end
       end
@@ -113,7 +126,7 @@ module Aidp
       def copy_template(filename)
         src = File.join(TEMPLATES_DIR, filename)
         unless File.exist?(src)
-          @output.puts "Template not found: #{filename}"
+          display_message("Template not found: #{filename}", type: :error)
           return nil
         end
         dest = File.join(@project_dir, "aidp.yml")
@@ -310,14 +323,10 @@ module Aidp
 
       def ask(prompt, default: nil)
         if default
-          @output.print "#{prompt} [#{default}]: "
+          @prompt.ask("#{prompt}:", default: default)
         else
-          @output.print "#{prompt}: "
+          @prompt.ask("#{prompt}:")
         end
-        @output.flush
-        ans = @input.gets&.strip
-        return default if (ans.nil? || ans.empty?) && default
-        ans
       end
 
       def relative(path)

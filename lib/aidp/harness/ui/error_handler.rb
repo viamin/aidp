@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
 require "pastel"
 
 module Aidp
@@ -16,6 +17,7 @@ module Aidp
         def initialize(ui_components = {})
           @logger = ui_components[:logger] || default_logger
           @formatter = ui_components[:formatter] || ErrorFormatter.new
+          @prompt = ui_components[:prompt] || TTY::Prompt.new
         end
 
         def handle_error(error, context = {})
@@ -67,8 +69,7 @@ module Aidp
         end
 
         def display_user_friendly_error(message)
-          pastel = Pastel.new
-          puts("#{pastel.red("Error:")} #{message}")
+          @prompt.say("Error: #{message}", color: :red)
         end
 
         def display_generic_error(error)

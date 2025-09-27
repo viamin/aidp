@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
+
 module Aidp
   module Providers
     class Base
@@ -17,7 +19,7 @@ module Aidp
 
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name
 
-      def initialize
+      def initialize(output: nil, prompt: TTY::Prompt.new)
         @activity_state = :idle
         @last_activity_time = Time.now
         @start_time = nil
@@ -28,6 +30,8 @@ module Aidp
         @last_output_time = Time.now
         @job_context = nil
         @harness_context = nil
+        @output = output
+        @prompt = prompt
         @harness_metrics = {
           total_requests: 0,
           successful_requests: 0,
@@ -326,6 +330,21 @@ module Aidp
 
         # Weighted health score
         (success_rate * 50) + ((1 - rate_limit_ratio) * 30) + (response_time_score * 0.2)
+      end
+
+      private
+
+      def display_message(message, type: :info)
+        color = case type
+        when :error then :red
+        when :success then :green
+        when :warning then :yellow
+        when :info then :blue
+        when :highlight then :cyan
+        when :muted then :bright_black
+        else :white
+        end
+        @prompt.say(message, color: color)
       end
     end
   end

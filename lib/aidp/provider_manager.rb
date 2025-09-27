@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
 require_relative "harness/provider_factory"
 
 module Aidp
@@ -13,7 +14,8 @@ module Aidp
         end
 
         # Fallback to legacy method
-        create_legacy_provider(provider_type)
+        prompt = options[:prompt] || TTY::Prompt.new
+        create_legacy_provider(provider_type, prompt: prompt)
       end
 
       def load_from_config(config = {}, options = {})
@@ -132,18 +134,18 @@ module Aidp
 
       private
 
-      def create_legacy_provider(provider_type)
+      def create_legacy_provider(provider_type, prompt: TTY::Prompt.new)
         case provider_type
         when "cursor"
-          Aidp::Providers::Cursor.new
+          Aidp::Providers::Cursor.new(prompt: prompt)
         when "anthropic"
-          Aidp::Providers::Anthropic.new
+          Aidp::Providers::Anthropic.new(prompt: prompt)
         when "gemini"
-          Aidp::Providers::Gemini.new
+          Aidp::Providers::Gemini.new(prompt: prompt)
         when "macos_ui"
-          Aidp::Providers::MacOSUI.new
+          Aidp::Providers::MacOSUI.new(prompt: prompt)
         when "github_copilot"
-          Aidp::Providers::GithubCopilot.new
+          Aidp::Providers::GithubCopilot.new(prompt: prompt)
         end
       end
     end

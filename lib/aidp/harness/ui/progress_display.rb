@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "tty-progressbar"
+require "tty-prompt"
 require "pastel"
 require_relative "base"
 
@@ -24,7 +25,8 @@ module Aidp
           @auto_refresh_enabled = false
           @refresh_interval = 1.0
           @refresh_thread = nil
-          @output = ui_components[:output] || $stdout
+          @output = ui_components[:output]
+          @prompt = ui_components[:prompt] || TTY::Prompt.new
           @spinner_class = begin
             ui_components[:spinner] || TTY::Spinner
           rescue
@@ -115,7 +117,7 @@ module Aidp
           raise ArgumentError, "Progress items must be an array" unless progress_items.is_a?(Array)
 
           if progress_items.empty?
-            @output.puts @pastel.dim("No progress items to display.")
+            display_message(@pastel.dim("No progress items to display."), type: :muted)
             return
           end
 
@@ -199,7 +201,7 @@ module Aidp
             " (Step: #{progress_data[:current_step]})"
           task_id = progress_data[:id] ? "[#{progress_data[:id]}] " : ""
 
-          @output.puts "#{task_id}#{progress}% #{message}#{step_info}"
+          display_message("#{task_id}#{progress}% #{message}#{step_info}", type: :info)
         end
 
         def display_detailed_progress(progress_data)
@@ -210,13 +212,13 @@ module Aidp
           started_at = progress_data[:started_at] ? progress_data[:started_at].strftime("%H:%M:%S") : "N/A"
           eta = progress_data[:eta] || "N/A"
 
-          @output.puts "Progress: #{progress}% - #{message} (Step: #{current_step}/#{total_steps}, Started: #{started_at}, ETA: #{eta})"
+          display_message("Progress: #{progress}% - #{message} (Step: #{current_step}/#{total_steps}, Started: #{started_at}, ETA: #{eta})", type: :info)
         end
 
         def display_minimal_progress(progress_data)
           progress = progress_data[:progress] || 0
           message = progress_data[:message] || "Processing..."
-          @output.puts "#{@pastel.blue("Progress:")} #{progress}% - #{message}"
+          display_message("Progress: #{progress}% - #{message}", type: :info)
         end
 
         def create_progress_bar(progress)
@@ -250,6 +252,27 @@ module Aidp
             display_type: display_type,
             timestamp: Time.now
           }
+        end
+
+        private
+
+        def display_message(message, type: :info)
+          if @prompt
+            color = case type
+            when :error then :red
+            when :success then :green
+            when :warning then :yellow
+            when :info then :blue
+            when :highlight then :cyan
+            when :muted then :bright_black
+            else :white
+            end
+            @prompt.say(message, color: color)
+          elsif @output
+            @output.puts(message)
+          else
+            puts(message)
+          end
         end
       end
 

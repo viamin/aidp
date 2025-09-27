@@ -14,23 +14,20 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
     context "when config exists" do
       it "returns true and does nothing" do
         File.write(File.join(temp_dir, "aidp.yml"), "harness: {}\n")
-        out = StringIO.new
-        result = described_class.ensure_config(temp_dir, input: StringIO.new, output: out, prompt: test_prompt)
+        result = described_class.ensure_config(temp_dir, prompt: test_prompt)
         expect(result).to be true
-        expect(out.string).to eq("")
       end
     end
 
     context "non-interactive" do
       it "creates minimal config automatically" do
-        out = StringIO.new
-        result = described_class.ensure_config(temp_dir, input: StringIO.new, output: out, non_interactive: true, prompt: test_prompt)
+        result = described_class.ensure_config(temp_dir, non_interactive: true, prompt: test_prompt)
         expect(result).to be true
         config_path = File.join(temp_dir, "aidp.yml")
         expect(File.exist?(config_path)).to be true
         yaml = YAML.load_file(config_path)
         expect(yaml.dig(:harness, :default_provider) || yaml.dig("harness", "default_provider")).to eq("cursor")
-        expect(out.string).to include("Created minimal configuration")
+        expect(test_prompt.messages.any? { |msg| msg[:message].include?("Created minimal configuration") }).to be true
       end
     end
 

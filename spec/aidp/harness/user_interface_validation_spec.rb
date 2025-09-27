@@ -4,29 +4,10 @@ require "spec_helper"
 require "stringio"
 
 RSpec.describe Aidp::Harness::UserInterface do
-  let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:test_prompt) { TestPrompt.new }
   let(:ui) do
-    # Create a new instance and directly inject the mock prompt
-    ui_instance = described_class.new
-    # Replace the @prompt instance variable with our mock
-    ui_instance.instance_variable_set(:@prompt, mock_prompt)
-
-    # Set default stub behaviors to prevent hanging
-    allow(mock_prompt).to receive(:ask).and_return("")
-    allow(mock_prompt).to receive(:select).and_return("")
-    allow(mock_prompt).to receive(:keypress).and_return("")
-
-    ui_instance
-  end
-
-  # Helper method to capture stdout
-  def capture_stdout
-    old_stdout = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = old_stdout
+    # Use proper dependency injection via constructor
+    described_class.new(prompt: test_prompt)
   end
 
   describe "input validation and error handling" do
@@ -447,22 +428,14 @@ RSpec.describe Aidp::Harness::UserInterface do
           warnings: ["Local part is very long"]
         }
 
-        output = capture_stdout do
-          ui.display_validation_error(validation_result, "email")
-        end
-        expect(output).to match(/Validation Error/)
-        output = capture_stdout do
-          ui.display_validation_error(validation_result, "email")
-        end
-        expect(output).to match(/Invalid email format/)
-        output = capture_stdout do
-          ui.display_validation_error(validation_result, "email")
-        end
-        expect(output).to match(/Suggestions/)
-        output = capture_stdout do
-          ui.display_validation_error(validation_result, "email")
-        end
-        expect(output).to match(/Warnings/)
+        ui.display_validation_error(validation_result, "email")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Validation Error/) }).to be true
+        ui.display_validation_error(validation_result, "email")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Invalid email format/) }).to be true
+        ui.display_validation_error(validation_result, "email")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Suggestions/) }).to be true
+        ui.display_validation_error(validation_result, "email")
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Warnings/) }).to be true
       end
     end
 
@@ -475,15 +448,11 @@ RSpec.describe Aidp::Harness::UserInterface do
           warnings: ["This is a warning"]
         }
 
-        # Mock TTY::Prompt to return "fix" specifically for this call
-        # Note: The default stub from the let block returns "" so we need to override it
-        expect(mock_prompt).to receive(:ask).with("").and_return("fix")
+        # Configure TestPrompt to return "fix" for this test
+        test_prompt = TestPrompt.new(responses: {ask: "fix"})
+        ui = described_class.new(prompt: test_prompt)
 
-        result = nil
-        capture_stdout do
-          result = ui.display_validation_warnings(validation_result)
-        end
-
+        result = ui.display_validation_warnings(validation_result)
         expect(result).to be true
       end
 
@@ -505,9 +474,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         error = StandardError.new("Test error")
         question_data = {question: "Test question", type: "text"}
 
-        # Mock TTY::Prompt to return "1" (try again)
-        allow(mock_prompt).to receive(:select).and_return("1")
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        # Configure TestPrompt to return "1" (try again)
+        test_prompt = TestPrompt.new(responses: {select: "1", keypress: ""})
+        ui = described_class.new(prompt: test_prompt)
 
         result = ui.handle_input_error(error, question_data, 0)
         expect(result).to eq(:retry)
@@ -526,35 +495,27 @@ RSpec.describe Aidp::Harness::UserInterface do
       it "shows help for text questions" do
         question_data = {question: "What is your name?", type: "text"}
 
-        # Mock TTY::Prompt to return empty input
-        allow(mock_prompt).to receive(:ask).and_return("")
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        # Configure TestPrompt to return empty input
+        test_prompt = TestPrompt.new(responses: {ask: "", keypress: ""})
+        ui = described_class.new(prompt: test_prompt)
 
-        output = capture_stdout do
-          ui.show_question_help(question_data)
-        end
-        expect(output).to match(/Help for Text Question/)
-        output = capture_stdout do
-          ui.show_question_help(question_data)
-        end
-        expect(output).to match(/Enter any text response/)
+        ui.show_question_help(question_data)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Help for Text Question/) }).to be true
+        ui.show_question_help(question_data)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Enter any text response/) }).to be true
       end
 
       it "shows help for choice questions" do
         question_data = {question: "Choose an option:", type: "choice"}
 
-        # Mock TTY::Prompt to return empty input
-        allow(mock_prompt).to receive(:ask).and_return("")
-        allow(mock_prompt).to receive(:keypress).and_return("")
+        # Configure TestPrompt to return empty input
+        test_prompt = TestPrompt.new(responses: {ask: "", keypress: ""})
+        ui = described_class.new(prompt: test_prompt)
 
-        output = capture_stdout do
-          ui.show_question_help(question_data)
-        end
-        expect(output).to match(/Help for Choice Question/)
-        output = capture_stdout do
-          ui.show_question_help(question_data)
-        end
-        expect(output).to match(/Select from the numbered options/)
+        ui.show_question_help(question_data)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Help for Choice Question/) }).to be true
+        ui.show_question_help(question_data)
+        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Select from the numbered options/) }).to be true
       end
     end
   end
