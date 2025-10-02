@@ -146,6 +146,8 @@ module Aidp
           Aidp::Providers::MacOSUI.new(prompt: prompt)
         when "github_copilot"
           Aidp::Providers::GithubCopilot.new(prompt: prompt)
+        when "codex"
+          Aidp::Providers::Codex.new(prompt: prompt)
         end
       end
     end
