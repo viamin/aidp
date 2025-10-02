@@ -62,7 +62,7 @@ module Aidp
         loop do
           choice = ask_choice
           case choice
-          when "1" then return finish(write_quick_config(@project_dir))
+          when "1" then return finish(run_quick)
           when "2" then return finish(run_custom)
           when "q", "Q" then display_message("Exiting without creating configuration.")
                              return false
@@ -104,12 +104,12 @@ module Aidp
         display_message("Choose a configuration style:") unless @asking
 
         options = {
-          "Quick setup (cursor + macos, no API keys needed)" => "1",
+          "Quick setup (cursor only, no API keys needed)" => "1",
           "Custom setup (choose your own providers and settings)" => "2",
           "Quit" => "q"
         }
 
-        @prompt.select("Select an option:", options, default: "Quick setup (cursor + macos, no API keys needed)")
+        @prompt.select("Select an option:", options, default: "Quick setup (cursor only, no API keys needed)")
       end
 
       def finish(path)
@@ -155,6 +155,40 @@ module Aidp
         dest
       end
 
+      def run_quick
+        dest = File.join(@project_dir, "aidp.yml")
+        return dest if File.exist?(dest)
+
+        @prompt.say("Quick setup: choose your primary provider (no API keys required).")
+        @prompt.say("")
+
+        # Get available providers that don't require API keys
+        no_api_key_providers = ["cursor - Cursor AI (no API key required)", "codex - Codex CLI (no API key required)", "opencode - OpenCode (no API key required)"]
+
+        default_option = no_api_key_providers.first
+        selected_provider = @prompt.select("Primary provider?", no_api_key_providers, default: default_option)
+
+        # Extract just the provider name from the formatted string
+        provider_name = selected_provider.split(" - ").first
+
+        data = {
+          "harness" => {
+            "max_retries" => 2,
+            "default_provider" => provider_name,
+            "fallback_providers" => [provider_name],
+            "no_api_keys_required" => true
+          },
+          "providers" => {
+            provider_name => {
+              "type" => "subscription",
+              "default_flags" => []
+            }
+          }
+        }
+        File.write(dest, YAML.dump(data))
+        dest
+      end
+
       def write_quick_config(project_dir)
         dest = File.join(project_dir, "aidp.yml")
         return dest if File.exist?(dest)
@@ -162,16 +196,12 @@ module Aidp
           "harness" => {
             "max_retries" => 2,
             "default_provider" => "cursor",
-            "fallback_providers" => ["macos"],
+            "fallback_providers" => ["cursor"],
             "no_api_keys_required" => true
           },
           "providers" => {
             "cursor" => {
               "type" => "subscription",
-              "default_flags" => []
-            },
-            "macos" => {
-              "type" => "usage_based",
               "default_flags" => []
             }
           }
@@ -341,19 +371,19 @@ module Aidp
       # Get available providers for validation
       def get_available_providers
         # Define the available providers based on the system
-        available = ["cursor", "anthropic", "gemini", "macos", "opencode"]
+        available = ["cursor", "claude", "gemini", "codex", "opencode"]
 
         # Add descriptions for better UX
         available.map do |provider|
           case provider
           when "cursor"
             "cursor - Cursor AI (no API key required)"
-          when "anthropic"
-            "anthropic - Anthropic Claude (requires API key)"
+          when "claude"
+            "claude - Anthropic's Claude CLI (requires API key)"
           when "gemini"
             "gemini - Google Gemini (requires API key)"
-          when "macos"
-            "macos - macOS UI Automation (no API key required)"
+          when "codex"
+            "codex - Codex CLI (no API key required)"
           when "opencode"
             "opencode - OpenCode (no API key required)"
           else

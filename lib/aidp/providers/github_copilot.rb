@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "timeout"
+require "tty-spinner"
 require_relative "base"
 require_relative "../util"
 require_relative "../debug_mixin"
@@ -43,6 +44,10 @@ module Aidp
         setup_activity_monitoring("copilot", method(:activity_callback))
         record_activity("Starting copilot execution")
 
+        # Create a spinner for activity display
+        spinner = TTY::Spinner.new("[:spinner] :title", format: :dots, hide_cursor: true)
+        spinner.auto_spin
+
         # Start activity display thread with timeout
         activity_display_thread = Thread.new do
           start_time = Time.now
@@ -53,7 +58,7 @@ module Aidp
             # Break if we've been running too long or state changed
             break if elapsed > timeout_seconds || @activity_state == :completed || @activity_state == :failed
 
-            print_activity_status(elapsed)
+            update_spinner_status(spinner, elapsed, "GitHub Copilot CLI")
           end
         end
 
@@ -75,12 +80,14 @@ module Aidp
           # Stop activity display
           activity_display_thread.kill if activity_display_thread.alive?
           activity_display_thread.join(0.1) # Give it 100ms to finish
-          clear_activity_status
+          spinner.stop
 
           if result.exit_status == 0
+            spinner.success("✓")
             mark_completed
             result.out
           else
+            spinner.error("✗")
             mark_failed("copilot failed with exit code #{result.exit_status}")
             debug_error(StandardError.new("copilot failed"), {exit_code: result.exit_status, stderr: result.err})
             raise "copilot failed with exit code #{result.exit_status}: #{result.err}"
@@ -89,7 +96,7 @@ module Aidp
           # Stop activity display
           activity_display_thread.kill if activity_display_thread.alive?
           activity_display_thread.join(0.1) # Give it 100ms to finish
-          clear_activity_status
+          spinner.error("✗")
           mark_failed("copilot execution failed: #{e.message}")
           debug_error(e, {provider: "github_copilot", prompt_length: prompt.length})
           raise
@@ -179,21 +186,16 @@ module Aidp
         end
       end
 
-      def print_activity_status(elapsed)
-        # Print activity status during execution with elapsed time
+      def update_spinner_status(spinner, elapsed, provider_name)
+        # Update spinner title with elapsed time
         minutes = (elapsed / 60).to_i
         seconds = (elapsed % 60).to_i
 
         if minutes > 0
-          print "\r🤖 GitHub Copilot CLI is running... (#{minutes}m #{seconds}s)"
+          spinner.update(title: "🤖 #{provider_name} is running... (#{minutes}m #{seconds}s)")
         else
-          print "\r🤖 GitHub Copilot CLI is running... (#{seconds}s)"
+          spinner.update(title: "🤖 #{provider_name} is running... (#{seconds}s)")
         end
-      end
-
-      def clear_activity_status
-        # Clear the activity status line
-        print "\r" + " " * 60 + "\r"
       end
 
       def calculate_timeout
@@ -204,8 +206,8 @@ module Aidp
         # 4. Default timeout
 
         if ENV["AIDP_QUICK_MODE"]
-          display_message("⚡ Quick mode enabled - 2 minute timeout", type: :highlight)
-          return 120
+          display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
+          return TIMEOUT_QUICK_MODE
         end
 
         if ENV["AIDP_GITHUB_COPILOT_TIMEOUT"]
@@ -219,9 +221,9 @@ module Aidp
           return step_timeout
         end
 
-        # Default timeout (5 minutes for interactive use)
-        display_message("📋 Using default timeout: 5 minutes", type: :info)
-        300
+        # Default timeout
+        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
+        TIMEOUT_DEFAULT
       end
 
       def get_adaptive_timeout
@@ -230,19 +232,19 @@ module Aidp
 
         case step_name
         when /REPOSITORY_ANALYSIS/
-          180  # 3 minutes - repository analysis can be quick
+          TIMEOUT_REPOSITORY_ANALYSIS
         when /ARCHITECTURE_ANALYSIS/
-          600  # 10 minutes - architecture analysis needs more time
+          TIMEOUT_ARCHITECTURE_ANALYSIS
         when /TEST_ANALYSIS/
-          300  # 5 minutes - test analysis is moderate
+          TIMEOUT_TEST_ANALYSIS
         when /FUNCTIONALITY_ANALYSIS/
-          600  # 10 minutes - functionality analysis is complex
+          TIMEOUT_FUNCTIONALITY_ANALYSIS
         when /DOCUMENTATION_ANALYSIS/
-          300  # 5 minutes - documentation analysis is moderate
+          TIMEOUT_DOCUMENTATION_ANALYSIS
         when /STATIC_ANALYSIS/
-          450  # 7.5 minutes - static analysis can be intensive
+          TIMEOUT_STATIC_ANALYSIS
         when /REFACTORING_RECOMMENDATIONS/
-          600  # 10 minutes - refactoring recommendations are complex
+          TIMEOUT_REFACTORING_RECOMMENDATIONS
         else
           nil  # Use default
         end

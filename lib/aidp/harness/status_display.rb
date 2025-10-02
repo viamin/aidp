@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require "tty-cursor"
 
 module Aidp
   module Harness
@@ -12,6 +13,7 @@ module Aidp
         @circuit_breaker_manager = circuit_breaker_manager
         @error_logger = error_logger
         @prompt = prompt
+        @cursor = TTY::Cursor
 
         @start_time = nil
         @current_step = nil
@@ -755,8 +757,10 @@ module Aidp
       end
 
       def clear_display
-        # Clear the current line and move cursor to beginning
-        print "\r" + " " * 80 + "\r"
+        # Clear the current line using TTY::Cursor
+        $stderr.print @cursor.clear_line
+        $stderr.print @cursor.column(1)
+        $stderr.flush
       end
 
       def format_duration(seconds)
