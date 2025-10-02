@@ -59,9 +59,13 @@ aidp --help
 
 AIDP intelligently manages multiple providers with automatic switching:
 
-- **Claude API** - Primary provider for complex analysis and code generation
-- **Gemini API** - Cost-effective fallback for general tasks
+- **Anthropic Claude CLI** - Primary provider for complex analysis and code generation
+- **Codex CLI** - OpenAI's Codex command-line interface for code generation
 - **Cursor CLI** - IDE-integrated provider for code-specific tasks
+- **Gemini CLI** - Google's Gemini command-line interface for general tasks
+- **GitHub Copilot CLI** - GitHub's AI pair programmer command-line interface
+- **macOS UI** - macOS-specific UI automation provider
+- **OpenCode** - Alternative open-source code generation provider
 
 The TUI automatically switches providers when:
 
