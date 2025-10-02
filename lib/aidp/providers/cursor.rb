@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "timeout"
-require "tty-spinner"
 require_relative "base"
 require_relative "../util"
 require_relative "../debug_mixin"
@@ -46,7 +45,7 @@ module Aidp
             # Break if we've been running too long or state changed
             break if elapsed > timeout_seconds || @activity_state == :completed || @activity_state == :failed
 
-            update_spinner_status(spinner, elapsed, "cursor-agent")
+            update_spinner_status(spinner, elapsed, "🔄 cursor-agent")
           end
         end
 
@@ -91,18 +90,6 @@ module Aidp
       end
 
       private
-
-      def update_spinner_status(spinner, elapsed, provider_name)
-        # Update spinner title with elapsed time
-        minutes = (elapsed / 60).to_i
-        seconds = (elapsed % 60).to_i
-
-        if minutes > 0
-          spinner.update(title: "🔄 #{provider_name} is running... (#{minutes}m #{seconds}s)")
-        else
-          spinner.update(title: "🔄 #{provider_name} is running... (#{seconds}s)")
-        end
-      end
 
       def calculate_timeout
         # Priority order for timeout calculation:

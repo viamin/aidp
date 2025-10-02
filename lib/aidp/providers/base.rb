@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require "tty-spinner"
 
 module Aidp
   module Providers
@@ -342,6 +343,21 @@ module Aidp
 
         # Weighted health score
         (success_rate * 50) + ((1 - rate_limit_ratio) * 30) + (response_time_score * 0.2)
+      end
+
+      protected
+
+      # Update spinner status with elapsed time
+      # This is a shared method used by all providers to display progress
+      def update_spinner_status(spinner, elapsed, provider_name)
+        minutes = (elapsed / 60).to_i
+        seconds = (elapsed % 60).to_i
+
+        if minutes > 0
+          spinner.update(title: "#{provider_name} is running... (#{minutes}m #{seconds}s)")
+        else
+          spinner.update(title: "#{provider_name} is running... (#{seconds}s)")
+        end
       end
 
       private
