@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require "tty-cursor"
 
 module Aidp
   module Harness
@@ -10,6 +11,7 @@ module Aidp
         @input_history = []
         @file_selection_enabled = false
         @prompt = prompt
+        @cursor = TTY::Cursor
         @control_mutex = Mutex.new
         @pause_requested = false
         @stop_requested = false
@@ -1835,12 +1837,17 @@ module Aidp
 
       # Display progress message
       def show_progress(message)
-        print "\r#{message}".ljust(80)
+        $stderr.print @cursor.clear_line
+        $stderr.print @cursor.column(1)
+        $stderr.print message
+        $stderr.flush
       end
 
       # Clear progress message
       def clear_progress
-        print "\r" + " " * 80 + "\r"
+        $stderr.print @cursor.clear_line
+        $stderr.print @cursor.column(1)
+        $stderr.flush
       end
 
       # Get input history

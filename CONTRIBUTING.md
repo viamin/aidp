@@ -29,6 +29,11 @@ bundle exec standardrb --fix
 - **Mocking Rules**: Only mock external dependencies, never application code
 - **Ruby Conventions**: Follow StandardRB and Ruby best practices
 
+**For LLM/AI-assisted development**, see the [LLM Style Cheat Sheet](docs/LLM_STYLE_GUIDE.md) which provides:
+- Ultra-concise rules optimized for automated coding agents
+- Quick reference for TTY components, testing patterns, and anti-patterns
+- Source of truth for code generation
+
 Please read the style guide before contributing to ensure your code meets our standards.
 
 ## Conventional Commits

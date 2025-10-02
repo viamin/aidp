@@ -138,7 +138,7 @@ module Aidp
         case provider_type
         when "cursor"
           Aidp::Providers::Cursor.new(prompt: prompt)
-        when "anthropic"
+        when "anthropic", "claude"
           Aidp::Providers::Anthropic.new(prompt: prompt)
         when "gemini"
           Aidp::Providers::Gemini.new(prompt: prompt)

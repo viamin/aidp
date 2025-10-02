@@ -58,8 +58,8 @@ module Aidp
         # 4. Default timeout
 
         if ENV["AIDP_QUICK_MODE"]
-          display_message("⚡ Quick mode enabled - 2 minute timeout", type: :highlight)
-          return 120
+          display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
+          return TIMEOUT_QUICK_MODE
         end
 
         if ENV["AIDP_ANTHROPIC_TIMEOUT"]
@@ -73,9 +73,9 @@ module Aidp
           return step_timeout
         end
 
-        # Default timeout (5 minutes for interactive use)
-        display_message("📋 Using default timeout: 5 minutes", type: :info)
-        300
+        # Default timeout
+        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
+        TIMEOUT_DEFAULT
       end
 
       def get_adaptive_timeout
@@ -84,19 +84,19 @@ module Aidp
 
         case step_name
         when /REPOSITORY_ANALYSIS/
-          180  # 3 minutes - repository analysis can be quick
+          TIMEOUT_REPOSITORY_ANALYSIS
         when /ARCHITECTURE_ANALYSIS/
-          600  # 10 minutes - architecture analysis needs more time
+          TIMEOUT_ARCHITECTURE_ANALYSIS
         when /TEST_ANALYSIS/
-          300  # 5 minutes - test analysis is moderate
+          TIMEOUT_TEST_ANALYSIS
         when /FUNCTIONALITY_ANALYSIS/
-          600  # 10 minutes - functionality analysis is complex
+          TIMEOUT_FUNCTIONALITY_ANALYSIS
         when /DOCUMENTATION_ANALYSIS/
-          300  # 5 minutes - documentation analysis is moderate
+          TIMEOUT_DOCUMENTATION_ANALYSIS
         when /STATIC_ANALYSIS/
-          450  # 7.5 minutes - static analysis can be intensive
+          TIMEOUT_STATIC_ANALYSIS
         when /REFACTORING_RECOMMENDATIONS/
-          600  # 10 minutes - refactoring recommendations are complex
+          TIMEOUT_REFACTORING_RECOMMENDATIONS
         else
           nil  # Use default
         end
