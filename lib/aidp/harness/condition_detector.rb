@@ -1310,13 +1310,13 @@ module Aidp
       # Get timeout duration for operation type
       def get_timeout_duration(operation_type, configuration = nil)
         default_timeouts = {
-          analyze: 300,      # 5 minutes
-          execute: 600,      # 10 minutes
+          analyze: 300, # 5 minutes
+          execute: 600, # 10 minutes
           provider_call: 120, # 2 minutes
           file_operation: 30, # 30 seconds
           network_request: 60, # 1 minute
-          user_input: 300,   # 5 minutes
-          default: 120       # 2 minutes
+          user_input: 300, # 5 minutes
+          default: 120 # 2 minutes
         }
 
         # Get timeout from configuration if available

@@ -12,7 +12,9 @@ module Aidp
         # Handles workflow mode selection (simple vs advanced)
         class WorkflowSelector < Base
           class WorkflowError < StandardError; end
+
           class InvalidModeError < WorkflowError; end
+
           class SelectionError < WorkflowError; end
 
           WORKFLOW_MODES = {

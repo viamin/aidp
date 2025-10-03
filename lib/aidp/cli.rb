@@ -55,9 +55,9 @@ module Aidp
       status = if options[:expect_error] == true
         "error"
       elsif step.nil?
-        "success"  # Initial call without step
+        "success" # Initial call without step
       else
-        "completed"  # Subsequent calls with specific step
+        "completed" # Subsequent calls with specific step
       end
 
       {

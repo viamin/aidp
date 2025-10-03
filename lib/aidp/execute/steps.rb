@@ -9,20 +9,20 @@ module Aidp
           "templates" => ["00_PRD.md"],
           "description" => "Generate Product Requirements Document",
           "outs" => ["docs/prd.md"],
-          "gate" => false,  # Now auto-generated from user input
-          "interactive" => true  # Uses collected user input
+          "gate" => false, # Now auto-generated from user input
+          "interactive" => true # Uses collected user input
         },
         "01_NFRS" => {
           "templates" => ["01_NFRS.md"],
           "description" => "Define Non-Functional Requirements",
           "outs" => ["docs/nfrs.md"],
-          "gate" => false  # Auto-generated
+          "gate" => false # Auto-generated
         },
         "02_ARCHITECTURE" => {
           "templates" => ["02_ARCHITECTURE.md"],
           "description" => "Design System Architecture",
           "outs" => ["docs/architecture.md"],
-          "gate" => false  # Auto-generated
+          "gate" => false # Auto-generated
         },
         "02A_ARCH_GATE_QUESTIONS" => {
           "templates" => ["02A_ARCH_GATE_QUESTIONS.md"],
@@ -40,13 +40,13 @@ module Aidp
           "templates" => ["04_DOMAIN_DECOMPOSITION.md"],
           "description" => "Decompose Domain into Components",
           "outs" => ["docs/domain_decomposition.md"],
-          "gate" => false  # Auto-generated
+          "gate" => false # Auto-generated
         },
         "05_API_DESIGN" => {
           "templates" => ["05_CONTRACTS.md"],
           "description" => "Design APIs and Interfaces",
           "outs" => ["docs/api_design.md"],
-          "gate" => false  # Auto-generated
+          "gate" => false # Auto-generated
         },
         "06_DATA_MODEL" => {
           "templates" => ["06_THREAT_MODEL.md"],
@@ -76,7 +76,7 @@ module Aidp
           "templates" => ["10_IMPLEMENTATION_AGENT.md"],
           "description" => "Define Testing Strategy",
           "outs" => ["docs/testing_strategy.md"],
-          "gate" => false  # Auto-generated
+          "gate" => false # Auto-generated
         },
         "11_STATIC_ANALYSIS" => {
           "templates" => ["11_STATIC_ANALYSIS.md"],
@@ -106,15 +106,15 @@ module Aidp
           "templates" => ["15_POST_RELEASE.md"],
           "description" => "Post-Release Review",
           "outs" => ["docs/post_release.md"],
-          "gate" => false  # Auto-generated
+          "gate" => false # Auto-generated
         },
         # New implementation step for actual development work
         "16_IMPLEMENTATION" => {
-          "templates" => ["10_IMPLEMENTATION_AGENT.md"],  # Reuse existing implementation template
+          "templates" => ["10_IMPLEMENTATION_AGENT.md"], # Reuse existing implementation template
           "description" => "Execute Implementation Tasks",
           "outs" => ["implementation_log.md"],
           "gate" => false,
-          "implementation" => true  # Special step that runs development tasks
+          "implementation" => true # Special step that runs development tasks
         }
       }.freeze
     end

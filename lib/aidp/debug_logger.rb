@@ -94,7 +94,7 @@ module Aidp
 
       # Also output to console if debug is enabled
       if ENV["DEBUG"] && ENV["DEBUG"].to_i > 0
-        puts "\e[36m#{banner}\e[0m"  # Cyan color
+        puts "\e[36m#{banner}\e[0m" # Cyan color
       end
     end
 
@@ -127,11 +127,11 @@ module Aidp
       when :error
         warn message
       when :warn
-        puts "\e[33m#{message}\e[0m"  # Yellow
+        puts "\e[33m#{message}\e[0m" # Yellow
       when :info
-        puts "\e[36m#{message}\e[0m"   # Cyan
+        puts "\e[36m#{message}\e[0m" # Cyan
       when :debug
-        puts "\e[90m#{message}\e[0m"   # Gray
+        puts "\e[90m#{message}\e[0m" # Gray
       else
         puts message
       end

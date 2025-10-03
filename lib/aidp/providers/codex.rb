@@ -216,7 +216,7 @@ module Aidp
         when /REFACTORING_RECOMMENDATIONS/
           TIMEOUT_REFACTORING_RECOMMENDATIONS
         else
-          nil  # Use default
+          nil # Use default
         end
       end
 

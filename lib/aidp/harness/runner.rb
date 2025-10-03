@@ -40,7 +40,7 @@ module Aidp
         @start_time = nil
         @current_step = nil
         @current_provider = nil
-        @user_input = options[:user_input] || {}  # Include user input from workflow selection
+        @user_input = options[:user_input] || {} # Include user input from workflow selection
         @execution_log = []
         @prompt = options[:prompt] || TTY::Prompt.new
 

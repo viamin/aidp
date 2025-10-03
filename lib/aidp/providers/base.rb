@@ -22,14 +22,14 @@ module Aidp
 
       # Configurable timeout values (can be overridden via environment or config)
       # These defaults provide reasonable values for different execution scenarios
-      TIMEOUT_QUICK_MODE = 120          # 2 minutes - for quick testing
-      TIMEOUT_DEFAULT = 300             # 5 minutes - standard interactive timeout
+      TIMEOUT_QUICK_MODE = 120 # 2 minutes - for quick testing
+      TIMEOUT_DEFAULT = 300 # 5 minutes - standard interactive timeout
       TIMEOUT_REPOSITORY_ANALYSIS = 180 # 3 minutes - repository analysis
       TIMEOUT_ARCHITECTURE_ANALYSIS = 600 # 10 minutes - architecture analysis
-      TIMEOUT_TEST_ANALYSIS = 300       # 5 minutes - test analysis
+      TIMEOUT_TEST_ANALYSIS = 300 # 5 minutes - test analysis
       TIMEOUT_FUNCTIONALITY_ANALYSIS = 600 # 10 minutes - functionality analysis
       TIMEOUT_DOCUMENTATION_ANALYSIS = 300 # 5 minutes - documentation analysis
-      TIMEOUT_STATIC_ANALYSIS = 450     # 7.5 minutes - static analysis
+      TIMEOUT_STATIC_ANALYSIS = 450 # 7.5 minutes - static analysis
       TIMEOUT_REFACTORING_RECOMMENDATIONS = 600 # 10 minutes - refactoring
 
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name

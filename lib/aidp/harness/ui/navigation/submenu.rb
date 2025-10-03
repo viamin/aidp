@@ -9,6 +9,7 @@ module Aidp
         # Specialized submenu for drill-down functionality
         class SubMenu < MainMenu
           class SubMenuError < MenuError; end
+
           class InvalidSubMenuError < SubMenuError; end
 
           def initialize(title, parent_menu = nil, ui_components = {})

@@ -13,7 +13,9 @@ module Aidp
         include Aidp::MessageDisplay
 
         class ProgressError < StandardError; end
+
         class InvalidProgressError < ProgressError; end
+
         class DisplayError < ProgressError; end
 
         attr_reader :refresh_interval
@@ -180,7 +182,7 @@ module Aidp
 
         def execute_progress_steps(bar, total_steps, &block)
           total_steps.times do
-            yield(bar) if block_given?
+            yield(bar) if block
             bar.tick
           end
         end
@@ -190,7 +192,7 @@ module Aidp
           total_substeps.times do |index|
             substep_title = @formatter.format_substep_title(title, index + 1, total_substeps)
             bar.update_title(substep_title)
-            yield(bar, index) if block_given?
+            yield(bar, index) if block
             bar.tick
           end
         end

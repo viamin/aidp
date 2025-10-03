@@ -18,7 +18,7 @@ module Aidp
 
         # Main method: automatically manages spinner around a block
         def with_spinner(message, format: :dots, success_message: nil, error_message: nil, &block)
-          raise ArgumentError, "Block required for with_spinner" unless block_given?
+          raise ArgumentError, "Block required for with_spinner" unless block
 
           spinner = create_spinner(message, format)
           start_spinner(spinner)

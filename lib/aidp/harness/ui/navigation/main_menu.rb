@@ -14,7 +14,9 @@ module Aidp
         # Main hierarchical navigation menu system
         class MainMenu < Base
           class MenuError < StandardError; end
+
           class InvalidMenuError < MenuError; end
+
           class NavigationError < MenuError; end
 
           def initialize(ui_components = {}, prompt: nil)
@@ -27,7 +29,7 @@ module Aidp
             @menu_items = []
             @current_level = 0
             @breadcrumb = []
-            @navigation_history = []  # Track all navigation actions
+            @navigation_history = [] # Track all navigation actions
           end
 
           def add_menu_item(item)
@@ -113,7 +115,7 @@ module Aidp
             @menu_items = menu_items
             display_menu_items
 
-            max_attempts = 10  # Prevent infinite loops
+            max_attempts = 10 # Prevent infinite loops
             attempts = 0
 
             loop do

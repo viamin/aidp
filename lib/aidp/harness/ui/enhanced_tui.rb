@@ -15,7 +15,9 @@ module Aidp
       # Enhanced TUI system using TTY libraries, inspired by Claude Code and modern LLM agents
       class EnhancedTUI
         class TUIError < StandardError; end
+
         class InputError < TUIError; end
+
         class DisplayError < TUIError; end
 
         def initialize(prompt: TTY::Prompt.new)

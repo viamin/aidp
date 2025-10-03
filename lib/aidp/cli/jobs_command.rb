@@ -20,9 +20,9 @@ module Aidp
         @running = true
         @view_mode = :list
         @selected_job_id = nil
-        @jobs_displayed = false  # Track if we've displayed jobs in interactive mode
+        @jobs_displayed = false # Track if we've displayed jobs in interactive mode
         @file_manager = Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
-        @screen_width = 80  # Default screen width
+        @screen_width = 80 # Default screen width
       end
 
       private
