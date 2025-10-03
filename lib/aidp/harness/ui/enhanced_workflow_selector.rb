@@ -160,10 +160,10 @@ module Aidp
 
         def generate_exploration_steps
           [
-            "00_PRD",           # Generate PRD from user input (no manual gate)
+            "00_PRD", # Generate PRD from user input (no manual gate)
             "10_TESTING_STRATEGY", # Ensure we have tests
-            "11_STATIC_ANALYSIS",  # Code quality
-            "16_IMPLEMENTATION"    # Special step for actual development work
+            "11_STATIC_ANALYSIS", # Code quality
+            "16_IMPLEMENTATION" # Special step for actual development work
           ]
         end
 

@@ -31,7 +31,7 @@ module Aidp
         @current_step = nil
         @current_provider = nil
         @user_input = options[:user_input] || {}
-        @user_input = {} if @user_input.nil?  # Ensure it's never nil
+        @user_input = {} if @user_input.nil? # Ensure it's never nil
         @execution_log = []
 
         # Store workflow configuration

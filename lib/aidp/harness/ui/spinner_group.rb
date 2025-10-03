@@ -9,7 +9,9 @@ module Aidp
       # Handles concurrent operations using CLI UI spinner groups
       class SpinnerGroup < Base
         class SpinnerGroupError < StandardError; end
+
         class InvalidOperationError < SpinnerGroupError; end
+
         class ExecutionError < SpinnerGroupError; end
 
         def initialize(ui_components = {})

@@ -7,6 +7,7 @@ module Aidp
         # Represents a single menu item in the navigation system
         class MenuItem
           class MenuItemError < StandardError; end
+
           class InvalidTypeError < MenuItemError; end
 
           VALID_TYPES = [:action, :submenu, :workflow, :separator].freeze

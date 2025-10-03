@@ -12,7 +12,9 @@ module Aidp
       # Real-time job monitoring and status tracking
       class JobMonitor < Base
         class JobMonitorError < StandardError; end
+
         class JobNotFoundError < JobMonitorError; end
+
         class MonitorError < JobMonitorError; end
 
         JOB_STATUSES = {

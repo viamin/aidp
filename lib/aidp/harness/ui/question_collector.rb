@@ -9,7 +9,9 @@ module Aidp
       # Handles interactive question collection using CLI UI prompts
       class QuestionCollector < Base
         class QuestionError < StandardError; end
+
         class ValidationError < QuestionError; end
+
         class CollectionError < QuestionError; end
 
         def initialize(ui_components = {}, prompt: nil)

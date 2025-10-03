@@ -16,6 +16,10 @@ module Aidp
         "gemini"
       end
 
+      def display_name
+        "Google Gemini"
+      end
+
       def send(prompt:, session: nil)
         raise "gemini CLI not available" unless self.class.available?
 
@@ -94,7 +98,7 @@ module Aidp
         when /REFACTORING_RECOMMENDATIONS/
           TIMEOUT_REFACTORING_RECOMMENDATIONS
         else
-          nil  # Use default
+          nil # Use default
         end
       end
     end

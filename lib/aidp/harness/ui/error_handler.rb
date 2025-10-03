@@ -9,9 +9,13 @@ module Aidp
       # Centralized error handling for UI components
       class ErrorHandler
         class UIError < StandardError; end
+
         class ComponentError < UIError; end
+
         class ValidationError < UIError; end
+
         class DisplayError < UIError; end
+
         class InteractionError < UIError; end
 
         def initialize(ui_components = {})

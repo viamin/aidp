@@ -16,6 +16,10 @@ module Aidp
         "anthropic"
       end
 
+      def display_name
+        "Anthropic Claude CLI"
+      end
+
       def available?
         self.class.available?
       end
@@ -98,7 +102,7 @@ module Aidp
         when /REFACTORING_RECOMMENDATIONS/
           TIMEOUT_REFACTORING_RECOMMENDATIONS
         else
-          nil  # Use default
+          nil # Use default
         end
       end
     end

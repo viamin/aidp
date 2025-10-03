@@ -7,6 +7,8 @@ module Aidp
     # Simple, focused user interface for collecting feedback
     # Replaces the bloated UserInterface with minimal, clean code
     class SimpleUserInterface
+      include Aidp::MessageDisplay
+
       def initialize(prompt: TTY::Prompt.new)
         @prompt = prompt
       end
@@ -25,21 +27,6 @@ module Aidp
       end
 
       private
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-
-        @prompt.say(message, color: color)
-      end
 
       def show_context(context)
         display_message("\n🤖 Agent needs feedback", type: :info)

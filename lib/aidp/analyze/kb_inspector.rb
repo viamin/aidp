@@ -7,25 +7,12 @@ require "tty-prompt"
 module Aidp
   module Analyze
     class KBInspector
+      include Aidp::MessageDisplay
+
       def initialize(kb_dir = ".aidp/kb", prompt: TTY::Prompt.new)
         @kb_dir = File.expand_path(kb_dir)
         @prompt = prompt
         @data = load_kb_data
-      end
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-
-        @prompt.say(message, color: color)
       end
 
       def show(type, format: "summary")

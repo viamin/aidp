@@ -12,27 +12,14 @@ require_relative "cli/first_run_wizard"
 module Aidp
   # CLI interface for AIDP
   class CLI
+    include Aidp::MessageDisplay
+
     # Simple options holder for instance methods (used in specs)
     attr_accessor :options
 
     def initialize(prompt: TTY::Prompt.new)
       @options = {}
       @prompt = prompt
-    end
-
-    # Helper method for consistent message display using TTY::Prompt
-    def display_message(message, type: :info)
-      color = case type
-      when :error then :red
-      when :success then :green
-      when :warning then :yellow
-      when :info then :blue
-      when :highlight then :cyan
-      when :muted then :bright_black
-      else :white
-      end
-
-      @prompt.say(message, color: color)
     end
 
     # Instance version of harness status (used by specs; non-interactive)
@@ -68,9 +55,9 @@ module Aidp
       status = if options[:expect_error] == true
         "error"
       elsif step.nil?
-        "success"  # Initial call without step
+        "success" # Initial call without step
       else
-        "completed"  # Subsequent calls with specific step
+        "completed" # Subsequent calls with specific step
       end
 
       {
@@ -154,20 +141,7 @@ module Aidp
     end
 
     class << self
-      # Class-level display_message method for CLI output
-      def display_message(message, type: :info)
-        prompt = TTY::Prompt.new
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-        prompt.say(message, color: color)
-      end
+      extend Aidp::MessageDisplay::ClassMethods
 
       def run(args = ARGV)
         # Handle subcommands first (status, jobs, kb, harness)

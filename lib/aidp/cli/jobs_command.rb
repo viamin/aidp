@@ -11,6 +11,8 @@ require_relative "../storage/file_manager"
 module Aidp
   class CLI
     class JobsCommand
+      include Aidp::MessageDisplay
+
       def initialize(input: nil, output: nil, prompt: TTY::Prompt.new)
         @io = TerminalIO.new(input: input, output: output)
         @prompt = prompt
@@ -18,25 +20,12 @@ module Aidp
         @running = true
         @view_mode = :list
         @selected_job_id = nil
-        @jobs_displayed = false  # Track if we've displayed jobs in interactive mode
+        @jobs_displayed = false # Track if we've displayed jobs in interactive mode
         @file_manager = Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
-        @screen_width = 80  # Default screen width
+        @screen_width = 80 # Default screen width
       end
 
       private
-
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-        @prompt.say(message, color: color)
-      end
 
       public
 

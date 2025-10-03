@@ -21,7 +21,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     after do
       # Clean up after tests
-      ui.disable_control_interface  # This also calls stop_control_interface
+      ui.disable_control_interface # This also calls stop_control_interface
       ui.clear_control_requests
     end
 

@@ -7,6 +7,7 @@ module Aidp
         # Manages navigation state and history
         class MenuState
           class StateError < StandardError; end
+
           class InvalidStateError < StateError; end
 
           def initialize

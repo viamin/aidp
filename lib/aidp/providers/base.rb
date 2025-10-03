@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require "tty-spinner"
 
 module Aidp
   module Providers
     class Base
+      include Aidp::MessageDisplay
+
       # Activity indicator states
       ACTIVITY_STATES = {
         idle: "⏳",
@@ -19,14 +22,14 @@ module Aidp
 
       # Configurable timeout values (can be overridden via environment or config)
       # These defaults provide reasonable values for different execution scenarios
-      TIMEOUT_QUICK_MODE = 120          # 2 minutes - for quick testing
-      TIMEOUT_DEFAULT = 300             # 5 minutes - standard interactive timeout
+      TIMEOUT_QUICK_MODE = 120 # 2 minutes - for quick testing
+      TIMEOUT_DEFAULT = 300 # 5 minutes - standard interactive timeout
       TIMEOUT_REPOSITORY_ANALYSIS = 180 # 3 minutes - repository analysis
       TIMEOUT_ARCHITECTURE_ANALYSIS = 600 # 10 minutes - architecture analysis
-      TIMEOUT_TEST_ANALYSIS = 300       # 5 minutes - test analysis
+      TIMEOUT_TEST_ANALYSIS = 300 # 5 minutes - test analysis
       TIMEOUT_FUNCTIONALITY_ANALYSIS = 600 # 10 minutes - functionality analysis
       TIMEOUT_DOCUMENTATION_ANALYSIS = 300 # 5 minutes - documentation analysis
-      TIMEOUT_STATIC_ANALYSIS = 450     # 7.5 minutes - static analysis
+      TIMEOUT_STATIC_ANALYSIS = 450 # 7.5 minutes - static analysis
       TIMEOUT_REFACTORING_RECOMMENDATIONS = 600 # 10 minutes - refactoring
 
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name
@@ -58,6 +61,12 @@ module Aidp
 
       def name
         raise NotImplementedError, "#{self.class} must implement #name"
+      end
+
+      # Human-friendly display name for UI
+      # Override in subclasses to provide a better display name
+      def display_name
+        name
       end
 
       def send(prompt:, session: nil)
@@ -344,20 +353,30 @@ module Aidp
         (success_rate * 50) + ((1 - rate_limit_ratio) * 30) + (response_time_score * 0.2)
       end
 
-      private
+      protected
 
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
+      # Update spinner status with elapsed time
+      # This is a shared method used by all providers to display progress
+      def update_spinner_status(spinner, elapsed, provider_name)
+        minutes = (elapsed / 60).to_i
+        seconds = (elapsed % 60).to_i
+
+        if minutes > 0
+          spinner.update(title: "#{provider_name} is running... (#{minutes}m #{seconds}s)")
+        else
+          spinner.update(title: "#{provider_name} is running... (#{seconds}s)")
         end
-        @prompt.say(message, color: color)
       end
+
+      # Clean up activity display thread and spinner
+      # Used by providers to ensure proper cleanup in both success and error paths
+      def cleanup_activity_display(activity_display_thread, spinner)
+        activity_display_thread.kill if activity_display_thread&.alive?
+        activity_display_thread&.join(0.1) # Give it 100ms to finish
+        spinner&.stop
+      end
+
+      private
     end
   end
 end

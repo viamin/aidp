@@ -7,8 +7,8 @@ module Aidp
   module DebugMixin
     # Debug levels
     DEBUG_OFF = 0
-    DEBUG_BASIC = 1  # Commands and stderr
-    DEBUG_VERBOSE = 2  # Everything including prompts and stdout
+    DEBUG_BASIC = 1 # Commands and stderr
+    DEBUG_VERBOSE = 2 # Everything including prompts and stdout
 
     def self.included(base)
       base.extend(ClassMethods)

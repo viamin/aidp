@@ -15,6 +15,8 @@ module Aidp
   module Harness
     # Main harness runner that orchestrates the execution loop
     class Runner
+      include Aidp::MessageDisplay
+
       # Harness execution states
       STATES = {
         idle: "idle",
@@ -38,7 +40,7 @@ module Aidp
         @start_time = nil
         @current_step = nil
         @current_provider = nil
-        @user_input = options[:user_input] || {}  # Include user input from workflow selection
+        @user_input = options[:user_input] || {} # Include user input from workflow selection
         @execution_log = []
         @prompt = options[:prompt] || TTY::Prompt.new
 
@@ -412,19 +414,6 @@ module Aidp
       end
 
       private
-
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-        @prompt.say(message, color: color)
-      end
     end
   end
 end

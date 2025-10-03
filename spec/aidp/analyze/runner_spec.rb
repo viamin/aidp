@@ -12,8 +12,8 @@ RSpec.describe Aidp::Analyze::Runner do
 
   before do
     # Mock file operations for test environment paths only
-    allow(File).to receive(:write)  # Don't actually write files in tests
-    allow(FileUtils).to receive(:mkdir_p)  # Don't create directories in tests
+    allow(File).to receive(:write) # Don't actually write files in tests
+    allow(FileUtils).to receive(:mkdir_p) # Don't create directories in tests
 
     # Mock YAML operations
     allow(YAML).to receive(:load_file).and_return({})

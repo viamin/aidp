@@ -5,7 +5,7 @@ require "rspec"
 require "timeout"
 
 ENV["RACK_ENV"] = "test"
-ENV["RSPEC_RUNNING"] = "true"  # Signal that we're running tests
+ENV["RSPEC_RUNNING"] = "true" # Signal that we're running tests
 
 require "aidp"
 require "tempfile"
@@ -23,7 +23,7 @@ Aruba.configure do |config|
 end
 
 # Load test support files
-Dir[File.expand_path("support/**/*.rb", __dir__)].each { |f| require f }
+Dir[File.expand_path("support/**/*.rb", __dir__)].sort.each { |f| require f }
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

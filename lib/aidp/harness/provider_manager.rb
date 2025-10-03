@@ -7,6 +7,8 @@ module Aidp
   module Harness
     # Manages provider switching and fallback logic
     class ProviderManager
+      include Aidp::MessageDisplay
+
       def initialize(configuration, prompt: TTY::Prompt.new)
         @configuration = configuration
         @prompt = prompt
@@ -1202,19 +1204,6 @@ module Aidp
       end
 
       private
-
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-        @prompt.say(message, color: color)
-      end
 
       public
 

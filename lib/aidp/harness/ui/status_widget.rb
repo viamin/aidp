@@ -10,7 +10,9 @@ module Aidp
       # Handles status display using CLI UI spinners
       class StatusWidget < Base
         class StatusError < StandardError; end
+
         class InvalidStatusError < StatusError; end
+
         class DisplayError < StatusError; end
 
         def initialize(ui_components = {})
@@ -29,7 +31,7 @@ module Aidp
 
           formatted_message = @formatter.format_status_message(message)
           @spinner.spin(formatted_message) do |spinner|
-            yield(spinner) if block_given?
+            yield(spinner) if block
           end
         rescue => e
           raise DisplayError, "Failed to show status: #{e.message}"

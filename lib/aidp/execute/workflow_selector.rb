@@ -6,6 +6,8 @@ module Aidp
   module Execute
     # Handles interactive workflow selection and project setup
     class WorkflowSelector
+      include Aidp::MessageDisplay
+
       def initialize(prompt: TTY::Prompt.new)
         @user_input = {}
         @prompt = prompt
@@ -23,21 +25,6 @@ module Aidp
       end
 
       private
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-
-        @prompt.say(message, color: color)
-      end
 
       def select_workflow_interactive
         display_message("\n🚀 Welcome to AI Dev Pipeline!", type: :highlight)
@@ -144,10 +131,10 @@ module Aidp
 
       def exploration_workflow_steps
         [
-          "00_PRD",           # Generate PRD from user input (no manual gate)
+          "00_PRD", # Generate PRD from user input (no manual gate)
           "10_TESTING_STRATEGY", # Ensure we have tests
-          "11_STATIC_ANALYSIS",  # Code quality
-          "16_IMPLEMENTATION"    # Special step for actual development work
+          "11_STATIC_ANALYSIS", # Code quality
+          "16_IMPLEMENTATION" # Special step for actual development work
         ]
       end
 

@@ -12,7 +12,9 @@ module Aidp
       # Real-time status updates using CLI UI spinners
       class StatusManager < Base
         class StatusError < StandardError; end
+
         class InvalidStatusError < StatusError; end
+
         class UpdateError < StatusError; end
 
         def initialize(ui_components = {})
@@ -164,7 +166,7 @@ module Aidp
         end
 
         def track_workflow_status(workflow_name, spinner, &block) # Will be updated dynamically
-          yield(spinner) if block_given?
+          yield(spinner) if block
           @status_widget.show_success_status("Completed #{workflow_name}")
         rescue => e
           @status_widget.show_error_status("Failed #{workflow_name}: #{e.message}")
@@ -172,7 +174,7 @@ module Aidp
         end
 
         def track_step_status(step_name, spinner, &block)
-          yield(spinner) if block_given?
+          yield(spinner) if block
           @status_widget.show_success_status("Completed #{step_name}")
         rescue => e
           @status_widget.show_error_status("Failed #{step_name}: #{e.message}")

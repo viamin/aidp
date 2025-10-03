@@ -7,6 +7,8 @@ module Aidp
   module Harness
     # Real-time status updates and monitoring interface
     class StatusDisplay
+      include Aidp::MessageDisplay
+
       def initialize(provider_manager = nil, metrics_manager = nil, circuit_breaker_manager = nil, error_logger = nil, prompt: TTY::Prompt.new)
         @provider_manager = provider_manager
         @metrics_manager = metrics_manager
@@ -41,21 +43,6 @@ module Aidp
         @metrics_calculator = MetricsCalculator.new
         @alert_manager = AlertManager.new
         @display_animator = DisplayAnimator.new
-      end
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-
-        @prompt.say(message, color: color)
       end
 
       # Start real-time status updates
@@ -758,8 +745,12 @@ module Aidp
 
       def clear_display
         # Clear the current line using TTY::Cursor
-        $stderr.print @cursor.clear_line
-        $stderr.print @cursor.column(1)
+        print_to_stderr(@cursor.clear_line, @cursor.column(1))
+      end
+
+      # Helper method to print to stderr with flush
+      def print_to_stderr(*parts)
+        parts.each { |part| $stderr.print part }
         $stderr.flush
       end
 

@@ -11,7 +11,9 @@ module Aidp
       # Workflow control interface for pause/resume/cancel/stop
       class WorkflowController < Base
         class WorkflowError < StandardError; end
+
         class InvalidStateError < WorkflowError; end
+
         class ControlError < WorkflowError; end
 
         WORKFLOW_STATES = {

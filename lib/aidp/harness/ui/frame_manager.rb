@@ -9,7 +9,9 @@ module Aidp
       # Handles nested framing using CLI UI frames
       class FrameManager < Base
         class FrameError < StandardError; end
+
         class InvalidFrameError < FrameError; end
+
         class DisplayError < FrameError; end
 
         def initialize(ui_components = {})
@@ -56,7 +58,7 @@ module Aidp
             @frame_stats[:status_counts][frame_data[:status]] += 1
           end
 
-          if block_given?
+          if block
             content = yield
             display_message(@frame.frame(formatted_title, content, width: 80))
           else
@@ -77,7 +79,7 @@ module Aidp
           @frame_stack.push({type: frame_type, title: title, data: frame_data})
 
           frame_result = @frame.frame(formatted_title, width: 80) do
-            if block_given?
+            if block
               yield || ""
             else
               ""
@@ -200,7 +202,7 @@ module Aidp
         def frame_with_block(frame_type, title, frame_data = nil, &block)
           validate_frame_type(frame_type)
           validate_title(title)
-          raise ArgumentError, "Block required for frame_with_block" unless block_given?
+          raise ArgumentError, "Block required for frame_with_block" unless block
 
           formatted_title = @formatter ? @formatter.format_frame_title(frame_type, title, frame_data) : title.to_s
           @frame_open = true
@@ -220,7 +222,7 @@ module Aidp
           rescue => e
             @frame_open = false
             @frame_stack.pop unless @frame_stack.empty?
-            raise e  # Re-raise the original exception
+            raise e # Re-raise the original exception
           end
         end
 
@@ -237,7 +239,7 @@ module Aidp
           validate_title(title)
 
           formatted_title = @formatter ? @formatter.format_section_title(title) : "📋 #{title}"
-          if block_given?
+          if block
             content = yield
             display_message(@frame.frame(formatted_title, content, width: 80))
           else
@@ -252,7 +254,7 @@ module Aidp
 
           formatted_title = @formatter ? @formatter.format_subsection_title(title) : "📝 #{title}"
           display_message(@frame.frame(formatted_title, width: 80) do
-            yield if block_given?
+            yield if block
           end)
         rescue => e
           raise DisplayError, "Failed to create subsection: #{e.message}"
@@ -263,7 +265,7 @@ module Aidp
 
           formatted_title = @formatter ? @formatter.format_workflow_title(workflow_name) : "⚙️ #{workflow_name}"
           display_message(@frame.frame(formatted_title, width: 80) do
-            yield if block_given?
+            yield if block
           end)
         rescue => e
           raise DisplayError, "Failed to create workflow frame: #{e.message}"
@@ -274,7 +276,7 @@ module Aidp
 
           formatted_title = @formatter ? @formatter.format_step_title(step_name, step_number, total_steps) : "🔧 #{step_name} (#{step_number}/#{total_steps})"
           display_message(@frame.frame(formatted_title, width: 80) do
-            yield if block_given?
+            yield if block
           end)
         rescue => e
           raise DisplayError, "Failed to create step frame: #{e.message}"

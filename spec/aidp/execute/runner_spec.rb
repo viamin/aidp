@@ -12,8 +12,8 @@ RSpec.describe Aidp::Execute::Runner do
 
   before do
     # Mock file operations for test environment paths only
-    allow(File).to receive(:write)  # Don't actually write files in tests
-    allow(FileUtils).to receive(:mkdir_p)  # Don't create directories in tests
+    allow(File).to receive(:write) # Don't actually write files in tests
+    allow(FileUtils).to receive(:mkdir_p) # Don't create directories in tests
 
     # Mock YAML operations
     allow(YAML).to receive(:load_file).and_return({})
@@ -143,7 +143,7 @@ RSpec.describe Aidp::Execute::Runner do
       expect(spec["templates"]).to eq(["00_PRD.md"])
       expect(spec["description"]).to eq("Generate Product Requirements Document")
       expect(spec["outs"]).to eq(["docs/prd.md"])
-      expect(spec["gate"]).to be false  # Changed in simplified workflow
+      expect(spec["gate"]).to be false # Changed in simplified workflow
     end
 
     it "returns nil for nonexistent step" do
@@ -157,7 +157,7 @@ RSpec.describe Aidp::Execute::Runner do
     end
 
     it "checks if step is a gate step" do
-      expect(runner.is_gate_step?("00_PRD")).to be false  # Changed in simplified workflow
+      expect(runner.is_gate_step?("00_PRD")).to be false # Changed in simplified workflow
       expect(runner.is_gate_step?("03_ADR_FACTORY")).to be false
     end
 
@@ -347,7 +347,7 @@ RSpec.describe Aidp::Execute::Runner do
       expect(prompt).to include("AI Scaffold Product Requirements Document")
       expect(prompt).to include("You are a product strategist")
       expect(prompt).to be_a(String)
-      expect(prompt.length).to be > 100  # Template should have substantial content
+      expect(prompt.length).to be > 100 # Template should have substantial content
     end
 
     it "composes prompt with harness context using real templates" do
