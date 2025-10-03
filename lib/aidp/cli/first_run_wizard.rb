@@ -3,6 +3,7 @@
 
 require "yaml"
 require "tty-prompt"
+require_relative "../harness/provider_factory"
 
 module Aidp
   class CLI
@@ -370,24 +371,25 @@ module Aidp
 
       # Get available providers for validation
       def get_available_providers
-        # Define the available providers based on the system
-        available = ["cursor", "claude", "gemini", "codex", "opencode"]
+        # Get all supported providers from the factory (single source of truth)
+        all_providers = Aidp::Harness::ProviderFactory::PROVIDER_CLASSES.keys
 
-        # Add descriptions for better UX
-        available.map do |provider|
-          case provider
-          when "cursor"
-            "cursor - Cursor AI (no API key required)"
-          when "claude"
-            "claude - Anthropic's Claude CLI (requires API key)"
-          when "gemini"
-            "gemini - Google Gemini (requires API key)"
-          when "codex"
-            "codex - Codex CLI (no API key required)"
-          when "opencode"
-            "opencode - OpenCode (no API key required)"
+        # Filter out providers we don't want to show in the wizard
+        # - "anthropic" is an internal name, we show "claude" instead
+        # - "macos" is disabled (as per issue #73)
+        excluded = ["anthropic", "macos"]
+        available = all_providers - excluded
+
+        # Get display names from the providers themselves
+        available.map do |provider_name|
+          provider_class = Aidp::Harness::ProviderFactory::PROVIDER_CLASSES[provider_name]
+          if provider_class
+            # Instantiate to get display name
+            instance = provider_class.new
+            display_name = instance.display_name
+            "#{provider_name} - #{display_name}"
           else
-            provider
+            provider_name
           end
         end
       end

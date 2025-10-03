@@ -18,6 +18,10 @@ module Aidp
         "opencode"
       end
 
+      def display_name
+        "OpenCode"
+      end
+
       def send(prompt:, session: nil)
         raise "opencode not available" unless self.class.available?
 

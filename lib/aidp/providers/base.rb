@@ -61,6 +61,12 @@ module Aidp
         raise NotImplementedError, "#{self.class} must implement #name"
       end
 
+      # Human-friendly display name for UI
+      # Override in subclasses to provide a better display name
+      def display_name
+        name
+      end
+
       def send(prompt:, session: nil)
         raise NotImplementedError, "#{self.class} must implement #send"
       end

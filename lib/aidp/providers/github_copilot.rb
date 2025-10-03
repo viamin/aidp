@@ -18,6 +18,10 @@ module Aidp
         "github_copilot"
       end
 
+      def display_name
+        "GitHub Copilot CLI"
+      end
+
       def available?
         return false unless self.class.available?
 

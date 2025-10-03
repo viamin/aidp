@@ -18,6 +18,10 @@ module Aidp
         "codex"
       end
 
+      def display_name
+        "Codex CLI"
+      end
+
       def available?
         return false unless self.class.available?
 

@@ -16,6 +16,10 @@ module Aidp
         "anthropic"
       end
 
+      def display_name
+        "Anthropic Claude CLI"
+      end
+
       def available?
         self.class.available?
       end

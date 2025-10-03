@@ -18,6 +18,10 @@ module Aidp
         "cursor"
       end
 
+      def display_name
+        "Cursor AI"
+      end
+
       def send(prompt:, session: nil)
         raise "cursor-agent not available" unless self.class.available?
 
