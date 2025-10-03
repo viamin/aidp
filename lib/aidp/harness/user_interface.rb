@@ -1837,16 +1837,17 @@ module Aidp
 
       # Display progress message
       def show_progress(message)
-        $stderr.print @cursor.clear_line
-        $stderr.print @cursor.column(1)
-        $stderr.print message
-        $stderr.flush
+        print_to_stderr(@cursor.clear_line, @cursor.column(1), message)
       end
 
       # Clear progress message
       def clear_progress
-        $stderr.print @cursor.clear_line
-        $stderr.print @cursor.column(1)
+        print_to_stderr(@cursor.clear_line, @cursor.column(1))
+      end
+
+      # Helper method to print to stderr with flush
+      def print_to_stderr(*parts)
+        parts.each { |part| $stderr.print part }
         $stderr.flush
       end
 
