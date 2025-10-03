@@ -9,6 +9,8 @@ module Aidp
   class CLI
     # Handles interactive first-time project setup when no aidp.yml exists
     class FirstRunWizard
+      include Aidp::MessageDisplay
+
       TEMPLATES_DIR = File.expand_path(File.join(__dir__, "..", "..", "..", "templates"))
 
       def self.ensure_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new)
@@ -41,21 +43,6 @@ module Aidp
       def initialize(project_dir, prompt: TTY::Prompt.new)
         @project_dir = project_dir
         @prompt = prompt
-      end
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-
-        @prompt.say(message, color: color)
       end
 
       def run

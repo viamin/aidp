@@ -10,6 +10,8 @@ module Aidp
     module UI
       # Handles progress display using CLI UI progress bars
       class ProgressDisplay < Base
+        include Aidp::MessageDisplay
+
         class ProgressError < StandardError; end
         class InvalidProgressError < ProgressError; end
         class DisplayError < ProgressError; end
@@ -256,18 +258,10 @@ module Aidp
 
         private
 
+        # Use mixin display_message; fallback to stdout if no prompt
         def display_message(message, type: :info)
           if @prompt
-            color = case type
-            when :error then :red
-            when :success then :green
-            when :warning then :yellow
-            when :info then :blue
-            when :highlight then :cyan
-            when :muted then :bright_black
-            else :white
-            end
-            @prompt.say(message, color: color)
+            super
           elsif @output
             @output.puts(message)
           else

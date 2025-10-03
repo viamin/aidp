@@ -7,6 +7,7 @@ require_relative "aidp/core_ext/class_attribute"
 require_relative "aidp/version"
 require_relative "aidp/config"
 require_relative "aidp/util"
+require_relative "aidp/message_display"
 require_relative "aidp/cli"
 require_relative "aidp/cli/jobs_command"
 

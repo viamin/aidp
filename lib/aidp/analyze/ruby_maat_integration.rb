@@ -8,6 +8,8 @@ require "fileutils"
 module Aidp
   module Analyze
     class RubyMaatIntegration
+      include Aidp::MessageDisplay
+
       def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new)
         @project_dir = project_dir
         @prompt = prompt
@@ -454,21 +456,6 @@ module Aidp
         result = cmd.run("git", "log", "--oneline", "-1", chdir: @project_dir)
 
         result.success? && !result.out.strip.empty?
-      end
-
-      private
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :warn then :yellow
-        when :success then :green
-        when :highlight then :cyan
-        else :white
-        end
-
-        @prompt.say(message, color: color)
       end
     end
   end

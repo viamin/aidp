@@ -8,6 +8,8 @@ require_relative "../storage/file_manager"
 module Aidp
   module Execute
     class Runner
+      include Aidp::MessageDisplay
+
       def initialize(project_dir, harness_runner = nil, prompt: TTY::Prompt.new)
         @project_dir = project_dir
         @harness_runner = harness_runner
@@ -21,18 +23,6 @@ module Aidp
       end
 
       private
-
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        else :white
-        end
-        @prompt.say(message, color: color)
-      end
 
       public
 

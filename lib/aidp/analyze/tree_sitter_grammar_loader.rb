@@ -8,6 +8,8 @@ require "fileutils"
 module Aidp
   module Analyze
     class TreeSitterGrammarLoader
+      include Aidp::MessageDisplay
+
       # Default grammar configurations
       GRAMMAR_CONFIGS = {
         "ruby" => {
@@ -480,19 +482,6 @@ module Aidp
       end
 
       private
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :warn then :yellow
-        when :success then :green
-        when :highlight then :cyan
-        else :white
-        end
-
-        @prompt.say(message, color: color)
-      end
     end
   end
 end

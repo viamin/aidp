@@ -7,6 +7,8 @@ module Aidp
   module Harness
     # Handles user interaction and feedback collection
     class UserInterface
+      include Aidp::MessageDisplay
+
       def initialize(prompt: TTY::Prompt.new)
         @input_history = []
         @file_selection_enabled = false
@@ -21,21 +23,6 @@ module Aidp
       end
 
       private
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-
-        @prompt.say(message, color: color)
-      end
 
       # Helper method to handle input consistently with TTY::Prompt
       # Fixed to avoid keystroke loss issues with TTY::Prompt's required validation

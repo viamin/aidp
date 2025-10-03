@@ -11,6 +11,8 @@ require_relative "../storage/file_manager"
 module Aidp
   class CLI
     class JobsCommand
+      include Aidp::MessageDisplay
+
       def initialize(input: nil, output: nil, prompt: TTY::Prompt.new)
         @io = TerminalIO.new(input: input, output: output)
         @prompt = prompt
@@ -24,19 +26,6 @@ module Aidp
       end
 
       private
-
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :success then :green
-        when :warning then :yellow
-        when :info then :blue
-        when :highlight then :cyan
-        when :muted then :bright_black
-        else :white
-        end
-        @prompt.say(message, color: color)
-      end
 
       public
 

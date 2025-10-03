@@ -12,6 +12,8 @@ require_relative "seams"
 module Aidp
   module Analyze
     class TreeSitterScan
+      include Aidp::MessageDisplay
+
       def initialize(root: Dir.pwd, kb_dir: ".aidp/kb", langs: %w[ruby], threads: Etc.nprocessors, prompt: TTY::Prompt.new)
         @root = File.expand_path(root)
         @kb_dir = File.expand_path(kb_dir, @root)
@@ -685,19 +687,6 @@ module Aidp
       end
 
       private
-
-      # Helper method for consistent message display using TTY::Prompt
-      def display_message(message, type: :info)
-        color = case type
-        when :error then :red
-        when :warn then :yellow
-        when :success then :green
-        when :highlight then :cyan
-        else :white
-        end
-
-        @prompt.say(message, color: color)
-      end
     end
   end
 end
