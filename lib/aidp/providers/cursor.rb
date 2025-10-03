@@ -63,11 +63,6 @@ module Aidp
           # Log the results
           debug_command("cursor-agent", args: ["-p"], input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
 
-          # Stop activity display
-          activity_display_thread.kill if activity_display_thread.alive?
-          activity_display_thread.join(0.1) # Give it 100ms to finish
-          spinner.stop
-
           if result.exit_status == 0
             spinner.success("✓")
             mark_completed
@@ -79,13 +74,12 @@ module Aidp
             raise "cursor-agent failed with exit code #{result.exit_status}: #{result.err}"
           end
         rescue => e
-          # Stop activity display
-          activity_display_thread.kill if activity_display_thread.alive?
-          activity_display_thread.join(0.1) # Give it 100ms to finish
-          spinner.error("✗")
+          spinner&.error("✗")
           mark_failed("cursor-agent execution failed: #{e.message}")
           debug_error(e, {provider: "cursor", prompt_length: prompt.length})
           raise
+        ensure
+          cleanup_activity_display(activity_display_thread, spinner)
         end
       end
 

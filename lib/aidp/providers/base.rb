@@ -360,6 +360,14 @@ module Aidp
         end
       end
 
+      # Clean up activity display thread and spinner
+      # Used by providers to ensure proper cleanup in both success and error paths
+      def cleanup_activity_display(activity_display_thread, spinner)
+        activity_display_thread.kill if activity_display_thread&.alive?
+        activity_display_thread.join(0.1) if activity_display_thread # Give it 100ms to finish
+        spinner&.stop
+      end
+
       private
 
       def display_message(message, type: :info)
