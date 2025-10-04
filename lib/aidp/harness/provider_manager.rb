@@ -1012,9 +1012,19 @@ module Aidp
       # Attempt to run a provider's CLI with --version (or no-op) to verify executable health
       def provider_cli_available?(provider_name)
         normalized = normalize_provider_name(provider_name)
-        if (defined?(RSpec) || ENV["RSPEC_RUNNING"]) && ENV["AIDP_FORCE_CLAUDE_MISSING"] == "1" && normalized == "claude"
-          return [false, "binary_missing"]
+
+        # Handle test environment overrides
+        if defined?(RSpec) || ENV["RSPEC_RUNNING"]
+          # Force claude to be missing for testing
+          if ENV["AIDP_FORCE_CLAUDE_MISSING"] == "1" && normalized == "claude"
+            return [false, "binary_missing"]
+          end
+          # Force claude to be available for testing
+          if ENV["AIDP_FORCE_CLAUDE_AVAILABLE"] == "1" && normalized == "claude"
+            return [true, "available"]
+          end
         end
+
         cache_key = "#{provider_name}:#{normalized}"
         cached = @binary_check_cache[cache_key]
         if cached && (Time.now - cached[:checked_at] < @binary_check_ttl)

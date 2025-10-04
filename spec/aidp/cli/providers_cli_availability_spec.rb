@@ -20,6 +20,7 @@ RSpec.describe "Providers CLI availability check" do
     cmd = ["bundle", "exec", "aidp", "providers", *args]
     env = {"RSPEC_RUNNING" => "true"}
     env["AIDP_FORCE_CLAUDE_MISSING"] = "1" if ENV["AIDP_FORCE_CLAUDE_MISSING"] == "1"
+    env["AIDP_FORCE_CLAUDE_AVAILABLE"] = "1" if ENV["AIDP_FORCE_CLAUDE_AVAILABLE"] == "1"
     Open3.capture3(env, *cmd, chdir: temp_dir)
   end
 
@@ -79,6 +80,8 @@ RSpec.describe "Providers CLI availability check" do
 
     it "shows claude as available" do
       ENV.delete("AIDP_FORCE_CLAUDE_MISSING")
+      ENV["AIDP_FORCE_CLAUDE_AVAILABLE"] = "1"
+
       stdout, _stderr, status = run_cli("--no-color")
       expect(status.exitstatus).to eq(0)
       claude_line = stdout.lines.find { |l| l.strip.start_with?("claude") }
@@ -86,6 +89,8 @@ RSpec.describe "Providers CLI availability check" do
       columns = claude_line.strip.split(/\s+/)
       expect(columns[0]).to eq("claude")
       expect(columns[2]).to eq("yes")
+
+      ENV.delete("AIDP_FORCE_CLAUDE_AVAILABLE")
     end
   end
 end
