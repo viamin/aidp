@@ -4,11 +4,23 @@ require "spec_helper"
 require "open3"
 
 RSpec.describe "Providers CLI availability check" do
+  let(:temp_dir) { Dir.mktmpdir("aidp_cli_availability_test") }
+  let(:config_file) { File.join(temp_dir, "aidp.yml") }
+
+  before do
+    # Create test configuration file
+    create_test_configuration
+  end
+
+  after do
+    FileUtils.rm_rf(temp_dir)
+  end
+
   def run_cli(*args)
     cmd = ["bundle", "exec", "aidp", "providers", *args]
     env = {"RSPEC_RUNNING" => "true"}
     env["AIDP_FORCE_CLAUDE_MISSING"] = "1" if ENV["AIDP_FORCE_CLAUDE_MISSING"] == "1"
-    Open3.capture3(env, *cmd)
+    Open3.capture3(env, *cmd, chdir: temp_dir)
   end
 
   let(:ansi_regex) { /\e\[[0-9;]*m/ }
@@ -76,4 +88,35 @@ RSpec.describe "Providers CLI availability check" do
       expect(columns[2]).to eq("yes")
     end
   end
+end
+
+private
+
+def create_test_configuration
+  config = {
+    "harness" => {
+      "default_provider" => "claude",
+      "max_retries" => 3,
+      "fallback_providers" => ["cursor", "macos"]
+    },
+    "providers" => {
+      "claude" => {
+        "type" => "usage_based",
+        "priority" => 1,
+        "models" => ["claude-3-5-sonnet-20241022"]
+      },
+      "cursor" => {
+        "type" => "subscription",
+        "priority" => 2,
+        "models" => ["cursor-default"]
+      },
+      "macos" => {
+        "type" => "passthrough",
+        "priority" => 3,
+        "models" => ["cursor-chat"]
+      }
+    }
+  }
+
+  File.write(config_file, YAML.dump(config))
 end

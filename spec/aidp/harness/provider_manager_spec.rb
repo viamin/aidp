@@ -10,6 +10,12 @@ RSpec.describe Aidp::Harness::ProviderManager do
     allow(configuration).to receive(:default_provider).and_return("anthropic")
     allow(configuration).to receive(:configured_providers).and_return(["anthropic", "cursor", "macos"])
     allow(configuration).to receive(:provider_configured?).and_return(true)
+
+    # Mock provider CLI availability to ensure tests work in CI without installed providers
+    allow_any_instance_of(described_class).to receive(:provider_cli_available?).and_return(true)
+    allow_any_instance_of(described_class).to receive(:execute_command_with_timeout).and_return(
+      {success: true, output: "mocked output", exit_code: 0}
+    )
   end
 
   describe "initialization" do
