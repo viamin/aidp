@@ -145,7 +145,7 @@ module Aidp
     end
 
     # Execute command with debug logging
-    def debug_execute_command(cmd, args: [], input: nil, timeout: nil, **options)
+    def debug_execute_command(cmd, args: [], input: nil, timeout: nil, streaming: false, **options)
       require "tty-command"
 
       command_str = [cmd, *args].join(" ")
@@ -154,7 +154,14 @@ module Aidp
       debug_log("🚀 Starting command execution: #{command_str}", level: :info)
 
       begin
-        cmd_obj = TTY::Command.new(printer: :null) # Disable TTY::Command's own output
+        # Configure printer based on streaming mode
+        if streaming
+          # Use progress printer for real-time output
+          cmd_obj = TTY::Command.new(printer: :progress)
+          debug_log("📺 Streaming mode enabled - showing real-time output", level: :info)
+        else
+          cmd_obj = TTY::Command.new(printer: :null) # Disable TTY::Command's own output
+        end
 
         # Prepare input
         input_data = nil

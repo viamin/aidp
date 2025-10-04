@@ -18,56 +18,56 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     FileUtils.rm_rf(temp_dir)
   end
 
+  # Shared context to run analysis once and reuse results
+  before(:context) do
+    @shared_temp_dir = Dir.mktmpdir("aidp_tree_sitter_shared_test")
+    @shared_kb_dir = File.join(@shared_temp_dir, ".aidp", "kb")
+    FileUtils.mkdir_p(@shared_temp_dir)
+    create_test_ruby_files_in(@shared_temp_dir)
+
+    # Run analysis once for all tests
+    scanner = Aidp::Analyze::TreeSitterScan.new(
+      root: @shared_temp_dir,
+      kb_dir: @shared_kb_dir,
+      langs: %w[ruby],
+      threads: 2
+    )
+    scanner.run
+  end
+
+  after(:context) do
+    FileUtils.rm_rf(@shared_temp_dir)
+  end
+
+  let(:shared_temp_dir) { @shared_temp_dir }
+  let(:shared_kb_dir) { @shared_kb_dir }
+
   describe "complete analysis workflow" do
     it "runs the full Tree-sitter analysis pipeline" do
-      # Run the analysis
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby],
-        threads: 2
-      )
-
-      expect { scanner.run }.not_to raise_error
-
       # Verify KB directory was created
-      expect(Dir.exist?(kb_dir)).to be true
+      expect(Dir.exist?(shared_kb_dir)).to be true
 
       # Verify all KB files were generated
       expected_files = %w[symbols.json imports.json calls.json metrics.json seams.json hotspots.json tests.json cycles.json]
       expected_files.each do |file|
-        expect(File.exist?(File.join(kb_dir, file))).to be true
+        expect(File.exist?(File.join(shared_kb_dir, file))).to be true
       end
     end
+  end
 
+  describe "analysis output validation" do
     it "generates valid JSON files" do
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      scanner.run
-
       # Verify JSON files are valid
       expected_files = %w[symbols.json imports.json calls.json metrics.json seams.json hotspots.json tests.json cycles.json]
       expected_files.each do |file|
-        file_path = File.join(kb_dir, file)
+        file_path = File.join(shared_kb_dir, file)
         expect { JSON.parse(File.read(file_path)) }.not_to raise_error
       end
     end
 
     it "extracts symbols from Ruby files" do
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      scanner.run
-
       # Check symbols.json
-      symbols_file = File.join(kb_dir, "symbols.json")
+      symbols_file = File.join(shared_kb_dir, "symbols.json")
       symbols = JSON.parse(File.read(symbols_file), symbolize_names: true)
 
       expect(symbols).to be_an(Array)
@@ -81,26 +81,15 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     end
 
     it "extracts imports from Ruby files" do
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      scanner.run
+      # Check imports.json exists and is valid
+      imports_file = File.join(shared_kb_dir, "imports.json")
+      imports = JSON.parse(File.read(imports_file), symbolize_names: true)
+      expect(imports).to be_an(Array)
     end
 
     it "generates hotspots data" do
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      scanner.run
-
       # Check hotspots.json
-      hotspots_file = File.join(kb_dir, "hotspots.json")
+      hotspots_file = File.join(shared_kb_dir, "hotspots.json")
       hotspots = JSON.parse(File.read(hotspots_file), symbolize_names: true)
 
       expect(hotspots).to be_an(Array)
@@ -111,17 +100,8 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     end
 
     it "can be inspected with KB inspector" do
-      # First run the analysis
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      scanner.run
-
-      # Then inspect the results
-      inspector = Aidp::Analyze::KBInspector.new(kb_dir)
+      # Inspect the results
+      inspector = Aidp::Analyze::KBInspector.new(shared_kb_dir)
 
       expect { inspector.show("summary") }.not_to raise_error
       expect { inspector.show("symbols") }.not_to raise_error
@@ -130,17 +110,8 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
     end
 
     it "can generate graphs from KB data" do
-      # First run the analysis
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      scanner.run
-
-      # Then generate graphs
-      inspector = Aidp::Analyze::KBInspector.new(kb_dir)
+      # Generate graphs
+      inspector = Aidp::Analyze::KBInspector.new(shared_kb_dir)
 
       expect { inspector.generate_graph("imports", format: "dot") }.not_to raise_error
       expect { inspector.generate_graph("imports", format: "mermaid") }.not_to raise_error
@@ -154,67 +125,64 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       # For now, we'll just verify the classes can be instantiated
 
       # Test analyze_code command setup
-      expect { Aidp::Analyze::TreeSitterScan.new(root: temp_dir) }.not_to raise_error
+      expect { Aidp::Analyze::TreeSitterScan.new(root: shared_temp_dir) }.not_to raise_error
 
       # Test kb_show command setup
-      expect { Aidp::Analyze::KBInspector.new(kb_dir) }.not_to raise_error
+      expect { Aidp::Analyze::KBInspector.new(shared_kb_dir) }.not_to raise_error
     end
   end
 
   describe "performance and caching" do
     it "caches parsed results" do
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      # First run
-      scanner.run
-
-      # Second run should be faster due to caching
-      scanner2 = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
-
-      scanner2.run
-
-      # Verify cache file was created
-      cache_file = File.join(kb_dir, ".cache")
+      # Verify cache file was created during shared analysis
+      cache_file = File.join(shared_kb_dir, ".cache")
       expect(File.exist?(cache_file)).to be true
     end
 
     it "respects .gitignore patterns" do
-      # Create .gitignore
-      File.write(File.join(temp_dir, ".gitignore"), "tmp/\n*.log")
+      # Create a separate test directory for gitignore testing
+      gitignore_test_dir = Dir.mktmpdir("aidp_gitignore_test")
+      gitignore_kb_dir = File.join(gitignore_test_dir, ".aidp", "kb")
 
-      # Create ignored files
-      FileUtils.mkdir_p(File.join(temp_dir, "tmp"))
-      File.write(File.join(temp_dir, "tmp", "ignored.rb"), "class Ignored; end")
-      File.write(File.join(temp_dir, "app.log"), "log content")
+      begin
+        # Create .gitignore
+        File.write(File.join(gitignore_test_dir, ".gitignore"), "tmp/\n*.log")
 
-      scanner = Aidp::Analyze::TreeSitterScan.new(
-        root: temp_dir,
-        kb_dir: kb_dir,
-        langs: %w[ruby]
-      )
+        # Create ignored files
+        FileUtils.mkdir_p(File.join(gitignore_test_dir, "tmp"))
+        File.write(File.join(gitignore_test_dir, "tmp", "ignored.rb"), "class Ignored; end")
+        File.write(File.join(gitignore_test_dir, "app.log"), "log content")
 
-      scanner.run
+        # Create non-ignored files
+        create_test_ruby_files_in(gitignore_test_dir)
 
-      # Check that ignored files were not processed
-      symbols_file = File.join(kb_dir, "symbols.json")
-      symbols = JSON.parse(File.read(symbols_file), symbolize_names: true)
+        scanner = Aidp::Analyze::TreeSitterScan.new(
+          root: gitignore_test_dir,
+          kb_dir: gitignore_kb_dir,
+          langs: %w[ruby]
+        )
 
-      ignored_symbols = symbols.select { |s| s[:file].include?("ignored") }
-      expect(ignored_symbols).to be_empty
+        scanner.run
+
+        # Check that ignored files were not processed
+        symbols_file = File.join(gitignore_kb_dir, "symbols.json")
+        symbols = JSON.parse(File.read(symbols_file), symbolize_names: true)
+
+        ignored_symbols = symbols.select { |s| s[:file].include?("ignored") }
+        expect(ignored_symbols).to be_empty
+      ensure
+        FileUtils.rm_rf(gitignore_test_dir)
+      end
     end
   end
 
   private
 
   def create_test_ruby_files
+    create_test_ruby_files_in(temp_dir)
+  end
+
+  def create_test_ruby_files_in(target_dir)
     # Create a simple Ruby file with various constructs
     test_rb_content = <<~RUBY
       require 'json'
@@ -244,7 +212,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       end
     RUBY
 
-    File.write(File.join(temp_dir, "test.rb"), test_rb_content)
+    File.write(File.join(target_dir, "test.rb"), test_rb_content)
 
     # Create a helper file
     helper_rb_content = <<~RUBY
@@ -255,7 +223,7 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       end
     RUBY
 
-    File.write(File.join(temp_dir, "helper.rb"), helper_rb_content)
+    File.write(File.join(target_dir, "helper.rb"), helper_rb_content)
 
     # Create a file with I/O operations (for seam detection)
     io_rb_content = <<~RUBY
@@ -274,6 +242,6 @@ RSpec.describe "Tree-sitter Analysis Workflow" do
       end
     RUBY
 
-    File.write(File.join(temp_dir, "io_class.rb"), io_rb_content)
+    File.write(File.join(target_dir, "io_class.rb"), io_rb_content)
   end
 end

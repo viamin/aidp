@@ -104,7 +104,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       it "executes copilot with prompt mode" do
         provider.send(prompt: prompt)
         expect(provider).to have_received(:debug_execute_command)
-          .with("copilot", args: ["-p", prompt, "--allow-all-tools"], timeout: 300)
+          .with("copilot", args: ["-p", prompt, "--allow-all-tools"], timeout: 300, streaming: false)
       end
 
       it "returns the output when successful" do
@@ -151,9 +151,9 @@ RSpec.describe Aidp::Providers::GithubCopilot do
         end
 
         it "includes session parameter in command" do
-          provider.send(prompt: prompt, session: session)
+          provider.send(prompt: prompt, session: "test-session")
           expect(provider).to have_received(:debug_execute_command)
-            .with("copilot", args: ["-p", prompt, "--allow-all-tools", "--resume", "test-session"], timeout: 300)
+            .with("copilot", args: ["-p", prompt, "--allow-all-tools", "--resume", "test-session"], timeout: 300, streaming: false)
         end
       end
     end
@@ -183,7 +183,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("copilot", args: ["-p", prompt, "--resume", "test-session", "--allow-tool", "read", "--allow-tool", "write"], timeout: 300)
+        .with("copilot", args: ["-p", prompt, "--resume", "test-session", "--allow-tool", "read", "--allow-tool", "write"], timeout: 300, streaming: false)
     end
 
     it "includes log level when specified" do
@@ -192,7 +192,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("copilot", args: ["-p", prompt, "--allow-all-tools", "--log-level", "debug"], timeout: 300)
+        .with("copilot", args: ["-p", prompt, "--allow-all-tools", "--log-level", "debug"], timeout: 300, streaming: false)
     end
 
     it "includes directories when specified" do
@@ -202,7 +202,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("copilot", args: ["-p", prompt, "--allow-all-tools", "--add-dir", "/tmp/project", "--add-dir", "/tmp/workspace"], timeout: 300)
+        .with("copilot", args: ["-p", prompt, "--allow-all-tools", "--add-dir", "/tmp/project", "--add-dir", "/tmp/workspace"], timeout: 300, streaming: false)
     end
   end
 

@@ -43,6 +43,12 @@ module Aidp
         debug_provider("codex", "Starting execution", {timeout: timeout_seconds})
         debug_log("📝 Sending prompt to codex (length: #{prompt.length})", level: :info)
 
+        # Check if streaming mode is enabled
+        streaming_enabled = ENV["AIDP_STREAMING"] == "1" || ENV["DEBUG"] == "1"
+        if streaming_enabled
+          display_message("📺 Streaming mode enabled - output will appear in real-time", type: :info)
+        end
+
         # Set up activity monitoring
         setup_activity_monitoring("codex", method(:activity_callback))
         record_activity("Starting codex execution")
@@ -75,7 +81,7 @@ module Aidp
           end
 
           # Use debug_execute_command for better debugging
-          result = debug_execute_command("codex", args: args, timeout: timeout_seconds)
+          result = debug_execute_command("codex", args: args, timeout: timeout_seconds, streaming: streaming_enabled)
 
           # Log the results
           debug_command("codex", args: args, input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
@@ -146,11 +152,17 @@ module Aidp
         debug_provider("codex", "Starting execution", {timeout: timeout_seconds, args: args})
         debug_log("📝 Sending prompt to codex with custom args", level: :info)
 
+        # Check if streaming mode is enabled
+        streaming_enabled = ENV["AIDP_STREAMING"] == "1" || ENV["DEBUG"] == "1"
+        if streaming_enabled
+          display_message("📺 Display streaming enabled - output buffering reduced (codex CLI does not support true streaming)", type: :info)
+        end
+
         setup_activity_monitoring("codex", method(:activity_callback))
         record_activity("Starting codex execution with custom args")
 
         begin
-          result = debug_execute_command("codex", args: args, timeout: timeout_seconds)
+          result = debug_execute_command("codex", args: args, timeout: timeout_seconds, streaming: streaming_enabled)
           debug_command("codex", args: args, output: result.out, error: result.err, exit_code: result.exit_status)
 
           if result.exit_status == 0

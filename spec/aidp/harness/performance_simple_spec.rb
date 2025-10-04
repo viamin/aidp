@@ -16,6 +16,8 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
     mock_cli_operations
     # Create harness configuration
     setup_harness_config
+    # Mock provider manager operations to avoid real CLI calls
+    mock_provider_operations
   end
 
   after do
@@ -342,6 +344,20 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
   end
 
   private
+
+  def mock_provider_operations
+    # Mock provider manager methods to avoid real CLI calls during performance tests
+    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:switch_provider).and_return("anthropic")
+    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:switch_model).and_return("claude-3-5-sonnet-20241022")
+    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:provider_cli_available?).and_return(true)
+    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:find_next_healthy_provider).and_return("anthropic")
+    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:get_fallback_chain).and_return(["anthropic", "cursor", "macos"])
+
+    # Mock the actual CLI execution to return immediately
+    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:execute_command_with_timeout).and_return(
+      {success: true, output: "mocked output", exit_code: 0}
+    )
+  end
 
   def setup_mock_project
     mock_cli_operations

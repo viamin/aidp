@@ -69,6 +69,17 @@ module Aidp
             error_type: error_info[:error_type],
             reason: "Retry not applicable or exhausted"
           })
+          if [:authentication, :permission_denied].include?(error_info[:error_type].to_sym)
+            # Mark provider unhealthy to avoid immediate re-selection
+            begin
+              if @provider_manager.respond_to?(:mark_provider_auth_failure)
+                @provider_manager.mark_provider_auth_failure(error_info[:provider])
+                debug_log("🔐 Marked provider #{error_info[:provider]} unhealthy due to auth error", level: :warn)
+              end
+            rescue => e
+              debug_log("⚠️ Failed to mark provider unhealthy after auth error", level: :warn, data: {error: e.message})
+            end
+          end
           attempt_recovery(error_info, context)
 
         end
@@ -76,35 +87,75 @@ module Aidp
 
       # Execute a block with retry logic
       def execute_with_retry(&block)
-        max_attempts = @configuration.max_retries + 1
-        attempt = 0
+        providers_tried = []
 
-        begin
-          attempt += 1
-          yield
-        rescue => error
-          if attempt < max_attempts
-            error_info = {
-              error: error,
-              provider: @provider_manager.current_provider,
-              model: @provider_manager.current_model,
-              error_type: @error_classifier.classify_error(error)
-            }
+        loop do
+          max_attempts = @configuration.max_retries + 1
+          attempt = 0
 
-            strategy = get_retry_strategy(error_info[:error_type])
-            if should_retry?(error_info, strategy)
-              delay = @backoff_calculator.calculate_delay(attempt, strategy[:backoff_strategy] || :exponential, 1, 10)
-              # Use regular sleep for now (async not needed in this context)
-              sleep(delay)
-              retry
+          begin
+            attempt += 1
+            return yield
+          rescue => error
+            current_provider = get_current_provider_safely
+
+            if attempt < max_attempts
+              error_info = {
+                error: error,
+                provider: current_provider,
+                model: get_current_model_safely,
+                error_type: @error_classifier.classify_error(error)
+              }
+
+              strategy = get_retry_strategy(error_info[:error_type])
+              if should_retry?(error_info, strategy)
+                delay = @backoff_calculator.calculate_delay(attempt, strategy[:backoff_strategy] || :exponential, 1, 10)
+                debug_log("🔁 Retry attempt #{attempt} for #{current_provider}", level: :info, data: {delay: delay, error_type: error_info[:error_type]})
+                sleep(delay) if delay > 0
+                retry
+              end
             end
-          end
 
-          # If we get here, all retries failed
-          handle_error(error, {
-            provider: @provider_manager.current_provider,
-            model: @provider_manager.current_model
-          })
+            # Provider exhausted – attempt recovery (may switch provider)
+            debug_log("🚫 Exhausted retries for provider, attempting recovery", level: :warn, data: {provider: current_provider, attempt: attempt, max_attempts: max_attempts})
+            handle_error(error, {
+              provider: current_provider,
+              model: get_current_model_safely,
+              exhausted_retries: true
+            })
+
+            new_provider = get_current_provider_safely
+            if new_provider != current_provider && !providers_tried.include?(new_provider)
+              providers_tried << current_provider
+              # Reset retry counts for the new provider
+              begin
+                reset_retry_counts(new_provider)
+              rescue => e
+                debug_log("⚠️ Failed to reset retry counts for new provider", level: :warn, data: {error: e.message})
+              end
+              debug_log("🔀 Switched provider after failure – re-executing block", level: :info, data: {from: current_provider, to: new_provider})
+              # Start retry loop fresh for new provider
+              next
+            end
+
+            # No new provider (or already tried) – return structured failure
+            debug_log("❌ No fallback provider available or all tried", level: :error, data: {providers_tried: providers_tried})
+            begin
+              if @provider_manager.respond_to?(:mark_provider_failure_exhausted)
+                @provider_manager.mark_provider_failure_exhausted(current_provider)
+                debug_log("🛑 Marked provider #{current_provider} unhealthy due to exhausted retries", level: :warn)
+              end
+            rescue => e
+              debug_log("⚠️ Failed to mark provider failure-exhausted", level: :warn, data: {error: e.message})
+            end
+            return {
+              status: "failed",
+              error: error,
+              message: error.message,
+              provider: current_provider,
+              providers_tried: providers_tried.dup
+            }
+          end
         end
       end
 
@@ -579,9 +630,12 @@ module Aidp
               priority: :high
             }
           when :authentication, :permission_denied
+            # Previously we escalated immediately. Instead, attempt a provider switch
+            # so workflows can continue with alternate providers (e.g., Gemini, Cursor)
+            # while the user resolves credentials for the failing provider.
             {
-              action: :escalate,
-              reason: "Authentication or permission issue requires manual intervention",
+              action: :switch_provider,
+              reason: "Authentication/permission issue – switching provider to continue",
               priority: :critical
             }
           when :timeout
@@ -610,6 +664,27 @@ module Aidp
             }
           end
         end
+      end
+
+      # Safe access to provider manager methods that may not exist
+      def get_current_provider_safely
+        return "unknown" unless @provider_manager
+        return "unknown" unless @provider_manager.respond_to?(:current_provider)
+
+        @provider_manager.current_provider || "unknown"
+      rescue => e
+        debug_log("⚠️ Failed to get current provider", level: :warn, data: {error: e.message})
+        "unknown"
+      end
+
+      def get_current_model_safely
+        return "unknown" unless @provider_manager
+        return "unknown" unless @provider_manager.respond_to?(:current_model)
+
+        @provider_manager.current_model || "unknown"
+      rescue => e
+        debug_log("⚠️ Failed to get current model", level: :warn, data: {error: e.message})
+        "unknown"
       end
     end
   end

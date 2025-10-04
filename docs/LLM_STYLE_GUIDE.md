@@ -9,6 +9,7 @@
 - Prefer composition over inheritance.
 - No commented‑out or dead code.
 - No introducing TODO without issue reference.
+- When removing code, delete it cleanly without explanatory comments.
 
 ## 2. Naming & Structure
 
