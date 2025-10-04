@@ -244,7 +244,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze].include?(args.first)
+        %w[status jobs kb harness execute analyze providers].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -256,6 +256,7 @@ module Aidp
         when "harness" then run_harness_command(args)
         when "execute" then run_execute_command(args)
         when "analyze" then run_execute_command(args, mode: :analyze) # symmetry
+        when "providers" then run_providers_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -358,6 +359,82 @@ module Aidp
         display_message("Starting enhanced TUI harness", type: :highlight)
         display_message("Press Ctrl+C to stop", type: :highlight)
         display_message("workflow selection options", type: :info)
+      end
+
+      def run_providers_command(args)
+        # Accept flags directly on `aidp providers` now (health is implicit)
+        no_color = false
+        args.reject! do |a|
+          if a == "--no-color"
+            no_color = true
+            true
+          else
+            false
+          end
+        end
+        configuration = Aidp::Harness::Configuration.new(Dir.pwd)
+        pm = Aidp::Harness::ProviderManager.new(configuration, prompt: TTY::Prompt.new)
+
+        # Use TTY::Spinner for progress indication
+        require "tty-spinner"
+        start_time = Time.now
+        spinner = TTY::Spinner.new(":spinner Gathering provider health...", format: :dots)
+        spinner.auto_spin
+
+        begin
+          rows = pm.health_dashboard
+        ensure
+          spinner.stop
+          elapsed = (Time.now - start_time).round(2)
+          display_message("Provider Health Dashboard (#{elapsed}s)", type: :highlight)
+        end
+        require "tty-table"
+        color = ->(text, code) { "\e[#{code}m#{text}\e[0m" }
+        status_color = lambda do |status|
+          case status
+          when /healthy/ then 32
+          when /unhealthy_auth/ then 31
+          when /unhealthy/ then 33
+          when /circuit/ then 35
+          else 37
+          end
+        end
+        availability_color = ->(avail) { (avail == "yes") ? 32 : 31 }
+        rate_color = ->(rl) { rl.start_with?("yes") ? 33 : 36 }
+        circuit_color = lambda do |c|
+          c.start_with?("open") ? 31 : 32
+        end
+        table_rows = rows.map do |r|
+          last_used = r[:last_used] ? r[:last_used].strftime("%H:%M:%S") : "-"
+          cb = r[:circuit_breaker]
+          cb += " (#{r[:circuit_breaker_remaining]}s)" if r[:circuit_breaker_remaining]
+          rl = if r[:rate_limited]
+            r[:rate_limit_reset_in] ? "yes (#{r[:rate_limit_reset_in]}s)" : "yes"
+          else
+            "no"
+          end
+          tokens = (r[:total_tokens].to_i > 0) ? r[:total_tokens].to_s : "0"
+          reason = r[:unhealthy_reason] || "-"
+          if no_color || !$stdout.tty?
+            [r[:provider], r[:status], (r[:available] ? "yes" : "no"), cb, rl, tokens, last_used, reason]
+          else
+            [
+              color.call(r[:provider], "1;97"),
+              color.call(r[:status], status_color.call(r[:status])),
+              color.call(r[:available] ? "yes" : "no", availability_color.call(r[:available] ? "yes" : "no")),
+              color.call(cb, circuit_color.call(cb)),
+              color.call(rl, rate_color.call(rl)),
+              color.call(tokens, 37),
+              color.call(last_used, 90),
+              ((reason == "-") ? reason : color.call(reason, 33))
+            ]
+          end
+        end
+        header = ["Provider", "Status", "Avail", "Circuit", "RateLimited", "Tokens", "LastUsed", "Reason"]
+        table = TTY::Table.new header, table_rows
+        display_message(table.render(:basic), type: :info)
+      rescue => e
+        display_message("Failed to display provider health: #{e.message}", type: :error)
       end
 
       def extract_mode_option(args)

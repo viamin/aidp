@@ -29,9 +29,15 @@ module Aidp
         debug_provider("gemini", "Starting execution", {timeout: timeout_seconds})
         debug_log("📝 Sending prompt to gemini...", level: :info)
 
+        # Check if streaming mode is enabled
+        streaming_enabled = ENV["AIDP_STREAMING"] == "1" || ENV["DEBUG"] == "1"
+        if streaming_enabled
+          display_message("📺 Display streaming enabled - output buffering reduced (gemini CLI does not support true streaming)", type: :info)
+        end
+
         begin
-          # Use debug_execute_command for better debugging
-          result = debug_execute_command("gemini", args: ["--print"], input: prompt, timeout: timeout_seconds)
+          # Use debug_execute_command with streaming support
+          result = debug_execute_command("gemini", args: ["--print"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
 
           # Log the results
           debug_command("gemini", args: ["--print"], input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)

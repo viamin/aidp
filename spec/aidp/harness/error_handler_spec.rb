@@ -77,7 +77,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       expect(result[:new_provider]).to eq("gemini")
     end
 
-    it "handles authentication errors with escalation" do
+    it "handles authentication errors with provider switching" do
       error = StandardError.new("Authentication failed")
       allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
         error: error,
@@ -91,8 +91,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
       result = error_handler.handle_error(error, context)
 
-      expect(result[:action]).to eq(:escalated)
-      expect(result[:requires_manual_intervention]).to be true
+      expect(result[:action]).to eq(:provider_switch)
     end
 
     it "records error in metrics manager" do
@@ -239,14 +238,13 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       expect(result[:new_model]).to eq("model2")
     end
 
-    it "escalates authentication errors" do
+    it "switches providers for authentication errors" do
       auth_error_info = error_info.merge(error_type: :authentication)
 
       result = error_handler.attempt_recovery(auth_error_info, {})
 
-      expect(result[:success]).to be false
-      expect(result[:action]).to eq(:escalated)
-      expect(result[:requires_manual_intervention]).to be true
+      expect(result[:success]).to be true
+      expect(result[:action]).to eq(:provider_switch)
     end
 
     it "handles provider switch failure" do
@@ -398,12 +396,12 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         expect(plan[:reason]).to include("Timeout")
       end
 
-      it "plans escalation for authentication errors" do
+      it "plans provider switching for authentication errors" do
         error_info = {error_type: :authentication, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
-        expect(plan[:action]).to eq(:escalate)
+        expect(plan[:action]).to eq(:switch_provider)
         expect(plan[:reason]).to include("Authentication")
       end
 
@@ -475,6 +473,81 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       expect {
         described_class.new(provider_manager, configuration)
       }.to raise_error(NoMethodError)
+    end
+  end
+
+  describe "#execute_with_retry" do
+    before do
+      allow(configuration).to receive(:max_retries).and_return(2)
+      allow(provider_manager).to receive(:current_provider).and_return("claude")
+      allow(provider_manager).to receive(:current_model).and_return("model1")
+    end
+
+    context "when first provider succeeds after retries" do
+      it "returns the block result" do
+        attempt_count = 0
+        result = error_handler.execute_with_retry do
+          attempt_count += 1
+          if attempt_count < 2
+            raise StandardError, "Network error"
+          end
+          "success"
+        end
+
+        expect(result).to eq("success")
+        expect(attempt_count).to eq(2)
+      end
+    end
+
+    context "when provider exhausts retries and fallback succeeds" do
+      it "switches provider and re-runs the block" do
+        attempt_count = 0
+        provider_switches = 0
+
+        # Mock provider switching behavior
+        allow(provider_manager).to receive(:current_provider).and_return("claude", "claude", "claude", "gemini", "gemini")
+        allow(error_handler).to receive(:handle_error) do |error, context|
+          if context[:exhausted_retries]
+            provider_switches += 1
+            # Simulate provider switch by changing current_provider return value
+          end
+        end
+
+        result = error_handler.execute_with_retry do
+          attempt_count += 1
+          if attempt_count <= 3 # First provider fails 3 times (1 + 2 retries)
+            raise StandardError, "Provider claude always fails"
+          end
+          "success with gemini"
+        end
+
+        expect(result).to eq("success with gemini")
+        expect(attempt_count).to eq(4) # 3 failures + 1 success
+        expect(provider_switches).to eq(1)
+      end
+    end
+
+    context "when all providers are exhausted" do
+      it "returns structured failure hash" do
+        call_count = 0
+
+        # Mock consistent failure and no provider switch
+        allow(provider_manager).to receive(:current_provider).and_return("claude")
+        allow(error_handler).to receive(:handle_error)
+
+        result = error_handler.execute_with_retry do
+          call_count += 1
+          raise StandardError, "Always fails"
+        end
+
+        expect(result).to be_a(Hash)
+        expect(result[:status]).to eq("failed")
+        expect(result[:error]).to be_a(StandardError)
+        expect(result[:message]).to eq("Always fails")
+        expect(result[:provider]).to eq("claude")
+        expect(result[:providers_tried]).to eq([])  # Empty because no switch occurred
+        expect(call_count).to eq(3) # 1 + 2 retries
+      end
     end
   end
 end

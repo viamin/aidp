@@ -47,17 +47,8 @@ module Aidp
 
       def run
         banner
-        loop do
-          choice = ask_choice
-          case choice
-          when "1" then return finish(run_quick)
-          when "2" then return finish(run_custom)
-          when "q", "Q" then display_message("Exiting without creating configuration.")
-                             return false
-          else
-            display_message("Invalid selection. Please choose one of the listed options.", type: :warning)
-          end
-        end
+        # Always run the full interactive custom configuration flow.
+        finish(run_custom)
       end
 
       def run_setup_config
@@ -84,20 +75,8 @@ module Aidp
       def banner
         display_message("\n🚀 First-time setup detected", type: :highlight)
         display_message("No 'aidp.yml' configuration file found in #{relative(@project_dir)}.")
-        display_message("Let's create one so you can start using AI Dev Pipeline.")
+        display_message("Creating a configuration so you can start using AI Dev Pipeline.")
         display_message("")
-      end
-
-      def ask_choice
-        display_message("Choose a configuration style:") unless @asking
-
-        options = {
-          "Quick setup (cursor only, no API keys needed)" => "1",
-          "Custom setup (choose your own providers and settings)" => "2",
-          "Quit" => "q"
-        }
-
-        @prompt.select("Select an option:", options, default: "Quick setup (cursor only, no API keys needed)")
       end
 
       def finish(path)
@@ -143,61 +122,6 @@ module Aidp
         dest
       end
 
-      def run_quick
-        dest = File.join(@project_dir, "aidp.yml")
-        return dest if File.exist?(dest)
-
-        @prompt.say("Quick setup: choose your primary provider (no API keys required).")
-        @prompt.say("")
-
-        # Get available providers that don't require API keys
-        no_api_key_providers = ["cursor - Cursor AI (no API key required)", "codex - Codex CLI (no API key required)", "opencode - OpenCode (no API key required)"]
-
-        default_option = no_api_key_providers.first
-        selected_provider = @prompt.select("Primary provider?", no_api_key_providers, default: default_option)
-
-        # Extract just the provider name from the formatted string
-        provider_name = selected_provider.split(" - ").first
-
-        data = {
-          "harness" => {
-            "max_retries" => 2,
-            "default_provider" => provider_name,
-            "fallback_providers" => [provider_name],
-            "no_api_keys_required" => true
-          },
-          "providers" => {
-            provider_name => {
-              "type" => "subscription",
-              "default_flags" => []
-            }
-          }
-        }
-        File.write(dest, YAML.dump(data))
-        dest
-      end
-
-      def write_quick_config(project_dir)
-        dest = File.join(project_dir, "aidp.yml")
-        return dest if File.exist?(dest)
-        data = {
-          "harness" => {
-            "max_retries" => 2,
-            "default_provider" => "cursor",
-            "fallback_providers" => ["cursor"],
-            "no_api_keys_required" => true
-          },
-          "providers" => {
-            "cursor" => {
-              "type" => "subscription",
-              "default_flags" => []
-            }
-          }
-        }
-        File.write(dest, YAML.dump(data))
-        dest
-      end
-
       def write_example_config(project_dir)
         Aidp::Config.create_example_config(project_dir)
         File.join(project_dir, "aidp.yml")
@@ -222,15 +146,11 @@ module Aidp
         provider_name = default_provider.split(" - ").first
 
         # Validate fallback providers
-        fallback_input = @prompt.ask("Fallback providers (comma-separated)?", default: provider_name) do |q|
-          q.validate(/^[a-zA-Z0-9_,\s]+$/, "Invalid characters. Use only letters, numbers, commas, and spaces.")
-          q.validate(->(input) { validate_provider_list(input, available_providers) }, "One or more providers are not supported.")
-        end
+        fallback_providers = select_fallback_providers(available_providers, provider_name)
 
         restrict = @prompt.yes?("Only use providers that don't require API keys?", default: false)
 
-        # Process the inputs
-        fallback_providers = fallback_input.split(/\s*,\s*/).map(&:strip).reject(&:empty?)
+        # Process providers preserving order
         providers = [provider_name] + fallback_providers
         providers.uniq!
 
@@ -279,15 +199,11 @@ module Aidp
         provider_name = default_provider.split(" - ").first
 
         # Validate fallback providers
-        fallback_input = @prompt.ask("Fallback providers (comma-separated)?", default: current_fallbacks.join(", ")) do |q|
-          q.validate(/^[a-zA-Z0-9_,\s]+$/, "Invalid characters. Use only letters, numbers, commas, and spaces.")
-          q.validate(->(input) { validate_provider_list(input, available_providers) }, "One or more providers are not supported.")
-        end
+        fallback_providers = select_fallback_providers(available_providers, provider_name, preselected: current_fallbacks - [provider_name])
 
         restrict_input = @prompt.yes?("Only use providers that don't require API keys?", default: current_restrict)
 
-        # Process the inputs
-        fallback_providers = fallback_input.split(/\s*,\s*/).map(&:strip).reject(&:empty?)
+        # Process providers preserving order
         providers = [provider_name] + fallback_providers
         providers.uniq!
 
@@ -391,6 +307,41 @@ module Aidp
         # Check if all providers are valid
         valid_providers = available_providers.map { |p| p.split(" - ").first }
         providers.all? { |provider| valid_providers.include?(provider) }
+      end
+
+      # Interactive ordered multi-select for fallback providers
+      def select_fallback_providers(available_with_labels, default_provider, preselected: [])
+        # Extract provider names and exclude the already chosen default
+        options = available_with_labels.map { |o| o.split(" - ").first }
+        candidates = options.reject { |p| p == default_provider }
+
+        return [] if candidates.empty?
+
+        selected = preselected.select { |p| candidates.include?(p) }
+
+        loop do
+          display_message("\nSelect fallback providers in order of preference (first = highest priority).", type: :info)
+          display_message("Current order: #{selected.empty? ? "(none)" : selected.join(" > ")}", type: :muted)
+          choice = @prompt.select("Add provider, or choose an action:", cycle: true) do |menu|
+            (candidates - selected).each { |prov| menu.choice("Add #{prov}", prov) }
+            menu.choice("Done", :done)
+            menu.choice("Clear", :clear) unless selected.empty?
+            menu.choice("Remove last (#{selected.last})", :remove) unless selected.empty?
+          end
+
+          case choice
+          when :done
+            break
+          when :clear
+            selected.clear
+          when :remove
+            selected.pop
+          else
+            selected << choice unless selected.include?(choice)
+          end
+        end
+
+        selected
       end
     end
   end

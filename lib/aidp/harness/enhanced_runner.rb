@@ -55,6 +55,27 @@ module Aidp
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end
 
+      # Get current provider (delegate to provider manager)
+      def current_provider
+        @current_provider || @provider_manager&.current_provider || "unknown"
+      end
+
+      # Get current step
+      attr_reader :current_step
+
+      # Get user input
+      def user_input
+        @user_input || {}
+      end
+
+      # Get execution log
+      def execution_log
+        @execution_log || []
+      end
+
+      # Get provider manager
+      attr_reader :provider_manager
+
       # Main execution method with enhanced TUI
       def run
         @state = STATES[:running]

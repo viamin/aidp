@@ -49,7 +49,7 @@ module Aidp
       # Harness-aware step execution
       def run_step_with_harness(step_name, options = {})
         # Get current provider from harness
-        current_provider = @harness_runner.current_provider
+        current_provider = get_harness_provider_safely
         provider_type = current_provider || "cursor"
 
         debug_step(step_name, "Harness execution", {
@@ -230,11 +230,11 @@ module Aidp
         # Add current execution context
         context_parts << "## Analysis Context"
         context_parts << "Project Directory: #{@project_dir}"
-        context_parts << "Current Step: #{@harness_runner.current_step}"
-        context_parts << "Current Provider: #{@harness_runner.current_provider}"
+        context_parts << "Current Step: #{get_harness_current_step_safely}"
+        context_parts << "Current Provider: #{get_harness_provider_safely}"
 
         # Add user input context
-        user_input = @harness_runner.user_input
+        user_input = get_harness_user_input_safely
         if user_input && !user_input.empty?
           context_parts << "\n## Previous User Input"
           user_input.each do |key, value|
@@ -243,7 +243,7 @@ module Aidp
         end
 
         # Add execution history context
-        execution_log = @harness_runner.execution_log
+        execution_log = get_harness_execution_log_safely
         if execution_log && !execution_log.empty?
           context_parts << "\n## Analysis History"
           recent_logs = execution_log.last(5) # Last 5 entries
@@ -257,8 +257,9 @@ module Aidp
 
       # Execute step with harness provider management
       def execute_with_harness_provider(provider_type, prompt, step_name, _options)
-        # Get provider manager from harness
-        provider_manager = @harness_runner.provider_manager
+        # Get provider manager from harness safely
+        provider_manager = get_harness_provider_manager_safely
+        return {status: "failed", error: "No provider manager available"} unless provider_manager
 
         # Execute with provider
         provider_manager.execute_with_provider(provider_type, prompt, {
@@ -331,6 +332,57 @@ module Aidp
             timestamp: Time.now.iso8601
           })
         end
+      end
+
+      # Safely get current provider from harness runner
+      def get_harness_provider_safely
+        return "cursor" unless @harness_runner
+        return "cursor" unless @harness_runner.respond_to?(:current_provider)
+
+        @harness_runner.current_provider || "cursor"
+      rescue => e
+        debug_log("⚠️ Failed to get current provider from harness", level: :warn, data: {error: e.message})
+        "cursor"
+      end
+
+      def get_harness_current_step_safely
+        return "unknown" unless @harness_runner
+        return "unknown" unless @harness_runner.respond_to?(:current_step)
+
+        @harness_runner.current_step || "unknown"
+      rescue => e
+        debug_log("⚠️ Failed to get current step from harness", level: :warn, data: {error: e.message})
+        "unknown"
+      end
+
+      def get_harness_user_input_safely
+        return {} unless @harness_runner
+        return {} unless @harness_runner.respond_to?(:user_input)
+
+        @harness_runner.user_input || {}
+      rescue => e
+        debug_log("⚠️ Failed to get user input from harness", level: :warn, data: {error: e.message})
+        {}
+      end
+
+      def get_harness_execution_log_safely
+        return [] unless @harness_runner
+        return [] unless @harness_runner.respond_to?(:execution_log)
+
+        @harness_runner.execution_log || []
+      rescue => e
+        debug_log("⚠️ Failed to get execution log from harness", level: :warn, data: {error: e.message})
+        []
+      end
+
+      def get_harness_provider_manager_safely
+        return nil unless @harness_runner
+        return nil unless @harness_runner.respond_to?(:provider_manager)
+
+        @harness_runner.provider_manager
+      rescue => e
+        debug_log("⚠️ Failed to get provider manager from harness", level: :warn, data: {error: e.message})
+        nil
       end
     end
   end

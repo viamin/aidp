@@ -33,6 +33,9 @@ module Aidp
         @model_fallback_chains = {}
         @model_switching_enabled = true
         @model_weights = {}
+        @unavailable_cache = {}
+        @binary_check_cache = {}
+        @binary_check_ttl = 300 # seconds
         initialize_fallback_chains
         initialize_provider_health
         initialize_model_configs
@@ -564,9 +567,39 @@ module Aidp
 
       # Check if provider is available (not rate limited, healthy, circuit breaker closed)
       def is_provider_available?(provider_name)
-        !is_rate_limited?(provider_name) &&
-          is_provider_healthy?(provider_name) &&
-          !is_provider_circuit_breaker_open?(provider_name)
+        cli_ok, _reason = provider_cli_available?(provider_name)
+        return false unless cli_ok
+        return false if is_rate_limited?(provider_name)
+        return false unless is_provider_healthy?(provider_name)
+        return false if is_provider_circuit_breaker_open?(provider_name)
+        true
+      end
+
+      # Mark provider unhealthy (auth or generic) and optionally open circuit breaker
+      def mark_provider_unhealthy(provider_name, reason: "manual", open_circuit: true)
+        return unless @provider_health[provider_name]
+        health = @provider_health[provider_name]
+        health[:status] = (reason == "auth") ? "unhealthy_auth" : "unhealthy"
+        health[:last_updated] = Time.now
+        health[:unhealthy_reason] = reason
+        if open_circuit
+          health[:circuit_breaker_open] = true
+          health[:circuit_breaker_opened_at] = Time.now
+          log_circuit_breaker_event(provider_name, "opened")
+        end
+      end
+
+      def mark_provider_auth_failure(provider_name)
+        mark_provider_unhealthy(provider_name, reason: "auth", open_circuit: true)
+      end
+
+      # Mark provider unhealthy specifically due to failure exhaustion (non-auth)
+      def mark_provider_failure_exhausted(provider_name)
+        return unless @provider_health[provider_name]
+        health = @provider_health[provider_name]
+        # Don't override more critical states (auth or circuit already open)
+        return if health[:unhealthy_reason] == "auth"
+        mark_provider_unhealthy(provider_name, reason: "fail_exhausted", open_circuit: true)
       end
 
       # Check if model is rate limited
@@ -952,6 +985,198 @@ module Aidp
         @provider_metrics.dup
       end
 
+      # Determine whether a provider CLI/binary appears installed
+      def provider_installed?(provider_name)
+        return @unavailable_cache[provider_name] unless @unavailable_cache[provider_name].nil?
+        installed = true
+        begin
+          case provider_name
+          when "anthropic", "claude"
+            # Prefer direct binary probe instead of Anthropic.available? (which uses which internally)
+            path = begin
+              Aidp::Util.which("claude")
+            rescue
+              nil
+            end
+            installed = !path.nil?
+          when "cursor"
+            require_relative "../providers/cursor"
+            installed = Aidp::Providers::Cursor.available?
+          end
+        rescue LoadError
+          installed = false
+        end
+        @unavailable_cache[provider_name] = installed
+      end
+
+      # Attempt to run a provider's CLI with --version (or no-op) to verify executable health
+      def provider_cli_available?(provider_name)
+        normalized = normalize_provider_name(provider_name)
+
+        # Handle test environment overrides
+        if defined?(RSpec) || ENV["RSPEC_RUNNING"]
+          # Force claude to be missing for testing
+          if ENV["AIDP_FORCE_CLAUDE_MISSING"] == "1" && normalized == "claude"
+            return [false, "binary_missing"]
+          end
+          # Force claude to be available for testing
+          if ENV["AIDP_FORCE_CLAUDE_AVAILABLE"] == "1" && normalized == "claude"
+            return [true, "available"]
+          end
+        end
+
+        cache_key = "#{provider_name}:#{normalized}"
+        cached = @binary_check_cache[cache_key]
+        if cached && (Time.now - cached[:checked_at] < @binary_check_ttl)
+          return [cached[:ok], cached[:reason]]
+        end
+        # Map normalized provider -> binary
+        binary = case normalized
+        when "claude" then "claude"
+        when "cursor" then "cursor"
+        when "gemini" then "gemini"
+        when "macos" then nil # passthrough; no direct binary expected
+        end
+        unless binary
+          @binary_check_cache[cache_key] = {ok: true, reason: nil, checked_at: Time.now}
+          return [true, nil]
+        end
+        path = begin
+          Aidp::Util.which(binary)
+        rescue
+          nil
+        end
+        unless path
+          @binary_check_cache[cache_key] = {ok: false, reason: "binary_missing", checked_at: Time.now}
+          return [false, "binary_missing"]
+        end
+        # Light command execution to ensure it responds quickly
+        ok = true
+        reason = nil
+        begin
+          # Use IO.popen to avoid shell injection and impose a short timeout
+          r, w = IO.pipe
+          pid = Process.spawn(binary, "--version", out: w, err: w)
+          w.close
+          deadline = Time.now + 3
+          status = nil
+          while Time.now < deadline
+            pid_done, status = Process.waitpid2(pid, Process::WNOHANG)
+            break if pid_done
+            sleep 0.05
+          end
+          unless status
+            # Timeout -> kill
+            begin
+              Process.kill("TERM", pid)
+            rescue
+              nil
+            end
+            sleep 0.1
+            begin
+              Process.kill("KILL", pid)
+            rescue
+              nil
+            end
+            ok = false
+            reason = "binary_timeout"
+          end
+          output = r.read.to_s
+          r.close
+          if ok && output.strip.empty?
+            # Some CLIs require just calling without args; treat empty as still OK
+            ok = true
+          end
+        rescue => e
+          ok = false
+          reason = e.class.name.downcase.include?("enoent") ? "binary_missing" : "binary_error"
+        end
+        @binary_check_cache[cache_key] = {ok: ok, reason: reason, checked_at: Time.now}
+        [ok, reason]
+      end
+
+      # Summarize health and metrics for dashboard/CLI display
+      def health_dashboard
+        now = Time.now
+        statuses = get_provider_health_status
+        metrics = all_metrics
+        configured = @configuration.configured_providers
+        # Ensure fresh binary probe results in test mode so stubs of Aidp::Util.which take effect
+        if defined?(RSpec) || ENV["RSPEC_RUNNING"]
+          @binary_check_cache.clear
+        end
+        rows_by_normalized = {}
+        configured.each do |prov|
+          # Temporarily hide macos provider until it's user-configurable
+          next if prov == "macos"
+          normalized = normalize_provider_name(prov)
+          cli_ok_prefetch, cli_reason_prefetch = provider_cli_available?(prov)
+          h = statuses[prov] || {}
+          m = metrics[prov] || {}
+          rl = @rate_limit_info[prov]
+          reset_in = (rl && rl[:reset_time]) ? [(rl[:reset_time] - now).to_i, 0].max : nil
+          cb_remaining = if h[:circuit_breaker_open] && h[:circuit_breaker_opened_at]
+            elapsed = now - h[:circuit_breaker_opened_at]
+            rem = @circuit_breaker_timeout - elapsed
+            rem.positive? ? rem.to_i : 0
+          end
+          row = {
+            provider: normalized,
+            installed: provider_installed?(prov),
+            status: h[:status] || (provider_installed?(prov) ? "unknown" : "uninstalled"),
+            unhealthy_reason: h[:unhealthy_reason],
+            available: false, # will set true below only if all checks pass
+            circuit_breaker: h[:circuit_breaker_open] ? "open" : "closed",
+            circuit_breaker_remaining: cb_remaining,
+            rate_limited: !!rl,
+            rate_limit_reset_in: reset_in,
+            total_requests: m[:total_requests] || 0,
+            failed_requests: m[:failed_requests] || 0,
+            success_requests: m[:successful_requests] || 0,
+            total_tokens: m[:total_tokens] || 0,
+            last_used: m[:last_used]
+          }
+          # Incorporate CLI check outcome into reason/availability if failing
+          unless cli_ok_prefetch
+            row[:available] = false
+            row[:unhealthy_reason] ||= cli_reason_prefetch
+            row[:status] = "unhealthy" if row[:status] == "healthy" || row[:status] == "healthy_auth"
+          end
+          if cli_ok_prefetch && is_provider_available?(prov)
+            row[:available] = true
+          end
+          if (existing = rows_by_normalized[normalized])
+            # Merge metrics: sum counts/tokens, keep most severe status, earliest unhealthy reason if any
+            existing[:total_requests] += row[:total_requests]
+            existing[:failed_requests] += row[:failed_requests]
+            existing[:success_requests] += row[:success_requests]
+            existing[:total_tokens] += row[:total_tokens]
+            # If either unavailable then mark unavailable
+            existing[:available] &&= row[:available]
+            # Prefer an unhealthy or circuit breaker status over healthy
+            existing[:status] = merge_status_priority(existing[:status], row[:status])
+            existing[:unhealthy_reason] ||= row[:unhealthy_reason]
+            # Circuit breaker open takes precedence
+            if row[:circuit_breaker] == "open"
+              existing[:circuit_breaker] = "open"
+              existing[:circuit_breaker_remaining] = [existing[:circuit_breaker_remaining].to_i, row[:circuit_breaker_remaining].to_i].max
+            end
+            # Rate limited if any underlying
+            if row[:rate_limited]
+              existing[:rate_limited] = true
+              existing[:rate_limit_reset_in] = [existing[:rate_limit_reset_in].to_i, row[:rate_limit_reset_in].to_i].max
+            end
+            # Keep most recent last_used
+            if row[:last_used] && (!existing[:last_used] || row[:last_used] > existing[:last_used])
+              existing[:last_used] = row[:last_used]
+            end
+          else
+            rows_by_normalized[normalized] = row
+          end
+        end
+        rows_by_normalized.values
+      end
+
       # Get provider history
       def provider_history
         @provider_history.dup
@@ -1008,7 +1233,9 @@ module Aidp
             circuit_breaker_open: health[:circuit_breaker_open],
             last_updated: health[:last_updated],
             last_used: health[:last_used],
-            last_rate_limited: health[:last_rate_limited]
+            last_rate_limited: health[:last_rate_limited],
+            circuit_breaker_opened_at: health[:circuit_breaker_opened_at],
+            unhealthy_reason: health[:unhealthy_reason]
           }
         end
       end
@@ -1204,6 +1431,25 @@ module Aidp
       end
 
       private
+
+      # Normalize provider naming for display (hide legacy 'anthropic')
+      def normalize_provider_name(name)
+        return "claude" if name == "anthropic"
+        name
+      end
+
+      # Status priority for merging duplicate normalized providers
+      def merge_status_priority(a, b)
+        order = {
+          "circuit_breaker_open" => 5,
+          "unhealthy_auth" => 4,
+          "unhealthy" => 3,
+          "unknown" => 2,
+          "healthy" => 1,
+          nil => 0
+        }
+        ((order[a] || 0) >= (order[b] || 0)) ? a : b
+      end
 
       public
 

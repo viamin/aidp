@@ -210,10 +210,11 @@ RSpec.describe Aidp::Analyze::Runner do
     end
 
     it "handles harness execution errors gracefully" do
-      # Mock harness runner accessors to raise error
-      allow(harness_runner).to receive(:current_provider).and_raise(StandardError, "Test error")
+      # Mock harness runner accessors to raise error - should be handled safely
+      allow(harness_runner).to receive(:current_provider).and_raise(StandardError, "Provider error")
 
-      expect { runner.run_step_with_harness("01_REPOSITORY_ANALYSIS", {}) }.to raise_error(StandardError, "Test error")
+      # Should continue with fallback provider and get template error instead
+      expect { runner.run_step_with_harness("01_REPOSITORY_ANALYSIS", {}) }.to raise_error(RuntimeError, /Template not found/)
     end
   end
 end
