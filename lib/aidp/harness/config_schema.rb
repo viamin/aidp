@@ -366,6 +366,46 @@ module Aidp
                   enum: ["provider_model", "provider", "model", "none"]
                 }
               }
+            },
+            work_loop: {
+              type: :hash,
+              required: false,
+              default: {
+                enabled: true,
+                max_iterations: 50,
+                test_commands: [],
+                lint_commands: []
+              },
+              properties: {
+                enabled: {
+                  type: :boolean,
+                  required: false,
+                  default: true
+                },
+                max_iterations: {
+                  type: :integer,
+                  required: false,
+                  default: 50,
+                  min: 1,
+                  max: 200
+                },
+                test_commands: {
+                  type: :array,
+                  required: false,
+                  default: [],
+                  items: {
+                    type: :string
+                  }
+                },
+                lint_commands: {
+                  type: :array,
+                  required: false,
+                  default: [],
+                  items: {
+                    type: :string
+                  }
+                }
+              }
             }
           }
         },

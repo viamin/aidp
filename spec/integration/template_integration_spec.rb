@@ -12,7 +12,8 @@ RSpec.describe "Template Integration", type: :integration do
 
       Aidp::Execute::Steps::SPEC.each do |step_name, spec|
         template_name = spec["templates"].first
-        template_path = File.join(project_dir, "templates", "EXECUTE", template_name)
+        # Template name now includes subdirectory (e.g., "planning/create_prd.md")
+        template_path = File.join(project_dir, "templates", template_name)
 
         unless File.exist?(template_path)
           missing_templates << "Step #{step_name} expects template #{template_name} but file doesn't exist"
@@ -67,7 +68,8 @@ RSpec.describe "Template Integration", type: :integration do
 
       Aidp::Analyze::Steps::SPEC.each do |step_name, spec|
         template_name = spec["templates"].first
-        template_path = File.join(project_dir, "templates", "ANALYZE", template_name)
+        # Template name now includes subdirectory (e.g., "analysis/analyze_repository.md")
+        template_path = File.join(project_dir, "templates", template_name)
 
         unless File.exist?(template_path)
           missing_templates << "Step #{step_name} expects template #{template_name} but file doesn't exist"
