@@ -2,17 +2,14 @@
 
 ## [0.10.0](https://github.com/viamin/aidp/compare/aidp/v0.9.6...aidp/v0.10.0) (2025-09-27)
 
-
 ### Features
 
 * add GitHub Copilot provider and integration ([00e0c85](https://github.com/viamin/aidp/commit/00e0c85492aa314b3f0ca8030b8d15120f4b228a))
 * add GitHub Copilot provider and integration ([#68](https://github.com/viamin/aidp/issues/68)) ([6cdf8b3](https://github.com/viamin/aidp/commit/6cdf8b3b6d3536b1354f05f0daf1915850f3dd2e))
 
-
 ### Bug Fixes
 
 * use correct template naming conventions in analysis steps ([3ab5f2a](https://github.com/viamin/aidp/commit/3ab5f2af54109ea6377f81d4ad2baef487cf1a6f))
-
 
 ### Improvements
 

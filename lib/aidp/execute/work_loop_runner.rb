@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "prompt_manager"
+require_relative "checkpoint"
+require_relative "checkpoint_display"
 require_relative "../harness/test_runner"
 
 module Aidp
@@ -11,12 +13,14 @@ module Aidp
     # - Loop: send PROMPT.md to agent, run tests/linters, check completion
     # - Only send test/lint failures back to agent
     # - Track iteration count
+    # - Record periodic checkpoints with metrics
     class WorkLoopRunner
       include Aidp::MessageDisplay
 
       attr_reader :iteration_count, :project_dir
 
       MAX_ITERATIONS = 50 # Safety limit
+      CHECKPOINT_INTERVAL = 5 # Record checkpoint every N iterations
 
       def initialize(project_dir, provider_manager, config, options = {})
         @project_dir = project_dir
@@ -24,6 +28,8 @@ module Aidp
         @config = config
         @prompt_manager = PromptManager.new(project_dir)
         @test_runner = Aidp::Harness::TestRunner.new(project_dir, config)
+        @checkpoint = Checkpoint.new(project_dir)
+        @checkpoint_display = CheckpointDisplay.new
         @iteration_count = 0
         @step_name = nil
         @options = options
@@ -54,8 +60,13 @@ module Aidp
           test_results = @test_runner.run_tests
           lint_results = @test_runner.run_linters
 
+          # Record checkpoint at intervals
+          record_periodic_checkpoint(test_results, lint_results)
+
           # Check if step is complete
           if step_complete?(result, test_results, lint_results)
+            # Record final checkpoint
+            record_final_checkpoint(test_results, lint_results)
             display_message("✅ Step #{step_name} completed after #{@iteration_count} iterations", type: :success)
             archive_and_cleanup
             return build_success_result(result)
@@ -254,6 +265,43 @@ module Aidp
           iterations: @iteration_count,
           error: "Step did not complete within #{MAX_ITERATIONS} iterations"
         }
+      end
+
+      # Record checkpoint at regular intervals
+      def record_periodic_checkpoint(test_results, lint_results)
+        # Record every CHECKPOINT_INTERVAL iterations or on iteration 1
+        return unless @iteration_count == 1 || (@iteration_count % CHECKPOINT_INTERVAL == 0)
+
+        metrics = {
+          tests_passing: test_results[:success],
+          linters_passing: lint_results[:success]
+        }
+
+        checkpoint_data = @checkpoint.record_checkpoint(@step_name, @iteration_count, metrics)
+
+        # Display inline progress
+        @checkpoint_display.display_inline_progress(@iteration_count, checkpoint_data[:metrics])
+
+        # Show detailed checkpoint every 10 iterations
+        if @iteration_count % 10 == 0
+          @checkpoint_display.display_checkpoint(checkpoint_data)
+        end
+      end
+
+      # Record final checkpoint when step completes
+      def record_final_checkpoint(test_results, lint_results)
+        metrics = {
+          tests_passing: test_results[:success],
+          linters_passing: lint_results[:success],
+          completed: true
+        }
+
+        checkpoint_data = @checkpoint.record_checkpoint(@step_name, @iteration_count, metrics)
+        @checkpoint_display.display_checkpoint(checkpoint_data, show_details: true)
+
+        # Display progress summary
+        summary = @checkpoint.progress_summary
+        @checkpoint_display.display_progress_summary(summary) if summary
       end
     end
   end
