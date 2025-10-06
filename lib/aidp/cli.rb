@@ -225,15 +225,58 @@ module Aidp
         options = {}
 
         parser = OptionParser.new do |opts|
-          opts.banner = "Usage: aidp [options]"
+          opts.banner = "Usage: aidp [COMMAND] [options]"
           opts.separator ""
-          opts.separator "Start the interactive TUI (default)"
+          opts.separator "AI Development Pipeline - Autonomous development workflow automation"
+          opts.separator ""
+          opts.separator "Commands:"
+          opts.separator "  analyze [--background]   Start analyze mode workflow"
+          opts.separator "  execute [--background]   Start execute mode workflow"
+          opts.separator "  status                   Show current system status"
+          opts.separator "  jobs                     Manage background jobs"
+          opts.separator "    list                     - List all jobs"
+          opts.separator "    status <id> [--follow]   - Show job status"
+          opts.separator "    logs <id> [--tail]       - Show job logs"
+          opts.separator "    stop <id>                - Stop a running job"
+          opts.separator "  checkpoint               View progress checkpoints and metrics"
+          opts.separator "    show                     - Show latest checkpoint"
+          opts.separator "    summary [--watch]        - Show progress summary with trends"
+          opts.separator "    history [N]              - Show last N checkpoints"
+          opts.separator "    metrics                  - Show detailed metrics"
+          opts.separator "    clear [--force]          - Clear checkpoint data"
+          opts.separator "  providers                Show provider health dashboard"
+          opts.separator "  harness                  Manage harness state"
+          opts.separator "    status                   - Show harness status"
+          opts.separator "    reset                    - Reset harness state"
+          opts.separator "  kb                       Knowledge base commands"
+          opts.separator "    show <topic>             - Show knowledge base topic"
           opts.separator ""
           opts.separator "Options:"
 
           opts.on("-h", "--help", "Show this help message") { options[:help] = true }
           opts.on("-v", "--version", "Show version information") { options[:version] = true }
-          opts.on("--setup-config", "Setup or reconfigure config file with current values as defaults") { options[:setup_config] = true }
+          opts.on("--setup-config", "Setup or reconfigure config file") { options[:setup_config] = true }
+
+          opts.separator ""
+          opts.separator "Examples:"
+          opts.separator "  # Start background execution"
+          opts.separator "  aidp execute --background"
+          opts.separator "  aidp execute --background --follow    # Start and follow logs"
+          opts.separator ""
+          opts.separator "  # Monitor background jobs"
+          opts.separator "  aidp jobs list                        # List all jobs"
+          opts.separator "  aidp jobs status <job_id>             # Show job status"
+          opts.separator "  aidp jobs logs <job_id> --tail        # Tail job logs"
+          opts.separator ""
+          opts.separator "  # Watch progress in real-time"
+          opts.separator "  aidp checkpoint summary --watch       # Auto-refresh every 5s"
+          opts.separator "  aidp checkpoint summary --watch --interval 10"
+          opts.separator ""
+          opts.separator "  # Other commands"
+          opts.separator "  aidp providers                        # Check provider health"
+          opts.separator "  aidp checkpoint history 20            # Show last 20 checkpoints"
+          opts.separator ""
+          opts.separator "For more information, visit: https://github.com/viamin/aidp"
         end
 
         parser.parse!(args)
@@ -244,19 +287,20 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze providers].include?(args.first)
+        %w[status jobs kb harness execute analyze providers checkpoint].include?(args.first)
       end
 
       def run_subcommand(args)
         cmd = args.shift
         case cmd
         when "status" then run_status_command
-        when "jobs" then run_jobs_command
+        when "jobs" then run_jobs_command(args)
         when "kb" then run_kb_command(args)
         when "harness" then run_harness_command(args)
         when "execute" then run_execute_command(args)
         when "analyze" then run_execute_command(args, mode: :analyze) # symmetry
         when "providers" then run_providers_command(args)
+        when "checkpoint" then run_checkpoint_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -273,10 +317,11 @@ module Aidp
         display_message("Use 'aidp analyze' or 'aidp execute' to start a workflow", type: :info)
       end
 
-      def run_jobs_command
+      def run_jobs_command(args = [])
         require_relative "cli/jobs_command"
         jobs_cmd = Aidp::CLI::JobsCommand.new(prompt: TTY::Prompt.new)
-        jobs_cmd.run
+        subcommand = args.shift
+        jobs_cmd.run(subcommand, args)
       end
 
       def run_kb_command(args)
@@ -311,6 +356,8 @@ module Aidp
         approve_step = nil
         reset = false
         no_harness = false
+        background = false
+        follow = false
 
         until flags.empty?
           token = flags.shift
@@ -318,6 +365,8 @@ module Aidp
           when "--no-harness" then no_harness = true
           when "--reset" then reset = true
           when "--approve" then approve_step = flags.shift
+          when "--background" then background = true
+          when "--follow" then follow = true
           else
             step ||= token unless token.start_with?("--")
           end
@@ -336,6 +385,35 @@ module Aidp
           display_message("Use 'aidp #{mode}' without arguments", type: :info)
           return
         end
+
+        # Handle background execution
+        if background
+          require_relative "jobs/background_runner"
+          runner = Aidp::Jobs::BackgroundRunner.new(Dir.pwd)
+
+          display_message("Starting #{mode} mode in background...", type: :info)
+          job_id = runner.start(mode, {})
+
+          display_message("✓ Started background job: #{job_id}", type: :success)
+          display_message("", type: :info)
+          display_message("Monitor progress:", type: :info)
+          display_message("  aidp jobs status #{job_id}", type: :info)
+          display_message("  aidp jobs logs #{job_id} --tail", type: :info)
+          display_message("  aidp checkpoint summary", type: :info)
+          display_message("", type: :info)
+          display_message("Stop the job:", type: :info)
+          display_message("  aidp jobs stop #{job_id}", type: :info)
+
+          if follow
+            display_message("", type: :info)
+            display_message("Following logs (Ctrl+C to stop following)...", type: :info)
+            sleep 1 # Give daemon time to start writing logs
+            runner.follow_job_logs(job_id)
+          end
+
+          return
+        end
+
         if step
           display_message("Running #{mode} step '#{step}' with enhanced TUI harness", type: :highlight)
           display_message("progress indicators", type: :info)
@@ -359,6 +437,151 @@ module Aidp
         display_message("Starting enhanced TUI harness", type: :highlight)
         display_message("Press Ctrl+C to stop", type: :highlight)
         display_message("workflow selection options", type: :info)
+      end
+
+      def run_checkpoint_command(args)
+        require_relative "execute/checkpoint"
+        require_relative "execute/checkpoint_display"
+
+        sub = args.shift || "summary"
+        checkpoint = Aidp::Execute::Checkpoint.new(Dir.pwd)
+        display = Aidp::Execute::CheckpointDisplay.new
+
+        case sub
+        when "show"
+          latest = checkpoint.latest_checkpoint
+          if latest
+            display.display_checkpoint(latest, show_details: true)
+          else
+            display_message("No checkpoint data found.", type: :info)
+          end
+
+        when "summary"
+          watch = args.include?("--watch")
+          interval = extract_interval_option(args) || 5
+
+          if watch
+            watch_checkpoint_summary(checkpoint, display, interval)
+          else
+            summary = checkpoint.progress_summary
+            if summary
+              display.display_progress_summary(summary)
+            else
+              display_message("No checkpoint data found.", type: :info)
+            end
+          end
+
+        when "history"
+          limit = args.shift || "10"
+          history = checkpoint.checkpoint_history(limit: limit.to_i)
+          if history.any?
+            display.display_checkpoint_history(history, limit: limit.to_i)
+          else
+            display_message("No checkpoint history found.", type: :info)
+          end
+
+        when "metrics"
+          latest = checkpoint.latest_checkpoint
+          unless latest
+            display_message("No checkpoint data found.", type: :info)
+            return
+          end
+
+          display_message("", type: :info)
+          display_message("📊 Detailed Metrics", type: :info)
+          display_message("=" * 60, type: :muted)
+
+          metrics = latest[:metrics]
+          display_message("Lines of Code: #{metrics[:lines_of_code]}", type: :info)
+          display_message("File Count: #{metrics[:file_count]}", type: :info)
+          display_message("Test Coverage: #{metrics[:test_coverage]}%", type: :info)
+          display_message("Code Quality: #{metrics[:code_quality]}%", type: :info)
+          display_message("PRD Task Progress: #{metrics[:prd_task_progress]}%", type: :info)
+
+          if metrics[:tests_passing]
+            status = metrics[:tests_passing] ? "✓ Passing" : "✗ Failing"
+            display_message("Tests: #{status}", type: :info)
+          end
+
+          if metrics[:linters_passing]
+            status = metrics[:linters_passing] ? "✓ Passing" : "✗ Failing"
+            display_message("Linters: #{status}", type: :info)
+          end
+
+          display_message("=" * 60, type: :muted)
+          display_message("", type: :info)
+
+        when "clear"
+          force = args.include?("--force")
+          unless force
+            prompt = TTY::Prompt.new
+            confirm = prompt.yes?("Are you sure you want to clear all checkpoint data?")
+            return unless confirm
+          end
+
+          checkpoint.clear
+          display_message("✓ Checkpoint data cleared.", type: :success)
+
+        else
+          display_message("Usage: aidp checkpoint <show|summary|history|metrics|clear>", type: :info)
+          display_message("  show              - Show the latest checkpoint data", type: :info)
+          display_message("  summary [--watch] - Show progress summary with trends", type: :info)
+          display_message("  history [N]       - Show last N checkpoints", type: :info)
+          display_message("  metrics           - Show detailed metrics", type: :info)
+          display_message("  clear [--force]   - Clear all checkpoint data", type: :info)
+        end
+      end
+
+      def watch_checkpoint_summary(checkpoint, display, interval)
+        display_message("Watching checkpoint summary (refresh: #{interval}s, Ctrl+C to exit)...", type: :info)
+        display_message("", type: :info)
+
+        begin
+          loop do
+            # Clear screen
+            print "\e[2J\e[H"
+
+            summary = checkpoint.progress_summary
+            if summary
+              display.display_progress_summary(summary)
+
+              # Show last update time
+              if summary[:current] && summary[:current][:timestamp]
+                last_update = Time.parse(summary[:current][:timestamp])
+                age = Time.now - last_update
+                display_message("", type: :info)
+                display_message("Last update: #{format_time_ago_simple(age)} | Refreshing in #{interval}s...", type: :muted)
+              end
+            else
+              display_message("No checkpoint data found. Waiting for data...", type: :info)
+            end
+
+            sleep interval
+          end
+        rescue Interrupt
+          display_message("\nStopped watching checkpoint summary", type: :info)
+        end
+      end
+
+      def extract_interval_option(args)
+        args.each_with_index do |arg, i|
+          if arg == "--interval" && args[i + 1]
+            return args[i + 1].to_i
+          elsif arg.start_with?("--interval=")
+            return arg.split("=")[1].to_i
+          end
+        end
+        nil
+      end
+
+      def format_time_ago_simple(seconds)
+        if seconds < 60
+          "#{seconds.to_i}s ago"
+        elsif seconds < 3600
+          "#{(seconds / 60).to_i}m ago"
+        else
+          "#{(seconds / 3600).to_i}h ago"
+        end
       end
 
       def run_providers_command(args)

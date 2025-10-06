@@ -1,6 +1,6 @@
 # AI Dev Pipeline (aidp) - Ruby Gem
 
-A portable CLI that automates a complete AI development workflow from idea to implementation using your existing IDE assistants. Now with **Enhanced TUI** - a rich terminal interface that runs complete workflows with intelligent provider management and error recovery.
+A portable CLI that automates AI development workflows from idea to implementation using your existing IDE assistants. Features autonomous work loops, background execution, and comprehensive progress tracking.
 
 ## Quick Start
 
@@ -11,13 +11,16 @@ gem install aidp
 # Navigate to your project
 cd /your/project
 
-# Start the interactive TUI (default)
-aidp
+# Start an interactive workflow
+aidp execute
+
+# Or run in background
+aidp execute --background
 ```
 
 ### First-Time Setup
 
-On the first run in a project without an `aidp.yml`, AIDP now launches a **First-Time Setup Wizard** instead of failing with a configuration error. You'll be prompted to choose one of:
+On the first run in a project without an `aidp.yml`, AIDP launches a **First-Time Setup Wizard**. You'll be prompted to choose one of:
 
 1. Minimal (single provider: cursor)
 2. Development template (multiple providers, safe defaults)
@@ -27,41 +30,141 @@ On the first run in a project without an `aidp.yml`, AIDP now launches a **First
 
 Non-interactive environments (CI, scripts, pipes) automatically receive a minimal `aidp.yml` so workflows can proceed without manual intervention.
 
-You can re-run the wizard manually by removing `aidp.yml` and starting `aidp` again.
+You can re-run the wizard manually:
 
-## Work Loops
+```bash
+aidp --setup-config
+```
 
-AIDP implements **work loops** - an iterative execution pattern where AI agents autonomously work on tasks until completion, with automatic testing and linting feedback. Unlike traditional single-pass prompting, work loops enable:
+## Core Features
+
+### Work Loops
+
+AIDP implements **work loops** - an iterative execution pattern where AI agents autonomously work on tasks until completion, with automatic testing and linting feedback.
 
 - **Iterative refinement**: Agent works in loops until task is 100% complete
 - **Self-management**: Agent edits PROMPT.md to track its own progress
 - **Automatic validation**: Tests and linters run after each iteration
 - **Self-correction**: Only failures are fed back for the next iteration
 
-## Enhanced TUI
+See [Work Loops Guide](docs/WORK_LOOPS_GUIDE.md) for details.
 
-AIDP features a rich terminal interface that transforms it from a step-by-step tool into an intelligent development assistant. The enhanced TUI provides beautiful, interactive terminal components while running complete workflows automatically.
+### Background Execution
 
-### Features
-
-- **🎨 Rich Terminal Interface**: Beautiful CLI UI components with progress bars, spinners, and frames
-- **📋 Interactive Navigation**: Hierarchical menu system with breadcrumb navigation
-- **⌨️ Keyboard Shortcuts**: Full keyboard navigation and control
-- **📊 Real-time Progress**: Live monitoring of progress and system status
-- **🔄 Workflow Control**: Pause, resume, cancel, and stop workflows with visual feedback
-- **💬 Smart Question Collection**: Interactive prompts with validation and error handling
-
-### Usage
+Run workflows in the background while monitoring progress from separate terminals:
 
 ```bash
-# Start the interactive TUI (default)
-aidp
+# Start in background
+aidp execute --background
+✓ Started background job: 20251005_235912_a1b2c3d4
 
-# Show version information
-aidp --version
+# Monitor progress
+aidp jobs list                        # List all jobs
+aidp jobs status <job_id>             # Show job status
+aidp jobs logs <job_id> --tail        # View recent logs
+aidp checkpoint summary --watch       # Watch metrics in real-time
 
-# Show help information
-aidp --help
+# Control jobs
+aidp jobs stop <job_id>               # Stop a running job
+```
+
+### Progress Checkpoints
+
+Track code quality metrics and task progress throughout execution:
+
+```bash
+# View current progress
+aidp checkpoint summary
+
+# Watch with auto-refresh
+aidp checkpoint summary --watch
+
+# View historical data
+aidp checkpoint history 20
+```
+
+**Tracked Metrics:**
+
+- Lines of code
+- Test coverage
+- Code quality scores
+- PRD task completion percentage
+- File count and growth trends
+
+## Command Reference
+
+### Execution Modes
+
+```bash
+# Execute mode - Build new features
+aidp execute                    # Interactive workflow selection
+aidp execute --background       # Run in background
+aidp execute --background --follow  # Start and follow logs
+
+# Analyze mode - Analyze codebase
+aidp analyze                    # Interactive analysis
+aidp analyze --background       # Background analysis
+```
+
+### Job Management
+
+```bash
+# List all background jobs
+aidp jobs list
+
+# Show job status
+aidp jobs status <job_id>
+aidp jobs status <job_id> --follow  # Follow with auto-refresh
+
+# View job logs
+aidp jobs logs <job_id>
+aidp jobs logs <job_id> --tail      # Last 50 lines
+aidp jobs logs <job_id> --follow    # Stream in real-time
+
+# Stop a running job
+aidp jobs stop <job_id>
+```
+
+### Checkpoint Monitoring
+
+```bash
+# View latest checkpoint
+aidp checkpoint show
+
+# Progress summary with trends
+aidp checkpoint summary
+aidp checkpoint summary --watch             # Auto-refresh every 5s
+aidp checkpoint summary --watch --interval 10  # Custom interval
+
+# View checkpoint history
+aidp checkpoint history           # Last 10 checkpoints
+aidp checkpoint history 50        # Last 50 checkpoints
+
+# Detailed metrics
+aidp checkpoint metrics
+
+# Clear checkpoint data
+aidp checkpoint clear
+aidp checkpoint clear --force     # Skip confirmation
+```
+
+### System Commands
+
+```bash
+# Show system status
+aidp status
+
+# Provider health dashboard
+aidp providers
+
+# Harness state management
+aidp harness status
+aidp harness reset
+
+# Configuration
+aidp --setup-config             # Re-run setup wizard
+aidp --help                     # Show all commands
+aidp --version                  # Show version
 ```
 
 ## AI Providers
@@ -76,7 +179,7 @@ AIDP intelligently manages multiple providers with automatic switching:
 - **macOS UI** - macOS-specific UI automation provider
 - **OpenCode** - Alternative open-source code generation provider
 
-The TUI automatically switches providers when:
+The system automatically switches providers when:
 
 - Rate limits are hit
 - Providers fail or timeout
@@ -212,6 +315,49 @@ When the AI creates a questions file, follow these steps:
 
 The questions file is only created when the AI needs additional information beyond what it can infer from your project structure and existing files. Your answers are preserved for future reference.
 
+## Workflow Examples
+
+### Standard Interactive Workflow
+
+```bash
+# Start execute mode
+aidp execute
+
+# Select workflow type (e.g., "Full PRD to Implementation")
+# Answer any questions interactively
+# Review generated files (PRD, architecture, etc.)
+# Workflow runs automatically with harness managing retries
+```
+
+### Background Workflow with Monitoring
+
+```bash
+# Terminal 1: Start background execution
+aidp execute --background
+✓ Started background job: 20251005_235912_a1b2c3d4
+
+# Terminal 2: Watch progress in real-time
+aidp checkpoint summary --watch
+
+# Terminal 3: Monitor job status
+aidp jobs status 20251005_235912_a1b2c3d4 --follow
+
+# Later: Check final results
+aidp checkpoint summary
+aidp jobs logs 20251005_235912_a1b2c3d4 --tail
+```
+
+### Quick Analysis
+
+```bash
+# Run analysis in background
+aidp analyze --background
+
+# Check progress
+aidp jobs list
+aidp checkpoint summary
+```
+
 ## Debug and Logging
 
 ```bash
@@ -269,8 +415,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and conventional co
 
 For detailed information:
 
+- **[CLI User Guide](docs/CLI_USER_GUIDE.md)** - Complete guide to using AIDP commands
 - **[Work Loops Guide](docs/WORK_LOOPS_GUIDE.md)** - Iterative workflows with automatic validation
-- **[TUI User Guide](docs/TUI_USER_GUIDE.md)** - Complete guide to using the enhanced TUI
 - **[Configuration Guide](docs/harness-configuration.md)** - Detailed configuration options and examples
 - **[Troubleshooting Guide](docs/harness-troubleshooting.md)** - Common issues and solutions
 

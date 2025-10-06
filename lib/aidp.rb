@@ -9,6 +9,11 @@ require_relative "aidp/config"
 require_relative "aidp/util"
 require_relative "aidp/message_display"
 require_relative "aidp/cli"
+
+# Jobs and background execution
+require_relative "aidp/jobs/background_runner"
+
+# CLI commands
 require_relative "aidp/cli/jobs_command"
 
 # Providers
@@ -43,6 +48,8 @@ require_relative "aidp/analyze/kb_inspector"
 require_relative "aidp/execute/steps"
 require_relative "aidp/execute/runner"
 require_relative "aidp/execute/progress"
+require_relative "aidp/execute/checkpoint"
+require_relative "aidp/execute/checkpoint_display"
 
 # Harness mode
 require_relative "aidp/harness/configuration"
