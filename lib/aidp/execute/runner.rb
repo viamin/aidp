@@ -3,6 +3,7 @@
 require "tty-prompt"
 require_relative "steps"
 require_relative "progress"
+require_relative "work_loop_runner"
 require_relative "../storage/file_manager"
 
 module Aidp
@@ -41,18 +42,17 @@ module Aidp
 
       # Harness-aware step execution
       def run_step_with_harness(step_name, options = {})
-        # Get current provider from harness
-        current_provider = @harness_runner.current_provider
-        provider_type = current_provider || "cursor"
+        step_spec = Aidp::Execute::Steps::SPEC[step_name]
 
-        # Compose prompt with harness context
-        prompt = composed_prompt_with_harness_context(step_name, options)
-
-        # Execute with harness error handling
-        result = execute_with_harness_provider(provider_type, prompt, step_name, options)
-
-        # Process result for harness
-        process_result_for_harness(result, step_name, options)
+        # Check if work loops are enabled in configuration
+        config = @harness_runner.instance_variable_get(:@configuration)
+        if config&.work_loop_enabled?
+          # Use WorkLoopRunner for Ralph-style execution
+          run_step_with_work_loop(step_name, step_spec, options)
+        else
+          # Use traditional single-pass execution
+          run_step_traditional(step_name, step_spec, options)
+        end
       end
 
       # Standalone step execution (simplified - synchronous)
@@ -143,6 +143,42 @@ module Aidp
       end
 
       private
+
+      # Execute step with work loop (Ralph-style)
+      def run_step_with_work_loop(step_name, step_spec, options)
+        config = @harness_runner.instance_variable_get(:@configuration)
+        provider_manager = @harness_runner.provider_manager
+
+        # Create work loop runner
+        work_loop_runner = WorkLoopRunner.new(
+          @project_dir,
+          provider_manager,
+          config,
+          options
+        )
+
+        # Execute with work loop
+        result = work_loop_runner.execute_step(step_name, step_spec, options)
+
+        # Process result for harness
+        process_result_for_harness(result, step_name, options)
+      end
+
+      # Execute step traditionally (single pass)
+      def run_step_traditional(step_name, step_spec, options)
+        # Get current provider from harness
+        current_provider = @harness_runner.current_provider
+        provider_type = current_provider || "cursor"
+
+        # Compose prompt with harness context
+        prompt = composed_prompt_with_harness_context(step_name, options)
+
+        # Execute with harness error handling
+        result = execute_with_harness_provider(provider_type, prompt, step_name, options)
+
+        # Process result for harness
+        process_result_for_harness(result, step_name, options)
+      end
 
       # Simple synchronous step execution
       def execute_step_synchronously(step_name, prompt, options)
@@ -270,7 +306,10 @@ module Aidp
 
       def template_search_paths
         [
-          File.join(@project_dir, "templates", "EXECUTE"),
+          File.join(@project_dir, "templates"),        # Root templates folder
+          File.join(@project_dir, "templates", "planning"),
+          File.join(@project_dir, "templates", "analysis"),
+          File.join(@project_dir, "templates", "implementation"),
           File.join(@project_dir, "templates", "COMMON")
         ]
       end

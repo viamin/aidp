@@ -187,7 +187,10 @@ module Aidp
 
       def template_search_paths
         [
-          File.join(@project_dir, "templates", "ANALYZE"),
+          File.join(@project_dir, "templates"),        # Root templates folder
+          File.join(@project_dir, "templates", "analysis"),
+          File.join(@project_dir, "templates", "planning"),
+          File.join(@project_dir, "templates", "implementation"),
           File.join(@project_dir, "templates", "COMMON")
         ]
       end

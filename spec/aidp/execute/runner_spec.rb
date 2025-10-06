@@ -97,7 +97,7 @@ RSpec.describe Aidp::Execute::Runner do
       allow(runner.progress).to receive(:step_completed?).and_return(false)
 
       next_step = runner.next_step
-      expect(next_step).to eq("00_PRD")
+      expect(next_step).to eq("00_LLM_STYLE_GUIDE")
     end
 
     it "returns nil when all steps completed" do
@@ -140,7 +140,7 @@ RSpec.describe Aidp::Execute::Runner do
     it "gets step specification" do
       spec = runner.get_step_spec("00_PRD")
       expect(spec).to be_a(Hash)
-      expect(spec["templates"]).to eq(["00_PRD.md"])
+      expect(spec["templates"]).to eq(["planning/create_prd.md"])
       expect(spec["description"]).to eq("Generate Product Requirements Document")
       expect(spec["outs"]).to eq(["docs/prd.md"])
       expect(spec["gate"]).to be false # Changed in simplified workflow
@@ -168,17 +168,17 @@ RSpec.describe Aidp::Execute::Runner do
 
     it "gets step templates" do
       templates = runner.get_step_templates("00_PRD")
-      expect(templates).to eq(["00_PRD.md"])
+      expect(templates).to eq(["planning/create_prd.md"])
     end
   end
 
   describe "harness status" do
     before do
-      allow(runner.progress).to receive(:completed_steps).and_return(["00_PRD"])
-      allow(runner.progress).to receive(:current_step).and_return("01_NFRS")
+      allow(runner.progress).to receive(:completed_steps).and_return(["00_LLM_STYLE_GUIDE"])
+      allow(runner.progress).to receive(:current_step).and_return("00_PRD")
       allow(runner.progress).to receive(:started_at).and_return(Time.now - 3600)
       allow(runner.progress).to receive(:step_completed?).and_return(false)
-      allow(runner.progress).to receive(:step_completed?).with("00_PRD").and_return(true)
+      allow(runner.progress).to receive(:step_completed?).with("00_LLM_STYLE_GUIDE").and_return(true)
     end
 
     it "returns harness status information" do
@@ -197,8 +197,8 @@ RSpec.describe Aidp::Execute::Runner do
       expect(status[:mode]).to eq(:execute)
       expect(status[:total_steps]).to eq(Aidp::Execute::Steps::SPEC.keys.size)
       expect(status[:completed_steps]).to eq(1)
-      expect(status[:current_step]).to eq("01_NFRS")
-      expect(status[:next_step]).to eq("01_NFRS")
+      expect(status[:current_step]).to eq("00_PRD")
+      expect(status[:next_step]).to eq("00_PRD")
       expect(status[:all_completed]).to be false
       expect(status[:started_at]).to be_a(Time)
       expect(status[:progress_percentage]).to be_a(Numeric)
@@ -367,15 +367,15 @@ RSpec.describe Aidp::Execute::Runner do
     it "finds templates in correct search paths" do
       # Reset the global mock for this specific test
       allow(File).to receive(:exist?).and_call_original
-      allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "EXECUTE", "00_PRD.md")).and_return(true)
-      allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "COMMON", "00_PRD.md")).and_return(false)
+      allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "planning/create_prd.md")).and_return(true)
+      allow(File).to receive(:exist?).with(File.join(project_dir, "templates", "COMMON", "planning/create_prd.md")).and_return(false)
 
       # Override the find_template mock from the before block
       allow(runner).to receive(:find_template).and_call_original
 
-      template_path = runner.send(:find_template, "00_PRD.md")
+      template_path = runner.send(:find_template, "planning/create_prd.md")
 
-      expect(template_path).to eq(File.join(project_dir, "templates", "EXECUTE", "00_PRD.md"))
+      expect(template_path).to eq(File.join(project_dir, "templates", "planning/create_prd.md"))
     end
 
     it "searches common templates path" do

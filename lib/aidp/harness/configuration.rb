@@ -144,6 +144,31 @@ module Aidp
         harness_config[:session] || get_default_session_config
       end
 
+      # Get work loop configuration
+      def work_loop_config
+        harness_config[:work_loop] || get_default_work_loop_config
+      end
+
+      # Check if work loops are enabled
+      def work_loop_enabled?
+        work_loop_config[:enabled]
+      end
+
+      # Get maximum iterations for work loops
+      def work_loop_max_iterations
+        work_loop_config[:max_iterations]
+      end
+
+      # Get test commands
+      def test_commands
+        work_loop_config[:test_commands] || []
+      end
+
+      # Get lint commands
+      def lint_commands
+        work_loop_config[:lint_commands] || []
+      end
+
       # Get provider priority
       def provider_priority(provider_name)
         provider_config(provider_name)[:priority] || 0
@@ -413,6 +438,15 @@ module Aidp
           timeout: 1800, # 30 minutes
           sticky_sessions: true,
           session_affinity: "provider_model" # provider, model, provider_model
+        }
+      end
+
+      def get_default_work_loop_config
+        {
+          enabled: true,
+          max_iterations: 50,
+          test_commands: [],
+          lint_commands: []
         }
       end
 

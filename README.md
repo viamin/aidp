@@ -29,6 +29,15 @@ Non-interactive environments (CI, scripts, pipes) automatically receive a minima
 
 You can re-run the wizard manually by removing `aidp.yml` and starting `aidp` again.
 
+## Work Loops
+
+AIDP implements **work loops** - an iterative execution pattern where AI agents autonomously work on tasks until completion, with automatic testing and linting feedback. Unlike traditional single-pass prompting, work loops enable:
+
+- **Iterative refinement**: Agent works in loops until task is 100% complete
+- **Self-management**: Agent edits PROMPT.md to track its own progress
+- **Automatic validation**: Tests and linters run after each iteration
+- **Self-correction**: Only failures are fed back for the next iteration
+
 ## Enhanced TUI
 
 AIDP features a rich terminal interface that transforms it from a step-by-step tool into an intelligent development assistant. The enhanced TUI provides beautiful, interactive terminal components while running complete workflows automatically.
@@ -78,6 +87,15 @@ The TUI automatically switches providers when:
 
 ```yaml
 # aidp.yml
+harness:
+  work_loop:
+    enabled: true
+    max_iterations: 50
+    test_commands:
+      - "bundle exec rspec"
+    lint_commands:
+      - "bundle exec standardrb"
+
 providers:
   claude:
     type: "usage_based"
@@ -251,6 +269,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and conventional co
 
 For detailed information:
 
+- **[Work Loops Guide](docs/WORK_LOOPS_GUIDE.md)** - Iterative workflows with automatic validation
 - **[TUI User Guide](docs/TUI_USER_GUIDE.md)** - Complete guide to using the enhanced TUI
 - **[Configuration Guide](docs/harness-configuration.md)** - Detailed configuration options and examples
 - **[Troubleshooting Guide](docs/harness-troubleshooting.md)** - Common issues and solutions
