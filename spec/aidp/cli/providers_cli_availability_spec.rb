@@ -5,7 +5,7 @@ require "open3"
 
 RSpec.describe "Providers CLI availability check" do
   let(:temp_dir) { Dir.mktmpdir("aidp_cli_availability_test") }
-  let(:config_file) { File.join(temp_dir, "aidp.yml") }
+  let(:config_file) { File.join(temp_dir, ".aidp", "aidp.yml") }
 
   before do
     # Create test configuration file
@@ -123,5 +123,6 @@ def create_test_configuration
     }
   }
 
+  FileUtils.mkdir_p(File.dirname(config_file))
   File.write(config_file, YAML.dump(config))
 end

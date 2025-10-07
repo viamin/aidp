@@ -6,7 +6,7 @@ require_relative "../../support/test_prompt"
 
 RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
   let(:project_dir) { Dir.mktmpdir("aidp_harness_performance_simple_test") }
-  let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:config_file) { File.join(project_dir, ".aidp", "aidp.yml") }
   let(:test_prompt) { TestPrompt.new }
 
   before do
@@ -420,6 +420,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       }
     }
 
+    FileUtils.mkdir_p(File.dirname(config_file))
     File.write(config_file, YAML.dump(config))
   end
 

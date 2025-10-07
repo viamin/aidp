@@ -1,6 +1,0 @@
----
-database:
-  adapter: sqlite
-  database: aidp.db
-  pool: 5
-  timeout: 5000

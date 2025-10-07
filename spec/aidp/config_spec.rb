@@ -5,14 +5,18 @@ require "tempfile"
 
 RSpec.describe Aidp::Config do
   let(:temp_dir) { Dir.mktmpdir }
-  let(:config_file) { File.join(temp_dir, "aidp.yml") }
+  let(:config_file) { File.join(temp_dir, ".aidp", "aidp.yml") }
+
+  before do
+    FileUtils.mkdir_p(File.dirname(config_file))
+  end
 
   after do
     FileUtils.rm_rf(temp_dir)
   end
 
   describe ".load" do
-    context "when aidp.yml exists" do
+    context "when .aidp/aidp.yml exists" do
       before do
         File.write(config_file, {
           harness: {
@@ -21,26 +25,9 @@ RSpec.describe Aidp::Config do
         }.to_yaml)
       end
 
-      it "loads the configuration from aidp.yml" do
+      it "loads the configuration from .aidp/aidp.yml" do
         config = described_class.load(temp_dir)
         expect(config[:harness][:default_provider]).to eq("test_provider")
-      end
-    end
-
-    context "when only .aidp.yml exists" do
-      let(:legacy_config_file) { File.join(temp_dir, ".aidp.yml") }
-
-      before do
-        File.write(legacy_config_file, {
-          harness: {
-            default_provider: "legacy_provider"
-          }
-        }.to_yaml)
-      end
-
-      it "loads the configuration from .aidp.yml" do
-        config = described_class.load(temp_dir)
-        expect(config[:harness][:default_provider]).to eq("legacy_provider")
       end
     end
 
@@ -149,14 +136,8 @@ RSpec.describe Aidp::Config do
   end
 
   describe ".config_exists?" do
-    it "returns true when aidp.yml exists" do
+    it "returns true when .aidp/aidp.yml exists" do
       File.write(config_file, "test")
-      expect(described_class.config_exists?(temp_dir)).to be true
-    end
-
-    it "returns true when .aidp.yml exists" do
-      legacy_file = File.join(temp_dir, ".aidp.yml")
-      File.write(legacy_file, "test")
       expect(described_class.config_exists?(temp_dir)).to be true
     end
 

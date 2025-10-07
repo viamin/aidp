@@ -5,7 +5,7 @@ require "open3"
 
 RSpec.describe "Provider failure exhaustion handling" do
   let(:temp_dir) { Dir.mktmpdir("aidp_provider_failure_test") }
-  let(:config_file) { File.join(temp_dir, "aidp.yml") }
+  let(:config_file) { File.join(temp_dir, ".aidp", "aidp.yml") }
   let(:configuration) do
     # Create a test configuration file
     create_test_configuration
@@ -84,6 +84,7 @@ RSpec.describe "Provider failure exhaustion handling" do
       }
     }
 
+    FileUtils.mkdir_p(File.dirname(config_file))
     File.write(config_file, YAML.dump(config))
   end
 end

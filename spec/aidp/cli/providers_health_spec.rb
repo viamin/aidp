@@ -5,7 +5,7 @@ require "open3"
 
 RSpec.describe "Providers Health CLI" do
   let(:temp_dir) { Dir.mktmpdir("aidp_cli_health_test") }
-  let(:config_file) { File.join(temp_dir, "aidp.yml") }
+  let(:config_file) { File.join(temp_dir, ".aidp", "aidp.yml") }
   let(:ansi_regex) { /\e\[[0-9;]*m/ }
 
   before do
@@ -59,5 +59,6 @@ def create_test_configuration
     }
   }
 
+  FileUtils.mkdir_p(File.dirname(config_file))
   File.write(config_file, YAML.dump(config))
 end

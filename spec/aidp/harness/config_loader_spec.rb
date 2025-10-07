@@ -6,11 +6,12 @@ require_relative "../../../lib/aidp/harness/config_manager"
 
 RSpec.describe Aidp::Harness::ConfigLoader do
   let(:project_dir) { "/tmp/test_project" }
-  let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:config_file) { File.join(project_dir, ".aidp", "aidp.yml") }
   let(:loader) { described_class.new(project_dir) }
 
   before do
     FileUtils.mkdir_p(project_dir)
+    FileUtils.mkdir_p(File.dirname(config_file))
   end
 
   after do
@@ -280,7 +281,6 @@ RSpec.describe Aidp::Harness::ConfigLoader do
 
     it "gets production environment configuration" do
       config = loader.get_environment_config("production")
-
       expect(config[:harness][:max_retries]).to eq(1)
     end
 
@@ -534,11 +534,22 @@ end
 
 RSpec.describe Aidp::Harness::ConfigManager do
   let(:project_dir) { "/tmp/test_project" }
-  let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:config_file) { File.join(project_dir, ".aidp", "aidp.yml") }
+
+  # Default config for contexts that don't define their own
+  let(:test_config) { nil }
+
+  # Lazy-evaluated manager - will load config when first accessed in test
   let(:manager) { described_class.new(project_dir) }
 
   before do
     FileUtils.mkdir_p(project_dir)
+    FileUtils.mkdir_p(File.dirname(config_file))
+
+    # Write config if defined by the test context
+    if test_config
+      File.write(config_file, YAML.dump(test_config))
+    end
   end
 
   after do
@@ -552,7 +563,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
   end
 
   describe "configuration access" do
-    let(:valid_config) do
+    let(:test_config) do
       {
         harness: {
           default_provider: "cursor",
@@ -649,10 +660,6 @@ RSpec.describe Aidp::Harness::ConfigManager do
       }
     end
 
-    before do
-      File.write(config_file, YAML.dump(valid_config))
-    end
-
     it "gets complete configuration" do
       config = manager.get_config
 
@@ -710,7 +717,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
   end
 
   describe "configuration sections" do
-    let(:config_with_sections) do
+    let(:test_config) do
       {
         harness: {
           default_provider: "cursor",
@@ -795,10 +802,6 @@ RSpec.describe Aidp::Harness::ConfigManager do
       }
     end
 
-    before do
-      File.write(config_file, YAML.dump(config_with_sections))
-    end
-
     it "gets retry configuration" do
       retry_config = manager.get_retry_config
 
@@ -876,7 +879,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
   end
 
   describe "provider-specific configuration" do
-    let(:config_with_providers) do
+    let(:test_config) do
       {
         harness: {
           default_provider: "cursor"
@@ -932,10 +935,6 @@ RSpec.describe Aidp::Harness::ConfigManager do
           }
         }
       }
-    end
-
-    before do
-      File.write(config_file, YAML.dump(config_with_providers))
     end
 
     it "gets provider models" do
@@ -1043,6 +1042,14 @@ RSpec.describe Aidp::Harness::ConfigManager do
   end
 
   describe "configuration validation" do
+    # Provide a minimal valid config for this context
+    let(:test_config) do
+      {
+        harness: {default_provider: "cursor"},
+        providers: {cursor: {type: "subscription"}}
+      }
+    end
+
     it "checks if configuration is valid" do
       valid_config = {
         harness: {
@@ -1061,6 +1068,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
       }
 
       File.write(config_file, YAML.dump(valid_config))
+      manager.reload_config
 
       expect(manager.config_valid?).to be true
     end
@@ -1096,6 +1104,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
       }
 
       File.write(config_file, YAML.dump(config1))
+      manager.reload_config
 
       config = manager.get_config
       expect(config[:harness][:default_provider]).to eq("cursor")
