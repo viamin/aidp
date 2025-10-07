@@ -42,7 +42,7 @@ RSpec.describe "Unified Configuration in .aidp/", type: :integration do
       expect(File.exist?(analyze_progress_file)).to be false
 
       # Verify progress was saved correctly
-      loaded_data = YAML.load_file(execute_progress_file)
+      loaded_data = YAML.safe_load_file(execute_progress_file)
       expect(loaded_data["completed_steps"]).to include("00_PRD")
 
       # Verify Progress class can load it
@@ -66,7 +66,7 @@ RSpec.describe "Unified Configuration in .aidp/", type: :integration do
       expect(analyze_progress_file).to include(".aidp/progress/analyze.yml")
 
       # Verify progress was saved correctly
-      loaded_data = YAML.load_file(analyze_progress_file)
+      loaded_data = YAML.safe_load_file(analyze_progress_file)
       expect(loaded_data["completed_steps"]).to include("01_REPOSITORY_ANALYSIS")
 
       # Verify Progress class can load it
@@ -98,8 +98,8 @@ RSpec.describe "Unified Configuration in .aidp/", type: :integration do
       expect(File.exist?(analyze_progress_file)).to be true
 
       # Verify isolation - load both files
-      loaded_execute = YAML.load_file(execute_progress_file)
-      loaded_analyze = YAML.load_file(analyze_progress_file)
+      loaded_execute = YAML.safe_load_file(execute_progress_file)
+      loaded_analyze = YAML.safe_load_file(analyze_progress_file)
 
       expect(loaded_execute["completed_steps"]).to include("00_PRD")
       expect(loaded_execute["completed_steps"]).not_to include("01_REPOSITORY_ANALYSIS")
@@ -189,7 +189,7 @@ RSpec.describe "Unified Configuration in .aidp/", type: :integration do
       File.write(user_config_file, user_config.to_yaml)
 
       # Verify settings
-      config_data = YAML.load_file(user_config_file)
+      config_data = YAML.safe_load_file(user_config_file)
       expect(config_data["global_settings"]["log_level"]).to eq("info")
       expect(config_data["harness"]["default_provider"]).to eq("anthropic")
     end
