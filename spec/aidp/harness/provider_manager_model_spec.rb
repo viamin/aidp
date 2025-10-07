@@ -10,6 +10,9 @@ RSpec.describe Aidp::Harness::ProviderManager do
     allow(configuration).to receive(:default_provider).and_return("claude")
     allow(configuration).to receive(:configured_providers).and_return(["claude", "gemini", "cursor"])
     allow(configuration).to receive(:provider_configured?).and_return(true)
+
+    # Stub sleep to eliminate retry delays in tests
+    allow_any_instance_of(described_class).to receive(:sleep)
   end
 
   describe "model switching" do

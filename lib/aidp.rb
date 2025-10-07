@@ -44,6 +44,10 @@ require_relative "aidp/analyze/seams"
 require_relative "aidp/analyze/tree_sitter_scan"
 require_relative "aidp/analyze/kb_inspector"
 
+# Workflows
+require_relative "aidp/workflows/definitions"
+require_relative "aidp/workflows/selector"
+
 # Execute mode
 require_relative "aidp/execute/steps"
 require_relative "aidp/execute/runner"

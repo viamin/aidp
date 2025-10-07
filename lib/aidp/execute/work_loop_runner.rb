@@ -7,7 +7,7 @@ require_relative "../harness/test_runner"
 
 module Aidp
   module Execute
-    # Executes Ralph-style work loops for a single step
+    # Executes work loops for a single step
     # Responsibilities:
     # - Create initial PROMPT.md from templates and context
     # - Loop: send PROMPT.md to agent, run tests/linters, check completion
@@ -109,7 +109,7 @@ module Aidp
         parts << "# Work Loop: #{step_name}"
         parts << ""
         parts << "## Instructions"
-        parts << "You are working in a Ralph-style work loop. Your responsibilities:"
+        parts << "You are working in a work loop. Your responsibilities:"
         parts << "1. Read this PROMPT.md file to understand what needs to be done"
         parts << "2. Complete the work described below"
         parts << "3. **IMPORTANT**: Edit this PROMPT.md file yourself to:"

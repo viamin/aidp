@@ -19,6 +19,9 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     # Mock metrics manager methods
     allow(metrics_manager).to receive(:record_error)
+
+    # Stub sleep to eliminate retry delays in tests
+    allow_any_instance_of(Aidp::Harness::ErrorHandler).to receive(:sleep)
   end
 
   describe "initialization" do

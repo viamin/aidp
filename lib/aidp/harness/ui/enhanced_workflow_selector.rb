@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "enhanced_tui"
+require_relative "../../workflows/selector"
 
 module Aidp
   module Harness
@@ -12,6 +13,7 @@ module Aidp
         def initialize(tui = nil)
           @tui = tui || EnhancedTUI.new
           @user_input = {}
+          @workflow_selector = Aidp::Workflows::Selector.new
         end
 
         def select_workflow(harness_mode: false, mode: :analyze)
@@ -29,7 +31,7 @@ module Aidp
           when :analyze
             select_analyze_workflow_interactive
           when :execute
-            select_execute_workflow_interactive
+            select_execute_workflow_interactive_new(mode)
           else
             raise ArgumentError, "Unknown mode: #{mode}"
           end
@@ -65,6 +67,22 @@ module Aidp
           }
         end
 
+        def select_execute_workflow_interactive_new(mode)
+          # Step 1: Collect project information
+          collect_project_info_interactive
+
+          # Step 2: Use new workflow selector
+          result = @workflow_selector.select_workflow(mode)
+
+          {
+            workflow_type: result[:workflow_key],
+            steps: result[:steps],
+            user_input: @user_input,
+            workflow: result[:workflow]
+          }
+        end
+
+        # Legacy method - kept for backward compatibility if needed
         def select_execute_workflow_interactive
           # Step 1: Collect project information
           collect_project_info_interactive

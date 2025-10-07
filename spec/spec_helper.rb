@@ -34,4 +34,7 @@ RSpec.configure do |config|
   end
 
   config.order = :random
+
+  # Show the 10 slowest examples at the end of the test run
+  config.profile_examples = 3
 end
