@@ -211,7 +211,7 @@ module Aidp
 
       # Get configuration path
       def config_path
-        File.join(@project_dir, "aidp.yml")
+        File.join(@project_dir, ".aidp", "aidp.yml")
       end
 
       # Get logging configuration

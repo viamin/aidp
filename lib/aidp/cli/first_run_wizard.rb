@@ -102,7 +102,7 @@ module Aidp
       end
 
       def write_minimal_config(project_dir)
-        dest = File.join(project_dir, "aidp.yml")
+        dest = File.join(project_dir, ".aidp", "aidp.yml")
         return dest if File.exist?(dest)
         data = {
           "harness" => {
@@ -118,6 +118,7 @@ module Aidp
             }
           }
         }
+        FileUtils.mkdir_p(File.dirname(dest))
         File.write(dest, YAML.dump(data))
         dest
       end

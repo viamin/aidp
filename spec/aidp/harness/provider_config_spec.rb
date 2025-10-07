@@ -6,13 +6,14 @@ require_relative "../../../lib/aidp/harness/provider_factory"
 
 RSpec.describe Aidp::Harness::ProviderConfig do
   let(:project_dir) { "/tmp/test_project" }
-  let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:config_file) { File.join(project_dir, ".aidp", "aidp.yml") }
   let(:config_manager) { Aidp::Harness::ConfigManager.new(project_dir) }
   let(:provider_name) { "cursor" }
   let(:provider_config) { described_class.new(provider_name, config_manager) }
 
   before do
     FileUtils.mkdir_p(project_dir)
+    FileUtils.mkdir_p(File.dirname(config_file))
   end
 
   after do
@@ -322,7 +323,7 @@ end
 
 RSpec.describe Aidp::Harness::ProviderFactory do
   let(:project_dir) { "/tmp/test_project" }
-  let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:config_file) { File.join(project_dir, ".aidp", "aidp.yml") }
   let(:config_manager) { double("ConfigManager") }
   let(:factory) { described_class.new(config_manager) }
 

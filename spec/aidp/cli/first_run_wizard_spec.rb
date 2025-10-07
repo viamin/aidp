@@ -23,7 +23,7 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
       it "creates minimal config automatically" do
         result = described_class.ensure_config(temp_dir, non_interactive: true, prompt: test_prompt)
         expect(result).to be true
-        config_path = File.join(temp_dir, "aidp.yml")
+        config_path = File.join(temp_dir, ".aidp", "aidp.yml")
         expect(File.exist?(config_path)).to be true
         yaml = YAML.load_file(config_path)
         expect(yaml.dig(:harness, :default_provider) || yaml.dig("harness", "default_provider")).to eq("cursor")
@@ -35,7 +35,7 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
       it "creates minimal config automatically" do
         result = described_class.ensure_config(temp_dir, non_interactive: true, prompt: test_prompt)
         expect(result).to be true
-        yaml = YAML.load_file(File.join(temp_dir, "aidp.yml"))
+        yaml = YAML.load_file(File.join(temp_dir, ".aidp", "aidp.yml"))
         harness = yaml["harness"] || yaml[:harness]
         expect(harness["default_provider"] || harness[:default_provider]).to eq("cursor")
       end

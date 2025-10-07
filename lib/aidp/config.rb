@@ -165,14 +165,10 @@ module Aidp
     }.freeze
 
     def self.load(project_dir = Dir.pwd)
-      # Try new aidp.yml format first, then fall back to .aidp.yml
-      config_file = File.join(project_dir, "aidp.yml")
-      legacy_config_file = File.join(project_dir, ".aidp.yml")
+      config_file = File.join(project_dir, ".aidp", "aidp.yml")
 
       if File.exist?(config_file)
         load_yaml_config(config_file)
-      elsif File.exist?(legacy_config_file)
-        load_yaml_config(legacy_config_file)
       else
         {}
       end
@@ -248,14 +244,15 @@ module Aidp
 
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
-      File.exist?(File.join(project_dir, "aidp.yml")) ||
-        File.exist?(File.join(project_dir, ".aidp.yml"))
+      File.exist?(File.join(project_dir, ".aidp", "aidp.yml"))
     end
 
     # Create example configuration file
     def self.create_example_config(project_dir = Dir.pwd)
-      config_path = File.join(project_dir, "aidp.yml")
+      config_path = File.join(project_dir, ".aidp", "aidp.yml")
       return false if File.exist?(config_path)
+
+      FileUtils.mkdir_p(File.dirname(config_path))
 
       example_config = {
         harness: {

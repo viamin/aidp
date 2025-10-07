@@ -76,8 +76,9 @@ module Aidp
         return false if config_exists?
 
         example_config = ConfigSchema.generate_example
-        config_path = File.join(@project_dir, "aidp.yml")
+        config_path = File.join(@project_dir, ".aidp", "aidp.yml")
 
+        FileUtils.mkdir_p(File.dirname(config_path))
         File.write(config_path, YAML.dump(example_config))
         true
       end
@@ -243,14 +244,10 @@ module Aidp
       private
 
       def find_config_file
-        # Try new aidp.yml format first, then fall back to .aidp.yml
-        config_file = File.join(@project_dir, "aidp.yml")
-        legacy_config_file = File.join(@project_dir, ".aidp.yml")
+        config_file = File.join(@project_dir, ".aidp", "aidp.yml")
 
         if File.exist?(config_file)
           config_file
-        elsif File.exist?(legacy_config_file)
-          legacy_config_file
         end
       end
 

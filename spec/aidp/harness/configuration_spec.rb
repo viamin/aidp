@@ -4,7 +4,7 @@ require "spec_helper"
 
 RSpec.describe Aidp::Harness::Configuration do
   let(:project_dir) { "/tmp/test_project" }
-  let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:config_file) { File.join(project_dir, ".aidp", "aidp.yml") }
   let(:configuration) { described_class.new(project_dir) }
 
   before do
@@ -528,7 +528,7 @@ RSpec.describe Aidp::Harness::Configuration do
 
   describe "configuration file management" do
     it "returns configuration path" do
-      expect(configuration.config_path).to eq(File.join(project_dir, "aidp.yml"))
+      expect(configuration.config_path).to eq(File.join(project_dir, ".aidp", "aidp.yml"))
     end
 
     it "checks if configuration exists" do

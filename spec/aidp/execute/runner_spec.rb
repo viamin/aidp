@@ -23,9 +23,9 @@ RSpec.describe Aidp::Execute::Runner do
     allow(Dir).to receive(:exist?).and_call_original
 
     # Mock only the specific test project files that don't exist
-    allow(File).to receive(:exist?).with("#{project_dir}/.aidp-progress.yml").and_return(false)
-    allow(File).to receive(:exist?).with("#{project_dir}/.aidp/execute_progress.yml").and_return(false)
+    allow(File).to receive(:exist?).with("#{project_dir}/.aidp/progress/execute.yml").and_return(false)
     allow(Dir).to receive(:exist?).with("#{project_dir}/.aidp").and_return(true)
+    allow(Dir).to receive(:exist?).with("#{project_dir}/.aidp/progress").and_return(true)
   end
 
   describe "initialization" do

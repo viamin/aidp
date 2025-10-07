@@ -51,7 +51,8 @@ RSpec.describe Aidp::Harness::Runner do
       }
     }
 
-    config_file = File.join(temp_dir, "aidp.yml")
+    config_file = File.join(temp_dir, ".aidp", "aidp.yml")
+    FileUtils.mkdir_p(File.dirname(config_file))
     File.write(config_file, YAML.dump(config_content))
   end
 

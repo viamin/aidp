@@ -11,7 +11,7 @@ module Aidp
 
       def initialize(project_dir)
         @project_dir = project_dir
-        @progress_file = File.join(project_dir, ".aidp-analyze-progress.yml")
+        @progress_file = File.join(project_dir, ".aidp", "progress", "analyze.yml")
         load_progress
       end
 
@@ -80,6 +80,7 @@ module Aidp
         # In test mode, skip file operations to avoid hanging
         return if ENV["RACK_ENV"] == "test" || defined?(RSpec)
 
+        FileUtils.mkdir_p(File.dirname(@progress_file))
         File.write(@progress_file, @progress.to_yaml)
       end
     end

@@ -329,11 +329,12 @@ end
 
 RSpec.describe Aidp::Harness::ConfigValidator do
   let(:project_dir) { "/tmp/test_project" }
-  let(:config_file) { File.join(project_dir, "aidp.yml") }
+  let(:config_file) { File.join(project_dir, ".aidp", "aidp.yml") }
   let(:validator) { described_class.new(project_dir) }
 
   before do
     FileUtils.mkdir_p(project_dir)
+    FileUtils.mkdir_p(File.dirname(config_file))
   end
 
   after do
