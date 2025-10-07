@@ -47,7 +47,7 @@ module Aidp
         # Check if work loops are enabled in configuration
         config = @harness_runner.instance_variable_get(:@configuration)
         if config&.work_loop_enabled?
-          # Use WorkLoopRunner for Ralph-style execution
+          # Use WorkLoopRunner for execution
           run_step_with_work_loop(step_name, step_spec, options)
         else
           # Use traditional single-pass execution
@@ -144,7 +144,7 @@ module Aidp
 
       private
 
-      # Execute step with work loop (Ralph-style)
+      # Execute step with work loop
       def run_step_with_work_loop(step_name, step_spec, options)
         config = @harness_runner.instance_variable_get(:@configuration)
         provider_manager = @harness_runner.provider_manager

@@ -17,6 +17,9 @@ RSpec.describe "Provider failure exhaustion handling" do
   before do
     # Mock provider CLI availability to ensure tests work in CI
     allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:provider_cli_available?).and_return(true)
+
+    # Stub sleep to speed up tests - no delays needed in tests
+    allow_any_instance_of(Aidp::Harness::ErrorHandler).to receive(:sleep)
   end
 
   after do
@@ -58,7 +61,8 @@ RSpec.describe "Provider failure exhaustion handling" do
     config = {
       "harness" => {
         "default_provider" => "anthropic",
-        "max_retries" => 3,
+        "max_retries" => 1, # Reduced from 3 for faster tests
+        "retry_delay" => 0, # No delay for tests (if supported)
         "fallback_providers" => ["cursor", "macos"]
       },
       "providers" => {

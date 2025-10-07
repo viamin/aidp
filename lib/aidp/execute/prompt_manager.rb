@@ -4,7 +4,7 @@ require "fileutils"
 
 module Aidp
   module Execute
-    # Manages the PROMPT.md file lifecycle for Ralph-style work loops
+    # Manages the PROMPT.md file lifecycle for work loops
     # Responsibilities:
     # - Read/write PROMPT.md
     # - Check existence

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require_relative "../workflows/definitions"
+require_relative "../workflows/selector"
 
 module Aidp
   module Execute
@@ -11,20 +13,40 @@ module Aidp
       def initialize(prompt: TTY::Prompt.new)
         @user_input = {}
         @prompt = prompt
+        @workflow_selector = Aidp::Workflows::Selector.new(prompt: @prompt)
       end
 
       # Main entry point for interactive workflow selection
-      def select_workflow(harness_mode: false)
+      def select_workflow(harness_mode: false, use_new_selector: true, mode: nil)
         if harness_mode
           # In harness mode, use default values to avoid blocking
           select_workflow_with_defaults
+        elsif use_new_selector
+          # Use new unified workflow selector (default as of Issue #79)
+          select_workflow_with_new_selector(mode)
         else
-          # Interactive mode for standalone usage
+          # Legacy interactive mode for backward compatibility
           select_workflow_interactive
         end
       end
 
       private
+
+      def select_workflow_with_new_selector(mode = nil)
+        # Step 1: Collect project information (still useful for all workflows)
+        collect_project_info
+
+        # Step 2: Use new workflow selector, defaulting to execute mode if not specified
+        workflow_mode = mode || :execute
+        result = @workflow_selector.select_workflow(workflow_mode)
+
+        {
+          workflow_type: result[:workflow_key],
+          steps: result[:steps],
+          user_input: @user_input,
+          workflow: result[:workflow]
+        }
+      end
 
       def select_workflow_interactive
         display_message("\n🚀 Welcome to AI Dev Pipeline!", type: :highlight)

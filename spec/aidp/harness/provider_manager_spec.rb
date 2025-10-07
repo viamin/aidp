@@ -16,6 +16,9 @@ RSpec.describe Aidp::Harness::ProviderManager do
     allow_any_instance_of(described_class).to receive(:execute_command_with_timeout).and_return(
       {success: true, output: "mocked output", exit_code: 0}
     )
+
+    # Stub sleep to eliminate retry delays in tests
+    allow_any_instance_of(described_class).to receive(:sleep)
   end
 
   describe "initialization" do

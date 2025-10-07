@@ -13,7 +13,7 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
   end
 
   describe "#select_workflow" do
-    context "with mocked user interaction" do
+    context "with legacy workflow selector (use_new_selector: false)" do
       before do
         # Mock all interactive methods to avoid actual user interaction
         allow(selector).to receive(:collect_project_info)
@@ -23,7 +23,7 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
       end
 
       it "calls interactive workflow selection methods" do
-        config = selector.select_workflow
+        config = selector.select_workflow(use_new_selector: false)
 
         expect(selector).to have_received(:collect_project_info)
         expect(selector).to have_received(:choose_workflow_type)

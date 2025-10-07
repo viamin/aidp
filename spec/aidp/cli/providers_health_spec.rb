@@ -6,6 +6,7 @@ require "open3"
 RSpec.describe "Providers Health CLI" do
   let(:temp_dir) { Dir.mktmpdir("aidp_cli_health_test") }
   let(:config_file) { File.join(temp_dir, "aidp.yml") }
+  let(:ansi_regex) { /\e\[[0-9;]*m/ }
 
   before do
     # Create test configuration file
@@ -23,26 +24,15 @@ RSpec.describe "Providers Health CLI" do
     [stdout, stderr, status]
   end
 
-  let(:ansi_regex) { /\e\[[0-9;]*m/ }
+  # Single integration test - process spawning is inherently slow but validates full CLI
+  it "displays provider health dashboard with correct output" do
+    stdout, _stderr, status = run_cli("--no-color")
 
-  it "prints a header row" do
-    stdout, _stderr, status = run_cli
     expect(status.exitstatus).to eq(0)
     expect(stdout).to include("Provider Health Dashboard")
     expect(stdout).to match(/Provider\s+Status\s+Avail\s+Circuit/i)
-  end
-
-  it "supports --no-color flag (no ANSI sequences)" do
-    stdout, _stderr, status = run_cli("--no-color")
-    expect(status.exitstatus).to eq(0)
-    expect(stdout).not_to match(ansi_regex)
-  end
-
-  it "shows at least one configured provider row" do
-    stdout, _stderr, status = run_cli("--no-color")
-    expect(status.exitstatus).to eq(0)
-    # cursor is default in test defaults
-    expect(stdout.scan("cursor").length).to be >= 1
+    expect(stdout).not_to match(ansi_regex) # --no-color removes ANSI
+    expect(stdout.scan("cursor").length).to be >= 1 # configured provider present
   end
 end
 
