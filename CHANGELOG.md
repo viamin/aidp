@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.11.0](https://github.com/viamin/aidp/compare/aidp/v0.10.0...aidp/v0.11.0) (2025-10-07)
+
+
+### Features
+
+* add Codex provider with enhanced execution and timeout management ([7d05121](https://github.com/viamin/aidp/commit/7d05121a535a82a0e008bcfd025701e980075b10))
+* add Codex provider with enhanced execution and timeout management ([#71](https://github.com/viamin/aidp/issues/71)) ([95f0d8e](https://github.com/viamin/aidp/commit/95f0d8ed2e84c7f8f0c39b14f5325d619ad6e9a0))
+* add comprehensive templates for analysis, implementation, and planning processes ([6b78c6a](https://github.com/viamin/aidp/commit/6b78c6a256002aba6ea7c7fd2449e34c7d171c85))
+* add work loop iteration, allowing more autonomous, longer term operations ([#78](https://github.com/viamin/aidp/issues/78)) ([4481429](https://github.com/viamin/aidp/commit/44814297a9207476a66e350e18cf6dba8f5cdde7))
+* Add workflows and selector for enhanced project management ([de37207](https://github.com/viamin/aidp/commit/de37207fbf2f1dabc39c929447a37a7c4b157f00))
+* Add workflows and selector for enhanced project management ([#81](https://github.com/viamin/aidp/issues/81)) ([5f6cfdf](https://github.com/viamin/aidp/commit/5f6cfdfb289f3ab37e03a950fb2502ce277a930d))
+* Implement checkpoint management system for work loop execution ([8314a4e](https://github.com/viamin/aidp/commit/8314a4e8602138bd358c333d08d532d3c96cbf43))
+* Implement checkpoint management system for work loop execution ([#80](https://github.com/viamin/aidp/issues/80)) ([fe6ea09](https://github.com/viamin/aidp/commit/fe6ea09767413e3562afa8ab41999454efb355e3))
+
+
+### Improvements
+
+* configuration management to use unified .aidp directory structure ([650358a](https://github.com/viamin/aidp/commit/650358a3eedf46afe0d7a63bf9ac1d1ceb7d7e5c))
+* configuration management to use unified .aidp directory structure ([#85](https://github.com/viamin/aidp/issues/85)) ([01170e3](https://github.com/viamin/aidp/commit/01170e3502fe82c94cc0c480ae73bb19ec7ba4f5))
+* consolidate stderr printing logic into a helper method ([ec9fbce](https://github.com/viamin/aidp/commit/ec9fbceb259e2343dd4bb48e29519e15a68e29dc))
+* enhance provider CLI availability checks for testing environment ([63253ea](https://github.com/viamin/aidp/commit/63253eaba13bd295ff44131c41d1fb673fa75fd1))
+* enhance provider functionality with timeout management and activity display ([36b857e](https://github.com/viamin/aidp/commit/36b857e63fcdacf2aa3af1338d123f3f16c77701))
+* enhance provider functionality with timeout management and activity display ([#74](https://github.com/viamin/aidp/issues/74)) ([273219f](https://github.com/viamin/aidp/commit/273219f541d61ec1a39240b37fc233813ad3420e))
+* enhance test setup with temporary directories and mock provider CLI availability ([b4daffd](https://github.com/viamin/aidp/commit/b4daffd449654cdcfd52b442c3d34f876b9cb8e4))
+* error handling and add retry mechanism ([b56f20c](https://github.com/viamin/aidp/commit/b56f20c835db906fe201a6c0e9250956f2caac25))
+* error handling and add retry mechanism ([#76](https://github.com/viamin/aidp/issues/76)) ([e5418f5](https://github.com/viamin/aidp/commit/e5418f50f9880514d44fe9939adba49ce4a572c5))
+* implement cleanup method for activity display and spinner in providers ([60bfcbb](https://github.com/viamin/aidp/commit/60bfcbbf2426c5490b0bd53682b855995dc93b7c))
+* implement display_name method for provider classes to enhance user experience ([a97a82f](https://github.com/viamin/aidp/commit/a97a82f98bd375f809a0650aae42c3ab365ddf24))
+* implement MessageDisplay mixin for consistent message handling across classes ([e099a50](https://github.com/viamin/aidp/commit/e099a507dfdaba86be8c0e27ee20ec7b755f90e0))
+* unify spinner status updates across providers ([c88e1c8](https://github.com/viamin/aidp/commit/c88e1c893ba460a5b03ab24022385035d575e861))
+
 ## [0.10.0](https://github.com/viamin/aidp/compare/aidp/v0.9.6...aidp/v0.10.0) (2025-09-27)
 
 ### Features
