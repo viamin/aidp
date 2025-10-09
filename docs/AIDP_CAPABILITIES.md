@@ -9,6 +9,7 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 ## Key Features
 
 ### Work Loops
+
 - **Autonomous iteration**: Agent works until task is 100% complete
 - **Self-managing**: Agent edits PROMPT.md to track progress
 - **Automatic validation**: Tests and linters run after each iteration
@@ -23,24 +24,28 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 ## Analyze Mode Capabilities
 
 ### Quick Overview
+
 - Repository structure scanning
 - High-level functionality mapping
 - Documentation review
 **Use when**: User wants to understand what a project does
 
 ### Style & Patterns
+
 - Code pattern analysis
 - Style consistency review
 - Generate LLM style guide
 **Use when**: User wants coding standards or style enforcement
 
 ### Architecture Review
+
 - Architecture pattern analysis
 - Dependency mapping
 - Component relationships
 **Use when**: User needs system design understanding
 
 ### Quality Assessment
+
 - Test coverage analysis
 - Code quality metrics
 - Static analysis review
@@ -48,6 +53,7 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 **Use when**: User wants quality improvements
 
 ### Deep Analysis
+
 - Complete repository analysis (all above + more)
 - Tree-sitter knowledge base creation
 **Use when**: User planning major refactoring or extension
@@ -55,18 +61,21 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 ## Execute Mode Capabilities
 
 ### Quick Prototype
+
 - Minimal planning (basic PRD)
 - Testing strategy
 - Fast implementation
 **Use when**: User wants rapid proof of concept
 
 ### Exploration/Experiment
+
 - Quick PRD generation
 - Testing + static analysis
 - Work loop implementation
 **Use when**: User building experiment with basic quality checks
 
 ### Feature Development
+
 - Product requirements
 - Architecture design
 - Testing + static analysis
@@ -74,6 +83,7 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 **Use when**: User building standard production feature
 
 ### Production-Ready
+
 - Comprehensive PRD
 - Non-functional requirements (NFRs)
 - Security + performance reviews
@@ -82,6 +92,7 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 **Use when**: User needs enterprise-grade feature
 
 ### Full Enterprise
+
 - Complete governance (all planning docs)
 - Architecture decision records (ADRs)
 - Domain decomposition
@@ -92,6 +103,7 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 ## Available Template Steps
 
 ### Planning Steps (Execute Mode)
+
 - `00_PRD`: Product Requirements Document
 - `00_LLM_STYLE_GUIDE`: Generate project style guide
 - `01_NFRS`: Non-Functional Requirements
@@ -110,6 +122,7 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 - `16_IMPLEMENTATION`: Actual development work
 
 ### Analysis Steps (Analyze Mode)
+
 - `01_REPOSITORY_ANALYSIS`: Repository structure scan
 - `02_ARCHITECTURE_ANALYSIS`: Architecture deep dive
 - `03_TEST_ANALYSIS`: Test coverage analysis
@@ -122,12 +135,14 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 ## Hybrid Workflows
 
 ### Legacy Modernization
+
 - Deep analysis + refactoring recommendations
 - Architecture design for new system
 - Migration planning + implementation
 **Use when**: Modernizing legacy code
 
 ### Style Guide Enforcement
+
 - Pattern analysis
 - Style guide generation
 - Static analysis configuration
@@ -135,6 +150,7 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 **Use when**: Establishing coding standards
 
 ### Test Coverage Improvement
+
 - Coverage analysis
 - Functionality mapping
 - Testing strategy
@@ -144,29 +160,37 @@ AIDP (AI Development Pipeline) automates development workflows using AI agents i
 ## Matching User Intent to Workflows
 
 ### User says: "understand this codebase"
+
 → Analyze Mode: Quick Overview or Deep Analysis
 
 ### User says: "build [feature]"
+
 → Execute Mode: Feature Development or Production-Ready
 
 ### User says: "quick prototype" or "proof of concept"
+
 → Execute Mode: Quick Prototype or Exploration
 
 ### User says: "improve code quality" or "add tests"
+
 → Hybrid: Test Coverage Improvement or Quality Assessment
 
 ### User says: "modernize" or "refactor"
+
 → Hybrid: Legacy Modernization
 
 ### User says: "establish standards" or "style guide"
+
 → Hybrid: Style Guide Enforcement or Analyze: Style & Patterns
 
 ### User says: "enterprise feature" or "production ready"
+
 → Execute Mode: Production-Ready or Full Enterprise
 
 ## Custom Workflows
 
 When existing workflows don't fit:
+
 1. Identify which steps are needed
 2. Select from available template steps
 3. Combine in logical order (planning → implementation)
@@ -175,6 +199,7 @@ When existing workflows don't fit:
 ### Custom Template Creation
 
 If AIDP lacks a specific template step:
+
 - Base on existing templates in `templates/` directory
 - Follow template structure (## Task, ## Questions, ## Context, etc.)
 - Keep concise to preserve context window
@@ -184,6 +209,7 @@ If AIDP lacks a specific template step:
 ## AIDP Strengths
 
 ✅ **Excellent for**:
+
 - Iterative development with validation
 - Pattern-based code generation
 - Analysis and documentation
@@ -191,6 +217,7 @@ If AIDP lacks a specific template step:
 - Quality-gated development (tests must pass)
 
 ❌ **Not suitable for**:
+
 - Real-time interactive applications
 - Tasks requiring human judgment calls
 - Workflows without clear completion criteria
@@ -199,6 +226,7 @@ If AIDP lacks a specific template step:
 ## Configuration Requirements
 
 Users need `aidp.yml` with:
+
 - Provider configuration (Claude, Cursor, Gemini, etc.)
 - Work loop settings (enabled, max_iterations)
 - Test commands (optional but recommended)

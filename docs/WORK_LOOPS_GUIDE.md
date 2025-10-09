@@ -30,6 +30,7 @@ When you start AIDP, you'll see three options:
 Select "Guided Workflow" and simply describe what you want to do:
 
 **Examples:**
+
 - "Build a user authentication feature"
 - "Understand how this codebase handles payments"
 - "Improve test coverage in my API layer"
@@ -82,12 +83,14 @@ Does this workflow fit your needs? (Y/n)
 ### When to Use Guided Workflow
 
 ✅ **Use Guided Workflow when:**
+
 - You're new to AIDP and unsure which workflow to choose
 - Your task doesn't clearly fit analyze or execute
 - You want expert guidance on the right approach
 - You need a custom combination of steps
 
 ❌ **Use direct mode selection when:**
+
 - You know exactly which workflow you need
 - You're running automated/scripted workflows
 - You want maximum control over step selection
@@ -95,6 +98,7 @@ Does this workflow fit your needs? (Y/n)
 ### Behind the Scenes
 
 The Guided Workflow:
+
 - Uses your configured AI provider (Claude, Gemini, etc.)
 - Leverages AIDP's capabilities documentation
 - Runs through the existing harness and workflow systems
@@ -104,6 +108,7 @@ The Guided Workflow:
 ### Customization
 
 The AI can recommend:
+
 - **Standard workflows** from Analyze or Execute modes
 - **Hybrid workflows** mixing analysis and development
 - **Custom step combinations** when standard workflows don't fit

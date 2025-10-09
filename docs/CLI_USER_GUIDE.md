@@ -435,6 +435,7 @@ Notable Flags: (25 total)
 ```
 
 This command introspects each provider's CLI to gather:
+
 - Available permission modes and security flags
 - MCP (Model Context Protocol) server support
 - **Configured MCP servers** - Lists all MCP servers that have been added to the provider (e.g., filesystem, brave-search, database)
@@ -492,6 +493,7 @@ Legend: ✓ = Enabled  ✗ = Error/Disabled  - = Not configured
 ```
 
 This table shows:
+
 - All MCP servers configured across any provider
 - Which providers have each server enabled (✓), disabled (✗), or not configured (-)
 - At-a-glance view of provider capabilities for task requirements
@@ -511,6 +513,7 @@ Required MCP Servers: dash-api, filesystem
 ```
 
 This helps you understand:
+
 - Which providers can handle tasks requiring specific MCP tools
 - Which providers would be ineligible as fallback options
 - Whether you need to configure additional MCP servers
