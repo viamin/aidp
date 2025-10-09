@@ -2,6 +2,7 @@
 
 require "yaml"
 require_relative "config_schema"
+require_relative "../config/paths"
 
 module Aidp
   module Harness
@@ -76,9 +77,9 @@ module Aidp
         return false if config_exists?
 
         example_config = ConfigSchema.generate_example
-        config_path = File.join(@project_dir, ".aidp", "aidp.yml")
+        config_path = Aidp::ConfigPaths.config_file(@project_dir)
 
-        FileUtils.mkdir_p(File.dirname(config_path))
+        Aidp::ConfigPaths.ensure_config_dir(@project_dir)
         File.write(config_path, YAML.dump(example_config))
         true
       end
@@ -244,7 +245,7 @@ module Aidp
       private
 
       def find_config_file
-        config_file = File.join(@project_dir, ".aidp", "aidp.yml")
+        config_file = Aidp::ConfigPaths.config_file(@project_dir)
 
         if File.exist?(config_file)
           config_file

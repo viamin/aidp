@@ -4,6 +4,7 @@
 require "yaml"
 require "tty-prompt"
 require_relative "../harness/provider_factory"
+require_relative "../config/paths"
 
 module Aidp
   class CLI
@@ -96,13 +97,14 @@ module Aidp
           display_message("Template not found: #{filename}", type: :error)
           return nil
         end
-        dest = File.join(@project_dir, "aidp.yml")
+        dest = Aidp::ConfigPaths.config_file(@project_dir)
+        Aidp::ConfigPaths.ensure_config_dir(@project_dir)
         File.write(dest, File.read(src))
         dest
       end
 
       def write_minimal_config(project_dir)
-        dest = File.join(project_dir, ".aidp", "aidp.yml")
+        dest = Aidp::ConfigPaths.config_file(project_dir)
         return dest if File.exist?(dest)
         data = {
           "harness" => {
@@ -118,18 +120,18 @@ module Aidp
             }
           }
         }
-        FileUtils.mkdir_p(File.dirname(dest))
+        Aidp::ConfigPaths.ensure_config_dir(project_dir)
         File.write(dest, YAML.dump(data))
         dest
       end
 
       def write_example_config(project_dir)
         Aidp::Config.create_example_config(project_dir)
-        File.join(project_dir, "aidp.yml")
+        Aidp::ConfigPaths.config_file(project_dir)
       end
 
       def run_custom
-        dest = File.join(@project_dir, "aidp.yml")
+        dest = Aidp::ConfigPaths.config_file(@project_dir)
         return dest if File.exist?(dest)
 
         @prompt.say("Interactive custom configuration: press Enter to accept defaults shown in [brackets].")
@@ -169,12 +171,13 @@ module Aidp
           },
           "providers" => provider_section
         }
+        Aidp::ConfigPaths.ensure_config_dir(@project_dir)
         File.write(dest, YAML.dump(data))
         dest
       end
 
       def run_custom_with_defaults(existing_config)
-        dest = File.join(@project_dir, "aidp.yml")
+        dest = Aidp::ConfigPaths.config_file(@project_dir)
 
         # Extract current values from existing config
         harness_config = existing_config[:harness] || existing_config["harness"] || {}
@@ -240,12 +243,13 @@ module Aidp
           "providers" => provider_section
         }
 
+        Aidp::ConfigPaths.ensure_config_dir(@project_dir)
         File.write(dest, YAML.dump(data))
         dest
       end
 
       def load_existing_config
-        config_file = File.join(@project_dir, "aidp.yml")
+        config_file = Aidp::ConfigPaths.config_file(@project_dir)
         return nil unless File.exist?(config_file)
 
         begin

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../config"
+require_relative "../config/paths"
 
 module Aidp
   module Harness
@@ -211,7 +212,7 @@ module Aidp
 
       # Get configuration path
       def config_path
-        File.join(@project_dir, ".aidp", "aidp.yml")
+        Aidp::ConfigPaths.config_file(@project_dir)
       end
 
       # Get logging configuration
