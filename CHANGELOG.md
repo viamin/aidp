@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.0](https://github.com/viamin/aidp/compare/aidp/v0.11.0...aidp/v0.12.0) (2025-10-09)
+
+
+### Features
+
+* add detailed provider information and refresh capabilities to CLI ([22f9627](https://github.com/viamin/aidp/commit/22f9627c4e7c9e3ce86c4413903374d52aa80802))
+* add detailed provider information and refresh capabilities to CLI ([#86](https://github.com/viamin/aidp/issues/86)) ([750c2eb](https://github.com/viamin/aidp/commit/750c2eb5f8a09d3f7d2efecc058d1f59e926a370))
+* introduce Guided Workflow feature to assist users in selecting appropriate workflows ([ca21795](https://github.com/viamin/aidp/commit/ca217952a8cdf095a06d8ec2f25cb7dc442e9599))
+* introduce Guided Workflow feature to assist users in selecting appropriate workflows ([#88](https://github.com/viamin/aidp/issues/88)) ([0cf1665](https://github.com/viamin/aidp/commit/0cf1665ee6d2d7422c54b776939d9553057848e3))
+
 ## [0.11.0](https://github.com/viamin/aidp/compare/aidp/v0.10.0...aidp/v0.11.0) (2025-10-07)
 
 
