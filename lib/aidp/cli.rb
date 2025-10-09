@@ -245,6 +245,11 @@ module Aidp
           opts.separator "    metrics                  - Show detailed metrics"
           opts.separator "    clear [--force]          - Clear checkpoint data"
           opts.separator "  providers                Show provider health dashboard"
+          opts.separator "    info <name>              - Show detailed provider information"
+          opts.separator "    refresh [name]           - Refresh provider capabilities info"
+          opts.separator "  mcp                      MCP server dashboard and management"
+          opts.separator "    dashboard                - Show all MCP servers across providers"
+          opts.separator "    check <servers...>       - Check provider eligibility for servers"
           opts.separator "  harness                  Manage harness state"
           opts.separator "    status                   - Show harness status"
           opts.separator "    reset                    - Reset harness state"
@@ -274,6 +279,10 @@ module Aidp
           opts.separator ""
           opts.separator "  # Other commands"
           opts.separator "  aidp providers                        # Check provider health"
+          opts.separator "  aidp providers info claude            # Show detailed provider info"
+          opts.separator "  aidp providers refresh                # Refresh all provider info"
+          opts.separator "  aidp mcp                              # Show MCP server dashboard"
+          opts.separator "  aidp mcp check dash-api filesystem    # Check provider eligibility"
           opts.separator "  aidp checkpoint history 20            # Show last 20 checkpoints"
           opts.separator ""
           opts.separator "For more information, visit: https://github.com/viamin/aidp"
@@ -287,7 +296,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze providers checkpoint].include?(args.first)
+        %w[status jobs kb harness execute analyze providers checkpoint mcp].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -301,6 +310,7 @@ module Aidp
         when "analyze" then run_execute_command(args, mode: :analyze) # symmetry
         when "providers" then run_providers_command(args)
         when "checkpoint" then run_checkpoint_command(args)
+        when "mcp" then run_mcp_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -585,6 +595,19 @@ module Aidp
       end
 
       def run_providers_command(args)
+        subcommand = args.first if args.first && !args.first.start_with?("--")
+
+        case subcommand
+        when "info"
+          args.shift # Remove 'info'
+          run_providers_info_command(args)
+          return
+        when "refresh"
+          args.shift # Remove 'refresh'
+          run_providers_refresh_command(args)
+          return
+        end
+
         # Accept flags directly on `aidp providers` now (health is implicit)
         no_color = false
         args.reject! do |a|
@@ -658,6 +681,180 @@ module Aidp
         display_message(table.render(:basic), type: :info)
       rescue => e
         display_message("Failed to display provider health: #{e.message}", type: :error)
+      end
+
+      def run_providers_info_command(args)
+        require_relative "harness/provider_info"
+
+        provider_name = args.shift
+        unless provider_name
+          display_message("Usage: aidp providers info <provider_name>", type: :info)
+          display_message("Example: aidp providers info claude", type: :info)
+          return
+        end
+
+        force_refresh = args.include?("--refresh")
+
+        display_message("Provider Information: #{provider_name}", type: :highlight)
+        display_message("=" * 60, type: :muted)
+
+        provider_info = Aidp::Harness::ProviderInfo.new(provider_name, Dir.pwd)
+        info = provider_info.get_info(force_refresh: force_refresh)
+
+        if info.nil?
+          display_message("No information available for provider: #{provider_name}", type: :error)
+          return
+        end
+
+        # Display basic info
+        display_message("Last Checked: #{info[:last_checked]}", type: :info)
+        display_message("CLI Available: #{info[:cli_available] ? "Yes" : "No"}", type: info[:cli_available] ? :success : :error)
+
+        # Display authentication
+        if info[:auth_method]
+          display_message("\nAuthentication Method: #{info[:auth_method]}", type: :info)
+        end
+
+        # Display MCP support
+        display_message("\nMCP Support: #{info[:mcp_support] ? "Yes" : "No"}", type: info[:mcp_support] ? :success : :info)
+
+        # Display MCP servers if available
+        if info[:mcp_servers]&.any?
+          display_message("\nMCP Servers: (#{info[:mcp_servers].size} configured)", type: :highlight)
+          info[:mcp_servers].each do |server|
+            status_symbol = server[:enabled] ? "✓" : "○"
+            display_message("  #{status_symbol} #{server[:name]} (#{server[:status]})", type: server[:enabled] ? :success : :muted)
+            display_message("    #{server[:description]}", type: :muted) if server[:description]
+          end
+        elsif info[:mcp_support]
+          display_message("\nMCP Servers: None configured", type: :muted)
+        end
+
+        # Display permission modes
+        if info[:permission_modes]&.any?
+          display_message("\nPermission Modes:", type: :highlight)
+          info[:permission_modes].each do |mode|
+            display_message("  - #{mode}", type: :info)
+          end
+        end
+
+        # Display capabilities
+        if info[:capabilities]&.any?
+          display_message("\nCapabilities:", type: :highlight)
+          info[:capabilities].each do |cap, value|
+            next unless value
+
+            display_message("  ✓ #{cap.to_s.split("_").map(&:capitalize).join(" ")}", type: :success)
+          end
+        end
+
+        # Display notable flags
+        if info[:flags]&.any?
+          display_message("\nNotable Flags: (#{info[:flags].size} total)", type: :highlight)
+          # Show first 10 flags
+          info[:flags].take(10).each do |name, flag_info|
+            display_message("  #{flag_info[:flag]}", type: :info)
+            display_message("    #{flag_info[:description][0..80]}...", type: :muted) if flag_info[:description]
+          end
+
+          if info[:flags].size > 10
+            display_message("\n  ... and #{info[:flags].size - 10} more flags", type: :muted)
+            display_message("  Run '#{get_binary_name(provider_name)} --help' for full details", type: :muted)
+          end
+        end
+
+        display_message("\n" + "=" * 60, type: :muted)
+        display_message("Tip: Use --refresh to update this information", type: :muted)
+      end
+
+      def run_providers_refresh_command(args)
+        require_relative "harness/provider_info"
+        require "tty-spinner"
+
+        provider_name = args.shift
+        configuration = Aidp::Harness::Configuration.new(Dir.pwd)
+        providers_to_refresh = if provider_name
+          [provider_name]
+        else
+          configuration.configured_providers
+        end
+
+        display_message("Refreshing provider information...", type: :info)
+        display_message("", type: :info)
+
+        providers_to_refresh.each do |prov|
+          spinner = TTY::Spinner.new("[:spinner] #{prov}...", format: :dots)
+          spinner.auto_spin
+
+          provider_info = Aidp::Harness::ProviderInfo.new(prov, Dir.pwd)
+          info = provider_info.gather_info
+
+          if info[:cli_available]
+            spinner.success("(available)")
+          else
+            spinner.error("(unavailable)")
+          end
+        end
+
+        display_message("\n✓ Provider information refreshed", type: :success)
+        display_message("Use 'aidp providers info <name>' to view details", type: :muted)
+      end
+
+      def run_mcp_command(args)
+        require_relative "cli/mcp_dashboard"
+
+        subcommand = args.shift
+
+        dashboard = Aidp::CLI::McpDashboard.new(Dir.pwd)
+
+        case subcommand
+        when "dashboard", "list", nil
+          # Extract flags
+          no_color = args.include?("--no-color")
+          dashboard.display_dashboard(no_color: no_color)
+
+        when "check"
+          # Check eligibility for specific servers
+          required_servers = args
+          if required_servers.empty?
+            display_message("Usage: aidp mcp check <server1> [server2] ...", type: :info)
+            display_message("Example: aidp mcp check filesystem brave-search", type: :info)
+            return
+          end
+
+          dashboard.display_task_eligibility(required_servers)
+
+        else
+          display_message("Usage: aidp mcp <command>", type: :info)
+          display_message("", type: :info)
+          display_message("Commands:", type: :info)
+          display_message("  dashboard, list     Show MCP servers across all providers (default)", type: :info)
+          display_message("  check <servers...>  Check which providers have required MCP servers", type: :info)
+          display_message("", type: :info)
+          display_message("Examples:", type: :info)
+          display_message("  aidp mcp                              # Show dashboard", type: :info)
+          display_message("  aidp mcp dashboard --no-color         # Show without colors", type: :info)
+          display_message("  aidp mcp check filesystem dash-api    # Check provider eligibility", type: :info)
+        end
+      end
+
+      def get_binary_name(provider_name)
+        case provider_name
+        when "claude", "anthropic"
+          "claude"
+        when "cursor"
+          "cursor"
+        when "gemini"
+          "gemini"
+        when "codex"
+          "codex"
+        when "github_copilot"
+          "gh"
+        when "opencode"
+          "opencode"
+        else
+          provider_name
+        end
       end
 
       def extract_mode_option(args)

@@ -1,0 +1,522 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+require "aidp/harness/provider_info"
+require "tmpdir"
+require "fileutils"
+
+RSpec.describe Aidp::Harness::ProviderInfo do
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:provider_name) { "claude" }
+  let(:provider_info) { described_class.new(provider_name, temp_dir) }
+
+  after do
+    FileUtils.rm_rf(temp_dir)
+  end
+
+  describe "#initialize" do
+    it "creates the provider info instance" do
+      expect(provider_info.provider_name).to eq(provider_name)
+    end
+
+    it "sets the correct info file path" do
+      expected_path = File.join(temp_dir, ".aidp", "providers", "#{provider_name}_info.yml")
+      expect(provider_info.info_file_path).to eq(expected_path)
+    end
+
+    it "creates the directory structure" do
+      dir = File.dirname(provider_info.info_file_path)
+      expect(Dir.exist?(dir)).to be true
+    end
+  end
+
+  describe "#gather_info" do
+    context "when CLI is not available" do
+      before do
+        allow(provider_info).to receive(:fetch_help_output).and_return(nil)
+      end
+
+      it "returns info with cli_available false" do
+        info = provider_info.gather_info
+        expect(info[:cli_available]).to be false
+      end
+
+      it "stores the info to file" do
+        provider_info.gather_info
+        expect(File.exist?(provider_info.info_file_path)).to be true
+      end
+
+      it "includes basic metadata" do
+        info = provider_info.gather_info
+        expect(info[:provider]).to eq(provider_name)
+        expect(info[:last_checked]).to be_a(String)
+      end
+    end
+
+    context "when CLI is available" do
+      let(:help_output) do
+        <<~HELP
+          Usage: claude [options] [command] [prompt]
+
+          Options:
+            --permission-mode <mode>  Permission mode (choices: "acceptEdits", "bypassPermissions", "default", "plan")
+            --dangerously-skip-permissions  Bypass all permission checks
+            --model <model>           Model for the current session
+            --mcp-config <configs>    Load MCP servers from JSON files
+            --allowed-tools <tools>   Comma separated list of tools to allow
+            --setup-token             Set up authentication token
+
+          Commands:
+            mcp                       Configure and manage MCP servers
+        HELP
+      end
+
+      before do
+        allow(provider_info).to receive(:fetch_help_output).and_return(help_output)
+      end
+
+      it "returns info with cli_available true" do
+        info = provider_info.gather_info
+        expect(info[:cli_available]).to be true
+      end
+
+      it "stores the help output" do
+        info = provider_info.gather_info
+        expect(info[:help_output]).to eq(help_output)
+      end
+
+      it "detects MCP support" do
+        info = provider_info.gather_info
+        expect(info[:mcp_support]).to be true
+      end
+
+      it "extracts permission modes" do
+        info = provider_info.gather_info
+        expect(info[:permission_modes]).to include("acceptEdits", "bypassPermissions", "default", "plan")
+      end
+
+      it "detects bypass permissions capability" do
+        info = provider_info.gather_info
+        expect(info[:capabilities][:bypass_permissions]).to be true
+      end
+
+      it "detects model selection capability" do
+        info = provider_info.gather_info
+        expect(info[:capabilities][:model_selection]).to be true
+      end
+
+      it "detects MCP config capability" do
+        info = provider_info.gather_info
+        expect(info[:capabilities][:mcp_config]).to be true
+      end
+
+      it "detects tool restrictions capability" do
+        info = provider_info.gather_info
+        expect(info[:capabilities][:tool_restrictions]).to be true
+      end
+
+      it "detects subscription auth method" do
+        info = provider_info.gather_info
+        expect(info[:auth_method]).to eq("subscription")
+      end
+
+      it "extracts flags" do
+        info = provider_info.gather_info
+        expect(info[:flags]).to be_a(Hash)
+        expect(info[:flags]).to have_key("permission-mode")
+      end
+    end
+  end
+
+  describe "#load_info" do
+    context "when info file does not exist" do
+      it "returns nil" do
+        expect(provider_info.load_info).to be_nil
+      end
+    end
+
+    context "when info file exists" do
+      let(:sample_info) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          cli_available: true,
+          mcp_support: true
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(sample_info))
+      end
+
+      it "loads the info from file" do
+        loaded = provider_info.load_info
+        expect(loaded[:provider]).to eq(provider_name)
+        expect(loaded[:cli_available]).to be true
+        expect(loaded[:mcp_support]).to be true
+      end
+    end
+  end
+
+  describe "#get_info" do
+    context "when no cached info exists" do
+      it "gathers new info" do
+        allow(provider_info).to receive(:fetch_help_output).and_return(nil)
+        info = provider_info.get_info
+        expect(info).not_to be_nil
+        expect(info[:provider]).to eq(provider_name)
+      end
+    end
+
+    context "when cached info is fresh" do
+      let(:fresh_info) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          cli_available: true
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(fresh_info))
+      end
+
+      it "returns cached info" do
+        info = provider_info.get_info
+        expect(info[:provider]).to eq(provider_name)
+        expect(info[:cli_available]).to be true
+      end
+
+      it "does not gather new info" do
+        expect(provider_info).not_to receive(:gather_info)
+        provider_info.get_info
+      end
+    end
+
+    context "when cached info is stale" do
+      let(:stale_info) do
+        {
+          provider: provider_name,
+          last_checked: (Time.now - 100_000).iso8601,
+          cli_available: true
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(stale_info))
+        allow(provider_info).to receive(:fetch_help_output).and_return(nil)
+      end
+
+      it "gathers new info" do
+        expect(provider_info).to receive(:gather_info).and_call_original
+        provider_info.get_info(max_age: 1000)
+      end
+    end
+
+    context "when force_refresh is true" do
+      let(:existing_info) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          cli_available: false
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(existing_info))
+        allow(provider_info).to receive(:fetch_help_output).and_return(nil)
+      end
+
+      it "gathers new info even if cached info is fresh" do
+        expect(provider_info).to receive(:gather_info).and_call_original
+        provider_info.get_info(force_refresh: true)
+      end
+    end
+  end
+
+  describe "#supports_mcp?" do
+    context "when provider supports MCP" do
+      let(:info_with_mcp) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          mcp_support: true
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_with_mcp))
+      end
+
+      it "returns true" do
+        expect(provider_info.supports_mcp?).to be true
+      end
+    end
+
+    context "when provider does not support MCP" do
+      let(:info_without_mcp) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          mcp_support: false
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_without_mcp))
+      end
+
+      it "returns false" do
+        expect(provider_info.supports_mcp?).to be false
+      end
+    end
+  end
+
+  describe "#permission_modes" do
+    context "when provider has permission modes" do
+      let(:info_with_modes) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          permission_modes: ["default", "bypass", "plan"]
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_with_modes))
+      end
+
+      it "returns the permission modes" do
+        expect(provider_info.permission_modes).to eq(["default", "bypass", "plan"])
+      end
+    end
+
+    context "when provider has no permission modes" do
+      let(:info_without_modes) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_without_modes))
+      end
+
+      it "returns empty array" do
+        expect(provider_info.permission_modes).to eq([])
+      end
+    end
+  end
+
+  describe "#auth_method" do
+    context "when provider uses API key" do
+      let(:info_with_api_key) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          auth_method: "api_key"
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_with_api_key))
+      end
+
+      it "returns api_key" do
+        expect(provider_info.auth_method).to eq("api_key")
+      end
+    end
+
+    context "when provider uses subscription" do
+      let(:info_with_subscription) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          auth_method: "subscription"
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_with_subscription))
+      end
+
+      it "returns subscription" do
+        expect(provider_info.auth_method).to eq("subscription")
+      end
+    end
+  end
+
+  describe "#available_flags" do
+    context "when provider has flags" do
+      let(:info_with_flags) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          flags: {
+            "model" => {flag: "--model <model>", description: "Select model"},
+            "help" => {flag: "--help", description: "Show help"}
+          }
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_with_flags))
+      end
+
+      it "returns the flags hash" do
+        flags = provider_info.available_flags
+        expect(flags).to have_key("model")
+        expect(flags).to have_key("help")
+        expect(flags["model"][:flag]).to eq("--model <model>")
+      end
+    end
+  end
+
+  describe "#mcp_servers" do
+    context "when provider has MCP servers configured" do
+      let(:info_with_mcp_servers) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          mcp_servers: [
+            {name: "filesystem", status: "enabled", description: "File system access", enabled: true},
+            {name: "brave-search", status: "enabled", description: "Web search", enabled: true}
+          ]
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_with_mcp_servers))
+      end
+
+      it "returns the MCP servers list" do
+        servers = provider_info.mcp_servers
+        expect(servers.size).to eq(2)
+        expect(servers[0][:name]).to eq("filesystem")
+        expect(servers[1][:name]).to eq("brave-search")
+      end
+    end
+
+    context "when provider has no MCP servers" do
+      let(:info_without_mcp_servers) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          mcp_servers: []
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_without_mcp_servers))
+      end
+
+      it "returns empty array" do
+        expect(provider_info.mcp_servers).to eq([])
+      end
+    end
+  end
+
+  describe "#has_mcp_servers?" do
+    context "when provider has MCP servers" do
+      let(:info_with_servers) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          mcp_servers: [{name: "filesystem", status: "enabled", enabled: true}]
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_with_servers))
+      end
+
+      it "returns true" do
+        expect(provider_info.has_mcp_servers?).to be true
+      end
+    end
+
+    context "when provider has no MCP servers" do
+      let(:info_without_servers) do
+        {
+          provider: provider_name,
+          last_checked: Time.now.iso8601,
+          mcp_servers: []
+        }
+      end
+
+      before do
+        File.write(provider_info.info_file_path, YAML.dump(info_without_servers))
+      end
+
+      it "returns false" do
+        expect(provider_info.has_mcp_servers?).to be false
+      end
+    end
+  end
+
+  describe "MCP server parsing" do
+    context "with new Claude format" do
+      let(:mcp_output_new) do
+        <<~OUTPUT
+          Checking MCP server health...
+
+          dash-api: uvx --from git+https://github.com/Kapeli/dash-mcp-server.git dash-mcp-server - ✓ Connected
+          brave-search: npx brave-search-mcp - ✗ Connection failed
+        OUTPUT
+      end
+
+      it "parses new Claude MCP format correctly" do
+        allow(provider_info).to receive(:fetch_help_output).and_return("--mcp-config support")
+        allow(provider_info).to receive(:execute_provider_command).with("mcp", "list").and_return(mcp_output_new)
+
+        info = provider_info.gather_info
+
+        expect(info[:mcp_servers]).to be_an(Array)
+        expect(info[:mcp_servers].size).to eq(2)
+
+        dash = info[:mcp_servers].find { |s| s[:name] == "dash-api" }
+        expect(dash[:status]).to eq("connected")
+        expect(dash[:enabled]).to be true
+        expect(dash[:description]).to include("uvx --from")
+
+        brave = info[:mcp_servers].find { |s| s[:name] == "brave-search" }
+        expect(brave[:status]).to eq("error")
+        expect(brave[:enabled]).to be false
+        expect(brave[:error]).to eq("Connection failed")
+      end
+    end
+
+    context "with legacy table format" do
+      let(:mcp_output_legacy) do
+        <<~OUTPUT
+          MCP Servers
+
+          Name              Status    Description
+          filesystem        enabled   File system access and operations
+          brave-search      enabled   Web search via Brave Search API
+          database          disabled  Database query execution
+        OUTPUT
+      end
+
+      it "parses legacy MCP table format correctly" do
+        allow(provider_info).to receive(:fetch_help_output).and_return("--mcp-config support")
+        allow(provider_info).to receive(:execute_provider_command).with("mcp", "list").and_return(mcp_output_legacy)
+
+        info = provider_info.gather_info
+
+        expect(info[:mcp_servers]).to be_an(Array)
+        expect(info[:mcp_servers].size).to eq(3)
+
+        filesystem = info[:mcp_servers].find { |s| s[:name] == "filesystem" }
+        expect(filesystem[:status]).to eq("enabled")
+        expect(filesystem[:enabled]).to be true
+        expect(filesystem[:description]).to eq("File system access and operations")
+
+        database = info[:mcp_servers].find { |s| s[:name] == "database" }
+        expect(database[:status]).to eq("disabled")
+        expect(database[:enabled]).to be false
+      end
+    end
+  end
+end
