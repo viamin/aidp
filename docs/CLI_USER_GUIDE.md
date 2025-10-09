@@ -393,6 +393,135 @@ gemini     unhealthy  no     open     no           0       -         No API key
 - `unhealthy_auth` - Authentication failed
 - `circuit_open` - Circuit breaker triggered (too many errors)
 
+### Detailed Provider Information
+
+Get detailed information about a specific provider's capabilities:
+
+```bash
+$ aidp providers info claude
+
+Provider Information: claude
+============================================================
+Last Checked: 2025-10-08T20:08:06-07:00
+CLI Available: Yes
+
+Authentication Method: subscription
+
+MCP Support: Yes
+
+Permission Modes:
+  - acceptEdits
+  - bypassPermissions
+  - default
+  - plan
+
+Capabilities:
+  ✓ Bypass Permissions
+  ✓ Model Selection
+  ✓ Mcp Config
+  ✓ Tool Restrictions
+  ✓ Session Management
+  ✓ Output Formats
+
+Notable Flags: (25 total)
+  --permission-mode <mode>
+    Permission mode to use for the session...
+  --model <model>
+    Model for the current session...
+
+  ... and 23 more flags
+  Run 'claude --help' for full details
+============================================================
+```
+
+This command introspects each provider's CLI to gather:
+- Available permission modes and security flags
+- MCP (Model Context Protocol) server support
+- **Configured MCP servers** - Lists all MCP servers that have been added to the provider (e.g., filesystem, brave-search, database)
+- Authentication method (API key vs subscription)
+- Tool restriction capabilities
+- Session management features
+- Output format options
+- All available command-line flags
+
+**MCP Server Information:**
+
+For providers that support MCP (like Claude), AIDP will detect and list configured MCP servers:
+
+```bash
+MCP Servers: (3 configured)
+  ✓ filesystem (enabled)
+    File system access and operations
+  ✓ brave-search (enabled)
+    Web search via Brave Search API
+  ○ database (disabled)
+    Database query execution
+```
+
+This helps you understand what additional tools and capabilities each provider has access to through MCP servers.
+
+**Refresh Provider Information:**
+
+```bash
+# Refresh info for a specific provider
+$ aidp providers refresh claude
+
+# Refresh info for all configured providers
+$ aidp providers refresh
+```
+
+Provider information is automatically cached in `.aidp/providers/` and refreshed when stale (older than 24 hours) or when explicitly requested with `--refresh`.
+
+### MCP Server Dashboard
+
+View all MCP servers configured across all providers in a unified dashboard:
+
+```bash
+$ aidp mcp
+
+MCP Server Dashboard
+================================================================================
+MCP Server      claude  cursor  gemini
+dash-api        ✓       -       -
+chrome-devtools ✓       -       -
+filesystem      -       ✓       -
+brave-search    ✓       -       ✓
+
+Legend: ✓ = Enabled  ✗ = Error/Disabled  - = Not configured
+================================================================================
+```
+
+This table shows:
+- All MCP servers configured across any provider
+- Which providers have each server enabled (✓), disabled (✗), or not configured (-)
+- At-a-glance view of provider capabilities for task requirements
+
+**Check Provider Eligibility:**
+
+Check which providers have specific MCP servers required for a task:
+
+```bash
+$ aidp mcp check dash-api filesystem
+
+Task Eligibility Check
+Required MCP Servers: dash-api, filesystem
+✓ Eligible Providers (2/8):
+  • claude
+  • cursor
+```
+
+This helps you understand:
+- Which providers can handle tasks requiring specific MCP tools
+- Which providers would be ineligible as fallback options
+- Whether you need to configure additional MCP servers
+
+**Use Cases:**
+
+1. **Task Planning** - Before starting a task, check if any provider has the required MCP servers
+2. **Fallback Strategy** - Identify which providers can serve as fallbacks for specific tasks
+3. **Configuration Gaps** - Discover MCP servers that should be added to more providers
+4. **Capability Overview** - See all available MCP tools at a glance
+
 ### Harness State
 
 Manage harness execution state:
