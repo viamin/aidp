@@ -13,7 +13,9 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
   describe ".ensure_config" do
     context "when config exists" do
       it "returns true and does nothing" do
-        File.write(File.join(temp_dir, "aidp.yml"), "harness: {}\n")
+        # Create config in the correct location (.aidp/aidp.yml)
+        FileUtils.mkdir_p(File.join(temp_dir, ".aidp"))
+        File.write(File.join(temp_dir, ".aidp", "aidp.yml"), "harness: {}\n")
         result = described_class.ensure_config(temp_dir, prompt: test_prompt)
         expect(result).to be true
       end

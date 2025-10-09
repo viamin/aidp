@@ -1,5 +1,18 @@
 # frozen_string_literal: true
 
+# Mock menu class for TTY::Prompt select blocks
+class MockMenu
+  attr_reader :choices
+
+  def initialize
+    @choices = []
+  end
+
+  def choice(label, value = nil)
+    @choices << {label: label, value: value || label}
+  end
+end
+
 # Test prompt class - implements TTY::Prompt interface for testing
 # This provides a mock/spy implementation that records all interactions
 # for testing TTY::Prompt-based classes without actual user interaction.
@@ -13,9 +26,17 @@ class TestPrompt
     @inputs = []
   end
 
-  def select(title, items, **options)
-    @selections << {title: title, items: items, options: options}
-    @responses[:select] || (items.is_a?(Hash) ? items.values.first : items.first)
+  def select(title, items = nil, **options, &block)
+    if block_given?
+      # Handle block-style select (like TTY::Prompt)
+      menu = MockMenu.new
+      block.call(menu)
+      @selections << {title: title, items: menu.choices, options: options, block: true}
+      @responses[:select] || menu.choices.first[:value]
+    else
+      @selections << {title: title, items: items, options: options}
+      @responses[:select] || (items.is_a?(Hash) ? items.values.first : items.first)
+    end
   end
 
   def multi_select(title, items, **options)

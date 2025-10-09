@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "yaml"
+require_relative "config/paths"
 
 module Aidp
   # Configuration management for both execute and analyze modes
@@ -165,7 +166,7 @@ module Aidp
     }.freeze
 
     def self.load(project_dir = Dir.pwd)
-      config_file = File.join(project_dir, ".aidp", "aidp.yml")
+      config_file = ConfigPaths.config_file(project_dir)
 
       if File.exist?(config_file)
         load_yaml_config(config_file)
@@ -244,15 +245,15 @@ module Aidp
 
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
-      File.exist?(File.join(project_dir, ".aidp", "aidp.yml"))
+      ConfigPaths.config_exists?(project_dir)
     end
 
     # Create example configuration file
     def self.create_example_config(project_dir = Dir.pwd)
-      config_path = File.join(project_dir, ".aidp", "aidp.yml")
+      config_path = ConfigPaths.config_file(project_dir)
       return false if File.exist?(config_path)
 
-      FileUtils.mkdir_p(File.dirname(config_path))
+      ConfigPaths.ensure_config_dir(project_dir)
 
       example_config = {
         harness: {
@@ -281,6 +282,19 @@ module Aidp
 
       File.write(config_path, YAML.dump(example_config))
       true
+    end
+
+    # Expose path methods for convenience
+    def self.config_file(project_dir = Dir.pwd)
+      ConfigPaths.config_file(project_dir)
+    end
+
+    def self.config_dir(project_dir = Dir.pwd)
+      ConfigPaths.config_dir(project_dir)
+    end
+
+    def self.aidp_dir(project_dir = Dir.pwd)
+      ConfigPaths.aidp_dir(project_dir)
     end
 
     private_class_method def self.load_yaml_config(config_file)
