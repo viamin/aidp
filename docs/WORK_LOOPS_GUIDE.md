@@ -1,8 +1,115 @@
-# Ralph-Style Work Loops Guide
+# Work Loops Guide
 
 ## Overview
 
 AIDP now supports **work loops** - an iterative execution pattern inspired by [Geoffrey Huntley's Ralph technique](https://ghuntley.com/ralph). This transforms AIDP from single-pass step execution into an autonomous loop where the AI agent iteratively works toward completion with automatic testing and linting feedback.
+
+## Guided Workflows (Copilot Mode)
+
+**NEW:** AIDP now includes a **Guided Workflow** feature that acts as your AI copilot to help you choose the right workflow for your needs.
+
+### What is Guided Workflow?
+
+Instead of manually choosing between Analyze and Execute modes and picking specific workflows, the Guided Workflow uses AI to:
+
+1. **Understand your goal** through a conversational interface
+2. **Match your intent** to AIDP's capabilities
+3. **Recommend the best workflow** with clear reasoning
+4. **Handle custom needs** by suggesting step combinations or identifying gaps
+
+### How to Use Guided Workflow
+
+When you start AIDP, you'll see three options:
+
+```
+🤖 Guided Workflow (Copilot) - AI helps you choose the right workflow
+🔬 Analyze Mode - Analyze your codebase for insights and recommendations
+🏗️ Execute Mode - Build new features with guided development workflow
+```
+
+Select "Guided Workflow" and simply describe what you want to do:
+
+**Examples:**
+- "Build a user authentication feature"
+- "Understand how this codebase handles payments"
+- "Improve test coverage in my API layer"
+- "Create a quick prototype for data export"
+- "Modernize this legacy Rails app"
+
+The AI will analyze your request and recommend the most appropriate workflow, explaining why it fits your needs.
+
+### How It Works
+
+1. **You describe your goal** in natural language
+2. **AI analyzes** against AIDP's capabilities (documented in `docs/AIDP_CAPABILITIES.md`)
+3. **Recommendation** includes:
+   - Mode (analyze, execute, or hybrid)
+   - Specific workflow
+   - Reasoning for the choice
+   - Any additional custom steps needed
+4. **Confirmation** - You approve or choose an alternative
+5. **Details collection** - Guided questions gather any missing information
+6. **Workflow execution** - Proceeds with the selected workflow
+
+### Example Session
+
+```
+What would you like to do?
+> Build a REST API for user authentication
+
+🔍 Analyzing your request...
+
+✨ Recommendation
+────────────────────────────────────────────────────────────
+Mode: Execute
+Workflow: Feature Development
+
+Standard feature that needs architecture design and testing
+
+Reasoning: This is a production feature requiring proper architecture,
+security considerations, and comprehensive testing.
+
+This workflow includes:
+  • Product requirements
+  • Architecture design
+  • Testing strategy
+  • Static analysis
+  • Implementation
+
+Does this workflow fit your needs? (Y/n)
+```
+
+### When to Use Guided Workflow
+
+✅ **Use Guided Workflow when:**
+- You're new to AIDP and unsure which workflow to choose
+- Your task doesn't clearly fit analyze or execute
+- You want expert guidance on the right approach
+- You need a custom combination of steps
+
+❌ **Use direct mode selection when:**
+- You know exactly which workflow you need
+- You're running automated/scripted workflows
+- You want maximum control over step selection
+
+### Behind the Scenes
+
+The Guided Workflow:
+- Uses your configured AI provider (Claude, Gemini, etc.)
+- Leverages AIDP's capabilities documentation
+- Runs through the existing harness and workflow systems
+- Follows all the same rules (LLM_STYLE_GUIDE, work loops, etc.)
+- Preserves your context window by keeping prompts concise
+
+### Customization
+
+The AI can recommend:
+- **Standard workflows** from Analyze or Execute modes
+- **Hybrid workflows** mixing analysis and development
+- **Custom step combinations** when standard workflows don't fit
+- **New templates** when gaps are identified (you'll be prompted to create them)
+
+All recommendations respect your project's configuration, available providers, and AIDP's core strengths.
 
 ## What are Work Loops?
 
@@ -110,7 +217,7 @@ When a work loop starts, AIDP creates PROMPT.md with:
 # Work Loop: [step_name]
 
 ## Instructions
-You are working in a Ralph-style work loop. Your responsibilities:
+You are working in a work loop. Your responsibilities:
 1. Read this PROMPT.md file to understand what needs to be done
 2. Complete the work described below
 3. **IMPORTANT**: Edit this PROMPT.md file yourself to:

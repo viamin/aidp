@@ -183,7 +183,7 @@ module Aidp
 
         # Initialize the enhanced TUI
         tui = Aidp::Harness::UI::EnhancedTUI.new
-        workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui)
+        workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui, project_dir: Dir.pwd)
 
         # Start TUI display loop
         tui.start_display_loop
@@ -874,17 +874,20 @@ module Aidp
 
       def select_mode_interactive(tui)
         mode_options = [
+          "🤖 Guided Workflow (Copilot) - AI helps you choose the right workflow",
           "🔬 Analyze Mode - Analyze your codebase for insights and recommendations",
           "🏗️ Execute Mode - Build new features with guided development workflow"
         ]
         selected = tui.single_select("Welcome to AI Dev Pipeline! Choose your mode", mode_options, default: 1)
         # Announce mode explicitly in headless contexts (handled internally otherwise)
         if (defined?(RSpec) || ENV["RSPEC_RUNNING"]) && tui.respond_to?(:announce_mode)
-          tui.announce_mode(:analyze) if selected == mode_options[0]
-          tui.announce_mode(:execute) if selected == mode_options[1]
+          tui.announce_mode(:guided) if selected == mode_options[0]
+          tui.announce_mode(:analyze) if selected == mode_options[1]
+          tui.announce_mode(:execute) if selected == mode_options[2]
         end
-        return :analyze if selected == mode_options[0]
-        return :execute if selected == mode_options[1]
+        return :guided if selected == mode_options[0]
+        return :analyze if selected == mode_options[1]
+        return :execute if selected == mode_options[2]
         :analyze
       end
 
