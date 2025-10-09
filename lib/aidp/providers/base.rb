@@ -73,6 +73,19 @@ module Aidp
         raise NotImplementedError, "#{self.class} must implement #send"
       end
 
+      # Fetch MCP servers configured for this provider
+      # Returns an array of server hashes with keys: :name, :status, :description, :enabled
+      # Override in subclasses to provide provider-specific MCP server detection
+      def fetch_mcp_servers
+        []
+      end
+
+      # Check if this provider supports MCP servers
+      # Override in subclasses to provide accurate MCP support detection
+      def supports_mcp?
+        false
+      end
+
       # Set job context for background execution
       def set_job_context(job_id:, execution_id:, job_manager:)
         @job_context = {

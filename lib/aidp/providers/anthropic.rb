@@ -21,6 +21,25 @@ module Aidp
         "Anthropic Claude CLI"
       end
 
+      def supports_mcp?
+        true
+      end
+
+      def fetch_mcp_servers
+        return [] unless self.class.available?
+
+        begin
+          # Use claude mcp list command
+          result = debug_execute_command("claude", args: ["mcp", "list"], timeout: 5)
+          return [] unless result.exit_status == 0
+
+          parse_claude_mcp_output(result.out)
+        rescue => e
+          debug_log("Failed to fetch MCP servers via Claude CLI: #{e.message}", level: :debug)
+          []
+        end
+      end
+
       def available?
         self.class.available?
       end
@@ -183,6 +202,61 @@ module Aidp
         debug_log("⚠️ Failed to parse stream-json output: #{e.message}", level: :warn)
         # Return original output if parsing fails
         output
+      end
+
+      # Parse Claude MCP server list output
+      def parse_claude_mcp_output(output)
+        servers = []
+        return servers unless output
+
+        lines = output.lines
+        lines.reject! { |line| /checking mcp server health/i.match?(line) }
+
+        lines.each do |line|
+          line = line.strip
+          next if line.empty?
+
+          # Try to parse Claude format: "name: command - ✓ Connected"
+          if line =~ /^([^:]+):\s*(.+?)\s*-\s*(✓|✗)\s*(.+)$/
+            name = Regexp.last_match(1).strip
+            command = Regexp.last_match(2).strip
+            status_symbol = Regexp.last_match(3)
+            status_text = Regexp.last_match(4).strip
+
+            servers << {
+              name: name,
+              status: (status_symbol == "✓") ? "connected" : "error",
+              description: command,
+              enabled: status_symbol == "✓",
+              error: (status_symbol == "✗") ? status_text : nil,
+              source: "claude_cli"
+            }
+            next
+          end
+
+          # Try to parse legacy table format
+          next if /Name.*Status/i.match?(line)
+          next if /^[-=]+$/.match?(line)
+
+          parts = line.split(/\s{2,}/)
+          next if parts.size < 2
+
+          name = parts[0]&.strip
+          status = parts[1]&.strip
+          description = parts[2..]&.join(" ")&.strip
+
+          next unless name && !name.empty?
+
+          servers << {
+            name: name,
+            status: status || "unknown",
+            description: description,
+            enabled: status&.downcase == "enabled" || status&.downcase == "connected",
+            source: "claude_cli"
+          }
+        end
+
+        servers
       end
     end
   end

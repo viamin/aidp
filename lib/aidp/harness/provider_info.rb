@@ -142,18 +142,14 @@ module Aidp
       end
 
       def fetch_mcp_servers
-        binary = get_binary_name
-        return nil unless binary
+        # Use the provider class to fetch MCP servers
+        provider_instance = get_provider_instance
+        return [] unless provider_instance
 
-        # Try different MCP list commands based on provider
-        mcp_output = case @provider_name
-        when "claude", "anthropic"
-          execute_provider_command("mcp", "list")
-        end
-
-        return nil unless mcp_output
-
-        parse_mcp_servers(mcp_output)
+        provider_instance.fetch_mcp_servers
+      rescue => e
+        warn "Failed to fetch MCP servers for #{@provider_name}: #{e.message}" if ENV["AIDP_DEBUG"]
+        []
       end
 
       def execute_provider_command(*args)
@@ -269,12 +265,13 @@ module Aidp
         servers
       end
 
+
       def get_binary_name
         case @provider_name
         when "claude", "anthropic"
           "claude"
         when "cursor"
-          "cursor"
+          "cursor-agent"  # Use cursor-agent CLI, not cursor IDE shortcut
         when "gemini"
           "gemini"
         when "codex"
@@ -297,8 +294,14 @@ module Aidp
           flags: {}
         }
 
-        # Check for MCP support
-        parsed[:mcp_support] = !!(help_text =~ /mcp|MCP|Model Context Protocol/i)
+        # Check for MCP support using provider class
+        provider_instance = get_provider_instance
+        if provider_instance
+          parsed[:mcp_support] = provider_instance.supports_mcp?
+        else
+          # Fallback to text-based detection
+          parsed[:mcp_support] = !!(help_text =~ /mcp|MCP|Model Context Protocol/i)
+        end
 
         # Extract permission modes
         if help_text =~ /--permission-mode\s+<mode>\s+.*?\(choices:\s*([^)]+)\)/m
@@ -340,6 +343,23 @@ module Aidp
         extract_flags(help_text, parsed[:flags])
 
         parsed
+      end
+
+      # Get provider instance for MCP operations
+      def get_provider_instance
+        return @provider_instance if @provider_instance
+
+        # Load provider factory and get provider class
+        require_relative "provider_factory"
+
+        provider_class = Aidp::Harness::ProviderFactory::PROVIDER_CLASSES[@provider_name]
+        return nil unless provider_class
+
+        # Create provider instance
+        @provider_instance = provider_class.new
+      rescue => e
+        warn "Failed to create provider instance for #{@provider_name}: #{e.message}" if ENV["AIDP_DEBUG"]
+        nil
       end
 
       def extract_flags(help_text, flags_hash)
