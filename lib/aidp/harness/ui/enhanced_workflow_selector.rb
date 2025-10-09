@@ -2,6 +2,7 @@
 
 require_relative "enhanced_tui"
 require_relative "../../workflows/selector"
+require_relative "../../workflows/guided_agent"
 
 module Aidp
   module Harness
@@ -10,10 +11,11 @@ module Aidp
       class EnhancedWorkflowSelector
         class WorkflowError < StandardError; end
 
-        def initialize(tui = nil)
+        def initialize(tui = nil, project_dir: Dir.pwd)
           @tui = tui || EnhancedTUI.new
           @user_input = {}
           @workflow_selector = Aidp::Workflows::Selector.new
+          @project_dir = project_dir
         end
 
         def select_workflow(harness_mode: false, mode: :analyze)
@@ -28,6 +30,8 @@ module Aidp
 
         def select_workflow_interactive(mode)
           case mode
+          when :guided
+            select_guided_workflow
           when :analyze
             select_analyze_workflow_interactive
           when :execute
@@ -242,6 +246,23 @@ module Aidp
             "13_DELIVERY_ROLLOUT",
             "16_IMPLEMENTATION"
           ]
+        end
+
+        def select_guided_workflow
+          # Use the guided agent to help user select workflow
+          guided_agent = Aidp::Workflows::GuidedAgent.new(@project_dir, prompt: @tui.instance_variable_get(:@prompt))
+          result = guided_agent.select_workflow
+
+          # Store user input for later use
+          @user_input = result[:user_input]
+
+          # Return in the expected format
+          {
+            workflow_type: result[:workflow_type],
+            steps: result[:steps],
+            user_input: @user_input,
+            workflow: result[:workflow]
+          }
         end
       end
     end
