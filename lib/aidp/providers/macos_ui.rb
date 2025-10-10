@@ -29,8 +29,8 @@ module Aidp
           result[:response]
         else
           debug_log("❌ Failed to interact with Cursor: #{result[:error]}", level: :warn)
-          # Fallback to simple dialog
-          fallback_dialog(prompt)
+          # No interactive fallback - would hang AIDP's automation workflow
+          raise "Cursor interaction failed and no non-interactive fallback available: #{result[:error]}"
         end
       end
 
@@ -96,22 +96,6 @@ module Aidp
         # Escape special characters for AppleScript
         # Must escape backslashes first to avoid double-escaping
         text.gsub("\\", "\\\\").gsub('"', '\\"').gsub("'", "\\'").gsub("\n", "\\n")
-      end
-
-      def fallback_dialog(prompt)
-        # Fallback to simple dialog
-        truncated_prompt = (prompt.length > 200) ? prompt[0..200] + "..." : prompt
-
-        script = <<~APPLESCRIPT
-          display dialog "#{escape_for_applescript(truncated_prompt)}" with title "Aidp - Cursor Integration" buttons {"OK", "Open Cursor"} default button "Open Cursor"
-          set buttonPressed to button returned of result
-          if buttonPressed is "Open Cursor" then
-            tell application "Cursor" to activate
-          end if
-        APPLESCRIPT
-
-        system("osascript", "-e", script)
-        "Dialog shown - please use Cursor manually"
       end
     end
   end

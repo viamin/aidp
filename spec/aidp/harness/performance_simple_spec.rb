@@ -65,7 +65,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       # Status display initialization
       times[:status_display] = Benchmark.realtime do
         status_display = Aidp::Harness::StatusDisplay.new
-        status_display.get_status_data
+        status_display.status_data
       end
 
       # All components should initialize quickly (under 100ms each)
@@ -120,7 +120,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
 
       # Status data retrieval
       times[:status_retrieval] = Benchmark.realtime do
-        100.times { status_display.get_status_data }
+        100.times { status_display.status_data }
       end
 
       # All operations should be efficient
@@ -321,7 +321,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
 
       # Status retrieval
       actual_times[:status_retrieval] = Benchmark.realtime do
-        status_display.get_status_data
+        status_display.status_data
       end
 
       # Harness status

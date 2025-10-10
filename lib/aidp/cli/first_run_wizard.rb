@@ -137,9 +137,6 @@ module Aidp
         @prompt.say("Interactive custom configuration: press Enter to accept defaults shown in [brackets].")
         @prompt.say("")
 
-        # Get available providers for validation
-        available_providers = get_available_providers
-
         # Use TTY::Prompt select for primary provider
         # Find the formatted string that matches the default
         default_option = available_providers.find { |option| option.start_with?("cursor -") } || available_providers.first
@@ -190,9 +187,6 @@ module Aidp
         # Use TTY::Prompt for interactive configuration
         @prompt.say("Interactive configuration update: press Enter to keep current values shown in [brackets].")
         @prompt.say("")
-
-        # Get available providers for validation
-        available_providers = get_available_providers
 
         # Use TTY::Prompt select for primary provider
         # Find the formatted string that matches the current default
@@ -278,7 +272,7 @@ module Aidp
       end
 
       # Get available providers for validation
-      def get_available_providers
+      def available_providers
         # Get all supported providers from the factory (single source of truth)
         all_providers = Aidp::Harness::ProviderFactory::PROVIDER_CLASSES.keys
 

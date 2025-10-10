@@ -91,7 +91,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
       expect(result[:success]).to be true
 
-      retrieved_data = storage.get_data("complex.json")
+      retrieved_data = storage.data("complex.json")
       expect(retrieved_data).to eq(complex_data)
     end
   end
@@ -105,13 +105,13 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     end
 
     it "retrieves data successfully" do
-      result = storage.get_data(filename)
+      result = storage.data(filename)
 
       expect(result).to eq(data)
     end
 
     it "returns nil for non-existent file" do
-      result = storage.get_data("non_existent.json")
+      result = storage.data("non_existent.json")
 
       expect(result).to be_nil
     end
@@ -120,14 +120,14 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       file_path = File.join(temp_dir, ".aidp/json", "invalid.json")
       File.write(file_path, "{ invalid json }")
 
-      expect { storage.get_data("invalid.json") }.to raise_error(/Invalid JSON in file/)
+      expect { storage.data("invalid.json") }.to raise_error(/Invalid JSON in file/)
     end
 
     it "handles empty files" do
       file_path = File.join(temp_dir, ".aidp/json", "empty.json")
       File.write(file_path, "")
 
-      expect { storage.get_data("empty.json") }.to raise_error(/Invalid JSON in file/)
+      expect { storage.data("empty.json") }.to raise_error(/Invalid JSON in file/)
     end
   end
 
@@ -221,13 +221,13 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       end
     end
 
-    describe "#get_project_config" do
+    describe "#project_config" do
       before do
         storage.store_project_config(config_data)
       end
 
       it "retrieves project configuration" do
-        result = storage.get_project_config
+        result = storage.project_config
 
         expect(result).to eq(config_data)
       end
@@ -246,13 +246,13 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       end
     end
 
-    describe "#get_runtime_status" do
+    describe "#runtime_status" do
       before do
         storage.store_runtime_status(status_data)
       end
 
       it "retrieves runtime status" do
-        result = storage.get_runtime_status
+        result = storage.runtime_status
 
         expect(result).to eq(status_data)
       end
@@ -271,13 +271,13 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       end
     end
 
-    describe "#get_simple_metrics" do
+    describe "#simple_metrics" do
       before do
         storage.store_simple_metrics(metrics_data)
       end
 
       it "retrieves simple metrics" do
-        result = storage.get_simple_metrics
+        result = storage.simple_metrics
 
         expect(result).to eq(metrics_data)
       end
@@ -297,13 +297,13 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       end
     end
 
-    describe "#get_analysis_session" do
+    describe "#analysis_session" do
       before do
         storage.store_analysis_session(session_id, session_data)
       end
 
       it "retrieves analysis session" do
-        result = storage.get_analysis_session(session_id)
+        result = storage.analysis_session(session_id)
 
         expect(result).to eq(session_data)
       end
@@ -350,13 +350,13 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       end
     end
 
-    describe "#get_user_preferences" do
+    describe "#user_preferences" do
       before do
         storage.store_user_preferences(preferences_data)
       end
 
       it "retrieves user preferences" do
-        result = storage.get_user_preferences
+        result = storage.user_preferences
 
         expect(result).to eq(preferences_data)
       end
@@ -381,25 +381,25 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         expect(result[:success]).to be true
 
         # Verify TTL is stored
-        cache_file_data = storage.get_data("cache/#{cache_key}.json")
+        cache_file_data = storage.data("cache/#{cache_key}.json")
         expect(cache_file_data["ttl_seconds"]).to eq(3600)
         expect(cache_file_data["cached_at"]).to be_a(String)
       end
     end
 
-    describe "#get_cache" do
+    describe "#cache" do
       before do
         storage.store_cache(cache_key, cache_data)
       end
 
       it "retrieves cache data" do
-        result = storage.get_cache(cache_key)
+        result = storage.cache(cache_key)
 
         expect(result).to eq(cache_data)
       end
 
       it "returns nil for non-existent cache" do
-        result = storage.get_cache("non_existent")
+        result = storage.cache("non_existent")
 
         expect(result).to be_nil
       end
@@ -411,7 +411,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         # Wait for expiration
         sleep(0.002)
 
-        result = storage.get_cache("expired_cache")
+        result = storage.cache("expired_cache")
 
         expect(result).to be_nil
         expect(storage.data_exists?("cache/expired_cache.json")).to be false
@@ -421,7 +421,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         # Store cache with long TTL
         storage.store_cache("long_cache", cache_data, 3600)
 
-        result = storage.get_cache("long_cache")
+        result = storage.cache("long_cache")
 
         expect(result).to eq(cache_data)
       end
@@ -442,9 +442,9 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         cleared_count = storage.clear_expired_cache
 
         expect(cleared_count).to eq(2)
-        expect(storage.get_cache("expired1")).to be_nil
-        expect(storage.get_cache("expired2")).to be_nil
-        expect(storage.get_cache("valid")).to eq({"data" => 3})
+        expect(storage.cache("expired1")).to be_nil
+        expect(storage.cache("expired2")).to be_nil
+        expect(storage.cache("valid")).to eq({"data" => 3})
       end
 
       it "handles invalid JSON files" do
@@ -461,7 +461,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     end
   end
 
-  describe "#get_storage_statistics" do
+  describe "#storage_statistics" do
     before do
       storage.store_data("file1.json", {"data" => 1})
       storage.store_data("nested/file2.json", {"data" => 2})
@@ -469,7 +469,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     end
 
     it "returns comprehensive statistics" do
-      stats = storage.get_storage_statistics
+      stats = storage.storage_statistics
 
       expect(stats).to be_a(Hash)
       expect(stats[:total_files]).to eq(3)
@@ -482,7 +482,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
 
     it "handles empty storage" do
       empty_storage = described_class.new(Dir.mktmpdir("aidp_empty"))
-      stats = empty_storage.get_storage_statistics
+      stats = empty_storage.storage_statistics
 
       expect(stats[:total_files]).to eq(0)
       expect(stats[:total_size]).to eq(0)
@@ -521,7 +521,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
     it "includes all files in export" do
       storage.export_all_data
 
-      export_data = storage.get_data("aidp_data_export.json")
+      export_data = storage.data("aidp_data_export.json")
 
       expect(export_data["files"]).to have_key("file1.json")
       expect(export_data["files"]).to have_key("nested/file2.json")
@@ -560,8 +560,8 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
       expect(result[:imported_at]).to be_a(Time)
 
       # Verify imported data
-      expect(storage.get_data("imported1.json")).to eq({"imported" => "data1"})
-      expect(storage.get_data("imported2.json")).to eq({"imported" => "data2"})
+      expect(storage.data("imported1.json")).to eq({"imported" => "data1"})
+      expect(storage.data("imported2.json")).to eq({"imported" => "data2"})
     end
 
     it "raises error for non-existent import file" do

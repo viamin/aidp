@@ -441,7 +441,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
 
     it "gets validated configuration with defaults" do
       validator.load_and_validate
-      config = validator.get_validated_config
+      config = validator.validated_config
 
       expect(config).to be_a(Hash)
       expect(config[:harness][:default_provider]).to eq("cursor")
@@ -451,7 +451,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
 
     it "gets harness configuration" do
       validator.load_and_validate
-      harness_config = validator.get_harness_config
+      harness_config = validator.harness_config
 
       expect(harness_config).to be_a(Hash)
       expect(harness_config[:default_provider]).to eq("cursor")
@@ -460,7 +460,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
 
     it "gets provider configuration" do
       validator.load_and_validate
-      provider_config = validator.get_provider_config("cursor")
+      provider_config = validator.provider_config("cursor")
 
       expect(provider_config).to be_a(Hash)
       expect(provider_config[:type]).to eq("subscription")
@@ -469,7 +469,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
 
     it "returns nil for non-existent provider" do
       validator.load_and_validate
-      provider_config = validator.get_provider_config("nonexistent")
+      provider_config = validator.provider_config("nonexistent")
 
       expect(provider_config).to be_nil
     end
@@ -486,7 +486,7 @@ RSpec.describe Aidp::Harness::ConfigValidator do
 
     it "gets configuration summary" do
       validator.load_and_validate
-      summary = validator.get_summary
+      summary = validator.summary
 
       expect(summary[:config_file]).to eq(config_file)
       expect(summary[:valid]).to be true

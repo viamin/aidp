@@ -103,7 +103,7 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     end
 
     it "gets provider configuration" do
-      config = provider_config.get_config
+      config = provider_config.config
 
       expect(config).to be_a(Hash)
       expect(config[:type]).to eq("subscription")
@@ -111,7 +111,7 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     end
 
     it "gets provider type" do
-      expect(provider_config.get_type).to eq("subscription")
+      expect(provider_config.type).to eq("subscription")
     end
 
     it "checks provider types" do
@@ -121,29 +121,29 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     end
 
     it "gets provider priority" do
-      expect(provider_config.get_priority).to eq(1)
+      expect(provider_config.priority).to eq(1)
     end
 
     it "gets provider models" do
-      models = provider_config.get_models
+      models = provider_config.models
 
       expect(models).to include("cursor-default", "cursor-fast")
     end
 
     it "gets default model" do
-      expect(provider_config.get_default_model).to eq("cursor-default")
+      expect(provider_config.default_model).to eq("cursor-default")
     end
 
     it "gets model weights" do
-      weights = provider_config.get_model_weights
+      weights = provider_config.model_weights
 
       expect(weights["cursor-default"]).to eq(3)
       expect(weights["cursor-fast"]).to eq(2)
     end
 
     it "gets model configuration" do
-      default_config = provider_config.get_model_config("cursor-default")
-      fast_config = provider_config.get_model_config("cursor-fast")
+      default_config = provider_config.model_config("cursor-default")
+      fast_config = provider_config.model_config("cursor-fast")
 
       expect(default_config[:flags]).to eq([])
       expect(default_config[:timeout]).to eq(600)
@@ -152,7 +152,7 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     end
 
     it "gets provider features" do
-      features = provider_config.get_features
+      features = provider_config.features
 
       expect(features[:file_upload]).to be true
       expect(features[:code_generation]).to be true
@@ -166,44 +166,44 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     end
 
     it "gets provider capabilities" do
-      capabilities = provider_config.get_capabilities
+      capabilities = provider_config.capabilities
 
       expect(capabilities).to include("file_upload", "code_generation", "analysis")
       expect(capabilities).not_to include("vision")
     end
 
     it "gets provider max tokens" do
-      expect(provider_config.get_max_tokens).to be_nil
+      expect(provider_config.max_tokens).to be_nil
     end
 
     it "gets provider timeout" do
-      expect(provider_config.get_timeout).to eq(300)
+      expect(provider_config.timeout).to eq(300)
     end
 
     it "gets provider default flags" do
-      flags = provider_config.get_default_flags
+      flags = provider_config.default_flags
 
       expect(flags).to eq([])
     end
 
     it "gets model-specific flags" do
-      default_flags = provider_config.get_model_flags("cursor-default")
-      fast_flags = provider_config.get_model_flags("cursor-fast")
+      default_flags = provider_config.model_flags("cursor-default")
+      fast_flags = provider_config.model_flags("cursor-fast")
 
       expect(default_flags).to eq([])
       expect(fast_flags).to eq(["--fast"])
     end
 
     it "gets combined flags" do
-      default_combined = provider_config.get_combined_flags("cursor-default")
-      fast_combined = provider_config.get_combined_flags("cursor-fast")
+      default_combined = provider_config.combined_flags("cursor-default")
+      fast_combined = provider_config.combined_flags("cursor-fast")
 
       expect(default_combined).to eq([])
       expect(fast_combined).to eq(["--fast"])
     end
 
     it "gets authentication configuration" do
-      auth_config = provider_config.get_auth_config
+      auth_config = provider_config.auth_config
 
       expect(auth_config[:api_key_env]).to eq("CURSOR_API_KEY")
     end
@@ -212,104 +212,104 @@ RSpec.describe Aidp::Harness::ProviderConfig do
       # Mock environment variable
       allow(ENV).to receive(:[]).with("CURSOR_API_KEY").and_return("test_api_key")
 
-      api_key = provider_config.get_api_key
+      api_key = provider_config.api_key
 
       expect(api_key).to eq("test_api_key")
     end
 
     it "gets endpoints configuration" do
-      endpoints = provider_config.get_endpoints
+      endpoints = provider_config.endpoints
 
       expect(endpoints[:default]).to eq("https://api.cursor.sh/v1")
     end
 
     it "gets default endpoint" do
-      expect(provider_config.get_default_endpoint).to eq("https://api.cursor.sh/v1")
+      expect(provider_config.default_endpoint).to eq("https://api.cursor.sh/v1")
     end
 
     it "gets monitoring configuration" do
-      monitoring = provider_config.get_monitoring_config
+      monitoring = provider_config.monitoring_config
 
       expect(monitoring[:enabled]).to be true
       expect(monitoring[:metrics_interval]).to eq(30)
     end
 
     it "gets rate limit configuration" do
-      rate_limit = provider_config.get_rate_limit_config
+      rate_limit = provider_config.rate_limit_config
 
       expect(rate_limit[:enabled]).to be true
       expect(rate_limit[:requests_per_minute]).to eq(60)
     end
 
     it "gets retry configuration" do
-      retry_config = provider_config.get_retry_config
+      retry_config = provider_config.retry_config
 
       expect(retry_config[:enabled]).to be true
       expect(retry_config[:max_attempts]).to eq(3)
     end
 
     it "gets circuit breaker configuration" do
-      cb_config = provider_config.get_circuit_breaker_config
+      cb_config = provider_config.circuit_breaker_config
 
       expect(cb_config[:enabled]).to be true
       expect(cb_config[:failure_threshold]).to eq(5)
     end
 
     it "gets cost configuration" do
-      cost_config = provider_config.get_cost_config
+      cost_config = provider_config.cost_config
 
       expect(cost_config[:input_cost_per_token]).to eq(0.0001)
       expect(cost_config[:output_cost_per_token]).to eq(0.0002)
     end
 
     it "gets harness configuration" do
-      harness_config = provider_config.get_harness_config
+      harness_config = provider_config.harness_config
 
       expect(harness_config[:enabled]).to be true
       expect(harness_config[:auto_switch_on_error]).to be true
     end
 
     it "gets health check configuration" do
-      health_check = provider_config.get_health_check_config
+      health_check = provider_config.health_check_config
 
       expect(health_check[:enabled]).to be true
       expect(health_check[:interval]).to eq(60)
     end
 
     it "gets environment variables" do
-      env_vars = provider_config.get_env_vars
+      env_vars = provider_config.env_vars
 
       expect(env_vars).to be_a(Hash)
     end
 
     it "gets command line arguments" do
-      cmd_args = provider_config.get_cmd_args
+      cmd_args = provider_config.cmd_args
 
       expect(cmd_args).to be_a(Array)
     end
 
     it "gets working directory" do
-      working_dir = provider_config.get_working_directory
+      working_dir = provider_config.working_directory
 
       expect(working_dir).to eq(Dir.pwd)
     end
 
     it "gets log configuration" do
-      log_config = provider_config.get_log_config
+      log_config = provider_config.log_config
 
       expect(log_config[:enabled]).to be true
       expect(log_config[:level]).to eq("info")
     end
 
     it "gets cache configuration" do
-      cache_config = provider_config.get_cache_config
+      cache_config = provider_config.cache_config
 
       expect(cache_config[:enabled]).to be true
       expect(cache_config[:ttl]).to eq(3600)
     end
 
     it "gets security configuration" do
-      security_config = provider_config.get_security_config
+      security_config = provider_config.security_config
 
       expect(security_config[:ssl_verify]).to be true
       expect(security_config[:timeout]).to eq(30)
@@ -330,7 +330,18 @@ RSpec.describe Aidp::Harness::ProviderFactory do
   before do
     # Mock the ConfigManager methods
     allow(config_manager).to receive(:get_provider_names).and_return(["cursor", "anthropic", "macos"])
+    allow(config_manager).to receive(:provider_names).and_return(["cursor", "anthropic", "macos"])
     allow(config_manager).to receive(:get_provider_config).with("cursor", anything).and_return({
+      type: "subscription",
+      priority: 1,
+      models: ["cursor-default", "cursor-fast"],
+      features: {
+        file_upload: true,
+        code_generation: true,
+        analysis: true
+      }
+    })
+    allow(config_manager).to receive(:provider_config).with("cursor", anything).and_return({
       type: "subscription",
       priority: 1,
       models: ["cursor-default", "cursor-fast"],
@@ -350,7 +361,27 @@ RSpec.describe Aidp::Harness::ProviderFactory do
         analysis: true
       }
     })
+    allow(config_manager).to receive(:provider_config).with("anthropic", anything).and_return({
+      type: "usage_based",
+      priority: 2,
+      max_tokens: 100_000,
+      features: {
+        file_upload: true,
+        code_generation: true,
+        analysis: true
+      }
+    })
     allow(config_manager).to receive(:get_provider_config).with("macos", anything).and_return({
+      type: "passthrough",
+      priority: 3,
+      underlying_service: "cursor",
+      features: {
+        file_upload: false,
+        code_generation: true,
+        analysis: true
+      }
+    })
+    allow(config_manager).to receive(:provider_config).with("macos", anything).and_return({
       type: "passthrough",
       priority: 3,
       underlying_service: "cursor",
@@ -366,7 +397,7 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     allow(config_manager).to receive(:provider_configured?).with(anything).and_return(false)
 
     # Mock additional methods that might be called
-    allow(config_manager).to receive(:get_harness_config).and_return({
+    allow(config_manager).to receive(:harness_config).and_return({
       default_provider: "cursor",
       fallback_providers: ["anthropic", "macos"]
     })
@@ -375,8 +406,14 @@ RSpec.describe Aidp::Harness::ProviderFactory do
       ["anthropic", {priority: 2, weight: 2}],
       ["macos", {priority: 3, weight: 1}]
     ])
+    allow(config_manager).to receive(:all_providers).and_return([
+      ["cursor", {priority: 1, weight: 3}],
+      ["anthropic", {priority: 2, weight: 2}],
+      ["macos", {priority: 3, weight: 1}]
+    ])
     allow(config_manager).to receive(:reload_config)
     allow(config_manager).to receive(:get_provider_config).with("unknown", anything).and_return({})
+    allow(config_manager).to receive(:provider_config).with("unknown", anything).and_return({})
     allow(config_manager).to receive(:provider_configured?).with("unknown").and_return(false)
   end
 
@@ -485,13 +522,13 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     end
 
     it "gets provider configuration" do
-      provider_config = factory.get_provider_config("cursor")
+      provider_config = factory.provider_config("cursor")
 
       expect(provider_config).to be_a(Aidp::Harness::ProviderConfig)
     end
 
     it "gets provider class" do
-      provider_class = factory.get_provider_class("cursor")
+      provider_class = factory.provider_class("cursor")
 
       expect(provider_class).to eq(Aidp::Providers::Cursor)
     end
@@ -502,25 +539,25 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     end
 
     it "gets supported provider names" do
-      supported = factory.get_supported_providers
+      supported = factory.supported_providers
 
       expect(supported).to include("cursor", "anthropic", "gemini", "macos")
     end
 
     it "gets configured provider names" do
-      configured = factory.get_configured_providers
+      configured = factory.configured_providers
 
       expect(configured).to include("cursor")
     end
 
     it "gets enabled provider names" do
-      enabled = factory.get_enabled_providers
+      enabled = factory.enabled_providers
 
       expect(enabled).to include("cursor")
     end
 
     it "gets provider capabilities" do
-      capabilities = factory.get_provider_capabilities("cursor")
+      capabilities = factory.provider_capabilities("cursor")
 
       expect(capabilities).to include("file_upload", "code_generation")
     end
@@ -531,13 +568,13 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     end
 
     it "gets provider models" do
-      models = factory.get_provider_models("cursor")
+      models = factory.provider_models("cursor")
 
       expect(models).to include("cursor-default")
     end
 
     it "gets provider summary" do
-      summary = factory.get_provider_summary("cursor")
+      summary = factory.provider_summary("cursor")
 
       expect(summary[:name]).to eq("cursor")
       expect(summary[:type]).to eq("subscription")
@@ -545,7 +582,7 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     end
 
     it "gets all provider summaries" do
-      summaries = factory.get_all_provider_summaries
+      summaries = factory.all_provider_summaries
 
       expect(summaries.size).to eq(3)
       expect(summaries.map { |s| s[:name] }).to include("cursor", "anthropic", "macos")

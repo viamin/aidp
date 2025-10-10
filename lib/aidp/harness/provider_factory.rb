@@ -42,7 +42,7 @@ module Aidp
         end
 
         # Get provider configuration
-        provider_config = get_provider_config(provider_name)
+        provider_config = provider_config(provider_name)
 
         # Check if provider is configured and enabled
         unless provider_config.configured?(options)
@@ -54,7 +54,7 @@ module Aidp
         end
 
         # Get provider class
-        provider_class = get_provider_class(provider_name)
+        provider_class = provider_class(provider_name)
         raise "Unknown provider: #{provider_name}" unless provider_class
 
         # Create provider instance
@@ -78,13 +78,13 @@ module Aidp
 
       # Create all configured providers
       def create_all_providers(options = {})
-        configured_providers = @config_manager.get_provider_names(options)
+        configured_providers = @config_manager.provider_names(options)
         create_providers(configured_providers, options)
       end
 
       # Create providers by priority
       def create_providers_by_priority(options = {})
-        all_providers = @config_manager.get_all_providers(options)
+        all_providers = @config_manager.all_providers(options)
 
         # Sort by priority (lower number = higher priority)
         sorted_providers = all_providers.sort_by do |name, config|
@@ -99,7 +99,7 @@ module Aidp
 
       # Create providers by weight (for load balancing)
       def create_providers_by_weight(options = {})
-        all_providers = @config_manager.get_all_providers(options)
+        all_providers = @config_manager.all_providers(options)
         weighted_providers = []
 
         all_providers.each do |name, config|
@@ -113,12 +113,12 @@ module Aidp
       end
 
       # Get provider configuration
-      def get_provider_config(provider_name)
+      def provider_config(provider_name)
         @provider_configs[provider_name.to_s] ||= ProviderConfig.new(provider_name, @config_manager)
       end
 
       # Get provider class
-      def get_provider_class(provider_name)
+      def provider_class(provider_name)
         PROVIDER_CLASSES[provider_name.to_s]
       end
 
@@ -128,59 +128,59 @@ module Aidp
       end
 
       # Get supported provider names
-      def get_supported_providers
+      def supported_providers
         PROVIDER_CLASSES.keys
       end
 
       # Get configured provider names
-      def get_configured_providers(options = {})
-        @config_manager.get_provider_names(options)
+      def configured_providers(options = {})
+        @config_manager.provider_names(options)
       end
 
       # Get enabled provider names
-      def get_enabled_providers(options = {})
-        configured_providers = get_configured_providers(options)
+      def enabled_providers(options = {})
+        configured_providers = configured_providers(options)
         configured_providers.select do |provider_name|
-          provider_config = get_provider_config(provider_name)
+          provider_config = provider_config(provider_name)
           provider_config.enabled?(options)
         end
       end
 
       # Get provider capabilities
-      def get_provider_capabilities(provider_name, options = {})
-        provider_config = get_provider_config(provider_name)
-        provider_config.get_capabilities(options)
+      def provider_capabilities(provider_name, options = {})
+        provider_config = provider_config(provider_name)
+        provider_config.capabilities(options)
       end
 
       # Check if provider supports feature
       def provider_supports_feature?(provider_name, feature, options = {})
-        provider_config = get_provider_config(provider_name)
+        provider_config = provider_config(provider_name)
         provider_config.supports_feature?(feature, options)
       end
 
       # Get provider models
-      def get_provider_models(provider_name, options = {})
-        provider_config = get_provider_config(provider_name)
-        provider_config.get_models(options)
+      def provider_models(provider_name, options = {})
+        provider_config = provider_config(provider_name)
+        provider_config.models(options)
       end
 
       # Get provider summary
-      def get_provider_summary(provider_name, options = {})
-        provider_config = get_provider_config(provider_name)
-        provider_config.get_summary(options)
+      def provider_summary(provider_name, options = {})
+        provider_config = provider_config(provider_name)
+        provider_config.summary(options)
       end
 
       # Get all provider summaries
-      def get_all_provider_summaries(options = {})
-        configured_providers = get_configured_providers(options)
+      def all_provider_summaries(options = {})
+        configured_providers = configured_providers(options)
         configured_providers.map do |provider_name|
-          get_provider_summary(provider_name, options)
+          provider_summary(provider_name, options)
         end
       end
 
       # Validate provider configuration
       def validate_provider_config(provider_name, options = {})
-        provider_config = get_provider_config(provider_name)
+        provider_config = provider_config(provider_name)
         errors = []
 
         # Check if provider is configured
@@ -196,14 +196,14 @@ module Aidp
 
         # Check required configuration
         if provider_config.usage_based_provider?(options)
-          api_key = provider_config.get_api_key(options)
+          api_key = provider_config.api_key(options)
           unless api_key && !api_key.empty?
             errors << "API key not configured for provider '#{provider_name}'"
           end
         end
 
         # Check models configuration
-        models = provider_config.get_models(options)
+        models = provider_config.models(options)
         if models.empty?
           errors << "No models configured for provider '#{provider_name}'"
         end
@@ -213,7 +213,7 @@ module Aidp
 
       # Validate all provider configurations
       def validate_all_provider_configs(options = {})
-        configured_providers = get_configured_providers(options)
+        configured_providers = configured_providers(options)
         all_errors = {}
 
         configured_providers.each do |provider_name|
@@ -241,7 +241,7 @@ module Aidp
       def configure_provider(provider_instance, provider_config, options)
         # Set basic configuration
         if provider_instance.respond_to?(:configure)
-          provider_instance.configure(provider_config.get_config(options))
+          provider_instance.configure(provider_config.config(options))
         end
 
         # Set harness context if available
@@ -251,55 +251,55 @@ module Aidp
         end
 
         # Set monitoring configuration
-        monitoring_config = provider_config.get_monitoring_config(options)
+        monitoring_config = provider_config.monitoring_config(options)
         if provider_instance.respond_to?(:set_monitoring_config)
           provider_instance.set_monitoring_config(monitoring_config)
         end
 
         # Set rate limiting configuration
-        rate_limit_config = provider_config.get_rate_limit_config(options)
+        rate_limit_config = provider_config.rate_limit_config(options)
         if provider_instance.respond_to?(:set_rate_limit_config)
           provider_instance.set_rate_limit_config(rate_limit_config)
         end
 
         # Set retry configuration
-        retry_config = provider_config.get_retry_config(options)
+        retry_config = provider_config.retry_config(options)
         if provider_instance.respond_to?(:set_retry_config)
           provider_instance.set_retry_config(retry_config)
         end
 
         # Set circuit breaker configuration
-        circuit_breaker_config = provider_config.get_circuit_breaker_config(options)
+        circuit_breaker_config = provider_config.circuit_breaker_config(options)
         if provider_instance.respond_to?(:set_circuit_breaker_config)
           provider_instance.set_circuit_breaker_config(circuit_breaker_config)
         end
 
         # Set cost configuration
-        cost_config = provider_config.get_cost_config(options)
+        cost_config = provider_config.cost_config(options)
         if provider_instance.respond_to?(:set_cost_config)
           provider_instance.set_cost_config(cost_config)
         end
 
         # Set health check configuration
-        health_check_config = provider_config.get_health_check_config(options)
+        health_check_config = provider_config.health_check_config(options)
         if provider_instance.respond_to?(:set_health_check_config)
           provider_instance.set_health_check_config(health_check_config)
         end
 
         # Set log configuration
-        log_config = provider_config.get_log_config(options)
+        log_config = provider_config.log_config(options)
         if provider_instance.respond_to?(:set_log_config)
           provider_instance.set_log_config(log_config)
         end
 
         # Set cache configuration
-        cache_config = provider_config.get_cache_config(options)
+        cache_config = provider_config.cache_config(options)
         if provider_instance.respond_to?(:set_cache_config)
           provider_instance.set_cache_config(cache_config)
         end
 
         # Set security configuration
-        security_config = provider_config.get_security_config(options)
+        security_config = provider_config.security_config(options)
         if provider_instance.respond_to?(:set_security_config)
           provider_instance.set_security_config(security_config)
         end

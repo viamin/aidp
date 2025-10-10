@@ -2,7 +2,7 @@
 
 require_relative "../harness/provider_manager"
 require_relative "../harness/provider_factory"
-require_relative "../harness/configuration"
+require_relative "../harness/config_manager"
 require_relative "definitions"
 require_relative "../message_display"
 
@@ -18,8 +18,8 @@ module Aidp
       def initialize(project_dir, prompt: nil)
         @project_dir = project_dir
         @prompt = prompt || TTY::Prompt.new
-        @configuration = Aidp::Harness::Configuration.new(project_dir)
-        @provider_manager = Aidp::Harness::ProviderManager.new(@configuration, prompt: @prompt)
+        @config_manager = Aidp::Harness::ConfigManager.new(project_dir)
+        @provider_manager = Aidp::Harness::ProviderManager.new(@config_manager, prompt: @prompt)
         @conversation_history = []
         @user_input = {}
       end
@@ -30,10 +30,10 @@ module Aidp
         display_message("I'll help you choose the right workflow for your needs.\n", type: :info)
 
         # Step 1: Get user's high-level goal
-        user_goal = get_user_goal
+        goal = user_goal
 
         # Step 2: Use AI to analyze intent and recommend workflow
-        recommendation = analyze_user_intent(user_goal)
+        recommendation = analyze_user_intent(goal)
 
         # Step 3: Present recommendation and get confirmation
         workflow_selection = present_recommendation(recommendation)
@@ -48,7 +48,7 @@ module Aidp
 
       private
 
-      def get_user_goal
+      def user_goal
         display_message("What would you like to do?", type: :highlight)
         display_message("Examples:", type: :muted)
         display_message("  • Build a new feature for user authentication", type: :muted)
@@ -139,7 +139,7 @@ module Aidp
         end
 
         # Create provider instance using ProviderFactory
-        provider_factory = Aidp::Harness::ProviderFactory.new(@configuration)
+        provider_factory = Aidp::Harness::ProviderFactory.new(@config_manager)
         provider = provider_factory.create_provider(provider_name, prompt: @prompt)
 
         unless provider

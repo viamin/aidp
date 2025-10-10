@@ -18,53 +18,53 @@ module Aidp
       end
 
       # Get complete provider configuration
-      def get_config(options = {})
+      def config(options = {})
         return @provider_config if @provider_config && !options[:force_reload] && cache_valid?
 
-        @provider_config = @config_manager.get_provider_config(@provider_name, options)
-        @harness_config = @config_manager.get_harness_config(options)
+        @provider_config = @config_manager.provider_config(@provider_name, options)
+        @harness_config = @config_manager.harness_config(options)
         @cache_timestamp = Time.now
 
         @provider_config || {}
       end
 
       # Get provider type (usage_based, subscription)
-      def get_type(options = {})
-        config = get_config(options)
+      def type(options = {})
+        config = config(options)
         config[:type] || config["type"] || "subscription"
       end
 
       # Provider type checking methods are now provided by ProviderTypeChecker module
 
       # Get provider priority
-      def get_priority(options = {})
-        config = get_config(options)
+      def priority(options = {})
+        config = config(options)
         config[:priority] || config["priority"] || 1
       end
 
       # Get provider models
-      def get_models(options = {})
-        config = get_config(options)
+      def models(options = {})
+        config = config(options)
         models = config[:models] || config["models"] || []
         models.map(&:to_s)
       end
 
       # Get default model
-      def get_default_model(options = {})
-        models = get_models(options)
-        models.first
+      def default_model(options = {})
+        model_list = models(options)
+        model_list.first
       end
 
       # Get model weights
-      def get_model_weights(options = {})
-        config = get_config(options)
+      def model_weights(options = {})
+        config = config(options)
         weights = config[:model_weights] || config["model_weights"] || {}
         weights.transform_values { |weight| [weight.to_i, 1].max }
       end
 
       # Get model configuration
-      def get_model_config(model_name, options = {})
-        config = get_config(options)
+      def model_config(model_name, options = {})
+        config = config(options)
         models_config = config[:models_config] || config["models_config"] || {}
         model_config = models_config[model_name.to_sym] || models_config[model_name.to_s] || {}
 
@@ -78,8 +78,8 @@ module Aidp
       end
 
       # Get provider features
-      def get_features(options = {})
-        config = get_config(options)
+      def features(options = {})
+        config = config(options)
         features = config[:features] || config["features"] || {}
 
         {
@@ -95,13 +95,13 @@ module Aidp
 
       # Check if provider supports feature
       def supports_feature?(feature, options = {})
-        features = get_features(options)
+        features = features(options)
         features[feature.to_sym] == true
       end
 
       # Get provider capabilities
-      def get_capabilities(options = {})
-        features = get_features(options)
+      def capabilities(options = {})
+        features = features(options)
         capabilities = []
 
         capabilities << "file_upload" if features[:file_upload]
@@ -116,41 +116,41 @@ module Aidp
       end
 
       # Get provider max tokens
-      def get_max_tokens(options = {})
-        config = get_config(options)
+      def max_tokens(options = {})
+        config = config(options)
         config[:max_tokens] || config["max_tokens"]
       end
 
       # Get provider timeout
-      def get_timeout(options = {})
-        config = get_config(options)
+      def timeout(options = {})
+        config = config(options)
         config[:timeout] || config["timeout"] || 300
       end
 
       # Get provider default flags
-      def get_default_flags(options = {})
-        config = get_config(options)
+      def default_flags(options = {})
+        config = config(options)
         flags = config[:default_flags] || config["default_flags"] || []
         flags.map(&:to_s)
       end
 
       # Get model-specific flags
-      def get_model_flags(model_name, options = {})
-        model_config = get_model_config(model_name, options)
+      def model_flags(model_name, options = {})
+        model_config = model_config(model_name, options)
         model_config[:flags] || []
       end
 
       # Get combined flags (default + model-specific)
-      def get_combined_flags(model_name = nil, options = {})
-        default_flags = get_default_flags(options)
-        model_flags = model_name ? get_model_flags(model_name, options) : []
+      def combined_flags(model_name = nil, options = {})
+        base_default_flags = default_flags(options)
+        model_flags_list = model_name ? model_flags(model_name, options) : []
 
-        (default_flags + model_flags).uniq
+        (base_default_flags + model_flags_list).uniq
       end
 
       # Get authentication configuration
-      def get_auth_config(options = {})
-        config = get_config(options)
+      def auth_config(options = {})
+        config = config(options)
         auth = config[:auth] || config["auth"] || {}
 
         {
@@ -165,8 +165,8 @@ module Aidp
       end
 
       # Get API key from environment or config
-      def get_api_key(options = {})
-        auth_config = get_auth_config(options)
+      def api_key(options = {})
+        auth_config = auth_config(options)
 
         # Try environment variable first
         if auth_config[:api_key_env]
@@ -179,8 +179,8 @@ module Aidp
       end
 
       # Get endpoints configuration
-      def get_endpoints(options = {})
-        config = get_config(options)
+      def endpoints(options = {})
+        config = config(options)
         endpoints = config[:endpoints] || config["endpoints"] || {}
 
         {
@@ -193,14 +193,14 @@ module Aidp
       end
 
       # Get default endpoint
-      def get_default_endpoint(options = {})
-        endpoints = get_endpoints(options)
-        endpoints[:default]
+      def default_endpoint(options = {})
+        endpoints_list = endpoints(options)
+        endpoints_list[:default]
       end
 
       # Get monitoring configuration
-      def get_monitoring_config(options = {})
-        config = get_config(options)
+      def monitoring_config(options = {})
+        config = config(options)
         monitoring = config[:monitoring] || config["monitoring"] || {}
 
         {
@@ -214,8 +214,8 @@ module Aidp
       end
 
       # Get rate limiting configuration
-      def get_rate_limit_config(options = {})
-        config = get_config(options)
+      def rate_limit_config(options = {})
+        config = config(options)
         rate_limit = config[:rate_limit] || config["rate_limit"] || {}
 
         {
@@ -230,8 +230,8 @@ module Aidp
       end
 
       # Get retry configuration
-      def get_retry_config(options = {})
-        config = get_config(options)
+      def retry_config(options = {})
+        config = config(options)
         retry_config = config[:retry] || config["retry"] || {}
 
         {
@@ -246,8 +246,8 @@ module Aidp
       end
 
       # Get circuit breaker configuration
-      def get_circuit_breaker_config(options = {})
-        config = get_config(options)
+      def circuit_breaker_config(options = {})
+        config = config(options)
         cb_config = config[:circuit_breaker] || config["circuit_breaker"] || {}
 
         {
@@ -260,8 +260,8 @@ module Aidp
       end
 
       # Get cost configuration
-      def get_cost_config(options = {})
-        config = get_config(options)
+      def cost_config(options = {})
+        config = config(options)
         cost = config[:cost] || config["cost"] || {}
 
         {
@@ -273,23 +273,23 @@ module Aidp
       end
 
       # Get provider-specific harness configuration
-      def get_harness_config(options = {})
-        config = get_config(options)
+      def harness_config(options = {})
+        config = config(options)
         harness_config = config[:harness] || config["harness"] || {}
 
         {
           enabled: harness_config[:enabled] != false,
           auto_switch_on_error: harness_config[:auto_switch_on_error] != false,
           auto_switch_on_rate_limit: harness_config[:auto_switch_on_rate_limit] != false,
-          priority: harness_config[:priority] || get_priority(options),
+          priority: harness_config[:priority] || priority(options),
           weight: harness_config[:weight] || 1,
           max_concurrent_requests: harness_config[:max_concurrent_requests] || 5
         }
       end
 
       # Get provider health check configuration
-      def get_health_check_config(options = {})
-        config = get_config(options)
+      def health_check_config(options = {})
+        config = config(options)
         health_check = config[:health_check] || config["health_check"] || {}
 
         {
@@ -304,8 +304,8 @@ module Aidp
       end
 
       # Get provider-specific environment variables
-      def get_env_vars(options = {})
-        config = get_config(options)
+      def env_vars(options = {})
+        config = config(options)
         env_vars = config[:env_vars] || config["env_vars"] || {}
 
         # Convert to string keys for environment variable access
@@ -313,21 +313,21 @@ module Aidp
       end
 
       # Get provider-specific command line arguments
-      def get_cmd_args(options = {})
-        config = get_config(options)
+      def cmd_args(options = {})
+        config = config(options)
         cmd_args = config[:cmd_args] || config["cmd_args"] || []
         cmd_args.map(&:to_s)
       end
 
       # Get provider-specific working directory
-      def get_working_directory(options = {})
-        config = get_config(options)
+      def working_directory(options = {})
+        config = config(options)
         config[:working_directory] || config["working_directory"] || Dir.pwd
       end
 
       # Get provider-specific log configuration
-      def get_log_config(options = {})
-        config = get_config(options)
+      def log_config(options = {})
+        config = config(options)
         log_config = config[:log] || config["log"] || {}
 
         {
@@ -341,8 +341,8 @@ module Aidp
       end
 
       # Get provider-specific cache configuration
-      def get_cache_config(options = {})
-        config = get_config(options)
+      def cache_config(options = {})
+        config = config(options)
         cache_config = config[:cache] || config["cache"] || {}
 
         {
@@ -354,8 +354,8 @@ module Aidp
       end
 
       # Get provider-specific security configuration
-      def get_security_config(options = {})
-        config = get_config(options)
+      def security_config(options = {})
+        config = config(options)
         security = config[:security] || config["security"] || {}
 
         {
@@ -369,18 +369,18 @@ module Aidp
 
       # Check if provider is configured
       def configured?(options = {})
-        config = get_config(options)
+        config = config(options)
         !config.empty?
       end
 
       # Check if provider is enabled
       def enabled?(options = {})
-        harness_config = get_harness_config(options)
+        harness_config = harness_config(options)
         harness_config[:enabled] != false
       end
 
       # Get provider status
-      def get_status(options = {})
+      def status(options = {})
         return :not_configured unless configured?(options)
         return :disabled unless enabled?(options)
 
@@ -388,17 +388,17 @@ module Aidp
       end
 
       # Get provider summary
-      def get_summary(options = {})
-        config = get_config(options)
+      def summary(options = {})
+        config = config(options)
         return {} if config.empty?
 
         {
           name: @provider_name,
-          type: get_type(options),
-          priority: get_priority(options),
-          models: get_models(options),
-          features: get_capabilities(options),
-          status: get_status(options),
+          type: type(options),
+          priority: priority(options),
+          models: models(options),
+          features: capabilities(options),
+          status: status(options),
           configured: configured?(options),
           enabled: enabled?(options)
         }

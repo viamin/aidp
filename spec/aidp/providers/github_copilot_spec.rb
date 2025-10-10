@@ -238,7 +238,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
 
     context "with adaptive timeout" do
       before do
-        allow(provider).to receive(:get_adaptive_timeout).and_return(450)
+        allow(provider).to receive(:adaptive_timeout).and_return(450)
       end
 
       it "returns the adaptive timeout" do
@@ -273,7 +273,10 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       test_cases.each do |step_name, expected_timeout|
         allow(ENV).to receive(:[]).and_call_original
         allow(ENV).to receive(:[]).with("AIDP_CURRENT_STEP").and_return(step_name)
-        actual_timeout = provider.__send__(:get_adaptive_timeout)
+
+        # Clear the cached timeout to ensure fresh calculation for each step
+        provider.instance_variable_set(:@adaptive_timeout, nil)
+        actual_timeout = provider.__send__(:adaptive_timeout)
         expect(actual_timeout).to eq(expected_timeout), "Expected #{expected_timeout} for #{step_name}, got #{actual_timeout}"
       end
     end

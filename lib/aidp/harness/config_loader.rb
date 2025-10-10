@@ -23,7 +23,7 @@ module Aidp
         validation_result = @validator.load_and_validate
 
         if validation_result[:valid]
-          @config_cache = @validator.get_validated_config
+          @config_cache = @validator.validated_config
           @last_loaded = Time.now
 
           # Log warnings if any
@@ -40,7 +40,7 @@ module Aidp
       end
 
       # Get harness configuration with defaults
-      def get_harness_config(force_reload = false)
+      def harness_config(force_reload = false)
         config = load_config(force_reload)
         return nil unless config
 
@@ -48,7 +48,7 @@ module Aidp
       end
 
       # Get provider configuration with defaults
-      def get_provider_config(provider_name, force_reload = false)
+      def provider_config(provider_name, force_reload = false)
         config = load_config(force_reload)
         return nil unless config
 
@@ -57,7 +57,7 @@ module Aidp
       end
 
       # Get all provider configurations
-      def get_all_provider_configs(force_reload = false)
+      def all_provider_configs(force_reload = false)
         config = load_config(force_reload)
         return {} unless config
 
@@ -65,7 +65,7 @@ module Aidp
       end
 
       # Get configured provider names
-      def get_configured_providers(force_reload = false)
+      def configured_providers(force_reload = false)
         config = load_config(force_reload)
         return [] unless config
 
@@ -94,7 +94,7 @@ module Aidp
       end
 
       # Get configuration summary
-      def get_config_summary
+      def config_summary
         @validator.get_summary
       end
 
@@ -109,7 +109,7 @@ module Aidp
       end
 
       # Get configuration with specific overrides
-      def get_config_with_overrides(overrides = {})
+      def config_with_overrides(overrides = {})
         base_config = load_config
         return nil unless base_config
 
@@ -117,17 +117,17 @@ module Aidp
       end
 
       # Get harness configuration with overrides
-      def get_harness_config_with_overrides(overrides = {})
-        harness_config = get_harness_config
-        return nil unless harness_config
+      def harness_config_with_overrides(overrides = {})
+        base_harness_config = harness_config
+        return nil unless base_harness_config
 
         harness_overrides = overrides[:harness] || overrides["harness"] || {}
-        deep_merge(harness_config, harness_overrides)
+        deep_merge(base_harness_config, harness_overrides)
       end
 
       # Get provider configuration with overrides
-      def get_provider_config_with_overrides(provider_name, overrides = {})
-        provider_config = get_provider_config(provider_name)
+      def provider_config_with_overrides(provider_name, overrides = {})
+        provider_config = provider_config(provider_name)
         return nil unless provider_config
 
         provider_overrides = overrides[:providers]&.dig(provider_name.to_sym) ||
@@ -158,34 +158,34 @@ module Aidp
       end
 
       # Get validation errors
-      def get_validation_errors
+      def validation_errors
         validation_result = @validator.validate_existing
         validation_result[:errors] || []
       end
 
       # Get validation warnings
-      def get_validation_warnings
+      def validation_warnings
         validation_result = @validator.validate_existing
         validation_result[:warnings] || []
       end
 
       # Get configuration for specific harness mode
-      def get_mode_config(mode, force_reload = false)
+      def mode_config(mode, force_reload = false)
         config = load_config(force_reload)
         return nil unless config
 
         case mode.to_s
         when "analyze"
-          get_analyze_mode_config(config)
+          analyze_mode_config(config)
         when "execute"
-          get_execute_mode_config(config)
+          execute_mode_config(config)
         else
           config
         end
       end
 
       # Get environment-specific configuration
-      def get_environment_config(environment = nil, force_reload = false)
+      def environment_config(environment = nil, force_reload = false)
         environment ||= ENV["AIDP_ENV"] || "development"
         config = load_config(force_reload)
         return nil unless config
@@ -214,7 +214,7 @@ module Aidp
       end
 
       # Get configuration with feature flags
-      def get_config_with_features(features = {}, force_reload = false)
+      def config_with_features(features = {}, force_reload = false)
         config = load_config(force_reload)
         return nil unless config
 
@@ -250,7 +250,7 @@ module Aidp
       end
 
       # Get configuration with time-based overrides
-      def get_time_based_config(force_reload = false)
+      def time_based_config(force_reload = false)
         config = load_config(force_reload)
         return nil unless config
 
@@ -340,12 +340,12 @@ module Aidp
         result
       end
 
-      def get_analyze_mode_config(config)
+      def analyze_mode_config(config)
         analyze_overrides = config[:analyze_mode] || config["analyze_mode"] || {}
         merge_overrides(config, analyze_overrides)
       end
 
-      def get_execute_mode_config(config)
+      def execute_mode_config(config)
         execute_overrides = config[:execute_mode] || config["execute_mode"] || {}
         merge_overrides(config, execute_overrides)
       end

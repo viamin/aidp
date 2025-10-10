@@ -65,13 +65,13 @@ module Aidp
 
       # Get provider models configuration
       def provider_models(provider_name)
-        provider_config(provider_name)[:models] || get_default_models_for_provider(provider_name)
+        provider_config(provider_name)[:models] || default_models_for_provider(provider_name)
       end
 
       # Get default model for provider
       def default_model(provider_name)
         models = provider_models(provider_name)
-        models.first || get_default_model_for_provider(provider_name)
+        models.first || default_model_for_provider(provider_name)
       end
 
       # Get model configuration for provider
@@ -92,7 +92,7 @@ module Aidp
 
       # Get model-specific timeout
       def model_timeout(provider_name, model_name)
-        model_config(provider_name, model_name)[:timeout] || get_default_timeout_for_provider(provider_name)
+        model_config(provider_name, model_name)[:timeout] || default_timeout_for_provider(provider_name)
       end
 
       # Get provider weights for load balancing
@@ -107,47 +107,47 @@ module Aidp
 
       # Get circuit breaker configuration
       def circuit_breaker_config
-        harness_config[:circuit_breaker] || get_default_circuit_breaker_config
+        harness_config[:circuit_breaker] || default_circuit_breaker_config
       end
 
       # Get retry configuration
       def retry_config
-        harness_config[:retry] || get_default_retry_config
+        harness_config[:retry] || default_retry_config
       end
 
       # Get rate limit configuration
       def rate_limit_config
-        harness_config[:rate_limit] || get_default_rate_limit_config
+        harness_config[:rate_limit] || default_rate_limit_config
       end
 
       # Get load balancing configuration
       def load_balancing_config
-        harness_config[:load_balancing] || get_default_load_balancing_config
+        harness_config[:load_balancing] || default_load_balancing_config
       end
 
       # Get model switching configuration
       def model_switching_config
-        harness_config[:model_switching] || get_default_model_switching_config
+        harness_config[:model_switching] || default_model_switching_config
       end
 
       # Get provider health check configuration
       def health_check_config
-        harness_config[:health_check] || get_default_health_check_config
+        harness_config[:health_check] || default_health_check_config
       end
 
       # Get metrics configuration
       def metrics_config
-        harness_config[:metrics] || get_default_metrics_config
+        harness_config[:metrics] || default_metrics_config
       end
 
       # Get session configuration
       def session_config
-        harness_config[:session] || get_default_session_config
+        harness_config[:session] || default_session_config
       end
 
       # Get work loop configuration
       def work_loop_config
-        harness_config[:work_loop] || get_default_work_loop_config
+        harness_config[:work_loop] || default_work_loop_config
       end
 
       # Check if work loops are enabled
@@ -217,12 +217,12 @@ module Aidp
 
       # Get logging configuration
       def logging_config
-        harness_config[:logging] || get_default_logging_config
+        harness_config[:logging] || default_logging_config
       end
 
       # Get fallback configuration
       def fallback_config
-        harness_config[:fallback] || get_default_fallback_config
+        harness_config[:fallback] || default_fallback_config
       end
 
       # Check if configuration file exists
@@ -341,7 +341,7 @@ module Aidp
       end
 
       # Default configuration methods
-      def get_default_models_for_provider(provider_name)
+      def default_models_for_provider(provider_name)
         case provider_name
         when "anthropic"
           ["anthropic-3-5-sonnet-20241022", "anthropic-3-5-haiku-20241022", "anthropic-3-opus-20240229"]
@@ -352,7 +352,7 @@ module Aidp
         end
       end
 
-      def get_default_model_for_provider(provider_name)
+      def default_model_for_provider(provider_name)
         case provider_name
         when "anthropic"
           "anthropic-3-5-sonnet-20241022"
@@ -363,11 +363,11 @@ module Aidp
         end
       end
 
-      def get_default_timeout_for_provider(provider_name)
+      def default_timeout_for_provider(provider_name)
         300 # 5 minutes - default timeout for all providers
       end
 
-      def get_default_circuit_breaker_config
+      def default_circuit_breaker_config
         {
           enabled: true,
           failure_threshold: 5,
@@ -376,7 +376,7 @@ module Aidp
         }
       end
 
-      def get_default_retry_config
+      def default_retry_config
         {
           enabled: true,
           max_attempts: 3,
@@ -387,7 +387,7 @@ module Aidp
         }
       end
 
-      def get_default_rate_limit_config
+      def default_rate_limit_config
         {
           enabled: true,
           default_reset_time: 3600, # 1 hour
@@ -396,7 +396,7 @@ module Aidp
         }
       end
 
-      def get_default_load_balancing_config
+      def default_load_balancing_config
         {
           enabled: true,
           strategy: "weighted_round_robin", # weighted_round_robin, least_connections, random
@@ -405,7 +405,7 @@ module Aidp
         }
       end
 
-      def get_default_model_switching_config
+      def default_model_switching_config
         {
           enabled: true,
           auto_switch_on_error: true,
@@ -414,7 +414,7 @@ module Aidp
         }
       end
 
-      def get_default_health_check_config
+      def default_health_check_config
         {
           enabled: true,
           interval: 60, # 1 minute
@@ -424,7 +424,7 @@ module Aidp
         }
       end
 
-      def get_default_metrics_config
+      def default_metrics_config
         {
           enabled: true,
           retention_days: 30,
@@ -433,7 +433,7 @@ module Aidp
         }
       end
 
-      def get_default_session_config
+      def default_session_config
         {
           enabled: true,
           timeout: 1800, # 30 minutes
@@ -442,7 +442,7 @@ module Aidp
         }
       end
 
-      def get_default_work_loop_config
+      def default_work_loop_config
         {
           enabled: true,
           max_iterations: 50,
@@ -451,7 +451,7 @@ module Aidp
         }
       end
 
-      def get_default_logging_config
+      def default_logging_config
         {
           log_level: :info,
           retention_days: 30,
@@ -463,7 +463,7 @@ module Aidp
         }
       end
 
-      def get_default_fallback_config
+      def default_fallback_config
         {
           strategies: {
             rate_limit: {

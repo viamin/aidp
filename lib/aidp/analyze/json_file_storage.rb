@@ -14,7 +14,7 @@ module Aidp
 
       # Store data in a JSON file
       def store_data(filename, data)
-        file_path = get_file_path(filename)
+        file_path = file_path(filename)
 
         # Ensure directory exists
         FileUtils.mkdir_p(File.dirname(file_path))
@@ -31,8 +31,8 @@ module Aidp
       end
 
       # Retrieve data from a JSON file
-      def get_data(filename)
-        file_path = get_file_path(filename)
+      def data(filename)
+        file_path = file_path(filename)
 
         return nil unless File.exist?(file_path)
 
@@ -45,12 +45,12 @@ module Aidp
 
       # Check if a JSON file exists
       def data_exists?(filename)
-        File.exist?(get_file_path(filename))
+        File.exist?(file_path(filename))
       end
 
       # Delete a JSON file
       def delete_data(filename)
-        file_path = get_file_path(filename)
+        file_path = file_path(filename)
 
         if File.exist?(file_path)
           File.delete(file_path)
@@ -89,8 +89,8 @@ module Aidp
       end
 
       # Get project configuration
-      def get_project_config
-        get_data("project_config.json")
+      def project_config
+        data("project_config.json")
       end
 
       # Store runtime status
@@ -99,8 +99,8 @@ module Aidp
       end
 
       # Get runtime status
-      def get_runtime_status
-        get_data("runtime_status.json")
+      def runtime_status
+        data("runtime_status.json")
       end
 
       # Store simple metrics
@@ -109,8 +109,8 @@ module Aidp
       end
 
       # Get simple metrics
-      def get_simple_metrics
-        get_data("simple_metrics.json")
+      def simple_metrics
+        data("simple_metrics.json")
       end
 
       # Store analysis session data
@@ -119,8 +119,8 @@ module Aidp
       end
 
       # Get analysis session data
-      def get_analysis_session(session_id)
-        get_data("sessions/#{session_id}.json")
+      def analysis_session(session_id)
+        data("sessions/#{session_id}.json")
       end
 
       # List analysis sessions
@@ -145,8 +145,8 @@ module Aidp
       end
 
       # Get user preferences
-      def get_user_preferences
-        get_data("user_preferences.json")
+      def user_preferences
+        data("user_preferences.json")
       end
 
       # Store cache data
@@ -161,8 +161,8 @@ module Aidp
       end
 
       # Get cache data (respects TTL)
-      def get_cache(cache_key)
-        cache_file_data = get_data("cache/#{cache_key}.json")
+      def cache(cache_key)
+        cache_file_data = data("cache/#{cache_key}.json")
         return nil unless cache_file_data
 
         # Check TTL if specified
@@ -203,7 +203,7 @@ module Aidp
       end
 
       # Get storage statistics
-      def get_storage_statistics
+      def storage_statistics
         files = list_files
 
         {
@@ -226,7 +226,7 @@ module Aidp
 
         files = list_files
         files.each do |file_info|
-          data = get_data(file_info[:filename])
+          data = data(file_info[:filename])
           export_data["files"][file_info[:filename]] = {
             "data" => data,
             "metadata" => {
@@ -249,7 +249,7 @@ module Aidp
 
       # Import data from an exported JSON file
       def import_data(import_filename)
-        import_path = get_file_path(import_filename)
+        import_path = file_path(import_filename)
 
         unless File.exist?(import_path)
           raise "Import file does not exist: #{import_filename}"
@@ -280,7 +280,7 @@ module Aidp
 
       private
 
-      def get_file_path(filename)
+      def file_path(filename)
         File.join(@storage_dir, filename)
       end
 

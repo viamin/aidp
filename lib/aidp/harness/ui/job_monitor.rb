@@ -85,7 +85,7 @@ module Aidp
           raise MonitorError, "Failed to update job status: #{e.message}"
         end
 
-        def get_job_status(job_id)
+        def job_status(job_id)
           validate_job_id(job_id)
 
           @monitor_mutex.synchronize do
@@ -100,11 +100,11 @@ module Aidp
           @monitor_mutex.synchronize { @jobs.key?(job_id) }
         end
 
-        def get_all_jobs
+        def all_jobs
           @monitor_mutex.synchronize { @jobs.dup }
         end
 
-        def get_jobs_by_status(status)
+        def jobs_by_status(status)
           validate_job_status(status)
 
           @monitor_mutex.synchronize do
@@ -114,7 +114,7 @@ module Aidp
           raise MonitorError, "Failed to get jobs by status: #{e.message}"
         end
 
-        def get_jobs_by_priority(priority)
+        def jobs_by_priority(priority)
           validate_job_priority(priority)
 
           @monitor_mutex.synchronize do
@@ -162,7 +162,7 @@ module Aidp
           @update_callbacks.delete(callback)
         end
 
-        def get_monitoring_summary
+        def monitoring_summary
           @monitor_mutex.synchronize do
             {
               total_jobs: @jobs.size,
@@ -176,7 +176,7 @@ module Aidp
         end
 
         def display_job_status(job_id)
-          job = get_job_status(job_id)
+          job = job_status(job_id)
           @frame_manager.section("Job Status: #{job_id}") do
             display_job_details(job)
           end
@@ -189,7 +189,7 @@ module Aidp
         end
 
         def display_jobs_by_status(status)
-          jobs = get_jobs_by_status(status)
+          jobs = jobs_by_status(status)
           @frame_manager.section("Jobs with Status: #{status}") do
             display_jobs_table(jobs)
           end

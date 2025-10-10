@@ -618,8 +618,8 @@ module Aidp
             false
           end
         end
-        configuration = Aidp::Harness::Configuration.new(Dir.pwd)
-        pm = Aidp::Harness::ProviderManager.new(configuration, prompt: TTY::Prompt.new)
+        config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
+        pm = Aidp::Harness::ProviderManager.new(config_manager, prompt: TTY::Prompt.new)
 
         # Use TTY::Spinner for progress indication
         require "tty-spinner"
@@ -772,11 +772,11 @@ module Aidp
         require "tty-spinner"
 
         provider_name = args.shift
-        configuration = Aidp::Harness::Configuration.new(Dir.pwd)
+        config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
         providers_to_refresh = if provider_name
           [provider_name]
         else
-          configuration.configured_providers
+          config_manager.provider_names
         end
 
         display_message("Refreshing provider information...", type: :info)

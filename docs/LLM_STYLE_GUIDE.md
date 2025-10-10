@@ -16,6 +16,11 @@
 - Classes: `PascalCase`; methods/files: `snake_case`; constants: `SCREAMING_SNAKE_CASE`.
 - Keep public APIs intention‑revealing (avoid abbreviations unless ubiquitous).
 - One responsibility per file when practical.
+- **Ruby Method Naming**: Avoid `get_*` and `set_*` prefixes - use Ruby's idiomatic style:
+  - ❌ `get_name`, `set_name(value)`
+  - ✅ `name`, `name=(value)` or `name(value)`
+  - ❌ `get_provider_config`, `get_status`
+  - ✅ `provider_config`, `status`
 
 ## 3. Parameters & Data
 

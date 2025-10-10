@@ -24,7 +24,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the text response method directly to avoid TTY loops
-        allow(ui).to receive(:get_text_response).and_return("John Doe")
+        allow(ui).to receive(:text_response).and_return("John Doe")
 
         responses = ui.collect_feedback(questions)
 
@@ -44,7 +44,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the choice response method directly to avoid TTY loops
-        allow(ui).to receive(:get_choice_response).and_return("Option B")
+        allow(ui).to receive(:choice_response).and_return("Option B")
 
         responses = ui.collect_feedback(questions)
 
@@ -63,7 +63,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the confirmation response method directly to avoid TTY loops
-        allow(ui).to receive(:get_confirmation_response).and_return(true)
+        allow(ui).to receive(:confirmation_response).and_return(true)
 
         responses = ui.collect_feedback(questions)
 
@@ -82,7 +82,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the email response method directly to avoid TTY loops
-        allow(ui).to receive(:get_email_response).and_return("test@example.com")
+        allow(ui).to receive(:email_response).and_return("test@example.com")
 
         responses = ui.collect_feedback(questions)
 
@@ -102,7 +102,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the number response method directly to avoid TTY loops
-        allow(ui).to receive(:get_number_response).and_return(25)
+        allow(ui).to receive(:number_response).and_return(25)
 
         responses = ui.collect_feedback(questions)
 
@@ -120,8 +120,8 @@ RSpec.describe Aidp::Harness::UserInterface do
           }
         ]
 
-        # Mock the get_url_response method directly to avoid TTY loops
-        allow(ui).to receive(:get_url_response).and_return("https://example.com")
+        # Mock the url_response method directly to avoid TTY loops
+        allow(ui).to receive(:url_response).and_return("https://example.com")
 
         responses = ui.collect_feedback(questions)
 
@@ -140,7 +140,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the text response method to return nil for optional empty input
-        allow(ui).to receive(:get_text_response).and_return(nil)
+        allow(ui).to receive(:text_response).and_return(nil)
 
         responses = ui.collect_feedback(questions)
 
@@ -160,7 +160,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the text response method to return the default value
-        allow(ui).to receive(:get_text_response).and_return("Anonymous")
+        allow(ui).to receive(:text_response).and_return("Anonymous")
 
         responses = ui.collect_feedback(questions)
 
@@ -252,27 +252,27 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#get_quick_feedback" do
       it "gets quick feedback for text questions" do
         # Mock the text response method directly to avoid TTY loops
-        allow(ui).to receive(:get_text_response).and_return("Quick response")
+        allow(ui).to receive(:text_response).and_return("Quick response")
 
-        response = ui.get_quick_feedback("What is your name?", type: "text")
+        response = ui.quick_feedback("What is your name?", type: "text")
 
         expect(response).to eq("Quick response")
       end
 
       it "gets quick feedback for confirmation questions" do
         # Mock the confirmation response method directly to avoid TTY loops
-        allow(ui).to receive(:get_confirmation_response).and_return(true)
+        allow(ui).to receive(:confirmation_response).and_return(true)
 
-        response = ui.get_quick_feedback("Do you want to continue?", type: "confirmation")
+        response = ui.quick_feedback("Do you want to continue?", type: "confirmation")
 
         expect(response).to be true
       end
 
       it "gets quick feedback for choice questions" do
         # Mock the choice response method directly to avoid TTY loops
-        allow(ui).to receive(:get_choice_response).and_return("Option A")
+        allow(ui).to receive(:choice_response).and_return("Option A")
 
-        response = ui.get_quick_feedback("Choose an option:",
+        response = ui.quick_feedback("Choose an option:",
           type: "choice",
           options: ["Option A", "Option B"])
 
@@ -302,9 +302,9 @@ RSpec.describe Aidp::Harness::UserInterface do
         ]
 
         # Mock the response methods directly to avoid TTY loops
-        # get_quick_feedback calls get_text_response for both text and number questions
-        allow(ui).to receive(:get_text_response).and_return("John Doe", "25")
-        allow(ui).to receive(:get_confirmation_response).and_return(true)
+        # get_quick_feedback calls text_response for both text and number questions
+        allow(ui).to receive(:text_response).and_return("John Doe", "25")
+        allow(ui).to receive(:confirmation_response).and_return(true)
 
         responses = ui.collect_batch_feedback(questions)
 
@@ -318,9 +318,9 @@ RSpec.describe Aidp::Harness::UserInterface do
     describe "#get_user_preferences" do
       it "gets user preferences" do
         # Mock get_confirmation to return the expected sequence of preferences
-        allow(ui).to receive(:get_confirmation).and_return(false, true, true, false)
+        allow(ui).to receive(:confirmation).and_return(false, true, true, false)
 
-        preferences = ui.get_user_preferences
+        preferences = ui.user_preferences
 
         expect(preferences).to be_a(Hash)
         expect(preferences[:auto_confirm_defaults]).to be false

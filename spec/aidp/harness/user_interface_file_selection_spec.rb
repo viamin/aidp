@@ -170,7 +170,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         temp_file.write("test content")
         temp_file.close
 
-        file_info = ui.get_file_info(temp_file.path)
+        file_info = ui.file_info(temp_file.path)
 
         expect(file_info[:display_name]).to eq(temp_file.path)
         expect(file_info[:size]).to eq("12 B")
@@ -197,66 +197,66 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "#get_file_type" do
       it "identifies Ruby files" do
-        expect(ui.get_file_type("app.rb")).to eq("Ruby")
+        expect(ui.file_type("app.rb")).to eq("Ruby")
       end
 
       it "identifies JavaScript files" do
-        expect(ui.get_file_type("app.js")).to eq("JavaScript")
+        expect(ui.file_type("app.js")).to eq("JavaScript")
       end
 
       it "identifies TypeScript files" do
-        expect(ui.get_file_type("app.ts")).to eq("TypeScript")
+        expect(ui.file_type("app.ts")).to eq("TypeScript")
       end
 
       it "identifies Python files" do
-        expect(ui.get_file_type("app.py")).to eq("Python")
+        expect(ui.file_type("app.py")).to eq("Python")
       end
 
       it "identifies Markdown files" do
-        expect(ui.get_file_type("README.md")).to eq("Markdown")
+        expect(ui.file_type("README.md")).to eq("Markdown")
       end
 
       it "identifies YAML files" do
-        expect(ui.get_file_type("config.yml")).to eq("YAML")
-        expect(ui.get_file_type("config.yaml")).to eq("YAML")
+        expect(ui.file_type("config.yml")).to eq("YAML")
+        expect(ui.file_type("config.yaml")).to eq("YAML")
       end
 
       it "identifies JSON files" do
-        expect(ui.get_file_type("package.json")).to eq("JSON")
+        expect(ui.file_type("package.json")).to eq("JSON")
       end
 
       it "identifies HTML files" do
-        expect(ui.get_file_type("index.html")).to eq("HTML")
-        expect(ui.get_file_type("index.htm")).to eq("HTML")
+        expect(ui.file_type("index.html")).to eq("HTML")
+        expect(ui.file_type("index.htm")).to eq("HTML")
       end
 
       it "identifies CSS files" do
-        expect(ui.get_file_type("style.css")).to eq("CSS")
+        expect(ui.file_type("style.css")).to eq("CSS")
       end
 
       it "identifies Sass files" do
-        expect(ui.get_file_type("style.scss")).to eq("Sass")
-        expect(ui.get_file_type("style.sass")).to eq("Sass")
+        expect(ui.file_type("style.scss")).to eq("Sass")
+        expect(ui.file_type("style.sass")).to eq("Sass")
       end
 
       it "identifies SQL files" do
-        expect(ui.get_file_type("schema.sql")).to eq("SQL")
+        expect(ui.file_type("schema.sql")).to eq("SQL")
       end
 
       it "identifies Shell files" do
-        expect(ui.get_file_type("script.sh")).to eq("Shell")
+        expect(ui.file_type("script.sh")).to eq("Shell")
       end
 
       it "identifies Text files" do
-        expect(ui.get_file_type("notes.txt")).to eq("Text")
+        expect(ui.file_type("notes.txt")).to eq("Text")
       end
 
       it "handles files without extensions" do
-        expect(ui.get_file_type("README")).to eq("File")
+        expect(ui.file_type("README")).to eq("File")
       end
 
       it "handles unknown extensions" do
-        expect(ui.get_file_type("file.xyz")).to eq("XYZ")
+        expect(ui.file_type("file.xyz")).to eq("XYZ")
       end
     end
 
@@ -315,7 +315,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         allow(ui).to receive(:display_advanced_file_menu)
 
         # Mock file selection
-        allow(ui).to receive(:get_advanced_file_selection).and_return(0)
+        allow(ui).to receive(:advanced_file_selection).and_return(0)
 
         result = ui.handle_file_selection("@.rb")
 
@@ -330,7 +330,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         allow(ui).to receive(:display_advanced_file_menu)
 
         # Mock file selection returning -1 for refinement
-        allow(ui).to receive(:get_advanced_file_selection).and_return(-1)
+        allow(ui).to receive(:advanced_file_selection).and_return(-1)
 
         # Mock recursive call
         allow(ui).to receive(:handle_file_selection).and_return("refined_result.rb")
@@ -361,7 +361,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         test_prompt = TestPrompt.new(responses: {ask: temp_file.path, keypress: ""})
         ui_with_test_prompt = described_class.new(prompt: test_prompt)
 
-        result = ui_with_test_prompt.get_file_response("text", nil, true)
+        result = ui_with_test_prompt.file_response("text", nil, true)
 
         expect(result).to eq(temp_file.path)
 

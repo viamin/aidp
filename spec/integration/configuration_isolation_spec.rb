@@ -20,6 +20,7 @@ RSpec.describe "Unified Configuration in .aidp/", type: :integration do
   after do
     FileUtils.remove_entry(project_dir)
     cleanup_user_config
+    cleanup_environment_variables
   end
 
   describe "Progress File Separation" do
@@ -274,5 +275,11 @@ RSpec.describe "Unified Configuration in .aidp/", type: :integration do
     # Clean up user configuration file
     user_config_file = File.expand_path("~/.aidp.yml")
     File.delete(user_config_file) if File.exist?(user_config_file)
+  end
+
+  def cleanup_environment_variables
+    # Clean up environment variables that might affect other tests
+    ENV.delete("AIDP_DEFAULT_PROVIDER")
+    ENV.delete("AIDP_MAX_RETRIES")
   end
 end

@@ -26,7 +26,7 @@ module Aidp
 
       # Helper method to handle input consistently with TTY::Prompt
       # Fixed to avoid keystroke loss issues with TTY::Prompt's required validation
-      def get_input_with_prompt(message, required: false, default: nil)
+      def input_with_prompt(message, required: false, default: nil)
         loop do
           # Always use simple ask without built-in validation to avoid echo issues
           input = if default
@@ -82,7 +82,7 @@ module Aidp
           display_numbered_question(question_data, question_number, index + 1, questions.length)
 
           # Get user response based on question type
-          response = get_question_response(question_data, question_number)
+          response = question_response(question_data, question_number)
 
           # Validate response if required
           if question_data[:required] != false && (response.nil? || response.to_s.strip.empty?)
@@ -468,7 +468,7 @@ module Aidp
       end
 
       # Get response for a specific question with enhanced validation
-      def get_question_response(question_data, _question_number)
+      def question_response(question_data, _question_number)
         question_type = question_data[:type] || "text"
         expected_input = question_data[:expected_input] || "text"
         options = question_data[:options]
@@ -478,21 +478,21 @@ module Aidp
 
         case question_type
         when "text"
-          get_text_response(expected_input, default_value, required, validation_options)
+          text_response(expected_input, default_value, required, validation_options)
         when "choice"
-          get_choice_response(options, default_value, required)
+          choice_response(options, default_value, required)
         when "confirmation"
-          get_confirmation_response(default_value, required)
+          confirmation_response(default_value, required)
         when "file"
-          get_file_response(expected_input, default_value, required, validation_options)
+          file_response(expected_input, default_value, required, validation_options)
         when "number"
-          get_number_response(expected_input, default_value, required, validation_options)
+          number_response(expected_input, default_value, required, validation_options)
         when "email"
-          get_email_response(default_value, required, validation_options)
+          email_response(default_value, required, validation_options)
         when "url"
-          get_url_response(default_value, required, validation_options)
+          url_response(default_value, required, validation_options)
         else
-          get_text_response(expected_input, default_value, required, validation_options)
+          text_response(expected_input, default_value, required, validation_options)
         end
       end
 
@@ -620,13 +620,13 @@ module Aidp
       end
 
       # Get text response with enhanced validation
-      def get_text_response(expected_input, default_value, required, options = {})
+      def text_response(expected_input, default_value, required, options = {})
         prompt = "Your response"
         prompt += " (default: #{default_value})" if default_value
         prompt_text = prompt + (required ? "" : " (optional)")
 
         loop do
-          input = get_input_with_prompt(prompt_text, required: required, default: default_value)
+          input = input_with_prompt(prompt_text, required: required, default: default_value)
 
           # get_input_with_prompt already handles required validation and returns non-empty input
           # Only validate the type/format if we got input
@@ -653,7 +653,7 @@ module Aidp
       end
 
       # Get choice response with enhanced validation
-      def get_choice_response(options, default_value, required)
+      def choice_response(options, default_value, required)
         return nil if options.nil? || options.empty?
 
         display_message("\n   Available options:", type: :info)
@@ -704,7 +704,7 @@ module Aidp
       end
 
       # Get confirmation response with enhanced validation
-      def get_confirmation_response(default_value, required)
+      def confirmation_response(default_value, required)
         default = default_value.nil? || default_value
         default_text = default ? "Y/n" : "y/N"
         prompt = "Your response [#{default_text}]"
@@ -741,7 +741,7 @@ module Aidp
       end
 
       # Get file response with enhanced validation
-      def get_file_response(_expected_input, default_value, required, options = {})
+      def file_response(_expected_input, default_value, required, options = {})
         prompt = "File path"
         prompt += " (default: #{default_value})" if default_value
         prompt += required ? ": " : " (optional): "
@@ -784,7 +784,7 @@ module Aidp
       end
 
       # Get number response with enhanced validation
-      def get_number_response(expected_input, default_value, required, options = {})
+      def number_response(expected_input, default_value, required, options = {})
         prompt = "Number"
         prompt += " (default: #{default_value})" if default_value
         prompt += required ? ": " : " (optional): "
@@ -831,7 +831,7 @@ module Aidp
       end
 
       # Get email response with enhanced validation
-      def get_email_response(default_value, required, options = {})
+      def email_response(default_value, required, options = {})
         prompt = "Email address"
         prompt += " (default: #{default_value})" if default_value
         prompt += required ? ": " : " (optional): "
@@ -868,7 +868,7 @@ module Aidp
       end
 
       # Get URL response with enhanced validation
-      def get_url_response(default_value, required, options = {})
+      def url_response(default_value, required, options = {})
         prompt = "URL"
         prompt += " (default: #{default_value})" if default_value
         prompt += required ? ": " : " (optional): "
@@ -1321,7 +1321,7 @@ module Aidp
       end
 
       # Get user input with support for file selection
-      def get_user_input(prompt)
+      def user_input(prompt)
         loop do
           input = @prompt.ask(prompt)
 
@@ -1364,7 +1364,7 @@ module Aidp
         display_advanced_file_menu(available_files, search_options)
 
         # Get user selection with advanced options
-        selection = get_advanced_file_selection(available_files.size, search_options)
+        selection = advanced_file_selection(available_files.size, search_options)
 
         if selection && selection >= 0 && selection < available_files.size
           selected_file = available_files[selection]
@@ -1602,12 +1602,12 @@ module Aidp
       end
 
       # Get file information for display
-      def get_file_info(file)
+      def file_info(file)
         {
           display_name: file,
           size: format_file_size(File.size(file)),
           modified: File.mtime(file).strftime("%Y-%m-%d %H:%M"),
-          type: get_file_type(file)
+          type: file_type(file)
         }
       end
 
@@ -1623,7 +1623,7 @@ module Aidp
       end
 
       # Get file type for display
-      def get_file_type(file)
+      def file_type(file)
         ext = File.extname(file)
         case ext
         when ".rb"
@@ -1665,7 +1665,7 @@ module Aidp
       end
 
       # Get advanced file selection from user
-      def get_advanced_file_selection(max_files, _search_options)
+      def advanced_file_selection(max_files, _search_options)
         loop do
           input = @prompt.ask("Select file (0-#{max_files}, -1=refine, p=preview, h=help): ")
 
@@ -1743,7 +1743,7 @@ module Aidp
           display_message("  Size: #{format_file_size(File.size(file_path))}", type: :info)
           display_message("  Lines: #{lines.count}", type: :info)
           display_message("  Modified: #{File.mtime(file_path).strftime("%Y-%m-%d %H:%M:%S")}", type: :info)
-          display_message("  Type: #{get_file_type(file_path)}", type: :info)
+          display_message("  Type: #{file_type(file_path)}", type: :info)
 
           display_message("\n📝 Content Preview (first 20 lines):", type: :info)
           display_message("-" * 40, type: :muted)
@@ -1764,12 +1764,12 @@ module Aidp
       end
 
       # Get file selection from user (legacy method for compatibility)
-      def get_file_selection(max_files)
-        get_advanced_file_selection(max_files, {term: "", extensions: [], directories: []})
+      def file_selection(max_files)
+        advanced_file_selection(max_files, {term: "", extensions: [], directories: []})
       end
 
       # Get confirmation from user
-      def get_confirmation(message, default: true)
+      def confirmation(message, default: true)
         default_text = default ? "Y/n" : "y/N"
         prompt = "#{message} [#{default_text}]: "
 
@@ -1793,7 +1793,7 @@ module Aidp
       end
 
       # Get choice from multiple options
-      def get_choice(message, options, default: nil)
+      def choice(message, options, default: nil)
         display_message("\n#{message}", type: :info)
         options.each_with_index do |option, index|
           marker = (default && index == default) ? " (default)" : ""
@@ -1911,32 +1911,32 @@ module Aidp
       end
 
       # Get user preferences for feedback collection
-      def get_user_preferences
+      def user_preferences
         display_message("\n⚙️  User Preferences:", type: :info)
         display_message("-" * 25, type: :muted)
 
         preferences = {}
 
         # Auto-confirm defaults
-        preferences[:auto_confirm_defaults] = get_confirmation(
+        preferences[:auto_confirm_defaults] = confirmation(
           "Auto-confirm default values without prompting?",
           default: false
         )
 
         # Show help automatically
-        preferences[:show_help_automatically] = get_confirmation(
+        preferences[:show_help_automatically] = confirmation(
           "Show help automatically for new question types?",
           default: false
         )
 
         # Verbose mode
-        preferences[:verbose_mode] = get_confirmation(
+        preferences[:verbose_mode] = confirmation(
           "Enable verbose mode with detailed information?",
           default: true
         )
 
         # File browsing enabled
-        preferences[:file_browsing_enabled] = get_confirmation(
+        preferences[:file_browsing_enabled] = confirmation(
           "Enable file browsing with @ character?",
           default: true
         )
@@ -1998,7 +1998,7 @@ module Aidp
       end
 
       # Get quick feedback for simple questions
-      def get_quick_feedback(question, options = {})
+      def quick_feedback(question, options = {})
         question_type = options[:type] || "text"
         default_value = options[:default]
         required = options[:required] != false
@@ -2007,13 +2007,13 @@ module Aidp
 
         case question_type
         when "text"
-          get_text_response("text", default_value, required)
+          text_response("text", default_value, required)
         when "confirmation"
-          get_confirmation_response(default_value, required)
+          confirmation_response(default_value, required)
         when "choice"
-          get_choice_response(options[:options], default_value, required)
+          choice_response(options[:options], default_value, required)
         else
-          get_text_response("text", default_value, required)
+          text_response("text", default_value, required)
         end
       end
 
@@ -2033,7 +2033,7 @@ module Aidp
 
           display_message("\n#{question_number}. #{question_text}", type: :info)
 
-          response = get_quick_feedback(question_text, {
+          response = quick_feedback(question_text, {
             type: question_type,
             default: default_value,
             required: required,
@@ -2299,7 +2299,7 @@ module Aidp
       end
 
       # Get control status
-      def get_control_status
+      def control_status
         @control_mutex.synchronize do
           {
             enabled: !!@control_interface_enabled,
@@ -2313,7 +2313,7 @@ module Aidp
 
       # Display control status
       def display_control_status
-        status = get_control_status
+        status = control_status
 
         display_message("\n🎮 Control Interface Status", type: :info)
         display_message("=" * 40, type: :muted)

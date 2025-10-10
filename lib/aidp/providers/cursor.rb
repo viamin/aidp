@@ -22,6 +22,15 @@ module Aidp
         "Cursor AI"
       end
 
+      def supports_mcp?
+        true
+      end
+
+      def fetch_mcp_servers
+        # Try cursor-agent CLI first, then fallback to config file
+        fetch_mcp_servers_cli || fetch_mcp_servers_config
+      end
+
       def send(prompt:, session: nil)
         raise "cursor-agent not available" unless self.class.available?
 
@@ -61,14 +70,9 @@ module Aidp
 
         begin
           # Use debug_execute_command for better debugging
-          # Try agent command first (better for large prompts), fallback to -p mode
-          begin
-            result = debug_execute_command("cursor-agent", args: ["agent"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
-          rescue => e
-            # Fallback to -p mode if agent command fails
-            debug_log("🔄 Falling back to -p mode: #{e.message}", level: :warn)
-            result = debug_execute_command("cursor-agent", args: ["-p"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
-          end
+          # Use -p mode (designed for non-interactive/script use)
+          # No fallback to interactive modes - they would hang AIDP's automation workflow
+          result = debug_execute_command("cursor-agent", args: ["-p"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
 
           # Log the results
           debug_command("cursor-agent", args: ["-p"], input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
@@ -111,11 +115,9 @@ module Aidp
           return ENV["AIDP_CURSOR_TIMEOUT"].to_i
         end
 
-        # Adaptive timeout based on step type
-        step_timeout = get_adaptive_timeout
-        if step_timeout
-          display_message("🧠 Using adaptive timeout: #{step_timeout} seconds", type: :info)
-          return step_timeout
+        if adaptive_timeout
+          display_message("🧠 Using adaptive timeout: #{adaptive_timeout} seconds", type: :info)
+          return adaptive_timeout
         end
 
         # Default timeout
@@ -123,27 +125,29 @@ module Aidp
         TIMEOUT_DEFAULT
       end
 
-      def get_adaptive_timeout
-        # Timeout recommendations based on step type patterns
-        step_name = ENV["AIDP_CURRENT_STEP"] || ""
+      def adaptive_timeout
+        @adaptive_timeout ||= begin
+          # Timeout recommendations based on step type patterns
+          step_name = ENV["AIDP_CURRENT_STEP"] || ""
 
-        case step_name
-        when /REPOSITORY_ANALYSIS/
-          TIMEOUT_REPOSITORY_ANALYSIS
-        when /ARCHITECTURE_ANALYSIS/
-          TIMEOUT_ARCHITECTURE_ANALYSIS
-        when /TEST_ANALYSIS/
-          TIMEOUT_TEST_ANALYSIS
-        when /FUNCTIONALITY_ANALYSIS/
-          TIMEOUT_FUNCTIONALITY_ANALYSIS
-        when /DOCUMENTATION_ANALYSIS/
-          TIMEOUT_DOCUMENTATION_ANALYSIS
-        when /STATIC_ANALYSIS/
-          TIMEOUT_STATIC_ANALYSIS
-        when /REFACTORING_RECOMMENDATIONS/
-          TIMEOUT_REFACTORING_RECOMMENDATIONS
-        else
-          nil # Use default
+          case step_name
+          when /REPOSITORY_ANALYSIS/
+            TIMEOUT_REPOSITORY_ANALYSIS
+          when /ARCHITECTURE_ANALYSIS/
+            TIMEOUT_ARCHITECTURE_ANALYSIS
+          when /TEST_ANALYSIS/
+            TIMEOUT_TEST_ANALYSIS
+          when /FUNCTIONALITY_ANALYSIS/
+            TIMEOUT_FUNCTIONALITY_ANALYSIS
+          when /DOCUMENTATION_ANALYSIS/
+            TIMEOUT_DOCUMENTATION_ANALYSIS
+          when /STATIC_ANALYSIS/
+            TIMEOUT_STATIC_ANALYSIS
+          when /REFACTORING_RECOMMENDATIONS/
+            TIMEOUT_REFACTORING_RECOMMENDATIONS
+          else
+            nil # Use default
+          end
         end
       end
 
@@ -158,6 +162,109 @@ module Aidp
         when :failed
           display_message("\n❌ cursor failed: #{message}", type: :error)
         end
+      end
+
+      # Try to get MCP servers via cursor-agent CLI
+      def fetch_mcp_servers_cli
+        return nil unless self.class.available?
+
+        begin
+          # Try cursor-agent mcp list (if such command exists)
+          result = debug_execute_command("cursor-agent", args: ["mcp", "list"], timeout: 5)
+          return nil unless result.exit_status == 0
+
+          parse_mcp_servers_output(result.out)
+        rescue => e
+          debug_log("Failed to fetch MCP servers via CLI: #{e.message}", level: :debug)
+          nil
+        end
+      end
+
+      # Fallback to reading Cursor's config file
+      def fetch_mcp_servers_config
+        cursor_config_path = File.expand_path("~/.cursor/mcp.json")
+        return [] unless File.exist?(cursor_config_path)
+
+        begin
+          require "json"
+          config_content = File.read(cursor_config_path)
+          config = JSON.parse(config_content)
+
+          servers = []
+          mcp_servers = config["mcpServers"] || {}
+
+          mcp_servers.each do |name, server_config|
+            # Build command description
+            command_parts = [server_config["command"]]
+            command_parts.concat(server_config["args"]) if server_config["args"]
+            command_description = command_parts.join(" ")
+
+            servers << {
+              name: name,
+              status: "configured",
+              description: command_description,
+              enabled: true,
+              source: "cursor_config",
+              env_vars: server_config["env"] || {}
+            }
+          end
+
+          servers
+        rescue JSON::ParserError => e
+          debug_log("Failed to parse Cursor MCP configuration: #{e.message}", level: :debug)
+          []
+        rescue => e
+          debug_log("Failed to parse Cursor MCP configuration: #{e.message}", level: :debug)
+          []
+        end
+      end
+
+      # Parse MCP server output from CLI commands
+      def parse_mcp_servers_output(output)
+        servers = []
+        return servers unless output
+
+        lines = output.lines
+        lines.reject! { |line| /checking mcp server health/i.match?(line) }
+
+        lines.each do |line|
+          line = line.strip
+          next if line.empty?
+
+          # Try to parse cursor-agent format: "name: status"
+          if line =~ /^([^:]+):\s*(.+)$/
+            name = Regexp.last_match(1).strip
+            status = Regexp.last_match(2).strip
+
+            servers << {
+              name: name,
+              status: status,
+              description: "MCP server managed by cursor-agent",
+              enabled: status == "ready" || status == "connected",
+              source: "cursor_cli"
+            }
+            next
+          end
+
+          # Also try to parse extended format: "name: command - ✓ Connected" (for future compatibility)
+          if line =~ /^([^:]+):\s*(.+?)\s*-\s*(✓|✗)\s*(.+)$/
+            name = Regexp.last_match(1).strip
+            command = Regexp.last_match(2).strip
+            status_symbol = Regexp.last_match(3)
+            status_text = Regexp.last_match(4).strip
+
+            servers << {
+              name: name,
+              status: (status_symbol == "✓") ? "connected" : "error",
+              description: command,
+              enabled: status_symbol == "✓",
+              error: (status_symbol == "✗") ? status_text : nil,
+              source: "cursor_cli"
+            }
+          end
+        end
+
+        servers
       end
     end
   end

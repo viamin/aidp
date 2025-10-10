@@ -165,13 +165,13 @@ module Aidp
       end
 
       # Set display mode
-      def set_display_mode(mode)
+      def display_mode(mode)
         @display_mode = mode
         @display_config[:mode] = mode
       end
 
       # Set update interval
-      def set_update_interval(interval)
+      def update_interval(interval)
         @update_interval = interval
         @display_config[:update_interval] = interval
       end
@@ -248,19 +248,19 @@ module Aidp
       end
 
       # Get comprehensive status data
-      def get_status_data
+      def status_data
         {
-          basic_info: get_basic_status,
-          provider_info: get_provider_status,
-          performance_info: get_performance_status,
-          error_info: get_error_status,
-          circuit_breaker_info: get_circuit_breaker_status,
-          token_info: get_token_status,
-          rate_limit_info: get_rate_limit_status,
-          recovery_info: get_recovery_status,
-          user_feedback_info: get_user_feedback_status,
-          work_completion_info: get_work_completion_status,
-          alerts: get_alerts
+          basic_info: basic_status,
+          provider_info: provider_status,
+          performance_info: performance_status,
+          error_info: error_status,
+          circuit_breaker_info: circuit_breaker_status,
+          token_info: token_status,
+          rate_limit_info: rate_limit_status,
+          recovery_info: recovery_status,
+          user_feedback_info: user_feedback_status,
+          work_completion_info: work_completion_status,
+          alerts: alerts
         }
       end
 
@@ -268,9 +268,9 @@ module Aidp
       def export_status_data(format = :json)
         case format
         when :json
-          JSON.pretty_generate(get_status_data)
+          JSON.pretty_generate(status_data)
         when :yaml
-          get_status_data.to_yaml
+          status_data.to_yaml
         when :text
           format_status_as_text
         else
@@ -310,8 +310,8 @@ module Aidp
           @provider_status = {
             current_provider: safe_manager_call(@provider_manager, :current_provider),
             current_model: safe_manager_call(@provider_manager, :current_model),
-            available_providers: safe_manager_call(@provider_manager, :get_available_providers) || [],
-            provider_health: safe_manager_call(@provider_manager, :get_provider_health_status) || {}
+            available_providers: safe_manager_call(@provider_manager, :available_providers) || [],
+            provider_health: safe_manager_call(@provider_manager, :provider_health_status) || {}
           }
         rescue => e
           # Log minimal info without breaking display; keep previous provider_status if available
@@ -330,13 +330,13 @@ module Aidp
       def collect_circuit_breaker_status
         return unless @circuit_breaker_manager
 
-        @circuit_breaker_status = @circuit_breaker_manager.get_all_states
+        @circuit_breaker_status = @circuit_breaker_manager.all_states
       end
 
       def collect_metrics_data
         return unless @metrics_manager
 
-        @performance_metrics = @metrics_manager.get_realtime_metrics
+        @performance_metrics = @metrics_manager.realtime_metrics
       end
 
       def collect_error_data
@@ -616,7 +616,6 @@ module Aidp
       end
 
       def display_alerts
-        alerts = get_alerts
         return unless alerts.any?
 
         display_message("\n🚨 ALERTS", type: :warning)
@@ -672,7 +671,7 @@ module Aidp
         display_message("   Continuing with status updates...", type: :info)
       end
 
-      def get_basic_status
+      def basic_status
         {
           duration: @start_time ? Time.now - @start_time : 0,
           current_step: @current_step,
@@ -684,44 +683,32 @@ module Aidp
         }
       end
 
-      def get_provider_status
-        @provider_status
-      end
+      attr_reader :provider_status
 
-      def get_performance_status
+      def performance_status
         @performance_metrics
       end
 
-      def get_error_status
+      def error_status
         @error_summary
       end
 
-      def get_circuit_breaker_status
-        @circuit_breaker_status
-      end
+      attr_reader :circuit_breaker_status
 
-      def get_token_status
+      def token_status
         @token_usage
       end
 
-      def get_rate_limit_status
-        @rate_limit_status
-      end
+      attr_reader :rate_limit_status
 
-      def get_recovery_status
-        @recovery_status
-      end
+      attr_reader :recovery_status
 
-      def get_user_feedback_status
-        @user_feedback_status
-      end
+      attr_reader :user_feedback_status
 
-      def get_work_completion_status
-        @work_completion_status
-      end
+      attr_reader :work_completion_status
 
-      def get_alerts
-        @alert_manager.get_active_alerts
+      def alerts
+        @alert_manager.active_alerts
       end
 
       def calculate_step_duration
@@ -854,7 +841,7 @@ module Aidp
           end
         end
 
-        def get_active_alerts
+        def active_alerts
           @alerts
         end
 

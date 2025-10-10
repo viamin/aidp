@@ -2,7 +2,7 @@
 
 require "timeout"
 require "json"
-require_relative "configuration"
+require_relative "config_manager"
 require_relative "state_manager"
 require_relative "condition_detector"
 require_relative "provider_manager"
@@ -49,12 +49,12 @@ module Aidp
         @workflow_type = options[:workflow_type]
 
         # Initialize components
-        @configuration = Configuration.new(project_dir)
+        @config_manager = ConfigManager.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
         @condition_detector = ConditionDetector.new
-        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
+        @provider_manager = ProviderManager.new(@config_manager, prompt: @prompt)
         @user_interface = SimpleUserInterface.new
-        @error_handler = ErrorHandler.new(@provider_manager, @configuration)
+        @error_handler = ErrorHandler.new(@provider_manager, @config_manager)
         @status_display = StatusDisplay.new
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end
@@ -173,9 +173,9 @@ module Aidp
         {
           harness: status,
           configuration: {
-            default_provider: @configuration.default_provider,
-            fallback_providers: @configuration.fallback_providers,
-            max_retries: @configuration.max_retries
+            default_provider: @config_manager.default_provider,
+            fallback_providers: @config_manager.fallback_providers,
+            max_retries: @config_manager.harness_config[:max_retries]
           },
           provider_manager: @provider_manager.status,
           error_stats: @error_handler.error_stats
