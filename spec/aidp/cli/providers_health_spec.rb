@@ -34,31 +34,29 @@ RSpec.describe "Providers Health CLI" do
     expect(stdout).not_to match(ansi_regex) # --no-color removes ANSI
     expect(stdout.scan("cursor").length).to be >= 1 # configured provider present
   end
-end
 
-private
-
-def create_test_configuration
-  config = {
-    "harness" => {
-      "default_provider" => "cursor",
-      "max_retries" => 3,
-      "fallback_providers" => ["macos"]
-    },
-    "providers" => {
-      "cursor" => {
-        "type" => "subscription",
-        "priority" => 1,
-        "models" => ["cursor-default"]
+  def create_test_configuration
+    config = {
+      "harness" => {
+        "default_provider" => "cursor",
+        "max_retries" => 3,
+        "fallback_providers" => ["macos"]
       },
-      "macos" => {
-        "type" => "passthrough",
-        "priority" => 2,
-        "models" => ["cursor-chat"]
+      "providers" => {
+        "cursor" => {
+          "type" => "subscription",
+          "priority" => 1,
+          "models" => ["cursor-default"]
+        },
+        "macos" => {
+          "type" => "passthrough",
+          "priority" => 2,
+          "models" => ["cursor-chat"]
+        }
       }
     }
-  }
 
-  FileUtils.mkdir_p(File.dirname(config_file))
-  File.write(config_file, YAML.dump(config))
+    FileUtils.mkdir_p(File.dirname(config_file))
+    File.write(config_file, YAML.dump(config))
+  end
 end
