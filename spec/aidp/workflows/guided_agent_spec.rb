@@ -10,7 +10,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   let(:provider_manager) { instance_double(Aidp::Harness::ProviderManager) }
   let(:provider_factory) { instance_double(Aidp::Harness::ProviderFactory) }
   let(:provider) { instance_double(Aidp::Providers::Base) }
-  let(:configuration) { instance_double(Aidp::Harness::Configuration) }
+  let(:config_manager) { instance_double(Aidp::Harness::ConfigManager) }
 
   subject(:agent) { described_class.new(project_dir, prompt: prompt) }
 
@@ -24,13 +24,13 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     File.write(File.join(project_dir, "docs", "AIDP_CAPABILITIES.md"), capabilities_content)
 
     # Mock the configuration and provider manager
-    allow(Aidp::Harness::Configuration).to receive(:new).with(project_dir).and_return(configuration)
+    allow(Aidp::Harness::ConfigManager).to receive(:new).with(project_dir).and_return(config_manager)
     allow(Aidp::Harness::ProviderManager).to receive(:new)
-      .with(configuration, prompt: prompt)
+      .with(config_manager, prompt: prompt)
       .and_return(provider_manager)
 
     # Mock provider creation
-    allow(Aidp::Harness::ProviderFactory).to receive(:new).with(configuration).and_return(provider_factory)
+    allow(Aidp::Harness::ProviderFactory).to receive(:new).with(config_manager).and_return(provider_factory)
     allow(provider_factory).to receive(:create_provider).and_return(provider)
     allow(provider_manager).to receive(:current_provider).and_return("claude")
 

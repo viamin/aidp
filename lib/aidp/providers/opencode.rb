@@ -111,11 +111,9 @@ module Aidp
           return ENV["AIDP_OPENCODE_TIMEOUT"].to_i
         end
 
-        # Adaptive timeout based on step type
-        step_timeout = get_adaptive_timeout
-        if step_timeout
-          display_message("🧠 Using adaptive timeout: #{step_timeout} seconds", type: :info)
-          return step_timeout
+        if adaptive_timeout
+          display_message("🧠 Using adaptive timeout: #{adaptive_timeout} seconds", type: :info)
+          return adaptive_timeout
         end
 
         # Default timeout
@@ -123,27 +121,29 @@ module Aidp
         TIMEOUT_DEFAULT
       end
 
-      def get_adaptive_timeout
-        # Timeout recommendations based on step type patterns
-        step_name = ENV["AIDP_CURRENT_STEP"] || ""
+      def adaptive_timeout
+        @adaptive_timeout ||= begin
+          # Timeout recommendations based on step type patterns
+          step_name = ENV["AIDP_CURRENT_STEP"] || ""
 
-        case step_name
-        when /REPOSITORY_ANALYSIS/
-          TIMEOUT_REPOSITORY_ANALYSIS
-        when /ARCHITECTURE_ANALYSIS/
-          TIMEOUT_ARCHITECTURE_ANALYSIS
-        when /TEST_ANALYSIS/
-          TIMEOUT_TEST_ANALYSIS
-        when /FUNCTIONALITY_ANALYSIS/
-          TIMEOUT_FUNCTIONALITY_ANALYSIS
-        when /DOCUMENTATION_ANALYSIS/
-          TIMEOUT_DOCUMENTATION_ANALYSIS
-        when /STATIC_ANALYSIS/
-          TIMEOUT_STATIC_ANALYSIS
-        when /REFACTORING_RECOMMENDATIONS/
-          TIMEOUT_REFACTORING_RECOMMENDATIONS
-        else
-          nil # Use default
+          case step_name
+          when /REPOSITORY_ANALYSIS/
+            TIMEOUT_REPOSITORY_ANALYSIS
+          when /ARCHITECTURE_ANALYSIS/
+            TIMEOUT_ARCHITECTURE_ANALYSIS
+          when /TEST_ANALYSIS/
+            TIMEOUT_TEST_ANALYSIS
+          when /FUNCTIONALITY_ANALYSIS/
+            TIMEOUT_FUNCTIONALITY_ANALYSIS
+          when /DOCUMENTATION_ANALYSIS/
+            TIMEOUT_DOCUMENTATION_ANALYSIS
+          when /STATIC_ANALYSIS/
+            TIMEOUT_STATIC_ANALYSIS
+          when /REFACTORING_RECOMMENDATIONS/
+            TIMEOUT_REFACTORING_RECOMMENDATIONS
+          else
+            nil # Use default
+          end
         end
       end
 

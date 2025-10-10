@@ -41,7 +41,7 @@ module Aidp
       end
 
       # Get configuration with defaults applied
-      def get_validated_config
+      def validated_config
         return nil unless @validation_result&.dig(:valid)
 
         ConfigSchema.apply_defaults(@config)
@@ -110,7 +110,7 @@ module Aidp
       end
 
       # Get configuration summary
-      def get_summary
+      def summary
         return {error: "No configuration file found"} unless @config_file
 
         load_config
@@ -157,7 +157,7 @@ module Aidp
       end
 
       # Get provider configuration with defaults
-      def get_provider_config(provider_name)
+      def provider_config(provider_name)
         return nil unless @config_file
 
         load_config
@@ -195,7 +195,7 @@ module Aidp
       end
 
       # Get harness configuration with defaults
-      def get_harness_config
+      def harness_config
         return nil unless @config_file
 
         load_config
@@ -212,17 +212,17 @@ module Aidp
 
         load_config
         validate_config
-        validated_config = get_validated_config
-        return nil unless validated_config
+        config = validated_config
+        return nil unless config
 
         case format
         when :yaml
-          YAML.dump(validated_config)
+          YAML.dump(config)
         when :json
           require "json"
-          JSON.pretty_generate(validated_config)
+          JSON.pretty_generate(config)
         when :ruby
-          "CONFIG = #{validated_config.inspect}"
+          "CONFIG = #{config.inspect}"
         else
           raise ArgumentError, "Unsupported format: #{format}"
         end

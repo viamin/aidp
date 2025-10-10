@@ -8,7 +8,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
   before do
     allow(configuration).to receive(:default_provider).and_return("anthropic")
-    allow(configuration).to receive(:configured_providers).and_return(["anthropic", "cursor", "macos"])
+    allow(configuration).to receive(:configured_providers).and_return(["anthropic", "cursor", "macos"]).at_least(:once)
     allow(configuration).to receive(:provider_configured?).and_return(true)
     allow(configuration).to receive(:provider_models).and_return(["model1", "model2"])
 

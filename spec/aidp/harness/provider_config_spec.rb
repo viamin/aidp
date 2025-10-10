@@ -330,7 +330,18 @@ RSpec.describe Aidp::Harness::ProviderFactory do
   before do
     # Mock the ConfigManager methods
     allow(config_manager).to receive(:get_provider_names).and_return(["cursor", "anthropic", "macos"])
+    allow(config_manager).to receive(:provider_names).and_return(["cursor", "anthropic", "macos"])
     allow(config_manager).to receive(:get_provider_config).with("cursor", anything).and_return({
+      type: "subscription",
+      priority: 1,
+      models: ["cursor-default", "cursor-fast"],
+      features: {
+        file_upload: true,
+        code_generation: true,
+        analysis: true
+      }
+    })
+    allow(config_manager).to receive(:provider_config).with("cursor", anything).and_return({
       type: "subscription",
       priority: 1,
       models: ["cursor-default", "cursor-fast"],
@@ -350,7 +361,27 @@ RSpec.describe Aidp::Harness::ProviderFactory do
         analysis: true
       }
     })
+    allow(config_manager).to receive(:provider_config).with("anthropic", anything).and_return({
+      type: "usage_based",
+      priority: 2,
+      max_tokens: 100_000,
+      features: {
+        file_upload: true,
+        code_generation: true,
+        analysis: true
+      }
+    })
     allow(config_manager).to receive(:get_provider_config).with("macos", anything).and_return({
+      type: "passthrough",
+      priority: 3,
+      underlying_service: "cursor",
+      features: {
+        file_upload: false,
+        code_generation: true,
+        analysis: true
+      }
+    })
+    allow(config_manager).to receive(:provider_config).with("macos", anything).and_return({
       type: "passthrough",
       priority: 3,
       underlying_service: "cursor",
@@ -366,7 +397,7 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     allow(config_manager).to receive(:provider_configured?).with(anything).and_return(false)
 
     # Mock additional methods that might be called
-    allow(config_manager).to receive(:get_harness_config).and_return({
+    allow(config_manager).to receive(:harness_config).and_return({
       default_provider: "cursor",
       fallback_providers: ["anthropic", "macos"]
     })
@@ -375,8 +406,14 @@ RSpec.describe Aidp::Harness::ProviderFactory do
       ["anthropic", {priority: 2, weight: 2}],
       ["macos", {priority: 3, weight: 1}]
     ])
+    allow(config_manager).to receive(:all_providers).and_return([
+      ["cursor", {priority: 1, weight: 3}],
+      ["anthropic", {priority: 2, weight: 2}],
+      ["macos", {priority: 3, weight: 1}]
+    ])
     allow(config_manager).to receive(:reload_config)
     allow(config_manager).to receive(:get_provider_config).with("unknown", anything).and_return({})
+    allow(config_manager).to receive(:provider_config).with("unknown", anything).and_return({})
     allow(config_manager).to receive(:provider_configured?).with("unknown").and_return(false)
   end
 

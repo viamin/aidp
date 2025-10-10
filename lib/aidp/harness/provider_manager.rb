@@ -59,7 +59,12 @@ module Aidp
 
       # Get configured providers from configuration
       def configured_providers
-        @configuration.provider_names
+        # Handle both Configuration and ConfigManager instances
+        if @configuration.respond_to?(:configured_providers)
+          @configuration.configured_providers
+        else
+          @configuration.provider_names
+        end
       end
 
       # Switch to next available provider with sophisticated fallback logic
@@ -292,7 +297,7 @@ module Aidp
 
       # Get available providers (not rate limited, healthy, and circuit breaker closed)
       def available_providers
-        all_providers = @configuration.provider_names
+        all_providers = configured_providers
         all_providers.select do |provider|
           !is_rate_limited?(provider) &&
             is_provider_healthy?(provider) &&
@@ -462,7 +467,7 @@ module Aidp
 
       # Build default fallback chain
       def build_default_fallback_chain(provider_name)
-        all_providers = @configuration.provider_names
+        all_providers = configured_providers
         fallback_chain = all_providers.dup
         fallback_chain.delete(provider_name)
         fallback_chain.unshift(provider_name) # Put current provider first
@@ -1100,7 +1105,7 @@ module Aidp
         now = Time.now
         statuses = provider_health_status
         metrics = all_metrics
-        configured = @configuration.provider_names
+        configured = configured_providers
         # Ensure fresh binary probe results in test mode so stubs of Aidp::Util.which take effect
         if defined?(RSpec) || ENV["RSPEC_RUNNING"]
           @binary_check_cache.clear
@@ -1353,7 +1358,7 @@ module Aidp
       # Initialize fallback chains
       def initialize_fallback_chains
         @fallback_chains.clear
-        all_providers = @configuration.provider_names
+        all_providers = configured_providers
 
         all_providers.each do |provider|
           build_default_fallback_chain(provider)
@@ -1363,7 +1368,7 @@ module Aidp
       # Initialize provider health
       def initialize_provider_health
         @provider_health.clear
-        all_providers = @configuration.provider_names
+        all_providers = configured_providers
 
         all_providers.each do |provider|
           @provider_health[provider] = {
@@ -1380,7 +1385,7 @@ module Aidp
       # Initialize model configurations
       def initialize_model_configs
         @model_configs.clear
-        all_providers = @configuration.provider_names
+        all_providers = configured_providers
 
         all_providers.each do |provider|
           @model_configs[provider] = @configuration.provider_models(provider)
@@ -1390,7 +1395,7 @@ module Aidp
       # Initialize model health
       def initialize_model_health
         @model_health.clear
-        all_providers = @configuration.provider_names
+        all_providers = configured_providers
 
         all_providers.each do |provider|
           @model_health[provider] = {}

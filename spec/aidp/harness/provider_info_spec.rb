@@ -158,11 +158,11 @@ RSpec.describe Aidp::Harness::ProviderInfo do
     end
   end
 
-  describe "#get_info" do
+  describe "#info" do
     context "when no cached info exists" do
       it "gathers new info" do
         allow(provider_info).to receive(:fetch_help_output).and_return(nil)
-        info = provider_info.get_info
+        info = provider_info.info
         expect(info).not_to be_nil
         expect(info[:provider]).to eq(provider_name)
       end
@@ -182,14 +182,14 @@ RSpec.describe Aidp::Harness::ProviderInfo do
       end
 
       it "returns cached info" do
-        info = provider_info.get_info
+        info = provider_info.info
         expect(info[:provider]).to eq(provider_name)
         expect(info[:cli_available]).to be true
       end
 
       it "does not gather new info" do
         expect(provider_info).not_to receive(:gather_info)
-        provider_info.get_info
+        provider_info.info
       end
     end
 
@@ -209,7 +209,7 @@ RSpec.describe Aidp::Harness::ProviderInfo do
 
       it "gathers new info" do
         expect(provider_info).to receive(:gather_info).and_call_original
-        provider_info.get_info(max_age: 1000)
+        provider_info.info(max_age: 1000)
       end
     end
 
@@ -229,7 +229,7 @@ RSpec.describe Aidp::Harness::ProviderInfo do
 
       it "gathers new info even if cached info is fresh" do
         expect(provider_info).to receive(:gather_info).and_call_original
-        provider_info.get_info(force_refresh: true)
+        provider_info.info(force_refresh: true)
       end
     end
   end
@@ -468,7 +468,15 @@ RSpec.describe Aidp::Harness::ProviderInfo do
 
       it "parses new Claude MCP format correctly" do
         allow(provider_info).to receive(:fetch_help_output).and_return("--mcp-config support")
-        allow(provider_info).to receive(:execute_provider_command).with("mcp", "list").and_return(mcp_output_new)
+
+        # Mock the provider instance to return the new MCP output
+        mock_provider = instance_double(Aidp::Providers::Anthropic)
+        allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
+        allow(mock_provider).to receive(:supports_mcp?).and_return(true)
+        allow(mock_provider).to receive(:fetch_mcp_servers).and_return([
+          {name: "dash-api", status: "connected", enabled: true, description: "uvx --from git+https://github.com/Kapeli/dash-mcp-server.git dash-mcp-server - ✓ Connected"},
+          {name: "brave-search", status: "error", enabled: false, description: "npx brave-search-mcp - ✗ Connection failed", error: "Connection failed"}
+        ])
 
         info = provider_info.gather_info
 
@@ -501,7 +509,16 @@ RSpec.describe Aidp::Harness::ProviderInfo do
 
       it "parses legacy MCP table format correctly" do
         allow(provider_info).to receive(:fetch_help_output).and_return("--mcp-config support")
-        allow(provider_info).to receive(:execute_provider_command).with("mcp", "list").and_return(mcp_output_legacy)
+
+        # Mock the provider instance to return the legacy MCP output
+        mock_provider = instance_double(Aidp::Providers::Anthropic)
+        allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
+        allow(mock_provider).to receive(:supports_mcp?).and_return(true)
+        allow(mock_provider).to receive(:fetch_mcp_servers).and_return([
+          {name: "filesystem", status: "enabled", enabled: true, description: "File system access and operations"},
+          {name: "brave-search", status: "enabled", enabled: true, description: "Web search via Brave Search API"},
+          {name: "database", status: "disabled", enabled: false, description: "Database query execution"}
+        ])
 
         info = provider_info.gather_info
 

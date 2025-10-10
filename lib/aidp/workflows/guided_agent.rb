@@ -30,10 +30,10 @@ module Aidp
         display_message("I'll help you choose the right workflow for your needs.\n", type: :info)
 
         # Step 1: Get user's high-level goal
-        user_goal = get_user_goal
+        goal = user_goal
 
         # Step 2: Use AI to analyze intent and recommend workflow
-        recommendation = analyze_user_intent(user_goal)
+        recommendation = analyze_user_intent(goal)
 
         # Step 3: Present recommendation and get confirmation
         workflow_selection = present_recommendation(recommendation)
@@ -48,7 +48,7 @@ module Aidp
 
       private
 
-      def get_user_goal
+      def user_goal
         display_message("What would you like to do?", type: :highlight)
         display_message("Examples:", type: :muted)
         display_message("  • Build a new feature for user authentication", type: :muted)

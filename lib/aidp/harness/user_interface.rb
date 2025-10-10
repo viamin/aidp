@@ -1743,7 +1743,7 @@ module Aidp
           display_message("  Size: #{format_file_size(File.size(file_path))}", type: :info)
           display_message("  Lines: #{lines.count}", type: :info)
           display_message("  Modified: #{File.mtime(file_path).strftime("%Y-%m-%d %H:%M:%S")}", type: :info)
-          display_message("  Type: #{get_file_type(file_path)}", type: :info)
+          display_message("  Type: #{file_type(file_path)}", type: :info)
 
           display_message("\n📝 Content Preview (first 20 lines):", type: :info)
           display_message("-" * 40, type: :muted)

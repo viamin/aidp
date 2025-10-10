@@ -14,20 +14,20 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     # Mock provider manager methods
     allow(provider_manager).to receive(:current_provider).and_return("claude")
     allow(provider_manager).to receive(:current_model).and_return("model1")
-    allow(provider_manager).to receive(:get_available_providers).and_return(["claude", "gemini", "cursor"])
-    allow(provider_manager).to receive(:get_provider_health_status).and_return({
+    allow(provider_manager).to receive(:available_providers).and_return(["claude", "gemini", "cursor"])
+    allow(provider_manager).to receive(:provider_health_status).and_return({
       "claude" => {status: "healthy", health_score: 0.95}
     })
 
     # Mock metrics manager methods
-    allow(metrics_manager).to receive(:get_realtime_metrics).and_return({
+    allow(metrics_manager).to receive(:realtime_metrics).and_return({
       throughput: 10,
       error_rate: 0.05,
       availability: 0.99
     })
 
     # Mock circuit breaker manager methods
-    allow(circuit_breaker_manager).to receive(:get_all_states).and_return({
+    allow(circuit_breaker_manager).to receive(:all_states).and_return({
       "claude" => {state: :closed, failure_count: 0}
     })
 
@@ -414,7 +414,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "gets basic status" do
-      basic_status = status_display.send(:get_basic_status)
+      basic_status = status_display.send(:basic_status)
 
       expect(basic_status).to include(
         :duration,
@@ -430,61 +430,61 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "gets provider status" do
-      provider_status = status_display.send(:get_provider_status)
+      provider_status = status_display.send(:provider_status)
 
       expect(provider_status).to be_a(Hash)
     end
 
     it "gets performance status" do
-      performance_status = status_display.send(:get_performance_status)
+      performance_status = status_display.send(:performance_status)
 
       expect(performance_status).to be_a(Hash)
     end
 
     it "gets error status" do
-      error_status = status_display.send(:get_error_status)
+      error_status = status_display.send(:error_status)
 
       expect(error_status).to be_a(Hash)
     end
 
     it "gets circuit breaker status" do
-      circuit_breaker_status = status_display.send(:get_circuit_breaker_status)
+      circuit_breaker_status = status_display.send(:circuit_breaker_status)
 
       expect(circuit_breaker_status).to be_a(Hash)
     end
 
     it "gets token status" do
-      token_status = status_display.send(:get_token_status)
+      token_status = status_display.send(:token_status)
 
       expect(token_status).to be_a(Hash)
     end
 
     it "gets rate limit status" do
-      rate_limit_status = status_display.send(:get_rate_limit_status)
+      rate_limit_status = status_display.send(:rate_limit_status)
 
       expect(rate_limit_status).to be_a(Hash)
     end
 
     it "gets recovery status" do
-      recovery_status = status_display.send(:get_recovery_status)
+      recovery_status = status_display.send(:recovery_status)
 
       expect(recovery_status).to be_a(Hash)
     end
 
     it "gets user feedback status" do
-      user_feedback_status = status_display.send(:get_user_feedback_status)
+      user_feedback_status = status_display.send(:user_feedback_status)
 
       expect(user_feedback_status).to be_a(Hash)
     end
 
     it "gets work completion status" do
-      work_completion_status = status_display.send(:get_work_completion_status)
+      work_completion_status = status_display.send(:work_completion_status)
 
       expect(work_completion_status).to be_a(Hash)
     end
 
     it "gets alerts" do
-      alerts = status_display.send(:get_alerts)
+      alerts = status_display.send(:alerts)
 
       expect(alerts).to be_an(Array)
     end

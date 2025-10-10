@@ -8,11 +8,11 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
   before do
     allow(configuration).to receive(:default_provider).and_return("claude")
-    allow(configuration).to receive(:provider_names).and_return(["claude", "gemini", "cursor"])
+    allow(configuration).to receive(:configured_providers).and_return(["claude", "gemini", "cursor"])
     allow(configuration).to receive(:provider_configured?).and_return(true)
-    allow(configuration).to receive(:provider_models).with("claude").and_return(["claude-3-5-sonnet"])
-    allow(configuration).to receive(:provider_models).with("gemini").and_return(["gemini-pro"])
-    allow(configuration).to receive(:provider_models).with("cursor").and_return(["cursor-small"])
+    allow(configuration).to receive(:provider_models).with("claude").and_return(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"])
+    allow(configuration).to receive(:provider_models).with("gemini").and_return(["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"])
+    allow(configuration).to receive(:provider_models).with("cursor").and_return(["cursor-default", "cursor-fast", "cursor-precise"])
 
     # Stub sleep to eliminate retry delays in tests
     allow_any_instance_of(described_class).to receive(:sleep)

@@ -1425,7 +1425,7 @@ module Aidp
       end
 
       # Get completion confidence level
-      def get_completion_confidence(completion_info)
+      def completion_confidence(completion_info)
         return 0.0 unless completion_info && completion_info[:confidence]
 
         completion_info[:confidence]
@@ -1433,23 +1433,23 @@ module Aidp
 
       # Check if completion is high confidence
       def high_confidence_completion?(completion_info)
-        get_completion_confidence(completion_info) >= 0.8
+        completion_confidence(completion_info) >= 0.8
       end
 
       # Check if completion is medium confidence
       def medium_confidence_completion?(completion_info)
-        confidence = get_completion_confidence(completion_info)
+        confidence = completion_confidence(completion_info)
         confidence >= 0.5 && confidence < 0.8
       end
 
       # Check if completion is low confidence
       def low_confidence_completion?(completion_info)
-        confidence = get_completion_confidence(completion_info)
+        confidence = completion_confidence(completion_info)
         confidence > 0.0 && confidence < 0.5
       end
 
       # Get next actions from completion info
-      def get_next_actions(completion_info)
+      def next_actions(completion_info)
         return [] unless completion_info && completion_info[:next_actions]
 
         completion_info[:next_actions]
@@ -1495,7 +1495,7 @@ module Aidp
       end
 
       # Get progress status description
-      def get_progress_status_description(completion_info)
+      def progress_status_description(completion_info)
         return "unknown" unless completion_info
 
         case completion_info[:progress_status]

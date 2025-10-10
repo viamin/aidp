@@ -61,7 +61,7 @@ module Aidp
       end
 
       # Get provider info, refreshing if needed
-      def get_info(force_refresh: false, max_age: 86400)
+      def info(force_refresh: false, max_age: 86400)
         existing_info = load_info
 
         # Refresh if forced, missing, or stale
@@ -143,7 +143,6 @@ module Aidp
 
       def fetch_mcp_servers
         # Use the provider class to fetch MCP servers
-        provider_instance = get_provider_instance
         return [] unless provider_instance
 
         provider_instance.fetch_mcp_servers
@@ -153,12 +152,11 @@ module Aidp
       end
 
       def execute_provider_command(*args)
-        binary = get_binary_name
-        return nil unless binary
+        return nil unless binary_name
 
         # Try to find the binary
         path = begin
-          Aidp::Util.which(binary)
+          Aidp::Util.which(binary_name)
         rescue
           nil
         end
@@ -167,7 +165,7 @@ module Aidp
         # Execute command with timeout
         begin
           r, w = IO.pipe
-          pid = Process.spawn(binary, *args, out: w, err: w)
+          pid = Process.spawn(binary_name, *args, out: w, err: w)
           w.close
 
           # Wait with timeout
@@ -265,7 +263,7 @@ module Aidp
         servers
       end
 
-      def get_binary_name
+      def binary_name
         case @provider_name
         when "claude", "anthropic"
           "claude"
@@ -294,9 +292,9 @@ module Aidp
         }
 
         # Check for MCP support using provider class
-        provider_instance = get_provider_instance
-        parsed[:mcp_support] = if provider_instance
-          provider_instance.supports_mcp?
+        provider_inst = provider_instance
+        parsed[:mcp_support] = if provider_inst
+          provider_inst.supports_mcp?
         else
           # Fallback to text-based detection
           !!(help_text =~ /mcp|MCP|Model Context Protocol/i)
@@ -345,7 +343,7 @@ module Aidp
       end
 
       # Get provider instance for MCP operations
-      def get_provider_instance
+      def provider_instance
         return @provider_instance if @provider_instance
 
         # Load provider factory and get provider class
