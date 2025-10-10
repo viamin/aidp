@@ -18,7 +18,7 @@ module Aidp
       end
 
       # Get complete configuration
-      def get_config(options = {})
+      def config(options = {})
         cache_key = "config_#{options.hash}"
 
         if cache_valid?(cache_key)
@@ -31,16 +31,16 @@ module Aidp
       end
 
       # Get harness configuration
-      def get_harness_config(options = {})
-        config = get_config(options)
+      def harness_config(options = {})
+        config = config(options)
         return nil unless config
 
         config[:harness] || {}
       end
 
       # Get provider configuration
-      def get_provider_config(provider_name, options = {})
-        config = get_config(options)
+      def provider_config(provider_name, options = {})
+        config = config(options)
         return nil unless config
 
         providers = config[:providers] || {}
@@ -48,38 +48,38 @@ module Aidp
       end
 
       # Get all provider configurations
-      def get_all_providers(options = {})
-        config = get_config(options)
+      def all_providers(options = {})
+        config = config(options)
         return {} unless config
 
         config[:providers] || {}
       end
 
       # Get configured provider names
-      def get_provider_names(options = {})
-        providers = get_all_providers(options)
+      def provider_names(options = {})
+        providers = all_providers(options)
         providers.keys.map(&:to_s)
       end
 
       # Get default provider
-      def get_default_provider(options = {})
-        harness_config = get_harness_config(options)
+      def default_provider(options = {})
+        harness_config = harness_config(options)
         harness_config[:default_provider] || harness_config["default_provider"]
       end
 
       # Get fallback providers
-      def get_fallback_providers(options = {})
-        harness_config = get_harness_config(options)
+      def fallback_providers(options = {})
+        harness_config = harness_config(options)
         fallback_providers = harness_config[:fallback_providers] || harness_config["fallback_providers"] || []
 
         # Ensure fallback providers are configured
-        configured_providers = get_provider_names(options)
+        configured_providers = provider_names(options)
         fallback_providers.select { |provider| configured_providers.include?(provider) }
       end
 
       # Get provider weights
-      def get_provider_weights(options = {})
-        harness_config = get_harness_config(options)
+      def provider_weights(options = {})
+        harness_config = harness_config(options)
         weights = harness_config[:provider_weights] || harness_config["provider_weights"] || {}
 
         # Normalize weights to ensure they're positive integers
@@ -87,8 +87,8 @@ module Aidp
       end
 
       # Get retry configuration
-      def get_retry_config(options = {})
-        harness_config = get_harness_config(options)
+      def retry_config(options = {})
+        harness_config = harness_config(options)
         retry_config = harness_config[:retry] || harness_config["retry"] || {}
 
         {
@@ -102,8 +102,8 @@ module Aidp
       end
 
       # Get circuit breaker configuration
-      def get_circuit_breaker_config(options = {})
-        harness_config = get_harness_config(options)
+      def circuit_breaker_config(options = {})
+        harness_config = harness_config(options)
         cb_config = harness_config[:circuit_breaker] || harness_config["circuit_breaker"] || {}
 
         {
@@ -115,8 +115,8 @@ module Aidp
       end
 
       # Get rate limit configuration
-      def get_rate_limit_config(options = {})
-        harness_config = get_harness_config(options)
+      def rate_limit_config(options = {})
+        harness_config = harness_config(options)
         rate_limit_config = harness_config[:rate_limit] || harness_config["rate_limit"] || {}
 
         {
@@ -128,8 +128,8 @@ module Aidp
       end
 
       # Get load balancing configuration
-      def get_load_balancing_config(options = {})
-        harness_config = get_harness_config(options)
+      def load_balancing_config(options = {})
+        harness_config = harness_config(options)
         lb_config = harness_config[:load_balancing] || harness_config["load_balancing"] || {}
 
         {
@@ -141,8 +141,8 @@ module Aidp
       end
 
       # Get model switching configuration
-      def get_model_switching_config(options = {})
-        harness_config = get_harness_config(options)
+      def model_switching_config(options = {})
+        harness_config = harness_config(options)
         ms_config = harness_config[:model_switching] || harness_config["model_switching"] || {}
 
         {
@@ -154,8 +154,8 @@ module Aidp
       end
 
       # Get health check configuration
-      def get_health_check_config(options = {})
-        harness_config = get_harness_config(options)
+      def health_check_config(options = {})
+        harness_config = harness_config(options)
         hc_config = harness_config[:health_check] || harness_config["health_check"] || {}
 
         {
@@ -168,8 +168,8 @@ module Aidp
       end
 
       # Get metrics configuration
-      def get_metrics_config(options = {})
-        harness_config = get_harness_config(options)
+      def metrics_config(options = {})
+        harness_config = harness_config(options)
         metrics_config = harness_config[:metrics] || harness_config["metrics"] || {}
 
         {
@@ -181,8 +181,8 @@ module Aidp
       end
 
       # Get session configuration
-      def get_session_config(options = {})
-        harness_config = get_harness_config(options)
+      def session_config(options = {})
+        harness_config = harness_config(options)
         session_config = harness_config[:session] || harness_config["session"] || {}
 
         {
@@ -194,8 +194,8 @@ module Aidp
       end
 
       # Get provider models
-      def get_provider_models(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_models(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return [] unless provider_config
 
         models = provider_config[:models] || provider_config["models"] || []
@@ -203,8 +203,8 @@ module Aidp
       end
 
       # Get provider model weights
-      def get_provider_model_weights(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_model_weights(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return {} unless provider_config
 
         weights = provider_config[:model_weights] || provider_config["model_weights"] || {}
@@ -212,8 +212,8 @@ module Aidp
       end
 
       # Get provider model configuration
-      def get_provider_model_config(provider_name, model_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_model_config(provider_name, model_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return {} unless provider_config
 
         models_config = provider_config[:models_config] || provider_config["models_config"] || {}
@@ -227,8 +227,8 @@ module Aidp
       end
 
       # Get provider features
-      def get_provider_features(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_features(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return {} unless provider_config
 
         features = provider_config[:features] || provider_config["features"] || {}
@@ -242,8 +242,8 @@ module Aidp
       end
 
       # Get provider monitoring configuration
-      def get_provider_monitoring_config(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_monitoring_config(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return {} unless provider_config
 
         monitoring = provider_config[:monitoring] || provider_config["monitoring"] || {}
@@ -256,21 +256,21 @@ module Aidp
 
       # Check if provider supports feature
       def provider_supports_feature?(provider_name, feature, options = {})
-        features = get_provider_features(provider_name, options)
+        features = provider_features(provider_name, options)
         features[feature.to_sym] == true
       end
 
       # Get provider priority
-      def get_provider_priority(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_priority(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return 1 unless provider_config
 
         provider_config[:priority] || provider_config["priority"] || 1
       end
 
       # Get provider type
-      def get_provider_type(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_type(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return nil unless provider_config
 
         provider_config[:type] || provider_config["type"]
@@ -279,16 +279,16 @@ module Aidp
       # Provider type checking methods are now provided by ProviderTypeChecker module
 
       # Get provider max tokens
-      def get_provider_max_tokens(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_max_tokens(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return nil unless provider_config
 
         provider_config[:max_tokens] || provider_config["max_tokens"]
       end
 
       # Get provider default flags
-      def get_provider_default_flags(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_default_flags(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return [] unless provider_config
 
         flags = provider_config[:default_flags] || provider_config["default_flags"] || []
@@ -296,8 +296,8 @@ module Aidp
       end
 
       # Get provider auth configuration
-      def get_provider_auth_config(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_auth_config(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return {} unless provider_config
 
         auth = provider_config[:auth] || provider_config["auth"] || {}
@@ -309,8 +309,8 @@ module Aidp
       end
 
       # Get provider endpoints
-      def get_provider_endpoints(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+      def provider_endpoints(provider_name, options = {})
+        provider_config = provider_config(provider_name, options)
         return {} unless provider_config
 
         endpoints = provider_config[:endpoints] || provider_config["endpoints"] || {}
@@ -326,13 +326,13 @@ module Aidp
       end
 
       # Get validation errors
-      def get_validation_errors
-        @loader.get_validation_errors
+      def validation_errors
+        @loader.validation_errors
       end
 
       # Get validation warnings
-      def get_validation_warnings
-        @loader.get_validation_warnings
+      def validation_warnings
+        @loader.validation_warnings
       end
 
       # Reload configuration
@@ -343,8 +343,8 @@ module Aidp
       end
 
       # Get configuration summary
-      def get_config_summary
-        @loader.get_config_summary
+      def config_summary
+        @loader.config_summary
       end
 
       private

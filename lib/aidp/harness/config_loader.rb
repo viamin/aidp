@@ -40,7 +40,7 @@ module Aidp
       end
 
       # Get harness configuration with defaults
-      def get_harness_config(force_reload = false)
+      def harness_config(force_reload = false)
         config = load_config(force_reload)
         return nil unless config
 
@@ -48,7 +48,7 @@ module Aidp
       end
 
       # Get provider configuration with defaults
-      def get_provider_config(provider_name, force_reload = false)
+      def provider_config(provider_name, force_reload = false)
         config = load_config(force_reload)
         return nil unless config
 
@@ -94,7 +94,7 @@ module Aidp
       end
 
       # Get configuration summary
-      def get_config_summary
+      def config_summary
         @validator.get_summary
       end
 
@@ -117,17 +117,17 @@ module Aidp
       end
 
       # Get harness configuration with overrides
-      def get_harness_config_with_overrides(overrides = {})
-        harness_config = get_harness_config
-        return nil unless harness_config
+      def harness_config_with_overrides(overrides = {})
+        base_harness_config = harness_config
+        return nil unless base_harness_config
 
         harness_overrides = overrides[:harness] || overrides["harness"] || {}
-        deep_merge(harness_config, harness_overrides)
+        deep_merge(base_harness_config, harness_overrides)
       end
 
       # Get provider configuration with overrides
-      def get_provider_config_with_overrides(provider_name, overrides = {})
-        provider_config = get_provider_config(provider_name)
+      def provider_config_with_overrides(provider_name, overrides = {})
+        provider_config = provider_config(provider_name)
         return nil unless provider_config
 
         provider_overrides = overrides[:providers]&.dig(provider_name.to_sym) ||
@@ -158,13 +158,13 @@ module Aidp
       end
 
       # Get validation errors
-      def get_validation_errors
+      def validation_errors
         validation_result = @validator.validate_existing
         validation_result[:errors] || []
       end
 
       # Get validation warnings
-      def get_validation_warnings
+      def validation_warnings
         validation_result = @validator.validate_existing
         validation_result[:warnings] || []
       end

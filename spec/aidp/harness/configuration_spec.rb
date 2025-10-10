@@ -439,27 +439,27 @@ RSpec.describe Aidp::Harness::Configuration do
 
   describe "default configurations" do
     it "returns default models for provider" do
-      anthropic_models = configuration.send(:get_default_models_for_provider, "anthropic")
+      anthropic_models = configuration.send(:default_models_for_provider, "anthropic")
       expect(anthropic_models).to include("anthropic-3-5-sonnet-20241022", "anthropic-3-5-haiku-20241022", "anthropic-3-opus-20240229")
 
-      cursor_models = configuration.send(:get_default_models_for_provider, "cursor")
+      cursor_models = configuration.send(:default_models_for_provider, "cursor")
       expect(cursor_models).to include("cursor-default", "cursor-fast", "cursor-precise")
     end
 
     it "returns default model for provider" do
-      expect(configuration.send(:get_default_model_for_provider, "anthropic")).to eq("anthropic-3-5-sonnet-20241022")
-      expect(configuration.send(:get_default_model_for_provider, "cursor")).to eq("cursor-default")
-      expect(configuration.send(:get_default_model_for_provider, "macos")).to eq("default")
+      expect(configuration.send(:default_model_for_provider, "anthropic")).to eq("anthropic-3-5-sonnet-20241022")
+      expect(configuration.send(:default_model_for_provider, "cursor")).to eq("cursor-default")
+      expect(configuration.send(:default_model_for_provider, "macos")).to eq("default")
     end
 
     it "returns default timeout for provider" do
-      expect(configuration.send(:get_default_timeout_for_provider, "anthropic")).to eq(300)
-      expect(configuration.send(:get_default_timeout_for_provider, "cursor")).to eq(300)
-      expect(configuration.send(:get_default_timeout_for_provider, "macos")).to eq(300)
+      expect(configuration.send(:default_timeout_for_provider, "anthropic")).to eq(300)
+      expect(configuration.send(:default_timeout_for_provider, "cursor")).to eq(300)
+      expect(configuration.send(:default_timeout_for_provider, "macos")).to eq(300)
     end
 
     it "returns default circuit breaker configuration" do
-      config = configuration.send(:get_default_circuit_breaker_config)
+      config = configuration.send(:default_circuit_breaker_config)
       expect(config[:enabled]).to be true
       expect(config[:failure_threshold]).to eq(5)
       expect(config[:timeout]).to eq(300)
@@ -467,7 +467,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "returns default retry configuration" do
-      config = configuration.send(:get_default_retry_config)
+      config = configuration.send(:default_retry_config)
       expect(config[:enabled]).to be true
       expect(config[:max_attempts]).to eq(3)
       expect(config[:base_delay]).to eq(1.0)
@@ -477,7 +477,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "returns default rate limit configuration" do
-      config = configuration.send(:get_default_rate_limit_config)
+      config = configuration.send(:default_rate_limit_config)
       expect(config[:enabled]).to be true
       expect(config[:default_reset_time]).to eq(3600)
       expect(config[:burst_limit]).to eq(10)
@@ -485,7 +485,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "returns default load balancing configuration" do
-      config = configuration.send(:get_default_load_balancing_config)
+      config = configuration.send(:default_load_balancing_config)
       expect(config[:enabled]).to be true
       expect(config[:strategy]).to eq("weighted_round_robin")
       expect(config[:health_check_interval]).to eq(30)
@@ -493,7 +493,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "returns default model switching configuration" do
-      config = configuration.send(:get_default_model_switching_config)
+      config = configuration.send(:default_model_switching_config)
       expect(config[:enabled]).to be true
       expect(config[:auto_switch_on_error]).to be true
       expect(config[:auto_switch_on_rate_limit]).to be true
@@ -501,7 +501,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "returns default health check configuration" do
-      config = configuration.send(:get_default_health_check_config)
+      config = configuration.send(:default_health_check_config)
       expect(config[:enabled]).to be true
       expect(config[:interval]).to eq(60)
       expect(config[:timeout]).to eq(10)
@@ -510,7 +510,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "returns default metrics configuration" do
-      config = configuration.send(:get_default_metrics_config)
+      config = configuration.send(:default_metrics_config)
       expect(config[:enabled]).to be true
       expect(config[:retention_days]).to eq(30)
       expect(config[:aggregation_interval]).to eq(300)
@@ -518,7 +518,7 @@ RSpec.describe Aidp::Harness::Configuration do
     end
 
     it "returns default session configuration" do
-      config = configuration.send(:get_default_session_config)
+      config = configuration.send(:default_session_config)
       expect(config[:enabled]).to be true
       expect(config[:timeout]).to eq(1800)
       expect(config[:sticky_sessions]).to be true

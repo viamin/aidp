@@ -110,7 +110,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
       error_handler.handle_error(error, context)
 
-      history = error_handler.get_error_history
+      history = error_handler.error_history
       expect(history).not_to be_empty
       expect(history.last[:error]).to eq(error)
     end
@@ -118,7 +118,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
   describe "retry strategies" do
     it "gets retry strategy for error type" do
-      strategy = error_handler.get_retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:network_error)
 
       expect(strategy[:name]).to eq("network_error")
       expect(strategy[:enabled]).to be true
@@ -126,7 +126,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     end
 
     it "returns default strategy for unknown error type" do
-      strategy = error_handler.get_retry_strategy(:unknown_error)
+      strategy = error_handler.retry_strategy(:unknown_error)
 
       expect(strategy[:name]).to eq("default")
       expect(strategy[:enabled]).to be true
@@ -139,7 +139,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         model: "model1"
       }
 
-      strategy = error_handler.get_retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:network_error)
       should_retry = error_handler.send(:should_retry?, error_info, strategy)
 
       expect(should_retry).to be true
@@ -152,7 +152,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         model: "model1"
       }
 
-      strategy = error_handler.get_retry_strategy(:rate_limit)
+      strategy = error_handler.retry_strategy(:rate_limit)
       should_retry = error_handler.send(:should_retry?, error_info, strategy)
 
       expect(should_retry).to be false
@@ -165,7 +165,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         model: "model1"
       }
 
-      strategy = error_handler.get_retry_strategy(:authentication)
+      strategy = error_handler.retry_strategy(:authentication)
       should_retry = error_handler.send(:should_retry?, error_info, strategy)
 
       expect(should_retry).to be false
@@ -186,7 +186,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     end
 
     it "executes retry with backoff delay" do
-      strategy = error_handler.get_retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:network_error)
 
       result = error_handler.execute_retry(error_info, strategy, {})
 
@@ -198,7 +198,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     # Retry count tracking test removed - complex integration test
 
     it "exhausts retries after max attempts" do
-      strategy = error_handler.get_retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:network_error)
 
       # Execute retry more than max_retries
       4.times { error_handler.execute_retry(error_info, strategy, {}) }

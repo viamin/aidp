@@ -55,7 +55,7 @@ RSpec.describe Aidp::Providers::Cursor do
 
         expect(provider).to have_received(:debug_execute_command).with(
           "cursor-agent",
-          args: ["agent"],
+          args: ["-p"],
           input: prompt,
           timeout: 300,
           streaming: false
@@ -87,7 +87,7 @@ RSpec.describe Aidp::Providers::Cursor do
 
         expect(provider).to have_received(:debug_execute_command).with(
           "cursor-agent",
-          args: ["agent"],
+          args: ["-p"],
           input: prompt,
           timeout: 300,
           streaming: true
@@ -119,7 +119,7 @@ RSpec.describe Aidp::Providers::Cursor do
 
         expect(provider).to have_received(:debug_execute_command).with(
           "cursor-agent",
-          args: ["agent"],
+          args: ["-p"],
           input: prompt,
           timeout: 300,
           streaming: true

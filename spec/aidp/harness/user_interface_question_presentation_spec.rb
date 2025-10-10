@@ -450,8 +450,8 @@ RSpec.describe Aidp::Harness::UserInterface do
         }
 
         # Mock the response methods to avoid validation loops
-        allow(ui).to receive(:get_text_response).and_return("John Doe")
-        allow(ui).to receive(:get_number_response).and_return(25)
+        allow(ui).to receive(:text_response).and_return("John Doe")
+        allow(ui).to receive(:number_response).and_return(25)
         # TestPrompt handles keypress automatically
 
         responses = ui.collect_feedback(questions, context)

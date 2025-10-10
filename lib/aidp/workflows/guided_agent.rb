@@ -2,7 +2,7 @@
 
 require_relative "../harness/provider_manager"
 require_relative "../harness/provider_factory"
-require_relative "../harness/configuration"
+require_relative "../harness/config_manager"
 require_relative "definitions"
 require_relative "../message_display"
 
@@ -18,8 +18,8 @@ module Aidp
       def initialize(project_dir, prompt: nil)
         @project_dir = project_dir
         @prompt = prompt || TTY::Prompt.new
-        @configuration = Aidp::Harness::Configuration.new(project_dir)
-        @provider_manager = Aidp::Harness::ProviderManager.new(@configuration, prompt: @prompt)
+        @config_manager = Aidp::Harness::ConfigManager.new(project_dir)
+        @provider_manager = Aidp::Harness::ProviderManager.new(@config_manager, prompt: @prompt)
         @conversation_history = []
         @user_input = {}
       end
@@ -139,7 +139,7 @@ module Aidp
         end
 
         # Create provider instance using ProviderFactory
-        provider_factory = Aidp::Harness::ProviderFactory.new(@configuration)
+        provider_factory = Aidp::Harness::ProviderFactory.new(@config_manager)
         provider = provider_factory.create_provider(provider_name, prompt: @prompt)
 
         unless provider

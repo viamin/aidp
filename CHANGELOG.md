@@ -2,12 +2,10 @@
 
 ## [0.12.1](https://github.com/viamin/aidp/compare/aidp/v0.12.0...aidp/v0.12.1) (2025-10-09)
 
-
 ### Improvements
 
 * centralize configuration path management in ConfigPaths module ([12b5dab](https://github.com/viamin/aidp/commit/12b5dabcc1968ba77ddeb117a64f295ed3f1250f))
 * centralize configuration path management in ConfigPaths module ([#89](https://github.com/viamin/aidp/issues/89)) ([fa03694](https://github.com/viamin/aidp/commit/fa03694d2cd40b59b5a90fb5915d30ce8deb4d73))
-
 
 ### Documentation
 

@@ -165,13 +165,13 @@ module Aidp
       end
 
       # Set display mode
-      def set_display_mode(mode)
+      def display_mode(mode)
         @display_mode = mode
         @display_config[:mode] = mode
       end
 
       # Set update interval
-      def set_update_interval(interval)
+      def update_interval(interval)
         @update_interval = interval
         @display_config[:update_interval] = interval
       end
@@ -248,7 +248,7 @@ module Aidp
       end
 
       # Get comprehensive status data
-      def get_status_data
+      def status_data
         {
           basic_info: get_basic_status,
           provider_info: get_provider_status,
@@ -672,7 +672,7 @@ module Aidp
         display_message("   Continuing with status updates...", type: :info)
       end
 
-      def get_basic_status
+      def basic_status
         {
           duration: @start_time ? Time.now - @start_time : 0,
           current_step: @current_step,
@@ -684,43 +684,31 @@ module Aidp
         }
       end
 
-      def get_provider_status
-        @provider_status
-      end
+      attr_reader :provider_status
 
-      def get_performance_status
+      def performance_status
         @performance_metrics
       end
 
-      def get_error_status
+      def error_status
         @error_summary
       end
 
-      def get_circuit_breaker_status
-        @circuit_breaker_status
-      end
+      attr_reader :circuit_breaker_status
 
-      def get_token_status
+      def token_status
         @token_usage
       end
 
-      def get_rate_limit_status
-        @rate_limit_status
-      end
+      attr_reader :rate_limit_status
 
-      def get_recovery_status
-        @recovery_status
-      end
+      attr_reader :recovery_status
 
-      def get_user_feedback_status
-        @user_feedback_status
-      end
+      attr_reader :user_feedback_status
 
-      def get_work_completion_status
-        @work_completion_status
-      end
+      attr_reader :work_completion_status
 
-      def get_alerts
+      def alerts
         @alert_manager.get_active_alerts
       end
 
@@ -854,7 +842,7 @@ module Aidp
           end
         end
 
-        def get_active_alerts
+        def active_alerts
           @alerts
         end
 

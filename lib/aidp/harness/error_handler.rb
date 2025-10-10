@@ -53,7 +53,7 @@ module Aidp
         @error_history << error_info
 
         # Get retry strategy for this error type
-        strategy = get_retry_strategy(error_info[:error_type])
+        strategy = retry_strategy(error_info[:error_type])
 
         # Check if we should retry
         if should_retry?(error_info, strategy)
@@ -97,17 +97,17 @@ module Aidp
             attempt += 1
             return yield
           rescue => error
-            current_provider = get_current_provider_safely
+            current_provider = current_provider_safely
 
             if attempt < max_attempts
               error_info = {
                 error: error,
                 provider: current_provider,
-                model: get_current_model_safely,
+                model: current_model_safely,
                 error_type: @error_classifier.classify_error(error)
               }
 
-              strategy = get_retry_strategy(error_info[:error_type])
+              strategy = retry_strategy(error_info[:error_type])
               if should_retry?(error_info, strategy)
                 delay = @backoff_calculator.calculate_delay(attempt, strategy[:backoff_strategy] || :exponential, 1, 10)
                 debug_log("🔁 Retry attempt #{attempt} for #{current_provider}", level: :info, data: {delay: delay, error_type: error_info[:error_type]})
@@ -120,11 +120,11 @@ module Aidp
             debug_log("🚫 Exhausted retries for provider, attempting recovery", level: :warn, data: {provider: current_provider, attempt: attempt, max_attempts: max_attempts})
             handle_error(error, {
               provider: current_provider,
-              model: get_current_model_safely,
+              model: current_model_safely,
               exhausted_retries: true
             })
 
-            new_provider = get_current_provider_safely
+            new_provider = current_provider_safely
             if new_provider != current_provider && !providers_tried.include?(new_provider)
               providers_tried << current_provider
               # Reset retry counts for the new provider
@@ -233,7 +233,7 @@ module Aidp
       end
 
       # Get retry strategy for error type
-      def get_retry_strategy(error_type)
+      def retry_strategy(error_type)
         @retry_strategies[error_type] || @retry_strategies[:default]
       end
 
@@ -270,7 +270,7 @@ module Aidp
       end
 
       # Get retry status for a provider/model
-      def get_retry_status(provider, model = nil)
+      def retry_status(provider, model = nil)
         keys = if model
           @retry_counts.keys.select { |k| k.start_with?("#{provider}:#{model}:") }
         else
@@ -282,7 +282,7 @@ module Aidp
           error_type = key.split(":").last
           status[error_type] = {
             retry_count: @retry_counts[key],
-            max_retries: get_retry_strategy(error_type.to_sym)[:max_retries]
+            max_retries: retry_strategy(error_type.to_sym)[:max_retries]
           }
         end
 
@@ -290,7 +290,7 @@ module Aidp
       end
 
       # Get error history
-      def get_error_history(time_range = nil)
+      def error_history(time_range = nil)
         if time_range
           @error_history.select { |e| time_range.include?(e[:timestamp]) }
         else
@@ -304,7 +304,7 @@ module Aidp
       end
 
       # Get circuit breaker status
-      def get_circuit_breaker_status
+      def circuit_breaker_status
         @circuit_breakers.transform_values do |cb|
           {
             open: cb[:open],
@@ -667,7 +667,7 @@ module Aidp
       end
 
       # Safe access to provider manager methods that may not exist
-      def get_current_provider_safely
+      def current_provider_safely
         return "unknown" unless @provider_manager
         return "unknown" unless @provider_manager.respond_to?(:current_provider)
 
@@ -677,7 +677,7 @@ module Aidp
         "unknown"
       end
 
-      def get_current_model_safely
+      def current_model_safely
         return "unknown" unless @provider_manager
         return "unknown" unless @provider_manager.respond_to?(:current_model)
 

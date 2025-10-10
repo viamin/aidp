@@ -265,7 +265,6 @@ module Aidp
         servers
       end
 
-
       def get_binary_name
         case @provider_name
         when "claude", "anthropic"
@@ -296,11 +295,11 @@ module Aidp
 
         # Check for MCP support using provider class
         provider_instance = get_provider_instance
-        if provider_instance
-          parsed[:mcp_support] = provider_instance.supports_mcp?
+        parsed[:mcp_support] = if provider_instance
+          provider_instance.supports_mcp?
         else
           # Fallback to text-based detection
-          parsed[:mcp_support] = !!(help_text =~ /mcp|MCP|Model Context Protocol/i)
+          !!(help_text =~ /mcp|MCP|Model Context Protocol/i)
         end
 
         # Extract permission modes

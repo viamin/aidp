@@ -14,7 +14,7 @@ module Aidp
         else
           # ProviderConfig signature: usage_based_provider?(options)
           options = provider_name_or_options
-          get_type(options) == "usage_based"
+          type(options) == "usage_based"
         end
       end
 
@@ -25,7 +25,7 @@ module Aidp
           get_provider_type(provider_name, options) == "subscription"
         else
           options = provider_name_or_options
-          get_type(options) == "subscription"
+          type(options) == "subscription"
         end
       end
 
@@ -36,13 +36,13 @@ module Aidp
           get_provider_type(provider_name, options) == "passthrough"
         else
           options = provider_name_or_options
-          get_type(options) == "passthrough"
+          type(options) == "passthrough"
         end
       end
 
       # Get provider type with fallback to subscription (ConfigManager signature)
       def get_provider_type(provider_name, options = {})
-        provider_config = get_provider_config(provider_name, options)
+        provider_config = provider_config(provider_name, options)
         return "subscription" unless provider_config
 
         provider_config[:type] || provider_config["type"] || "subscription"
@@ -59,7 +59,7 @@ module Aidp
 
         if provider_name_or_options.is_a?(String) || provider_name_or_options.is_a?(Symbol)
           provider_name = provider_name_or_options
-          provider_config = get_provider_config(provider_name, options)
+          provider_config = provider_config(provider_name, options)
         else
           options = provider_name_or_options
           provider_config = get_config(options)
@@ -75,7 +75,7 @@ module Aidp
 
         if provider_name_or_options.is_a?(String) || provider_name_or_options.is_a?(Symbol)
           provider_name = provider_name_or_options
-          provider_config = get_provider_config(provider_name, options)
+          provider_config = provider_config(provider_name, options)
         else
           options = provider_name_or_options
           provider_config = get_config(options)

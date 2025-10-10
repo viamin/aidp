@@ -302,16 +302,16 @@ RSpec.describe Aidp::Harness::ConditionDetector do
 
     describe "#get_completion_confidence" do
       it "returns confidence level" do
-        expect(detector.get_completion_confidence(completion_info)).to eq(0.9)
+        expect(detector.completion_confidence(completion_info)).to eq(0.9)
       end
 
       it "returns 0.0 for nil info" do
-        expect(detector.get_completion_confidence(nil)).to eq(0.0)
+        expect(detector.completion_confidence(nil)).to eq(0.0)
       end
 
       it "returns 0.0 for info without confidence" do
         info = {is_complete: true}
-        expect(detector.get_completion_confidence(info)).to eq(0.0)
+        expect(detector.completion_confidence(info)).to eq(0.0)
       end
     end
 
@@ -366,16 +366,16 @@ RSpec.describe Aidp::Harness::ConditionDetector do
     describe "#get_next_actions" do
       it "returns next actions" do
         info = {next_actions: ["continue_execution", "collect_user_input"]}
-        expect(detector.get_next_actions(info)).to eq(["continue_execution", "collect_user_input"])
+        expect(detector.next_actions(info)).to eq(["continue_execution", "collect_user_input"])
       end
 
       it "returns empty array for nil info" do
-        expect(detector.get_next_actions(nil)).to eq([])
+        expect(detector.next_actions(nil)).to eq([])
       end
 
       it "returns empty array for info without next_actions" do
         info = {is_complete: true}
-        expect(detector.get_next_actions(info)).to eq([])
+        expect(detector.next_actions(info)).to eq([])
       end
     end
 
@@ -437,56 +437,56 @@ RSpec.describe Aidp::Harness::ConditionDetector do
     describe "#get_progress_status_description" do
       it "returns description for all_steps_completed" do
         info = {progress_status: "all_steps_completed"}
-        expect(detector.get_progress_status_description(info)).to eq("All steps completed successfully")
+        expect(detector.progress_status_description(info)).to eq("All steps completed successfully")
       end
 
       it "returns description for near_completion" do
         info = {progress_status: "near_completion"}
-        expect(detector.get_progress_status_description(info)).to eq("Near completion (80%+ done)")
+        expect(detector.progress_status_description(info)).to eq("Near completion (80%+ done)")
       end
 
       it "returns description for half_complete" do
         info = {progress_status: "half_complete"}
-        expect(detector.get_progress_status_description(info)).to eq("Half complete (50%+ done)")
+        expect(detector.progress_status_description(info)).to eq("Half complete (50%+ done)")
       end
 
       it "returns description for early_stage" do
         info = {progress_status: "early_stage"}
-        expect(detector.get_progress_status_description(info)).to eq("Early stage (20%+ done)")
+        expect(detector.progress_status_description(info)).to eq("Early stage (20%+ done)")
       end
 
       it "returns description for just_started" do
         info = {progress_status: "just_started"}
-        expect(detector.get_progress_status_description(info)).to eq("Just started (0-20% done)")
+        expect(detector.progress_status_description(info)).to eq("Just started (0-20% done)")
       end
 
       it "returns description for has_next_actions" do
         info = {progress_status: "has_next_actions"}
-        expect(detector.get_progress_status_description(info)).to eq("Has next actions to perform")
+        expect(detector.progress_status_description(info)).to eq("Has next actions to perform")
       end
 
       it "returns description for waiting_for_input" do
         info = {progress_status: "waiting_for_input"}
-        expect(detector.get_progress_status_description(info)).to eq("Waiting for user input")
+        expect(detector.progress_status_description(info)).to eq("Waiting for user input")
       end
 
       it "returns description for has_errors" do
         info = {progress_status: "has_errors"}
-        expect(detector.get_progress_status_description(info)).to eq("Has errors that need attention")
+        expect(detector.progress_status_description(info)).to eq("Has errors that need attention")
       end
 
       it "returns description for in_progress" do
         info = {progress_status: "in_progress"}
-        expect(detector.get_progress_status_description(info)).to eq("Work in progress")
+        expect(detector.progress_status_description(info)).to eq("Work in progress")
       end
 
       it "returns unknown for unknown status" do
         info = {progress_status: "unknown_status"}
-        expect(detector.get_progress_status_description(info)).to eq("Status unknown")
+        expect(detector.progress_status_description(info)).to eq("Status unknown")
       end
 
       it "returns unknown for nil info" do
-        expect(detector.get_progress_status_description(nil)).to eq("unknown")
+        expect(detector.progress_status_description(nil)).to eq("unknown")
       end
     end
   end

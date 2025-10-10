@@ -283,9 +283,9 @@ RSpec.describe Aidp::Harness::UserInterface do
       end
     end
 
-    describe "#get_control_status" do
+    describe "#control_status" do
       it "returns control status information" do
-        status = ui.get_control_status
+        status = ui.control_status
 
         expect(status).to be_a(Hash)
         expect(status).to have_key(:enabled)
@@ -303,7 +303,7 @@ RSpec.describe Aidp::Harness::UserInterface do
 
       it "reflects current control state" do
         ui.request_pause
-        status = ui.get_control_status
+        status = ui.control_status
 
         expect(status[:pause_requested]).to be true
         expect(status[:stop_requested]).to be false
@@ -537,7 +537,7 @@ RSpec.describe Aidp::Harness::UserInterface do
         end
 
         # Should not raise any errors and state should be consistent
-        status = ui.get_control_status
+        status = ui.control_status
         expect(status).to be_a(Hash)
       end
     end

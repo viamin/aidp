@@ -70,14 +70,9 @@ module Aidp
 
         begin
           # Use debug_execute_command for better debugging
-          # Try agent command first (better for large prompts), fallback to -p mode
-          begin
-            result = debug_execute_command("cursor-agent", args: ["agent"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
-          rescue => e
-            # Fallback to -p mode if agent command fails
-            debug_log("🔄 Falling back to -p mode: #{e.message}", level: :warn)
-            result = debug_execute_command("cursor-agent", args: ["-p"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
-          end
+          # Use -p mode (designed for non-interactive/script use)
+          # No fallback to interactive modes - they would hang AIDP's automation workflow
+          result = debug_execute_command("cursor-agent", args: ["-p"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
 
           # Log the results
           debug_command("cursor-agent", args: ["-p"], input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
@@ -215,7 +210,10 @@ module Aidp
           end
 
           servers
-        rescue JSON::ParserError, StandardError => e
+        rescue JSON::ParserError => e
+          debug_log("Failed to parse Cursor MCP configuration: #{e.message}", level: :debug)
+          []
+        rescue => e
           debug_log("Failed to parse Cursor MCP configuration: #{e.message}", level: :debug)
           []
         end

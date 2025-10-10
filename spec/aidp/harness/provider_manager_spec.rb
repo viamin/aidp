@@ -10,6 +10,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
     allow(configuration).to receive(:default_provider).and_return("anthropic")
     allow(configuration).to receive(:configured_providers).and_return(["anthropic", "cursor", "macos"])
     allow(configuration).to receive(:provider_configured?).and_return(true)
+    allow(configuration).to receive(:provider_models).and_return(["model1", "model2"])
 
     # Mock provider CLI availability to ensure tests work in CI without installed providers
     allow_any_instance_of(described_class).to receive(:provider_cli_available?).and_return(true)
@@ -27,11 +28,11 @@ RSpec.describe Aidp::Harness::ProviderManager do
     end
 
     it "initializes fallback chains" do
-      expect(manager.get_fallback_chain("anthropic")).to include("anthropic", "cursor", "macos")
+      expect(manager.fallback_chain("anthropic")).to include("anthropic", "cursor", "macos")
     end
 
     it "initializes provider health" do
-      health = manager.get_provider_health_status
+      health = manager.provider_health_status
       expect(health["anthropic"][:status]).to eq("healthy")
       expect(health["cursor"][:status]).to eq("healthy")
       expect(health["macos"][:status]).to eq("healthy")
@@ -116,7 +117,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
   describe "fallback chains" do
     describe "#get_fallback_chain" do
       it "returns fallback chain for provider" do
-        chain = manager.get_fallback_chain("anthropic")
+        chain = manager.fallback_chain("anthropic")
         expect(chain).to include("anthropic", "cursor", "macos")
         expect(chain.first).to eq("anthropic")
       end
@@ -247,21 +248,21 @@ RSpec.describe Aidp::Harness::ProviderManager do
     describe "#update_provider_health" do
       it "updates health on success" do
         manager.update_provider_health("anthropic", "success")
-        health = manager.get_provider_health_status["anthropic"]
+        health = manager.provider_health_status["anthropic"]
         expect(health[:success_count]).to eq(1)
         expect(health[:status]).to eq("healthy")
       end
 
       it "updates health on error" do
         manager.update_provider_health("anthropic", "error")
-        health = manager.get_provider_health_status["anthropic"]
+        health = manager.provider_health_status["anthropic"]
         expect(health[:error_count]).to eq(1)
       end
 
       it "opens circuit breaker after threshold errors" do
         5.times { manager.update_provider_health("anthropic", "error") }
 
-        health = manager.get_provider_health_status["anthropic"]
+        health = manager.provider_health_status["anthropic"]
         expect(health[:circuit_breaker_open]).to be true
         expect(health[:status]).to eq("circuit_breaker_open")
       end
@@ -273,7 +274,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         # Reset with success
         manager.update_provider_health("anthropic", "success")
 
-        health = manager.get_provider_health_status["anthropic"]
+        health = manager.provider_health_status["anthropic"]
         expect(health[:circuit_breaker_open]).to be false
         expect(health[:status]).to eq("healthy")
       end
@@ -305,7 +306,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
       it "updates provider health" do
         manager.mark_rate_limited("anthropic")
-        health = manager.get_provider_health_status["anthropic"]
+        health = manager.provider_health_status["anthropic"]
         expect(health[:last_rate_limited]).not_to be_nil
       end
     end
@@ -324,7 +325,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "records successful request metrics" do
         manager.record_metrics("anthropic", success: true, duration: 1.5, tokens_used: 150)
 
-        metrics = manager.get_metrics("anthropic")
+        metrics = manager.metrics("anthropic")
         expect(metrics[:total_requests]).to eq(1)
         expect(metrics[:successful_requests]).to eq(1)
         expect(metrics[:failed_requests]).to eq(0)
@@ -336,7 +337,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         error = StandardError.new("Test error")
         manager.record_metrics("anthropic", success: false, duration: 0.5, error: error)
 
-        metrics = manager.get_metrics("anthropic")
+        metrics = manager.metrics("anthropic")
         expect(metrics[:total_requests]).to eq(1)
         expect(metrics[:successful_requests]).to eq(0)
         expect(metrics[:failed_requests]).to eq(1)
@@ -347,14 +348,14 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "updates provider health on success" do
         manager.record_metrics("anthropic", success: true, duration: 1.0)
 
-        health = manager.get_provider_health_status["anthropic"]
+        health = manager.provider_health_status["anthropic"]
         expect(health[:success_count]).to eq(1)
       end
 
       it "updates provider health on error" do
         manager.record_metrics("anthropic", success: false, duration: 0.5)
 
-        health = manager.get_provider_health_status["anthropic"]
+        health = manager.provider_health_status["anthropic"]
         expect(health[:error_count]).to eq(1)
       end
     end
@@ -400,7 +401,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
     describe "#get_provider_health_status" do
       it "returns detailed health status" do
-        health = manager.get_provider_health_status
+        health = manager.provider_health_status
 
         expect(health).to have_key("anthropic")
         expect(health).to have_key("cursor")
@@ -426,13 +427,13 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
     describe "#get_sticky_session_provider" do
       it "returns nil for no session" do
-        provider = manager.get_sticky_session_provider(nil)
+        provider = manager.sticky_session_provider(nil)
         expect(provider).to be_nil
       end
 
       it "returns provider for recent session" do
         manager.update_sticky_session("anthropic")
-        provider = manager.get_sticky_session_provider("session123")
+        provider = manager.sticky_session_provider("session123")
         expect(provider).to eq("anthropic")
       end
     end
@@ -452,7 +453,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         # Check state is reset
         expect(manager.current_provider).to eq("anthropic")
         expect(manager.is_rate_limited?("anthropic")).to be false
-        expect(manager.get_metrics("anthropic")).to be_empty
+        expect(manager.metrics("anthropic")).to be_empty
       end
     end
   end
@@ -483,13 +484,13 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
     describe "#get_available_providers" do
       it "returns all providers when all are available" do
-        providers = manager.get_available_providers
+        providers = manager.available_providers
         expect(providers).to include("anthropic", "cursor", "macos")
       end
 
       it "excludes rate-limited providers" do
         manager.mark_rate_limited("anthropic")
-        providers = manager.get_available_providers
+        providers = manager.available_providers
         expect(providers).not_to include("anthropic")
         expect(providers).to include("cursor", "macos")
       end
@@ -497,7 +498,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "excludes unhealthy providers" do
         # Make anthropic unhealthy
         6.times { manager.update_provider_health("anthropic", "error") }
-        providers = manager.get_available_providers
+        providers = manager.available_providers
         expect(providers).not_to include("anthropic")
         expect(providers).to include("cursor", "macos")
       end

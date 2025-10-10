@@ -57,7 +57,7 @@ module Aidp
         server_matrix = build_server_matrix
         eligible_providers = []
 
-        @configuration.configured_providers.each do |provider|
+        @configuration.provider_names.each do |provider|
           provider_servers = server_matrix[:provider_servers][provider] || []
           enabled_servers = provider_servers.select { |s| s[:enabled] }.map { |s| s[:name] }
 
@@ -70,7 +70,7 @@ module Aidp
         {
           required_servers: required_servers,
           eligible_providers: eligible_providers,
-          total_providers: @configuration.configured_providers.size
+          total_providers: @configuration.provider_names.size
         }
       end
 
@@ -96,7 +96,7 @@ module Aidp
       private
 
       def build_server_matrix
-        providers = @configuration.configured_providers
+        providers = @configuration.provider_names
         all_servers = {} # server_name => {providers: {provider_name => server_info}}
         provider_servers = {} # provider_name => [server_info]
 

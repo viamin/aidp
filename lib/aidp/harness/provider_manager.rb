@@ -49,7 +49,7 @@ module Aidp
 
       # Get current model
       def current_model
-        @current_model ||= get_default_model(current_provider)
+        @current_model ||= default_model(current_provider)
       end
 
       # Get current provider and model combination
@@ -59,16 +59,16 @@ module Aidp
 
       # Get configured providers from configuration
       def configured_providers
-        @configuration.configured_providers
+        @configuration.provider_names
       end
 
       # Switch to next available provider with sophisticated fallback logic
       def switch_provider(reason = "manual_switch", context = {})
         # Get fallback chain for current provider
-        fallback_chain = get_fallback_chain(current_provider)
+        provider_fallback_chain = fallback_chain(current_provider)
 
         # Find next healthy provider in fallback chain
-        next_provider = find_next_healthy_provider(fallback_chain, current_provider)
+        next_provider = find_next_healthy_provider(provider_fallback_chain, current_provider)
 
         if next_provider
           success = set_current_provider(next_provider, reason, context)
@@ -153,7 +153,7 @@ module Aidp
         return nil unless @model_switching_enabled
 
         # Get fallback chain for current provider's models
-        model_chain = get_model_fallback_chain(current_provider)
+        model_chain = model_fallback_chain(current_provider)
 
         # Find next healthy model in fallback chain
         next_model = find_next_healthy_model(model_chain, current_model)
@@ -284,15 +284,15 @@ module Aidp
         update_sticky_session(provider_name) if context[:session_id]
 
         # Reset current model when switching providers
-        @current_model = get_default_model(provider_name)
+        @current_model = default_model(provider_name)
 
         @current_provider = provider_name
         true
       end
 
       # Get available providers (not rate limited, healthy, and circuit breaker closed)
-      def get_available_providers
-        all_providers = @configuration.configured_providers
+      def available_providers
+        all_providers = @configuration.provider_names
         all_providers.select do |provider|
           !is_rate_limited?(provider) &&
             is_provider_healthy?(provider) &&
@@ -301,8 +301,8 @@ module Aidp
       end
 
       # Get available models for a provider
-      def get_available_models(provider_name)
-        models = get_provider_models(provider_name)
+      def available_models(provider_name)
+        models = provider_models(provider_name)
         models.select do |model|
           model_available?(provider_name, model) &&
             is_model_healthy?(provider_name, model) &&
@@ -321,18 +321,18 @@ module Aidp
 
       # Check if model is configured for provider
       def model_configured?(provider_name, model_name)
-        models = get_provider_models(provider_name)
+        models = provider_models(provider_name)
         models.include?(model_name)
       end
 
       # Get models for a provider
-      def get_provider_models(provider_name)
+      def provider_models(provider_name)
         @model_configs[provider_name] || []
       end
 
       # Get default model for provider
-      def get_default_model(provider_name)
-        models = get_provider_models(provider_name)
+      def default_model(provider_name)
+        models = provider_models(provider_name)
         return models.first if models.any?
 
         # Fallback to provider-specific defaults
@@ -349,18 +349,18 @@ module Aidp
       end
 
       # Get fallback chain for a provider
-      def get_fallback_chain(provider_name)
+      def fallback_chain(provider_name)
         @fallback_chains[provider_name] || build_default_fallback_chain(provider_name)
       end
 
       # Get fallback chain for models within a provider
-      def get_model_fallback_chain(provider_name)
+      def model_fallback_chain(provider_name)
         @model_fallback_chains[provider_name] || build_default_model_fallback_chain(provider_name)
       end
 
       # Build default model fallback chain
       def build_default_model_fallback_chain(provider_name)
-        models = get_provider_models(provider_name)
+        models = provider_models(provider_name)
         @model_fallback_chains[provider_name] = models.dup
         models
       end
@@ -382,7 +382,7 @@ module Aidp
 
       # Find any available model for provider
       def find_any_available_model(provider_name)
-        available_models = get_available_models(provider_name)
+        available_models = available_models(provider_name)
         return nil if available_models.empty?
 
         # Use weighted selection if weights are configured
@@ -396,7 +396,7 @@ module Aidp
 
       # Select model by load balancing
       def select_model_by_load_balancing(provider_name)
-        available_models = get_available_models(provider_name)
+        available_models = available_models(provider_name)
         return nil if available_models.empty?
 
         # Calculate load for each model
@@ -429,7 +429,7 @@ module Aidp
 
       # Calculate model load
       def calculate_model_load(provider_name, model_name)
-        metrics = get_model_metrics(provider_name, model_name)
+        metrics = model_metrics(provider_name, model_name)
         return 0 if metrics.empty?
 
         # Calculate load based on success rate, response time, and current usage
@@ -443,7 +443,7 @@ module Aidp
 
       # Calculate current usage for model
       def calculate_model_current_usage(provider_name, model_name)
-        metrics = get_model_metrics(provider_name, model_name)
+        metrics = model_metrics(provider_name, model_name)
         return 0 if metrics.empty?
 
         last_used = metrics[:last_used]
@@ -462,7 +462,7 @@ module Aidp
 
       # Build default fallback chain
       def build_default_fallback_chain(provider_name)
-        all_providers = @configuration.configured_providers
+        all_providers = @configuration.provider_names
         fallback_chain = all_providers.dup
         fallback_chain.delete(provider_name)
         fallback_chain.unshift(provider_name) # Put current provider first
@@ -487,25 +487,25 @@ module Aidp
 
       # Find any available provider
       def find_any_available_provider
-        available_providers = get_available_providers
-        return nil if available_providers.empty?
+        provider_list = available_providers
+        return nil if provider_list.empty?
 
         # Use weighted selection if weights are configured
         if @provider_weights.any?
-          select_provider_by_weight(available_providers)
+          select_provider_by_weight(provider_list)
         else
           # Simple round-robin selection
-          available_providers.first
+          provider_list.first
         end
       end
 
       # Select provider by load balancing
       def select_provider_by_load_balancing
-        available_providers = get_available_providers
-        return nil if available_providers.empty?
+        provider_list = available_providers
+        return nil if provider_list.empty?
 
         # Calculate load for each provider
-        provider_loads = available_providers.map do |provider|
+        provider_loads = provider_list.map do |provider|
           load = calculate_provider_load(provider)
           [provider, load]
         end
@@ -533,12 +533,12 @@ module Aidp
 
       # Calculate provider load
       def calculate_provider_load(provider_name)
-        metrics = get_metrics(provider_name)
-        return 0 if metrics.empty?
+        provider_metrics = metrics(provider_name)
+        return 0 if provider_metrics.empty?
 
         # Calculate load based on success rate, response time, and current usage
-        success_rate = metrics[:successful_requests].to_f / [metrics[:total_requests], 1].max
-        avg_response_time = metrics[:total_duration] / [metrics[:successful_requests], 1].max
+        success_rate = provider_metrics[:successful_requests].to_f / [provider_metrics[:total_requests], 1].max
+        avg_response_time = provider_metrics[:total_duration] / [provider_metrics[:successful_requests], 1].max
         current_usage = calculate_current_usage(provider_name)
 
         # Load formula: higher is worse
@@ -548,10 +548,10 @@ module Aidp
       # Calculate current usage for provider
       def calculate_current_usage(provider_name)
         # Simple usage calculation based on recent activity
-        metrics = get_metrics(provider_name)
-        return 0 if metrics.empty?
+        provider_metrics = metrics(provider_name)
+        return 0 if provider_metrics.empty?
 
-        last_used = metrics[:last_used]
+        last_used = provider_metrics[:last_used]
         return 0 unless last_used
 
         # Higher usage if used recently
@@ -960,12 +960,12 @@ module Aidp
       end
 
       # Get model metrics
-      def get_model_metrics(provider_name, model_name)
+      def model_metrics(provider_name, model_name)
         @model_metrics[provider_name]&.dig(model_name) || {}
       end
 
       # Get all model metrics for provider
-      def get_all_model_metrics(provider_name)
+      def all_model_metrics(provider_name)
         @model_metrics[provider_name] || {}
       end
 
@@ -976,7 +976,7 @@ module Aidp
       end
 
       # Get provider metrics
-      def get_metrics(provider_name)
+      def metrics(provider_name)
         @provider_metrics[provider_name] || {}
       end
 
@@ -1098,9 +1098,9 @@ module Aidp
       # Summarize health and metrics for dashboard/CLI display
       def health_dashboard
         now = Time.now
-        statuses = get_provider_health_status
+        statuses = provider_health_status
         metrics = all_metrics
-        configured = @configuration.configured_providers
+        configured = @configuration.provider_names
         # Ensure fresh binary probe results in test mode so stubs of Aidp::Util.which take effect
         if defined?(RSpec) || ENV["RSPEC_RUNNING"]
           @binary_check_cache.clear
@@ -1210,7 +1210,7 @@ module Aidp
           current_provider: current_provider,
           current_model: current_model,
           current_provider_model: current_provider_model,
-          available_providers: get_available_providers,
+          available_providers: available_providers,
           rate_limited_providers: @rate_limit_info.keys,
           unhealthy_providers: @provider_health.select { |_, health| health[:status] != "healthy" }.keys,
           circuit_breaker_open: @provider_health.select { |_, health| health[:circuit_breaker_open] }.keys,
@@ -1224,7 +1224,7 @@ module Aidp
       end
 
       # Get detailed provider health status
-      def get_provider_health_status
+      def provider_health_status
         @provider_health.transform_values do |health|
           {
             status: health[:status],
@@ -1241,7 +1241,7 @@ module Aidp
       end
 
       # Get detailed model health status
-      def get_model_health_status(provider_name)
+      def model_health_status(provider_name)
         @model_health[provider_name]&.transform_values do |health|
           {
             status: health[:status],
@@ -1256,7 +1256,7 @@ module Aidp
       end
 
       # Get all model health status
-      def get_all_model_health_status
+      def all_model_health_status
         @model_health.transform_values do |provider_models|
           provider_models.transform_values do |health|
             {
@@ -1298,7 +1298,7 @@ module Aidp
       end
 
       # Get sticky session provider
-      def get_sticky_session_provider(session_id)
+      def sticky_session_provider(session_id)
         return nil unless session_id
 
         # Find provider with recent session activity
@@ -1353,7 +1353,7 @@ module Aidp
       # Initialize fallback chains
       def initialize_fallback_chains
         @fallback_chains.clear
-        all_providers = @configuration.configured_providers
+        all_providers = @configuration.provider_names
 
         all_providers.each do |provider|
           build_default_fallback_chain(provider)
@@ -1363,7 +1363,7 @@ module Aidp
       # Initialize provider health
       def initialize_provider_health
         @provider_health.clear
-        all_providers = @configuration.configured_providers
+        all_providers = @configuration.provider_names
 
         all_providers.each do |provider|
           @provider_health[provider] = {
@@ -1380,21 +1380,21 @@ module Aidp
       # Initialize model configurations
       def initialize_model_configs
         @model_configs.clear
-        all_providers = @configuration.configured_providers
+        all_providers = @configuration.provider_names
 
         all_providers.each do |provider|
-          @model_configs[provider] = get_default_models_for_provider(provider)
+          @model_configs[provider] = @configuration.provider_models(provider)
         end
       end
 
       # Initialize model health
       def initialize_model_health
         @model_health.clear
-        all_providers = @configuration.configured_providers
+        all_providers = @configuration.provider_names
 
         all_providers.each do |provider|
           @model_health[provider] = {}
-          models = get_default_models_for_provider(provider)
+          models = @configuration.provider_models(provider)
 
           models.each do |model|
             @model_health[provider][model] = {
@@ -1410,7 +1410,7 @@ module Aidp
       end
 
       # Get default models for provider
-      def get_default_models_for_provider(provider_name)
+      def default_models_for_provider(provider_name)
         case provider_name
         when "claude"
           ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]

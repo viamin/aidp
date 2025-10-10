@@ -120,8 +120,9 @@ module Aidp
           args += ["--model", model]
         end
 
-        # Add approval flag
+        # Add approval flag - but warn about interactive behavior
         if ask_for_approval
+          debug_log("⚠️  WARNING: --ask-for-approval flag may cause interactive prompts that could hang AIDP", level: :warn)
           args += ["--ask-for-approval"]
         end
 

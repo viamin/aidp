@@ -161,13 +161,13 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "display configuration" do
     it "sets display mode" do
-      status_display.set_display_mode(:detailed)
+      status_display.display_mode(:detailed)
 
       expect(status_display.instance_variable_get(:@display_mode)).to eq(:detailed)
     end
 
     it "sets update interval" do
-      status_display.set_update_interval(5)
+      status_display.update_interval(5)
 
       expect(status_display.instance_variable_get(:@update_interval)).to eq(5)
     end
@@ -492,7 +492,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "comprehensive status data" do
     it "gets comprehensive status data" do
-      status_data = status_display.get_status_data
+      status_data = status_display.status_data
 
       expect(status_data).to include(
         :basic_info,
@@ -641,7 +641,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       end
 
       it "gets active alerts" do
-        alerts = alert_manager.get_active_alerts
+        alerts = alert_manager.active_alerts
 
         expect(alerts).to be_an(Array)
       end

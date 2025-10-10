@@ -37,7 +37,7 @@ RSpec.describe "Provider failure exhaustion handling" do
     end
 
     expect(result[:status]).to eq("failed")
-    expect(provider_manager.get_provider_health_status[start_provider][:unhealthy_reason]).to eq("fail_exhausted")
+    expect(provider_manager.provider_health_status[start_provider][:unhealthy_reason]).to eq("fail_exhausted")
   end
 
   it "does not override auth unhealthy state with fail_exhausted" do

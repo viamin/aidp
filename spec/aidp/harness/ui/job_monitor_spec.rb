@@ -22,7 +22,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       it "creates job with correct initial status" do
         job_monitor.register_job("test_job", sample_job_data)
 
-        job_status = job_monitor.get_job_status("test_job")
+        job_status = job_monitor.job_status("test_job")
         expect(job_status[:status]).to eq(:pending)
       end
 
@@ -30,7 +30,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
         minimal_job_data = {status: :running}
         job_monitor.register_job("minimal_job", minimal_job_data)
 
-        job_status = job_monitor.get_job_status("minimal_job")
+        job_status = job_monitor.job_status("minimal_job")
         expect(job_status[:priority]).to eq(:normal)
         expect(job_status[:progress]).to eq(0)
       end
@@ -58,16 +58,16 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       it "updates job status successfully" do
         job_monitor.update_job_status("test_job", :running)
 
-        job_status = job_monitor.get_job_status("test_job")
+        job_status = job_monitor.job_status("test_job")
         expect(job_status[:status]).to eq(:running)
       end
 
       it "updates last_updated timestamp" do
-        original_time = job_monitor.get_job_status("test_job")[:last_updated]
+        original_time = job_monitor.job_status("test_job")[:last_updated]
         sleep(0.01) # Ensure time difference
         job_monitor.update_job_status("test_job", :running)
 
-        updated_time = job_monitor.get_job_status("test_job")[:last_updated]
+        updated_time = job_monitor.job_status("test_job")[:last_updated]
         expect(updated_time).to be > original_time
       end
 
@@ -75,7 +75,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
         additional_data = {progress: 50, current_step: 2}
         job_monitor.update_job_status("test_job", :running, additional_data)
 
-        job_status = job_monitor.get_job_status("test_job")
+        job_status = job_monitor.job_status("test_job")
         expect(job_status[:progress]).to eq(50)
         expect(job_status[:current_step]).to eq(2)
       end
@@ -101,7 +101,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
 
     context "when job exists" do
       it "returns job status information" do
-        job_status = job_monitor.get_job_status("test_job")
+        job_status = job_monitor.job_status("test_job")
 
         expect(job_status).to include(
           :id, :status, :priority, :created_at, :last_updated
@@ -109,10 +109,10 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       end
 
       it "returns a copy of the job data" do
-        job_status = job_monitor.get_job_status("test_job")
+        job_status = job_monitor.job_status("test_job")
         job_status[:status] = :modified
 
-        original_status = job_monitor.get_job_status("test_job")
+        original_status = job_monitor.job_status("test_job")
         expect(original_status[:status]).to eq(:pending)
       end
     end
@@ -120,7 +120,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
     context "when job does not exist" do
       it "raises JobNotFoundError" do
         expect {
-          job_monitor.get_job_status("non_existent_job")
+          job_monitor.job_status("non_existent_job")
         }.to raise_error(Aidp::Harness::UI::JobMonitor::JobNotFoundError)
       end
     end
@@ -135,7 +135,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
 
     context "when jobs with specified status exist" do
       it "returns jobs with matching status" do
-        running_jobs = job_monitor.get_jobs_by_status(:running)
+        running_jobs = job_monitor.jobs_by_status(:running)
 
         expect(running_jobs.keys).to match_array(["job1", "job3"])
         expect(running_jobs["job1"][:status]).to eq(:running)
@@ -145,7 +145,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
 
     context "when no jobs with specified status exist" do
       it "returns empty hash" do
-        completed_jobs = job_monitor.get_jobs_by_status(:completed)
+        completed_jobs = job_monitor.jobs_by_status(:completed)
 
         expect(completed_jobs).to be_empty
       end
@@ -154,7 +154,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
     context "when invalid status is provided" do
       it "raises MonitorError" do
         expect {
-          job_monitor.get_jobs_by_status(:invalid_status)
+          job_monitor.jobs_by_status(:invalid_status)
         }.to raise_error(Aidp::Harness::UI::JobMonitor::MonitorError)
       end
     end
@@ -169,7 +169,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
 
     context "when jobs with specified priority exist" do
       it "returns jobs with matching priority" do
-        high_priority_jobs = job_monitor.get_jobs_by_priority(:high)
+        high_priority_jobs = job_monitor.jobs_by_priority(:high)
 
         expect(high_priority_jobs.keys).to match_array(["job1", "job3"])
         expect(high_priority_jobs["job1"][:priority]).to eq(:high)
@@ -257,7 +257,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
     end
 
     it "returns comprehensive monitoring summary" do
-      summary = job_monitor.get_monitoring_summary
+      summary = job_monitor.monitoring_summary
 
       expect(summary).to include(
         :total_jobs,
@@ -269,7 +269,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
     end
 
     it "includes correct job counts" do
-      summary = job_monitor.get_monitoring_summary
+      summary = job_monitor.monitoring_summary
 
       expect(summary[:total_jobs]).to eq(2)
       expect(summary[:jobs_by_status][:running]).to eq(1)

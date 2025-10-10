@@ -8,8 +8,11 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
   before do
     allow(configuration).to receive(:default_provider).and_return("claude")
-    allow(configuration).to receive(:configured_providers).and_return(["claude", "gemini", "cursor"])
+    allow(configuration).to receive(:provider_names).and_return(["claude", "gemini", "cursor"])
     allow(configuration).to receive(:provider_configured?).and_return(true)
+    allow(configuration).to receive(:provider_models).with("claude").and_return(["claude-3-5-sonnet"])
+    allow(configuration).to receive(:provider_models).with("gemini").and_return(["gemini-pro"])
+    allow(configuration).to receive(:provider_models).with("cursor").and_return(["cursor-small"])
 
     # Stub sleep to eliminate retry delays in tests
     allow_any_instance_of(described_class).to receive(:sleep)
@@ -22,18 +25,18 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
 
       it "initializes model configurations" do
-        claude_models = manager.get_provider_models("claude")
+        claude_models = manager.provider_models("claude")
         expect(claude_models).to include("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229")
 
-        gemini_models = manager.get_provider_models("gemini")
+        gemini_models = manager.provider_models("gemini")
         expect(gemini_models).to include("gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro")
 
-        cursor_models = manager.get_provider_models("cursor")
+        cursor_models = manager.provider_models("cursor")
         expect(cursor_models).to include("cursor-default", "cursor-fast", "cursor-precise")
       end
 
       it "initializes model health" do
-        health = manager.get_model_health_status("claude")
+        health = manager.model_health_status("claude")
         expect(health["claude-3-5-sonnet-20241022"][:status]).to eq("healthy")
         expect(health["claude-3-5-haiku-20241022"][:status]).to eq("healthy")
       end
@@ -159,15 +162,15 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
     end
 
-    describe "#get_available_models" do
+    describe "#available_models" do
       it "returns all models when all are available" do
-        models = manager.get_available_models("claude")
+        models = manager.available_models("claude")
         expect(models).to include("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229")
       end
 
       it "excludes rate-limited models" do
         manager.mark_model_rate_limited("claude", "claude-3-5-sonnet-20241022")
-        models = manager.get_available_models("claude")
+        models = manager.available_models("claude")
         expect(models).not_to include("claude-3-5-sonnet-20241022")
         expect(models).to include("claude-3-5-haiku-20241022", "claude-3-opus-20240229")
       end
@@ -176,7 +179,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         # Make model unhealthy
         6.times { manager.update_model_health("claude", "claude-3-5-sonnet-20241022", "error") }
 
-        models = manager.get_available_models("claude")
+        models = manager.available_models("claude")
         expect(models).not_to include("claude-3-5-sonnet-20241022")
         expect(models).to include("claude-3-5-haiku-20241022", "claude-3-opus-20240229")
       end
@@ -223,21 +226,21 @@ RSpec.describe Aidp::Harness::ProviderManager do
     describe "#update_model_health" do
       it "updates health on success" do
         manager.update_model_health("claude", "claude-3-5-sonnet-20241022", "success")
-        health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
+        health = manager.model_health_status("claude")["claude-3-5-sonnet-20241022"]
         expect(health[:success_count]).to eq(1)
         expect(health[:status]).to eq("healthy")
       end
 
       it "updates health on error" do
         manager.update_model_health("claude", "claude-3-5-sonnet-20241022", "error")
-        health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
+        health = manager.model_health_status("claude")["claude-3-5-sonnet-20241022"]
         expect(health[:error_count]).to eq(1)
       end
 
       it "opens circuit breaker after threshold errors" do
         5.times { manager.update_model_health("claude", "claude-3-5-sonnet-20241022", "error") }
 
-        health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
+        health = manager.model_health_status("claude")["claude-3-5-sonnet-20241022"]
         expect(health[:circuit_breaker_open]).to be true
         expect(health[:status]).to eq("circuit_breaker_open")
       end
@@ -249,7 +252,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         # Reset with success
         manager.update_model_health("claude", "claude-3-5-sonnet-20241022", "success")
 
-        health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
+        health = manager.model_health_status("claude")["claude-3-5-sonnet-20241022"]
         expect(health[:circuit_breaker_open]).to be false
         expect(health[:status]).to eq("healthy")
       end
@@ -281,7 +284,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
       it "updates model health" do
         manager.mark_model_rate_limited("claude", "claude-3-5-sonnet-20241022")
-        health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
+        health = manager.model_health_status("claude")["claude-3-5-sonnet-20241022"]
         expect(health[:last_rate_limited]).not_to be_nil
       end
     end
@@ -300,7 +303,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "records successful request metrics" do
         manager.record_model_metrics("claude", "claude-3-5-sonnet-20241022", success: true, duration: 1.5, tokens_used: 150)
 
-        metrics = manager.get_model_metrics("claude", "claude-3-5-sonnet-20241022")
+        metrics = manager.model_metrics("claude", "claude-3-5-sonnet-20241022")
         expect(metrics[:total_requests]).to eq(1)
         expect(metrics[:successful_requests]).to eq(1)
         expect(metrics[:failed_requests]).to eq(0)
@@ -312,7 +315,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         error = StandardError.new("Test error")
         manager.record_model_metrics("claude", "claude-3-5-sonnet-20241022", success: false, duration: 0.5, error: error)
 
-        metrics = manager.get_model_metrics("claude", "claude-3-5-sonnet-20241022")
+        metrics = manager.model_metrics("claude", "claude-3-5-sonnet-20241022")
         expect(metrics[:total_requests]).to eq(1)
         expect(metrics[:successful_requests]).to eq(0)
         expect(metrics[:failed_requests]).to eq(1)
@@ -323,39 +326,39 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "updates model health on success" do
         manager.record_model_metrics("claude", "claude-3-5-sonnet-20241022", success: true, duration: 1.0)
 
-        health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
+        health = manager.model_health_status("claude")["claude-3-5-sonnet-20241022"]
         expect(health[:success_count]).to eq(1)
       end
 
       it "updates model health on error" do
         manager.record_model_metrics("claude", "claude-3-5-sonnet-20241022", success: false, duration: 0.5)
 
-        health = manager.get_model_health_status("claude")["claude-3-5-sonnet-20241022"]
+        health = manager.model_health_status("claude")["claude-3-5-sonnet-20241022"]
         expect(health[:error_count]).to eq(1)
       end
     end
 
-    describe "#get_model_metrics" do
+    describe "#model_metrics" do
       it "returns model metrics" do
         manager.record_model_metrics("claude", "claude-3-5-sonnet-20241022", success: true, duration: 1.0)
 
-        metrics = manager.get_model_metrics("claude", "claude-3-5-sonnet-20241022")
+        metrics = manager.model_metrics("claude", "claude-3-5-sonnet-20241022")
         expect(metrics[:total_requests]).to eq(1)
         expect(metrics[:successful_requests]).to eq(1)
       end
 
       it "returns empty hash for no metrics" do
-        metrics = manager.get_model_metrics("claude", "nonexistent-model")
+        metrics = manager.model_metrics("claude", "nonexistent-model")
         expect(metrics).to eq({})
       end
     end
 
-    describe "#get_all_model_metrics" do
+    describe "#all_model_metrics" do
       it "returns all model metrics for provider" do
         manager.record_model_metrics("claude", "claude-3-5-sonnet-20241022", success: true, duration: 1.0)
         manager.record_model_metrics("claude", "claude-3-5-haiku-20241022", success: true, duration: 0.8)
 
-        all_metrics = manager.get_all_model_metrics("claude")
+        all_metrics = manager.all_model_metrics("claude")
         expect(all_metrics["claude-3-5-sonnet-20241022"][:total_requests]).to eq(1)
         expect(all_metrics["claude-3-5-haiku-20241022"][:total_requests]).to eq(1)
       end
@@ -419,9 +422,9 @@ RSpec.describe Aidp::Harness::ProviderManager do
   end
 
   describe "model fallback chains" do
-    describe "#get_model_fallback_chain" do
+    describe "#model_fallback_chain" do
       it "returns model fallback chain for provider" do
-        chain = manager.get_model_fallback_chain("claude")
+        chain = manager.model_fallback_chain("claude")
         expect(chain).to include("claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229")
       end
 
@@ -512,9 +515,9 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
     end
 
-    describe "#get_model_health_status" do
+    describe "#model_health_status" do
       it "returns detailed model health status" do
-        health = manager.get_model_health_status("claude")
+        health = manager.model_health_status("claude")
 
         expect(health).to have_key("claude-3-5-sonnet-20241022")
         expect(health).to have_key("claude-3-5-haiku-20241022")
@@ -528,9 +531,9 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
     end
 
-    describe "#get_all_model_health_status" do
+    describe "#all_model_health_status" do
       it "returns health status for all providers and models" do
-        all_health = manager.get_all_model_health_status
+        all_health = manager.all_model_health_status
 
         expect(all_health).to have_key("claude")
         expect(all_health).to have_key("gemini")
@@ -557,7 +560,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         # Check state is reset
         expect(manager.current_model).to eq("claude-3-5-sonnet-20241022")
         expect(manager.is_model_rate_limited?("claude", "claude-3-5-sonnet-20241022")).to be false
-        expect(manager.get_model_metrics("claude", "claude-3-5-sonnet-20241022")).to be_empty
+        expect(manager.model_metrics("claude", "claude-3-5-sonnet-20241022")).to be_empty
       end
     end
   end

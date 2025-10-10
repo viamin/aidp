@@ -100,7 +100,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "gets harness configuration" do
-      harness_config = loader.get_harness_config
+      harness_config = loader.harness_config
 
       expect(harness_config).to be_a(Hash)
       expect(harness_config[:default_provider]).to eq("cursor")
@@ -108,8 +108,8 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "gets provider configuration" do
-      cursor_config = loader.get_provider_config("cursor")
-      claude_config = loader.get_provider_config("claude")
+      cursor_config = loader.provider_config("cursor")
+      claude_config = loader.provider_config("claude")
 
       expect(cursor_config[:type]).to eq("subscription")
       expect(claude_config[:type]).to eq("usage_based")
@@ -117,7 +117,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "gets all provider configurations" do
-      all_providers = loader.get_all_provider_configs
+      all_providers = loader.all_provider_configs
 
       expect(all_providers).to have_key(:cursor)
       expect(all_providers).to have_key(:claude)
@@ -126,7 +126,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "gets configured provider names" do
-      provider_names = loader.get_configured_providers
+      provider_names = loader.configured_providers
 
       expect(provider_names).to include("cursor", "claude")
     end
@@ -164,7 +164,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         }
       }
 
-      config = loader.get_config_with_overrides(overrides)
+      config = loader.config_with_overrides(overrides)
 
       expect(config[:harness][:default_provider]).to eq("cursor")
       expect(config[:harness][:max_retries]).to eq(5)
@@ -178,7 +178,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         }
       }
 
-      harness_config = loader.get_harness_config_with_overrides(overrides)
+      harness_config = loader.harness_config_with_overrides(overrides)
 
       expect(harness_config[:default_provider]).to eq("cursor")
       expect(harness_config[:max_retries]).to eq(5)
@@ -193,7 +193,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         }
       }
 
-      provider_config = loader.get_provider_config_with_overrides("cursor", overrides)
+      provider_config = loader.provider_config_with_overrides("cursor", overrides)
 
       expect(provider_config[:type]).to eq("subscription")
       expect(provider_config[:priority]).to eq(3)
@@ -230,19 +230,19 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "gets analyze mode configuration" do
-      config = loader.get_mode_config("analyze")
+      config = loader.mode_config("analyze")
 
       expect(config[:harness][:max_retries]).to eq(5)
     end
 
     it "gets execute mode configuration" do
-      config = loader.get_mode_config("execute")
+      config = loader.mode_config("execute")
 
       expect(config[:harness][:max_retries]).to eq(3)
     end
 
     it "gets default configuration for unknown mode" do
-      config = loader.get_mode_config("unknown")
+      config = loader.mode_config("unknown")
 
       expect(config[:harness][:max_retries]).to eq(2)
     end
@@ -280,12 +280,12 @@ RSpec.describe Aidp::Harness::ConfigLoader do
     end
 
     it "gets production environment configuration" do
-      config = loader.get_environment_config("production")
+      config = loader.environment_config("production")
       expect(config[:harness][:max_retries]).to eq(1)
     end
 
     it "gets development environment configuration" do
-      config = loader.get_environment_config("development")
+      config = loader.environment_config("development")
 
       expect(config[:harness][:max_retries]).to eq(10)
     end
@@ -294,7 +294,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       original_env = ENV["AIDP_ENV"]
       ENV["AIDP_ENV"] = "production"
 
-      config = loader.get_environment_config
+      config = loader.environment_config
 
       expect(config[:harness][:max_retries]).to eq(1)
 
@@ -339,7 +339,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         debugging: false
       }
 
-      config = loader.get_config_with_features(features)
+      config = loader.config_with_features(features)
 
       expect(config[:harness][:max_retries]).to eq(1)
     end
@@ -350,7 +350,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         debugging: true
       }
 
-      config = loader.get_config_with_features(features)
+      config = loader.config_with_features(features)
 
       # Should use the last feature's configuration (debugging overrides high_performance)
       expect(config[:harness][:max_retries]).to eq(10)
@@ -396,7 +396,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       # Mock Time.now to return 10 AM on Tuesday (not Monday)
       allow(Time).to receive(:now).and_return(Time.new(2024, 1, 16, 10, 0, 0))
 
-      config = loader.get_time_based_config
+      config = loader.time_based_config
 
       expect(config[:harness][:max_retries]).to eq(1)
     end
@@ -405,7 +405,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       # Mock Time.now to return Monday
       allow(Time).to receive(:now).and_return(Time.new(2024, 1, 15, 8, 0, 0)) # Monday
 
-      config = loader.get_time_based_config
+      config = loader.time_based_config
 
       expect(config[:harness][:max_retries]).to eq(5)
     end
@@ -454,7 +454,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
 
       File.write(config_file, YAML.dump(invalid_config))
 
-      errors = loader.get_validation_errors
+      errors = loader.validation_errors
 
       expect(errors).not_to be_empty
     end
@@ -661,7 +661,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets complete configuration" do
-      config = manager.get_config
+      config = manager.config
 
       expect(config).to be_a(Hash)
       expect(config[:harness]).to be_a(Hash)
@@ -669,47 +669,47 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets harness configuration" do
-      harness_config = manager.get_harness_config
+      harness_config = manager.harness_config
 
       expect(harness_config[:default_provider]).to eq("cursor")
       expect(harness_config[:max_retries]).to eq(3)
     end
 
     it "gets provider configuration" do
-      cursor_config = manager.get_provider_config("cursor")
-      claude_config = manager.get_provider_config("claude")
+      cursor_config = manager.provider_config("cursor")
+      claude_config = manager.provider_config("claude")
 
       expect(cursor_config[:type]).to eq("subscription")
       expect(claude_config[:type]).to eq("usage_based")
     end
 
     it "gets all providers" do
-      providers = manager.get_all_providers
+      providers = manager.all_providers
 
       expect(providers).to have_key(:cursor)
       expect(providers).to have_key(:claude)
     end
 
     it "gets provider names" do
-      names = manager.get_provider_names
+      names = manager.provider_names
 
       expect(names).to include("cursor", "claude")
     end
 
     it "gets default provider" do
-      default = manager.get_default_provider
+      default = manager.default_provider
 
       expect(default).to eq("cursor")
     end
 
     it "gets fallback providers" do
-      fallbacks = manager.get_fallback_providers
+      fallbacks = manager.fallback_providers
 
       expect(fallbacks).to include("claude")
     end
 
     it "gets provider weights" do
-      weights = manager.get_provider_weights
+      weights = manager.provider_weights
 
       expect(weights["cursor"]).to eq(3)
       expect(weights["claude"]).to eq(2)
@@ -803,7 +803,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets retry configuration" do
-      retry_config = manager.get_retry_config
+      retry_config = manager.retry_config
 
       expect(retry_config[:enabled]).to be true
       expect(retry_config[:max_attempts]).to eq(5)
@@ -814,7 +814,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets circuit breaker configuration" do
-      cb_config = manager.get_circuit_breaker_config
+      cb_config = manager.circuit_breaker_config
 
       expect(cb_config[:enabled]).to be true
       expect(cb_config[:failure_threshold]).to eq(3)
@@ -823,7 +823,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets rate limit configuration" do
-      rate_limit_config = manager.get_rate_limit_config
+      rate_limit_config = manager.rate_limit_config
 
       expect(rate_limit_config[:enabled]).to be true
       expect(rate_limit_config[:default_reset_time]).to eq(1800)
@@ -832,7 +832,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets load balancing configuration" do
-      lb_config = manager.get_load_balancing_config
+      lb_config = manager.load_balancing_config
 
       expect(lb_config[:enabled]).to be true
       expect(lb_config[:strategy]).to eq("least_connections")
@@ -841,7 +841,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets model switching configuration" do
-      ms_config = manager.get_model_switching_config
+      ms_config = manager.model_switching_config
 
       expect(ms_config[:enabled]).to be true
       expect(ms_config[:auto_switch_on_error]).to be true
@@ -850,7 +850,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets health check configuration" do
-      hc_config = manager.get_health_check_config
+      hc_config = manager.health_check_config
 
       expect(hc_config[:enabled]).to be true
       expect(hc_config[:interval]).to eq(30)
@@ -860,7 +860,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets metrics configuration" do
-      metrics_config = manager.get_metrics_config
+      metrics_config = manager.metrics_config
 
       expect(metrics_config[:enabled]).to be true
       expect(metrics_config[:retention_days]).to eq(7)
@@ -869,7 +869,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets session configuration" do
-      session_config = manager.get_session_config
+      session_config = manager.session_config
 
       expect(session_config[:enabled]).to be true
       expect(session_config[:timeout]).to eq(900)
@@ -938,23 +938,23 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets provider models" do
-      cursor_models = manager.get_provider_models("cursor")
-      claude_models = manager.get_provider_models("claude")
+      cursor_models = manager.provider_models("cursor")
+      claude_models = manager.provider_models("claude")
 
       expect(cursor_models).to include("cursor-default", "cursor-fast")
       expect(claude_models).to include("claude-3-5-sonnet-20241022")
     end
 
     it "gets provider model weights" do
-      cursor_weights = manager.get_provider_model_weights("cursor")
+      cursor_weights = manager.provider_model_weights("cursor")
 
       expect(cursor_weights["cursor-default"]).to eq(3)
       expect(cursor_weights["cursor-fast"]).to eq(2)
     end
 
     it "gets provider model configuration" do
-      default_config = manager.get_provider_model_config("cursor", "cursor-default")
-      fast_config = manager.get_provider_model_config("cursor", "cursor-fast")
+      default_config = manager.provider_model_config("cursor", "cursor-default")
+      fast_config = manager.provider_model_config("cursor", "cursor-fast")
 
       expect(default_config[:flags]).to eq([])
       expect(default_config[:timeout]).to eq(600)
@@ -963,8 +963,8 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets provider features" do
-      cursor_features = manager.get_provider_features("cursor")
-      claude_features = manager.get_provider_features("claude")
+      cursor_features = manager.provider_features("cursor")
+      claude_features = manager.provider_features("claude")
 
       expect(cursor_features[:file_upload]).to be true
       expect(cursor_features[:vision]).to be false
@@ -973,7 +973,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets provider monitoring configuration" do
-      cursor_monitoring = manager.get_provider_monitoring_config("cursor")
+      cursor_monitoring = manager.provider_monitoring_config("cursor")
 
       expect(cursor_monitoring[:enabled]).to be true
       expect(cursor_monitoring[:metrics_interval]).to eq(30)
@@ -986,16 +986,16 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets provider priority" do
-      cursor_priority = manager.get_provider_priority("cursor")
-      claude_priority = manager.get_provider_priority("claude")
+      cursor_priority = manager.provider_priority("cursor")
+      claude_priority = manager.provider_priority("claude")
 
       expect(cursor_priority).to eq(1)
       expect(claude_priority).to eq(2)
     end
 
     it "gets provider type" do
-      cursor_type = manager.get_provider_type("cursor")
-      claude_type = manager.get_provider_type("claude")
+      cursor_type = manager.provider_type("cursor")
+      claude_type = manager.provider_type("claude")
 
       expect(cursor_type).to eq("subscription")
       expect(claude_type).to eq("usage_based")
@@ -1009,32 +1009,32 @@ RSpec.describe Aidp::Harness::ConfigManager do
     end
 
     it "gets provider max tokens" do
-      cursor_tokens = manager.get_provider_max_tokens("cursor")
-      claude_tokens = manager.get_provider_max_tokens("claude")
+      cursor_tokens = manager.provider_max_tokens("cursor")
+      claude_tokens = manager.provider_max_tokens("claude")
 
       expect(cursor_tokens).to be_nil
       expect(claude_tokens).to eq(100_000)
     end
 
     it "gets provider default flags" do
-      cursor_flags = manager.get_provider_default_flags("cursor")
-      claude_flags = manager.get_provider_default_flags("claude")
+      cursor_flags = manager.provider_default_flags("cursor")
+      claude_flags = manager.provider_default_flags("claude")
 
       expect(cursor_flags).to eq([])
       expect(claude_flags).to eq(["--dangerously-skip-permissions"])
     end
 
     it "gets provider auth configuration" do
-      cursor_auth = manager.get_provider_auth_config("cursor")
-      claude_auth = manager.get_provider_auth_config("claude")
+      cursor_auth = manager.provider_auth_config("cursor")
+      claude_auth = manager.provider_auth_config("claude")
 
       expect(cursor_auth[:api_key_env]).to be_nil
       expect(claude_auth[:api_key_env]).to eq("ANTHROPIC_API_KEY")
     end
 
     it "gets provider endpoints" do
-      cursor_endpoints = manager.get_provider_endpoints("cursor")
-      claude_endpoints = manager.get_provider_endpoints("claude")
+      cursor_endpoints = manager.provider_endpoints("cursor")
+      claude_endpoints = manager.provider_endpoints("claude")
 
       expect(cursor_endpoints[:default]).to be_nil
       expect(claude_endpoints[:default]).to eq("https://api.anthropic.com/v1/messages")
@@ -1082,7 +1082,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
 
       File.write(config_file, YAML.dump(invalid_config))
 
-      errors = manager.get_validation_errors
+      errors = manager.validation_errors
 
       expect(errors).not_to be_empty
     end
@@ -1106,7 +1106,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
       File.write(config_file, YAML.dump(config1))
       manager.reload_config
 
-      config = manager.get_config
+      config = manager.config
       expect(config[:harness][:default_provider]).to eq("cursor")
 
       # Modify configuration
@@ -1115,7 +1115,7 @@ RSpec.describe Aidp::Harness::ConfigManager do
       File.write(config_file, YAML.dump(config2))
 
       manager.reload_config
-      config = manager.get_config
+      config = manager.config
 
       expect(config[:harness][:default_provider]).to eq("claude")
     end
