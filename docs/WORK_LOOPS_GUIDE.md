@@ -283,6 +283,77 @@ AIDP (the work loop runner) is responsible for:
 - **Checking** for completion
 - **Archiving** PROMPT.md when done
 
+## Start from an Issue
+
+AIDP can import GitHub issues to automatically create work loops with structured PROMPT.md files.
+
+### Usage
+
+```bash
+# Import by URL
+aidp issue import https://github.com/owner/repo/issues/123
+
+# Import by number (when in a git repo)
+aidp issue import 123
+
+# Import using shorthand
+aidp issue import owner/repo#123
+
+# Start the work loop
+aidp execute
+```
+
+### Prerequisites
+
+| Method | Requirement | Access |
+|--------|-------------|---------|
+| **GitHub CLI** | `gh auth login` completed | Private & public repos |
+| **Public API** | No authentication needed | Public repos only |
+
+**Recommended**: Install GitHub CLI (`gh`) for full access to private repositories.
+
+### Issue Import Process
+
+1. **Issue Import**: Fetches GitHub issue metadata (title, body, labels, milestone, comments)
+2. **PROMPT.md Creation**: Generates structured work loop prompt with:
+   - Issue details and description
+   - Implementation checklist
+   - Completion criteria (`STATUS: COMPLETE`)
+   - Reference to original issue URL
+3. **Work Loop Ready**: Run `aidp execute` to start autonomous implementation
+
+### Generated PROMPT.md Structure
+
+```markdown
+# Work Loop: GitHub Issue #123
+
+## Instructions
+You are working on a GitHub issue imported into AIDP...
+
+## GitHub Issue Details
+**Issue #123**: Feature Request Title
+**URL**: https://github.com/owner/repo/issues/123
+**State**: OPEN
+**Labels**: enhancement, priority-high
+
+## Issue Description
+[Original issue body content]
+
+## Implementation Plan
+1. [ ] Analyze the requirements
+2. [ ] Plan implementation approach
+3. [ ] Implement functionality
+4. [ ] Add/update tests
+5. [ ] Update documentation
+6. [ ] Mark STATUS: COMPLETE
+```
+
+### Issue Detection
+
+- **Automatic repo detection**: When using issue numbers, AIDP detects the current GitHub repository from git remotes
+- **Multiple formats**: Supports URLs, numbers, and shorthand notation
+- **Error handling**: Clear messages for invalid identifiers or missing repositories
+
 ## Configuration
 
 ### Enable Work Loops
@@ -472,7 +543,7 @@ User → Send prompt → Agent works → Get result → Hope it's right
 
 ### Work Loops
 
-```
+```text
 User → Configure workflow → AIDP creates PROMPT.md
                                       ↓
                             ┌─────────┴─────────┐
@@ -533,7 +604,7 @@ test_commands:
 
 Step names appear in archived PROMPT.md files:
 
-```
+```text
 .aidp/prompt_archive/
 ├── 20250105_143022_00_PRD_PROMPT.md
 ├── 20250105_151133_01_ARCHITECTURE_PROMPT.md
@@ -649,7 +720,7 @@ harness:
         max_iterations: 100
 ```
 
-*(Note: Per-step overrides not yet implemented)*
+**Note:** Per-step overrides not yet implemented
 
 ### Partial Test Runs
 
