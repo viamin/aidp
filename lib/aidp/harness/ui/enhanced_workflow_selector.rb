@@ -250,7 +250,8 @@ module Aidp
 
         def select_guided_workflow
           # Use the guided agent to help user select workflow
-          guided_agent = Aidp::Workflows::GuidedAgent.new(@project_dir, prompt: @tui.instance_variable_get(:@prompt))
+          # Don't pass prompt so it uses EnhancedInput with full readline support
+          guided_agent = Aidp::Workflows::GuidedAgent.new(@project_dir)
           result = guided_agent.select_workflow
 
           # Store user input for later use

@@ -119,7 +119,8 @@ RSpec.describe Aidp::DebugMixin do
     context "when command times out" do
       it "logs timeout error" do
         begin
-          instance.debug_execute_command("sleep", args: ["10"], timeout: 1)
+          # Use a much shorter sleep to trigger timeout faster (0.5s sleep with 0.1s timeout)
+          instance.debug_execute_command("sleep", args: ["0.5"], timeout: 0.1)
         rescue TTY::Command::TimeoutExceeded
           # Expected to timeout
         end

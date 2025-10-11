@@ -71,59 +71,52 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         HELP
       end
 
-      before do
+      # Cache the result of gather_info to avoid calling it multiple times
+      let(:gathered_info) do
         allow(provider_info).to receive(:fetch_help_output).and_return(help_output)
+        allow(provider_info).to receive(:fetch_mcp_servers).and_return([])
+        provider_info.gather_info
       end
 
       it "returns info with cli_available true" do
-        info = provider_info.gather_info
-        expect(info[:cli_available]).to be true
+        expect(gathered_info[:cli_available]).to be true
       end
 
       it "stores the help output" do
-        info = provider_info.gather_info
-        expect(info[:help_output]).to eq(help_output)
+        expect(gathered_info[:help_output]).to eq(help_output)
       end
 
       it "detects MCP support" do
-        info = provider_info.gather_info
-        expect(info[:mcp_support]).to be true
+        expect(gathered_info[:mcp_support]).to be true
       end
 
       it "extracts permission modes" do
-        info = provider_info.gather_info
-        expect(info[:permission_modes]).to include("acceptEdits", "bypassPermissions", "default", "plan")
+        expect(gathered_info[:permission_modes]).to include("acceptEdits", "bypassPermissions", "default", "plan")
       end
 
       it "detects bypass permissions capability" do
-        info = provider_info.gather_info
-        expect(info[:capabilities][:bypass_permissions]).to be true
+        expect(gathered_info[:capabilities][:bypass_permissions]).to be true
       end
 
       it "detects model selection capability" do
-        info = provider_info.gather_info
-        expect(info[:capabilities][:model_selection]).to be true
+        expect(gathered_info[:capabilities][:model_selection]).to be true
       end
 
       it "detects MCP config capability" do
-        info = provider_info.gather_info
-        expect(info[:capabilities][:mcp_config]).to be true
+        expect(gathered_info[:capabilities][:mcp_config]).to be true
       end
 
       it "detects tool restrictions capability" do
-        info = provider_info.gather_info
-        expect(info[:capabilities][:tool_restrictions]).to be true
+        expect(gathered_info[:capabilities][:tool_restrictions]).to be true
       end
 
       it "detects subscription auth method" do
-        info = provider_info.gather_info
-        expect(info[:auth_method]).to eq("subscription")
+        expect(gathered_info[:auth_method]).to eq("subscription")
       end
 
       it "extracts flags" do
-        info = provider_info.gather_info
-        expect(info[:flags]).to be_a(Hash)
-        expect(info[:flags]).to have_key("permission-mode")
+        expect(gathered_info[:flags]).to be_a(Hash)
+        expect(gathered_info[:flags]).to have_key("permission-mode")
       end
     end
   end

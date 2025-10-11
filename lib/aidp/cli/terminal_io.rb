@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "stringio"
+require "tty-reader"
 
 module Aidp
   class CLI
@@ -30,6 +31,31 @@ module Aidp
 
       def gets
         @input.gets
+      end
+
+      # Enhanced readline-style input with standard key combinations
+      # Supports: Ctrl-A (beginning), Ctrl-E (end), Ctrl-W (delete word), etc.
+      def readline(prompt = "", default: nil)
+        # Use StringIO for testing, otherwise use TTY::Reader for real input
+        if @input.is_a?(StringIO)
+          @output.print(prompt)
+          @output.flush
+          line = @input.gets
+          return line&.chomp if line
+          return default
+        end
+
+        reader = TTY::Reader.new(
+          input: @input,
+          output: @output,
+          interrupt: :exit
+        )
+
+        # Read line with full readline support (Ctrl-A, Ctrl-E, Ctrl-W, etc.)
+        result = reader.read_line(prompt, default: default || "")
+        result&.chomp
+      rescue TTY::Reader::InputInterrupt
+        raise Interrupt
       end
 
       def write(str)

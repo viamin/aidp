@@ -5,6 +5,7 @@ require_relative "../harness/provider_factory"
 require_relative "../harness/config_manager"
 require_relative "definitions"
 require_relative "../message_display"
+require_relative "../cli/enhanced_input"
 
 module Aidp
   module Workflows
@@ -15,9 +16,16 @@ module Aidp
 
       class ConversationError < StandardError; end
 
-      def initialize(project_dir, prompt: nil)
+      def initialize(project_dir, prompt: nil, use_enhanced_input: true)
         @project_dir = project_dir
-        @prompt = prompt || TTY::Prompt.new
+
+        # Use EnhancedInput with Reline for full readline-style key bindings
+        @prompt = if use_enhanced_input && prompt.nil?
+          Aidp::CLI::EnhancedInput.new
+        else
+          prompt || TTY::Prompt.new
+        end
+
         @config_manager = Aidp::Harness::ConfigManager.new(project_dir)
         @provider_manager = Aidp::Harness::ProviderManager.new(@config_manager, prompt: @prompt)
         @conversation_history = []
@@ -25,28 +33,122 @@ module Aidp
       end
 
       # Main entry point for guided workflow selection
+      # Uses plan-then-execute approach: iterative planning conversation
+      # to identify needed steps, then executes those steps
       def select_workflow
         display_message("\n🤖 Welcome to AIDP Guided Workflow!", type: :highlight)
-        display_message("I'll help you choose the right workflow for your needs.\n", type: :info)
+        display_message("I'll help you plan and execute your project.\n", type: :info)
 
-        # Step 1: Get user's high-level goal
-        goal = user_goal
-
-        # Step 2: Use AI to analyze intent and recommend workflow
-        recommendation = analyze_user_intent(goal)
-
-        # Step 3: Present recommendation and get confirmation
-        workflow_selection = present_recommendation(recommendation)
-
-        # Step 4: Collect any additional required information
-        collect_workflow_details(workflow_selection)
-
-        workflow_selection
+        plan_and_execute_workflow
       rescue => e
         raise ConversationError, "Failed to guide workflow selection: #{e.message}"
       end
 
       private
+
+      # Plan-and-execute: iterative planning followed by execution
+      def plan_and_execute_workflow
+        display_message("\n📋 Plan Phase", type: :highlight)
+        display_message("I'll ask clarifying questions to understand your needs.\n", type: :info)
+
+        # Step 1: Iterative planning conversation
+        plan = iterative_planning
+
+        # Step 2: Identify needed steps based on plan
+        needed_steps = identify_steps_from_plan(plan)
+
+        # Step 3: Generate planning documents from plan
+        generate_documents_from_plan(plan)
+
+        # Step 4: Build workflow selection
+        build_workflow_from_plan(plan, needed_steps)
+      end
+
+      def iterative_planning
+        goal = user_goal
+        plan = {goal: goal, scope: {}, users: {}, requirements: {}, constraints: {}, completion_criteria: []}
+
+        @conversation_history << {role: "user", content: goal}
+
+        loop do
+          # Ask AI for next question based on current plan
+          question_response = get_planning_questions(plan)
+
+          # If AI says plan is complete, confirm with user
+          if question_response[:complete]
+            display_message("\n✅ Plan Summary", type: :highlight)
+            display_plan_summary(plan)
+
+            if @prompt.yes?("\nIs this plan ready for execution?")
+              break
+            else
+              # Continue planning
+              question_response = {questions: ["What would you like to add or clarify?"]}
+            end
+          end
+
+          # Ask questions
+          question_response[:questions]&.each do |question|
+            answer = @prompt.ask(question)
+            @conversation_history << {role: "assistant", content: question}
+            @conversation_history << {role: "user", content: answer}
+
+            # Update plan with answer
+            update_plan_from_answer(plan, question, answer)
+          end
+        end
+
+        plan
+      end
+
+      def get_planning_questions(plan)
+        system_prompt = build_planning_system_prompt
+        user_prompt = build_planning_prompt(plan)
+
+        response = call_provider_for_analysis(system_prompt, user_prompt)
+        parse_planning_response(response)
+      end
+
+      def identify_steps_from_plan(plan)
+        display_message("\n🔍 Identifying needed steps...", type: :info)
+
+        system_prompt = build_step_identification_prompt
+        user_prompt = build_plan_summary_for_step_identification(plan)
+
+        response = call_provider_for_analysis(system_prompt, user_prompt)
+        parse_step_identification(response)
+      end
+
+      def generate_documents_from_plan(plan)
+        display_message("\n📝 Generating planning documents...", type: :info)
+
+        # Generate PRD
+        generate_prd_from_plan(plan)
+
+        # Generate NFRs if applicable
+        generate_nfr_from_plan(plan) if plan.dig(:requirements, :non_functional)
+
+        # Generate style guide if applicable
+        generate_style_guide_from_plan(plan) if plan[:style_requirements]
+
+        display_message("  ✓ Documents generated", type: :success)
+      end
+
+      def build_workflow_from_plan(plan, needed_steps)
+        {
+          mode: :execute,
+          workflow_key: :plan_and_execute,
+          workflow_type: :plan_and_execute,
+          steps: needed_steps,
+          user_input: @user_input.merge(plan: plan),
+          workflow: {
+            name: "Plan & Execute",
+            description: "Custom workflow from iterative planning",
+            details: needed_steps.map { |step| Aidp::Execute::Steps::SPEC[step]["description"] }
+          },
+          completion_criteria: plan[:completion_criteria]
+        }
+      end
 
       def user_goal
         display_message("What would you like to do?", type: :highlight)
@@ -151,11 +253,13 @@ module Aidp
 
         result = provider.send(prompt: combined_prompt)
 
-        unless result[:status] == :success
-          raise ConversationError, "Provider request failed: #{result[:error]}"
+        # Provider.send returns a string (the content), not a hash
+        # Check if result is nil or empty which indicates failure
+        if result.nil? || result.empty?
+          raise ConversationError, "Provider request failed: empty response"
         end
 
-        result[:content]
+        result
       end
 
       def parse_recommendation(response_text)
@@ -394,6 +498,223 @@ module Aidp
           "How will you measure success? [optional]",
           required: false
         )
+      end
+
+      # Plan-then-execute helper methods
+
+      def build_planning_system_prompt
+        <<~PROMPT
+          You are a planning assistant helping gather requirements through clarifying questions.
+
+          Your role:
+          1. Ask 1-3 targeted questions at a time based on what's known
+          2. Build towards a complete understanding of: scope, users, requirements, constraints
+          3. Determine when enough information has been gathered
+          4. Be concise to preserve context window
+
+          Response Format (JSON):
+          {
+            "complete": true/false,
+            "questions": ["question 1", "question 2"],
+            "reasoning": "brief explanation of what you're trying to learn"
+          }
+
+          If complete is true, the plan is ready for execution.
+        PROMPT
+      end
+
+      def build_planning_prompt(plan)
+        <<~PROMPT
+          Current Plan:
+          Goal: #{plan[:goal]}
+          Scope: #{plan[:scope].inspect}
+          Users: #{plan[:users].inspect}
+          Requirements: #{plan[:requirements].inspect}
+          Constraints: #{plan[:constraints].inspect}
+          Completion Criteria: #{plan[:completion_criteria].inspect}
+
+          Conversation History:
+          #{@conversation_history.map { |msg| "#{msg[:role]}: #{msg[:content]}" }.join("\n")}
+
+          Based on this plan, determine if you have enough information or what clarifying questions to ask next.
+        PROMPT
+      end
+
+      def parse_planning_response(response_text)
+        json_match = response_text.match(/```json\s*(\{.*?\})\s*```/m) ||
+          response_text.match(/(\{.*\})/m)
+
+        unless json_match
+          return {complete: false, questions: ["Could you tell me more about your requirements?"]}
+        end
+
+        JSON.parse(json_match[1], symbolize_names: true)
+      rescue JSON::ParserError
+        {complete: false, questions: ["Could you tell me more about your requirements?"]}
+      end
+
+      def update_plan_from_answer(plan, question, answer)
+        # Simple heuristic-based plan updates
+        # In a more sophisticated implementation, use AI to categorize answers
+
+        if question.downcase.include?("scope") || question.downcase.include?("include")
+          plan[:scope][:included] ||= []
+          plan[:scope][:included] << answer
+        elsif question.downcase.include?("user") || question.downcase.include?("who")
+          plan[:users][:personas] ||= []
+          plan[:users][:personas] << answer
+        elsif question.downcase.include?("requirement") || question.downcase.include?("feature")
+          plan[:requirements][:functional] ||= []
+          plan[:requirements][:functional] << answer
+        elsif question.downcase.include?("performance") || question.downcase.include?("security") || question.downcase.include?("scalability")
+          plan[:requirements][:non_functional] ||= {}
+          plan[:requirements][:non_functional][question] = answer
+        elsif question.downcase.include?("constraint") || question.downcase.include?("limitation")
+          plan[:constraints][:technical] ||= []
+          plan[:constraints][:technical] << answer
+        elsif question.downcase.include?("complete") || question.downcase.include?("done") || question.downcase.include?("success")
+          plan[:completion_criteria] << answer
+        else
+          # General information
+          plan[:additional_context] ||= []
+          plan[:additional_context] << {question: question, answer: answer}
+        end
+      end
+
+      def display_plan_summary(plan)
+        display_message("Goal: #{plan[:goal]}", type: :info)
+        display_message("\nScope:", type: :highlight) if plan[:scope].any?
+        plan[:scope].each { |k, v| display_message("  #{k}: #{v}", type: :muted) }
+        display_message("\nUsers:", type: :highlight) if plan[:users].any?
+        plan[:users].each { |k, v| display_message("  #{k}: #{v}", type: :muted) }
+        display_message("\nRequirements:", type: :highlight) if plan[:requirements].any?
+        plan[:requirements].each { |k, v| display_message("  #{k}: #{v}", type: :muted) }
+        display_message("\nCompletion Criteria:", type: :highlight) if plan[:completion_criteria].any?
+        plan[:completion_criteria].each { |c| display_message("  • #{c}", type: :info) }
+      end
+
+      def build_step_identification_prompt
+        all_steps = Aidp::Execute::Steps::SPEC.map do |key, spec|
+          "#{key}: #{spec["description"]}"
+        end.join("\n")
+
+        <<~PROMPT
+          You are an expert at identifying which AIDP workflow steps are needed for a project.
+
+          Available Execute Steps:
+          #{all_steps}
+
+          Based on the plan provided, identify which steps are needed and in what order.
+
+          Response Format (JSON):
+          {
+            "steps": ["00_PRD", "02_ARCHITECTURE", "16_IMPLEMENTATION"],
+            "reasoning": "brief explanation of why these steps"
+          }
+
+          Be concise and select only the necessary steps.
+        PROMPT
+      end
+
+      def build_plan_summary_for_step_identification(plan)
+        <<~PROMPT
+          Plan Summary:
+          #{plan.to_json}
+
+          Which execute steps are needed for this plan?
+        PROMPT
+      end
+
+      def parse_step_identification(response_text)
+        json_match = response_text.match(/```json\s*(\{.*?\})\s*```/m) ||
+          response_text.match(/(\{.*\})/m)
+
+        unless json_match
+          # Fallback to basic workflow
+          return ["00_PRD", "16_IMPLEMENTATION"]
+        end
+
+        parsed = JSON.parse(json_match[1], symbolize_names: true)
+        parsed[:steps] || ["00_PRD", "16_IMPLEMENTATION"]
+      rescue JSON::ParserError
+        ["00_PRD", "16_IMPLEMENTATION"]
+      end
+
+      def generate_prd_from_plan(plan)
+        prd_content = <<~PRD
+          # Product Requirements Document
+
+          ## Goal
+          #{plan[:goal]}
+
+          ## Scope
+          #{format_hash_for_doc(plan[:scope])}
+
+          ## Users & Personas
+          #{format_hash_for_doc(plan[:users])}
+
+          ## Requirements
+          #{format_hash_for_doc(plan[:requirements])}
+
+          ## Constraints
+          #{format_hash_for_doc(plan[:constraints])}
+
+          ## Completion Criteria
+          #{plan[:completion_criteria].map { |c| "- #{c}" }.join("\n")}
+
+          ## Additional Context
+          #{plan[:additional_context]&.map { |ctx| "**#{ctx[:question]}**: #{ctx[:answer]}" }&.join("\n\n")}
+
+          ---
+          Generated by AIDP Plan & Execute workflow on #{Time.now.strftime("%Y-%m-%d")}
+        PRD
+
+        File.write(File.join(@project_dir, "docs", "prd.md"), prd_content)
+      end
+
+      def generate_nfr_from_plan(plan)
+        nfr_data = plan.dig(:requirements, :non_functional)
+        return unless nfr_data
+
+        nfr_content = <<~NFR
+          # Non-Functional Requirements
+
+          #{nfr_data.map { |k, v| "## #{k}\n#{v}" }.join("\n\n")}
+
+          ---
+          Generated by AIDP Plan & Execute workflow on #{Time.now.strftime("%Y-%m-%d")}
+        NFR
+
+        File.write(File.join(@project_dir, "docs", "nfrs.md"), nfr_content)
+      end
+
+      def generate_style_guide_from_plan(plan)
+        return unless plan[:style_requirements]
+
+        style_guide_content = <<~STYLE
+          # LLM Style Guide
+
+          #{plan[:style_requirements]}
+
+          ---
+          Generated by AIDP Plan & Execute workflow on #{Time.now.strftime("%Y-%m-%d")}
+        STYLE
+
+        File.write(File.join(@project_dir, "docs", "LLM_STYLE_GUIDE.md"), style_guide_content)
+      end
+
+      def format_hash_for_doc(hash)
+        return "None specified" if hash.nil? || hash.empty?
+
+        hash.map do |key, value|
+          if value.is_a?(Array)
+            "### #{key.to_s.capitalize}\n#{value.map { |v| "- #{v}" }.join("\n")}"
+          elsif value.is_a?(Hash)
+            "### #{key.to_s.capitalize}\n#{value.map { |k, v| "- **#{k}**: #{v}" }.join("\n")}"
+          else
+            "### #{key.to_s.capitalize}\n#{value}"
+          end
+        end.join("\n\n")
       end
     end
   end
