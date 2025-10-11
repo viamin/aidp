@@ -124,6 +124,14 @@ module Aidp
           "outs" => ["implementation_log.md"],
           "gate" => false,
           "implementation" => true # Special step that runs development tasks
+        },
+        # Simple task execution - for one-off commands and simple fixes
+        "99_SIMPLE_TASK" => {
+          "templates" => ["implementation/simple_task.md"],
+          "description" => "Execute Simple Task (one-off commands, quick fixes, linting)",
+          "outs" => [],
+          "gate" => false,
+          "simple" => true # Special step for simple, focused tasks
         }
       }.freeze
     end

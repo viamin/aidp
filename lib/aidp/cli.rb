@@ -195,16 +195,20 @@ module Aidp
           # Get workflow configuration (no spinner - may wait for user input)
           workflow_config = workflow_selector.select_workflow(harness_mode: false, mode: mode)
 
+          # For guided mode, use the mode determined by the guided workflow selector
+          # Otherwise use the initially selected mode
+          actual_mode = workflow_config[:mode] || mode
+
           # Pass workflow configuration to harness
           harness_options = {
-            mode: mode,
+            mode: actual_mode,
             workflow_type: workflow_config[:workflow_type],
             selected_steps: workflow_config[:steps],
             user_input: workflow_config[:user_input]
           }
 
           # Create and run the enhanced harness
-          harness_runner = Aidp::Harness::EnhancedRunner.new(Dir.pwd, mode, harness_options)
+          harness_runner = Aidp::Harness::EnhancedRunner.new(Dir.pwd, actual_mode, harness_options)
           result = harness_runner.run
           display_harness_result(result)
           0

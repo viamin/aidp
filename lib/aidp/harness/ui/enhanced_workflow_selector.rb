@@ -258,7 +258,9 @@ module Aidp
           @user_input = result[:user_input]
 
           # Return in the expected format
+          # IMPORTANT: Include the mode from guided agent result (usually :execute)
           {
+            mode: result[:mode],
             workflow_type: result[:workflow_type],
             steps: result[:steps],
             user_input: @user_input,

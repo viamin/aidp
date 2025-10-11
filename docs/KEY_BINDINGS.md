@@ -71,6 +71,7 @@ answer = input.ask("Your goal: ")
 ```
 
 **When it's used:**
+
 - Guided workflow (copilot mode) - enabled by default
 - Any code that explicitly creates an `EnhancedInput` instance
 
@@ -116,6 +117,7 @@ ruby examples/key_bindings_demo.rb
 ## Terminal Compatibility
 
 These key bindings work in most modern terminals including:
+
 - macOS Terminal
 - iTerm2
 - GNOME Terminal

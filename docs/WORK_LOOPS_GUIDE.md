@@ -128,6 +128,112 @@ Work loops enable an AI agent to:
 
 This is fundamentally different from traditional "one-shot" prompting where you send a prompt once and hope for the best.
 
+## Fix-Forward Pattern
+
+AIDP uses a **fix-forward** model during implementation. When tests fail, it continues debugging, patching, and re-testing until the Implementation Contract is met — **never rolling back, only moving forward**.
+
+### Fix-Forward Principles
+
+1. **No Rollbacks**: Changes are never reverted. If something breaks, we fix it forward.
+2. **Autonomous Iteration**: The system iterates automatically until all tests pass.
+3. **Diagnostic Feedback**: Each failure includes diagnostic information to help the agent understand what went wrong.
+4. **Cumulative Progress**: Each iteration builds on the previous one, with failures appended as guidance.
+5. **Style Guide Reinforcement**: Every 5 iterations, the LLM_STYLE_GUIDE is re-injected to prevent drift from project conventions and ensure failures aren't due to missed adherence to coding standards.
+
+### Fix-Forward State Machine
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Fix-Forward Work Loop                     │
+└─────────────────────────────────────────────────────────────┘
+
+    READY
+      │
+      ├──────────> APPLY_PATCH
+      │              (Agent makes changes)
+      │                     │
+      │                     v
+      │                   TEST
+      │          (Run tests & linters)
+      │                     │
+      │            ┌────────┴────────┐
+      │            │                 │
+      │           PASS              FAIL
+      │            │                 │
+      │            │                 v
+      │            │             DIAGNOSE
+      │            │        (Analyze failures)
+      │            │                 │
+      │            │                 v
+      │            │            NEXT_PATCH
+      │            │        (Append failures
+      │            │         to PROMPT.md)
+      │            │                 │
+      │            │                 └─────> (loop back to READY)
+      │            │
+      │      [Work complete?]
+      │            │
+      │           YES
+      │            │
+      │            v
+      │          DONE
+      │
+      └────> (Safety: max iterations)
+```
+
+### State Descriptions
+
+| State | Description |
+|-------|-------------|
+| **READY** | Starting a new iteration, ready to apply changes |
+| **APPLY_PATCH** | Agent reads PROMPT.md and applies changes to code |
+| **TEST** | Running automated tests and linters |
+| **PASS** | Tests passed - check if work is complete |
+| **FAIL** | Tests failed - need to diagnose and fix |
+| **DIAGNOSE** | Analyzing test failures to provide helpful feedback |
+| **NEXT_PATCH** | Appending failure information to PROMPT.md for next iteration |
+| **DONE** | All tests pass and agent marked work complete |
+
+### Example Fix-Forward Iteration
+
+**Iteration 1:**
+
+```
+READY → APPLY_PATCH → TEST → FAIL → DIAGNOSE → NEXT_PATCH
+Agent implements feature → Tests fail → Analyze: 3 test failures → Append to PROMPT.md
+```
+
+**Iteration 2:**
+
+```
+READY → APPLY_PATCH → TEST → FAIL → DIAGNOSE → NEXT_PATCH
+Agent fixes 2 tests → 1 test still fails → Analyze: 1 test failure → Append to PROMPT.md
+```
+
+**Iteration 3:**
+
+```
+READY → APPLY_PATCH → TEST → PASS → (work not complete) → NEXT_PATCH
+Agent fixes last test → All tests pass → But feature incomplete → Continue
+```
+
+**Iteration 4:**
+
+```
+READY → APPLY_PATCH → TEST → PASS → (work complete) → DONE
+Agent completes feature → All tests pass → STATUS: COMPLETE → Success!
+```
+
+**Iteration 5 (if needed):**
+
+```
+READY → APPLY_PATCH → TEST → FAIL → DIAGNOSE → NEXT_PATCH
+[STYLE_GUIDE] Re-injecting LLM_STYLE_GUIDE to prevent drift
+Agent sees style guide reminder → Realizes failures due to style violations → Fixes with proper style
+```
+
+Notice how we **never rolled back** — each iteration built on the previous work. At iteration 5, the system automatically reminds the agent of the LLM_STYLE_GUIDE to prevent drift from project conventions.
+
 ## How It Works
 
 ### The Work Loop Cycle
@@ -204,6 +310,8 @@ harness:
 | `max_iterations` | integer | `50` | Safety limit for iterations |
 | `test_commands` | array | `[]` | Commands to run tests |
 | `lint_commands` | array | `[]` | Commands to run linters |
+
+**Note**: Style guide reinforcement happens automatically every 5 iterations (hardcoded) to prevent the agent from drifting away from project conventions during long fix-forward loops.
 
 ### Test and Lint Commands
 
