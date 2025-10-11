@@ -2,11 +2,9 @@
 
 ## [0.13.0](https://github.com/viamin/aidp/compare/aidp/v0.12.1...aidp/v0.13.0) (2025-10-11)
 
-
 ### Features
 
 * add enhanced input handling with Reline key bindings ([71c50d4](https://github.com/viamin/aidp/commit/71c50d449a9ea42d72fbd844db7f037fb5c69465))
-
 
 ### Improvements
 
