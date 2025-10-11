@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.0](https://github.com/viamin/aidp/compare/aidp/v0.12.1...aidp/v0.13.0) (2025-10-11)
+
+
+### Features
+
+* add enhanced input handling with Reline key bindings ([71c50d4](https://github.com/viamin/aidp/commit/71c50d449a9ea42d72fbd844db7f037fb5c69465))
+
+
+### Improvements
+
+* enhance MCP server management across providers ([ad6a6b7](https://github.com/viamin/aidp/commit/ad6a6b72312a092e9dd5741b2ee29314148bb6ce))
+* enhance MCP server management across providers ([#91](https://github.com/viamin/aidp/issues/91)) ([244d938](https://github.com/viamin/aidp/commit/244d938cb6fd92873a87c56de9092a5821cfbd63))
+* enhance test isolation and environment management in CLI specs ([383dca6](https://github.com/viamin/aidp/commit/383dca65c0d84e350300b76b5f7ea5d81f309cca))
+* standardize method names and improve provider interactions ([229d2ba](https://github.com/viamin/aidp/commit/229d2ba106d864c2676371aa523be8251d7435c1))
+* standardize method naming and improve configuration management ([67377f2](https://github.com/viamin/aidp/commit/67377f217e8f9618f6e7e598f77f6777352688f3))
+
 ## [0.12.1](https://github.com/viamin/aidp/compare/aidp/v0.12.0...aidp/v0.12.1) (2025-10-09)
 
 ### Improvements
