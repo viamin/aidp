@@ -693,6 +693,545 @@ work_loop: {
 }
 ```
 
+## REPL Workflow
+
+AIDP's work loops implement a **REPL-style development experience** (Read-Eval-Print-Loop), where you continuously interact with your codebase through AI-driven iterations.
+
+### REPL Workflow Walkthrough
+
+The REPL workflow follows this pattern:
+
+1. **Read**: Agent reads PROMPT.md and current codebase state
+2. **Eval**: Agent evaluates what needs to be done and executes changes
+3. **Print**: Agent updates PROMPT.md with progress and completion status
+4. **Loop**: System runs tests/linters and feeds results back to agent
+
+#### Step-by-Step REPL Process
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                     AIDP REPL Workflow                       │
+└─────────────────────────────────────────────────────────────┘
+
+1. READ Phase
+   ├── Agent reads PROMPT.md
+   ├── Agent scans current codebase
+   ├── Agent reviews any previous iteration feedback
+   └── Agent understands current task state
+
+2. EVAL Phase
+   ├── Agent plans what to implement/fix
+   ├── Agent makes code changes
+   ├── Agent creates/updates tests
+   └── Agent updates documentation
+
+3. PRINT Phase
+   ├── Agent updates PROMPT.md with progress
+   ├── Agent removes completed items
+   ├── Agent notes any discoveries or blockers
+   └── Agent marks COMPLETE when done
+
+4. LOOP Phase
+   ├── AIDP runs test commands
+   ├── AIDP runs lint commands
+   ├── AIDP appends any failures to PROMPT.md
+   ├── AIDP checks for COMPLETE marker
+   └── If not complete: return to READ phase
+```
+
+### Interactive REPL Commands
+
+During a work loop session, you can interact with the REPL:
+
+```bash
+# Start interactive REPL session
+aidp execute --repl
+
+# Monitor progress in real-time
+aidp status --watch
+
+# Pause the loop for inspection
+aidp pause
+
+# Resume after inspection
+aidp resume
+
+# Inject additional requirements
+aidp inject "Also add error handling for edge case X"
+
+# Force completion check
+aidp check-complete
+```
+
+### REPL Benefits
+
+- **Continuous feedback**: Immediate visibility into what's happening
+- **Iterative refinement**: Each loop improves on the previous attempt
+- **Self-correcting**: Failures automatically feed into next iteration
+- **Maintainable state**: PROMPT.md tracks the complete conversation
+- **Resumable**: Can pause and resume work loops across sessions
+
+## Fix-Forward Loop Diagram
+
+The Fix-Forward pattern ensures continuous progress without rollbacks:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            Fix-Forward Loop                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                            START
+                              │
+                              ▼
+                        ┌──────────┐
+                        │  READY   │ ◄────────────────┐
+                        └─────┬────┘                  │
+                              │                       │
+                              ▼                       │
+                      ┌──────────────┐                │
+                      │ APPLY_PATCH  │                │
+                      │ (Agent work) │                │
+                      └──────┬───────┘                │
+                             │                        │
+                             ▼                        │
+                       ┌───────────┐                  │
+                       │   TEST    │                  │
+                       │(Run tests)│                  │
+                       └─────┬─────┘                  │
+                             │                        │
+                    ┌────────┴────────┐               │
+                    ▼                 ▼               │
+             ┌─────────────┐   ┌─────────────┐        │
+             │    PASS     │   │    FAIL     │        │
+             └─────┬───────┘   └─────┬───────┘        │
+                   │                 │                │
+                   ▼                 ▼                │
+            ┌─────────────┐   ┌─────────────┐        │
+            │Work Complete│   │  DIAGNOSE   │        │
+            │   Check?    │   │(Analyze err)│        │
+            └─────┬───────┘   └─────┬───────┘        │
+                  │                 │                │
+          ┌───────┴───────┐         ▼                │
+          ▼               ▼   ┌─────────────┐        │
+    ┌─────────┐     ┌─────────┐ │ NEXT_PATCH │        │
+    │  DONE   │     │ CONTINUE│ │(Append err)│        │
+    │   ✓     │     │   WORK  │ └─────┬───────┘        │
+    └─────────┘     └─────┬───┘       │                │
+                          │           │                │
+                          └───────────┴────────────────┘
+
+Legend:
+  READY       → Agent prepares for next iteration
+  APPLY_PATCH → Agent reads PROMPT.md and makes changes
+  TEST        → Automated testing and linting
+  PASS        → All tests passed
+  FAIL        → Tests failed, need to fix
+  DIAGNOSE    → Analyze failures for helpful feedback
+  NEXT_PATCH  → Append failure info to PROMPT.md
+  DONE        → Work complete and all tests pass
+```
+
+### Fix-Forward Guarantees
+
+1. **Never rollback**: Code changes always move forward
+2. **Accumulative progress**: Each iteration builds on previous work
+3. **Failure learning**: Failures become input for next iteration
+4. **Style consistency**: LLM_STYLE_GUIDE re-injected every 5 iterations
+5. **Bounded loops**: Safety limit prevents infinite iterations
+
+## Branch/Checkpoint Examples
+
+Work loops support branching and checkpointing for experimental development:
+
+### Checkpoint Strategy
+
+```bash
+# Start a work loop with checkpoints enabled
+aidp execute --checkpoints
+
+# Automatic checkpoints created at key points:
+# - Before each major iteration
+# - After successful test runs
+# - Before risky refactoring operations
+```
+
+### Checkpoint Structure
+
+```text
+.aidp/checkpoints/
+├── 20250115_143022_iteration_01_ready/
+│   ├── code_snapshot.tar.gz
+│   ├── PROMPT.md
+│   └── metadata.json
+├── 20250115_143115_iteration_02_test_pass/
+│   ├── code_snapshot.tar.gz
+│   ├── PROMPT.md
+│   └── metadata.json
+└── 20250115_143230_iteration_05_pre_refactor/
+    ├── code_snapshot.tar.gz
+    ├── PROMPT.md
+    └── metadata.json
+```
+
+### Branch Workflows
+
+#### Experimental Feature Branch
+
+```bash
+# Create experimental branch for risky changes
+aidp execute --branch experimental-auth
+
+# Work loop continues on branch
+# - All checkpoints saved to branch context
+# - Can merge back to main when stable
+# - Can abandon branch if experiment fails
+```
+
+#### Parallel Development
+
+```bash
+# Start multiple work loops on different branches
+aidp execute 16_IMPLEMENTATION --branch feature-a &
+aidp execute 16_IMPLEMENTATION --branch feature-b &
+
+# Monitor both branches
+aidp status --all-branches
+```
+
+#### Recovery Examples
+
+```bash
+# List available checkpoints
+aidp checkpoints list
+
+# Restore to specific checkpoint
+aidp restore checkpoint_20250115_143115
+
+# Create branch from checkpoint
+aidp branch-from-checkpoint checkpoint_20250115_143115 --name recovery-branch
+
+# Continue work loop from checkpoint
+aidp execute --resume-from checkpoint_20250115_143115
+```
+
+### Branch Integration
+
+```bash
+# When work loop completes successfully
+aidp integrate-branch feature-a
+
+# This creates:
+# 1. Clean merge commit
+# 2. Summary of all changes made
+# 3. Archive of complete work loop session
+# 4. Links to all checkpoints for future reference
+```
+
+## PR Hand-off Instructions
+
+When work loops complete, AIDP can automatically prepare pull request packages:
+
+### Automated PR Preparation
+
+```yaml
+# In aidp.yml
+pr_handoff:
+  enabled: true
+  auto_branch: true
+  evidence_pack: true
+  summary_format: "detailed"  # or "brief"
+```
+
+### PR Hand-off Process
+
+1. **Work Loop Completion**
+   - Agent marks STATUS: COMPLETE
+   - All tests pass
+   - Code meets style guide requirements
+
+2. **Automatic Branch Creation**
+
+   ```bash
+   # AIDP creates feature branch
+   git checkout -b aidp/feature-${timestamp}
+   git add -A
+   git commit -m "feat: ${work_loop_summary}"
+   ```
+
+3. **Evidence Pack Generation**
+   - Complete work loop session archive
+   - Test results and coverage reports
+   - Code quality metrics
+   - Performance benchmarks (if configured)
+
+4. **PR Template Generation**
+
+   ```markdown
+   ## Work Loop Summary
+   
+   **Session**: ${session_id}
+   **Duration**: ${total_time}
+   **Iterations**: ${iteration_count}
+   **Tests**: ✅ ${passing_tests} passing
+   
+   ## Changes Made
+   
+   - ${change_summary_1}
+   - ${change_summary_2}
+   - ${change_summary_3}
+   
+   ## Evidence Pack
+   
+   📁 `.aidp/evidence_packs/${session_id}/`
+   - `session_archive.tar.gz` - Complete work loop session
+   - `test_results.xml` - Full test suite results
+   - `coverage_report.html` - Code coverage analysis
+   - `quality_metrics.json` - Code quality scores
+   - `prompt_history.md` - Complete PROMPT.md evolution
+   
+   ## Quality Assurance
+   
+   ✅ All tests passing (${test_count} tests)
+   ✅ Code style compliant (${style_guide})
+   ✅ Coverage above threshold (${coverage_percent}%)
+   ✅ Performance benchmarks met
+   ✅ Security scan clean
+   
+   ## Ready for Review
+   
+   This PR was generated by an AIDP work loop and includes complete
+   evidence of the development process. Review the evidence pack for
+   full context and validation of all changes.
+   ```
+
+### Manual PR Hand-off
+
+```bash
+# Generate PR package without auto-push
+aidp generate-pr-package
+
+# Review before creating PR
+aidp review-pr-package
+
+# Create PR manually with generated template
+gh pr create --template .aidp/pr_template.md
+```
+
+### PR Hand-off Commands
+
+```bash
+# Check if ready for PR
+aidp pr-ready-check
+
+# Generate evidence pack only
+aidp generate-evidence-pack
+
+# Create PR branch without evidence pack
+aidp create-pr-branch --minimal
+
+# Hand-off to human for PR creation
+aidp handoff --prepare-pr
+```
+
+## Artifact & Evidence Pack Description
+
+AIDP generates comprehensive evidence packs that document the entire development process:
+
+### Evidence Pack Structure
+
+```text
+.aidp/evidence_packs/${session_id}/
+├── session_metadata.json
+├── session_archive.tar.gz
+├── development_artifacts/
+│   ├── prompt_evolution.md
+│   ├── code_changes.diff
+│   ├── test_results.xml
+│   ├── coverage_report.html
+│   ├── lint_results.json
+│   └── performance_metrics.json
+├── quality_assurance/
+│   ├── security_scan.json
+│   ├── dependency_audit.json
+│   ├── style_compliance.json
+│   └── architecture_analysis.md
+├── iteration_history/
+│   ├── iteration_01_changes.diff
+│   ├── iteration_02_changes.diff
+│   ├── iteration_03_changes.diff
+│   └── ...
+└── final_state/
+    ├── complete_codebase.tar.gz
+    ├── final_tests.xml
+    └── deployment_readiness.json
+```
+
+### Artifact Types
+
+#### 1. Session Metadata
+
+```json
+{
+  "session_id": "aidp_20250115_143022_auth_feature",
+  "start_time": "2025-01-15T14:30:22Z",
+  "end_time": "2025-01-15T16:45:33Z",
+  "duration_minutes": 135,
+  "iterations": 12,
+  "work_loop_type": "16_IMPLEMENTATION",
+  "agent_provider": "claude-3-5-sonnet",
+  "final_status": "completed",
+  "test_results": {
+    "total_tests": 156,
+    "passing": 156,
+    "failing": 0,
+    "coverage_percent": 94.2
+  },
+  "quality_metrics": {
+    "style_violations": 0,
+    "security_issues": 0,
+    "performance_regressions": 0
+  }
+}
+```
+
+#### 2. Prompt Evolution
+
+```markdown
+# PROMPT.md Evolution - Session aidp_20250115_143022
+
+## Iteration 1 (14:30:22)
+### Initial State
+- Task: Implement user authentication system
+- Requirements: OAuth2, JWT tokens, user sessions
+- Acceptance criteria: [detailed list]
+
+### Agent Progress
+- ✅ Created User model
+- ✅ Set up OAuth2 configuration
+- 🚧 Working on JWT token generation
+
+## Iteration 2 (14:35:45)
+### Previous Failures
+- JWT secret not configured in test environment
+- User validation tests failing
+
+### Agent Progress
+- ✅ Fixed JWT configuration
+- ✅ All user model tests passing
+- 🚧 Implementing session management
+
+[... complete evolution history ...]
+
+## Final State (16:45:33)
+### STATUS: COMPLETE
+- ✅ Full authentication system implemented
+- ✅ All tests passing (156/156)
+- ✅ Security audit clean
+- ✅ Performance benchmarks met
+```
+
+#### 3. Code Quality Evidence
+
+```json
+{
+  "quality_analysis": {
+    "complexity_metrics": {
+      "cyclomatic_complexity": 2.3,
+      "cognitive_complexity": 1.8,
+      "lines_of_code": 1247,
+      "test_coverage": 94.2
+    },
+    "security_analysis": {
+      "vulnerabilities": [],
+      "security_hotspots": [],
+      "security_rating": "A"
+    },
+    "maintainability": {
+      "maintainability_rating": "A",
+      "technical_debt_ratio": "0.1%",
+      "code_smells": 2
+    },
+    "reliability": {
+      "reliability_rating": "A",
+      "bugs": 0,
+      "test_success_rate": "100%"
+    }
+  }
+}
+```
+
+#### 4. Performance Evidence
+
+```json
+{
+  "performance_benchmarks": {
+    "response_times": {
+      "auth_endpoint_p95": "45ms",
+      "token_validation_p95": "12ms",
+      "session_lookup_p95": "8ms"
+    },
+    "throughput": {
+      "concurrent_logins": 1000,
+      "tokens_per_second": 5000
+    },
+    "resource_usage": {
+      "memory_increase": "2.3MB",
+      "cpu_overhead": "0.5%"
+    }
+  }
+}
+```
+
+### Using Evidence Packs
+
+#### For Code Review
+
+```bash
+# Extract evidence pack for review
+aidp evidence extract ${session_id}
+
+# Generate review checklist
+aidp evidence review-checklist ${session_id}
+
+# Compare with previous implementations
+aidp evidence compare ${session_id} ${previous_session_id}
+```
+
+#### For Compliance
+
+```bash
+# Generate compliance report
+aidp evidence compliance-report ${session_id}
+
+# Export for audit
+aidp evidence export ${session_id} --format audit-trail
+
+# Verify evidence integrity
+aidp evidence verify ${session_id}
+```
+
+#### For Documentation
+
+```bash
+# Generate development story
+aidp evidence story ${session_id}
+
+# Create architecture decision record
+aidp evidence adr ${session_id}
+
+# Export for knowledge base
+aidp evidence export ${session_id} --format knowledge-base
+```
+
+### Evidence Pack Benefits
+
+1. **Complete Traceability**: Every change is documented and justified
+2. **Quality Assurance**: Comprehensive testing and validation evidence
+3. **Audit Trail**: Full compliance trail for regulated environments
+4. **Knowledge Transfer**: Complete context for future developers
+5. **Debugging Aid**: Historical context for issue investigation
+6. **Process Improvement**: Data for optimizing future work loops
+
 ## References
 
 - [Geoffrey Huntley's Ralph Post](https://ghuntley.com/ralph) - Original Ralph technique
