@@ -15,6 +15,14 @@ Work loops power the new [Fully Automatic Watch Mode](FULLY_AUTOMATIC_MODE.md), 
 
 If you are enabling autonomous operation, review the safety considerations in the watch mode guide before relying on unattended workflows.
 
+## Pre-Loop Setup
+
+Run `aidp init` before the first autonomous loop to generate
+`docs/LLM_STYLE_GUIDE.md`, `docs/PROJECT_ANALYSIS.md`, and `docs/CODE_QUALITY_PLAN.md`.
+These documents capture project conventions and tooling so every subsequent work
+loop has consistent guidance. See [INIT_MODE](INIT_MODE.md) for a full
+walkthrough of the bootstrapping process.
+
 ## Guided Workflows (Copilot Mode)
 
 **NEW:** AIDP now includes a **Guided Workflow** feature that acts as your AI copilot to help you choose the right workflow for your needs.
