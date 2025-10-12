@@ -8,6 +8,7 @@ require_relative "aidp/version"
 require_relative "aidp/config"
 require_relative "aidp/util"
 require_relative "aidp/message_display"
+require_relative "aidp/init"
 require_relative "aidp/watch"
 require_relative "aidp/cli"
 

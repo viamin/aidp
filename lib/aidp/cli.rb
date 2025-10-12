@@ -236,6 +236,7 @@ module Aidp
           opts.separator "Commands:"
           opts.separator "  analyze [--background]   Start analyze mode workflow"
           opts.separator "  execute [--background]   Start execute mode workflow"
+          opts.separator "  init                     Analyse project and bootstrap quality docs"
           opts.separator "  watch <issues_url>       Run fully automatic watch mode"
           opts.separator "  status                   Show current system status"
           opts.separator "  jobs                     Manage background jobs"
@@ -282,7 +283,10 @@ module Aidp
           opts.separator "  aidp checkpoint summary --watch       # Auto-refresh every 5s"
           opts.separator "  aidp checkpoint summary --watch --interval 10"
           opts.separator ""
-          opts.separator "  # Watch mode"
+          opts.separator "  # Project bootstrap"
+          opts.separator "  aidp init"
+          opts.separator "  # Fully automatic orchestration"
+          opts.separator ""
           opts.separator "  aidp watch https://github.com/<org>/<repo>/issues"
           opts.separator "  aidp watch owner/repo --interval 120 --provider claude"
           opts.separator ""
@@ -305,7 +309,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze providers checkpoint mcp issue watch].include?(args.first)
+        %w[status jobs kb harness execute analyze providers checkpoint mcp issue init watch].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -321,6 +325,7 @@ module Aidp
         when "checkpoint" then run_checkpoint_command(args)
         when "mcp" then run_mcp_command(args)
         when "issue" then run_issue_command(args)
+        when "init" then run_init_command
         when "watch" then run_watch_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
@@ -968,6 +973,11 @@ module Aidp
           display_message("❌ Unknown issue command: #{command}", type: :error)
           display_message(usage, type: :info)
         end
+      end
+
+      def run_init_command
+        runner = Aidp::Init::Runner.new(Dir.pwd, prompt: TTY::Prompt.new)
+        runner.run
       end
 
       def run_watch_command(args)
