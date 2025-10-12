@@ -236,6 +236,7 @@ module Aidp
           opts.separator "Commands:"
           opts.separator "  analyze [--background]   Start analyze mode workflow"
           opts.separator "  execute [--background]   Start execute mode workflow"
+          opts.separator "  watch <issues_url>       Run fully automatic watch mode"
           opts.separator "  status                   Show current system status"
           opts.separator "  jobs                     Manage background jobs"
           opts.separator "    list                     - List all jobs"
@@ -281,6 +282,10 @@ module Aidp
           opts.separator "  aidp checkpoint summary --watch       # Auto-refresh every 5s"
           opts.separator "  aidp checkpoint summary --watch --interval 10"
           opts.separator ""
+          opts.separator "  # Watch mode"
+          opts.separator "  aidp watch https://github.com/<org>/<repo>/issues"
+          opts.separator "  aidp watch owner/repo --interval 120 --provider claude"
+          opts.separator ""
           opts.separator "  # Other commands"
           opts.separator "  aidp providers                        # Check provider health"
           opts.separator "  aidp providers info claude            # Show detailed provider info"
@@ -300,7 +305,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze providers checkpoint mcp issue].include?(args.first)
+        %w[status jobs kb harness execute analyze providers checkpoint mcp issue watch].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -316,6 +321,7 @@ module Aidp
         when "checkpoint" then run_checkpoint_command(args)
         when "mcp" then run_mcp_command(args)
         when "issue" then run_issue_command(args)
+        when "watch" then run_watch_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -962,6 +968,45 @@ module Aidp
           display_message("❌ Unknown issue command: #{command}", type: :error)
           display_message(usage, type: :info)
         end
+      end
+
+      def run_watch_command(args)
+        if args.empty?
+          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once]", type: :info)
+          return
+        end
+
+        issues_url = args.shift
+        interval = Aidp::Watch::Runner::DEFAULT_INTERVAL
+        provider_name = nil
+        once = false
+
+        until args.empty?
+          token = args.shift
+          case token
+          when "--interval"
+            interval_value = args.shift
+            interval = interval_value.to_i if interval_value
+          when "--provider"
+            provider_name = args.shift
+          when "--once"
+            once = true
+          else
+            display_message("⚠️  Unknown watch option: #{token}", type: :warn)
+          end
+        end
+
+        runner = Aidp::Watch::Runner.new(
+          issues_url: issues_url,
+          interval: interval.positive? ? interval : Aidp::Watch::Runner::DEFAULT_INTERVAL,
+          provider_name: provider_name,
+          project_dir: Dir.pwd,
+          once: once,
+          prompt: TTY::Prompt.new
+        )
+        runner.start
+      rescue ArgumentError => e
+        display_message("❌ #{e.message}", type: :error)
       end
     end # class << self
   end
