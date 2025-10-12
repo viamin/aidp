@@ -4,6 +4,17 @@
 
 AIDP now supports **work loops** - an iterative execution pattern inspired by [Geoffrey Huntley's Ralph technique](https://ghuntley.com/ralph). This transforms AIDP from single-pass step execution into an autonomous loop where the AI agent iteratively works toward completion with automatic testing and linting feedback.
 
+## Autonomous Orchestration Layer
+
+Work loops power the new [Fully Automatic Watch Mode](FULLY_AUTOMATIC_MODE.md), an orchestration tier that monitors GitHub issues and launches end-to-end implementation cycles when the `aidp-plan` / `aidp-build` label workflow is used. The watch mode reuses the same fix-forward loop described in this guide while adding:
+
+- Continuous issue monitoring and plan drafting
+- Automatic branch creation and seeding of `PROMPT.md`
+- Hands-free execution of the `16_IMPLEMENTATION` step
+- Pull request creation plus success/failure reporting back to the issue
+
+If you are enabling autonomous operation, review the safety considerations in the watch mode guide before relying on unattended workflows.
+
 ## Guided Workflows (Copilot Mode)
 
 **NEW:** AIDP now includes a **Guided Workflow** feature that acts as your AI copilot to help you choose the right workflow for your needs.
@@ -1373,6 +1384,415 @@ aidp evidence export ${session_id} --format knowledge-base
 4. **Knowledge Transfer**: Complete context for future developers
 5. **Debugging Aid**: Historical context for issue investigation
 6. **Process Improvement**: Data for optimizing future work loops
+
+## Future Work Backlog
+
+During work loop execution, AIDP may encounter code that doesn't meet your project's LLM_STYLE_GUIDE, shows technical debt, or presents refactoring opportunities that are unrelated to the current feature being implemented.
+
+Instead of fixing these issues immediately (which could expand scope), AIDP automatically records them in a **Future Work Backlog** for later review and action.
+
+### What Gets Recorded
+
+AIDP captures observations about:
+
+- **Style Violations**: Code that doesn't follow your LLM_STYLE_GUIDE
+- **Refactor Opportunities**: Code that could be improved or simplified
+- **Technical Debt**: Known issues or workarounds that need addressing
+- **TODOs**: Inline comments indicating future work
+- **Performance Issues**: Potential bottlenecks or inefficiencies
+- **Security Concerns**: Code that may need security review
+- **Documentation Needs**: Missing or outdated documentation
+
+### Backlog Storage
+
+Future work items are stored in two formats:
+
+```text
+.aidp/
+├── future_work.yml      # Machine-readable (for tooling)
+└── future_work.md       # Human-readable (for review)
+```
+
+### Entry Structure
+
+Each backlog entry includes:
+
+```yaml
+- id: fw-1634567890-a1b2c3d4
+  type: style_violation
+  file: lib/user_service.rb
+  lines: "45-60"
+  reason: "Method exceeds 15 lines, violates style guide"
+  recommendation: "Extract validation logic into separate method"
+  priority: medium
+  context:
+    work_loop: user_authentication
+    step: implementation
+  created_at: "2025-01-15T14:30:22Z"
+  resolved: false
+```
+
+### Entry Types
+
+| Type | Description |
+|------|-------------|
+| `style_violation` | Code doesn't follow LLM_STYLE_GUIDE |
+| `refactor_opportunity` | Code could be improved |
+| `technical_debt` | Known issues needing attention |
+| `todo` | Inline TODO comments found |
+| `performance` | Potential performance issues |
+| `security` | Security concerns |
+| `documentation` | Documentation needed |
+
+### Priority Levels
+
+- **Critical**: Immediate attention required
+- **High**: Should be addressed soon
+- **Medium**: Normal priority (default)
+- **Low**: Nice to have
+
+### When Entries Are Created
+
+AIDP adds entries to the backlog when it detects:
+
+1. **Style Guide Violations** (unrelated to current work)
+   - Long methods
+   - Complex conditionals
+   - Naming convention issues
+   - Formatting problems
+
+2. **Code Smells**
+   - Duplicated code
+   - Large classes
+   - Long parameter lists
+   - Feature envy
+
+3. **Inline TODOs/FIXMEs**
+   - Existing TODO comments
+   - FIXME markers
+   - HACK comments
+
+### Work Loop Integration
+
+During a work loop, AIDP:
+
+1. **Focuses on Current Feature**: Only fixes issues directly related to the feature being implemented
+2. **Records Other Issues**: Adds unrelated issues to the backlog
+3. **Avoids Scope Creep**: Doesn't let style fixes expand the work
+4. **Summarizes at End**: Shows backlog summary when work loop completes
+
+### Example: During Implementation
+
+```text
+Working on: User Authentication Feature
+
+Encountered in lib/legacy_auth.rb:
+  - Lines 50-80: Method too long (not part of current feature)
+  - Action: Added to backlog as "refactor_opportunity"
+
+Encountered in app/controllers/sessions_controller.rb:
+  - Lines 25-30: Auth logic duplicated (affects current feature)
+  - Action: Fixed immediately as part of authentication work
+
+Encountered in lib/user.rb:
+  - Line 100: TODO: Add email validation
+  - Action: Added to backlog as "todo"
+```
+
+### Backlog Summary
+
+At the end of a work loop, AIDP displays:
+
+```text
+================================================================================
+📝 Future Work Backlog Summary
+================================================================================
+
+Total Items: 5
+Files Affected: 3
+
+By Type:
+  Style Violation: 2
+  Refactor Opportunity: 2
+  TODO: 1
+
+By Priority:
+  HIGH: 1
+  MEDIUM: 3
+  LOW: 1
+
+────────────────────────────────────────────────────────────────────────────────
+Review backlog: .aidp/future_work.md
+Convert to work loop: aidp backlog convert <entry-id>
+================================================================================
+```
+
+### Converting Entries to Work Loops
+
+Turn any backlog entry into a new work loop:
+
+```bash
+# List backlog entries
+cat .aidp/future_work.md
+
+# Convert specific entry to work loop
+aidp backlog convert fw-1634567890-a1b2c3d4
+
+# This creates PROMPT.md with:
+# - Entry details
+# - Recommended fix
+# - Acceptance criteria
+# - Reference to original context
+```
+
+### Example Backlog Entry (Markdown)
+
+```markdown
+#### fw-1634567890-a1b2 - lib/user_service.rb
+
+**Lines**: 45-60
+
+**Issue**: Method exceeds 15 lines, violates LLM_STYLE_GUIDE section on method length
+
+**Recommendation**: Extract user validation logic into separate `validate_user_data` method
+
+**Context**: Work Loop: user_authentication, Step: implementation
+
+*Created: 2025-01-15T14:30:22Z*
+```
+
+### Managing the Backlog
+
+#### Review Backlog
+
+```bash
+# View human-readable backlog
+cat .aidp/future_work.md
+
+# View machine-readable backlog
+cat .aidp/future_work.yml
+```
+
+#### Filter and Query
+
+Using the Ruby API:
+
+```ruby
+backlog = Aidp::Execute::FutureWorkBacklog.new(Dir.pwd)
+
+# Filter by type
+style_issues = backlog.filter(type: :style_violation)
+
+# Filter by priority
+critical_items = backlog.filter(priority: :critical)
+
+# Group by file
+by_file = backlog.by_file
+
+# Get summary
+summary = backlog.summary
+```
+
+#### Mark as Resolved
+
+```bash
+# After fixing an issue, mark it resolved
+aidp backlog resolve fw-1634567890-a1b2 "Fixed in PR #123"
+
+# Clear all resolved entries
+aidp backlog clear-resolved
+```
+
+### Configuration
+
+Control backlog behavior in `.aidp.yml`:
+
+```yaml
+harness:
+  work_loop:
+    # Future work backlog settings
+    backlog:
+      enabled: true
+      auto_detect: true  # Automatically detect issues
+      capture_todos: true  # Capture inline TODOs
+      capture_style: true  # Capture style violations
+      min_priority: low  # Minimum priority to record
+```
+
+### Backlog Best Practices
+
+#### 1. Review Regularly
+
+```bash
+# After each work loop
+cat .aidp/future_work.md
+
+# Weekly backlog review
+aidp backlog summary
+```
+
+#### 2. Prioritize Strategically
+
+- **Critical/High**: Address in next work loop
+- **Medium**: Schedule for upcoming sprint
+- **Low**: Tackle during refactoring sessions
+
+#### 3. Batch Similar Items
+
+Group related backlog items:
+
+```bash
+# Find all style violations in a file
+aidp backlog filter --file lib/user.rb --type style_violation
+
+# Create single work loop to fix all
+aidp backlog batch lib/user.rb
+```
+
+#### 4. Use as Refactoring Backlog
+
+The backlog serves as a natural refactoring TODO list:
+
+- Identifies problem areas
+- Tracks technical debt
+- Guides improvement efforts
+- Documents known issues
+
+#### 5. Reference in PRs
+
+Include backlog summary in PR descriptions:
+
+```markdown
+## Implementation
+
+Implemented user authentication feature.
+
+## Future Work Captured
+
+Added 3 items to backlog:
+- Style violation in lib/legacy_auth.rb (fw-123-abc)
+- Refactoring opportunity in lib/session.rb (fw-123-def)
+- TODO in app/controllers/base.rb (fw-123-ghi)
+
+See `.aidp/future_work.md` for details.
+```
+
+### LLM_STYLE_GUIDE Integration
+
+The backlog system works closely with your LLM_STYLE_GUIDE:
+
+1. **Style Guide as Reference**: AIDP uses LLM_STYLE_GUIDE to identify violations
+2. **Contextual Decisions**: Only fixes style issues related to current work
+3. **Systematic Improvement**: Backlog enables gradual style guide adoption
+4. **Documentation**: Entry recommendations reference specific style guide sections
+
+Example entry:
+
+```yaml
+type: style_violation
+reason: "Method length exceeds 15 lines (LLM_STYLE_GUIDE: Methods section)"
+recommendation: "Extract validation into separate method per style guide"
+```
+
+### Workflow Example
+
+#### Day 1: Feature Implementation
+
+```bash
+aidp execute
+
+# During work loop:
+# - Implements authentication feature
+# - Encounters 5 unrelated style issues
+# - Records all 5 in backlog
+# - Completes feature without scope creep
+
+# At end:
+# ✅ Feature complete
+# 📝 5 items added to backlog
+```
+
+#### Day 2: Backlog Review
+
+```bash
+# Review backlog
+cat .aidp/future_work.md
+
+# High priority items identified:
+# - fw-123-abc: Security concern in session handling
+# - fw-123-def: Performance issue in query
+
+# Create work loops for high priority items
+aidp backlog convert fw-123-abc
+aidp execute  # Fix security concern
+
+aidp backlog convert fw-123-def
+aidp execute  # Fix performance issue
+```
+
+#### Weekly: Batch Refactoring
+
+```bash
+# Review low-priority style items
+aidp backlog filter --priority low --type style_violation
+
+# Create single work loop for batch cleanup
+aidp backlog batch-convert --priority low --max-items 10
+aidp execute  # Fix 10 style issues at once
+```
+
+### Backlog Troubleshooting
+
+#### Too Many Backlog Entries
+
+**Problem**: Backlog grows too large
+
+**Solutions**:
+
+- Adjust `min_priority` to capture fewer items
+- Disable `capture_todos` if too noisy
+- Regular backlog grooming sessions
+- Batch-fix low-priority items
+
+#### Missing Important Issues
+
+**Problem**: Expected issues not captured
+
+**Solutions**:
+
+- Check LLM_STYLE_GUIDE is comprehensive
+- Lower `min_priority` threshold
+- Enable more capture types
+- Manually add entries
+
+#### Duplicate Entries
+
+**Problem**: Same issue recorded multiple times
+
+**Solutions**:
+
+- AIDP automatically deduplicates same file/line/reason
+- Clear resolved entries regularly
+- Review backlog between work loops
+
+### Implementation Notes
+
+The Future Work Backlog is implemented in:
+
+- `lib/aidp/execute/future_work_backlog.rb` - Core backlog manager
+- `.aidp/future_work.yml` - Machine-readable storage
+- `.aidp/future_work.md` - Human-readable documentation
+
+### Future Enhancements
+
+Planned improvements:
+
+- [ ] Automatic priority assignment based on code metrics
+- [ ] Integration with issue trackers (GitHub, Jira)
+- [ ] ML-based detection of refactoring opportunities
+- [ ] Backlog analytics and trends
+- [ ] Team-wide backlog aggregation
+- [ ] Auto-scheduling of backlog work loops
 
 ## References
 
