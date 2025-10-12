@@ -10,8 +10,13 @@ module Aidp
   class IssueImporter
     include Aidp::MessageDisplay
 
-    def initialize
-      @gh_available = gh_cli_available?
+    # Initialize the importer
+    #
+    # @param gh_available [Boolean, nil] (test-only) forcibly sets whether gh CLI is considered
+    #   available. When nil (default) we auto-detect. This enables deterministic specs without
+    #   depending on developer environment.
+    def initialize(gh_available: nil)
+      @gh_available = gh_available.nil? ? gh_cli_available? : gh_available
     end
 
     def import_issue(identifier)

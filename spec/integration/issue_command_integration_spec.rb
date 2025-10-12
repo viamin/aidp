@@ -4,7 +4,7 @@ require "spec_helper"
 require "tempfile"
 require "fileutils"
 require "stringio"
-require_relative "../../lib/aidp/cli/issue_importer"
+require "aidp"
 
 RSpec.describe "aidp issue command", type: :integration do
   let(:temp_dir) { Dir.mktmpdir }
@@ -112,12 +112,12 @@ RSpec.describe "aidp issue command", type: :integration do
     $stdout = StringIO.new
 
     begin
-      # Mock MessageDisplay to prevent actual display calls
-      allow_any_instance_of(Aidp::CLI).to receive(:display_message) do |instance, message, **options|
+      # Stub class-level display_message used in CLI singleton methods
+      allow(Aidp::CLI).to receive(:display_message) do |message, **_options|
         $stdout.puts message
       end
 
-      # Run the CLI command
+      # Execute via class method (CLI defines run in class << self)
       Aidp::CLI.run(args)
       $stdout.string
     rescue SystemExit
