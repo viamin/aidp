@@ -300,7 +300,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze providers checkpoint mcp].include?(args.first)
+        %w[status jobs kb harness execute analyze providers checkpoint mcp issue].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -315,6 +315,7 @@ module Aidp
         when "providers" then run_providers_command(args)
         when "checkpoint" then run_checkpoint_command(args)
         when "mcp" then run_mcp_command(args)
+        when "issue" then run_issue_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -909,6 +910,57 @@ module Aidp
           display_message("\n🔄 Harness finished", type: :success)
           display_message("   Status: #{result[:status]}", type: :info)
           display_message("   Message: #{result[:message]}", type: :info) if result[:message]
+        end
+      end
+
+      def run_issue_command(args)
+        require_relative "cli/issue_importer"
+
+        usage = <<~USAGE
+          Usage: aidp issue <command> [options]
+
+          Commands:
+            import <identifier>    Import a GitHub issue
+                                  Identifier can be:
+                                  - Full URL: https://github.com/owner/repo/issues/123
+                                  - Issue number: 123 (when in a git repo)
+                                  - Shorthand: owner/repo#123
+
+          Examples:
+            aidp issue import https://github.com/rails/rails/issues/12345
+            aidp issue import 123
+            aidp issue import rails/rails#12345
+
+          Options:
+            -h, --help            Show this help message
+        USAGE
+
+        if args.empty? || args.include?("-h") || args.include?("--help")
+          display_message(usage, type: :info)
+          return
+        end
+
+        command = args.shift
+        case command
+        when "import"
+          identifier = args.shift
+          unless identifier
+            display_message("❌ Missing issue identifier", type: :error)
+            display_message(usage, type: :info)
+            return
+          end
+
+          importer = IssueImporter.new
+          issue_data = importer.import_issue(identifier)
+
+          if issue_data
+            display_message("", type: :info)
+            display_message("🚀 Ready to start work loop!", type: :success)
+            display_message("   Run: aidp execute", type: :info)
+          end
+        else
+          display_message("❌ Unknown issue command: #{command}", type: :error)
+          display_message(usage, type: :info)
         end
       end
     end # class << self
