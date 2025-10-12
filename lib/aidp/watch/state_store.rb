@@ -34,7 +34,7 @@ module Aidp
           "questions" => data[:questions],
           "comment_body" => data[:comment_body],
           "comment_hint" => data[:comment_hint],
-          "posted_at" => (data[:posted_at] || Time.now.utc.iso8601)
+          "posted_at" => data[:posted_at] || Time.now.utc.iso8601
         }.compact
 
         plans[issue_number.to_s] = payload
@@ -65,7 +65,7 @@ module Aidp
 
       def load_state
         @state ||= if File.exist?(@path)
-          YAML.safe_load(File.read(@path), permitted_classes: [Time]) || {}
+          YAML.safe_load_file(@path, permitted_classes: [Time]) || {}
         else
           {}
         end

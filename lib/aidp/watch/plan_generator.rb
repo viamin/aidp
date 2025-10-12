@@ -50,7 +50,7 @@ module Aidp
         return nil unless provider_name
 
         provider = Aidp::ProviderManager.get_provider(provider_name, use_harness: false)
-        return provider if provider && provider.available?
+        return provider if provider&.available?
 
         nil
       rescue => e

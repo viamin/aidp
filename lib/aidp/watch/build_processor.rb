@@ -135,7 +135,7 @@ module Aidp
         relevant.map do |comment|
           author = comment["author"] || "unknown"
           created = comment["createdAt"] ? Time.parse(comment["createdAt"]).utc.iso8601 : "unknown"
-          "### #{author} (#{created})\n#{comment['body']}"
+          "### #{author} (#{created})\n#{comment["body"]}"
         end.join("\n\n")
       rescue
         "_Unable to parse comment thread._"
@@ -266,7 +266,7 @@ module Aidp
 
       def run_git(args, allow_failure: false)
         stdout, stderr, status = Open3.capture3("git", *Array(args))
-        raise "git #{args.join(' ')} failed: #{stderr.strip}" unless status.success? || allow_failure
+        raise "git #{args.join(" ")} failed: #{stderr.strip}" unless status.success? || allow_failure
         stdout
       end
 
