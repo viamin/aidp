@@ -10,7 +10,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     instance_double(
       "Configuration",
       test_commands: ["bundle exec rspec"],
-      lint_commands: ["bundle exec standardrb"]
+      lint_commands: ["bundle exec standardrb"],
+      guards_config: {enabled: false}
     )
   end
   let(:runner) { described_class.new(project_dir, provider_manager, config) }

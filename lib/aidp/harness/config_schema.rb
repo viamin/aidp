@@ -404,6 +404,55 @@ module Aidp
                   items: {
                     type: :string
                   }
+                },
+                guards: {
+                  type: :hash,
+                  required: false,
+                  default: {
+                    enabled: false
+                  },
+                  properties: {
+                    enabled: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    },
+                    include_files: {
+                      type: :array,
+                      required: false,
+                      default: [],
+                      items: {
+                        type: :string
+                      }
+                    },
+                    exclude_files: {
+                      type: :array,
+                      required: false,
+                      default: [],
+                      items: {
+                        type: :string
+                      }
+                    },
+                    confirm_files: {
+                      type: :array,
+                      required: false,
+                      default: [],
+                      items: {
+                        type: :string
+                      }
+                    },
+                    max_lines_per_commit: {
+                      type: :integer,
+                      required: false,
+                      min: 1,
+                      max: 10000
+                    },
+                    bypass: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    }
+                  }
                 }
               }
             }
