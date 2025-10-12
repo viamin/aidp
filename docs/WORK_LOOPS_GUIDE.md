@@ -322,6 +322,77 @@ aidp execute
    - Reference to original issue URL
 3. **Work Loop Ready**: Run `aidp execute` to start autonomous implementation
 
+### Branch Strategy & Checkpoints
+
+When you import a GitHub issue, AIDP can automatically bootstrap your development environment with:
+
+1. **Branch Creation**: Creates feature branch using naming convention `aidp/iss-{number}-{slug}`
+2. **Checkpoint Tagging**: Creates initial checkpoint tag `aidp-start/{number}`
+3. **Tooling Detection**: Automatically detects and documents test/lint commands in PROMPT.md
+
+#### Branch Bootstrap Process
+
+```bash
+# Import issue triggers automatic bootstrap
+aidp issue import 123
+
+# Automatically creates:
+# - Branch: aidp/iss-123-add-user-authentication
+# - Tag: aidp-start/123 (marks starting point)
+# - Detects: "bundle exec rspec", "npm test", etc.
+```
+
+#### Checkpoint Usage
+
+The initial checkpoint tag serves as a recovery point:
+
+```bash
+# Return to starting point if needed
+git checkout aidp-start/123
+
+# Create new branch from checkpoint  
+git checkout -b aidp/iss-123-alternative aidp-start/123
+
+# Compare current state with start
+git diff aidp-start/123..HEAD
+```
+
+#### Bootstrap Configuration
+
+Bootstrap behavior can be controlled via environment or configuration:
+
+```bash
+# Disable bootstrap temporarily
+AIDP_DISABLE_BOOTSTRAP=1 aidp issue import 123
+
+# Or configure in aidp.yml
+issue_import:
+  bootstrap:
+    enabled: false
+    branch_prefix: "feature"  # Custom prefix instead of "aidp"
+    tag_prefix: "start"       # Custom tag prefix
+```
+
+#### Recovery Workflows
+
+If your work loop goes off track, use checkpoints for recovery:
+
+```bash
+# Review what changed since start
+git log --oneline aidp-start/123..HEAD
+
+# Reset to checkpoint (destructive)
+git reset --hard aidp-start/123
+
+# Create recovery branch from checkpoint
+git checkout -b aidp/iss-123-recovery aidp-start/123
+
+# Cherry-pick specific commits
+git cherry-pick <commit-hash>
+```
+
+The bootstrap feature ensures you always have a clean starting point and clear development path for each GitHub issue.
+
 ### Generated PROMPT.md Structure
 
 ```markdown
@@ -354,7 +425,7 @@ You are working on a GitHub issue imported into AIDP...
 - **Multiple formats**: Supports URLs, numbers, and shorthand notation
 - **Error handling**: Clear messages for invalid identifiers or missing repositories
 
-## Configuration
+## Work Loop Configuration
 
 ### Enable Work Loops
 

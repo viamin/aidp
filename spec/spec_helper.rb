@@ -6,6 +6,7 @@ require "timeout"
 
 ENV["RACK_ENV"] = "test"
 ENV["RSPEC_RUNNING"] = "true" # Signal that we're running tests
+ENV["AIDP_DISABLE_BOOTSTRAP"] ||= "1" # Default off in tests; enable explicitly in bootstrap specs
 
 require "aidp"
 require "tempfile"
