@@ -170,6 +170,41 @@ module Aidp
         work_loop_config[:lint_commands] || []
       end
 
+      # Get guards configuration
+      def guards_config
+        work_loop_config[:guards] || default_guards_config
+      end
+
+      # Check if guards are enabled
+      def guards_enabled?
+        guards_config[:enabled] == true
+      end
+
+      # Get include file patterns for guards
+      def guards_include_files
+        guards_config[:include_files] || []
+      end
+
+      # Get exclude file patterns for guards
+      def guards_exclude_files
+        guards_config[:exclude_files] || []
+      end
+
+      # Get files requiring confirmation for guards
+      def guards_confirm_files
+        guards_config[:confirm_files] || []
+      end
+
+      # Get max lines per commit for guards
+      def guards_max_lines_per_commit
+        guards_config[:max_lines_per_commit]
+      end
+
+      # Check if guards are bypassed
+      def guards_bypass?
+        guards_config[:bypass] == true
+      end
+
       # Get provider priority
       def provider_priority(provider_name)
         provider_config(provider_name)[:priority] || 0
@@ -447,7 +482,19 @@ module Aidp
           enabled: true,
           max_iterations: 50,
           test_commands: [],
-          lint_commands: []
+          lint_commands: [],
+          guards: default_guards_config
+        }
+      end
+
+      def default_guards_config
+        {
+          enabled: false,
+          include_files: [],
+          exclude_files: [],
+          confirm_files: [],
+          max_lines_per_commit: nil,
+          bypass: false
         }
       end
 

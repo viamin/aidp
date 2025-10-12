@@ -3,6 +3,7 @@
 require_relative "prompt_manager"
 require_relative "checkpoint"
 require_relative "checkpoint_display"
+require_relative "guard_policy"
 require_relative "../harness/test_runner"
 
 module Aidp
@@ -46,6 +47,7 @@ module Aidp
         @test_runner = Aidp::Harness::TestRunner.new(project_dir, config)
         @checkpoint = Checkpoint.new(project_dir)
         @checkpoint_display = CheckpointDisplay.new
+        @guard_policy = GuardPolicy.new(project_dir, config.guards_config)
         @iteration_count = 0
         @step_name = nil
         @options = options
@@ -63,6 +65,9 @@ module Aidp
 
         display_message("🔄 Starting fix-forward work loop for step: #{step_name}", type: :info)
         display_message("  State machine: READY → APPLY_PATCH → TEST → {PASS → DONE | FAIL → DIAGNOSE → NEXT_PATCH}", type: :info)
+
+        # Display guard policy status
+        display_guard_policy_status
 
         # Create initial PROMPT.md
         create_initial_prompt(step_spec, context)
@@ -479,6 +484,110 @@ module Aidp
         # Display progress summary
         summary = @checkpoint.progress_summary
         @checkpoint_display.display_progress_summary(summary) if summary
+      end
+
+      # Display guard policy status
+      def display_guard_policy_status
+        return unless @guard_policy.enabled?
+
+        display_message("\n🛡️  Safety Guards Enabled:", type: :info)
+        summary = @guard_policy.summary
+
+        if summary[:include_patterns].any?
+          display_message("  ✓ Include patterns: #{summary[:include_patterns].join(", ")}", type: :info)
+        end
+
+        if summary[:exclude_patterns].any?
+          display_message("  ✗ Exclude patterns: #{summary[:exclude_patterns].join(", ")}", type: :info)
+        end
+
+        if summary[:confirm_patterns].any?
+          display_message("  ⚠️  Require confirmation: #{summary[:confirm_patterns].join(", ")}", type: :warning)
+        end
+
+        if summary[:max_lines_per_commit]
+          display_message("  📏 Max lines per commit: #{summary[:max_lines_per_commit]}", type: :info)
+        end
+
+        display_message("")
+      end
+
+      # Validate changes against guard policy
+      # Returns validation result with errors if any
+      def validate_guard_policy(changed_files = [])
+        return {valid: true} unless @guard_policy.enabled?
+
+        # Get git diff stats for changed files
+        diff_stats = get_diff_stats(changed_files)
+
+        # Validate against policy
+        result = @guard_policy.validate_changes(diff_stats)
+
+        # Display errors if validation failed
+        if !result[:valid] && result[:errors]
+          display_message("\n🛡️  Guard Policy Violations:", type: :error)
+          result[:errors].each do |error|
+            display_message("  ✗ #{error}", type: :error)
+          end
+          display_message("")
+        end
+
+        result
+      end
+
+      # Get git diff statistics for files
+      def get_diff_stats(files)
+        return {} if files.empty?
+
+        stats = {}
+        files.each do |file|
+          # Use git diff to get line counts
+          output = `git diff --numstat HEAD -- "#{file}" 2>/dev/null`.strip
+          next if output.empty?
+
+          parts = output.split("\t")
+          stats[file] = {
+            additions: parts[0].to_i,
+            deletions: parts[1].to_i
+          }
+        end
+
+        stats
+      end
+
+      # Get list of changed files in current work
+      def get_changed_files
+        # Get list of modified files from git
+        output = `git diff --name-only HEAD 2>/dev/null`.strip
+        return [] if output.empty?
+
+        output.split("\n").map(&:strip).reject(&:empty?)
+      end
+
+      # Handle files requiring confirmation
+      def handle_confirmation_requests
+        return unless @guard_policy.enabled?
+
+        files_needing_confirmation = @guard_policy.files_requiring_confirmation
+        return if files_needing_confirmation.empty?
+
+        files_needing_confirmation.each do |file|
+          next if @guard_policy.confirmed?(file)
+
+          display_message("\n⚠️  File requires confirmation: #{file}", type: :warning)
+          display_message("   Confirm modification? (y/n): ", type: :warning)
+
+          # In automated mode, skip confirmation
+          if @options[:automated]
+            display_message("   [Automated mode: skipping]", type: :info)
+            next
+          end
+
+          # For now, auto-confirm in work loops
+          # TODO: Implement interactive confirmation via REPL
+          @guard_policy.confirm_file(file)
+          display_message("   ✓ Confirmed", type: :success)
+        end
       end
     end
   end
