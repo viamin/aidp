@@ -61,7 +61,8 @@ RSpec.describe "aidp issue command", type: :aruba do
   describe "command execution flow" do
     it "attempts to fetch real issues and handles errors gracefully" do
       # Stub GitHub API request to avoid real network calls
-      stub_request(:get, %r{https://api.github.com/repos/rails/rails/issues/999999})
+      # Use exact string (no regexp) to avoid accidental hostname over-match (CodeQL rule rb/incomplete-hostname-regexp)
+      stub_request(:get, "https://api.github.com/repos/rails/rails/issues/999999")
         .to_return(
           status: 404,
           body: {message: "Not Found"}.to_json,
