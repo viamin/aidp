@@ -24,7 +24,6 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
   before do
     @orig_dir = Dir.pwd
     Dir.chdir(tmpdir)
-    system("git init --quiet")
     File.write("Gemfile", "source 'https://rubygems.org'\ngem 'rspec'\n")
     FileUtils.mkdir_p("spec")
 
@@ -44,6 +43,16 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
     importer = described_class.new(enable_bootstrap: true, gh_available: false)
     allow(importer).to receive(:display_message) # silence
 
+    # Mock git operations to avoid CI environment issues
+    allow(File).to receive(:exist?).and_call_original
+    allow(File).to receive(:exist?).with(".git").and_return(true)
+    allow(File).to receive(:exist?).with(".aidp_bootstrap").and_return(false)
+    allow(Open3).to receive(:capture3).with("git", "rev-parse", "--verify", "HEAD").and_return(["", "", double(success?: false)])
+    allow(Open3).to receive(:capture3).with("git", "add", "-A").and_return(["", "", double(success?: true)])
+    allow(Open3).to receive(:capture3).with("git", "commit", "-m", "chore(aidp): initial commit before bootstrap").and_return(["", "", double(success?: true)])
+    allow(Open3).to receive(:capture3).with("git", "checkout", "-b", "aidp/iss-42-add-user-search").and_return(["", "", double(success?: true)])
+    allow(Open3).to receive(:capture3).with("git", "tag", "aidp-start/42").and_return(["", "", double(success?: true)])
+
     # Stub internal pieces we don't want to auto-run
     allow(importer).to receive(:normalize_issue_identifier).and_return(issue_data[:url])
     allow(importer).to receive(:fetch_issue_data).and_return(issue_data)
@@ -52,11 +61,9 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
 
     importer.import_issue("org/repo#42")
 
-    branches = `git branch --list`.split("\n").map(&:strip)
-    expect(branches.any? { |b| b.include?("aidp/iss-42-add-user-search") }).to be true
-
-    tags = `git tag --list`.split("\n")
-    expect(tags).to include("aidp-start/42")
+    # Verify git operations were called with correct parameters
+    expect(Open3).to have_received(:capture3).with("git", "checkout", "-b", "aidp/iss-42-add-user-search")
+    expect(Open3).to have_received(:capture3).with("git", "tag", "aidp-start/42")
 
     content = File.read("PROMPT.md")
     expect(content).to match(/Detected Tooling/i)
@@ -71,10 +78,15 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
     allow(importer).to receive(:display_imported_issue)
     allow(importer).to receive(:create_work_loop_prompt) { File.write("PROMPT.md", "Initial") }
 
+    # Mock git operations but they shouldn't be called
+    allow(File).to receive(:exist?).with(".git").and_return(true)
+    allow(Open3).to receive(:capture3)
+
     importer.import_issue("org/repo#42")
 
-    expect(`git branch --list`).not_to match(/aidp\/iss-42/)
-    expect(`git tag --list`).not_to match(/aidp-start\/42/)
+    # Verify git operations were NOT called when disabled
+    expect(Open3).not_to have_received(:capture3).with("git", "checkout", "-b", anything)
+    expect(Open3).not_to have_received(:capture3).with("git", "tag", anything)
   ensure
     ENV.delete("AIDP_DISABLE_BOOTSTRAP")
   end
