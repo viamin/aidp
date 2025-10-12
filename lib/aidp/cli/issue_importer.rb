@@ -15,8 +15,9 @@ module Aidp
     # @param gh_available [Boolean, nil] (test-only) forcibly sets whether gh CLI is considered
     #   available. When nil (default) we auto-detect. This enables deterministic specs without
     #   depending on developer environment.
-    def initialize(gh_available: nil)
+    def initialize(gh_available: nil, enable_bootstrap: true)
       @gh_available = gh_available.nil? ? gh_cli_available? : gh_available
+      @enable_bootstrap = enable_bootstrap
     end
 
     def import_issue(identifier)
@@ -28,6 +29,7 @@ module Aidp
 
       display_imported_issue(issue_data)
       create_work_loop_prompt(issue_data)
+      perform_bootstrap(issue_data)
 
       issue_data
     end
@@ -277,6 +279,81 @@ module Aidp
       status.success?
     rescue Errno::ENOENT
       false
+    end
+
+    def perform_bootstrap(issue_data)
+      return if ENV["AIDP_DISABLE_BOOTSTRAP"] == "1"
+      return unless @enable_bootstrap
+      return unless git_repo?
+
+      ensure_initial_commit
+
+      branch = branch_name(issue_data)
+      create_branch(branch)
+      create_checkpoint_tag(issue_data)
+      detect_and_record_tooling
+    rescue => e
+      display_message("⚠️ Bootstrap step failed: #{e.message}", type: :warn)
+    end
+
+    def git_repo?
+      File.exist?(".git")
+    end
+
+    # Ensure we have an initial commit so that branch and tag creation succeed in fresh repos.
+    # In an empty repo without commits, git checkout -b and git tag will fail due to missing HEAD.
+    def ensure_initial_commit
+      _stdout, _stderr, status = Open3.capture3("git", "rev-parse", "--verify", "HEAD")
+      return if status.success? # already have at least one commit
+
+      # Create a placeholder file if nothing is present so commit has content
+      placeholder = ".aidp_bootstrap"
+      unless File.exist?(placeholder)
+        File.write(placeholder, "Initial commit placeholder for AIDP bootstrap\n")
+      end
+
+      Open3.capture3("git", "add", "-A")
+      _c_stdout, c_stderr, c_status = Open3.capture3("git", "commit", "-m", "chore(aidp): initial commit before bootstrap")
+      unless c_status.success?
+        display_message("⚠️ Could not create initial commit: #{c_stderr.strip}", type: :warn)
+      end
+    end
+
+    def branch_name(issue_data)
+      slug = issue_data[:title].downcase.gsub(/[^a-z0-9]+/, "-").gsub(/^-|-$/, "")[0, 40]
+      "aidp/iss-#{issue_data[:number]}-#{slug}"
+    end
+
+    def create_branch(name)
+      _stdout, stderr, status = Open3.capture3("git", "checkout", "-b", name)
+      if status.success?
+        display_message("🌿 Created branch #{name}", type: :success)
+      else
+        display_message("⚠️ Could not create branch: #{stderr.strip}", type: :warn)
+      end
+    end
+
+    def create_checkpoint_tag(issue_data)
+      tag = "aidp-start/#{issue_data[:number]}"
+      _stdout, stderr, status = Open3.capture3("git", "tag", tag)
+      if status.success?
+        display_message("🏷️  Added checkpoint tag #{tag}", type: :success)
+      else
+        display_message("⚠️ Could not create tag: #{stderr.strip}", type: :warn)
+      end
+    end
+
+    def detect_and_record_tooling
+      require_relative "../tooling_detector"
+      result = Aidp::ToolingDetector.detect
+      return if result.test_commands.empty? && result.lint_commands.empty?
+
+      tooling_info = "# Detected Tooling\n\n" \
+        + (result.test_commands.empty? ? "" : "Test Commands:\n#{result.test_commands.map { |c| "- #{c}" }.join("\n")}\n\n") \
+        + (result.lint_commands.empty? ? "" : "Lint Commands:\n#{result.lint_commands.map { |c| "- #{c}" }.join("\n")}\n")
+
+      File.open("PROMPT.md", "a") { |f| f.puts("\n---\n\n#{tooling_info}") }
+      display_message("🧪 Detected tooling and appended to PROMPT.md", type: :info)
     end
   end
 end

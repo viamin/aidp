@@ -195,7 +195,7 @@ RSpec.describe Aidp::IssueImporter do
     let(:issue_url) { "https://github.com/owner/repo/issues/123" }
 
     context "when GitHub CLI is available" do
-      let(:importer) { described_class.new(gh_available: true) }
+      let(:importer) { described_class.new(gh_available: true, enable_bootstrap: false) }
 
       it "tries GitHub CLI first" do
         allow(importer).to receive(:fetch_via_gh_cli).and_return({number: 123})
@@ -216,7 +216,7 @@ RSpec.describe Aidp::IssueImporter do
     end
 
     context "when GitHub CLI is not available" do
-      let(:importer) { described_class.new(gh_available: false) }
+      let(:importer) { described_class.new(gh_available: false, enable_bootstrap: false) }
 
       it "uses API directly" do
         allow(importer).to receive(:fetch_via_api).and_return({number: 123})
