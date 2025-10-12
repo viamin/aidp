@@ -186,29 +186,45 @@ module Aidp
       end
 
       # Match file path against glob pattern
+      # Uses File.fnmatch for safe, efficient pattern matching without ReDoS risk
       def matches_pattern?(file_path, pattern)
-        # Convert glob pattern to regex
-        regex_pattern = glob_to_regex(pattern)
-        file_path.match?(regex_pattern)
-      end
+        # Ruby's File.fnmatch with FNM_EXTGLOB handles most patterns safely
+        # FNM_EXTGLOB enables {a,b} brace expansion
+        # For ** patterns, we need to handle them specially as fnmatch doesn't support ** natively
 
-      # Convert glob pattern to regex
-      # Supports: *, **, ?, [abc], {a,b,c}
-      def glob_to_regex(pattern)
-        escaped = Regexp.escape(pattern)
+        if pattern.include?("**")
+          # Convert ** to * for fnmatch compatibility and check if path contains the pattern parts
+          # Pattern like "lib/**/*.rb" should match "lib/foo/bar.rb"
+          pattern_parts = pattern.split("**").map(&:strip).reject(&:empty?)
 
-        # Replace escaped glob patterns with regex equivalents
-        regex_str = escaped
-          .gsub('\*\*/', "(.*/)?")     # **/ matches zero or more directories
-          .gsub('\*\*', ".*")          # ** matches anything
-          .gsub('\*', "[^/]*")         # * matches anything except /
-          .gsub('\?', ".")             # ? matches single character
-          .gsub(/\\\{([^}]+)\\\}/) do  # {a,b,c} matches alternatives
-            "(#{Regexp.last_match(1).split(",").map { |s| Regexp.escape(s) }.join("|")})"
+          if pattern_parts.empty?
+            # Pattern is just "**" - matches everything
+            true
+          elsif pattern_parts.size == 1
+            # Pattern like "**/file.rb" or "lib/**"
+            part = pattern_parts[0].sub(%r{^/}, "").sub(%r{/$}, "")
+            if pattern.start_with?("**")
+              # Matches if any part of the path matches
+              File.fnmatch(part, file_path, File::FNM_EXTGLOB) ||
+                File.fnmatch("**/#{part}", file_path, File::FNM_EXTGLOB) ||
+                file_path.end_with?(part) ||
+                file_path.include?("/#{part}")
+            else
+              # Pattern ends with **: match prefix
+              file_path.start_with?(part)
+            end
+          else
+            # Pattern like "lib/**/*.rb" - has prefix and suffix
+            prefix = pattern_parts[0].sub(%r{/$}, "")
+            suffix = pattern_parts[1].sub(%r{^/}, "")
+
+            file_path.start_with?(prefix) && File.fnmatch(suffix, file_path.sub(/^#{Regexp.escape(prefix)}\//, ""), File::FNM_EXTGLOB)
           end
-          .gsub(/\\\[([^\]]+)\\\]/, "[\\1]")  # [abc] matches character class
-
-        Regexp.new("^#{regex_str}$")
+        else
+          # Standard glob pattern - use File.fnmatch which is safe from ReDoS
+          # FNM_DOTMATCH allows * to match files starting with .
+          File.fnmatch(pattern, file_path, File::FNM_EXTGLOB | File::FNM_DOTMATCH)
+        end
       end
 
       # Expand glob pattern to actual files (for confirmation list)
