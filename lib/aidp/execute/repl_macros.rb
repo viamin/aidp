@@ -393,15 +393,44 @@ module Aidp
       end
 
       # Check if path matches glob pattern
+      # Uses File.fnmatch for safe, efficient pattern matching without ReDoS risk
       def matches_pattern?(path, pattern)
-        # Simple glob matching
-        regex_pattern = Regexp.escape(pattern)
-          .gsub('\*\*/', "(.*/)?")
-          .gsub('\*\*', ".*")
-          .gsub('\*', "[^/]*")
-          .gsub('\?', ".")
+        # Ruby's File.fnmatch with FNM_EXTGLOB handles most patterns safely
+        # For ** patterns, we need to handle them specially as fnmatch doesn't support ** natively
 
-        path.match?(/^#{regex_pattern}$/)
+        if pattern.include?("**")
+          # Convert ** to * for fnmatch compatibility and check if path contains the pattern parts
+          # Pattern like "lib/**/*.rb" should match "lib/foo/bar.rb"
+          pattern_parts = pattern.split("**").map(&:strip).reject(&:empty?)
+
+          if pattern_parts.empty?
+            # Pattern is just "**" - matches everything
+            true
+          elsif pattern_parts.size == 1
+            # Pattern like "**/file.rb" or "lib/**"
+            part = pattern_parts[0].sub(%r{^/}, "").sub(%r{/$}, "")
+            if pattern.start_with?("**")
+              # Matches if any part of the path matches
+              File.fnmatch(part, path, File::FNM_EXTGLOB) ||
+                File.fnmatch("**/#{part}", path, File::FNM_EXTGLOB) ||
+                path.end_with?(part) ||
+                path.include?("/#{part}")
+            else
+              # Pattern ends with **: match prefix
+              path.start_with?(part)
+            end
+          else
+            # Pattern like "lib/**/*.rb" - has prefix and suffix
+            prefix = pattern_parts[0].sub(%r{/$}, "")
+            suffix = pattern_parts[1].sub(%r{^/}, "")
+
+            path.start_with?(prefix) && File.fnmatch(suffix, path.sub(/^#{Regexp.escape(prefix)}\//, ""), File::FNM_EXTGLOB)
+          end
+        else
+          # Standard glob pattern - use File.fnmatch which is safe from ReDoS
+          # FNM_DOTMATCH allows * to match files starting with .
+          File.fnmatch(pattern, path, File::FNM_EXTGLOB | File::FNM_DOTMATCH)
+        end
       end
 
       # Count active constraints
