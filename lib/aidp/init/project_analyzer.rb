@@ -330,6 +330,9 @@ module Aidp
               return true if File.read(path).match?(pattern)
             rescue Errno::ENOENT
               next
+            rescue ArgumentError, Encoding::InvalidByteSequenceError => e
+              warn "[AIDP] Skipping file with invalid encoding: #{path} (#{e.class})"
+              next
             end
           end
           false
