@@ -133,12 +133,15 @@ module Aidp
 
         # TODO: Add default selection back once TTY-Prompt default validation issue is resolved
         # For now, the user will select manually from the dynamically discovered providers
-        provider_choice = prompt.select("Select your primary LLM provider:") do |menu|
+        provider_choice = prompt.select("Select your primary provider:") do |menu|
           available_providers.each do |display_name, provider_name|
             menu.choice display_name, provider_name
           end
           menu.choice "Other/Custom", "custom"
         end
+
+        # Save primary provider
+        set([:harness, :default_provider], provider_choice) unless provider_choice == "custom"
 
         # Prompt for fallback providers (excluding the primary)
         fallback_choices = available_providers.reject { |_, name| name == provider_choice }
@@ -148,7 +151,9 @@ module Aidp
           end
         end
 
-        set([:harness, :fallback_providers], fallback_selected)
+        # Remove any accidental duplication of primary provider & save
+        cleaned_fallbacks = fallback_selected.reject { |name| name == provider_choice }
+        set([:harness, :fallback_providers], cleaned_fallbacks)
 
         # No LLM settings needed; provider agent handles LLM config
 
