@@ -8,6 +8,9 @@ When running in non-interactive mode, AIDP operates independently of the termina
 
 This feature implements [GitHub Issue #104](https://github.com/viamin/aidp/issues/104).
 
+> Tip: Use `aidp config --interactive` (see [SETUP_WIZARD](SETUP_WIZARD.md)) to set
+> defaults for background/watch behaviour before enabling non-interactive mode.
+
 ## Core Concepts
 
 ### Modes of Operation

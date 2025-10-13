@@ -39,8 +39,14 @@ class TestPrompt
     end
   end
 
-  def multi_select(title, items, **options)
-    @selections << {title: title, items: items, options: options, multi: true}
+  def multi_select(title, items = nil, **options)
+    if block_given?
+      menu = MockMenu.new
+      yield menu
+      @selections << {title: title, items: menu.choices, options: options, multi: true, block: true}
+    else
+      @selections << {title: title, items: items, options: options, multi: true}
+    end
     @responses[:multi_select] || []
   end
 

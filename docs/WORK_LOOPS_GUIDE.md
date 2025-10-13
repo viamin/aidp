@@ -21,7 +21,9 @@ Run `aidp init` before the first autonomous loop to generate
 `docs/LLM_STYLE_GUIDE.md`, `docs/PROJECT_ANALYSIS.md`, and `docs/CODE_QUALITY_PLAN.md`.
 These documents capture project conventions and tooling so every subsequent work
 loop has consistent guidance. See [INIT_MODE](INIT_MODE.md) for a full
-walkthrough of the bootstrapping process.
+walkthrough of the bootstrapping process. Use `aidp config --interactive` (see
+[SETUP_WIZARD](SETUP_WIZARD.md)) to define the test, lint, and guard settings
+that the work loop relies on.
 
 ## Guided Workflows (Copilot Mode)
 

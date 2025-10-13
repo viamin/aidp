@@ -13,6 +13,9 @@ implementation, and pull request creation without human supervision.
   projects, commenting, and PR creation).
 - Recommended: existing Aidp configuration (`aidp.yml`) with providers that can
   run unattended (e.g., Cursor CLI, Claude CLI).
+- Use the [Setup Wizard](SETUP_WIZARD.md) (`aidp config --interactive`) to
+  define provider choices, work loop commands, and guard rails before enabling
+  watch mode.
 
 ## Starting Watch Mode
 

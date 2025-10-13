@@ -175,6 +175,25 @@ RSpec.describe Aidp::CLI do
     end
   end
 
+  describe "config command" do
+    let(:wizard_instance) { instance_double(Aidp::Setup::Wizard, run: true) }
+
+    it "shows usage when --interactive missing" do
+      allow(TTY::Prompt).to receive(:new).and_return(test_prompt)
+      described_class.run(["config"])
+      expect(test_prompt.messages.any? { |msg| msg[:message].include?("Usage: aidp config --interactive") }).to be true
+    end
+
+    it "invokes wizard in interactive dry-run mode" do
+      allow(TTY::Prompt).to receive(:new).and_return(test_prompt)
+      expect(Aidp::Setup::Wizard).to receive(:new)
+        .with(Dir.pwd, prompt: test_prompt, dry_run: true)
+        .and_return(wizard_instance)
+
+      described_class.run(["config", "--interactive", "--dry-run"])
+    end
+  end
+
   describe ".run (class method)" do
     it "can be called as a class method without raising errors" do
       # Test that the class method exists and can be called
