@@ -625,6 +625,45 @@ module Aidp
               }
             }
           }
+        },
+        logging: {
+          type: :hash,
+          required: false,
+          default: {},
+          properties: {
+            level: {
+              type: :string,
+              required: false,
+              default: "info",
+              enum: ["debug", "info", "warn", "error"]
+            },
+            json: {
+              type: :boolean,
+              required: false,
+              default: false
+            },
+            max_size_mb: {
+              type: :integer,
+              required: false,
+              default: 10,
+              min: 1,
+              max: 100
+            },
+            max_backups: {
+              type: :integer,
+              required: false,
+              default: 5,
+              min: 1,
+              max: 20
+            },
+            max_age_days: {
+              type: :integer,
+              required: false,
+              default: 14,
+              min: 1,
+              max: 365
+            }
+          }
         }
       }.freeze
 
