@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.14.0](https://github.com/viamin/aidp/compare/aidp/v0.13.0...aidp/v0.14.0) (2025-10-13)
+
+
+### Features
+
+* add daemon support with process management and logging ([60ee5d2](https://github.com/viamin/aidp/commit/60ee5d2046394b5ab02b9971883d772a3540cb14))
+* add daemon support with process management and logging ([#120](https://github.com/viamin/aidp/issues/120)) ([79f1dbc](https://github.com/viamin/aidp/commit/79f1dbc187cc24337411a11628bc7cbccd6426e3))
+* Add GitHub issue import functionality to AIDP ([6487c17](https://github.com/viamin/aidp/commit/6487c17d2d7f7f48285f6d397a4a3afdce4f0737))
+* Add GitHub issue import functionality to AIDP ([#109](https://github.com/viamin/aidp/issues/109)) ([716d07d](https://github.com/viamin/aidp/commit/716d07da2be91c920dbc37bd12860c188175d6e1))
+* add interactive REPL for async work loop control ([9eebeb0](https://github.com/viamin/aidp/commit/9eebeb07016c8f3abca0d845767801722fe906e7))
+* add interactive REPL for async work loop control ([#118](https://github.com/viamin/aidp/issues/118)) ([2979c30](https://github.com/viamin/aidp/commit/2979c304112adfa81120fe3a9d22a62e7765e72c))
+* add interactive setup wizard for AIDP configuration ([5a127f5](https://github.com/viamin/aidp/commit/5a127f53cec8b9e3e29191baac1ca1ca9e1ac97e))
+* add interactive setup wizard for AIDP configuration ([#122](https://github.com/viamin/aidp/issues/122)) ([3585202](https://github.com/viamin/aidp/commit/3585202cb89b568f5fcd47bbc420754629a398b6))
+* add REPL macros for enhanced control during work loops ([f784fdd](https://github.com/viamin/aidp/commit/f784fdd9eafb02a7e1dc8a3182e9c46933b47dc4))
+* add REPL macros for enhanced control during work loops ([#112](https://github.com/viamin/aidp/issues/112)) ([098bc23](https://github.com/viamin/aidp/commit/098bc232d019bec93c9d72c9d9754e1471aefdce))
+* add watch mode functionality to aidp ([f10854f](https://github.com/viamin/aidp/commit/f10854f38c30c4a766bbac205678ea77998cfaf6))
+* add watch mode functionality to aidp ([#114](https://github.com/viamin/aidp/issues/114)) ([b5f928b](https://github.com/viamin/aidp/commit/b5f928bfea71988449a2f1facefc4eda005b0c8b))
+* add work notes and backlog ([e838c75](https://github.com/viamin/aidp/commit/e838c75c78f724e88d4f6777161acae3c55e500e))
+* add work notes and backlog ([#115](https://github.com/viamin/aidp/issues/115)) ([1663c41](https://github.com/viamin/aidp/commit/1663c419b442ece44cd1b5e2b3ff8a48c7d869ef))
+* enhance workflow selection and add simple task execution template ([4a6c22d](https://github.com/viamin/aidp/commit/4a6c22dffb669a68de91edb6854fbcbd701b9544))
+* Implement bootstrap process for GitHub issue imports with tooling detection ([c3ca190](https://github.com/viamin/aidp/commit/c3ca190f3ddb2036a4abc00b229811cca40f77e4))
+* Implement bootstrap process for GitHub issue imports with tooling detection ([#110](https://github.com/viamin/aidp/issues/110)) ([1b7f1dd](https://github.com/viamin/aidp/commit/1b7f1dd485612a066d2df3ee33eadf913e52e332))
+* implement fix-forward pattern in work loop execution and add state machine tracking ([883bde6](https://github.com/viamin/aidp/commit/883bde6a92d708dff12f84297fb12e2702e53022))
+* implement project bootstrapping with aidp init command and documentation generation ([918a78e](https://github.com/viamin/aidp/commit/918a78ea5561b36c34655e95ab055e3f98cd4eec))
+* implement project bootstrapping with aidp init command and documentation generation ([#116](https://github.com/viamin/aidp/issues/116)) ([35e44a3](https://github.com/viamin/aidp/commit/35e44a3ea1c2e11053a0eeef12a622608c3b9359))
+* Implement safety guards configuration and enforcement in AIDP ([d936291](https://github.com/viamin/aidp/commit/d936291bb27980ab130b23a74bbf6a0f23f6dafb))
+* Implement safety guards configuration and enforcement in AIDP ([#111](https://github.com/viamin/aidp/issues/111)) ([acb0c5f](https://github.com/viamin/aidp/commit/acb0c5fb9456ecdef30c553aa10f6db111d56065))
+* implement unified logging system and remove deprecated daemon logger ([13d5700](https://github.com/viamin/aidp/commit/13d570017b03a87a295dd5d2fa773b250ddd9a16))
+* implement unified logging system and remove deprecated daemon logger ([#121](https://github.com/viamin/aidp/issues/121)) ([9af95c9](https://github.com/viamin/aidp/commit/9af95c96080eb40b20a2d659f8bbc3aacac12c04))
+
+
+### Bug Fixes
+
+* handle invalid file encodings in project file search ([8434a81](https://github.com/viamin/aidp/commit/8434a819ae955914c0301e7e6b465161a7a07a77))
+
+
+### Improvements
+
+* enhance pattern matching in matches_pattern? method for improved glob support ([fa768b4](https://github.com/viamin/aidp/commit/fa768b465bb07ec64d92bcbc1387471a417ec3d7))
+
 ## [0.13.0](https://github.com/viamin/aidp/compare/aidp/v0.12.1...aidp/v0.13.0) (2025-10-11)
 
 ### Features
