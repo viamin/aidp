@@ -894,6 +894,18 @@ harness:
     interactive_repl: true  # Enable async interactive mode
 ```
 
+### Running Modes
+
+Work loops can run in different modes depending on your needs:
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **Interactive** | Full REPL with live control | Active development, debugging |
+| **Background** | Autonomous daemon process | Long-running tasks, CI/CD |
+| **Attached** | REPL attached to background daemon | Monitor/control running daemon |
+
+See [NON_INTERACTIVE_MODE.md](NON_INTERACTIVE_MODE.md) for background daemon mode and [INTERACTIVE_REPL.md](INTERACTIVE_REPL.md) for interactive features.
+
 ---
 
 ## REPL Workflow

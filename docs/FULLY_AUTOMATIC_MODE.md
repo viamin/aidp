@@ -76,8 +76,30 @@ follows:
 - Consider running `aidp watch --once` in CI to provide additional safeguards
   before promoting automatic PRs.
 
+## Running in Background
+
+Watch mode can run as a persistent background daemon for unattended operation. See [NON_INTERACTIVE_MODE.md](NON_INTERACTIVE_MODE.md) for complete details on:
+
+- Starting watch mode in background (`aidp listen --background`)
+- Detaching/attaching to running daemon
+- Monitoring via structured logs
+- Safe shutdown and recovery
+
+**Quick Example:**
+
+```bash
+# Start watch mode as background daemon
+$ aidp listen --background
+Daemon started in watch mode (PID: 12345)
+
+# Daemon runs 24/7, processing GitHub triggers
+# Monitor via logs:
+$ tail -f .aidp/logs/current.log
+```
+
 ## Related Documentation
 
+- [NON_INTERACTIVE_MODE.md](NON_INTERACTIVE_MODE.md) - Background daemon mode for unattended operation
 - [Work Loops Guide](WORK_LOOPS_GUIDE.md) – foundational mechanics of the
   fix-forward execution engine used during the build trigger.
 - [CLI Reference](../README.md) – general Aidp CLI capabilities including other

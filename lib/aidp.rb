@@ -61,6 +61,11 @@ require_relative "aidp/execute/instruction_queue"
 require_relative "aidp/execute/async_work_loop_runner"
 require_relative "aidp/execute/interactive_repl"
 
+# Daemon mode
+require_relative "aidp/daemon/process_manager"
+require_relative "aidp/daemon/logger"
+require_relative "aidp/daemon/runner"
+
 # Harness mode
 require_relative "aidp/harness/configuration"
 require_relative "aidp/harness/config_schema"
