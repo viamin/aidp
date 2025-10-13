@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.14.1](https://github.com/viamin/aidp/compare/aidp/v0.14.0...aidp/v0.14.1) (2025-10-13)
+
+
+### Bug Fixes
+
+* save selected primary provider and deduplicate fallback providers ([520059a](https://github.com/viamin/aidp/commit/520059ac980ca64dfa9989a401edcd52fd563230))
+* save selected primary provider and deduplicate fallback providers ([#125](https://github.com/viamin/aidp/issues/125)) ([ff542bb](https://github.com/viamin/aidp/commit/ff542bbf5cfe6da5ffa7623644a37c7cedcf8147))
+
+
+### Improvements
+
+* use explicit rescue for ratchet JSON parse and remove markdownlint fence-normalizer ([64e60d3](https://github.com/viamin/aidp/commit/64e60d37b351577afdb8515632259af2ed58904d))
+
+
+### Documentation
+
+* revert troubleshooting headings, fix MD036/MD026, update markdownlint config ([0ffe3cc](https://github.com/viamin/aidp/commit/0ffe3cc909b367e29f83178af2efc453a389d766))
+
 ## [0.14.0](https://github.com/viamin/aidp/compare/aidp/v0.13.0...aidp/v0.14.0) (2025-10-13)
 
 ### Features
