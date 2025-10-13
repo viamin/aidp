@@ -12,4 +12,5 @@ group :development, :test do
   gem "benchmark" # Suppress Ruby 3.5.0 deprecation warning
   gem "aruba" # System testing framework
   gem "webmock"
+  gem "simplecov", require: false
 end

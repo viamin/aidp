@@ -25,7 +25,7 @@ AIDP can operate in three distinct modes:
 
 ### Mode Transitions
 
-```
+```text
 ┌─────────────┐
 │ Interactive │────────┐
 │    REPL     │        │ /background
@@ -110,7 +110,7 @@ Background mode ensures:
 
 While in background mode, interact via GitHub:
 
-```
+```text
 Issue #123: Add user authentication
 
 User adds label: aidp-plan
@@ -185,7 +185,7 @@ $
 
 All daemon activity is logged to `.aidp/logs/current.log`:
 
-```
+```text
 [2025-10-12T23:00:00] INFO daemon_lifecycle - Daemon started | mode=watch pid=12345
 [2025-10-12T23:00:15] INFO watch_mode - Watch cycle completed | issues_checked=5
 [2025-10-12T23:00:30] INFO work_loop_iteration - Iteration 1 for 16_IMPLEMENTATION: running | step=16_IMPLEMENTATION iteration=1 status=running
@@ -317,7 +317,7 @@ Log: .aidp/logs/current.log
 
 ### Autonomous Cycle
 
-```
+```text
 ┌─────────────────────────────────────────┐
 │           Background Daemon              │
 │                                          │
@@ -394,7 +394,7 @@ aidp stop --force                  # Force stop (not recommended)
 
 ### Daemon Files
 
-```
+```text
 .aidp/
 ├── daemon/
 │   ├── aidp.pid          # Process ID file
@@ -413,7 +413,7 @@ aidp stop --force                  # Force stop (not recommended)
 
 Contains single line with process ID:
 
-```
+```text
 12345
 ```
 
@@ -483,7 +483,7 @@ AIDP uses Unix domain sockets for inter-process communication:
 
 **Client → Daemon:**
 
-```
+```text
 status\n
 ```
 

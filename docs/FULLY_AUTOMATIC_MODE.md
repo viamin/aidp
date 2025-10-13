@@ -30,7 +30,7 @@ aidp watch owner/repo --once   # Run a single polling cycle (useful for CI)
 When running, Aidp observes the repository for label changes and reacts as
 follows:
 
-```
+```text
 +-------------------------------+        +-----------------------------+
 |  aidp-plan label added        |        |  aidp-build label added     |
 |                               |        |                             |

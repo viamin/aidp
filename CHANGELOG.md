@@ -2,7 +2,6 @@
 
 ## [0.14.0](https://github.com/viamin/aidp/compare/aidp/v0.13.0...aidp/v0.14.0) (2025-10-13)
 
-
 ### Features
 
 * add daemon support with process management and logging ([60ee5d2](https://github.com/viamin/aidp/commit/60ee5d2046394b5ab02b9971883d772a3540cb14))
@@ -30,11 +29,9 @@
 * implement unified logging system and remove deprecated daemon logger ([13d5700](https://github.com/viamin/aidp/commit/13d570017b03a87a295dd5d2fa773b250ddd9a16))
 * implement unified logging system and remove deprecated daemon logger ([#121](https://github.com/viamin/aidp/issues/121)) ([9af95c9](https://github.com/viamin/aidp/commit/9af95c96080eb40b20a2d659f8bbc3aacac12c04))
 
-
 ### Bug Fixes
 
 * handle invalid file encodings in project file search ([8434a81](https://github.com/viamin/aidp/commit/8434a819ae955914c0301e7e6b465161a7a07a77))
-
 
 ### Improvements
 

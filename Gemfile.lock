@@ -78,6 +78,7 @@ GEM
     cucumber-messages (27.2.0)
     cucumber-tag-expressions (6.1.2)
     diff-lcs (1.6.2)
+    docile (1.4.1)
     ffi (1.17.2-aarch64-linux-gnu)
     ffi (1.17.2-aarch64-linux-musl)
     ffi (1.17.2-arm-linux-gnu)
@@ -191,6 +192,12 @@ GEM
       oppen (~> 1.0)
       sorbet-runtime
       zeitwerk
+    simplecov (0.22.0)
+      docile (~> 1.1)
+      simplecov-html (~> 0.11)
+      simplecov_json_formatter (~> 0.1)
+    simplecov-html (0.13.2)
+    simplecov_json_formatter (0.1.4)
     sorbet-runtime (0.6.12549)
     standard (1.51.1)
       language_server-protocol (~> 3.17.0.2)
@@ -272,6 +279,7 @@ DEPENDENCIES
   rake
   reline
   rspec
+  simplecov
   standard
   webmock
 
