@@ -41,6 +41,8 @@ aidp init
 - When adding new linters or frameworks, append notes to
   `docs/PROJECT_ANALYSIS.md` so the automation stays aligned with the latest
   tooling.
+- Use the [Setup Wizard](SETUP_WIZARD.md) to keep `.aidp/aidp.yml` in sync with
+  the conventions discovered by `aidp init` (tests, lint commands, guards, etc.).
 
 ## Relationship to Work Loops
 

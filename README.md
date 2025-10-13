@@ -11,6 +11,9 @@ gem install aidp
 # Navigate to your project
 cd /your/project
 
+# Launch the interactive configuration wizard
+aidp config --interactive
+
 # Analyze and bootstrap project docs
 aidp init
 # Creates LLM_STYLE_GUIDE.md, PROJECT_ANALYSIS.md, CODE_QUALITY_PLAN.md

@@ -257,6 +257,7 @@ module Aidp
           opts.separator "    dashboard                - Show all MCP servers across providers"
           opts.separator "    check <servers...>       - Check provider eligibility for servers"
           opts.separator "  harness                  Manage harness state"
+          opts.separator "  config                   Manage configuration"
           opts.separator "    status                   - Show harness status"
           opts.separator "    reset                    - Reset harness state"
           opts.separator "  kb                       Knowledge base commands"
@@ -285,6 +286,7 @@ module Aidp
           opts.separator ""
           opts.separator "  # Project bootstrap"
           opts.separator "  aidp init"
+          opts.separator "  aidp config --interactive"
           opts.separator "  # Fully automatic orchestration"
           opts.separator ""
           opts.separator "  aidp watch https://github.com/<org>/<repo>/issues"
@@ -309,7 +311,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze providers checkpoint mcp issue init watch].include?(args.first)
+        %w[status jobs kb harness execute analyze providers checkpoint mcp issue config init watch].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -325,6 +327,7 @@ module Aidp
         when "checkpoint" then run_checkpoint_command(args)
         when "mcp" then run_mcp_command(args)
         when "issue" then run_issue_command(args)
+        when "config" then run_config_command(args)
         when "init" then run_init_command
         when "watch" then run_watch_command(args)
         else
@@ -975,6 +978,36 @@ module Aidp
         end
       end
 
+      def run_config_command(args)
+        interactive = false
+        dry_run = false
+
+        until args.empty?
+          token = args.shift
+          case token
+          when "--interactive"
+            interactive = true
+          when "--dry-run"
+            dry_run = true
+          when "-h", "--help"
+            display_config_usage
+            return
+          else
+            display_message("Unknown option: #{token}", type: :error)
+            display_config_usage
+            return
+          end
+        end
+
+        unless interactive
+          display_config_usage
+          return
+        end
+
+        wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: TTY::Prompt.new, dry_run: dry_run)
+        wizard.run
+      end
+
       def run_init_command
         runner = Aidp::Init::Runner.new(Dir.pwd, prompt: TTY::Prompt.new)
         runner.run
@@ -1017,6 +1050,10 @@ module Aidp
         runner.start
       rescue ArgumentError => e
         display_message("❌ #{e.message}", type: :error)
+      end
+
+      def display_config_usage
+        display_message("Usage: aidp config --interactive [--dry-run]", type: :info)
       end
     end # class << self
   end
