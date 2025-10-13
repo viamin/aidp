@@ -2,7 +2,6 @@
 
 require "socket"
 require_relative "process_manager"
-require_relative "logger"
 require_relative "../execute/async_work_loop_runner"
 
 module Aidp
@@ -15,7 +14,6 @@ module Aidp
         @config = config
         @options = options
         @process_manager = ProcessManager.new(project_dir)
-        @daemon_logger = DaemonLogger.new(project_dir)
         @running = false
         @work_loop_runner = nil
         @watch_runner = nil
@@ -66,13 +64,13 @@ module Aidp
           success: true,
           message: "Attached to daemon",
           pid: @process_manager.pid,
-          activity: @daemon_logger.activity_summary
+          activity: Aidp.logger.info("activity", "summary")
         }
       end
 
       # Run daemon main loop (called in forked process)
       def run_daemon(mode)
-        @daemon_logger.log_lifecycle("Daemon started", mode: mode, pid: Process.pid)
+        Aidp.logger.info("daemon_lifecycle", "Daemon started", mode: mode, pid: Process.pid)
         @running = true
 
         # Set up signal handlers
@@ -88,10 +86,10 @@ module Aidp
         when :work_loop
           run_work_loop_mode
         else
-          @daemon_logger.error("daemon_error", "Unknown mode: #{mode}")
+          Aidp.logger.error("daemon_error", "Unknown mode: #{mode}")
         end
       rescue => e
-        @daemon_logger.error("daemon_error", "Fatal error: #{e.message}", backtrace: e.backtrace.first(5).join("\n"))
+        Aidp.logger.error("daemon_error", "Fatal error: #{e.message}", backtrace: e.backtrace.first(5).join("\n"))
       ensure
         cleanup
       end
@@ -100,12 +98,12 @@ module Aidp
 
       def setup_signal_handlers
         Signal.trap("TERM") do
-          @daemon_logger.log_lifecycle("SIGTERM received, shutting down gracefully")
+          Aidp.logger.info("daemon_lifecycle", "SIGTERM received, shutting down gracefully")
           @running = false
         end
 
         Signal.trap("INT") do
-          @daemon_logger.log_lifecycle("SIGINT received, shutting down gracefully")
+          Aidp.logger.info("daemon_lifecycle", "SIGINT received, shutting down gracefully")
           @running = false
         end
       end
@@ -122,12 +120,12 @@ module Aidp
             rescue IO::WaitReadable
               IO.select([@ipc_server], nil, nil, 1)
             rescue => e
-              @daemon_logger.error("ipc_error", "IPC server error: #{e.message}")
+              Aidp.logger.error("ipc_error", "IPC server error: #{e.message}")
             end
           end
         end
       rescue => e
-        @daemon_logger.error("ipc_error", "Failed to start IPC server: #{e.message}")
+        Aidp.logger.error("ipc_error", "Failed to start IPC server: #{e.message}")
       end
 
       def handle_ipc_client(client)
@@ -148,7 +146,7 @@ module Aidp
         client.puts(response.to_json)
         client.close
       rescue => e
-        @daemon_logger.error("ipc_error", "Error handling client: #{e.message}")
+        Aidp.logger.error("ipc_error", "Error handling client: #{e.message}")
         begin
           client.close
         rescue
@@ -173,12 +171,12 @@ module Aidp
       def attach_response
         {
           status: "attached",
-          activity: @daemon_logger.activity_summary
+          activity: Aidp.logger.info("activity", "summary")
         }
       end
 
       def run_watch_mode
-        @daemon_logger.log_watch("Starting watch mode")
+        Aidp.logger.info("watch_mode", "Starting watch mode")
 
         # Initialize watch runner
         require_relative "../watch/runner"
@@ -187,32 +185,32 @@ module Aidp
         while @running
           begin
             @watch_runner.run_cycle
-            @daemon_logger.log_watch("Watch cycle completed")
+            Aidp.logger.info("watch_mode", "Watch cycle completed")
             sleep(@options[:interval] || 60)
           rescue => e
-            @daemon_logger.error("watch_error", "Watch cycle error: #{e.message}")
+            Aidp.logger.error("watch_error", "Watch cycle error: #{e.message}")
             sleep 30 # Back off on error
           end
         end
 
-        @daemon_logger.log_watch("Watch mode stopped")
+        Aidp.logger.info("watch_mode", "Watch mode stopped")
       end
 
       def run_work_loop_mode
-        @daemon_logger.log_lifecycle("Starting work loop mode")
+        Aidp.logger.info("daemon_lifecycle", "Starting work loop mode")
 
         # This would integrate with AsyncWorkLoopRunner
         # For now, just log that we're running
         while @running
-          @daemon_logger.debug("heartbeat", "Daemon running")
+          Aidp.logger.debug("heartbeat", "Daemon running")
           sleep 10
         end
 
-        @daemon_logger.log_lifecycle("Work loop mode stopped")
+        Aidp.logger.info("daemon_lifecycle", "Work loop mode stopped")
       end
 
       def cleanup
-        @daemon_logger.log_lifecycle("Daemon cleanup started")
+        Aidp.logger.info("daemon_lifecycle", "Daemon cleanup started")
 
         # Stop work loop if running
         @work_loop_runner&.cancel(save_checkpoint: true)
@@ -227,7 +225,7 @@ module Aidp
         # Remove PID file
         @process_manager.remove_pid
 
-        @daemon_logger.log_lifecycle("Daemon stopped cleanly")
+        Aidp.logger.info("daemon_lifecycle", "Daemon stopped cleanly")
       end
     end
   end
