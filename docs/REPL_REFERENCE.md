@@ -16,11 +16,13 @@ AIDP's REPL (Read-Eval-Print-Loop) provides interactive macros for fine-grained 
 Mark one or more files as read-only to prevent AIDP from modifying them.
 
 **Usage:**
+
 ```
 /pin <file|glob>
 ```
 
 **Examples:**
+
 ```bash
 /pin config/database.yml
 /pin config/*.yml
@@ -29,12 +31,14 @@ Mark one or more files as read-only to prevent AIDP from modifying them.
 ```
 
 **Behavior:**
+
 - Files matching the pattern become read-only for the current work loop
 - Supports glob patterns (`*`, `**`, `?`)
 - Multiple files can be pinned
 - Pinned files persist until unpinned or REPL session ends
 
 **Use Cases:**
+
 - Protect critical configuration files
 - Prevent accidental changes to production settings
 - Lock down dependency files during refactoring
@@ -46,11 +50,13 @@ Mark one or more files as read-only to prevent AIDP from modifying them.
 Remove read-only protection from previously pinned files.
 
 **Usage:**
+
 ```
 /unpin <file|glob>
 ```
 
 **Examples:**
+
 ```bash
 /unpin config/database.yml
 /unpin config/*.yml
@@ -58,6 +64,7 @@ Remove read-only protection from previously pinned files.
 ```
 
 **Behavior:**
+
 - Removes pin protection from matching files
 - Returns error if no matching pinned files found
 - Supports same glob patterns as `/pin`
@@ -69,11 +76,13 @@ Remove read-only protection from previously pinned files.
 Restrict AIDP's work scope to specific files or directories.
 
 **Usage:**
+
 ```
 /focus <dir|glob>
 ```
 
 **Examples:**
+
 ```bash
 /focus lib/features/auth/**/*
 /focus lib/**/*.rb
@@ -82,12 +91,14 @@ Restrict AIDP's work scope to specific files or directories.
 ```
 
 **Behavior:**
+
 - Only files matching focus patterns can be modified
 - Multiple focus patterns can be active simultaneously
 - Files outside focus scope are treated as read-only
 - Focus is additive - each `/focus` adds to the allowed set
 
 **Use Cases:**
+
 - Limit changes to a specific feature directory
 - Focus on implementation files while developing
 - Restrict to test files during TDD sessions
@@ -99,16 +110,19 @@ Restrict AIDP's work scope to specific files or directories.
 Remove all focus restrictions, allowing work on any files again.
 
 **Usage:**
+
 ```
 /unfocus
 ```
 
 **Examples:**
+
 ```bash
 /unfocus
 ```
 
 **Behavior:**
+
 - Clears all active focus patterns
 - All files become eligible for modification (except pinned files)
 - Cannot unfocus individual patterns (use `/reset` for selective clearing)
@@ -120,22 +134,26 @@ Remove all focus restrictions, allowing work on any files again.
 Enable split mode to divide the current work plan into smaller, more manageable contracts.
 
 **Usage:**
+
 ```
 /split
 ```
 
 **Examples:**
+
 ```bash
 /split
 ```
 
 **Behavior:**
+
 - Signals AIDP to break down the current work into smaller steps
 - Each sub-contract completes independently
 - Useful for complex features that benefit from incremental implementation
 - Split mode persists for the current work loop
 
 **Use Cases:**
+
 - Break down large features into smaller chunks
 - Create more granular checkpoints
 - Enable more frequent testing and validation
@@ -147,11 +165,13 @@ Enable split mode to divide the current work plan into smaller, more manageable 
 Pause the work loop when test failures match a specific pattern.
 
 **Usage:**
+
 ```
 /halt-on <pattern>
 ```
 
 **Examples:**
+
 ```bash
 /halt-on authentication.*failed
 /halt-on 'database.*connection.*error'
@@ -160,12 +180,14 @@ Pause the work loop when test failures match a specific pattern.
 ```
 
 **Behavior:**
+
 - Pattern is treated as a case-insensitive regular expression
 - Work loop pauses when any test failure message matches the pattern
 - Multiple halt patterns can be active
 - Patterns remain active until removed with `/unhalt`
 
 **Use Cases:**
+
 - Stop immediately when a critical test fails
 - Inspect state when specific errors occur
 - Debug intermittent failures
@@ -178,11 +200,13 @@ Pause the work loop when test failures match a specific pattern.
 Remove halt-on pattern(s).
 
 **Usage:**
+
 ```
 /unhalt [pattern]
 ```
 
 **Examples:**
+
 ```bash
 # Remove specific pattern
 /unhalt authentication.*failed
@@ -192,6 +216,7 @@ Remove halt-on pattern(s).
 ```
 
 **Behavior:**
+
 - With pattern: removes only that specific pattern
 - Without pattern: removes all halt patterns
 - Returns error if specified pattern wasn't set
@@ -203,11 +228,13 @@ Remove halt-on pattern(s).
 Display current state of all REPL macros.
 
 **Usage:**
+
 ```
 /status
 ```
 
 **Example Output:**
+
 ```
 REPL Macro Status:
 
@@ -225,6 +252,7 @@ Split Mode: enabled
 ```
 
 **Behavior:**
+
 - Shows all active constraints
 - Lists pinned files
 - Displays focus patterns
@@ -238,16 +266,19 @@ Split Mode: enabled
 Clear all REPL macros and return to default state.
 
 **Usage:**
+
 ```
 /reset
 ```
 
 **Examples:**
+
 ```bash
 /reset
 ```
 
 **Behavior:**
+
 - Unpins all files
 - Removes all focus restrictions
 - Clears all halt patterns
@@ -255,6 +286,7 @@ Clear all REPL macros and return to default state.
 - Essentially starts fresh
 
 **Use Cases:**
+
 - Clear all constraints at once
 - Reset after completing a focused task
 - Start a new work phase with clean slate
@@ -266,11 +298,13 @@ Clear all REPL macros and return to default state.
 Display help information for REPL commands.
 
 **Usage:**
+
 ```
 /help [command]
 ```
 
 **Examples:**
+
 ```bash
 # List all commands
 /help
@@ -282,6 +316,7 @@ Display help information for REPL commands.
 ```
 
 **Behavior:**
+
 - Without argument: lists all available commands
 - With command name: shows detailed help for that command
 - Returns error for unknown commands

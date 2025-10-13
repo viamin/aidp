@@ -138,6 +138,60 @@ module Aidp
             example: "/unhalt 'authentication.*failed'",
             handler: method(:cmd_unhalt)
           },
+          "/pause" => {
+            description: "Pause the running work loop",
+            usage: "/pause",
+            example: "/pause",
+            handler: method(:cmd_pause)
+          },
+          "/resume" => {
+            description: "Resume a paused work loop",
+            usage: "/resume",
+            example: "/resume",
+            handler: method(:cmd_resume)
+          },
+          "/cancel" => {
+            description: "Cancel the work loop and save checkpoint",
+            usage: "/cancel [--no-checkpoint]",
+            example: "/cancel",
+            handler: method(:cmd_cancel)
+          },
+          "/inject" => {
+            description: "Add instruction to be merged in next iteration",
+            usage: "/inject <instruction> [--priority high|normal|low]",
+            example: "/inject 'Add error handling for edge case X'",
+            handler: method(:cmd_inject)
+          },
+          "/merge" => {
+            description: "Update plan/contract for next iteration",
+            usage: "/merge <plan_update>",
+            example: "/merge 'Add acceptance criteria: handle timeouts'",
+            handler: method(:cmd_merge)
+          },
+          "/update" => {
+            description: "Update guard rail configuration",
+            usage: "/update guard <key>=<value>",
+            example: "/update guard max_lines=500",
+            handler: method(:cmd_update)
+          },
+          "/reload" => {
+            description: "Reload configuration from file",
+            usage: "/reload config",
+            example: "/reload config",
+            handler: method(:cmd_reload)
+          },
+          "/rollback" => {
+            description: "Rollback n commits on current branch",
+            usage: "/rollback <n>",
+            example: "/rollback 2",
+            handler: method(:cmd_rollback)
+          },
+          "/undo" => {
+            description: "Undo last commit",
+            usage: "/undo last",
+            example: "/undo last",
+            handler: method(:cmd_undo)
+          },
           "/status" => {
             description: "Show current REPL macro state",
             usage: "/status",
@@ -441,6 +495,141 @@ module Aidp
         count += @halt_patterns.size
         count += 1 if @split_mode
         count
+      end
+
+      # Command: /pause
+      def cmd_pause(args)
+        {
+          success: true,
+          message: "Pause signal sent to work loop",
+          action: :pause_work_loop
+        }
+      end
+
+      # Command: /resume
+      def cmd_resume(args)
+        {
+          success: true,
+          message: "Resume signal sent to work loop",
+          action: :resume_work_loop
+        }
+      end
+
+      # Command: /cancel
+      def cmd_cancel(args)
+        save_checkpoint = !args.include?("--no-checkpoint")
+
+        {
+          success: true,
+          message: save_checkpoint ? "Cancelling with checkpoint save..." : "Cancelling without checkpoint...",
+          action: :cancel_work_loop,
+          data: {save_checkpoint: save_checkpoint}
+        }
+      end
+
+      # Command: /inject <instruction>
+      def cmd_inject(args)
+        return {success: false, message: "Usage: /inject <instruction> [--priority high|normal|low]", action: :none} if args.empty?
+
+        # Extract priority flag if present
+        priority = :normal
+        if (idx = args.index("--priority"))
+          priority = args[idx + 1]&.to_sym || :normal
+          args.delete_at(idx) # Remove --priority
+          args.delete_at(idx) # Remove priority value
+        end
+
+        instruction = args.join(" ")
+
+        {
+          success: true,
+          message: "Instruction queued for next iteration (priority: #{priority})",
+          action: :enqueue_instruction,
+          data: {
+            instruction: instruction,
+            type: :user_input,
+            priority: priority
+          }
+        }
+      end
+
+      # Command: /merge <plan_update>
+      def cmd_merge(args)
+        return {success: false, message: "Usage: /merge <plan_update>", action: :none} if args.empty?
+
+        plan_update = args.join(" ")
+
+        {
+          success: true,
+          message: "Plan update queued for next iteration",
+          action: :enqueue_instruction,
+          data: {
+            instruction: plan_update,
+            type: :plan_update,
+            priority: :high
+          }
+        }
+      end
+
+      # Command: /update guard <key>=<value>
+      def cmd_update(args)
+        return {success: false, message: "Usage: /update guard <key>=<value>", action: :none} if args.size < 2
+
+        category = args[0]
+        return {success: false, message: "Only 'guard' updates supported currently", action: :none} unless category == "guard"
+
+        key_value = args[1]
+        return {success: false, message: "Invalid format. Use: key=value", action: :none} unless key_value.include?("=")
+
+        key, value = key_value.split("=", 2)
+
+        {
+          success: true,
+          message: "Guard update queued: #{key} = #{value}",
+          action: :update_guard,
+          data: {key: key, value: value}
+        }
+      end
+
+      # Command: /reload config
+      def cmd_reload(args)
+        return {success: false, message: "Usage: /reload config", action: :none} if args.empty?
+
+        category = args[0]
+        return {success: false, message: "Only 'config' reload supported", action: :none} unless category == "config"
+
+        {
+          success: true,
+          message: "Configuration reload requested for next iteration",
+          action: :reload_config
+        }
+      end
+
+      # Command: /rollback <n>
+      def cmd_rollback(args)
+        return {success: false, message: "Usage: /rollback <n>", action: :none} if args.empty?
+
+        n = args[0].to_i
+        return {success: false, message: "Invalid number: #{args[0]}", action: :none} if n <= 0
+
+        {
+          success: true,
+          message: "Rollback #{n} commit(s) requested - will execute at next safe point",
+          action: :rollback_commits,
+          data: {count: n}
+        }
+      end
+
+      # Command: /undo last
+      def cmd_undo(args)
+        return {success: false, message: "Usage: /undo last", action: :none} unless args[0] == "last"
+
+        {
+          success: true,
+          message: "Undo last commit requested - will execute at next safe point",
+          action: :rollback_commits,
+          data: {count: 1}
+        }
       end
     end
   end
