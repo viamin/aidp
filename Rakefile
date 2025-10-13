@@ -163,7 +163,11 @@ namespace :coverage do
     current = (total.positive? ? (covered.to_f / total * 100.0) : 0.0).round(2)
     ratchet_file = File.join(COVERAGE_DIR, "ratchet.json")
     previous = if File.exist?(ratchet_file)
-      JSON.parse(File.read(ratchet_file))["line_coverage"] rescue nil
+      begin
+        JSON.parse(File.read(ratchet_file))["line_coverage"]
+      rescue
+        nil
+      end
     end
     if previous && current <= previous
       puts "Coverage #{current}% not higher than previous #{previous}% (no change)"
@@ -180,63 +184,6 @@ namespace :markdownlint do
   task :fix do
     sh "markdownlint . --fix"
   end
-
-  desc "Normalize fenced code blocks: add language to unlabeled openings and remove language from closing fences"
-  task :normalize_fences do
-    files = Dir.glob("{docs,tasks,templates}/**/*.md")
-    files.reject! { |f| File.basename(f) == "CHANGELOG.md" }
-    normalized = []
-    files.each do |file|
-      lines = File.read(file).lines
-      in_code = false
-      changed = false
-      lines.map!.with_index do |line, _i|
-        if line.start_with?("```")
-          # Match a pure fence line optionally with a language token (alphanum, +, -)
-          if (m = line.strip.match(/^```([A-Za-z0-9_+-]*)?$/))
-            lang = m[1]
-            if in_code
-              # This should be a closing fence. Always normalize to bare ```
-              in_code = false
-              if lang && !lang.empty?
-                changed = true
-                "```\n"
-              else
-                line
-              end
-            else
-              # Opening fence
-              in_code = true
-              if lang.nil? || lang.empty?
-                changed = true
-                "```text\n" # default language for previously unlabeled fences
-              else
-                line
-              end
-            end
-          else
-            line
-          end
-        else
-          line
-        end
-      end
-      if changed
-        File.write(file, lines.join)
-        normalized << file
-      end
-    end
-    if normalized.empty?
-      puts "No fence normalization needed"
-    else
-      puts "Normalized fences in #{normalized.size} files"
-      normalized.each { |f| puts "  - #{f}" }
-    end
-  end
-
-  # Backwards-compatible task name kept for existing workflow references
-  desc "(Deprecated) Use markdownlint:normalize_fences instead"
-  task auto_label_fences: :normalize_fences
 end
 
 # Short pre-commit preparation task: runs formatters + coverage
