@@ -21,7 +21,7 @@ When the task is 100% complete:
 2. Any specified validation commands pass
 3. You've added this line to PROMPT.md:
 
-```
+```text
 STATUS: COMPLETE
 ```
 

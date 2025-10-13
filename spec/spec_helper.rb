@@ -4,6 +4,17 @@ require "bundler/setup"
 require "rspec"
 require "timeout"
 
+# Coverage must start before any application files are loaded.
+if ENV["COVERAGE"] == "1" || ENV["SIMPLECOV"] == "1"
+  begin
+    require "simplecov"
+    SimpleCov.command_name "rspec"
+    warn "[SimpleCov] Coverage enabled" if ENV["DEBUG"]
+  rescue LoadError => e
+    warn "[SimpleCov] Not enabled: #{e.message}"
+  end
+end
+
 ENV["RACK_ENV"] = "test"
 ENV["RSPEC_RUNNING"] = "true" # Signal that we're running tests
 ENV["AIDP_DISABLE_BOOTSTRAP"] ||= "1" # Default off in tests; enable explicitly in bootstrap specs

@@ -15,18 +15,9 @@ The debug system provides comprehensive logging and debugging capabilities to he
 
 The debug system supports two levels of verbosity:
 
-### DEBUG=1 (Basic Debug)
-
-- Shows commands being executed
-- Shows stderr output from commands
 - Shows step execution progress
 - Shows error information
 
-### DEBUG=2 (Verbose Debug)
-
-- Everything from DEBUG=1
-- Shows stdout output from commands
-- Shows detailed prompt information
 - Shows backtraces for errors
 - Shows timing information
 
@@ -47,6 +38,27 @@ DEBUG=2 aidp
 DEBUG=1 aidp analyze 01_REPOSITORY_ANALYSIS
 ```
 
+## Test Coverage
+
+You can generate code coverage reports using SimpleCov (issue #127). Configuration now lives in the project root `.simplecov` file for centralized management.
+
+Enable coverage when running the test suite:
+
+```bash
+COVERAGE=1 bundle exec rspec
+```
+
+Reports are written to `coverage/index.html`. Open that file in a browser to inspect line and branch coverage.
+
+Configuration highlights (see `.simplecov`):
+
+- Branch coverage enabled
+- Minimum overall coverage: 85%
+- Minimum per-file coverage: 50%
+- Spec, pkg, tmp directories filtered out
+
+To debug which files are being tracked, run with `DEBUG=1 COVERAGE=1`.
+
 ### Debug Output
 
 Debug information is displayed in two places:
@@ -58,17 +70,9 @@ Debug information is displayed in two places:
 
 Debug logs are automatically saved to `.aidp/debug_logs/aidp_debug.log` - a single log file containing all debug sessions.
 
-Each debug session starts with a banner showing:
-
-- Session timestamp
-- Full command line with arguments
 - Working directory
 - Debug level
 
-**Benefits of single log file**:
-
-- Easy to tail for real-time debugging: `tail -f .aidp/debug_logs/aidp_debug.log`
-- Search for specific runs by timestamp or command
 - All debug history in one place
 - No log file cleanup needed
 
@@ -85,7 +89,7 @@ Each log file contains:
 
 Each debug session starts with a banner that makes it easy to identify when a run started:
 
-```
+```text
 ================================================================================
 AIDP DEBUG SESSION STARTED
 ================================================================================
@@ -107,7 +111,7 @@ Debug Level: 1
 
 When providers execute commands, debug mode shows:
 
-```
+```text
 🔧 Executing command: cursor-agent -p
 📝 Input: [prompt content or file path]
 ❌ Error output: [stderr output]
@@ -119,7 +123,7 @@ When providers execute commands, debug mode shows:
 
 For analyze mode steps:
 
-```
+```text
 🔄 Starting execution: 01_REPOSITORY_ANALYSIS (harness_mode=true, options=[:user_input])
 📝 Composed prompt for 01_REPOSITORY_ANALYSIS (prompt_length=1234, provider=cursor)
 🔄 Harness execution completed: 01_REPOSITORY_ANALYSIS (status=completed, provider=cursor)
@@ -129,7 +133,7 @@ For analyze mode steps:
 
 When errors occur:
 
-```
+```text
 💥 Error: StandardError: cursor-agent failed with exit code 1
 📍 Backtrace: [backtrace - verbose mode only]
 🔧 ErrorHandler: Processing error (error_type=command_failed, provider=cursor, model=default)
@@ -140,7 +144,7 @@ When errors occur:
 
 For provider calls:
 
-```
+```text
 🤖 cursor: Starting execution (timeout=300)
 📝 Sending prompt to cursor-agent
 🔧 Executing command: cursor-agent -p
@@ -216,31 +220,31 @@ end
 debug_log("Message", level: :info, data: { key: "value" })
 ```
 
-### Step Execution
+### Logging Step Execution
 
 ```ruby
 debug_step("STEP_NAME", "action", { details: "value" })
 ```
 
-### Provider Interaction
+### Logging Provider Interaction
 
 ```ruby
 debug_provider("provider-name", "action", { param: "value" })
 ```
 
-### Error Logging
+### Logging Error
 
 ```ruby
 debug_error(exception, { context: "additional_info" })
 ```
 
-### Command Execution
+### Logging Command Execution
 
 ```ruby
 result = debug_execute_command("command", args: ["arg1"], input: "data")
 ```
 
-### Timing Information
+### Logging Timing Information
 
 ```ruby
 debug_timing("operation", duration, { details: "value" })

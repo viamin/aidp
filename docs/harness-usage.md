@@ -68,7 +68,7 @@ aidp execute 00_PRD
 
 When the agent asks questions, you'll see a numbered list:
 
-```
+```text
 🤖 Agent Questions:
 1. What is the primary purpose of this application?
 2. What are the main user personas?
@@ -83,7 +83,7 @@ Simply type your answers and press Enter after each one.
 
 When you need to provide files, type `@` to open the file selector:
 
-```
+```text
 📁 Select files to include:
 1. lib/models/user.rb
 2. spec/models/user_spec.rb
@@ -114,7 +114,7 @@ The harness automatically switches providers when:
 
 ### Provider Status Display
 
-```
+```text
 🔄 Current Provider: Claude (claude-3-5-sonnet)
 📊 Token Usage: 1,250 / 10,000 (12.5%)
 ⏱️  Response Time: 2.3s
@@ -147,7 +147,7 @@ The harness implements intelligent retry strategies:
 
 ### Error Recovery Display
 
-```
+```text
 ❌ Error: Rate limit exceeded
 🔄 Switching to Gemini (gemini-pro)
 ⏳ Retrying in 1.2s...
@@ -169,7 +169,7 @@ If automatic recovery fails:
 
 The harness provides continuous status updates:
 
-```
+```text
 📊 AIDP Harness Status
 ═══════════════════════════════════════
 

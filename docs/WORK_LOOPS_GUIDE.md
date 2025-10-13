@@ -42,7 +42,7 @@ Instead of manually choosing between Analyze and Execute modes and picking speci
 
 When you start AIDP, you'll see three options:
 
-```
+```text
 🤖 Guided Workflow (Copilot) - AI helps you choose the right workflow
 🔬 Analyze Mode - Analyze your codebase for insights and recommendations
 🏗️ Execute Mode - Build new features with guided development workflow
@@ -75,7 +75,7 @@ The AI will analyze your request and recommend the most appropriate workflow, ex
 
 ### Example Session
 
-```
+```text
 What would you like to do?
 > Build a REST API for user authentication
 
@@ -163,7 +163,7 @@ AIDP uses a **fix-forward** model during implementation. When tests fail, it con
 
 ### Fix-Forward State Machine
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Fix-Forward Work Loop                     │
 └─────────────────────────────────────────────────────────────┘
@@ -219,35 +219,35 @@ AIDP uses a **fix-forward** model during implementation. When tests fail, it con
 
 **Iteration 1:**
 
-```
+```text
 READY → APPLY_PATCH → TEST → FAIL → DIAGNOSE → NEXT_PATCH
 Agent implements feature → Tests fail → Analyze: 3 test failures → Append to PROMPT.md
 ```
 
 **Iteration 2:**
 
-```
+```text
 READY → APPLY_PATCH → TEST → FAIL → DIAGNOSE → NEXT_PATCH
 Agent fixes 2 tests → 1 test still fails → Analyze: 1 test failure → Append to PROMPT.md
 ```
 
 **Iteration 3:**
 
-```
+```text
 READY → APPLY_PATCH → TEST → PASS → (work not complete) → NEXT_PATCH
 Agent fixes last test → All tests pass → But feature incomplete → Continue
 ```
 
 **Iteration 4:**
 
-```
+```text
 READY → APPLY_PATCH → TEST → PASS → (work complete) → DONE
 Agent completes feature → All tests pass → STATUS: COMPLETE → Success!
 ```
 
 **Iteration 5 (if needed):**
 
-```
+```text
 READY → APPLY_PATCH → TEST → FAIL → DIAGNOSE → NEXT_PATCH
 [STYLE_GUIDE] Re-injecting LLM_STYLE_GUIDE to prevent drift
 Agent sees style guide reminder → Realizes failures due to style violations → Fixes with proper style
@@ -259,7 +259,7 @@ Notice how we **never rolled back** — each iteration built on the previous wor
 
 ### The Work Loop Cycle
 
-```
+```text
 1. AIDP creates PROMPT.md with:
    ├── Task template
    ├── PRD content
@@ -510,7 +510,7 @@ Mark this step COMPLETE by adding this line to PROMPT.md:
 
 STATUS: COMPLETE
 
-```
+```text
 
 ## User Input
 [Any user answers to questions]
@@ -625,7 +625,7 @@ All PRD sections completed:
 
 ### Traditional Single-Pass
 
-```
+```text
 User → Send prompt → Agent works → Get result → Hope it's right
                                               ↓
                                         (Often not quite right)

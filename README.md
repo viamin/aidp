@@ -1,5 +1,7 @@
 # AI Dev Pipeline (aidp) - Ruby Gem
 
+![Coverage](./badges/coverage.svg)
+
 A portable CLI that automates AI development workflows from idea to implementation using your existing IDE assistants. Features autonomous work loops, background execution, and comprehensive progress tracking.
 
 ## Quick Start

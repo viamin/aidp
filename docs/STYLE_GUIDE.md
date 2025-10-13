@@ -25,7 +25,7 @@ Coding standards, architectural patterns, and best practices for the AI Dev Pipe
 
 ### File Organization
 
-```
+```text
 lib/aidp/
 ├── cli.rb                    # Main CLI interface
 ├── harness/                  # Harness system components

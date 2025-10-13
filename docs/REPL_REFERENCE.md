@@ -17,7 +17,7 @@ Mark one or more files as read-only to prevent AIDP from modifying them.
 
 **Usage:**
 
-```
+```text
 /pin <file|glob>
 ```
 
@@ -51,7 +51,7 @@ Remove read-only protection from previously pinned files.
 
 **Usage:**
 
-```
+```text
 /unpin <file|glob>
 ```
 
@@ -77,7 +77,7 @@ Restrict AIDP's work scope to specific files or directories.
 
 **Usage:**
 
-```
+```text
 /focus <dir|glob>
 ```
 
@@ -111,7 +111,7 @@ Remove all focus restrictions, allowing work on any files again.
 
 **Usage:**
 
-```
+```text
 /unfocus
 ```
 
@@ -135,7 +135,7 @@ Enable split mode to divide the current work plan into smaller, more manageable 
 
 **Usage:**
 
-```
+```text
 /split
 ```
 
@@ -166,7 +166,7 @@ Pause the work loop when test failures match a specific pattern.
 
 **Usage:**
 
-```
+```text
 /halt-on <pattern>
 ```
 
@@ -201,7 +201,7 @@ Remove halt-on pattern(s).
 
 **Usage:**
 
-```
+```text
 /unhalt [pattern]
 ```
 
@@ -229,13 +229,13 @@ Display current state of all REPL macros.
 
 **Usage:**
 
-```
+```text
 /status
 ```
 
 **Example Output:**
 
-```
+```text
 REPL Macro Status:
 
 Pinned Files (2):
@@ -267,7 +267,7 @@ Clear all REPL macros and return to default state.
 
 **Usage:**
 
-```
+```text
 /reset
 ```
 
@@ -299,7 +299,7 @@ Display help information for REPL commands.
 
 **Usage:**
 
-```
+```text
 /help [command]
 ```
 

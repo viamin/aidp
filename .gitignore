@@ -19,3 +19,4 @@ code_maat_analysis_report.md
 *.tmp
 *.log
 tmp/aruba/*
+coverage/*

@@ -341,30 +341,30 @@ $ aidp checkpoint clear --force
 
 ### Understanding Metrics
 
-**Lines of Code (LOC)**
+#### Lines of Code (LOC)
 
 - Total lines of code in project files
 - Excludes `node_modules`, `vendor`, etc.
 - Tracks growth over time
 
-**Test Coverage**
+#### Test Coverage
 
 - Estimated based on ratio of test files to source files
 - Higher is better (aim for 80%+)
 
-**Code Quality**
+#### Code Quality
 
 - Based on linter output (if configured)
 - Score from 0-100, higher is better
 - Falls back to 100 if no linter configured
 
-**PRD Task Progress**
+#### PRD Task Progress
 
 - Percentage of completed checkboxes in `docs/prd.md`
 - Tracks: `- [x]` vs `- [ ]` items
 - Shows feature implementation progress
 
-**Status Indicators**
+#### Status Indicators
 
 - `✓ Healthy` - Quality score ≥ 80%
 - `⚠ Warning` - Quality score 60-79%

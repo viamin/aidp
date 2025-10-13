@@ -10,7 +10,7 @@ This feature implements [GitHub Issue #103](https://github.com/viamin/aidp/issue
 
 ### Asynchronous Execution Model
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────┐
 │                     Main Thread (REPL)                        │
 │  ┌────────────────────────────────────────────────────────┐  │
@@ -65,7 +65,7 @@ Pause the work loop at the next safe stopping point.
 
 **Usage:**
 
-```
+```text
 /pause
 ```
 
@@ -78,7 +78,7 @@ Pause the work loop at the next safe stopping point.
 
 **Example:**
 
-```
+```text
 aidp[5]> /pause
 Pause signal sent to work loop
 Work loop paused at iteration 5
@@ -93,7 +93,7 @@ Resume a paused work loop.
 
 **Usage:**
 
-```
+```text
 /resume
 ```
 
@@ -105,7 +105,7 @@ Resume a paused work loop.
 
 **Example:**
 
-```
+```text
 aidp[5|PAUSED]> /resume
 Resume signal sent to work loop
 Work loop resumed at iteration 5
@@ -120,7 +120,7 @@ Cancel the work loop gracefully and return to stable state.
 
 **Usage:**
 
-```
+```text
 /cancel                # Cancel with checkpoint save
 /cancel --no-checkpoint # Cancel without saving
 ```
@@ -134,7 +134,7 @@ Cancel the work loop gracefully and return to stable state.
 
 **Example:**
 
-```
+```text
 aidp[10]> /cancel
 Cancelling with checkpoint save...
 Work loop cancelled at iteration 10
@@ -155,7 +155,7 @@ Add new instructions to be merged into the next iteration.
 
 **Usage:**
 
-```
+```text
 /inject <instruction> [--priority high|normal|low]
 ```
 
@@ -175,7 +175,7 @@ Add new instructions to be merged into the next iteration.
 
 **Examples:**
 
-```
+```text
 # Standard instruction
 aidp[3]> /inject Add error handling for network timeouts
 Instruction queued for next iteration (priority: normal)
@@ -196,7 +196,7 @@ Update the implementation plan or contract for next iteration.
 
 **Usage:**
 
-```
+```text
 /merge <plan_update>
 ```
 
@@ -209,7 +209,7 @@ Update the implementation plan or contract for next iteration.
 
 **Examples:**
 
-```
+```text
 # Add new acceptance criteria
 aidp[5]> /merge Add acceptance criteria: API handles 429 rate limits
 
@@ -230,7 +230,7 @@ Update guard rail configuration during execution.
 
 **Usage:**
 
-```
+```text
 /update guard <key>=<value>
 ```
 
@@ -250,7 +250,7 @@ Update guard rail configuration during execution.
 
 **Examples:**
 
-```
+```text
 # Increase max lines per commit
 aidp[3]> /update guard max_lines=500
 Guard update queued: max_lines = 500
@@ -273,7 +273,7 @@ Reload configuration from `.aidp.yml` file.
 
 **Usage:**
 
-```
+```text
 /reload config
 ```
 
@@ -286,7 +286,7 @@ Reload configuration from `.aidp.yml` file.
 
 **Example:**
 
-```
+```text
 # Edit .aidp.yml in another terminal
 aidp[8]> /reload config
 Configuration reload requested for next iteration
@@ -305,7 +305,7 @@ Rollback last n commits on current branch.
 
 **Usage:**
 
-```
+```text
 /rollback <n>
 ```
 
@@ -318,7 +318,7 @@ Rollback last n commits on current branch.
 
 **Example:**
 
-```
+```text
 aidp[12]> /rollback 2
 Work loop paused for rollback
 Rolling back 2 commit(s)...
@@ -335,13 +335,13 @@ Undo the last commit (shorthand for `/rollback 1`).
 
 **Usage:**
 
-```
+```text
 /undo last
 ```
 
 **Example:**
 
-```
+```text
 aidp[7]> /undo last
 Work loop paused for rollback
 Rolling back 1 commit(s)...
@@ -359,7 +359,7 @@ Show current state of work loop and queued modifications.
 
 **Usage:**
 
-```
+```text
 /status
 ```
 
@@ -373,7 +373,7 @@ Show current state of work loop and queued modifications.
 
 **Example:**
 
-```
+```text
 aidp[15]> /status
 Work Loop Status:
   State: RUNNING
@@ -417,7 +417,7 @@ See [REPL_REFERENCE.md](REPL_REFERENCE.md) for complete documentation.
 
 Agent is implementing a feature, and you realize a requirement was missed:
 
-```
+```text
 aidp[8]> /inject Add validation for email format in User model
 Instruction queued for next iteration (priority: normal)
 
@@ -445,7 +445,7 @@ Do not restart from scratch - build on what exists.
 
 Work loop is running, tests are slow, and you want to run only unit tests:
 
-```
+```text
 # Edit .aidp.yml to change test commands
 $ vim .aidp.yml  # (in another terminal)
 
@@ -464,7 +464,7 @@ aidp[24]> # Tests now run faster
 
 Work loop is making unexpected changes:
 
-```
+```text
 aidp[12]> /pause
 Pause signal sent to work loop
 Work loop paused at iteration 12
@@ -491,7 +491,7 @@ Work loop resumed at iteration 12
 
 Agent made a commit that breaks tests unexpectedly:
 
-```
+```text
 aidp[18]> /pause
 Work loop paused at iteration 18
 
@@ -514,7 +514,7 @@ Work loop resumed at iteration 18
 
 Something urgent comes up, need to stop work loop cleanly:
 
-```
+```text
 aidp[25]> /cancel
 Cancelling with checkpoint save...
 Cancellation requested, waiting for safe stopping point...
@@ -534,7 +534,7 @@ $ aidp execute --resume-from checkpoint_iter_25
 
 Press **Ctrl-C** during execution to access the interrupt menu:
 
-```
+```text
 aidp[10]> ^C
 Interrupt received
 
@@ -634,7 +634,7 @@ aidp execute
 
 ### Work Loop States
 
-```
+```text
 IDLE → RUNNING ⇄ PAUSED → CANCELLED
          ↓                    ↓
       COMPLETED            ERROR
@@ -666,7 +666,7 @@ All state transitions use Ruby's `MonitorMixin` for thread safety:
 
 The Interactive REPL displays streaming output from the work loop:
 
-```
+```text
 aidp[5]>
 🔄 Starting iteration 5
 📝 Reading PROMPT.md
@@ -784,7 +784,7 @@ Checkpoints are created:
 
 ### Checkpoint Contents
 
-```
+```text
 .aidp/checkpoints/iter_25_cancelled/
 ├── PROMPT.md              # State at checkpoint
 ├── work_loop_state.json   # Full state snapshot
