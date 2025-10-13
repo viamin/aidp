@@ -88,38 +88,69 @@ module Aidp
       # -------------------------------------------
       # Provider configuration
       # -------------------------------------------
+      def discover_available_providers
+        providers_dir = File.join(__dir__, "../providers")
+        provider_files = Dir.glob("*.rb", base: providers_dir)
+
+        # Exclude base classes and utility classes
+        excluded_files = ["base.rb", "macos_ui.rb"]
+        provider_files -= excluded_files
+
+        providers = {}
+
+        provider_files.each do |file|
+          provider_name = File.basename(file, ".rb")
+          begin
+            # Require the provider file if not already loaded
+            require_relative "../providers/#{provider_name}"
+
+            # Convert to class name (e.g., "anthropic" -> "Anthropic")
+            class_name = provider_name.split("_").map(&:capitalize).join
+            provider_class = Aidp::Providers.const_get(class_name)
+
+            # Create a temporary instance to get the display name
+            if provider_class.respond_to?(:new)
+              instance = provider_class.new
+              display_name = instance.respond_to?(:display_name) ? instance.display_name : provider_name.capitalize
+              providers[display_name] = provider_name
+            end
+          rescue => e
+            # Skip providers that can't be loaded, but don't fail the entire discovery
+            warn "Warning: Could not load provider #{provider_name}: #{e.message}" if ENV["DEBUG"]
+          end
+        end
+
+        providers
+      end
+
       def configure_providers
         prompt.say("\n📦 Provider configuration")
         prompt.say("-" * 40)
 
-        llm = @config.fetch(:providers, {}).fetch(:llm, {})
+        @config.fetch(:providers, {}).fetch(:llm, {})
 
-        provider_choice = prompt.select("Select your primary LLM provider:", default: llm.fetch(:name, "anthropic")) do |menu|
-          menu.choice "Anthropic (Claude)", "anthropic"
-          menu.choice "OpenAI (GPT)", "openai"
-          menu.choice "Google (Gemini)", "google"
-          menu.choice "Azure OpenAI", "azure"
+        available_providers = discover_available_providers
+
+        # TODO: Add default selection back once TTY-Prompt default validation issue is resolved
+        # For now, the user will select manually from the dynamically discovered providers
+        provider_choice = prompt.select("Select your primary LLM provider:") do |menu|
+          available_providers.each do |display_name, provider_name|
+            menu.choice display_name, provider_name
+          end
           menu.choice "Other/Custom", "custom"
         end
 
-        model_name = ask_with_default("Model name", get([:providers, :llm, :model]) || default_model(provider_choice))
-        temperature = ask_with_default("Temperature (0.0 - 1.0)", (llm[:temperature] || 0.2).to_s) { |value| value.to_f.clamp(0.0, 1.0) }
-        max_tokens = ask_with_default("Max tokens per request", (llm[:max_tokens] || 4096).to_s) { |value| value.to_i }
-        rpm = ask_with_default("Max requests per minute (leave blank for provider default)", llm[:rate_limit_per_minute]&.to_s) { |value| value.to_i }
-        retries = ask_with_default("Retry attempts on failure", fetch_retry_attempts(llm)) { |value| value.to_i }
-        backoff = ask_with_default("Retry backoff seconds", fetch_retry_backoff(llm)) { |value| value.to_i }
+        # Prompt for fallback providers (excluding the primary)
+        fallback_choices = available_providers.reject { |_, name| name == provider_choice }
+        fallback_selected = prompt.multi_select("Select fallback providers (used if primary fails):") do |menu|
+          fallback_choices.each do |display_name, provider_name|
+            menu.choice display_name, provider_name
+          end
+        end
 
-        set([:providers, :llm], {
-          name: provider_choice,
-          model: model_name,
-          temperature: temperature,
-          max_tokens: max_tokens,
-          rate_limit_per_minute: rpm,
-          retry_policy: {
-            attempts: retries,
-            backoff_seconds: backoff
-          }
-        }.compact)
+        set([:harness, :fallback_providers], fallback_selected)
+
+        # No LLM settings needed; provider agent handles LLM config
 
         configure_mcp
         show_provider_secrets_help(provider_choice)
@@ -130,7 +161,8 @@ module Aidp
         enabled = prompt.yes?("Enable MCP (Model Context Protocol) tools?", default: existing.fetch(:enabled, true))
         return delete_path([:providers, :mcp]) unless enabled
 
-        tools = prompt.multi_select("Select MCP tools:", default: existing.fetch(:tools, [])) do |menu|
+        # TODO: Add default back once TTY-Prompt default validation issue is resolved
+        tools = prompt.multi_select("Select MCP tools:") do |menu|
           menu.choice "Git", "git"
           menu.choice "Shell", "shell"
           menu.choice "Filesystem", "fs"
@@ -166,6 +198,7 @@ module Aidp
         unit = ask_with_default("Unit test command", existing[:unit] || detect_unit_test_command)
         integration = ask_with_default("Integration test command", existing[:integration])
         e2e = ask_with_default("End-to-end test command", existing[:e2e])
+
         timeout = ask_with_default("Test timeout (seconds)", (existing[:timeout_seconds] || 1800).to_s) { |value| value.to_i }
 
         set([:work_loop, :test], {
@@ -346,7 +379,8 @@ module Aidp
         prompt.say("-" * 40)
         existing = get([:logging]) || {}
 
-        level = prompt.select("Log level:", default: existing.fetch(:level, "info")) do |menu|
+        # TODO: Add default back once TTY-Prompt default validation issue is resolved
+        log_level = prompt.select("Log level:") do |menu|
           menu.choice "Debug", "debug"
           menu.choice "Info", "info"
           menu.choice "Error", "error"
@@ -356,7 +390,7 @@ module Aidp
         max_backups = ask_with_default("Max backup files", (existing[:max_backups] || 5).to_s) { |value| value.to_i }
 
         set([:logging], {
-          level: level,
+          level: log_level,
           json: json,
           max_size_mb: max_size,
           max_backups: max_backups
