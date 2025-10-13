@@ -56,6 +56,10 @@ require_relative "aidp/execute/runner"
 require_relative "aidp/execute/progress"
 require_relative "aidp/execute/checkpoint"
 require_relative "aidp/execute/checkpoint_display"
+require_relative "aidp/execute/work_loop_state"
+require_relative "aidp/execute/instruction_queue"
+require_relative "aidp/execute/async_work_loop_runner"
+require_relative "aidp/execute/interactive_repl"
 
 # Harness mode
 require_relative "aidp/harness/configuration"

@@ -854,6 +854,48 @@ work_loop: {
 }
 ```
 
+## Interactive Control
+
+### Fully Interactive REPL (Async Live Control)
+
+AIDP supports **fully interactive async REPL** during work loop execution. The work loop runs in a background thread while the REPL remains responsive, allowing you to:
+
+- **Pause/Resume/Cancel** work loops in real-time
+- **Inject instructions** that merge into next iteration
+- **Update configuration** without stopping execution
+- **Modify plans** mid-loop with intelligent merging
+- **Rollback commits** when needed
+- **View streaming output** as work progresses
+
+See [INTERACTIVE_REPL.md](INTERACTIVE_REPL.md) for complete documentation.
+
+**Quick Example:**
+
+```bash
+# Work loop running...
+aidp[10]> /pause
+Work loop paused at iteration 10
+
+aidp[10|PAUSED]> /inject Add error handling for timeout edge case
+Instruction queued for next iteration
+
+aidp[10|PAUSED]> /resume
+Work loop resumed - instruction will merge at iteration 11
+```
+
+### Enable Interactive REPL
+
+In `.aidp.yml`:
+
+```yaml
+harness:
+  work_loop:
+    enabled: true
+    interactive_repl: true  # Enable async interactive mode
+```
+
+---
+
 ## REPL Workflow
 
 AIDP's work loops implement a **REPL-style development experience** (Read-Eval-Print-Loop), where you continuously interact with your codebase through AI-driven iterations.
