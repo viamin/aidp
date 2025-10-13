@@ -192,6 +192,12 @@ module Aidp
             example: "/undo last",
             handler: method(:cmd_undo)
           },
+          "/background" => {
+            description: "Detach REPL and enter background daemon mode",
+            usage: "/background",
+            example: "/background",
+            handler: method(:cmd_background)
+          },
           "/status" => {
             description: "Show current REPL macro state",
             usage: "/status",
@@ -629,6 +635,15 @@ module Aidp
           message: "Undo last commit requested - will execute at next safe point",
           action: :rollback_commits,
           data: {count: 1}
+        }
+      end
+
+      # Command: /background
+      def cmd_background(args)
+        {
+          success: true,
+          message: "Detaching REPL and entering background daemon mode...",
+          action: :enter_background_mode
         }
       end
     end
