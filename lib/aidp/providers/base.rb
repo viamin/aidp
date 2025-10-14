@@ -5,6 +5,8 @@ require "tty-spinner"
 
 module Aidp
   module Providers
+    class ProviderUnavailableError < StandardError; end
+
     class Base
       include Aidp::MessageDisplay
 

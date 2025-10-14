@@ -81,6 +81,8 @@ module Aidp
         @state = STATES[:running]
         @start_time = Time.now
 
+        Aidp.logger.info("harness_runner", "Starting harness execution", mode: @mode, workflow_type: @workflow_type, steps_count: @selected_steps.size)
+
         @tui.show_message("🚀 Starting #{@mode.to_s.capitalize} Mode", :info)
 
         begin

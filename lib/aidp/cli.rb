@@ -8,11 +8,13 @@ require_relative "harness/ui/enhanced_tui"
 require_relative "harness/ui/enhanced_workflow_selector"
 require_relative "harness/enhanced_runner"
 require_relative "cli/first_run_wizard"
+require_relative "rescue_logging"
 
 module Aidp
   # CLI interface for AIDP
   class CLI
     include Aidp::MessageDisplay
+    include Aidp::RescueLogging
 
     # Simple options holder for instance methods (used in specs)
     attr_accessor :options
@@ -126,6 +128,7 @@ module Aidp
         {harness: {state: "unknown"}}
       end
     rescue => e
+      log_rescue(e, component: "cli", action: "fetch_harness_status", fallback: {harness: {state: "error"}}, mode: mode)
       {harness: {state: "error", error: e.message}}
     end
 
@@ -158,6 +161,10 @@ module Aidp
           display_message("Aidp version #{Aidp::VERSION}", type: :info)
           return 0
         end
+
+        # Initialize logger from aidp.yml config
+        # Priority: ENV variable > aidp.yml > default (info)
+        setup_logging(Dir.pwd)
 
         # Start the interactive TUI
         display_message("AIDP initializing...", type: :info)
@@ -216,6 +223,7 @@ module Aidp
           display_message("\n\n⏹️  Interrupted by user", type: :warning)
           1
         rescue => e
+          log_rescue(e, component: "cli", action: "run_harness", fallback: 1, mode: actual_mode)
           display_message("\n❌ Error: #{e.message}", type: :error)
           1
         ensure
@@ -224,6 +232,29 @@ module Aidp
       end
 
       private
+
+      def setup_logging(project_dir)
+        # Load logging config from aidp.yml
+        config_path = File.join(project_dir, ".aidp", "aidp.yml")
+        logging_config = {}
+
+        if File.exist?(config_path)
+          require "yaml"
+          full_config = YAML.load_file(config_path)
+          logging_config = full_config["logging"] || full_config[:logging] || {}
+        end
+
+        # Set up logger with config (ENV variable AIDP_LOG_LEVEL takes precedence)
+        Aidp.setup_logger(project_dir, logging_config)
+
+        # Log initialization
+        Aidp.logger.info("cli", "AIDP starting", version: Aidp::VERSION, log_level: Aidp.logger.level)
+      rescue => e
+        log_rescue(e, component: "cli", action: "setup_logger", fallback: "default_config", project_dir: project_dir)
+        # If logging setup fails, continue with default logger
+        Aidp.setup_logger(project_dir, {})
+        Aidp.logger.warn("cli", "Failed to load logging config, using defaults", error: e.message)
+      end
 
       def parse_options(args)
         options = {}
@@ -699,6 +730,7 @@ module Aidp
         table = TTY::Table.new header, table_rows
         display_message(table.render(:basic), type: :info)
       rescue => e
+        log_rescue(e, component: "cli", action: "display_provider_health", fallback: "error_message")
         display_message("Failed to display provider health: #{e.message}", type: :error)
       end
 
@@ -1049,6 +1081,7 @@ module Aidp
         )
         runner.start
       rescue ArgumentError => e
+        log_rescue(e, component: "cli", action: "start_watch_command", fallback: "error_display")
         display_message("❌ #{e.message}", type: :error)
       end
 

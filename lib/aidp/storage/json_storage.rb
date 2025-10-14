@@ -2,11 +2,14 @@
 
 require "json"
 require "fileutils"
+require "aidp/rescue_logging"
 
 module Aidp
   module Storage
     # Simple JSON file storage for structured data
     class JsonStorage
+      include Aidp::RescueLogging
+
       def initialize(base_dir = ".aidp")
         @base_dir = base_dir
         ensure_directory_exists
@@ -32,11 +35,13 @@ module Aidp
           success: true
         }
       rescue => error
-        {
+        log_rescue(error,
+          component: "json_storage",
+          action: "store",
+          fallback: {success: false},
           filename: filename,
-          error: error.message,
-          success: false
-        }
+          path: file_path)
+        {filename: filename, error: error.message, success: false}
       end
 
       # Load data from JSON file
@@ -48,7 +53,12 @@ module Aidp
         json_data = JSON.parse(content)
         json_data["data"]
       rescue => error
-        puts "Error loading #{filename}: #{error.message}" if ENV["AIDP_DEBUG"]
+        log_rescue(error,
+          component: "json_storage",
+          action: "load",
+          fallback: nil,
+          filename: filename,
+          path: (defined?(file_path) ? file_path : nil))
         nil
       end
 
@@ -72,11 +82,13 @@ module Aidp
           success: true
         }
       rescue => error
-        {
+        log_rescue(error,
+          component: "json_storage",
+          action: "update",
+          fallback: {success: false},
           filename: filename,
-          error: error.message,
-          success: false
-        }
+          path: (defined?(file_path) ? file_path : nil))
+        {filename: filename, error: error.message, success: false}
       end
 
       # Check if file exists
@@ -92,6 +104,12 @@ module Aidp
         File.delete(file_path)
         {success: true, message: "File deleted"}
       rescue => error
+        log_rescue(error,
+          component: "json_storage",
+          action: "delete",
+          fallback: {success: false},
+          filename: filename,
+          path: file_path)
         {success: false, error: error.message}
       end
 
@@ -120,7 +138,12 @@ module Aidp
           size: File.size(file_path)
         }
       rescue => error
-        puts "Error getting metadata for #{filename}: #{error.message}" if ENV["AIDP_DEBUG"]
+        log_rescue(error,
+          component: "json_storage",
+          action: "metadata",
+          fallback: nil,
+          filename: filename,
+          path: (defined?(file_path) ? file_path : nil))
         nil
       end
 

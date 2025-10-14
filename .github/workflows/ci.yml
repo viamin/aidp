@@ -18,13 +18,13 @@ concurrency:
 jobs:
   test:
     permissions:
-      contents: read
+      contents: write
       actions: write
     uses: ./.github/workflows/test.yml
   lint:
     permissions:
-      contents: read   # For repository access
-      actions: write   # For cache operations
+      contents: read # For repository access
+      actions: write # For cache operations
     uses: ./.github/workflows/lint.yml
   system-tests:
     permissions:

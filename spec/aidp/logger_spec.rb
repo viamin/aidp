@@ -5,12 +5,11 @@ require "aidp/logger"
 require "tmpdir"
 require "json"
 
-RSpec.describe Aidp::AidpLogger do
+RSpec.describe Aidp::Logger do
   let(:project_dir) { Dir.mktmpdir }
   let(:config) { {} }
   let(:logger) { described_class.new(project_dir, config) }
   let(:info_log) { File.join(project_dir, ".aidp/logs/aidp.log") }
-  let(:debug_log) { File.join(project_dir, ".aidp/logs/aidp_debug.log") }
 
   after do
     logger.close
@@ -68,18 +67,14 @@ RSpec.describe Aidp::AidpLogger do
   end
 
   describe "#error" do
-    it "logs to both info and debug logs" do
+    it "logs error messages to the log file" do
       logger.error("test", "error message")
       logger.close
 
       expect(File.exist?(info_log)).to be true
-      expect(File.exist?(debug_log)).to be true
-
       info_content = File.read(info_log)
-      debug_content = File.read(debug_log)
-
       expect(info_content).to include("ERROR")
-      expect(debug_content).to include("ERROR")
+      expect(info_content).to include("error message")
     end
   end
 
@@ -87,14 +82,13 @@ RSpec.describe Aidp::AidpLogger do
     context "when level is debug" do
       let(:config) { {level: "debug"} }
 
-      it "logs to debug log only" do
+      it "logs debug messages to the log file" do
         logger.debug("test", "debug message")
         logger.close
 
-        expect(File.exist?(debug_log)).to be true
-        debug_content = File.read(debug_log)
-        expect(debug_content).to include("DEBUG")
-        expect(debug_content).to include("debug message")
+        info_content = File.read(info_log)
+        expect(info_content).to include("DEBUG")
+        expect(info_content).to include("debug message")
       end
     end
 
@@ -105,9 +99,11 @@ RSpec.describe Aidp::AidpLogger do
         logger.debug("test", "debug message")
         logger.close
 
-        if File.exist?(debug_log)
-          debug_content = File.read(debug_log)
-          expect(debug_content).not_to include("debug message")
+        if File.exist?(info_log)
+          content = File.read(info_log)
+          expect(content).not_to include("debug message")
+        else
+          expect(File.exist?(info_log)).to be false
         end
       end
     end
@@ -200,48 +196,6 @@ RSpec.describe Aidp::AidpLogger do
 
       log_files = Dir.glob(File.join(project_dir, ".aidp/logs/aidp.log*"))
       expect(log_files.size).to be > 1
-    end
-  end
-
-  describe "migration from old location" do
-    let(:old_debug_dir) { File.join(project_dir, ".aidp/debug_logs") }
-    let(:old_debug_log) { File.join(old_debug_dir, "aidp_debug.log") }
-
-    before do
-      FileUtils.mkdir_p(old_debug_dir)
-      File.write(old_debug_log, "Old debug log content\n")
-    end
-
-    it "migrates old debug log to new location" do
-      logger # Initialize logger (triggers migration)
-      logger.close
-
-      expect(File.exist?(debug_log)).to be true
-      expect(File.exist?(old_debug_log)).to be false
-
-      content = File.read(debug_log)
-      expect(content).to include("Old debug log content")
-    end
-
-    it "logs migration notice" do
-      logger
-      logger.close
-
-      content = File.read(info_log)
-      expect(content).to include("migration")
-      expect(content).to include("Logs migrated")
-    end
-
-    it "does not migrate if new log already exists" do
-      FileUtils.mkdir_p(File.dirname(debug_log))
-      File.write(debug_log, "New debug log\n")
-
-      logger
-      logger.close
-
-      content = File.read(debug_log)
-      expect(content).not_to include("Old debug log content")
-      expect(File.exist?(old_debug_log)).to be true
     end
   end
 

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "debug_logger"
-
 module Aidp
   # Mixin module for easy debug integration across the codebase
   module DebugMixin
@@ -27,7 +25,7 @@ module Aidp
 
     # Shared logger instance across all classes using DebugMixin
     def self.shared_logger
-      @shared_logger ||= Aidp::DebugLogger.new
+      Aidp.logger
     end
 
     # Instance-level debug methods
@@ -56,7 +54,8 @@ module Aidp
     def debug_log(message, level: :info, data: nil)
       return unless debug_enabled?
 
-      debug_logger.log(message, level: level, data: data)
+      debug_logger.log(level, component_name, message, **data) if data
+      debug_logger.log(level, component_name, message) unless data
     end
 
     # Log command execution with debug details
@@ -65,30 +64,30 @@ module Aidp
 
       command_str = [cmd, *args].join(" ")
 
-      debug_log("🔧 Executing command: #{command_str}", level: :info)
+      debug_logger.info(component_name, "🔧 Executing command: #{command_str}")
 
       if input
         if input.is_a?(String) && input.length > 200
           # If input is long, show first 100 chars and indicate it's truncated
-          debug_log("📝 Input (truncated): #{input[0..100]}...", level: :info)
+          debug_logger.info(component_name, "📝 Input (truncated): #{input[0..100]}...")
         elsif input.is_a?(String) && File.exist?(input)
-          debug_log("📝 Input file: #{input}", level: :info)
+          debug_logger.info(component_name, "📝 Input file: #{input}")
         else
-          debug_log("📝 Input: #{input}", level: :info)
+          debug_logger.info(component_name, "📝 Input: #{input}")
         end
       end
 
       if error && !error.empty?
-        debug_log("❌ Error output: #{error}", level: :error)
+        debug_logger.error(component_name, "❌ Error output: #{error}")
       end
 
       if debug_verbose?
         if output && !output.empty?
-          debug_log("📤 Output: #{output}", level: :info)
+          debug_logger.debug(component_name, "📤 Output: #{output}")
         end
 
         if exit_code
-          debug_log("🏁 Exit code: #{exit_code}", level: :info)
+          debug_logger.debug(component_name, "🏁 Exit code: #{exit_code}")
         end
       end
     end
@@ -98,25 +97,15 @@ module Aidp
       return unless debug_basic?
 
       message = "🔄 #{action}: #{step_name}"
-      if details.any?
-        detail_str = details.map { |k, v| "#{k}=#{v}" }.join(", ")
-        message += " (#{detail_str})"
-      end
-
-      debug_log(message, level: :info, data: details)
+      debug_logger.info(component_name, message, **details)
     end
 
     # Log provider interaction
     def debug_provider(provider_name, action, details = {})
       return unless debug_basic?
 
-      message = "🤖 #{provider_name}: #{action}"
-      if details.any?
-        detail_str = details.map { |k, v| "#{k}=#{v}" }.join(", ")
-        message += " (#{detail_str})"
-      end
-
-      debug_log(message, level: :info, data: details)
+      message = "🤖 #{action}"
+      debug_logger.info("provider_#{provider_name}", message, **details)
     end
 
     # Log error with debug context
@@ -124,10 +113,10 @@ module Aidp
       return unless debug_basic?
 
       error_message = "💥 Error: #{error.class.name}: #{error.message}"
-      debug_log(error_message, level: :error, data: {error: error, context: context})
+      debug_logger.error(component_name, error_message, error: error.class.name, **context)
 
       if debug_verbose? && error.backtrace
-        debug_log("📍 Backtrace: #{error.backtrace.first(5).join("\n")}", level: :error)
+        debug_logger.debug(component_name, "📍 Backtrace: #{error.backtrace.first(5).join("\n")}")
       end
     end
 
@@ -136,12 +125,7 @@ module Aidp
       return unless debug_verbose?
 
       message = "⏱️  #{operation}: #{duration.round(2)}s"
-      if details.any?
-        detail_str = details.map { |k, v| "#{k}=#{v}" }.join(", ")
-        message += " (#{detail_str})"
-      end
-
-      debug_log(message, level: :info, data: {duration: duration, details: details})
+      debug_logger.debug(component_name, message, duration: duration, **details)
     end
 
     # Execute command with debug logging
@@ -151,7 +135,7 @@ module Aidp
       command_str = [cmd, *args].join(" ")
       start_time = Time.now
 
-      debug_log("🚀 Starting command execution: #{command_str}", level: :info)
+      debug_logger.info(component_name, "🚀 Starting command execution: #{command_str}")
 
       begin
         # Configure printer based on streaming mode
@@ -188,6 +172,23 @@ module Aidp
         duration = Time.now - start_time
         debug_error(e, {command: command_str, duration: duration})
         raise
+      end
+    end
+
+    private
+
+    # Safely derive a component name for logging (memoized).
+    # Handles anonymous classes and modules gracefully.
+    def component_name
+      @component_name ||= begin
+        klass = self.class
+        name = klass.name
+        return "anonymous" unless name && !name.empty?
+        # Take the last constant segment, normalize to snake-ish lowercase
+        segment = name.split("::").last
+        segment.gsub(/([a-z\d])([A-Z])/, '\\1_\\2').downcase
+      rescue
+        "anonymous"
       end
     end
   end

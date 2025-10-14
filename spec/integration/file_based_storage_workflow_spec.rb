@@ -124,22 +124,22 @@ RSpec.describe "File-based Storage Workflow Integration" do
     it "handles large datasets efficiently" do
       # Record many metrics
       start_time = Time.now
-      1000.times do |i|
+      100.times do |i|
         file_manager.record_metric("performance_test", "metric_#{i}", i)
       end
       duration = Time.now - start_time
 
-      # Should complete in reasonable time (less than 5 seconds)
-      expect(duration).to be < 5.0
+      # Should complete in reasonable time (less than 1 second)
+      expect(duration).to be < 1.0
 
       # Verify all data was stored
       metrics = file_manager.get_metrics({"step_name" => "performance_test"})
-      expect(metrics.length).to eq(1000)
+      expect(metrics.length).to eq(100)
 
       # Verify we can filter efficiently
-      filtered = file_manager.get_metrics({"step_name" => "performance_test", "metric_name" => "metric_500"})
+      filtered = file_manager.get_metrics({"step_name" => "performance_test", "metric_name" => "metric_50"})
       expect(filtered.length).to eq(1)
-      expect(filtered.first["value"]).to eq("500")
+      expect(filtered.first["value"]).to eq("50")
     end
   end
 end

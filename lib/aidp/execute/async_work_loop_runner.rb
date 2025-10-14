@@ -3,6 +3,7 @@
 require_relative "work_loop_runner"
 require_relative "work_loop_state"
 require_relative "instruction_queue"
+require_relative "../rescue_logging"
 
 module Aidp
   module Execute
@@ -16,6 +17,8 @@ module Aidp
     # - Stream output to main thread for display
     # - Handle graceful cancellation with checkpoint save
     class AsyncWorkLoopRunner
+      include Aidp::RescueLogging
+
       attr_reader :state, :instruction_queue, :work_thread
 
       def initialize(project_dir, provider_manager, config, options = {})
@@ -42,6 +45,7 @@ module Aidp
         @work_thread = Thread.new do
           run_async_loop
         rescue => e
+          log_rescue(e, component: "async_work_loop_runner", action: "thread_execution", fallback: "error_state", step: @step_name)
           @state.error!(e)
           @state.append_output("Work loop error: #{e.message}", type: :error)
         ensure
@@ -149,6 +153,7 @@ module Aidp
 
         result
       rescue => e
+        log_rescue(e, component: "async_work_loop_runner", action: "run_async_loop", fallback: "error_state", step: @step_name, iteration: @state.iteration)
         @state.error!(e)
         @state.append_output("Error in work loop: #{e.message}\n#{e.backtrace.first(3).join("\n")}", type: :error)
         raise

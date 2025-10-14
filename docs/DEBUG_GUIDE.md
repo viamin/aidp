@@ -68,7 +68,7 @@ Debug information is displayed in two places:
 
 ### Log Files
 
-Debug logs are automatically saved to `.aidp/debug_logs/aidp_debug.log` - a single log file containing all debug sessions.
+Debug output is written to `.aidp/logs/aidp.log` (single consolidated log file). Set `AIDP_LOG_LEVEL=debug` or configure `logging.level: debug` in `aidp.yml` to include debug entries.
 
 - Working directory
 - Debug level

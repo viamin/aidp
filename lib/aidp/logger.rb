@@ -16,7 +16,7 @@ module Aidp
   # Usage:
   #   Aidp.setup_logger(project_dir, config)
   #   Aidp.logger.info("component", "message", key: "value")
-  class AidpLogger
+  class Logger
     LEVELS = {
       debug: ::Logger::DEBUG,
       info: ::Logger::INFO,
@@ -26,7 +26,6 @@ module Aidp
 
     LOG_DIR = ".aidp/logs"
     INFO_LOG = "#{LOG_DIR}/aidp.log"
-    DEBUG_LOG = "#{LOG_DIR}/aidp_debug.log"
 
     DEFAULT_MAX_SIZE = 10 * 1024 * 1024 # 10MB
     DEFAULT_MAX_FILES = 5
@@ -42,8 +41,7 @@ module Aidp
       @max_files = config[:max_backups] || DEFAULT_MAX_FILES
 
       ensure_log_directory
-      migrate_old_logs if should_migrate?
-      setup_loggers
+      setup_logger
     end
 
     # Log info level message
@@ -74,23 +72,12 @@ module Aidp
       safe_message = redact(message)
       safe_metadata = redact_hash(metadata)
 
-      # Log to appropriate file(s)
-      if level == :debug
-        write_to_debug(level, component, safe_message, safe_metadata)
-      else
-        write_to_info(level, component, safe_message, safe_metadata)
-      end
-
-      # Always log errors to both files
-      if level == :error
-        write_to_debug(level, component, safe_message, safe_metadata)
-      end
+      write_entry(level, component, safe_message, safe_metadata)
     end
 
     # Close all loggers
     def close
-      @info_logger&.close
-      @debug_logger&.close
+      @logger&.close
     end
 
     private
@@ -111,12 +98,9 @@ module Aidp
       FileUtils.mkdir_p(log_dir) unless Dir.exist?(log_dir)
     end
 
-    def setup_loggers
+    def setup_logger
       info_path = File.join(@project_dir, INFO_LOG)
-      debug_path = File.join(@project_dir, DEBUG_LOG)
-
-      @info_logger = create_logger(info_path)
-      @debug_logger = create_logger(debug_path)
+      @logger = create_logger(info_path)
     end
 
     def create_logger(path)
@@ -126,14 +110,9 @@ module Aidp
       logger
     end
 
-    def write_to_info(level, component, message, metadata)
+    def write_entry(level, component, message, metadata)
       entry = format_entry(level, component, message, metadata)
-      @info_logger.send(logger_method(level), entry)
-    end
-
-    def write_to_debug(level, component, message, metadata)
-      entry = format_entry(level, component, message, metadata)
-      @debug_logger.send(logger_method(level), entry)
+      @logger.send(logger_method(level), entry)
     end
 
     def logger_method(level)
@@ -205,58 +184,18 @@ module Aidp
     def redact_hash(hash)
       hash.transform_values { |v| v.is_a?(String) ? redact(v) : v }
     end
-
-    # Migration from old debug_logs location
-    OLD_DEBUG_DIR = ".aidp/debug_logs"
-    OLD_DEBUG_LOG = "#{OLD_DEBUG_DIR}/aidp_debug.log"
-
-    def should_migrate?
-      old_path = File.join(@project_dir, OLD_DEBUG_LOG)
-      new_path = File.join(@project_dir, DEBUG_LOG)
-
-      # Migrate if old exists and new doesn't
-      File.exist?(old_path) && !File.exist?(new_path)
-    end
-
-    def migrate_old_logs
-      old_path = File.join(@project_dir, OLD_DEBUG_LOG)
-      new_path = File.join(@project_dir, DEBUG_LOG)
-
-      begin
-        FileUtils.mv(old_path, new_path)
-        log_migration_notice
-      rescue => e
-        # If migration fails, just continue (new logs will be created)
-        warn "Failed to migrate old logs: #{e.message}"
-      end
-    end
-
-    def log_migration_notice
-      notice = format_text(
-        :info,
-        "migration",
-        "Logs migrated from .aidp/debug_logs/ to .aidp/logs/",
-        timestamp: Time.now.utc.iso8601
-      )
-
-      # Write directly to avoid recursion
-      info_path = File.join(@project_dir, INFO_LOG)
-      File.open(info_path, "a") do |f|
-        f.puts notice
-      end
-    end
   end
 
   # Module-level logger accessor
   class << self
     # Set up global logger instance
     def setup_logger(project_dir = Dir.pwd, config = {})
-      @logger = AidpLogger.new(project_dir, config)
+      @logger = Logger.new(project_dir, config)
     end
 
     # Get current logger instance (creates default if not set up)
     def logger
-      @logger ||= AidpLogger.new
+      @logger ||= Logger.new
     end
 
     # Convenience logging methods

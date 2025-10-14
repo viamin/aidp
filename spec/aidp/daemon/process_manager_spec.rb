@@ -153,13 +153,13 @@ RSpec.describe Aidp::Daemon::ProcessManager do
       end
 
       it "stops daemon gracefully" do
-        result = manager.stop(timeout: 2)
+        result = manager.stop(timeout: 1)
         expect(result[:success]).to be true
         expect(result[:message]).to match(/stopped|killed/)
       end
 
       it "cleans up files after stop" do
-        manager.stop(timeout: 2)
+        manager.stop(timeout: 1)
         expect(File.exist?(pid_file)).to be false
       end
     end

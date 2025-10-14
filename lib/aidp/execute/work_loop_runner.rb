@@ -63,6 +63,8 @@ module Aidp
         @iteration_count = 0
         transition_to(:ready)
 
+        Aidp.logger.info("work_loop", "Starting fix-forward execution", step: step_name, max_iterations: MAX_ITERATIONS)
+
         display_message("🔄 Starting fix-forward work loop for step: #{step_name}", type: :info)
         display_message("  State machine: READY → APPLY_PATCH → TEST → {PASS → DONE | FAIL → DIAGNOSE → NEXT_PATCH}", type: :info)
 
@@ -77,7 +79,10 @@ module Aidp
           @iteration_count += 1
           display_message("  Iteration #{@iteration_count} [State: #{STATES[@current_state]}]", type: :info)
 
-          break if @iteration_count > MAX_ITERATIONS
+          if @iteration_count > MAX_ITERATIONS
+            Aidp.logger.error("work_loop", "Max iterations exceeded", step: @step_name, iterations: @iteration_count)
+            break
+          end
 
           # State: READY - Starting new iteration
           transition_to(:ready) unless @current_state == :ready
@@ -143,6 +148,7 @@ module Aidp
       def transition_to(new_state)
         raise "Invalid state: #{new_state}" unless STATES.key?(new_state)
 
+        old_state = @current_state
         @state_history << {
           from: @current_state,
           to: new_state,
@@ -150,6 +156,7 @@ module Aidp
           timestamp: Time.now
         }
         @current_state = new_state
+        Aidp.logger.debug("work_loop", "State transition", from: old_state, to: new_state, iteration: @iteration_count, step: @step_name)
       end
 
       # Display summary of state transitions

@@ -3,11 +3,14 @@
 require "json"
 require "yaml"
 require "fileutils"
+require_relative "../rescue_logging"
 
 module Aidp
   module Harness
     # Stores detailed information about AI providers gathered from their CLI tools
     class ProviderInfo
+      include Aidp::RescueLogging
+
       attr_reader :provider_name, :info_file_path
 
       def initialize(provider_name, root_dir = nil)
@@ -56,6 +59,7 @@ module Aidp
 
         YAML.safe_load_file(@info_file_path, permitted_classes: [Time, Symbol])
       rescue => e
+        log_rescue(e, component: "provider_info", action: "load_yaml", fallback: nil, provider: @provider_name, path: @info_file_path)
         warn "Failed to load provider info for #{@provider_name}: #{e.message}"
         nil
       end
@@ -133,7 +137,8 @@ module Aidp
 
         last_checked = Time.parse(info[:last_checked].to_s)
         (Time.now - last_checked) > max_age
-      rescue
+      rescue => e
+        log_rescue(e, component: "provider_info", action: "parse_last_checked_time", fallback: true, provider: @provider_name, timestamp: info[:last_checked])
         true
       end
 
@@ -147,6 +152,7 @@ module Aidp
 
         provider_instance.fetch_mcp_servers
       rescue => e
+        log_rescue(e, component: "provider_info", action: "fetch_mcp_servers", fallback: [], provider: @provider_name)
         warn "Failed to fetch MCP servers for #{@provider_name}: #{e.message}" if ENV["AIDP_DEBUG"]
         []
       end
@@ -157,7 +163,8 @@ module Aidp
         # Try to find the binary
         path = begin
           Aidp::Util.which(binary_name)
-        rescue
+        rescue => e
+          log_rescue(e, component: "provider_info", action: "locate_provider_binary", fallback: nil, provider: @provider_name, binary: binary_name)
           nil
         end
         return nil unless path
@@ -183,7 +190,8 @@ module Aidp
               Process.kill("TERM", pid)
               sleep 0.1
               Process.kill("KILL", pid)
-            rescue
+            rescue => e
+              log_rescue(e, component: "provider_info", action: "kill_timeout_provider_command", fallback: nil, provider: @provider_name, binary: binary_name, pid: pid)
               nil
             end
             return nil
@@ -192,7 +200,8 @@ module Aidp
           output = r.read
           r.close
           output
-        rescue
+        rescue => e
+          log_rescue(e, component: "provider_info", action: "execute_provider_command", fallback: nil, provider: @provider_name, binary: binary_name, args: args)
           nil
         end
       end
@@ -355,6 +364,7 @@ module Aidp
         # Create provider instance
         @provider_instance = provider_class.new
       rescue => e
+        log_rescue(e, component: "provider_info", action: "create_provider_instance", fallback: nil, provider: @provider_name)
         warn "Failed to create provider instance for #{@provider_name}: #{e.message}" if ENV["AIDP_DEBUG"]
         nil
       end
