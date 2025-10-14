@@ -2,11 +2,14 @@
 
 require "csv"
 require "fileutils"
+require "aidp/rescue_logging"
 
 module Aidp
   module Storage
     # Simple CSV file storage for tabular data
     class CsvStorage
+      include Aidp::RescueLogging
+
       def initialize(base_dir = ".aidp")
         @base_dir = base_dir
         ensure_directory_exists
@@ -42,11 +45,13 @@ module Aidp
           success: true
         }
       rescue => error
-        {
+        log_rescue(error,
+          component: "csv_storage",
+          action: "append",
+          fallback: {success: false},
           filename: filename,
-          error: error.message,
-          success: false
-        }
+          path: file_path)
+        {filename: filename, error: error.message, success: false}
       end
 
       # Read all rows from CSV file
@@ -60,7 +65,12 @@ module Aidp
         end
         rows
       rescue => error
-        puts "Error reading #{filename}: #{error.message}" if ENV["AIDP_DEBUG"]
+        log_rescue(error,
+          component: "csv_storage",
+          action: "read_all",
+          fallback: [],
+          filename: filename,
+          path: (defined?(file_path) ? file_path : nil))
         []
       end
 
@@ -83,7 +93,12 @@ module Aidp
         CSV.foreach(file_path) { count += 1 }
         count - 1 # Subtract 1 for header row
       rescue => error
-        puts "Error counting rows in #{filename}: #{error.message}" if ENV["AIDP_DEBUG"]
+        log_rescue(error,
+          component: "csv_storage",
+          action: "count_rows",
+          fallback: 0,
+          filename: filename,
+          path: (defined?(file_path) ? file_path : nil))
         0
       end
 
@@ -127,7 +142,12 @@ module Aidp
 
         summary_data
       rescue => error
-        puts "Error generating summary for #{filename}: #{error.message}" if ENV["AIDP_DEBUG"]
+        log_rescue(error,
+          component: "csv_storage",
+          action: "summary",
+          fallback: nil,
+          filename: filename,
+          path: (defined?(file_path) ? file_path : nil))
         nil
       end
 
@@ -144,6 +164,12 @@ module Aidp
         File.delete(file_path)
         {success: true, message: "File deleted"}
       rescue => error
+        log_rescue(error,
+          component: "csv_storage",
+          action: "delete",
+          fallback: {success: false},
+          filename: filename,
+          path: file_path)
         {success: false, error: error.message}
       end
 

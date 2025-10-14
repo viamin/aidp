@@ -3,6 +3,7 @@
 require "securerandom"
 require "yaml"
 require "fileutils"
+require_relative "../rescue_logging"
 
 module Aidp
   module Jobs
@@ -10,6 +11,7 @@ module Aidp
     # Runs harness in daemon process and tracks job metadata
     class BackgroundRunner
       include Aidp::MessageDisplay
+      include Aidp::RescueLogging
 
       attr_reader :project_dir, :jobs_dir
 
@@ -55,6 +57,7 @@ module Aidp
             puts "[#{Time.now}] Job completed with status: #{result[:status]}"
             mark_job_completed(job_id, result)
           rescue => e
+            log_rescue(e, component: "background_runner", action: "execute_job", fallback: "mark_failed", job_id: job_id, mode: mode)
             puts "[#{Time.now}] Job failed with error: #{e.message}"
             puts e.backtrace.join("\n")
             mark_job_failed(job_id, e)
@@ -136,11 +139,13 @@ module Aidp
 
           mark_job_stopped(job_id)
           {success: true, message: "Job stopped successfully"}
-        rescue Errno::ESRCH
+        rescue Errno::ESRCH => e
+          log_rescue(e, component: "background_runner", action: "stop_job", fallback: "mark_stopped", job_id: job_id, pid: pid, level: :info)
           # Process already dead
           mark_job_stopped(job_id)
           {success: true, message: "Job was already stopped"}
         rescue => e
+          log_rescue(e, component: "background_runner", action: "stop_job", fallback: "error_result", job_id: job_id, pid: pid)
           {success: false, message: "Failed to stop job: #{e.message}"}
         end
       end
@@ -244,7 +249,8 @@ module Aidp
 
         Process.kill(0, pid)
         true
-      rescue Errno::ESRCH, Errno::EPERM
+      rescue Errno::ESRCH, Errno::EPERM => e
+        log_rescue(e, component: "background_runner", action: "check_process_running", fallback: false, pid: pid, level: :debug)
         false
       end
 
@@ -252,7 +258,8 @@ module Aidp
         # Try to load checkpoint from project directory
         checkpoint = Aidp::Execute::Checkpoint.new(@project_dir)
         checkpoint.latest_checkpoint
-      rescue
+      rescue => e
+        log_rescue(e, component: "background_runner", action: "get_job_checkpoint", fallback: nil, job_id: job_id)
         nil
       end
 

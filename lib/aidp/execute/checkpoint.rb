@@ -3,12 +3,15 @@
 require "yaml"
 require "time"
 require "json"
+require "aidp/rescue_logging"
 
 module Aidp
   module Execute
     # Manages periodic checkpoints during work loop execution
     # Tracks progress metrics, code quality, and task completion
     class Checkpoint
+      include Aidp::RescueLogging
+
       attr_reader :project_dir, :checkpoint_file, :history_file
 
       def initialize(project_dir)
@@ -104,7 +107,11 @@ module Aidp
         end
 
         total_lines
-      rescue
+      rescue => e
+        log_rescue(e,
+          component: "checkpoint",
+          action: "count_lines_of_code",
+          fallback: 0)
         0
       end
 
@@ -121,7 +128,11 @@ module Aidp
         end
 
         count
-      rescue
+      rescue => e
+        log_rescue(e,
+          component: "checkpoint",
+          action: "count_project_files",
+          fallback: 0)
         0
       end
 
@@ -134,7 +145,11 @@ module Aidp
 
         coverage_ratio = (test_files.to_f / source_files * 100).round(2)
         [coverage_ratio, 100].min
-      rescue
+      rescue => e
+        log_rescue(e,
+          component: "checkpoint",
+          action: "estimate_test_coverage",
+          fallback: 0)
         0
       end
 
@@ -173,7 +188,11 @@ module Aidp
         offense_count = data["summary"]["offense_count"] || 0
         # Simple scoring: fewer offenses = higher score
         [100 - (offense_count / total_files.to_f * 10), 0].max.round(2)
-      rescue
+      rescue => e
+        log_rescue(e,
+          component: "checkpoint",
+          action: "run_rubocop_check",
+          fallback: nil)
         nil
       end
 
@@ -191,7 +210,11 @@ module Aidp
         return 0 if total_tasks == 0
 
         (completed_tasks.to_f / total_tasks * 100).round(2)
-      rescue
+      rescue => e
+        log_rescue(e,
+          component: "checkpoint",
+          action: "calculate_prd_task_progress",
+          fallback: 0)
         0
       end
 

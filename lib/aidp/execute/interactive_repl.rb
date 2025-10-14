@@ -4,6 +4,7 @@ require "tty-prompt"
 require "tty-spinner"
 require_relative "async_work_loop_runner"
 require_relative "repl_macros"
+require_relative "../rescue_logging"
 
 module Aidp
   module Execute
@@ -19,6 +20,8 @@ module Aidp
     #   repl = InteractiveRepl.new(project_dir, provider_manager, config)
     #   repl.start_work_loop(step_name, step_spec, context)
     class InteractiveRepl
+      include Aidp::RescueLogging
+
       def initialize(project_dir, provider_manager, config, options = {})
         @project_dir = project_dir
         @provider_manager = provider_manager
@@ -85,6 +88,7 @@ module Aidp
           rescue Interrupt
             handle_interrupt
           rescue => e
+            log_rescue(e, component: "interactive_repl", action: "repl_command_loop", fallback: "error_display")
             @prompt.error("REPL error: #{e.message}")
           end
         end
@@ -98,6 +102,7 @@ module Aidp
         command = $stdin.gets&.chomp
         command&.strip
       rescue => e
+        log_rescue(e, component: "interactive_repl", action: "read_command", fallback: nil)
         @prompt.error("Input error: #{e.message}")
         nil
       end
@@ -165,6 +170,7 @@ module Aidp
           @prompt.error(result[:message])
         end
       rescue => e
+        log_rescue(e, component: "interactive_repl", action: "handle_command", fallback: "error_display", command: result[:data])
         @prompt.error("Command error: #{e.message}")
       end
 
@@ -215,6 +221,7 @@ module Aidp
           message: success ? "Reset #{count} commit(s)" : output
         }
       rescue => e
+        log_rescue(e, component: "interactive_repl", action: "git_reset", fallback: "error_result", count: count)
         {success: false, message: e.message}
       end
 

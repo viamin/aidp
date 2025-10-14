@@ -2,12 +2,14 @@
 
 require "tty-prompt"
 require_relative "provider_factory"
+require_relative "../rescue_logging"
 
 module Aidp
   module Harness
     # Manages provider switching and fallback logic
     class ProviderManager
       include Aidp::MessageDisplay
+      include Aidp::RescueLogging
 
       def initialize(configuration, prompt: TTY::Prompt.new)
         @configuration = configuration
@@ -69,6 +71,8 @@ module Aidp
 
       # Switch to next available provider with sophisticated fallback logic
       def switch_provider(reason = "manual_switch", context = {})
+        Aidp.logger.info("provider_manager", "Attempting provider switch", reason: reason, current: current_provider, **context)
+
         # Get fallback chain for current provider
         provider_fallback_chain = fallback_chain(current_provider)
 
@@ -79,7 +83,10 @@ module Aidp
           success = set_current_provider(next_provider, reason, context)
           if success
             log_provider_switch(current_provider, next_provider, reason, context)
+            Aidp.logger.info("provider_manager", "Provider switched successfully", from: current_provider, to: next_provider, reason: reason)
             return next_provider
+          else
+            Aidp.logger.warn("provider_manager", "Failed to switch to provider", provider: next_provider, reason: reason)
           end
         end
 
@@ -107,16 +114,20 @@ module Aidp
 
         # No providers available
         log_no_providers_available(reason, context)
+        Aidp.logger.error("provider_manager", "No providers available for fallback", reason: reason, **context)
         nil
       end
 
       # Switch provider for specific error type
       def switch_provider_for_error(error_type, error_details = {})
+        Aidp.logger.warn("provider_manager", "Error triggered provider switch", error_type: error_type, **error_details)
+
         case error_type
         when "rate_limit"
           switch_provider("rate_limit", error_details)
         when "resource_exhausted", "quota_exceeded"
           # Treat capacity/resource exhaustion like rate limit for fallback purposes
+          Aidp.logger.warn("provider_manager", "Resource/quota exhaustion detected", classified_from: error_type)
           switch_provider("rate_limit", error_details.merge(classified_from: error_type))
         when "authentication"
           switch_provider("authentication_error", error_details)
@@ -273,13 +284,26 @@ module Aidp
       # Set current provider with enhanced validation
       def set_current_provider(provider_name, reason = "manual_switch", context = {})
         # Use provider_config for ConfigManager, provider_configured? for legacy Configuration
-        if @configuration.respond_to?(:provider_config)
-          return false unless @configuration.provider_config(provider_name)
+        config_exists = if @configuration.respond_to?(:provider_config)
+          @configuration.provider_config(provider_name)
         else
-          return false unless @configuration.provider_configured?(provider_name)
+          @configuration.provider_configured?(provider_name)
         end
-        return false unless is_provider_healthy?(provider_name)
-        return false if is_provider_circuit_breaker_open?(provider_name)
+
+        unless config_exists
+          Aidp.logger.warn("provider_manager", "Provider not configured", provider: provider_name)
+          return false
+        end
+
+        unless is_provider_healthy?(provider_name)
+          Aidp.logger.warn("provider_manager", "Provider not healthy", provider: provider_name)
+          return false
+        end
+
+        if is_provider_circuit_breaker_open?(provider_name)
+          Aidp.logger.warn("provider_manager", "Provider circuit breaker open", provider: provider_name)
+          return false
+        end
 
         # Update provider health
         update_provider_health(provider_name, "switched_to")
@@ -300,6 +324,7 @@ module Aidp
         @current_model = default_model(provider_name)
 
         @current_provider = provider_name
+        Aidp.logger.info("provider_manager", "Provider activated", provider: provider_name, reason: reason)
         true
       end
 
@@ -1029,7 +1054,8 @@ module Aidp
             require_relative "../providers/cursor"
             installed = Aidp::Providers::Cursor.available?
           end
-        rescue LoadError
+        rescue LoadError => e
+          log_rescue(e, component: "provider_manager", action: "check_provider_availability", fallback: false, provider: provider_name)
           installed = false
         end
         @unavailable_cache[provider_name] = installed
@@ -1069,7 +1095,8 @@ module Aidp
         end
         path = begin
           Aidp::Util.which(binary)
-        rescue
+        rescue => e
+          log_rescue(e, component: "provider_manager", action: "locate_binary", fallback: nil, binary: binary)
           nil
         end
         unless path
@@ -1095,13 +1122,15 @@ module Aidp
             # Timeout -> kill
             begin
               Process.kill("TERM", pid)
-            rescue
+            rescue => e
+              log_rescue(e, component: "provider_manager", action: "kill_timeout_process_term", fallback: nil, binary: binary, pid: pid)
               nil
             end
             sleep 0.1
             begin
               Process.kill("KILL", pid)
-            rescue
+            rescue => e
+              log_rescue(e, component: "provider_manager", action: "kill_timeout_process_kill", fallback: nil, binary: binary, pid: pid)
               nil
             end
             ok = false
@@ -1114,6 +1143,7 @@ module Aidp
             ok = true
           end
         rescue => e
+          log_rescue(e, component: "provider_manager", action: "verify_binary_health", fallback: "binary_error", binary: binary)
           ok = false
           reason = e.class.name.downcase.include?("enoent") ? "binary_missing" : "binary_error"
         end
@@ -1361,6 +1391,7 @@ module Aidp
           }
         }
       rescue => e
+        log_rescue(e, component: "provider_manager", action: "execute_with_provider", fallback: "error_result", provider: provider_type, prompt_length: prompt.length)
         # Return error result
         {
           status: "error",

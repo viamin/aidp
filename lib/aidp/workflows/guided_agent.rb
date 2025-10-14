@@ -5,6 +5,7 @@ require_relative "../harness/provider_factory"
 require_relative "../harness/config_manager"
 require_relative "definitions"
 require_relative "../message_display"
+require_relative "../debug_mixin"
 require_relative "../cli/enhanced_input"
 
 module Aidp
@@ -13,6 +14,7 @@ module Aidp
     # Acts as a copilot to match user intent to AIDP capabilities
     class GuidedAgent
       include Aidp::MessageDisplay
+      include Aidp::DebugMixin
 
       class ConversationError < StandardError; end
 
@@ -72,9 +74,17 @@ module Aidp
 
         @conversation_history << {role: "user", content: goal}
 
+        iteration = 0
         loop do
+          iteration += 1
           # Ask AI for next question based on current plan
           question_response = get_planning_questions(plan)
+
+          # Debug: show raw provider response and parsed result
+          debug_log("Planning iteration #{iteration} provider response", level: :debug, data: {
+            raw_response: question_response[:raw_response]&.inspect,
+            parsed: question_response.inspect
+          })
 
           # If AI says plan is complete, confirm with user
           if question_response[:complete]
@@ -98,6 +108,12 @@ module Aidp
             # Update plan with answer
             update_plan_from_answer(plan, question, answer)
           end
+
+          # Guard: break loop after 10 iterations to avoid infinite loop
+          if iteration >= 10
+            display_message("[ERROR] Planning loop exceeded 10 iterations. Provider may be returning generic responses.", type: :error)
+            break
+          end
         end
 
         plan
@@ -107,8 +123,18 @@ module Aidp
         system_prompt = build_planning_system_prompt
         user_prompt = build_planning_prompt(plan)
 
+        # If requirements are already detailed, ask provider to check for completion
+        requirements = plan[:requirements]
+        requirements_detailed = requirements.is_a?(Hash) && requirements.values.flatten.any? { |r| r.length > 50 }
+        if requirements_detailed
+          user_prompt += "\n\nNOTE: Requirements have been provided in detail above. If you have enough information, set 'complete' to true. Do not repeat the same requirements question."
+        end
+
         response = call_provider_for_analysis(system_prompt, user_prompt)
-        parse_planning_response(response)
+        parsed = parse_planning_response(response)
+        # Attach raw response for debug
+        parsed[:raw_response] = response
+        parsed
       end
 
       def identify_steps_from_plan(plan)

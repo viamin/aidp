@@ -86,6 +86,16 @@ module Aidp
           # Log the results
           debug_command("copilot", args: args, input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
 
+          # Detect authorization/access errors
+          auth_error = result.err.to_s =~ /not authorized|requires an enterprise|access denied|permission denied|not enabled/i
+          if auth_error
+            spinner.error("✗")
+            mark_failed("copilot authorization error: #{result.err}")
+            @unavailable = true
+            debug_error(StandardError.new("copilot authorization error"), {exit_code: result.exit_status, stderr: result.err})
+            raise Aidp::Providers::ProviderUnavailableError.new("copilot authorization error: #{result.err}")
+          end
+
           if result.exit_status == 0
             spinner.success("✓")
             mark_completed
@@ -96,6 +106,8 @@ module Aidp
             debug_error(StandardError.new("copilot failed"), {exit_code: result.exit_status, stderr: result.err})
             raise "copilot failed with exit code #{result.exit_status}: #{result.err}"
           end
+        rescue Aidp::Providers::ProviderUnavailableError
+          raise
         rescue => e
           spinner&.error("✗")
           mark_failed("copilot execution failed: #{e.message}")
