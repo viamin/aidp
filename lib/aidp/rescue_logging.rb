@@ -29,8 +29,8 @@ module Aidp
         Aidp.logger.send(level, component, "Rescued exception during #{action}", **data)
       end
     rescue => logging_error
-      # Last resort: avoid raising from logging path
-      Aidp.logger.error("rescue_logging", "Failed to log rescue", original_error: error.message, logging_error: logging_error.message)
+      # Last resort: avoid raising from logging path - fall back to STDERR
+      warn "[AIDP Rescue Logging Error] Failed to log rescue for #{component}:#{action} - #{error.class}: #{error.message} (logging error: #{logging_error.message})"
     end
   end
 end
