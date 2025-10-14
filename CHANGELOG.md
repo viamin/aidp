@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.14.2](https://github.com/viamin/aidp/compare/aidp/v0.14.1...aidp/v0.14.2) (2025-10-14)
+
+
+### Bug Fixes
+
+* fix provider fallback, setup wizard billing, and guided-agent resiliency ([b4c9e77](https://github.com/viamin/aidp/commit/b4c9e77ae14964a91d6e65bf91f2484bca2d0cb3))
+* fix provider fallback, setup wizard billing, and guided-agent resiliency ([#130](https://github.com/viamin/aidp/issues/130)) ([6baedaf](https://github.com/viamin/aidp/commit/6baedaf67f06916d4559ce85967bfb86ebb20453))
+
+
+### Improvements
+
+* consolidate logging to Aidp::Logger, remove DebugLogger, add RescueLogging and instrument components; update docs & specs ([502b5f0](https://github.com/viamin/aidp/commit/502b5f02eefee3fb7c0acddce2d782cdcf87fe32))
+* consolidate logging to Aidp::Logger, remove DebugLogger, add RescueLogging and instrument components; update docs & specs ([#132](https://github.com/viamin/aidp/issues/132)) ([00b9c29](https://github.com/viamin/aidp/commit/00b9c295bbe3b144fdb83ee6d607056a61f33aa4))
+
 ## [0.14.1](https://github.com/viamin/aidp/compare/aidp/v0.14.0...aidp/v0.14.1) (2025-10-13)
 
 
