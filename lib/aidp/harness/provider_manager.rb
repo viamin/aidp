@@ -115,6 +115,9 @@ module Aidp
         case error_type
         when "rate_limit"
           switch_provider("rate_limit", error_details)
+        when "resource_exhausted", "quota_exceeded"
+          # Treat capacity/resource exhaustion like rate limit for fallback purposes
+          switch_provider("rate_limit", error_details.merge(classified_from: error_type))
         when "authentication"
           switch_provider("authentication_error", error_details)
         when "network"
@@ -269,7 +272,12 @@ module Aidp
 
       # Set current provider with enhanced validation
       def set_current_provider(provider_name, reason = "manual_switch", context = {})
-        return false unless @configuration.provider_configured?(provider_name)
+        # Use provider_config for ConfigManager, provider_configured? for legacy Configuration
+        if @configuration.respond_to?(:provider_config)
+          return false unless @configuration.provider_config(provider_name)
+        else
+          return false unless @configuration.provider_configured?(provider_name)
+        end
         return false unless is_provider_healthy?(provider_name)
         return false if is_provider_circuit_breaker_open?(provider_name)
 
@@ -468,11 +476,24 @@ module Aidp
       # Build default fallback chain
       def build_default_fallback_chain(provider_name)
         all_providers = configured_providers
-        fallback_chain = all_providers.dup
-        fallback_chain.delete(provider_name)
-        fallback_chain.unshift(provider_name) # Put current provider first
-        @fallback_chains[provider_name] = fallback_chain
-        fallback_chain
+
+        # Harness-defined explicit ordering has priority
+        harness_fallbacks = if @configuration.respond_to?(:fallback_providers)
+          Array(@configuration.fallback_providers).map(&:to_s)
+        else
+          []
+        end
+
+        # Construct ordered chain:
+        # 1. current provider first
+        # 2. harness fallback providers (excluding current and de-duplicated)
+        # 3. any remaining configured providers not already listed
+        ordered = [provider_name]
+        ordered += harness_fallbacks.reject { |p| p == provider_name || ordered.include?(p) }
+        ordered += all_providers.reject { |p| ordered.include?(p) }
+
+        @fallback_chains[provider_name] = ordered
+        ordered
       end
 
       # Find next healthy provider in fallback chain

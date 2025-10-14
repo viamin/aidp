@@ -39,6 +39,8 @@ module Aidp
         display_message("\n🤖 Welcome to AIDP Guided Workflow!", type: :highlight)
         display_message("I'll help you plan and execute your project.\n", type: :info)
 
+        validate_provider_configuration!
+
         plan_and_execute_workflow
       rescue => e
         raise ConversationError, "Failed to guide workflow selection: #{e.message}"
@@ -135,6 +137,16 @@ module Aidp
       end
 
       def build_workflow_from_plan(plan, needed_steps)
+        # Filter out any unknown steps to avoid nil dereference if SPEC changed or an AI hallucinated a step key
+        execute_spec = Aidp::Execute::Steps::SPEC
+        unknown_steps = needed_steps.reject { |s| execute_spec.key?(s) }
+        if unknown_steps.any?
+          display_message("⚠️  Ignoring unknown execute steps: #{unknown_steps.join(", ")}", type: :warning)
+          needed_steps -= unknown_steps
+        end
+
+        details = needed_steps.map { |step| execute_spec[step]["description"] }
+
         {
           mode: :execute,
           workflow_key: :plan_and_execute,
@@ -144,7 +156,7 @@ module Aidp
           workflow: {
             name: "Plan & Execute",
             description: "Custom workflow from iterative planning",
-            details: needed_steps.map { |step| Aidp::Execute::Steps::SPEC[step]["description"] }
+            details: details
           },
           completion_criteria: plan[:completion_criteria]
         }
@@ -233,33 +245,52 @@ module Aidp
       end
 
       def call_provider_for_analysis(system_prompt, user_prompt)
-        # Get current provider from provider manager
-        provider_name = @provider_manager.current_provider
+        attempts = 0
+        max_attempts = (@provider_manager.respond_to?(:configured_providers) ? @provider_manager.configured_providers.size : 2)
+        max_attempts = 2 if max_attempts < 2 # at least one retry if a fallback exists
 
-        unless provider_name
-          raise ConversationError, "No provider configured for guided workflow"
+        begin
+          attempts += 1
+
+          provider_name = @provider_manager.current_provider
+          unless provider_name
+            raise ConversationError, "No provider configured for guided workflow"
+          end
+
+          # Create provider instance using ProviderFactory
+          provider_factory = Aidp::Harness::ProviderFactory.new(@config_manager)
+          provider = provider_factory.create_provider(provider_name, prompt: @prompt)
+
+          unless provider
+            raise ConversationError, "Failed to create provider instance for #{provider_name}"
+          end
+
+          combined_prompt = "#{system_prompt}\n\n#{user_prompt}"
+          result = provider.send(prompt: combined_prompt)
+
+          if result.nil? || result.empty?
+            raise ConversationError, "Provider request failed: empty response"
+          end
+
+          result
+        rescue => e
+          message = e.message.to_s
+          classified = if message =~ /resource[_ ]exhausted/i || message =~ /\[resource_exhausted\]/i
+            "resource_exhausted"
+          elsif message =~ /quota[_ ]exceeded/i || message =~ /\[quota_exceeded\]/i
+            "quota_exceeded"
+          end
+
+          if classified && attempts < max_attempts
+            display_message("⚠️  Provider '#{provider_name}' #{classified.tr("_", " ")} – attempting fallback...", type: :warning)
+            switched = @provider_manager.switch_provider_for_error(classified, stderr: message) if @provider_manager.respond_to?(:switch_provider_for_error)
+            if switched && switched != provider_name
+              display_message("↩️  Switched to provider '#{switched}'", type: :info)
+              retry
+            end
+          end
+          raise
         end
-
-        # Create provider instance using ProviderFactory
-        provider_factory = Aidp::Harness::ProviderFactory.new(@config_manager)
-        provider = provider_factory.create_provider(provider_name, prompt: @prompt)
-
-        unless provider
-          raise ConversationError, "Failed to create provider instance for #{provider_name}"
-        end
-
-        # Make the request - combine system and user prompts
-        combined_prompt = "#{system_prompt}\n\n#{user_prompt}"
-
-        result = provider.send(prompt: combined_prompt)
-
-        # Provider.send returns a string (the content), not a hash
-        # Check if result is nil or empty which indicates failure
-        if result.nil? || result.empty?
-          raise ConversationError, "Provider request failed: empty response"
-        end
-
-        result
       end
 
       def parse_recommendation(response_text)
@@ -274,6 +305,22 @@ module Aidp
         JSON.parse(json_match[1], symbolize_names: true)
       rescue JSON::ParserError => e
         raise ConversationError, "Invalid JSON in recommendation: #{e.message}"
+      end
+
+      def validate_provider_configuration!
+        configured = @provider_manager.configured_providers
+        if configured.nil? || configured.empty?
+          raise ConversationError, <<~MSG.strip
+            No providers are configured. Create an aidp.yml with at least one provider, for example:
+            
+            harness:\n  enabled: true\n  default_provider: claude\nproviders:\n  claude:\n    type: api\n    api_key: "${AIDP_CLAUDE_API_KEY}"\n    models:\n      - claude-3-5-sonnet-20241022
+          MSG
+        end
+
+        default = @provider_manager.current_provider
+        unless default && configured.include?(default)
+          raise ConversationError, "Default provider '#{default || "(nil)"}' not found in configured providers: #{configured.join(", ")}"
+        end
       end
 
       def present_recommendation(recommendation)

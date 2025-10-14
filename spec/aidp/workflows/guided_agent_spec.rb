@@ -33,6 +33,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     allow(Aidp::Harness::ProviderFactory).to receive(:new).with(config_manager).and_return(provider_factory)
     allow(provider_factory).to receive(:create_provider).and_return(provider)
     allow(provider_manager).to receive(:current_provider).and_return("claude")
+    # New validation now queries configured_providers; stub a minimal list
+    allow(provider_manager).to receive(:configured_providers).and_return(["claude"])
 
     # Mock display_message calls (uses prompt.say)
     allow(prompt).to receive(:say)
@@ -177,13 +179,14 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     context "when no provider is configured" do
       before do
         allow(provider_manager).to receive(:current_provider).and_return(nil)
+        allow(provider_manager).to receive(:configured_providers).and_return([])
       end
 
       it "raises a ConversationError" do
-        expect { agent.select_workflow }.to raise_error(
-          Aidp::Workflows::GuidedAgent::ConversationError,
-          /No provider configured/
-        )
+        expect { agent.select_workflow }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError) { |err|
+          # Wrapped message now includes prefix 'Failed to guide workflow selection:'
+          expect(err.message).to match(/No providers? are configured|No provider configured/i)
+        }
       end
     end
 
@@ -214,6 +217,40 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
         # The workflow completes successfully even with NFR requirements in the plan
         expect(File.exist?(File.join(project_dir, "docs", "prd.md"))).to be true
+      end
+    end
+
+    context "when primary provider is resource exhausted and fallback exists" do
+      let(:secondary_provider) { "cursor" }
+
+      before do
+        # Simulate two providers: claude (current) then cursor fallback
+        allow(provider_manager).to receive(:configured_providers).and_return(["claude", secondary_provider])
+
+        call_count = 0
+        allow(provider).to receive(:send) do
+          call_count += 1
+          if call_count == 1
+            # First attempt triggers resource_exhausted failure via raising error
+            raise StandardError, "ConnectError: [resource_exhausted] Error"
+          elsif call_count == 2
+            # Second attempt succeeds with plan then steps (reuse existing stubs)
+            plan_response.to_json
+          else
+            step_identification_response.to_json
+          end
+        end
+
+        # After failure, provider manager should switch providers
+        allow(provider_manager).to receive(:switch_provider_for_error) do |error_type, details|
+          allow(provider_manager).to receive(:current_provider).and_return(secondary_provider)
+          secondary_provider
+        end
+      end
+
+      it "falls back to secondary provider and completes workflow" do
+        result = agent.select_workflow
+        expect(result[:steps]).to eq(["00_PRD", "02_ARCHITECTURE", "16_IMPLEMENTATION"])
       end
     end
   end
