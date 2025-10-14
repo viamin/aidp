@@ -143,46 +143,35 @@ module Aidp
         # Save primary provider
         set([:harness, :default_provider], provider_choice) unless provider_choice == "custom"
 
-        # Prompt for fallback providers (excluding the primary)
+        ensure_provider_billing_config(provider_choice) unless provider_choice == "custom"
+
+        # Prompt for fallback providers (excluding the primary), pre-select existing
+        existing_fallbacks = Array(get([:harness, :fallback_providers])).map(&:to_s) - [provider_choice]
         fallback_choices = available_providers.reject { |_, name| name == provider_choice }
-        fallback_selected = prompt.multi_select("Select fallback providers (used if primary fails):") do |menu|
+        fallback_selected = prompt.multi_select("Select fallback providers (used if primary fails):", default: existing_fallbacks) do |menu|
           fallback_choices.each do |display_name, provider_name|
             menu.choice display_name, provider_name
           end
         end
 
-        # Remove any accidental duplication of primary provider & save
+        # If user selected none but we had existing fallbacks, confirm removal
+        if fallback_selected.empty? && existing_fallbacks.any?
+          keep = prompt.no?("No fallbacks selected. Remove existing fallbacks (#{existing_fallbacks.join(", ")})?", default: false)
+          fallback_selected = existing_fallbacks if keep
+        end
+
+        # Remove any accidental duplication of primary provider & save (preserve order)
         cleaned_fallbacks = fallback_selected.reject { |name| name == provider_choice }
         set([:harness, :fallback_providers], cleaned_fallbacks)
 
-        # No LLM settings needed; provider agent handles LLM config
+        # Auto-create minimal provider configs for fallbacks if missing
+        cleaned_fallbacks.each { |fp| ensure_provider_billing_config(fp) }
 
-        configure_mcp
-        show_provider_secrets_help(provider_choice)
+        # Provide informational note (no secret handling stored)
+        show_provider_info_note(provider_choice) unless provider_choice == "custom"
       end
 
-      def configure_mcp
-        existing = get([:providers, :mcp]) || {}
-        enabled = prompt.yes?("Enable MCP (Model Context Protocol) tools?", default: existing.fetch(:enabled, true))
-        return delete_path([:providers, :mcp]) unless enabled
-
-        # TODO: Add default back once TTY-Prompt default validation issue is resolved
-        tools = prompt.multi_select("Select MCP tools:") do |menu|
-          menu.choice "Git", "git"
-          menu.choice "Shell", "shell"
-          menu.choice "Filesystem", "fs"
-          menu.choice "Browser", "browser"
-          menu.choice "GitHub", "github"
-        end
-
-        custom = ask_list("Custom MCP servers (comma-separated)", existing.fetch(:custom_servers, []))
-
-        set([:providers, :mcp], {
-          enabled: true,
-          tools: tools,
-          custom_servers: custom
-        }.compact)
-      end
+      # Removed MCP configuration step (MCP now expected to be provider-specific if used)
 
       # -------------------------------------------
       # Work loop configuration
@@ -621,27 +610,34 @@ module Aidp
         :other
       end
 
-      def default_model(provider)
-        case provider
-        when "anthropic" then "claude-3-5-sonnet-20241022"
-        when "openai" then "gpt-4.1"
-        when "google" then "gemini-1.5-pro"
-        when "azure" then "gpt-4"
-        else "claude-3-5-sonnet-20241022"
-        end
+      def show_provider_info_note(provider)
+        prompt.say("\n💡 Provider integration:")
+        prompt.say("AIDP does not store API keys or model lists. Configure the agent (#{provider}) externally.")
+        prompt.say("Only the billing model (subscription vs usage_based) is recorded for fallback decisions.")
       end
 
-      def show_provider_secrets_help(provider)
-        prompt.say("\n💡 Provider setup:")
-        case provider
-        when "anthropic"
-          prompt.say("Export API key: export ANTHROPIC_API_KEY=sk-ant-...")
-        when "openai", "azure"
-          prompt.say("Export API key: export OPENAI_API_KEY=sk-...")
-        when "google"
-          prompt.say("Export API key: export GOOGLE_API_KEY=...")
-        else
-          prompt.say("Configure API credentials via environment variables.")
+      # Ensure a minimal billing configuration exists for a selected provider (no secrets)
+      def ensure_provider_billing_config(provider_name)
+        return if provider_name.nil? || provider_name == "custom"
+        providers_section = get([:providers]) || {}
+        existing = providers_section[provider_name.to_sym]
+
+        if existing && existing[:type]
+          prompt.say("  • Provider '#{provider_name}' already configured (type: #{existing[:type]})")
+          return
+        end
+
+        provider_type = ask_provider_billing_type(provider_name)
+        set([:providers, provider_name.to_sym], {type: provider_type})
+        prompt.say("  • Added provider '#{provider_name}' with billing type '#{provider_type}' (no secrets stored)")
+      end
+
+      def ask_provider_billing_type(provider_name)
+        prompt.select("Billing model for #{provider_name}:") do |menu|
+          menu.choice "Subscription / flat-rate", "subscription"
+          # e.g. tools that expose an integrated model under a subscription cost
+          menu.choice "Usage-based / metered (API)", "usage_based"
+          menu.choice "Passthrough / local (no billing)", "passthrough"
         end
       end
 

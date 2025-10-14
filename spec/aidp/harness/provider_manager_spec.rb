@@ -70,6 +70,16 @@ RSpec.describe Aidp::Harness::ProviderManager do
         expect(next_provider).to eq("cursor")
       end
 
+      it "treats resource_exhausted as rate limit" do
+        next_provider = manager.switch_provider_for_error("resource_exhausted")
+        expect(next_provider).to eq("cursor")
+      end
+
+      it "treats quota_exceeded as rate limit" do
+        next_provider = manager.switch_provider_for_error("quota_exceeded")
+        expect(next_provider).to eq("cursor")
+      end
+
       it "switches for authentication error" do
         next_provider = manager.switch_provider_for_error("authentication")
         expect(next_provider).to eq("cursor")
@@ -126,6 +136,16 @@ RSpec.describe Aidp::Harness::ProviderManager do
         chain = manager.build_default_fallback_chain("cursor")
         expect(chain).to include("cursor", "anthropic", "macos")
         expect(chain.first).to eq("cursor")
+      end
+
+      it "honors harness fallback ordering when provided" do
+        # Recreate manager with configuration providing explicit fallbacks
+        allow(configuration).to receive(:fallback_providers).and_return(["macos"]) # prefer macos, then others
+        chain = manager.build_default_fallback_chain("anthropic")
+        # Expected order: current provider first, then declared fallbacks (excluding current), then remaining
+        expect(chain[0]).to eq("anthropic")
+        expect(chain[1]).to eq("macos")
+        expect(chain).to include("cursor")
       end
     end
 
