@@ -1,8 +1,12 @@
-# Migration Guide: From Legacy Interface to Enhanced TUI
+# Migration Guide
 
-This guide helps you migrate from the legacy AIDP interface to the new Enhanced TUI system.
+This guide covers migration between major AIDP versions.
 
-## Overview
+## Enhanced TUI Migration
+
+This section covers migration from the legacy AIDP interface to the new Enhanced TUI system.
+
+### Overview
 
 The Enhanced TUI is a complete overhaul of the AIDP interface that provides:
 

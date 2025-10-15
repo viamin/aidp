@@ -25,27 +25,25 @@ walkthrough of the bootstrapping process. Use `aidp config --interactive` (see
 [SETUP_WIZARD](SETUP_WIZARD.md)) to define the test, lint, and guard settings
 that the work loop relies on.
 
-## Guided Workflows (Copilot Mode)
+## Copilot Mode
 
-**NEW:** AIDP now includes a **Guided Workflow** feature that acts as your AI copilot to help you choose the right workflow for your needs.
+**As of version 0.15.0**, AIDP uses a unified **Copilot** mode as the default interactive experience. Copilot acts as your AI pair programmer to help you accomplish any task.
 
-### What is Guided Workflow?
+### What is Copilot Mode?
 
-Instead of manually choosing between Analyze and Execute modes and picking specific workflows, the Guided Workflow uses AI to:
+Copilot is the unified interactive mode that replaced the separate Analyze and Execute modes. It uses AI to:
 
 1. **Understand your goal** through a conversational interface
-2. **Match your intent** to AIDP's capabilities
+2. **Match your intent** to AIDP's capabilities (analysis or development)
 3. **Recommend the best workflow** with clear reasoning
 4. **Handle custom needs** by suggesting step combinations or identifying gaps
 
-### How to Use Guided Workflow
+### How to Use Copilot
 
-When you start AIDP, you'll see three options:
+Simply run `aidp` to start Copilot:
 
-```text
-🤖 Guided Workflow (Copilot) - AI helps you choose the right workflow
-🔬 Analyze Mode - Analyze your codebase for insights and recommendations
-🏗️ Execute Mode - Build new features with guided development workflow
+```bash
+aidp
 ```
 
 Select "Guided Workflow" and simply describe what you want to do:
