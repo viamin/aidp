@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.15.0](https://github.com/viamin/aidp/compare/aidp/v0.14.2...aidp/v0.15.0) (2025-10-15)
+
+
+### Features
+
+* add deterministic work loop units and hybrid scheduling ([a5554ee](https://github.com/viamin/aidp/commit/a5554ee9c887fead3054f56b8fd50452d79445d6))
+* add deterministic work loop units and hybrid scheduling ([#136](https://github.com/viamin/aidp/issues/136)) ([b4bb948](https://github.com/viamin/aidp/commit/b4bb94818d63c245a65424c15c539d2e05ff42a8))
+
+
+### Bug Fixes
+
+* ensure coverage badge updates properly ([d59c996](https://github.com/viamin/aidp/commit/d59c9960489bf91268a954720de9302522569ae2))
+* ensure coverage badge updates properly ([#137](https://github.com/viamin/aidp/issues/137)) ([2ac9c65](https://github.com/viamin/aidp/commit/2ac9c65c427d4c3aefe9dba3132ba116eb05d3ee))
+
+
+### Improvements
+
+* **cli/docs:** make Copilot the default interactive mode and update docs ([717542f](https://github.com/viamin/aidp/commit/717542fe8b6e1485e9edb6e9c2d1418f18d3e9b0))
+* **cli/docs:** make Copilot the default interactive mode and update docs ([#133](https://github.com/viamin/aidp/issues/133)) ([de460b4](https://github.com/viamin/aidp/commit/de460b4a4b4c11d0c6b4ef1ab639287dde325a9e))
+* fix codeql violation ([8d2d8dd](https://github.com/viamin/aidp/commit/8d2d8dd580dda50dff518532e9db7522ab35f3c3))
+
 ## [0.14.2](https://github.com/viamin/aidp/compare/aidp/v0.14.1...aidp/v0.14.2) (2025-10-14)
 
 
