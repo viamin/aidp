@@ -5,7 +5,7 @@ Complete guide to using the AI Dev Pipeline command-line interface.
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [Execution Modes](#execution-modes)
+- [Copilot Mode](#copilot-mode)
 - [Background Jobs](#background-jobs)
 - [Progress Checkpoints](#progress-checkpoints)
 - [System Management](#system-management)
@@ -26,11 +26,11 @@ aidp --version
 # Run setup wizard
 aidp --setup-config
 
-# Start interactive execute mode
-aidp execute
+# Start Copilot interactive mode (default)
+aidp
 
-# Start interactive analyze mode
-aidp analyze
+# High-level project analysis
+aidp init
 
 # Check system status
 aidp status
@@ -42,7 +42,7 @@ When you run AIDP for the first time in a project, it launches a setup wizard:
 
 ```bash
 $ cd /your/project
-$ aidp execute
+$ aidp
 
 Welcome to AIDP Configuration Setup!
 
@@ -62,42 +62,43 @@ The wizard creates an `aidp.yml` file with your chosen configuration. You can re
 aidp --setup-config
 ```
 
-## Execution Modes
+## Copilot Mode
 
-AIDP has two primary modes: **Execute** (build features) and **Analyze** (analyze code).
+Copilot is the unified interactive mode that can perform both analysis and development tasks.
 
-### Execute Mode
-
-Execute mode guides you through building new features from PRD to implementation.
+### Starting Copilot
 
 ```bash
-# Interactive mode - select workflow and answer questions
-aidp execute
+# Start Copilot (default)
+aidp
 
-# Background mode - run without blocking terminal
-aidp execute --background
-
-# Background with log following
-aidp execute --background --follow
+# Copilot will guide you through:
+# - Understanding your project goals
+# - Selecting the right workflow
+# - Performing analysis or development
 ```
 
-**Available Execute Workflows:**
+**What Copilot Can Do:**
 
-- Full PRD to Implementation
-- PRD Only
-- Architecture Only
-- Implementation Only
-- Custom Step Selection
+- Analyze your codebase (architecture, dependencies, quality)
+- Build new features from PRD to implementation
+- Perform security audits
+- Review test coverage
+- Generate documentation
+- And more - just ask!
 
-### Analyze Mode
+### High-Level Project Analysis
 
-Analyze mode examines your codebase and generates insights.
+For initial project setup and documentation:
 
 ```bash
-# Interactive analysis
-aidp analyze
+# Run comprehensive project analysis
+aidp init
 
-# Background analysis
+# Creates:
+# - LLM_STYLE_GUIDE.md
+# - PROJECT_ANALYSIS.md
+# - CODE_QUALITY_PLAN.md
 aidp analyze --background
 
 # Background with log following

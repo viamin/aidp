@@ -20,11 +20,8 @@ aidp config --interactive
 aidp init
 # Creates LLM_STYLE_GUIDE.md, PROJECT_ANALYSIS.md, CODE_QUALITY_PLAN.md
 
-# Start an interactive workflow
-aidp execute
-
-# Or run in background
-aidp execute --background
+# Start Copilot interactive mode (default)
+aidp
 ```
 
 ### First-Time Setup
@@ -58,16 +55,12 @@ AIDP implements **work loops** - an iterative execution pattern where AI agents 
 
 See [Work Loops Guide](docs/WORK_LOOPS_GUIDE.md) for details.
 
-### Background Execution
+### Job Management
 
-Run workflows in the background while monitoring progress from separate terminals:
+Monitor and control background jobs:
 
 ```bash
-# Start in background
-aidp execute --background
-✓ Started background job: 20251005_235912_a1b2c3d4
-
-# Monitor progress
+# List and manage jobs
 aidp jobs list                        # List all jobs
 aidp jobs status <job_id>             # Show job status
 aidp jobs logs <job_id> --tail        # View recent logs
@@ -102,17 +95,14 @@ aidp checkpoint history 20
 
 ## Command Reference
 
-### Execution Modes
+### Copilot Mode
 
 ```bash
-# Execute mode - Build new features
-aidp execute                    # Interactive workflow selection
-aidp execute --background       # Run in background
-aidp execute --background --follow  # Start and follow logs
+# Start interactive Copilot mode (default)
+aidp                            # AI-guided workflow selection
 
-# Analyze mode - Analyze codebase
-aidp analyze                    # Interactive analysis
-aidp analyze --background       # Background analysis
+# Copilot can perform both analysis and development based on your needs
+# It will interactively help you choose the right approach
 ```
 
 ### Job Management
@@ -329,40 +319,36 @@ The questions file is only created when the AI needs additional information beyo
 ### Standard Interactive Workflow
 
 ```bash
-# Start execute mode
-aidp execute
+# Start Copilot mode (default)
+aidp
 
-# Select workflow type (e.g., "Full PRD to Implementation")
-# Answer any questions interactively
-# Review generated files (PRD, architecture, etc.)
-# Workflow runs automatically with harness managing retries
+# Copilot will guide you through:
+# - Understanding your project goals
+# - Selecting the right workflow (analysis, development, or both)
+# - Answering questions about your requirements
+# - Reviewing generated files (PRD, architecture, etc.)
+# - Automatic execution with harness managing retries
 ```
 
-### Background Workflow with Monitoring
+### Project Analysis
 
 ```bash
-# Terminal 1: Start background execution
-aidp execute --background
-✓ Started background job: 20251005_235912_a1b2c3d4
+# High-level project analysis and documentation
+aidp init
 
-# Terminal 2: Watch progress in real-time
+# Creates:
+# - LLM_STYLE_GUIDE.md
+# - PROJECT_ANALYSIS.md
+# - CODE_QUALITY_PLAN.md
+```
+
+### Progress Monitoring
+
+```bash
+# Watch progress in real-time
 aidp checkpoint summary --watch
 
-# Terminal 3: Monitor job status
-aidp jobs status 20251005_235912_a1b2c3d4 --follow
-
-# Later: Check final results
-aidp checkpoint summary
-aidp jobs logs 20251005_235912_a1b2c3d4 --tail
-```
-
-### Quick Analysis
-
-```bash
-# Run analysis in background
-aidp analyze --background
-
-# Check progress
+# Check job status
 aidp jobs list
 aidp checkpoint summary
 ```

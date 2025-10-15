@@ -196,15 +196,15 @@ module Aidp
         tui.start_display_loop
 
         begin
-          # First question: Choose mode
-          mode = select_mode_interactive(tui)
+          # Copilot is now the default mode - no menu selection
+          # The guided workflow selector will internally choose appropriate mode
+          mode = :guided
 
           # Get workflow configuration (no spinner - may wait for user input)
           workflow_config = workflow_selector.select_workflow(harness_mode: false, mode: mode)
 
-          # For guided mode, use the mode determined by the guided workflow selector
-          # Otherwise use the initially selected mode
-          actual_mode = workflow_config[:mode] || mode
+          # Use the mode determined by the guided workflow selector
+          actual_mode = workflow_config[:mode] || :execute
 
           # Pass workflow configuration to harness
           harness_options = {
@@ -265,8 +265,7 @@ module Aidp
           opts.separator "AI Development Pipeline - Autonomous development workflow automation"
           opts.separator ""
           opts.separator "Commands:"
-          opts.separator "  analyze [--background]   Start analyze mode workflow"
-          opts.separator "  execute [--background]   Start execute mode workflow"
+          opts.separator "  (no command)             Start Copilot interactive mode (default)"
           opts.separator "  init                     Analyse project and bootstrap quality docs"
           opts.separator "  watch <issues_url>       Run fully automatic watch mode"
           opts.separator "  status                   Show current system status"
@@ -302,9 +301,12 @@ module Aidp
 
           opts.separator ""
           opts.separator "Examples:"
-          opts.separator "  # Start background execution"
-          opts.separator "  aidp execute --background"
-          opts.separator "  aidp execute --background --follow    # Start and follow logs"
+          opts.separator "  # Start interactive Copilot mode"
+          opts.separator "  aidp"
+          opts.separator ""
+          opts.separator "  # Project bootstrap"
+          opts.separator "  aidp init                             # High-level analysis and docs"
+          opts.separator "  aidp config --interactive             # Configure providers"
           opts.separator ""
           opts.separator "  # Monitor background jobs"
           opts.separator "  aidp jobs list                        # List all jobs"
@@ -315,20 +317,14 @@ module Aidp
           opts.separator "  aidp checkpoint summary --watch       # Auto-refresh every 5s"
           opts.separator "  aidp checkpoint summary --watch --interval 10"
           opts.separator ""
-          opts.separator "  # Project bootstrap"
-          opts.separator "  aidp init"
-          opts.separator "  aidp config --interactive"
           opts.separator "  # Fully automatic orchestration"
-          opts.separator ""
           opts.separator "  aidp watch https://github.com/<org>/<repo>/issues"
           opts.separator "  aidp watch owner/repo --interval 120 --provider claude"
           opts.separator ""
           opts.separator "  # Other commands"
           opts.separator "  aidp providers                        # Check provider health"
           opts.separator "  aidp providers info claude            # Show detailed provider info"
-          opts.separator "  aidp providers refresh                # Refresh all provider info"
           opts.separator "  aidp mcp                              # Show MCP server dashboard"
-          opts.separator "  aidp mcp check dash-api filesystem    # Check provider eligibility"
           opts.separator "  aidp checkpoint history 20            # Show last 20 checkpoints"
           opts.separator ""
           opts.separator "For more information, visit: https://github.com/viamin/aidp"
@@ -342,7 +338,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness execute analyze providers checkpoint mcp issue config init watch].include?(args.first)
+        %w[status jobs kb harness providers checkpoint mcp issue config init watch].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -352,8 +348,6 @@ module Aidp
         when "jobs" then run_jobs_command(args)
         when "kb" then run_kb_command(args)
         when "harness" then run_harness_command(args)
-        when "execute" then run_execute_command(args)
-        when "analyze" then run_execute_command(args, mode: :analyze) # symmetry
         when "providers" then run_providers_command(args)
         when "checkpoint" then run_checkpoint_command(args)
         when "mcp" then run_mcp_command(args)
@@ -921,25 +915,6 @@ module Aidp
           end
         end
         mode&.to_sym
-      end
-
-      def select_mode_interactive(tui)
-        mode_options = [
-          "🤖 Guided Workflow (Copilot) - AI helps you choose the right workflow",
-          "🔬 Analyze Mode - Analyze your codebase for insights and recommendations",
-          "🏗️ Execute Mode - Build new features with guided development workflow"
-        ]
-        selected = tui.single_select("Welcome to AI Dev Pipeline! Choose your mode", mode_options, default: 1)
-        # Announce mode explicitly in headless contexts (handled internally otherwise)
-        if (defined?(RSpec) || ENV["RSPEC_RUNNING"]) && tui.respond_to?(:announce_mode)
-          tui.announce_mode(:guided) if selected == mode_options[0]
-          tui.announce_mode(:analyze) if selected == mode_options[1]
-          tui.announce_mode(:execute) if selected == mode_options[2]
-        end
-        return :guided if selected == mode_options[0]
-        return :analyze if selected == mode_options[1]
-        return :execute if selected == mode_options[2]
-        :analyze
       end
 
       def display_harness_result(result)
