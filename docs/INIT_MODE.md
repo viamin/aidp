@@ -43,6 +43,9 @@ aidp init
   tooling.
 - Use the [Setup Wizard](SETUP_WIZARD.md) to keep `.aidp/aidp.yml` in sync with
   the conventions discovered by `aidp init` (tests, lint commands, guards, etc.).
+- After the first run, review `harness.work_loop.units` to register deterministic
+  commands (full test suites, lint passes, or wait strategies) so future loops
+  can pivot between tooling and agentic work automatically.
 
 ## Relationship to Work Loops
 

@@ -11,7 +11,11 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       "Configuration",
       test_commands: ["bundle exec rspec"],
       lint_commands: ["bundle exec standardrb"],
-      guards_config: {enabled: false}
+      guards_config: {enabled: false},
+      work_loop_units_config: {
+        deterministic: [],
+        defaults: {initial_unit: :agentic}
+      }
     )
   end
   let(:runner) { described_class.new(project_dir, provider_manager, config) }
@@ -157,7 +161,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         state_history = runner.instance_variable_get(:@state_history)
         states_visited = state_history.map { |h| h[:to] }
 
-        expect(states_visited).to include(:ready, :apply_patch, :test, :pass, :done)
+        expect(states_visited).to include(:apply_patch, :test, :pass, :done)
       end
 
       it "follows state machine: READY → APPLY_PATCH → TEST → FAIL → DIAGNOSE → NEXT_PATCH" do

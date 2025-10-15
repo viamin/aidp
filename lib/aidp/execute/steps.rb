@@ -128,7 +128,7 @@ module Aidp
         # Simple task execution - for one-off commands and simple fixes
         "99_SIMPLE_TASK" => {
           "templates" => ["implementation/simple_task.md"],
-          "description" => "Execute Simple Task (one-off commands, quick fixes, linting)",
+          "description" => "Execute Simple Task (one-off commands, quick fixes, linting; emit NEXT_UNIT when more tooling is needed)",
           "outs" => [],
           "gate" => false,
           "simple" => true # Special step for simple, focused tasks

@@ -17,6 +17,19 @@ implementation, and pull request creation without human supervision.
   define provider choices, work loop commands, and guard rails before enabling
   watch mode.
 
+## Deterministic Backbone
+
+Watch mode now leans on deterministic units to keep the loop alive between
+agent invocations. The default `wait_for_github` unit polls for new issues,
+labels, or comments and re-enqueues itself until an event is detected. When
+activity arrives it emits `NEXT_UNIT: agentic`, handing control back to the
+fix-forward agent. This allows Aidp to remain token-efficient while still
+reacting instantly to repository changes.
+
+Tune the behaviour via `harness.work_loop.units` in `aidp.yml`. You can supply
+additional deterministic units (e.g., nightly test suites or long-running CI
+builds) and adjust cooldowns/backoff without modifying the agent workflow.
+
 ## Starting Watch Mode
 
 ```bash

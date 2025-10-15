@@ -374,7 +374,8 @@ module Aidp
                 enabled: true,
                 max_iterations: 50,
                 test_commands: [],
-                lint_commands: []
+                lint_commands: [],
+                units: {}
               },
               properties: {
                 enabled: {
@@ -403,6 +404,95 @@ module Aidp
                   default: [],
                   items: {
                     type: :string
+                  }
+                },
+                units: {
+                  type: :hash,
+                  required: false,
+                  default: {},
+                  properties: {
+                    deterministic: {
+                      type: :array,
+                      required: false,
+                      default: [],
+                      items: {
+                        type: :hash,
+                        properties: {
+                          name: {
+                            type: :string,
+                            required: true
+                          },
+                          command: {
+                            type: :string,
+                            required: false
+                          },
+                          type: {
+                            type: :string,
+                            required: false,
+                            enum: ["command", "wait"]
+                          },
+                          output_file: {
+                            type: :string,
+                            required: false
+                          },
+                          enabled: {
+                            type: :boolean,
+                            required: false,
+                            default: true
+                          },
+                          min_interval_seconds: {
+                            type: :integer,
+                            required: false,
+                            min: 1
+                          },
+                          max_backoff_seconds: {
+                            type: :integer,
+                            required: false,
+                            min: 1
+                          },
+                          backoff_multiplier: {
+                            type: :number,
+                            required: false,
+                            min: 1.0
+                          },
+                          metadata: {
+                            type: :hash,
+                            required: false,
+                            default: {}
+                          },
+                          next: {
+                            type: :hash,
+                            required: false,
+                            default: {}
+                          }
+                        }
+                      }
+                    },
+                    defaults: {
+                      type: :hash,
+                      required: false,
+                      default: {},
+                      properties: {
+                        initial_unit: {
+                          type: :string,
+                          required: false
+                        },
+                        on_no_next_step: {
+                          type: :string,
+                          required: false
+                        },
+                        fallback_agentic: {
+                          type: :string,
+                          required: false
+                        },
+                        max_consecutive_deciders: {
+                          type: :integer,
+                          required: false,
+                          min: 1,
+                          max: 10
+                        }
+                      }
+                    }
                   }
                 },
                 guards: {

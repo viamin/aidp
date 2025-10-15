@@ -4,6 +4,71 @@
 
 AIDP now supports **work loops** - an iterative execution pattern inspired by [Geoffrey Huntley's Ralph technique](https://ghuntley.com/ralph). This transforms AIDP from single-pass step execution into an autonomous loop where the AI agent iteratively works toward completion with automatic testing and linting feedback.
 
+## Deterministic vs Agentic Units
+
+Work loops now run as a hybrid of **deterministic units** and **agentic iterations**.
+
+- *Deterministic units* execute concrete tooling without LLM calls. Examples include running full test suites, lint passes, or polling for remote signals. Each unit writes its result to `.aidp/out/` and decides whether the next unit should remain deterministic or hand control back to the agent.
+- *Agentic units* continue to use the fix-forward loop described in this guide. They read deterministic outputs, apply patches, and can request follow-up deterministic work by writing directives like `NEXT_UNIT: run_full_tests` in their response.
+
+The `aidp.yml` key `harness.work_loop.units` defines the deterministic catalog:
+
+```yaml
+harness:
+  work_loop:
+    units:
+      deterministic:
+        - name: run_full_tests
+          command: "bundle exec rake spec"
+          min_interval_seconds: 300
+          next:
+            success: agentic
+            failure: decide_whats_next
+        - name: wait_for_github
+          type: wait
+          metadata:
+            interval_seconds: 60
+          next:
+            event: agentic
+            else: wait_for_github
+      defaults:
+        on_no_next_step: wait_for_github
+        fallback_agentic: decide_whats_next
+```
+
+Key behaviours:
+
+- Deterministic executions respect cooldowns (`min_interval_seconds`) and exponential backoff (`backoff_multiplier`, `max_backoff_seconds`) to avoid thrashing.
+- Agentic runs ingest the latest deterministic summaries and the previous agent response when constructing `PROMPT.md`.
+- If the agent finishes without choosing a next unit, AIDP enqueues `wait_for_github` so background watch mode never stalls. When not in watch mode, the agent may request `NEXT_UNIT: decide_whats_next` to perform a lightweight reasoning pass that selects the next unit once.
+
+This deterministic layer dramatically reduces token spend and latency for repeatable tooling while keeping the agent available for reasoning, code edits, and complex branching decisions.
+
+```mermaid
+flowchart TD
+  Scheduler["Unit Scheduler"] --> Choose{"Next unit from<br/>queue/defaults"}
+  Choose -->|Deterministic| RunDet["Run deterministic unit"]
+  RunDet --> RecordDet["Record output<br/>+ update backoff"]
+  RecordDet --> NextFromDet["Evaluate <code>next:</code> mapping"]
+  NextFromDet --> Scheduler
+
+  Choose -->|Agentic (primary)| AgentLoop
+  Choose -->|"Agentic (decide_whats_next)"| Decider["Lightweight agent<br/>chooses NEXT_UNIT"]
+  Decider --> UpdateQueue["Queue requested unit"] --> Scheduler
+
+  subgraph Fix-Forward Loop
+    AgentLoop["Send PROMPT.md to agent"] --> Tests["Run tests + linters"]
+    Tests --> PassOrFail{"Tests/lints pass?"}
+    PassOrFail -->|Yes & STATUS: COMPLETE| Done["Archive & finish"]
+    PassOrFail -->|Yes but still work| Continue["Queue NEXT_UNIT or<br/>fallback agentic"]
+    Continue --> Scheduler
+    PassOrFail -->|No| Diagnose["Diagnose + append<br/>failures to PROMPT.md"]
+    Diagnose --> Continue
+  end
+
+  RunDet --> Outputs["Write .aidp/out/<unit>.yml"] --> Scheduler
+```
+
 ## Autonomous Orchestration Layer
 
 Work loops power the new [Fully Automatic Watch Mode](FULLY_AUTOMATIC_MODE.md), an orchestration tier that monitors GitHub issues and launches end-to-end implementation cycles when the `aidp-plan` / `aidp-build` label workflow is used. The watch mode reuses the same fix-forward loop described in this guide while adding:

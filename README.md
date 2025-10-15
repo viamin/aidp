@@ -197,6 +197,21 @@ harness:
       - "bundle exec rspec"
     lint_commands:
       - "bundle exec standardrb"
+    units:
+      deterministic:
+        - name: run_full_tests
+          command: "bundle exec rake spec"
+          enabled: false
+          next:
+            success: agentic
+            failure: decide_whats_next
+        - name: wait_for_github
+          type: "wait"
+          metadata:
+            interval_seconds: 60
+      defaults:
+        on_no_next_step: wait_for_github
+        fallback_agentic: decide_whats_next
 
 providers:
   claude:

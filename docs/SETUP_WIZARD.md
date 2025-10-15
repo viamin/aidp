@@ -25,6 +25,7 @@ aidp config --interactive --dry-run
 
 - Unit / integration / end-to-end test commands
 - Lint and formatter commands (with optional autofix)
+- Deterministic unit catalog (commands, wait policies, and fallbacks)
 - Guard rails (include/exclude patterns, protected paths, confirmation rules,
   max lines per commit)
 - Watch patterns for test reruns and default timeouts
