@@ -64,7 +64,7 @@ jobs:
           else
             git config user.name 'coverage-bot'
             git config user.email 'coverage-bot@users.noreply.github.com'
-            git add badges/coverage.svg coverage/ratchet.json coverage/summary.json || true
-            git commit -m 'chore: update coverage badge [skip ci]' || echo 'Nothing to commit'
-            git push || echo 'Push failed'
+            git add badges/coverage.svg
+            git commit -m 'chore: update coverage badge [skip ci]'
+            git push
           fi
