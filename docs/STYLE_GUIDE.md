@@ -10,6 +10,7 @@ Coding standards, architectural patterns, and best practices for the AI Dev Pipe
 - [Ruby Version Management](#ruby-version-management)
 - [TTY Toolkit Guidelines](#tty-toolkit-guidelines)
 - [Testing Guidelines](#testing-guidelines)
+- [Logging Practices](#logging-practices)
 - [Error Handling](#error-handling)
 
 ## Code Organization
@@ -111,6 +112,13 @@ end
 - Use specific error types, not generic `rescue => e`
 - Provide meaningful error messages
 - Let it crash for internal errors, handle external dependency errors gracefully
+- Every `rescue` block must call `rescue_log(:warn, error, context)` to record the failure and preserve troubleshooting context
+
+### Logging Practices
+
+- Use `debug_log` (or `Aidp.logger.debug`) to annotate important method calls and workflow steps so execution traces are easy to follow
+- Keep log messages concise but actionable—include identifiers, counts, or filenames when helpful
+- Avoid silent error handling—pair all rescue clauses with `rescue_log(:warn, ...)` as noted above
 
 ## Ruby Version Management
 
