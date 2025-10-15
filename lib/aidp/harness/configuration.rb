@@ -150,6 +150,10 @@ module Aidp
         harness_config[:work_loop] || default_work_loop_config
       end
 
+      def work_loop_units_config
+        work_loop_config[:units] || default_units_config
+      end
+
       # Check if work loops are enabled
       def work_loop_enabled?
         work_loop_config[:enabled]
@@ -483,7 +487,62 @@ module Aidp
           max_iterations: 50,
           test_commands: [],
           lint_commands: [],
-          guards: default_guards_config
+          guards: default_guards_config,
+          units: default_units_config
+        }
+      end
+
+      def default_units_config
+        {
+          deterministic: [
+            {
+              name: "run_full_tests",
+              command: "bundle exec rake spec",
+              output_file: ".aidp/out/run_full_tests.yml",
+              enabled: false,
+              min_interval_seconds: 300,
+              max_backoff_seconds: 1800,
+              next: {
+                success: :agentic,
+                failure: :decide_whats_next,
+                else: :decide_whats_next
+              }
+            },
+            {
+              name: "run_lint",
+              command: "bundle exec standardrb",
+              output_file: ".aidp/out/run_lint.yml",
+              enabled: false,
+              min_interval_seconds: 300,
+              max_backoff_seconds: 1800,
+              next: {
+                success: :agentic,
+                failure: :decide_whats_next,
+                else: :decide_whats_next
+              }
+            },
+            {
+              name: "wait_for_github",
+              type: :wait,
+              output_file: ".aidp/out/wait_for_github.yml",
+              metadata: {
+                interval_seconds: 60,
+                backoff_seconds: 60
+              },
+              min_interval_seconds: 60,
+              max_backoff_seconds: 900,
+              next: {
+                event: :agentic,
+                else: :wait_for_github
+              }
+            }
+          ],
+          defaults: {
+            initial_unit: :agentic,
+            on_no_next_step: :wait_for_github,
+            fallback_agentic: :decide_whats_next,
+            max_consecutive_deciders: 1
+          }
         }
       end
 

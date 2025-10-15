@@ -57,6 +57,25 @@ work_loop:
     max_lines_changed_per_commit: 300
     protected_paths: ["config/credentials.yml.enc"]
     confirm_protected: true
+  units:
+    deterministic:
+      - name: run_full_tests
+        command: bundle exec rake spec
+        min_interval_seconds: 300
+        next:
+          success: agentic
+          failure: decide_whats_next
+      - name: wait_for_github
+        type: wait
+        metadata:
+          interval_seconds: 60
+        next:
+          event: agentic
+          else: wait_for_github
+    defaults:
+      initial_unit: agentic
+      on_no_next_step: wait_for_github
+      fallback_agentic: decide_whats_next
   branching:
     prefix: aidp
     slug_format: "issue-%{id}-%{title}"

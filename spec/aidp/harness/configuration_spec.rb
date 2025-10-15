@@ -245,6 +245,15 @@ RSpec.describe Aidp::Harness::Configuration do
     end
   end
 
+  describe "work loop configuration" do
+    it "returns default deterministic units when not configured" do
+      units_config = configuration.work_loop_units_config
+      names = units_config[:deterministic].map { |unit| unit[:name] }
+      expect(names).to include("wait_for_github")
+      expect(units_config[:defaults][:on_no_next_step]).to eq(:wait_for_github)
+    end
+  end
+
   describe "model configuration" do
     it "returns provider models" do
       anthropic_models = configuration.provider_models("anthropic")

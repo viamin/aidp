@@ -4,6 +4,9 @@ require_relative "prompt_manager"
 require_relative "checkpoint"
 require_relative "checkpoint_display"
 require_relative "guard_policy"
+require_relative "work_loop_unit_scheduler"
+require_relative "deterministic_unit"
+require_relative "agent_signal_parser"
 require_relative "../harness/test_runner"
 
 module Aidp
@@ -53,6 +56,8 @@ module Aidp
         @options = options
         @current_state = :ready
         @state_history = []
+        @deterministic_runner = DeterministicUnits::Runner.new(project_dir)
+        @unit_scheduler = nil
       end
 
       # Execute a step using fix-forward work loop pattern
@@ -63,86 +68,212 @@ module Aidp
         @iteration_count = 0
         transition_to(:ready)
 
-        Aidp.logger.info("work_loop", "Starting fix-forward execution", step: step_name, max_iterations: MAX_ITERATIONS)
+        Aidp.logger.info("work_loop", "Starting hybrid work loop execution", step: step_name, max_iterations: MAX_ITERATIONS)
 
-        display_message("🔄 Starting fix-forward work loop for step: #{step_name}", type: :info)
-        display_message("  State machine: READY → APPLY_PATCH → TEST → {PASS → DONE | FAIL → DIAGNOSE → NEXT_PATCH}", type: :info)
+        display_message("🔄 Starting hybrid work loop for step: #{step_name}", type: :info)
+        display_message("  Flow: Deterministic ↔ Agentic with fix-forward core", type: :info)
 
-        # Display guard policy status
         display_guard_policy_status
 
-        # Create initial PROMPT.md
+        @unit_scheduler = WorkLoopUnitScheduler.new(units_config)
+        base_context = context.dup
+
+        loop do
+          unit = @unit_scheduler.next_unit
+          break unless unit
+
+          if unit.deterministic?
+            result = @deterministic_runner.run(unit.definition, reason: "scheduled by work loop")
+            @unit_scheduler.record_deterministic_result(unit.definition, result)
+            next
+          end
+
+          enriched_context = base_context.merge(
+            deterministic_outputs: @unit_scheduler.deterministic_context,
+            previous_agent_summary: @unit_scheduler.last_agentic_summary
+          )
+
+          agentic_payload = if unit.name == :decide_whats_next
+            run_decider_agentic_unit(enriched_context)
+          else
+            run_primary_agentic_unit(step_spec, enriched_context)
+          end
+
+          @unit_scheduler.record_agentic_result(
+            agentic_payload[:raw_result] || {},
+            requested_next: agentic_payload[:requested_next],
+            summary: agentic_payload[:summary],
+            completed: agentic_payload[:completed]
+          )
+
+          return agentic_payload[:response] if agentic_payload[:terminate]
+        end
+
+        build_max_iterations_result
+      end
+
+      private
+
+      def run_primary_agentic_unit(step_spec, context)
+        Aidp.logger.info("work_loop", "Running primary agentic unit", step: @step_name)
+
+        display_message("  State machine: READY → APPLY_PATCH → TEST → {PASS → DONE | FAIL → DIAGNOSE → NEXT_PATCH}", type: :info)
+
+        @iteration_count = 0
+        @current_state = :ready
+        @state_history.clear
+
         create_initial_prompt(step_spec, context)
 
-        # Main fix-forward work loop
         loop do
           @iteration_count += 1
           display_message("  Iteration #{@iteration_count} [State: #{STATES[@current_state]}]", type: :info)
 
           if @iteration_count > MAX_ITERATIONS
             Aidp.logger.error("work_loop", "Max iterations exceeded", step: @step_name, iterations: @iteration_count)
-            break
+            display_message("⚠️  Max iterations (#{MAX_ITERATIONS}) reached for #{@step_name}", type: :warning)
+            display_state_summary
+            archive_and_cleanup
+            return build_agentic_payload(
+              agent_result: nil,
+              response: build_max_iterations_result,
+              summary: nil,
+              completed: false,
+              terminate: true
+            )
           end
 
-          # State: READY - Starting new iteration
           transition_to(:ready) unless @current_state == :ready
 
-          # State: APPLY_PATCH - Agent applies changes
           transition_to(:apply_patch)
-          result = apply_patch
+          agent_result = apply_patch
 
-          # State: TEST - Run tests and linters
           transition_to(:test)
           test_results = @test_runner.run_tests
           lint_results = @test_runner.run_linters
 
-          # Record checkpoint at intervals
           record_periodic_checkpoint(test_results, lint_results)
 
-          # Check if tests passed
           tests_pass = test_results[:success] && lint_results[:success]
 
           if tests_pass
-            # State: PASS - Tests passed
             transition_to(:pass)
 
-            # Check if agent marked work complete
-            if agent_marked_complete?(result)
-              # State: DONE - Work complete
+            if agent_marked_complete?(agent_result)
               transition_to(:done)
               record_final_checkpoint(test_results, lint_results)
-              display_message("✅ Step #{step_name} completed after #{@iteration_count} iterations", type: :success)
+              display_message("✅ Step #{@step_name} completed after #{@iteration_count} iterations", type: :success)
               display_state_summary
               archive_and_cleanup
-              return build_success_result(result)
+
+              return build_agentic_payload(
+                agent_result: agent_result,
+                response: build_success_result(agent_result),
+                summary: agent_result[:output],
+                completed: true,
+                terminate: true
+              )
             else
-              # Tests pass but work not complete - continue
               display_message("  Tests passed but work not marked complete", type: :info)
               transition_to(:next_patch)
             end
           else
-            # State: FAIL - Tests failed
             transition_to(:fail)
             display_message("  Tests or linters failed", type: :warning)
 
-            # State: DIAGNOSE - Analyze failures
             transition_to(:diagnose)
             diagnostic = diagnose_failures(test_results, lint_results)
 
-            # State: NEXT_PATCH - Prepare for next iteration
             transition_to(:next_patch)
             prepare_next_iteration(test_results, lint_results, diagnostic)
           end
         end
-
-        # Safety: max iterations reached
-        display_message("⚠️  Max iterations (#{MAX_ITERATIONS}) reached for #{step_name}", type: :warning)
-        display_state_summary
-        archive_and_cleanup
-        build_max_iterations_result
       end
 
-      private
+      def run_decider_agentic_unit(context)
+        Aidp.logger.info("work_loop", "Running decide_whats_next agentic unit", step: @step_name)
+
+        prompt = build_decider_prompt(context)
+
+        agent_result = @provider_manager.execute_with_provider(
+          @provider_manager.current_provider,
+          prompt,
+          {
+            step_name: @step_name,
+            iteration: @iteration_count,
+            project_dir: @project_dir,
+            mode: :decide_whats_next
+          }
+        )
+
+        requested = AgentSignalParser.extract_next_unit(agent_result[:output])
+
+        build_agentic_payload(
+          agent_result: agent_result,
+          response: agent_result,
+          summary: agent_result[:output],
+          completed: false,
+          terminate: false,
+          requested_next: requested
+        )
+      end
+
+      def units_config
+        if @config.respond_to?(:work_loop_units_config)
+          @config.work_loop_units_config
+        else
+          {}
+        end
+      end
+
+      def build_agentic_payload(agent_result:, response:, summary:, completed:, terminate:, requested_next: nil)
+        {
+          raw_result: agent_result,
+          response: response,
+          summary: summary,
+          requested_next: requested_next || AgentSignalParser.extract_next_unit(agent_result&.dig(:output)),
+          completed: completed,
+          terminate: terminate
+        }
+      end
+
+      def build_decider_prompt(context)
+        outputs = Array(context[:deterministic_outputs])
+        summary = context[:previous_agent_summary]
+
+        sections = []
+        sections << "# Decide Next Work Loop Unit"
+        sections << ""
+        sections << "You are operating in the Aidp work loop. Determine what should happen next."
+        sections << ""
+        sections << "## Recent Deterministic Outputs"
+
+        if outputs.empty?
+          sections << "- None recorded yet."
+        else
+          outputs.each do |entry|
+            sections << "- #{entry[:name]} (status: #{entry[:status]}, finished_at: #{entry[:finished_at]})"
+            sections << "  Output: #{entry[:output_path] || "n/a"}"
+          end
+        end
+
+        if summary
+          sections << ""
+          sections << "## Previous Agent Summary"
+          sections << summary
+        end
+
+        sections << ""
+        sections << "## Instructions"
+        sections << "- Decide whether to run another deterministic unit or resume agentic editing."
+        sections << "- Announce your decision with `NEXT_UNIT: <unit_name>`."
+        sections << "- Valid values: names defined in configuration, `agentic`, or `wait_for_github`."
+        sections << "- Provide a concise rationale below."
+        sections << ""
+        sections << "## Rationale"
+
+        sections.join("\n")
+      end
 
       # Transition to a new state in the fix-forward state machine
       def transition_to(new_state)
@@ -216,20 +347,24 @@ module Aidp
         prd_content = load_prd
         style_guide = load_style_guide
         user_input = format_user_input(context[:user_input])
+        deterministic_outputs = Array(context[:deterministic_outputs])
+        previous_summary = context[:previous_agent_summary]
 
         initial_prompt = build_initial_prompt_content(
           template: template_content,
           prd: prd_content,
           style_guide: style_guide,
           user_input: user_input,
-          step_name: @step_name
+          step_name: @step_name,
+          deterministic_outputs: deterministic_outputs,
+          previous_agent_summary: previous_summary
         )
 
         @prompt_manager.write(initial_prompt)
         display_message("  Created PROMPT.md (#{initial_prompt.length} chars)", type: :info)
       end
 
-      def build_initial_prompt_content(template:, prd:, style_guide:, user_input:, step_name:)
+      def build_initial_prompt_content(template:, prd:, style_guide:, user_input:, step_name:, deterministic_outputs:, previous_agent_summary:)
         parts = []
 
         parts << "# Work Loop: #{step_name}"
@@ -256,6 +391,21 @@ module Aidp
         if user_input && !user_input.empty?
           parts << "## User Input"
           parts << user_input
+          parts << ""
+        end
+
+        if previous_agent_summary && !previous_agent_summary.empty?
+          parts << "## Previous Agent Summary"
+          parts << previous_agent_summary
+          parts << ""
+        end
+
+        unless deterministic_outputs.empty?
+          parts << "## Recent Deterministic Outputs"
+          deterministic_outputs.each do |entry|
+            parts << "- #{entry[:name]} (status: #{entry[:status]})"
+            parts << "  Output: #{entry[:output_path] || "n/a"}"
+          end
           parts << ""
         end
 
