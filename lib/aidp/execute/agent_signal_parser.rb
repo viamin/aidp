@@ -3,16 +3,13 @@
 module Aidp
   module Execute
     module AgentSignalParser
-      NEXT_UNIT_PATTERN = /^\s*(?:NEXT_UNIT|NEXT_STEP)\s*[:=]\s*(.+)$/i
-
       def self.extract_next_unit(output)
         return nil unless output
 
         output.to_s.each_line do |line|
-          match = line.match(NEXT_UNIT_PATTERN)
-          next unless match
+          token = token_from_line(line)
+          next unless token
 
-          token = match[1].strip
           return normalize_token(token)
         end
 
@@ -26,6 +23,24 @@ module Aidp
         token.gsub!(/\s+/, "_")
         token.to_sym
       end
+
+      def self.token_from_line(line)
+        return nil unless line
+
+        trimmed = line.lstrip
+        separator_index = trimmed.index(":") || trimmed.index("=")
+        return nil unless separator_index
+
+        key = trimmed[0...separator_index].strip
+        value = trimmed[(separator_index + 1)..]&.strip
+
+        return nil unless key && value
+        return value if key.casecmp("next_unit").zero? || key.casecmp("next_step").zero?
+
+        nil
+      end
+
+      private_class_method :token_from_line
     end
   end
 end
