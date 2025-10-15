@@ -148,7 +148,9 @@ module Aidp
         # Prompt for fallback providers (excluding the primary), pre-select existing
         existing_fallbacks = Array(get([:harness, :fallback_providers])).map(&:to_s) - [provider_choice]
         fallback_choices = available_providers.reject { |_, name| name == provider_choice }
-        fallback_selected = prompt.multi_select("Select fallback providers (used if primary fails):", default: existing_fallbacks) do |menu|
+        fallback_default_names = existing_fallbacks.filter_map { |provider_name| fallback_choices.key(provider_name) }
+
+        fallback_selected = prompt.multi_select("Select fallback providers (used if primary fails):", default: fallback_default_names) do |menu|
           fallback_choices.each do |display_name, provider_name|
             menu.choice display_name, provider_name
           end
