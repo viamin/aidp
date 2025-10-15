@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.1](https://github.com/viamin/aidp/compare/aidp/v0.15.0...aidp/v0.15.1) (2025-10-15)
+
+
+### Bug Fixes
+
+* pre-select fallback providers in setup wizard using display names ([730f688](https://github.com/viamin/aidp/commit/730f688ea2211c46ca69bb358430a4de7cbdf136))
+* pre-select fallback providers in setup wizard using display names ([#138](https://github.com/viamin/aidp/issues/138)) ([cfb5ac3](https://github.com/viamin/aidp/commit/cfb5ac366d4dca52d90fcd0111be25b67967a31e))
+
 ## [0.15.0](https://github.com/viamin/aidp/compare/aidp/v0.14.2...aidp/v0.15.0) (2025-10-15)
 
 
