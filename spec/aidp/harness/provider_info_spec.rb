@@ -615,6 +615,8 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         allow(Process).to receive(:spawn).and_return(99999)
         allow(Process).to receive(:waitpid2).and_return(nil) # Timeout
         allow(Process).to receive(:kill).and_raise(StandardError.new("Kill error"))
+        # Mock sleep to avoid 5-second timeout wait
+        allow(provider_info).to receive(:sleep)
       end
 
       it "returns nil and logs error" do
