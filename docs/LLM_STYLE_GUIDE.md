@@ -1,149 +1,64 @@
-# AIDP LLM Style Cheat Sheet
+# Project LLM Style Guide
 
-> Ultra‑concise rules for automated coding agents. Use this as the *source of truth* for generation. For nuance or rationale, see `STYLE_GUIDE.md`.
+> Generated automatically by `aidp init` on 2025-10-16T14:54:28Z.
+>
+> Detected languages: Ruby
+> Framework hints: Django, Express, FastAPI, Flask, Go Gin, Hanami, Laravel, Next.js, Phoenix, Rails, React, Sinatra, Spring, Vue
+> Primary test frameworks: RSpec
+> Key directories: lib, spec, scripts, bin, docs, examples
+
+This project has opted to adopt new conventions recommended by aidp init. When in doubt, prefer the rules below over legacy patterns.
 
 ## 1. Core Engineering Rules
-
-- Small objects, clear roles. Avoid god classes.
-- Methods: do one thing; extract early.
-- Prefer composition over inheritance.
-- No commented‑out or dead code.
-- No introducing TODO without issue reference.
-- When removing code, delete it cleanly without explanatory comments.
-- Instrument important steps with `debug_log` so traces stay readable.
+- Prioritise readability and maintainability; extract objects or modules once business logic exceeds a few branches.
+- Co-locate domain objects with their tests under the matching directory (e.g., `lib/` ↔ `spec/`).
+- Remove dead code and feature flags that are no longer exercised; keep git history as the source of truth.
+- Use small, composable services rather than bloated classes.
 
 ## 2. Naming & Structure
-
-- Classes: `PascalCase`; methods/files: `snake_case`; constants: `SCREAMING_SNAKE_CASE`.
-- Keep public APIs intention‑revealing (avoid abbreviations unless ubiquitous).
-- One responsibility per file when practical.
-- **Ruby Method Naming**: Avoid `get_*` and `set_*` prefixes - use Ruby's idiomatic style:
-  - ❌ `get_name`, `set_name(value)`
-  - ✅ `name`, `name=(value)` or `name(value)`
-  - ❌ `get_provider_config`, `get_status`
-  - ✅ `provider_config`, `status`
+- Follow idiomatic naming for the detected languages (Ruby); align files under lib, spec, scripts, bin, docs, examples.
+- Ensure top-level namespaces mirror the directory structure (e.g., `Aidp::Init` lives in `lib/aidp/init/`).
+- Keep public APIs explicit with keyword arguments and descriptive method names.
 
 ## 3. Parameters & Data
-
-- Max ~4 params; use keyword args or an options hash beyond that.
-- Avoid boolean flag parameters that branch behavior; split methods.
+- Limit positional arguments to three; prefer keyword arguments or value objects beyond that.
+- Reuse shared data structures to capture configuration (YAML/JSON) instead of scattered constants.
+- Validate incoming data at boundaries; rely on plain objects internally.
 
 ## 4. Error Handling
+- Raise domain-specific errors; avoid using plain `StandardError` without context.
+- Wrap external calls with rescuable adapters and surface actionable error messages.
+- Log failures with relevant identifiers only—never entire payloads.
 
-- Raise specific errors; never silently rescue.
-- Let internal logic errors surface (fail fast).
-- Only rescue to: wrap external failures, add context, clean up resources.
-- No `rescue Exception`; prefer `rescue SpecificError`.
-- Pair every `rescue` with `rescue_log(:warn, ...)` so failures are observable.
+## 5. Testing Contracts
+- Mirror production directory structure inside `spec`.
+- Keep tests independent; mock external services only at the boundary layers.
+- Use the project's native assertions (RSpec) and ensure every bug fix comes with a regression test.
 
-## 5. TTY / TUI
+## 6. Framework-Specific Guidelines
+- Adopt the idioms of detected frameworks (Django, Express, FastAPI, Flask, Go Gin, Hanami, Laravel, Next.js, Phoenix, Rails, React, Sinatra, Spring, Vue).
+- Keep controllers/handlers thin; delegate logic to service objects or interactors.
+- Store shared UI or component primitives in a central folder to make reuse easier.
 
-- Always use TTY Toolkit components (prompt, progressbar, spinner, table).
-- Never re‑implement progress bars, selectors, or tables.
-- **Never use `puts`, `print`, or `$stdout.puts`** - use `prompt.say()` instead.
+## 7. Dependencies & External Services
+- Document every external integration inside `docs/` and keep credentials outside the repo.
+- Use dependency injection for clients; avoid global state or singletons.
+- When adding new gems or packages, document the rationale in `PROJECT_ANALYSIS.md`.
 
-## 6. Testing Contracts
+## 8. Build & Development
+- Run linters before committing: Rspec.
+- Keep build scripts in `bin/` or `scripts/` and ensure they are idempotent.
+- Prefer `mise` or language-specific version managers to keep toolchains aligned.
 
-- Test public behavior; don't mock internal private methods.
-- Mock ONLY external boundaries (network, filesystem, user input, provider APIs).
-- Keep failing regressions visible — do **not** mark them pending.
-- **NEVER put mock methods in production code** - use dependency injection instead.
+## 9. Performance
+- Measure before optimising; add benchmarks for hotspots.
+- Cache expensive computations when they are pure and repeatable.
+- Review dependency load time; lazy-load optional components where possible.
 
-### Interactive & External Service Testing
-
-- **Use constructor dependency injection** for TTY::Prompt, HTTP clients, file I/O.
-- **Pattern**: `def initialize(prompt: TTY::Prompt.new)` → inject test doubles in specs.
-- **Create test doubles** that implement the same interface as real dependencies.
-- **Shared test utilities** for common mocks (e.g., `TestPrompt` in `spec/support/`).
-
-### Pending Specs Policy (Strict)
-
-| Case | Allowed? | Notes |
-|------|----------|-------|
-| Regression (was green) | ❌ | Fix or remove feature |
-| Planned future work | ✅ | Must include reason + issue ref |
-| Spike / prototype | ✅ | Temporary; track issue |
-| Flaky external dependency | ⚠️ | Issue + retry/backoff plan |
-
-Every `pending` MUST have: short reason + tracking reference.
-
-## 7. Concurrency & Threads
-
-- Join or stop threads in `ensure` / cleanup.
-- Avoid global mutable state without synchronization.
-- Keep intervals & sleeps configurable for tests.
-
-## 8. Performance
-
-- Avoid O(n^2) over large codebases (batch I/O, stream where possible).
-- Cache repeated expensive parsing (e.g., tree-sitter results) via existing cache utilities.
-
-## 9. Progress / Status Output
-
-- UI rendering logic separated from business logic.
-- Inject I/O (stdout/prompt) for testability.
-
-## 10. Security & Safety
-
-- Never execute untrusted code.
-- Validate file paths; avoid shell interpolation without sanitization.
-- Don’t leak secrets into logs.
-
-## 11. Implementation Do / Don’t
-
-| Do | Don’t |
-|----|-------|
-| Extract small PORO service objects | Add conditionals everywhere in core loops |
-| Use keyword args for clarity | Pass long ordered arg lists |
-| Use symbols for internal states | Use magic strings inline |
-| Provide explicit error classes | Raise generic RuntimeError silently |
-| Log context (ids, counts) | Log giant raw payloads |
-
-## 12. Quick Review Checklist
-
-- [ ] Single responsibility kept
-- [ ] Public API clear & documented inline
-- [ ] No broad rescues or hidden failures
-- [ ] Tests updated / added
-- [ ] Pending specs policy respected
-- [ ] TTY components (no custom terminal hacks)
-- [ ] Style: StandardRB clean
-
-## 13. Error Class Pattern
-
-```ruby
-module Aidp
-  module Errors
-    class ConfigurationError < StandardError; end
-    class ProviderError      < StandardError; end
-    class ValidationError    < StandardError; end
-    class StateError         < StandardError; end
-    class UserError          < StandardError; end
-  end
-end
-```
-
-## 14. Anti‑Patterns (Reject in PRs)
-
-- Pending or skipped *regressions*
-- Copy/paste ANSI / cursor escape spaghetti
-- Mega-methods controlling flow + formatting + persistence
-- Hidden sleeps / magic timeouts
-- Silent swallowed exceptions
-- **Mock methods in production code** (use dependency injection instead)
-
-## 15. Ruby Version Management
-
-- **ALWAYS use mise** for Ruby version management in this project
-- Commands running Ruby or Bundler MUST use `mise exec` to ensure correct versions
-- Examples: `mise exec -- ruby script.rb`, `mise exec -- bundle install`, `mise exec -- bundle exec rspec`
-- Never use system Ruby directly - always go through mise
-
-## 16. Commit Hygiene
-
-- One logical change per commit (or tightly coupled set)
-- Include rationale when refactoring behavior
-- Reference issue IDs for non-trivial changes
+## 10. Project-Specific Anti-Patterns
+- Avoid sprawling God objects that mix persistence, business logic, and presentation.
+- Resist ad-hoc shelling out; prefer library APIs with proper error handling.
+- Do not bypass the agreed testing workflow—even for small fixes.
 
 ---
-**Use this cheat sheet for generation; consult `STYLE_GUIDE.md` when context or rationale is needed.**
+Generated from template `planning/generate_llm_style_guide.md` with repository-aware adjustments.

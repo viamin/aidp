@@ -19,9 +19,72 @@ jobs:
     outputs:
       release-created: ${{ steps.release.outputs.release_created }}
       tag-name: ${{ steps.release.outputs.tag_name }}
+      release-pr: ${{ steps.release.outputs.pr }}
     steps:
       - uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         id: release
+
+  update-coverage-badge:
+    name: Update coverage badge on release PR
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release-pr }}
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      PR_NUMBER: ${{ needs.release-please.outputs.release-pr }}
+    steps:
+      - name: Fetch release PR metadata
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          head_branch=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.ref')
+          echo "branch=$head_branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release PR branch
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: ${{ steps.pr-info.outputs.branch }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@ab177d40ee5483edb974554986f56b33477e21d0
+        with:
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: bundle install --jobs 4 --retry 3
+
+      - name: Run unit tests with coverage
+        env:
+          COVERAGE: "1"
+        run: bundle exec rspec spec/ --exclude-pattern "spec/system/**/*_spec.rb"
+
+      - name: Generate coverage summary & badge
+        run: bundle exec rake coverage:summary
+
+      - name: Commit updated coverage badge to release PR
+        env:
+          GIT_AUTHOR_NAME: release-please[bot]
+          GIT_AUTHOR_EMAIL: release-please[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: release-please[bot]
+          GIT_COMMITTER_EMAIL: release-please[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          git status --short
+          if git diff --quiet badges/coverage.svg; then
+            echo 'Coverage badge unchanged; skipping commit.'
+          else
+            git add badges/coverage.svg
+            git commit -m 'chore: update coverage badge'
+            git push origin HEAD
+          fi
+
+      - name: Clean up coverage artifacts
+        if: always()
+        run: rm -rf coverage
 
   push-gem:
     name: Push gem to RubyGems.org
