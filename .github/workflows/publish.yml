@@ -19,17 +19,33 @@ jobs:
     outputs:
       release-created: ${{ steps.release.outputs.release_created }}
       tag-name: ${{ steps.release.outputs.tag_name }}
-      pr-number: ${{ steps.release.outputs['aidp--pr'] }}
-      pr-head-branch: ${{ steps.release.outputs['aidp--head_branch'] }}
+      pr-number: ${{ steps.find-pr.outputs.pr-number }}
+      pr-head-branch: ${{ steps.find-pr.outputs.pr-branch }}
     steps:
       - uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         id: release
+      - name: Find release PR
+        id: find-pr
+        run: |
+          set -euo pipefail
+          PR_JSON=$(gh pr list --label "autorelease: pending" --json number,headRefName --limit 1)
+          PR_NUMBER=$(jq -r '.[0].number // ""' <<< "$PR_JSON")
+          PR_BRANCH=$(jq -r '.[0].headRefName // ""' <<< "$PR_JSON")
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Found release PR #$PR_NUMBER on branch $PR_BRANCH"
+          else
+            echo "No active release PR found (label: autorelease: pending)."
+          fi
+          echo "pr-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "pr-branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   update-coverage-badge:
     name: Update coverage badge on release PR
     runs-on: ubuntu-latest
     needs: release-please
-    if: ${{ needs.release-please.outputs.pr-number }}
+    if: ${{ needs.release-please.outputs.pr-number != '' }}
     permissions:
       contents: write
       pull-requests: write
