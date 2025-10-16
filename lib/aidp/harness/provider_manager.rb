@@ -71,19 +71,20 @@ module Aidp
 
       # Switch to next available provider with sophisticated fallback logic
       def switch_provider(reason = "manual_switch", context = {})
-        Aidp.logger.info("provider_manager", "Attempting provider switch", reason: reason, current: current_provider, **context)
+        old_provider = current_provider
+        Aidp.logger.info("provider_manager", "Attempting provider switch", reason: reason, current: old_provider, **context)
 
         # Get fallback chain for current provider
-        provider_fallback_chain = fallback_chain(current_provider)
+        provider_fallback_chain = fallback_chain(old_provider)
 
         # Find next healthy provider in fallback chain
-        next_provider = find_next_healthy_provider(provider_fallback_chain, current_provider)
+        next_provider = find_next_healthy_provider(provider_fallback_chain, old_provider)
 
         if next_provider
           success = set_current_provider(next_provider, reason, context)
           if success
-            log_provider_switch(current_provider, next_provider, reason, context)
-            Aidp.logger.info("provider_manager", "Provider switched successfully", from: current_provider, to: next_provider, reason: reason)
+            log_provider_switch(old_provider, next_provider, reason, context)
+            Aidp.logger.info("provider_manager", "Provider switched successfully", from: old_provider, to: next_provider, reason: reason)
             return next_provider
           else
             Aidp.logger.warn("provider_manager", "Failed to switch to provider", provider: next_provider, reason: reason)
@@ -96,7 +97,7 @@ module Aidp
           if next_provider
             success = set_current_provider(next_provider, reason, context)
             if success
-              log_provider_switch(current_provider, next_provider, reason, context)
+              log_provider_switch(old_provider, next_provider, reason, context)
               return next_provider
             end
           end
@@ -107,14 +108,14 @@ module Aidp
         if next_provider
           success = set_current_provider(next_provider, reason, context)
           if success
-            log_provider_switch(current_provider, next_provider, reason, context)
+            log_provider_switch(old_provider, next_provider, reason, context)
             return next_provider
           end
         end
 
         # No providers available
         log_no_providers_available(reason, context)
-        Aidp.logger.error("provider_manager", "No providers available for fallback", reason: reason, **context)
+        Aidp.logger.error("provider_manager", "No providers available for fallback", reason: reason, provider: old_provider)
         nil
       end
 
