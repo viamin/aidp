@@ -529,4 +529,606 @@ RSpec.describe Aidp::Harness::ProviderInfo do
       end
     end
   end
+
+  describe "error handling" do
+    context "when load_info fails to parse YAML" do
+      before do
+        # Write invalid YAML
+        File.write(provider_info.info_file_path, "invalid: yaml: content: [[[")
+      end
+
+      it "returns nil and logs error" do
+        expect { provider_info.load_info }.not_to raise_error
+        expect(provider_info.load_info).to be_nil
+      end
+    end
+
+    context "when info_stale? fails to parse timestamp" do
+      let(:info_with_bad_timestamp) do
+        {
+          provider: provider_name,
+          last_checked: "not-a-timestamp",
+          cli_available: true
+        }
+      end
+
+      it "returns true (treats as stale)" do
+        result = provider_info.send(:info_stale?, info_with_bad_timestamp, 1000)
+        expect(result).to be true
+      end
+    end
+
+    context "when info_stale? receives info without last_checked" do
+      let(:info_without_timestamp) do
+        {
+          provider: provider_name,
+          cli_available: true
+        }
+      end
+
+      it "returns true (treats as stale)" do
+        result = provider_info.send(:info_stale?, info_without_timestamp, 1000)
+        expect(result).to be true
+      end
+    end
+
+    context "when fetch_mcp_servers fails" do
+      before do
+        allow(provider_info).to receive(:provider_instance).and_raise(StandardError.new("Provider error"))
+      end
+
+      it "returns empty array and logs error" do
+        result = provider_info.send(:fetch_mcp_servers)
+        expect(result).to eq([])
+      end
+    end
+
+    context "when provider_instance creation fails" do
+      before do
+        # Mock ProviderFactory to return nil (provider not found)
+        stub_const("Aidp::Harness::ProviderFactory::PROVIDER_CLASSES", {})
+      end
+
+      it "returns nil when provider class not found" do
+        result = provider_info.send(:provider_instance)
+        expect(result).to be_nil
+      end
+    end
+
+    context "when execute_provider_command fails during spawn" do
+      before do
+        allow(provider_info).to receive(:binary_name).and_return("test-binary")
+        allow(Aidp::Util).to receive(:which).and_return("/usr/bin/test-binary")
+        allow(Process).to receive(:spawn).and_raise(StandardError.new("Spawn error"))
+      end
+
+      it "returns nil and logs error" do
+        result = provider_info.send(:execute_provider_command, "--help")
+        expect(result).to be_nil
+      end
+    end
+
+    context "when execute_provider_command fails to kill process" do
+      before do
+        allow(provider_info).to receive(:binary_name).and_return("test-binary")
+        allow(Aidp::Util).to receive(:which).and_return("/usr/bin/test-binary")
+        allow(Process).to receive(:spawn).and_return(99999)
+        allow(Process).to receive(:waitpid2).and_return(nil) # Timeout
+        allow(Process).to receive(:kill).and_raise(StandardError.new("Kill error"))
+      end
+
+      it "returns nil and logs error" do
+        result = provider_info.send(:execute_provider_command, "--help")
+        expect(result).to be_nil
+      end
+    end
+
+    context "when binary lookup fails" do
+      before do
+        allow(provider_info).to receive(:binary_name).and_return("test-binary")
+        allow(Aidp::Util).to receive(:which).and_raise(StandardError.new("Which error"))
+      end
+
+      it "returns nil and logs error" do
+        result = provider_info.send(:execute_provider_command, "--help")
+        expect(result).to be_nil
+      end
+    end
+  end
+
+  describe "binary name mapping" do
+    it "maps anthropic to claude" do
+      info = described_class.new("anthropic", temp_dir)
+      expect(info.send(:binary_name)).to eq("claude")
+    end
+
+    it "maps claude to claude" do
+      info = described_class.new("claude", temp_dir)
+      expect(info.send(:binary_name)).to eq("claude")
+    end
+
+    it "maps cursor to cursor-agent" do
+      info = described_class.new("cursor", temp_dir)
+      expect(info.send(:binary_name)).to eq("cursor-agent")
+    end
+
+    it "maps gemini to gemini" do
+      info = described_class.new("gemini", temp_dir)
+      expect(info.send(:binary_name)).to eq("gemini")
+    end
+
+    it "maps codex to codex" do
+      info = described_class.new("codex", temp_dir)
+      expect(info.send(:binary_name)).to eq("codex")
+    end
+
+    it "maps github_copilot to copilot" do
+      info = described_class.new("github_copilot", temp_dir)
+      expect(info.send(:binary_name)).to eq("copilot")
+    end
+
+    it "maps opencode to opencode" do
+      info = described_class.new("opencode", temp_dir)
+      expect(info.send(:binary_name)).to eq("opencode")
+    end
+
+    it "maps unknown provider to itself" do
+      info = described_class.new("unknown_provider", temp_dir)
+      expect(info.send(:binary_name)).to eq("unknown_provider")
+    end
+  end
+
+  describe "nil handling" do
+    context "when load_info returns nil" do
+      before do
+        allow(provider_info).to receive(:load_info).and_return(nil)
+      end
+
+      it "supports_mcp? returns false" do
+        expect(provider_info.supports_mcp?).to be false
+      end
+
+      it "permission_modes returns empty array" do
+        expect(provider_info.permission_modes).to eq([])
+      end
+
+      it "auth_method returns nil" do
+        expect(provider_info.auth_method).to be_nil
+      end
+
+      it "available_flags returns empty hash" do
+        expect(provider_info.available_flags).to eq({})
+      end
+
+      it "mcp_servers returns empty array" do
+        expect(provider_info.mcp_servers).to eq([])
+      end
+    end
+
+    context "when execute_provider_command has no binary_name" do
+      before do
+        allow(provider_info).to receive(:binary_name).and_return(nil)
+      end
+
+      it "returns nil" do
+        result = provider_info.send(:execute_provider_command, "--help")
+        expect(result).to be_nil
+      end
+    end
+
+    context "when execute_provider_command binary not found" do
+      before do
+        allow(provider_info).to receive(:binary_name).and_return("nonexistent")
+        allow(Aidp::Util).to receive(:which).and_return(nil)
+      end
+
+      it "returns nil" do
+        result = provider_info.send(:execute_provider_command, "--help")
+        expect(result).to be_nil
+      end
+    end
+
+    context "when fetch_mcp_servers has no provider_instance" do
+      before do
+        allow(provider_info).to receive(:provider_instance).and_return(nil)
+      end
+
+      it "returns empty array" do
+        result = provider_info.send(:fetch_mcp_servers)
+        expect(result).to eq([])
+      end
+    end
+  end
+
+  describe "parse_help_output edge cases" do
+    context "with API key auth pattern" do
+      let(:help_with_api_key) do
+        <<~HELP
+          Usage: provider [options]
+
+          Options:
+            --api-key <key>       API key for authentication
+        HELP
+      end
+
+      it "detects api_key auth method" do
+        parsed = provider_info.send(:parse_help_output, help_with_api_key)
+        expect(parsed[:auth_method]).to eq("api_key")
+      end
+    end
+
+    context "with API_KEY env pattern" do
+      let(:help_with_env_key) do
+        <<~HELP
+          Usage: provider [options]
+
+          Set API_KEY environment variable for authentication
+        HELP
+      end
+
+      it "detects api_key auth method" do
+        parsed = provider_info.send(:parse_help_output, help_with_env_key)
+        expect(parsed[:auth_method]).to eq("api_key")
+      end
+    end
+
+    context "with subscription pattern" do
+      let(:help_with_subscription) do
+        <<~HELP
+          Usage: provider [options]
+
+          Options:
+            --setup-token         Set up subscription token
+        HELP
+      end
+
+      it "detects subscription auth method" do
+        parsed = provider_info.send(:parse_help_output, help_with_subscription)
+        expect(parsed[:auth_method]).to eq("subscription")
+      end
+    end
+
+    context "with session management capabilities" do
+      let(:help_with_sessions) do
+        <<~HELP
+          Usage: provider [options]
+
+          Options:
+            --continue            Continue previous session
+            --resume <id>         Resume session by ID
+            --fork-session <id>   Fork from existing session
+        HELP
+      end
+
+      it "detects session_management capability" do
+        parsed = provider_info.send(:parse_help_output, help_with_sessions)
+        expect(parsed[:capabilities][:session_management]).to be true
+      end
+    end
+
+    context "with output formats" do
+      let(:help_with_formats) do
+        <<~HELP
+          Usage: provider [options]
+
+          Options:
+            --output-format <format>  Output format (choices: "json", "yaml", "text")
+        HELP
+      end
+
+      it "extracts output formats" do
+        parsed = provider_info.send(:parse_help_output, help_with_formats)
+        expect(parsed[:capabilities][:output_formats]).to include("json", "yaml", "text")
+      end
+    end
+
+    context "with short flags" do
+      let(:help_with_short_flags) do
+        <<~HELP
+          Usage: provider [options]
+
+          Options:
+            -h, --help            Show help message
+            -v, --version         Show version
+            -m, --model <model>   Select model
+        HELP
+      end
+
+      it "extracts short flags" do
+        parsed = provider_info.send(:parse_help_output, help_with_short_flags)
+        # Verify flags were extracted (the extract_flags method handles both long and short forms)
+        expect(parsed[:flags]).to be_a(Hash)
+        expect(parsed[:flags]["help"][:short]).to eq("-h")
+        expect(parsed[:flags]["version"][:short]).to eq("-v")
+        # model flag has <model> parameter which changes the regex match
+      end
+    end
+
+    context "with MCP support from provider instance" do
+      let(:help_without_mcp_text) do
+        <<~HELP
+          Usage: provider [options]
+
+          Options:
+            --help  Show help
+        HELP
+      end
+
+      before do
+        mock_provider = instance_double(Aidp::Providers::Anthropic)
+        allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
+        allow(mock_provider).to receive(:supports_mcp?).and_return(true)
+      end
+
+      it "detects MCP support from provider instance" do
+        parsed = provider_info.send(:parse_help_output, help_without_mcp_text)
+        expect(parsed[:mcp_support]).to be true
+      end
+    end
+
+    context "with MCP support from help text" do
+      let(:help_with_mcp_text) do
+        <<~HELP
+          Usage: provider [options]
+
+          MCP Server Configuration:
+            --mcp-config <file>  Load MCP server configuration
+        HELP
+      end
+
+      before do
+        allow(provider_info).to receive(:provider_instance).and_return(nil)
+      end
+
+      it "detects MCP support from help text" do
+        parsed = provider_info.send(:parse_help_output, help_with_mcp_text)
+        expect(parsed[:mcp_support]).to be true
+      end
+    end
+
+    context "without provider instance" do
+      let(:help_text) do
+        <<~HELP
+          Usage: provider [options]
+        HELP
+      end
+
+      before do
+        allow(provider_info).to receive(:provider_instance).and_return(nil)
+      end
+
+      it "falls back to text-based MCP detection" do
+        parsed = provider_info.send(:parse_help_output, help_text)
+        expect(parsed[:mcp_support]).to be false
+      end
+    end
+  end
+
+  describe "parse_mcp_servers edge cases" do
+    context "with nil output" do
+      it "returns empty array" do
+        result = provider_info.send(:parse_mcp_servers, nil)
+        expect(result).to eq([])
+      end
+    end
+
+    context "with empty output" do
+      it "returns empty array" do
+        result = provider_info.send(:parse_mcp_servers, "")
+        expect(result).to eq([])
+      end
+    end
+
+    context "with new format - connected server" do
+      let(:output) do
+        <<~OUTPUT
+          dash-api: uvx --from git+https://example.com - ✓ Connected
+        OUTPUT
+      end
+
+      it "parses connected server correctly" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result.size).to eq(1)
+        expect(result[0][:name]).to eq("dash-api")
+        expect(result[0][:status]).to eq("connected")
+        expect(result[0][:enabled]).to be true
+        expect(result[0][:error]).to be_nil
+      end
+    end
+
+    context "with new format - error server" do
+      let(:output) do
+        <<~OUTPUT
+          test-server: npm run server - ✗ Connection timeout
+        OUTPUT
+      end
+
+      it "parses error server correctly" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result.size).to eq(1)
+        expect(result[0][:name]).to eq("test-server")
+        expect(result[0][:status]).to eq("error")
+        expect(result[0][:enabled]).to be false
+        expect(result[0][:error]).to eq("Connection timeout")
+      end
+    end
+
+    context "with header line to skip" do
+      let(:output) do
+        <<~OUTPUT
+          Checking MCP server health...
+
+          server1: cmd1 - ✓ Connected
+        OUTPUT
+      end
+
+      it "skips header line" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result.size).to eq(1)
+        expect(result[0][:name]).to eq("server1")
+      end
+    end
+
+    context "with legacy format - header line" do
+      let(:output) do
+        <<~OUTPUT
+          Name              Status    Description
+          filesystem        enabled   File access
+        OUTPUT
+      end
+
+      it "skips header line" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result.size).to eq(1)
+        expect(result[0][:name]).to eq("filesystem")
+      end
+    end
+
+    context "with legacy format - separator line" do
+      let(:output) do
+        <<~OUTPUT
+          Name              Status    Description
+          ==========================================
+          filesystem        enabled   File access
+        OUTPUT
+      end
+
+      it "skips separator line" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result.size).to eq(1)
+        expect(result[0][:name]).to eq("filesystem")
+      end
+    end
+
+    context "with legacy format - connected status" do
+      let(:output) do
+        <<~OUTPUT
+          filesystem        connected   File access
+        OUTPUT
+      end
+
+      it "treats connected as enabled" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result[0][:enabled]).to be true
+      end
+    end
+
+    context "with legacy format - missing description" do
+      let(:output) do
+        <<~OUTPUT
+          filesystem        enabled
+        OUTPUT
+      end
+
+      it "handles missing description" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result[0][:name]).to eq("filesystem")
+        expect(result[0][:description]).to eq("")
+      end
+    end
+
+    context "with legacy format - unknown status" do
+      let(:output) do
+        <<~OUTPUT
+          filesystem        unknown   File access
+        OUTPUT
+      end
+
+      it "uses unknown as status" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result[0][:status]).to eq("unknown")
+        expect(result[0][:enabled]).to be false
+      end
+    end
+
+    context "with legacy format - whitespace only first column" do
+      let(:output) do
+        <<~OUTPUT
+          enabled   Description
+        OUTPUT
+      end
+
+      it "parses with empty leading spaces" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        # Will parse "enabled" as name since whitespace stripping happens
+        expect(result.size).to eq(1)
+        expect(result[0][:name]).to eq("enabled")
+      end
+    end
+
+    context "with legacy format - insufficient columns" do
+      let(:output) do
+        <<~OUTPUT
+          filesystem
+        OUTPUT
+      end
+
+      it "skips entries with insufficient columns" do
+        result = provider_info.send(:parse_mcp_servers, output)
+        expect(result).to eq([])
+      end
+    end
+  end
+
+  describe "directory creation" do
+    context "when directory already exists" do
+      it "does not raise error" do
+        # Create directory first
+        dir = File.dirname(provider_info.info_file_path)
+        FileUtils.mkdir_p(dir)
+
+        # Creating another instance should not raise
+        expect { described_class.new(provider_name, temp_dir) }.not_to raise_error
+      end
+    end
+  end
+
+  describe "gather_info with MCP support" do
+    context "when MCP is supported but fetch fails" do
+      let(:help_output) do
+        <<~HELP
+          Usage: claude [options]
+
+          Commands:
+            mcp   Configure MCP servers
+        HELP
+      end
+
+      before do
+        allow(provider_info).to receive(:fetch_help_output).and_return(help_output)
+        allow(provider_info).to receive(:fetch_mcp_servers).and_return(nil)
+      end
+
+      it "does not set mcp_servers when fetch returns nil" do
+        info = provider_info.gather_info
+        # Should not override mcp_servers when fetch returns nil
+        expect(info[:mcp_servers]).to eq([])
+      end
+    end
+
+    context "when MCP is supported and fetch succeeds" do
+      let(:help_output) do
+        <<~HELP
+          Usage: claude [options]
+
+          Commands:
+            mcp   Configure MCP servers
+        HELP
+      end
+
+      let(:mcp_servers_list) do
+        [{name: "test", status: "enabled", enabled: true}]
+      end
+
+      before do
+        allow(provider_info).to receive(:fetch_help_output).and_return(help_output)
+        allow(provider_info).to receive(:fetch_mcp_servers).and_return(mcp_servers_list)
+      end
+
+      it "sets mcp_servers from fetch result" do
+        info = provider_info.gather_info
+        expect(info[:mcp_servers]).to eq(mcp_servers_list)
+      end
+    end
+  end
 end

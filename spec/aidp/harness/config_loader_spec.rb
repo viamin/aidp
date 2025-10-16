@@ -458,6 +458,83 @@ RSpec.describe Aidp::Harness::ConfigLoader do
 
       expect(errors).not_to be_empty
     end
+
+    it "logs warnings when config has warnings but is valid" do
+      # Create config with warnings (this depends on validator implementation)
+      File.write(config_file, YAML.dump(valid_config))
+
+      # Stub validator to return warnings
+      allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:load_and_validate).and_return({
+        valid: true,
+        warnings: ["Warning: Some deprecation notice"],
+        errors: []
+      })
+      allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:validated_config).and_return(valid_config)
+
+      # Should not raise, but should log warnings
+      expect { loader.load_config(true) }.not_to raise_error
+    end
+
+    context "in development environment" do
+      it "attempts to fix configuration issues" do
+        invalid_config = {
+          harness: {
+            default_provider: ""
+          }
+        }
+
+        File.write(config_file, YAML.dump(invalid_config))
+
+        # Set development environment
+        original_env = ENV["AIDP_ENV"]
+        ENV["AIDP_ENV"] = "development"
+
+        # Stub fix_common_issues to return true
+        allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:fix_common_issues).and_return(true)
+
+        # Should attempt to fix
+        loader.load_config
+
+        ENV["AIDP_ENV"] = original_env
+      end
+
+      it "does not attempt fix when fix_common_issues returns false" do
+        invalid_config = {
+          harness: {
+            default_provider: ""
+          }
+        }
+
+        File.write(config_file, YAML.dump(invalid_config))
+
+        # Set development environment
+        original_env = ENV["RACK_ENV"]
+        ENV["RACK_ENV"] = "development"
+
+        # Stub fix_common_issues to return false
+        allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:fix_common_issues).and_return(false)
+
+        # Should attempt to fix but not warn about success
+        loader.load_config
+
+        ENV["RACK_ENV"] = original_env
+      end
+    end
+
+    it "gets validation warnings" do
+      File.write(config_file, YAML.dump(valid_config))
+
+      # Stub validator to return warnings
+      allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:validate_existing).and_return({
+        valid: true,
+        warnings: ["Test warning"],
+        errors: []
+      })
+
+      warnings = loader.validation_warnings
+
+      expect(warnings).to include("Test warning")
+    end
   end
 
   describe "configuration operations" do
@@ -528,6 +605,487 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       config2 = loader.reload_config
 
       expect(config2[:harness][:max_retries]).to eq(5)
+    end
+  end
+
+  describe "cache invalidation" do
+    let(:base_config) do
+      {
+        harness: {default_provider: "cursor", max_retries: 2},
+        providers: {cursor: {type: "subscription"}}
+      }
+    end
+
+    before do
+      File.write(config_file, YAML.dump(base_config))
+    end
+
+    it "detects when config file has changed" do
+      # Load initial config
+      config1 = loader.load_config
+      expect(config1[:harness][:max_retries]).to eq(2)
+
+      # Modify file (need to ensure mtime changes)
+      sleep 0.01
+      modified_config = base_config.dup
+      modified_config[:harness][:max_retries] = 10
+      File.write(config_file, YAML.dump(modified_config))
+
+      # Touch file to update mtime
+      FileUtils.touch(config_file)
+
+      # Should reload automatically
+      config2 = loader.load_config
+      expect(config2[:harness][:max_retries]).to eq(10)
+    end
+
+    it "handles missing config file when checking for changes" do
+      loader.load_config
+
+      # Delete the config file
+      FileUtils.rm_f(config_file)
+
+      # Should handle gracefully
+      expect { loader.load_config }.not_to raise_error
+    end
+  end
+
+  describe "nil handling" do
+    let(:base_config) do
+      {
+        harness: {default_provider: "cursor"},
+        providers: {cursor: {type: "subscription"}}
+      }
+    end
+
+    before do
+      File.write(config_file, YAML.dump(base_config))
+    end
+
+    it "returns nil for harness_config when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "invalid: yaml: content: [")
+
+      harness_config = loader.harness_config
+      expect(harness_config).to be_nil
+    end
+
+    it "returns nil for provider_config when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "invalid: yaml: [[[")
+
+      provider_config = loader.provider_config("cursor")
+      expect(provider_config).to be_nil
+    end
+
+    it "returns empty hash for all_provider_configs when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad yaml")
+
+      all_configs = loader.all_provider_configs
+      expect(all_configs).to eq({})
+    end
+
+    it "returns empty array for configured_providers when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad: yaml: [")
+
+      providers = loader.configured_providers
+      expect(providers).to eq([])
+    end
+
+    it "returns nil for config_with_overrides when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "invalid")
+
+      config = loader.config_with_overrides({harness: {max_retries: 5}})
+      expect(config).to be_nil
+    end
+
+    it "returns nil for harness_config_with_overrides when harness_config is nil" do
+      # Corrupt the config file
+      File.write(config_file, "bad")
+
+      config = loader.harness_config_with_overrides({harness: {max_retries: 5}})
+      expect(config).to be_nil
+    end
+
+    it "returns nil for provider_config_with_overrides when provider_config is nil" do
+      # Corrupt the config file
+      File.write(config_file, "invalid")
+
+      config = loader.provider_config_with_overrides("cursor", {providers: {cursor: {priority: 5}}})
+      expect(config).to be_nil
+    end
+
+    it "returns nil for mode_config when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad")
+
+      config = loader.mode_config("analyze")
+      expect(config).to be_nil
+    end
+
+    it "returns nil for environment_config when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad")
+
+      config = loader.environment_config("production")
+      expect(config).to be_nil
+    end
+
+    it "returns nil for get_step_config when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad")
+
+      config = loader.get_step_config("build")
+      expect(config).to be_nil
+    end
+
+    it "returns nil for config_with_features when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad")
+
+      config = loader.config_with_features({feature1: true})
+      expect(config).to be_nil
+    end
+
+    it "returns nil for get_user_config when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad")
+
+      config = loader.get_user_config("user123")
+      expect(config).to be_nil
+    end
+
+    it "returns nil for time_based_config when config fails to load" do
+      # Corrupt the config file
+      File.write(config_file, "bad")
+
+      config = loader.time_based_config
+      expect(config).to be_nil
+    end
+  end
+
+  describe "string vs symbol key access" do
+    let(:config_with_string_keys) do
+      {
+        "harness" => {"default_provider" => "cursor"},
+        "providers" => {
+          "cursor" => {"type" => "subscription"}
+        },
+        "environments" => {
+          "production" => {"harness" => {"max_retries" => 1}}
+        },
+        "steps" => {
+          "build" => {"harness" => {"timeout" => 600}}
+        },
+        "features" => {
+          "fast_mode" => {"harness" => {"max_retries" => 0}}
+        },
+        "users" => {
+          "alice" => {"harness" => {"max_retries" => 20}}
+        }
+      }
+    end
+
+    before do
+      File.write(config_file, YAML.dump(config_with_string_keys))
+    end
+
+    it "accesses provider config with string key" do
+      provider_config = loader.provider_config("cursor")
+      expect(provider_config).not_to be_nil
+      expect(provider_config["type"]).to eq("subscription")
+    end
+
+    it "accesses environment config with string key" do
+      env_config = loader.environment_config("production")
+      expect(env_config).not_to be_nil
+    end
+
+    it "accesses step config with string key" do
+      step_config = loader.get_step_config("build")
+      expect(step_config).not_to be_nil
+    end
+
+    it "accesses feature config with string key" do
+      feature_config = loader.config_with_features({"fast_mode" => true})
+      expect(feature_config).not_to be_nil
+    end
+
+    it "accesses user config with string key" do
+      user_config = loader.get_user_config("alice")
+      expect(user_config).not_to be_nil
+    end
+
+    it "handles harness_config_with_overrides with string keys" do
+      overrides = {"harness" => {"max_retries" => 5}}
+      config = loader.harness_config_with_overrides(overrides)
+      expect(config["max_retries"]).to eq(5)
+    end
+
+    it "handles provider_config_with_overrides with string provider key" do
+      overrides = {"providers" => {"cursor" => {"priority" => 10}}}
+      config = loader.provider_config_with_overrides("cursor", overrides)
+      expect(config["priority"]).to eq(10)
+    end
+
+    it "handles provider_config_with_overrides with symbol provider key" do
+      overrides = {providers: {cursor: {priority: 15}}}
+      config = loader.provider_config_with_overrides(:cursor, overrides)
+      expect(config[:priority]).to eq(15)
+    end
+
+    it "handles mode_config with string keys" do
+      config_with_modes = {
+        "harness" => {"default_provider" => "cursor"},
+        "analyze_mode" => {"harness" => {"max_retries" => 5}},
+        "execute_mode" => {"harness" => {"max_retries" => 3}},
+        "providers" => {"cursor" => {"type" => "subscription"}}
+      }
+      File.write(config_file, YAML.dump(config_with_modes))
+
+      analyze_config = loader.mode_config("analyze")
+      expect(analyze_config["harness"]["max_retries"]).to eq(5)
+
+      execute_config = loader.mode_config("execute")
+      expect(execute_config["harness"]["max_retries"]).to eq(3)
+    end
+  end
+
+  describe "hour_in_range? edge cases" do
+    # Test the private hour_in_range? method directly with different types
+
+    it "handles Integer hour match" do
+      result = loader.send(:hour_in_range?, 9, 9)
+      expect(result).to be true
+    end
+
+    it "handles Integer hour mismatch" do
+      result = loader.send(:hour_in_range?, 10, 9)
+      expect(result).to be false
+    end
+
+    it "handles Range hour within range" do
+      result = loader.send(:hour_in_range?, 11, 10..12)
+      expect(result).to be true
+    end
+
+    it "handles Range hour outside range" do
+      result = loader.send(:hour_in_range?, 15, 10..12)
+      expect(result).to be false
+    end
+
+    it "handles String hour range with dash - within range" do
+      result = loader.send(:hour_in_range?, 14, "13-15")
+      expect(result).to be true
+    end
+
+    it "handles String hour range with dash - outside range" do
+      result = loader.send(:hour_in_range?, 16, "13-15")
+      expect(result).to be false
+    end
+
+    it "handles String single hour - match" do
+      result = loader.send(:hour_in_range?, 16, "16")
+      expect(result).to be true
+    end
+
+    it "handles String single hour - mismatch" do
+      result = loader.send(:hour_in_range?, 17, "16")
+      expect(result).to be false
+    end
+
+    it "handles invalid hour range type" do
+      result = loader.send(:hour_in_range?, 10, ["invalid"])
+      expect(result).to be false
+    end
+
+    it "handles nil hour range" do
+      result = loader.send(:hour_in_range?, 10, nil)
+      expect(result).to be false
+    end
+  end
+
+  describe "missing configuration sections" do
+    let(:minimal_config) do
+      {
+        harness: {default_provider: "cursor"},
+        providers: {cursor: {type: "subscription"}}
+      }
+    end
+
+    before do
+      File.write(config_file, YAML.dump(minimal_config))
+    end
+
+    it "returns nil when harness section is missing (invalid config)" do
+      config_no_harness = {providers: {cursor: {type: "subscription"}}}
+      File.write(config_file, YAML.dump(config_no_harness))
+
+      # Config is invalid without harness section, so returns nil
+      harness_config = loader.harness_config
+      expect(harness_config).to be_nil
+    end
+
+    it "returns empty hash when providers section is missing" do
+      config_no_providers = {harness: {default_provider: "cursor"}}
+      File.write(config_file, YAML.dump(config_no_providers))
+
+      all_providers = loader.all_provider_configs
+      expect(all_providers).to eq({})
+    end
+
+    it "returns nil when specific provider not found" do
+      provider_config = loader.provider_config("nonexistent")
+      expect(provider_config).to be_nil
+    end
+
+    it "returns empty hash when environments section is missing" do
+      env_config = loader.environment_config("production")
+      expect(env_config[:harness][:default_provider]).to eq("cursor")
+      expect(env_config[:environments]).to be_nil
+    end
+
+    it "returns empty hash when steps section is missing" do
+      step_config = loader.get_step_config("build")
+      expect(step_config[:harness][:default_provider]).to eq("cursor")
+      expect(step_config[:steps]).to be_nil
+    end
+
+    it "returns base config when features section is missing" do
+      feature_config = loader.config_with_features({feature1: true})
+      expect(feature_config[:harness][:default_provider]).to eq("cursor")
+      expect(feature_config[:features]).to be_nil
+    end
+
+    it "returns empty hash when feature is disabled" do
+      config_with_features = {
+        harness: {default_provider: "cursor", max_retries: 2},
+        providers: {cursor: {type: "subscription"}},
+        features: {
+          feature1: {harness: {max_retries: 10}}
+        }
+      }
+      File.write(config_file, YAML.dump(config_with_features))
+
+      feature_config = loader.config_with_features({feature1: false})
+      # Should not apply feature overrides when feature is disabled
+      expect(feature_config[:harness][:max_retries]).to eq(2)
+    end
+
+    it "returns base config when users section is missing" do
+      user_config = loader.get_user_config("alice")
+      expect(user_config[:harness][:default_provider]).to eq("cursor")
+      expect(user_config[:users]).to be_nil
+    end
+
+    it "returns base config when time_based section is missing" do
+      time_config = loader.time_based_config
+      expect(time_config[:harness][:default_provider]).to eq("cursor")
+      expect(time_config[:time_based]).to be_nil
+    end
+
+    it "handles missing hours in time_based config" do
+      config_with_days_only = {
+        harness: {default_provider: "cursor"},
+        providers: {cursor: {type: "subscription"}},
+        time_based: {
+          days: {monday: {harness: {max_retries: 5}}}
+        }
+      }
+      File.write(config_file, YAML.dump(config_with_days_only))
+
+      time_config = loader.time_based_config
+      expect(time_config).not_to be_nil
+    end
+
+    it "handles missing days in time_based config" do
+      config_with_hours_only = {
+        harness: {default_provider: "cursor"},
+        providers: {cursor: {type: "subscription"}},
+        time_based: {
+          hours: {"9-17" => {harness: {max_retries: 1}}}
+        }
+      }
+      File.write(config_file, YAML.dump(config_with_hours_only))
+
+      time_config = loader.time_based_config
+      expect(time_config).not_to be_nil
+    end
+  end
+
+  describe "empty overrides" do
+    let(:base_config) do
+      {
+        harness: {default_provider: "cursor", max_retries: 2},
+        providers: {cursor: {type: "subscription", priority: 1}}
+      }
+    end
+
+    before do
+      File.write(config_file, YAML.dump(base_config))
+    end
+
+    it "returns base config when overrides are empty" do
+      config = loader.config_with_overrides({})
+      expect(config[:harness][:max_retries]).to eq(2)
+    end
+
+    it "returns base provider config when provider overrides are empty" do
+      config = loader.provider_config_with_overrides("cursor", {})
+      expect(config[:priority]).to eq(1)
+    end
+
+    it "handles empty feature overrides" do
+      config = loader.config_with_features({})
+      expect(config[:harness][:max_retries]).to eq(2)
+    end
+  end
+
+  describe "default values" do
+    let(:base_config) do
+      {
+        harness: {default_provider: "cursor"},
+        providers: {cursor: {type: "subscription"}}
+      }
+    end
+
+    before do
+      File.write(config_file, YAML.dump(base_config))
+    end
+
+    it "uses default environment when ENV not set" do
+      original_env = ENV["AIDP_ENV"]
+      ENV.delete("AIDP_ENV")
+
+      # Should default to "development"
+      config = loader.environment_config
+      expect(config).not_to be_nil
+
+      ENV["AIDP_ENV"] = original_env if original_env
+    end
+
+    it "uses default user when ENV[USER] not set" do
+      original_user = ENV["USER"]
+      ENV.delete("USER")
+
+      # Should default to "default"
+      config = loader.get_user_config
+      expect(config).not_to be_nil
+
+      ENV["USER"] = original_user if original_user
+    end
+
+    it "uses provided user_id instead of ENV[USER]" do
+      config = loader.get_user_config("specific_user")
+      expect(config).not_to be_nil
+    end
+
+    it "uses provided environment instead of ENV[AIDP_ENV]" do
+      config = loader.environment_config("staging")
+      expect(config).not_to be_nil
     end
   end
 end

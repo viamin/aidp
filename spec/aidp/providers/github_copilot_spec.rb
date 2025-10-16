@@ -95,7 +95,10 @@ RSpec.describe Aidp::Providers::GithubCopilot do
 
     context "when copilot is available" do
       before do
+        ENV.delete("AIDP_STREAMING")
+        ENV.delete("DEBUG")
         allow(provider).to receive(:debug_execute_command).and_return(successful_result)
+        allow(provider).to receive(:display_message)
         # Mock the thread to avoid actual threading
         thread_mock = double("Thread", alive?: true, kill: nil, join: nil)
         allow(Thread).to receive(:new).and_return(thread_mock)
@@ -145,6 +148,9 @@ RSpec.describe Aidp::Providers::GithubCopilot do
         let(:session) { "test-session" }
 
         before do
+          ENV.delete("AIDP_STREAMING")
+          ENV.delete("DEBUG")
+          allow(provider).to receive(:display_message)
           # Mock the thread to avoid actual threading
           thread_mock = double("Thread", alive?: true, kill: nil, join: nil)
           allow(Thread).to receive(:new).and_return(thread_mock)
@@ -164,6 +170,8 @@ RSpec.describe Aidp::Providers::GithubCopilot do
     let(:successful_result) { double("result", exit_status: 0, out: "Success output", err: "") }
 
     before do
+      ENV.delete("AIDP_STREAMING")
+      ENV.delete("DEBUG")
       allow(provider).to receive(:calculate_timeout).and_return(300)
       allow(provider).to receive(:debug_provider)
       allow(provider).to receive(:debug_log)
@@ -172,6 +180,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       allow(provider).to receive(:setup_activity_monitoring)
       allow(provider).to receive(:record_activity)
       allow(provider).to receive(:mark_completed)
+      allow(provider).to receive(:display_message)
     end
 
     it "includes tools when specified" do

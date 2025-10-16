@@ -83,12 +83,12 @@ class TestPrompt
 
   def yes?(message, **options)
     @inputs << {message: message, options: options, type: :yes}
-    @responses[:yes?] || true
+    @responses.key?(:yes?) ? @responses[:yes?] : true
   end
 
   def no?(message, **options)
     @inputs << {message: message, options: options, type: :no}
-    @responses[:no?] || false
+    @responses.key?(:no?) ? @responses[:no?] : false
   end
 
   def say(message, **options)
@@ -124,7 +124,7 @@ class TestPrompt
 
   def confirm(message, **options)
     @inputs << {message: message, options: options, type: :confirm}
-    @responses[:confirm] || true
+    @responses.key?(:confirm) ? @responses[:confirm] : true
   end
 
   def expand(message, choices, **options)

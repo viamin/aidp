@@ -10,6 +10,7 @@
 - No commented‑out or dead code.
 - No introducing TODO without issue reference.
 - When removing code, delete it cleanly without explanatory comments.
+- Instrument important steps with `debug_log` so traces stay readable.
 
 ## 2. Naming & Structure
 
@@ -33,6 +34,7 @@
 - Let internal logic errors surface (fail fast).
 - Only rescue to: wrap external failures, add context, clean up resources.
 - No `rescue Exception`; prefer `rescue SpecificError`.
+- Pair every `rescue` with `rescue_log(:warn, ...)` so failures are observable.
 
 ## 5. TTY / TUI
 

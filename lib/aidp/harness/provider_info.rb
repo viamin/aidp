@@ -283,7 +283,7 @@ module Aidp
         when "codex"
           "codex"
         when "github_copilot"
-          "gh"
+          "copilot"
         when "opencode"
           "opencode"
         else
