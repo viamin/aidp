@@ -7,11 +7,18 @@ RSpec.describe Aidp::Init::DocGenerator do
   let(:analysis) do
     {
       languages: {"Ruby" => 1200, "JavaScript" => 400},
-      frameworks: ["Rails"],
+      frameworks: [
+        {name: "Rails", confidence: 0.9, evidence: ["Found files: config/application.rb", "Found pattern /rails/i in config/application.rb"]}
+      ],
       key_directories: ["app", "lib", "spec"],
       config_files: [".rubocop.yml", "package.json"],
-      test_frameworks: ["RSpec"],
-      tooling: {rubocop: ["config"], eslint: ["package.json"]},
+      test_frameworks: [
+        {name: "RSpec", confidence: 0.8, evidence: ["Found directories: spec", "Found dependency pattern /rspec/ in Gemfile"]}
+      ],
+      tooling: [
+        {tool: :rubocop, confidence: 0.8, evidence: ["Found config files: .rubocop.yml"]},
+        {tool: :eslint, confidence: 0.6, evidence: ["Referenced in package.json scripts"]}
+      ],
       repo_stats: {total_files: 10, total_directories: 4, docs_present: false, has_ci_config: true, has_containerization: false}
     }
   end

@@ -155,7 +155,9 @@ module Aidp
         @project_dir = project_dir
       end
 
-      def analyze
+      def analyze(options = {})
+        @explain_detection = options[:explain_detection] || false
+
         {
           languages: detect_languages,
           frameworks: detect_frameworks,
@@ -185,21 +187,57 @@ module Aidp
       end
 
       def detect_frameworks
-        frameworks = Set.new
+        results = []
 
         FRAMEWORK_HINTS.each do |framework, rules|
-          if rules[:files]&.any? { |file| project_glob?(file) }
-            if rules[:contents]
-              frameworks << framework if rules[:contents].any? { |pattern| search_files_for_pattern(rules[:files], pattern) }
-            else
-              frameworks << framework
+          evidence = []
+          confidence = 0.0
+
+          # Check for required files
+          matched_files = []
+          if rules[:files]
+            matched_files = rules[:files].select { |file| project_glob?(file) }
+            if matched_files.any?
+              evidence << "Found files: #{matched_files.join(", ")}"
+              confidence += 0.3
             end
-          elsif rules[:contents]&.any? { |pattern| search_project_for_pattern(pattern) }
-            frameworks << framework
+          end
+
+          # Check for content patterns in specific files or across project
+          if rules[:contents]
+            rules[:contents].each do |pattern|
+              if matched_files.any?
+                # Search only in the matched files
+                if search_files_for_pattern(matched_files, pattern)
+                  evidence << "Found pattern '#{pattern.inspect}' in #{matched_files.join(", ")}"
+                  confidence += 0.7
+                end
+              elsif search_project_for_pattern(pattern)
+                # Search across all project files (less confident)
+                evidence << "Found pattern '#{pattern.inspect}' in project files"
+                confidence += 0.4
+              end
+            end
+          elsif matched_files.any?
+            # Files exist but no content check needed - moderately confident
+            confidence = 0.6
+          end
+
+          # Only include frameworks with evidence
+          if evidence.any? && confidence > 0.0
+            # Cap confidence at 1.0
+            confidence = [confidence, 1.0].min
+
+            results << {
+              name: framework,
+              confidence: confidence,
+              evidence: evidence
+            }
           end
         end
 
-        frameworks.to_a.sort
+        # Sort by confidence (descending) then name
+        results.sort_by { |r| [-r[:confidence], r[:name]] }
       end
 
       def detect_key_directories
@@ -212,28 +250,82 @@ module Aidp
 
       def detect_test_frameworks
         results = []
+        dependency_files = ["Gemfile", "Gemfile.lock", "package.json", "pyproject.toml", "requirements.txt", "go.mod", "mix.exs", "composer.json", "Cargo.toml"]
 
         TEST_FRAMEWORK_HINTS.each do |framework, hints|
-          has_directory = hints[:directories]&.any? { |dir| Dir.exist?(File.join(project_dir, dir)) }
-          has_dependency = hints[:dependencies]&.any? { |pattern| search_project_for_pattern(pattern, limit_files: ["Gemfile", "Gemfile.lock", "package.json", "pyproject.toml", "requirements.txt", "go.mod", "mix.exs", "composer.json", "Cargo.toml"]) }
-          has_files = hints[:files]&.any? { |glob| project_glob?(glob) }
+          evidence = []
+          confidence = 0.0
 
-          results << framework if has_directory || has_dependency || has_files
+          # Check for test directories
+          if hints[:directories]
+            found_dirs = hints[:directories].select { |dir| Dir.exist?(File.join(project_dir, dir)) }
+            if found_dirs.any?
+              evidence << "Found directories: #{found_dirs.join(", ")}"
+              confidence += 0.5
+            end
+          end
+
+          # Check for dependencies in lockfiles/manifests
+          hints[:dependencies]&.each do |pattern|
+            matched_files = []
+            dependency_files.each do |dep_file|
+              path = File.join(project_dir, dep_file)
+              next unless File.exist?(path)
+
+              begin
+                if File.read(path).match?(pattern)
+                  matched_files << dep_file
+                end
+              rescue Errno::ENOENT, ArgumentError, Encoding::InvalidByteSequenceError
+                next
+              end
+            end
+
+            if matched_files.any?
+              evidence << "Found dependency pattern '#{pattern.inspect}' in #{matched_files.join(", ")}"
+              confidence += 0.6
+            end
+          end
+
+          # Check for test files
+          if hints[:files]
+            matched_globs = hints[:files].select { |glob| project_glob?(glob) }
+            if matched_globs.any?
+              evidence << "Found test files matching: #{matched_globs.join(", ")}"
+              confidence += 0.4
+            end
+          end
+
+          # Only include test frameworks with evidence
+          if evidence.any? && confidence > 0.0
+            confidence = [confidence, 1.0].min
+
+            results << {
+              name: framework,
+              confidence: confidence,
+              evidence: evidence
+            }
+          end
         end
 
-        results.uniq.sort
+        # Sort by confidence (descending) then name
+        results.sort_by { |r| [-r[:confidence], r[:name]] }
       end
 
       def detect_tooling
-        tooling = Hash.new { |hash, key| hash[key] = [] }
+        results = []
 
         TOOLING_HINTS.each do |tool, indicators|
-          hit = indicators.any? do |indicator|
-            if indicator.include?("*")
-            end
-            project_glob?(indicator)
+          evidence = []
+          confidence = 0.0
+
+          matched_indicators = indicators.select { |indicator| project_glob?(indicator) }
+          if matched_indicators.any?
+            evidence << "Found config files: #{matched_indicators.join(", ")}"
+            confidence += 0.8
           end
-          tooling[tool] << "config" if hit
+
+          results << {tool: tool, evidence: evidence, confidence: confidence} if evidence.any?
         end
 
         # Post-process for package.json to extract scripts referencing linters
@@ -242,15 +334,31 @@ module Aidp
           begin
             json = JSON.parse(File.read(package_json_path))
             scripts = json.fetch("scripts", {})
-            tooling[:eslint] << "package.json scripts" if scripts.values.any? { |cmd| cmd.include?("eslint") }
-            tooling[:prettier] << "package.json scripts" if scripts.values.any? { |cmd| cmd.include?("prettier") }
-            tooling[:jest] << "package.json scripts" if scripts.values.any? { |cmd| cmd.include?("jest") }
+
+            [:eslint, :prettier, :jest].each do |tool|
+              tool_str = tool.to_s
+              if scripts.values.any? { |cmd| cmd.include?(tool_str) }
+                # Check if we already have this tool from config detection
+                existing = results.find { |r| r[:tool] == tool }
+                if existing
+                  existing[:evidence] << "Referenced in package.json scripts"
+                  existing[:confidence] = [existing[:confidence] + 0.3, 1.0].min
+                else
+                  results << {
+                    tool: tool,
+                    evidence: ["Referenced in package.json scripts"],
+                    confidence: 0.6
+                  }
+                end
+              end
+            end
           rescue JSON::ParserError
             # ignore malformed package.json
           end
         end
 
-        tooling.delete_if { |_tool, evidence| evidence.empty? }
+        # Sort by confidence (descending) then tool name
+        results.sort_by { |r| [-r[:confidence], r[:tool].to_s] }
       end
 
       def collect_repo_stats
@@ -306,11 +414,31 @@ module Aidp
       def search_files_for_pattern(files, pattern)
         files.any? do |file|
           Dir.glob(File.join(project_dir, file)).any? do |path|
-            File.read(path).match?(pattern)
+            # Special handling for package.json - only search in dependencies
+            if File.basename(path) == "package.json"
+              check_package_json_dependency(path, pattern)
+            else
+              File.read(path).match?(pattern)
+            end
           rescue Errno::ENOENT, Errno::EISDIR
             false
           end
         end
+      end
+
+      def check_package_json_dependency(path, pattern)
+        json = JSON.parse(File.read(path))
+        deps = json.fetch("dependencies", {})
+        dev_deps = json.fetch("devDependencies", {})
+        peer_deps = json.fetch("peerDependencies", {})
+
+        all_deps = deps.keys + dev_deps.keys + peer_deps.keys
+        all_deps.any? { |dep| dep.match?(pattern) }
+      rescue JSON::ParserError, Errno::ENOENT
+        # Fallback to simple text search if JSON parsing fails
+        File.read(path).match?(pattern)
+      rescue
+        false
       end
 
       def search_project_for_pattern(pattern, limit_files: nil)

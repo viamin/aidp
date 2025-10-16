@@ -55,16 +55,3 @@ jobs:
         run: |
           bundle exec rake coverage:summary
           echo "Coverage summary and badge generated"
-
-      - name: Commit updated coverage badge (main only if changed)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          if git diff --quiet badges/coverage.svg; then
-            echo 'Coverage badge unchanged; no commit.'
-          else
-            git config user.name 'coverage-bot'
-            git config user.email 'coverage-bot@users.noreply.github.com'
-            git add badges/coverage.svg
-            git commit -m 'chore: update coverage badge [skip ci]'
-            git push
-          fi

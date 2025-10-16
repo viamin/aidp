@@ -353,7 +353,7 @@ module Aidp
         when "mcp" then run_mcp_command(args)
         when "issue" then run_issue_command(args)
         when "config" then run_config_command(args)
-        when "init" then run_init_command
+        when "init" then run_init_command(args)
         when "watch" then run_watch_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
@@ -1015,9 +1015,47 @@ module Aidp
         wizard.run
       end
 
-      def run_init_command
-        runner = Aidp::Init::Runner.new(Dir.pwd, prompt: TTY::Prompt.new)
+      def run_init_command(args = [])
+        options = {}
+
+        until args.empty?
+          token = args.shift
+          case token
+          when "--explain-detection"
+            options[:explain_detection] = true
+          when "--dry-run"
+            options[:dry_run] = true
+          when "--preview"
+            options[:preview] = true
+          when "-h", "--help"
+            display_init_usage
+            return
+          else
+            display_message("Unknown init option: #{token}", type: :error)
+            display_init_usage
+            return
+          end
+        end
+
+        require_relative "init/runner"
+        runner = Aidp::Init::Runner.new(Dir.pwd, prompt: TTY::Prompt.new, options: options)
         runner.run
+      end
+
+      def display_init_usage
+        display_message("Usage: aidp init [options]", type: :info)
+        display_message("", type: :info)
+        display_message("Options:", type: :info)
+        display_message("  --explain-detection    Show detailed evidence for all detections", type: :info)
+        display_message("  --dry-run              Run analysis without generating files", type: :info)
+        display_message("  --preview              Show preview before writing files", type: :info)
+        display_message("  -h, --help             Show this help message", type: :info)
+        display_message("", type: :info)
+        display_message("Examples:", type: :info)
+        display_message("  aidp init                           # Run full init workflow", type: :info)
+        display_message("  aidp init --explain-detection       # Show detailed detection evidence", type: :info)
+        display_message("  aidp init --dry-run                 # Preview without writing files", type: :info)
+        display_message("  aidp init --preview                 # Show preview before writing", type: :info)
       end
 
       def run_watch_command(args)

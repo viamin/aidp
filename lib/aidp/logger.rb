@@ -104,8 +104,19 @@ module Aidp
     end
 
     def create_logger(path)
+      # Ensure parent directory exists before creating logger
+      dir = File.dirname(path)
+      FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
+
       logger = ::Logger.new(path, @max_files, @max_size)
       logger.level = ::Logger::DEBUG # Control at write level instead
+      logger.formatter = proc { |severity, datetime, progname, msg| "#{msg}\n" }
+      logger
+    rescue => e
+      # Fall back to STDERR if file logging fails
+      warn "[AIDP Logger] Failed to create log file at #{path}: #{e.message}. Falling back to STDERR."
+      logger = ::Logger.new($stderr)
+      logger.level = ::Logger::DEBUG
       logger.formatter = proc { |severity, datetime, progname, msg| "#{msg}\n" }
       logger
     end
