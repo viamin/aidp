@@ -19,7 +19,8 @@ jobs:
     outputs:
       release-created: ${{ steps.release.outputs.release_created }}
       tag-name: ${{ steps.release.outputs.tag_name }}
-      release-pr: ${{ steps.release.outputs.pr }}
+      pr-number: ${{ steps.release.outputs['aidp--pr'] }}
+      pr-head-branch: ${{ steps.release.outputs['aidp--head_branch'] }}
     steps:
       - uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         id: release
@@ -28,26 +29,15 @@ jobs:
     name: Update coverage badge on release PR
     runs-on: ubuntu-latest
     needs: release-please
-    if: ${{ needs.release-please.outputs.release-pr }}
+    if: ${{ needs.release-please.outputs.pr-number }}
     permissions:
       contents: write
       pull-requests: write
-    env:
-      PR_NUMBER: ${{ needs.release-please.outputs.release-pr }}
     steps:
-      - name: Fetch release PR metadata
-        id: pr-info
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          head_branch=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.ref')
-          echo "branch=$head_branch" >> "$GITHUB_OUTPUT"
-
       - name: Checkout release PR branch
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          ref: ${{ steps.pr-info.outputs.branch }}
+          ref: ${{ needs.release-please.outputs.pr-head-branch }}
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@ab177d40ee5483edb974554986f56b33477e21d0
