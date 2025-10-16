@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.15.2](https://github.com/viamin/aidp/compare/aidp/v0.15.1...aidp/v0.15.2) (2025-10-16)
+
+
+### Bug Fixes
+
+* map github_copilot provider to 'copilot' CLI instead of 'gh' ([e261812](https://github.com/viamin/aidp/commit/e261812f196d295db8eee8fe774044c545fc0a2b))
+
+
+### Improvements
+
+* simplify ProjectAnalyzer detection, tidy Runner, normalize docs spacing ([0621a21](https://github.com/viamin/aidp/commit/0621a21f9947559ccb48f51762dad55ded2b225a))
+
+
+### Documentation
+
+* add logging hints to STYLE_GUIDE and LLM_STYLE_GUIDE ([64f3823](https://github.com/viamin/aidp/commit/64f3823163fc179bbb30a69d5557436bc2467392))
+* remove auto-generated init files ([c3fa74b](https://github.com/viamin/aidp/commit/c3fa74b8876f3adf1faae7bc941c57cd7e102adc))
+* roll back changes to LLM_STYLE_GUIDE ([49ad53c](https://github.com/viamin/aidp/commit/49ad53cf5f0e3d93a3cc2183c85d519f20b727f7))
+
 ## [0.15.1](https://github.com/viamin/aidp/compare/aidp/v0.15.0...aidp/v0.15.1) (2025-10-15)
 
 
