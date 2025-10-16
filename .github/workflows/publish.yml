@@ -81,10 +81,10 @@ jobs:
 
       - name: Commit updated coverage badge to release PR
         env:
-          GIT_AUTHOR_NAME: release-please[bot]
-          GIT_AUTHOR_EMAIL: release-please[bot]@users.noreply.github.com
-          GIT_COMMITTER_NAME: release-please[bot]
-          GIT_COMMITTER_EMAIL: release-please[bot]@users.noreply.github.com
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
           git status --short
