@@ -19,35 +19,49 @@ jobs:
     outputs:
       release-created: ${{ steps.release.outputs.release_created }}
       tag-name: ${{ steps.release.outputs.tag_name }}
-      release-pr: ${{ steps.release.outputs.pr }}
+      pr-number: ${{ steps.find-pr.outputs.pr-number }}
+      pr-head-branch: ${{ steps.find-pr.outputs.pr-branch }}
     steps:
       - uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         id: release
+      - name: Find release PR
+        id: find-pr
+        run: |
+          set -euo pipefail
+          REPO="${GITHUB_REPOSITORY}"
+          PR_JSON=$(gh pr list --repo "$REPO" --label "autorelease: pending" --json number,headRefName --limit 1 || echo '[]')
+          # Ensure jq is available (GitHub hosted runners have it by default)
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "jq not found; cannot parse release PR JSON" >&2
+            PR_NUMBER=""
+            PR_BRANCH=""
+          else
+            PR_NUMBER=$(jq -r '.[0].number // ""' <<< "$PR_JSON")
+            PR_BRANCH=$(jq -r '.[0].headRefName // ""' <<< "$PR_JSON")
+          fi
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Found release PR #$PR_NUMBER on branch $PR_BRANCH"
+          else
+            echo "No active release PR found (label: autorelease: pending)."
+          fi
+          echo "pr-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "pr-branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   update-coverage-badge:
     name: Update coverage badge on release PR
     runs-on: ubuntu-latest
     needs: release-please
-    if: ${{ needs.release-please.outputs.release-pr }}
+    if: ${{ needs.release-please.outputs.pr-number != '' }}
     permissions:
       contents: write
       pull-requests: write
-    env:
-      PR_NUMBER: ${{ needs.release-please.outputs.release-pr }}
     steps:
-      - name: Fetch release PR metadata
-        id: pr-info
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          head_branch=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.ref')
-          echo "branch=$head_branch" >> "$GITHUB_OUTPUT"
-
       - name: Checkout release PR branch
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          ref: ${{ steps.pr-info.outputs.branch }}
+          ref: ${{ needs.release-please.outputs.pr-head-branch }}
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@ab177d40ee5483edb974554986f56b33477e21d0
@@ -67,10 +81,10 @@ jobs:
 
       - name: Commit updated coverage badge to release PR
         env:
-          GIT_AUTHOR_NAME: release-please[bot]
-          GIT_AUTHOR_EMAIL: release-please[bot]@users.noreply.github.com
-          GIT_COMMITTER_NAME: release-please[bot]
-          GIT_COMMITTER_EMAIL: release-please[bot]@users.noreply.github.com
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
           set -euo pipefail
           git status --short
