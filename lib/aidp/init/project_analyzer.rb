@@ -212,12 +212,10 @@ module Aidp
                   evidence << "Found pattern '#{pattern.inspect}' in #{matched_files.join(", ")}"
                   confidence += 0.7
                 end
-              else
+              elsif search_project_for_pattern(pattern)
                 # Search across all project files (less confident)
-                if search_project_for_pattern(pattern)
-                  evidence << "Found pattern '#{pattern.inspect}' in project files"
-                  confidence += 0.4
-                end
+                evidence << "Found pattern '#{pattern.inspect}' in project files"
+                confidence += 0.4
               end
             end
           elsif matched_files.any?
@@ -268,26 +266,24 @@ module Aidp
           end
 
           # Check for dependencies in lockfiles/manifests
-          if hints[:dependencies]
-            hints[:dependencies].each do |pattern|
-              matched_files = []
-              dependency_files.each do |dep_file|
-                path = File.join(project_dir, dep_file)
-                next unless File.exist?(path)
+          hints[:dependencies]&.each do |pattern|
+            matched_files = []
+            dependency_files.each do |dep_file|
+              path = File.join(project_dir, dep_file)
+              next unless File.exist?(path)
 
-                begin
-                  if File.read(path).match?(pattern)
-                    matched_files << dep_file
-                  end
-                rescue Errno::ENOENT, ArgumentError, Encoding::InvalidByteSequenceError
-                  next
+              begin
+                if File.read(path).match?(pattern)
+                  matched_files << dep_file
                 end
+              rescue Errno::ENOENT, ArgumentError, Encoding::InvalidByteSequenceError
+                next
               end
+            end
 
-              if matched_files.any?
-                evidence << "Found dependency pattern '#{pattern.inspect}' in #{matched_files.join(", ")}"
-                confidence += 0.6
-              end
+            if matched_files.any?
+              evidence << "Found dependency pattern '#{pattern.inspect}' in #{matched_files.join(", ")}"
+              confidence += 0.6
             end
           end
 

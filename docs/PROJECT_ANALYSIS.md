@@ -3,9 +3,11 @@
 Generated automatically by `aidp init` on 2025-10-16T14:54:28Z. This document summarises the repository structure to guide future autonomous work loops.
 
 ## Language & Framework Footprint
+
 - Ruby: 100.0% of codebase
 
 ### Framework Signals
+
 - Django
 - Express
 - FastAPI
@@ -22,6 +24,7 @@ Generated automatically by `aidp init` on 2025-10-16T14:54:28Z. This document su
 - Vue
 
 ## Key Directories
+
 - lib
 - spec
 - scripts
@@ -30,18 +33,22 @@ Generated automatically by `aidp init` on 2025-10-16T14:54:28Z. This document su
 - examples
 
 ## Configuration & Tooling Files
+
 - Gemfile
 - Gemfile.lock
 
 ## Test & Quality Signals
+
 - Detected test suite: RSpec
 
 ## Local Quality Toolchain
+
 | Tool | Evidence |
 |------|----------|
 | Rspec | config |
 
 ## Repository Stats
+
 - Total files scanned: 370
 - Unique directories: 62
 - Documentation folder present: Yes

@@ -277,7 +277,7 @@ module Aidp
 
         # CODE_QUALITY_PLAN summary
         display_message("\n3. docs/CODE_QUALITY_PLAN.md", type: :highlight)
-        tooling_count = analysis[:tooling].select { |t| t[:confidence] >= 0.7 }.size
+        tooling_count = analysis[:tooling].count { |t| t[:confidence] >= 0.7 }
         display_message("   - Quality tools detected: #{tooling_count}", type: :info)
         display_message("   - Stricter linting: #{preferences[:stricter_linters] ? "Yes" : "No"}", type: :info)
         display_message("   - Migration planning: #{preferences[:migrate_styles] ? "Yes" : "No"}", type: :info)
@@ -305,8 +305,6 @@ module Aidp
             "cargo"
           when "gofmt"
             "gofmt"
-          else
-            nil
           end
 
           next unless tool_command
