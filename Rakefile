@@ -64,25 +64,30 @@ task default: :spec
 # Coverage Ratchet System:
 # The coverage ratchet prevents test coverage from decreasing over time.
 # - coverage_baseline.json: Committed to git, tracks minimum allowed coverage
-# - coverage:run: Runs tests with coverage enabled
-# - coverage:check: Verifies coverage hasn't decreased (fails CI if it has)
+# - coverage:run: Runs tests with coverage enabled (excludes system tests to match CI)
+# - coverage:check: Verifies coverage hasn't decreased (±0.1% tolerance for CI/local variance)
 # - coverage:update_baseline: Updates baseline when coverage improves
 # - prep/pc tasks: Automatically run coverage:check before commits
 #
+# Tolerance:
+# - Allows ±0.1% variance to account for CI/local environment differences
+# - Prevents false failures from Ruby version, gem version, or timing differences
+# - Real decreases (>0.1%) still fail the build
+#
 # Automatic Updates:
 # - When PRs are merged to main and coverage improves, CI automatically:
-#   1. Updates coverage_baseline.json
-#   2. Commits the change back to main
-#   3. Uses [skip ci] to avoid triggering another build
+#   1. Creates a new branch with updated coverage_baseline.json
+#   2. Opens a PR for the baseline update
+#   3. Enables auto-merge (respects branch protection rules)
 #
 # Local Workflow:
 # 1. Make changes and add tests
 # 2. Run 'rake prep' or 'rake pc' before committing
 # 3. If coverage improved and you want to update baseline locally:
 #    - Run 'rake coverage:update_baseline' and commit the file
-#    - Or just merge to main and let CI update it automatically
-# 4. If coverage decreased, add more tests or fix the issue
-# 5. CI will fail if coverage decreases on any branch
+#    - Or just merge to main and let CI create a PR for it
+# 4. If coverage decreased beyond tolerance, add more tests
+# 5. CI will fail if coverage decreases >0.1% on any branch
 namespace :coverage do
   desc "Run RSpec with coverage (COVERAGE=1)"
   task :run do
@@ -205,6 +210,9 @@ namespace :coverage do
   task :check do
     require "json"
 
+    # Tolerance for measurement variance between CI and local (0.1%)
+    tolerance = 0.1
+
     # Check for coverage data
     resultset = File.join(COVERAGE_DIR, ".resultset.json")
     unless File.exist?(resultset)
@@ -248,27 +256,30 @@ namespace :coverage do
 
     baseline_data = JSON.parse(File.read(baseline_file))
     baseline = baseline_data["line_coverage"]
+    difference = (current - baseline).round(2)
 
     puts "\n📊 Coverage Ratchet Check"
     puts "=" * 60
     puts "Current coverage:  #{current}%"
     puts "Baseline coverage: #{baseline}%"
-    puts "Difference:        #{(current - baseline).round(2)}%"
+    puts "Difference:        #{difference}%"
+    puts "Tolerance:         ±#{tolerance}%"
     puts "=" * 60
 
-    if current < baseline
+    # Allow small variance within tolerance
+    if difference < -tolerance
       puts "\n❌ COVERAGE DECREASED!"
       puts "   Coverage dropped from #{baseline}% to #{current}%"
-      puts "   This is not allowed by the coverage ratchet."
+      puts "   This exceeds the allowed tolerance of #{tolerance}%"
       puts "\n   To fix:"
       puts "   1. Add tests to restore coverage to at least #{baseline}%"
       puts "   2. Or if intentional, update baseline: rake coverage:update_baseline"
       exit 1
+    elsif difference.abs <= tolerance
+      puts "\n✅ Coverage maintained at #{current}% (within tolerance)"
     elsif current > baseline
       puts "\n✅ Coverage improved! #{current}% > #{baseline}%"
       puts "   Consider updating the baseline: rake coverage:update_baseline"
-    else
-      puts "\n✅ Coverage maintained at #{current}%"
     end
   end
 
