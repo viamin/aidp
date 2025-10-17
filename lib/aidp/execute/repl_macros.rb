@@ -1121,10 +1121,105 @@ module Aidp
             action: :display
           }
 
+        when "run"
+          # Run one or more workstreams in parallel
+          require_relative "../workstream_executor"
+
+          slugs = []
+          max_concurrent = 3
+
+          # Parse slugs from args
+          args.each do |arg|
+            next if arg.start_with?("--")
+            slugs << arg
+          end
+
+          if slugs.empty?
+            return {
+              success: false,
+              message: "Usage: /ws run <slug1> [slug2...]\n\nExamples:\n  /ws run issue-123\n  /ws run issue-123 issue-456 feature-x",
+              action: :none
+            }
+          end
+
+          begin
+            executor = Aidp::WorkstreamExecutor.new(project_dir: @project_dir, max_concurrent: max_concurrent)
+            results = executor.execute_parallel(slugs, {mode: :execute})
+
+            success_count = results.count { |r| r.status == "completed" }
+            lines = ["🚀 Parallel Execution Results", "=" * 60, ""]
+
+            results.each do |result|
+              icon = (result.status == "completed") ? "✅" : "❌"
+              duration = "#{result.duration.round(1)}s"
+              lines << "#{icon} #{result.slug}: #{result.status} (#{duration})"
+              lines << "   Error: #{result.error}" if result.error
+            end
+
+            lines << ""
+            lines << "Summary: #{success_count}/#{results.size} completed"
+
+            {
+              success: success_count == results.size,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Parallel execution error: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "run-all"
+          # Run all active workstreams in parallel
+          require_relative "../workstream_executor"
+
+          max_concurrent = 3
+
+          begin
+            executor = Aidp::WorkstreamExecutor.new(project_dir: @project_dir, max_concurrent: max_concurrent)
+            results = executor.execute_all({mode: :execute})
+
+            if results.empty?
+              return {
+                success: true,
+                message: "⚠️  No active workstreams to run",
+                action: :display
+              }
+            end
+
+            success_count = results.count { |r| r.status == "completed" }
+            lines = ["🚀 Parallel Execution Results (All Active)", "=" * 60, ""]
+
+            results.each do |result|
+              icon = (result.status == "completed") ? "✅" : "❌"
+              duration = "#{result.duration.round(1)}s"
+              lines << "#{icon} #{result.slug}: #{result.status} (#{duration})"
+              lines << "   Error: #{result.error}" if result.error
+            end
+
+            lines << ""
+            lines << "Summary: #{success_count}/#{results.size} completed"
+
+            {
+              success: success_count == results.size,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Parallel execution error: #{e.message}",
+              action: :none
+            }
+          end
+
         else
           {
             success: false,
-            message: "Usage: /ws <command> [args]\n\nCommands:\n  list                     - List all workstreams\n  new <slug>               - Create new workstream\n  switch <slug>            - Switch to workstream\n  rm <slug>                - Remove workstream\n  status [slug]            - Show workstream status\n  pause [slug]             - Pause workstream\n  resume [slug]            - Resume workstream\n  complete [slug]          - Mark workstream as completed\n  dashboard                - Show multi-workstream overview\n  pause-all                - Pause all active workstreams\n  resume-all               - Resume all paused workstreams\n  stop-all                 - Stop all active workstreams\n\nOptions:\n  --base-branch <branch>   - Branch to create from (for 'new')\n  --delete-branch          - Also delete git branch (for 'rm')\n\nExamples:\n  /ws list\n  /ws new issue-123\n  /ws switch issue-123\n  /ws status\n  /ws pause\n  /ws resume\n  /ws complete\n  /ws dashboard\n  /ws pause-all\n  /ws resume-all\n  /ws stop-all\n  /ws rm issue-123 --delete-branch",
+            message: "Usage: /ws <command> [args]\n\nCommands:\n  list                     - List all workstreams\n  new <slug>               - Create new workstream\n  switch <slug>            - Switch to workstream\n  rm <slug>                - Remove workstream\n  status [slug]            - Show workstream status\n  run <slug...>            - Run workstream(s) in parallel\n  run-all                  - Run all active workstreams in parallel\n  dashboard                - Show multi-workstream overview\n  pause [slug]             - Pause workstream\n  resume [slug]            - Resume workstream\n  complete [slug]          - Mark workstream as completed\n  pause-all                - Pause all active workstreams\n  resume-all               - Resume all paused workstreams\n  stop-all                 - Stop all active workstreams\n\nOptions:\n  --base-branch <branch>   - Branch to create from (for 'new')\n  --delete-branch          - Also delete git branch (for 'rm')\n\nExamples:\n  /ws list\n  /ws new issue-123\n  /ws switch issue-123\n  /ws run issue-123                    # Run single workstream\n  /ws run issue-123 issue-456          # Run multiple in parallel\n  /ws run-all                          # Run all active workstreams\n  /ws status\n  /ws dashboard\n  /ws pause-all\n  /ws resume-all\n  /ws stop-all\n  /ws rm issue-123 --delete-branch",
             action: :none
           }
         end

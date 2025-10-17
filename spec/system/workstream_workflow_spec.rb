@@ -60,7 +60,7 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
       expect(stdout).to include("Workstream: test-feature")
       expect(stdout).to include("Task: Add new feature")
       expect(stdout).to include("Iterations: 0")
-      expect(stdout).to include("active")
+      expect(stdout).to match(/Status:\s+Active/i)
 
       # Remove workstream
       stdout, _stderr, status = run_aidp("ws", "rm", "test-feature", "--force")
@@ -83,7 +83,7 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
       expect(status.exitstatus).to eq(0)
 
       # Create third workstream from a specific branch
-      _, _stderr, status = run_aidp("ws", "new", "feature-c", "--base-branch", "main", "Feature C")
+      _, _stderr, status = run_aidp("ws", "new", "feature-c", "--base-branch", "master", "Feature C")
       expect(status.exitstatus).to eq(0)
 
       # List all workstreams
@@ -195,7 +195,7 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
 
       # Verify branch was deleted
       branches = Dir.chdir(temp_dir) do
-        `git branch`.lines.map(&:strip).map { |b| b.gsub(/^\*\s+/, "") }
+        `git branch`.lines.map(&:strip).map { |b| b.gsub(/^[*+]\s+/, "") }
       end
       expect(branches).not_to include("aidp/branch-test")
     end

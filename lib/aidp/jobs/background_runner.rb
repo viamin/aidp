@@ -3,6 +3,7 @@
 require "securerandom"
 require "yaml"
 require "fileutils"
+require "time"
 require_relative "../rescue_logging"
 
 module Aidp
@@ -191,7 +192,7 @@ module Aidp
           job_id: job_id,
           pid: pid,
           mode: mode,
-          started_at: Time.now,
+          started_at: Time.now.iso8601,
           status: "running",
           options: options.except(:prompt) # Don't save prompt object
         }
@@ -203,6 +204,7 @@ module Aidp
         metadata_file = File.join(@jobs_dir, job_id, "metadata.yml")
         return nil unless File.exist?(metadata_file)
 
+        # Return raw metadata with times as ISO8601 strings to avoid unsafe class loading
         YAML.load_file(metadata_file)
       rescue
         nil
@@ -220,7 +222,7 @@ module Aidp
       def mark_job_completed(job_id, result)
         update_job_metadata(job_id, {
           status: "completed",
-          completed_at: Time.now,
+          completed_at: Time.now.iso8601,
           result: result
         })
       end
@@ -228,7 +230,7 @@ module Aidp
       def mark_job_failed(job_id, error)
         update_job_metadata(job_id, {
           status: "failed",
-          completed_at: Time.now,
+          completed_at: Time.now.iso8601,
           error: {
             message: error.message,
             class: error.class.name,
@@ -240,7 +242,7 @@ module Aidp
       def mark_job_stopped(job_id)
         update_job_metadata(job_id, {
           status: "stopped",
-          completed_at: Time.now
+          completed_at: Time.now.iso8601
         })
       end
 

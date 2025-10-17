@@ -69,6 +69,11 @@ require_relative "aidp/logger"
 require_relative "aidp/daemon/process_manager"
 require_relative "aidp/daemon/runner"
 
+# Workstream/worktree management
+require_relative "aidp/worktree"
+require_relative "aidp/workstream_state"
+require_relative "aidp/workstream_executor"
+
 # Harness mode
 require_relative "aidp/harness/configuration"
 require_relative "aidp/harness/config_schema"

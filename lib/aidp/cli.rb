@@ -1345,6 +1345,103 @@ module Aidp
             display_message("✅ Completed workstream: #{slug}", type: :success)
           end
 
+        when "run"
+          # Run one or more workstreams in parallel
+          require_relative "workstream_executor"
+
+          slugs = []
+          max_concurrent = 3
+          mode = :execute
+          selected_steps = nil
+
+          until args.empty?
+            token = args.shift
+            case token
+            when "--max-concurrent"
+              max_concurrent = args.shift.to_i
+            when "--mode"
+              mode = args.shift&.to_sym || :execute
+            when "--steps"
+              selected_steps = args.shift.split(",")
+            else
+              slugs << token
+            end
+          end
+
+          if slugs.empty?
+            display_message("❌ Missing workstream slug(s)", type: :error)
+            display_message("Usage: aidp ws run <slug1> [slug2...] [--max-concurrent N] [--mode analyze|execute] [--steps STEP1,STEP2]", type: :info)
+            display_message("", type: :info)
+            display_message("Examples:", type: :info)
+            display_message("  aidp ws run issue-123                           # Run single workstream", type: :info)
+            display_message("  aidp ws run issue-123 issue-456 feature-x       # Run multiple in parallel", type: :info)
+            display_message("  aidp ws run issue-* --max-concurrent 5          # Run all matching (expand glob first)", type: :info)
+            return
+          end
+
+          begin
+            executor = Aidp::WorkstreamExecutor.new(project_dir: Dir.pwd, max_concurrent: max_concurrent)
+            options = {mode: mode}
+            options[:selected_steps] = selected_steps if selected_steps
+
+            results = executor.execute_parallel(slugs, options)
+
+            # Show results
+            display_message("", type: :info)
+            success_count = results.count { |r| r.status == "completed" }
+            if success_count == results.size
+              display_message("🎉 All workstreams completed successfully!", type: :success)
+            else
+              display_message("⚠️  Some workstreams failed", type: :warn)
+            end
+          rescue => e
+            display_message("❌ Parallel execution error: #{e.message}", type: :error)
+          end
+
+        when "run-all"
+          # Run all active workstreams in parallel
+          require_relative "workstream_executor"
+
+          max_concurrent = 3
+          mode = :execute
+          selected_steps = nil
+
+          until args.empty?
+            token = args.shift
+            case token
+            when "--max-concurrent"
+              max_concurrent = args.shift.to_i
+            when "--mode"
+              mode = args.shift&.to_sym || :execute
+            when "--steps"
+              selected_steps = args.shift.split(",")
+            end
+          end
+
+          begin
+            executor = Aidp::WorkstreamExecutor.new(project_dir: Dir.pwd, max_concurrent: max_concurrent)
+            options = {mode: mode}
+            options[:selected_steps] = selected_steps if selected_steps
+
+            results = executor.execute_all(options)
+
+            if results.empty?
+              display_message("⚠️  No active workstreams to run", type: :warn)
+              return
+            end
+
+            # Show results
+            display_message("", type: :info)
+            success_count = results.count { |r| r.status == "completed" }
+            if success_count == results.size
+              display_message("🎉 All workstreams completed successfully!", type: :success)
+            else
+              display_message("⚠️  Some workstreams failed", type: :warn)
+            end
+          rescue => e
+            display_message("❌ Parallel execution error: #{e.message}", type: :error)
+          end
+
         when "dashboard"
           # Show multi-workstream dashboard
           workstreams = Aidp::Worktree.list(project_dir: Dir.pwd)
@@ -1455,17 +1552,30 @@ module Aidp
           display_message("  new <slug> [task]         Create new workstream", type: :info)
           display_message("  rm <slug>                 Remove workstream", type: :info)
           display_message("  status <slug>             Show workstream status", type: :info)
+          display_message("  run <slug...>             Run workstream(s) in parallel", type: :info)
+          display_message("  run-all                   Run all active workstreams in parallel", type: :info)
+          display_message("  dashboard                 Show multi-workstream dashboard", type: :info)
+          display_message("  pause <slug>              Pause workstream execution", type: :info)
+          display_message("  resume <slug>             Resume paused workstream", type: :info)
+          display_message("  complete <slug>           Mark workstream as completed", type: :info)
           display_message("", type: :info)
           display_message("Options:", type: :info)
           display_message("  --base-branch <branch>    Branch to create from (for 'new')", type: :info)
           display_message("  --delete-branch           Also delete git branch (for 'rm')", type: :info)
           display_message("  --force                   Skip confirmation (for 'rm')", type: :info)
+          display_message("  --max-concurrent N        Max parallel workstreams (for 'run', 'run-all')", type: :info)
+          display_message("  --mode analyze|execute    Execution mode (for 'run', 'run-all')", type: :info)
+          display_message("  --steps STEP1,STEP2       Specific steps to run (for 'run', 'run-all')", type: :info)
           display_message("", type: :info)
           display_message("Examples:", type: :info)
           display_message("  aidp ws list                                    # List workstreams", type: :info)
           display_message("  aidp ws new issue-123 Fix authentication bug    # Create workstream", type: :info)
           display_message("  aidp ws new feature-x --base-branch develop     # Create from branch", type: :info)
           display_message("  aidp ws status issue-123                        # Show status", type: :info)
+          display_message("  aidp ws run issue-123                           # Run single workstream", type: :info)
+          display_message("  aidp ws run issue-123 feature-x --max-concurrent 5  # Run multiple in parallel", type: :info)
+          display_message("  aidp ws run-all --max-concurrent 3              # Run all active workstreams", type: :info)
+          display_message("  aidp ws dashboard                               # Monitor all workstreams", type: :info)
           display_message("  aidp ws rm issue-123                            # Remove workstream", type: :info)
           display_message("  aidp ws rm issue-123 --delete-branch --force    # Force remove with branch", type: :info)
         end
