@@ -55,3 +55,59 @@ jobs:
         run: |
           bundle exec rake coverage:summary
           echo "Coverage summary and badge generated"
+
+      - name: Check coverage ratchet
+        run: |
+          bundle exec rake coverage:check
+          echo "Coverage ratchet check passed"
+
+      - name: Update coverage baseline (main branch only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Check if coverage improved
+          CURRENT=$(ruby -r json -e "data = JSON.parse(File.read('coverage/.resultset.json')); covered = 0; total = 0; data['rspec']['coverage'].each_value { |f| f['lines'].each { |v| next if v.nil?; total += 1; covered += 1 if v > 0 } }; puts (total > 0 ? (covered.to_f / total * 100.0).round(2) : 0.0)")
+          BASELINE=$(ruby -r json -e "puts JSON.parse(File.read('coverage_baseline.json'))['line_coverage']")
+
+          echo "Current coverage: $CURRENT%"
+          echo "Baseline coverage: $BASELINE%"
+
+          if (( $(echo "$CURRENT > $BASELINE" | bc -l) )); then
+            echo "Coverage improved! Updating baseline..."
+            bundle exec rake coverage:update_baseline
+
+            # Check if baseline actually changed
+            if git diff --quiet coverage_baseline.json; then
+              echo "No baseline changes to commit"
+            else
+              echo "Baseline changed, creating PR..."
+
+              # Create a new branch for the baseline update
+              BRANCH_NAME="ci/update-coverage-baseline-$(date +%s)"
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git checkout -b "$BRANCH_NAME"
+              git add coverage_baseline.json
+              git commit -m "chore: update coverage baseline to $CURRENT%" -m "Coverage improved from $BASELINE% to $CURRENT%" -m "This is an automated commit from CI."
+              git push origin "$BRANCH_NAME"
+
+              # Create PR using GitHub CLI
+              PR_BODY="Coverage improved from **$BASELINE%** to **$CURRENT%** 📈"$'\n\n'"This PR was automatically created by CI after tests passed on main."$'\n\n'"**Auto-merge enabled** - This will merge automatically once checks pass."
+
+              gh pr create \
+                --title "chore: update coverage baseline to $CURRENT%" \
+                --body "$PR_BODY" \
+                --base main \
+                --head "$BRANCH_NAME" \
+                --label "automated" \
+                --label "coverage"
+
+              # Enable auto-merge (requires admin or maintainer permissions)
+              gh pr merge "$BRANCH_NAME" --auto --squash || echo "Auto-merge not available, PR created for manual review"
+
+              echo "✅ PR created for baseline update"
+            fi
+          else
+            echo "Coverage did not improve, baseline unchanged"
+          fi
