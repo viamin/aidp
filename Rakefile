@@ -86,7 +86,8 @@ task default: :spec
 namespace :coverage do
   desc "Run RSpec with coverage (COVERAGE=1)"
   task :run do
-    sh({"COVERAGE" => "1"}, "bundle exec rspec")
+    # Match CI behavior - exclude system tests for consistent coverage measurement
+    sh({"COVERAGE" => "1"}, "bundle exec rspec spec/ --exclude-pattern 'spec/system/**/*_spec.rb'")
     puts "\nCoverage report: #{File.join(COVERAGE_DIR, "index.html")}" if File.exist?(File.join(COVERAGE_DIR, "index.html"))
   end
 
