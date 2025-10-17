@@ -18,7 +18,7 @@ module Aidp
 
       DEFAULT_INTERVAL = 30
 
-      def initialize(issues_url:, interval: DEFAULT_INTERVAL, provider_name: nil, gh_available: nil, project_dir: Dir.pwd, once: false, prompt: TTY::Prompt.new)
+      def initialize(issues_url:, interval: DEFAULT_INTERVAL, provider_name: nil, gh_available: nil, project_dir: Dir.pwd, once: false, use_workstreams: true, prompt: TTY::Prompt.new)
         @prompt = prompt
         @interval = interval
         @once = once
@@ -35,7 +35,8 @@ module Aidp
         @build_processor = BuildProcessor.new(
           repository_client: @repository_client,
           state_store: @state_store,
-          project_dir: project_dir
+          project_dir: project_dir,
+          use_workstreams: use_workstreams
         )
       end
 

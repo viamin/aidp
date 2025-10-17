@@ -286,6 +286,11 @@ module Aidp
           opts.separator "  mcp                      MCP server dashboard and management"
           opts.separator "    dashboard                - Show all MCP servers across providers"
           opts.separator "    check <servers...>       - Check provider eligibility for servers"
+          opts.separator "  ws                       Manage parallel workstreams (git worktrees)"
+          opts.separator "    list                     - List all workstreams"
+          opts.separator "    new <slug> [task]        - Create new workstream"
+          opts.separator "    rm <slug>                - Remove workstream"
+          opts.separator "    status <slug>            - Show workstream status"
           opts.separator "  harness                  Manage harness state"
           opts.separator "  config                   Manage configuration"
           opts.separator "    status                   - Show harness status"
@@ -338,7 +343,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint mcp issue config init watch].include?(args.first)
+        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -355,6 +360,7 @@ module Aidp
         when "config" then run_config_command(args)
         when "init" then run_init_command(args)
         when "watch" then run_watch_command(args)
+        when "ws" then run_ws_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -1060,7 +1066,7 @@ module Aidp
 
       def run_watch_command(args)
         if args.empty?
-          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once]", type: :info)
+          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams]", type: :info)
           return
         end
 
@@ -1068,6 +1074,7 @@ module Aidp
         interval = Aidp::Watch::Runner::DEFAULT_INTERVAL
         provider_name = nil
         once = false
+        use_workstreams = true # Default to using workstreams
 
         until args.empty?
           token = args.shift
@@ -1079,6 +1086,8 @@ module Aidp
             provider_name = args.shift
           when "--once"
             once = true
+          when "--no-workstreams"
+            use_workstreams = false
           else
             display_message("⚠️  Unknown watch option: #{token}", type: :warn)
           end
@@ -1090,12 +1099,189 @@ module Aidp
           provider_name: provider_name,
           project_dir: Dir.pwd,
           once: once,
+          use_workstreams: use_workstreams,
           prompt: TTY::Prompt.new
         )
         runner.start
       rescue ArgumentError => e
         log_rescue(e, component: "cli", action: "start_watch_command", fallback: "error_display")
         display_message("❌ #{e.message}", type: :error)
+      end
+
+      def run_ws_command(args)
+        require_relative "worktree"
+        require "tty-table"
+
+        subcommand = args.shift
+
+        case subcommand
+        when "list", nil
+          # List all workstreams
+          workstreams = Aidp::Worktree.list(project_dir: Dir.pwd)
+
+          if workstreams.empty?
+            display_message("No workstreams found.", type: :info)
+            display_message("Create one with: aidp ws new <slug> [task]", type: :muted)
+            return
+          end
+
+          display_message("Workstreams", type: :highlight)
+          display_message("=" * 80, type: :muted)
+
+          table_rows = workstreams.map do |ws|
+            status_icon = ws[:active] ? "✓" : "✗"
+            created = Time.parse(ws[:created_at]).strftime("%Y-%m-%d %H:%M")
+            [
+              status_icon,
+              ws[:slug],
+              ws[:branch],
+              created,
+              ws[:active] ? "active" : "inactive"
+            ]
+          end
+
+          header = ["", "Slug", "Branch", "Created", "Status"]
+          table = TTY::Table.new(header, table_rows)
+          # Render with explicit width for non-TTY environments (e.g., tests)
+          renderer = if $stdout.tty?
+            table.render(:basic)
+          else
+            table.render(:basic, width: 120)
+          end
+          display_message(renderer, type: :info)
+
+        when "new"
+          # Create new workstream
+          slug = args.shift
+          unless slug
+            display_message("❌ Missing slug", type: :error)
+            display_message("Usage: aidp ws new <slug> [task]", type: :info)
+            return
+          end
+
+          # Validate slug format (lowercase, hyphens, no special chars)
+          unless slug.match?(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+            display_message("❌ Invalid slug format", type: :error)
+            display_message("   Slug must be lowercase with hyphens (e.g., 'issue-123-fix-auth')", type: :info)
+            return
+          end
+
+          task = args.join(" ") # Remaining args are the task description
+
+          # Check for --base-branch option
+          base_branch = nil
+          if task.include?("--base-branch")
+            parts = task.split("--base-branch")
+            parts[0].strip
+            base_branch = parts[1]&.strip&.split&.first
+          end
+
+          begin
+            result = Aidp::Worktree.create(
+              slug: slug,
+              project_dir: Dir.pwd,
+              base_branch: base_branch
+            )
+
+            display_message("✓ Created workstream: #{slug}", type: :success)
+            display_message("  Path: #{result[:path]}", type: :info)
+            display_message("  Branch: #{result[:branch]}", type: :info)
+            display_message("", type: :info)
+            display_message("Switch to this workstream:", type: :muted)
+            display_message("  cd #{result[:path]}", type: :info)
+          rescue Aidp::Worktree::Error => e
+            display_message("❌ #{e.message}", type: :error)
+          end
+
+        when "rm"
+          # Remove workstream
+          slug = args.shift
+          unless slug
+            display_message("❌ Missing slug", type: :error)
+            display_message("Usage: aidp ws rm <slug> [--delete-branch] [--force]", type: :info)
+            return
+          end
+
+          delete_branch = args.include?("--delete-branch")
+          force = args.include?("--force")
+
+          # Confirm removal unless --force
+          unless force
+            prompt = TTY::Prompt.new
+            confirm = prompt.yes?("Remove workstream '#{slug}'?#{" (will also delete branch)" if delete_branch}")
+            return unless confirm
+          end
+
+          begin
+            Aidp::Worktree.remove(
+              slug: slug,
+              project_dir: Dir.pwd,
+              delete_branch: delete_branch
+            )
+
+            display_message("✓ Removed workstream: #{slug}", type: :success)
+            display_message("  Branch deleted", type: :info) if delete_branch
+          rescue Aidp::Worktree::Error => e
+            display_message("❌ #{e.message}", type: :error)
+          end
+
+        when "status"
+          # Show workstream status
+          slug = args.shift
+          unless slug
+            display_message("❌ Missing slug", type: :error)
+            display_message("Usage: aidp ws status <slug>", type: :info)
+            return
+          end
+
+          begin
+            ws = Aidp::Worktree.info(slug: slug, project_dir: Dir.pwd)
+            unless ws
+              display_message("❌ Workstream not found: #{slug}", type: :error)
+              return
+            end
+
+            display_message("Workstream: #{slug}", type: :highlight)
+            display_message("=" * 60, type: :muted)
+            display_message("Path: #{ws[:path]}", type: :info)
+            display_message("Branch: #{ws[:branch]}", type: :info)
+            display_message("Created: #{Time.parse(ws[:created_at]).strftime("%Y-%m-%d %H:%M:%S")}", type: :info)
+            display_message("Status: #{ws[:active] ? "Active" : "Inactive"}", type: ws[:active] ? :success : :error)
+
+            # Show git status if active
+            if ws[:active] && Dir.exist?(ws[:path])
+              display_message("", type: :info)
+              display_message("Git Status:", type: :highlight)
+              Dir.chdir(ws[:path]) do
+                system("git", "status", "--short")
+              end
+            end
+          rescue Aidp::Worktree::Error => e
+            display_message("❌ #{e.message}", type: :error)
+          end
+
+        else
+          display_message("Usage: aidp ws <command>", type: :info)
+          display_message("", type: :info)
+          display_message("Commands:", type: :info)
+          display_message("  list                      List all workstreams (default)", type: :info)
+          display_message("  new <slug> [task]         Create new workstream", type: :info)
+          display_message("  rm <slug>                 Remove workstream", type: :info)
+          display_message("  status <slug>             Show workstream status", type: :info)
+          display_message("", type: :info)
+          display_message("Options:", type: :info)
+          display_message("  --base-branch <branch>    Branch to create from (for 'new')", type: :info)
+          display_message("  --delete-branch           Also delete git branch (for 'rm')", type: :info)
+          display_message("  --force                   Skip confirmation (for 'rm')", type: :info)
+          display_message("", type: :info)
+          display_message("Examples:", type: :info)
+          display_message("  aidp ws list                                    # List workstreams", type: :info)
+          display_message("  aidp ws new issue-123 Fix authentication bug    # Create workstream", type: :info)
+          display_message("  aidp ws new feature-x --base-branch develop     # Create from branch", type: :info)
+          display_message("  aidp ws status issue-123                        # Show status", type: :info)
+          display_message("  aidp ws rm issue-123                            # Remove workstream", type: :info)
+          display_message("  aidp ws rm issue-123 --delete-branch --force    # Force remove with branch", type: :info)
+        end
       end
 
       def display_config_usage

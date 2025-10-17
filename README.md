@@ -93,6 +93,34 @@ aidp checkpoint history 20
 - PRD task completion percentage
 - File count and growth trends
 
+### Parallel Workstreams
+
+Work on multiple tasks simultaneously using isolated git worktrees:
+
+```bash
+# Create a workstream for each task
+aidp ws new issue-123-fix-auth
+aidp ws new feature-dashboard
+
+# List all workstreams
+aidp ws list
+
+# Check status
+aidp ws status issue-123-fix-auth
+
+# Remove when complete
+aidp ws rm issue-123-fix-auth --delete-branch
+```
+
+**Benefits:**
+
+- Complete isolation between tasks
+- Separate git branches for each workstream
+- Independent state and history
+- Work on multiple features in parallel
+
+See [Workstreams Guide](docs/WORKSTREAMS.md) for detailed usage.
+
 ## Command Reference
 
 ### Copilot Mode
@@ -145,6 +173,25 @@ aidp checkpoint metrics
 # Clear checkpoint data
 aidp checkpoint clear
 aidp checkpoint clear --force     # Skip confirmation
+```
+
+### Workstream Commands
+
+```bash
+# Create a new workstream
+aidp ws new <slug>
+aidp ws new <slug> --base-branch <branch>
+
+# List all workstreams
+aidp ws list
+
+# Check workstream status
+aidp ws status <slug>
+
+# Remove a workstream
+aidp ws rm <slug>
+aidp ws rm <slug> --delete-branch  # Also delete git branch
+aidp ws rm <slug> --force          # Skip confirmation
 ```
 
 ### System Commands

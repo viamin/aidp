@@ -9,13 +9,15 @@ module Aidp
     # - /split - Divide work into smaller contracts
     # - /halt-on <pattern> - Pause on specific test failures
     class ReplMacros
-      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode
+      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode, :current_workstream
 
-      def initialize
+      def initialize(project_dir: Dir.pwd)
         @pinned_files = Set.new
         @focus_patterns = []
         @halt_patterns = []
         @split_mode = false
+        @project_dir = project_dir
+        @current_workstream = nil
         @commands = register_commands
       end
 
@@ -62,6 +64,7 @@ module Aidp
           focus_patterns: @focus_patterns,
           halt_patterns: @halt_patterns,
           split_mode: @split_mode,
+          current_workstream: @current_workstream,
           active_constraints: active_constraints_count
         }
       end
@@ -89,6 +92,25 @@ module Aidp
         else
           "Unknown command: #{command}"
         end
+      end
+
+      # Get current workstream path (or project_dir if none)
+      def current_workstream_path
+        return @project_dir unless @current_workstream
+
+        require_relative "../worktree"
+        ws = Aidp::Worktree.info(slug: @current_workstream, project_dir: @project_dir)
+        ws ? ws[:path] : @project_dir
+      end
+
+      # Switch to a workstream (called by external code)
+      def switch_workstream(slug)
+        require_relative "../worktree"
+        ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
+        return false unless ws
+
+        @current_workstream = slug
+        true
       end
 
       private
@@ -215,6 +237,12 @@ module Aidp
             usage: "/help [command]",
             example: "/help pin",
             handler: method(:cmd_help)
+          },
+          "/ws" => {
+            description: "Manage workstreams (parallel work contexts)",
+            usage: "/ws <list|new|rm|switch|status> [args]",
+            example: "/ws list",
+            handler: method(:cmd_ws)
           }
         }
       end
@@ -371,6 +399,23 @@ module Aidp
       def cmd_status(args)
         lines = []
         lines << "REPL Macro Status:"
+        lines << ""
+
+        # Show current workstream
+        if @current_workstream
+          require_relative "../worktree"
+          ws = Aidp::Worktree.info(slug: @current_workstream, project_dir: @project_dir)
+          if ws
+            lines << "Current Workstream: #{@current_workstream}"
+            lines << "  Path: #{ws[:path]}"
+            lines << "  Branch: #{ws[:branch]}"
+          else
+            lines << "Current Workstream: #{@current_workstream} (not found)"
+          end
+        else
+          lines << "Current Workstream: (none - using main project)"
+        end
+
         lines << ""
 
         if @pinned_files.any?
@@ -645,6 +690,214 @@ module Aidp
           message: "Detaching REPL and entering background daemon mode...",
           action: :enter_background_mode
         }
+      end
+
+      # Command: /ws <subcommand> [args]
+      def cmd_ws(args)
+        require_relative "../worktree"
+
+        subcommand = args.shift
+
+        case subcommand
+        when "list", nil
+          # List all workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+
+          if workstreams.empty?
+            return {
+              success: true,
+              message: "No workstreams found.\nCreate one with: /ws new <slug>",
+              action: :display
+            }
+          end
+
+          lines = ["Workstreams:"]
+          workstreams.each do |ws|
+            status = ws[:active] ? "✓" : "✗"
+            current = (@current_workstream == ws[:slug]) ? " [CURRENT]" : ""
+            lines << "  #{status} #{ws[:slug]} (#{ws[:branch]})#{current}"
+          end
+
+          {
+            success: true,
+            message: lines.join("\n"),
+            action: :display
+          }
+
+        when "new"
+          # Create new workstream
+          slug = args.shift
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws new <slug> [--base-branch <branch>]",
+              action: :none
+            }
+          end
+
+          # Validate slug format
+          unless slug.match?(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+            return {
+              success: false,
+              message: "Invalid slug format. Must be lowercase with hyphens (e.g., 'issue-123')",
+              action: :none
+            }
+          end
+
+          # Check for --base-branch option
+          base_branch = nil
+          if (idx = args.index("--base-branch"))
+            base_branch = args[idx + 1]
+          end
+
+          begin
+            result = Aidp::Worktree.create(
+              slug: slug,
+              project_dir: @project_dir,
+              base_branch: base_branch
+            )
+
+            {
+              success: true,
+              message: "✓ Created workstream: #{slug}\n  Path: #{result[:path]}\n  Branch: #{result[:branch]}\n\nSwitch to it with: /ws switch #{slug}",
+              action: :display
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to create workstream: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "switch"
+          # Switch to workstream
+          slug = args.shift
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws switch <slug>",
+              action: :none
+            }
+          end
+
+          begin
+            ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
+            unless ws
+              return {
+                success: false,
+                message: "Workstream not found: #{slug}",
+                action: :none
+              }
+            end
+
+            @current_workstream = slug
+
+            {
+              success: true,
+              message: "✓ Switched to workstream: #{slug}\n  All operations will now use: #{ws[:path]}",
+              action: :switch_workstream,
+              data: {slug: slug, path: ws[:path], branch: ws[:branch]}
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to switch workstream: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "rm"
+          # Remove workstream
+          slug = args.shift
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws rm <slug> [--delete-branch]",
+              action: :none
+            }
+          end
+
+          delete_branch = args.include?("--delete-branch")
+
+          # Don't allow removing current workstream
+          if @current_workstream == slug
+            return {
+              success: false,
+              message: "Cannot remove current workstream. Switch to another first.",
+              action: :none
+            }
+          end
+
+          begin
+            Aidp::Worktree.remove(
+              slug: slug,
+              project_dir: @project_dir,
+              delete_branch: delete_branch
+            )
+
+            {
+              success: true,
+              message: "✓ Removed workstream: #{slug}#{" (branch deleted)" if delete_branch}",
+              action: :display
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to remove workstream: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "status"
+          # Show workstream status
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws status [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          begin
+            ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
+            unless ws
+              return {
+                success: false,
+                message: "Workstream not found: #{slug}",
+                action: :none
+              }
+            end
+
+            lines = []
+            lines << "Workstream: #{slug}#{" [CURRENT]" if @current_workstream == slug}"
+            lines << "  Path: #{ws[:path]}"
+            lines << "  Branch: #{ws[:branch]}"
+            lines << "  Created: #{Time.parse(ws[:created_at]).strftime("%Y-%m-%d %H:%M:%S")}"
+            lines << "  Status: #{ws[:active] ? "Active" : "Inactive"}"
+
+            {
+              success: true,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to get workstream status: #{e.message}",
+              action: :none
+            }
+          end
+
+        else
+          {
+            success: false,
+            message: "Usage: /ws <command> [args]\n\nCommands:\n  list                     - List all workstreams\n  new <slug>               - Create new workstream\n  switch <slug>            - Switch to workstream\n  rm <slug>                - Remove workstream\n  status [slug]            - Show workstream status\n\nOptions:\n  --base-branch <branch>   - Branch to create from (for 'new')\n  --delete-branch          - Also delete git branch (for 'rm')\n\nExamples:\n  /ws list\n  /ws new issue-123\n  /ws switch issue-123\n  /ws status\n  /ws rm issue-123 --delete-branch",
+            action: :none
+          }
+        end
       end
     end
   end
