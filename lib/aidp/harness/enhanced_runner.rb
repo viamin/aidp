@@ -190,7 +190,20 @@ module Aidp
         result = show_step_spinner(spinner_message) do
           @error_handler.execute_with_retry do
             step_options = @options.merge(user_input: @user_input)
-            runner.run_step(step_name, step_options)
+            # Determine execution directory (workstream path if set)
+            exec_dir = begin
+              if @state_manager.respond_to?(:current_workstream_path)
+                @state_manager.current_workstream_path
+              else
+                @project_dir
+              end
+            rescue
+              @project_dir
+            end
+            # Execute step within the chosen directory for proper isolation
+            Dir.chdir(exec_dir) do
+              runner.run_step(step_name, step_options)
+            end
           end
         end
         duration = Time.now - start_time

@@ -9,13 +9,15 @@ module Aidp
     # - /split - Divide work into smaller contracts
     # - /halt-on <pattern> - Pause on specific test failures
     class ReplMacros
-      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode
+      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode, :current_workstream
 
-      def initialize
+      def initialize(project_dir: Dir.pwd)
         @pinned_files = Set.new
         @focus_patterns = []
         @halt_patterns = []
         @split_mode = false
+        @project_dir = project_dir
+        @current_workstream = nil
         @commands = register_commands
       end
 
@@ -62,6 +64,7 @@ module Aidp
           focus_patterns: @focus_patterns,
           halt_patterns: @halt_patterns,
           split_mode: @split_mode,
+          current_workstream: @current_workstream,
           active_constraints: active_constraints_count
         }
       end
@@ -89,6 +92,25 @@ module Aidp
         else
           "Unknown command: #{command}"
         end
+      end
+
+      # Get current workstream path (or project_dir if none)
+      def current_workstream_path
+        return @project_dir unless @current_workstream
+
+        require_relative "../worktree"
+        ws = Aidp::Worktree.info(slug: @current_workstream, project_dir: @project_dir)
+        ws ? ws[:path] : @project_dir
+      end
+
+      # Switch to a workstream (called by external code)
+      def switch_workstream(slug)
+        require_relative "../worktree"
+        ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
+        return false unless ws
+
+        @current_workstream = slug
+        true
       end
 
       private
@@ -215,6 +237,12 @@ module Aidp
             usage: "/help [command]",
             example: "/help pin",
             handler: method(:cmd_help)
+          },
+          "/ws" => {
+            description: "Manage workstreams (parallel work contexts)",
+            usage: "/ws <list|new|rm|switch|status> [args]",
+            example: "/ws list",
+            handler: method(:cmd_ws)
           }
         }
       end
@@ -371,6 +399,23 @@ module Aidp
       def cmd_status(args)
         lines = []
         lines << "REPL Macro Status:"
+        lines << ""
+
+        # Show current workstream
+        if @current_workstream
+          require_relative "../worktree"
+          ws = Aidp::Worktree.info(slug: @current_workstream, project_dir: @project_dir)
+          if ws
+            lines << "Current Workstream: #{@current_workstream}"
+            lines << "  Path: #{ws[:path]}"
+            lines << "  Branch: #{ws[:branch]}"
+          else
+            lines << "Current Workstream: #{@current_workstream} (not found)"
+          end
+        else
+          lines << "Current Workstream: (none - using main project)"
+        end
+
         lines << ""
 
         if @pinned_files.any?
@@ -645,6 +690,539 @@ module Aidp
           message: "Detaching REPL and entering background daemon mode...",
           action: :enter_background_mode
         }
+      end
+
+      # Command: /ws <subcommand> [args]
+      def cmd_ws(args)
+        require_relative "../worktree"
+
+        subcommand = args.shift
+
+        case subcommand
+        when "list", nil
+          # List all workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+
+          if workstreams.empty?
+            return {
+              success: true,
+              message: "No workstreams found.\nCreate one with: /ws new <slug>",
+              action: :display
+            }
+          end
+
+          require_relative "../workstream_state"
+          lines = ["Workstreams:"]
+          workstreams.each do |ws|
+            status = ws[:active] ? "✓" : "✗"
+            current = (@current_workstream == ws[:slug]) ? " [CURRENT]" : ""
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir) || {}
+            iter = state[:iterations] || 0
+            task = state[:task] ? state[:task][0, 50] : ""
+            lines << "  #{status} #{ws[:slug]} (#{ws[:branch]}) iter=#{iter}#{current}#{" task=" + task unless task.empty?}"
+          end
+
+          {
+            success: true,
+            message: lines.join("\n"),
+            action: :display
+          }
+
+        when "new"
+          # Create new workstream
+          slug = args.shift
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws new <slug> [--base-branch <branch>]",
+              action: :none
+            }
+          end
+
+          # Validate slug format
+          unless slug.match?(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+            return {
+              success: false,
+              message: "Invalid slug format. Must be lowercase with hyphens (e.g., 'issue-123')",
+              action: :none
+            }
+          end
+
+          # Parse options and task description
+          base_branch = nil
+          task_parts = []
+          until args.empty?
+            token = args.shift
+            if token == "--base-branch"
+              base_branch = args.shift
+            else
+              task_parts << token
+            end
+          end
+          task = task_parts.join(" ")
+
+          begin
+            result = Aidp::Worktree.create(
+              slug: slug,
+              project_dir: @project_dir,
+              base_branch: base_branch,
+              task: (task unless task.empty?)
+            )
+
+            msg_lines = []
+            msg_lines << "\u2713 Created workstream: #{slug}"
+            msg_lines << "  Path: #{result[:path]}"
+            msg_lines << "  Branch: #{result[:branch]}"
+            msg_lines << "  Task: #{task}" unless task.empty?
+            msg_lines << ""
+            msg_lines << "Switch to it with: /ws switch #{slug}"
+
+            {
+              success: true,
+              message: msg_lines.join("\n"),
+              action: :display
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to create workstream: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "switch"
+          # Switch to workstream
+          slug = args.shift
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws switch <slug>",
+              action: :none
+            }
+          end
+
+          begin
+            ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
+            unless ws
+              return {
+                success: false,
+                message: "Workstream not found: #{slug}",
+                action: :none
+              }
+            end
+
+            @current_workstream = slug
+
+            {
+              success: true,
+              message: "✓ Switched to workstream: #{slug}\n  All operations will now use: #{ws[:path]}",
+              action: :switch_workstream,
+              data: {slug: slug, path: ws[:path], branch: ws[:branch]}
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to switch workstream: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "rm"
+          # Remove workstream
+          slug = args.shift
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws rm <slug> [--delete-branch]",
+              action: :none
+            }
+          end
+
+          delete_branch = args.include?("--delete-branch")
+
+          # Don't allow removing current workstream
+          if @current_workstream == slug
+            return {
+              success: false,
+              message: "Cannot remove current workstream. Switch to another first.",
+              action: :none
+            }
+          end
+
+          begin
+            Aidp::Worktree.remove(
+              slug: slug,
+              project_dir: @project_dir,
+              delete_branch: delete_branch
+            )
+
+            {
+              success: true,
+              message: "✓ Removed workstream: #{slug}#{" (branch deleted)" if delete_branch}",
+              action: :display
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to remove workstream: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "status"
+          # Show workstream status
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws status [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          begin
+            ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
+            unless ws
+              return {
+                success: false,
+                message: "Workstream not found: #{slug}",
+                action: :none
+              }
+            end
+
+            require_relative "../workstream_state"
+            state = Aidp::WorkstreamState.read(slug: slug, project_dir: @project_dir) || {}
+            iter = state[:iterations] || 0
+            task = state[:task]
+            elapsed = Aidp::WorkstreamState.elapsed_seconds(slug: slug, project_dir: @project_dir)
+            events = Aidp::WorkstreamState.recent_events(slug: slug, project_dir: @project_dir, limit: 5)
+
+            lines = []
+            lines << "Workstream: #{slug}#{" [CURRENT]" if @current_workstream == slug}"
+            lines << "  Path: #{ws[:path]}"
+            lines << "  Branch: #{ws[:branch]}"
+            lines << "  Created: #{Time.parse(ws[:created_at]).strftime("%Y-%m-%d %H:%M:%S")}"
+            lines << "  Status: #{ws[:active] ? "Active" : "Inactive"}"
+            lines << "  Iterations: #{iter}"
+            lines << "  Elapsed: #{elapsed}s"
+            lines << "  Task: #{task}" if task
+            if events.any?
+              lines << "  Recent Events:"
+              events.each do |ev|
+                lines << "    - #{ev[:timestamp]} #{ev[:type]} #{ev[:data].inspect if ev[:data]}"
+              end
+            end
+
+            {
+              success: true,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue Aidp::Worktree::Error => e
+            {
+              success: false,
+              message: "Failed to get workstream status: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "pause"
+          # Pause workstream
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws pause [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          require_relative "../workstream_state"
+          result = Aidp::WorkstreamState.pause(slug: slug, project_dir: @project_dir)
+          if result[:error]
+            {
+              success: false,
+              message: "Failed to pause: #{result[:error]}",
+              action: :none
+            }
+          else
+            {
+              success: true,
+              message: "⏸️  Paused workstream: #{slug}",
+              action: :display
+            }
+          end
+
+        when "resume"
+          # Resume workstream
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws resume [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          require_relative "../workstream_state"
+          result = Aidp::WorkstreamState.resume(slug: slug, project_dir: @project_dir)
+          if result[:error]
+            {
+              success: false,
+              message: "Failed to resume: #{result[:error]}",
+              action: :none
+            }
+          else
+            {
+              success: true,
+              message: "▶️  Resumed workstream: #{slug}",
+              action: :display
+            }
+          end
+
+        when "complete"
+          # Mark workstream as completed
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws complete [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          require_relative "../workstream_state"
+          result = Aidp::WorkstreamState.complete(slug: slug, project_dir: @project_dir)
+          if result[:error]
+            {
+              success: false,
+              message: "Failed to complete: #{result[:error]}",
+              action: :none
+            }
+          else
+            {
+              success: true,
+              message: "✅ Completed workstream: #{slug}",
+              action: :display
+            }
+          end
+
+        when "dashboard"
+          # Show multi-workstream dashboard
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+
+          if workstreams.empty?
+            return {
+              success: true,
+              message: "No workstreams found.\nCreate one with: /ws new <slug>",
+              action: :display
+            }
+          end
+
+          require_relative "../workstream_state"
+
+          lines = ["Workstreams Dashboard", "=" * 80, ""]
+
+          # Aggregate state from all workstreams
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir) || {}
+            status = state[:status] || "active"
+            iterations = state[:iterations] || 0
+            elapsed = Aidp::WorkstreamState.elapsed_seconds(slug: ws[:slug], project_dir: @project_dir)
+            task = state[:task] && state[:task].to_s[0, 40]
+            recent_events = Aidp::WorkstreamState.recent_events(slug: ws[:slug], project_dir: @project_dir, limit: 1)
+            recent_event = recent_events.first
+
+            status_icon = case status
+            when "active" then "▶️"
+            when "paused" then "⏸️"
+            when "completed" then "✅"
+            when "removed" then "❌"
+            else "?"
+            end
+
+            current = (@current_workstream == ws[:slug]) ? " [CURRENT]" : ""
+            lines << "#{status_icon} #{ws[:slug]}#{current}"
+            lines << "  Status: #{status} | Iterations: #{iterations} | Elapsed: #{elapsed}s"
+            lines << "  Task: #{task}" if task
+            if recent_event
+              event_time = Time.parse(recent_event[:timestamp]).strftime("%Y-%m-%d %H:%M")
+              lines << "  Recent: #{recent_event[:type]} at #{event_time}"
+            end
+            lines << ""
+          end
+
+          # Summary
+          status_counts = workstreams.group_by do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir) || {}
+            state[:status] || "active"
+          end
+          summary_parts = status_counts.map { |status, ws_list| "#{status}: #{ws_list.size}" }
+          lines << "Summary: #{summary_parts.join(", ")}"
+
+          {
+            success: true,
+            message: lines.join("\n"),
+            action: :display
+          }
+
+        when "pause-all"
+          # Pause all active workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+          require_relative "../workstream_state"
+          paused_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir)
+            next unless state && state[:status] == "active"
+            result = Aidp::WorkstreamState.pause(slug: ws[:slug], project_dir: @project_dir)
+            paused_count += 1 unless result[:error]
+          end
+          {
+            success: true,
+            message: "⏸️  Paused #{paused_count} workstream(s)",
+            action: :display
+          }
+
+        when "resume-all"
+          # Resume all paused workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+          require_relative "../workstream_state"
+          resumed_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir)
+            next unless state && state[:status] == "paused"
+            result = Aidp::WorkstreamState.resume(slug: ws[:slug], project_dir: @project_dir)
+            resumed_count += 1 unless result[:error]
+          end
+          {
+            success: true,
+            message: "▶️  Resumed #{resumed_count} workstream(s)",
+            action: :display
+          }
+
+        when "stop-all"
+          # Complete all active workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+          require_relative "../workstream_state"
+          stopped_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir)
+            next unless state && state[:status] == "active"
+            result = Aidp::WorkstreamState.complete(slug: ws[:slug], project_dir: @project_dir)
+            stopped_count += 1 unless result[:error]
+          end
+          {
+            success: true,
+            message: "⏹️  Stopped #{stopped_count} workstream(s)",
+            action: :display
+          }
+
+        when "run"
+          # Run one or more workstreams in parallel
+          require_relative "../workstream_executor"
+
+          slugs = []
+          max_concurrent = 3
+
+          # Parse slugs from args
+          args.each do |arg|
+            next if arg.start_with?("--")
+            slugs << arg
+          end
+
+          if slugs.empty?
+            return {
+              success: false,
+              message: "Usage: /ws run <slug1> [slug2...]\n\nExamples:\n  /ws run issue-123\n  /ws run issue-123 issue-456 feature-x",
+              action: :none
+            }
+          end
+
+          begin
+            executor = Aidp::WorkstreamExecutor.new(project_dir: @project_dir, max_concurrent: max_concurrent)
+            results = executor.execute_parallel(slugs, {mode: :execute})
+
+            success_count = results.count { |r| r.status == "completed" }
+            lines = ["🚀 Parallel Execution Results", "=" * 60, ""]
+
+            results.each do |result|
+              icon = (result.status == "completed") ? "✅" : "❌"
+              duration = "#{result.duration.round(1)}s"
+              lines << "#{icon} #{result.slug}: #{result.status} (#{duration})"
+              lines << "   Error: #{result.error}" if result.error
+            end
+
+            lines << ""
+            lines << "Summary: #{success_count}/#{results.size} completed"
+
+            {
+              success: success_count == results.size,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Parallel execution error: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "run-all"
+          # Run all active workstreams in parallel
+          require_relative "../workstream_executor"
+
+          max_concurrent = 3
+
+          begin
+            executor = Aidp::WorkstreamExecutor.new(project_dir: @project_dir, max_concurrent: max_concurrent)
+            results = executor.execute_all({mode: :execute})
+
+            if results.empty?
+              return {
+                success: true,
+                message: "⚠️  No active workstreams to run",
+                action: :display
+              }
+            end
+
+            success_count = results.count { |r| r.status == "completed" }
+            lines = ["🚀 Parallel Execution Results (All Active)", "=" * 60, ""]
+
+            results.each do |result|
+              icon = (result.status == "completed") ? "✅" : "❌"
+              duration = "#{result.duration.round(1)}s"
+              lines << "#{icon} #{result.slug}: #{result.status} (#{duration})"
+              lines << "   Error: #{result.error}" if result.error
+            end
+
+            lines << ""
+            lines << "Summary: #{success_count}/#{results.size} completed"
+
+            {
+              success: success_count == results.size,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Parallel execution error: #{e.message}",
+              action: :none
+            }
+          end
+
+        else
+          {
+            success: false,
+            message: "Usage: /ws <command> [args]\n\nCommands:\n  list                     - List all workstreams\n  new <slug>               - Create new workstream\n  switch <slug>            - Switch to workstream\n  rm <slug>                - Remove workstream\n  status [slug]            - Show workstream status\n  run <slug...>            - Run workstream(s) in parallel\n  run-all                  - Run all active workstreams in parallel\n  dashboard                - Show multi-workstream overview\n  pause [slug]             - Pause workstream\n  resume [slug]            - Resume workstream\n  complete [slug]          - Mark workstream as completed\n  pause-all                - Pause all active workstreams\n  resume-all               - Resume all paused workstreams\n  stop-all                 - Stop all active workstreams\n\nOptions:\n  --base-branch <branch>   - Branch to create from (for 'new')\n  --delete-branch          - Also delete git branch (for 'rm')\n\nExamples:\n  /ws list\n  /ws new issue-123\n  /ws switch issue-123\n  /ws run issue-123                    # Run single workstream\n  /ws run issue-123 issue-456          # Run multiple in parallel\n  /ws run-all                          # Run all active workstreams\n  /ws status\n  /ws dashboard\n  /ws pause-all\n  /ws resume-all\n  /ws stop-all\n  /ws rm issue-123 --delete-branch",
+            action: :none
+          }
+        end
       end
     end
   end

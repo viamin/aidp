@@ -15,6 +15,9 @@ code_maat_analysis_report.md
 .aidp-progress.yml
 .aidp/
 
+# Aidp workstreams
+.worktrees/
+
 # Temporary files
 *.tmp
 *.log

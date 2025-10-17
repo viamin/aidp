@@ -100,11 +100,17 @@ end
 - Use `frozen_string_literal: true` at the top of all files
 - Prefer `require_relative` over `require` for local files
 - Use meaningful variable and method names
+- **No commented-out or dead code** - delete cleanly without explanatory comments
+- **No TODO comments** without an issue reference (e.g., `# TODO: Fix edge case - GH#123`)
 
 ### Method Design
 
 - Use clear, descriptive method names (`validate_user_input` not `process`)
 - Use keyword arguments for clarity (`create_user(name:, email:)`)
+- **Avoid `get_` and `set_` prefixes** - use Ruby's idiomatic style:
+  - ❌ `get_name`, `set_name(value)`
+  - ✅ `name`, `name=(value)` or `name(value)`
+- **Avoid boolean flag parameters** that branch behavior - split into separate methods instead
 - Follow StandardRB guidelines
 
 ### Error Handling
@@ -116,9 +122,162 @@ end
 
 ### Logging Practices
 
-- Use `debug_log` (or `Aidp.logger.debug`) to annotate important method calls and workflow steps so execution traces are easy to follow
-- Keep log messages concise but actionable—include identifiers, counts, or filenames when helpful
-- Avoid silent error handling—pair all rescue clauses with `rescue_log(:warn, ...)` as noted above
+**Use structured logging extensively to make execution traces readable and debuggable.** The project includes a comprehensive `Aidp::Logger` class with automatic secret redaction and structured output.
+
+#### Logging API
+
+```ruby
+# Component-based structured logging (preferred)
+Aidp.log_debug("component", "message", key: "value", count: 42)
+Aidp.log_info("component", "message", user_id: id)
+Aidp.log_warn("component", "message", error: e.message)
+Aidp.log_error("component", "message", error: e.message, context: data)
+
+# Direct logger access (when needed)
+Aidp.logger.debug("component", "message", metadata...)
+Aidp.logger.info("component", "message", metadata...)
+```
+
+#### When to Log
+
+Log at these key points to create readable execution traces:
+
+- **Method entries**: Log when entering important methods (with key parameters)
+- **State transitions**: Log when changing modes, states, or workflows
+- **External interactions**: Log API calls, HTTP requests, provider interactions
+- **File operations**: Log reads, writes, deletes with filenames
+- **Decision points**: Log branching logic and why paths were chosen
+- **Loop iterations**: Log progress with counts/identifiers (not every iteration)
+- **Completions**: Log when multi-step operations finish
+
+#### Logging Levels
+
+- **`debug`**: Method calls, internal state changes, detailed execution flow
+- **`info`**: Significant events, operation completions, user-initiated actions
+- **`warn`**: Recoverable errors, degraded functionality, retry attempts
+- **`error`**: Failures, exceptions, critical issues that need attention
+
+#### What to Include in Logs
+
+**DO include as metadata:**
+
+- Identifiers (user IDs, job IDs, slugs, names)
+- Counts and sizes (file count, byte size, iteration number)
+- Status codes and result types
+- Filenames and paths (if not sensitive)
+- Timing information (elapsed time, duration)
+
+**DON'T log:**
+
+- Secrets, tokens, passwords, API keys (auto-redacted but avoid)
+- Full request/response payloads (use summaries: token count, status code)
+- Inside tight loops without throttling
+- Redundant information already in the message
+
+#### Code Examples
+
+```ruby
+# Good: Entry logging with context
+def execute_step(step_name)
+  Aidp.log_debug("harness", "Executing step", step: step_name)
+
+  result = perform_step(step_name)
+
+  Aidp.log_debug("harness", "Step completed", step: step_name, status: result.status)
+  result
+end
+
+# Good: State transitions
+def switch_workstream(slug)
+  Aidp.log_debug("workstream", "Switching context", from: current_workstream, to: slug)
+  @current_workstream = slug
+  Aidp.log_info("workstream", "Switched to workstream", slug: slug)
+end
+
+# Good: External interactions
+def fetch_from_provider(prompt)
+  Aidp.log_debug("provider", "Making request", provider: @name, prompt_length: prompt.length)
+
+  response = @client.chat(prompt)
+
+  Aidp.log_info("provider", "Received response", provider: @name, tokens: response.tokens)
+  response
+rescue ProviderError => e
+  Aidp.log_error("provider", "Request failed", provider: @name, error: e.message)
+  raise
+end
+
+# Good: Processing with progress
+def process_files(files)
+  Aidp.log_debug("processor", "Starting file processing", count: files.size)
+
+  files.each_with_index do |file, idx|
+    Aidp.log_debug("processor", "Processing file", index: idx + 1, total: files.size, file: file)
+    process_file(file)
+  end
+
+  Aidp.log_info("processor", "Completed processing", count: files.size)
+end
+
+# Good: Decision point logging
+def select_provider(preferences)
+  Aidp.log_debug("harness", "Selecting provider", preferences: preferences)
+
+  provider = if preferences[:fast]
+    Aidp.log_debug("harness", "Using fast provider")
+    FastProvider.new
+  else
+    Aidp.log_debug("harness", "Using quality provider")
+    QualityProvider.new
+  end
+
+  Aidp.log_info("harness", "Provider selected", provider: provider.name)
+  provider
+end
+```
+
+#### Log Message Style
+
+- **Concise but actionable**: "Executing step" not "Now we are going to execute the step"
+- **Use metadata hash**: Don't interpolate into message string - use metadata hash
+- **Consistent component names**: "harness", "provider", "workstream", "cli", "processor", etc.
+- **Present tense action verbs**: "Executing", "Processing", "Switching", "Requesting"
+- **Include context**: Add metadata that helps trace the execution flow
+
+```ruby
+# Good: Metadata in hash
+Aidp.log_debug("harness", "Executing step", step: step_name, iteration: 3)
+
+# Bad: Interpolation in message
+Aidp.log_debug("harness", "Executing step #{step_name} at iteration 3")
+```
+
+#### Common Components
+
+Use these consistent component names across the codebase:
+
+- `harness` - Orchestration and workflow
+- `provider` - AI provider interactions
+- `workstream` - Parallel workstream operations
+- `cli` - Command-line interface
+- `repl` - REPL and macros
+- `state` - State management
+- `processor` - File/data processing
+- `kb` - Knowledge base operations
+- `analyzer` - Code analysis
+- `init` - Project initialization
+
+#### Automatic Secret Redaction
+
+The logger automatically redacts common secret patterns:
+
+- API keys and tokens
+- Bearer tokens
+- GitHub tokens (ghp_, ghs_)
+- AWS keys (AKIA...)
+- Password/secret key-value pairs
+
+However, **avoid logging secrets in the first place** - redaction is a safety net, not a primary strategy.
 
 ## Ruby Version Management
 
@@ -845,6 +1004,136 @@ def process_data(data)
 rescue => e
   puts "Something went wrong"  # Don't do this!
 end
+```
+
+## Concurrency & Threads
+
+### Thread Management
+
+- **Always clean up threads** in `ensure` blocks or cleanup methods
+- **Avoid global mutable state** without proper synchronization
+- **Make intervals configurable** for testing (don't hardcode sleeps/waits)
+
+```ruby
+# Good: Proper thread cleanup
+def start_background_worker
+  @worker_thread = Thread.new do
+    loop do
+      process_queue
+      sleep(interval)
+    end
+  end
+ensure
+  @worker_thread&.kill
+  @worker_thread&.join(timeout: 5)
+end
+
+# Good: Configurable intervals
+def initialize(check_interval: 60)
+  @check_interval = check_interval
+end
+
+# Bad: Hardcoded sleeps make testing slow
+def monitor
+  loop do
+    check_status
+    sleep 60  # Can't override in tests
+  end
+end
+```
+
+## Performance
+
+### Avoid Quadratic Complexity
+
+- **Avoid O(n²) operations** over large datasets
+- **Batch I/O operations** instead of making individual calls
+- **Stream data** when processing large files
+
+### Caching
+
+- **Cache expensive operations** like parsing or API calls
+- **Use existing cache utilities** in the codebase
+- **Consider cache invalidation** strategies
+
+```ruby
+# Good: Cache expensive parsing
+def parsed_file(path)
+  @parsed_cache ||= {}
+  @parsed_cache[path] ||= parse_file(path)
+end
+
+# Bad: Re-parsing on every call
+def parsed_file(path)
+  parse_file(path)  # Slow for repeated calls
+end
+```
+
+## Security & Safety
+
+### Code Execution
+
+- **Never execute untrusted code** or eval user input
+- **Validate file paths** to prevent directory traversal
+- **Sanitize inputs** before shell interpolation
+
+### Secrets Management
+
+- **Don't log secrets** (API keys, tokens, passwords)
+- **Use environment variables** for sensitive configuration
+- **Mask sensitive data** in error messages and logs
+
+```ruby
+# Good: Sanitized logging
+logger.info("API request failed", user_id: user.id, endpoint: endpoint)
+
+# Bad: Leaking secrets
+logger.error("Request failed: #{request.inspect}")  # May contain auth headers
+```
+
+### Input Validation
+
+- **Validate file paths** before file operations
+- **Whitelist allowed values** for enums/options
+- **Escape shell arguments** or avoid shell altogether
+
+```ruby
+# Good: Whitelist validation
+ALLOWED_MODES = [:analyze, :execute].freeze
+raise ArgumentError unless ALLOWED_MODES.include?(mode)
+
+# Good: Avoid shell interpolation
+system("git", "commit", "-m", user_message)  # Safe from injection
+
+# Bad: Shell interpolation risk
+system("git commit -m '#{user_message}'")  # Dangerous!
+```
+
+## Commit Hygiene
+
+### Commit Structure
+
+- **One logical change per commit** (or tightly coupled set)
+- **Include rationale** when refactoring or changing behavior
+- **Reference issue IDs** for non-trivial changes (e.g., `Fix rate limiting - GH#123`)
+- **Write descriptive commit messages** that explain the "why", not just the "what"
+
+### Commit Messages
+
+```text
+# Good: Clear intent and context
+Add retry logic for provider rate limits
+
+Providers can temporarily return 429 errors during high load.
+This adds exponential backoff retry logic (3 attempts max) to
+handle transient failures gracefully.
+
+Fixes #123
+```
+
+```text
+# Bad: No context
+Fix bug
 ```
 
 ## Code Review Guidelines
