@@ -16,6 +16,7 @@ module Aidp
             super(ui_components)
             @title = title
             @parent_menu = parent_menu
+            @ui_components = ui_components
             @submenu_items = []
             @drill_down_enabled = true
             @max_depth = 5

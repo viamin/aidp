@@ -32,6 +32,7 @@ module Aidp
         @repl_macros = ReplMacros.new
         @output_display_thread = nil
         @running = false
+        @completion_setup_needed = true
       end
 
       # Start work loop and enter interactive REPL
@@ -96,10 +97,18 @@ module Aidp
 
       # Read command with timeout to allow checking work loop status
       def read_command_with_timeout
-        # Use TTY::Prompt's ask with timeout is not directly supported
-        # So we'll use a simple gets with a prompt
-        print_prompt
-        command = $stdin.gets&.chomp
+        # Use Reline for readline-style editing with tab completion
+        require "reline"
+        setup_completion if @completion_setup_needed
+
+        print_prompt_text
+        Reline.output = $stdout
+        Reline.input = $stdin
+        Reline.completion_append_character = " "
+
+        command = Reline.readline("", false)
+        return nil if command.nil? # Ctrl-D
+
         command&.strip
       rescue => e
         log_rescue(e, component: "interactive_repl", action: "read_command", fallback: nil)
@@ -107,26 +116,90 @@ module Aidp
         nil
       end
 
-      # Print REPL prompt
-      def print_prompt
+      # Setup tab completion for REPL commands
+      def setup_completion
+        require "reline"
+
+        # Define completion proc
+        Reline.completion_proc = proc do |input|
+          # Get list of commands from repl_macros
+          all_commands = @repl_macros.list_commands
+
+          # Extract the word being completed
+          words = input.split(/\s+/)
+          current_word = words.last || ""
+
+          # If we're completing the first word (command), offer command names
+          if words.size <= 1 || (words.size == 1 && !input.end_with?(" "))
+            all_commands.select { |cmd| cmd.start_with?(current_word) }
+          # If completing after /ws, offer subcommands
+          elsif words.first == "/ws"
+            if words.size == 2 && !input.end_with?(" ")
+              # Completing subcommand
+              subcommands = %w[list new switch rm status pause resume complete dashboard pause-all resume-all stop-all]
+              subcommands.select { |sc| sc.start_with?(current_word) }
+            elsif %w[switch rm status pause resume complete].include?(words[1])
+              # Completing workstream slug
+              require_relative "../worktree"
+              workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+              slugs = workstreams.map { |ws| ws[:slug] }
+              slugs.select { |slug| slug.start_with?(current_word) }
+            else
+              []
+            end
+          else
+            []
+          end
+        end
+
+        @completion_setup_needed = false
+      end
+
+      # Print REPL prompt text (for Reline)
+      def print_prompt_text
         status = @async_runner.status
         state = status[:state]
         iteration = status[:iteration]
         queued = status.dig(:queued_instructions, :total) || 0
+        # Workstream context (if any)
+        current_ws = if @repl_macros.respond_to?(:current_workstream)
+          @repl_macros.current_workstream
+        elsif @repl_macros.instance_variable_defined?(:@current_workstream)
+          @repl_macros.instance_variable_get(:@current_workstream)
+        end
+
+        ws_fragment = ""
+        if current_ws
+          begin
+            require_relative "../workstream_state"
+            ws_state = Aidp::WorkstreamState.read(slug: current_ws, project_dir: @project_dir) || {}
+            iter = ws_state[:iterations] || 0
+            elapsed = Aidp::WorkstreamState.elapsed_seconds(slug: current_ws, project_dir: @project_dir)
+            ws_fragment = "|ws:#{current_ws}:#{iter}i/#{elapsed}s"
+          rescue
+            ws_fragment = "|ws:#{current_ws}"
+          end
+        end
 
         prompt_text = case state
         when "RUNNING"
-          "aidp[#{iteration}]"
+          "aidp[#{iteration}#{ws_fragment}]"
         when "PAUSED"
-          "aidp[#{iteration}|PAUSED]"
+          "aidp[#{iteration}|PAUSED#{ws_fragment}]"
+        when "CANCELLED"
+          "aidp[#{iteration}|CANCELLED#{ws_fragment}]"
+        when "IDLE"
+          queued_suffix = (queued > 0) ? "+#{queued}" : ""
+          "aidp[#{iteration}#{queued_suffix}#{ws_fragment}]"
         else
-          "aidp"
+          "aidp[#{iteration}#{ws_fragment}]"
         end
 
-        prompt_text += " (#{queued} queued)" if queued > 0
-        print "#{prompt_text}> "
+        prompt_text += " > "
+        print prompt_text
       end
 
+      # Print REPL prompt
       # Handle REPL command
       def handle_command(command)
         return if command.empty?

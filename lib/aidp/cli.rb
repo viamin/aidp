@@ -291,6 +291,17 @@ module Aidp
           opts.separator "    new <slug> [task]        - Create new workstream"
           opts.separator "    rm <slug>                - Remove workstream"
           opts.separator "    status <slug>            - Show workstream status"
+          opts.separator "    pause <slug>             - Pause workstream"
+          opts.separator "    resume <slug>            - Resume workstream"
+          opts.separator "    complete <slug>          - Mark workstream as completed"
+          opts.separator "    dashboard                - Show multi-workstream overview"
+          opts.separator "    pause-all                - Pause all active workstreams"
+          opts.separator "    resume-all               - Resume all paused workstreams"
+          opts.separator "    stop-all                 - Stop all active workstreams"
+          opts.separator "  work                     Execute workflow in workstream context"
+          opts.separator "    --workstream <slug>      - Required: workstream to run in"
+          opts.separator "    --mode <mode>            - analyze or execute (default: execute)"
+          opts.separator "    --background             - Run in background job"
           opts.separator "  harness                  Manage harness state"
           opts.separator "  config                   Manage configuration"
           opts.separator "    status                   - Show harness status"
@@ -343,7 +354,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws].include?(args.first)
+        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -361,6 +372,7 @@ module Aidp
         when "init" then run_init_command(args)
         when "watch" then run_watch_command(args)
         when "ws" then run_ws_command(args)
+        when "work" then run_work_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -1285,6 +1297,156 @@ module Aidp
             display_message("❌ #{e.message}", type: :error)
           end
 
+        when "pause"
+          # Pause workstream
+          slug = args.shift
+          unless slug
+            display_message("❌ Missing slug", type: :error)
+            display_message("Usage: aidp ws pause <slug>", type: :info)
+            return
+          end
+
+          result = Aidp::WorkstreamState.pause(slug: slug, project_dir: Dir.pwd)
+          if result[:error]
+            display_message("❌ #{result[:error]}", type: :error)
+          else
+            display_message("⏸️  Paused workstream: #{slug}", type: :success)
+          end
+
+        when "resume"
+          # Resume workstream
+          slug = args.shift
+          unless slug
+            display_message("❌ Missing slug", type: :error)
+            display_message("Usage: aidp ws resume <slug>", type: :info)
+            return
+          end
+
+          result = Aidp::WorkstreamState.resume(slug: slug, project_dir: Dir.pwd)
+          if result[:error]
+            display_message("❌ #{result[:error]}", type: :error)
+          else
+            display_message("▶️  Resumed workstream: #{slug}", type: :success)
+          end
+
+        when "complete"
+          # Mark workstream as completed
+          slug = args.shift
+          unless slug
+            display_message("❌ Missing slug", type: :error)
+            display_message("Usage: aidp ws complete <slug>", type: :info)
+            return
+          end
+
+          result = Aidp::WorkstreamState.complete(slug: slug, project_dir: Dir.pwd)
+          if result[:error]
+            display_message("❌ #{result[:error]}", type: :error)
+          else
+            display_message("✅ Completed workstream: #{slug}", type: :success)
+          end
+
+        when "dashboard"
+          # Show multi-workstream dashboard
+          workstreams = Aidp::Worktree.list(project_dir: Dir.pwd)
+
+          if workstreams.empty?
+            display_message("No workstreams found.", type: :info)
+            display_message("Create one with: aidp ws new <slug> [task]", type: :muted)
+            return
+          end
+
+          display_message("Workstreams Dashboard", type: :highlight)
+          display_message("=" * 120, type: :muted)
+
+          # Aggregate state from all workstreams
+          table_rows = workstreams.map do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: Dir.pwd) || {}
+            status = state[:status] || "active"
+            iterations = state[:iterations] || 0
+            elapsed = Aidp::WorkstreamState.elapsed_seconds(slug: ws[:slug], project_dir: Dir.pwd)
+            task = state[:task] && state[:task].to_s[0, 30]
+            recent_events = Aidp::WorkstreamState.recent_events(slug: ws[:slug], project_dir: Dir.pwd, limit: 1)
+            recent_event = recent_events.first
+            event_summary = if recent_event
+              "#{recent_event[:type]} (#{Time.parse(recent_event[:timestamp]).strftime("%H:%M")})"
+            else
+              "—"
+            end
+
+            status_icon = case status
+            when "active" then "▶️"
+            when "paused" then "⏸️"
+            when "completed" then "✅"
+            when "removed" then "❌"
+            else "?"
+            end
+
+            [
+              status_icon,
+              ws[:slug],
+              status,
+              iterations,
+              "#{elapsed}s",
+              task || "—",
+              event_summary
+            ]
+          end
+
+          header = ["", "Slug", "Status", "Iter", "Elapsed", "Task", "Recent Event"]
+          table = TTY::Table.new(header, table_rows)
+          # Render with explicit width for non-TTY environments
+          renderer = if $stdout.tty?
+            table.render(:basic)
+          else
+            table.render(:basic, width: 120)
+          end
+          display_message(renderer, type: :info)
+
+          # Show summary counts
+          display_message("", type: :info)
+          status_counts = workstreams.group_by do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: Dir.pwd) || {}
+            state[:status] || "active"
+          end
+          summary_parts = status_counts.map { |status, ws_list| "#{status}: #{ws_list.size}" }
+          display_message("Summary: #{summary_parts.join(", ")}", type: :muted)
+
+        when "pause-all"
+          # Pause all active workstreams
+          workstreams = Aidp::Worktree.list(project_dir: Dir.pwd)
+          paused_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: Dir.pwd)
+            next unless state && state[:status] == "active"
+            result = Aidp::WorkstreamState.pause(slug: ws[:slug], project_dir: Dir.pwd)
+            paused_count += 1 unless result[:error]
+          end
+          display_message("⏸️  Paused #{paused_count} workstream(s)", type: :success)
+
+        when "resume-all"
+          # Resume all paused workstreams
+          workstreams = Aidp::Worktree.list(project_dir: Dir.pwd)
+          resumed_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: Dir.pwd)
+            next unless state && state[:status] == "paused"
+            result = Aidp::WorkstreamState.resume(slug: ws[:slug], project_dir: Dir.pwd)
+            resumed_count += 1 unless result[:error]
+          end
+          display_message("▶️  Resumed #{resumed_count} workstream(s)", type: :success)
+
+        when "stop-all"
+          # Complete all active workstreams
+          workstreams = Aidp::Worktree.list(project_dir: Dir.pwd)
+          stopped_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: Dir.pwd)
+            next unless state && state[:status] == "active"
+            result = Aidp::WorkstreamState.complete(slug: ws[:slug], project_dir: Dir.pwd)
+            stopped_count += 1 unless result[:error]
+          end
+          display_message("⏹️  Stopped #{stopped_count} workstream(s)", type: :success)
+
         else
           display_message("Usage: aidp ws <command>", type: :info)
           display_message("", type: :info)
@@ -1306,6 +1468,105 @@ module Aidp
           display_message("  aidp ws status issue-123                        # Show status", type: :info)
           display_message("  aidp ws rm issue-123                            # Remove workstream", type: :info)
           display_message("  aidp ws rm issue-123 --delete-branch --force    # Force remove with branch", type: :info)
+        end
+      end
+
+      def run_work_command(args)
+        require_relative "worktree"
+        require_relative "harness/state_manager"
+
+        # Parse options
+        workstream_slug = nil
+        mode = :execute
+        background = false
+
+        until args.empty?
+          token = args.shift
+          case token
+          when "--workstream"
+            workstream_slug = args.shift
+          when "--mode"
+            mode = args.shift&.to_sym || :execute
+          when "--background"
+            background = true
+          else
+            display_message("⚠️  Unknown work option: #{token}", type: :warn)
+          end
+        end
+
+        unless workstream_slug
+          display_message("❌ Missing required --workstream flag", type: :error)
+          display_message("Usage: aidp work --workstream <slug> [--mode analyze|execute] [--background]", type: :info)
+          return
+        end
+
+        # Verify workstream exists
+        ws = Aidp::Worktree.info(slug: workstream_slug, project_dir: Dir.pwd)
+        unless ws
+          display_message("❌ Workstream not found: #{workstream_slug}", type: :error)
+          return
+        end
+
+        display_message("🚀 Starting #{mode} mode in workstream: #{workstream_slug}", type: :highlight)
+        display_message("  Path: #{ws[:path]}", type: :info)
+        display_message("  Branch: #{ws[:branch]}", type: :info)
+
+        if background
+          require_relative "jobs/background_runner"
+          runner = Aidp::Jobs::BackgroundRunner.new(Dir.pwd)
+
+          display_message("Starting in background...", type: :info)
+          job_id = runner.start(mode, {workstream: workstream_slug})
+
+          display_message("✓ Started background job: #{job_id}", type: :success)
+          display_message("", type: :info)
+          display_message("Monitor progress:", type: :info)
+          display_message("  aidp jobs status #{job_id}", type: :info)
+          display_message("  aidp jobs logs #{job_id} --tail", type: :info)
+          display_message("  aidp ws status #{workstream_slug}", type: :info)
+        else
+          # Run harness inline with workstream context
+          state_manager = Aidp::Harness::StateManager.new(Dir.pwd, mode)
+          state_manager.set_workstream(workstream_slug)
+
+          # Launch harness (will cd into workstream path via enhanced_runner)
+          display_message("Starting interactive harness...", type: :info)
+          display_message("Press Ctrl+C to stop", type: :highlight)
+
+          # Re-use existing CLI.run harness launch logic but skip first-run wizard
+          # Initialize the enhanced TUI
+          require_relative "harness/ui/enhanced_tui"
+          require_relative "harness/ui/enhanced_workflow_selector"
+          require_relative "harness/enhanced_runner"
+
+          tui = Aidp::Harness::UI::EnhancedTUI.new
+          workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui, project_dir: Dir.pwd)
+
+          # Start TUI display loop
+          tui.start_display_loop
+
+          begin
+            # Get workflow configuration
+            workflow_config = workflow_selector.select_workflow(harness_mode: false, mode: mode)
+            actual_mode = workflow_config[:mode] || mode
+
+            # Pass workflow configuration to harness
+            harness_options = {
+              mode: actual_mode,
+              workflow_type: workflow_config[:workflow_type],
+              selected_steps: workflow_config[:steps],
+              user_input: workflow_config[:user_input]
+            }
+
+            # Create and run the enhanced harness
+            harness_runner = Aidp::Harness::EnhancedRunner.new(Dir.pwd, actual_mode, harness_options)
+            result = harness_runner.run
+            display_harness_result(result)
+          rescue Interrupt
+            display_message("\n\n⏹️  Interrupted by user", type: :warning)
+          ensure
+            tui.stop_display_loop
+          end
         end
       end
 

@@ -279,7 +279,6 @@ namespace :coverage do
       puts "\n✅ Coverage maintained at #{current}% (within tolerance)"
     elsif current > baseline
       puts "\n✅ Coverage improved! #{current}% > #{baseline}%"
-      puts "   Consider updating the baseline: rake coverage:update_baseline"
     end
   end
 
@@ -385,11 +384,10 @@ namespace :coverage do
       }))
 
       if previous
-        puts "✅ Coverage improved! Baseline updated from #{previous}% to #{current}%"
+        puts "✅ Baseline updated from #{previous}% to #{current}%"
       else
         puts "✅ Initial baseline set to #{current}%"
       end
-      puts "   Don't forget to commit #{baseline_file}"
     else
       puts "Coverage unchanged at #{current}%, baseline not updated"
     end

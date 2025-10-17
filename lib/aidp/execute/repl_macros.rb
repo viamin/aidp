@@ -927,10 +927,204 @@ module Aidp
             }
           end
 
+        when "pause"
+          # Pause workstream
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws pause [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          require_relative "../workstream_state"
+          result = Aidp::WorkstreamState.pause(slug: slug, project_dir: @project_dir)
+          if result[:error]
+            {
+              success: false,
+              message: "Failed to pause: #{result[:error]}",
+              action: :none
+            }
+          else
+            {
+              success: true,
+              message: "⏸️  Paused workstream: #{slug}",
+              action: :display
+            }
+          end
+
+        when "resume"
+          # Resume workstream
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws resume [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          require_relative "../workstream_state"
+          result = Aidp::WorkstreamState.resume(slug: slug, project_dir: @project_dir)
+          if result[:error]
+            {
+              success: false,
+              message: "Failed to resume: #{result[:error]}",
+              action: :none
+            }
+          else
+            {
+              success: true,
+              message: "▶️  Resumed workstream: #{slug}",
+              action: :display
+            }
+          end
+
+        when "complete"
+          # Mark workstream as completed
+          slug = args.shift || @current_workstream
+
+          unless slug
+            return {
+              success: false,
+              message: "Usage: /ws complete [slug]\nNo current workstream set. Specify a slug or use /ws switch first.",
+              action: :none
+            }
+          end
+
+          require_relative "../workstream_state"
+          result = Aidp::WorkstreamState.complete(slug: slug, project_dir: @project_dir)
+          if result[:error]
+            {
+              success: false,
+              message: "Failed to complete: #{result[:error]}",
+              action: :none
+            }
+          else
+            {
+              success: true,
+              message: "✅ Completed workstream: #{slug}",
+              action: :display
+            }
+          end
+
+        when "dashboard"
+          # Show multi-workstream dashboard
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+
+          if workstreams.empty?
+            return {
+              success: true,
+              message: "No workstreams found.\nCreate one with: /ws new <slug>",
+              action: :display
+            }
+          end
+
+          require_relative "../workstream_state"
+
+          lines = ["Workstreams Dashboard", "=" * 80, ""]
+
+          # Aggregate state from all workstreams
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir) || {}
+            status = state[:status] || "active"
+            iterations = state[:iterations] || 0
+            elapsed = Aidp::WorkstreamState.elapsed_seconds(slug: ws[:slug], project_dir: @project_dir)
+            task = state[:task] && state[:task].to_s[0, 40]
+            recent_events = Aidp::WorkstreamState.recent_events(slug: ws[:slug], project_dir: @project_dir, limit: 1)
+            recent_event = recent_events.first
+
+            status_icon = case status
+            when "active" then "▶️"
+            when "paused" then "⏸️"
+            when "completed" then "✅"
+            when "removed" then "❌"
+            else "?"
+            end
+
+            current = (@current_workstream == ws[:slug]) ? " [CURRENT]" : ""
+            lines << "#{status_icon} #{ws[:slug]}#{current}"
+            lines << "  Status: #{status} | Iterations: #{iterations} | Elapsed: #{elapsed}s"
+            lines << "  Task: #{task}" if task
+            if recent_event
+              event_time = Time.parse(recent_event[:timestamp]).strftime("%Y-%m-%d %H:%M")
+              lines << "  Recent: #{recent_event[:type]} at #{event_time}"
+            end
+            lines << ""
+          end
+
+          # Summary
+          status_counts = workstreams.group_by do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir) || {}
+            state[:status] || "active"
+          end
+          summary_parts = status_counts.map { |status, ws_list| "#{status}: #{ws_list.size}" }
+          lines << "Summary: #{summary_parts.join(", ")}"
+
+          {
+            success: true,
+            message: lines.join("\n"),
+            action: :display
+          }
+
+        when "pause-all"
+          # Pause all active workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+          require_relative "../workstream_state"
+          paused_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir)
+            next unless state && state[:status] == "active"
+            result = Aidp::WorkstreamState.pause(slug: ws[:slug], project_dir: @project_dir)
+            paused_count += 1 unless result[:error]
+          end
+          {
+            success: true,
+            message: "⏸️  Paused #{paused_count} workstream(s)",
+            action: :display
+          }
+
+        when "resume-all"
+          # Resume all paused workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+          require_relative "../workstream_state"
+          resumed_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir)
+            next unless state && state[:status] == "paused"
+            result = Aidp::WorkstreamState.resume(slug: ws[:slug], project_dir: @project_dir)
+            resumed_count += 1 unless result[:error]
+          end
+          {
+            success: true,
+            message: "▶️  Resumed #{resumed_count} workstream(s)",
+            action: :display
+          }
+
+        when "stop-all"
+          # Complete all active workstreams
+          workstreams = Aidp::Worktree.list(project_dir: @project_dir)
+          require_relative "../workstream_state"
+          stopped_count = 0
+          workstreams.each do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir)
+            next unless state && state[:status] == "active"
+            result = Aidp::WorkstreamState.complete(slug: ws[:slug], project_dir: @project_dir)
+            stopped_count += 1 unless result[:error]
+          end
+          {
+            success: true,
+            message: "⏹️  Stopped #{stopped_count} workstream(s)",
+            action: :display
+          }
+
         else
           {
             success: false,
-            message: "Usage: /ws <command> [args]\n\nCommands:\n  list                     - List all workstreams\n  new <slug>               - Create new workstream\n  switch <slug>            - Switch to workstream\n  rm <slug>                - Remove workstream\n  status [slug]            - Show workstream status\n\nOptions:\n  --base-branch <branch>   - Branch to create from (for 'new')\n  --delete-branch          - Also delete git branch (for 'rm')\n\nExamples:\n  /ws list\n  /ws new issue-123\n  /ws switch issue-123\n  /ws status\n  /ws rm issue-123 --delete-branch",
+            message: "Usage: /ws <command> [args]\n\nCommands:\n  list                     - List all workstreams\n  new <slug>               - Create new workstream\n  switch <slug>            - Switch to workstream\n  rm <slug>                - Remove workstream\n  status [slug]            - Show workstream status\n  pause [slug]             - Pause workstream\n  resume [slug]            - Resume workstream\n  complete [slug]          - Mark workstream as completed\n  dashboard                - Show multi-workstream overview\n  pause-all                - Pause all active workstreams\n  resume-all               - Resume all paused workstreams\n  stop-all                 - Stop all active workstreams\n\nOptions:\n  --base-branch <branch>   - Branch to create from (for 'new')\n  --delete-branch          - Also delete git branch (for 'rm')\n\nExamples:\n  /ws list\n  /ws new issue-123\n  /ws switch issue-123\n  /ws status\n  /ws pause\n  /ws resume\n  /ws complete\n  /ws dashboard\n  /ws pause-all\n  /ws resume-all\n  /ws stop-all\n  /ws rm issue-123 --delete-branch",
             action: :none
           }
         end
