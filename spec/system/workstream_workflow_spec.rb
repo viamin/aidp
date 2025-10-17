@@ -186,7 +186,7 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
 
       # Verify branch was created
       branches = Dir.chdir(temp_dir) do
-        `git branch`.lines.map(&:strip).map { |b| b.gsub(/^\*\s+/, "") }
+        `git branch`.lines.map(&:strip).map { |b| b.gsub(/^[*+]\s+/, "") }
       end
       expect(branches).to include("aidp/branch-test")
 

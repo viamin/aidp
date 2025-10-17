@@ -53,6 +53,8 @@ RSpec.describe Aidp::CLI::McpDashboard do
     end
 
     it "defaults to current directory" do
+      # Stub configuration for default directory to avoid CI dependence on real config
+      allow(Aidp::Harness::Configuration).to receive(:new).and_return(mock_config)
       dashboard = described_class.new
       expect(dashboard.instance_variable_get(:@root_dir)).to eq(Dir.pwd)
     end
