@@ -264,6 +264,15 @@ module Aidp
         @progress_tracker.mark_step_completed(step_name)
         # Also update harness state
         update_state(current_step: nil, last_step_completed: step_name)
+        # Increment iteration counter for current workstream if present
+        ws_slug = current_workstream
+        if ws_slug
+          # File layout: this file is in lib/aidp/harness/state_manager.rb
+          # workstream_state.rb lives at lib/aidp/workstream_state.rb
+          # Correct relative path from here is ../workstream_state
+          require_relative "../workstream_state"
+          Aidp::WorkstreamState.increment_iteration(slug: ws_slug, project_dir: @project_dir)
+        end
       end
 
       # Mark step as in progress

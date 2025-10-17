@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "json"
+require_relative "workstream_state"
 
 module Aidp
   # Manages git worktree operations for parallel workstreams.
@@ -21,7 +22,7 @@ module Aidp
       # @param branch [String, nil] Branch name (defaults to "aidp/#{slug}")
       # @param base_branch [String] Branch to create from (defaults to current branch)
       # @return [Hash] Worktree info: { path:, branch:, slug: }
-      def create(slug:, project_dir: Dir.pwd, branch: nil, base_branch: nil)
+      def create(slug:, project_dir: Dir.pwd, branch: nil, base_branch: nil, task: nil)
         ensure_git_repo!(project_dir)
 
         branch ||= "aidp/#{slug}"
@@ -47,6 +48,9 @@ module Aidp
 
         # Register the worktree
         register_worktree(slug, worktree_path, branch, project_dir)
+
+        # Initialize per-workstream state (task, counters, events)
+        Aidp::WorkstreamState.init(slug: slug, project_dir: project_dir, task: task)
 
         {
           slug: slug,
@@ -100,6 +104,10 @@ module Aidp
           end
         end
 
+        # Mark state removed (if exists) then unregister
+        if Aidp::WorkstreamState.read(slug: slug, project_dir: project_dir)
+          Aidp::WorkstreamState.mark_removed(slug: slug, project_dir: project_dir)
+        end
         # Unregister the worktree
         unregister_worktree(slug, project_dir)
 

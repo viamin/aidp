@@ -1110,6 +1110,7 @@ module Aidp
 
       def run_ws_command(args)
         require_relative "worktree"
+        require_relative "workstream_state"
         require "tty-table"
 
         subcommand = args.shift
@@ -1129,18 +1130,23 @@ module Aidp
           display_message("=" * 80, type: :muted)
 
           table_rows = workstreams.map do |ws|
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: Dir.pwd) || {}
             status_icon = ws[:active] ? "✓" : "✗"
             created = Time.parse(ws[:created_at]).strftime("%Y-%m-%d %H:%M")
+            iterations = state[:iterations] || 0
+            task = state[:task] && state[:task].to_s[0, 40]
             [
               status_icon,
               ws[:slug],
               ws[:branch],
               created,
-              ws[:active] ? "active" : "inactive"
+              ws[:active] ? "active" : "inactive",
+              iterations,
+              task
             ]
           end
 
-          header = ["", "Slug", "Branch", "Created", "Status"]
+          header = ["", "Slug", "Branch", "Created", "Status", "Iter", "Task"]
           table = TTY::Table.new(header, table_rows)
           # Render with explicit width for non-TTY environments (e.g., tests)
           renderer = if $stdout.tty?
@@ -1166,26 +1172,30 @@ module Aidp
             return
           end
 
-          task = args.join(" ") # Remaining args are the task description
-
-          # Check for --base-branch option
+          task_parts = []
           base_branch = nil
-          if task.include?("--base-branch")
-            parts = task.split("--base-branch")
-            parts[0].strip
-            base_branch = parts[1]&.strip&.split&.first
+          until args.empty?
+            token = args.shift
+            if token == "--base-branch"
+              base_branch = args.shift
+            else
+              task_parts << token
+            end
           end
+          task = task_parts.join(" ")
 
           begin
             result = Aidp::Worktree.create(
               slug: slug,
               project_dir: Dir.pwd,
-              base_branch: base_branch
+              base_branch: base_branch,
+              task: (task unless task.empty?)
             )
 
             display_message("✓ Created workstream: #{slug}", type: :success)
             display_message("  Path: #{result[:path]}", type: :info)
             display_message("  Branch: #{result[:branch]}", type: :info)
+            display_message("  Task: #{task}", type: :info) unless task.empty?
             display_message("", type: :info)
             display_message("Switch to this workstream:", type: :muted)
             display_message("  cd #{result[:path]}", type: :info)
@@ -1241,12 +1251,27 @@ module Aidp
               return
             end
 
+            state = Aidp::WorkstreamState.read(slug: slug, project_dir: Dir.pwd) || {}
+            iterations = state[:iterations] || 0
+            elapsed = Aidp::WorkstreamState.elapsed_seconds(slug: slug, project_dir: Dir.pwd)
+            task = state[:task]
+            recent_events = Aidp::WorkstreamState.recent_events(slug: slug, project_dir: Dir.pwd, limit: 5)
             display_message("Workstream: #{slug}", type: :highlight)
             display_message("=" * 60, type: :muted)
             display_message("Path: #{ws[:path]}", type: :info)
             display_message("Branch: #{ws[:branch]}", type: :info)
             display_message("Created: #{Time.parse(ws[:created_at]).strftime("%Y-%m-%d %H:%M:%S")}", type: :info)
             display_message("Status: #{ws[:active] ? "Active" : "Inactive"}", type: ws[:active] ? :success : :error)
+            display_message("Iterations: #{iterations}", type: :info)
+            display_message("Elapsed: #{elapsed}s", type: :info)
+            display_message("Task: #{task}", type: :info) if task
+            if recent_events.any?
+              display_message("", type: :info)
+              display_message("Recent Events:", type: :highlight)
+              recent_events.each do |ev|
+                display_message("  #{ev[:timestamp]} #{ev[:type]} #{ev[:data].inspect if ev[:data]}", type: :muted)
+              end
+            end
 
             # Show git status if active
             if ws[:active] && Dir.exist?(ws[:path])

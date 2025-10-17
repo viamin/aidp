@@ -711,11 +711,15 @@ module Aidp
             }
           end
 
+          require_relative "../workstream_state"
           lines = ["Workstreams:"]
           workstreams.each do |ws|
             status = ws[:active] ? "✓" : "✗"
             current = (@current_workstream == ws[:slug]) ? " [CURRENT]" : ""
-            lines << "  #{status} #{ws[:slug]} (#{ws[:branch]})#{current}"
+            state = Aidp::WorkstreamState.read(slug: ws[:slug], project_dir: @project_dir) || {}
+            iter = state[:iterations] || 0
+            task = state[:task] ? state[:task][0, 50] : ""
+            lines << "  #{status} #{ws[:slug]} (#{ws[:branch]}) iter=#{iter}#{current}#{" task=" + task unless task.empty?}"
           end
 
           {
@@ -744,22 +748,38 @@ module Aidp
             }
           end
 
-          # Check for --base-branch option
+          # Parse options and task description
           base_branch = nil
-          if (idx = args.index("--base-branch"))
-            base_branch = args[idx + 1]
+          task_parts = []
+          until args.empty?
+            token = args.shift
+            if token == "--base-branch"
+              base_branch = args.shift
+            else
+              task_parts << token
+            end
           end
+          task = task_parts.join(" ")
 
           begin
             result = Aidp::Worktree.create(
               slug: slug,
               project_dir: @project_dir,
-              base_branch: base_branch
+              base_branch: base_branch,
+              task: (task unless task.empty?)
             )
+
+            msg_lines = []
+            msg_lines << "\u2713 Created workstream: #{slug}"
+            msg_lines << "  Path: #{result[:path]}"
+            msg_lines << "  Branch: #{result[:branch]}"
+            msg_lines << "  Task: #{task}" unless task.empty?
+            msg_lines << ""
+            msg_lines << "Switch to it with: /ws switch #{slug}"
 
             {
               success: true,
-              message: "✓ Created workstream: #{slug}\n  Path: #{result[:path]}\n  Branch: #{result[:branch]}\n\nSwitch to it with: /ws switch #{slug}",
+              message: msg_lines.join("\n"),
               action: :display
             }
           rescue Aidp::Worktree::Error => e
@@ -871,12 +891,28 @@ module Aidp
               }
             end
 
+            require_relative "../workstream_state"
+            state = Aidp::WorkstreamState.read(slug: slug, project_dir: @project_dir) || {}
+            iter = state[:iterations] || 0
+            task = state[:task]
+            elapsed = Aidp::WorkstreamState.elapsed_seconds(slug: slug, project_dir: @project_dir)
+            events = Aidp::WorkstreamState.recent_events(slug: slug, project_dir: @project_dir, limit: 5)
+
             lines = []
             lines << "Workstream: #{slug}#{" [CURRENT]" if @current_workstream == slug}"
             lines << "  Path: #{ws[:path]}"
             lines << "  Branch: #{ws[:branch]}"
             lines << "  Created: #{Time.parse(ws[:created_at]).strftime("%Y-%m-%d %H:%M:%S")}"
             lines << "  Status: #{ws[:active] ? "Active" : "Inactive"}"
+            lines << "  Iterations: #{iter}"
+            lines << "  Elapsed: #{elapsed}s"
+            lines << "  Task: #{task}" if task
+            if events.any?
+              lines << "  Recent Events:"
+              events.each do |ev|
+                lines << "    - #{ev[:timestamp]} #{ev[:type]} #{ev[:data].inspect if ev[:data]}"
+              end
+            end
 
             {
               success: true,
