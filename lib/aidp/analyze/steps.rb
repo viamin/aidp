@@ -5,20 +5,24 @@ module Aidp
     module Steps
       # Analysis step specifications
       # Templates are organized by purpose and named with action verbs
+      # Skills define WHO the agent is, templates define WHAT task to do
       SPEC = {
         "01_REPOSITORY_ANALYSIS" => {
+          "skill" => "repository_analyst",
           "templates" => ["analysis/analyze_repository.md"],
           "description" => "Initial code-maat based repository mining",
           "outs" => ["docs/analysis/repository_analysis.md"],
           "gate" => false
         },
         "02_ARCHITECTURE_ANALYSIS" => {
+          "skill" => "architecture_analyst",
           "templates" => ["analysis/analyze_architecture.md"],
           "description" => "Identify architectural patterns, dependencies, and violations",
           "outs" => ["docs/analysis/architecture_analysis.md"],
           "gate" => true
         },
         "03_TEST_ANALYSIS" => {
+          "skill" => "test_analyzer",
           "templates" => ["analysis/analyze_tests.md"],
           "description" => "Analyze existing test coverage and identify gaps",
           "outs" => ["docs/analysis/test_analysis.md"],

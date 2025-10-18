@@ -162,6 +162,11 @@ module Aidp
             interactive: true
           }
         }
+      },
+      skills: {
+        search_paths: [],
+        default_provider_filter: true,
+        enable_custom_skills: true
       }
     }.freeze
 
@@ -243,6 +248,15 @@ module Aidp
       providers_section.keys.map(&:to_s)
     end
 
+    # Get skills configuration
+    def self.skills_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      skills_section = config[:skills] || config["skills"] || {}
+
+      # Convert string keys to symbols for consistency
+      symbolize_keys(skills_section)
+    end
+
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
       ConfigPaths.config_exists?(project_dir)
@@ -320,6 +334,12 @@ module Aidp
         providers_section.each do |provider, provider_config|
           merged[:providers][provider.to_sym] = (merged[:providers][provider.to_sym] || {}).merge(symbolize_keys(provider_config))
         end
+      end
+
+      # Deep merge skills config
+      if config[:skills] || config["skills"]
+        skills_section = config[:skills] || config["skills"]
+        merged[:skills] = merged[:skills].merge(symbolize_keys(skills_section))
       end
 
       merged

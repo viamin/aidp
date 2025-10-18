@@ -147,6 +147,22 @@ module Aidp
             else
               []
             end
+          # If completing after /skill, offer subcommands or skill IDs
+          elsif words.first == "/skill"
+            if words.size == 2 && !input.end_with?(" ")
+              # Completing subcommand
+              subcommands = %w[list show search]
+              subcommands.select { |sc| sc.start_with?(current_word) }
+            elsif %w[show].include?(words[1])
+              # Completing skill ID
+              require_relative "../skills"
+              registry = Aidp::Skills::Registry.new(project_dir: @project_dir)
+              registry.load_skills
+              skill_ids = registry.all.map(&:id)
+              skill_ids.select { |id| id.start_with?(current_word) }
+            else
+              []
+            end
           else
             []
           end
@@ -385,6 +401,7 @@ module Aidp
         @prompt.say("  /merge <plan> - Update plan/contract")
         @prompt.say("  /update guard <key>=<value> - Update guard rails")
         @prompt.say("  /rollback <n>, /undo last - Rollback commits")
+        @prompt.say("  /skill list, /skill show <id> - Manage skills/personas")
         @prompt.say("  /status - Show current state")
         @prompt.say("  /help - Show all commands")
         @prompt.say("\nPress Ctrl-C for interrupt menu")

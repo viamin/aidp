@@ -302,6 +302,11 @@ module Aidp
           opts.separator "    --workstream <slug>      - Required: workstream to run in"
           opts.separator "    --mode <mode>            - analyze or execute (default: execute)"
           opts.separator "    --background             - Run in background job"
+          opts.separator "  skill                    Manage skills (agent personas)"
+          opts.separator "    list                     - List all available skills"
+          opts.separator "    show <id>                - Show detailed skill information"
+          opts.separator "    search <query>           - Search skills by keyword"
+          opts.separator "    validate [path]          - Validate skill file format"
           opts.separator "  harness                  Manage harness state"
           opts.separator "  config                   Manage configuration"
           opts.separator "    status                   - Show harness status"
@@ -354,7 +359,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work].include?(args.first)
+        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work skill].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -373,6 +378,7 @@ module Aidp
         when "watch" then run_watch_command(args)
         when "ws" then run_ws_command(args)
         when "work" then run_work_command(args)
+        when "skill" then run_skill_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -1682,6 +1688,218 @@ module Aidp
 
       def display_config_usage
         display_message("Usage: aidp config --interactive [--dry-run]", type: :info)
+      end
+
+      def run_skill_command(args)
+        require_relative "skills"
+        require "tty-table"
+
+        subcommand = args.shift
+
+        case subcommand
+        when "list", nil
+          # List all available skills
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+            registry.load_skills
+
+            skills = registry.all
+
+            if skills.empty?
+              display_message("No skills found.", type: :info)
+              display_message("Create one in skills/ or .aidp/skills/", type: :muted)
+              return
+            end
+
+            by_source = registry.by_source
+
+            if by_source[:builtin].any?
+              display_message("Built-in Skills", type: :highlight)
+              display_message("=" * 80, type: :muted)
+              table_rows = by_source[:builtin].map do |skill_id|
+                skill = registry.find(skill_id)
+                [skill_id, skill.version, skill.description[0, 60]]
+              end
+              header = ["ID", "Version", "Description"]
+              table = TTY::Table.new(header, table_rows)
+              display_message(table.render(:basic), type: :info)
+              display_message("", type: :info)
+            end
+
+            if by_source[:custom].any?
+              display_message("Custom Skills", type: :highlight)
+              display_message("=" * 80, type: :muted)
+              table_rows = by_source[:custom].map do |skill_id|
+                skill = registry.find(skill_id)
+                [skill_id, skill.version, skill.description[0, 60]]
+              end
+              header = ["ID", "Version", "Description"]
+              table = TTY::Table.new(header, table_rows)
+              display_message(table.render(:basic), type: :info)
+              display_message("", type: :info)
+            end
+
+            display_message("Use 'aidp skill show <id>' for details", type: :muted)
+          rescue => e
+            display_message("Failed to list skills: #{e.message}", type: :error)
+          end
+
+        when "show"
+          # Show detailed skill information
+          skill_id = args.shift
+
+          unless skill_id
+            display_message("Usage: aidp skill show <skill-id>", type: :info)
+            return
+          end
+
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+            registry.load_skills
+
+            skill = registry.find(skill_id)
+
+            unless skill
+              display_message("Skill not found: #{skill_id}", type: :error)
+              display_message("Use 'aidp skill list' to see available skills", type: :muted)
+              return
+            end
+
+            details = skill.details
+
+            display_message("Skill: #{details[:name]} (#{details[:id]})", type: :highlight)
+            display_message("=" * 80, type: :muted)
+            display_message("Version: #{details[:version]}", type: :info)
+            display_message("Source: #{details[:source]}", type: :muted)
+            display_message("", type: :info)
+            display_message("Description:", type: :info)
+            display_message("  #{details[:description]}", type: :info)
+            display_message("", type: :info)
+
+            if details[:expertise].any?
+              display_message("Expertise:", type: :info)
+              details[:expertise].each { |e| display_message("  • #{e}", type: :info) }
+              display_message("", type: :info)
+            end
+
+            if details[:keywords].any?
+              display_message("Keywords: #{details[:keywords].join(", ")}", type: :info)
+              display_message("", type: :info)
+            end
+
+            if details[:when_to_use].any?
+              display_message("When to Use:", type: :info)
+              details[:when_to_use].each { |w| display_message("  • #{w}", type: :info) }
+              display_message("", type: :info)
+            end
+
+            if details[:when_not_to_use].any?
+              display_message("When NOT to Use:", type: :info)
+              details[:when_not_to_use].each { |w| display_message("  • #{w}", type: :info) }
+              display_message("", type: :info)
+            end
+
+            if details[:compatible_providers].any?
+              display_message("Compatible Providers: #{details[:compatible_providers].join(", ")}", type: :info)
+            else
+              display_message("Compatible Providers: all", type: :info)
+            end
+          rescue => e
+            display_message("Failed to show skill: #{e.message}", type: :error)
+          end
+
+        when "search"
+          # Search skills by query
+          query = args.join(" ")
+
+          unless query && !query.empty?
+            display_message("Usage: aidp skill search <query>", type: :info)
+            return
+          end
+
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+            registry.load_skills
+
+            matching_skills = registry.search(query)
+
+            if matching_skills.empty?
+              display_message("No skills found matching '#{query}'", type: :info)
+              return
+            end
+
+            display_message("Skills matching '#{query}':", type: :highlight)
+            display_message("=" * 80, type: :muted)
+            matching_skills.each do |skill|
+              display_message("  • #{skill.id} - #{skill.description}", type: :info)
+            end
+          rescue => e
+            display_message("Failed to search skills: #{e.message}", type: :error)
+          end
+
+        when "validate"
+          # Validate skill file format
+          skill_path = args.shift
+
+          if skill_path
+            # Validate specific file
+            unless File.exist?(skill_path)
+              display_message("File not found: #{skill_path}", type: :error)
+              return
+            end
+
+            begin
+              Aidp::Skills::Loader.load_from_file(skill_path)
+              display_message("✓ Valid skill file: #{skill_path}", type: :success)
+            rescue Aidp::Errors::ValidationError => e
+              display_message("✗ Invalid skill file: #{skill_path}", type: :error)
+              display_message("  #{e.message}", type: :error)
+            end
+          else
+            # Validate all skills in registry
+            begin
+              registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+              registry.load_skills
+
+              skills = registry.all
+
+              if skills.empty?
+                display_message("No skills found to validate", type: :info)
+                return
+              end
+
+              display_message("Validating #{skills.size} skill(s)...", type: :info)
+              display_message("", type: :info)
+
+              valid_count = 0
+              skills.each do |skill|
+                display_message("✓ #{skill.id} (v#{skill.version})", type: :success)
+                valid_count += 1
+              end
+
+              display_message("", type: :info)
+              display_message("#{valid_count}/#{skills.size} skills are valid", type: :success)
+            rescue => e
+              display_message("Validation failed: #{e.message}", type: :error)
+            end
+          end
+
+        else
+          display_message("Usage: aidp skill <command>", type: :info)
+          display_message("", type: :info)
+          display_message("Commands:", type: :info)
+          display_message("  list                List all available skills (default)", type: :info)
+          display_message("  show <id>           Show detailed skill information", type: :info)
+          display_message("  search <query>      Search skills by keyword", type: :info)
+          display_message("  validate [path]     Validate skill file format", type: :info)
+          display_message("", type: :info)
+          display_message("Examples:", type: :info)
+          display_message("  aidp skill list                                # List all skills", type: :info)
+          display_message("  aidp skill show repository_analyst             # Show skill details", type: :info)
+          display_message("  aidp skill search git                          # Search for git-related skills", type: :info)
+          display_message("  aidp skill validate skills/my_skill/SKILL.md   # Validate specific skill", type: :info)
+          display_message("  aidp skill validate                            # Validate all skills", type: :info)
+        end
       end
     end # class << self
   end
