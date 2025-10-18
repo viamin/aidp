@@ -5,6 +5,7 @@ require "tty-spinner"
 require_relative "async_work_loop_runner"
 require_relative "repl_macros"
 require_relative "../rescue_logging"
+require_relative "../concurrency"
 
 module Aidp
   module Execute
@@ -345,6 +346,8 @@ module Aidp
       def start_output_display
         @output_display_thread = Thread.new do
           loop do
+            # Periodic output polling - could be replaced with event-driven approach
+            # using a queue or callback mechanism from async_runner
             sleep 0.5 # Poll every 500ms
 
             # Drain output from async runner

@@ -2,6 +2,7 @@
 
 require "net/http"
 require_relative "../debug_mixin"
+require_relative "../concurrency"
 
 module Aidp
   module Harness
@@ -111,6 +112,7 @@ module Aidp
               if should_retry?(error_info, strategy)
                 delay = @backoff_calculator.calculate_delay(attempt, strategy[:backoff_strategy] || :exponential, 1, 10)
                 debug_log("🔁 Retry attempt #{attempt} for #{current_provider}", level: :info, data: {delay: delay, error_type: error_info[:error_type]})
+                # Sleep before retry (will be removed when fully migrated to Concurrency::Backoff.retry)
                 sleep(delay) if delay > 0
                 retry
               end
@@ -191,7 +193,8 @@ module Aidp
 
         # Wait for backoff delay
         if delay > 0
-          # Use regular sleep for now (async not needed in this context)
+          # Note: Using sleep here temporarily; consider refactoring to use
+          # Concurrency::Backoff.retry for the entire retry loop
           sleep(delay)
         end
 

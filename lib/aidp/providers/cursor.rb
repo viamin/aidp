@@ -55,6 +55,9 @@ module Aidp
         spinner.auto_spin
 
         # Start activity display thread with timeout
+        # ACCEPTABLE: UI progress update thread for spinner display
+        # Using sleep is fine here for periodic UI updates with break conditions for cancellation
+        # See: docs/CONCURRENCY_PATTERNS.md - Category E: Periodic/Interval-Based
         activity_display_thread = Thread.new do
           start_time = Time.now
           loop do

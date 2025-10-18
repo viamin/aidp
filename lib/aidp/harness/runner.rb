@@ -10,6 +10,7 @@ require_relative "simple_user_interface"
 require_relative "error_handler"
 require_relative "status_display"
 require_relative "completion_checker"
+require_relative "../concurrency"
 
 module Aidp
   module Harness
@@ -296,11 +297,9 @@ module Aidp
         while Time.now < reset_time && @state == STATES[:waiting_for_rate_limit]
           remaining = reset_time - Time.now
           @status_display.update_rate_limit_countdown(remaining)
-          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            sleep(1)
-          else
-            Async::Task.current.sleep(1)
-          end
+          # Periodic check for rate limit reset - using sleep for simplicity
+          # Could be refactored to use event-driven approach
+          sleep(1)
         end
       end
 
@@ -319,12 +318,9 @@ module Aidp
       def handle_pause_condition
         case @state
         when STATES[:paused]
-          # Wait for user to resume
-          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            sleep(1)
-          else
-            Async::Task.current.sleep(1)
-          end
+          # Wait for user to resume - periodic check
+          # Could be refactored to use event-driven approach (Event/ConditionVariable)
+          sleep(1)
         when STATES[:waiting_for_user]
           # User interface handles this
           nil

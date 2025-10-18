@@ -408,8 +408,11 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         # Store cache with very short TTL
         storage.store_cache("expired_cache", cache_data, 0.001)
 
-        # Wait for expiration
-        sleep(0.002)
+        # Wait for expiration using deterministic wait
+        require_relative "../../../lib/aidp/concurrency"
+        Aidp::Concurrency::Wait.until(timeout: 1, interval: 0.001) do
+          storage.cache("expired_cache").nil?
+        end
 
         result = storage.cache("expired_cache")
 
@@ -434,7 +437,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         storage.store_cache("expired2", {"data" => 2}, 0.001)
         storage.store_cache("valid", {"data" => 3}, 3600)
 
-        # Wait for expiration
+        # Wait for expiration - just sleep briefly since we can't check without modifying state
         sleep(0.002)
       end
 

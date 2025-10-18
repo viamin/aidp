@@ -20,7 +20,6 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
   s.required_ruby_version = ">= 3.3"
 
-  s.add_runtime_dependency "async-job", "~> 0.11"
   s.add_runtime_dependency "concurrent-ruby", "~> 1.3"
   s.add_runtime_dependency "csv", "~> 3.2"
   s.add_runtime_dependency "logger", "~> 1.5"

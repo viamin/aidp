@@ -107,12 +107,8 @@ module Aidp
         end
 
         def sleep_briefly
-          require "async"
-          if Async::Task.current?
-            Async::Task.current.sleep(0.1)
-          else
-            sleep(0.1)
-          end
+          # Brief sleep for lock retry - using simple sleep is fine here
+          sleep(0.1)
         end
 
         def raise_lock_timeout_error
