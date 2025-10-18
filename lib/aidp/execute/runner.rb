@@ -5,6 +5,7 @@ require_relative "steps"
 require_relative "progress"
 require_relative "work_loop_runner"
 require_relative "../storage/file_manager"
+require_relative "../skills"
 
 module Aidp
   module Execute
@@ -17,6 +18,8 @@ module Aidp
         @is_harness_mode = !harness_runner.nil?
         @file_manager = Aidp::Storage::FileManager.new(File.join(project_dir, ".aidp"))
         @prompt = prompt
+        @skills_registry = nil # Lazy-loaded
+        @skills_composer = Aidp::Skills::Composer.new
       end
 
       def progress
@@ -318,18 +321,37 @@ module Aidp
         step_spec = Aidp::Execute::Steps::SPEC[step_name]
         raise "Step '#{step_name}' not found" unless step_spec
 
+        # Load template
         template_name = step_spec["templates"].first
         template_path = find_template(template_name)
         raise "Template not found for step #{step_name}" unless template_path
-
         template = File.read(template_path)
 
-        # Replace template variables in the format {{key}} with option values
-        options.each do |key, value|
-          template = template.gsub("{{#{key}}}", value.to_s)
+        # Load skill if specified
+        skill = nil
+        if step_spec["skill"]
+          skill = skills_registry.find(step_spec["skill"])
+          if skill.nil?
+            Aidp.log_warn(
+              "skills",
+              "Skill not found for step",
+              step: step_name,
+              skill_id: step_spec["skill"]
+            )
+          end
         end
 
-        template
+        # Compose skill + template
+        @skills_composer.compose(skill: skill, template: template, options: options)
+      end
+
+      def skills_registry
+        @skills_registry ||= begin
+          provider = @is_harness_mode ? @harness_runner.current_provider : nil
+          registry = Aidp::Skills::Registry.new(project_dir: @project_dir, provider: provider)
+          registry.load_skills
+          registry
+        end
       end
     end
   end

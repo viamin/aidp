@@ -243,6 +243,12 @@ module Aidp
             usage: "/ws <list|new|rm|switch|status> [args]",
             example: "/ws list",
             handler: method(:cmd_ws)
+          },
+          "/skill" => {
+            description: "Manage and view skills (agent personas)",
+            usage: "/skill <list|show|use> [args]",
+            example: "/skill list",
+            handler: method(:cmd_skill)
           }
         }
       end
@@ -1220,6 +1226,196 @@ module Aidp
           {
             success: false,
             message: "Usage: /ws <command> [args]\n\nCommands:\n  list                     - List all workstreams\n  new <slug>               - Create new workstream\n  switch <slug>            - Switch to workstream\n  rm <slug>                - Remove workstream\n  status [slug]            - Show workstream status\n  run <slug...>            - Run workstream(s) in parallel\n  run-all                  - Run all active workstreams in parallel\n  dashboard                - Show multi-workstream overview\n  pause [slug]             - Pause workstream\n  resume [slug]            - Resume workstream\n  complete [slug]          - Mark workstream as completed\n  pause-all                - Pause all active workstreams\n  resume-all               - Resume all paused workstreams\n  stop-all                 - Stop all active workstreams\n\nOptions:\n  --base-branch <branch>   - Branch to create from (for 'new')\n  --delete-branch          - Also delete git branch (for 'rm')\n\nExamples:\n  /ws list\n  /ws new issue-123\n  /ws switch issue-123\n  /ws run issue-123                    # Run single workstream\n  /ws run issue-123 issue-456          # Run multiple in parallel\n  /ws run-all                          # Run all active workstreams\n  /ws status\n  /ws dashboard\n  /ws pause-all\n  /ws resume-all\n  /ws stop-all\n  /ws rm issue-123 --delete-branch",
+            action: :none
+          }
+        end
+      end
+
+      # Command: /skill <subcommand> [args]
+      def cmd_skill(args)
+        require_relative "../skills"
+
+        subcommand = args.shift
+
+        case subcommand
+        when "list", nil
+          # List all available skills
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: @project_dir)
+            registry.load_skills
+
+            skills = registry.all
+
+            if skills.empty?
+              return {
+                success: true,
+                message: "No skills found.\nCreate one in skills/ or .aidp/skills/",
+                action: :display
+              }
+            end
+
+            lines = ["Available Skills:", ""]
+            by_source = registry.by_source
+
+            if by_source[:builtin].any?
+              lines << "Built-in Skills:"
+              by_source[:builtin].each do |skill_id|
+                skill = registry.find(skill_id)
+                lines << "  • #{skill_id} - #{skill.description}"
+              end
+              lines << ""
+            end
+
+            if by_source[:custom].any?
+              lines << "Custom Skills:"
+              by_source[:custom].each do |skill_id|
+                skill = registry.find(skill_id)
+                lines << "  • #{skill_id} - #{skill.description} [CUSTOM]"
+              end
+              lines << ""
+            end
+
+            lines << "Use '/skill show <id>' for details"
+
+            {
+              success: true,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Failed to list skills: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "show"
+          # Show detailed skill information
+          skill_id = args.shift
+
+          unless skill_id
+            return {
+              success: false,
+              message: "Usage: /skill show <skill-id>",
+              action: :none
+            }
+          end
+
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: @project_dir)
+            registry.load_skills
+
+            skill = registry.find(skill_id)
+
+            unless skill
+              return {
+                success: false,
+                message: "Skill not found: #{skill_id}\nUse '/skill list' to see available skills",
+                action: :none
+              }
+            end
+
+            details = skill.details
+            lines = []
+            lines << "Skill: #{details[:name]} (#{details[:id]})"
+            lines << "Version: #{details[:version]}"
+            lines << "Source: #{details[:source]}"
+            lines << ""
+            lines << "Description:"
+            lines << "  #{details[:description]}"
+            lines << ""
+
+            if details[:expertise].any?
+              lines << "Expertise:"
+              details[:expertise].each { |e| lines << "  • #{e}" }
+              lines << ""
+            end
+
+            if details[:keywords].any?
+              lines << "Keywords: #{details[:keywords].join(", ")}"
+              lines << ""
+            end
+
+            if details[:when_to_use].any?
+              lines << "When to Use:"
+              details[:when_to_use].each { |w| lines << "  • #{w}" }
+              lines << ""
+            end
+
+            if details[:when_not_to_use].any?
+              lines << "When NOT to Use:"
+              details[:when_not_to_use].each { |w| lines << "  • #{w}" }
+              lines << ""
+            end
+
+            lines << if details[:compatible_providers].any?
+              "Compatible Providers: #{details[:compatible_providers].join(", ")}"
+            else
+              "Compatible Providers: all"
+            end
+
+            {
+              success: true,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Failed to show skill: #{e.message}",
+              action: :none
+            }
+          end
+
+        when "search"
+          # Search skills by query
+          query = args.join(" ")
+
+          unless query && !query.empty?
+            return {
+              success: false,
+              message: "Usage: /skill search <query>",
+              action: :none
+            }
+          end
+
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: @project_dir)
+            registry.load_skills
+
+            matching_skills = registry.search(query)
+
+            if matching_skills.empty?
+              return {
+                success: true,
+                message: "No skills found matching '#{query}'",
+                action: :display
+              }
+            end
+
+            lines = ["Skills matching '#{query}':", ""]
+            matching_skills.each do |skill|
+              lines << "  • #{skill.id} - #{skill.description}"
+            end
+
+            {
+              success: true,
+              message: lines.join("\n"),
+              action: :display
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Failed to search skills: #{e.message}",
+              action: :none
+            }
+          end
+
+        else
+          {
+            success: false,
+            message: "Usage: /skill <command> [args]\n\nCommands:\n  list           - List all available skills\n  show <id>      - Show detailed skill information\n  search <query> - Search skills by keyword\n\nExamples:\n  /skill list\n  /skill show repository_analyst\n  /skill search git",
             action: :none
           }
         end

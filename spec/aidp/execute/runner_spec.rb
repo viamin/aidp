@@ -336,6 +336,11 @@ RSpec.describe Aidp::Execute::Runner do
     # Use a real project directory for template tests
     let(:real_project_runner) { described_class.new(Dir.pwd, harness_runner) }
 
+    before do
+      # Mock harness runner methods needed for skills registry
+      allow(harness_runner).to receive(:current_provider).and_return("anthropic")
+    end
+
     it "composes prompt with template variables using real templates" do
       # This tests the real template resolution and composition
       prompt = real_project_runner.send(:composed_prompt, step_name, options)

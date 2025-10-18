@@ -6,6 +6,7 @@ module Aidp
       # Simplified step specifications with fewer gates
       # Templates are now organized by purpose (planning/, analysis/, implementation/)
       # and named with action verbs for clarity
+      # Skills define WHO the agent is, templates define WHAT task to do
       SPEC = {
         "00_LLM_STYLE_GUIDE" => {
           "templates" => ["planning/generate_llm_style_guide.md"],
@@ -15,6 +16,7 @@ module Aidp
           "interactive" => false
         },
         "00_PRD" => {
+          "skill" => "product_strategist",
           "templates" => ["planning/create_prd.md"],
           "description" => "Generate Product Requirements Document",
           "outs" => ["docs/prd.md"],
