@@ -266,8 +266,9 @@ namespace :coverage do
     puts "Tolerance:         ±#{tolerance}%"
     puts "=" * 60
 
-    # Allow small variance within tolerance
+    # Check coverage changes
     if difference < -tolerance
+      # Coverage decreased beyond tolerance
       puts "\n❌ COVERAGE DECREASED!"
       puts "   Coverage dropped from #{baseline}% to #{current}%"
       puts "   This exceeds the allowed tolerance of #{tolerance}%"
@@ -275,9 +276,14 @@ namespace :coverage do
       puts "   1. Add tests to restore coverage to at least #{baseline}%"
       puts "   2. Or if intentional, update baseline: rake coverage:update_baseline"
       exit 1
+    elsif difference == 0
+      # Coverage exactly the same
+      puts "\n✅ Coverage unchanged at #{current}%, baseline not updated"
     elsif difference.abs <= tolerance
+      # Coverage changed but within tolerance (small variance)
       puts "\n✅ Coverage maintained at #{current}% (within tolerance)"
-    elsif current > baseline
+    else
+      # Coverage improved beyond tolerance
       puts "\n✅ Coverage improved! #{current}% > #{baseline}%"
     end
   end

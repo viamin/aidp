@@ -949,9 +949,8 @@ RSpec.describe Aidp::Harness::ProviderManager do
         allow(Time).to receive(:now).and_return(past_time)
         manager.record_metrics("anthropic", success: true, duration: 1.0)
 
-        # Reset time mock for second metric
+        # Reset time mock for second metric - no sleep needed, time naturally advances
         allow(Time).to receive(:now).and_call_original
-        sleep(0.01) # Ensure different timestamp
 
         dashboard = manager.send(:health_dashboard)
         claude_row = dashboard.find { |row| row[:provider] == "claude" }

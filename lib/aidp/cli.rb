@@ -9,6 +9,7 @@ require_relative "harness/ui/enhanced_workflow_selector"
 require_relative "harness/enhanced_runner"
 require_relative "cli/first_run_wizard"
 require_relative "rescue_logging"
+require_relative "concurrency"
 
 module Aidp
   # CLI interface for AIDP
@@ -485,7 +486,15 @@ module Aidp
           if follow
             display_message("", type: :info)
             display_message("Following logs (Ctrl+C to stop following)...", type: :info)
-            sleep 1 # Give daemon time to start writing logs
+
+            # Wait for log file to be created before following
+            log_file = File.join(runner.instance_variable_get(:@jobs_dir), job_id, "output.log")
+            begin
+              Aidp::Concurrency::Wait.for_file(log_file, timeout: 10, interval: 0.2)
+            rescue Aidp::Concurrency::TimeoutError
+              display_message("Warning: Log file not found after 10s", type: :warning)
+            end
+
             runner.follow_job_logs(job_id)
           end
 

@@ -238,8 +238,9 @@ module Aidp
         end
 
         # Remove job after a delay to show completion
+        # UI delay to let user see completion status before removal
         Thread.new do
-          sleep 2
+          sleep 2  # Acceptable for UI timing
           @tui.remove_job(step_job_id)
         end
 

@@ -663,12 +663,7 @@ module Aidp
             end
           rescue Errno::EEXIST
             # Lock file exists, wait briefly and retry
-            require "async"
-            if Async::Task.current?
-              Async::Task.current.sleep(0.1)
-            else
-              sleep(0.1)
-            end
+            sleep(0.1)
           end
         end
 

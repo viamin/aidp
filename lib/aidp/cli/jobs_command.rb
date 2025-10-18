@@ -206,7 +206,8 @@ module Aidp
             # Exit if job is done
             break unless status[:running]
 
-            # Wait before next update
+            # Periodic status polling - acceptable for UI updates
+            # Alternative: event-driven updates via IPC/file watching
             sleep 2
           end
         rescue Interrupt

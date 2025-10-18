@@ -512,29 +512,20 @@ RSpec.describe Aidp::Harness::UserInterface do
 
     describe "integration with control interface" do
       it "maintains thread safety" do
-        # Test concurrent access to control state using Async for better concurrency control
-        require "async"
+        # Test concurrent access to control state using threads
+        threads = []
 
-        Async do |task|
-          # Create multiple async tasks instead of threads
-          tasks = []
-
-          3.times do
-            tasks << task.async do
-              ui.request_pause
-              ui.request_resume
-              ui.request_stop
-              ui.clear_control_requests
-            end
-          end
-
-          # Wait for all tasks to complete with timeout
-          tasks.each do |async_task|
-            async_task.wait
-          rescue Async::TimeoutError
-            # Task timed out, which shouldn't happen but handle gracefully
+        3.times do
+          threads << Thread.new do
+            ui.request_pause
+            ui.request_resume
+            ui.request_stop
+            ui.clear_control_requests
           end
         end
+
+        # Wait for all threads to complete
+        threads.each(&:join)
 
         # Should not raise any errors and state should be consistent
         status = ui.control_status
