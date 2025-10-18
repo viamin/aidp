@@ -21,9 +21,6 @@ module Aidp
     # @example Loading a skill with provider filtering
     #   skill = Loader.load_from_file("/path/to/SKILL.md", provider: "anthropic")
     class Loader
-      # Regular expression to match YAML frontmatter
-      FRONTMATTER_REGEX = /\A---\s*\n(.*?)\n---\s*\n(.*)\z/m
-
       # Load a skill from a file path
       #
       # @param file_path [String] Path to SKILL.md file
@@ -142,15 +139,32 @@ module Aidp
       # @return [Array(Hash, String)] Tuple of [metadata, markdown_content]
       # @raise [Aidp::Errors::ValidationError] if frontmatter is missing or invalid
       def self.parse_frontmatter(content, source_path:)
-        match = content.match(FRONTMATTER_REGEX)
+        lines = content.lines
 
-        unless match
+        unless lines.first&.strip == "---"
           raise Aidp::Errors::ValidationError,
             "Invalid SKILL.md format: missing YAML frontmatter in #{source_path}"
         end
 
-        frontmatter_yaml = match[1]
-        markdown_content = match[2].strip
+        frontmatter_lines = []
+        body_start_index = nil
+
+        lines[1..].each_with_index do |line, index|
+          if line.strip == "---"
+            body_start_index = index + 2
+            break
+          end
+
+          frontmatter_lines << line
+        end
+
+        unless body_start_index
+          raise Aidp::Errors::ValidationError,
+            "Invalid SKILL.md format: missing closing frontmatter delimiter in #{source_path}"
+        end
+
+        markdown_content = lines[body_start_index..]&.join.to_s.strip
+        frontmatter_yaml = frontmatter_lines.join
 
         begin
           metadata = YAML.safe_load(frontmatter_yaml, permitted_classes: [Symbol])

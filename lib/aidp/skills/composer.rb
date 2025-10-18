@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "strscan"
+
 module Aidp
   module Skills
     # Composes skills with templates to create complete prompts
@@ -88,7 +90,7 @@ module Aidp
         end
 
         # Log if there are unreplaced placeholders
-        remaining_placeholders = rendered.scan(/\{\{([^}]+)\}\}/).flatten
+        remaining_placeholders = extract_placeholders(rendered)
         if remaining_placeholders.any?
           Aidp.log_warn(
             "skills",
@@ -146,9 +148,30 @@ module Aidp
           metadata: {
             has_skill: !skill.nil?,
             separator_used: !skill.nil?,
-            unreplaced_vars: composed.scan(/\{\{([^}]+)\}\}/).flatten
+            unreplaced_vars: extract_placeholders(composed)
           }
         }
+      end
+
+      private
+
+      def extract_placeholders(text)
+        return [] if text.nil? || text.empty?
+
+        scanner = StringScanner.new(text)
+        placeholders = []
+
+        while scanner.skip_until(/\{\{/)
+          fragment = scanner.scan_until(/\}\}/)
+          break unless fragment
+
+          placeholder = fragment[0...-2]
+          next if placeholder.nil? || placeholder.empty? || placeholder.include?("{")
+
+          placeholders << placeholder
+        end
+
+        placeholders
       end
     end
   end
