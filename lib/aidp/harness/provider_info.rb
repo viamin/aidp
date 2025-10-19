@@ -179,6 +179,7 @@ module Aidp
           # Wait for process to exit with timeout
           begin
             Aidp::Concurrency::Wait.for_process_exit(pid, timeout: 5, interval: 0.05)
+            # Process exited normally (status available for future diagnostics)
           rescue Aidp::Concurrency::TimeoutError
             # Timeout - kill process
             begin

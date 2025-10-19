@@ -409,7 +409,7 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
         storage.store_cache("expired_cache", cache_data, 0.001)
 
         # Wait for expiration using deterministic wait
-        require_relative "../../../lib/aidp/concurrency"
+        require "aidp/concurrency"
         Aidp::Concurrency::Wait.until(timeout: 1, interval: 0.001) do
           storage.cache("expired_cache").nil?
         end

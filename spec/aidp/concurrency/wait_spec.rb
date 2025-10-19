@@ -70,9 +70,11 @@ RSpec.describe Aidp::Concurrency::Wait do
         counter == 2
       end
 
-      # Give it a bit more time to ensure it doesn't keep running
-      sleep 0.15
+      # Immediately verify counter is stable (would timeout if it keeps incrementing)
       expect(counter).to eq(2)
+      expect {
+        described_class.until(timeout: 0.1, interval: 0.01) { counter != 2 }
+      }.to raise_error(Aidp::Concurrency::TimeoutError)
     end
   end
 

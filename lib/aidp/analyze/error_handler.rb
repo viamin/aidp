@@ -50,8 +50,8 @@ module Aidp
         end
       rescue Aidp::Concurrency::MaxAttemptsError => e
         logger.error("Operation failed after #{max_retries} retries")
-        raise e.cause if e.cause
-        raise StandardError, "Operation failed after #{max_retries} retries"
+        # Re-raise the MaxAttemptsError to preserve error chain and context
+        raise e
       end
 
       def skip_step_with_warning(step_name, error)

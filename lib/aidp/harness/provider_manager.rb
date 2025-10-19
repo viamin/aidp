@@ -1142,7 +1142,6 @@ module Aidp
 
             ok = false
             reason = "binary_timeout"
-            nil
           end
           output = r.read.to_s
           r.close
