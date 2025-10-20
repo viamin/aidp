@@ -54,7 +54,6 @@ module Aidp
         spinner = TTY::Spinner.new("[:spinner] :title", format: :dots, hide_cursor: true)
         spinner.auto_spin
 
-        # Start activity display thread with timeout
         activity_display_thread = Thread.new do
           start_time = Time.now
           loop do

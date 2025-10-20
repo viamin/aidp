@@ -542,15 +542,22 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "starts status updates" do
       expect { status_display.start_status_updates(:compact) }.not_to raise_error
 
-      # Give it a moment to start
-      sleep(0.1)
+      # Wait for thread to start using deterministic wait
+      require "aidp/concurrency"
+      Aidp::Concurrency::Wait.until(timeout: 1, interval: 0.01) do
+        status_display.instance_variable_get(:@running) == true
+      end
 
       expect(status_display.instance_variable_get(:@running)).to be true
     end
 
     it "stops status updates" do
       status_display.start_status_updates(:compact)
-      sleep(0.1)
+      # Wait for thread to start
+      require "aidp/concurrency"
+      Aidp::Concurrency::Wait.until(timeout: 1, interval: 0.01) do
+        status_display.instance_variable_get(:@running) == true
+      end
 
       expect { status_display.stop_status_updates }.not_to raise_error
 

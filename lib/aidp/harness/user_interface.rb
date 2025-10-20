@@ -2056,14 +2056,13 @@ module Aidp
         return unless @control_interface_enabled
 
         @control_mutex.synchronize do
-          return if @control_thread&.alive?
+          return if @control_future&.pending?
 
-          # Start control interface using Async (skip in test mode)
+          # Start control interface using concurrent-ruby (skip in test mode)
+          # Using Concurrent::Future for background execution with proper thread pool management
           unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            require "async"
-            Async do |task|
-              task.async { control_interface_loop }
-            end
+            require "concurrent"
+            @control_future = Concurrent::Future.execute { control_interface_loop }
           end
         end
 
@@ -2079,9 +2078,9 @@ module Aidp
       # Stop the control interface
       def stop_control_interface
         @control_mutex.synchronize do
-          if @control_thread&.alive?
-            @control_thread.kill
-            @control_thread = nil
+          if @control_future
+            @control_future.cancel
+            @control_future = nil
           end
         end
 
@@ -2153,10 +2152,9 @@ module Aidp
           elsif resume_requested?
             handle_resume_state
             break
-          elsif ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            sleep(0.1)
           else
-            Async::Task.current.sleep(0.1)
+            # Periodic check for user input/state changes
+            sleep(0.1)
           end
         end
       end
@@ -2400,10 +2398,9 @@ module Aidp
           elsif Time.now - start_time > timeout_seconds
             display_message("\n⏰ Control interface timeout reached. Continuing execution...", type: :warning)
             break
-          elsif ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            sleep(0.1)
           else
-            Async::Task.current.sleep(0.1)
+            # Periodic check for user confirmation
+            sleep(0.1)
           end
         end
       end

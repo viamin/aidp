@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "logger"
+require_relative "../concurrency"
 
 module Aidp
   module Analyze
@@ -38,21 +39,19 @@ module Aidp
 
       # Recovery strategies
       def retry_with_backoff(operation, max_retries: 3, base_delay: 1)
-        retry_count = 0
-        begin
+        Aidp::Concurrency::Backoff.retry(
+          max_attempts: max_retries,
+          base: base_delay,
+          strategy: :exponential,
+          jitter: 0.2,
+          on: [StandardError]
+        ) do
           operation.call
-        rescue => e
-          retry_count += 1
-          if retry_count <= max_retries
-            delay = base_delay * (2**(retry_count - 1))
-            logger.warn("Retrying operation in #{delay} seconds (attempt #{retry_count}/#{max_retries})")
-            Async::Task.current.sleep(delay)
-            retry
-          else
-            logger.error("Operation failed after #{max_retries} retries: #{e.message}")
-            raise e
-          end
         end
+      rescue Aidp::Concurrency::MaxAttemptsError => e
+        logger.error("Operation failed after #{max_retries} retries")
+        # Re-raise the MaxAttemptsError to preserve error chain and context
+        raise e
       end
 
       def skip_step_with_warning(step_name, error)
@@ -176,8 +175,8 @@ module Aidp
         logger.warn("HTTP error: #{error.message}")
         case error.response&.code
         when "429" # Rate limited
-          Async::Task.current.sleep(60) # Wait 1 minute
-          retry_with_backoff(-> { context[:operation].call }, max_retries: 2)
+          # For rate limiting, use longer base delay
+          retry_with_backoff(-> { context[:operation].call }, max_retries: 2, base_delay: 60)
         when "500".."599" # Server errors
           retry_with_backoff(-> { context[:operation].call }, max_retries: 3)
         else

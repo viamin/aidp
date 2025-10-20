@@ -5,6 +5,7 @@ require "yaml"
 require "fileutils"
 require "time"
 require_relative "../rescue_logging"
+require_relative "../concurrency"
 
 module Aidp
   module Jobs
@@ -70,7 +71,14 @@ module Aidp
 
         # Wait for child to fork
         Process.detach(pid)
-        sleep 0.1 # Give daemon time to write PID file
+
+        # Wait for daemon to write PID file (with timeout)
+        begin
+          Aidp::Concurrency::Wait.for_file(pid_file, timeout: 5, interval: 0.05)
+        rescue Aidp::Concurrency::TimeoutError
+          # PID file not created - daemon may have failed to start
+          # Continue anyway, metadata will reflect this
+        end
 
         # Save job metadata in parent process
         save_job_metadata(job_id, pid, mode, options)

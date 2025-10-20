@@ -3,6 +3,7 @@
 require "yaml"
 require_relative "config_schema"
 require_relative "config_validator"
+require "digest"
 
 module Aidp
   module Harness
@@ -13,6 +14,7 @@ module Aidp
         @validator = ConfigValidator.new(project_dir)
         @config_cache = nil
         @last_loaded = nil
+        @last_signature = nil # stores {mtime:, size:, hash:}
       end
 
       # Load and validate configuration with caching
@@ -25,6 +27,7 @@ module Aidp
         if validation_result[:valid]
           @config_cache = @validator.validated_config
           @last_loaded = Time.now
+          @last_signature = current_file_signature
 
           # Log warnings if any
           unless validation_result[:warnings].empty?
@@ -284,11 +287,30 @@ module Aidp
       private
 
       def config_file_changed?
-        return true unless @last_loaded && @validator.config_file_path
+        return true unless @last_signature && @validator.config_file_path && File.exist?(@validator.config_file_path)
 
-        File.mtime(@validator.config_file_path) > @last_loaded
+        sig = current_file_signature
+        return true unless sig
+
+        # Detect any difference (mtime OR size OR content hash)
+        sig[:mtime] != @last_signature[:mtime] ||
+          sig[:size] != @last_signature[:size] ||
+          sig[:hash] != @last_signature[:hash]
       rescue
         true
+      end
+
+      def current_file_signature
+        path = @validator.config_file_path
+        return nil unless path && File.exist?(path)
+        stat = File.stat(path)
+        {
+          mtime: stat.mtime,
+          size: stat.size,
+          hash: Digest::SHA256.file(path).hexdigest
+        }
+      rescue
+        nil
       end
 
       def handle_validation_errors(errors)

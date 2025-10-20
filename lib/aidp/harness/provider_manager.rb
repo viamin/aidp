@@ -3,6 +3,7 @@
 require "tty-prompt"
 require_relative "provider_factory"
 require_relative "../rescue_logging"
+require_relative "../concurrency"
 
 module Aidp
   module Harness
@@ -145,26 +146,27 @@ module Aidp
 
       # Switch provider with retry logic
       def switch_provider_with_retry(reason = "retry", max_retries = @max_retries)
-        retry_count = 0
+        attempt_count = 0
 
-        while retry_count < max_retries
-          next_provider = switch_provider(reason, {retry_count: retry_count})
+        Aidp::Concurrency::Backoff.retry(
+          max_attempts: max_retries,
+          base: 0.5,
+          strategy: :exponential,
+          jitter: 0.2,
+          on: [StandardError]
+        ) do
+          attempt_count += 1
+          next_provider = switch_provider(reason, {retry_count: attempt_count - 1})
 
           if next_provider
             return next_provider
-          end
-
-          retry_count += 1
-
-          # Wait before retrying
-          delay = calculate_retry_delay(retry_count)
-          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            sleep(delay)
           else
-            Async::Task.current.sleep(delay)
+            # Raise to trigger retry
+            raise "Provider switch failed on attempt #{attempt_count}"
           end
         end
-
+      rescue Aidp::Concurrency::MaxAttemptsError
+        # All retries exhausted
         nil
       end
 
@@ -235,26 +237,27 @@ module Aidp
       def switch_model_with_retry(reason = "retry", max_retries = @max_retries)
         return nil unless @model_switching_enabled
 
-        retry_count = 0
+        attempt_count = 0
 
-        while retry_count < max_retries
-          next_model = switch_model(reason, {retry_count: retry_count})
+        Aidp::Concurrency::Backoff.retry(
+          max_attempts: max_retries,
+          base: 0.5,
+          strategy: :exponential,
+          jitter: 0.2,
+          on: [StandardError]
+        ) do
+          attempt_count += 1
+          next_model = switch_model(reason, {retry_count: attempt_count - 1})
 
           if next_model
             return next_model
-          end
-
-          retry_count += 1
-
-          # Wait before retrying
-          delay = calculate_retry_delay(retry_count)
-          if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            sleep(delay)
           else
-            Async::Task.current.sleep(delay)
+            # Raise to trigger retry
+            raise "Model switch failed on attempt #{attempt_count}"
           end
         end
-
+      rescue Aidp::Concurrency::MaxAttemptsError
+        # All retries exhausted
         nil
       end
 
@@ -1112,28 +1115,31 @@ module Aidp
           r, w = IO.pipe
           pid = Process.spawn(binary, "--version", out: w, err: w)
           w.close
-          deadline = Time.now + 3
-          status = nil
-          while Time.now < deadline
-            pid_done, status = Process.waitpid2(pid, Process::WNOHANG)
-            break if pid_done
-            sleep 0.05
-          end
-          unless status
-            # Timeout -> kill
+          # Wait for process to exit with timeout
+          begin
+            Aidp::Concurrency::Wait.for_process_exit(pid, timeout: 3, interval: 0.05)
+          rescue Aidp::Concurrency::TimeoutError
+            # Timeout -> kill process
             begin
               Process.kill("TERM", pid)
             rescue => e
               log_rescue(e, component: "provider_manager", action: "kill_timeout_process_term", fallback: nil, binary: binary, pid: pid)
               nil
             end
-            sleep 0.1
+
+            # Brief wait for TERM to take effect
             begin
-              Process.kill("KILL", pid)
-            rescue => e
-              log_rescue(e, component: "provider_manager", action: "kill_timeout_process_kill", fallback: nil, binary: binary, pid: pid)
-              nil
+              Aidp::Concurrency::Wait.for_process_exit(pid, timeout: 0.1, interval: 0.02)
+            rescue Aidp::Concurrency::TimeoutError
+              # TERM didn't work, use KILL
+              begin
+                Process.kill("KILL", pid)
+              rescue => e
+                log_rescue(e, component: "provider_manager", action: "kill_timeout_process_kill", fallback: nil, binary: binary, pid: pid)
+                nil
+              end
             end
+
             ok = false
             reason = "binary_timeout"
           end

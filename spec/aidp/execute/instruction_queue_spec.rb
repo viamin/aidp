@@ -65,7 +65,6 @@ RSpec.describe Aidp::Execute::InstructionQueue do
 
     it "sorts by timestamp within same priority" do
       queue.enqueue("first", priority: :normal)
-      sleep 0.01
       queue.enqueue("second", priority: :normal)
 
       instructions = queue.dequeue_all

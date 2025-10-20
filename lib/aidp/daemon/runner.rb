@@ -3,6 +3,7 @@
 require "socket"
 require_relative "process_manager"
 require_relative "../execute/async_work_loop_runner"
+require_relative "../concurrency"
 
 module Aidp
   module Daemon
@@ -35,18 +36,20 @@ module Aidp
 
         Process.detach(daemon_pid)
 
-        # Wait for daemon to start
-        sleep 0.5
+        # Wait for daemon to start (check if it's running)
+        begin
+          Aidp::Concurrency::Wait.until(timeout: 5, interval: 0.1) do
+            @process_manager.running?
+          end
 
-        if @process_manager.running?
           {
             success: true,
             message: "Daemon started in #{mode} mode",
             pid: daemon_pid,
             log_file: @process_manager.log_file_path
           }
-        else
-          {success: false, message: "Failed to start daemon"}
+        rescue Aidp::Concurrency::TimeoutError
+          {success: false, message: "Failed to start daemon (timeout)"}
         end
       end
 
@@ -189,7 +192,7 @@ module Aidp
             sleep(@options[:interval] || 60)
           rescue => e
             Aidp.logger.error("watch_error", "Watch cycle error: #{e.message}")
-            sleep 30 # Back off on error
+            sleep 30
           end
         end
 
@@ -199,8 +202,6 @@ module Aidp
       def run_work_loop_mode
         Aidp.logger.info("daemon_lifecycle", "Starting work loop mode")
 
-        # This would integrate with AsyncWorkLoopRunner
-        # For now, just log that we're running
         while @running
           Aidp.logger.debug("heartbeat", "Daemon running")
           sleep 10

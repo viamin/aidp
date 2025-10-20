@@ -111,6 +111,7 @@ module Aidp
     # Log error with debug context
     def debug_error(error, context = {})
       return unless debug_basic?
+      return unless error # Handle nil error gracefully
 
       error_message = "💥 Error: #{error.class.name}: #{error.message}"
       debug_logger.error(component_name, error_message, error: error.class.name, **context)

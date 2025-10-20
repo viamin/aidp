@@ -5,6 +5,7 @@ require "tty-spinner"
 require_relative "async_work_loop_runner"
 require_relative "repl_macros"
 require_relative "../rescue_logging"
+require_relative "../concurrency"
 
 module Aidp
   module Execute

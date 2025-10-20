@@ -2,6 +2,7 @@
 
 require "net/http"
 require_relative "../debug_mixin"
+require_relative "../concurrency"
 
 module Aidp
   module Harness
@@ -191,7 +192,6 @@ module Aidp
 
         # Wait for backoff delay
         if delay > 0
-          # Use regular sleep for now (async not needed in this context)
           sleep(delay)
         end
 

@@ -54,24 +54,17 @@ module Aidp
         @display_mode = display_mode
         @last_update = Time.now
 
-        # Start status display using Async (skip in test mode)
         unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          require "async"
-          Async do |task|
-            task.async do
-              while @running
-                begin
-                  collect_status_data
-                  display_status
-                  check_alerts
-                  if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-                    sleep(@update_interval)
-                  else
-                    Async::Task.current.sleep(@update_interval)
-                  end
-                rescue => e
-                  handle_display_error(e)
-                end
+          require "concurrent"
+          @status_future = Concurrent::Future.execute do
+            while @running
+              begin
+                collect_status_data
+                display_status
+                check_alerts
+                sleep(@update_interval)
+              rescue => e
+                handle_display_error(e)
               end
             end
           end
@@ -81,7 +74,7 @@ module Aidp
       # Stop status updates
       def stop_status_updates
         @running = false
-        @status_thread&.join
+        @status_future&.wait(5)
         clear_display
       end
 

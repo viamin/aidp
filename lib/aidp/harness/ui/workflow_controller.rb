@@ -265,7 +265,7 @@ module Aidp
         def control_interface_loop
           loop do
             handle_control_input
-            sleep(0.1) # Small delay to prevent excessive CPU usage
+            sleep(0.1)
           rescue => e
             @status_manager.show_error_status("Control interface error: #{e.message}")
           end

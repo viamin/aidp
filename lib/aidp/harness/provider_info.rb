@@ -4,6 +4,7 @@ require "json"
 require "yaml"
 require "fileutils"
 require_relative "../rescue_logging"
+require_relative "../concurrency"
 
 module Aidp
   module Harness
@@ -175,25 +176,28 @@ module Aidp
           pid = Process.spawn(binary_name, *args, out: w, err: w)
           w.close
 
-          # Wait with timeout
-          deadline = Time.now + 5
-          status = nil
-          while Time.now < deadline
-            pid_done, status = Process.waitpid2(pid, Process::WNOHANG)
-            break if pid_done
-            sleep 0.05
-          end
-
-          # Kill if timed out
-          unless status
+          begin
+            Aidp::Concurrency::Wait.for_process_exit(pid, timeout: 5, interval: 0.05)
+            # Process exited normally (status available for future diagnostics)
+          rescue Aidp::Concurrency::TimeoutError
+            # Timeout - kill process
             begin
               Process.kill("TERM", pid)
-              sleep 0.1
-              Process.kill("KILL", pid)
             rescue => e
-              log_rescue(e, component: "provider_info", action: "kill_timeout_provider_command", fallback: nil, provider: @provider_name, binary: binary_name, pid: pid)
-              nil
+              log_rescue(e, component: "provider_info", action: "kill_timeout_provider_command_term", fallback: nil, provider: @provider_name, binary: binary_name, pid: pid)
             end
+
+            begin
+              Aidp::Concurrency::Wait.for_process_exit(pid, timeout: 0.1, interval: 0.02)
+            rescue Aidp::Concurrency::TimeoutError
+              # TERM didn't work, use KILL
+              begin
+                Process.kill("KILL", pid)
+              rescue => e
+                log_rescue(e, component: "provider_info", action: "kill_timeout_provider_command_kill", fallback: nil, provider: @provider_name, binary: binary_name, pid: pid)
+              end
+            end
+
             return nil
           end
 
