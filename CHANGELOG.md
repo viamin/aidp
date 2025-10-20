@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.16.0](https://github.com/viamin/aidp/compare/aidp/v0.15.2...aidp/v0.16.0) (2025-10-20)
+
+
+### Features
+
+* **skills:** add skills subsystem and integrate with CLI, runners & REPL ([a4838fc](https://github.com/viamin/aidp/commit/a4838fcac0db0260e98e68d6550a82ebb35d59ee)), closes [#148](https://github.com/viamin/aidp/issues/148)
+* **skills:** add skills subsystem and integrate with CLI, runners & REPL ([#155](https://github.com/viamin/aidp/issues/155)) ([15c3d38](https://github.com/viamin/aidp/commit/15c3d383ca8a59d24c8b9409d24bacac6dfeb54a))
+* **workstreams,cli,repl,harness:** add parallel workstream execution ([c559a37](https://github.com/viamin/aidp/commit/c559a370264b84fd678dcfc2005b020b7c9c7805))
+* **workstreams,cli,repl,harness:** add workstream controls, state mirroring and REPL/TUI integration ([d4ea68d](https://github.com/viamin/aidp/commit/d4ea68dc6a81ba49b7e9ce7ba094d0e433c776c8))
+* **workstreams:** add parallel workstreams using git worktrees with CLI, REPL, state & watch integration ([4b9f0d9](https://github.com/viamin/aidp/commit/4b9f0d9119e51008e03624c806d02d64f35952e7)), closes [#119](https://github.com/viamin/aidp/issues/119)
+* **workstreams:** add parallel workstreams using git worktrees with CLI, REPL, state & watch integration ([#152](https://github.com/viamin/aidp/issues/152)) ([ebc28a6](https://github.com/viamin/aidp/commit/ebc28a607120b32a40d058548157287bfe968946))
+* **workstreams:** add per-workstream state and integrate across CLI, REPL, worktree & harness ([f15f2fc](https://github.com/viamin/aidp/commit/f15f2fcf0bf1cfbaaba06bed9c44b6417392100f))
+
+
+### Improvements
+
+* add Concurrency primitives and migrate ad-hoc sleeps ([8f65549](https://github.com/viamin/aidp/commit/8f65549b75496a076336674e6cad702fa1b9ce60))
+* add Concurrency primitives and migrate ad-hoc sleeps ([#156](https://github.com/viamin/aidp/issues/156)) ([f3a4a97](https://github.com/viamin/aidp/commit/f3a4a972840c7ea17d7d996e8692ee5c1be936cb))
+
 ## [0.15.2](https://github.com/viamin/aidp/compare/aidp/v0.15.1...aidp/v0.15.2) (2025-10-16)
 
 
