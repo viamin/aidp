@@ -265,8 +265,6 @@ module Aidp
         def control_interface_loop
           loop do
             handle_control_input
-            # Periodic polling for control input - sleep prevents excessive CPU usage
-            # Could be replaced with event-driven input handling (e.g., IO.select)
             sleep(0.1)
           rescue => e
             @status_manager.show_error_status("Control interface error: #{e.message}")

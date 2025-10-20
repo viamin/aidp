@@ -625,12 +625,10 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       config1 = loader.load_config
       expect(config1[:harness][:max_retries]).to eq(2)
 
-      # Modify file (FileUtils.touch will ensure mtime changes)
       modified_config = base_config.dup
       modified_config[:harness][:max_retries] = 10
       File.write(config_file, YAML.dump(modified_config))
 
-      # Touch file to update mtime - no sleep needed
       FileUtils.touch(config_file)
 
       # Should reload automatically

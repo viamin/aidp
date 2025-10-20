@@ -64,7 +64,6 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
 
       it "updates last_updated timestamp" do
         original_time = job_monitor.job_status("test_job")[:last_updated]
-        # No sleep needed - Time.now naturally advances during test execution
         job_monitor.update_job_status("test_job", :running)
 
         updated_time = job_monitor.job_status("test_job")[:last_updated]

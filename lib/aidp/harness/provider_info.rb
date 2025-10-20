@@ -176,7 +176,6 @@ module Aidp
           pid = Process.spawn(binary_name, *args, out: w, err: w)
           w.close
 
-          # Wait for process to exit with timeout
           begin
             Aidp::Concurrency::Wait.for_process_exit(pid, timeout: 5, interval: 0.05)
             # Process exited normally (status available for future diagnostics)
@@ -188,7 +187,6 @@ module Aidp
               log_rescue(e, component: "provider_info", action: "kill_timeout_provider_command_term", fallback: nil, provider: @provider_name, binary: binary_name, pid: pid)
             end
 
-            # Brief wait for TERM to take effect
             begin
               Aidp::Concurrency::Wait.for_process_exit(pid, timeout: 0.1, interval: 0.02)
             rescue Aidp::Concurrency::TimeoutError

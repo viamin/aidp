@@ -185,10 +185,6 @@ module Aidp
         require_relative "../watch/runner"
         @watch_runner = Aidp::Watch::Runner.new(@project_dir, @config, @options)
 
-        # ACCEPTABLE: Simple periodic loop for watch mode daemon
-        # Using sleep is fine here since this is a simple daemon loop with @running flag for cancellation
-        # See: docs/CONCURRENCY_PATTERNS.md - Pattern 4: Periodic Tasks
-        # Note: Could be refactored to TimerTask for better resource management in future
         while @running
           begin
             @watch_runner.run_cycle
@@ -196,7 +192,6 @@ module Aidp
             sleep(@options[:interval] || 60)
           rescue => e
             Aidp.logger.error("watch_error", "Watch cycle error: #{e.message}")
-            # ACCEPTABLE: Error backoff delay - simple fixed delay before retry
             sleep 30
           end
         end
@@ -207,10 +202,6 @@ module Aidp
       def run_work_loop_mode
         Aidp.logger.info("daemon_lifecycle", "Starting work loop mode")
 
-        # This would integrate with AsyncWorkLoopRunner
-        # For now, just log that we're running
-        # ACCEPTABLE: Simple heartbeat loop for daemon mode
-        # Using sleep is fine here since this is a simple daemon loop with @running flag for cancellation
         while @running
           Aidp.logger.debug("heartbeat", "Daemon running")
           sleep 10

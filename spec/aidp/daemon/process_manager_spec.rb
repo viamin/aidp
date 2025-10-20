@@ -131,7 +131,6 @@ RSpec.describe Aidp::Daemon::ProcessManager do
     context "when daemon is running" do
       let(:daemon_pid) do
         fork do
-          # ACCEPTABLE: Dummy daemon process for testing - needs to stay alive
           loop { sleep 0.1 }
         end
       end

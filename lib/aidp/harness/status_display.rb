@@ -54,10 +54,6 @@ module Aidp
         @display_mode = display_mode
         @last_update = Time.now
 
-        # Start status display using concurrent-ruby (skip in test mode)
-        # ACCEPTABLE: UI update loop for status display
-        # Using sleep is fine here for periodic UI updates with @running flag for cancellation
-        # See: docs/CONCURRENCY_PATTERNS.md - Category E: Periodic/Interval-Based
         unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
           require "concurrent"
           @status_future = Concurrent::Future.execute do

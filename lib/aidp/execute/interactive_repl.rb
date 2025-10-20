@@ -346,8 +346,6 @@ module Aidp
       def start_output_display
         @output_display_thread = Thread.new do
           loop do
-            # Periodic output polling - could be replaced with event-driven approach
-            # using a queue or callback mechanism from async_runner
             sleep 0.5 # Poll every 500ms
 
             # Drain output from async runner

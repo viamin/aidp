@@ -107,7 +107,6 @@ module Aidp
         end
 
         def sleep_briefly
-          # Brief sleep for lock retry - using simple sleep is fine here
           sleep(0.1)
         end
 

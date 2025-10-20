@@ -261,9 +261,6 @@ module Aidp
         end
 
         def monitoring_loop(interval_seconds)
-          # ACCEPTABLE: Job monitoring loop for periodic status checks
-          # Using sleep is fine here for periodic monitoring with @monitoring_active flag for cancellation
-          # See: docs/CONCURRENCY_PATTERNS.md - Category E: Periodic/Interval-Based
           loop do
             break unless @monitoring_active
 
