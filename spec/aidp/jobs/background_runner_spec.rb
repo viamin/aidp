@@ -37,6 +37,8 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       # Prevent STDOUT/STDERR redirection side-effects when simulating fork
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
     end
 
     it "returns a job id and writes metadata" do
@@ -68,6 +70,8 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
       @job_id = runner.start(:execute, {})
     end
 
@@ -93,6 +97,8 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
     end
 
     it "returns failure when job not found" do
@@ -130,6 +136,8 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
 
       job_id = runner.start(:execute, {})
       log_file = File.join(project_dir, ".aidp", "jobs", job_id, "output.log")

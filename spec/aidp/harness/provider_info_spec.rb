@@ -615,9 +615,8 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         allow(Process).to receive(:spawn).and_return(99999)
         allow(Process).to receive(:waitpid2).and_return(nil) # Timeout
         allow(Process).to receive(:kill).and_raise(StandardError.new("Kill error"))
-        # Mock Time.now to make deadline pass immediately and avoid 5-second wait
-        current_time = Time.now
-        allow(Time).to receive(:now).and_return(current_time, current_time + 6)
+        # Mock Concurrency::Wait to avoid real timeout delays
+        allow(Aidp::Concurrency::Wait).to receive(:for_process_exit).and_raise(Aidp::Concurrency::TimeoutError.new("Mocked timeout"))
       end
 
       it "returns nil and logs error" do
