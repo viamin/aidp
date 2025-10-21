@@ -6,42 +6,8 @@ require "rspec/core/rake_task"
 # Shared constants
 COVERAGE_DIR = File.expand_path("coverage", __dir__)
 
-RSpec::Core::RakeTask.new(:spec)
-
-# Unit tests (excludes system tests)
-RSpec::Core::RakeTask.new(:spec_unit) do |t|
-  t.pattern = "spec/**/*_spec.rb"
-  t.exclude_pattern = "spec/system/**/*_spec.rb"
-end
-
-# System tests (only system tests with Aruba)
-RSpec::Core::RakeTask.new(:spec_system) do |t|
-  t.pattern = "spec/system/**/*_spec.rb"
-  t.rspec_opts = "--tag type:aruba"
-end
-
-# Test namespace for better organization
-namespace :test do
-  desc "Run unit tests (excludes system tests)"
-  task unit: :spec_unit
-
-  desc "Run system tests (Aruba integration tests)"
-  task system: :spec_system
-
-  desc "Run all tests (unit + system)"
-  task all: [:unit, :system]
-end
-
-# Spec namespace (alternative naming)
-namespace :spec do
-  desc "Run unit specs (excludes system tests)"
-  task unit: :spec_unit
-
-  desc "Run system specs (Aruba integration tests)"
-  task system: :spec_system
-
-  desc "Run all specs (unit + system)"
-  task all: [:unit, :system]
+RSpec::Core::RakeTask.new(:spec) do |t|
+  t.rspec_opts = "--format documentation"
 end
 
 # StandardRB tasks
@@ -91,9 +57,10 @@ task default: :spec
 namespace :coverage do
   desc "Run RSpec with coverage (COVERAGE=1)"
   task :run do
-    # Match CI behavior - exclude system tests for consistent coverage measurement
-    sh({"COVERAGE" => "1"}, "bundle exec rspec spec/ --exclude-pattern 'spec/system/**/*_spec.rb'")
-    puts "\nCoverage report: #{File.join(COVERAGE_DIR, "index.html")}" if File.exist?(File.join(COVERAGE_DIR, "index.html"))
+    ENV["COVERAGE"] = "1"
+    Rake::Task["spec"].invoke
+    puts "\nCoverage report: #{File.join(COVERAGE_DIR, "index.html")}" if File.exist?(File.join(COVERAGE_DIR,
+      "index.html"))
   end
 
   desc "Clean coverage artifacts"
@@ -107,7 +74,7 @@ namespace :coverage do
   end
 
   desc "Clean then run coverage"
-  task all: [:clean, :run]
+  task all: %i[clean run]
 
   desc "Write coverage summary.json & badge.svg (requires prior coverage:run)"
   task :summary do
@@ -118,7 +85,7 @@ namespace :coverage do
       next
     end
     data = JSON.parse(File.read(resultset))
-    coverage_hash = data["rspec"]["coverage"] if data["rspec"]
+    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
     unless coverage_hash
       puts "Unexpected resultset structure, cannot find rspec.coverage"
       next
@@ -129,6 +96,7 @@ namespace :coverage do
       lines = file_cov["lines"]
       lines.each do |val|
         next if val.nil?
+
         total += 1
         covered += 1 if val > 0
       end
@@ -153,7 +121,7 @@ namespace :coverage do
         <rect rx="3" width="150" height="20" fill="url(#s)"/>
         <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
           <text x="35" y="14">coverage</text>
-          <text x="110" y="14">#{sprintf("%.2f", pct)}%</text>
+          <text x="110" y="14">#{format("%.2f", pct)}%</text>
         </g>
       </svg>
     SVG
@@ -174,7 +142,7 @@ namespace :coverage do
       next
     end
     data = JSON.parse(File.read(resultset))
-    coverage_hash = data["rspec"]["coverage"] if data["rspec"]
+    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
     unless coverage_hash
       puts "Unexpected resultset structure, cannot find rspec.coverage"
       next
@@ -185,6 +153,7 @@ namespace :coverage do
       lines = file_cov["lines"]
       lines.each do |val|
         next if val.nil?
+
         total += 1
         covered += 1 if val > 0
       end
@@ -222,7 +191,7 @@ namespace :coverage do
 
     # Calculate current coverage
     data = JSON.parse(File.read(resultset))
-    coverage_hash = data["rspec"]["coverage"] if data["rspec"]
+    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
     unless coverage_hash
       puts "❌ Unexpected resultset structure, cannot find rspec.coverage"
       exit 1
@@ -234,6 +203,7 @@ namespace :coverage do
       lines = file_cov["lines"]
       lines.each do |val|
         next if val.nil?
+
         total += 1
         covered += 1 if val > 0
       end
@@ -299,7 +269,7 @@ namespace :coverage do
     end
 
     data = JSON.parse(File.read(resultset))
-    coverage_hash = data["rspec"]["coverage"] if data["rspec"]
+    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
     unless coverage_hash
       puts "❌ Unexpected resultset structure"
       exit 1
@@ -311,6 +281,7 @@ namespace :coverage do
       lines = file_cov["lines"]
       lines.each do |val|
         next if val.nil?
+
         total += 1
         covered += 1 if val > 0
       end
@@ -354,7 +325,7 @@ namespace :coverage do
     end
 
     data = JSON.parse(File.read(resultset))
-    coverage_hash = data["rspec"]["coverage"] if data["rspec"]
+    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
     unless coverage_hash
       puts "Unexpected resultset structure. Skipping baseline update."
       next
@@ -366,6 +337,7 @@ namespace :coverage do
       lines = file_cov["lines"]
       lines.each do |val|
         next if val.nil?
+
         total += 1
         covered += 1 if val > 0
       end
@@ -410,7 +382,8 @@ end
 
 # Short pre-commit preparation task: runs formatters + coverage + ratchet check + smart baseline update
 desc "Run standard:fix, markdownlint:fix, coverage:run, coverage:check, and auto-update baseline if improved (pre-commit helper)"
-task prep: ["standard:fix", "markdownlint:fix", "coverage:run", "coverage:check", "coverage:update_baseline_if_improved"]
+task prep: ["standard:fix", "markdownlint:fix", "coverage:run", "coverage:check",
+  "coverage:update_baseline_if_improved"]
 
 desc "Alias for prep"
 task pc: :prep
