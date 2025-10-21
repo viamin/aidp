@@ -29,7 +29,7 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
   describe "#start (stubbed fork)" do
     before do
-      allow(runner).to receive(:fork).and_return(12345)
+      allow(runner).to receive(:fork).and_return(12_345)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep) # skip delay
@@ -63,7 +63,7 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
   describe "job metadata helpers" do
     before do
-      allow(runner).to receive(:fork).and_return(23456)
+      allow(runner).to receive(:fork).and_return(23_456)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep)
@@ -90,7 +90,7 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
   describe "#stop_job" do
     before do
-      allow(runner).to receive(:fork).and_return(34567)
+      allow(runner).to receive(:fork).and_return(34_567)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep)
@@ -129,7 +129,7 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
     end
 
     it "returns log contents" do
-      allow(runner).to receive(:fork).and_return(45678)
+      allow(runner).to receive(:fork).and_return(45_678)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep)
