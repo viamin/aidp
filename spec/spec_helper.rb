@@ -10,7 +10,9 @@ if ENV["COVERAGE"] == "1" || ENV["SIMPLECOV"] == "1"
   require "simplecov"
   SimpleCov.start do
     add_filter "lib/aidp/version.rb"
-    minimum_coverage 30
+    minimum_coverage 70
+    minimum_coverage_by_file 30
+    refuse_coverage_drop
   end
   warn "[SimpleCov] Coverage enabled" if ENV["DEBUG"]
 
