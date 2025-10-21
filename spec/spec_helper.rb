@@ -8,7 +8,7 @@ require "timeout"
 if ENV["COVERAGE"] == "1" || ENV["SIMPLECOV"] == "1"
 
   require "simplecov"
-  SimpleCov.start
+  SimpleCov.command_name "rspec"
   warn "[SimpleCov] Coverage enabled" if ENV["DEBUG"]
 
 end
