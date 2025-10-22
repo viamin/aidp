@@ -9,7 +9,7 @@ if ENV["COVERAGE"] == "1" || ENV["SIMPLECOV"] == "1"
 
   require "simplecov"
   SimpleCov.command_name "RSpec"
-  warn "[SimpleCov] Coverage enabled" if ENV["DEBUG"]
+  puts "[SimpleCov] Coverage enabled" if ENV["DEBUG"]
 
 end
 
