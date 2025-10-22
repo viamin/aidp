@@ -777,7 +777,7 @@ module Aidp
         display_message("=" * 60, type: :muted)
 
         provider_info = Aidp::Harness::ProviderInfo.new(provider_name, Dir.pwd)
-        info = provider_info.get_info(force_refresh: force_refresh)
+        info = provider_info.info(force_refresh: force_refresh)
 
         if info.nil?
           display_message("No information available for provider: #{provider_name}", type: :error)

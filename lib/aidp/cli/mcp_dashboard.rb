@@ -102,7 +102,7 @@ module Aidp
 
         providers.each do |provider|
           provider_info = Aidp::Harness::ProviderInfo.new(provider, @root_dir)
-          info = provider_info.get_info
+          info = provider_info.info
 
           next unless info[:mcp_support]
 
