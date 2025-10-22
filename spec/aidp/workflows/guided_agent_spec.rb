@@ -253,5 +253,474 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         expect(result[:steps]).to eq(["00_PRD", "02_ARCHITECTURE", "16_IMPLEMENTATION"])
       end
     end
+
+    context "when planning loop exceeds maximum iterations" do
+      before do
+        # Mock provider to always return incomplete plan to force iteration limit
+        allow(provider).to receive(:send).and_return(
+          {
+            complete: false,
+            questions: ["What else do you need?"],
+            reasoning: "Need more info"
+          }.to_json
+        )
+
+        # Mock user answers
+        allow(prompt).to receive(:ask).and_return("More details")
+      end
+
+      it "breaks out of infinite loop after 10 iterations" do
+        # Just verify that it eventually completes without hanging
+        result = agent.select_workflow
+        expect(result).to have_key(:steps)
+      end
+    end
+  end
+
+  describe "private methods" do
+    before do
+      # Set up basic mocks for provider communication
+      allow(provider).to receive(:send).and_return('{"complete": true, "questions": []}')
+      allow(prompt).to receive(:ask).and_return("Test goal")
+      allow(prompt).to receive(:yes?).and_return(true)
+    end
+
+    describe "#iterative_planning" do
+      it "collects user goal and initializes plan structure" do
+        allow(prompt).to receive(:ask).with("Your goal:", required: true).and_return("Build auth system")
+
+        plan = agent.send(:iterative_planning)
+
+        expect(plan[:goal]).to eq("Build auth system")
+        expect(plan).to have_key(:scope)
+        expect(plan).to have_key(:users)
+        expect(plan).to have_key(:requirements)
+        expect(plan).to have_key(:constraints)
+        expect(plan).to have_key(:completion_criteria)
+      end
+
+      it "handles multiple planning iterations" do
+        call_count = 0
+        allow(provider).to receive(:send) do
+          call_count += 1
+          if call_count == 1
+            {
+              complete: false,
+              questions: ["What authentication methods do you need?"],
+              reasoning: "Need auth details"
+            }.to_json
+          else
+            {
+              complete: true,
+              questions: [],
+              reasoning: "Plan is complete"
+            }.to_json
+          end
+        end
+
+        allow(prompt).to receive(:ask).with("What authentication methods do you need?").and_return("OAuth and MFA")
+        allow(prompt).to receive(:yes?).with(/Is this plan ready for execution/).and_return(true)
+
+        plan = agent.send(:iterative_planning)
+        expect(plan[:goal]).to eq("Test goal")
+      end
+    end
+
+    describe "#get_planning_questions" do
+      let(:test_plan) { {goal: "Test goal", requirements: {}} }
+
+      it "calls provider with system and user prompts" do
+        expect(provider).to receive(:send).with(prompt: kind_of(String))
+
+        agent.send(:get_planning_questions, test_plan)
+      end
+
+      it "parses provider response into planning format" do
+        response = {
+          complete: false,
+          questions: ["What technology stack?"],
+          reasoning: "Need tech info"
+        }.to_json
+
+        allow(provider).to receive(:send).and_return(response)
+
+        result = agent.send(:get_planning_questions, test_plan)
+        expect(result[:complete]).to be false
+        expect(result[:questions]).to eq(["What technology stack?"])
+        expect(result[:reasoning]).to eq("Need tech info")
+      end
+
+      it "handles detailed requirements to avoid repetition" do
+        detailed_plan = {
+          goal: "Test goal",
+          requirements: {
+            functional: ["User login with username/password with minimum 8 characters"]
+          }
+        }
+
+        expect(provider).to receive(:send).with(prompt: including("Requirements have been provided in detail"))
+
+        agent.send(:get_planning_questions, detailed_plan)
+      end
+    end
+
+    describe "#identify_steps_from_plan" do
+      let(:test_plan) { {goal: "Build auth", requirements: {functional: ["User login"]}} }
+
+      it "calls provider to identify needed steps" do
+        step_response = {
+          steps: ["00_PRD", "05_API_DESIGN", "16_IMPLEMENTATION"],
+          reasoning: "Need PRD, API design, and implementation"
+        }.to_json
+
+        allow(provider).to receive(:send).and_return(step_response)
+
+        result = agent.send(:identify_steps_from_plan, test_plan)
+        expect(result).to eq(["00_PRD", "05_API_DESIGN", "16_IMPLEMENTATION"])
+      end
+    end
+
+    describe "#generate_documents_from_plan" do
+      let(:test_plan) do
+        {
+          goal: "Build auth system",
+          requirements: {
+            functional: ["User login"],
+            non_functional: {"Performance" => "< 100ms response time"}
+          },
+          style_requirements: {"Language" => "Ruby"}
+        }
+      end
+
+      it "generates PRD for all plans" do
+        expect(agent).to receive(:generate_prd_from_plan).with(test_plan)
+
+        agent.send(:generate_documents_from_plan, test_plan)
+      end
+
+      it "generates NFRs when non-functional requirements exist" do
+        expect(agent).to receive(:generate_prd_from_plan).with(test_plan)
+        expect(agent).to receive(:generate_nfr_from_plan).with(test_plan)
+
+        agent.send(:generate_documents_from_plan, test_plan)
+      end
+
+      it "generates style guide when style requirements exist" do
+        expect(agent).to receive(:generate_prd_from_plan).with(test_plan)
+        expect(agent).to receive(:generate_nfr_from_plan).with(test_plan)
+        expect(agent).to receive(:generate_style_guide_from_plan).with(test_plan)
+
+        agent.send(:generate_documents_from_plan, test_plan)
+      end
+    end
+
+    describe "#build_workflow_from_plan" do
+      let(:test_plan) do
+        {
+          goal: "Build auth",
+          completion_criteria: ["Users can log in successfully"]
+        }
+      end
+      let(:test_steps) { ["00_PRD", "05_API_DESIGN", "16_IMPLEMENTATION"] }
+
+      it "builds complete workflow configuration" do
+        result = agent.send(:build_workflow_from_plan, test_plan, test_steps)
+
+        expect(result[:mode]).to eq(:execute)
+        expect(result[:workflow_key]).to eq(:plan_and_execute)
+        expect(result[:workflow_type]).to eq(:plan_and_execute)
+        expect(result[:steps]).to eq(test_steps)
+        expect(result[:completion_criteria]).to eq(["Users can log in successfully"])
+        expect(result[:workflow][:name]).to eq("Plan & Execute")
+        expect(result[:user_input][:plan]).to eq(test_plan)
+      end
+
+      it "filters out unknown steps" do
+        invalid_steps = ["00_PRD", "INVALID_STEP", "16_IMPLEMENTATION"]
+
+        result = agent.send(:build_workflow_from_plan, test_plan, invalid_steps)
+
+        expect(result[:steps]).to eq(["00_PRD", "16_IMPLEMENTATION"])
+      end
+    end
+
+    describe "#user_goal" do
+      it "prompts user for their goal" do
+        expect(prompt).to receive(:ask).with("Your goal:", required: true).and_return("Test user goal")
+
+        result = agent.send(:user_goal)
+        expect(result).to eq("Test user goal")
+      end
+    end
+
+    describe "#validate_provider_configuration!" do
+      context "when no providers are configured" do
+        before do
+          allow(provider_manager).to receive(:configured_providers).and_return([])
+        end
+
+        it "raises ConversationError" do
+          expect {
+            agent.send(:validate_provider_configuration!)
+          }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError, /No providers? are configured/)
+        end
+      end
+
+      context "when current provider is nil" do
+        before do
+          allow(provider_manager).to receive(:configured_providers).and_return(["claude"])
+          allow(provider_manager).to receive(:current_provider).and_return(nil)
+        end
+
+        it "raises ConversationError" do
+          expect {
+            agent.send(:validate_provider_configuration!)
+          }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError, /Default provider.*not found/)
+        end
+      end
+
+      context "when provider is properly configured" do
+        it "does not raise error" do
+          expect {
+            agent.send(:validate_provider_configuration!)
+          }.not_to raise_error
+        end
+      end
+    end
+
+    describe "#display_plan_summary" do
+      let(:test_plan) do
+        {
+          goal: "Build auth system",
+          scope: {features: ["Login", "Registration"]},
+          users: {primary: "End users"},
+          requirements: {functional: ["User authentication"]},
+          constraints: {timeline: "2 weeks"},
+          completion_criteria: ["Users can log in"]
+        }
+      end
+
+      it "displays all plan sections" do
+        # Just verify it calls prompt.say without checking exact format
+        expect(prompt).to receive(:say).at_least(5).times
+
+        agent.send(:display_plan_summary, test_plan)
+      end
+    end
+
+    describe "#parse_planning_response" do
+      it "parses valid JSON response" do
+        response = '```json\n{"complete": true, "questions": [], "reasoning": "Plan is ready"}\n```'
+
+        result = agent.send(:parse_planning_response, response)
+
+        expect(result[:complete]).to be true
+        expect(result[:questions]).to eq([])
+        expect(result[:reasoning]).to eq("Plan is ready")
+      end
+
+      it "parses JSON without code blocks" do
+        response = '{"complete": false, "questions": ["What tech stack?"], "reasoning": "Need more info"}'
+
+        result = agent.send(:parse_planning_response, response)
+
+        expect(result[:complete]).to be false
+        expect(result[:questions]).to eq(["What tech stack?"])
+      end
+
+      it "handles malformed JSON gracefully" do
+        response = "This is not JSON at all"
+
+        result = agent.send(:parse_planning_response, response)
+
+        expect(result[:complete]).to be false
+        expect(result[:questions]).to eq(["Could you tell me more about your requirements?"])
+      end
+
+      it "handles JSON parse errors gracefully" do
+        response = '{"invalid": json,}'
+
+        result = agent.send(:parse_planning_response, response)
+
+        expect(result[:complete]).to be false
+        expect(result[:questions]).to eq(["Could you tell me more about your requirements?"])
+      end
+    end
+
+    describe "#parse_step_identification" do
+      it "parses step identification response" do
+        response = '{"steps": ["00_PRD", "16_IMPLEMENTATION"], "reasoning": "Need PRD and implementation"}'
+
+        result = agent.send(:parse_step_identification, response)
+
+        expect(result).to eq(["00_PRD", "16_IMPLEMENTATION"])
+      end
+    end
+
+    describe "#update_plan_from_answer" do
+      let(:test_plan) { {scope: {}, users: {}, requirements: {}, constraints: {}, completion_criteria: []} }
+
+      it "updates scope for scope-related questions" do
+        agent.send(:update_plan_from_answer, test_plan, "What should be included in scope?", "User management")
+
+        expect(test_plan[:scope][:included]).to eq(["User management"])
+      end
+
+      it "updates users for user-related questions" do
+        agent.send(:update_plan_from_answer, test_plan, "Who are the users?", "Developers and admins")
+
+        expect(test_plan[:users][:personas]).to eq(["Developers and admins"])
+      end
+
+      it "updates functional requirements for requirement questions" do
+        agent.send(:update_plan_from_answer, test_plan, "What are the key requirements?", "User login")
+
+        expect(test_plan[:requirements][:functional]).to eq(["User login"])
+      end
+
+      it "updates non-functional requirements for performance questions" do
+        agent.send(:update_plan_from_answer, test_plan, "What performance metrics do you need?", "< 100ms response")
+
+        expect(test_plan[:requirements][:non_functional]).not_to be_nil
+        expect(test_plan[:requirements][:non_functional]["What performance metrics do you need?"]).to eq("< 100ms response")
+      end
+
+      it "updates constraints for constraint questions" do
+        agent.send(:update_plan_from_answer, test_plan, "What are the constraints?", "2 week timeline")
+
+        expect(test_plan[:constraints][:technical]).to eq(["2 week timeline"])
+      end
+
+      it "updates completion criteria for success questions" do
+        agent.send(:update_plan_from_answer, test_plan, "How will you know when it's complete?", "Users can log in")
+
+        expect(test_plan[:completion_criteria]).to eq(["Users can log in"])
+      end
+
+      it "stores general information for unclassified questions" do
+        agent.send(:update_plan_from_answer, test_plan, "Random question?", "Random answer")
+
+        expect(test_plan[:additional_context]).to eq([{question: "Random question?", answer: "Random answer"}])
+      end
+    end
+
+    describe "#call_provider_for_analysis" do
+      it "calls provider with system and user prompts" do
+        system_prompt = "You are an AI assistant"
+        user_prompt = "Help me with this"
+
+        expect(provider).to receive(:send).with(prompt: "#{system_prompt}\n\n#{user_prompt}")
+
+        agent.send(:call_provider_for_analysis, system_prompt, user_prompt)
+      end
+
+      it "handles provider errors with fallback" do
+        system_prompt = "System prompt"
+        user_prompt = "User prompt"
+
+        call_count = 0
+        allow(provider).to receive(:send) do
+          call_count += 1
+          if call_count == 1
+            raise StandardError, "[resource_exhausted] Error"
+          else
+            "Success response"
+          end
+        end
+
+        allow(provider_manager).to receive(:switch_provider_for_error).and_return("cursor")
+
+        result = agent.send(:call_provider_for_analysis, system_prompt, user_prompt)
+        expect(result).to eq("Success response")
+      end
+
+      it "raises ConversationError when provider returns nil" do
+        allow(provider).to receive(:send).and_return(nil)
+
+        expect {
+          agent.send(:call_provider_for_analysis, "system", "user")
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError, /Provider request failed/)
+      end
+    end
+
+    describe "document generation methods" do
+      let(:test_plan) do
+        {
+          goal: "Build authentication system",
+          requirements: {
+            functional: ["User login", "Password reset"],
+            non_functional: {"Performance" => "< 100ms response time"}
+          },
+          completion_criteria: ["Users can log in successfully"]
+        }
+      end
+
+      describe "#generate_prd_from_plan" do
+        it "creates PRD file with plan content" do
+          agent.send(:generate_prd_from_plan, test_plan)
+
+          prd_path = File.join(project_dir, "docs", "prd.md")
+          expect(File.exist?(prd_path)).to be true
+
+          content = File.read(prd_path)
+          expect(content).to include("Product Requirements Document")
+          expect(content).to include("Build authentication system")
+          expect(content).to include("User login")
+          expect(content).to include("Users can log in successfully")
+        end
+      end
+
+      describe "#generate_nfr_from_plan" do
+        it "creates NFRs file when non-functional requirements exist" do
+          agent.send(:generate_nfr_from_plan, test_plan)
+
+          nfr_path = File.join(project_dir, "docs", "nfrs.md")
+          expect(File.exist?(nfr_path)).to be true
+
+          content = File.read(nfr_path)
+          expect(content).to include("Non-Functional Requirements")
+          expect(content).to include("Performance")
+          expect(content).to include("< 100ms response time")
+        end
+      end
+
+      describe "#generate_style_guide_from_plan" do
+        let(:plan_with_style) do
+          test_plan.merge(style_requirements: {"Language" => "Ruby", "Framework" => "Rails"})
+        end
+
+        it "creates style guide file when style requirements exist" do
+          agent.send(:generate_style_guide_from_plan, plan_with_style)
+
+          style_path = File.join(project_dir, "docs", "LLM_STYLE_GUIDE.md")
+          expect(File.exist?(style_path)).to be true
+
+          content = File.read(style_path)
+          expect(content).to include("LLM Style Guide")
+        end
+      end
+    end
+
+    describe "#build_planning_system_prompt" do
+      it "returns system prompt for planning" do
+        result = agent.send(:build_planning_system_prompt)
+
+        expect(result).to include("planning assistant")
+        expect(result).to include("complete")
+        expect(result).to include("questions")
+        expect(result).to include("reasoning")
+      end
+    end
+
+    describe "#build_step_identification_prompt" do
+      it "includes available execute steps" do
+        result = agent.send(:build_step_identification_prompt)
+
+        expect(result).to include("expert at identifying")
+        expect(result).to include("Available Execute Steps")
+        expect(result).to include("00_PRD")
+        expect(result).to include("16_IMPLEMENTATION")
+      end
+    end
   end
 end
