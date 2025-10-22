@@ -172,6 +172,8 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
   end
 
   describe "#start_auto_refresh" do
+    after { progress_display.stop_auto_refresh if progress_display.auto_refresh_enabled? }
+
     context "when auto refresh is started" do
       it "enables auto refresh mode" do
         progress_display.start_auto_refresh(1.0)

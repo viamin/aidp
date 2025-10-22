@@ -571,4 +571,146 @@ RSpec.describe Aidp::CLI do
       expect(result).to eq(1)
     end
   end
+
+  describe ".run_checkpoint_command" do
+    let(:checkpoint) { instance_double(Aidp::Execute::Checkpoint) }
+    let(:display) { instance_double(Aidp::Execute::CheckpointDisplay) }
+
+    before do
+      allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)
+      allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(display)
+      allow(described_class).to receive(:display_message)
+    end
+
+    it "shows latest checkpoint" do
+      checkpoint_data = {iteration: 5, status: "healthy", metrics: {}}
+      allow(checkpoint).to receive(:latest_checkpoint).and_return(checkpoint_data)
+      allow(display).to receive(:display_checkpoint)
+
+      expect { described_class.send(:run_checkpoint_command, ["show"]) }.not_to raise_error
+      expect(display).to have_received(:display_checkpoint).with(checkpoint_data, show_details: true)
+    end
+
+    it "handles no checkpoint data gracefully" do
+      allow(checkpoint).to receive(:latest_checkpoint).and_return(nil)
+      described_class.send(:run_checkpoint_command, ["show"])
+      expect(described_class).to have_received(:display_message).with("No checkpoint data found.", type: :info)
+    end
+
+    it "shows checkpoint history" do
+      history = [
+        {iteration: 1, timestamp: Time.now, metrics: {loc: 100}},
+        {iteration: 2, timestamp: Time.now + 60, metrics: {loc: 120}}
+      ]
+      allow(checkpoint).to receive(:checkpoint_history).with(limit: 2).and_return(history)
+      allow(display).to receive(:display_checkpoint_history)
+
+      described_class.send(:run_checkpoint_command, ["history", "2"])
+      expect(display).to have_received(:display_checkpoint_history).with(history, limit: 2)
+    end
+
+    it "shows summary" do
+      summary = {iteration: 3, metrics: {loc: 150}}
+      allow(checkpoint).to receive(:progress_summary).and_return(summary)
+      allow(display).to receive(:display_progress_summary)
+
+      described_class.send(:run_checkpoint_command, ["summary"])
+      expect(display).to have_received(:display_progress_summary).with(summary)
+    end
+  end
+
+  describe ".run_providers_command" do
+    let(:config_manager) { instance_double(Aidp::Harness::ConfigManager) }
+    let(:provider_manager) { instance_double(Aidp::Harness::ProviderManager) }
+    let(:spinner) { instance_double(TTY::Spinner, auto_spin: nil, stop: nil) }
+
+    before do
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
+      allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner)
+      allow(described_class).to receive(:display_message)
+    end
+
+    it "displays provider health dashboard" do
+      health_rows = [
+        {provider: "cursor", status: "healthy", available: true, circuit_breaker: "closed",
+         rate_limited: false, total_tokens: 1000, last_used: Time.now}
+      ]
+      allow(provider_manager).to receive(:health_dashboard).and_return(health_rows)
+
+      expect { described_class.send(:run_providers_command, []) }.not_to raise_error
+      expect(provider_manager).to have_received(:health_dashboard)
+    end
+
+    it "handles errors gracefully" do
+      allow(provider_manager).to receive(:health_dashboard).and_raise(StandardError.new("Test error"))
+      allow(Aidp.logger).to receive(:warn)
+
+      described_class.send(:run_providers_command, [])
+      expect(Aidp.logger).to have_received(:warn)
+      expect(described_class).to have_received(:display_message).with(/Failed to display provider health/, type: :error)
+    end
+  end
+
+  describe ".run_jobs_command" do
+    let(:jobs_cmd) { instance_double(Aidp::CLI::JobsCommand) }
+
+    before do
+      allow(Aidp::CLI::JobsCommand).to receive(:new).and_return(jobs_cmd)
+      allow(jobs_cmd).to receive(:run)
+    end
+
+    it "creates JobsCommand and delegates to it" do
+      described_class.send(:run_jobs_command, ["list"])
+      expect(jobs_cmd).to have_received(:run).with("list", [])
+    end
+
+    it "handles status subcommand" do
+      described_class.send(:run_jobs_command, ["status", "job123"])
+      expect(jobs_cmd).to have_received(:run).with("status", ["job123"])
+    end
+  end
+
+  describe ".run_kb_command" do
+    before do
+      allow(described_class).to receive(:display_message)
+    end
+
+    it "shows knowledge base topic" do
+      described_class.send(:run_kb_command, ["show", "testing"])
+      expect(described_class).to have_received(:display_message).with("Knowledge Base: testing", type: :info)
+    end
+
+    it "shows default summary topic when no topic specified" do
+      described_class.send(:run_kb_command, ["show"])
+      expect(described_class).to have_received(:display_message).with("Knowledge Base: summary", type: :info)
+    end
+
+    it "shows usage for unknown subcommand" do
+      described_class.send(:run_kb_command, ["unknown"])
+      expect(described_class).to have_received(:display_message).with(/Usage:/, type: :info)
+    end
+  end
+
+  describe "helper methods" do
+    describe ".format_time_ago_simple" do
+      it "formats seconds" do
+        expect(described_class.send(:format_time_ago_simple, 30)).to eq("30s ago")
+      end
+
+      it "formats minutes" do
+        expect(described_class.send(:format_time_ago_simple, 180)).to eq("3m ago")
+      end
+
+      it "formats hours" do
+        expect(described_class.send(:format_time_ago_simple, 7200)).to eq("2h ago")
+      end
+
+      it "does not have days formatting" do
+        # The actual implementation only goes up to hours
+        result = described_class.send(:format_time_ago_simple, 172800)
+        expect(result).to match(/\d+h ago/)
+      end
+    end
+  end
 end

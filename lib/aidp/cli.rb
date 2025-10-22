@@ -738,7 +738,12 @@ module Aidp
           end
           tokens = (r[:total_tokens].to_i > 0) ? r[:total_tokens].to_s : "0"
           reason = r[:unhealthy_reason] || "-"
-          if no_color || !$stdout.tty?
+          is_tty = begin
+            $stdout.respond_to?(:tty?) && $stdout.tty?
+          rescue
+            false
+          end
+          if no_color || !is_tty
             [r[:provider], r[:status], (r[:available] ? "yes" : "no"), cb, rl, tokens, last_used, reason]
           else
             [
@@ -757,7 +762,7 @@ module Aidp
         table = TTY::Table.new header, table_rows
         display_message(table.render(:basic), type: :info)
       rescue => e
-        log_rescue(e, component: "cli", action: "display_provider_health", fallback: "error_message")
+        Aidp.logger.warn("cli", "Failed to display provider health", error_class: e.class.name, error_message: e.message)
         display_message("Failed to display provider health: #{e.message}", type: :error)
       end
 
