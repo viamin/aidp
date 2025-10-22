@@ -267,15 +267,7 @@ module Aidp
         # @return [String] Markdown content
         def prompt_custom_content(skill_name)
           prompt.say("\nContent:")
-          prompt.say("Enter the skill content (markdown). Type 'DONE' on a line by itself when finished.")
-          prompt.say("(Or press Ctrl+D)")
-
-          lines = []
-          loop do
-            line = prompt.ask("", required: false, echo: true)
-            break if line.nil? || line.strip == "DONE"
-            lines << line
-          end
+          lines = prompt.multiline("Enter the skill content (markdown):")
 
           if lines.empty?
             # Provide a minimal template

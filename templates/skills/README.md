@@ -87,7 +87,7 @@ You are a **Repository Analyst**, an expert in version control analysis...
 
 ### Template Skills
 
-Located in `templates/skills/` in the AIDP gem. These are provided by AIDP as templates and cover common use cases:
+Located in `templates/skills/` in the AIDP gem. These are read-only templates installed with the AIDP gem and cover common use cases; they cannot be modified directly in your project.
 
 - **repository_analyst**: Version control and code evolution analysis
 - **product_strategist**: Product planning and requirements gathering

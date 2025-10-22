@@ -218,7 +218,7 @@ module Aidp
       def load_existing_backlog
         return unless File.exist?(@backlog_file)
 
-        data = YAML.load_file(@backlog_file)
+        data = YAML.safe_load_file(@backlog_file, permitted_classes: [Date, Time, Symbol], aliases: true)
         @entries = data["entries"] || [] if data.is_a?(Hash)
         @entries = symbolize_keys_deep(@entries)
       rescue => e

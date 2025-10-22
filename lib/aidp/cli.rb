@@ -241,7 +241,7 @@ module Aidp
 
         if File.exist?(config_path)
           require "yaml"
-          full_config = YAML.load_file(config_path)
+          full_config = YAML.safe_load_file(config_path, permitted_classes: [Date, Time, Symbol], aliases: true)
           logging_config = full_config["logging"] || full_config[:logging] || {}
         end
 

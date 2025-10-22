@@ -115,6 +115,30 @@ module Aidp
         true
       end
 
+      # Retrieve the current skill object, or nil if none is selected
+      #
+      # This method provides access to the full skill object (with content, providers, etc.)
+      # for the currently selected skill via `/skill use <id>`.
+      #
+      # @return [Aidp::Skills::Skill, nil] The current skill object or nil
+      #
+      # @example
+      #   repl = ReplMacros.new(project_dir: Dir.pwd)
+      #   repl.execute("/skill use repository_analyst")
+      #   skill = repl.current_skill_object
+      #   puts skill.content if skill  # => skill's markdown content
+      def current_skill_object
+        return nil unless @current_skill
+
+        require_relative "../skills"
+        registry = Aidp::Skills::Registry.new(project_dir: @project_dir)
+        registry.load_skills
+        registry.find(@current_skill)
+      rescue => e
+        Aidp.log_error("repl_macros", "Failed to load current skill object", error: e.message)
+        nil
+      end
+
       private
 
       # Register all available REPL commands

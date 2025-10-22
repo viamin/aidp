@@ -191,7 +191,7 @@ module Aidp
       # @return [String] Path to template skills directory
       def template_skills_path
         # Get the gem root directory (go up from lib/aidp/skills/registry.rb)
-        gem_root = File.expand_path("../../../..", __FILE__)
+        gem_root = File.expand_path("../../../..", __dir__)
         File.join(gem_root, "templates", "skills")
       end
 

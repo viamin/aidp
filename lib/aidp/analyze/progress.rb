@@ -67,7 +67,7 @@ module Aidp
         end
 
         @progress = if File.exist?(@progress_file)
-          YAML.load_file(@progress_file) || {}
+          YAML.safe_load_file(@progress_file, permitted_classes: [Date, Time, Symbol], aliases: true) || {}
         else
           {}
         end

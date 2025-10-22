@@ -112,6 +112,7 @@ aidp skill validate .aidp/skills/my_skill/SKILL.md
 aidp skill diff my_custom_skill
 ```text
 
+<a id="creating-custom-skills"></a>
 ## Creating Custom Skills
 
 ### Interactive Wizard
@@ -168,6 +169,7 @@ aidp skill delete my_custom_skill
 
 **Note**: You can only delete project skills in `.aidp/skills/`, not template skills.
 
+<a id="skill-routing"></a>
 ## Skill Routing
 
 Skills can be automatically selected based on file paths and task descriptions using routing rules in your `.aidp/aidp.yml` configuration.
@@ -251,6 +253,7 @@ router.route(
 # => "general_developer"
 ```text
 
+<a id="advanced-topics"></a>
 ## Advanced Topics
 
 ### Skill Inheritance
@@ -326,6 +329,7 @@ templates/skills/
     └── SKILL.md
 ```text
 
+<a id="troubleshooting"></a>
 ## Troubleshooting
 
 ### Skill Not Found

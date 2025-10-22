@@ -178,6 +178,7 @@ my-project/
 
 ---
 
+<a id="requirements-from-issue-149"></a>
 ## Requirements from Issue #149
 
 ### Entry Points
@@ -216,6 +217,7 @@ Extend current schema with:
 
 ---
 
+<a id="architecture"></a>
 ## Architecture
 
 ### High-Level Components
@@ -306,6 +308,7 @@ Extend current schema with:
 
 ---
 
+<a id="schema-extensions"></a>
 ## Schema Extensions
 
 ### Extended SKILL.md Format
@@ -442,6 +445,7 @@ When a skill inherits from a base:
 
 ---
 
+<a id="wizard-flow-design"></a>
 ## Wizard Flow Design
 
 ### Flow Overview
@@ -716,6 +720,7 @@ Next steps:
 
 ---
 
+<a id="cli-command-structure"></a>
 ## CLI Command Structure
 
 ### Command Hierarchy
@@ -953,6 +958,7 @@ aidp skill delete old_skill --force
 
 ---
 
+<a id="repl-integration"></a>
 ## REPL Integration
 
 ### Slash Commands
@@ -1027,6 +1033,7 @@ end
 
 ---
 
+<a id="aidpyml-routing"></a>
 ## aidp.yml Routing
 
 ### Routing Schema
@@ -1124,6 +1131,7 @@ skill_id = router.route(
 
 ---
 
+<a id="implementation-phases"></a>
 ## Implementation Phases
 
 ### Phase 1: Foundation (Weeks 1-2) ✅
@@ -1277,6 +1285,7 @@ skill_id = router.route(
 
 ---
 
+<a id="testing-strategy"></a>
 ## Testing Strategy
 
 ### Unit Tests
@@ -1413,6 +1422,7 @@ end
 
 ---
 
+<a id="documentation-requirements"></a>
 ## Documentation Requirements
 
 ### User Documentation

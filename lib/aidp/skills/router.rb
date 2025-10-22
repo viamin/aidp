@@ -165,7 +165,7 @@ module Aidp
         config_path = File.join(project_dir, ".aidp", "aidp.yml")
 
         if File.exist?(config_path)
-          YAML.load_file(config_path) || {}
+          YAML.safe_load_file(config_path, permitted_classes: [Date, Time, Symbol], aliases: true) || {}
         else
           {}
         end

@@ -565,6 +565,31 @@ RSpec.describe Aidp::Execute::ReplMacros do
       end
     end
 
+    describe "#current_skill_object" do
+      it "returns nil when no skill is selected" do
+        expect(skill_repl.current_skill_object).to be_nil
+      end
+
+      it "returns skill object after /skill use" do
+        skill_repl.execute("/skill use test_skill")
+        skill = skill_repl.current_skill_object
+        expect(skill).not_to be_nil
+        expect(skill.id).to eq("test_skill")
+        expect(skill.name).to eq("Test Skill")
+      end
+
+      it "returns nil for non-existent skill" do
+        skill_repl.instance_variable_set(:@current_skill, "nonexistent")
+        expect(skill_repl.current_skill_object).to be_nil
+      end
+
+      it "provides access to skill content" do
+        skill_repl.execute("/skill use test_skill")
+        skill = skill_repl.current_skill_object
+        expect(skill.content).to include("# Test Skill")
+      end
+    end
+
     describe "list subcommand" do
       it "returns success with display action" do
         result = skill_repl.execute("/skill list")

@@ -256,7 +256,7 @@ module Aidp
         return unless @config_file
 
         begin
-          @config = YAML.load_file(@config_file) || {}
+          @config = YAML.safe_load_file(@config_file, permitted_classes: [Date, Time, Symbol], aliases: true) || {}
         rescue => e
           @config = {}
           @validation_result = {
