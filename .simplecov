@@ -11,6 +11,7 @@ SimpleCov.start do
 
   track_files "lib/**/*.rb"
 
+  add_filter "lib/aidp/version.rb"
   add_filter "/spec/"
   add_filter "/pkg/"
   add_filter "/tmp/"
@@ -22,6 +23,7 @@ SimpleCov.start do
   add_group "Analysis", "lib/aidp/analyze"
 
   # Initial baseline; raise gradually.
-  minimum_coverage 55
-  minimum_coverage_by_file 0
+  minimum_coverage 70
+  minimum_coverage_by_file 30
+  refuse_coverage_drop
 end

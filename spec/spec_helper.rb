@@ -6,13 +6,11 @@ require "timeout"
 
 # Coverage must start before any application files are loaded.
 if ENV["COVERAGE"] == "1" || ENV["SIMPLECOV"] == "1"
-  begin
-    require "simplecov"
-    SimpleCov.command_name "rspec"
-    warn "[SimpleCov] Coverage enabled" if ENV["DEBUG"]
-  rescue LoadError => e
-    warn "[SimpleCov] Not enabled: #{e.message}"
-  end
+
+  require "simplecov"
+  SimpleCov.command_name "RSpec"
+  puts "[SimpleCov] Coverage enabled" if ENV["DEBUG"]
+
 end
 
 ENV["RACK_ENV"] = "test"
@@ -48,5 +46,5 @@ RSpec.configure do |config|
   config.order = :random
 
   # Show the 10 slowest examples at the end of the test run
-  config.profile_examples = 3
+  config.profile_examples = 5
 end

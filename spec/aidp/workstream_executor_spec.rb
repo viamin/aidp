@@ -69,9 +69,9 @@ RSpec.describe Aidp::WorkstreamExecutor do
     end
 
     it "validates workstream existence before execution" do
-      expect {
+      expect do
         executor.execute_parallel(["nonexistent"], {})
-      }.to raise_error(ArgumentError, /not found/)
+      end.to raise_error(ArgumentError, /not found/)
     end
 
     it "returns WorkstreamResult for each workstream" do
@@ -108,7 +108,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
 
     it "respects max_concurrent limit via thread pool" do
       # Create 5 workstreams but max_concurrent is 2
-      slugs = 5.times.map { |i| "test-ws-limit-#{i}" }
+      slugs = Array.new(5) { |i| "test-ws-limit-#{i}" }
       slugs.each do |slug|
         Aidp::Worktree.create(slug: slug, project_dir: project_dir, task: "Task")
       end
@@ -116,14 +116,14 @@ RSpec.describe Aidp::WorkstreamExecutor do
       execution_tracker = []
       allow(executor).to receive(:execute_workstream) do |slug, _opts|
         execution_tracker << slug
-        sleep(0.1) # Simulate work
+        sleep(0.01) # Minimal sleep for timing tests
         Aidp::WorkstreamExecutor::WorkstreamResult.new(
           slug: slug,
           status: "completed",
           exit_code: 0,
           started_at: Time.now,
           completed_at: Time.now,
-          duration: 0.1,
+          duration: 0.01,
           error: nil
         )
       end
@@ -133,13 +133,11 @@ RSpec.describe Aidp::WorkstreamExecutor do
       # All should execute
       expect(execution_tracker.size).to eq(5)
 
-      slugs.each { |slug|
-        begin
-          Aidp::Worktree.remove(slug: slug, project_dir: project_dir)
-        rescue
-          nil
-        end
-      }
+      slugs.each do |slug|
+        Aidp::Worktree.remove(slug: slug, project_dir: project_dir)
+      rescue
+        nil
+      end
     end
   end
 
@@ -151,7 +149,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
 
     it "executes all active workstreams" do
       # Create multiple workstreams
-      slugs = ["ws-1", "ws-2", "ws-3"]
+      slugs = %w[ws-1 ws-2 ws-3]
       slugs.each do |slug|
         Aidp::Worktree.create(slug: slug, project_dir: project_dir, task: "Task #{slug}")
       end
@@ -172,13 +170,11 @@ RSpec.describe Aidp::WorkstreamExecutor do
 
       expect(results.size).to eq(3)
 
-      slugs.each { |slug|
-        begin
-          Aidp::Worktree.remove(slug: slug, project_dir: project_dir)
-        rescue
-          nil
-        end
-      }
+      slugs.each do |slug|
+        Aidp::Worktree.remove(slug: slug, project_dir: project_dir)
+      rescue
+        nil
+      end
     end
 
     it "skips inactive workstreams" do
@@ -252,7 +248,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
       # State should be updated (either active during execution or completed after)
       state = Aidp::WorkstreamState.read(slug: slug, project_dir: project_dir)
       expect(state).not_to be_nil
-      expect(["active", "completed", "failed"]).to include(state[:status])
+      expect(%w[active completed failed]).to include(state[:status])
     end
 
     it "executes harness in forked process" do
@@ -312,7 +308,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
       runner_double = instance_double(Aidp::Harness::Runner)
       allow(Aidp::Harness::Runner).to receive(:new).and_return(runner_double)
       allow(runner_double).to receive(:run) do
-        sleep(0.05) # Shorter sleep for faster tests
+        sleep(0.01) # Minimal sleep for timing tests
         {status: "completed"}
       end
 
