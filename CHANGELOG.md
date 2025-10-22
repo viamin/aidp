@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.0](https://github.com/viamin/aidp/compare/aidp/v0.16.0...aidp/v0.17.0) (2025-10-22)
+
+
+### Features
+
+* **skills:** add Skill Authoring Wizard, routing, templates, CLI/REPL commands, docs, and tests ([7913c08](https://github.com/viamin/aidp/commit/7913c087113ac4ce5aec0fbc44b26c139a3c57fa)), closes [#149](https://github.com/viamin/aidp/issues/149)
+* **skills:** add Skill Authoring Wizard, routing, templates, CLI/REPL commands, docs, and tests ([#161](https://github.com/viamin/aidp/issues/161)) ([50f30f9](https://github.com/viamin/aidp/commit/50f30f9774d7ee1c361fa3fac006499e629e2ac3))
+
 ## [0.16.0](https://github.com/viamin/aidp/compare/aidp/v0.15.2...aidp/v0.16.0) (2025-10-20)
 
 
