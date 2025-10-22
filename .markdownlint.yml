@@ -4,3 +4,4 @@
 
 MD013: false          # Line length disabled
 MD024: false          # Allow duplicate headings (handled semantically by higher-level sections)
+MD051: false          # Link fragments - markdownlint doesn't support GitHub anchor generation

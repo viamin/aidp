@@ -312,7 +312,7 @@ module Aidp
     end
 
     private_class_method def self.load_yaml_config(config_file)
-      YAML.load_file(config_file) || {}
+      YAML.safe_load_file(config_file, permitted_classes: [Date, Time, Symbol], aliases: true) || {}
     rescue => e
       warn "Failed to load configuration file #{config_file}: #{e.message}"
       {}

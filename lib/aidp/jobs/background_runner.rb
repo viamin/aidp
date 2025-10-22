@@ -213,7 +213,7 @@ module Aidp
         return nil unless File.exist?(metadata_file)
 
         # Return raw metadata with times as ISO8601 strings to avoid unsafe class loading
-        YAML.load_file(metadata_file)
+        YAML.safe_load_file(metadata_file, permitted_classes: [Date, Time, Symbol], aliases: true)
       rescue
         nil
       end

@@ -9,7 +9,7 @@ module Aidp
     # - /split - Divide work into smaller contracts
     # - /halt-on <pattern> - Pause on specific test failures
     class ReplMacros
-      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode, :current_workstream
+      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode, :current_workstream, :current_skill
 
       def initialize(project_dir: Dir.pwd)
         @pinned_files = Set.new
@@ -18,6 +18,7 @@ module Aidp
         @split_mode = false
         @project_dir = project_dir
         @current_workstream = nil
+        @current_skill = nil
         @commands = register_commands
       end
 
@@ -65,6 +66,7 @@ module Aidp
           halt_patterns: @halt_patterns,
           split_mode: @split_mode,
           current_workstream: @current_workstream,
+          current_skill: @current_skill,
           active_constraints: active_constraints_count
         }
       end
@@ -111,6 +113,30 @@ module Aidp
 
         @current_workstream = slug
         true
+      end
+
+      # Retrieve the current skill object, or nil if none is selected
+      #
+      # This method provides access to the full skill object (with content, providers, etc.)
+      # for the currently selected skill via `/skill use <id>`.
+      #
+      # @return [Aidp::Skills::Skill, nil] The current skill object or nil
+      #
+      # @example
+      #   repl = ReplMacros.new(project_dir: Dir.pwd)
+      #   repl.execute("/skill use repository_analyst")
+      #   skill = repl.current_skill_object
+      #   puts skill.content if skill  # => skill's markdown content
+      def current_skill_object
+        return nil unless @current_skill
+
+        require_relative "../skills"
+        registry = Aidp::Skills::Registry.new(project_dir: @project_dir)
+        registry.load_skills
+        registry.find(@current_skill)
+      rescue => e
+        Aidp.log_error("repl_macros", "Failed to load current skill object", error: e.message)
+        nil
       end
 
       private
@@ -1257,25 +1283,25 @@ module Aidp
             lines = ["Available Skills:", ""]
             by_source = registry.by_source
 
-            if by_source[:builtin].any?
-              lines << "Built-in Skills:"
-              by_source[:builtin].each do |skill_id|
+            if by_source[:template].any?
+              lines << "Template Skills:"
+              by_source[:template].each do |skill_id|
                 skill = registry.find(skill_id)
                 lines << "  • #{skill_id} - #{skill.description}"
               end
               lines << ""
             end
 
-            if by_source[:custom].any?
-              lines << "Custom Skills:"
-              by_source[:custom].each do |skill_id|
+            if by_source[:project].any?
+              lines << "Project Skills:"
+              by_source[:project].each do |skill_id|
                 skill = registry.find(skill_id)
-                lines << "  • #{skill_id} - #{skill.description} [CUSTOM]"
+                lines << "  • #{skill_id} - #{skill.description} [PROJECT]"
               end
               lines << ""
             end
 
-            lines << "Use '/skill show <id>' for details"
+            lines << "Use '/skill show <id>' for details or '/skill use <id>' to activate"
 
             {
               success: true,
@@ -1412,10 +1438,53 @@ module Aidp
             }
           end
 
+        when "use"
+          # Switch to a specific skill
+          skill_id = args.shift
+
+          unless skill_id
+            return {
+              success: false,
+              message: "Usage: /skill use <skill-id>",
+              action: :none
+            }
+          end
+
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: @project_dir)
+            registry.load_skills
+
+            skill = registry.find(skill_id)
+
+            unless skill
+              return {
+                success: false,
+                message: "Skill not found: #{skill_id}\nUse '/skill list' to see available skills",
+                action: :none
+              }
+            end
+
+            # Store the current skill for the session
+            @current_skill = skill_id
+
+            {
+              success: true,
+              message: "✓ Now using skill: #{skill.name} (#{skill_id})\n\n#{skill.description}",
+              action: :switch_skill,
+              data: {skill_id: skill_id, skill: skill}
+            }
+          rescue => e
+            {
+              success: false,
+              message: "Failed to switch skill: #{e.message}",
+              action: :none
+            }
+          end
+
         else
           {
             success: false,
-            message: "Usage: /skill <command> [args]\n\nCommands:\n  list           - List all available skills\n  show <id>      - Show detailed skill information\n  search <query> - Search skills by keyword\n\nExamples:\n  /skill list\n  /skill show repository_analyst\n  /skill search git",
+            message: "Usage: /skill <command> [args]\n\nCommands:\n  list           - List all available skills\n  show <id>      - Show detailed skill information\n  search <query> - Search skills by keyword\n  use <id>       - Switch to a specific skill\n\nExamples:\n  /skill list\n  /skill show repository_analyst\n  /skill search git\n  /skill use repository_analyst",
             action: :none
           }
         end

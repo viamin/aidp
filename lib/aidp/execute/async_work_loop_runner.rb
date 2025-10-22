@@ -26,6 +26,7 @@ module Aidp
         @provider_manager = provider_manager
         @config = config
         @options = options
+        @cancel_timeout = options[:cancel_timeout] || 5 # seconds to wait for graceful shutdown
         @state = WorkLoopState.new
         @instruction_queue = InstructionQueue.new
         @work_thread = nil
@@ -92,7 +93,7 @@ module Aidp
         @state.append_output("Cancellation requested, waiting for safe stopping point...", type: :warning)
 
         # Wait for thread to notice cancellation
-        @work_thread&.join(5) # 5 second timeout
+        @work_thread&.join(@cancel_timeout)
 
         if save_checkpoint && @sync_runner
           @state.append_output("Saving checkpoint before exit...", type: :info)

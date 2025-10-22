@@ -241,7 +241,7 @@ module Aidp
 
         if File.exist?(config_path)
           require "yaml"
-          full_config = YAML.load_file(config_path)
+          full_config = YAML.safe_load_file(config_path, permitted_classes: [Date, Time, Symbol], aliases: true)
           logging_config = full_config["logging"] || full_config[:logging] || {}
         end
 
@@ -1722,10 +1722,10 @@ module Aidp
 
             by_source = registry.by_source
 
-            if by_source[:builtin].any?
-              display_message("Built-in Skills", type: :highlight)
+            if by_source[:template].any?
+              display_message("Template Skills", type: :highlight)
               display_message("=" * 80, type: :muted)
-              table_rows = by_source[:builtin].map do |skill_id|
+              table_rows = by_source[:template].map do |skill_id|
                 skill = registry.find(skill_id)
                 [skill_id, skill.version, skill.description[0, 60]]
               end
@@ -1735,10 +1735,10 @@ module Aidp
               display_message("", type: :info)
             end
 
-            if by_source[:custom].any?
-              display_message("Custom Skills", type: :highlight)
+            if by_source[:project].any?
+              display_message("Project Skills", type: :highlight)
               display_message("=" * 80, type: :muted)
-              table_rows = by_source[:custom].map do |skill_id|
+              table_rows = by_source[:project].map do |skill_id|
                 skill = registry.find(skill_id)
                 [skill_id, skill.version, skill.description[0, 60]]
               end
@@ -1846,6 +1846,204 @@ module Aidp
             display_message("Failed to search skills: #{e.message}", type: :error)
           end
 
+        when "preview"
+          # Preview full skill content
+          skill_id = args.shift
+
+          unless skill_id
+            display_message("Usage: aidp skill preview <skill-id>", type: :info)
+            return
+          end
+
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+            registry.load_skills
+
+            skill = registry.find(skill_id)
+
+            unless skill
+              display_message("Skill not found: #{skill_id}", type: :error)
+              display_message("Use 'aidp skill list' to see available skills", type: :muted)
+              return
+            end
+
+            require_relative "skills/wizard/builder"
+            require_relative "skills/wizard/template_library"
+
+            builder = Aidp::Skills::Wizard::Builder.new
+            full_content = builder.to_skill_md(skill)
+
+            # Check if this is a project skill with a matching template
+            source_info = registry.by_source[skill_id]
+            inheritance_info = ""
+            if source_info == :project
+              template_library = Aidp::Skills::Wizard::TemplateLibrary.new(project_dir: Dir.pwd)
+              template_skill = template_library.templates.find { |s| s.id == skill.id }
+              if template_skill
+                inheritance_info = " (inherits from template)"
+              end
+            elsif source_info == :template
+              inheritance_info = " (template)"
+            end
+
+            display_message("\n" + "=" * 60, type: :info)
+            display_message("Skill: #{skill.name} (#{skill.id}) v#{skill.version}#{inheritance_info}", type: :highlight)
+            display_message("=" * 60 + "\n", type: :info)
+            display_message(full_content, type: :info)
+            display_message("\n" + "=" * 60, type: :info)
+          rescue => e
+            display_message("Failed to preview skill: #{e.message}", type: :error)
+          end
+
+        when "diff"
+          # Show diff between project skill and template
+          skill_id = args.shift
+
+          unless skill_id
+            display_message("Usage: aidp skill diff <skill-id>", type: :info)
+            return
+          end
+
+          begin
+            require_relative "skills/wizard/template_library"
+            require_relative "skills/wizard/differ"
+
+            registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+            registry.load_skills
+
+            project_skill = registry.find(skill_id)
+
+            unless project_skill
+              display_message("Skill not found: #{skill_id}", type: :error)
+              return
+            end
+
+            # Check if it's a project skill
+            unless registry.by_source[:project].include?(skill_id)
+              display_message("Skill '#{skill_id}' is a template skill, not a project skill", type: :info)
+              display_message("Only project skills can be diffed against templates", type: :muted)
+              return
+            end
+
+            # Find the template
+            template_library = Aidp::Skills::Wizard::TemplateLibrary.new(project_dir: Dir.pwd)
+            template_skill = template_library.find(skill_id)
+
+            unless template_skill
+              display_message("No template found for skill '#{skill_id}'", type: :info)
+              display_message("This is a custom skill without a template base", type: :muted)
+              return
+            end
+
+            # Show diff
+            differ = Aidp::Skills::Wizard::Differ.new
+            diff_result = differ.diff(template_skill, project_skill)
+            differ.display(diff_result)
+          rescue => e
+            display_message("Failed to diff skill: #{e.message}", type: :error)
+          end
+
+        when "edit"
+          # Edit an existing skill
+          skill_id = args.shift
+
+          unless skill_id
+            display_message("Usage: aidp skill edit <skill-id>", type: :info)
+            return
+          end
+
+          begin
+            require_relative "skills/wizard/controller"
+
+            registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+            registry.load_skills
+
+            skill = registry.find(skill_id)
+
+            unless skill
+              display_message("Skill not found: #{skill_id}", type: :error)
+              display_message("Use 'aidp skill list' to see available skills", type: :muted)
+              return
+            end
+
+            # Check if it's editable (must be project skill or willing to copy template)
+            if registry.by_source[:template].include?(skill_id)
+              display_message("'#{skill_id}' is a template skill", type: :info)
+              display_message("Editing will create a project override in .aidp/skills/", type: :muted)
+            end
+
+            # Parse options
+            options = {}
+            while args.first&.start_with?("--")
+              opt = args.shift
+              case opt
+              when "--dry-run"
+                options[:dry_run] = true
+              when "--open-editor"
+                options[:open_editor] = true
+              else
+                display_message("Unknown option: #{opt}", type: :error)
+                return
+              end
+            end
+
+            # Pre-fill wizard with existing skill data
+            options[:id] = skill.id
+            options[:name] = skill.name
+            options[:edit_mode] = true
+            options[:existing_skill] = skill
+
+            # Run wizard in edit mode
+            wizard = Aidp::Skills::Wizard::Controller.new(
+              project_dir: Dir.pwd,
+              options: options
+            )
+            wizard.run
+          rescue => e
+            display_message("Failed to edit skill: #{e.message}", type: :error)
+          end
+
+        when "new"
+          # Create a new skill using the wizard
+          begin
+            require_relative "skills/wizard/controller"
+
+            # Parse options
+            options = {}
+            while args.first&.start_with?("--")
+              opt = args.shift
+              case opt
+              when "--minimal"
+                options[:minimal] = true
+              when "--dry-run"
+                options[:dry_run] = true
+              when "--yes", "-y"
+                options[:yes] = true
+              when "--id"
+                options[:id] = args.shift
+              when "--name"
+                options[:name] = args.shift
+              when "--from-template"
+                options[:from_template] = args.shift
+              when "--clone"
+                options[:clone] = args.shift
+              else
+                display_message("Unknown option: #{opt}", type: :error)
+                return
+              end
+            end
+
+            # Run wizard
+            wizard = Aidp::Skills::Wizard::Controller.new(
+              project_dir: Dir.pwd,
+              options: options
+            )
+            wizard.run
+          rescue => e
+            display_message("Failed to create skill: #{e.message}", type: :error)
+            Aidp.log_error("cli", "Skill wizard failed", error: e.message, backtrace: e.backtrace.first(5))
+          end
+
         when "validate"
           # Validate skill file format
           skill_path = args.shift
@@ -1893,19 +2091,94 @@ module Aidp
             end
           end
 
+        when "delete"
+          # Delete a project skill
+          skill_id = args.shift
+
+          unless skill_id
+            display_message("Usage: aidp skill delete <skill-id>", type: :info)
+            return
+          end
+
+          begin
+            registry = Aidp::Skills::Registry.new(project_dir: Dir.pwd)
+            registry.load_skills
+
+            skill = registry.find(skill_id)
+
+            unless skill
+              display_message("Skill not found: #{skill_id}", type: :error)
+              return
+            end
+
+            # Check if it's a project skill
+            source = registry.by_source[skill_id]
+            unless source == :project
+              display_message("Cannot delete template skill '#{skill_id}'", type: :error)
+              display_message("Only project skills in .aidp/skills/ can be deleted", type: :muted)
+              return
+            end
+
+            # Get skill directory
+            skill_dir = File.dirname(skill.source_path)
+
+            # Confirm deletion
+            require "tty-prompt"
+            prompt = TTY::Prompt.new
+            confirmed = prompt.yes?("Delete skill '#{skill.name}' (#{skill_id})? This cannot be undone.")
+
+            unless confirmed
+              display_message("Deletion cancelled", type: :info)
+              return
+            end
+
+            # Delete the skill directory
+            require "fileutils"
+            FileUtils.rm_rf(skill_dir)
+
+            display_message("✓ Deleted skill: #{skill.name} (#{skill_id})", type: :success)
+          rescue => e
+            display_message("Failed to delete skill: #{e.message}", type: :error)
+            Aidp.log_error("cli", "Skill deletion failed", error: e.message, backtrace: e.backtrace.first(5))
+          end
+
         else
           display_message("Usage: aidp skill <command>", type: :info)
           display_message("", type: :info)
           display_message("Commands:", type: :info)
           display_message("  list                List all available skills (default)", type: :info)
           display_message("  show <id>           Show detailed skill information", type: :info)
+          display_message("  preview <id>        Preview full SKILL.md content", type: :info)
+          display_message("  diff <id>           Show diff between project skill and template", type: :info)
           display_message("  search <query>      Search skills by keyword", type: :info)
+          display_message("  new [options]       Create a new skill using the wizard", type: :info)
+          display_message("  edit <id> [options] Edit an existing skill", type: :info)
+          display_message("  delete <id>         Delete a project skill", type: :info)
           display_message("  validate [path]     Validate skill file format", type: :info)
+          display_message("", type: :info)
+          display_message("New Skill Options:", type: :info)
+          display_message("  --minimal           Skip optional sections", type: :info)
+          display_message("  --dry-run           Preview without saving", type: :info)
+          display_message("  --yes, -y           Skip confirmation prompts", type: :info)
+          display_message("  --id <skill_id>     Pre-set skill ID", type: :info)
+          display_message("  --name <name>       Pre-set skill name", type: :info)
+          display_message("", type: :info)
+          display_message("Edit Skill Options:", type: :info)
+          display_message("  --dry-run           Preview changes without saving", type: :info)
+          display_message("  --open-editor       Open content in $EDITOR", type: :info)
           display_message("", type: :info)
           display_message("Examples:", type: :info)
           display_message("  aidp skill list                                # List all skills", type: :info)
           display_message("  aidp skill show repository_analyst             # Show skill details", type: :info)
+          display_message("  aidp skill preview repository_analyst          # Preview full content", type: :info)
+          display_message("  aidp skill diff my_skill                       # Show diff with template", type: :info)
           display_message("  aidp skill search git                          # Search for git-related skills", type: :info)
+          display_message("  aidp skill new                                 # Create new skill (interactive)", type: :info)
+          display_message("  aidp skill new --minimal --id my_skill         # Create with minimal prompts", type: :info)
+          display_message("  aidp skill new --from-template repo_analyst    # Inherit from template", type: :info)
+          display_message("  aidp skill new --clone my_existing_skill       # Clone existing skill", type: :info)
+          display_message("  aidp skill edit repository_analyst             # Edit existing skill", type: :info)
+          display_message("  aidp skill delete my_custom_skill              # Delete a project skill", type: :info)
           display_message("  aidp skill validate skills/my_skill/SKILL.md   # Validate specific skill", type: :info)
           display_message("  aidp skill validate                            # Validate all skills", type: :info)
         end

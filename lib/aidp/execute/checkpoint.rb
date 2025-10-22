@@ -40,7 +40,7 @@ module Aidp
       # Get the latest checkpoint data
       def latest_checkpoint
         return nil unless File.exist?(@checkpoint_file)
-        YAML.load_file(@checkpoint_file)
+        YAML.safe_load_file(@checkpoint_file, permitted_classes: [Date, Time, Symbol], aliases: true)
       end
 
       # Get checkpoint history for analysis

@@ -506,6 +506,152 @@ RSpec.describe Aidp::Execute::ReplMacros do
     end
   end
 
+  describe "/skill command" do
+    let(:skill_project_dir) { Dir.mktmpdir }
+    let(:skill_repl) { described_class.new(project_dir: skill_project_dir) }
+    let(:skill_dir) { File.join(skill_project_dir, ".aidp", "skills", "test_skill") }
+
+    before do
+      # Create a test skill
+      FileUtils.mkdir_p(skill_dir)
+      File.write(
+        File.join(skill_dir, "SKILL.md"),
+        <<~SKILL
+          ---
+          id: test_skill
+          name: Test Skill
+          version: 1.0.0
+          description: A test skill for testing
+          ---
+
+          # Test Skill
+
+          This is a test skill.
+        SKILL
+      )
+    end
+
+    after do
+      FileUtils.rm_rf(skill_project_dir)
+    end
+
+    describe "use subcommand" do
+      it "switches to a valid skill" do
+        result = skill_repl.execute("/skill use test_skill")
+        expect(result[:success]).to be true
+        expect(result[:action]).to eq(:switch_skill)
+        expect(result[:message]).to include("Now using skill: Test Skill")
+        expect(result[:data][:skill_id]).to eq("test_skill")
+        expect(skill_repl.summary[:current_skill]).to eq("test_skill")
+      end
+
+      it "fails when skill ID is missing" do
+        result = skill_repl.execute("/skill use")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage: /skill use <skill-id>")
+      end
+
+      it "fails when skill does not exist" do
+        result = skill_repl.execute("/skill use nonexistent_skill")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Skill not found: nonexistent_skill")
+        expect(result[:message]).to include("Use '/skill list' to see available skills")
+      end
+
+      it "updates current_skill in summary" do
+        skill_repl.execute("/skill use test_skill")
+        summary = skill_repl.summary
+        expect(summary[:current_skill]).to eq("test_skill")
+      end
+    end
+
+    describe "#current_skill_object" do
+      it "returns nil when no skill is selected" do
+        expect(skill_repl.current_skill_object).to be_nil
+      end
+
+      it "returns skill object after /skill use" do
+        skill_repl.execute("/skill use test_skill")
+        skill = skill_repl.current_skill_object
+        expect(skill).not_to be_nil
+        expect(skill.id).to eq("test_skill")
+        expect(skill.name).to eq("Test Skill")
+      end
+
+      it "returns nil for non-existent skill" do
+        skill_repl.instance_variable_set(:@current_skill, "nonexistent")
+        expect(skill_repl.current_skill_object).to be_nil
+      end
+
+      it "provides access to skill content" do
+        skill_repl.execute("/skill use test_skill")
+        skill = skill_repl.current_skill_object
+        expect(skill.content).to include("# Test Skill")
+      end
+    end
+
+    describe "list subcommand" do
+      it "returns success with display action" do
+        result = skill_repl.execute("/skill list")
+        expect(result[:success]).to be true
+        expect(result[:action]).to eq(:display)
+        expect(result[:message]).to include("Available Skills")
+      end
+    end
+
+    describe "show subcommand" do
+      it "shows skill details for valid skill" do
+        result = skill_repl.execute("/skill show test_skill")
+        expect(result[:success]).to be true
+        expect(result[:action]).to eq(:display)
+        expect(result[:message]).to include("Test Skill")
+      end
+
+      it "fails when skill ID is missing" do
+        result = skill_repl.execute("/skill show")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage: /skill show <skill-id>")
+      end
+
+      it "fails when skill does not exist" do
+        result = skill_repl.execute("/skill show nonexistent")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Skill not found")
+      end
+    end
+
+    describe "search subcommand" do
+      it "searches for skills by query" do
+        result = skill_repl.execute("/skill search test")
+        expect(result[:success]).to be true
+        expect(result[:action]).to eq(:display)
+      end
+
+      it "fails when query is missing" do
+        result = skill_repl.execute("/skill search")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage: /skill search <query>")
+      end
+    end
+
+    describe "invalid subcommand" do
+      it "shows usage help" do
+        result = skill_repl.execute("/skill invalid")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage: /skill <command>")
+      end
+    end
+
+    describe "no subcommand" do
+      it "defaults to list command" do
+        result = skill_repl.execute("/skill")
+        expect(result[:success]).to be true
+        expect(result[:action]).to eq(:display)
+        expect(result[:message]).to include("Available Skills")
+      end
+    end
+  end
+
   describe "integration scenarios" do
     it "handles complex macro combinations" do
       # Pin critical files
