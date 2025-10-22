@@ -29,7 +29,7 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
   describe "#start (stubbed fork)" do
     before do
-      allow(runner).to receive(:fork).and_return(12345)
+      allow(runner).to receive(:fork).and_return(12_345)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep) # skip delay
@@ -37,6 +37,8 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       # Prevent STDOUT/STDERR redirection side-effects when simulating fork
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
     end
 
     it "returns a job id and writes metadata" do
@@ -61,13 +63,15 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
   describe "job metadata helpers" do
     before do
-      allow(runner).to receive(:fork).and_return(23456)
+      allow(runner).to receive(:fork).and_return(23_456)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep)
       allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
       @job_id = runner.start(:execute, {})
     end
 
@@ -86,13 +90,15 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
 
   describe "#stop_job" do
     before do
-      allow(runner).to receive(:fork).and_return(34567)
+      allow(runner).to receive(:fork).and_return(34_567)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep)
       allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
     end
 
     it "returns failure when job not found" do
@@ -123,13 +129,15 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
     end
 
     it "returns log contents" do
-      allow(runner).to receive(:fork).and_return(45678)
+      allow(runner).to receive(:fork).and_return(45_678)
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep)
       allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
       allow($stdout).to receive(:reopen)
       allow($stderr).to receive(:reopen)
+      # Mock the file waiting to avoid timeout delays
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_return(true)
 
       job_id = runner.start(:execute, {})
       log_file = File.join(project_dir, ".aidp", "jobs", job_id, "output.log")

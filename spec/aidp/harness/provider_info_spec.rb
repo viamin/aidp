@@ -271,7 +271,7 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         {
           provider: provider_name,
           last_checked: Time.now.iso8601,
-          permission_modes: ["default", "bypass", "plan"]
+          permission_modes: %w[default bypass plan]
         }
       end
 
@@ -280,7 +280,7 @@ RSpec.describe Aidp::Harness::ProviderInfo do
       end
 
       it "returns the permission modes" do
-        expect(provider_info.permission_modes).to eq(["default", "bypass", "plan"])
+        expect(provider_info.permission_modes).to eq(%w[default bypass plan])
       end
     end
 
@@ -467,8 +467,10 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
         allow(mock_provider).to receive(:supports_mcp?).and_return(true)
         allow(mock_provider).to receive(:fetch_mcp_servers).and_return([
-          {name: "dash-api", status: "connected", enabled: true, description: "uvx --from git+https://github.com/Kapeli/dash-mcp-server.git dash-mcp-server - ✓ Connected"},
-          {name: "brave-search", status: "error", enabled: false, description: "npx brave-search-mcp - ✗ Connection failed", error: "Connection failed"}
+          {name: "dash-api", status: "connected", enabled: true,
+           description: "uvx --from git+https://github.com/Kapeli/dash-mcp-server.git dash-mcp-server - ✓ Connected"},
+          {name: "brave-search", status: "error", enabled: false,
+           description: "npx brave-search-mcp - ✗ Connection failed", error: "Connection failed"}
         ])
 
         info = provider_info.gather_info
@@ -508,9 +510,12 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
         allow(mock_provider).to receive(:supports_mcp?).and_return(true)
         allow(mock_provider).to receive(:fetch_mcp_servers).and_return([
-          {name: "filesystem", status: "enabled", enabled: true, description: "File system access and operations"},
-          {name: "brave-search", status: "enabled", enabled: true, description: "Web search via Brave Search API"},
-          {name: "database", status: "disabled", enabled: false, description: "Database query execution"}
+          {name: "filesystem", status: "enabled",
+           enabled: true, description: "File system access and operations"},
+          {name: "brave-search", status: "enabled",
+           enabled: true, description: "Web search via Brave Search API"},
+          {name: "database", status: "disabled",
+           enabled: false, description: "Database query execution"}
         ])
 
         info = provider_info.gather_info
@@ -612,12 +617,11 @@ RSpec.describe Aidp::Harness::ProviderInfo do
       before do
         allow(provider_info).to receive(:binary_name).and_return("test-binary")
         allow(Aidp::Util).to receive(:which).and_return("/usr/bin/test-binary")
-        allow(Process).to receive(:spawn).and_return(99999)
+        allow(Process).to receive(:spawn).and_return(99_999)
         allow(Process).to receive(:waitpid2).and_return(nil) # Timeout
         allow(Process).to receive(:kill).and_raise(StandardError.new("Kill error"))
-        # Mock Time.now to make deadline pass immediately and avoid 5-second wait
-        current_time = Time.now
-        allow(Time).to receive(:now).and_return(current_time, current_time + 6)
+        # Mock Concurrency::Wait to avoid real timeout delays
+        allow(Aidp::Concurrency::Wait).to receive(:for_process_exit).and_raise(Aidp::Concurrency::TimeoutError.new("Mocked timeout"))
       end
 
       it "returns nil and logs error" do

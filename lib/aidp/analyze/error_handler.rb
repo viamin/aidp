@@ -3,6 +3,18 @@
 require "logger"
 require_relative "../concurrency"
 
+begin
+  require "net/http"
+rescue LoadError
+  # Net::HTTP might not be available in all environments
+end
+
+begin
+  require "sqlite3"
+rescue LoadError
+  # SQLite3 might not be available in all environments
+end
+
 module Aidp
   module Analyze
     # Comprehensive error handling system for analyze mode
@@ -24,7 +36,7 @@ module Aidp
           context: context,
           step: step,
           retry_count: retry_count,
-          timestamp: Time.current
+          timestamp: Time.now
         }
 
         log_error(error_info)
@@ -59,7 +71,7 @@ module Aidp
         {
           status: "skipped",
           reason: error.message,
-          timestamp: Time.current
+          timestamp: Time.now
         }
       end
 
@@ -88,8 +100,8 @@ module Aidp
 
       def setup_logger(log_file, verbose)
         output_stream = log_file || @output || $stdout
-        logger = Logger.new(output_stream)
-        logger.level = verbose ? Logger::DEBUG : Logger::INFO
+        logger = ::Logger.new(output_stream)
+        logger.level = verbose ? ::Logger::DEBUG : ::Logger::INFO
         logger.formatter = proc do |severity, datetime, progname, msg|
           "#{datetime.strftime("%Y-%m-%d %H:%M:%S")} [#{severity}] #{msg}\n"
         end
@@ -97,19 +109,28 @@ module Aidp
       end
 
       def setup_recovery_strategies
-        {
-          Net::TimeoutError => :retry_with_backoff,
-          Net::HTTPError => :retry_with_backoff,
-          SocketError => :retry_with_backoff,
+        strategies = {
           Errno::ENOENT => :skip_step_with_warning,
           Errno::EACCES => :skip_step_with_warning,
           Errno::ENOSPC => :critical_error,
-          SQLite3::BusyException => :retry_with_backoff,
-          SQLite3::CorruptException => :critical_error,
           AnalysisTimeoutError => :chunk_and_retry,
           AnalysisDataError => :continue_with_partial_data,
           AnalysisToolError => :log_and_continue
         }
+
+        # Add network error classes if available
+        strategies[Net::TimeoutError] = :retry_with_backoff if defined?(Net::TimeoutError)
+
+        strategies[Net::HTTPError] = :retry_with_backoff if defined?(Net::HTTPError)
+
+        strategies[SocketError] = :retry_with_backoff if defined?(SocketError)
+
+        # Add SQLite error classes if available
+        strategies[SQLite3::BusyException] = :retry_with_backoff if defined?(SQLite3::BusyException)
+
+        strategies[SQLite3::CorruptException] = :critical_error if defined?(SQLite3::CorruptException)
+
+        strategies
       end
 
       def log_error(error_info)
@@ -250,9 +271,7 @@ module Aidp
         tool_name = context[:tool_name] || "analysis tool"
         error_msg = "#{tool_name} failed: #{error.message}"
 
-        if context[:installation_guide]
-          error_msg += "\n\nTo install #{tool_name}:\n#{context[:installation_guide]}"
-        end
+        error_msg += "\n\nTo install #{tool_name}:\n#{context[:installation_guide]}" if context[:installation_guide]
 
         raise AnalysisToolError.new(error_msg)
       end
