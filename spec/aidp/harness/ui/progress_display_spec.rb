@@ -31,6 +31,39 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
         progress_display.display_progress(progress_with_steps, :standard)
         expect(message_texts.join(" ")).to match(/Step: 2\/5/)
       end
+
+      it "handles missing total_steps gracefully" do
+        progress_with_only_current = sample_progress_data.merge(
+          current_step: 3,
+          total_steps: nil
+        )
+
+        progress_display.display_progress(progress_with_only_current, :standard)
+        expect(message_texts.join(" ")).to match(/Step: 3/)
+      end
+
+      it "includes task ID when provided" do
+        progress_with_id = sample_progress_data.merge(id: "task-123")
+
+        progress_display.display_progress(progress_with_id, :standard)
+        expect(message_texts.join(" ")).to match(/\[task-123\]/)
+      end
+
+      it "handles missing progress value" do
+        progress_without_value = sample_progress_data.dup
+        progress_without_value.delete(:progress)
+
+        progress_display.display_progress(progress_without_value, :standard)
+        expect(message_texts.join(" ")).to match(/0%/)
+      end
+
+      it "handles missing message" do
+        progress_without_message = sample_progress_data.dup
+        progress_without_message.delete(:message)
+
+        progress_display.display_progress(progress_without_message, :standard)
+        expect(message_texts.join(" ")).to match(/Processing\.\.\./)
+      end
     end
 
     context "when displaying detailed progress" do
@@ -42,6 +75,29 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
       it "includes timestamp information" do
         progress_display.display_progress(sample_progress_data, :detailed)
         expect(message_texts.join(" ")).to match(/Started:/)
+      end
+
+      it "handles missing timestamp" do
+        progress_without_timestamp = sample_progress_data.dup
+        progress_without_timestamp.delete(:started_at)
+
+        progress_display.display_progress(progress_without_timestamp, :detailed)
+        expect(message_texts.join(" ")).to match(/Started: N\/A/)
+      end
+
+      it "includes ETA information" do
+        progress_with_eta = sample_progress_data.merge(eta: "5 minutes")
+
+        progress_display.display_progress(progress_with_eta, :detailed)
+        expect(message_texts.join(" ")).to match(/ETA: 5 minutes/)
+      end
+
+      it "handles missing ETA" do
+        progress_without_eta = sample_progress_data.dup
+        progress_without_eta.delete(:eta)
+
+        progress_display.display_progress(progress_without_eta, :detailed)
+        expect(message_texts.join(" ")).to match(/ETA: N\/A/)
       end
     end
 
@@ -68,6 +124,34 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
           progress_display.display_progress(invalid_data, :standard)
         }.to raise_error(Aidp::Harness::UI::ProgressDisplay::InvalidProgressError)
       end
+
+      it "raises DisplayError wrapping ArgumentError for non-hash data" do
+        expect {
+          progress_display.display_progress("not a hash", :standard)
+        }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Progress data must be a hash/)
+      end
+
+      it "raises InvalidProgressError for non-numeric progress" do
+        invalid_data = sample_progress_data.merge(progress: "fifty")
+
+        expect {
+          progress_display.display_progress(invalid_data, :standard)
+        }.to raise_error(Aidp::Harness::UI::ProgressDisplay::InvalidProgressError, /Progress must be a number/)
+      end
+
+      it "raises InvalidProgressError for invalid display type" do
+        expect {
+          progress_display.display_progress(sample_progress_data, :invalid_type)
+        }.to raise_error(Aidp::Harness::UI::ProgressDisplay::InvalidProgressError, /Invalid display type/)
+      end
+
+      it "wraps unexpected errors in DisplayError" do
+        allow(progress_display).to receive(:display_standard_progress).and_raise(StandardError.new("Unexpected"))
+
+        expect {
+          progress_display.display_progress(sample_progress_data, :standard)
+        }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Failed to display progress/)
+      end
     end
   end
 
@@ -79,6 +163,11 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
       allow(TTY::Spinner).to receive(:new).and_return(spinner)
       progress_display.start_spinner("Loading...")
       progress_display.stop_spinner
+    end
+
+    it "handles missing spinner class gracefully" do
+      display_without_spinner = described_class.new(output: output, prompt: test_prompt, spinner: nil)
+      expect { display_without_spinner.start_spinner("Loading...") }.not_to raise_error
     end
   end
 
@@ -126,7 +215,112 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
     end
   end
 
-  describe "#display_multiple_progress" do
+  describe "#show_progress" do
+    it "displays progress bar and executes block" do
+      mock_bar = double("TTY::ProgressBar")
+      allow(TTY::ProgressBar).to receive(:new).and_return(mock_bar)
+      expect(mock_bar).to receive(:tick).exactly(3).times
+
+      progress_display.show_progress(3) do |bar|
+        expect(bar).to eq(mock_bar)
+      end
+    end
+
+    it "raises DisplayError wrapping InvalidProgressError for non-positive steps" do
+      expect {
+        progress_display.show_progress(0) {}
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Total steps must be positive/)
+    end
+
+    it "wraps errors in DisplayError" do
+      allow(TTY::ProgressBar).to receive(:new).and_raise(StandardError.new("Bar error"))
+
+      expect {
+        progress_display.show_progress(5) {}
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Failed to display progress/)
+    end
+  end
+
+  describe "#update_progress" do
+    it "ticks the progress bar" do
+      bar = double("ProgressBar")
+      expect(bar).to receive(:tick)
+      expect(bar).to receive(:update_title).with("Step completed")
+
+      progress_display.update_progress(bar, "Step completed")
+    end
+
+    it "raises DisplayError wrapping InvalidProgressError for nil bar" do
+      expect {
+        progress_display.update_progress(nil)
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Progress bar cannot be nil/)
+    end
+
+    it "wraps update errors in DisplayError" do
+      bar = double("ProgressBar")
+      allow(bar).to receive(:tick).and_raise(StandardError.new("Tick error"))
+
+      expect {
+        progress_display.update_progress(bar)
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Failed to update progress/)
+    end
+  end
+
+  describe "#show_step_progress" do
+    it "displays step progress with substeps" do
+      allow(TTY::ProgressBar).to receive(:progress).and_yield(double("bar", update_title: nil, tick: nil))
+
+      expect {
+        progress_display.show_step_progress("Test Step", 3) { |bar, index| }
+      }.not_to raise_error
+    end
+
+    it "raises DisplayError wrapping InvalidProgressError for empty step name" do
+      expect {
+        progress_display.show_step_progress("", 3) {}
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Step name cannot be empty/)
+    end
+
+    it "raises DisplayError wrapping InvalidProgressError for non-positive substeps" do
+      expect {
+        progress_display.show_step_progress("Test", 0) {}
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Total substeps must be positive/)
+    end
+
+    it "wraps errors in DisplayError" do
+      allow(TTY::ProgressBar).to receive(:progress).and_raise(StandardError.new("Progress error"))
+
+      expect {
+        progress_display.show_step_progress("Test", 3) {}
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Failed to display step progress/)
+    end
+  end
+
+  describe "#show_indeterminate_progress" do
+    it "displays indeterminate progress with message" do
+      allow(TTY::ProgressBar).to receive(:progress).and_yield(double("bar", update_title: nil))
+
+      expect {
+        progress_display.show_indeterminate_progress("Loading...") { |bar| }
+      }.not_to raise_error
+    end
+
+    it "raises DisplayError wrapping InvalidProgressError for empty message" do
+      expect {
+        progress_display.show_indeterminate_progress("") {}
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Message cannot be empty/)
+    end
+
+    it "wraps errors in DisplayError" do
+      allow(TTY::ProgressBar).to receive(:progress).and_raise(StandardError.new("Progress error"))
+
+      expect {
+        progress_display.show_indeterminate_progress("Loading...") {}
+      }.to raise_error(Aidp::Harness::UI::ProgressDisplay::DisplayError, /Failed to display indeterminate progress/)
+    end
+  end
+
+  describe "#display_progress" do
     context "when displaying multiple progress items" do
       it "shows all progress items" do
         multiple_data = [
@@ -144,6 +338,19 @@ RSpec.describe Aidp::Harness::UI::ProgressDisplay do
       it "handles empty array gracefully" do
         expect { progress_display.display_multiple_progress([], :standard) }
           .not_to raise_error
+      end
+
+      it "displays muted message for empty array" do
+        progress_display.display_multiple_progress([], :standard)
+        expect(message_texts.join(" ")).to match(/No progress items/)
+      end
+    end
+
+    context "when invalid input is provided" do
+      it "raises ArgumentError for non-array input" do
+        expect {
+          progress_display.display_multiple_progress("not an array", :standard)
+        }.to raise_error(ArgumentError, "Progress items must be an array")
       end
     end
   end
