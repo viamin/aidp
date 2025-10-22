@@ -373,6 +373,54 @@ RSpec.describe Aidp::CLI do
         result = described_class.run([])
         expect(result).to eq(1)
       end
+
+      context "error handling inside harness execution" do
+        before do
+          # Successful workflow selection, errors occur in runner
+          allow(mock_workflow_selector).to receive(:select_workflow).and_return({
+            mode: :execute,
+            workflow_type: :simple,
+            steps: [],
+            user_input: {}
+          })
+          # Ensure display loop expectations can be asserted
+          allow(mock_tui).to receive(:start_display_loop)
+          allow(mock_tui).to receive(:stop_display_loop)
+        end
+
+        it "returns 1 and displays interrupt message when runner raises Interrupt" do
+          # Capture display messages
+          messages = []
+          allow(described_class).to receive(:display_message) do |msg, type:|
+            messages << {message: msg, type: type}
+          end
+
+          allow(mock_harness_runner).to receive(:run).and_raise(Interrupt)
+
+          result = described_class.run([])
+
+          expect(result).to eq(1)
+          expect(messages.any? { |m| m[:message].include?("Interrupted by user") && m[:type] == :warning }).to be true
+          expect(mock_tui).to have_received(:stop_display_loop)
+        end
+
+        it "returns 1 and displays error message when runner raises StandardError" do
+          allow(described_class).to receive(:log_rescue) # avoid dependency on mixin
+          messages = []
+          allow(described_class).to receive(:display_message) do |msg, type:|
+            messages << {message: msg, type: type}
+          end
+
+          allow(mock_harness_runner).to receive(:run).and_raise(StandardError.new("Boom failure"))
+
+          result = described_class.run([])
+
+          expect(result).to eq(1)
+          # Error message should include the exception message
+          expect(messages.any? { |m| m[:message].include?("Boom failure") && m[:type] == :error }).to be true
+          expect(mock_tui).to have_received(:stop_display_loop)
+        end
+      end
     end
   end
 
