@@ -761,4 +761,85 @@ RSpec.describe Aidp::CLI do
       end
     end
   end
+
+  describe ".run_execute_command" do
+    before do
+      allow(described_class).to receive(:display_message) # suppress output collection unless needed
+    end
+
+    it "handles --reset flag" do
+      described_class.send(:run_execute_command, ["--reset"], mode: :execute)
+      expect(described_class).to have_received(:display_message).with("Reset execute mode progress", type: :info)
+    end
+
+    it "handles --approve flag" do
+      described_class.send(:run_execute_command, ["--approve", "STEP_01"], mode: :analyze)
+      expect(described_class).to have_received(:display_message).with("Approved analyze step: STEP_01", type: :info)
+    end
+
+    it "lists steps with --no-harness" do
+      described_class.send(:run_execute_command, ["--no-harness"], mode: :execute)
+      expect(described_class).to have_received(:display_message).with("Available execute steps", type: :info)
+    end
+
+    context "background execution" do
+      let(:bg_runner) { instance_double(Aidp::Jobs::BackgroundRunner) }
+      let(:jobs_dir) { Dir.mktmpdir }
+
+      before do
+        allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(bg_runner)
+        allow(bg_runner).to receive(:start).and_return("job-123")
+        allow(bg_runner).to receive(:follow_job_logs)
+        # Provide stubbed jobs directory for log path construction
+        allow(bg_runner).to receive(:instance_variable_get).with(:@jobs_dir).and_return(jobs_dir)
+      end
+
+      after do
+        FileUtils.rm_rf(jobs_dir) if jobs_dir && Dir.exist?(jobs_dir)
+      end
+
+      it "starts background job" do
+        described_class.send(:run_execute_command, ["--background"], mode: :execute)
+        expect(bg_runner).to have_received(:start).with(:execute, {})
+      end
+
+      it "follows logs when --follow provided" do
+        # Stub file wait to skip actual waiting
+        allow(Aidp::Concurrency::Wait).to receive(:for_file)
+        described_class.send(:run_execute_command, ["--background", "--follow"], mode: :execute)
+        expect(bg_runner).to have_received(:follow_job_logs).with("job-123")
+      end
+    end
+
+    it "runs specific step and shows PRD completion in test mode" do
+      # Create a temporary template file to trigger PRD question simulation
+      root = Dir.mktmpdir
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("AIDP_ROOT").and_return(root)
+      exec_dir = File.join(root, "templates", "EXECUTE")
+      FileUtils.mkdir_p(exec_dir)
+      File.write(File.join(exec_dir, "00_PRD_TEST.md"), "# PRD\n## Questions\n- What is X?\n- How to Y?\n")
+
+      begin
+        messages = []
+        allow(described_class).to receive(:display_message) do |msg, type:|
+          messages << {msg: msg, type: type}
+        end
+        described_class.send(:run_execute_command, ["00_PRD_TEST"], mode: :execute)
+        expect(messages.any? { |m| m[:msg].include?("PRD completed") && m[:type] == :success }).to be true
+        expect(messages.any? { |m| m[:msg].include?("What is X?") }).to be true
+      ensure
+        FileUtils.rm_rf(root)
+      end
+    end
+
+    it "starts harness when no step or special flags" do
+      messages = []
+      allow(described_class).to receive(:display_message) do |msg, type:|
+        messages << {msg: msg, type: type}
+      end
+      described_class.send(:run_execute_command, [], mode: :execute)
+      expect(messages.any? { |m| m[:msg].include?("Starting enhanced TUI harness") }).to be true
+    end
+  end
 end
