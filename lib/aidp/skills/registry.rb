@@ -8,10 +8,10 @@ module Aidp
     # lookup, filtering, and management capabilities.
     #
     # Skills are loaded from:
-    # 1. Built-in skills directory (project_root/skills/)
-    # 2. Custom skills directory (.aidp/skills/)
+    # 1. Template skills directory (gem templates/skills/) - built-in templates
+    # 2. Project skills directory (.aidp/skills/) - project-specific skills
     #
-    # Custom skills with matching IDs override built-in skills.
+    # Project skills with matching IDs override template skills.
     #
     # @example Basic usage
     #   registry = Registry.new(project_dir: "/path/to/project")
@@ -39,8 +39,8 @@ module Aidp
       # Load skills from all search paths
       #
       # Skills are loaded in order:
-      # 1. Built-in skills (project_root/skills/)
-      # 2. Custom skills (.aidp/skills/) - override built-in
+      # 1. Template skills (gem templates/skills/) - built-in templates
+      # 2. Project skills (.aidp/skills/) - override templates
       #
       # @return [Integer] Number of skills loaded
       def load_skills
@@ -48,13 +48,13 @@ module Aidp
 
         @skills = {}
 
-        # Load built-in skills first
-        builtin_skills = load_from_path(builtin_skills_path)
-        builtin_skills.each { |skill| register_skill(skill, source: :builtin) }
+        # Load template skills first
+        template_skills = load_from_path(template_skills_path)
+        template_skills.each { |skill| register_skill(skill, source: :template) }
 
-        # Load custom skills (override built-in if IDs match)
-        custom_skills = load_from_path(custom_skills_path)
-        custom_skills.each { |skill| register_skill(skill, source: :custom) }
+        # Load project skills (override templates if IDs match)
+        project_skills = load_from_path(project_skills_path)
+        project_skills.each { |skill| register_skill(skill, source: :project) }
 
         @loaded = true
 
@@ -139,13 +139,13 @@ module Aidp
 
       # Get skill IDs grouped by source
       #
-      # @return [Hash] Hash with :builtin and :custom arrays
+      # @return [Hash] Hash with :template and :project arrays
       def by_source
         load_skills unless loaded?
 
         {
-          builtin: @skills.values.select { |s| builtin_skill?(s) }.map(&:id),
-          custom: @skills.values.select { |s| custom_skill?(s) }.map(&:id)
+          template: @skills.values.select { |s| template_skill?(s) }.map(&:id),
+          project: @skills.values.select { |s| project_skill?(s) }.map(&:id)
         }
       end
 
@@ -186,34 +186,36 @@ module Aidp
         Loader.load_from_directory(path, provider: provider)
       end
 
-      # Get built-in skills path
+      # Get template skills path (from gem)
       #
-      # @return [String] Path to built-in skills directory
-      def builtin_skills_path
-        File.join(project_dir, "skills")
+      # @return [String] Path to template skills directory
+      def template_skills_path
+        # Get the gem root directory (go up from lib/aidp/skills/registry.rb)
+        gem_root = File.expand_path("../../../..", __FILE__)
+        File.join(gem_root, "templates", "skills")
       end
 
-      # Get custom skills path
+      # Get project skills path
       #
-      # @return [String] Path to custom skills directory
-      def custom_skills_path
+      # @return [String] Path to project-specific skills directory
+      def project_skills_path
         File.join(project_dir, ".aidp", "skills")
       end
 
-      # Check if skill is from built-in directory
+      # Check if skill is from template directory
       #
       # @param skill [Skill] Skill to check
-      # @return [Boolean] True if built-in
-      def builtin_skill?(skill)
-        skill.source_path.start_with?(builtin_skills_path)
+      # @return [Boolean] True if template
+      def template_skill?(skill)
+        skill.source_path.start_with?(template_skills_path)
       end
 
-      # Check if skill is from custom directory
+      # Check if skill is from project directory
       #
       # @param skill [Skill] Skill to check
-      # @return [Boolean] True if custom
-      def custom_skill?(skill)
-        skill.source_path.start_with?(custom_skills_path)
+      # @return [Boolean] True if project
+      def project_skill?(skill)
+        skill.source_path.start_with?(project_skills_path)
       end
     end
   end

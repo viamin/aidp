@@ -85,18 +85,18 @@ You are a **Repository Analyst**, an expert in version control analysis...
 
 ## Skill Locations
 
-### Built-in Skills
+### Template Skills
 
-Located in `/skills/` at the project root. These are provided by AIDP and cover common use cases:
+Located in `templates/skills/` in the AIDP gem. These are provided by AIDP as templates and cover common use cases:
 
 - **repository_analyst**: Version control and code evolution analysis
 - **product_strategist**: Product planning and requirements gathering
 - **architecture_analyst**: Architecture analysis and pattern identification
 - **test_analyzer**: Test suite analysis and quality assessment
 
-### Custom Skills
+### Project Skills
 
-Located in `.aidp/skills/` for project-specific customizations:
+Located in `.aidp/skills/` for project-specific skills:
 
 ```text
 .aidp/
@@ -105,7 +105,7 @@ Located in `.aidp/skills/` for project-specific customizations:
         └── SKILL.md
 ```
 
-Custom skills with matching IDs override built-in skills.
+Project skills with matching IDs override template skills.
 
 ## Using Skills
 

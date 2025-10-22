@@ -1,0 +1,146 @@
+# Example AIDP Configuration with Skills Routing
+#
+# This file shows how to configure skill routing in your project.
+# Copy this to .aidp/aidp.yml and customize for your needs.
+
+# Skills configuration
+skills:
+  # Routing configuration
+  routing:
+    # Enable/disable routing
+    enabled: true
+
+    # Default skill when no rules match
+    default: general_developer
+
+    # Path-based routing rules
+    # Maps file path patterns to skill IDs
+    path_rules:
+      # Rails/Ruby skills
+      rails_expert:
+        - "app/controllers/**/*.rb"
+        - "app/models/**/*.rb"
+        - "app/views/**/*.erb"
+
+      # Frontend skills
+      frontend_expert:
+        - "app/javascript/**/*.{js,jsx,ts,tsx}"
+        - "app/assets/stylesheets/**/*.{css,scss}"
+
+      # API skills
+      api_expert:
+        - "app/controllers/api/**/*.rb"
+        - "lib/api/**/*.rb"
+
+      # Test skills
+      test_analyzer:
+        - "spec/**/*_spec.rb"
+        - "test/**/*_test.rb"
+
+      # DevOps skills
+      devops_engineer:
+        - "Dockerfile"
+        - "docker-compose.yml"
+        - ".github/workflows/**/*.yml"
+        - "config/deploy/**/*.rb"
+
+      # CLI skills
+      cli_expert:
+        - "lib/aidp/cli.rb"
+        - "lib/aidp/cli/**/*.rb"
+        - "bin/**"
+
+    # Task-based routing rules
+    # Maps task keywords to skill IDs
+    task_rules:
+      # Backend development
+      backend_developer:
+        - "api"
+        - "endpoint"
+        - "database"
+        - "migration"
+        - "model"
+        - "controller"
+
+      # Frontend development
+      frontend_developer:
+        - "ui"
+        - "component"
+        - "styling"
+        - "layout"
+        - "responsive"
+        - "accessibility"
+
+      # DevOps tasks
+      devops_engineer:
+        - "deploy"
+        - "docker"
+        - "kubernetes"
+        - "ci/cd"
+        - "pipeline"
+        - "infrastructure"
+
+      # Testing tasks
+      test_analyzer:
+        - "test"
+        - "spec"
+        - "coverage"
+        - "integration test"
+        - "unit test"
+
+      # Documentation
+      technical_writer:
+        - "documentation"
+        - "readme"
+        - "guide"
+        - "tutorial"
+
+    # Combined routing rules (path AND task must both match)
+    # These have highest priority
+    combined_rules:
+      # Full-stack expert for API controller work
+      full_stack_expert:
+        paths:
+          - "app/controllers/api/**/*.rb"
+        tasks:
+          - "api"
+          - "endpoint"
+          - "rest"
+
+      # Architecture analyst for refactoring controllers
+      architecture_analyst:
+        paths:
+          - "app/controllers/**/*.rb"
+          - "app/models/**/*.rb"
+        tasks:
+          - "refactor"
+          - "architecture"
+          - "design pattern"
+
+      # Security expert for authentication/authorization
+      security_expert:
+        paths:
+          - "app/controllers/**/*.rb"
+          - "lib/auth/**/*.rb"
+        tasks:
+          - "auth"
+          - "security"
+          - "permission"
+          - "authorization"
+
+# Provider configuration (existing)
+providers:
+  default: anthropic
+
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+    model: claude-sonnet-4-5-20250929
+
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    model: gpt-4
+
+# Logging configuration (existing)
+logging:
+  level: info
+  file: .aidp/aidp.log
