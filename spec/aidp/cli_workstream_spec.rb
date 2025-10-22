@@ -9,6 +9,7 @@ require "tty-table"
 RSpec.describe Aidp::CLI, "workstream commands" do
   let(:project_dir) { Dir.mktmpdir }
   let(:worktree_module) { Aidp::Worktree }
+  let(:test_prompt) { TestPrompt.new(responses: {yes?: true}) }
 
   before do
     # Initialize a git repository
@@ -191,7 +192,7 @@ RSpec.describe Aidp::CLI, "workstream commands" do
       end
 
       # Mock prompt to auto-confirm
-      allow_any_instance_of(TTY::Prompt).to receive(:yes?).and_return(true)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
 
       output = capture_output do
         Dir.chdir(project_dir) do
@@ -218,7 +219,7 @@ RSpec.describe Aidp::CLI, "workstream commands" do
     end
 
     it "handles non-existent workstream gracefully" do
-      allow_any_instance_of(TTY::Prompt).to receive(:yes?).and_return(true)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
 
       output = capture_output do
         Dir.chdir(project_dir) do
@@ -236,7 +237,8 @@ RSpec.describe Aidp::CLI, "workstream commands" do
       end
 
       # Should not call prompt
-      expect_any_instance_of(TTY::Prompt).not_to receive(:yes?)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
+      expect(test_prompt).not_to receive(:yes?)
 
       output = capture_output do
         Dir.chdir(project_dir) do
@@ -256,7 +258,7 @@ RSpec.describe Aidp::CLI, "workstream commands" do
         worktree_module.create(slug: "with-branch", project_dir: project_dir)
       end
 
-      allow_any_instance_of(TTY::Prompt).to receive(:yes?).and_return(true)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
 
       output = capture_output do
         Dir.chdir(project_dir) do
@@ -280,7 +282,8 @@ RSpec.describe Aidp::CLI, "workstream commands" do
       end
 
       # Mock prompt to decline
-      allow_any_instance_of(TTY::Prompt).to receive(:yes?).and_return(false)
+      test_prompt_decline = TestPrompt.new(responses: {yes?: false})
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt_decline)
 
       capture_output do
         Dir.chdir(project_dir) do

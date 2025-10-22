@@ -234,6 +234,11 @@ module Aidp
 
       private
 
+      # Create a TTY::Prompt instance (extracted for testability)
+      def create_prompt
+        TTY::Prompt.new
+      end
+
       def setup_logging(project_dir)
         # Load logging config from aidp.yml
         config_path = File.join(project_dir, ".aidp", "aidp.yml")
@@ -1249,7 +1254,7 @@ module Aidp
 
           # Confirm removal unless --force
           unless force
-            prompt = TTY::Prompt.new
+            prompt = create_prompt
             confirm = prompt.yes?("Remove workstream '#{slug}'?#{" (will also delete branch)" if delete_branch}")
             return unless confirm
           end
@@ -2129,7 +2134,7 @@ module Aidp
 
             # Confirm deletion
             require "tty-prompt"
-            prompt = TTY::Prompt.new
+            prompt = create_prompt
             confirmed = prompt.yes?("Delete skill '#{skill.name}' (#{skill_id})? This cannot be undone.")
 
             unless confirmed
