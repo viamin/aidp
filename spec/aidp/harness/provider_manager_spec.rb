@@ -7,15 +7,26 @@ RSpec.describe Aidp::Harness::ProviderManager do
   let(:mock_binary_checker) { double("BinaryChecker") }
   let(:manager) { described_class.new(configuration, binary_checker: mock_binary_checker) }
 
-  before do
+  # NOTE: CI environments typically do NOT have real provider CLIs (cursor, claude) installed.
+  # The implementation spawns the actual binary name ("cursor --version") rather than the path
+  # returned by `which`, so simply stubbing `which` is insufficient to mark a provider as available.
+  # This caused provider availability checks to fail in CI (cursor deemed unavailable, macos chosen).
+  # We make availability deterministic for most examples by stubbing `provider_cli_available?`.
+  # The binary checking examples opt out via metadata (:cli_binary_checks) to exercise real logic.
+  before do |example|
     allow(configuration).to receive(:default_provider).and_return("anthropic")
     allow(configuration).to receive(:configured_providers).and_return(["anthropic", "cursor", "macos"]).at_least(:once)
     allow(configuration).to receive(:provider_configured?).and_return(true)
     # Default stub for provider_models - specific tests can override with .with(provider)
     allow(configuration).to receive(:provider_models).and_return(["model1", "model2"])
 
-    # Mock binary checker to ensure tests work in CI without installed providers
+    # Mock binary checker path lookup
     allow(mock_binary_checker).to receive(:which).and_return("/usr/bin/mock")
+
+    # Deterministic CLI availability (skip real spawn) unless explicitly testing CLI checks
+    unless example.metadata[:cli_binary_checks]
+      allow(manager).to receive(:provider_cli_available?).and_return([true, nil])
+    end
 
     # Mock sleep to eliminate retry delays in tests
     allow(manager).to receive(:sleep)
@@ -823,7 +834,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
     end
   end
 
-  describe "binary checking" do
+  describe "binary checking", :cli_binary_checks do
     describe "#provider_cli_available?" do
       context "with cached result within TTL" do
         it "returns cached value without re-checking" do
