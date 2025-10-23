@@ -7,7 +7,7 @@ require "tmpdir"
 RSpec.describe Aidp::Harness::State::Persistence do
   let(:project_dir) { Dir.mktmpdir }
   let(:mode) { "work_loop" }
-  let(:persistence) { described_class.new(project_dir, mode) }
+  let(:persistence) { described_class.new(project_dir, mode, skip_persistence: true) }
   let(:state_dir) { File.join(project_dir, ".aidp", "harness") }
   let(:state_file) { File.join(state_dir, "#{mode}_state.json") }
 
@@ -32,57 +32,51 @@ RSpec.describe Aidp::Harness::State::Persistence do
   end
 
   describe "#has_state?" do
-    context "in test mode" do
+    context "when skip_persistence is true" do
       it "returns false" do
         expect(persistence.has_state?).to be false
       end
     end
 
-    # Note: Other test scenarios require disabling RSpec which isn't feasible in tests
+    # Note: Other test scenarios require skip_persistence: false
   end
 
   describe "#load_state" do
-    context "in test mode" do
+    context "when skip_persistence is true" do
       it "returns empty hash" do
         expect(persistence.load_state).to eq({})
       end
     end
 
-    # Note: File I/O scenarios require disabling RSpec which isn't feasible in tests
+    # Note: File I/O scenarios require skip_persistence: false
   end
 
   describe "#save_state" do
     let(:state_data) { {step: "current_step", status: "running"} }
 
-    context "in test mode" do
+    context "when skip_persistence is true" do
       it "does not write to file" do
         persistence.save_state(state_data)
         expect(File.exist?(state_file)).to be false
       end
     end
 
-    # Note: File write scenarios require disabling RSpec which isn't feasible in tests
+    # Note: File write scenarios require skip_persistence: false
   end
 
   describe "#clear_state" do
-    context "in test mode" do
+    context "when skip_persistence is true" do
       it "does not perform file operations" do
         persistence.clear_state
-        # In test mode, this is a no-op
-        expect(persistence.send(:test_mode?)).to be true
+        # With skip_persistence: true, this is a no-op
+        expect(File.exist?(state_file)).to be false
       end
     end
 
-    # Note: File deletion scenarios require disabling RSpec which isn't feasible in tests
+    # Note: File deletion scenarios require skip_persistence: false
   end
 
   describe "private methods" do
-    describe "#test_mode?" do
-      it "returns true in test environment" do
-        expect(persistence.send(:test_mode?)).to be true
-      end
-    end
-
     describe "#add_metadata" do
       let(:state_data) { {key: "value"} }
 

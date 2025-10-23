@@ -18,6 +18,7 @@ module Aidp
         @state_file = File.join(@state_dir, "#{mode}_state.json")
         @lock_file = File.join(@state_dir, "#{mode}_state.lock")
         @skip_persistence = skip_persistence
+        @memory_state = {} if @skip_persistence  # In-memory state for tests
 
         case mode
         when :analyze
@@ -39,7 +40,7 @@ module Aidp
 
       # Load existing state
       def load_state
-        return {} if @skip_persistence
+        return @memory_state if @skip_persistence
         return {} unless has_state?
         with_lock do
           content = File.read(@state_file)
@@ -52,7 +53,10 @@ module Aidp
 
       # Save current state
       def save_state(state_data)
-        return if @skip_persistence
+        if @skip_persistence
+          @memory_state = state_data
+          return
+        end
         with_lock do
           state_with_metadata = state_data.merge(
             mode: @mode,
@@ -67,7 +71,10 @@ module Aidp
 
       # Clear state (for fresh start)
       def clear_state
-        return if @skip_persistence
+        if @skip_persistence
+          @memory_state = {}
+          return
+        end
         with_lock do
           File.delete(@state_file) if File.exist?(@state_file)
         end
@@ -453,7 +460,7 @@ module Aidp
         # Verify workstream exists
         ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
         return false unless ws
-        return true if @skip_persistence
+
         update_state(
           current_workstream: slug,
           workstream_path: ws[:path],
@@ -464,7 +471,6 @@ module Aidp
 
       # Clear current workstream (switch back to main project)
       def clear_workstream
-        return if @skip_persistence
         update_state(
           current_workstream: nil,
           workstream_path: nil,
@@ -580,28 +586,25 @@ module Aidp
           return
         end
 
-        # Improved file-based locking with Async for better concurrency
+        # Improved file-based locking using exponential backoff
+        require_relative "../concurrency"
         lock_acquired = false
-        timeout = 30 # 30 seconds in production
 
-        start_time = Time.now
-        while (Time.now - start_time) < timeout
-          begin
-            # Try to acquire lock
-            File.open(@lock_file, File::CREAT | File::EXCL | File::WRONLY) do |_lock|
-              lock_acquired = true
-              yield
-              break
-            end
-          rescue Errno::EEXIST
-            # Lock file exists, wait briefly and retry
-            sleep(0.1)
+        Aidp::Concurrency::Backoff.retry(
+          max_attempts: 300,  # 300 attempts * ~0.1s = ~30s max
+          base: 0.1,
+          max_delay: 1.0,
+          strategy: :exponential,
+          on: [Errno::EEXIST]
+        ) do
+          # Try to acquire lock
+          File.open(@lock_file, File::CREAT | File::EXCL | File::WRONLY) do |_lock|
+            lock_acquired = true
+            yield
           end
         end
-
-        unless lock_acquired
-          raise "Could not acquire state lock within #{timeout} seconds"
-        end
+      rescue Aidp::Concurrency::MaxAttemptsExceededError
+        raise "Could not acquire state lock within timeout"
       ensure
         # Clean up lock file
         File.delete(@lock_file) if lock_acquired && File.exist?(@lock_file)

@@ -9,7 +9,7 @@ require "fileutils"
 RSpec.describe Aidp::Harness::StateManager, "workstream integration" do
   let(:project_dir) { Dir.mktmpdir }
   let(:mode) { :execute }
-  let(:state_manager) { described_class.new(project_dir, mode) }
+  let(:state_manager) { described_class.new(project_dir, mode, skip_persistence: true) }
 
   before do
     # Initialize a git repository
