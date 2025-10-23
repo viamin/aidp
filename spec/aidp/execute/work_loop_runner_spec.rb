@@ -25,6 +25,14 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     allow(File).to receive(:exist?).and_return(false)
     allow(File).to receive(:read).and_return("")
     allow(FileUtils).to receive(:mkdir_p)
+
+    # Mock Aidp.logger to prevent file system initialization in tests
+    mock_logger = instance_double("Aidp::Logger")
+    allow(mock_logger).to receive(:info)
+    allow(mock_logger).to receive(:warn)
+    allow(mock_logger).to receive(:error)
+    allow(mock_logger).to receive(:debug)
+    allow(Aidp).to receive(:logger).and_return(mock_logger)
   end
 
   describe "Fix-Forward State Machine" do
