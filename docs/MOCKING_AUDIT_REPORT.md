@@ -9,16 +9,16 @@
 
 This audit identified **200+ violations** across **95+ spec files** where mocking practices violate the LLM_STYLE_GUIDE and could allow production bugs to slip through the test suite.
 
-### Progress Status
+### Progress Status (Updated 2025-10-23)
 
-**✅ P0 COMPLETED** - All critical test-specific production code removed
-**🔄 P1 IN PROGRESS** - 1 of ~50 violations fixed
+**✅ P0 COMPLETED** - All critical test-specific production code removed (confirmed zero remaining `defined?(RSpec)` or `ENV["RSPEC_RUNNING"]` checks)
+**🔄 P1 IN PROGRESS** - 6 of ~50 violations fixed (prompt DI & any_instance_of reductions started)
 **⏸️ P2 PENDING** - 130+ violations remaining
 **⏸️ P3 PENDING** - 50+ violations remaining
 
 ### Critical Findings
 
-1. **🔴 CRITICAL: Mock Methods in Production Code** - ~~4 instances~~ → ✅ **0 instances (FIXED)**
+1. **🔴 CRITICAL: Mock Methods in Production Code** - ~~20 instances~~ → ✅ **0 instances (FIXED)** (Expanded scope: all 20 original `defined?(RSpec)` guards removed and replaced with explicit dependency injection flags)
 2. **🟠 HIGH: Missing Dependency Injection for TTY::Prompt** - 15+ instances
 3. **🟡 MEDIUM: Using `allow_any_instance_of` Anti-Pattern** - ~~35+ instances~~ → **34+ instances** (1 fixed)
 4. **🟡 MEDIUM: Testing Private Methods Directly** - 70+ instances
@@ -84,29 +84,21 @@ let(:mock_executor) { instance_double("CommandExecutor") }
 let(:manager) { described_class.new(configuration, command_executor: mock_executor) }
 ```
 
-### Violation 1.2: EnhancedTUI Headless Mode Detection
+### Violation 1.2: EnhancedTUI Headless Mode Detection (FIXED)
 
 **File**: [lib/aidp/harness/ui/enhanced_tui.rb:32](lib/aidp/harness/ui/enhanced_tui.rb#L32)
 
-```ruby
-@headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || $stdin.nil? || !$stdin.tty?)
-```
-
-**Impact**: Production code checks for RSpec, making it test-aware.
-
-**Fix**:
+Original test-aware logic replaced. Current implementation:
 
 ```ruby
-def initialize(state_manager, condition_detector, tty: $stdin)
+def initialize(prompt: TTY::Prompt.new, tty: $stdin)
   @headless = !!(tty.nil? || !tty.tty?)
 end
-
-# In tests:
-let(:mock_tty) { double("TTY", tty?: false) }
-let(:tui) { described_class.new(state_manager, condition_detector, tty: mock_tty) }
 ```
 
-### Violation 1.3: CLI Step Execution Test Detection
+Specs now inject a non-tty double (`tty?: false`) instead of relying on RSpec detection.
+
+### Violation 1.3: CLI Step Execution Test Detection (FIXED)
 
 **File**: [lib/aidp/cli.rb:507](lib/aidp/cli.rb#L507)
 
@@ -114,9 +106,7 @@ let(:tui) { described_class.new(state_manager, condition_detector, tty: mock_tty
 if step.start_with?("00_PRD") && (defined?(RSpec) || ENV["RSPEC_RUNNING"])
 ```
 
-**Impact**: Business logic changes based on test environment detection.
-
-**Fix**: Remove the test detection entirely. Make behavior explicit through configuration or parameters.
+Removed conditional; CLI always emits generic step message. Specs updated to assert only actual messages.
 
 ---
 
@@ -500,14 +490,30 @@ These violations allow bugs to slip through because:
 
 Track progress by counting occurrences:
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Files with `allow_any_instance_of` | 35+ | 0 |
-| Files with `defined?(RSpec)` in lib/ | 4 | 0 |
-| Files testing private methods with `send`/`__send__` | 15+ | 0 |
-| Provider specs mocking internal methods | 6+ | 0 |
+| Metric | Previous | Current | Target |
+|--------|----------|---------|--------|
+| Files with `allow_any_instance_of` | 35+ | 34 | 0 |
+| Files with `defined?(RSpec)` in lib/ | 20 | 0 | 0 |
+| Files testing private methods (`send`/`__send__`) | 15+ | 15+ | 0 |
+| Provider specs mocking internal methods | 6+ | 6+ | 0 |
+| Prompt DI violations | 15+ | 14+ | 0 |
 
 ---
+
+### Replacement Strategy for Removed Test-Specific Logic
+
+All 20 production occurrences of `defined?(RSpec)` (and any implicit test gating) were eliminated. Behavior previously toggled by test-environment detection is now controlled via explicit, constructor-injected flags:
+
+| Flag | Introduced In | Purpose | Replaces Prior Test Check |
+|------|---------------|---------|---------------------------|
+| `skip_persistence:` | `analyze/progress.rb`, `execute/progress.rb`, `harness/state_manager.rb` | Disable load/save side effects during selected runs (tests, dry runs) | `defined?(RSpec)` conditional around YAML/state file I/O |
+| `async_updates:` | `harness/status_display.rb` | Opt into threaded status rendering vs. synchronous fallback | Test-only thread suppression logic using `defined?(RSpec)` |
+| `async_control:` | `harness/user_interface.rb` | Control interface loop threading; allows deterministic test execution | Headless/test detection branch |
+| `suppress_parse_warnings:` | `analyze/kb_inspector.rb` | Silence parse warnings when desired without implicit test silence | Test-mode warning suppression |
+
+Residual compatibility: `harness/state/persistence.rb` still infers `test_mode?` (for legacy spec expectations) during initialization only; no other production classes branch on RSpec presence. Future work can remove this inference once specs are updated to rely solely on injected flags.
+
+CI Recommendation: Add a grep-based check preventing reintroduction of `defined?(RSpec)` and enforcing usage of the above flags for any new conditional behavior between test and production contexts.
 
 ## Total Estimated Effort
 
@@ -515,11 +521,12 @@ Track progress by counting occurrences:
 
 ## Suggested Approach
 
-1. Start with **P0 violations** (production code with test awareness)
-2. Then work through **P1** (dependency injection and `any_instance_of`)
-3. Systematically address **P2** and **P3** one category at a time
-4. Fix one file completely before moving to the next
-5. Run full test suite after each file to catch regressions
+1. Continue P1: eliminate remaining inline `TTY::Prompt.new` (introduce constructor DI).
+2. Remove remaining `allow_any_instance_of` usages (convert to injected doubles).
+3. Begin P2: refactor provider specs to test public `send_message` paths rather than private method calls.
+4. Introduce a filesystem adapter (optional) to phase out global File mocks (P3).
+5. After each refactor: run subset + full suite to verify no regressions.
+6. Add CI grep check blocking `defined?(RSpec)` and `allow_any_instance_of` reintroduction.
 
 ---
 

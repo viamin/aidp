@@ -9,9 +9,10 @@ module Aidp
     class Progress
       attr_reader :project_dir, :progress_file
 
-      def initialize(project_dir)
+      def initialize(project_dir, skip_persistence: false)
         @project_dir = project_dir
         @progress_file = File.join(project_dir, ".aidp", "progress", "execute.yml")
+        @skip_persistence = skip_persistence
         load_progress
       end
 
@@ -61,13 +62,11 @@ module Aidp
       private
 
       def load_progress
-        # In test mode, only skip file operations if no progress file exists
-        if (ENV["RACK_ENV"] == "test" || defined?(RSpec)) && !File.exist?(@progress_file)
+        if @skip_persistence && !File.exist?(@progress_file)
           @progress = {}
           return
         end
-
-        @progress = if File.exist?(@progress_file)
+        @progress = if !@skip_persistence && File.exist?(@progress_file)
           YAML.safe_load_file(@progress_file, permitted_classes: [Date, Time, Symbol], aliases: true) || {}
         else
           {}
@@ -75,9 +74,7 @@ module Aidp
       end
 
       def save_progress
-        # In test mode, skip file operations to avoid hanging
-        return if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-
+        return if @skip_persistence
         FileUtils.mkdir_p(File.dirname(@progress_file))
         File.write(@progress_file, @progress.to_yaml)
       end

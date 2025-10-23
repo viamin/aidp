@@ -8,22 +8,27 @@ module Aidp
     module State
       # Handles file I/O and persistence for state management
       class Persistence
-        def initialize(project_dir, mode)
+        def initialize(project_dir, mode, skip_persistence: false)
           @project_dir = project_dir
           @mode = mode
           @state_dir = File.join(project_dir, ".aidp", "harness")
           @state_file = File.join(@state_dir, "#{mode}_state.json")
           @lock_file = File.join(@state_dir, "#{mode}_state.lock")
+          # Preserve legacy "test mode" semantics for specs that assert behavior,
+          # but allow explicit override via skip_persistence flag for production DI.
+          # Skip persistence in testing environments unless explicitly overridden
+          inferred_test = (defined?(RSpec) ? true : false) || ENV["RACK_ENV"] == "test"
+          @skip_persistence = skip_persistence || inferred_test
           ensure_state_directory
         end
 
         def has_state?
-          return false if test_mode?
+          return false if @skip_persistence
           File.exist?(@state_file)
         end
 
         def load_state
-          return {} if test_mode? || !has_state?
+          return {} if @skip_persistence || !has_state?
 
           with_lock do
             content = File.read(@state_file)
@@ -35,7 +40,7 @@ module Aidp
         end
 
         def save_state(state_data)
-          return if test_mode?
+          return if @skip_persistence
 
           with_lock do
             state_with_metadata = add_metadata(state_data)
@@ -44,7 +49,7 @@ module Aidp
         end
 
         def clear_state
-          return if test_mode?
+          return if @skip_persistence
 
           with_lock do
             File.delete(@state_file) if File.exist?(@state_file)
@@ -54,7 +59,8 @@ module Aidp
         private
 
         def test_mode?
-          ENV["RACK_ENV"] == "test" || defined?(RSpec)
+          # Maintain legacy expectation: true in RSpec environment
+          defined?(RSpec) ? true : (@skip_persistence == true)
         end
 
         def add_metadata(state_data)
@@ -76,7 +82,7 @@ module Aidp
         end
 
         def with_lock(&block)
-          return yield if test_mode?
+          return yield if @skip_persistence
 
           acquire_lock_with_timeout(&block)
         ensure

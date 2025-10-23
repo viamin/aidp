@@ -46,7 +46,7 @@ module Aidp
       end
 
       # Start real-time status updates
-      def start_status_updates(display_mode = :compact)
+      def start_status_updates(display_mode = :compact, async_updates: true)
         return if @running
 
         @running = true
@@ -54,20 +54,30 @@ module Aidp
         @display_mode = display_mode
         @last_update = Time.now
 
-        unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          require "concurrent"
-          @status_future = Concurrent::Future.execute do
-            while @running
-              begin
-                collect_status_data
-                display_status
-                check_alerts
-                sleep(@update_interval)
-              rescue => e
-                handle_display_error(e)
+        if async_updates
+          begin
+            require "concurrent"
+            @status_future = Concurrent::Future.execute do
+              while @running
+                begin
+                  collect_status_data
+                  display_status
+                  check_alerts
+                  sleep(@update_interval)
+                rescue => e
+                  handle_display_error(e)
+                end
               end
             end
+          rescue LoadError
+            # Fallback: perform single synchronous update if concurrent not available
+            collect_status_data
+            display_status
           end
+        else
+          # Synchronous single update mode (useful for tests)
+          collect_status_data
+          display_status
         end
       end
 

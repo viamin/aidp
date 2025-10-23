@@ -80,7 +80,7 @@ module Aidp
         display_message(box)
       end
 
-      def load_kb_data
+      def load_kb_data(suppress_parse_warnings: false)
         data = {}
 
         %w[symbols imports calls metrics seams hotspots tests cycles].each do |type|
@@ -89,8 +89,7 @@ module Aidp
             begin
               data[type.to_sym] = JSON.parse(File.read(file_path), symbolize_names: true)
             rescue JSON::ParserError => e
-              # Suppress warnings in test mode to avoid CI failures
-              unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
+              unless suppress_parse_warnings
                 display_message("Warning: Could not parse #{file_path}: #{e.message}", type: :warn)
               end
               data[type.to_sym] = []

@@ -2052,17 +2052,22 @@ module Aidp
       # ============================================================================
 
       # Start the control interface
-      def start_control_interface
+      def start_control_interface(async_control: true)
         return unless @control_interface_enabled
 
         @control_mutex.synchronize do
           return if @control_future&.pending?
 
-          # Start control interface using concurrent-ruby (skip in test mode)
-          # Using Concurrent::Future for background execution with proper thread pool management
-          unless ENV["RACK_ENV"] == "test" || defined?(RSpec)
-            require "concurrent"
-            @control_future = Concurrent::Future.execute { control_interface_loop }
+          if async_control
+            begin
+              require "concurrent"
+              @control_future = Concurrent::Future.execute { control_interface_loop }
+            rescue LoadError
+              # Fallback: run a single synchronous loop iteration if concurrent not available
+              control_interface_loop_iteration
+            end
+          else
+            control_interface_loop_iteration
           end
         end
 
