@@ -39,7 +39,7 @@ RSpec.describe Aidp::CLI::McpDashboard do
     File.write(config_file, config_content)
 
     # Mock ProviderInfo to avoid file system dependencies
-    allow_any_instance_of(Aidp::Harness::ProviderInfo).to receive(:get_info).and_return(
+    allow_any_instance_of(Aidp::Harness::ProviderInfo).to receive(:info).and_return(
       {
         mcp_support: true,
         mcp_servers: []

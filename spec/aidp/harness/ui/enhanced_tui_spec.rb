@@ -149,4 +149,336 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       expect(test_prompt.messages.first[:message]).to include("Please provide feedback")
     end
   end
+
+  describe "#announce_mode" do
+    it "announces analyze mode" do
+      expect { tui.announce_mode(:analyze) }.not_to raise_error
+
+      # In test environment, headless is auto-detected as true
+      # Verify messages were sent
+      expect(test_prompt.messages.length).to be >= 2
+      messages_text = test_prompt.messages.map { |m| m[:message] }.join(" ")
+      expect(messages_text).to include("Analyze Mode")
+      expect(messages_text).to include("Select workflow")
+    end
+
+    it "announces execute mode" do
+      expect { tui.announce_mode(:execute) }.not_to raise_error
+
+      messages_text = test_prompt.messages.map { |m| m[:message] }.join(" ")
+      expect(messages_text).to include("Execute Mode")
+    end
+
+    it "sets current mode" do
+      tui.announce_mode(:analyze)
+
+      expect(tui.instance_variable_get(:@current_mode)).to eq(:analyze)
+    end
+  end
+
+  describe "#simulate_step_execution" do
+    it "simulates step execution" do
+      expect { tui.simulate_step_execution("00_PRD_initial_planning") }.not_to raise_error
+
+      # In test environment, headless is auto-detected
+      # Should set workflow as active
+      expect(tui.instance_variable_get(:@workflow_active)).to be true
+      # Should set current step
+      expect(tui.instance_variable_get(:@current_step)).to eq("00_PRD_initial_planning")
+      # Should output completion message for PRD steps
+      messages_text = test_prompt.messages.map { |m| m[:message] }.join(" ")
+      expect(messages_text).to include("completed")
+    end
+
+    it "handles non-PRD steps" do
+      expect { tui.simulate_step_execution("some_other_step") }.not_to raise_error
+
+      expect(tui.instance_variable_get(:@current_step)).to eq("some_other_step")
+    end
+  end
+
+  describe "#show_workflow_status" do
+    it "displays workflow status with basic data" do
+      workflow_data = {
+        workflow_type: :comprehensive,
+        steps: ["step1", "step2", "step3"],
+        completed_steps: 1,
+        current_step: "step2"
+      }
+
+      expect { tui.show_workflow_status(workflow_data) }.not_to raise_error
+
+      # Verify a message was displayed
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "displays workflow status with progress percentage" do
+      workflow_data = {
+        workflow_type: :simple,
+        steps: ["step1", "step2"],
+        completed_steps: 1,
+        current_step: "step2",
+        progress_percentage: 50
+      }
+
+      expect { tui.show_workflow_status(workflow_data) }.not_to raise_error
+
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "handles nil values gracefully" do
+      workflow_data = {
+        workflow_type: :default,
+        steps: nil,
+        completed_steps: nil,
+        current_step: nil
+      }
+
+      expect { tui.show_workflow_status(workflow_data) }.not_to raise_error
+    end
+  end
+
+  describe "#show_step_execution" do
+    it "displays starting status" do
+      expect { tui.show_step_execution("test_step", :starting, {provider: "claude"}) }.not_to raise_error
+
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "displays running status" do
+      expect { tui.show_step_execution("test_step", :running, {message: "Processing..."}) }.not_to raise_error
+
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "displays completed status with duration" do
+      expect { tui.show_step_execution("test_step", :completed, {duration: 5.5}) }.not_to raise_error
+
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "displays failed status with error" do
+      expect { tui.show_step_execution("test_step", :failed, {error: "Something went wrong"}) }.not_to raise_error
+
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "handles unknown status" do
+      expect { tui.show_step_execution("test_step", :unknown_status) }.not_to raise_error
+    end
+
+    it "handles empty details" do
+      expect { tui.show_step_execution("test_step", :starting, {}) }.not_to raise_error
+      expect { tui.show_step_execution("test_step", :running) }.not_to raise_error
+    end
+  end
+
+  describe "message types" do
+    it "handles muted message type" do
+      expect { tui.show_message("Muted message", :muted) }.not_to raise_error
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "handles default message type" do
+      expect { tui.show_message("Default message") }.not_to raise_error
+      expect(test_prompt.messages.length).to eq(1)
+    end
+
+    it "handles unknown message type" do
+      expect { tui.show_message("Unknown type", :unknown) }.not_to raise_error
+      expect(test_prompt.messages.length).to eq(1)
+    end
+  end
+
+  describe "initialization" do
+    it "creates a new instance with default parameters" do
+      instance = described_class.new(prompt: test_prompt)
+      expect(instance).to be_a(described_class)
+    end
+
+    it "auto-detects headless mode in RSpec" do
+      instance = described_class.new(prompt: test_prompt)
+      # In RSpec environment, headless should be true
+      expect(instance.instance_variable_get(:@headless)).to be true
+    end
+
+    it "initializes with empty jobs hash" do
+      expect(tui.instance_variable_get(:@jobs)).to eq({})
+    end
+  end
+
+  describe "thread safety" do
+    it "handles concurrent job operations" do
+      threads = 5.times.map do |i|
+        Thread.new do
+          tui.add_job("job_#{i}", {name: "Job #{i}", status: :running})
+          tui.update_job("job_#{i}", {status: :completed})
+          tui.remove_job("job_#{i}")
+        end
+      end
+
+      expect { threads.each(&:join) }.not_to raise_error
+    end
+  end
+
+  describe "#show_step_execution error formatting" do
+    it "formats ConnectError messages" do
+      expect {
+        tui.show_step_execution("test_step", :failed, {
+          error: "ConnectError: Connection refused on localhost:8080\nStack trace..."
+        })
+      }.not_to raise_error
+      expect(test_prompt.messages).not_to be_empty
+    end
+
+    it "formats exit status errors" do
+      expect {
+        tui.show_step_execution("test_step", :failed, {
+          error: "Command failed with exit status: 127 stderr: command not found\nMore details..."
+        })
+      }.not_to raise_error
+      expect(test_prompt.messages).not_to be_empty
+    end
+
+    it "truncates long error messages" do
+      expect {
+        tui.show_step_execution("test_step", :failed, {
+          error: "A" * 250
+        })
+      }.not_to raise_error
+      expect(test_prompt.messages).not_to be_empty
+    end
+  end
+
+  describe "#get_confirmation" do
+    it "prompts for yes/no confirmation" do
+      result = tui.get_confirmation("Are you sure?")
+      expect(result).to be true
+    end
+  end
+
+  describe "job management" do
+    describe "#add_job" do
+      it "adds a job with provided data" do
+        job_data = {
+          name: "Test Job",
+          status: :running,
+          progress: 50,
+          provider: "claude",
+          message: "Processing..."
+        }
+        tui.add_job("job-123", job_data)
+        expect(tui.instance_variable_get(:@jobs)["job-123"]).to include(
+          id: "job-123",
+          name: "Test Job",
+          status: :running,
+          progress: 50,
+          provider: "claude",
+          message: "Processing..."
+        )
+      end
+
+      it "uses job_id as name if name not provided" do
+        tui.add_job("job-456", {})
+        expect(tui.instance_variable_get(:@jobs)["job-456"][:name]).to eq("job-456")
+      end
+
+      it "sets default status to pending" do
+        tui.add_job("job-789", {})
+        expect(tui.instance_variable_get(:@jobs)["job-789"][:status]).to eq(:pending)
+      end
+
+      it "sets default progress to 0" do
+        tui.add_job("job-000", {})
+        expect(tui.instance_variable_get(:@jobs)["job-000"][:progress]).to eq(0)
+      end
+    end
+
+    describe "#update_job" do
+      it "updates an existing job" do
+        tui.add_job("job-123", {name: "Test"})
+        tui.update_job("job-123", {status: :completed, progress: 100})
+        expect(tui.instance_variable_get(:@jobs)["job-123"]).to include(
+          status: :completed,
+          progress: 100
+        )
+      end
+
+      it "does nothing for non-existent job" do
+        expect { tui.update_job("nonexistent", {status: :failed}) }.not_to raise_error
+      end
+    end
+  end
+
+  describe "#extract_questions_for_step" do
+    it "returns empty array in non-headless mode" do
+      headless_tui = described_class.new(prompt: test_prompt)
+      headless_tui.instance_variable_set(:@headless, false)
+
+      result = headless_tui.send(:extract_questions_for_step, "test_step")
+      expect(result).to eq([])
+    end
+
+    it "extracts questions from PRD template" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("AIDP_ROOT").and_return(nil)
+      allow(Dir).to receive(:pwd).and_return("/test/root")
+      allow(Dir).to receive(:glob).with("/test/root/templates/ANALYZE/00_PRD.md").and_return(["/test/root/templates/ANALYZE/00_PRD.md"])
+      allow(File).to receive(:read).with("/test/root/templates/ANALYZE/00_PRD.md").and_return(<<~CONTENT)
+        # PRD Template
+        ## Questions
+        - What is the main goal?
+        - Who are the users?
+      CONTENT
+
+      headless_tui = described_class.new(prompt: test_prompt)
+      headless_tui.instance_variable_set(:@headless, true)
+      headless_tui.instance_variable_set(:@current_mode, :analyze)
+
+      result = headless_tui.send(:extract_questions_for_step, "00_PRD")
+      expect(result).to eq(["What is the main goal?", "Who are the users?"])
+    end
+
+    it "returns empty array when no files found" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(Dir).to receive(:glob).and_return([])
+
+      headless_tui = described_class.new(prompt: test_prompt)
+      headless_tui.instance_variable_set(:@headless, true)
+
+      result = headless_tui.send(:extract_questions_for_step, "test_step")
+      expect(result).to eq([])
+    end
+
+    it "returns empty array when no questions section found" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(Dir).to receive(:glob).and_return(["/test/file.md"])
+      allow(File).to receive(:read).and_return("# No questions here")
+
+      headless_tui = described_class.new(prompt: test_prompt)
+      headless_tui.instance_variable_set(:@headless, true)
+
+      result = headless_tui.send(:extract_questions_for_step, "test_step")
+      expect(result).to eq([])
+    end
+
+    it "handles file read errors gracefully" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(Dir).to receive(:glob).and_return(["/test/file.md"])
+      allow(File).to receive(:read).and_raise(Errno::ENOENT)
+
+      headless_tui = described_class.new(prompt: test_prompt)
+      headless_tui.instance_variable_set(:@headless, true)
+
+      result = headless_tui.send(:extract_questions_for_step, "test_step")
+      expect(result).to eq([])
+    end
+  end
+
+  describe "#format_elapsed_time" do
+    it "formats hours and minutes" do
+      result = tui.send(:format_elapsed_time, 7384) # 2h 3m 4s
+      expect(result).to eq("2h 3m")
+    end
+  end
 end
