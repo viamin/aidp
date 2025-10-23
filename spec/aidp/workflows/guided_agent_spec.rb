@@ -219,7 +219,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         )
 
         # Inject NFR data into the plan during iteration
-        allow_any_instance_of(described_class).to receive(:update_plan_from_answer) do |instance, plan, question, answer|
+        allow(agent).to receive(:update_plan_from_answer) do |plan, question, answer|
           if question.downcase.include?("performance")
             plan[:requirements][:non_functional] = {
               "Performance requirements" => "Response time < 100ms"

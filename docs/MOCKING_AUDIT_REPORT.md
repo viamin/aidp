@@ -27,17 +27,16 @@ This audit identified **200+ violations** across **95+ spec files** where mockin
 - **All 3710 examples passing** with 79.2% line coverage
 - No inline TTY::Prompt.new except for DI default parameters (proper pattern)
 
-**⏸️ P1 REMAINING** - Other DI improvements & any_instance_of reductions
+**✅ P1 COMPLETED** - All any_instance_of violations eliminated!
 
 - ✅ **Sleep stub DI completed**: Added `Sleeper` class to `EnhancedRunner` and `ErrorHandler`; removed all sleep-related `allow_any_instance_of` stubs
 - ✅ **Binary checker DI completed**: Added `BinaryChecker` class to `RepositoryClient`; removed `gh_cli_available?` any_instance_of stubs
 - ✅ **IssueImporter DI improved**: Removed remaining `allow_any_instance_of` and `expect_any_instance_of` stubs; leveraged existing `gh_available:` parameter
-- **6 allow_any_instance_of violations remaining** (down from ~35+):
-  - `cli_spec.rb`: ProviderInfo.gather_info
-  - `workflows/guided_agent_spec.rb`: update_plan_from_answer hook
-  - `cli/mcp_dashboard_spec.rb`: ProviderInfo.info
-  - `harness/state/workflow_state_spec.rb`: create_progress_tracker (2 occurrences)
-  - `jobs/background_runner_spec.rb`: display_message
+- ✅ **ProviderInfo DI**: Stubbed `ProviderInfo.new` instead of using any_instance_of in CLI and MCP dashboard specs
+- ✅ **GuidedAgent refactor**: Changed from any_instance_of to direct instance stubbing for `update_plan_from_answer`
+- ✅ **WorkflowState DI**: Added `progress_tracker_factory:` injection to enable test doubles
+- ✅ **BackgroundRunner DI**: Added `suppress_display:` flag to control message output without any_instance_of
+- **0 allow_any_instance_of violations remaining** (down from ~35+) - 100% eliminated!
 
 **⏸️ P2 PENDING** - 130+ violations remaining
 
@@ -230,7 +229,9 @@ let(:executor) { described_class.new(project_dir, runner_factory: runner_factory
 
 ### Complete List of `allow_any_instance_of` Violations
 
-**Completed Refactors (28+ removed)**:
+**✅ ALL COMPLETED** - All 35+ violations eliminated through dependency injection!
+
+**Completed Refactors (35+ removed)**:
 
 - ✅ [spec/aidp/workstream_executor_spec.rb](spec/aidp/workstream_executor_spec.rb) - Added runner_factory DI (3 removed)
 - ✅ [spec/aidp/harness/performance_simple_spec.rb](spec/aidp/harness/performance_simple_spec.rb) - Constructor wrapping for ProviderManager (7 removed)
@@ -242,16 +243,15 @@ let(:executor) { described_class.new(project_dir, runner_factory: runner_factory
 - ✅ [spec/aidp/watch/repository_client_spec.rb](spec/aidp/watch/repository_client_spec.rb) - Binary checker DI (1 removed)
 - ✅ [spec/aidp/cli/issue_importer_spec.rb](spec/aidp/cli/issue_importer_spec.rb) - Leveraged existing gh_available param (1 removed)
 - ✅ [spec/aidp/cli/issue_importer_bootstrap_spec.rb](spec/aidp/cli/issue_importer_bootstrap_spec.rb) - Leveraged existing gh_available param (1 removed)
+- ✅ [spec/aidp/cli_spec.rb](spec/aidp/cli_spec.rb) - Stubbed ProviderInfo.new constructor (1 removed)
+- ✅ [spec/aidp/workflows/guided_agent_spec.rb](spec/aidp/workflows/guided_agent_spec.rb) - Direct instance stubbing (1 removed)
+- ✅ [spec/aidp/cli/mcp_dashboard_spec.rb](spec/aidp/cli/mcp_dashboard_spec.rb) - Stubbed ProviderInfo.new constructor (1 removed)
+- ✅ [spec/aidp/harness/state/workflow_state_spec.rb](spec/aidp/harness/state/workflow_state_spec.rb) - Progress tracker factory DI (2 removed)
+- ✅ [spec/aidp/jobs/background_runner_spec.rb](spec/aidp/jobs/background_runner_spec.rb) - Added suppress_display flag (1 removed)
 
-**Remaining (6 instances)**:
+**Remaining**: 0 instances
 
-- [spec/aidp/cli_spec.rb](spec/aidp/cli_spec.rb) - ProviderInfo.gather_info
-- [spec/aidp/workflows/guided_agent_spec.rb](spec/aidp/workflows/guided_agent_spec.rb) - update_plan_from_answer
-- [spec/aidp/cli/mcp_dashboard_spec.rb](spec/aidp/cli/mcp_dashboard_spec.rb) - ProviderInfo.info
-- [spec/aidp/harness/state/workflow_state_spec.rb](spec/aidp/harness/state/workflow_state_spec.rb) - create_progress_tracker (2 occurrences)
-- [spec/aidp/jobs/background_runner_spec.rb](spec/aidp/jobs/background_runner_spec.rb) - display_message
-
-**All require**: Dependency injection pattern instead of any_instance_of.
+**Impact**: Test isolation dramatically improved; all tests can now run independently without global state modification.
 
 ---
 
@@ -530,7 +530,7 @@ Track progress by counting occurrences:
 
 | Metric | Previous | Current | Target |
 |--------|----------|---------|--------|
-| Files with `allow_any_instance_of` | 35+ | 6 | 0 |
+| Files with `allow_any_instance_of` | 35+ | 0 ✅ | 0 |
 | Files with `defined?(RSpec)` in lib/ | 2 | 0 ✅ | 0 |
 | Files testing private methods (`send`/`__send__`) | 15+ | 15+ | 0 |
 | Provider specs mocking internal methods | 6+ | 6+ | 0 |

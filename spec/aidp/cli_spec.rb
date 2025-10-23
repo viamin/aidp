@@ -1706,7 +1706,9 @@ RSpec.describe Aidp::CLI do
       allow(described_class).to receive(:display_message)
       allow(TTY::Spinner).to receive(:new).and_return(instance_double(TTY::Spinner, auto_spin: nil, success: nil, error: nil))
       require_relative "../../lib/aidp/harness/provider_info"
-      allow_any_instance_of(Aidp::Harness::ProviderInfo).to receive(:gather_info).and_return({cli_available: true})
+      # Stub ProviderInfo.new to return double with gather_info method
+      mock_provider_info = instance_double(Aidp::Harness::ProviderInfo, gather_info: {cli_available: true})
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
     end
 
     it "refreshes all providers when no name provided" do

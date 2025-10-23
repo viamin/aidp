@@ -17,10 +17,16 @@ module Aidp
 
       attr_reader :project_dir, :jobs_dir
 
-      def initialize(project_dir = Dir.pwd)
+      def initialize(project_dir = Dir.pwd, suppress_display: false)
         @project_dir = project_dir
         @jobs_dir = File.join(project_dir, ".aidp", "jobs")
+        @suppress_display = suppress_display
         ensure_jobs_directory
+      end
+
+      def display_message(msg, type: :info)
+        return if @suppress_display
+        super
       end
 
       # Start a background job
