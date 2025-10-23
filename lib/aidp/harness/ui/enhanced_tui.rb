@@ -20,16 +20,15 @@ module Aidp
 
         class DisplayError < TUIError; end
 
-        def initialize(prompt: TTY::Prompt.new)
+        def initialize(prompt: TTY::Prompt.new, tty: $stdin)
           @cursor = TTY::Cursor
           @screen = TTY::Screen
           @pastel = Pastel.new
           @prompt = prompt
 
           # Headless (non-interactive) detection for test/CI environments:
-          # - RSpec defined or RSPEC_RUNNING env set
-          # - STDIN not a TTY (captured by PTY/tmux harness)
-          @headless = !!(defined?(RSpec) || ENV["RSPEC_RUNNING"] || $stdin.nil? || !$stdin.tty?)
+          # - STDIN not a TTY (captured by PTY/tmux harness or test environment)
+          @headless = !!(tty.nil? || !tty.tty?)
 
           @current_mode = nil
           @workflow_active = false

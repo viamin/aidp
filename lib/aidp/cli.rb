@@ -504,21 +504,6 @@ module Aidp
         if step
           display_message("Running #{mode} step '#{step}' with enhanced TUI harness", type: :highlight)
           display_message("progress indicators", type: :info)
-          if step.start_with?("00_PRD") && (defined?(RSpec) || ENV["RSPEC_RUNNING"])
-            # Simulate questions & completion similar to TUI test mode
-            root = ENV["AIDP_ROOT"] || Dir.pwd
-            file = Dir.glob(File.join(root, "templates", (mode == :execute) ? "EXECUTE" : "ANALYZE", "00_PRD*.md")).first
-            if file && File.file?(file)
-              content = File.read(file)
-              questions_section = content.split(/## Questions/i)[1]
-              if questions_section
-                questions_section.lines.select { |l| l.strip.start_with?("-") }.each do |line|
-                  display_message(line.strip.sub(/^-\s*/, ""), type: :info)
-                end
-              end
-            end
-            display_message("PRD completed", type: :success)
-          end
           return
         end
         display_message("Starting enhanced TUI harness", type: :highlight)

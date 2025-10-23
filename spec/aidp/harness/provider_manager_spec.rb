@@ -4,22 +4,21 @@ require "spec_helper"
 
 RSpec.describe Aidp::Harness::ProviderManager do
   let(:configuration) { double("Configuration") }
-  let(:manager) { described_class.new(configuration) }
+  let(:mock_binary_checker) { double("BinaryChecker") }
+  let(:manager) { described_class.new(configuration, binary_checker: mock_binary_checker) }
 
   before do
     allow(configuration).to receive(:default_provider).and_return("anthropic")
     allow(configuration).to receive(:configured_providers).and_return(["anthropic", "cursor", "macos"]).at_least(:once)
     allow(configuration).to receive(:provider_configured?).and_return(true)
+    # Default stub for provider_models - specific tests can override with .with(provider)
     allow(configuration).to receive(:provider_models).and_return(["model1", "model2"])
 
-    # Mock provider CLI availability to ensure tests work in CI without installed providers
-    allow_any_instance_of(described_class).to receive(:provider_cli_available?).and_return(true)
-    allow_any_instance_of(described_class).to receive(:execute_command_with_timeout).and_return(
-      {success: true, output: "mocked output", exit_code: 0}
-    )
+    # Mock binary checker to ensure tests work in CI without installed providers
+    allow(mock_binary_checker).to receive(:which).and_return("/usr/bin/mock")
 
-    # Stub sleep to eliminate retry delays in tests
-    allow_any_instance_of(described_class).to receive(:sleep)
+    # Mock sleep to eliminate retry delays in tests
+    allow(manager).to receive(:sleep)
   end
 
   describe "initialization" do
@@ -386,8 +385,10 @@ RSpec.describe Aidp::Harness::ProviderManager do
     end
 
     describe "#find_any_available_model" do
-      before do
+      # Create a fresh manager with the correct provider_models for this context
+      let(:manager) do
         allow(configuration).to receive(:provider_models).with("anthropic").and_return(["claude-3-opus", "claude-3-sonnet"])
+        described_class.new(configuration, binary_checker: mock_binary_checker)
       end
 
       it "uses round-robin when no model weights configured" do
