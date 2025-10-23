@@ -20,7 +20,7 @@ module Aidp
         "Google Gemini"
       end
 
-      def send(prompt:, session: nil)
+      def send_message(prompt:, session: nil)
         raise "gemini CLI not available" unless self.class.available?
 
         # Smart timeout calculation

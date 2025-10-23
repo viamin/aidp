@@ -42,7 +42,7 @@ RSpec.describe Aidp::Providers::Cursor do
       end
 
       it "does not show streaming message" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).not_to have_received(:display_message).with(
           anything,
@@ -51,7 +51,7 @@ RSpec.describe Aidp::Providers::Cursor do
       end
 
       it "uses non-streaming debug_execute_command" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:debug_execute_command).with(
           "cursor-agent",
@@ -74,7 +74,7 @@ RSpec.describe Aidp::Providers::Cursor do
       end
 
       it "shows display streaming message" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:display_message).with(
           "📺 Display streaming enabled - output buffering reduced (cursor-agent does not support true streaming)",
@@ -83,7 +83,7 @@ RSpec.describe Aidp::Providers::Cursor do
       end
 
       it "uses streaming debug_execute_command" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:debug_execute_command).with(
           "cursor-agent",
@@ -106,7 +106,7 @@ RSpec.describe Aidp::Providers::Cursor do
       end
 
       it "shows display streaming message" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:display_message).with(
           "📺 Display streaming enabled - output buffering reduced (cursor-agent does not support true streaming)",
@@ -115,7 +115,7 @@ RSpec.describe Aidp::Providers::Cursor do
       end
 
       it "uses streaming debug_execute_command" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:debug_execute_command).with(
           "cursor-agent",
@@ -145,7 +145,7 @@ RSpec.describe Aidp::Providers::Cursor do
       end
 
       it "falls back to -p mode with streaming enabled" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:debug_execute_command).with(
           "cursor-agent",

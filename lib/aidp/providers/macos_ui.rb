@@ -16,7 +16,7 @@ module Aidp
         "macos"
       end
 
-      def send(prompt:, session: nil)
+      def send_message(prompt:, session: nil)
         raise "macOS UI not available on this platform" unless self.class.available?
 
         debug_provider("macos", "Starting Cursor interaction", {prompt_length: prompt.length})

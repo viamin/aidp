@@ -84,7 +84,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
       # Mock planning questions response and step identification
       # Provider.send returns a string (the content), not a hash
-      allow(provider).to receive(:send).and_return(
+      allow(provider).to receive(:send_message).and_return(
         plan_response.to_json,
         step_identification_response.to_json
       )
@@ -132,7 +132,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     context "when plan requires multiple iterations" do
       before do
         call_count = 0
-        allow(provider).to receive(:send) do
+        allow(provider).to receive(:send_message) do
           call_count += 1
           if call_count == 1
             # First call: AI needs more info
@@ -165,7 +165,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     context "when provider request fails" do
       before do
         # Provider.send returns nil/empty string on failure
-        allow(provider).to receive(:send).and_return(nil)
+        allow(provider).to receive(:send_message).and_return(nil)
       end
 
       it "raises a ConversationError" do
@@ -195,7 +195,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         # Simulate plan with NFRs
         plan_with_nfrs = plan_response.dup
         # Provider.send returns a string (the content), not a hash
-        allow(provider).to receive(:send).and_return(
+        allow(provider).to receive(:send_message).and_return(
           plan_with_nfrs.to_json,
           step_identification_response.to_json
         )
@@ -228,7 +228,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         allow(provider_manager).to receive(:configured_providers).and_return(["claude", secondary_provider])
 
         call_count = 0
-        allow(provider).to receive(:send) do
+        allow(provider).to receive(:send_message) do
           call_count += 1
           if call_count == 1
             # First attempt triggers resource_exhausted failure via raising error

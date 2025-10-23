@@ -292,7 +292,7 @@ module Aidp
           end
 
           combined_prompt = "#{system_prompt}\n\n#{user_prompt}"
-          result = provider.send(prompt: combined_prompt)
+          result = provider.send_message(prompt: combined_prompt)
 
           if result.nil? || result.empty?
             raise ConversationError, "Provider request failed: empty response"
