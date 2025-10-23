@@ -530,6 +530,18 @@ RSpec.describe Aidp::CLI do
       expect(options[:parser]).to be_a(OptionParser)
       expect(options.keys).to eq([:parser])
     end
+
+    it "raises OptionParser::InvalidOption for unknown flag" do
+      expect {
+        described_class.send(:parse_options, ["--bogus-flag"])
+      }.to raise_error(OptionParser::InvalidOption)
+    end
+
+    it "raises on mixed valid and invalid flags and does not set partial options" do
+      expect {
+        described_class.send(:parse_options, ["--help", "--unknown123"])
+      }.to raise_error(OptionParser::InvalidOption)
+    end
   end
 
   describe ".setup_logging" do
