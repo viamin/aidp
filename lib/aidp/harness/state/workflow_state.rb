@@ -10,11 +10,12 @@ module Aidp
     module State
       # Manages workflow-specific state and progress tracking
       class WorkflowState
-        def initialize(persistence, project_dir, mode)
+        def initialize(persistence, project_dir, mode, progress_tracker_factory: nil)
           @persistence = persistence
           @project_dir = project_dir
           @mode = mode
-          @progress_tracker = create_progress_tracker
+          @progress_tracker_factory = progress_tracker_factory
+          @progress_tracker = @progress_tracker_factory ? @progress_tracker_factory.call : create_progress_tracker
         end
 
         def completed_steps

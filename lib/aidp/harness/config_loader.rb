@@ -9,9 +9,9 @@ module Aidp
   module Harness
     # Enhanced configuration loader for harness
     class ConfigLoader
-      def initialize(project_dir = Dir.pwd)
+      def initialize(project_dir = Dir.pwd, validator: nil)
         @project_dir = project_dir
-        @validator = ConfigValidator.new(project_dir)
+        @validator = validator || ConfigValidator.new(project_dir)
         @config_cache = nil
         @last_loaded = nil
         @last_signature = nil # stores {mtime:, size:, hash:}

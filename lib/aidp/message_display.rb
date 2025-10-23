@@ -39,9 +39,16 @@ module Aidp
     end
 
     module ClassMethods
-      # Class-level display helper (stateless)
+      # Class-level display helper (uses fresh prompt to respect $stdout changes)
       def display_message(message, type: :info)
-        TTY::Prompt.new.say(message, color: COLOR_MAP.fetch(type, :white))
+        class_message_display_prompt.say(message, color: COLOR_MAP.fetch(type, :white))
+      end
+
+      private
+
+      # Don't memoize - create fresh prompt each time to respect $stdout redirection in tests
+      def class_message_display_prompt
+        TTY::Prompt.new
       end
     end
   end

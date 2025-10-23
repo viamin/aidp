@@ -49,8 +49,8 @@ RSpec.describe Aidp::Watch::RepositoryClient do
     end
 
     it "auto-detects gh_available when not provided" do
-      allow_any_instance_of(described_class).to receive(:gh_cli_available?).and_return(true)
-      client = described_class.new(owner: owner, repo: repo)
+      binary_checker = double("BinaryChecker", gh_cli_available?: true)
+      client = described_class.new(owner: owner, repo: repo, binary_checker: binary_checker)
       expect(client.gh_available?).to be true
     end
   end
@@ -170,24 +170,28 @@ RSpec.describe Aidp::Watch::RepositoryClient do
     end
   end
 
-  describe "private methods" do
+  describe Aidp::Watch::RepositoryClient::BinaryChecker do
+    let(:checker) { described_class.new }
+
     describe "#gh_cli_available?" do
       it "returns true when gh command is available" do
         allow(Open3).to receive(:capture3).with("gh", "--version").and_return(["", "", double(success?: true)])
-        expect(client.send(:gh_cli_available?)).to be true
+        expect(checker.gh_cli_available?).to be true
       end
 
       it "returns false when gh command fails" do
         allow(Open3).to receive(:capture3).with("gh", "--version").and_return(["", "error", double(success?: false)])
-        expect(client.send(:gh_cli_available?)).to be false
+        expect(checker.gh_cli_available?).to be false
       end
 
       it "returns false when gh command is not found" do
         allow(Open3).to receive(:capture3).with("gh", "--version").and_raise(Errno::ENOENT)
-        expect(client.send(:gh_cli_available?)).to be false
+        expect(checker.gh_cli_available?).to be false
       end
     end
+  end
 
+  describe "private methods" do
     describe "#list_issues_via_gh" do
       let(:gh_response) do
         JSON.dump([

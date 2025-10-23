@@ -1,2 +1,5 @@
 # Ignore auto-generated changelog from lint rules except MD013 (line length disabled separately)
 CHANGELOG.md
+
+# Ignore temporary test files (matches .gitignore)
+tmp/

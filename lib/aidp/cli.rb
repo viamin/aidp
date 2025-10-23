@@ -147,6 +147,10 @@ module Aidp
     class << self
       extend Aidp::MessageDisplay::ClassMethods
 
+      def create_prompt
+        ::TTY::Prompt.new
+      end
+
       def run(args = ARGV)
         # Handle subcommands first (status, jobs, kb, harness)
         return run_subcommand(args) if subcommand?(args)
@@ -173,7 +177,7 @@ module Aidp
 
         # Handle configuration setup
         # Create a prompt for the wizard
-        prompt = TTY::Prompt.new
+        prompt = create_prompt
 
         if options[:setup_config]
           # Force setup/reconfigure even if config exists
@@ -233,11 +237,6 @@ module Aidp
       end
 
       private
-
-      # Create a TTY::Prompt instance (extracted for testability)
-      def create_prompt
-        TTY::Prompt.new
-      end
 
       def setup_logging(project_dir)
         # Load logging config from aidp.yml
@@ -403,7 +402,7 @@ module Aidp
 
       def run_jobs_command(args = [])
         require_relative "cli/jobs_command"
-        jobs_cmd = Aidp::CLI::JobsCommand.new(prompt: TTY::Prompt.new)
+        jobs_cmd = Aidp::CLI::JobsCommand.new(prompt: create_prompt)
         subcommand = args.shift
         jobs_cmd.run(subcommand, args)
       end
@@ -509,21 +508,6 @@ module Aidp
         if step
           display_message("Running #{mode} step '#{step}' with enhanced TUI harness", type: :highlight)
           display_message("progress indicators", type: :info)
-          if step.start_with?("00_PRD") && (defined?(RSpec) || ENV["RSPEC_RUNNING"])
-            # Simulate questions & completion similar to TUI test mode
-            root = ENV["AIDP_ROOT"] || Dir.pwd
-            file = Dir.glob(File.join(root, "templates", (mode == :execute) ? "EXECUTE" : "ANALYZE", "00_PRD*.md")).first
-            if file && File.file?(file)
-              content = File.read(file)
-              questions_section = content.split(/## Questions/i)[1]
-              if questions_section
-                questions_section.lines.select { |l| l.strip.start_with?("-") }.each do |line|
-                  display_message(line.strip.sub(/^-\s*/, ""), type: :info)
-                end
-              end
-            end
-            display_message("PRD completed", type: :success)
-          end
           return
         end
         display_message("Starting enhanced TUI harness", type: :highlight)
@@ -606,7 +590,7 @@ module Aidp
         when "clear"
           force = args.include?("--force")
           unless force
-            prompt = TTY::Prompt.new
+            prompt = create_prompt
             confirm = prompt.yes?("Are you sure you want to clear all checkpoint data?")
             return unless confirm
           end
@@ -701,7 +685,7 @@ module Aidp
           end
         end
         config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
-        pm = Aidp::Harness::ProviderManager.new(config_manager, prompt: TTY::Prompt.new)
+        pm = Aidp::Harness::ProviderManager.new(config_manager, prompt: create_prompt)
 
         # Use TTY::Spinner for progress indication
         require "tty-spinner"
@@ -1054,7 +1038,7 @@ module Aidp
           return
         end
 
-        wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: TTY::Prompt.new, dry_run: dry_run)
+        wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: create_prompt, dry_run: dry_run)
         wizard.run
       end
 
@@ -1081,7 +1065,7 @@ module Aidp
         end
 
         require_relative "init/runner"
-        runner = Aidp::Init::Runner.new(Dir.pwd, prompt: TTY::Prompt.new, options: options)
+        runner = Aidp::Init::Runner.new(Dir.pwd, prompt: create_prompt, options: options)
         runner.run
       end
 
@@ -1137,7 +1121,7 @@ module Aidp
           project_dir: Dir.pwd,
           once: once,
           use_workstreams: use_workstreams,
-          prompt: TTY::Prompt.new
+          prompt: create_prompt
         )
         runner.start
       rescue ArgumentError => e

@@ -22,10 +22,19 @@ module Aidp
         error: "error"
       }.freeze
 
-      def initialize(project_dir, mode = :analyze, options = {})
+      # Simple sleeper abstraction for test control
+      class Sleeper
+        def sleep(duration)
+          Kernel.sleep(duration)
+        end
+      end
+
+      def initialize(project_dir, mode = :analyze, options = {}, prompt: TTY::Prompt.new, sleeper: Sleeper.new)
         @project_dir = project_dir
         @mode = mode.to_sym
         @options = options
+        @prompt = prompt
+        @sleeper = sleeper
         @state = STATES[:idle]
         @start_time = nil
         @current_step = nil
@@ -50,7 +59,7 @@ module Aidp
         @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
         @condition_detector = ConditionDetector.new
-        @provider_manager = ProviderManager.new(@configuration, prompt: TTY::Prompt.new)
+        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end
@@ -240,7 +249,7 @@ module Aidp
         # Remove job after a delay to show completion
         # UI delay to let user see completion status before removal
         Thread.new do
-          sleep 2  # Acceptable for UI timing
+          @sleeper.sleep(2) # UI timing delay
           @tui.remove_job(step_job_id)
         end
 
@@ -349,9 +358,9 @@ module Aidp
       def get_mode_runner
         case @mode
         when :analyze
-          Aidp::Analyze::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
+          Aidp::Analyze::Runner.new(@project_dir, self, prompt: @prompt)
         when :execute
-          Aidp::Execute::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
+          Aidp::Execute::Runner.new(@project_dir, self, prompt: @prompt)
         else
           raise ArgumentError, "Unsupported mode: #{@mode}"
         end
@@ -376,7 +385,7 @@ module Aidp
       def handle_pause_condition
         case @state
         when STATES[:paused]
-          sleep(1)
+          @sleeper.sleep(1)
         when STATES[:waiting_for_user]
           # User interface handles this
           nil
@@ -503,7 +512,7 @@ module Aidp
         while Time.now < reset_time && @state == STATES[:waiting_for_rate_limit]
           remaining = reset_time - Time.now
           @tui.show_message("⏳ Rate limit reset in #{remaining.to_i} seconds", :info)
-          sleep(1)
+          @sleeper.sleep(1)
         end
       end
 

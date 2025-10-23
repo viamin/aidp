@@ -9,11 +9,10 @@ require "fileutils"
 
 RSpec.describe Aidp::Jobs::BackgroundRunner do
   let(:project_dir) { Dir.mktmpdir("aidp-bg-runner") }
-  let(:runner) { described_class.new(project_dir) }
+  let(:runner) { described_class.new(project_dir, suppress_display: true) }
 
   before do
-    # Silence display output to keep spec clean
-    allow_any_instance_of(described_class).to receive(:display_message)
+    # Display output suppressed via constructor flag
   end
 
   after do

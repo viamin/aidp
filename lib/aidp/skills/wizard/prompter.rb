@@ -15,8 +15,8 @@ module Aidp
       class Prompter
         attr_reader :prompt
 
-        def initialize
-          @prompt = TTY::Prompt.new
+        def initialize(prompt: TTY::Prompt.new)
+          @prompt = prompt
         end
 
         # Gather all responses for creating a skill

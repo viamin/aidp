@@ -185,7 +185,7 @@ RSpec.describe Aidp::CLI do
     end
 
     it "invokes wizard in interactive dry-run mode" do
-      allow(TTY::Prompt).to receive(:new).and_return(test_prompt)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
       expect(Aidp::Setup::Wizard).to receive(:new)
         .with(Dir.pwd, prompt: test_prompt, dry_run: true)
         .and_return(wizard_instance)
@@ -1067,26 +1067,15 @@ RSpec.describe Aidp::CLI do
       end
     end
 
-    it "runs specific step and shows PRD completion in test mode" do
-      # Create a temporary template file to trigger PRD question simulation
-      root = Dir.mktmpdir
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("AIDP_ROOT").and_return(root)
-      exec_dir = File.join(root, "templates", "EXECUTE")
-      FileUtils.mkdir_p(exec_dir)
-      File.write(File.join(exec_dir, "00_PRD_TEST.md"), "# PRD\n## Questions\n- What is X?\n- How to Y?\n")
-
-      begin
-        messages = []
-        allow(described_class).to receive(:display_message) do |msg, type:|
-          messages << {msg: msg, type: type}
-        end
-        described_class.send(:run_execute_command, ["00_PRD_TEST"], mode: :execute)
-        expect(messages.any? { |m| m[:msg].include?("PRD completed") && m[:type] == :success }).to be true
-        expect(messages.any? { |m| m[:msg].include?("What is X?") }).to be true
-      ensure
-        FileUtils.rm_rf(root)
+    it "runs specific step and announces execution without PRD simulation" do
+      messages = []
+      allow(described_class).to receive(:display_message) do |msg, type:|
+        messages << {msg: msg, type: type}
       end
+      described_class.send(:run_execute_command, ["00_PRD_TEST"], mode: :execute)
+      expect(messages.any? { |m| m[:msg].include?("Running execute step '00_PRD_TEST' with enhanced TUI harness") }).to be true
+      # Legacy test-only PRD completion + question emission removed; ensure not present
+      expect(messages.any? { |m| m[:msg].include?("PRD completed") }).to be false
     end
 
     it "starts harness when no step or special flags" do
@@ -1613,6 +1602,8 @@ RSpec.describe Aidp::CLI do
     end
 
     it "parses multiple flags and constructs runner options" do
+      prompt_instance = TTY::Prompt.new
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(prompt_instance)
       allow(Aidp::Init::Runner).to receive(:new).and_return(runner)
       described_class.send(:run_init_command, ["--explain-detection", "--dry-run", "--preview"])
       expect(Aidp::Init::Runner).to have_received(:new).with(Dir.pwd, prompt: kind_of(TTY::Prompt), options: hash_including(explain_detection: true, dry_run: true, preview: true))
@@ -1715,7 +1706,9 @@ RSpec.describe Aidp::CLI do
       allow(described_class).to receive(:display_message)
       allow(TTY::Spinner).to receive(:new).and_return(instance_double(TTY::Spinner, auto_spin: nil, success: nil, error: nil))
       require_relative "../../lib/aidp/harness/provider_info"
-      allow_any_instance_of(Aidp::Harness::ProviderInfo).to receive(:gather_info).and_return({cli_available: true})
+      # Stub ProviderInfo.new to return double with gather_info method
+      mock_provider_info = instance_double(Aidp::Harness::ProviderInfo, gather_info: {cli_available: true})
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
     end
 
     it "refreshes all providers when no name provided" do
@@ -1972,7 +1965,7 @@ RSpec.describe Aidp::CLI do
   describe "config command remaining branches" do
     before do
       allow(described_class).to receive(:display_message)
-      allow(TTY::Prompt).to receive(:new).and_return(test_prompt)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
     end
 
     it "shows usage with --help" do
@@ -2106,22 +2099,12 @@ RSpec.describe Aidp::CLI do
       expect(messages.any? { |x| x[:m].include?("Running execute step '01_OTHER_STEP'") }).to be true
     end
 
-    it "analyze mode PRD step triggers PRD completion simulation" do
-      root = Dir.mktmpdir
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("AIDP_ROOT").and_return(root)
-      analyze_dir = File.join(root, "templates", "ANALYZE")
-      FileUtils.mkdir_p(analyze_dir)
-      File.write(File.join(analyze_dir, "00_PRD_ANALYZE.md"), "# PRD\n## Questions\n- Analyze Q?\n")
+    it "analyze mode PRD step runs with generic step message only" do
       messages = []
-      begin
-        allow(described_class).to receive(:display_message) { |m, type:| messages << {m: m, type: type} }
-        described_class.send(:run_execute_command, ["00_PRD_ANALYZE"], mode: :analyze)
-        expect(messages.any? { |x| x[:m].include?("Analyze Q?") }).to be true
-        expect(messages.any? { |x| x[:m].include?("PRD completed") }).to be true
-      ensure
-        FileUtils.rm_rf(root)
-      end
+      allow(described_class).to receive(:display_message) { |m, type:| messages << {m: m, type: type} }
+      described_class.send(:run_execute_command, ["00_PRD_ANALYZE"], mode: :analyze)
+      expect(messages.any? { |x| x[:m].include?("Running analyze step '00_PRD_ANALYZE' with enhanced TUI harness") }).to be true
+      expect(messages.any? { |x| x[:m].include?("PRD completed") }).to be false
     end
   end
 

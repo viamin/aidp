@@ -12,9 +12,10 @@ module Aidp
       include Aidp::MessageDisplay
       include Aidp::RescueLogging
 
-      def initialize(configuration, prompt: TTY::Prompt.new)
+      def initialize(configuration, prompt: TTY::Prompt.new, binary_checker: Aidp::Util)
         @configuration = configuration
         @prompt = prompt
+        @binary_checker = binary_checker
         @current_provider = nil
         @current_model = nil
         @provider_history = []
@@ -1069,18 +1070,6 @@ module Aidp
       def provider_cli_available?(provider_name)
         normalized = normalize_provider_name(provider_name)
 
-        # Handle test environment overrides
-        if defined?(RSpec) || ENV["RSPEC_RUNNING"]
-          # Force claude to be missing for testing
-          if ENV["AIDP_FORCE_CLAUDE_MISSING"] == "1" && normalized == "claude"
-            return [false, "binary_missing"]
-          end
-          # Force claude to be available for testing
-          if ENV["AIDP_FORCE_CLAUDE_AVAILABLE"] == "1" && normalized == "claude"
-            return [true, "available"]
-          end
-        end
-
         cache_key = "#{provider_name}:#{normalized}"
         cached = @binary_check_cache[cache_key]
         if cached && (Time.now - cached[:checked_at] < @binary_check_ttl)
@@ -1098,7 +1087,7 @@ module Aidp
           return [true, nil]
         end
         path = begin
-          Aidp::Util.which(binary)
+          @binary_checker.which(binary)
         rescue => e
           log_rescue(e, component: "provider_manager", action: "locate_binary", fallback: nil, binary: binary)
           nil
@@ -1164,10 +1153,6 @@ module Aidp
         statuses = provider_health_status
         metrics = all_metrics
         configured = configured_providers
-        # Ensure fresh binary probe results in test mode so stubs of Aidp::Util.which take effect
-        if defined?(RSpec) || ENV["RSPEC_RUNNING"]
-          @binary_check_cache.clear
-        end
         rows_by_normalized = {}
         configured.each do |prov|
           # Temporarily hide macos provider until it's user-configurable

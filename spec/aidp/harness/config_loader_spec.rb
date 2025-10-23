@@ -464,12 +464,12 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       File.write(config_file, YAML.dump(valid_config))
 
       # Stub validator to return warnings
-      allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:load_and_validate).and_return({
+      allow(loader.instance_variable_get(:@validator)).to receive(:load_and_validate).and_return({
         valid: true,
         warnings: ["Warning: Some deprecation notice"],
         errors: []
       })
-      allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:validated_config).and_return(valid_config)
+      allow(loader.instance_variable_get(:@validator)).to receive(:validated_config).and_return(valid_config)
 
       # Should not raise, but should log warnings
       expect { loader.load_config(true) }.not_to raise_error
@@ -490,7 +490,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         ENV["AIDP_ENV"] = "development"
 
         # Stub fix_common_issues to return true
-        allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:fix_common_issues).and_return(true)
+        allow(loader.instance_variable_get(:@validator)).to receive(:fix_common_issues).and_return(true)
 
         # Should attempt to fix
         loader.load_config
@@ -512,7 +512,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
         ENV["RACK_ENV"] = "development"
 
         # Stub fix_common_issues to return false
-        allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:fix_common_issues).and_return(false)
+        allow(loader.instance_variable_get(:@validator)).to receive(:fix_common_issues).and_return(false)
 
         # Should attempt to fix but not warn about success
         loader.load_config
@@ -525,7 +525,7 @@ RSpec.describe Aidp::Harness::ConfigLoader do
       File.write(config_file, YAML.dump(valid_config))
 
       # Stub validator to return warnings
-      allow_any_instance_of(Aidp::Harness::ConfigValidator).to receive(:validate_existing).and_return({
+      allow(loader.instance_variable_get(:@validator)).to receive(:validate_existing).and_return({
         valid: true,
         warnings: ["Test warning"],
         errors: []

@@ -6,7 +6,8 @@ RSpec.describe Aidp::Harness::ErrorHandler do
   let(:provider_manager) { instance_double("Aidp::Harness::ProviderManager") }
   let(:configuration) { instance_double("Aidp::Harness::Configuration") }
   let(:metrics_manager) { instance_double("Aidp::Harness::MetricsManager") }
-  let(:error_handler) { described_class.new(provider_manager, configuration, metrics_manager) }
+  let(:test_sleeper) { double("Sleeper", sleep: nil) }
+  let(:error_handler) { described_class.new(provider_manager, configuration, metrics_manager, sleeper: test_sleeper) }
 
   before do
     # Mock provider manager methods
@@ -19,9 +20,6 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     # Mock metrics manager methods
     allow(metrics_manager).to receive(:record_error)
-
-    # Stub sleep to eliminate retry delays in tests
-    allow_any_instance_of(Aidp::Harness::ErrorHandler).to receive(:sleep)
   end
 
   describe "initialization" do

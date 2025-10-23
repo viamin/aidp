@@ -39,12 +39,9 @@ RSpec.describe Aidp::CLI::McpDashboard do
     File.write(config_file, config_content)
 
     # Mock ProviderInfo to avoid file system dependencies
-    allow_any_instance_of(Aidp::Harness::ProviderInfo).to receive(:info).and_return(
-      {
-        mcp_support: true,
-        mcp_servers: []
-      }
-    )
+    mock_provider_info = instance_double(Aidp::Harness::ProviderInfo,
+      info: {mcp_support: true, mcp_servers: []})
+    allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
   end
 
   describe "#initialize" do

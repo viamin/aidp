@@ -7,8 +7,9 @@ RSpec.describe Aidp::Harness::State::WorkflowState do
   let(:persistence) { instance_double("Persistence") }
   let(:project_dir) { "/test/project" }
   let(:mode) { :execute }
-  let(:workflow_state) { described_class.new(persistence, project_dir, mode) }
   let(:progress_tracker) { instance_double("ProgressTracker") }
+  let(:progress_tracker_factory) { -> { progress_tracker } }
+  let(:workflow_state) { described_class.new(persistence, project_dir, mode, progress_tracker_factory: progress_tracker_factory) }
 
   before do
     allow(persistence).to receive(:load_state).and_return({})
@@ -16,8 +17,7 @@ RSpec.describe Aidp::Harness::State::WorkflowState do
     allow(persistence).to receive(:has_state?).and_return(false)
     allow(persistence).to receive(:clear_state)
 
-    # Mock the progress tracker creation
-    allow_any_instance_of(described_class).to receive(:create_progress_tracker).and_return(progress_tracker)
+    # Set up progress tracker expectations
     allow(progress_tracker).to receive(:completed_steps).and_return([])
     allow(progress_tracker).to receive(:current_step).and_return(nil)
     allow(progress_tracker).to receive(:step_completed?).and_return(false)
@@ -35,9 +35,7 @@ RSpec.describe Aidp::Harness::State::WorkflowState do
 
     context "with unsupported mode" do
       it "raises ArgumentError when creating with invalid mode" do
-        # Need to prevent the mocking to allow real error
-        allow_any_instance_of(described_class).to receive(:create_progress_tracker).and_call_original
-
+        # Don't provide factory - let it use real create_progress_tracker which will raise
         expect {
           described_class.new(persistence, project_dir, :invalid_mode)
         }.to raise_error(ArgumentError, /Unsupported mode/)

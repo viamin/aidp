@@ -11,19 +11,20 @@ module Aidp
   module Harness
     # Manages harness-specific state and persistence, extending existing progress tracking
     class StateManager
-      def initialize(project_dir, mode)
+      def initialize(project_dir, mode, skip_persistence: false)
         @project_dir = project_dir
         @mode = mode
         @state_dir = File.join(project_dir, ".aidp", "harness")
         @state_file = File.join(@state_dir, "#{mode}_state.json")
         @lock_file = File.join(@state_dir, "#{mode}_state.lock")
+        @skip_persistence = skip_persistence
+        @memory_state = {} if @skip_persistence  # In-memory state for tests
 
-        # Initialize the appropriate progress tracker
         case mode
         when :analyze
-          @progress_tracker = Aidp::Analyze::Progress.new(project_dir)
+          @progress_tracker = Aidp::Analyze::Progress.new(project_dir, skip_persistence: @skip_persistence)
         when :execute
-          @progress_tracker = Aidp::Execute::Progress.new(project_dir)
+          @progress_tracker = Aidp::Execute::Progress.new(project_dir, skip_persistence: @skip_persistence)
         else
           raise ArgumentError, "Unsupported mode: #{mode}"
         end
@@ -33,21 +34,14 @@ module Aidp
 
       # Check if state exists
       def has_state?
-        # In test mode, always return false to avoid file operations
-        return false if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-
+        return false if @skip_persistence
         File.exist?(@state_file)
       end
 
       # Load existing state
       def load_state
-        # In test mode, return empty state to avoid file locking issues
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          return {}
-        end
-
+        return @memory_state if @skip_persistence
         return {} unless has_state?
-
         with_lock do
           content = File.read(@state_file)
           JSON.parse(content, symbolize_names: true)
@@ -59,20 +53,16 @@ module Aidp
 
       # Save current state
       def save_state(state_data)
-        # In test mode, skip file operations to avoid file locking issues
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
+        if @skip_persistence
+          @memory_state = state_data
           return
         end
-
         with_lock do
-          # Add metadata
           state_with_metadata = state_data.merge(
             mode: @mode,
             project_dir: @project_dir,
             saved_at: Time.now.iso8601
           )
-
-          # Write to temporary file first, then rename (atomic operation)
           temp_file = "#{@state_file}.tmp"
           File.write(temp_file, JSON.pretty_generate(state_with_metadata))
           File.rename(temp_file, @state_file)
@@ -81,9 +71,10 @@ module Aidp
 
       # Clear state (for fresh start)
       def clear_state
-        # In test mode, skip file operations to avoid hanging
-        return if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-
+        if @skip_persistence
+          @memory_state = {}
+          return
+        end
         with_lock do
           File.delete(@state_file) if File.exist?(@state_file)
         end
@@ -91,11 +82,7 @@ module Aidp
 
       # Get state metadata
       def state_metadata
-        # In test mode, return empty metadata to avoid file operations
-        return {} if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-
         return {} unless has_state?
-
         state = load_state
         {
           mode: state[:mode],
@@ -216,21 +203,6 @@ module Aidp
 
       # Export state for debugging
       def export_state
-        # In test mode, include test variables
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          test_state = {
-            current_workstream: @test_workstream,
-            workstream_path: @test_workstream_path,
-            workstream_branch: @test_workstream_branch
-          }
-          return {
-            state_file: @state_file,
-            has_state: false,
-            metadata: {},
-            state: test_state
-          }
-        end
-
         {
           state_file: @state_file,
           has_state: has_state?,
@@ -309,11 +281,7 @@ module Aidp
         @progress_tracker.reset
         clear_state
         # Also clear test workstream variables
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          @test_workstream = nil
-          @test_workstream_path = nil
-          @test_workstream_branch = nil
-        end
+        # Test-only instance vars removed; rely on persistence skip flag for isolation
       end
 
       # Get progress summary
@@ -472,11 +440,6 @@ module Aidp
 
       # Get current workstream slug
       def current_workstream
-        # In test mode, use instance variable
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          return @test_workstream
-        end
-
         state = load_state
         state[:current_workstream]
       end
@@ -498,14 +461,6 @@ module Aidp
         ws = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
         return false unless ws
 
-        # In test mode, use instance variables
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          @test_workstream = slug
-          @test_workstream_path = ws[:path]
-          @test_workstream_branch = ws[:branch]
-          return true
-        end
-
         update_state(
           current_workstream: slug,
           workstream_path: ws[:path],
@@ -516,14 +471,6 @@ module Aidp
 
       # Clear current workstream (switch back to main project)
       def clear_workstream
-        # In test mode, use instance variables
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          @test_workstream = nil
-          @test_workstream_path = nil
-          @test_workstream_branch = nil
-          return
-        end
-
         update_state(
           current_workstream: nil,
           workstream_path: nil,
@@ -533,15 +480,6 @@ module Aidp
 
       # Get workstream metadata
       def workstream_metadata
-        # In test mode, use instance variables
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
-          return {
-            slug: @test_workstream,
-            path: @test_workstream_path,
-            branch: @test_workstream_branch
-          }
-        end
-
         state = load_state
         {
           slug: state[:current_workstream],
@@ -642,34 +580,31 @@ module Aidp
       end
 
       def with_lock(&_block)
-        # In test mode, skip file locking to avoid concurrency issues
-        if ENV["RACK_ENV"] == "test" || defined?(RSpec)
+        # Skip locking entirely when persistence disabled
+        if @skip_persistence
           yield
           return
         end
 
-        # Improved file-based locking with Async for better concurrency
+        # Improved file-based locking using exponential backoff
+        require_relative "../concurrency"
         lock_acquired = false
-        timeout = 30 # 30 seconds in production
 
-        start_time = Time.now
-        while (Time.now - start_time) < timeout
-          begin
-            # Try to acquire lock
-            File.open(@lock_file, File::CREAT | File::EXCL | File::WRONLY) do |_lock|
-              lock_acquired = true
-              yield
-              break
-            end
-          rescue Errno::EEXIST
-            # Lock file exists, wait briefly and retry
-            sleep(0.1)
+        Aidp::Concurrency::Backoff.retry(
+          max_attempts: 300,  # 300 attempts * ~0.1s = ~30s max
+          base: 0.1,
+          max_delay: 1.0,
+          strategy: :exponential,
+          on: [Errno::EEXIST]
+        ) do
+          # Try to acquire lock
+          File.open(@lock_file, File::CREAT | File::EXCL | File::WRONLY) do |_lock|
+            lock_acquired = true
+            yield
           end
         end
-
-        unless lock_acquired
-          raise "Could not acquire state lock within #{timeout} seconds"
-        end
+      rescue Aidp::Concurrency::MaxAttemptsExceededError
+        raise "Could not acquire state lock within timeout"
       ensure
         # Clean up lock file
         File.delete(@lock_file) if lock_acquired && File.exist?(@lock_file)
@@ -677,6 +612,7 @@ module Aidp
 
       # Clean up stale lock files (older than 30 seconds)
       def cleanup_stale_lock
+        return if @skip_persistence
         return unless File.exist?(@lock_file)
 
         begin

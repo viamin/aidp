@@ -35,9 +35,13 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
   end
 
   # Helper to create instances with dependency injection
-  def create_instance(mode: :analyze, tui: nil, provider_manager: nil, selected_steps: ["step1", "step2"], workflow_type: :default)
+  def create_instance(mode: :analyze, tui: nil, provider_manager: nil, selected_steps: ["step1", "step2"], workflow_type: :default, sleeper: nil)
     opts = {selected_steps: selected_steps, workflow_type: workflow_type}
-    instance = described_class.new(project_dir, mode, opts)
+    instance = if sleeper
+      described_class.new(project_dir, mode, opts, sleeper: sleeper)
+    else
+      described_class.new(project_dir, mode, opts)
+    end
 
     # Inject TUI if provided
     instance.instance_variable_set(:@tui, tui) if tui
@@ -325,7 +329,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     let(:mock_error_handler) { double }
     let(:mock_condition_detector) { double }
     let(:provider_manager) { instance_double(Aidp::Harness::ProviderManager) }
-    let(:instance) { create_instance(tui: mock_tui, provider_manager: provider_manager) }
+    let(:test_sleeper) { double("Sleeper", sleep: nil) }
+    let(:instance) { create_instance(tui: mock_tui, provider_manager: provider_manager, sleeper: test_sleeper) }
 
     before do
       # Mock TUI methods
@@ -353,7 +358,6 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
       # Mock Thread.new to avoid actual thread creation in tests
       allow(Thread).to receive(:new).and_yield
-      allow_any_instance_of(Object).to receive(:sleep)
     end
 
     it "sets current step and shows initial message" do
@@ -920,7 +924,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     describe "#handle_pause_condition" do
       it "sleeps when state is paused" do
         instance.instance_variable_set(:@state, "paused")
-        expect(instance).to receive(:sleep).with(1)
+        sleeper = instance.instance_variable_get(:@sleeper)
+        expect(sleeper).to receive(:sleep).with(1)
 
         instance.send(:handle_pause_condition)
       end
@@ -1349,12 +1354,13 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
     describe "#sleep_until_reset" do
       let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI) }
-      let(:instance) { create_instance(tui: mock_tui) }
+      let(:test_sleeper) { double("Sleeper", sleep: nil) }
+      let(:instance) { create_instance(tui: mock_tui, sleeper: test_sleeper) }
 
       before do
         instance.instance_variable_set(:@state, "waiting_for_rate_limit")
         allow(mock_tui).to receive(:show_message)
-        allow(instance).to receive(:sleep)
+        # sleeper already stubbed
       end
 
       it "shows countdown messages and sleeps" do
@@ -1362,7 +1368,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(Time).to receive(:now).and_return(Time.now, reset_time - 2, reset_time - 1, reset_time + 1)
 
         expect(mock_tui).to receive(:show_message).with(/Rate limit reset in \d+ seconds/, :info).at_least(:once)
-        expect(instance).to receive(:sleep).with(1).at_least(:once)
+        sleeper = instance.instance_variable_get(:@sleeper)
+        expect(sleeper).to receive(:sleep).with(1).at_least(:once)
 
         instance.send(:sleep_until_reset, reset_time)
       end
