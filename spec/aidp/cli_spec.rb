@@ -620,10 +620,81 @@ RSpec.describe Aidp::CLI do
       described_class.send(:run_subcommand, ["status"])
     end
 
+    it "routes to run_jobs_command for jobs" do
+      expect(described_class).to receive(:run_jobs_command).with(["list"])
+      described_class.send(:run_subcommand, ["jobs", "list"])
+    end
+
+    it "routes to run_kb_command for kb" do
+      expect(described_class).to receive(:run_kb_command).with(["show", "topic"])
+      described_class.send(:run_subcommand, ["kb", "show", "topic"])
+    end
+
+    it "routes to run_harness_command for harness" do
+      expect(described_class).to receive(:run_harness_command).with(["status"])
+      described_class.send(:run_subcommand, ["harness", "status"])
+    end
+
+    it "routes to run_providers_command for providers" do
+      expect(described_class).to receive(:run_providers_command).with(["info", "claude"])
+      described_class.send(:run_subcommand, ["providers", "info", "claude"])
+    end
+
+    it "routes to run_checkpoint_command for checkpoint" do
+      expect(described_class).to receive(:run_checkpoint_command).with(["summary"])
+      described_class.send(:run_subcommand, ["checkpoint", "summary"])
+    end
+
+    it "routes to run_mcp_command for mcp" do
+      expect(described_class).to receive(:run_mcp_command).with(["dashboard"])
+      described_class.send(:run_subcommand, ["mcp", "dashboard"])
+    end
+
+    it "routes to run_issue_command for issue" do
+      expect(described_class).to receive(:run_issue_command).with(["import", "123"])
+      described_class.send(:run_subcommand, ["issue", "import", "123"])
+    end
+
+    it "routes to run_config_command for config" do
+      expect(described_class).to receive(:run_config_command).with(["--interactive"])
+      described_class.send(:run_subcommand, ["config", "--interactive"])
+    end
+
+    it "routes to run_init_command for init" do
+      expect(described_class).to receive(:run_init_command).with(["--dry-run"])
+      described_class.send(:run_subcommand, ["init", "--dry-run"])
+    end
+
+    it "routes to run_watch_command for watch" do
+      expect(described_class).to receive(:run_watch_command).with(["https://example.com/issues"])
+      described_class.send(:run_subcommand, ["watch", "https://example.com/issues"])
+    end
+
+    it "routes to run_ws_command for ws" do
+      expect(described_class).to receive(:run_ws_command).with(["list"])
+      described_class.send(:run_subcommand, ["ws", "list"])
+    end
+
+    it "routes to run_work_command for work" do
+      expect(described_class).to receive(:run_work_command).with(["--workstream", "slug"])
+      described_class.send(:run_subcommand, ["work", "--workstream", "slug"])
+    end
+
+    it "routes to run_skill_command for skill" do
+      expect(described_class).to receive(:run_skill_command).with(["list"])
+      described_class.send(:run_subcommand, ["skill", "list"])
+    end
+
     it "returns 0 for successful subcommand" do
       allow(described_class).to receive(:run_status_command)
       result = described_class.send(:run_subcommand, ["status"])
       expect(result).to eq(0)
+    end
+
+    it "displays message for unknown subcommand" do
+      allow(described_class).to receive(:display_message)
+      described_class.send(:run_subcommand, ["unknown"])
+      expect(described_class).to have_received(:display_message).with("Unknown command: unknown", type: :info)
     end
 
     it "returns 1 for unknown subcommand" do
@@ -702,6 +773,41 @@ RSpec.describe Aidp::CLI do
       expect(provider_manager).to have_received(:health_dashboard)
     end
 
+    it "routes to info subcommand when info is first arg" do
+      expect(described_class).to receive(:run_providers_info_command).with(["claude"])
+      described_class.send(:run_providers_command, ["info", "claude"])
+    end
+
+    it "routes to refresh subcommand when refresh is first arg" do
+      expect(described_class).to receive(:run_providers_refresh_command).with([])
+      described_class.send(:run_providers_command, ["refresh"])
+    end
+
+    it "displays health with --no-color flag stripping ANSI codes" do
+      health_rows = [
+        {provider: "claude", status: "unhealthy_auth", available: false, circuit_breaker: "open (30s)",
+         circuit_breaker_remaining: 30, rate_limited: true, rate_limit_reset_in: 60,
+         total_tokens: 5000, last_used: Time.now, unhealthy_reason: "Auth failed"}
+      ]
+      allow(provider_manager).to receive(:health_dashboard).and_return(health_rows)
+      allow($stdout).to receive(:tty?).and_return(false)
+
+      described_class.send(:run_providers_command, ["--no-color"])
+      expect(provider_manager).to have_received(:health_dashboard)
+    end
+
+    it "displays colored health when TTY available and no --no-color flag" do
+      health_rows = [
+        {provider: "gemini", status: "circuit_open", available: true, circuit_breaker: "closed",
+         rate_limited: false, total_tokens: 0, last_used: nil, unhealthy_reason: nil}
+      ]
+      allow(provider_manager).to receive(:health_dashboard).and_return(health_rows)
+      allow($stdout).to receive(:tty?).and_return(true)
+
+      described_class.send(:run_providers_command, [])
+      expect(provider_manager).to have_received(:health_dashboard)
+    end
+
     it "handles errors gracefully" do
       allow(provider_manager).to receive(:health_dashboard).and_raise(StandardError.new("Test error"))
       allow(Aidp.logger).to receive(:warn)
@@ -709,6 +815,121 @@ RSpec.describe Aidp::CLI do
       described_class.send(:run_providers_command, [])
       expect(Aidp.logger).to have_received(:warn)
       expect(described_class).to have_received(:display_message).with(/Failed to display provider health/, type: :error)
+    end
+  end
+
+  describe ".run_providers_refresh_command" do
+    before do
+      allow(described_class).to receive(:display_message)
+      require_relative "../../lib/aidp/harness/provider_info"
+    end
+
+    it "refreshes single provider when name provided" do
+      spinner = instance_double(TTY::Spinner, auto_spin: nil, success: nil, error: nil)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner)
+      info_double = instance_double(Aidp::Harness::ProviderInfo)
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).with("claude", Dir.pwd).and_return(info_double)
+      allow(info_double).to receive(:gather_info).and_return({cli_available: true})
+
+      described_class.send(:run_providers_refresh_command, ["claude"])
+      expect(info_double).to have_received(:gather_info)
+      expect(spinner).to have_received(:success).with("(available)")
+    end
+
+    it "refreshes all providers when no name provided" do
+      config_manager = instance_double(Aidp::Harness::ConfigManager, provider_names: ["claude", "cursor"])
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
+      spinner = instance_double(TTY::Spinner, auto_spin: nil, success: nil, error: nil)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner)
+
+      info_double1 = instance_double(Aidp::Harness::ProviderInfo)
+      info_double2 = instance_double(Aidp::Harness::ProviderInfo)
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).with("claude", Dir.pwd).and_return(info_double1)
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).with("cursor", Dir.pwd).and_return(info_double2)
+      allow(info_double1).to receive(:gather_info).and_return({cli_available: true})
+      allow(info_double2).to receive(:gather_info).and_return({cli_available: false})
+
+      described_class.send(:run_providers_refresh_command, [])
+      expect(info_double1).to have_received(:gather_info)
+      expect(info_double2).to have_received(:gather_info)
+      expect(spinner).to have_received(:success).with("(available)")
+      expect(spinner).to have_received(:error).with("(unavailable)")
+    end
+  end
+
+  describe ".run_providers_info_command" do
+    before do
+      allow(described_class).to receive(:display_message)
+      require_relative "../../lib/aidp/harness/provider_info"
+    end
+
+    it "shows usage when provider name missing" do
+      described_class.send(:run_providers_info_command, [])
+      expect(described_class).to have_received(:display_message).with(/Usage: aidp providers info/, type: :info)
+    end
+
+    it "shows error when info returns nil" do
+      info_double = instance_double(Aidp::Harness::ProviderInfo)
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
+      allow(info_double).to receive(:info).and_return(nil)
+      described_class.send(:run_providers_info_command, ["claude"])
+      expect(described_class).to have_received(:display_message).with(/No information available/, type: :error)
+    end
+
+    it "displays info with MCP servers none configured" do
+      info_hash = {
+        last_checked: Time.now.iso8601,
+        cli_available: true,
+        mcp_support: true,
+        mcp_servers: []
+      }
+      info_double = instance_double(Aidp::Harness::ProviderInfo)
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
+      allow(info_double).to receive(:info).and_return(info_hash)
+
+      described_class.send(:run_providers_info_command, ["claude"])
+      expect(described_class).to have_received(:display_message).with(/MCP Servers: None configured/, type: :muted)
+    end
+
+    it "displays info when capabilities have false values" do
+      info_hash = {
+        last_checked: Time.now.iso8601,
+        cli_available: false,
+        capabilities: {code_editing: true, test_generation: false, streaming: true}
+      }
+      info_double = instance_double(Aidp::Harness::ProviderInfo)
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
+      allow(info_double).to receive(:info).and_return(info_hash)
+
+      described_class.send(:run_providers_info_command, ["gemini"])
+      expect(described_class).to have_received(:display_message).with(/Code Editing/, type: :success)
+      expect(described_class).to have_received(:display_message).with(/Streaming/, type: :success)
+    end
+
+    it "displays rich provider info including truncation of flags" do
+      flags = {}
+      12.times { |i| flags["flag_#{i}"] = {flag: "--flag-#{i}", description: "Description #{i} " * 5} }
+      info_hash = {
+        last_checked: Time.now.iso8601,
+        cli_available: true,
+        auth_method: "api_key",
+        mcp_support: true,
+        mcp_servers: [
+          {name: "filesystem", status: "ready", enabled: true, description: "FS access"},
+          {name: "dash-api", status: "ready", enabled: false, description: "Dash API"}
+        ],
+        permission_modes: ["read", "write"],
+        capabilities: {code_editing: true, test_generation: true, doc_analysis: false},
+        flags: flags
+      }
+      info_double = instance_double(Aidp::Harness::ProviderInfo)
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
+      expect(info_double).to receive(:info).with(force_refresh: true).and_return(info_hash)
+      described_class.send(:run_providers_info_command, ["claude", "--refresh"])
+      expect(described_class).to have_received(:display_message).with(/Provider Information: claude/, type: :highlight)
+      expect(described_class).to have_received(:display_message).with(/MCP Servers:/, type: :highlight)
+      expect(described_class).to have_received(:display_message).with(/Notable Flags:/, type: :highlight)
+      expect(described_class).to have_received(:display_message).with(/\.\.\. and 2 more flags/, type: :muted)
     end
   end
 
@@ -819,6 +1040,29 @@ RSpec.describe Aidp::CLI do
         # Stub file wait to skip actual waiting
         allow(Aidp::Concurrency::Wait).to receive(:for_file)
         described_class.send(:run_execute_command, ["--background", "--follow"], mode: :execute)
+        expect(bg_runner).to have_received(:follow_job_logs).with("job-123")
+      end
+
+      it "waits for log file and follows when file appears" do
+        log_file = File.join(jobs_dir, "job-123", "output.log")
+        FileUtils.mkdir_p(File.dirname(log_file))
+        # Simulate log file existing
+        allow(Aidp::Concurrency::Wait).to receive(:for_file).with(log_file, timeout: 10, interval: 0.2)
+        described_class.send(:run_execute_command, ["--background", "--follow"], mode: :execute)
+        expect(Aidp::Concurrency::Wait).to have_received(:for_file)
+        expect(bg_runner).to have_received(:follow_job_logs).with("job-123")
+      end
+
+      it "shows timeout warning when log file does not appear within 10s" do
+        File.join(jobs_dir, "job-123", "output.log")
+        allow(Aidp::Concurrency::Wait).to receive(:for_file).and_raise(Aidp::Concurrency::TimeoutError.new("timeout"))
+        messages = []
+        allow(described_class).to receive(:display_message) do |msg, type:|
+          messages << {msg: msg, type: type}
+        end
+        described_class.send(:run_execute_command, ["--background", "--follow"], mode: :execute)
+        expect(messages.any? { |m| m[:msg].include?("Warning: Log file not found after 10s") && m[:type] == :warning }).to be true
+        # Even with timeout, it should still try to follow
         expect(bg_runner).to have_received(:follow_job_logs).with("job-123")
       end
     end
@@ -1086,6 +1330,20 @@ RSpec.describe Aidp::CLI do
         expect(described_class).to have_received(:display_message).with(/Skill: Repo Analyst \(repo_analyst\)/, type: :highlight)
         expect(described_class).to have_received(:display_message).with("Full content", type: :info)
       end
+
+      it "shows '(template)' inheritance info for template skills" do
+        allow(registry).to receive(:by_source).and_return({"repo_analyst" => :template})
+        described_class.send(:run_skill_command, ["preview", "repo_analyst"])
+        expect(described_class).to have_received(:display_message).with(/\(template\)/, type: :highlight)
+      end
+
+      it "shows '(inherits from template)' for project skills with matching template" do
+        template_skill = double("TemplateSkill", id: "repo_analyst")
+        allow(template_library).to receive(:templates).and_return([template_skill])
+        allow(registry).to receive(:by_source).and_return({"repo_analyst" => :project})
+        described_class.send(:run_skill_command, ["preview", "repo_analyst"])
+        expect(described_class).to have_received(:display_message).with(/\(inherits from template\)/, type: :highlight)
+      end
     end
 
     context "validate command" do
@@ -1139,6 +1397,205 @@ RSpec.describe Aidp::CLI do
       it "invokes wizard with minimal option" do
         described_class.send(:run_skill_command, ["new", "--minimal"])
         expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(project_dir: Dir.pwd, options: hash_including(:minimal))
+      end
+    end
+
+    context "diff command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      let(:project_skill) { double("ProjectSkill", id: "test_skill", name: "Test") }
+      let(:template_library) { instance_double(Aidp::Skills::Wizard::TemplateLibrary) }
+      let(:template_skill) { double("TemplateSkill", id: "test_skill") }
+      let(:differ) { instance_double(Aidp::Skills::Wizard::Differ) }
+      let(:diff_result) { double("DiffResult") }
+
+      before do
+        allow(described_class).to receive(:display_message)
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+        require_relative "../../lib/aidp/skills/wizard/template_library"
+        require_relative "../../lib/aidp/skills/wizard/differ"
+        allow(Aidp::Skills::Wizard::TemplateLibrary).to receive(:new).and_return(template_library)
+        allow(Aidp::Skills::Wizard::Differ).to receive(:new).and_return(differ)
+      end
+
+      it "requires skill id" do
+        described_class.send(:run_skill_command, ["diff"])
+        expect(described_class).to have_received(:display_message).with(/Usage: aidp skill diff/, type: :info)
+      end
+
+      it "displays diff between project skill and template" do
+        allow(registry).to receive(:find).with("test_skill").and_return(project_skill)
+        allow(registry).to receive(:by_source).and_return({project: ["test_skill"], template: []})
+        allow(template_library).to receive(:find).with("test_skill").and_return(template_skill)
+        allow(differ).to receive(:diff).with(template_skill, project_skill).and_return(diff_result)
+        allow(differ).to receive(:display).with(diff_result)
+
+        described_class.send(:run_skill_command, ["diff", "test_skill"])
+        expect(differ).to have_received(:display).with(diff_result)
+      end
+
+      it "shows warning for template skills" do
+        allow(registry).to receive(:find).with("template_skill").and_return(project_skill)
+        allow(registry).to receive(:by_source).and_return({project: [], template: ["template_skill"]})
+
+        described_class.send(:run_skill_command, ["diff", "template_skill"])
+        expect(described_class).to have_received(:display_message).with(/template skill, not a project skill/, type: :info)
+      end
+
+      it "handles missing template gracefully" do
+        allow(registry).to receive(:find).with("custom_skill").and_return(project_skill)
+        allow(registry).to receive(:by_source).and_return({project: ["custom_skill"], template: []})
+        allow(template_library).to receive(:find).with("custom_skill").and_return(nil)
+
+        described_class.send(:run_skill_command, ["diff", "custom_skill"])
+        expect(described_class).to have_received(:display_message).with(/No template found/, type: :info)
+      end
+
+      it "handles skill not found" do
+        allow(registry).to receive(:find).with("nonexistent").and_return(nil)
+
+        described_class.send(:run_skill_command, ["diff", "nonexistent"])
+        expect(described_class).to have_received(:display_message).with(/Skill not found/, type: :error)
+      end
+    end
+
+    context "edit command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      let(:skill) { double("Skill", id: "test_skill", name: "Test Skill") }
+      let(:controller) { instance_double(Aidp::Skills::Wizard::Controller, run: true) }
+
+      before do
+        allow(described_class).to receive(:display_message)
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+        require_relative "../../lib/aidp/skills/wizard/controller"
+        allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+      end
+
+      it "requires skill id" do
+        described_class.send(:run_skill_command, ["edit"])
+        expect(described_class).to have_received(:display_message).with(/Usage: aidp skill edit/, type: :info)
+      end
+
+      it "shows template override notice for template skills" do
+        allow(registry).to receive(:find).with("template_skill").and_return(skill)
+        allow(registry).to receive(:by_source).and_return({template: ["template_skill"], project: []})
+
+        described_class.send(:run_skill_command, ["edit", "template_skill"])
+        expect(described_class).to have_received(:display_message).with(/template skill/, type: :info)
+        expect(described_class).to have_received(:display_message).with(/create a project override/, type: :muted)
+      end
+
+      it "parses --dry-run option" do
+        allow(registry).to receive(:find).with("test_skill").and_return(skill)
+        allow(registry).to receive(:by_source).and_return({project: ["test_skill"], template: []})
+
+        described_class.send(:run_skill_command, ["edit", "test_skill", "--dry-run"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+          project_dir: Dir.pwd,
+          options: hash_including(dry_run: true, id: "test_skill", edit_mode: true)
+        )
+      end
+
+      it "parses --open-editor option" do
+        allow(registry).to receive(:find).with("test_skill").and_return(skill)
+        allow(registry).to receive(:by_source).and_return({project: ["test_skill"], template: []})
+
+        described_class.send(:run_skill_command, ["edit", "test_skill", "--open-editor"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+          project_dir: Dir.pwd,
+          options: hash_including(open_editor: true)
+        )
+      end
+
+      it "rejects unknown options" do
+        allow(registry).to receive(:find).with("test_skill").and_return(skill)
+        allow(registry).to receive(:by_source).and_return({project: ["test_skill"], template: []})
+
+        described_class.send(:run_skill_command, ["edit", "test_skill", "--invalid"])
+        expect(described_class).to have_received(:display_message).with(/Unknown option: --invalid/, type: :error)
+        expect(Aidp::Skills::Wizard::Controller).not_to have_received(:new)
+      end
+    end
+
+    context "validate command with file path" do
+      before do
+        allow(described_class).to receive(:display_message)
+      end
+
+      it "validates specific file when path provided" do
+        skill_path = "/tmp/test_skill.md"
+        allow(File).to receive(:exist?).with(skill_path).and_return(true)
+        allow(Aidp::Skills::Loader).to receive(:load_from_file).with(skill_path)
+
+        described_class.send(:run_skill_command, ["validate", skill_path])
+        expect(described_class).to have_received(:display_message).with(/✓ Valid skill file/, type: :success)
+      end
+
+      it "handles invalid skill file format" do
+        skill_path = "/tmp/invalid.md"
+        allow(File).to receive(:exist?).with(skill_path).and_return(true)
+        allow(Aidp::Skills::Loader).to receive(:load_from_file).with(skill_path).and_raise(Aidp::Errors::ValidationError.new("Invalid format"))
+
+        described_class.send(:run_skill_command, ["validate", skill_path])
+        expect(described_class).to have_received(:display_message).with(/✗ Invalid skill file/, type: :error)
+        expect(described_class).to have_received(:display_message).with(/Invalid format/, type: :error)
+      end
+    end
+
+    context "new command full workflow" do
+      let(:controller) { instance_double(Aidp::Skills::Wizard::Controller, run: true) }
+
+      before do
+        allow(described_class).to receive(:display_message)
+        require_relative "../../lib/aidp/skills/wizard/controller"
+        allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+      end
+
+      it "parses --id option" do
+        described_class.send(:run_skill_command, ["new", "--id", "custom_id"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+          project_dir: Dir.pwd,
+          options: hash_including(id: "custom_id")
+        )
+      end
+
+      it "parses --name option" do
+        described_class.send(:run_skill_command, ["new", "--name", "Custom Name"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+          project_dir: Dir.pwd,
+          options: hash_including(name: "Custom Name")
+        )
+      end
+
+      it "parses --from-template option" do
+        described_class.send(:run_skill_command, ["new", "--from-template", "base_template"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+          project_dir: Dir.pwd,
+          options: hash_including(from_template: "base_template")
+        )
+      end
+
+      it "parses --clone option" do
+        described_class.send(:run_skill_command, ["new", "--clone", "existing_skill"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+          project_dir: Dir.pwd,
+          options: hash_including(clone: "existing_skill")
+        )
+      end
+
+      it "parses --yes option" do
+        described_class.send(:run_skill_command, ["new", "--yes"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+          project_dir: Dir.pwd,
+          options: hash_including(yes: true)
+        )
+      end
+
+      it "rejects unknown options" do
+        described_class.send(:run_skill_command, ["new", "--invalid-option"])
+        expect(described_class).to have_received(:display_message).with(/Unknown option: --invalid-option/, type: :error)
+        expect(Aidp::Skills::Wizard::Controller).not_to have_received(:new)
       end
     end
   end
@@ -1231,6 +1688,26 @@ RSpec.describe Aidp::CLI do
       expect(checkpoint).to have_received(:clear)
       expect(described_class).to have_received(:display_message).with("✓ Checkpoint data cleared.", type: :success)
     end
+
+    it "documents current behavior: false values don't display (potential bug)" do
+      # Current implementation: if metrics[:tests_passing] checks VALUE truthiness
+      # This means false values won't display at all, which may be unintended.
+      # The code likely should use metrics.key?(:tests_passing) to check presence.
+      metrics_cp = {metrics: {lines_of_code: 100, file_count: 10, test_coverage: 80, code_quality: 90, prd_task_progress: 50, tests_passing: false, linters_passing: false}}
+      allow(checkpoint).to receive(:latest_checkpoint).and_return(metrics_cp)
+      described_class.send(:run_checkpoint_command, ["metrics"])
+      # Current behavior: false values cause if block to skip
+      expect(described_class).not_to have_received(:display_message).with(/Tests:/, type: :info)
+      expect(described_class).not_to have_received(:display_message).with(/Linters:/, type: :info)
+    end
+
+    it "shows passing status when tests/linters are true" do
+      metrics_cp = {metrics: {lines_of_code: 100, file_count: 10, test_coverage: 80, code_quality: 90, prd_task_progress: 50, tests_passing: true, linters_passing: true}}
+      allow(checkpoint).to receive(:latest_checkpoint).and_return(metrics_cp)
+      described_class.send(:run_checkpoint_command, ["metrics"])
+      expect(described_class).to have_received(:display_message).with(/Tests: ✓ Passing/, type: :info)
+      expect(described_class).to have_received(:display_message).with(/Linters: ✓ Passing/, type: :info)
+    end
   end
 
   describe "providers refresh subcommand" do
@@ -1246,6 +1723,36 @@ RSpec.describe Aidp::CLI do
       allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
       described_class.send(:run_providers_refresh_command, [])
       expect(described_class).to have_received(:display_message).with(/Provider information refreshed/, type: :success)
+    end
+  end
+
+  describe "providers command --no-color flag" do
+    it "strips ANSI codes when --no-color flag is present" do
+      config_manager = instance_double(Aidp::Harness::ConfigManager)
+      pm = instance_double(Aidp::Harness::ProviderManager)
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
+      allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(pm)
+      allow(pm).to receive(:health_dashboard).and_return([{provider: "claude", status: "healthy", available: true, circuit_breaker: "closed", rate_limited: false, total_tokens: 100, last_used: nil, unhealthy_reason: nil}])
+      allow(TTY::Spinner).to receive(:new).and_return(instance_double(TTY::Spinner, auto_spin: nil, stop: nil))
+      allow(described_class).to receive(:display_message)
+
+      # Stub stdout.tty? to return true so we test the no_color branch explicitly
+      allow($stdout).to receive(:tty?).and_return(true)
+
+      # Capture the table that gets created
+      table_instance = instance_double(TTY::Table, render: "Plain table output")
+      allow(TTY::Table).to receive(:new).and_return(table_instance)
+
+      described_class.send(:run_providers_command, ["--no-color"])
+
+      # Verify TTY::Table was called and the result rendered
+      expect(TTY::Table).to have_received(:new) do |header, rows|
+        # Verify rows are arrays without ANSI codes (no \e[ sequences)
+        expect(rows).to be_an(Array)
+        expect(rows.first).to be_an(Array)
+        expect(rows.first.join).not_to include("\e[")
+      end
+      expect(described_class).to have_received(:display_message).with("Plain table output", type: :info)
     end
   end
 
@@ -1325,9 +1832,54 @@ RSpec.describe Aidp::CLI do
         expect(executor).to have_received(:execute_parallel).with(["ws-a", "ws-b"], hash_including(mode: :analyze, selected_steps: ["STEP1", "STEP2"]))
       end
 
+      it "shows usage when run called with no slugs" do
+        described_class.send(:run_ws_command, ["run"])
+        expect(described_class).to have_received(:display_message).with(/Missing workstream slug/, type: :error)
+        expect(described_class).to have_received(:display_message).with(/Usage: aidp ws run/, type: :info)
+      end
+
+      it "displays success message when all workstreams complete" do
+        described_class.send(:run_ws_command, ["run", "ws-a"])
+        expect(described_class).to have_received(:display_message).with(/All workstreams completed successfully/, type: :success)
+      end
+
+      it "displays warning when some workstreams fail" do
+        failed_result = double("FailedResult", status: "failed")
+        success_result = double("SuccessResult", status: "completed")
+        allow(executor).to receive(:execute_parallel).and_return([failed_result, success_result])
+
+        described_class.send(:run_ws_command, ["run", "ws-a", "ws-b"])
+        expect(described_class).to have_received(:display_message).with(/Some workstreams failed/, type: :warn)
+      end
+
+      it "handles executor errors gracefully" do
+        allow(executor).to receive(:execute_parallel).and_raise(StandardError.new("Execution failed"))
+
+        described_class.send(:run_ws_command, ["run", "ws-a"])
+        expect(described_class).to have_received(:display_message).with(/Parallel execution error/, type: :error)
+      end
+
       it "runs all active workstreams in parallel" do
         described_class.send(:run_ws_command, ["run-all", "--max-concurrent", "2", "--mode", "execute"])
         expect(executor).to have_received(:execute_all).with(hash_including(mode: :execute))
+      end
+
+      it "shows warning when run-all finds no active workstreams" do
+        allow(executor).to receive(:execute_all).and_return([])
+        described_class.send(:run_ws_command, ["run-all"])
+        expect(described_class).to have_received(:display_message).with(/No active workstreams to run/, type: :warn)
+      end
+
+      it "displays success for run-all when all complete" do
+        described_class.send(:run_ws_command, ["run-all"])
+        expect(described_class).to have_received(:display_message).with(/All workstreams completed successfully/, type: :success)
+      end
+
+      it "handles run-all errors gracefully" do
+        allow(executor).to receive(:execute_all).and_raise(StandardError.new("Execute all failed"))
+
+        described_class.send(:run_ws_command, ["run-all"])
+        expect(described_class).to have_received(:display_message).with(/Parallel execution error/, type: :error)
       end
     end
 
@@ -1373,52 +1925,6 @@ RSpec.describe Aidp::CLI do
       expect(messages.any? { |m| m[:msg].include?("Watching checkpoint summary") }).to be true
       expect(messages.any? { |m| m[:msg].include?("Stopped watching checkpoint summary") }).to be true
       expect(display).to have_received(:display_progress_summary).once
-    end
-  end
-
-  describe "providers info command" do
-    before do
-      allow(described_class).to receive(:display_message)
-      require_relative "../../lib/aidp/harness/provider_info"
-    end
-
-    it "shows usage when provider name missing" do
-      described_class.send(:run_providers_info_command, [])
-      expect(described_class).to have_received(:display_message).with(/Usage: aidp providers info/, type: :info)
-    end
-
-    it "shows error when info returns nil" do
-      info_double = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
-      allow(info_double).to receive(:info).and_return(nil)
-      described_class.send(:run_providers_info_command, ["claude"])
-      expect(described_class).to have_received(:display_message).with(/No information available/, type: :error)
-    end
-
-    it "displays rich provider info including truncation of flags" do
-      flags = {}
-      12.times { |i| flags["flag_#{i}"] = {flag: "--flag-#{i}", description: "Description #{i} " * 5} }
-      info_hash = {
-        last_checked: Time.now.iso8601,
-        cli_available: true,
-        auth_method: "api_key",
-        mcp_support: true,
-        mcp_servers: [
-          {name: "filesystem", status: "ready", enabled: true, description: "FS access"},
-          {name: "dash-api", status: "ready", enabled: false, description: "Dash API"}
-        ],
-        permission_modes: ["read", "write"],
-        capabilities: {code_editing: true, test_generation: true, doc_analysis: false},
-        flags: flags
-      }
-      info_double = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
-      expect(info_double).to receive(:info).with(force_refresh: true).and_return(info_hash)
-      described_class.send(:run_providers_info_command, ["claude", "--refresh"])
-      expect(described_class).to have_received(:display_message).with(/Provider Information: claude/, type: :highlight)
-      expect(described_class).to have_received(:display_message).with(/MCP Servers:/, type: :highlight)
-      expect(described_class).to have_received(:display_message).with(/Notable Flags:/, type: :highlight)
-      expect(described_class).to have_received(:display_message).with(/\.\.\. and 2 more flags/, type: :muted)
     end
   end
 
@@ -1567,6 +2073,20 @@ RSpec.describe Aidp::CLI do
       described_class.send(:run_ws_command, ["bogus"])
       expect(described_class).to have_received(:display_message).with(/Usage: aidp ws <command>/, type: :info)
     end
+
+    it "status with active workstream calls git status in workstream directory" do
+      ws_info = {slug: "active-ws", path: "/tmp/active-ws", branch: "active-ws", created_at: Time.now.iso8601, active: true}
+      allow(Aidp::Worktree).to receive(:info).and_return(ws_info)
+      allow(Aidp::WorkstreamState).to receive(:read).and_return({status: "active", iterations: 0, elapsed: 0, events: []})
+      allow(Dir).to receive(:exist?).with("/tmp/active-ws").and_return(true)
+      allow(Dir).to receive(:chdir).and_yield
+      allow(described_class).to receive(:system)
+
+      described_class.send(:run_ws_command, ["status", "active-ws"])
+
+      expect(described_class).to have_received(:system).with("git", "status", "--short")
+      expect(described_class).to have_received(:display_message).with(/Git Status:/, type: :highlight)
+    end
   end
 
   describe "execute command edge precedence" do
@@ -1679,6 +2199,83 @@ RSpec.describe Aidp::CLI do
       described_class.send(:display_harness_result, {status: "partial", message: "hello"})
       expect(@messages.any? { |x| x[:m].include?("Harness finished") }).to be true
       expect(@messages.any? { |x| x[:m].include?("Message: hello") }).to be true
+    end
+
+    it "shows generic status without message when message absent" do
+      described_class.send(:display_harness_result, {status: "unknown"})
+      expect(@messages.any? { |x| x[:m].include?("Harness finished") }).to be true
+      expect(@messages.any? { |x| x[:m].include?("Status: unknown") }).to be true
+    end
+  end
+
+  describe "kb command" do
+    before do
+      allow(described_class).to receive(:display_message)
+    end
+
+    it "shows topic when show subcommand provided" do
+      described_class.send(:run_kb_command, ["show", "testing"])
+      expect(described_class).to have_received(:display_message).with(/Knowledge Base: testing/, type: :info)
+    end
+
+    it "defaults to summary topic when show has no topic" do
+      described_class.send(:run_kb_command, ["show"])
+      expect(described_class).to have_received(:display_message).with(/Knowledge Base: summary/, type: :info)
+    end
+
+    it "shows usage for unknown subcommand" do
+      described_class.send(:run_kb_command, ["unknown"])
+      expect(described_class).to have_received(:display_message).with(/Usage: aidp kb show/, type: :info)
+    end
+
+    it "shows usage for no subcommand" do
+      described_class.send(:run_kb_command, [])
+      expect(described_class).to have_received(:display_message).with(/Usage: aidp kb show/, type: :info)
+    end
+  end
+
+  describe "harness command" do
+    before do
+      allow(described_class).to receive(:display_message)
+    end
+
+    it "shows status" do
+      described_class.send(:run_harness_command, ["status"])
+      expect(described_class).to have_received(:display_message).with(/Harness Status/, type: :info)
+      expect(described_class).to have_received(:display_message).with(/State: idle/, type: :info)
+    end
+
+    it "resets with mode flag" do
+      described_class.send(:run_harness_command, ["reset", "--mode=execute"])
+      expect(described_class).to have_received(:display_message).with(/Harness state reset for mode: execute/, type: :info)
+    end
+
+    it "resets with default mode when no flag" do
+      described_class.send(:run_harness_command, ["reset"])
+      expect(described_class).to have_received(:display_message).with(/Harness state reset for mode: default/, type: :info)
+    end
+
+    it "shows usage for unknown subcommand" do
+      described_class.send(:run_harness_command, ["unknown"])
+      expect(described_class).to have_received(:display_message).with(/Usage: aidp harness/, type: :info)
+    end
+  end
+
+  describe "extract_mode_option helper" do
+    it "extracts mode from equals form" do
+      expect(described_class.send(:extract_mode_option, ["--mode=analyze"])).to eq(:analyze)
+    end
+
+    it "extracts mode from separate token" do
+      expect(described_class.send(:extract_mode_option, ["--mode", "execute"])).to eq(:execute)
+    end
+
+    it "returns nil when no mode flag present" do
+      expect(described_class.send(:extract_mode_option, ["--other"])).to be_nil
+    end
+
+    it "handles mode flag followed by another flag" do
+      expect(described_class.send(:extract_mode_option, ["--mode", "--other"])).to be_nil
     end
   end
 end
