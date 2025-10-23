@@ -950,4 +950,184 @@ RSpec.describe Aidp::CLI do
       expect(messages.any? { |m| m[:msg].include?("Unknown work option: --unknown-flag") }).to be true
     end
   end
+
+  describe ".run_skill_command" do
+    before do
+      allow(described_class).to receive(:display_message) # general stub; per test may override
+    end
+
+    context "list command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      before do
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+        allow(registry).to receive(:all).and_return(all_skills)
+        allow(registry).to receive(:by_source).and_return(by_source)
+        allow(registry).to receive(:find) { |id| skills_hash[id] }
+        allow(described_class).to receive(:display_message)
+      end
+
+      let(:skill_template) do
+        double("SkillTemplate", id: "template_skill", version: "1.0", description: "Template desc", name: "Template", details: {})
+      end
+      let(:skill_project) do
+        double("SkillProject", id: "project_skill", version: "2.0", description: "Project desc", name: "Project", details: {})
+      end
+      let(:skills_hash) { {"template_skill" => skill_template, "project_skill" => skill_project} }
+
+      context "with skills present" do
+        let(:all_skills) { [skill_template, skill_project] }
+        let(:by_source) { {template: ["template_skill"], project: ["project_skill"]} }
+
+        it "renders template and project sections" do
+          described_class.send(:run_skill_command, ["list"])
+          expect(described_class).to have_received(:display_message).with(/Template Skills/, type: :highlight)
+          expect(described_class).to have_received(:display_message).with(/Project Skills/, type: :highlight)
+        end
+      end
+
+      context "with no skills" do
+        let(:all_skills) { [] }
+        let(:by_source) { {template: [], project: []} }
+
+        it "shows no skills found" do
+          described_class.send(:run_skill_command, ["list"])
+          expect(described_class).to have_received(:display_message).with("No skills found.", type: :info)
+        end
+      end
+    end
+
+    context "show command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      let(:skill) do
+        double("Skill", id: "repo_analyst", version: "1.1", description: "Analyzes repos", name: "Repo Analyst",
+          details: {
+            name: "Repo Analyst", id: "repo_analyst", version: "1.1", source: "project",
+            description: "Analyzes repos deeply", expertise: ["Git", "Code Metrics"], keywords: ["git"],
+            when_to_use: ["When auditing"], when_not_to_use: ["Small scripts"], compatible_providers: ["claude"]
+          })
+      end
+      before do
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+        allow(registry).to receive(:find).with("repo_analyst").and_return(skill)
+        allow(described_class).to receive(:display_message)
+      end
+
+      it "shows usage when id missing" do
+        described_class.send(:run_skill_command, ["show"])
+        expect(described_class).to have_received(:display_message).with(/Usage: aidp skill show/, type: :info)
+      end
+
+      it "shows details when found" do
+        described_class.send(:run_skill_command, ["show", "repo_analyst"])
+        expect(described_class).to have_received(:display_message).with(/Skill: Repo Analyst \(repo_analyst\)/, type: :highlight)
+      end
+    end
+
+    context "search command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      let(:skill_match) { double("Skill", id: "git_helper", description: "Helps with git operations") }
+      before do
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+        allow(described_class).to receive(:display_message)
+      end
+
+      it "requires a query" do
+        described_class.send(:run_skill_command, ["search"])
+        expect(described_class).to have_received(:display_message).with(/Usage: aidp skill search/, type: :info)
+      end
+
+      it "shows matching skills" do
+        allow(registry).to receive(:search).with("git helper").and_return([skill_match])
+        described_class.send(:run_skill_command, ["search", "git", "helper"])
+        expect(described_class).to have_received(:display_message).with(/Skills matching 'git helper':/, type: :highlight)
+      end
+    end
+
+    context "preview command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      let(:skill) { double("Skill", id: "repo_analyst", name: "Repo Analyst", version: "1.0", description: "Desc", details: {name: "Repo Analyst", id: "repo_analyst", version: "1.0", description: "Desc"}) }
+      let(:builder) { instance_double(Aidp::Skills::Wizard::Builder, to_skill_md: "Full content") }
+      let(:template_library) { instance_double(Aidp::Skills::Wizard::TemplateLibrary, templates: []) }
+      before do
+        # Require wizard files to define Aidp::Skills::Wizard namespace
+        require_relative "../../lib/aidp/skills/wizard/builder"
+        require_relative "../../lib/aidp/skills/wizard/template_library"
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+        allow(registry).to receive(:find).and_return(skill)
+        allow(registry).to receive(:by_source).and_return({"repo_analyst" => :template})
+        allow(Aidp::Skills::Wizard::Builder).to receive(:new).and_return(builder)
+        allow(Aidp::Skills::Wizard::TemplateLibrary).to receive(:new).and_return(template_library)
+        allow(described_class).to receive(:display_message)
+      end
+
+      it "requires skill id" do
+        described_class.send(:run_skill_command, ["preview"])
+        expect(described_class).to have_received(:display_message).with(/Usage: aidp skill preview/, type: :info)
+      end
+
+      it "displays full content" do
+        described_class.send(:run_skill_command, ["preview", "repo_analyst"])
+        expect(described_class).to have_received(:display_message).with(/Skill: Repo Analyst \(repo_analyst\)/, type: :highlight)
+        expect(described_class).to have_received(:display_message).with("Full content", type: :info)
+      end
+    end
+
+    context "validate command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      before do
+        allow(described_class).to receive(:display_message)
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+      end
+
+      it "validates all when no path provided and none found" do
+        allow(registry).to receive(:all).and_return([])
+        described_class.send(:run_skill_command, ["validate"])
+        expect(described_class).to have_received(:display_message).with("No skills found to validate", type: :info)
+      end
+    end
+
+    context "delete command" do
+      let(:registry) { instance_double(Aidp::Skills::Registry) }
+      let(:skill) { double("Skill", id: "custom_skill", name: "Custom Skill", source_path: "/tmp/skills/custom_skill/SKILL.md") }
+      before do
+        allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:load_skills)
+        allow(registry).to receive(:find).and_return(skill)
+        allow(registry).to receive(:by_source).and_return({"custom_skill" => :project})
+        allow(described_class).to receive(:display_message)
+        # Stub prompt confirmation using responses hash for yes?
+        allow(described_class).to receive(:create_prompt).and_return(TestPrompt.new(responses: {yes?: true}))
+      end
+
+      it "requires skill id" do
+        described_class.send(:run_skill_command, ["delete"])
+        expect(described_class).to have_received(:display_message).with(/Usage: aidp skill delete/, type: :info)
+      end
+
+      it "confirms and deletes project skill" do
+        allow(FileUtils).to receive(:rm_rf)
+        described_class.send(:run_skill_command, ["delete", "custom_skill"])
+        expect(described_class).to have_received(:display_message).with(/Deleted skill: Custom Skill/, type: :success)
+      end
+    end
+
+    context "new command minimal" do
+      let(:controller) { instance_double(Aidp::Skills::Wizard::Controller, run: true) }
+      before do
+        allow(described_class).to receive(:display_message)
+        require_relative "../../lib/aidp/skills/wizard/controller"
+        allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+      end
+
+      it "invokes wizard with minimal option" do
+        described_class.send(:run_skill_command, ["new", "--minimal"])
+        expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(project_dir: Dir.pwd, options: hash_including(:minimal))
+      end
+    end
+  end
 end
