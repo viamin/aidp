@@ -29,9 +29,6 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
 
     # Clear env override for bootstrap test
     ENV.delete("AIDP_DISABLE_BOOTSTRAP")
-
-    # Prevent real gh call
-    allow_any_instance_of(described_class).to receive(:gh_cli_available?).and_return(false)
   end
 
   after do

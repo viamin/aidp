@@ -29,8 +29,15 @@ This audit identified **200+ violations** across **95+ spec files** where mockin
 
 **⏸️ P1 REMAINING** - Other DI improvements & any_instance_of reductions
 
-- ~33 allow_any_instance_of violations remaining (to be addressed separately)
-- Consider: binary_checker DI for ProviderManager (test environment override pattern)
+- ✅ **Sleep stub DI completed**: Added `Sleeper` class to `EnhancedRunner` and `ErrorHandler`; removed all sleep-related `allow_any_instance_of` stubs
+- ✅ **Binary checker DI completed**: Added `BinaryChecker` class to `RepositoryClient`; removed `gh_cli_available?` any_instance_of stubs
+- ✅ **IssueImporter DI improved**: Removed remaining `allow_any_instance_of` and `expect_any_instance_of` stubs; leveraged existing `gh_available:` parameter
+- **6 allow_any_instance_of violations remaining** (down from ~35+):
+  - `cli_spec.rb`: ProviderInfo.gather_info
+  - `workflows/guided_agent_spec.rb`: update_plan_from_answer hook
+  - `cli/mcp_dashboard_spec.rb`: ProviderInfo.info
+  - `harness/state/workflow_state_spec.rb`: create_progress_tracker (2 occurrences)
+  - `jobs/background_runner_spec.rb`: display_message
 
 **⏸️ P2 PENDING** - 130+ violations remaining
 
@@ -198,40 +205,51 @@ All need dependency injection:
 
 **Issue**: `allow_any_instance_of` is a code smell indicating missing dependency injection. Makes tests brittle and unclear.
 
-### Violation 3.1: WorkstreamExecutor Runner Mocking
+### Violation 3.1: WorkstreamExecutor Runner Mocking - ✅ FIXED
 
 **File**: [spec/aidp/workstream_executor_spec.rb:101](spec/aidp/workstream_executor_spec.rb#L101)
+
+**Original violation**:
 
 ```ruby
 allow_any_instance_of(Aidp::Harness::Runner).to receive(:run).and_return({status: "completed"})
 ```
 
-**Impact**: Mocking `.run` prevents testing actual integration between WorkstreamExecutor and Runner.
+**Impact**: Mocking `.run` prevented testing actual integration between WorkstreamExecutor and Runner.
 
-**Fix**:
+**Fix Applied**:
 
 ```ruby
-let(:mock_runner) { instance_double(Aidp::Harness::Runner) }
-before do
-  allow(Aidp::Harness::Runner).to receive(:new).and_return(mock_runner)
-  allow(mock_runner).to receive(:run).and_return({status: "completed"})
-end
+# Added runner_factory: injection to WorkstreamExecutor
+let(:mock_runner) { instance_double(Aidp::Harness::Runner, run: {status: "completed"}) }
+let(:runner_factory) { ->(*_args) { mock_runner } }
+let(:executor) { described_class.new(project_dir, runner_factory: runner_factory) }
 ```
+
+**Result**: Removed 3 `allow_any_instance_of(Aidp::Harness::Runner)` usages from spec.
 
 ### Complete List of `allow_any_instance_of` Violations
 
-- [spec/aidp/cli_workstream_spec.rb:194](spec/aidp/cli_workstream_spec.rb#L194) - TTY::Prompt
-- [spec/aidp/cli_workstream_spec.rb:221](spec/aidp/cli_workstream_spec.rb#L221) - TTY::Prompt
-- [spec/aidp/cli_workstream_spec.rb:239](spec/aidp/cli_workstream_spec.rb#L239) - TTY::Prompt
-- [spec/aidp/cli_workstream_spec.rb:259](spec/aidp/cli_workstream_spec.rb#L259) - TTY::Prompt
-- [spec/aidp/cli_workstream_spec.rb:283](spec/aidp/cli_workstream_spec.rb#L283) - TTY::Prompt
-- [spec/aidp/jobs/background_runner_spec.rb:16](spec/aidp/jobs/background_runner_spec.rb#L16) - display_message
-- [spec/aidp/cli/issue_importer_spec.rb:29](spec/aidp/cli/issue_importer_spec.rb#L29) - gh_cli_available?
-- [spec/aidp/harness/provider_failure_exhausted_spec.rb:19](spec/aidp/harness/provider_failure_exhausted_spec.rb#L19) - ProviderManager
-- [spec/aidp/harness/provider_failure_exhausted_spec.rb:22](spec/aidp/harness/provider_failure_exhausted_spec.rb#L22) - ProviderManager
-- [spec/aidp/harness/error_handler_spec.rb:24](spec/aidp/harness/error_handler_spec.rb#L24) - sleep
-- [spec/aidp/harness/provider_manager_spec.rb:16-17](spec/aidp/harness/provider_manager_spec.rb#L16-L17) - Multiple methods
-- [spec/aidp/harness/performance_simple_spec.rb:350-357](spec/aidp/harness/performance_simple_spec.rb#L350-L357) - 7 different methods
+**Completed Refactors (28+ removed)**:
+
+- ✅ [spec/aidp/workstream_executor_spec.rb](spec/aidp/workstream_executor_spec.rb) - Added runner_factory DI (3 removed)
+- ✅ [spec/aidp/harness/performance_simple_spec.rb](spec/aidp/harness/performance_simple_spec.rb) - Constructor wrapping for ProviderManager (7 removed)
+- ✅ [spec/aidp/harness/config_loader_spec.rb](spec/aidp/harness/config_loader_spec.rb) - Validator DI (5 removed)
+- ✅ [spec/aidp/harness/provider_failure_exhausted_spec.rb](spec/aidp/harness/provider_failure_exhausted_spec.rb) - Binary checker & sleeper DI (2 removed)
+- ✅ [spec/aidp/harness/provider_manager_model_spec.rb](spec/aidp/harness/provider_manager_model_spec.rb) - Removed sleep stub (1 removed)
+- ✅ [spec/aidp/harness/enhanced_runner_spec.rb](spec/aidp/harness/enhanced_runner_spec.rb) - Sleeper DI (1 removed)
+- ✅ [spec/aidp/harness/error_handler_spec.rb](spec/aidp/harness/error_handler_spec.rb) - Sleeper DI (1 removed)
+- ✅ [spec/aidp/watch/repository_client_spec.rb](spec/aidp/watch/repository_client_spec.rb) - Binary checker DI (1 removed)
+- ✅ [spec/aidp/cli/issue_importer_spec.rb](spec/aidp/cli/issue_importer_spec.rb) - Leveraged existing gh_available param (1 removed)
+- ✅ [spec/aidp/cli/issue_importer_bootstrap_spec.rb](spec/aidp/cli/issue_importer_bootstrap_spec.rb) - Leveraged existing gh_available param (1 removed)
+
+**Remaining (6 instances)**:
+
+- [spec/aidp/cli_spec.rb](spec/aidp/cli_spec.rb) - ProviderInfo.gather_info
+- [spec/aidp/workflows/guided_agent_spec.rb](spec/aidp/workflows/guided_agent_spec.rb) - update_plan_from_answer
+- [spec/aidp/cli/mcp_dashboard_spec.rb](spec/aidp/cli/mcp_dashboard_spec.rb) - ProviderInfo.info
+- [spec/aidp/harness/state/workflow_state_spec.rb](spec/aidp/harness/state/workflow_state_spec.rb) - create_progress_tracker (2 occurrences)
+- [spec/aidp/jobs/background_runner_spec.rb](spec/aidp/jobs/background_runner_spec.rb) - display_message
 
 **All require**: Dependency injection pattern instead of any_instance_of.
 
@@ -512,12 +530,14 @@ Track progress by counting occurrences:
 
 | Metric | Previous | Current | Target |
 |--------|----------|---------|--------|
-| Files with `allow_any_instance_of` | 35+ | 34 | 0 |
+| Files with `allow_any_instance_of` | 35+ | 6 | 0 |
 | Files with `defined?(RSpec)` in lib/ | 2 | 0 ✅ | 0 |
 | Files testing private methods (`send`/`__send__`) | 15+ | 15+ | 0 |
 | Provider specs mocking internal methods | 6+ | 6+ | 0 |
 | Prompt DI violations (inline TTY::Prompt.new) | 8 (CLI) | 0 (CLI) ✅ | 0 (all files) |
 | CLI specs with proper mocking | 241/244 | 244/244 ✅ | 244/244 |
+| Sleep-related any_instance_of stubs | 3+ | 0 ✅ | 0 |
+| Binary checker any_instance_of stubs | 3+ | 0 ✅ | 0 |
 
 ---
 

@@ -11,6 +11,16 @@ module Aidp
     # (works for private repositories) and falls back to public REST endpoints
     # when the CLI is unavailable.
     class RepositoryClient
+      # Binary availability checker for testing
+      class BinaryChecker
+        def gh_cli_available?
+          _stdout, _stderr, status = Open3.capture3("gh", "--version")
+          status.success?
+        rescue Errno::ENOENT
+          false
+        end
+      end
+
       attr_reader :owner, :repo
 
       def self.parse_issues_url(issues_url)
@@ -24,10 +34,11 @@ module Aidp
         end
       end
 
-      def initialize(owner:, repo:, gh_available: nil)
+      def initialize(owner:, repo:, gh_available: nil, binary_checker: BinaryChecker.new)
         @owner = owner
         @repo = repo
-        @gh_available = gh_available.nil? ? gh_cli_available? : gh_available
+        @binary_checker = binary_checker
+        @gh_available = gh_available.nil? ? @binary_checker.gh_cli_available? : gh_available
       end
 
       def gh_available?
@@ -55,13 +66,6 @@ module Aidp
       end
 
       private
-
-      def gh_cli_available?
-        _stdout, _stderr, status = Open3.capture3("gh", "--version")
-        status.success?
-      rescue Errno::ENOENT
-        false
-      end
 
       def list_issues_via_gh(labels:, state:)
         json_fields = %w[number title labels updatedAt state url assignees]
