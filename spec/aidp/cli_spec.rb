@@ -1190,4 +1190,139 @@ RSpec.describe Aidp::CLI do
       expect(described_class).to have_received(:display_message).with(/bad interval/, type: :error)
     end
   end
+
+  describe "checkpoint extended subcommands" do
+    let(:checkpoint) { instance_double(Aidp::Execute::Checkpoint) }
+    let(:display) { instance_double(Aidp::Execute::CheckpointDisplay) }
+    before do
+      allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)
+      allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(display)
+      allow(described_class).to receive(:display_message)
+    end
+
+    it "shows metrics when data present" do
+      metrics_cp = {metrics: {lines_of_code: 100, file_count: 10, test_coverage: 80, code_quality: 90, prd_task_progress: 50, tests_passing: true, linters_passing: true}}
+      allow(checkpoint).to receive(:latest_checkpoint).and_return(metrics_cp)
+      described_class.send(:run_checkpoint_command, ["metrics"])
+      expect(described_class).to have_received(:display_message).with(/Lines of Code:/, type: :info)
+    end
+
+    it "handles metrics with no data" do
+      allow(checkpoint).to receive(:latest_checkpoint).and_return(nil)
+      described_class.send(:run_checkpoint_command, ["metrics"])
+      expect(described_class).to have_received(:display_message).with("No checkpoint data found.", type: :info)
+    end
+
+    it "clears checkpoint data after confirmation when --force provided" do
+      allow(checkpoint).to receive(:clear)
+      described_class.send(:run_checkpoint_command, ["clear", "--force"])
+      expect(checkpoint).to have_received(:clear)
+      expect(described_class).to have_received(:display_message).with("✓ Checkpoint data cleared.", type: :success)
+    end
+  end
+
+  describe "providers refresh subcommand" do
+    before do
+      allow(described_class).to receive(:display_message)
+      allow(TTY::Spinner).to receive(:new).and_return(instance_double(TTY::Spinner, auto_spin: nil, success: nil, error: nil))
+      require_relative "../../lib/aidp/harness/provider_info"
+      allow_any_instance_of(Aidp::Harness::ProviderInfo).to receive(:gather_info).and_return({cli_available: true})
+    end
+
+    it "refreshes all providers when no name provided" do
+      config_manager = instance_double(Aidp::Harness::ConfigManager, provider_names: ["claude", "cursor"])
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
+      described_class.send(:run_providers_refresh_command, [])
+      expect(described_class).to have_received(:display_message).with(/Provider information refreshed/, type: :success)
+    end
+  end
+
+  describe "mcp command variants" do
+    let(:dashboard) { instance_double(Aidp::CLI::McpDashboard) }
+    before do
+      require_relative "../../lib/aidp/cli/mcp_dashboard"
+      allow(Aidp::CLI::McpDashboard).to receive(:new).and_return(dashboard)
+      allow(described_class).to receive(:display_message)
+    end
+
+    it "displays dashboard by default" do
+      allow(dashboard).to receive(:display_dashboard)
+      described_class.send(:run_mcp_command, [])
+      expect(dashboard).to have_received(:display_dashboard).with(no_color: false)
+    end
+
+    it "displays dashboard with --no-color flag" do
+      allow(dashboard).to receive(:display_dashboard)
+      described_class.send(:run_mcp_command, ["dashboard", "--no-color"])
+      expect(dashboard).to have_received(:display_dashboard).with(no_color: true)
+    end
+
+    it "checks task eligibility" do
+      allow(dashboard).to receive(:display_task_eligibility)
+      described_class.send(:run_mcp_command, ["check", "filesystem", "dash-api"])
+      expect(dashboard).to have_received(:display_task_eligibility).with(["filesystem", "dash-api"])
+    end
+
+    it "shows usage when check has no servers" do
+      allow(dashboard).to receive(:display_task_eligibility)
+      described_class.send(:run_mcp_command, ["check"])
+      expect(described_class).to have_received(:display_message).with(/Usage: aidp mcp check/, type: :info)
+    end
+  end
+
+  describe "workstream bulk and parallel actions" do
+    before do
+      allow(described_class).to receive(:display_message)
+      allow(Aidp::Worktree).to receive(:list).and_return([
+        {slug: "ws-a", branch: "ws-a", created_at: Time.now.iso8601, active: true},
+        {slug: "ws-b", branch: "ws-b", created_at: Time.now.iso8601, active: false}
+      ])
+      allow(Aidp::WorkstreamState).to receive(:read).and_return({status: "active"})
+      allow(Aidp::WorkstreamState).to receive(:pause).and_return({})
+      allow(Aidp::WorkstreamState).to receive(:resume).and_return({})
+      allow(Aidp::WorkstreamState).to receive(:complete).and_return({})
+    end
+
+    it "pauses all active workstreams" do
+      described_class.send(:run_ws_command, ["pause-all"])
+      expect(described_class).to have_received(:display_message).with(/Paused 2 workstream/, type: :success)
+    end
+
+    it "resumes all paused workstreams" do
+      allow(Aidp::WorkstreamState).to receive(:read).and_return({status: "paused"})
+      described_class.send(:run_ws_command, ["resume-all"])
+      expect(described_class).to have_received(:display_message).with(/Resumed 2 workstream/, type: :success)
+    end
+
+    it "stops all active workstreams" do
+      described_class.send(:run_ws_command, ["stop-all"])
+      expect(described_class).to have_received(:display_message).with(/Stopped 2 workstream/, type: :success)
+    end
+
+    context "parallel run and run-all" do
+      let(:executor) { instance_double(Aidp::WorkstreamExecutor) }
+      before do
+        allow(Aidp::WorkstreamExecutor).to receive(:new).and_return(executor)
+        mock_result = double("Result", status: "completed")
+        allow(executor).to receive(:execute_parallel).and_return([mock_result])
+        allow(executor).to receive(:execute_all).and_return([mock_result])
+      end
+
+      it "runs specific workstreams in parallel" do
+        described_class.send(:run_ws_command, ["run", "ws-a", "ws-b", "--max-concurrent", "5", "--mode", "analyze", "--steps", "STEP1,STEP2"])
+        expect(executor).to have_received(:execute_parallel).with(["ws-a", "ws-b"], hash_including(mode: :analyze, selected_steps: ["STEP1", "STEP2"]))
+      end
+
+      it "runs all active workstreams in parallel" do
+        described_class.send(:run_ws_command, ["run-all", "--max-concurrent", "2", "--mode", "execute"])
+        expect(executor).to have_received(:execute_all).with(hash_including(mode: :execute))
+      end
+    end
+
+    it "shows dashboard summarizing counts" do
+      described_class.send(:run_ws_command, ["dashboard"])
+      expect(described_class).to have_received(:display_message).with(/Workstreams Dashboard/, type: :highlight)
+      expect(described_class).to have_received(:display_message).with(/Summary:/, type: :muted)
+    end
+  end
 end
