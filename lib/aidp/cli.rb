@@ -147,6 +147,10 @@ module Aidp
     class << self
       extend Aidp::MessageDisplay::ClassMethods
 
+      def create_prompt
+        ::TTY::Prompt.new
+      end
+
       def run(args = ARGV)
         # Handle subcommands first (status, jobs, kb, harness)
         return run_subcommand(args) if subcommand?(args)
@@ -173,7 +177,7 @@ module Aidp
 
         # Handle configuration setup
         # Create a prompt for the wizard
-        prompt = TTY::Prompt.new
+        prompt = create_prompt
 
         if options[:setup_config]
           # Force setup/reconfigure even if config exists
@@ -233,11 +237,6 @@ module Aidp
       end
 
       private
-
-      # Create a TTY::Prompt instance (extracted for testability)
-      def create_prompt
-        TTY::Prompt.new
-      end
 
       def setup_logging(project_dir)
         # Load logging config from aidp.yml
@@ -403,7 +402,7 @@ module Aidp
 
       def run_jobs_command(args = [])
         require_relative "cli/jobs_command"
-        jobs_cmd = Aidp::CLI::JobsCommand.new(prompt: TTY::Prompt.new)
+        jobs_cmd = Aidp::CLI::JobsCommand.new(prompt: create_prompt)
         subcommand = args.shift
         jobs_cmd.run(subcommand, args)
       end
@@ -591,7 +590,7 @@ module Aidp
         when "clear"
           force = args.include?("--force")
           unless force
-            prompt = TTY::Prompt.new
+            prompt = create_prompt
             confirm = prompt.yes?("Are you sure you want to clear all checkpoint data?")
             return unless confirm
           end
@@ -686,7 +685,7 @@ module Aidp
           end
         end
         config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
-        pm = Aidp::Harness::ProviderManager.new(config_manager, prompt: TTY::Prompt.new)
+        pm = Aidp::Harness::ProviderManager.new(config_manager, prompt: create_prompt)
 
         # Use TTY::Spinner for progress indication
         require "tty-spinner"
@@ -1039,7 +1038,7 @@ module Aidp
           return
         end
 
-        wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: TTY::Prompt.new, dry_run: dry_run)
+        wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: create_prompt, dry_run: dry_run)
         wizard.run
       end
 
@@ -1066,7 +1065,7 @@ module Aidp
         end
 
         require_relative "init/runner"
-        runner = Aidp::Init::Runner.new(Dir.pwd, prompt: TTY::Prompt.new, options: options)
+        runner = Aidp::Init::Runner.new(Dir.pwd, prompt: create_prompt, options: options)
         runner.run
       end
 
@@ -1122,7 +1121,7 @@ module Aidp
           project_dir: Dir.pwd,
           once: once,
           use_workstreams: use_workstreams,
-          prompt: TTY::Prompt.new
+          prompt: create_prompt
         )
         runner.start
       rescue ArgumentError => e

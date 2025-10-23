@@ -185,7 +185,7 @@ RSpec.describe Aidp::CLI do
     end
 
     it "invokes wizard in interactive dry-run mode" do
-      allow(TTY::Prompt).to receive(:new).and_return(test_prompt)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
       expect(Aidp::Setup::Wizard).to receive(:new)
         .with(Dir.pwd, prompt: test_prompt, dry_run: true)
         .and_return(wizard_instance)
@@ -1602,6 +1602,8 @@ RSpec.describe Aidp::CLI do
     end
 
     it "parses multiple flags and constructs runner options" do
+      prompt_instance = TTY::Prompt.new
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(prompt_instance)
       allow(Aidp::Init::Runner).to receive(:new).and_return(runner)
       described_class.send(:run_init_command, ["--explain-detection", "--dry-run", "--preview"])
       expect(Aidp::Init::Runner).to have_received(:new).with(Dir.pwd, prompt: kind_of(TTY::Prompt), options: hash_including(explain_detection: true, dry_run: true, preview: true))
@@ -1961,7 +1963,7 @@ RSpec.describe Aidp::CLI do
   describe "config command remaining branches" do
     before do
       allow(described_class).to receive(:display_message)
-      allow(TTY::Prompt).to receive(:new).and_return(test_prompt)
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
     end
 
     it "shows usage with --help" do

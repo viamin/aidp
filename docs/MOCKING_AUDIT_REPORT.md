@@ -11,9 +11,27 @@ This audit identified **200+ violations** across **95+ spec files** where mockin
 
 ### Progress Status (Updated 2025-10-23)
 
-**✅ P0 COMPLETED** - All critical test-specific production code removed (confirmed zero remaining `defined?(RSpec)` or `ENV["RSPEC_RUNNING"]` checks)
-**🔄 P1 IN PROGRESS** - 6 of ~50 violations fixed (prompt DI & any_instance_of reductions started)
+**✅ P0 COMPLETED** - All critical test-specific production code removed (confirmed zero remaining `defined?(RSpec)` or `ENV["RSPEC_RUNNING"]` checks in lib/)
+
+- Final cleanup: Removed last 2 instances from `lib/aidp/harness/state/persistence.rb`
+- Removed unused `test_mode?` method
+- All specs updated to use explicit `skip_persistence: true` flag
+
+**✅ P1 COMPLETED (CLI)** - TTY::Prompt dependency injection for CLI class
+
+- Added class-level `create_prompt` method that can be stubbed in tests
+- Replaced all 8 inline `TTY::Prompt.new` calls with `self.create_prompt`
+- Updated 3 failing specs to stub `Aidp::CLI.create_prompt`
+- All 244 CLI specs pass, 19 workstream specs pass
+- Eliminated need for `allow_any_instance_of(TTY::Prompt)` in workstream specs (already using proper stubbing)
+
+**🔄 P1 IN PROGRESS** - Other prompt DI & any_instance_of reductions
+
+- ~6 other files still need TTY::Prompt DI
+- ~33 allow_any_instance_of violations remaining
+
 **⏸️ P2 PENDING** - 130+ violations remaining
+
 **⏸️ P3 PENDING** - 50+ violations remaining
 
 ### Critical Findings
@@ -493,10 +511,11 @@ Track progress by counting occurrences:
 | Metric | Previous | Current | Target |
 |--------|----------|---------|--------|
 | Files with `allow_any_instance_of` | 35+ | 34 | 0 |
-| Files with `defined?(RSpec)` in lib/ | 20 | 0 | 0 |
+| Files with `defined?(RSpec)` in lib/ | 2 | 0 ✅ | 0 |
 | Files testing private methods (`send`/`__send__`) | 15+ | 15+ | 0 |
 | Provider specs mocking internal methods | 6+ | 6+ | 0 |
-| Prompt DI violations | 15+ | 14+ | 0 |
+| Prompt DI violations (inline TTY::Prompt.new) | 8 (CLI) | 0 (CLI) ✅ | 0 (all files) |
+| CLI specs with proper mocking | 241/244 | 244/244 ✅ | 244/244 |
 
 ---
 
