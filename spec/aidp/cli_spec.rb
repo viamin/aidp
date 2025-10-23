@@ -1067,26 +1067,15 @@ RSpec.describe Aidp::CLI do
       end
     end
 
-    it "runs specific step and shows PRD completion in test mode" do
-      # Create a temporary template file to trigger PRD question simulation
-      root = Dir.mktmpdir
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("AIDP_ROOT").and_return(root)
-      exec_dir = File.join(root, "templates", "EXECUTE")
-      FileUtils.mkdir_p(exec_dir)
-      File.write(File.join(exec_dir, "00_PRD_TEST.md"), "# PRD\n## Questions\n- What is X?\n- How to Y?\n")
-
-      begin
-        messages = []
-        allow(described_class).to receive(:display_message) do |msg, type:|
-          messages << {msg: msg, type: type}
-        end
-        described_class.send(:run_execute_command, ["00_PRD_TEST"], mode: :execute)
-        expect(messages.any? { |m| m[:msg].include?("PRD completed") && m[:type] == :success }).to be true
-        expect(messages.any? { |m| m[:msg].include?("What is X?") }).to be true
-      ensure
-        FileUtils.rm_rf(root)
+    it "runs specific step and announces execution without PRD simulation" do
+      messages = []
+      allow(described_class).to receive(:display_message) do |msg, type:|
+        messages << {msg: msg, type: type}
       end
+      described_class.send(:run_execute_command, ["00_PRD_TEST"], mode: :execute)
+      expect(messages.any? { |m| m[:msg].include?("Running execute step '00_PRD_TEST' with enhanced TUI harness") }).to be true
+      # Legacy test-only PRD completion + question emission removed; ensure not present
+      expect(messages.any? { |m| m[:msg].include?("PRD completed") }).to be false
     end
 
     it "starts harness when no step or special flags" do
@@ -2106,22 +2095,12 @@ RSpec.describe Aidp::CLI do
       expect(messages.any? { |x| x[:m].include?("Running execute step '01_OTHER_STEP'") }).to be true
     end
 
-    it "analyze mode PRD step triggers PRD completion simulation" do
-      root = Dir.mktmpdir
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("AIDP_ROOT").and_return(root)
-      analyze_dir = File.join(root, "templates", "ANALYZE")
-      FileUtils.mkdir_p(analyze_dir)
-      File.write(File.join(analyze_dir, "00_PRD_ANALYZE.md"), "# PRD\n## Questions\n- Analyze Q?\n")
+    it "analyze mode PRD step runs with generic step message only" do
       messages = []
-      begin
-        allow(described_class).to receive(:display_message) { |m, type:| messages << {m: m, type: type} }
-        described_class.send(:run_execute_command, ["00_PRD_ANALYZE"], mode: :analyze)
-        expect(messages.any? { |x| x[:m].include?("Analyze Q?") }).to be true
-        expect(messages.any? { |x| x[:m].include?("PRD completed") }).to be true
-      ensure
-        FileUtils.rm_rf(root)
-      end
+      allow(described_class).to receive(:display_message) { |m, type:| messages << {m: m, type: type} }
+      described_class.send(:run_execute_command, ["00_PRD_ANALYZE"], mode: :analyze)
+      expect(messages.any? { |x| x[:m].include?("Running analyze step '00_PRD_ANALYZE' with enhanced TUI harness") }).to be true
+      expect(messages.any? { |x| x[:m].include?("PRD completed") }).to be false
     end
   end
 
