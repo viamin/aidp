@@ -10,10 +10,19 @@ module Aidp
     class ErrorHandler
       include Aidp::DebugMixin
 
-      def initialize(provider_manager, configuration, metrics_manager = nil)
+      # Simple wrapper to allow dependency injection of sleep behavior in tests
+      class Sleeper
+        def sleep(seconds)
+          Kernel.sleep(seconds)
+        end
+      end
+
+      # @param sleeper [#sleep] object responding to sleep(seconds); injectable for tests
+      def initialize(provider_manager, configuration, metrics_manager = nil, sleeper: nil)
         @provider_manager = provider_manager
         @configuration = configuration
         @metrics_manager = metrics_manager
+        @sleeper = sleeper || Sleeper.new
         @retry_strategies = {}
         @retry_counts = {}
         @error_history = []
@@ -112,7 +121,7 @@ module Aidp
               if should_retry?(error_info, strategy)
                 delay = @backoff_calculator.calculate_delay(attempt, strategy[:backoff_strategy] || :exponential, 1, 10)
                 debug_log("🔁 Retry attempt #{attempt} for #{current_provider}", level: :info, data: {delay: delay, error_type: error_info[:error_type]})
-                sleep(delay) if delay > 0
+                @sleeper.sleep(delay) if delay > 0
                 retry
               end
             end
@@ -191,9 +200,7 @@ module Aidp
         )
 
         # Wait for backoff delay
-        if delay > 0
-          sleep(delay)
-        end
+        @sleeper.sleep(delay) if delay > 0
 
         # Execute the retry
         retry_result = execute_retry_attempt(error_info, strategy, context)

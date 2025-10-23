@@ -13,9 +13,6 @@ RSpec.describe Aidp::Harness::ProviderManager do
     allow(configuration).to receive(:provider_models).with("claude").and_return(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"])
     allow(configuration).to receive(:provider_models).with("gemini").and_return(["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"])
     allow(configuration).to receive(:provider_models).with("cursor").and_return(["cursor-default", "cursor-fast", "cursor-precise"])
-
-    # Stub sleep to eliminate retry delays in tests
-    allow_any_instance_of(described_class).to receive(:sleep)
   end
 
   describe "model switching" do

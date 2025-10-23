@@ -346,17 +346,19 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
   private
 
   def mock_provider_operations
-    # Mock provider manager methods to avoid real CLI calls during performance tests
-    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:switch_provider).and_return("anthropic")
-    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:switch_model).and_return("claude-3-5-sonnet-20241022")
-    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:provider_cli_available?).and_return(true)
-    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:find_next_healthy_provider).and_return("anthropic")
-    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:get_fallback_chain).and_return(["anthropic", "cursor", "macos"])
-
-    # Mock the actual CLI execution to return immediately
-    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:execute_command_with_timeout).and_return(
-      {success: true, output: "mocked output", exit_code: 0}
-    )
+    # Wrap constructor to apply stubs to each real instance (avoids any_instance_of)
+    provider_manager_class = Aidp::Harness::ProviderManager
+    original_new = provider_manager_class.method(:new)
+    allow(provider_manager_class).to receive(:new) do |*args, **kwargs, &blk|
+      pm = original_new.call(*args, **kwargs, &blk)
+      allow(pm).to receive(:switch_provider).and_return("anthropic")
+      allow(pm).to receive(:switch_model).and_return("claude-3-5-sonnet-20241022")
+      allow(pm).to receive(:provider_cli_available?).and_return(true)
+      allow(pm).to receive(:find_next_healthy_provider).and_return("anthropic")
+      allow(pm).to receive(:fallback_chain).and_return(["anthropic", "cursor", "macos"]) # used internally
+      allow(pm).to receive(:execute_command_with_timeout).and_return({success: true, output: "mocked output", exit_code: 0})
+      pm
+    end
   end
 
   def setup_mock_project

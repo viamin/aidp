@@ -11,15 +11,14 @@ RSpec.describe "Provider failure exhaustion handling" do
     create_test_configuration
     Aidp::Harness::Configuration.new(temp_dir)
   end
-  let(:provider_manager) { Aidp::Harness::ProviderManager.new(configuration) }
-  let(:error_handler) { Aidp::Harness::ErrorHandler.new(provider_manager, configuration, nil) }
+  let(:binary_checker) { double("BinaryChecker", which: "/usr/bin/claude") }
+  let(:provider_manager) { Aidp::Harness::ProviderManager.new(configuration, binary_checker: binary_checker) }
+  let(:test_sleeper) { double("Sleeper", sleep: nil) }
+  let(:error_handler) { Aidp::Harness::ErrorHandler.new(provider_manager, configuration, nil, sleeper: test_sleeper) }
 
   before do
-    # Mock provider CLI availability to ensure tests work in CI
-    allow_any_instance_of(Aidp::Harness::ProviderManager).to receive(:provider_cli_available?).and_return(true)
-
-    # Stub sleep to speed up tests - no delays needed in tests
-    allow_any_instance_of(Aidp::Harness::ErrorHandler).to receive(:sleep)
+    # Ensure binary checker returns a path (CLI available) and sleeper is no-op
+    allow(binary_checker).to receive(:which).and_return("/usr/bin/claude")
   end
 
   after do

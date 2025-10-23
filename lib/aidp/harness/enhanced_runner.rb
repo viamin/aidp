@@ -22,11 +22,19 @@ module Aidp
         error: "error"
       }.freeze
 
-      def initialize(project_dir, mode = :analyze, options = {}, prompt: TTY::Prompt.new)
+      # Simple sleeper abstraction for test control
+      class Sleeper
+        def sleep(duration)
+          Kernel.sleep(duration)
+        end
+      end
+
+      def initialize(project_dir, mode = :analyze, options = {}, prompt: TTY::Prompt.new, sleeper: Sleeper.new)
         @project_dir = project_dir
         @mode = mode.to_sym
         @options = options
         @prompt = prompt
+        @sleeper = sleeper
         @state = STATES[:idle]
         @start_time = nil
         @current_step = nil
@@ -241,7 +249,7 @@ module Aidp
         # Remove job after a delay to show completion
         # UI delay to let user see completion status before removal
         Thread.new do
-          sleep 2  # Acceptable for UI timing
+          @sleeper.sleep(2) # UI timing delay
           @tui.remove_job(step_job_id)
         end
 
@@ -377,7 +385,7 @@ module Aidp
       def handle_pause_condition
         case @state
         when STATES[:paused]
-          sleep(1)
+          @sleeper.sleep(1)
         when STATES[:waiting_for_user]
           # User interface handles this
           nil
@@ -504,7 +512,7 @@ module Aidp
         while Time.now < reset_time && @state == STATES[:waiting_for_rate_limit]
           remaining = reset_time - Time.now
           @tui.show_message("⏳ Rate limit reset in #{remaining.to_i} seconds", :info)
-          sleep(1)
+          @sleeper.sleep(1)
         end
       end
 
