@@ -6,7 +6,9 @@ require "fileutils"
 
 RSpec.describe Aidp::WorkstreamExecutor do
   let(:project_dir) { Dir.mktmpdir("aidp-executor-spec") }
-  let(:executor) { described_class.new(project_dir: project_dir, max_concurrent: 2) }
+  let(:runner_double) { instance_double(Aidp::Harness::Runner, run: {status: "completed"}) }
+  let(:runner_factory) { ->(path, mode, opts) { runner_double } }
+  let(:executor) { described_class.new(project_dir: project_dir, max_concurrent: 2, runner_factory: runner_factory) }
 
   before do
     # Setup git repo
@@ -98,7 +100,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
 
     it "executes multiple workstreams" do
       allow(executor).to receive(:execute_workstream).and_call_original
-      allow_any_instance_of(Aidp::Harness::Runner).to receive(:run).and_return({status: "completed"})
+      allow(executor).to receive(:execute_workstream).and_call_original
 
       results = executor.execute_parallel([slug1, slug2], {})
 
@@ -241,7 +243,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
     end
 
     it "updates workstream state to active before execution" do
-      allow_any_instance_of(Aidp::Harness::Runner).to receive(:run).and_return({status: "completed"})
+      executor.execute_workstream(slug, {})
 
       executor.execute_workstream(slug, {})
 
@@ -252,9 +254,6 @@ RSpec.describe Aidp::WorkstreamExecutor do
     end
 
     it "executes harness in forked process" do
-      # Mock the harness run to avoid full execution
-      allow_any_instance_of(Aidp::Harness::Runner).to receive(:run).and_return({status: "completed"})
-
       result = executor.execute_workstream(slug, {})
 
       expect(result).to be_a(Aidp::WorkstreamExecutor::WorkstreamResult)
@@ -265,12 +264,9 @@ RSpec.describe Aidp::WorkstreamExecutor do
     end
 
     it "sets status to completed on successful execution" do
-      # Mock successful runner initialization and execution
-      runner_double = instance_double(Aidp::Harness::Runner)
-      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner_double)
-      allow(runner_double).to receive(:run).and_return({status: "completed"})
-
-      result = executor.execute_workstream(slug, {})
+      local_runner = instance_double(Aidp::Harness::Runner, run: {status: "completed"})
+      local_executor = described_class.new(project_dir: project_dir, runner_factory: ->(*_args) { local_runner })
+      result = local_executor.execute_workstream(slug, {})
 
       expect(result.status).to eq("completed")
       expect(result.exit_code).to eq(0)
@@ -278,24 +274,19 @@ RSpec.describe Aidp::WorkstreamExecutor do
     end
 
     it "sets status to failed on harness failure" do
-      # Mock failing runner
-      runner_double = instance_double(Aidp::Harness::Runner)
-      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner_double)
-      allow(runner_double).to receive(:run).and_return({status: "failed"})
-
-      result = executor.execute_workstream(slug, {})
+      failing_runner = instance_double(Aidp::Harness::Runner, run: {status: "failed"})
+      failing_executor = described_class.new(project_dir: project_dir, runner_factory: ->(*_args) { failing_runner })
+      result = failing_executor.execute_workstream(slug, {})
 
       expect(result.status).to eq("failed")
       expect(result.exit_code).to eq(1)
     end
 
     it "handles exceptions during execution" do
-      # Mock runner that raises exception
-      runner_double = instance_double(Aidp::Harness::Runner)
-      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner_double)
-      allow(runner_double).to receive(:run).and_raise("Test error")
-
-      result = executor.execute_workstream(slug, {})
+      raising_runner = instance_double(Aidp::Harness::Runner)
+      allow(raising_runner).to receive(:run).and_raise("Test error")
+      raising_executor = described_class.new(project_dir: project_dir, runner_factory: ->(*_args) { raising_runner })
+      result = raising_executor.execute_workstream(slug, {})
 
       expect(result.status).to eq("failed")
       expect(result.exit_code).to eq(1)
@@ -304,15 +295,13 @@ RSpec.describe Aidp::WorkstreamExecutor do
     end
 
     it "calculates duration correctly" do
-      # Mock runner with delayed execution
-      runner_double = instance_double(Aidp::Harness::Runner)
-      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner_double)
-      allow(runner_double).to receive(:run) do
-        sleep(0.01) # Minimal sleep for timing tests
+      timing_runner = instance_double(Aidp::Harness::Runner)
+      allow(timing_runner).to receive(:run) do
+        sleep(0.01)
         {status: "completed"}
       end
-
-      result = executor.execute_workstream(slug, {})
+      timing_executor = described_class.new(project_dir: project_dir, runner_factory: ->(*_args) { timing_runner })
+      result = timing_executor.execute_workstream(slug, {})
 
       expect(result.duration).to be >= 0.01 # More forgiving threshold
       expect(result.duration).to be < 2.0

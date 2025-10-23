@@ -25,11 +25,17 @@ module Aidp
       keyword_init: true
     )
 
-    def initialize(project_dir: Dir.pwd, max_concurrent: 3)
+    # @param project_dir [String] root directory of the project
+    # @param max_concurrent [Integer] maximum number of concurrent workstreams (thread pool size)
+    # @param runner_factory [Proc] factory that builds a harness runner. Signature: (path, mode, options) => object responding to #run
+    def initialize(project_dir: Dir.pwd, max_concurrent: 3, runner_factory: nil)
       @project_dir = project_dir
       @max_concurrent = max_concurrent
       @results = Concurrent::Hash.new
       @start_times = Concurrent::Hash.new
+      @runner_factory = runner_factory || lambda do |path, mode, options|
+        Aidp::Harness::Runner.new(path, mode, options)
+      end
     end
 
     # Execute multiple workstreams in parallel
@@ -120,7 +126,7 @@ module Aidp
         Dir.chdir(workstream[:path])
 
         # Execute harness
-        runner = Aidp::Harness::Runner.new(
+        runner = @runner_factory.call(
           workstream[:path],
           options[:mode] || :execute,
           options

@@ -17,18 +17,20 @@ This audit identified **200+ violations** across **95+ spec files** where mockin
 - Removed unused `test_mode?` method
 - All specs updated to use explicit `skip_persistence: true` flag
 
-**✅ P1 COMPLETED (CLI)** - TTY::Prompt dependency injection for CLI class
+**✅ P1 COMPLETED** - TTY::Prompt dependency injection across codebase
 
-- Added class-level `create_prompt` method that can be stubbed in tests
-- Replaced all 8 inline `TTY::Prompt.new` calls with `self.create_prompt`
+- Added class-level `CLI.create_prompt` method that can be stubbed in tests
+- Replaced all 8 inline `TTY::Prompt.new` calls in CLI with `self.create_prompt`
 - Updated 3 failing specs to stub `Aidp::CLI.create_prompt`
-- All 244 CLI specs pass, 19 workstream specs pass
-- Eliminated need for `allow_any_instance_of(TTY::Prompt)` in workstream specs (already using proper stubbing)
+- Extended DI to runner classes: `Harness::Runner`, `Harness::EnhancedRunner`, `Skills::Wizard::Prompter`
+- Fixed `MessageDisplay::ClassMethods` - removed memoization of class-level prompt to respect $stdout redirection in tests
+- **All 3710 examples passing** with 79.2% line coverage
+- No inline TTY::Prompt.new except for DI default parameters (proper pattern)
 
-**🔄 P1 IN PROGRESS** - Other prompt DI & any_instance_of reductions
+**⏸️ P1 REMAINING** - Other DI improvements & any_instance_of reductions
 
-- ~6 other files still need TTY::Prompt DI
-- ~33 allow_any_instance_of violations remaining
+- ~33 allow_any_instance_of violations remaining (to be addressed separately)
+- Consider: binary_checker DI for ProviderManager (test environment override pattern)
 
 **⏸️ P2 PENDING** - 130+ violations remaining
 
