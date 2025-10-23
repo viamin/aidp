@@ -1130,4 +1130,64 @@ RSpec.describe Aidp::CLI do
       end
     end
   end
+
+  describe ".run_init_command" do
+    before do
+      allow(described_class).to receive(:display_message)
+    end
+
+    let(:runner) { instance_double(Aidp::Init::Runner, run: true) }
+
+    it "shows usage for unknown option" do
+      described_class.send(:run_init_command, ["--badopt"])
+      expect(described_class).to have_received(:display_message).with(/Unknown init option/, type: :error)
+    end
+
+    it "parses multiple flags and constructs runner options" do
+      allow(Aidp::Init::Runner).to receive(:new).and_return(runner)
+      described_class.send(:run_init_command, ["--explain-detection", "--dry-run", "--preview"])
+      expect(Aidp::Init::Runner).to have_received(:new).with(Dir.pwd, prompt: kind_of(TTY::Prompt), options: hash_including(explain_detection: true, dry_run: true, preview: true))
+    end
+
+    it "displays init usage output" do
+      messages = []
+      allow(described_class).to receive(:display_message) do |msg, type:|
+        messages << {msg: msg, type: type}
+      end
+      described_class.send(:display_init_usage)
+      expect(messages.first[:msg]).to match(/Usage: aidp init/)
+    end
+  end
+
+  describe ".run_watch_command" do
+    before do
+      allow(described_class).to receive(:display_message)
+    end
+
+    let(:watch_runner) { instance_double(Aidp::Watch::Runner, start: true) }
+
+    it "shows usage when no args" do
+      described_class.send(:run_watch_command, [])
+      expect(described_class).to have_received(:display_message).with(/Usage: aidp watch/, type: :info)
+    end
+
+    it "passes interval and provider options" do
+      allow(Aidp::Watch::Runner).to receive(:new).and_return(watch_runner)
+      described_class.send(:run_watch_command, ["https://example.com/issues", "--interval", "30", "--provider", "claude", "--once", "--no-workstreams"])
+      expect(Aidp::Watch::Runner).to have_received(:new).with(hash_including(issues_url: "https://example.com/issues", interval: 30, provider_name: "claude", once: true, use_workstreams: false))
+    end
+
+    it "handles unknown option with warning message" do
+      allow(Aidp::Watch::Runner).to receive(:new).and_return(watch_runner)
+      described_class.send(:run_watch_command, ["https://example.com/issues", "--weird"])
+      expect(described_class).to have_received(:display_message).with(/Unknown watch option: --weird/, type: :warn)
+    end
+
+    it "rescues ArgumentError from runner start" do
+      allow(Aidp::Watch::Runner).to receive(:new).and_raise(ArgumentError.new("bad interval"))
+      allow(described_class).to receive(:log_rescue)
+      described_class.send(:run_watch_command, ["https://ex.com/issues"])
+      expect(described_class).to have_received(:display_message).with(/bad interval/, type: :error)
+    end
+  end
 end
