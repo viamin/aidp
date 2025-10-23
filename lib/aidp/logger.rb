@@ -114,7 +114,7 @@ module Aidp
       logger
     rescue => e
       # Fall back to STDERR if file logging fails
-      warn "[AIDP Logger] Failed to create log file at #{path}: #{e.message}. Falling back to STDERR."
+      Kernel.warn "[AIDP Logger] Failed to create log file at #{path}: #{e.message}. Falling back to STDERR."
       logger = ::Logger.new($stderr)
       logger.level = ::Logger::DEBUG
       logger.formatter = proc { |severity, datetime, progname, msg| "#{msg}\n" }
