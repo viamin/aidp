@@ -188,9 +188,9 @@ module Aidp
       def get_mode_runner
         case @mode
         when :analyze
-          Aidp::Analyze::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
+          Aidp::Analyze::Runner.new(@project_dir, self, prompt: @prompt)
         when :execute
-          Aidp::Execute::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
+          Aidp::Execute::Runner.new(@project_dir, self, prompt: @prompt)
         else
           raise ArgumentError, "Unsupported mode: #{@mode}"
         end

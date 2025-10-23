@@ -22,10 +22,11 @@ module Aidp
         error: "error"
       }.freeze
 
-      def initialize(project_dir, mode = :analyze, options = {})
+      def initialize(project_dir, mode = :analyze, options = {}, prompt: TTY::Prompt.new)
         @project_dir = project_dir
         @mode = mode.to_sym
         @options = options
+        @prompt = prompt
         @state = STATES[:idle]
         @start_time = nil
         @current_step = nil
@@ -50,7 +51,7 @@ module Aidp
         @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
         @condition_detector = ConditionDetector.new
-        @provider_manager = ProviderManager.new(@configuration, prompt: TTY::Prompt.new)
+        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end
@@ -349,9 +350,9 @@ module Aidp
       def get_mode_runner
         case @mode
         when :analyze
-          Aidp::Analyze::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
+          Aidp::Analyze::Runner.new(@project_dir, self, prompt: @prompt)
         when :execute
-          Aidp::Execute::Runner.new(@project_dir, self, prompt: TTY::Prompt.new)
+          Aidp::Execute::Runner.new(@project_dir, self, prompt: @prompt)
         else
           raise ArgumentError, "Unsupported mode: #{@mode}"
         end
