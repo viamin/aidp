@@ -56,6 +56,24 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       expect(agent.instance_variable_get(:@conversation_history)).to eq([])
       expect(agent.instance_variable_get(:@user_input)).to eq({})
     end
+
+    it "uses EnhancedInput when prompt is nil and use_enhanced_input is true" do
+      enhanced_prompt = instance_double("Aidp::CLI::EnhancedInput")
+      allow(Aidp::CLI::EnhancedInput).to receive(:new).and_return(enhanced_prompt)
+
+      # Also stub ProviderManager.new to accept any prompt type
+      enhanced_provider_manager = instance_double("Aidp::Harness::ProviderManager")
+      allow(Aidp::Harness::ProviderManager).to receive(:new)
+        .with(config_manager, prompt: enhanced_prompt)
+        .and_return(enhanced_provider_manager)
+      allow(enhanced_provider_manager).to receive(:current_provider).and_return("claude")
+      allow(enhanced_provider_manager).to receive(:configured_providers).and_return(["claude"])
+
+      agent_with_enhanced = described_class.new(project_dir, prompt: nil, use_enhanced_input: true)
+
+      expect(Aidp::CLI::EnhancedInput).to have_received(:new)
+      expect(agent_with_enhanced.instance_variable_get(:@prompt)).to eq(enhanced_prompt)
+    end
   end
 
   describe "#select_workflow" do
@@ -323,6 +341,32 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
         plan = agent.send(:iterative_planning)
         expect(plan[:goal]).to eq("Test goal")
+      end
+
+      it "continues planning when user rejects initial plan" do
+        call_count = 0
+        allow(provider).to receive(:send) do
+          call_count += 1
+          case call_count
+          when 1
+            {complete: true, questions: [], reasoning: "Initial plan ready"}.to_json
+          when 2
+            {complete: true, questions: [], reasoning: "Refined plan ready"}.to_json
+          else
+            {complete: true, questions: [], reasoning: "Final plan"}.to_json
+          end
+        end
+
+        # Reject first plan, then accept second
+        allow(prompt).to receive(:yes?).with(/Is this plan ready for execution/).and_return(false, true)
+        allow(prompt).to receive(:ask).with("What would you like to add or clarify?").and_return("Add more security features")
+
+        plan = agent.send(:iterative_planning)
+        expect(plan[:goal]).to eq("Test goal")
+
+        # Verify we went through refinement cycle
+        expect(prompt).to have_received(:yes?).twice
+        expect(prompt).to have_received(:ask).with("What would you like to add or clarify?")
       end
     end
 
@@ -720,6 +764,443 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         expect(result).to include("Available Execute Steps")
         expect(result).to include("00_PRD")
         expect(result).to include("16_IMPLEMENTATION")
+      end
+    end
+
+    describe "#format_hash_for_doc" do
+      it "returns 'None specified' for empty hash" do
+        result = agent.send(:format_hash_for_doc, {})
+        expect(result).to eq("None specified")
+      end
+
+      it "returns 'None specified' for nil" do
+        result = agent.send(:format_hash_for_doc, nil)
+        expect(result).to eq("None specified")
+      end
+
+      it "formats array values as bulleted lists" do
+        hash = {features: ["Login", "Registration", "Password reset"]}
+        result = agent.send(:format_hash_for_doc, hash)
+        expect(result).to include("### Features")
+        expect(result).to include("- Login")
+        expect(result).to include("- Registration")
+      end
+
+      it "formats hash values as key-value lists" do
+        hash = {performance: {"Response time" => "< 100ms", "Throughput" => "1000 req/s"}}
+        result = agent.send(:format_hash_for_doc, hash)
+        expect(result).to include("### Performance")
+        expect(result).to include("- **Response time**: < 100ms")
+        expect(result).to include("- **Throughput**: 1000 req/s")
+      end
+
+      it "formats string values with header" do
+        hash = {description: "A comprehensive authentication system"}
+        result = agent.send(:format_hash_for_doc, hash)
+        expect(result).to include("### Description")
+        expect(result).to include("A comprehensive authentication system")
+      end
+    end
+
+    describe "analyze_user_intent workflow (legacy)" do
+      let(:user_goal) { "Understand how payments work" }
+
+      before do
+        # Mock provider responses for legacy workflow
+        allow(provider).to receive(:send).and_return(
+          {
+            mode: "analyze",
+            workflow_key: "deep_dive",
+            reasoning: "This requires code analysis",
+            confidence: "high",
+            questions: [],
+            additional_steps: []
+          }.to_json
+        )
+        allow(prompt).to receive(:yes?).and_return(true)
+      end
+
+      it "analyzes user intent and recommends workflow" do
+        result = agent.send(:analyze_user_intent, user_goal)
+
+        expect(result).to have_key(:mode)
+        expect(result).to have_key(:workflow_key)
+        expect(result).to have_key(:reasoning)
+      end
+
+      it "parses recommendation from provider" do
+        recommendation = agent.send(:analyze_user_intent, user_goal)
+
+        expect(recommendation[:mode]).to eq("analyze")
+        expect(recommendation[:workflow_key]).to eq("deep_dive")
+      end
+    end
+
+    describe "#parse_recommendation" do
+      it "parses JSON from markdown code block" do
+        response = '```json\n{"mode": "execute", "workflow_key": "quick_prototype"}\n```'
+        result = agent.send(:parse_recommendation, response)
+
+        expect(result[:mode]).to eq("execute")
+        expect(result[:workflow_key]).to eq("quick_prototype")
+      end
+
+      it "parses plain JSON response" do
+        response = '{"mode": "analyze", "workflow_key": "deep_dive", "confidence": "high"}'
+        result = agent.send(:parse_recommendation, response)
+
+        expect(result[:mode]).to eq("analyze")
+        expect(result[:confidence]).to eq("high")
+      end
+
+      it "raises ConversationError when no JSON found" do
+        response = "This is not JSON at all"
+
+        expect {
+          agent.send(:parse_recommendation, response)
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError, /Could not parse recommendation/)
+      end
+
+      it "raises ConversationError for malformed JSON" do
+        response = '{"invalid": json,}'
+
+        expect {
+          agent.send(:parse_recommendation, response)
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError, /Invalid JSON/)
+      end
+    end
+
+    describe "#build_system_prompt" do
+      it "includes AIDP capabilities documentation" do
+        result = agent.send(:build_system_prompt)
+
+        expect(result).to include("expert AI assistant")
+        expect(result).to include("AIDP Capabilities Reference")
+        expect(result).to include("Test capabilities document") # From our test setup
+      end
+
+      it "requests JSON response format" do
+        result = agent.send(:build_system_prompt)
+
+        expect(result).to include("JSON response")
+        expect(result).to include('"mode"')
+        expect(result).to include('"workflow_key"')
+      end
+    end
+
+    describe "#build_analysis_prompt" do
+      it "includes user goal in prompt" do
+        goal = "Build a REST API"
+        result = agent.send(:build_analysis_prompt, goal)
+
+        expect(result).to include("Build a REST API")
+        expect(result).to include("Is this analysis or development")
+      end
+    end
+
+    describe "#present_recommendation" do
+      let(:recommendation) do
+        {
+          mode: "execute",
+          workflow_key: "quick_prototype",
+          reasoning: "Fast iteration needed",
+          confidence: "high",
+          additional_steps: [],
+          questions: []
+        }
+      end
+
+      before do
+        allow(prompt).to receive(:yes?).and_return(true)
+      end
+
+      it "displays recommendation to user" do
+        expect(prompt).to receive(:say).at_least(:once)
+
+        result = agent.send(:present_recommendation, recommendation)
+        expect(result).to have_key(:mode)
+      end
+
+      it "returns workflow selection when confirmed" do
+        result = agent.send(:present_recommendation, recommendation)
+
+        expect(result[:mode]).to eq(:execute)
+        expect(result[:workflow_key]).to eq(:quick_prototype)
+        expect(result).to have_key(:steps)
+      end
+
+      it "offers alternatives when not confirmed" do
+        allow(prompt).to receive(:yes?).and_return(false)
+        expect(agent).to receive(:offer_alternatives).with(:execute)
+
+        agent.send(:present_recommendation, recommendation)
+      end
+
+      it "handles additional steps in recommendation" do
+        recommendation[:additional_steps] = ["custom_validation", "custom_deployment"]
+
+        result = agent.send(:present_recommendation, recommendation)
+        expect(result[:steps]).to include("custom_validation")
+      end
+
+      it "handles custom workflow recommendation" do
+        recommendation[:workflow_key] = "nonexistent_workflow"
+        expect(agent).to receive(:handle_custom_workflow).with(recommendation)
+
+        agent.send(:present_recommendation, recommendation)
+      end
+    end
+
+    describe "#handle_custom_workflow" do
+      let(:recommendation) do
+        {
+          mode: "execute",
+          reasoning: "Custom workflow needed",
+          questions: ["What's your timeline?", "What's the budget?"],
+          additional_steps: ["00_PRD"]
+        }
+      end
+
+      before do
+        allow(prompt).to receive(:ask).and_return("2 weeks", "$10k")
+        allow(agent).to receive(:select_custom_steps).and_return(["00_PRD", "16_IMPLEMENTATION"])
+      end
+
+      it "asks clarifying questions" do
+        expect(prompt).to receive(:ask).with("What's your timeline?")
+        expect(prompt).to receive(:ask).with("What's the budget?")
+
+        agent.send(:handle_custom_workflow, recommendation)
+      end
+
+      it "selects custom steps" do
+        expect(agent).to receive(:select_custom_steps).with(:execute, ["00_PRD"])
+
+        agent.send(:handle_custom_workflow, recommendation)
+      end
+
+      it "returns custom workflow configuration" do
+        result = agent.send(:handle_custom_workflow, recommendation)
+
+        expect(result[:mode]).to eq(:execute)
+        expect(result[:workflow_key]).to eq(:custom)
+        expect(result[:workflow_type]).to eq(:custom)
+        expect(result[:workflow][:name]).to eq("Custom Workflow")
+      end
+    end
+
+    describe "#select_custom_steps" do
+      before do
+        allow(prompt).to receive(:multi_select).and_return(["00_PRD", "16_IMPLEMENTATION"])
+      end
+
+      it "presents available steps for execute mode" do
+        expect(prompt).to receive(:multi_select).with(
+          /Select steps/,
+          kind_of(Array),
+          hash_including(:per_page)
+        )
+
+        agent.send(:select_custom_steps, :execute, [])
+      end
+
+      it "pre-selects suggested steps" do
+        suggested = ["00_PRD"]
+
+        expect(prompt).to receive(:multi_select).with(
+          anything,
+          anything,
+          hash_including(default: kind_of(Array))
+        )
+
+        agent.send(:select_custom_steps, :execute, suggested)
+      end
+
+      it "returns selected steps" do
+        result = agent.send(:select_custom_steps, :execute)
+        expect(result).to eq(["00_PRD", "16_IMPLEMENTATION"])
+      end
+
+      it "returns suggested steps when no selection made" do
+        allow(prompt).to receive(:multi_select).and_return([])
+        result = agent.send(:select_custom_steps, :execute, ["00_PRD"])
+        expect(result).to eq(["00_PRD"])
+      end
+
+      it "supports analyze mode steps" do
+        allow(prompt).to receive(:multi_select).and_return(["01_CODEBASE_SUMMARY"])
+        result = agent.send(:select_custom_steps, :analyze)
+        expect(result).to eq(["01_CODEBASE_SUMMARY"])
+      end
+
+      it "supports hybrid mode with combined steps" do
+        allow(prompt).to receive(:multi_select).and_return(["00_PRD", "01_CODEBASE_SUMMARY"])
+        result = agent.send(:select_custom_steps, :hybrid)
+        expect(result).to include("00_PRD")
+      end
+    end
+
+    describe "#offer_alternatives" do
+      before do
+        allow(prompt).to receive(:select).and_return(:different_workflow)
+        allow(agent).to receive(:select_manual_workflow).and_return({mode: :execute})
+      end
+
+      it "offers alternative options" do
+        expect(prompt).to receive(:select).with(/What would you like to do/, kind_of(Array))
+
+        agent.send(:offer_alternatives, :execute)
+      end
+
+      it "allows selecting different workflow in same mode" do
+        expect(agent).to receive(:select_manual_workflow).with(:execute)
+
+        agent.send(:offer_alternatives, :execute)
+      end
+
+      it "allows switching to different mode" do
+        allow(prompt).to receive(:select).and_return(:different_mode, :analyze)
+        expect(agent).to receive(:select_manual_workflow).with(:analyze)
+
+        agent.send(:offer_alternatives, :execute)
+      end
+
+      it "allows building custom workflow" do
+        allow(prompt).to receive(:select).and_return(:custom)
+        expect(agent).to receive(:select_custom_steps).with(:execute)
+
+        agent.send(:offer_alternatives, :execute)
+      end
+
+      it "allows restarting workflow selection" do
+        allow(prompt).to receive(:select).and_return(:restart)
+        expect(agent).to receive(:select_workflow)
+
+        agent.send(:offer_alternatives, :execute)
+      end
+    end
+
+    describe "#select_manual_workflow" do
+      before do
+        allow(prompt).to receive(:select).and_return(:quick_prototype)
+      end
+
+      it "presents available workflows for mode" do
+        expect(prompt).to receive(:select).with(/Choose a workflow/, kind_of(Array), hash_including(:per_page))
+
+        agent.send(:select_manual_workflow, :execute)
+      end
+
+      it "returns selected workflow configuration" do
+        result = agent.send(:select_manual_workflow, :execute)
+
+        expect(result[:mode]).to eq(:execute)
+        expect(result[:workflow_key]).to eq(:quick_prototype)
+        expect(result).to have_key(:steps)
+        expect(result).to have_key(:workflow)
+      end
+    end
+
+    describe "#collect_workflow_details" do
+      let(:workflow_selection) { {mode: :execute, user_input: {}} }
+
+      before do
+        allow(agent).to receive(:collect_execute_details)
+        agent.instance_variable_set(:@user_input, {})
+      end
+
+      it "collects execute details for execute mode" do
+        expect(agent).to receive(:collect_execute_details)
+
+        agent.send(:collect_workflow_details, workflow_selection)
+      end
+
+      it "sets analysis goal for analyze mode" do
+        workflow_selection[:mode] = :analyze
+        agent.instance_variable_set(:@user_input, {original_goal: "Analyze codebase"})
+
+        agent.send(:collect_workflow_details, workflow_selection)
+
+        user_input = agent.instance_variable_get(:@user_input)
+        expect(user_input[:analysis_goal]).to eq("Analyze codebase")
+      end
+
+      it "collects execute details for hybrid mode" do
+        workflow_selection[:mode] = :hybrid
+        expect(agent).to receive(:collect_execute_details)
+
+        agent.send(:collect_workflow_details, workflow_selection)
+      end
+
+      it "updates workflow selection with user input" do
+        agent.instance_variable_set(:@user_input, {project_description: "Test project"})
+
+        agent.send(:collect_workflow_details, workflow_selection)
+
+        expect(workflow_selection[:user_input]).to eq({project_description: "Test project"})
+      end
+    end
+
+    describe "#collect_execute_details" do
+      before do
+        allow(prompt).to receive(:ask).and_return("Build auth system", "Ruby/Rails", "End users", "100% test coverage")
+        agent.instance_variable_set(:@user_input, {original_goal: "Build auth"})
+      end
+
+      it "skips if details already collected" do
+        agent.instance_variable_set(:@user_input, {project_description: "Already done"})
+
+        expect(prompt).not_to receive(:ask)
+        agent.send(:collect_execute_details)
+      end
+
+      it "collects project description" do
+        agent.send(:collect_execute_details)
+
+        user_input = agent.instance_variable_get(:@user_input)
+        expect(user_input[:project_description]).to eq("Build auth system")
+      end
+
+      it "collects optional tech stack" do
+        agent.send(:collect_execute_details)
+
+        user_input = agent.instance_variable_get(:@user_input)
+        expect(user_input[:tech_stack]).to eq("Ruby/Rails")
+      end
+
+      it "collects optional target users" do
+        agent.send(:collect_execute_details)
+
+        user_input = agent.instance_variable_get(:@user_input)
+        expect(user_input[:target_users]).to eq("End users")
+      end
+
+      it "collects optional success criteria" do
+        agent.send(:collect_execute_details)
+
+        user_input = agent.instance_variable_get(:@user_input)
+        expect(user_input[:success_criteria]).to eq("100% test coverage")
+      end
+
+      it "defaults project description to original goal" do
+        expect(prompt).to receive(:ask).with(
+          anything,
+          hash_including(default: "Build auth")
+        ).and_return("Build auth system")
+
+        agent.send(:collect_execute_details)
+      end
+    end
+
+    describe "#build_plan_summary_for_step_identification" do
+      let(:plan) { {goal: "Build auth", requirements: {functional: ["Login"]}} }
+
+      it "includes plan as JSON" do
+        result = agent.send(:build_plan_summary_for_step_identification, plan)
+
+        expect(result).to include("Plan Summary")
+        expect(result).to include('"goal"')
+        expect(result).to include("Build auth")
       end
     end
   end
