@@ -101,8 +101,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         .and_return(user_goal)
 
       # Mock planning questions response and step identification
-      # Provider.send returns a string (the content), not a hash
-      allow(provider).to receive(:send).and_return(
+      # Provider.send_message returns a string (the content), not a hash
+      allow(provider).to receive(:send_message).and_return(
         plan_response.to_json,
         step_identification_response.to_json
       )
@@ -150,11 +150,11 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     context "when plan requires multiple iterations" do
       before do
         call_count = 0
-        allow(provider).to receive(:send) do
+        allow(provider).to receive(:send_message) do
           call_count += 1
           if call_count == 1
             # First call: AI needs more info
-            # Provider.send returns a string (the content), not a hash
+            # Provider.send_message returns a string (the content), not a hash
             {
               complete: false,
               questions: ["What level of security is needed?"],
@@ -182,8 +182,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
     context "when provider request fails" do
       before do
-        # Provider.send returns nil/empty string on failure
-        allow(provider).to receive(:send).and_return(nil)
+        # Provider.send_message returns nil/empty string on failure
+        allow(provider).to receive(:send_message).and_return(nil)
       end
 
       it "raises a ConversationError" do
@@ -212,8 +212,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       before do
         # Simulate plan with NFRs
         plan_with_nfrs = plan_response.dup
-        # Provider.send returns a string (the content), not a hash
-        allow(provider).to receive(:send).and_return(
+        # Provider.send_message returns a string (the content), not a hash
+        allow(provider).to receive(:send_message).and_return(
           plan_with_nfrs.to_json,
           step_identification_response.to_json
         )
@@ -246,7 +246,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         allow(provider_manager).to receive(:configured_providers).and_return(["claude", secondary_provider])
 
         call_count = 0
-        allow(provider).to receive(:send) do
+        allow(provider).to receive(:send_message) do
           call_count += 1
           if call_count == 1
             # First attempt triggers resource_exhausted failure via raising error
@@ -275,7 +275,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     context "when planning loop exceeds maximum iterations" do
       before do
         # Mock provider to always return incomplete plan to force iteration limit
-        allow(provider).to receive(:send).and_return(
+        allow(provider).to receive(:send_message).and_return(
           {
             complete: false,
             questions: ["What else do you need?"],
@@ -298,7 +298,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   describe "private methods" do
     before do
       # Set up basic mocks for provider communication
-      allow(provider).to receive(:send).and_return('{"complete": true, "questions": []}')
+      allow(provider).to receive(:send_message).and_return('{"complete": true, "questions": []}')
       allow(prompt).to receive(:ask).and_return("Test goal")
       allow(prompt).to receive(:yes?).and_return(true)
     end
@@ -319,7 +319,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
       it "handles multiple planning iterations" do
         call_count = 0
-        allow(provider).to receive(:send) do
+        allow(provider).to receive(:send_message) do
           call_count += 1
           if call_count == 1
             {
@@ -345,7 +345,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
       it "continues planning when user rejects initial plan" do
         call_count = 0
-        allow(provider).to receive(:send) do
+        allow(provider).to receive(:send_message) do
           call_count += 1
           case call_count
           when 1
@@ -374,7 +374,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       let(:test_plan) { {goal: "Test goal", requirements: {}} }
 
       it "calls provider with system and user prompts" do
-        expect(provider).to receive(:send).with(prompt: kind_of(String))
+        expect(provider).to receive(:send_message).with(prompt: kind_of(String))
 
         agent.send(:get_planning_questions, test_plan)
       end
@@ -386,7 +386,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
           reasoning: "Need tech info"
         }.to_json
 
-        allow(provider).to receive(:send).and_return(response)
+        allow(provider).to receive(:send_message).and_return(response)
 
         result = agent.send(:get_planning_questions, test_plan)
         expect(result[:complete]).to be false
@@ -402,7 +402,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
           }
         }
 
-        expect(provider).to receive(:send).with(prompt: including("Requirements have been provided in detail"))
+        expect(provider).to receive(:send_message).with(prompt: including("Requirements have been provided in detail"))
 
         agent.send(:get_planning_questions, detailed_plan)
       end
@@ -417,7 +417,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
           reasoning: "Need PRD, API design, and implementation"
         }.to_json
 
-        allow(provider).to receive(:send).and_return(step_response)
+        allow(provider).to receive(:send_message).and_return(step_response)
 
         result = agent.send(:identify_steps_from_plan, test_plan)
         expect(result).to eq(["00_PRD", "05_API_DESIGN", "16_IMPLEMENTATION"])
@@ -653,7 +653,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         system_prompt = "You are an AI assistant"
         user_prompt = "Help me with this"
 
-        expect(provider).to receive(:send).with(prompt: "#{system_prompt}\n\n#{user_prompt}")
+        expect(provider).to receive(:send_message).with(prompt: "#{system_prompt}\n\n#{user_prompt}")
 
         agent.send(:call_provider_for_analysis, system_prompt, user_prompt)
       end
@@ -663,7 +663,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         user_prompt = "User prompt"
 
         call_count = 0
-        allow(provider).to receive(:send) do
+        allow(provider).to receive(:send_message) do
           call_count += 1
           if call_count == 1
             raise StandardError, "[resource_exhausted] Error"
@@ -679,7 +679,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       end
 
       it "raises ConversationError when provider returns nil" do
-        allow(provider).to receive(:send).and_return(nil)
+        allow(provider).to receive(:send_message).and_return(nil)
 
         expect {
           agent.send(:call_provider_for_analysis, "system", "user")

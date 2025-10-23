@@ -44,7 +44,7 @@ module Aidp
         self.class.available?
       end
 
-      def send(prompt:, session: nil)
+      def send_message(prompt:, session: nil)
         raise "claude CLI not available" unless self.class.available?
 
         # Smart timeout calculation

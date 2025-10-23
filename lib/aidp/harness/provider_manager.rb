@@ -1384,7 +1384,7 @@ module Aidp
         @current_provider = provider_type
 
         # Execute the prompt with the provider
-        result = provider.send(prompt: prompt, session: nil)
+        result = provider.send_message(prompt: prompt, session: nil)
 
         # Return structured result
         {

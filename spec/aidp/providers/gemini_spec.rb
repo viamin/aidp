@@ -56,12 +56,12 @@ RSpec.describe Aidp::Providers::Gemini do
           )
         ).and_return(mock_result)
 
-        result = gemini.send(prompt: sample_prompt)
+        result = gemini.send_message(prompt: sample_prompt)
         expect(result).to eq("Hello, World!")
       end
 
       it "returns the command output on success" do
-        result = gemini.send(prompt: sample_prompt)
+        result = gemini.send_message(prompt: sample_prompt)
         expect(result).to eq("Hello, World!")
       end
 
@@ -70,7 +70,7 @@ RSpec.describe Aidp::Providers::Gemini do
         expect(gemini).to receive(:debug_log).with("📝 Sending prompt to gemini...", level: :info)
         expect(gemini).to receive(:debug_command).with("gemini", hash_including(args: ["--print"]))
 
-        gemini.send(prompt: sample_prompt)
+        gemini.send_message(prompt: sample_prompt)
       end
 
       context "when streaming is enabled via AIDP_STREAMING" do
@@ -88,7 +88,7 @@ RSpec.describe Aidp::Providers::Gemini do
             type: :info
           )
 
-          gemini.send(prompt: sample_prompt)
+          gemini.send_message(prompt: sample_prompt)
         end
       end
 
@@ -107,7 +107,7 @@ RSpec.describe Aidp::Providers::Gemini do
             type: :info
           )
 
-          gemini.send(prompt: sample_prompt)
+          gemini.send_message(prompt: sample_prompt)
         end
       end
     end
@@ -121,7 +121,7 @@ RSpec.describe Aidp::Providers::Gemini do
       end
 
       it "raises an error with exit code and stderr" do
-        expect { gemini.send(prompt: sample_prompt) }.to raise_error(/gemini failed with exit code 1: API key invalid/)
+        expect { gemini.send_message(prompt: sample_prompt) }.to raise_error(/gemini failed with exit code 1: API key invalid/)
       end
 
       it "logs debug error" do
@@ -130,7 +130,7 @@ RSpec.describe Aidp::Providers::Gemini do
           hash_including(exit_code: 1, stderr: "API key invalid")
         )
 
-        expect { gemini.send(prompt: sample_prompt) }.to raise_error
+        expect { gemini.send_message(prompt: sample_prompt) }.to raise_error
       end
     end
 
@@ -140,7 +140,7 @@ RSpec.describe Aidp::Providers::Gemini do
       end
 
       it "raises an error" do
-        expect { gemini.send(prompt: sample_prompt) }.to raise_error("gemini CLI not available")
+        expect { gemini.send_message(prompt: sample_prompt) }.to raise_error("gemini CLI not available")
       end
     end
 
@@ -156,7 +156,7 @@ RSpec.describe Aidp::Providers::Gemini do
           hash_including(provider: "gemini", prompt_length: sample_prompt.length)
         )
 
-        expect { gemini.send(prompt: sample_prompt) }.to raise_error("Network error")
+        expect { gemini.send_message(prompt: sample_prompt) }.to raise_error("Network error")
       end
     end
   end

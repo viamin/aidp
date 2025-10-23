@@ -67,7 +67,7 @@ module Aidp
 
       def generate_with_provider(provider, issue)
         payload = build_prompt(issue)
-        response = provider.send(prompt: payload)
+        response = provider.send_message(prompt: payload)
         parsed = parse_structured_response(response)
 
         return parsed if parsed

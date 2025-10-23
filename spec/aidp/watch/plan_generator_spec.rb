@@ -45,7 +45,7 @@ RSpec.describe Aidp::Watch::PlanGenerator do
 
       before do
         allow(plan_generator).to receive(:resolve_provider).and_return(mock_provider)
-        allow(mock_provider).to receive(:send).and_return(provider_response)
+        allow(mock_provider).to receive(:send_message).and_return(provider_response)
       end
 
       it "generates plan using provider" do
@@ -57,7 +57,7 @@ RSpec.describe Aidp::Watch::PlanGenerator do
       end
 
       it "calls provider with correct prompt" do
-        expect(mock_provider).to receive(:send) do |args|
+        expect(mock_provider).to receive(:send_message) do |args|
           expect(args[:prompt]).to include("Add user authentication")
           expect(args[:prompt]).to include("OAuth2 support")
           provider_response
