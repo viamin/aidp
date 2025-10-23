@@ -71,8 +71,8 @@ module Aidp
         name
       end
 
-      def send(prompt:, session: nil)
-        raise NotImplementedError, "#{self.class} must implement #send"
+      def send_message(prompt:, session: nil)
+        raise NotImplementedError, "#{self.class} must implement #send_message"
       end
 
       # Fetch MCP servers configured for this provider
@@ -279,8 +279,8 @@ module Aidp
         error_message = nil
 
         begin
-          # Call the original send method
-          result = send(prompt: prompt, session: session)
+          # Call the original send_message method
+          result = send_message(prompt: prompt, session: session)
           success = true
 
           # Extract token usage and cost if available

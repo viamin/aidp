@@ -204,17 +204,17 @@ RSpec.describe Aidp::Providers::Base do
     let(:mock_harness) { double("harness_runner") }
 
     before do
-      allow(provider).to receive(:send).and_return("test result")
+      allow(provider).to receive(:send_message).and_return("test result")
       allow(mock_harness).to receive(:record_provider_metrics)
       allow(mock_harness).to receive(:record_provider_error)
       provider.set_harness_context(mock_harness)
     end
 
-    it "calls original send method and records metrics" do
+    it "calls original send_message method and records metrics" do
       result = provider.send_with_harness(prompt: "test prompt")
 
       expect(result).to eq("test result")
-      expect(provider).to have_received(:send).with(prompt: "test prompt", session: nil)
+      expect(provider).to have_received(:send_message).with(prompt: "test prompt", session: nil)
 
       metrics = provider.harness_metrics
       expect(metrics[:total_requests]).to eq(1)
@@ -223,7 +223,7 @@ RSpec.describe Aidp::Providers::Base do
     end
 
     it "handles errors and records them" do
-      allow(provider).to receive(:send).and_raise(StandardError, "test error")
+      allow(provider).to receive(:send_message).and_raise(StandardError, "test error")
 
       expect {
         provider.send_with_harness(prompt: "test prompt")
@@ -238,7 +238,7 @@ RSpec.describe Aidp::Providers::Base do
     end
 
     it "detects rate limiting errors" do
-      allow(provider).to receive(:send).and_raise(StandardError, "rate limit exceeded")
+      allow(provider).to receive(:send_message).and_raise(StandardError, "rate limit exceeded")
 
       expect {
         provider.send_with_harness(prompt: "test prompt")
@@ -256,7 +256,7 @@ RSpec.describe Aidp::Providers::Base do
         token_usage: {total: 150, cost: 0.02},
         rate_limited: false
       }
-      allow(provider).to receive(:send).and_return(token_result)
+      allow(provider).to receive(:send_message).and_return(token_result)
 
       result = provider.send_with_harness(prompt: "test prompt")
 
@@ -272,7 +272,7 @@ RSpec.describe Aidp::Providers::Base do
         output: "test output",
         rate_limited: true
       }
-      allow(provider).to receive(:send).and_return(rate_limited_result)
+      allow(provider).to receive(:send_message).and_return(rate_limited_result)
 
       result = provider.send_with_harness(prompt: "test prompt")
 

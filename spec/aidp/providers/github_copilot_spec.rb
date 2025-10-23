@@ -89,7 +89,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       end
 
       it "raises an error" do
-        expect { provider.send(prompt: prompt) }.to raise_error("copilot CLI not available")
+        expect { provider.send_message(prompt: prompt) }.to raise_error("copilot CLI not available")
       end
     end
 
@@ -105,18 +105,18 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       end
 
       it "executes copilot with prompt mode" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
         expect(provider).to have_received(:debug_execute_command)
           .with("copilot", args: ["-p", prompt, "--allow-all-tools"], timeout: 300, streaming: false)
       end
 
       it "returns the output when successful" do
-        result = provider.send(prompt: prompt)
+        result = provider.send_message(prompt: prompt)
         expect(result).to eq("Success output")
       end
 
       it "marks as completed when successful" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
         expect(provider).to have_received(:mark_completed)
       end
 
@@ -129,13 +129,13 @@ RSpec.describe Aidp::Providers::GithubCopilot do
         end
 
         it "raises an error with exit code and stderr" do
-          expect { provider.send(prompt: prompt) }
+          expect { provider.send_message(prompt: prompt) }
             .to raise_error("copilot failed with exit code 1: Error output")
         end
 
         it "marks as failed" do
           begin
-            provider.send(prompt: prompt)
+            provider.send_message(prompt: prompt)
           rescue
             # Expected to raise
           end
@@ -157,7 +157,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
         end
 
         it "includes session parameter in command" do
-          provider.send(prompt: prompt, session: "test-session")
+          provider.send_message(prompt: prompt, session: "test-session")
           expect(provider).to have_received(:debug_execute_command)
             .with("copilot", args: ["-p", prompt, "--allow-all-tools", "--resume", "test-session"], timeout: 300, streaming: false)
         end

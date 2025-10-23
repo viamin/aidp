@@ -34,7 +34,7 @@ module Aidp
         end
       end
 
-      def send(prompt:, session: nil)
+      def send_message(prompt:, session: nil)
         raise "copilot CLI not available" unless self.class.available?
 
         # Smart timeout calculation

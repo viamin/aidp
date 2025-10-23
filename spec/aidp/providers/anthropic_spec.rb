@@ -62,7 +62,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
 
       it "uses text output format" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:debug_execute_command).with(
           "claude",
@@ -74,7 +74,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
 
       it "returns the output directly" do
-        result = provider.send(prompt: prompt)
+        result = provider.send_message(prompt: prompt)
         expect(result).to eq("Test response")
       end
     end
@@ -90,7 +90,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
 
       it "uses stream-json output format" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:debug_execute_command).with(
           "claude",
@@ -102,7 +102,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
 
       it "shows true streaming message" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:display_message).with(
           "📺 True streaming enabled - real-time chunks from Claude API",
@@ -114,7 +114,7 @@ RSpec.describe Aidp::Providers::Anthropic do
         allow(successful_result).to receive(:out).and_return('{"type":"content_block_delta","delta":{"text":"Hello"}}')
         allow(provider).to receive(:parse_stream_json_output).and_return("Hello")
 
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:parse_stream_json_output).with('{"type":"content_block_delta","delta":{"text":"Hello"}}')
       end
@@ -131,7 +131,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
 
       it "uses stream-json output format" do
-        provider.send(prompt: prompt)
+        provider.send_message(prompt: prompt)
 
         expect(provider).to have_received(:debug_execute_command).with(
           "claude",
@@ -150,13 +150,13 @@ RSpec.describe Aidp::Providers::Anthropic do
 
       it "raises an error" do
         expect {
-          provider.send(prompt: prompt)
+          provider.send_message(prompt: prompt)
         }.to raise_error(RuntimeError, "claude failed with exit code 1: Error message")
       end
 
       it "logs the error" do
         expect {
-          provider.send(prompt: prompt)
+          provider.send_message(prompt: prompt)
         }.to raise_error
 
         expect(provider).to have_received(:debug_error).at_least(:once)
@@ -172,13 +172,13 @@ RSpec.describe Aidp::Providers::Anthropic do
 
       it "raises authentication error message" do
         expect {
-          provider.send(prompt: prompt)
+          provider.send_message(prompt: prompt)
         }.to raise_error(/Authentication error from Claude CLI/)
       end
 
       it "logs the authentication error" do
         expect {
-          provider.send(prompt: prompt)
+          provider.send_message(prompt: prompt)
         }.to raise_error
 
         expect(provider).to have_received(:debug_error).at_least(:once)
@@ -194,7 +194,7 @@ RSpec.describe Aidp::Providers::Anthropic do
 
       it "raises oauth token expired error" do
         expect {
-          provider.send(prompt: prompt)
+          provider.send_message(prompt: prompt)
         }.to raise_error(/token expired or invalid/)
       end
     end
@@ -206,7 +206,7 @@ RSpec.describe Aidp::Providers::Anthropic do
 
       it "raises error" do
         expect {
-          provider.send(prompt: prompt)
+          provider.send_message(prompt: prompt)
         }.to raise_error("claude CLI not available")
       end
     end
@@ -218,7 +218,7 @@ RSpec.describe Aidp::Providers::Anthropic do
 
       it "logs and re-raises the error" do
         expect {
-          provider.send(prompt: prompt)
+          provider.send_message(prompt: prompt)
         }.to raise_error(StandardError, "Command failed")
 
         expect(provider).to have_received(:debug_error).with(

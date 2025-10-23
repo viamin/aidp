@@ -234,6 +234,11 @@ module Aidp
 
       private
 
+      # Create a TTY::Prompt instance (extracted for testability)
+      def create_prompt
+        TTY::Prompt.new
+      end
+
       def setup_logging(project_dir)
         # Load logging config from aidp.yml
         config_path = File.join(project_dir, ".aidp", "aidp.yml")
@@ -723,7 +728,12 @@ module Aidp
           end
           tokens = (r[:total_tokens].to_i > 0) ? r[:total_tokens].to_s : "0"
           reason = r[:unhealthy_reason] || "-"
-          if no_color || !$stdout.tty?
+          is_tty = begin
+            $stdout.respond_to?(:tty?) && $stdout.tty?
+          rescue
+            false
+          end
+          if no_color || !is_tty
             [r[:provider], r[:status], (r[:available] ? "yes" : "no"), cb, rl, tokens, last_used, reason]
           else
             [
@@ -742,7 +752,7 @@ module Aidp
         table = TTY::Table.new header, table_rows
         display_message(table.render(:basic), type: :info)
       rescue => e
-        log_rescue(e, component: "cli", action: "display_provider_health", fallback: "error_message")
+        Aidp.logger.warn("cli", "Failed to display provider health", error_class: e.class.name, error_message: e.message)
         display_message("Failed to display provider health: #{e.message}", type: :error)
       end
 
@@ -762,7 +772,7 @@ module Aidp
         display_message("=" * 60, type: :muted)
 
         provider_info = Aidp::Harness::ProviderInfo.new(provider_name, Dir.pwd)
-        info = provider_info.get_info(force_refresh: force_refresh)
+        info = provider_info.info(force_refresh: force_refresh)
 
         if info.nil?
           display_message("No information available for provider: #{provider_name}", type: :error)
@@ -1229,7 +1239,7 @@ module Aidp
 
           # Confirm removal unless --force
           unless force
-            prompt = TTY::Prompt.new
+            prompt = create_prompt
             confirm = prompt.yes?("Remove workstream '#{slug}'?#{" (will also delete branch)" if delete_branch}")
             return unless confirm
           end
@@ -2109,7 +2119,7 @@ module Aidp
 
             # Confirm deletion
             require "tty-prompt"
-            prompt = TTY::Prompt.new
+            prompt = create_prompt
             confirmed = prompt.yes?("Delete skill '#{skill.name}' (#{skill_id})? This cannot be undone.")
 
             unless confirmed
