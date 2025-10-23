@@ -489,18 +489,121 @@ end
 
 ### 🟡 P2: Medium Priority (Refactoring for Better Tests)
 
-**Stop testing private methods directly:**
+**Stop testing private methods directly** (while maintaining coverage):
+
+Current private method tests (70+ instances across 15+ files):
 
 1. [spec/aidp/providers/anthropic_spec.rb](spec/aidp/providers/anthropic_spec.rb) - 23 instances
 2. [spec/aidp/providers/cursor_spec.rb](spec/aidp/providers/cursor_spec.rb) - 7 instances
 3. [spec/aidp/execute/runner_spec.rb](spec/aidp/execute/runner_spec.rb) - 6 instances
+4. [spec/aidp/analyze/runner_spec.rb](spec/aidp/analyze/runner_spec.rb)
+5. [spec/aidp/watch/plan_generator_spec.rb](spec/aidp/watch/plan_generator_spec.rb)
+6. [spec/aidp/daemon/runner_spec.rb](spec/aidp/daemon/runner_spec.rb)
+7. [spec/aidp/analyze/ruby_maat_integration_spec.rb](spec/aidp/analyze/ruby_maat_integration_spec.rb)
+8. [spec/aidp/execute/interactive_repl_spec.rb](spec/aidp/execute/interactive_repl_spec.rb)
+
+**Coverage Preservation Strategy** (CRITICAL):
+
+Before removing private method tests:
+
+1. **Measure baseline coverage** - Run `bundle exec rake coverage` and save baseline for each affected file
+2. **Identify coverage gaps** - Determine which private methods are tested but not covered via public API
+3. **Choose refactoring strategy per file**:
+
+   **Option A: Test through public API** (Preferred)
+   - Identify the public method that calls the private method
+   - Add test cases to public method that exercise all private method branches
+   - Example: Instead of testing `parse_stream_json_output`, test `send_message` with various streaming responses
+
+   **Option B: Extract and promote** (When private logic is complex)
+   - Extract private method into a separate class/module with clear responsibility
+   - Make it public in the new context
+   - Test it directly as a public interface
+   - Example: `AnthropicStreamParser` class for parsing logic
+
+   **Option C: Document and defer** (For truly internal details)
+   - If private method is trivial (simple formatting, basic validation)
+   - AND it's already covered indirectly by public tests
+   - Document why direct testing was removed and which public tests provide coverage
+   - Only remove after confirming coverage remains ≥ baseline
+
+4. **Validate coverage post-refactor**:
+   - Run coverage tool after each refactor
+   - Ensure line/branch coverage doesn't drop below baseline
+   - Add public API tests to fill any gaps before removing private tests
+
+5. **Document coverage mapping**:
+   - For each removed private method test, add comment showing which public test covers it:
+
+   ```ruby
+   # Coverage for internal parse_stream_json_output provided by:
+   #   - "handles streaming JSON response" (line 45)
+   #   - "processes multi-chunk streams" (line 67)
+   ```
 
 **Mock external boundaries, not internal wrappers:**
 
 1. [spec/aidp/providers/anthropic_spec.rb](spec/aidp/providers/anthropic_spec.rb) - Mock TTY::Command instead of debug_execute_command
 2. [spec/aidp/providers/cursor_spec.rb](spec/aidp/providers/cursor_spec.rb) - Mock TTY::Command instead of debug_execute_command
 
-**Estimated Effort**: 20-30 hours
+**Acceptance Criteria**:
+
+- ✅ Zero decrease in line coverage (maintain current ~79.2%)
+- ✅ Zero decrease in branch coverage
+- ✅ All critical code paths covered via public API tests
+- ✅ Coverage reports generated before/after for comparison
+- ✅ Documentation mapping removed private tests to replacement public tests
+
+**Estimated Effort**: 25-35 hours (increased from 20-30 to account for coverage validation)
+
+#### Practical Example: Refactoring Anthropic Provider Tests
+
+Current violation in `spec/aidp/providers/anthropic_spec.rb`:
+
+```ruby
+# BEFORE: Testing private method directly
+describe "#parse_stream_json_output" do
+  it "extracts text from streaming response" do
+    output = '{"type":"content_block_delta","delta":{"text":"Hello"}}'
+    result = provider.__send__(:parse_stream_json_output, output)
+    expect(result).to eq("Hello")
+  end
+end
+```
+
+Refactored approach (Option A - Test through public API):
+
+```ruby
+# AFTER: Test through public send_message method
+describe "#send_message" do
+  it "handles streaming JSON response" do
+    # Mock the external boundary (TTY::Command) not internal wrapper
+    allow(TTY::Command).to receive(:new).and_return(mock_command)
+    allow(mock_command).to receive(:run!).and_return(
+      double(exit_status: 0, out: '{"type":"content_block_delta","delta":{"text":"Hello"}}')
+    )
+    
+    result = provider.send_message(prompt: "test", stream: true)
+    expect(result).to eq("Hello")
+    # This test now covers parse_stream_json_output implicitly
+  end
+end
+```
+
+Coverage verification workflow:
+
+```bash
+# 1. Establish baseline
+bundle exec rake coverage
+cp coverage/index.html coverage/baseline.html
+
+# 2. Refactor (remove private tests, add public tests)
+# Edit spec files to test through public API
+
+# 3. Verify no coverage loss
+bundle exec rake coverage
+# Compare anthropic.rb coverage: must stay ≥ baseline (e.g., 85.7%)
+```
 
 ### 🟢 P3: Low Priority (Nice to Have)
 
