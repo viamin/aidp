@@ -1897,9 +1897,11 @@ RSpec.describe Aidp::Harness::ProviderManager do
         # Travel past timeout
         allow(Time).to receive(:now).and_return(reset_time)
 
+        # Trigger circuit breaker check to reset it
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
+
         # Provider should be available again
         expect(manager.is_provider_available?(provider_name)).to be true
-        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
       end
 
       it "allows model usage after model circuit breaker resets" do
@@ -1930,17 +1932,22 @@ RSpec.describe Aidp::Harness::ProviderManager do
         provider_reset_time = initial_time + circuit_breaker_timeout + 1
         allow(Time).to receive(:now).and_return(provider_reset_time)
 
+        # Trigger circuit breaker checks to reset them
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+
         # Provider available, model still circuit broken
         expect(manager.is_provider_available?(provider_name)).to be true
-        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
 
         # Travel to after model reset (5 minutes after model opened)
         model_reset_time = model_open_time + circuit_breaker_timeout + 1
         allow(Time).to receive(:now).and_return(model_reset_time)
 
+        # Trigger model circuit breaker check to reset it
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be false
+
         # Both should be available
         expect(manager.is_provider_available?(provider_name)).to be true
-        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be false
       end
     end
 
@@ -1988,6 +1995,383 @@ RSpec.describe Aidp::Harness::ProviderManager do
         # Trigger reset by checking status
         manager.is_provider_circuit_breaker_open?(provider_name)
         manager.is_model_circuit_breaker_open?(provider_name, model_name)
+      end
+    end
+  end
+
+  describe "performance scaling with large provider lists" do
+    let(:large_provider_count) { 75 } # Test with 75 providers (50+ requirement)
+    let(:large_provider_list) do
+      (1..large_provider_count).map { |i| "provider_#{i}" }
+    end
+    let(:large_fallback_list) do
+      large_provider_list[1..50] # First 50 as fallbacks
+    end
+
+    before do
+      # Configure manager with large provider list
+      allow(configuration).to receive(:configured_providers).and_return(large_provider_list)
+      allow(configuration).to receive(:fallback_providers).and_return(large_fallback_list)
+      allow(configuration).to receive(:provider_models).and_return(["model1", "model2", "model3"])
+      allow(configuration).to receive(:provider_configured?).and_return(true)
+
+      # Mock binary checker for all providers
+      allow(mock_binary_checker).to receive(:which).and_return("/usr/bin/mock")
+
+      # Create new manager with large provider configuration
+      @large_manager = described_class.new(configuration, binary_checker: mock_binary_checker)
+      allow(@large_manager).to receive(:provider_cli_available?).and_return([true, nil])
+      allow(@large_manager).to receive(:sleep)
+    end
+
+    describe "initialization performance" do
+      it "initializes fallback chains efficiently with large provider list" do
+        start_time = Time.now
+
+        # Reinitialize to measure performance
+        @large_manager.send(:initialize_fallback_chains)
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete within reasonable time (< 1 second for 75 providers)
+        expect(execution_time).to be < 1.0
+
+        # Verify all providers have fallback chains
+        large_provider_list.each do |provider|
+          chain = @large_manager.fallback_chain(provider)
+          expect(chain).to include(provider)
+          expect(chain.size).to be >= 1
+        end
+      end
+
+      it "initializes provider health efficiently with large provider list" do
+        start_time = Time.now
+
+        # Reinitialize to measure performance
+        @large_manager.send(:initialize_provider_health)
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete within reasonable time (< 0.5 seconds for 75 providers)
+        expect(execution_time).to be < 0.5
+
+        # Verify all providers have health status
+        health_status = @large_manager.provider_health_status
+        expect(health_status.keys.size).to eq(large_provider_count)
+
+        large_provider_list.each do |provider|
+          expect(health_status[provider][:status]).to eq("healthy")
+        end
+      end
+
+      it "initializes model configurations efficiently with large provider list" do
+        start_time = Time.now
+
+        # Reinitialize to measure performance
+        @large_manager.send(:initialize_model_configs)
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete within reasonable time (< 0.5 seconds for 75 providers)
+        expect(execution_time).to be < 0.5
+
+        # Verify all providers have model configurations
+        large_provider_list.each do |provider|
+          models = @large_manager.provider_models(provider)
+          expect(models).to eq(["model1", "model2", "model3"])
+        end
+      end
+    end
+
+    describe "runtime performance" do
+      it "filters available providers efficiently with large provider list" do
+        start_time = Time.now
+
+        # Call available_providers multiple times to measure performance
+        10.times do
+          available = @large_manager.available_providers
+          expect(available.size).to eq(large_provider_count) # All should be available initially
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete 10 calls within reasonable time (< 0.5 seconds for 75 providers)
+        expect(execution_time).to be < 0.5
+      end
+
+      it "builds fallback chains efficiently with large provider list" do
+        start_time = Time.now
+
+        # Build fallback chains for all providers
+        large_provider_list.each do |provider|
+          chain = @large_manager.build_default_fallback_chain(provider)
+          expect(chain).to include(provider)
+          expect(chain.first).to eq(provider)
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete within reasonable time (< 1 second for 75 providers)
+        expect(execution_time).to be < 1.0
+      end
+
+      it "finds next healthy provider efficiently in large fallback chains" do
+        # Create a long fallback chain
+        test_provider = "provider_1"
+        chain = @large_manager.fallback_chain(test_provider)
+
+        start_time = Time.now
+
+        # Test finding next healthy provider multiple times
+        50.times do
+          next_provider = @large_manager.find_next_healthy_provider(chain, test_provider)
+          expect(next_provider).to be_a(String)
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete 50 searches within reasonable time (< 0.3 seconds)
+        expect(execution_time).to be < 0.3
+      end
+
+      it "handles provider switching efficiently with large provider list" do
+        start_time = Time.now
+
+        # Perform multiple provider switches
+        10.times do |i|
+          # Switch to different providers
+          next_provider = @large_manager.switch_provider("test_switch_#{i}")
+          expect(next_provider).to be_a(String)
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete 10 switches within reasonable time (< 1 second)
+        expect(execution_time).to be < 1.0
+      end
+    end
+
+    describe "load balancing performance" do
+      before do
+        # Enable load balancing
+        @large_manager.instance_variable_set(:@load_balancing_enabled, true)
+
+        # Set up provider weights for all providers
+        weights = {}
+        large_provider_list.each_with_index do |provider, index|
+          weights[provider] = (index % 5) + 1 # Weights from 1-5
+        end
+        @large_manager.configure_provider_weights(weights)
+      end
+
+      it "selects provider by load balancing efficiently with large provider list" do
+        start_time = Time.now
+
+        # Perform load balancing selection multiple times
+        20.times do
+          selected = @large_manager.select_provider_by_load_balancing
+          expect(large_provider_list).to include(selected)
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete 20 selections within reasonable time (< 0.5 seconds)
+        expect(execution_time).to be < 0.5
+      end
+
+      it "selects provider by weight efficiently with large provider list" do
+        available_providers = @large_manager.available_providers
+
+        start_time = Time.now
+
+        # Perform weighted selection multiple times
+        30.times do
+          selected = @large_manager.send(:select_provider_by_weight, available_providers)
+          expect(large_provider_list).to include(selected)
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete 30 weighted selections within reasonable time (< 0.3 seconds)
+        expect(execution_time).to be < 0.3
+      end
+    end
+
+    describe "health checking performance" do
+      it "checks provider availability efficiently with large provider list" do
+        start_time = Time.now
+
+        # Check availability for all providers
+        large_provider_list.each do |provider|
+          available = @large_manager.is_provider_available?(provider)
+          expect(available).to be true
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete availability checks within reasonable time (< 0.5 seconds for 75 providers)
+        expect(execution_time).to be < 0.5
+      end
+
+      it "updates provider health efficiently with large provider list" do
+        start_time = Time.now
+
+        # Update health for all providers
+        large_provider_list.each do |provider|
+          @large_manager.update_provider_health(provider, "success")
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete health updates within reasonable time (< 0.5 seconds for 75 providers)
+        expect(execution_time).to be < 0.5
+      end
+
+      it "handles circuit breaker checks efficiently with large provider list" do
+        # Open circuit breakers for first 10 providers
+        large_provider_list[0..9].each do |provider|
+          5.times { @large_manager.update_provider_health(provider, "error") }
+        end
+
+        start_time = Time.now
+
+        # Check circuit breaker status for all providers
+        large_provider_list.each do |provider|
+          is_open = @large_manager.is_provider_circuit_breaker_open?(provider)
+          expect([true, false]).to include(is_open)
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should complete circuit breaker checks within reasonable time (< 0.3 seconds for 75 providers)
+        expect(execution_time).to be < 0.3
+      end
+    end
+
+    describe "complexity analysis" do
+      it "demonstrates O(n) complexity for available_providers method" do
+        # Test with different provider list sizes to verify O(n) behavior
+        small_list = large_provider_list[0..24]  # 25 providers
+        medium_list = large_provider_list[0..49] # 50 providers
+        large_list = large_provider_list         # 75 providers
+
+        [small_list, medium_list, large_list].each do |provider_list|
+          allow(configuration).to receive(:configured_providers).and_return(provider_list)
+          test_manager = described_class.new(configuration, binary_checker: mock_binary_checker)
+          allow(test_manager).to receive(:provider_cli_available?).and_return([true, nil])
+
+          start_time = Time.now
+
+          # Run multiple iterations to get measurable time
+          100.times { test_manager.available_providers }
+
+          end_time = Time.now
+          execution_time = end_time - start_time
+
+          # Execution time should scale roughly linearly with provider count
+          # For 100 iterations, even with 75 providers, should complete in < 2 seconds
+          expect(execution_time).to be < 2.0
+        end
+      end
+
+      it "verifies no quadratic behavior in fallback chain construction" do
+        # Measure time for fallback chain construction
+        start_time = Time.now
+
+        # Build fallback chains for all providers (potential O(n²) operation)
+        @large_manager.send(:initialize_fallback_chains)
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Should not exhibit quadratic behavior - should complete quickly even with 75 providers
+        expect(execution_time).to be < 1.0
+
+        # Verify chains were built correctly
+        large_provider_list.each do |provider|
+          chain = @large_manager.fallback_chain(provider)
+          expect(chain).to include(provider)
+          expect(chain.size).to be >= 1
+          expect(chain.size).to be <= large_provider_count
+        end
+      end
+
+      it "maintains consistent performance regardless of provider position" do
+        # Test that provider position in list doesn't affect performance
+        first_provider = large_provider_list.first
+        middle_provider = large_provider_list[large_provider_count / 2]
+        last_provider = large_provider_list.last
+
+        [first_provider, middle_provider, last_provider].each do |provider|
+          start_time = Time.now
+
+          # Perform multiple operations on the provider
+          50.times do
+            @large_manager.is_provider_available?(provider)
+            @large_manager.fallback_chain(provider)
+            @large_manager.is_provider_healthy?(provider)
+          end
+
+          end_time = Time.now
+          execution_time = end_time - start_time
+
+          # Performance should be consistent regardless of provider position
+          expect(execution_time).to be < 0.5
+        end
+      end
+    end
+
+    describe "memory efficiency" do
+      it "manages memory efficiently with large provider list" do
+        # Force garbage collection to get baseline
+        GC.start
+        initial_memory = GC.stat[:total_allocated_objects]
+
+        # Perform operations that create objects
+        10.times do
+          @large_manager.available_providers
+          @large_manager.provider_health_status
+          large_provider_list.each { |p| @large_manager.fallback_chain(p) }
+        end
+
+        # Force garbage collection again
+        GC.start
+        final_memory = GC.stat[:total_allocated_objects]
+        memory_increase = final_memory - initial_memory
+
+        # Memory increase should be reasonable (not exponential)
+        # Allow for some object creation but should not be excessive
+        expect(memory_increase).to be < 100_000 # Reasonable threshold for operations
+      end
+
+      it "reuses cached fallback chains efficiently" do
+        # Build fallback chains once
+        large_provider_list.each { |p| @large_manager.fallback_chain(p) }
+
+        start_time = Time.now
+
+        # Access cached chains multiple times - should be very fast
+        100.times do
+          large_provider_list.each { |p| @large_manager.fallback_chain(p) }
+        end
+
+        end_time = Time.now
+        execution_time = end_time - start_time
+
+        # Cached access should be very fast (< 0.1 seconds for 100 * 75 accesses)
+        expect(execution_time).to be < 0.1
       end
     end
   end

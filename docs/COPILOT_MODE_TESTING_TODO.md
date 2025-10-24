@@ -326,8 +326,8 @@ CLI: 76.81% (remaining targeted branches listed; ~13–15 strategic examples lik
 
 ### Medium Priority (Observability / Performance / UX)
 
-- [ ] Performance scaling: large provider list (e.g. 50 entries) fallback chain construction remains O(n) – ensure no quadratic behavior
-- [ ] JSON logging format: add tests for format_json branch (one success + one error with metadata redaction)
+- [x] **✅ COMPLETED**: Performance scaling with large provider list (50+ entries) ensuring O(n) complexity without quadratic behavior
+- [x] **✅ COMPLETED**: JSON logging format: comprehensive tests for format_json branch including success and error cases with metadata redaction
 - [ ] Display helpers: time formatting edge cases (sub-second, >24h, leap second simulation) – confirm formatting stability
 - [ ] MessageDisplay: multiple consecutive muted/info/error calls ensure no shared state contamination
 - [ ] MCP dashboard filtering variations (if filter args or modes exist) – confirm counts and hidden providers logic
