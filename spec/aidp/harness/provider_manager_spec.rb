@@ -866,9 +866,53 @@ RSpec.describe Aidp::Harness::ProviderManager do
         end
       end
 
-      # Note: Binary missing and timeout tests are too complex to mock reliably
-      # in unit tests without interfering with existing mocks. These branches
-      # are better covered by integration tests.
+      context "when binary execution times out", :cli_binary_checks do
+        it "kills the process and returns binary_timeout reason" do
+          # Allow actual binary lookup
+          allow(mock_binary_checker).to receive(:which).with("claude").and_return("/usr/local/bin/claude")
+
+          # Mock Process.spawn to return a pid
+          fake_pid = 99999
+          r, w = IO.pipe
+          allow(IO).to receive(:pipe).and_return([r, w])
+          allow(Process).to receive(:spawn).with("claude", "--version", out: w, err: w).and_return(fake_pid)
+
+          # Mock timeout during wait
+          allow(Aidp::Concurrency::Wait).to receive(:for_process_exit).with(fake_pid, timeout: 3, interval: 0.05).and_raise(Aidp::Concurrency::TimeoutError)
+
+          # Mock subsequent wait for TERM to also timeout
+          allow(Aidp::Concurrency::Wait).to receive(:for_process_exit).with(fake_pid, timeout: 0.1, interval: 0.02).and_raise(Aidp::Concurrency::TimeoutError)
+
+          # Expect process kill attempts
+          expect(Process).to receive(:kill).with("TERM", fake_pid).ordered
+          expect(Process).to receive(:kill).with("KILL", fake_pid).ordered
+
+          # Clear cache to force check
+          cache = manager.instance_variable_get(:@binary_check_cache)
+          cache.delete("anthropic")
+
+          ok, reason = manager.send(:provider_cli_available?, "anthropic")
+
+          expect(ok).to be false
+          expect(reason).to eq("binary_timeout")
+        end
+      end
+
+      context "when binary is missing", :cli_binary_checks do
+        it "returns binary_missing reason" do
+          # Mock which to return nil (binary not found)
+          allow(mock_binary_checker).to receive(:which).with("claude").and_return(nil)
+
+          # Clear cache to force check
+          cache = manager.instance_variable_get(:@binary_check_cache)
+          cache.delete("anthropic")
+
+          ok, reason = manager.send(:provider_cli_available?, "anthropic")
+
+          expect(ok).to be false
+          expect(reason).to eq("binary_missing")
+        end
+      end
     end
   end
 
