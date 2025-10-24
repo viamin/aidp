@@ -105,6 +105,36 @@ jobs:
           BADGE_CONTENT=$(base64 -w 0 badges/coverage.svg)
           BASELINE_CONTENT=$(base64 -w 0 coverage_baseline.json)
 
+          # Build the input JSON using jq for proper escaping
+          INPUT_JSON=$(jq -n \
+            --arg repo "${{ github.repository }}" \
+            --arg branch "$BRANCH" \
+            --arg sha "$CURRENT_SHA" \
+            --arg badge "$BADGE_CONTENT" \
+            --arg baseline "$BASELINE_CONTENT" \
+            '{
+              branch: {
+                repositoryNameWithOwner: $repo,
+                branchName: $branch
+              },
+              message: {
+                headline: "chore: update coverage badge and baseline"
+              },
+              fileChanges: {
+                additions: [
+                  {
+                    path: "badges/coverage.svg",
+                    contents: $badge
+                  },
+                  {
+                    path: "coverage_baseline.json",
+                    contents: $baseline
+                  }
+                ]
+              },
+              expectedHeadOid: $sha
+            }')
+
           # Create commit via GraphQL API (automatically signed by GitHub)
           gh api graphql -f query='
             mutation($input: CreateCommitOnBranchInput!) {
@@ -115,28 +145,7 @@ jobs:
                 }
               }
             }
-          ' -f input="{
-            \"branch\": {
-              \"repositoryNameWithOwner\": \"${{ github.repository }}\",
-              \"branchName\": \"$BRANCH\"
-            },
-            \"message\": {
-              \"headline\": \"chore: update coverage badge and baseline\"
-            },
-            \"fileChanges\": {
-              \"additions\": [
-                {
-                  \"path\": \"badges/coverage.svg\",
-                  \"contents\": \"$BADGE_CONTENT\"
-                },
-                {
-                  \"path\": \"coverage_baseline.json\",
-                  \"contents\": \"$BASELINE_CONTENT\"
-                }
-              ]
-            },
-            \"expectedHeadOid\": \"$CURRENT_SHA\"
-          }"
+          ' -F input="$INPUT_JSON"
 
           echo "✅ Created signed commit via GitHub API"
 
