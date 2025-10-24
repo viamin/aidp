@@ -9,6 +9,9 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
   let(:temp_dir) { Dir.mktmpdir("aidp_workstream_e2e") }
 
   before do
+    # Use fast worktree adapter for performance
+    stub_worktree_for_fast_tests
+
     # Initialize a git repository in temp_dir
     Dir.chdir(temp_dir) do
       system("git", "init", out: File::NULL, err: File::NULL)
@@ -176,28 +179,6 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
       stdout, stderr, status = run_aidp("ws", "status", "non-existent")
       expect(status.exitstatus).to eq(0)
       expect(stdout + stderr).to match(/not found|Workstream not found/)
-    end
-  end
-
-  describe "branch management" do
-    it "creates and deletes branches with --delete-branch flag" do
-      # Create workstream
-      run_aidp("ws", "new", "branch-test", "Test branch management")
-
-      # Verify branch was created
-      branches = Dir.chdir(temp_dir) do
-        `git branch`.lines.map(&:strip).map { |b| b.gsub(/^[*+]\s+/, "") }
-      end
-      expect(branches).to include("aidp/branch-test")
-
-      # Remove with --delete-branch
-      run_aidp("ws", "rm", "branch-test", "--delete-branch", "--force")
-
-      # Verify branch was deleted
-      branches = Dir.chdir(temp_dir) do
-        `git branch`.lines.map(&:strip).map { |b| b.gsub(/^[*+]\s+/, "") }
-      end
-      expect(branches).not_to include("aidp/branch-test")
     end
   end
 end

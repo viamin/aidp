@@ -84,6 +84,261 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       end
     end
 
+    describe "failure exhaustion and termination" do
+      let(:prompt_manager) { instance_double("PromptManager") }
+      let(:test_runner) { instance_double("Aidp::Harness::TestRunner") }
+      let(:checkpoint) { instance_double("Checkpoint") }
+      let(:checkpoint_display) { instance_double("CheckpointDisplay") }
+      let(:guard_policy) { instance_double("GuardPolicy") }
+      let(:deterministic_runner) { instance_double("DeterministicUnits::Runner") }
+      let(:unit_scheduler) { instance_double("WorkLoopUnitScheduler") }
+
+      before do
+        allow(Aidp::Execute::PromptManager).to receive(:new).and_return(prompt_manager)
+        allow(Aidp::Harness::TestRunner).to receive(:new).and_return(test_runner)
+        allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)
+        allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(checkpoint_display)
+        allow(Aidp::Execute::GuardPolicy).to receive(:new).and_return(guard_policy)
+        allow(Aidp::Execute::DeterministicUnits::Runner).to receive(:new).and_return(deterministic_runner)
+        allow(Aidp::Execute::WorkLoopUnitScheduler).to receive(:new).and_return(unit_scheduler)
+
+        allow(prompt_manager).to receive(:write)
+        allow(prompt_manager).to receive(:read).and_return("# Work Loop\n\nTest content")
+        allow(prompt_manager).to receive(:archive)
+        allow(prompt_manager).to receive(:delete)
+
+        allow(checkpoint).to receive(:record_checkpoint).and_return({metrics: {}})
+        allow(checkpoint).to receive(:progress_summary).and_return(nil)
+        allow(checkpoint_display).to receive(:display_inline_progress)
+        allow(checkpoint_display).to receive(:display_checkpoint)
+        allow(checkpoint_display).to receive(:display_progress_summary)
+
+        allow(guard_policy).to receive(:enabled?).and_return(false)
+
+        # Mock unit scheduler to return agentic unit and then terminate
+        allow(unit_scheduler).to receive(:next_unit).and_return(
+          double("Unit", deterministic?: false, name: :primary),
+          nil
+        )
+        allow(unit_scheduler).to receive(:deterministic_context).and_return({})
+        allow(unit_scheduler).to receive(:last_agentic_summary).and_return(nil)
+        allow(unit_scheduler).to receive(:record_agentic_result)
+
+        allow(provider_manager).to receive(:current_provider).and_return("cursor")
+        allow(provider_manager).to receive(:execute_with_provider).and_return({
+          status: "in_progress",
+          output: "Working on changes",
+          message: "Continuing work"
+        })
+      end
+
+      it "terminates after MAX_ITERATIONS with proper state and error" do
+        # Setup tests to always fail to force maximum iterations
+        allow(test_runner).to receive(:run_tests).and_return({
+          success: false,
+          output: "Tests consistently failing",
+          failures: [{command: "rspec"}]
+        })
+
+        allow(test_runner).to receive(:run_linters).and_return({
+          success: false,
+          output: "Linter errors persist",
+          failures: [{command: "standardrb"}]
+        })
+
+        step_spec = {"templates" => ["test_template.md"]}
+
+        result = runner.execute_step("test_step", step_spec, {})
+
+        # Verify termination with error status
+        expect(result[:status]).to eq("error")
+        expect(result[:message]).to eq("Maximum iterations reached")
+        expect(result[:iterations]).to eq(described_class::MAX_ITERATIONS + 1)
+        expect(result[:error]).to include("did not complete within #{described_class::MAX_ITERATIONS} iterations")
+
+        # Verify iteration count reached maximum + 1 (incremented before check)
+        expect(runner.iteration_count).to eq(described_class::MAX_ITERATIONS + 1)
+      end
+
+      it "logs error when max iterations exceeded" do
+        mock_logger = instance_double("Aidp::Logger")
+        allow(Aidp).to receive(:logger).and_return(mock_logger)
+        allow(mock_logger).to receive(:info)
+        allow(mock_logger).to receive(:warn)
+        allow(mock_logger).to receive(:debug)
+
+        # Setup tests to always fail
+        allow(test_runner).to receive(:run_tests).and_return({
+          success: false,
+          output: "Tests failing",
+          failures: [{command: "rspec"}]
+        })
+
+        allow(test_runner).to receive(:run_linters).and_return({
+          success: true,
+          output: "Linters pass",
+          failures: []
+        })
+
+        # Expect error log when max iterations reached
+        expect(mock_logger).to receive(:error).with(
+          "work_loop",
+          "Max iterations exceeded",
+          hash_including(step: "test_step", iterations: described_class::MAX_ITERATIONS + 1)
+        )
+
+        step_spec = {"templates" => ["test_template.md"]}
+        runner.execute_step("test_step", step_spec, {})
+      end
+
+      it "displays warning message when max iterations reached" do
+        # Capture display messages during execution
+        displayed_messages = []
+        allow(runner).to receive(:display_message) do |message, options|
+          displayed_messages << {message: message, type: options[:type]}
+        end
+
+        # Setup persistent test failures
+        allow(test_runner).to receive(:run_tests).and_return({
+          success: false,
+          output: "Tests failing",
+          failures: [{command: "rspec"}]
+        })
+
+        allow(test_runner).to receive(:run_linters).and_return({
+          success: true,
+          output: "Linters pass",
+          failures: []
+        })
+
+        step_spec = {"templates" => ["test_template.md"]}
+        runner.execute_step("test_step", step_spec, {})
+
+        # Check for max iterations warning message
+        max_iterations_message = displayed_messages.find do |msg|
+          msg[:message].include?("Max iterations") && msg[:message].include?(described_class::MAX_ITERATIONS.to_s)
+        end
+
+        expect(max_iterations_message).not_to be_nil
+        expect(max_iterations_message[:type]).to eq(:warning)
+      end
+
+      it "calls display_state_summary before termination" do
+        # Setup tests to fail and force max iterations
+        allow(test_runner).to receive(:run_tests).and_return({
+          success: false,
+          output: "Tests failing",
+          failures: [{command: "rspec"}]
+        })
+
+        allow(test_runner).to receive(:run_linters).and_return({
+          success: true,
+          output: "Linters pass",
+          failures: []
+        })
+
+        # Verify state summary is displayed
+        expect(runner).to receive(:display_state_summary)
+
+        step_spec = {"templates" => ["test_template.md"]}
+        runner.execute_step("test_step", step_spec, {})
+      end
+
+      it "calls archive_and_cleanup when max iterations reached" do
+        # Setup persistent failures
+        allow(test_runner).to receive(:run_tests).and_return({
+          success: false,
+          output: "Tests failing",
+          failures: [{command: "rspec"}]
+        })
+
+        allow(test_runner).to receive(:run_linters).and_return({
+          success: true,
+          output: "Linters pass",
+          failures: []
+        })
+
+        # Verify cleanup is called
+        expect(prompt_manager).to receive(:archive).with("test_step")
+        expect(prompt_manager).to receive(:delete)
+
+        step_spec = {"templates" => ["test_template.md"]}
+        runner.execute_step("test_step", step_spec, {})
+      end
+
+      it "maintains state history throughout all iterations" do
+        # Setup tests to fail for a reasonable number of iterations then succeed
+        iteration_count = 0
+        allow(test_runner).to receive(:run_tests) do
+          iteration_count += 1
+          if iteration_count <= 3
+            {success: false, output: "Tests failing", failures: [{command: "rspec"}]}
+          else
+            {success: true, output: "Tests pass", failures: []}
+          end
+        end
+
+        allow(test_runner).to receive(:run_linters).and_return({
+          success: true,
+          output: "Linters pass",
+          failures: []
+        })
+
+        # Mark work as complete after tests pass
+        allow(prompt_manager).to receive(:read).and_return("# Work Loop\n\nSTATUS: COMPLETE")
+
+        step_spec = {"templates" => ["test_template.md"]}
+        result = runner.execute_step("test_step", step_spec, {})
+
+        # Verify state history was maintained
+        state_history = runner.instance_variable_get(:@state_history)
+        expect(state_history.size).to be > 0
+
+        # Should have multiple FAIL → DIAGNOSE → NEXT_PATCH cycles
+        fail_states = state_history.select { |h| h[:to] == :fail }
+        diagnose_states = state_history.select { |h| h[:to] == :diagnose }
+        next_patch_states = state_history.select { |h| h[:to] == :next_patch }
+
+        expect(fail_states.size).to eq(3)
+        expect(diagnose_states.size).to eq(3)
+        expect(next_patch_states.size).to eq(3)
+
+        # Final state should be done
+        expect(result[:status]).to eq("completed")
+        expect(runner.current_state).to eq(:done)
+      end
+
+      it "tracks iteration count correctly through multiple FAIL cycles" do
+        # Force exactly 5 failing iterations then success
+        call_count = 0
+        allow(test_runner).to receive(:run_tests) do
+          call_count += 1
+          if call_count <= 5
+            {success: false, output: "Tests failing iteration #{call_count}", failures: [{command: "rspec"}]}
+          else
+            {success: true, output: "Tests finally pass", failures: []}
+          end
+        end
+
+        allow(test_runner).to receive(:run_linters).and_return({
+          success: true,
+          output: "Linters pass",
+          failures: []
+        })
+
+        # Mark complete after tests pass
+        allow(prompt_manager).to receive(:read).and_return("# Work Loop\n\nSTATUS: COMPLETE")
+
+        step_spec = {"templates" => ["test_template.md"]}
+        result = runner.execute_step("test_step", step_spec, {})
+
+        # Verify correct iteration tracking
+        expect(runner.iteration_count).to eq(6) # 5 failures + 1 success
+        expect(result[:status]).to eq("completed")
+        expect(result[:iterations]).to eq(6)
+      end
+    end
+
     describe "fix-forward behavior" do
       let(:prompt_manager) { instance_double("PromptManager") }
       let(:test_runner) { instance_double("Aidp::Harness::TestRunner") }
