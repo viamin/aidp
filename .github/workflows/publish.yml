@@ -83,15 +83,62 @@ jobs:
       - name: Update coverage baseline if improved
         run: bundle exec rake coverage:update_baseline_if_improved
 
-      - name: Commit updated coverage badge and baseline to release PR
-        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3
-        with:
-          commit_message: 'chore: update coverage badge and baseline'
-          file_pattern: 'badges/coverage.svg coverage_baseline.json'
-          commit_author: 'github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
-          skip_dirty_check: false
-          skip_fetch: true
-          skip_checkout: true
+      - name: Commit updated coverage badge and baseline to release PR (signed)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Check if there are changes to commit
+          if git diff --quiet badges/coverage.svg coverage_baseline.json; then
+            echo "No changes to coverage files, skipping commit"
+            exit 0
+          fi
+
+          # Get current branch info
+          BRANCH="${{ needs.release-please.outputs.pr-head-branch }}"
+          CURRENT_SHA=$(git rev-parse HEAD)
+
+          echo "Creating signed commit via GitHub API..."
+
+          # Read and encode files
+          BADGE_CONTENT=$(base64 -w 0 badges/coverage.svg)
+          BASELINE_CONTENT=$(base64 -w 0 coverage_baseline.json)
+
+          # Create commit via GraphQL API (automatically signed by GitHub)
+          gh api graphql -f query='
+            mutation($input: CreateCommitOnBranchInput!) {
+              createCommitOnBranch(input: $input) {
+                commit {
+                  oid
+                  committedDate
+                }
+              }
+            }
+          ' -f input="{
+            \"branch\": {
+              \"repositoryNameWithOwner\": \"${{ github.repository }}\",
+              \"branchName\": \"$BRANCH\"
+            },
+            \"message\": {
+              \"headline\": \"chore: update coverage badge and baseline\"
+            },
+            \"fileChanges\": {
+              \"additions\": [
+                {
+                  \"path\": \"badges/coverage.svg\",
+                  \"contents\": \"$BADGE_CONTENT\"
+                },
+                {
+                  \"path\": \"coverage_baseline.json\",
+                  \"contents\": \"$BASELINE_CONTENT\"
+                }
+              ]
+            },
+            \"expectedHeadOid\": \"$CURRENT_SHA\"
+          }"
+
+          echo "✅ Created signed commit via GitHub API"
 
       - name: Clean up coverage artifacts
         if: always()
