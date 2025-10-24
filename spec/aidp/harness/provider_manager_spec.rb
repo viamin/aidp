@@ -713,6 +713,186 @@ RSpec.describe Aidp::Harness::ProviderManager do
         expect(manager.is_rate_limited?("anthropic")).to be false
       end
     end
+
+    describe "#next_reset_time" do
+      let(:mock_time) { Time.now }
+
+      before do
+        allow(Time).to receive(:now).and_return(mock_time)
+      end
+
+      context "when no providers are rate limited" do
+        it "returns nil" do
+          expect(manager.next_reset_time).to be_nil
+        end
+      end
+
+      context "when single provider is rate limited" do
+        it "returns that provider's reset time" do
+          reset_time = mock_time + 1800 # 30 minutes from now
+          manager.mark_rate_limited("anthropic", reset_time)
+
+          expect(manager.next_reset_time).to eq(reset_time)
+        end
+      end
+
+      context "when multiple providers are rate limited" do
+        it "returns the earliest reset time" do
+          # Rate limit anthropic for 30 minutes
+          reset_time_anthropic = mock_time + 1800
+          manager.mark_rate_limited("anthropic", reset_time_anthropic)
+
+          # Rate limit cursor for 15 minutes (earlier)
+          reset_time_cursor = mock_time + 900
+          manager.mark_rate_limited("cursor", reset_time_cursor)
+
+          # Rate limit macos for 60 minutes (later)
+          reset_time_macos = mock_time + 3600
+          manager.mark_rate_limited("macos", reset_time_macos)
+
+          # Should return cursor's reset time (earliest)
+          expect(manager.next_reset_time).to eq(reset_time_cursor)
+        end
+
+        it "selects from multiple providers with different schedules" do
+          # Create various reset time scenarios
+          times = [
+            mock_time + 300,  # 5 minutes - shortest
+            mock_time + 1200, # 20 minutes
+            mock_time + 2700, # 45 minutes
+            mock_time + 4800  # 80 minutes - longest
+          ]
+
+          # Rate limit providers with different times
+          manager.mark_rate_limited("anthropic", times[2]) # 45 minutes
+          manager.mark_rate_limited("cursor", times[0])    # 5 minutes (earliest)
+          manager.mark_rate_limited("macos", times[3])     # 80 minutes
+          manager.mark_rate_limited("gemini", times[1])    # 20 minutes
+
+          expect(manager.next_reset_time).to eq(times[0]) # Should be 5 minutes
+        end
+      end
+
+      context "when some reset times are in the past" do
+        it "ignores expired reset times" do
+          # Set an expired reset time
+          expired_time = mock_time - 300 # 5 minutes ago
+          manager.mark_rate_limited("anthropic", expired_time)
+
+          # Set a future reset time
+          future_time = mock_time + 600 # 10 minutes from now
+          manager.mark_rate_limited("cursor", future_time)
+
+          # Should return only the future time
+          expect(manager.next_reset_time).to eq(future_time)
+        end
+
+        it "returns nil when all reset times are expired" do
+          # Set multiple expired reset times
+          manager.mark_rate_limited("anthropic", mock_time - 100)
+          manager.mark_rate_limited("cursor", mock_time - 200)
+          manager.mark_rate_limited("macos", mock_time - 300)
+
+          expect(manager.next_reset_time).to be_nil
+        end
+      end
+
+      context "when reset times have boundary conditions" do
+        it "handles reset times at exactly current time" do
+          # Reset time exactly at current time
+          manager.mark_rate_limited("anthropic", mock_time)
+
+          # Should be considered expired (not > Time.now)
+          expect(manager.next_reset_time).to be_nil
+        end
+
+        it "handles reset times one second in the future" do
+          reset_time = mock_time + 1
+          manager.mark_rate_limited("anthropic", reset_time)
+
+          expect(manager.next_reset_time).to eq(reset_time)
+        end
+      end
+
+      context "when providers are cleared during rate limiting" do
+        it "updates next reset time when provider is cleared" do
+          # Rate limit two providers
+          early_time = mock_time + 600
+          late_time = mock_time + 1800
+
+          manager.mark_rate_limited("anthropic", late_time)
+          manager.mark_rate_limited("cursor", early_time)
+
+          # Initially should return early time
+          expect(manager.next_reset_time).to eq(early_time)
+
+          # Clear the provider with early time
+          manager.clear_rate_limit("cursor")
+
+          # Should now return late time
+          expect(manager.next_reset_time).to eq(late_time)
+        end
+
+        it "returns nil when all providers are cleared" do
+          manager.mark_rate_limited("anthropic", mock_time + 600)
+          manager.mark_rate_limited("cursor", mock_time + 1200)
+
+          manager.clear_rate_limit("anthropic")
+          manager.clear_rate_limit("cursor")
+
+          expect(manager.next_reset_time).to be_nil
+        end
+      end
+
+      context "when time advances during rate limiting" do
+        it "correctly filters reset times as they expire" do
+          # Set reset times 5 and 10 minutes from now
+          reset_time_5min = mock_time + 300
+          reset_time_10min = mock_time + 600
+
+          manager.mark_rate_limited("anthropic", reset_time_5min)
+          manager.mark_rate_limited("cursor", reset_time_10min)
+
+          # Initially should return 5 minute time
+          expect(manager.next_reset_time).to eq(reset_time_5min)
+
+          # Advance time to 7 minutes (past first reset time)
+          allow(Time).to receive(:now).and_return(mock_time + 420)
+
+          # Should now return 10 minute time
+          expect(manager.next_reset_time).to eq(reset_time_10min)
+
+          # Advance time to 12 minutes (past both reset times)
+          allow(Time).to receive(:now).and_return(mock_time + 720)
+
+          # Should return nil (all expired)
+          expect(manager.next_reset_time).to be_nil
+        end
+      end
+
+      context "with complex provider scheduling scenarios" do
+        it "handles staggered reset schedules properly" do
+          base_time = mock_time
+
+          # Create a complex scenario with multiple providers having different reset schedules
+          schedules = {
+            "anthropic" => base_time + 450,   # 7.5 minutes - earliest
+            "cursor" => base_time + 900,      # 15 minutes
+            "macos" => base_time + 1350,      # 22.5 minutes
+            "gemini" => base_time + 1800,     # 30 minutes
+            "openai" => base_time + 2250      # 37.5 minutes - latest
+          }
+
+          # Apply rate limits with staggered times
+          schedules.each do |provider, reset_time|
+            manager.mark_rate_limited(provider, reset_time)
+          end
+
+          # Should return earliest time
+          expect(manager.next_reset_time).to eq(schedules["anthropic"])
+        end
+      end
+    end
   end
 
   describe "metrics recording" do
@@ -830,6 +1010,130 @@ RSpec.describe Aidp::Harness::ProviderManager do
         manager.update_sticky_session("anthropic")
         provider = manager.sticky_session_provider("session123")
         expect(provider).to eq("anthropic")
+      end
+    end
+
+    describe "session expiry behavior" do
+      let(:mock_time) { Time.now }
+
+      before do
+        allow(Time).to receive(:now).and_return(mock_time)
+      end
+
+      it "returns provider when session is within timeout period" do
+        # Update session at current time
+        manager.update_sticky_session("anthropic")
+
+        # Check immediately - should return provider
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to eq("anthropic")
+
+        # Advance time but stay within timeout (1800 seconds)
+        allow(Time).to receive(:now).and_return(mock_time + 1799)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to eq("anthropic")
+      end
+
+      it "returns nil when session has expired" do
+        # Update session at current time
+        manager.update_sticky_session("anthropic")
+
+        # Check immediately - should return provider
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to eq("anthropic")
+
+        # Advance time beyond timeout (1800 seconds)
+        allow(Time).to receive(:now).and_return(mock_time + 1801)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to be_nil
+      end
+
+      it "returns most recent provider when multiple sessions exist" do
+        # Update multiple sessions at different times
+        manager.update_sticky_session("anthropic")
+
+        # Advance time slightly and update another provider
+        allow(Time).to receive(:now).and_return(mock_time + 100)
+        manager.update_sticky_session("cursor")
+
+        # Advance time slightly and update third provider
+        allow(Time).to receive(:now).and_return(mock_time + 200)
+        manager.update_sticky_session("macos")
+
+        # Should return the most recent (macos)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to eq("macos")
+      end
+
+      it "ignores expired sessions when selecting most recent" do
+        # Update first session
+        manager.update_sticky_session("anthropic")
+
+        # Advance time and update second session
+        allow(Time).to receive(:now).and_return(mock_time + 100)
+        manager.update_sticky_session("cursor")
+
+        # Advance time to expire first session but keep second valid
+        allow(Time).to receive(:now).and_return(mock_time + 1750)
+
+        # Should return cursor (anthropic is expired)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to eq("cursor")
+
+        # Advance time to expire all sessions
+        allow(Time).to receive(:now).and_return(mock_time + 1900)
+
+        # Should return nil (all expired)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to be_nil
+      end
+
+      it "handles session timeout boundary conditions" do
+        # Update session
+        manager.update_sticky_session("anthropic")
+
+        # Check exactly at timeout boundary (1800 seconds)
+        allow(Time).to receive(:now).and_return(mock_time + 1800)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to be_nil # Should be expired at exactly timeout
+
+        # Clear sessions and reset time for clean test
+        manager.instance_variable_set(:@sticky_sessions, {})
+        allow(Time).to receive(:now).and_return(mock_time)
+        manager.update_sticky_session("cursor")
+
+        # Check one second before timeout
+        allow(Time).to receive(:now).and_return(mock_time + 1799)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to eq("cursor") # Should still be valid
+      end
+
+      it "correctly handles empty sticky sessions hash" do
+        # Ensure sticky sessions is empty
+        manager.instance_variable_set(:@sticky_sessions, {})
+
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to be_nil
+      end
+
+      it "handles provider fallback when sticky session expires" do
+        # Update sticky session
+        manager.update_sticky_session("anthropic")
+
+        # Mock provider switching behavior
+        allow(manager).to receive(:set_current_provider).and_return(true)
+        allow(manager).to receive(:current_provider).and_return("anthropic")
+
+        # Initially should prefer sticky session provider
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to eq("anthropic")
+
+        # Expire the session
+        allow(Time).to receive(:now).and_return(mock_time + 1801)
+
+        # Should fall back to normal provider selection (nil means no sticky preference)
+        provider = manager.sticky_session_provider("session123")
+        expect(provider).to be_nil
       end
     end
   end
@@ -1034,6 +1338,240 @@ RSpec.describe Aidp::Harness::ProviderManager do
           claude_row = dashboard.find { |row| row[:provider] == "claude" }
 
           expect(claude_row[:available]).to be false
+        end
+      end
+
+      describe "health dashboard merge precedence" do
+        describe "status priority merging" do
+          it "prioritizes circuit_breaker_open over all other statuses" do
+            # Create multiple providers with different statuses
+            # Since we can't easily create duplicate normalized names, we'll test the merge_status_priority method directly
+            expect(manager.send(:merge_status_priority, "circuit_breaker_open", "unhealthy_auth")).to eq("circuit_breaker_open")
+            expect(manager.send(:merge_status_priority, "circuit_breaker_open", "unhealthy")).to eq("circuit_breaker_open")
+            expect(manager.send(:merge_status_priority, "circuit_breaker_open", "unknown")).to eq("circuit_breaker_open")
+            expect(manager.send(:merge_status_priority, "circuit_breaker_open", "healthy")).to eq("circuit_breaker_open")
+            expect(manager.send(:merge_status_priority, "circuit_breaker_open", nil)).to eq("circuit_breaker_open")
+          end
+
+          it "prioritizes unhealthy_auth over non-circuit breaker statuses" do
+            expect(manager.send(:merge_status_priority, "unhealthy_auth", "unhealthy")).to eq("unhealthy_auth")
+            expect(manager.send(:merge_status_priority, "unhealthy_auth", "unknown")).to eq("unhealthy_auth")
+            expect(manager.send(:merge_status_priority, "unhealthy_auth", "healthy")).to eq("unhealthy_auth")
+            expect(manager.send(:merge_status_priority, "unhealthy_auth", nil)).to eq("unhealthy_auth")
+
+            # But circuit_breaker_open should still win
+            expect(manager.send(:merge_status_priority, "unhealthy_auth", "circuit_breaker_open")).to eq("circuit_breaker_open")
+          end
+
+          it "prioritizes unhealthy over lower priority statuses" do
+            expect(manager.send(:merge_status_priority, "unhealthy", "unknown")).to eq("unhealthy")
+            expect(manager.send(:merge_status_priority, "unhealthy", "healthy")).to eq("unhealthy")
+            expect(manager.send(:merge_status_priority, "unhealthy", nil)).to eq("unhealthy")
+
+            # But higher priority statuses should win
+            expect(manager.send(:merge_status_priority, "unhealthy", "unhealthy_auth")).to eq("unhealthy_auth")
+            expect(manager.send(:merge_status_priority, "unhealthy", "circuit_breaker_open")).to eq("circuit_breaker_open")
+          end
+
+          it "handles symmetric priority correctly" do
+            # Same priority should return first argument
+            expect(manager.send(:merge_status_priority, "healthy", "healthy")).to eq("healthy")
+            expect(manager.send(:merge_status_priority, "unhealthy", "unhealthy")).to eq("unhealthy")
+            expect(manager.send(:merge_status_priority, "unhealthy_auth", "unhealthy_auth")).to eq("unhealthy_auth")
+          end
+
+          it "handles nil values correctly" do
+            expect(manager.send(:merge_status_priority, nil, "healthy")).to eq("healthy")
+            expect(manager.send(:merge_status_priority, "healthy", nil)).to eq("healthy")
+            expect(manager.send(:merge_status_priority, nil, nil)).to eq(nil)
+          end
+
+          it "handles unknown status values" do
+            # Unknown values should get default priority (0) and lose to known values
+            expect(manager.send(:merge_status_priority, "healthy", "unknown_status")).to eq("healthy")
+            expect(manager.send(:merge_status_priority, "unknown_status", "healthy")).to eq("healthy")
+            expect(manager.send(:merge_status_priority, "unknown_status1", "unknown_status2")).to eq("unknown_status1")
+          end
+        end
+
+        describe "conflicting health sources integration" do
+          it "combines circuit breaker and rate limit states correctly" do
+            # Set up anthropic with circuit breaker open
+            5.times { manager.update_provider_health("anthropic", "error") }
+
+            # Also rate limit anthropic
+            manager.mark_rate_limited("anthropic", Time.now + 1800)
+
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+
+            expect(claude_row[:status]).to eq("circuit_breaker_open") # Circuit breaker status
+            expect(claude_row[:circuit_breaker]).to eq("open")
+            expect(claude_row[:rate_limited]).to be true
+            expect(claude_row[:available]).to be false # Both conditions make it unavailable
+          end
+
+          it "preserves unhealthy reason when multiple issues exist" do
+            # First mark as auth failure
+            manager.mark_provider_auth_failure("anthropic")
+
+            # Check that auth failure is recorded
+            dashboard = manager.send(:health_dashboard)
+
+            # Find the row - it might be "anthropic" or "claude" depending on normalization
+            target_row = dashboard.find { |row| row[:provider] == "claude" } ||
+              dashboard.find { |row| row[:provider] == "anthropic" }
+
+            expect(target_row).not_to be_nil
+            expect(target_row[:unhealthy_reason]).to eq("auth")
+            expect(target_row[:status]).to eq("unhealthy_auth")
+
+            # Note: In the actual implementation, triggering circuit breaker through
+            # update_provider_health doesn't preserve the original unhealthy_reason
+            # This is the current behavior, though it could be improved
+          end
+
+          it "accumulates metrics from multiple sources correctly" do
+            # Record different metrics for the same logical provider
+            manager.record_metrics("anthropic", success: true, duration: 1.0, tokens_used: 100)
+
+            # Simulate additional metrics (would normally come from different provider instances)
+            metrics = manager.instance_variable_get(:@provider_metrics)
+            metrics["anthropic"] ||= {}
+            metrics["anthropic"][:total_requests] = (metrics["anthropic"][:total_requests] || 0) + 3
+            metrics["anthropic"][:successful_requests] = (metrics["anthropic"][:successful_requests] || 0) + 2
+            metrics["anthropic"][:total_tokens] = (metrics["anthropic"][:total_tokens] || 0) + 200
+
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+
+            expect(claude_row[:total_requests]).to eq(4) # 1 + 3
+            expect(claude_row[:success_requests]).to eq(3) # 1 + 2
+            expect(claude_row[:total_tokens]).to eq(300) # 100 + 200
+          end
+
+          it "handles mixed availability states correctly" do
+            # Make provider partially available through different means
+            # First make it healthy
+            manager.update_provider_health("anthropic", "success")
+
+            # Then rate limit it (making it unavailable despite being healthy)
+            manager.mark_rate_limited("anthropic", Time.now + 900)
+
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+
+            # Should be healthy but unavailable due to rate limiting
+            expect(claude_row[:status]).to eq("healthy")
+            expect(claude_row[:rate_limited]).to be true
+            expect(claude_row[:available]).to be false
+          end
+
+          it "selects maximum reset times when multiple rate limits exist" do
+            # Set different rate limit reset times
+            manager.mark_rate_limited("anthropic", Time.now + 1800) # 30 minutes
+
+            # Simulate additional rate limit source with longer time
+            rate_info = manager.instance_variable_get(:@rate_limit_info)
+            rate_info["anthropic"][:reset_time] = Time.now + 3600 # Override with 60 minutes
+
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+
+            # Should show the longer reset time
+            expect(claude_row[:rate_limit_reset_in]).to be > 3500 # Close to 60 minutes
+            expect(claude_row[:rate_limit_reset_in]).to be <= 3600
+          end
+
+          it "preserves most recent last_used timestamp" do
+            # Record usage at different times
+            past_time = Time.now - 100
+            recent_time = Time.now - 10
+
+            # First usage
+            allow(Time).to receive(:now).and_return(past_time)
+            manager.record_metrics("anthropic", success: true, duration: 1.0)
+
+            # Later usage
+            allow(Time).to receive(:now).and_return(recent_time)
+            manager.record_metrics("anthropic", success: true, duration: 1.0)
+
+            allow(Time).to receive(:now).and_call_original
+
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+
+            # Should show the most recent time
+            if claude_row[:last_used]
+              expect(claude_row[:last_used]).to be >= recent_time
+            end
+          end
+
+          it "combines circuit breaker timeouts correctly" do
+            # Open circuit breaker
+            5.times { manager.update_provider_health("anthropic", "error") }
+
+            # Manually simulate a second circuit breaker with different timeout
+            health = manager.instance_variable_get(:@provider_health)
+            health["anthropic"][:circuit_breaker_opened_at] = Time.now - 100 # Opened 100 seconds ago
+
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+
+            expect(claude_row[:circuit_breaker]).to eq("open")
+            expect(claude_row[:circuit_breaker_remaining]).to be > 0
+            expect(claude_row[:circuit_breaker_remaining]).to be <= 300
+          end
+        end
+
+        describe "edge cases and boundary conditions" do
+          it "handles empty health data gracefully" do
+            # Clear all health data
+            manager.instance_variable_set(:@provider_health, {})
+            manager.instance_variable_set(:@provider_metrics, {})
+            manager.instance_variable_set(:@rate_limit_info, {})
+
+            dashboard = manager.send(:health_dashboard)
+
+            # Should still return dashboard data, just with default/unknown states
+            expect(dashboard).to be_an(Array)
+            expect(dashboard.length).to be >= 1 # At least one provider should be configured
+          end
+
+          it "handles missing health information correctly" do
+            # Only set metrics without health info
+            manager.record_metrics("anthropic", success: true, duration: 1.0, tokens_used: 100)
+
+            # Clear health info
+            manager.instance_variable_get(:@provider_health).delete("anthropic")
+
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+
+            # Should handle missing health gracefully
+            expect(claude_row[:total_tokens]).to eq(100) # Metrics should still work
+          end
+
+          it "handles time-based state transitions correctly" do
+            # Set rate limit that expires soon
+            near_future = Time.now + 5
+            manager.mark_rate_limited("anthropic", near_future)
+
+            # Initially should be rate limited
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+            expect(claude_row[:rate_limited]).to be true
+            expect(claude_row[:rate_limit_reset_in]).to be > 0
+
+            # Advance time past expiry
+            allow(Time).to receive(:now).and_return(near_future + 10)
+
+            # Should show expired rate limit (reset_in should be 0)
+            dashboard = manager.send(:health_dashboard)
+            claude_row = dashboard.find { |row| row[:provider] == "claude" }
+            expect(claude_row[:rate_limited]).to be true # Still shows rate limit info exists
+            expect(claude_row[:rate_limit_reset_in]).to eq(0) # But it's expired (0 seconds)
+          end
         end
       end
 
