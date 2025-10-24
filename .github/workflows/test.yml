@@ -8,8 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 jobs:
   test:
@@ -60,47 +59,3 @@ jobs:
         run: |
           bundle exec rake coverage:check
           echo "Coverage ratchet check passed"
-
-      - name: Update coverage baseline (main branch only)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Use the existing rake task that handles all the complexity
-          echo "Checking if coverage improved and updating baseline..."
-          bundle exec rake coverage:update_baseline_if_improved
-
-          # Check if baseline actually changed
-          if git diff --quiet coverage_baseline.json; then
-            echo "No baseline changes to commit"
-          else
-            echo "Baseline changed, creating PR..."
-
-            # Get the new coverage value from the baseline file
-            NEW_COVERAGE=$(ruby -r json -e "puts JSON.parse(File.read('coverage_baseline.json'))['line_coverage']")
-
-            # Create a new branch for the baseline update
-            BRANCH_NAME="ci/update-coverage-baseline-$(date +%s)"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -b "$BRANCH_NAME"
-            git add coverage_baseline.json
-            git commit -m "chore: update coverage baseline to $NEW_COVERAGE%" -m "Coverage improved to $NEW_COVERAGE%" -m "This is an automated commit from CI."
-            git push origin "$BRANCH_NAME"
-
-            # Create PR using GitHub CLI
-            PR_BODY="Coverage improved to **$NEW_COVERAGE%** 📈"$'\n\n'"This PR was automatically created by CI after tests passed on main."$'\n\n'"**Auto-merge enabled** - This will merge automatically once checks pass."
-
-            gh pr create \
-              --title "chore: update coverage baseline to $NEW_COVERAGE%" \
-              --body "$PR_BODY" \
-              --base main \
-              --head "$BRANCH_NAME" \
-              --label "automated" \
-              --label "coverage"
-
-            # Enable auto-merge (requires admin or maintainer permissions)
-            gh pr merge "$BRANCH_NAME" --auto --squash || echo "Auto-merge not available, PR created for manual review"
-
-            echo "✅ PR created for baseline update"
-          fi
