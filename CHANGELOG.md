@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.17.1](https://github.com/viamin/aidp/compare/aidp/v0.17.0...aidp/v0.17.1) (2025-10-24)
+
+
+### Bug Fixes
+
+* **cli:** use ProviderInfo#info instead of get_info and update specs ([e5722a0](https://github.com/viamin/aidp/commit/e5722a08d6abc4409da7bf2135bf9e87d3b723e3))
+* **cli:** use ProviderInfo#info instead of get_info and update specs ([#164](https://github.com/viamin/aidp/issues/164)) ([4538538](https://github.com/viamin/aidp/commit/45385384f90bdf3a0f05edc3c435f83a7a59a83e))
+* **logger, tests:** use Kernel.warn on logger creation failure; mock Aidp.logger in WorkLoopRunner spec to avoid filesystem init ([5df887a](https://github.com/viamin/aidp/commit/5df887aedd055ec45956ca6bc9fbbe680758aa28))
+* **logger, tests:** use Kernel.warn on logger creation failure; mock Aidp.logger in WorkLoopRunner spec to avoid filesystem init ([#169](https://github.com/viamin/aidp/issues/169)) ([8f99ba4](https://github.com/viamin/aidp/commit/8f99ba4fdc55240dde909903eddfe3b34a7a356c))
+
+
+### Improvements
+
+* **cli:** centralize TTY::Prompt creation for test DI; update callers & specs ([e175197](https://github.com/viamin/aidp/commit/e175197bdd9098c4da74566cdf7e24f330a4ed3a))
+* **harness, jobs, spec, docs:** add DI for progress tracker & background display; eliminate any_instance_of usage ([44bac3d](https://github.com/viamin/aidp/commit/44bac3d535aa75c9faf8ff41c35395eeae79b591))
+* **harness, skills, message_display:** inject TTY::Prompt for test DI; centralize prompt usage ([8199559](https://github.com/viamin/aidp/commit/8199559c68161b8ad6ccddc3344925db3f0a81aa))
+* **harness, spec:** add sleep DI and validator injection; update tests ([c1d10d1](https://github.com/viamin/aidp/commit/c1d10d1919dfe6022fd6a3d33472fe23a74e41af))
+* **harness, spec:** make provider CLI availability deterministic in ProviderManager spec ([9328e97](https://github.com/viamin/aidp/commit/9328e97efcf099843c684a4b8739697be570b0ce))
+* **harness/state:** require explicit skip_persistence; add in-memory test state; use Concurrency backoff for locking; update specs ([3c1176b](https://github.com/viamin/aidp/commit/3c1176b737f06ea8f8c059f11b252692f39074ce))
+* **providers:** rename send to send_message across providers, harness, and specs ([edead6a](https://github.com/viamin/aidp/commit/edead6a851b12e8a43233b9d98617f80a724646d)), closes [#160](https://github.com/viamin/aidp/issues/160)
+* **providers:** rename send to send_message across providers, harness, and specs ([#166](https://github.com/viamin/aidp/issues/166)) ([1fcb82f](https://github.com/viamin/aidp/commit/1fcb82f005d6d878705ea4110aa333b3364e00d9))
+* **testing:** remove test-aware gating; add explicit DI flags for persistence & async control ([567ee15](https://github.com/viamin/aidp/commit/567ee151aab6430f6cbe5060e9de771245abf5ed))
+* **watch, harness, spec, docs:** add BinaryChecker & Sleeper DI; remove any_instance_of gh/sleep stubs ([aa06b1b](https://github.com/viamin/aidp/commit/aa06b1b9de5a27b1daa306a2348f4c56a31d480f))
+* **workflows/guided_agent:** remove legacy analyze/recommendation flow and tests ([3c412d5](https://github.com/viamin/aidp/commit/3c412d530613a8f6262c0cd2fa0c421f4aa8596f))
+* **workstream_executor, spec, docs, lint:** add runner_factory DI; update tests & docs ([7d4de24](https://github.com/viamin/aidp/commit/7d4de2441aaeca921f7a0d1e40db712c8f62bff7))
+
+
+### Documentation
+
+* **mocking_audit_report:** expand P2 guidance for removing private-method tests and preserving coverage ([8574617](https://github.com/viamin/aidp/commit/8574617e39d050615b3f34204ba054160c01fb65))
+
 ## [0.17.0](https://github.com/viamin/aidp/compare/aidp/v0.16.0...aidp/v0.17.0) (2025-10-22)
 
 
