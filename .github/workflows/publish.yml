@@ -81,18 +81,14 @@ jobs:
         run: bundle exec rake coverage:summary
 
       - name: Commit updated coverage badge to release PR
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git status --short
-          if git diff --quiet badges/coverage.svg; then
-            echo 'Coverage badge unchanged; skipping commit.'
-          else
-            git add badges/coverage.svg
-            git commit -m 'chore: update coverage badge'
-            git push origin HEAD
-          fi
+        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3
+        with:
+          commit_message: 'chore: update coverage badge'
+          file_pattern: 'badges/coverage.svg'
+          commit_author: 'github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          skip_dirty_check: false
+          skip_fetch: true
+          skip_checkout: true
 
       - name: Clean up coverage artifacts
         if: always()
