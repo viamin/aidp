@@ -913,6 +913,51 @@ RSpec.describe Aidp::Harness::ProviderManager do
           expect(reason).to eq("binary_missing")
         end
       end
+
+      context "when binary was missing then becomes available after TTL", :cli_binary_checks do
+        it "re-checks after TTL expiry and recovers to available" do
+          # First: simulate missing binary
+          allow(mock_binary_checker).to receive(:which).with("claude").and_return(nil)
+          cache = manager.instance_variable_get(:@binary_check_cache)
+          cache.delete("anthropic")
+          ok1, reason1 = manager.send(:provider_cli_available?, "anthropic")
+          expect(ok1).to be false
+          expect(reason1).to eq("binary_missing")
+
+          # Second: simulate binary now present but still within TTL (should still reflect cached missing)
+          allow(mock_binary_checker).to receive(:which).with("claude").and_return("/usr/local/bin/claude")
+          ok2, reason2 = manager.send(:provider_cli_available?, "anthropic")
+          expect(ok2).to be false
+          expect(reason2).to eq("binary_missing")
+
+          # Force TTL expiry by rewinding checked_at timestamp beyond @binary_check_ttl
+          ttl = manager.instance_variable_get(:@binary_check_ttl)
+          cache_key = "anthropic:claude"
+          cache_entry = cache[cache_key]
+          expect(cache_entry).not_to be_nil
+          cache_entry[:checked_at] = Time.now - (ttl + 1)
+
+          # Stub successful spawn & wait sequence for availability
+          r, w = IO.pipe
+          allow(IO).to receive(:pipe).and_return([r, w])
+          fake_pid = 42424
+          allow(Process).to receive(:spawn).with("claude", "--version", out: w, err: w).and_return(fake_pid)
+          allow(Aidp::Concurrency::Wait).to receive(:for_process_exit).with(fake_pid, timeout: 3, interval: 0.05).and_return(true)
+
+          # Third: after TTL expiry, should re-check and mark available
+          ok3, reason3 = manager.send(:provider_cli_available?, "anthropic")
+          expect(ok3).to be true
+          expect(reason3).to be_nil
+        ensure
+          # Close pipes if they were created
+          begin
+            w.close unless w.closed?
+            r.close unless r.closed?
+          rescue
+            # ignore
+          end
+        end
+      end
     end
   end
 

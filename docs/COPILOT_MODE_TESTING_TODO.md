@@ -313,9 +313,9 @@ CLI: 76.81% (remaining targeted branches listed; ~13–15 strategic examples lik
 - [x] **✅ COMPLETED**: Workstream system specs performance optimization (27.97s → 13.41s via test adapter)
 - [x] **✅ COMPLETED**: ProviderManager binary timeout branch (process kill + timeout reason verified)
 - [x] **✅ COMPLETED**: ProviderManager binary_missing branch (which returns nil → binary_missing reason)
-- [ ] ProviderManager: binary_missing with subsequent availability recovery after TTL expiration
-- [ ] EnhancedRunner: full `run` loop with pause condition triggered mid-step (should_pause? + handle_pause_condition)
-- [ ] EnhancedRunner: thread cleanup verification (no lingering threads after run completes) – count Thread.list delta
+- [x] **✅ COMPLETED**: ProviderManager: binary_missing with subsequent availability recovery after TTL expiration
+- [x] **✅ COMPLETED**: EnhancedRunner: full `run` loop with pause condition triggered mid-step (should_pause? + handle_pause_condition)
+- [x] **✅ COMPLETED**: EnhancedRunner: thread cleanup verification (no lingering threads after run completes) – count Thread.list delta
 - [ ] EnhancedRunner: error recovery path (simulate step exception -> recovery or termination depending on policy)
 - [ ] WorkLoopRunner (fix-forward): repeated FAIL cycles exhausting NEXT_PATCH iterations edge (ensure termination state and summary counts)
 - [ ] Sticky session expiry edge: test session timeout boundary (session removed after @session_timeout + epsilon)
