@@ -316,12 +316,12 @@ CLI: 76.81% (remaining targeted branches listed; ~13–15 strategic examples lik
 - [x] **✅ COMPLETED**: ProviderManager: binary_missing with subsequent availability recovery after TTL expiration
 - [x] **✅ COMPLETED**: EnhancedRunner: full `run` loop with pause condition triggered mid-step (should_pause? + handle_pause_condition)
 - [x] **✅ COMPLETED**: EnhancedRunner: thread cleanup verification (no lingering threads after run completes) – count Thread.list delta
-- [ ] EnhancedRunner: error recovery path (simulate step exception -> recovery or termination depending on policy)
-- [ ] WorkLoopRunner (fix-forward): repeated FAIL cycles exhausting NEXT_PATCH iterations edge (ensure termination state and summary counts)
-- [ ] Sticky session expiry edge: test session timeout boundary (session removed after @session_timeout + epsilon)
-- [ ] Circuit breaker combined scenario: provider AND model breaker opening then timed reset (time travel)
-- [ ] Rate limit next_reset_time with multiple providers – assert earliest future reset chosen
-- [ ] Health dashboard: duplicate normalized providers merge with mixed statuses (auth + circuit_breaker_open precedence)
+- [x] **✅ COMPLETED**: EnhancedRunner: error recovery path (simulate step exception -> recovery or termination depending on policy)
+- [x] **✅ COMPLETED**: WorkLoopRunner (fix-forward): repeated FAIL cycles exhausting NEXT_PATCH iterations edge (ensure termination state and summary counts)
+- [x] **✅ COMPLETED**: Sticky session expiry edge: test session timeout boundary (session removed after @session_timeout + epsilon)
+- [x] **✅ COMPLETED**: Rate limit next_reset_time with multiple providers – assert earliest future reset chosen
+- [x] **✅ COMPLETED**: Health dashboard: duplicate normalized providers merge with mixed statuses (auth + circuit_breaker_open precedence)
+- [x] **✅ COMPLETED**: Circuit breaker combined scenario: provider AND model breaker opening then timed reset (time travel)
 - [ ] Health dashboard: macos hidden but still contributes merged metrics when others share normalized name (none currently – add synthetic?)
 
 ### Medium Priority (Observability / Performance / UX)

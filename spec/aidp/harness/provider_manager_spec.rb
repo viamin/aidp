@@ -1717,4 +1717,278 @@ RSpec.describe Aidp::Harness::ProviderManager do
       end
     end
   end
+
+  describe "circuit breaker combined scenarios" do
+    let(:provider_name) { "anthropic" }
+    let(:model_name) { "claude-3-5-sonnet-20241022" }
+    let(:circuit_breaker_timeout) { 300 } # 5 minutes
+
+    before do
+      # Ensure provider has the model configured
+      allow(configuration).to receive(:provider_models).with(provider_name).and_return([model_name])
+    end
+
+    describe "provider AND model circuit breaker coordination" do
+      it "opens both provider and model circuit breakers independently" do
+        # Open provider circuit breaker
+        5.times { manager.update_provider_health(provider_name, "error") }
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be true
+
+        # Open model circuit breaker separately
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+
+        # Both should be open
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be true
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+      end
+
+      it "handles provider circuit breaker opening after model is already open" do
+        # First open model circuit breaker
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
+
+        # Then open provider circuit breaker
+        5.times { manager.update_provider_health(provider_name, "error") }
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be true
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+      end
+
+      it "handles model circuit breaker opening after provider is already open" do
+        # First open provider circuit breaker
+        5.times { manager.update_provider_health(provider_name, "error") }
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be true
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be false
+
+        # Then open model circuit breaker
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be true
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+      end
+    end
+
+    describe "time-based reset scenarios with time travel" do
+      context "when both circuit breakers are open" do
+        let(:initial_time) { Time.now }
+        let(:provider_open_time) { initial_time }
+        let(:model_open_time) { initial_time + 60 } # Model opens 1 minute later
+
+        before do
+          # Mock initial time
+          allow(Time).to receive(:now).and_return(initial_time)
+
+          # Open provider circuit breaker first
+          5.times { manager.update_provider_health(provider_name, "error") }
+          expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be true
+
+          # Advance time by 1 minute, then open model circuit breaker
+          allow(Time).to receive(:now).and_return(model_open_time)
+          5.times { manager.update_model_health(provider_name, model_name, "error") }
+          expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+        end
+
+        it "resets provider circuit breaker first when timeout expires" do
+          # Travel to just after provider timeout (5 minutes after provider opened)
+          provider_reset_time = provider_open_time + circuit_breaker_timeout + 1
+          allow(Time).to receive(:now).and_return(provider_reset_time)
+
+          # Provider should reset, model should still be open
+          expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
+          expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+        end
+
+        it "resets model circuit breaker after its timeout expires" do
+          # Travel to just after model timeout (5 minutes after model opened)
+          model_reset_time = model_open_time + circuit_breaker_timeout + 1
+          allow(Time).to receive(:now).and_return(model_reset_time)
+
+          # Both should be reset by now (provider reset earlier)
+          expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
+          expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be false
+        end
+
+        it "handles simultaneous timeout expiry correctly" do
+          # Open both at exactly the same time
+          simultaneous_time = initial_time
+          allow(Time).to receive(:now).and_return(simultaneous_time)
+
+          # Reset all state
+          manager.reset
+
+          # Open both circuit breakers at the same time
+          5.times { manager.update_provider_health(provider_name, "error") }
+          5.times { manager.update_model_health(provider_name, model_name, "error") }
+
+          expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be true
+          expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+
+          # Travel to just after timeout
+          reset_time = simultaneous_time + circuit_breaker_timeout + 1
+          allow(Time).to receive(:now).and_return(reset_time)
+
+          # Both should reset simultaneously
+          expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
+          expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be false
+        end
+      end
+    end
+
+    describe "availability calculations with combined circuit breakers" do
+      it "marks provider as unavailable when provider circuit breaker is open" do
+        # Open provider circuit breaker
+        5.times { manager.update_provider_health(provider_name, "error") }
+
+        expect(manager.is_provider_available?(provider_name)).to be false
+        expect(manager.available_providers).not_to include(provider_name)
+      end
+
+      it "marks provider as available when only model circuit breaker is open" do
+        # Open only model circuit breaker
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+
+        # Provider should still be available (other models might work)
+        expect(manager.is_provider_available?(provider_name)).to be true
+        expect(manager.available_providers).to include(provider_name)
+      end
+
+      it "marks provider as unavailable when both circuit breakers are open" do
+        # Open both circuit breakers
+        5.times { manager.update_provider_health(provider_name, "error") }
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+
+        expect(manager.is_provider_available?(provider_name)).to be false
+        expect(manager.available_providers).not_to include(provider_name)
+      end
+    end
+
+    describe "health status with combined circuit breakers" do
+      it "shows circuit_breaker_open status when provider circuit breaker is open" do
+        5.times { manager.update_provider_health(provider_name, "error") }
+
+        health = manager.provider_health_status[provider_name]
+        expect(health[:status]).to eq("circuit_breaker_open")
+        expect(health[:circuit_breaker_open]).to be true
+      end
+
+      it "preserves provider health when only model circuit breaker is open" do
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+
+        # Provider health should not be affected by model circuit breaker
+        provider_health = manager.provider_health_status[provider_name]
+        expect(provider_health[:status]).to eq("healthy")
+        expect(provider_health[:circuit_breaker_open]).to be false
+
+        # But model health should show circuit breaker
+        model_health = manager.model_health_status(provider_name)[model_name]
+        expect(model_health[:status]).to eq("circuit_breaker_open")
+        expect(model_health[:circuit_breaker_open]).to be true
+      end
+    end
+
+    describe "recovery scenarios after timeout" do
+      let(:reset_time) { Time.now + circuit_breaker_timeout + 10 }
+
+      it "allows provider usage after provider circuit breaker resets" do
+        # Open provider circuit breaker
+        5.times { manager.update_provider_health(provider_name, "error") }
+        expect(manager.is_provider_available?(provider_name)).to be false
+
+        # Travel past timeout
+        allow(Time).to receive(:now).and_return(reset_time)
+
+        # Provider should be available again
+        expect(manager.is_provider_available?(provider_name)).to be true
+        expect(manager.is_provider_circuit_breaker_open?(provider_name)).to be false
+      end
+
+      it "allows model usage after model circuit breaker resets" do
+        # Open model circuit breaker
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+
+        # Travel past timeout
+        allow(Time).to receive(:now).and_return(reset_time)
+
+        # Model should be available again
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be false
+      end
+
+      it "handles gradual recovery when timeouts differ" do
+        initial_time = Time.now
+        allow(Time).to receive(:now).and_return(initial_time)
+
+        # Open provider first
+        5.times { manager.update_provider_health(provider_name, "error") }
+
+        # Open model 2 minutes later
+        model_open_time = initial_time + 120
+        allow(Time).to receive(:now).and_return(model_open_time)
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+
+        # Travel to just after provider reset (5 minutes after provider opened)
+        provider_reset_time = initial_time + circuit_breaker_timeout + 1
+        allow(Time).to receive(:now).and_return(provider_reset_time)
+
+        # Provider available, model still circuit broken
+        expect(manager.is_provider_available?(provider_name)).to be true
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be true
+
+        # Travel to after model reset (5 minutes after model opened)
+        model_reset_time = model_open_time + circuit_breaker_timeout + 1
+        allow(Time).to receive(:now).and_return(model_reset_time)
+
+        # Both should be available
+        expect(manager.is_provider_available?(provider_name)).to be true
+        expect(manager.is_model_circuit_breaker_open?(provider_name, model_name)).to be false
+      end
+    end
+
+    describe "logging and monitoring combined scenarios" do
+      it "logs both provider and model circuit breaker events" do
+        # Expect provider circuit breaker log
+        expect(manager).to receive(:display_message).with(
+          "🔴 Circuit breaker opened for provider: #{provider_name}",
+          type: :error
+        )
+
+        # Expect model circuit breaker log
+        expect(manager).to receive(:display_message).with(
+          "🔴 Circuit breaker opened for model: #{provider_name}:#{model_name}",
+          type: :error
+        )
+
+        # Open both circuit breakers
+        5.times { manager.update_provider_health(provider_name, "error") }
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+      end
+
+      it "logs reset events after timeout" do
+        # Open both circuit breakers first
+        5.times { manager.update_provider_health(provider_name, "error") }
+        5.times { manager.update_model_health(provider_name, model_name, "error") }
+
+        # Clear previous display_message expectations
+        allow(manager).to receive(:display_message)
+
+        # Expect reset logs when checking status after timeout
+        reset_time = Time.now + circuit_breaker_timeout + 10
+        allow(Time).to receive(:now).and_return(reset_time)
+
+        expect(manager).to receive(:display_message).with(
+          "🟢 Circuit breaker reset for provider: #{provider_name}",
+          type: :success
+        )
+
+        expect(manager).to receive(:display_message).with(
+          "🟢 Circuit breaker reset for model: #{provider_name}:#{model_name}",
+          type: :success
+        )
+
+        # Trigger reset by checking status
+        manager.is_provider_circuit_breaker_open?(provider_name)
+        manager.is_model_circuit_breaker_open?(provider_name, model_name)
+      end
+    end
+  end
 end
