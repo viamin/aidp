@@ -375,7 +375,11 @@ module Aidp
                 max_iterations: 50,
                 test_commands: [],
                 lint_commands: [],
-                units: {}
+                units: {},
+                guards: {enabled: false},
+                version_control: {tool: "git", behavior: "nothing", conventional_commits: false},
+                coverage: {enabled: false},
+                interactive_testing: {enabled: false, app_type: "web"}
               },
               properties: {
                 enabled: {
@@ -543,6 +547,225 @@ module Aidp
                       default: false
                     }
                   }
+                },
+                version_control: {
+                  type: :hash,
+                  required: false,
+                  default: {
+                    tool: "git",
+                    behavior: "nothing",
+                    conventional_commits: false
+                  },
+                  properties: {
+                    tool: {
+                      type: :string,
+                      required: false,
+                      default: "git",
+                      enum: ["git", "svn", "none"]
+                    },
+                    behavior: {
+                      type: :string,
+                      required: false,
+                      default: "nothing",
+                      enum: ["stage", "commit", "nothing"]
+                    },
+                    conventional_commits: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    }
+                  }
+                },
+                coverage: {
+                  type: :hash,
+                  required: false,
+                  default: {
+                    enabled: false
+                  },
+                  properties: {
+                    enabled: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    },
+                    tool: {
+                      type: :string,
+                      required: false,
+                      enum: ["simplecov", "nyc", "istanbul", "coverage.py", "go-cover", "jest", "other"]
+                    },
+                    run_command: {
+                      type: :string,
+                      required: false
+                    },
+                    report_paths: {
+                      type: :array,
+                      required: false,
+                      default: [],
+                      items: {
+                        type: :string
+                      }
+                    },
+                    fail_on_drop: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    },
+                    minimum_coverage: {
+                      type: :number,
+                      required: false,
+                      min: 0.0,
+                      max: 100.0
+                    }
+                  }
+                },
+                interactive_testing: {
+                  type: :hash,
+                  required: false,
+                  default: {
+                    enabled: false,
+                    app_type: "web"
+                  },
+                  properties: {
+                    enabled: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    },
+                    app_type: {
+                      type: :string,
+                      required: false,
+                      default: "web",
+                      enum: ["web", "cli", "desktop"]
+                    },
+                    tools: {
+                      type: :hash,
+                      required: false,
+                      default: {},
+                      properties: {
+                        web: {
+                          type: :hash,
+                          required: false,
+                          default: {},
+                          properties: {
+                            playwright_mcp: {
+                              type: :hash,
+                              required: false,
+                              default: {enabled: false},
+                              properties: {
+                                enabled: {
+                                  type: :boolean,
+                                  required: false,
+                                  default: false
+                                },
+                                run: {
+                                  type: :string,
+                                  required: false
+                                },
+                                specs_dir: {
+                                  type: :string,
+                                  required: false,
+                                  default: ".aidp/tests/web"
+                                }
+                              }
+                            },
+                            chrome_devtools_mcp: {
+                              type: :hash,
+                              required: false,
+                              default: {enabled: false},
+                              properties: {
+                                enabled: {
+                                  type: :boolean,
+                                  required: false,
+                                  default: false
+                                },
+                                run: {
+                                  type: :string,
+                                  required: false
+                                },
+                                specs_dir: {
+                                  type: :string,
+                                  required: false,
+                                  default: ".aidp/tests/web"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        cli: {
+                          type: :hash,
+                          required: false,
+                          default: {},
+                          properties: {
+                            expect: {
+                              type: :hash,
+                              required: false,
+                              default: {enabled: false},
+                              properties: {
+                                enabled: {
+                                  type: :boolean,
+                                  required: false,
+                                  default: false
+                                },
+                                run: {
+                                  type: :string,
+                                  required: false
+                                },
+                                specs_dir: {
+                                  type: :string,
+                                  required: false,
+                                  default: ".aidp/tests/cli"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        desktop: {
+                          type: :hash,
+                          required: false,
+                          default: {},
+                          properties: {
+                            applescript: {
+                              type: :hash,
+                              required: false,
+                              default: {enabled: false},
+                              properties: {
+                                enabled: {
+                                  type: :boolean,
+                                  required: false,
+                                  default: false
+                                },
+                                run: {
+                                  type: :string,
+                                  required: false
+                                },
+                                specs_dir: {
+                                  type: :string,
+                                  required: false,
+                                  default: ".aidp/tests/desktop"
+                                }
+                              }
+                            },
+                            screen_reader: {
+                              type: :hash,
+                              required: false,
+                              default: {enabled: false},
+                              properties: {
+                                enabled: {
+                                  type: :boolean,
+                                  required: false,
+                                  default: false
+                                },
+                                notes: {
+                                  type: :string,
+                                  required: false
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -567,6 +790,12 @@ module Aidp
                   default: 1,
                   min: 1,
                   max: 10
+                },
+                model_family: {
+                  type: :string,
+                  required: false,
+                  default: "auto",
+                  enum: ["auto", "openai_o", "claude", "mistral", "local"]
                 },
                 max_tokens: {
                   type: :integer,

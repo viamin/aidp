@@ -84,6 +84,283 @@ work_loop:
     evidence_dir: .aidp/evidence
     logs_dir: .aidp/logs
     screenshots_dir: .aidp/screenshots
+  coverage:
+    enabled: true
+    tool: simplecov
+    run_command: "bundle exec rspec"
+    report_paths:
+      - coverage/index.html
+      - coverage/.resultset.json
+    fail_on_drop: false
+    minimum_coverage: 80.0
+  version_control:
+    tool: git
+    behavior: commit
+    conventional_commits: true
+  interactive_testing:
+    enabled: true
+    app_type: web
+    tools:
+      web:
+        playwright_mcp:
+          enabled: true
+          run: "npx playwright test"
+          specs_dir: ".aidp/tests/web"
+```
+
+### Coverage Tools
+
+AIDP can track code coverage and integrate with your existing coverage tools.
+
+#### Supported Tools
+
+- **simplecov** (Ruby): SimpleCov integration
+- **nyc** (JavaScript): NYC/Istanbul integration
+- **istanbul** (JavaScript): Istanbul integration
+- **coverage.py** (Python): Coverage.py integration
+- **go-cover** (Go): go test -cover integration
+- **jest** (JavaScript): Jest coverage integration
+- **other**: Custom coverage tool
+
+#### Configuration Options
+
+- **`enabled`** (boolean): Enable/disable coverage tracking
+- **`tool`** (string): Coverage tool being used
+- **`run_command`** (string): Command to execute coverage
+- **`report_paths`** (array): Paths to coverage report files
+- **`fail_on_drop`** (boolean): Fail the work loop if coverage decreases
+- **`minimum_coverage`** (number): Minimum coverage percentage (0-100)
+
+#### Examples
+
+**Ruby - SimpleCov**:
+
+```yaml
+coverage:
+  enabled: true
+  tool: simplecov
+  run_command: "bundle exec rspec"
+  report_paths:
+    - coverage/index.html
+    - coverage/.resultset.json
+  minimum_coverage: 80.0
+```
+
+**JavaScript - NYC**:
+
+```yaml
+coverage:
+  enabled: true
+  tool: nyc
+  run_command: "nyc npm test"
+  report_paths:
+    - coverage/lcov-report/index.html
+    - coverage/lcov.info
+```
+
+**Python - Coverage.py**:
+
+```yaml
+coverage:
+  enabled: true
+  tool: coverage.py
+  run_command: "coverage run -m pytest"
+  report_paths:
+    - .coverage
+    - htmlcov/index.html
+```
+
+**Go - go test -cover**:
+
+```yaml
+coverage:
+  enabled: true
+  tool: go-cover
+  run_command: "go test -cover ./..."
+  report_paths:
+    - coverage.out
+```
+
+### Version Control Behavior
+
+Configure how AIDP interacts with your version control system during work loops.
+
+#### Configuration Options
+
+- **`tool`** (string): Version control system (git, svn, or none)
+- **`behavior`** (string): What to do with changes in copilot mode:
+  - `nothing`: Manual git operations only
+  - `stage`: Automatically stage changes (git add)
+  - `commit`: Automatically stage and commit changes
+- **`conventional_commits`** (boolean): Use [Conventional Commits](https://www.conventionalcommits.org/) format
+
+#### Behavior by Mode
+
+| Mode | VCS Behavior |
+|------|--------------|
+| **Copilot** | Uses configured `behavior` setting |
+| **Watch** | Always commits changes (ignores `behavior`) |
+| **Daemon** | Always commits changes (ignores `behavior`) |
+
+#### Examples
+
+**Git with Auto-Commit**:
+
+```yaml
+version_control:
+  tool: git
+  behavior: commit
+  conventional_commits: true
+```
+
+**Git with Manual Operations**:
+
+```yaml
+version_control:
+  tool: git
+  behavior: nothing
+  conventional_commits: false
+```
+
+### Interactive Testing Tools
+
+AIDP can integrate with interactive testing tools for web, CLI, and desktop applications.
+
+#### Application Types
+
+##### Web Applications
+
+**Playwright MCP**:
+
+```yaml
+interactive_testing:
+  enabled: true
+  app_type: web
+  tools:
+    web:
+      playwright_mcp:
+        enabled: true
+        run: "npx playwright test"
+        specs_dir: ".aidp/tests/web"
+```
+
+**Chrome DevTools MCP**:
+
+```yaml
+interactive_testing:
+  enabled: true
+  app_type: web
+  tools:
+    web:
+      chrome_devtools_mcp:
+        enabled: true
+        run: "npm run test:chrome"
+        specs_dir: ".aidp/tests/web"
+```
+
+##### CLI Applications
+
+**Expect Scripts**:
+
+```yaml
+interactive_testing:
+  enabled: true
+  app_type: cli
+  tools:
+    cli:
+      expect:
+        enabled: true
+        run: "expect .aidp/tests/cli/smoke.exp"
+        specs_dir: ".aidp/tests/cli"
+```
+
+##### Desktop Applications
+
+**AppleScript (macOS)**:
+
+```yaml
+interactive_testing:
+  enabled: true
+  app_type: desktop
+  tools:
+    desktop:
+      applescript:
+        enabled: true
+        run: "osascript .aidp/tests/desktop/smoke.scpt"
+        specs_dir: ".aidp/tests/desktop"
+```
+
+**Screen Reader Testing**:
+
+```yaml
+interactive_testing:
+  enabled: true
+  app_type: desktop
+  tools:
+    desktop:
+      screen_reader:
+        enabled: true
+        notes: "VoiceOver scripted checks for accessibility"
+```
+
+## Providers
+
+### Model Families
+
+Group providers by model family for better routing and fallback behavior.
+
+```yaml
+providers:
+  anthropic:
+    type: usage_based
+    model_family: claude
+    max_tokens: 100_000
+```
+
+#### Available Families
+
+- **`auto`** (default): Let the provider decide which model to use
+- **`openai_o`**: OpenAI o-series reasoning models (o1, o1-mini)
+- **`claude`**: Anthropic Claude models (Sonnet, Opus, Haiku)
+- **`mistral`**: Mistral AI models (European/open source)
+- **`local`**: Self-hosted/local LLMs
+
+#### Examples
+
+**Claude Models**:
+
+```yaml
+providers:
+  anthropic:
+    type: usage_based
+    model_family: claude
+    models:
+      - claude-3-5-sonnet-20241022
+      - claude-3-opus-20240229
+```
+
+**OpenAI Reasoning Models**:
+
+```yaml
+providers:
+  openai:
+    type: usage_based
+    model_family: openai_o
+    models:
+      - o1-preview
+      - o1-mini
+```
+
+**Local Models**:
+
+```yaml
+providers:
+  ollama:
+    type: passthrough
+    model_family: local
+    models:
+      - llama2
+      - codellama
 ```
 
 ## Non-Functional Requirements (NFRs)

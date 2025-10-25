@@ -275,6 +275,12 @@ module Aidp
             usage: "/skill <list|show|use> [args]",
             example: "/skill list",
             handler: method(:cmd_skill)
+          },
+          "/tools" => {
+            description: "Manage available tools (coverage, testing, etc.)",
+            usage: "/tools <show|coverage|test> [subcommand]",
+            example: "/tools show",
+            handler: method(:cmd_tools)
           }
         }
       end
@@ -1485,6 +1491,207 @@ module Aidp
           {
             success: false,
             message: "Usage: /skill <command> [args]\n\nCommands:\n  list           - List all available skills\n  show <id>      - Show detailed skill information\n  search <query> - Search skills by keyword\n  use <id>       - Switch to a specific skill\n\nExamples:\n  /skill list\n  /skill show repository_analyst\n  /skill search git\n  /skill use repository_analyst",
+            action: :none
+          }
+        end
+      end
+
+      # /tools command - manage available tools
+      def cmd_tools(args)
+        Aidp.log_debug("repl_macros", "Executing /tools command", args: args)
+
+        subcommand = args[0]&.downcase
+
+        case subcommand
+        when "show"
+          cmd_tools_show
+        when "coverage"
+          cmd_tools_coverage(args[1..])
+        when "test"
+          cmd_tools_test(args[1..])
+        else
+          {
+            success: false,
+            message: "Usage: /tools <command> [args]\n\nCommands:\n  show           - Show configured tools and their status\n  coverage       - Run coverage analysis and show delta\n  test <type>    - Run interactive tests (web, cli, desktop)\n\nExamples:\n  /tools show\n  /tools coverage\n  /tools test web",
+            action: :none
+          }
+        end
+      end
+
+      def cmd_tools_show
+        require_relative "../harness/configuration"
+
+        begin
+          config = Aidp::Harness::Configuration.new(@project_dir)
+
+          output = ["📊 Configured Tools\n", "=" * 50]
+
+          # Coverage tools
+          if config.coverage_enabled?
+            output << "\n🔍 Coverage:"
+            output << "  Tool: #{config.coverage_tool || "not specified"}"
+            output << "  Command: #{config.coverage_run_command || "not specified"}"
+            output << "  Report paths: #{config.coverage_report_paths.join(", ")}" if config.coverage_report_paths.any?
+            output << "  Fail on drop: #{config.coverage_fail_on_drop? ? "yes" : "no"}"
+            output << "  Minimum coverage: #{config.coverage_minimum || "not set"}%" if config.coverage_minimum
+          else
+            output << "\n🔍 Coverage: disabled"
+          end
+
+          # VCS configuration
+          output << "\n\n🗂️  Version Control:"
+          output << "  Tool: #{config.vcs_tool}"
+          output << "  Behavior: #{config.vcs_behavior}"
+          output << "  Conventional commits: #{config.conventional_commits? ? "yes" : "no"}"
+
+          # Interactive testing
+          if config.interactive_testing_enabled?
+            output << "\n\n🎯 Interactive Testing:"
+            output << "  App type: #{config.interactive_testing_app_type}"
+            tools = config.interactive_testing_tools
+            if tools.any?
+              tools.each do |category, category_tools|
+                output << "  #{category.to_s.capitalize}:"
+                category_tools.each do |tool_name, tool_config|
+                  next unless tool_config[:enabled]
+                  output << "    • #{tool_name}: enabled"
+                  output << "      Run: #{tool_config[:run]}" if tool_config[:run]
+                  output << "      Specs: #{tool_config[:specs_dir]}" if tool_config[:specs_dir]
+                end
+              end
+            else
+              output << "  No tools configured"
+            end
+          else
+            output << "\n\n🎯 Interactive Testing: disabled"
+          end
+
+          # Model families
+          output << "\n\n🤖 Model Families:"
+          config.configured_providers.each do |provider|
+            family = config.model_family(provider)
+            output << "  #{provider}: #{family}"
+          end
+
+          {
+            success: true,
+            message: output.join("\n"),
+            action: :none
+          }
+        rescue => e
+          Aidp.log_error("repl_macros", "Failed to show tools", error: e.message)
+          {
+            success: false,
+            message: "Failed to load tool configuration: #{e.message}",
+            action: :none
+          }
+        end
+      end
+
+      def cmd_tools_coverage(args)
+        require_relative "../harness/configuration"
+
+        begin
+          config = Aidp::Harness::Configuration.new(@project_dir)
+
+          unless config.coverage_enabled?
+            return {
+              success: false,
+              message: "Coverage is not enabled. Run 'aidp config --interactive' to configure coverage.",
+              action: :none
+            }
+          end
+
+          unless config.coverage_run_command
+            return {
+              success: false,
+              message: "Coverage run command not configured. Run 'aidp config --interactive' to set it up.",
+              action: :none
+            }
+          end
+
+          Aidp.log_debug("repl_macros", "Running coverage", command: config.coverage_run_command)
+
+          {
+            success: true,
+            message: "Running coverage with: #{config.coverage_run_command}\n(Coverage execution to be implemented in work loop)",
+            action: :run_coverage,
+            data: {
+              command: config.coverage_run_command,
+              tool: config.coverage_tool,
+              report_paths: config.coverage_report_paths
+            }
+          }
+        rescue => e
+          Aidp.log_error("repl_macros", "Failed to run coverage", error: e.message)
+          {
+            success: false,
+            message: "Failed to run coverage: #{e.message}",
+            action: :none
+          }
+        end
+      end
+
+      def cmd_tools_test(args)
+        require_relative "../harness/configuration"
+
+        test_type = args[0]&.downcase
+
+        begin
+          config = Aidp::Harness::Configuration.new(@project_dir)
+
+          unless config.interactive_testing_enabled?
+            return {
+              success: false,
+              message: "Interactive testing is not enabled. Run 'aidp config --interactive' to configure it.",
+              action: :none
+            }
+          end
+
+          unless test_type
+            return {
+              success: false,
+              message: "Usage: /tools test <type>\n\nTypes: web, cli, desktop\n\nExample: /tools test web",
+              action: :none
+            }
+          end
+
+          unless %w[web cli desktop].include?(test_type)
+            return {
+              success: false,
+              message: "Invalid test type: #{test_type}. Must be one of: web, cli, desktop",
+              action: :none
+            }
+          end
+
+          tools = config.interactive_testing_tools.dig(test_type.to_sym)
+          unless tools&.any? { |_, t| t[:enabled] }
+            return {
+              success: false,
+              message: "No #{test_type} testing tools configured. Run 'aidp config --interactive' to set them up.",
+              action: :none
+            }
+          end
+
+          enabled_tools = tools.select { |_, t| t[:enabled] }
+          tool_list = enabled_tools.map { |name, cfg| "  • #{name}: #{cfg[:run] || "no command"}" }.join("\n")
+
+          Aidp.log_debug("repl_macros", "Running interactive tests", type: test_type, tools: enabled_tools.keys)
+
+          {
+            success: true,
+            message: "Running #{test_type} tests:\n#{tool_list}\n(Test execution to be implemented in work loop)",
+            action: :run_interactive_tests,
+            data: {
+              test_type: test_type,
+              tools: enabled_tools
+            }
+          }
+        rescue => e
+          Aidp.log_error("repl_macros", "Failed to run interactive tests", error: e.message)
+          {
+            success: false,
+            message: "Failed to run interactive tests: #{e.message}",
             action: :none
           }
         end

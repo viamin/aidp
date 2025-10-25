@@ -652,6 +652,282 @@ RSpec.describe Aidp::Execute::ReplMacros do
     end
   end
 
+  describe "/tools command" do
+    let(:tools_repl) { described_class.new(project_dir: temp_dir) }
+    let(:config_dir) { File.join(temp_dir, ".aidp") }
+    let(:config_file) { File.join(config_dir, "aidp.yml") }
+
+    before do
+      FileUtils.mkdir_p(config_dir)
+    end
+
+    context "show subcommand" do
+      it "displays configured tools when config exists" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "version_control" => {
+                "tool" => "git",
+                "behavior" => "commit",
+                "conventional_commits" => true
+              },
+              "coverage" => {
+                "enabled" => true,
+                "tool" => "simplecov",
+                "run_command" => "bundle exec rspec",
+                "report_paths" => ["coverage/index.html"]
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {
+              "type" => "subscription",
+              "model_family" => "auto"
+            }
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools show")
+
+        expect(result[:success]).to be true
+        expect(result[:message]).to include("Coverage")
+        expect(result[:message]).to include("simplecov")
+        expect(result[:message]).to include("Version Control")
+        expect(result[:message]).to include("git")
+        expect(result[:message]).to include("Model Families")
+      end
+
+      it "shows disabled state when coverage is disabled" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "coverage" => {
+                "enabled" => false
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools show")
+
+        expect(result[:success]).to be true
+        expect(result[:message]).to include("Coverage: disabled")
+      end
+    end
+
+    context "coverage subcommand" do
+      it "runs coverage when enabled and configured" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "coverage" => {
+                "enabled" => true,
+                "tool" => "simplecov",
+                "run_command" => "bundle exec rspec",
+                "report_paths" => ["coverage/index.html"]
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools coverage")
+
+        expect(result[:success]).to be true
+        expect(result[:action]).to eq(:run_coverage)
+        expect(result[:data][:command]).to eq("bundle exec rspec")
+        expect(result[:data][:tool]).to eq("simplecov")
+      end
+
+      it "fails when coverage is not enabled" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "coverage" => {
+                "enabled" => false
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools coverage")
+
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Coverage is not enabled")
+      end
+
+      it "fails when run command is not configured" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "coverage" => {
+                "enabled" => true,
+                "tool" => "simplecov"
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools coverage")
+
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Coverage run command not configured")
+      end
+    end
+
+    context "test subcommand" do
+      it "runs web tests when configured" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "interactive_testing" => {
+                "enabled" => true,
+                "app_type" => "web",
+                "tools" => {
+                  "web" => {
+                    "playwright_mcp" => {
+                      "enabled" => true,
+                      "run" => "npx playwright test",
+                      "specs_dir" => ".aidp/tests/web"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools test web")
+
+        expect(result[:success]).to be true
+        expect(result[:action]).to eq(:run_interactive_tests)
+        expect(result[:data][:test_type]).to eq("web")
+        expect(result[:data][:tools]).to have_key(:playwright_mcp)
+      end
+
+      it "fails when interactive testing is not enabled" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "interactive_testing" => {
+                "enabled" => false
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools test web")
+
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Interactive testing is not enabled")
+      end
+
+      it "fails with invalid test type" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "interactive_testing" => {
+                "enabled" => true,
+                "app_type" => "web"
+              }
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools test mobile")
+
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Invalid test type")
+      end
+
+      it "requires test type argument" do
+        config = {
+          "harness" => {
+            "default_provider" => "cursor",
+            "work_loop" => {
+              "interactive_testing" => {"enabled" => true}
+            }
+          },
+          "providers" => {
+            "cursor" => {"type" => "subscription"}
+          }
+        }
+
+        File.write(config_file, YAML.dump(config))
+
+        result = tools_repl.execute("/tools test")
+
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage: /tools test")
+      end
+    end
+
+    context "invalid subcommand" do
+      it "shows usage help" do
+        result = tools_repl.execute("/tools invalid")
+
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage: /tools")
+        expect(result[:message]).to include("show")
+        expect(result[:message]).to include("coverage")
+        expect(result[:message]).to include("test")
+      end
+    end
+
+    context "no subcommand" do
+      it "shows usage help" do
+        result = tools_repl.execute("/tools")
+
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage: /tools")
+      end
+    end
+  end
+
   describe "integration scenarios" do
     it "handles complex macro combinations" do
       # Pin critical files

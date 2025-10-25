@@ -74,6 +74,7 @@ module Aidp
         cursor: {
           type: "subscription",
           priority: 1,
+          model_family: "auto",
           default_flags: [],
           models: ["cursor-default", "cursor-fast", "cursor-precise"],
           model_weights: {
@@ -108,6 +109,7 @@ module Aidp
         anthropic: {
           type: "usage_based",
           priority: 2,
+          model_family: "claude",
           max_tokens: 100_000,
           default_flags: ["--dangerously-skip-permissions"],
           models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
@@ -153,6 +155,7 @@ module Aidp
         macos: {
           type: "passthrough",
           priority: 4,
+          model_family: "auto",
           underlying_service: "cursor",
           models: ["cursor-chat"],
           features: {

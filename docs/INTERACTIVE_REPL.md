@@ -397,6 +397,110 @@ REPL Macro Status:
 
 ---
 
+#### `/tools`
+
+View and run configured development tools including coverage analysis and interactive testing.
+
+**Usage:**
+
+```text
+/tools <subcommand> [args]
+```
+
+**Subcommands:**
+
+##### `/tools show`
+
+Display all configured tools and their current status.
+
+**Example:**
+
+```text
+aidp[5]> /tools show
+📊 Configured Tools
+==================================================
+
+🔍 Coverage:
+  Tool: simplecov
+  Command: bundle exec rspec
+  Report paths: coverage/index.html
+  Minimum coverage: 80.0%
+
+🗂️  Version Control:
+  Tool: git
+  Behavior: commit
+  Conventional commits: yes
+
+🎯 Interactive Testing:
+  App type: web
+  Web:
+    • playwright_mcp: enabled
+      Run: npx playwright test
+      Specs: .aidp/tests/web
+
+🤖 Model Families:
+  anthropic: claude
+  cursor: auto
+```
+
+##### `/tools coverage`
+
+Run coverage analysis using the configured coverage tool.
+
+**Example:**
+
+```text
+aidp[10]> /tools coverage
+Running coverage with: bundle exec rspec
+(Coverage execution to be implemented in work loop)
+```
+
+**Returns**: `action: :run_coverage` with coverage configuration
+
+**Error Conditions:**
+
+- Coverage not enabled: "Coverage is not enabled. Run 'aidp config --interactive' to configure coverage."
+- Run command missing: "Coverage run command not configured. Run 'aidp config --interactive' to set it up."
+
+##### `/tools test <type>`
+
+Run interactive tests for the specified application type.
+
+**Arguments:**
+
+- `<type>`: Application type (`web`, `cli`, or `desktop`)
+
+**Examples:**
+
+```text
+aidp[12]> /tools test web
+Running web tests:
+  • playwright_mcp: npx playwright test
+(Test execution to be implemented in work loop)
+
+aidp[15]> /tools test cli
+Running cli tests:
+  • expect: expect .aidp/tests/cli/smoke.exp
+(Test execution to be implemented in work loop)
+```
+
+**Returns**: `action: :run_interactive_tests` with test type and enabled tools
+
+**Error Conditions:**
+
+- Interactive testing not enabled: "Interactive testing is not enabled. Run 'aidp config --interactive' to configure it."
+- Missing type argument: "Usage: /tools test `<type>`\n\nTypes: web, cli, desktop"
+- Invalid type: "Invalid test type: mobile. Must be one of: web, cli, desktop"
+- No tools configured: "No web testing tools configured. Run 'aidp config --interactive' to set them up."
+
+**Configuration:**
+
+Tools are configured in `.aidp/aidp.yml`. Run `aidp config --interactive` to configure tools using the wizard.
+
+See [CONFIGURATION.md](CONFIGURATION.md) for detailed configuration options.
+
+---
+
 ### Standard REPL Macros
 
 All standard REPL macros from [REPL_REFERENCE.md](REPL_REFERENCE.md) are also available:

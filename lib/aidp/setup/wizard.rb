@@ -186,6 +186,9 @@ module Aidp
         configure_linting
         configure_watch_patterns
         configure_guards
+        configure_coverage
+        configure_interactive_testing
+        configure_vcs_behavior
       end
 
       def configure_test_commands
@@ -249,6 +252,169 @@ module Aidp
           max_lines_changed_per_commit: max_lines,
           protected_paths: protected_paths,
           confirm_protected: confirmation_required
+        })
+      end
+
+      def configure_coverage
+        prompt.say("\n📊 Coverage configuration")
+        existing = get([:work_loop, :coverage]) || {}
+
+        enabled = prompt.yes?("Enable coverage tracking?", default: existing.fetch(:enabled, false))
+        return set([:work_loop, :coverage], {enabled: false}) unless enabled
+
+        tool = prompt.select("Which coverage tool do you use?", default: existing[:tool]) do |menu|
+          menu.choice "SimpleCov (Ruby)", "simplecov"
+          menu.choice "NYC/Istanbul (JavaScript)", "nyc"
+          menu.choice "Coverage.py (Python)", "coverage.py"
+          menu.choice "go test -cover (Go)", "go-cover"
+          menu.choice "Jest (JavaScript)", "jest"
+          menu.choice "Other", "other"
+        end
+
+        run_command = ask_with_default("Coverage run command", existing[:run_command] || detect_coverage_command(tool))
+        report_paths = ask_list("Coverage report paths", existing[:report_paths] || detect_coverage_report_paths(tool))
+        fail_on_drop = prompt.yes?("Fail on coverage drop?", default: existing.fetch(:fail_on_drop, false))
+
+        minimum_coverage_default = existing[:minimum_coverage]&.to_s
+        minimum_coverage_answer = ask_with_default("Minimum coverage % (optional - press enter to skip)", minimum_coverage_default)
+        minimum_coverage = if minimum_coverage_answer && !minimum_coverage_answer.to_s.strip.empty?
+          minimum_coverage_answer.to_f
+        end
+
+        set([:work_loop, :coverage], {
+          enabled: true,
+          tool: tool,
+          run_command: run_command,
+          report_paths: report_paths,
+          fail_on_drop: fail_on_drop,
+          minimum_coverage: minimum_coverage
+        }.compact)
+
+        validate_command(run_command)
+      end
+
+      def configure_interactive_testing
+        prompt.say("\n🎯 Interactive testing configuration")
+        existing = get([:work_loop, :interactive_testing]) || {}
+
+        enabled = prompt.yes?("Enable interactive testing tools?", default: existing.fetch(:enabled, false))
+        return set([:work_loop, :interactive_testing], {enabled: false}) unless enabled
+
+        app_type = prompt.select("What type of application are you testing?", default: existing[:app_type]) do |menu|
+          menu.choice "Web application", "web"
+          menu.choice "CLI application", "cli"
+          menu.choice "Desktop application", "desktop"
+        end
+
+        tools = {}
+
+        case app_type
+        when "web"
+          tools[:web] = configure_web_testing_tools(existing.dig(:tools, :web) || {})
+        when "cli"
+          tools[:cli] = configure_cli_testing_tools(existing.dig(:tools, :cli) || {})
+        when "desktop"
+          tools[:desktop] = configure_desktop_testing_tools(existing.dig(:tools, :desktop) || {})
+        end
+
+        set([:work_loop, :interactive_testing], {
+          enabled: true,
+          app_type: app_type,
+          tools: tools
+        })
+      end
+
+      def configure_web_testing_tools(existing)
+        tools = {}
+
+        playwright_enabled = prompt.yes?("Enable Playwright MCP?", default: existing.dig(:playwright_mcp, :enabled) || false)
+        if playwright_enabled
+          playwright_run = ask_with_default("Playwright run command", existing.dig(:playwright_mcp, :run) || "npx playwright test")
+          playwright_specs = ask_with_default("Playwright specs directory", existing.dig(:playwright_mcp, :specs_dir) || ".aidp/tests/web")
+          tools[:playwright_mcp] = {enabled: true, run: playwright_run, specs_dir: playwright_specs}
+        end
+
+        chrome_enabled = prompt.yes?("Enable Chrome DevTools MCP?", default: existing.dig(:chrome_devtools_mcp, :enabled) || false)
+        if chrome_enabled
+          chrome_run = ask_with_default("Chrome DevTools run command", existing.dig(:chrome_devtools_mcp, :run) || "")
+          chrome_specs = ask_with_default("Chrome DevTools specs directory", existing.dig(:chrome_devtools_mcp, :specs_dir) || ".aidp/tests/web")
+          tools[:chrome_devtools_mcp] = {enabled: true, run: chrome_run, specs_dir: chrome_specs}
+        end
+
+        tools
+      end
+
+      def configure_cli_testing_tools(existing)
+        tools = {}
+
+        expect_enabled = prompt.yes?("Enable expect scripts?", default: existing.dig(:expect, :enabled) || false)
+        if expect_enabled
+          expect_run = ask_with_default("Expect run command", existing.dig(:expect, :run) || "expect .aidp/tests/cli/smoke.exp")
+          expect_specs = ask_with_default("Expect specs directory", existing.dig(:expect, :specs_dir) || ".aidp/tests/cli")
+          tools[:expect] = {enabled: true, run: expect_run, specs_dir: expect_specs}
+        end
+
+        tools
+      end
+
+      def configure_desktop_testing_tools(existing)
+        tools = {}
+
+        applescript_enabled = prompt.yes?("Enable AppleScript testing?", default: existing.dig(:applescript, :enabled) || false)
+        if applescript_enabled
+          applescript_run = ask_with_default("AppleScript run command", existing.dig(:applescript, :run) || "osascript .aidp/tests/desktop/smoke.scpt")
+          applescript_specs = ask_with_default("AppleScript specs directory", existing.dig(:applescript, :specs_dir) || ".aidp/tests/desktop")
+          tools[:applescript] = {enabled: true, run: applescript_run, specs_dir: applescript_specs}
+        end
+
+        screen_reader_enabled = prompt.yes?("Enable screen reader testing?", default: existing.dig(:screen_reader, :enabled) || false)
+        if screen_reader_enabled
+          screen_reader_notes = ask_with_default("Screen reader testing notes (optional)", existing.dig(:screen_reader, :notes) || "VoiceOver scripted checks")
+          tools[:screen_reader] = {enabled: true, notes: screen_reader_notes}
+        end
+
+        tools
+      end
+
+      def configure_vcs_behavior
+        prompt.say("\n🗂️  Version control configuration")
+        existing = get([:work_loop, :version_control]) || {}
+
+        # Detect VCS
+        detected_vcs = detect_vcs_tool
+        vcs_tool = if detected_vcs
+          prompt.select("Detected #{detected_vcs}. Use this version control system?", default: existing[:tool] || detected_vcs) do |menu|
+            menu.choice "git", "git"
+            menu.choice "svn", "svn"
+            menu.choice "none (no VCS)", "none"
+          end
+        else
+          prompt.select("Which version control system do you use?", default: existing[:tool] || "git") do |menu|
+            menu.choice "git", "git"
+            menu.choice "svn", "svn"
+            menu.choice "none (no VCS)", "none"
+          end
+        end
+
+        return set([:work_loop, :version_control], {tool: "none", behavior: "nothing"}) if vcs_tool == "none"
+
+        prompt.say("\nNote: Watch mode and fully automatic daemon mode will always commit changes.")
+        behavior = prompt.select("In copilot mode, should aidp:", default: existing[:behavior] || "nothing") do |menu|
+          menu.choice "Do nothing (manual git operations)", "nothing"
+          menu.choice "Stage changes only", "stage"
+          menu.choice "Stage and commit changes", "commit"
+        end
+
+        conventional_commits = if behavior == "commit"
+          prompt.yes?("Use conventional commit messages?", default: existing.fetch(:conventional_commits, false))
+        else
+          false
+        end
+
+        set([:work_loop, :version_control], {
+          tool: vcs_tool,
+          behavior: behavior,
+          conventional_commits: conventional_commits
         })
       end
 
@@ -604,6 +770,46 @@ module Aidp
         end
       end
 
+      def detect_coverage_command(tool)
+        case tool
+        when "simplecov"
+          "bundle exec rspec"
+        when "nyc", "istanbul"
+          "nyc npm test"
+        when "coverage.py"
+          "coverage run -m pytest"
+        when "go-cover"
+          "go test -cover ./..."
+        when "jest"
+          "jest --coverage"
+        else
+          "echo 'Configure coverage command'"
+        end
+      end
+
+      def detect_coverage_report_paths(tool)
+        case tool
+        when "simplecov"
+          ["coverage/index.html", "coverage/.resultset.json"]
+        when "nyc", "istanbul"
+          ["coverage/lcov-report/index.html", "coverage/lcov.info"]
+        when "coverage.py"
+          [".coverage", "htmlcov/index.html"]
+        when "go-cover"
+          ["coverage.out"]
+        when "jest"
+          ["coverage/lcov-report/index.html"]
+        else
+          []
+        end
+      end
+
+      def detect_vcs_tool
+        return "git" if Dir.exist?(File.join(project_dir, ".git"))
+        return "svn" if Dir.exist?(File.join(project_dir, ".svn"))
+        nil
+      end
+
       def detect_stack
         return :rails if project_file?("Gemfile") && project_file?("config/application.rb")
         return :node if project_file?("package.json")
@@ -626,12 +832,18 @@ module Aidp
 
         if existing && existing[:type]
           prompt.say("  • Provider '#{provider_name}' already configured (type: #{existing[:type]})")
+          # Still ask for model family if not set
+          unless existing[:model_family]
+            model_family = ask_model_family(provider_name, existing[:model_family])
+            set([:providers, provider_name.to_sym, :model_family], model_family)
+          end
           return
         end
 
         provider_type = ask_provider_billing_type(provider_name)
-        set([:providers, provider_name.to_sym], {type: provider_type})
-        prompt.say("  • Added provider '#{provider_name}' with billing type '#{provider_type}' (no secrets stored)")
+        model_family = ask_model_family(provider_name)
+        set([:providers, provider_name.to_sym], {type: provider_type, model_family: model_family})
+        prompt.say("  • Added provider '#{provider_name}' with billing type '#{provider_type}' and model family '#{model_family}' (no secrets stored)")
       end
 
       def ask_provider_billing_type(provider_name)
@@ -640,6 +852,16 @@ module Aidp
           # e.g. tools that expose an integrated model under a subscription cost
           menu.choice "Usage-based / metered (API)", "usage_based"
           menu.choice "Passthrough / local (no billing)", "passthrough"
+        end
+      end
+
+      def ask_model_family(provider_name, default = "auto")
+        prompt.select("Preferred model family for #{provider_name}:", default: default) do |menu|
+          menu.choice "Auto (let provider decide)", "auto"
+          menu.choice "OpenAI o-series (reasoning models)", "openai_o"
+          menu.choice "Anthropic Claude (balanced)", "claude"
+          menu.choice "Mistral (European/open)", "mistral"
+          menu.choice "Local LLM (self-hosted)", "local"
         end
       end
 
