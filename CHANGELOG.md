@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0](https://github.com/viamin/aidp/compare/aidp/v0.17.1...aidp/v0.18.0) (2025-10-25)
+
+
+### Features
+
+* **harness:** add coverage, version-control and interactive testing support; add /tools REPL and docs ([96c858f](https://github.com/viamin/aidp/commit/96c858f8a940294648fb1a75544d0ba853177168))
+* **harness:** add coverage, version-control and interactive testing support; add /tools REPL and docs ([#177](https://github.com/viamin/aidp/issues/177)) ([ec799ab](https://github.com/viamin/aidp/commit/ec799ab5d9aa08c91ac1be73a56dbb4c5fd1ed72))
+
 ## [0.17.1](https://github.com/viamin/aidp/compare/aidp/v0.17.0...aidp/v0.17.1) (2025-10-24)
 
 
