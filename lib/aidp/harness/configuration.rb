@@ -209,6 +209,86 @@ module Aidp
         guards_config[:bypass] == true
       end
 
+      # Get version control configuration
+      def version_control_config
+        work_loop_config[:version_control] || default_version_control_config
+      end
+
+      # Get VCS tool
+      def vcs_tool
+        version_control_config[:tool]
+      end
+
+      # Get VCS behavior (stage/commit/nothing)
+      def vcs_behavior
+        version_control_config[:behavior]
+      end
+
+      # Check if conventional commits are enabled
+      def conventional_commits?
+        version_control_config[:conventional_commits] == true
+      end
+
+      # Get coverage configuration
+      def coverage_config
+        work_loop_config[:coverage] || default_coverage_config
+      end
+
+      # Check if coverage is enabled
+      def coverage_enabled?
+        coverage_config[:enabled] == true
+      end
+
+      # Get coverage tool
+      def coverage_tool
+        coverage_config[:tool]
+      end
+
+      # Get coverage run command
+      def coverage_run_command
+        coverage_config[:run_command]
+      end
+
+      # Get coverage report paths
+      def coverage_report_paths
+        coverage_config[:report_paths] || []
+      end
+
+      # Check if should fail on coverage drop
+      def coverage_fail_on_drop?
+        coverage_config[:fail_on_drop] == true
+      end
+
+      # Get minimum coverage threshold
+      def coverage_minimum
+        coverage_config[:minimum_coverage]
+      end
+
+      # Get interactive testing configuration
+      def interactive_testing_config
+        work_loop_config[:interactive_testing] || default_interactive_testing_config
+      end
+
+      # Check if interactive testing is enabled
+      def interactive_testing_enabled?
+        interactive_testing_config[:enabled] == true
+      end
+
+      # Get interactive testing app type
+      def interactive_testing_app_type
+        interactive_testing_config[:app_type]
+      end
+
+      # Get interactive testing tools configuration
+      def interactive_testing_tools
+        interactive_testing_config[:tools] || {}
+      end
+
+      # Get model family for a provider
+      def model_family(provider_name)
+        provider_config(provider_name)[:model_family] || "auto"
+      end
+
       # Get provider priority
       def provider_priority(provider_name)
         provider_config(provider_name)[:priority] || 0
@@ -554,6 +634,33 @@ module Aidp
           confirm_files: [],
           max_lines_per_commit: nil,
           bypass: false
+        }
+      end
+
+      def default_version_control_config
+        {
+          tool: "git",
+          behavior: "nothing",
+          conventional_commits: false
+        }
+      end
+
+      def default_coverage_config
+        {
+          enabled: false,
+          tool: nil,
+          run_command: nil,
+          report_paths: [],
+          fail_on_drop: false,
+          minimum_coverage: nil
+        }
+      end
+
+      def default_interactive_testing_config
+        {
+          enabled: false,
+          app_type: "web",
+          tools: {}
         }
       end
 

@@ -546,3 +546,356 @@ RSpec.describe Aidp::Harness::ConfigValidator do
     end
   end
 end
+
+RSpec.describe Aidp::Harness::ConfigSchema, "issue #150 extensions" do
+  # Tests for new configuration sections added in issue #150
+  describe "coverage configuration" do
+    it "validates coverage configuration with all fields" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            coverage: {
+              enabled: true,
+              tool: "simplecov",
+              run_command: "bundle exec rspec",
+              report_paths: ["coverage/index.html"],
+              fail_on_drop: true,
+              minimum_coverage: 80.0
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+      expect(result[:errors]).to be_empty
+    end
+
+    it "validates coverage configuration with only enabled flag" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            coverage: {
+              enabled: false
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+
+    it "rejects invalid coverage tool" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            coverage: {
+              enabled: true,
+              tool: "invalid_tool"
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be false
+      expect(result[:errors]).to include(match(/must be one of/))
+    end
+
+    it "accepts valid minimum_coverage values" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            coverage: {
+              enabled: true,
+              tool: "simplecov",
+              minimum_coverage: 80.0
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+      expect(result[:errors]).to be_empty
+    end
+  end
+
+  describe "version control configuration" do
+    it "validates VCS configuration with all fields" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            version_control: {
+              tool: "git",
+              behavior: "commit",
+              conventional_commits: true
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+      expect(result[:errors]).to be_empty
+    end
+
+    it "rejects invalid VCS tool" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            version_control: {
+              tool: "mercurial"
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be false
+      expect(result[:errors]).to include(match(/must be one of/))
+    end
+
+    it "rejects invalid behavior" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            version_control: {
+              tool: "git",
+              behavior: "push"
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be false
+      expect(result[:errors]).to include(match(/must be one of/))
+    end
+  end
+
+  describe "interactive testing configuration" do
+    it "validates interactive testing with web tools" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            interactive_testing: {
+              enabled: true,
+              app_type: "web",
+              tools: {
+                web: {
+                  playwright_mcp: {
+                    enabled: true,
+                    run: "npx playwright test",
+                    specs_dir: ".aidp/tests/web"
+                  },
+                  chrome_devtools_mcp: {
+                    enabled: false
+                  }
+                }
+              }
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+      expect(result[:errors]).to be_empty
+    end
+
+    it "validates interactive testing with CLI tools" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            interactive_testing: {
+              enabled: true,
+              app_type: "cli",
+              tools: {
+                cli: {
+                  expect: {
+                    enabled: true,
+                    run: "expect test.exp",
+                    specs_dir: ".aidp/tests/cli"
+                  }
+                }
+              }
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+
+    it "validates interactive testing with desktop tools" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            interactive_testing: {
+              enabled: true,
+              app_type: "desktop",
+              tools: {
+                desktop: {
+                  applescript: {
+                    enabled: true,
+                    run: "osascript test.scpt",
+                    specs_dir: ".aidp/tests/desktop"
+                  },
+                  screen_reader: {
+                    enabled: true,
+                    notes: "VoiceOver tests"
+                  }
+                }
+              }
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+
+    it "rejects invalid app_type" do
+      config = {
+        harness: {
+          default_provider: "cursor",
+          work_loop: {
+            interactive_testing: {
+              enabled: true,
+              app_type: "mobile"
+            }
+          }
+        },
+        providers: {
+          cursor: {type: "subscription"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be false
+      expect(result[:errors]).to include(match(/must be one of/))
+    end
+  end
+
+  describe "model family configuration" do
+    it "validates model_family in provider config" do
+      config = {
+        harness: {
+          default_provider: "anthropic"
+        },
+        providers: {
+          anthropic: {
+            type: "usage_based",
+            model_family: "claude",
+            max_tokens: 100_000
+          }
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+      expect(result[:errors]).to be_empty
+    end
+
+    it "validates all model_family enum values" do
+      families = ["auto", "openai_o", "claude", "mistral", "local"]
+
+      families.each do |family|
+        config = {
+          harness: {
+            default_provider: "test"
+          },
+          providers: {
+            test: {
+              type: "subscription",
+              model_family: family
+            }
+          }
+        }
+
+        result = described_class.validate(config)
+        expect(result[:valid]).to be(true), "Expected #{family} to be valid"
+      end
+    end
+
+    it "rejects invalid model_family" do
+      config = {
+        harness: {
+          default_provider: "test"
+        },
+        providers: {
+          test: {
+            type: "subscription",
+            model_family: "gemini"
+          }
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be false
+      expect(result[:errors]).to include(match(/must be one of/))
+    end
+
+    it "allows missing model_family (defaults to auto)" do
+      config = {
+        harness: {
+          default_provider: "test"
+        },
+        providers: {
+          test: {
+            type: "subscription"
+          }
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+  end
+end
+
+# Note: These tests complete the test coverage for issue #150
