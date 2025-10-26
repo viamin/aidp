@@ -896,6 +896,111 @@ RSpec.describe Aidp::Harness::ConfigSchema, "issue #150 extensions" do
       expect(result[:valid]).to be true
     end
   end
+
+  describe "thinking configuration" do
+    it "validates thinking configuration with all fields" do
+      config = {
+        "harness" => {
+          "default_provider" => "anthropic",
+          "work_loop" => {"enabled" => true}
+        },
+        "thinking" => {
+          "default_tier" => "standard",
+          "max_tier" => "pro",
+          "allow_provider_switch" => true,
+          "escalation" => {
+            "on_fail_attempts" => 3,
+            "on_complexity_threshold" => {
+              "files_changed" => 5,
+              "modules_touched" => 3
+            }
+          },
+          "permissions_by_tier" => {
+            "mini" => "safe",
+            "standard" => "tools",
+            "thinking" => "tools",
+            "pro" => "dangerous"
+          },
+          "overrides" => {
+            "skill.generate_tests" => "thinking",
+            "template.large_refactor" => "pro"
+          }
+        },
+        "providers" => {
+          "anthropic" => {"type" => "usage_based"}
+        }
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+
+    it "validates thinking configuration with minimal fields" do
+      config = {
+        "harness" => {"default_provider" => "anthropic"},
+        "thinking" => {},
+        "providers" => {"anthropic" => {"type" => "usage_based"}}
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+
+    it "validates all tier enum values" do
+      %w[mini standard thinking pro max].each do |tier|
+        config = {
+          "harness" => {"default_provider" => "anthropic"},
+          "thinking" => {
+            "default_tier" => tier,
+            "max_tier" => tier
+          },
+          "providers" => {"anthropic" => {"type" => "usage_based"}}
+        }
+
+        result = described_class.validate(config)
+        expect(result[:valid]).to be true
+      end
+    end
+
+    # Note: Enum validation for thinking config is handled at runtime by
+    # ThinkingDepthManager, not by schema validation. This is consistent
+    # with other optional top-level sections.
+
+    it "validates escalation configuration" do
+      config = {
+        "harness" => {"default_provider" => "anthropic"},
+        "thinking" => {
+          "escalation" => {
+            "on_fail_attempts" => 5,
+            "on_complexity_threshold" => {
+              "files_changed" => 10,
+              "modules_touched" => 5
+            }
+          }
+        },
+        "providers" => {"anthropic" => {"type" => "usage_based"}}
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+
+    it "validates override key patterns" do
+      config = {
+        "harness" => {"default_provider" => "anthropic"},
+        "thinking" => {
+          "overrides" => {
+            "skill.my_skill" => "thinking",
+            "template.my_template" => "pro"
+          }
+        },
+        "providers" => {"anthropic" => {"type" => "usage_based"}}
+      }
+
+      result = described_class.validate(config)
+      expect(result[:valid]).to be true
+    end
+  end
 end
 
-# Note: These tests complete the test coverage for issue #150
+# Note: These tests complete the test coverage for issues #150 and #157

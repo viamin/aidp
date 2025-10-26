@@ -963,4 +963,162 @@ RSpec.describe Aidp::Execute::ReplMacros do
       expect(repl.in_focus?("lib/other/file.rb")).to be false
     end
   end
+
+  describe "/thinking command" do
+    let(:project_dir) { Dir.mktmpdir }
+    let(:repl) { described_class.new(project_dir: project_dir) }
+
+    before do
+      # Create config directory and files
+      FileUtils.mkdir_p(File.join(project_dir, ".aidp"))
+
+      # Create models catalog
+      catalog_path = File.join(project_dir, ".aidp", "models_catalog.yml")
+      catalog = {
+        "schema_version" => "1.0",
+        "providers" => {
+          "anthropic" => {
+            "display_name" => "Anthropic",
+            "models" => {
+              "claude-3-haiku" => {"tier" => "mini", "context_window" => 200000},
+              "claude-3-5-sonnet" => {"tier" => "standard", "context_window" => 200000},
+              "claude-3-opus" => {"tier" => "pro", "context_window" => 200000}
+            }
+          }
+        }
+      }
+      File.write(catalog_path, YAML.dump(catalog))
+
+      # Create config file
+      config_path = File.join(project_dir, ".aidp", "aidp.yml")
+      config = {
+        "harness" => {
+          "default_provider" => "anthropic"
+        },
+        "thinking" => {
+          "default_tier" => "standard",
+          "max_tier" => "pro"
+        },
+        "providers" => {
+          "anthropic" => {
+            "type" => "usage_based",
+            "api_key" => "test-key",
+            "models" => ["claude-3-5-sonnet"],
+            "priority" => 1
+          },
+          "cursor" => {
+            "type" => "usage_based",
+            "api_key" => "test-key",
+            "models" => ["cursor-small"],
+            "priority" => 2
+          }
+        }
+      }
+      File.write(config_path, YAML.dump(config))
+    end
+
+    after do
+      FileUtils.rm_rf(project_dir)
+    end
+
+    describe "/thinking show" do
+      it "displays current thinking configuration" do
+        result = repl.execute("/thinking show")
+        expect(result[:success]).to be true
+        expect(result[:message]).to include("Thinking Depth Configuration")
+        expect(result[:message]).to include("Current Tier: standard")
+        expect(result[:message]).to include("Max Tier: pro")
+        expect(result[:action]).to eq(:display)
+      end
+
+      it "shows available tiers" do
+        result = repl.execute("/thinking show")
+        expect(result[:message]).to include("Available Tiers:")
+        expect(result[:message]).to include("mini")
+        expect(result[:message]).to include("standard")
+        expect(result[:message]).to include("pro")
+      end
+
+      it "shows current model selection" do
+        result = repl.execute("/thinking show")
+        expect(result[:message]).to include("Current Model:")
+        expect(result[:message]).to include("anthropic")
+      end
+
+      it "shows escalation settings" do
+        result = repl.execute("/thinking show")
+        expect(result[:message]).to include("Escalation Settings:")
+        expect(result[:message]).to include("Fail Attempts Threshold:")
+      end
+    end
+
+    describe "/thinking set" do
+      it "changes current tier" do
+        result = repl.execute("/thinking set thinking")
+        expect(result[:success]).to be true
+        expect(result[:message]).to include("standard → thinking")
+        expect(result[:action]).to eq(:tier_changed)
+      end
+
+      it "validates tier name" do
+        result = repl.execute("/thinking set invalid")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Invalid tier")
+      end
+
+      it "requires tier argument" do
+        result = repl.execute("/thinking set")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage:")
+      end
+
+      it "enforces max tier" do
+        result = repl.execute("/thinking set max")
+        expect(result[:success]).to be true
+        # Should be capped at pro (the configured max_tier)
+        expect(result[:message]).to include("pro")
+      end
+    end
+
+    describe "/thinking max" do
+      it "changes max tier" do
+        result = repl.execute("/thinking max thinking")
+        expect(result[:success]).to be true
+        expect(result[:message]).to include("pro → thinking")
+        expect(result[:action]).to eq(:max_tier_changed)
+      end
+
+      it "validates tier name" do
+        result = repl.execute("/thinking max invalid")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Invalid tier")
+      end
+
+      it "requires tier argument" do
+        result = repl.execute("/thinking max")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Usage:")
+      end
+    end
+
+    describe "/thinking reset" do
+      it "resets tier to default" do
+        result = repl.execute("/thinking reset")
+        expect(result[:success]).to be true
+        # Since each command creates a fresh manager, reset will show standard → standard
+        # In a real REPL with persistent manager state, this would reset from current tier
+        expect(result[:message]).to include("→ standard")
+        expect(result[:message]).to include("Escalation count cleared")
+        expect(result[:action]).to eq(:tier_reset)
+      end
+    end
+
+    describe "unknown subcommand" do
+      it "returns error for unknown subcommand" do
+        result = repl.execute("/thinking invalid")
+        expect(result[:success]).to be false
+        expect(result[:message]).to include("Unknown subcommand")
+      end
+    end
+  end
 end

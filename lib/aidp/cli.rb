@@ -759,9 +759,10 @@ module Aidp
         require_relative "harness/provider_info"
 
         provider_name = args.shift
+
+        # If no provider specified, show models catalog table
         unless provider_name
-          display_message("Usage: aidp providers info <provider_name>", type: :info)
-          display_message("Example: aidp providers info claude", type: :info)
+          run_providers_models_catalog
           return
         end
 
@@ -837,6 +838,46 @@ module Aidp
 
         display_message("\n" + "=" * 60, type: :muted)
         display_message("Tip: Use --refresh to update this information", type: :muted)
+      end
+
+      def run_providers_models_catalog
+        require_relative "harness/capability_registry"
+        require "tty-table"
+
+        display_message("Models Catalog - Thinking Depth Tiers", type: :highlight)
+        display_message("=" * 80, type: :muted)
+
+        registry = Aidp::Harness::CapabilityRegistry.new
+        unless registry.load_catalog
+          display_message("No models catalog found. Create .aidp/models_catalog.yml first.", type: :error)
+          return
+        end
+
+        rows = []
+        registry.provider_names.sort.each do |provider|
+          models = registry.models_for_provider(provider)
+          models.each do |model_name, model_data|
+            tier = model_data["tier"] || "-"
+            context = model_data["context_window"] ? "#{model_data["context_window"] / 1000}k" : "-"
+            tools = model_data["supports_tools"] ? "yes" : "no"
+            cost_input = model_data["cost_per_mtok_input"]
+            cost = cost_input ? "$#{cost_input}/MTok" : "-"
+
+            rows << [provider, model_name, tier, context, tools, cost]
+          end
+        end
+
+        if rows.empty?
+          display_message("No models found in catalog", type: :info)
+          return
+        end
+
+        header = ["Provider", "Model", "Tier", "Context", "Tools", "Cost"]
+        table = TTY::Table.new(header, rows)
+        display_message(table.render(:basic), type: :info)
+
+        display_message("\n" + "=" * 80, type: :muted)
+        display_message("Use '/thinking show' in REPL to see current tier configuration", type: :muted)
       end
 
       def run_providers_refresh_command(args)

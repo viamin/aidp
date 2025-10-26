@@ -771,6 +771,81 @@ module Aidp
             }
           }
         },
+        thinking: {
+          type: :hash,
+          required: false,
+          properties: {
+            default_tier: {
+              type: :string,
+              required: false,
+              default: "standard",
+              enum: ["mini", "standard", "thinking", "pro", "max"]
+            },
+            max_tier: {
+              type: :string,
+              required: false,
+              default: "standard",
+              enum: ["mini", "standard", "thinking", "pro", "max"]
+            },
+            allow_provider_switch: {
+              type: :boolean,
+              required: false,
+              default: true
+            },
+            escalation: {
+              type: :hash,
+              required: false,
+              properties: {
+                on_fail_attempts: {
+                  type: :integer,
+                  required: false,
+                  default: 2,
+                  min: 1,
+                  max: 10
+                },
+                on_complexity_threshold: {
+                  type: :hash,
+                  required: false,
+                  default: {},
+                  properties: {
+                    files_changed: {
+                      type: :integer,
+                      required: false,
+                      min: 1
+                    },
+                    modules_touched: {
+                      type: :integer,
+                      required: false,
+                      min: 1
+                    }
+                  }
+                }
+              }
+            },
+            permissions_by_tier: {
+              type: :hash,
+              required: false,
+              default: {},
+              pattern_properties: {
+                /^(mini|standard|thinking|pro|max)$/ => {
+                  type: :string,
+                  enum: ["safe", "tools", "dangerous"]
+                }
+              }
+            },
+            overrides: {
+              type: :hash,
+              required: false,
+              default: {},
+              pattern_properties: {
+                /^(skill|template)\..+$/ => {
+                  type: :string,
+                  enum: ["mini", "standard", "thinking", "pro", "max"]
+                }
+              }
+            }
+          }
+        },
         providers: {
           type: :hash,
           required: false,

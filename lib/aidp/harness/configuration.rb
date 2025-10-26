@@ -339,6 +339,62 @@ module Aidp
         harness_config[:logging] || default_logging_config
       end
 
+      # Get thinking depth configuration
+      def thinking_config
+        @config[:thinking] || default_thinking_config
+      end
+
+      # Get default thinking tier
+      def default_tier
+        thinking_config[:default_tier] || "standard"
+      end
+
+      # Get maximum thinking tier
+      def max_tier
+        thinking_config[:max_tier] || "standard"
+      end
+
+      # Check if provider switching for tier is allowed
+      def allow_provider_switch_for_tier?
+        thinking_config[:allow_provider_switch] != false
+      end
+
+      # Get escalation configuration
+      def escalation_config
+        thinking_config[:escalation] || default_escalation_config
+      end
+
+      # Get fail attempts threshold for escalation
+      def escalation_fail_attempts
+        escalation_config[:on_fail_attempts] || 2
+      end
+
+      # Get complexity threshold configuration for escalation
+      def escalation_complexity_threshold
+        escalation_config[:on_complexity_threshold] || {}
+      end
+
+      # Get permissions by tier configuration
+      def permissions_by_tier
+        thinking_config[:permissions_by_tier] || {}
+      end
+
+      # Get permission level for a tier
+      def permission_for_tier(tier)
+        permissions_by_tier[tier] || permissions_by_tier[tier.to_sym] || "tools"
+      end
+
+      # Get thinking tier overrides
+      def thinking_overrides
+        thinking_config[:overrides] || {}
+      end
+
+      # Get tier override for a skill or template
+      # @param key [String] skill or template key (e.g., "skill.generate_tests", "template.large_refactor")
+      def tier_override_for(key)
+        thinking_overrides[key] || thinking_overrides[key.to_sym]
+      end
+
       # Get fallback configuration
       def fallback_config
         harness_config[:fallback] || default_fallback_config
@@ -661,6 +717,24 @@ module Aidp
           enabled: false,
           app_type: "web",
           tools: {}
+        }
+      end
+
+      def default_thinking_config
+        {
+          default_tier: "standard",
+          max_tier: "standard",
+          allow_provider_switch: true,
+          escalation: default_escalation_config,
+          permissions_by_tier: {},
+          overrides: {}
+        }
+      end
+
+      def default_escalation_config
+        {
+          on_fail_attempts: 2,
+          on_complexity_threshold: {}
         }
       end
 

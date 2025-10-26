@@ -863,9 +863,9 @@ RSpec.describe Aidp::CLI do
       require_relative "../../lib/aidp/harness/provider_info"
     end
 
-    it "shows usage when provider name missing" do
+    it "shows models catalog when provider name missing" do
       described_class.send(:run_providers_info_command, [])
-      expect(described_class).to have_received(:display_message).with(/Usage: aidp providers info/, type: :info)
+      expect(described_class).to have_received(:display_message).with("Models Catalog - Thinking Depth Tiers", type: :highlight)
     end
 
     it "shows error when info returns nil" do
