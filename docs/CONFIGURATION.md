@@ -407,6 +407,49 @@ modes:
 These defaults are consumed by background jobs, watch mode, and quick mode
 invocations.
 
+## Thinking Depth
+
+Configure dynamic model selection based on task complexity:
+
+```yaml
+thinking:
+  default_tier: standard           # Starting tier: mini|standard|thinking|pro|max
+  max_tier: pro                   # Maximum allowed tier
+  allow_provider_switch: true     # Try other providers if tier unavailable
+
+  escalation:
+    on_fail_attempts: 2           # Escalate after N failures
+    on_complexity_threshold:      # Escalate based on complexity
+      files_changed: 10
+      modules_touched: 5
+
+  permissions_by_tier:            # Map tiers to permission modes
+    mini: safe
+    standard: tools
+    pro: dangerous
+
+  overrides:                      # Override tier for specific skills/templates
+    skill.security_audit: pro
+    template.critical_bugfix: thinking
+```
+
+**Tiers**:
+
+- `mini`: Fastest, most cost-effective (claude-3-haiku, gpt-4o-mini)
+- `standard`: Balanced performance (claude-3-5-sonnet, gpt-4o)
+- `thinking`: Advanced reasoning (o1-preview, o1-mini, o3-mini)
+- `pro`: Maximum capability (claude-3-opus, gemini-1.5-pro)
+- `max`: Reserved for future flagship models
+
+**Escalation**: AIDP can automatically escalate to higher tiers based on:
+
+- Consecutive failures (`on_fail_attempts`)
+- Task complexity thresholds (`on_complexity_threshold`)
+
+**Provider Switching**: If enabled, AIDP will try alternate providers when the current provider doesn't have models at the requested tier.
+
+For detailed documentation, see [THINKING_DEPTH.md](THINKING_DEPTH.md).
+
 ## Updating the Configuration
 
 - Run `aidp config --interactive` to re-open the wizard.

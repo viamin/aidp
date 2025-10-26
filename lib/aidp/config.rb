@@ -345,6 +345,12 @@ module Aidp
         merged[:skills] = merged[:skills].merge(symbolize_keys(skills_section))
       end
 
+      # Deep merge thinking config
+      if config[:thinking] || config["thinking"]
+        thinking_section = config[:thinking] || config["thinking"]
+        merged[:thinking] = symbolize_keys(thinking_section)
+      end
+
       merged
     end
 

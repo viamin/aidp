@@ -501,6 +501,150 @@ See [CONFIGURATION.md](CONFIGURATION.md) for detailed configuration options.
 
 ---
 
+### Thinking Depth Commands
+
+Control model selection and thinking depth tier during work loops.
+
+#### `/thinking show`
+
+Display current thinking depth configuration and model selection.
+
+**Usage:**
+
+```text
+/thinking show
+```
+
+**Output:**
+
+```text
+Thinking Depth Configuration:
+
+Current Tier: standard
+Default Tier: standard
+Max Tier: pro
+
+Available Tiers:
+  → standard
+  ↑ pro
+    mini
+    thinking
+    max
+
+Legend: → current, ↑ max allowed
+
+Current Model: anthropic/claude-3-5-sonnet-20241022
+  Tier: standard
+  Context Window: 200000
+
+Provider Switching: enabled
+
+Escalation Settings:
+  Fail Attempts Threshold: 2
+```
+
+**Returns**: `action: :display` with current thinking configuration
+
+---
+
+#### `/thinking set <tier>`
+
+Change the current tier for the session.
+
+**Arguments:**
+
+- `<tier>`: Tier name (`mini`, `standard`, `thinking`, `pro`, `max`)
+
+**Usage:**
+
+```text
+/thinking set thinking
+```
+
+**Output:**
+
+```text
+Thinking tier changed: standard → thinking
+Max tier: pro
+```
+
+**Behavior:**
+
+- Changes tier for remainder of work loop session
+- Tier is capped at configured `max_tier`
+- Does not persist to configuration file
+
+**Returns**: `action: :tier_changed` with tier transition
+
+**Error Conditions:**
+
+- Invalid tier: "Invalid tier: invalid\nValid tiers: mini, standard, thinking, pro, max"
+- Missing argument: "Usage: /thinking set `<tier>`\nTiers: mini, standard, thinking, pro, max"
+
+---
+
+#### `/thinking max <tier>`
+
+Change the maximum allowed tier for the session.
+
+**Arguments:**
+
+- `<tier>`: Maximum tier (`mini`, `standard`, `thinking`, `pro`, `max`)
+
+**Usage:**
+
+```text
+/thinking max pro
+```
+
+**Output:**
+
+```text
+Max tier changed: standard → pro
+Current tier: standard
+```
+
+**Behavior:**
+
+- Session-scoped override of `max_tier`
+- Does not persist to configuration file
+- If current tier exceeds new max, it will be capped
+
+**Returns**: `action: :max_tier_changed` with tier change
+
+---
+
+#### `/thinking reset`
+
+Reset to default tier and clear escalation count.
+
+**Usage:**
+
+```text
+/thinking reset
+```
+
+**Output:**
+
+```text
+Thinking tier reset: thinking → standard
+Escalation count cleared
+```
+
+**Behavior:**
+
+- Resets to configured `default_tier`
+- Clears escalation failure count
+- Resets tier history
+
+**Returns**: `action: :tier_reset`
+
+---
+
+See [THINKING_DEPTH.md](THINKING_DEPTH.md) for complete thinking depth documentation.
+
+---
+
 ### Standard REPL Macros
 
 All standard REPL macros from [REPL_REFERENCE.md](REPL_REFERENCE.md) are also available:

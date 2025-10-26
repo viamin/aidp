@@ -281,6 +281,12 @@ module Aidp
             usage: "/tools <show|coverage|test> [subcommand]",
             example: "/tools show",
             handler: method(:cmd_tools)
+          },
+          "/thinking" => {
+            description: "Manage thinking depth tier for model selection",
+            usage: "/thinking <show|set|max|reset> [tier]",
+            example: "/thinking show",
+            handler: method(:cmd_thinking)
           }
         }
       end
@@ -1695,6 +1701,183 @@ module Aidp
             action: :none
           }
         end
+      end
+
+      # Command: /thinking
+      def cmd_thinking(args)
+        subcommand = args[0]
+
+        case subcommand
+        when "show"
+          cmd_thinking_show
+        when "set"
+          cmd_thinking_set(args[1])
+        when "max"
+          cmd_thinking_max(args[1])
+        when "reset"
+          cmd_thinking_reset
+        else
+          {
+            success: false,
+            message: "Unknown subcommand: #{subcommand}\nUsage: /thinking <show|set|max|reset> [tier]",
+            action: :none
+          }
+        end
+      rescue => e
+        Aidp.log_error("repl_macros", "Failed to execute thinking command", error: e.message)
+        {
+          success: false,
+          message: "Failed to execute thinking command: #{e.message}",
+          action: :none
+        }
+      end
+
+      # Subcommand: /thinking show
+      def cmd_thinking_show
+        require_relative "../harness/configuration"
+        require_relative "../harness/thinking_depth_manager"
+
+        config = Aidp::Harness::Configuration.new(@project_dir)
+        manager = Aidp::Harness::ThinkingDepthManager.new(config, root_dir: @project_dir)
+
+        lines = []
+        lines << "Thinking Depth Configuration:"
+        lines << ""
+        lines << "Current Tier: #{manager.current_tier}"
+        lines << "Default Tier: #{manager.default_tier}"
+        lines << "Max Tier: #{manager.max_tier}"
+        lines << ""
+
+        # Show all available tiers
+        require_relative "../harness/capability_registry"
+        lines << "Available Tiers:"
+        Aidp::Harness::CapabilityRegistry::VALID_TIERS.each do |tier|
+          marker = if tier == manager.current_tier
+            "→"
+          elsif tier == manager.max_tier
+            "↑"
+          else
+            " "
+          end
+          lines << "  #{marker} #{tier}"
+        end
+        lines << ""
+        lines << "Legend: → current, ↑ max allowed"
+        lines << ""
+
+        # Show current model selection
+        current_model = manager.select_model_for_tier
+        if current_model
+          provider, model_name, model_data = current_model
+          lines << "Current Model: #{provider}/#{model_name}"
+          lines << "  Tier: #{model_data["tier"]}" if model_data["tier"]
+          lines << "  Context Window: #{model_data["context_window"]}" if model_data["context_window"]
+        else
+          lines << "Current Model: (none selected)"
+        end
+
+        lines << ""
+        lines << "Provider Switching: #{config.allow_provider_switch_for_tier? ? "enabled" : "disabled"}"
+
+        # Show escalation config
+        escalation = config.escalation_config
+        lines << ""
+        lines << "Escalation Settings:"
+        lines << "  Fail Attempts Threshold: #{escalation[:on_fail_attempts]}"
+        if escalation[:on_complexity_threshold]&.any?
+          lines << "  Complexity Thresholds:"
+          escalation[:on_complexity_threshold].each do |key, value|
+            lines << "    #{key}: #{value}"
+          end
+        end
+
+        {
+          success: true,
+          message: lines.join("\n"),
+          action: :display
+        }
+      end
+
+      # Subcommand: /thinking set <tier>
+      def cmd_thinking_set(tier)
+        unless tier
+          return {
+            success: false,
+            message: "Usage: /thinking set <tier>\nTiers: mini, standard, thinking, pro, max",
+            action: :none
+          }
+        end
+
+        require_relative "../harness/configuration"
+        require_relative "../harness/thinking_depth_manager"
+
+        config = Aidp::Harness::Configuration.new(@project_dir)
+        manager = Aidp::Harness::ThinkingDepthManager.new(config, root_dir: @project_dir)
+
+        old_tier = manager.current_tier
+        manager.current_tier = tier
+
+        {
+          success: true,
+          message: "Thinking tier changed: #{old_tier} → #{tier}\nMax tier: #{manager.max_tier}",
+          action: :tier_changed
+        }
+      rescue ArgumentError => e
+        {
+          success: false,
+          message: "Invalid tier: #{e.message}\nValid tiers: mini, standard, thinking, pro, max",
+          action: :none
+        }
+      end
+
+      # Subcommand: /thinking max <tier>
+      def cmd_thinking_max(tier)
+        unless tier
+          return {
+            success: false,
+            message: "Usage: /thinking max <tier>\nTiers: mini, standard, thinking, pro, max",
+            action: :none
+          }
+        end
+
+        require_relative "../harness/configuration"
+        require_relative "../harness/thinking_depth_manager"
+
+        config = Aidp::Harness::Configuration.new(@project_dir)
+        manager = Aidp::Harness::ThinkingDepthManager.new(config, root_dir: @project_dir)
+
+        old_max = manager.max_tier
+        manager.max_tier = tier
+
+        {
+          success: true,
+          message: "Max tier changed: #{old_max} → #{tier}\nCurrent tier: #{manager.current_tier}",
+          action: :max_tier_changed
+        }
+      rescue ArgumentError => e
+        {
+          success: false,
+          message: "Invalid tier: #{e.message}\nValid tiers: mini, standard, thinking, pro, max",
+          action: :none
+        }
+      end
+
+      # Subcommand: /thinking reset
+      def cmd_thinking_reset
+        require_relative "../harness/configuration"
+        require_relative "../harness/thinking_depth_manager"
+
+        config = Aidp::Harness::Configuration.new(@project_dir)
+        manager = Aidp::Harness::ThinkingDepthManager.new(config, root_dir: @project_dir)
+
+        old_tier = manager.current_tier
+        manager.reset_to_default
+
+        {
+          success: true,
+          message: "Thinking tier reset: #{old_tier} → #{manager.current_tier}\nEscalation count cleared",
+          action: :tier_reset
+        }
       end
     end
   end
