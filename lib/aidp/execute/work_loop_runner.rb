@@ -46,7 +46,7 @@ module Aidp
         @project_dir = project_dir
         @provider_manager = provider_manager
         @config = config
-        @prompt_manager = PromptManager.new(project_dir)
+        @prompt_manager = PromptManager.new(project_dir, config: config)
         @test_runner = Aidp::Harness::TestRunner.new(project_dir, config)
         @checkpoint = Checkpoint.new(project_dir)
         @checkpoint_display = CheckpointDisplay.new
@@ -343,6 +343,16 @@ module Aidp
 
       # Create initial PROMPT.md with all context
       def create_initial_prompt(step_spec, context)
+        # Try intelligent prompt optimization first (ZFC-powered)
+        if @prompt_manager.optimization_enabled?
+          if create_optimized_prompt(step_spec, context)
+            return
+          end
+          # Fallback to traditional prompt on optimization failure
+          display_message("  ⚠️  Prompt optimization failed, using traditional approach", type: :warning)
+        end
+
+        # Traditional prompt building (fallback or when optimization disabled)
         template_content = load_template(step_spec["templates"]&.first)
         prd_content = load_prd
         style_guide = load_style_guide
@@ -362,6 +372,103 @@ module Aidp
 
         @prompt_manager.write(initial_prompt)
         display_message("  Created PROMPT.md (#{initial_prompt.length} chars)", type: :info)
+      end
+
+      # Create prompt using intelligent optimization (Zero Framework Cognition)
+      # Selects only the most relevant fragments from style guide, templates, and code
+      def create_optimized_prompt(step_spec, context)
+        user_input = format_user_input(context[:user_input])
+
+        # Infer task type from step name
+        task_type = infer_task_type(step_spec, user_input)
+
+        # Extract affected files from context or PRD
+        affected_files = extract_affected_files(context, user_input)
+
+        # Build task context for optimizer
+        task_context = {
+          task_type: task_type,
+          description: build_task_description(user_input, context),
+          affected_files: affected_files,
+          step_name: @step_name,
+          tags: extract_tags(user_input, step_spec)
+        }
+
+        # Use optimizer to create prompt
+        success = @prompt_manager.write_optimized(
+          task_context,
+          include_metadata: @config.prompt_log_fragments?
+        )
+
+        if success
+          stats = @prompt_manager.last_optimization_stats
+          display_message("  ✨ Created optimized PROMPT.md", type: :success)
+          display_message("     Selected: #{stats.selected_count} fragments, Excluded: #{stats.excluded_count}", type: :info)
+          display_message("     Tokens: #{stats.total_tokens} (#{stats.budget_utilization.round(1)}% of budget)", type: :info)
+          display_message("     Avg relevance: #{(stats.average_score * 100).round(1)}%", type: :info)
+        end
+
+        success
+      end
+
+      # Infer task type from step name and context
+      def infer_task_type(step_spec, user_input)
+        step_name = @step_name.to_s.downcase
+        input_lower = user_input.to_s.downcase
+
+        return :test if step_name.include?("test") || input_lower.include?("test")
+        return :bugfix if step_name.include?("fix") || input_lower.include?("fix") || input_lower.include?("bug")
+        return :refactor if step_name.include?("refactor") || input_lower.include?("refactor")
+        return :analysis if step_name.include?("analyz") || step_name.include?("review")
+
+        :feature # Default to feature
+      end
+
+      # Extract files that will be affected by this work
+      def extract_affected_files(context, user_input)
+        files = []
+
+        # From user input (e.g., "update lib/user.rb")
+        user_input&.scan(/[\w\/]+\.rb/)&.each do |file|
+          files << file
+        end
+
+        # From deterministic outputs
+        context[:deterministic_outputs]&.each do |output|
+          if output[:output_path]&.end_with?(".rb")
+            files << output[:output_path]
+          end
+        end
+
+        files.uniq
+      end
+
+      # Build task description from context
+      def build_task_description(user_input, context)
+        parts = []
+        parts << user_input if user_input && !user_input.empty?
+        parts << context[:previous_agent_summary] if context[:previous_agent_summary]
+        parts.join("\n\n")
+      end
+
+      # Extract relevant tags from input and spec
+      def extract_tags(user_input, step_spec)
+        tags = []
+        input_lower = user_input.to_s.downcase
+
+        # Common tags from content
+        tags << "testing" if input_lower.include?("test")
+        tags << "security" if input_lower.include?("security") || input_lower.include?("auth")
+        tags << "api" if input_lower.include?("api") || input_lower.include?("endpoint")
+        tags << "database" if input_lower.include?("database") || input_lower.include?("migration")
+        tags << "performance" if input_lower.include?("performance") || input_lower.include?("optim")
+
+        # Tags from step spec
+        if step_spec["tags"]
+          tags.concat(Array(step_spec["tags"]))
+        end
+
+        tags.uniq
       end
 
       def build_initial_prompt_content(template:, prd:, style_guide:, user_input:, step_name:, deterministic_outputs:, previous_agent_summary:)

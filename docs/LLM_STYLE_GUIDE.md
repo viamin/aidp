@@ -219,5 +219,9 @@ end
 - Include rationale when refactoring behavior
 - Reference issue IDs for non-trivial changes
 
+## 18. Prompt Optimization
+
+AIDP uses intelligent fragment selection - you may not see this entire guide in your prompts. The AI selects only relevant sections based on your current task. Use `/prompt explain` to see what was selected. See `STYLE_GUIDE.md` for details on writing fragment-friendly documentation.
+
 ---
 **Use this cheat sheet for generation; consult `STYLE_GUIDE.md` when context or rationale is needed.**

@@ -549,6 +549,53 @@ module Aidp
         zfc_ab_testing_config[:enabled] == true
       end
 
+      # Prompt optimization configuration methods
+
+      # Get prompt optimization configuration
+      def prompt_optimization_config
+        @config[:prompt_optimization] || default_prompt_optimization_config
+      end
+
+      # Check if prompt optimization is enabled
+      def prompt_optimization_enabled?
+        prompt_optimization_config[:enabled] == true
+      end
+
+      # Get maximum tokens for prompt
+      def prompt_max_tokens
+        prompt_optimization_config[:max_tokens] || 16000
+      end
+
+      # Get include threshold configuration
+      def prompt_include_thresholds
+        prompt_optimization_config[:include_threshold] || default_include_thresholds
+      end
+
+      # Get style guide include threshold
+      def prompt_style_guide_threshold
+        prompt_include_thresholds[:style_guide] || 0.75
+      end
+
+      # Get templates include threshold
+      def prompt_templates_threshold
+        prompt_include_thresholds[:templates] || 0.8
+      end
+
+      # Get source code include threshold
+      def prompt_source_threshold
+        prompt_include_thresholds[:source] || 0.7
+      end
+
+      # Check if dynamic adjustment is enabled
+      def prompt_dynamic_adjustment?
+        prompt_optimization_config[:dynamic_adjustment] != false
+      end
+
+      # Check if fragment logging is enabled
+      def prompt_log_fragments?
+        prompt_optimization_config[:log_selected_fragments] == true
+      end
+
       # Devcontainer configuration methods
 
       # Get devcontainer configuration
@@ -978,6 +1025,26 @@ module Aidp
           enabled: false,
           sample_rate: 0.1,
           log_comparisons: true
+        }
+      end
+
+      # Default prompt optimization configuration
+      def default_prompt_optimization_config
+        {
+          enabled: false,  # Experimental feature - disabled by default
+          max_tokens: 16000,
+          include_threshold: default_include_thresholds,
+          dynamic_adjustment: true,
+          log_selected_fragments: false
+        }
+      end
+
+      # Default include thresholds for prompt optimization
+      def default_include_thresholds
+        {
+          style_guide: 0.75,
+          templates: 0.8,
+          source: 0.7
         }
       end
 
