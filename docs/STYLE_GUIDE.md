@@ -8,6 +8,7 @@ Coding standards, architectural patterns, and best practices for the AI Dev Pipe
 - [Sandi Metz's Rules](#sandi-metzs-rules)
 - [Ruby Conventions](#ruby-conventions)
 - [Ruby Version Management](#ruby-version-management)
+- [Zero Framework Cognition (ZFC)](#zero-framework-cognition-zfc)
 - [TTY Toolkit Guidelines](#tty-toolkit-guidelines)
 - [Testing Guidelines](#testing-guidelines)
 - [Logging Practices](#logging-practices)
@@ -332,6 +333,304 @@ If you encounter Ruby version issues:
 4. **Check mise configuration**: `cat .mise.toml`
 
 **Never bypass mise** - it ensures consistent Ruby versions across all environments.
+
+## Zero Framework Cognition (ZFC)
+
+**Zero Framework Cognition (ZFC)** is an architectural principle for AI-powered applications: delegate all reasoning, decision-making, and semantic analysis to AI models, while keeping orchestration code "dumb" - purely mechanical.
+
+### The Golden Rule
+
+> If it requires understanding meaning, ask the AI. If it's purely mechanical, keep it in code.
+
+### ZFC-Compliant Operations
+
+✅ **ALLOWED** - Keep these in code:
+
+- **Pure orchestration**: I/O, plumbing, file operations
+- **Structural safety checks**: Schema validation, required fields, timeouts
+- **Policy enforcement**: Budgets, rate-limits, confidence thresholds, approval gates
+- **Mechanical transforms**: Parameter substitution, formatting, compilation
+- **State management**: Lifecycle tracking, progress monitoring, journaling
+- **Typed error handling**: Using SDK error types (not message parsing)
+
+### ZFC Violations
+
+❌ **FORBIDDEN** - Delegate these to AI:
+
+- **Local reasoning/decision logic**: Ranking, scoring, selection in client code
+- **Plan/composition/scheduling**: Order, dependencies, retries decided outside model
+- **Semantic analysis**: Heuristic classification, inference about output
+- **Quality judgments**: Opinions baked into code rather than delegated to model
+- **Pattern matching for meaning**: Regex/keyword detection for semantic content
+
+### Decision Tree: Should This Be AI or Code?
+
+```text
+Is this operation analyzing meaning or making a judgment?
+├─ YES → Use AI (ZFC-compliant)
+│   ├─ Examples:
+│   │   • "Is this an authentication error?"
+│   │   • "Which provider is best for this request?"
+│   │   • "Is the work complete?"
+│   │   • "What type of project is this?"
+│   │   • "Should we escalate to a more powerful model?"
+│   └─ Implementation: AIDecisionEngine.decide(...)
+│
+└─ NO → Is it purely structural/mechanical?
+    ├─ YES → Keep in code (ZFC-compliant)
+    │   ├─ Examples:
+    │   │   • Validate JSON schema
+    │   │   • Check required fields present
+    │   │   • Enforce rate limits
+    │   │   • Track state transitions
+    │   │   • Format output
+    │   └─ Implementation: Normal Ruby code
+    │
+    └─ NO → Reconsider - probably needs AI
+```
+
+### Anti-Patterns (ZFC Violations)
+
+❌ **Pattern Matching for Semantic Meaning**
+
+```ruby
+# ❌ BAD: Hard-coded semantic patterns
+def detect_rate_limit?(error_message)
+  error_message =~ /rate limit|too many requests|quota exceeded/i
+end
+
+# ✅ GOOD: Ask AI to classify
+def detect_condition(error_message)
+  AIDecisionEngine.decide(:condition_detection,
+    context: { error: error_message },
+    schema: ConditionSchema,
+    tier: "mini"
+  )
+end
+```
+
+❌ **Hard-Coded Scoring/Ranking Formulas**
+
+```ruby
+# ❌ BAD: Hard-coded provider ranking
+def calculate_provider_score(provider)
+  (1 - provider.success_rate) * 100 +
+    provider.avg_response_time +
+    provider.current_usage
+end
+
+# ✅ GOOD: Ask AI to select
+def select_provider(context)
+  AIDecisionEngine.decide(:provider_selection,
+    context: gather_provider_context,
+    schema: ProviderSelectionSchema,
+    tier: "mini",
+    cache_ttl: 300  # Cache for 5 minutes
+  )
+end
+```
+
+❌ **Heuristic Thresholds for Decisions**
+
+```ruby
+# ❌ BAD: Hard-coded escalation logic
+def should_escalate?
+  @failure_count > 3 || @task_complexity > 0.7
+end
+
+# ✅ GOOD: Ask AI to decide
+def should_escalate?(context)
+  AIDecisionEngine.decide(:tier_escalation,
+    context: {
+      failures: @failure_count,
+      task: @task_description,
+      current_tier: @current_tier
+    },
+    schema: EscalationSchema,
+    tier: "mini"
+  )
+end
+```
+
+❌ **Keyword Matching for Completion**
+
+```ruby
+# ❌ BAD: Brittle keyword matching
+def work_complete?(response)
+  response =~ /done|finished|complete|ended/i
+end
+
+# ✅ GOOD: Ask AI to determine
+def work_complete?(response)
+  result = AIDecisionEngine.decide(:completion_detection,
+    context: { response: response, task: @task },
+    schema: CompletionSchema,
+    tier: "mini"
+  )
+  result[:complete]
+end
+```
+
+### Implementation Pattern
+
+Use `AIDecisionEngine` for all ZFC decisions:
+
+```ruby
+module Aidp
+  module Harness
+    class AIDecisionEngine
+      # Core interface for ZFC decisions
+      def decide(decision_type, context:, schema:, tier: "mini", cache_ttl: nil)
+        # 1. Check cache (if cache_ttl specified)
+        # 2. Build prompt from decision_type template
+        # 3. Call AI with schema validation
+        # 4. Validate response structure
+        # 5. Cache result (if cache_ttl)
+        # 6. Return structured decision
+      end
+    end
+  end
+end
+```
+
+**Usage**:
+
+```ruby
+# Classify error condition
+result = engine.decide(:condition_detection,
+  context: { error: error_message },
+  schema: {
+    type: "object",
+    properties: {
+      condition: {
+        type: "string",
+        enum: ["rate_limit", "auth_error", "timeout", "success", "other"]
+      },
+      confidence: { type: "number", minimum: 0.0, maximum: 1.0 }
+    },
+    required: ["condition", "confidence"]
+  },
+  tier: "mini"
+)
+
+if result[:condition] == "rate_limit"
+  handle_rate_limit
+end
+```
+
+### Cost Management
+
+**CRITICAL**: Always use the cheapest tier unless explicitly justified.
+
+```ruby
+# ✅ GOOD: Explicit mini tier for simple decision
+AIDecisionEngine.decide(:condition_detection,
+  context: context,
+  schema: schema,
+  tier: "mini"  # Fast and cheap
+)
+
+# ❌ BAD: Using expensive tier for simple classification
+AIDecisionEngine.decide(:condition_detection,
+  context: context,
+  schema: schema,
+  tier: "thinking"  # Wasteful - simple classification doesn't need deep reasoning
+)
+```
+
+**Tier Selection Guide**:
+
+| Decision Type | Recommended Tier | Reasoning |
+|--------------|-----------------|-----------|
+| Condition detection | `mini` | Binary/multi-class classification |
+| Error classification | `mini` | Pattern recognition |
+| Completion detection | `mini` | Simple semantic check |
+| Provider selection | `mini` | Choose from 3-5 options |
+| Health assessment | `mini` | Simple status evaluation |
+| Workflow routing | `mini` | Route to one of N workflows |
+| Tier escalation | `mini` | Fast decision: escalate or not? |
+
+**Only escalate to higher tiers if**:
+
+- `mini` tier shows <90% accuracy on validation set
+- Decision requires recursive reasoning (rare)
+- Explicit requirement for deeper analysis
+
+### Caching Strategy
+
+Cache repeated decisions aggressively:
+
+```ruby
+# Example: Provider selection doesn't change every second
+AIDecisionEngine.decide(:provider_selection,
+  context: context,
+  schema: schema,
+  tier: "mini",
+  cache_ttl: 300  # 5 minutes - providers don't change that fast
+)
+
+# Example: Condition detection is request-specific, no cache
+AIDecisionEngine.decide(:condition_detection,
+  context: context,
+  schema: schema,
+  tier: "mini"
+  # No cache_ttl - each error is unique
+)
+```
+
+### Testing ZFC Code
+
+Test AI decisions with mock responses:
+
+```ruby
+RSpec.describe "ZFC compliance" do
+  it "delegates condition detection to AI" do
+    mock_engine = instance_double(AIDecisionEngine)
+    allow(mock_engine).to receive(:decide).with(
+      :condition_detection,
+      context: { error: "Rate limit exceeded" },
+      schema: ConditionSchema,
+      tier: "mini"
+    ).and_return({ condition: "rate_limit", confidence: 0.95 })
+
+    result = detector.detect_condition("Rate limit exceeded")
+    expect(result[:condition]).to eq("rate_limit")
+  end
+end
+```
+
+### Code Review Checklist
+
+When reviewing code, check for ZFC violations:
+
+- [ ] No regex patterns for semantic analysis
+- [ ] No hard-coded scoring/ranking formulas
+- [ ] No heuristic thresholds for decisions
+- [ ] No keyword matching for meaning
+- [ ] All decisions use `AIDecisionEngine.decide`
+- [ ] All AI decisions use `mini` tier by default
+- [ ] Schemas defined for all AI responses
+- [ ] Appropriate caching for repeated decisions
+- [ ] Fallback logic when AI unavailable
+
+### Migration Strategy
+
+When converting legacy code to ZFC:
+
+1. **Identify the decision**: What semantic judgment is being made?
+2. **Define the schema**: What structured output do you need?
+3. **Gather context**: What information does the AI need?
+4. **Choose tier**: Almost always `mini` for decisions
+5. **Add caching**: If the decision is repeated frequently
+6. **Test both approaches**: A/B test ZFC vs legacy
+7. **Add feature flag**: Enable gradual rollout
+8. **Remove legacy code**: Once proven stable
+
+### Further Reading
+
+- [ZFC Compliance Assessment](ZFC_COMPLIANCE_ASSESSMENT.md) - Detailed analysis of current violations
+- [ZFC Implementation Plan](ZFC_IMPLEMENTATION_PLAN.md) - Migration roadmap
+- [Steve Yegge's ZFC Article](https://steve-yegge.medium.com/zero-framework-cognition-a-way-to-build-resilient-ai-applications-56b090ed3e69) - Original concept
 
 ## TTY Toolkit Guidelines
 

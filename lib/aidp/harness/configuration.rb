@@ -477,6 +477,78 @@ module Aidp
         errors
       end
 
+      # Check if auto-escalation is enabled
+      def auto_escalate?
+        thinking_config[:auto_escalate] != false
+      end
+
+      # Get escalation threshold
+      def escalation_threshold
+        thinking_config[:escalation_threshold] || 2
+      end
+
+      # Get tier overrides
+      def tier_overrides
+        thinking_config[:overrides] || {}
+      end
+
+      # Get ZFC configuration
+      def zfc_config
+        @config[:zfc] || default_zfc_config
+      end
+
+      # Check if ZFC is enabled
+      def zfc_enabled?
+        zfc_config[:enabled] == true
+      end
+
+      # Check if ZFC should fallback to legacy on failure
+      def zfc_fallback_to_legacy?
+        zfc_config[:fallback_to_legacy] != false
+      end
+
+      # Get ZFC decision configuration
+      def zfc_decision_config(decision_type)
+        zfc_config.dig(:decisions, decision_type.to_sym) || {}
+      end
+
+      # Check if specific ZFC decision type is enabled
+      def zfc_decision_enabled?(decision_type)
+        return false unless zfc_enabled?
+        decision_config = zfc_decision_config(decision_type)
+        decision_config[:enabled] == true
+      end
+
+      # Get ZFC decision tier
+      def zfc_decision_tier(decision_type)
+        zfc_decision_config(decision_type)[:tier] || "mini"
+      end
+
+      # Get ZFC decision cache TTL
+      def zfc_decision_cache_ttl(decision_type)
+        zfc_decision_config(decision_type)[:cache_ttl]
+      end
+
+      # Get ZFC decision confidence threshold
+      def zfc_decision_confidence_threshold(decision_type)
+        zfc_decision_config(decision_type)[:confidence_threshold] || 0.7
+      end
+
+      # Get ZFC cost limits
+      def zfc_cost_limits
+        zfc_config[:cost_limits] || default_zfc_cost_limits
+      end
+
+      # Get ZFC A/B testing configuration
+      def zfc_ab_testing_config
+        zfc_config[:ab_testing] || default_zfc_ab_testing_config
+      end
+
+      # Check if ZFC A/B testing is enabled
+      def zfc_ab_testing_enabled?
+        zfc_ab_testing_config[:enabled] == true
+      end
+
       private
 
       def validate_configuration!
@@ -722,9 +794,11 @@ module Aidp
 
       def default_thinking_config
         {
-          default_tier: "standard",
-          max_tier: "standard",
+          default_tier: "mini",  # Use mini tier by default for cost optimization
+          max_tier: "max",
           allow_provider_switch: true,
+          auto_escalate: true,
+          escalation_threshold: 2,
           escalation: default_escalation_config,
           permissions_by_tier: {},
           overrides: {}
@@ -791,6 +865,35 @@ module Aidp
             performance_based: :performance_based,
             round_robin: :round_robin
           }
+        }
+      end
+
+      # Default ZFC configuration
+      def default_zfc_config
+        {
+          enabled: false,  # Experimental feature - disabled by default
+          fallback_to_legacy: true,
+          decisions: {},
+          cost_limits: default_zfc_cost_limits,
+          ab_testing: default_zfc_ab_testing_config
+        }
+      end
+
+      # Default ZFC cost limits
+      def default_zfc_cost_limits
+        {
+          max_daily_cost: 5.00,
+          max_cost_per_decision: 0.01,
+          alert_threshold: 0.8
+        }
+      end
+
+      # Default ZFC A/B testing configuration
+      def default_zfc_ab_testing_config
+        {
+          enabled: false,
+          sample_rate: 0.1,
+          log_comparisons: true
         }
       end
 

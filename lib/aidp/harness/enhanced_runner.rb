@@ -58,8 +58,14 @@ module Aidp
         # Initialize other components
         @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
-        @condition_detector = ConditionDetector.new
         @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
+
+        # Use ZFC-enabled condition detector
+        # ZfcConditionDetector will create its own ProviderFactory if needed
+        # Falls back to legacy pattern matching when ZFC is disabled
+        require_relative "zfc_condition_detector"
+        @condition_detector = ZfcConditionDetector.new(@configuration)
+
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end

@@ -18,7 +18,29 @@
 - **These are guidelines, not hard limits** - exceptions allowed when appropriate (complex algorithms, data structures).
 - Break rules consciously when needed, but consider refactoring first.
 
-## 2. Naming & Structure
+## 2. Zero Framework Cognition (ZFC)
+
+**Rule**: Meaning/decisions → AI. Mechanical/structural → code.
+
+**FORBIDDEN** (use `AIDecisionEngine.decide(...)` instead):
+
+- Regex for semantic analysis (`/rate limit|quota/i`)
+- Scoring formulas (provider ranking, health scores)
+- Heuristic thresholds (`if failures > 3`)
+- Keyword matching (`/done|finished/i`)
+
+**Pattern**:
+
+```ruby
+# ❌ def rate_limit?(err); err =~ /rate limit/i; end
+# ✅ AIDecisionEngine.decide(:condition_detection, context: {error: err}, schema: Schema, tier: "mini")
+```
+
+**Always**: Use `mini` tier • Define schemas • Cache if repeated • Feature flags • Mock in tests
+
+See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for details.
+
+## 3. Naming & Structure
 
 - Classes: `PascalCase`; methods/files: `snake_case`; constants: `SCREAMING_SNAKE_CASE`.
 - Keep public APIs intention‑revealing (avoid abbreviations unless ubiquitous).
@@ -30,12 +52,12 @@
   - ✅ `provider_config`, `status`
 - **Requires**: Prefer `require_relative` over `require` for local files.
 
-## 3. Parameters & Data
+## 4. Parameters & Data
 
 - Max ~4 params; use keyword args or an options hash beyond that.
 - Avoid boolean flag parameters that branch behavior; split methods.
 
-## 4. Error Handling & Logging
+## 5. Error Handling & Logging
 
 - Raise specific errors; never silently rescue.
 - Let internal logic errors surface (fail fast).
@@ -61,7 +83,7 @@ Aidp.log_error("component", "Failed", error: e.message)
 
 **Style:** Present tense verbs ("Executing"), metadata hash (not interpolation), consistent component names.
 
-## 5. TTY / TUI
+## 6. TTY / TUI
 
 - Always use TTY Toolkit components (prompt, progressbar, spinner, table).
 - Never re‑implement progress bars, selectors, or tables.
@@ -79,7 +101,7 @@ Aidp.log_error("component", "Failed", error: e.message)
 | Spinner | `TTY::Spinner` | Loading states |
 | Tables | `TTY::Table` | Results display, status reports |
 
-## 6. Testing Contracts
+## 7. Testing Contracts
 
 - Test public behavior; don't mock internal private methods.
 - Mock ONLY external boundaries (network, filesystem, user input, provider APIs).
@@ -119,29 +141,29 @@ Aidp.log_error("component", "Failed", error: e.message)
 
 Every `pending` MUST have: short reason + tracking reference.
 
-## 7. Concurrency & Threads
+## 8. Concurrency & Threads
 
 - Join or stop threads in `ensure` / cleanup.
 - Avoid global mutable state without synchronization.
 - Keep intervals & sleeps configurable for tests.
 
-## 8. Performance
+## 9. Performance
 
 - Avoid O(n^2) over large codebases (batch I/O, stream where possible).
 - Cache repeated expensive parsing (e.g., tree-sitter results) via existing cache utilities.
 
-## 9. Progress / Status Output
+## 10. Progress / Status Output
 
 - UI rendering logic separated from business logic.
 - Inject I/O (stdout/prompt) for testability.
 
-## 10. Security & Safety
+## 11. Security & Safety
 
 - Never execute untrusted code.
 - Validate file paths; avoid shell interpolation without sanitization.
 - Don’t leak secrets into logs.
 
-## 11. Implementation Do / Don’t
+## 12. Implementation Do / Don't
 
 | Do | Don’t |
 |----|-------|
@@ -151,7 +173,7 @@ Every `pending` MUST have: short reason + tracking reference.
 | Provide explicit error classes | Raise generic RuntimeError silently |
 | Log context (ids, counts) | Log giant raw payloads |
 
-## 12. Quick Review Checklist
+## 13. Quick Review Checklist
 
 - [ ] Single responsibility kept
 - [ ] Public API clear & documented inline
@@ -161,7 +183,7 @@ Every `pending` MUST have: short reason + tracking reference.
 - [ ] TTY components (no custom terminal hacks)
 - [ ] Style: StandardRB clean
 
-## 13. Error Class Pattern
+## 14. Error Class Pattern
 
 ```ruby
 module Aidp
@@ -175,7 +197,7 @@ module Aidp
 end
 ```
 
-## 14. Anti‑Patterns (Reject in PRs)
+## 15. Anti‑Patterns (Reject in PRs)
 
 - Pending or skipped *regressions*
 - Copy/paste ANSI / cursor escape spaghetti
@@ -184,14 +206,14 @@ end
 - Silent swallowed exceptions
 - **Mock methods in production code** (use dependency injection instead)
 
-## 15. Ruby Version Management
+## 16. Ruby Version Management
 
 - **ALWAYS use mise** for Ruby version management in this project
 - Commands running Ruby or Bundler MUST use `mise exec` to ensure correct versions
 - Examples: `mise exec -- ruby script.rb`, `mise exec -- bundle install`, `mise exec -- bundle exec rspec`
 - Never use system Ruby directly - always go through mise
 
-## 16. Commit Hygiene
+## 17. Commit Hygiene
 
 - One logical change per commit (or tightly coupled set)
 - Include rationale when refactoring behavior
