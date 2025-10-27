@@ -15,8 +15,7 @@ module Aidp
         no_api_keys_required: false,
         provider_weights: {
           "cursor" => 3,
-          "anthropic" => 2,
-          "macos" => 1
+          "anthropic" => 2
         },
         circuit_breaker: {
           enabled: true,
@@ -150,19 +149,6 @@ module Aidp
           monitoring: {
             enabled: true,
             metrics_interval: 60
-          }
-        },
-        macos: {
-          type: "passthrough",
-          priority: 4,
-          model_family: "auto",
-          underlying_service: "cursor",
-          models: ["cursor-chat"],
-          features: {
-            file_upload: false,
-            code_generation: true,
-            analysis: true,
-            interactive: true
           }
         }
       },

@@ -63,7 +63,121 @@ RSpec.describe Aidp::Skills::Wizard::Prompter do
     end
   end
 
+  describe "#gather_responses" do
+    context "with minimal option" do
+      it "skips optional sections" do
+        options = {minimal: true, name: "Test", id: "test"}
+        allow(prompter.prompt).to receive(:ask).and_return("Test", "test", "Description", "1.0.0")
+        allow(prompter).to receive(:prompt_content).and_return("content")
+
+        result = prompter.gather_responses(template_library, options: options)
+
+        expect(result[:name]).to eq("Test")
+        expect(result[:expertise]).to be_nil
+        expect(result[:when_to_use]).to be_nil
+      end
+    end
+
+    context "without minimal option" do
+      it "prompts for template selection" do
+        allow(prompter).to receive(:prompt_template_selection).and_return(nil)
+        allow(prompter).to receive(:prompt_identity).and_return({name: "Test", id: "test"})
+        allow(prompter).to receive(:prompt_expertise).and_return({expertise: []})
+        allow(prompter).to receive(:prompt_when_to_use).and_return({when_to_use: []})
+        allow(prompter).to receive(:prompt_providers).and_return([])
+        allow(prompter).to receive(:prompt_content).and_return("content")
+
+        prompter.gather_responses(template_library, options: {})
+
+        expect(prompter).to have_received(:prompt_template_selection)
+        expect(prompter).to have_received(:prompt_expertise)
+        expect(prompter).to have_received(:prompt_when_to_use)
+      end
+    end
+  end
+
   describe "private methods" do
+    describe "#prompt_template_selection" do
+      it "returns nil for from_scratch choice" do
+        allow(prompter.prompt).to receive(:say)
+        allow(prompter.prompt).to receive(:select).and_return(:from_scratch)
+
+        result = prompter.send(:prompt_template_selection, template_library)
+
+        expect(result).to be_nil
+      end
+
+      it "calls select_base_skill for inherit choice" do
+        allow(prompter.prompt).to receive(:say)
+        allow(prompter.prompt).to receive(:select).and_return(:inherit)
+        allow(prompter).to receive(:select_base_skill).and_return(double("Skill"))
+
+        prompter.send(:prompt_template_selection, template_library)
+
+        expect(prompter).to have_received(:select_base_skill)
+      end
+    end
+
+    describe "#select_base_skill" do
+      it "warns when no templates available" do
+        allow(template_library).to receive(:skill_list).and_return([])
+        allow(prompter.prompt).to receive(:warn)
+
+        result = prompter.send(:select_base_skill, template_library)
+
+        expect(result).to be_nil
+        expect(prompter.prompt).to have_received(:warn).with(/No templates/)
+      end
+
+      it "presents skill choices when templates available" do
+        skills = [{id: "skill1", name: "Skill 1", description: "Test", source: :template}]
+        allow(template_library).to receive(:skill_list).and_return(skills)
+        allow(template_library).to receive(:find).with("skill1").and_return(double("Skill"))
+        allow(prompter.prompt).to receive(:select).and_return("skill1")
+
+        result = prompter.send(:select_base_skill, template_library)
+
+        expect(result).not_to be_nil
+      end
+    end
+
+    describe "#prompt_identity" do
+      it "prompts for name, id, description, and version" do
+        allow(prompter.prompt).to receive(:ask).and_return("Test Skill", "test_skill", "A test", "1.0.0")
+
+        result = prompter.send(:prompt_identity, {})
+
+        expect(result[:name]).to eq("Test Skill")
+        expect(result[:id]).to eq("test_skill")
+        expect(result[:description]).to eq("A test")
+        expect(result[:version]).to eq("1.0.0")
+      end
+    end
+
+    describe "#prompt_expertise" do
+      it "collects expertise areas and keywords" do
+        allow(prompter.prompt).to receive(:say)
+        allow(prompter.prompt).to receive(:ask).and_return("Ruby", "", "rails, testing")
+
+        result = prompter.send(:prompt_expertise)
+
+        expect(result[:expertise]).to eq(["Ruby"])
+        expect(result[:keywords]).to eq(["rails", "testing"])
+      end
+    end
+
+    describe "#prompt_when_to_use" do
+      it "collects when to use and when not to use cases" do
+        allow(prompter.prompt).to receive(:say)
+        allow(prompter.prompt).to receive(:ask).and_return("Building APIs", "", "Simple scripts", "")
+
+        result = prompter.send(:prompt_when_to_use)
+
+        expect(result[:when_to_use]).to eq(["Building APIs"])
+        expect(result[:when_not_to_use]).to eq(["Simple scripts"])
+      end
+    end
+
     describe "#slugify" do
       it "converts text to lowercase slug" do
         slug = prompter.send(:slugify, "My Test Skill")

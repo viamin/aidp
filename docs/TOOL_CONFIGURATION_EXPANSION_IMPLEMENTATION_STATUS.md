@@ -94,7 +94,6 @@ Updated provider defaults in [lines 77, 112, 158](lib/aidp/config.rb):
 
 - Added `model_family: "auto"` to `cursor` provider
 - Added `model_family: "claude"` to `anthropic` provider
-- Added `model_family: "auto"` to `macos` provider
 
 ### 4. Interactive Wizard (wizard.rb)
 

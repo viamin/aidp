@@ -24,6 +24,6 @@ SimpleCov.start do
 
   # Initial baseline; raise gradually.
   minimum_coverage 70
-  minimum_coverage_by_file 30
+  minimum_coverage_by_file 40
   refuse_coverage_drop
 end

@@ -329,8 +329,8 @@ RSpec.describe Aidp::Harness::ProviderFactory do
 
   before do
     # Mock the ConfigManager methods
-    allow(config_manager).to receive(:get_provider_names).and_return(["cursor", "anthropic", "macos"])
-    allow(config_manager).to receive(:provider_names).and_return(["cursor", "anthropic", "macos"])
+    allow(config_manager).to receive(:get_provider_names).and_return(["cursor", "anthropic"])
+    allow(config_manager).to receive(:provider_names).and_return(["cursor", "anthropic"])
     allow(config_manager).to receive(:get_provider_config).with("cursor", anything).and_return({
       type: "subscription",
       priority: 1,
@@ -371,45 +371,22 @@ RSpec.describe Aidp::Harness::ProviderFactory do
         analysis: true
       }
     })
-    allow(config_manager).to receive(:get_provider_config).with("macos", anything).and_return({
-      type: "passthrough",
-      priority: 3,
-      underlying_service: "cursor",
-      features: {
-        file_upload: false,
-        code_generation: true,
-        analysis: true
-      }
-    })
-    allow(config_manager).to receive(:provider_config).with("macos", anything).and_return({
-      type: "passthrough",
-      priority: 3,
-      underlying_service: "cursor",
-      features: {
-        file_upload: false,
-        code_generation: true,
-        analysis: true
-      }
-    })
     allow(config_manager).to receive(:provider_configured?).with("cursor").and_return(true)
     allow(config_manager).to receive(:provider_configured?).with("anthropic").and_return(true)
-    allow(config_manager).to receive(:provider_configured?).with("macos").and_return(true)
     allow(config_manager).to receive(:provider_configured?).with(anything).and_return(false)
 
     # Mock additional methods that might be called
     allow(config_manager).to receive(:harness_config).and_return({
       default_provider: "cursor",
-      fallback_providers: ["anthropic", "macos"]
+      fallback_providers: ["anthropic"]
     })
     allow(config_manager).to receive(:get_all_providers).and_return([
       ["cursor", {priority: 1, weight: 3}],
-      ["anthropic", {priority: 2, weight: 2}],
-      ["macos", {priority: 3, weight: 1}]
+      ["anthropic", {priority: 2, weight: 2}]
     ])
     allow(config_manager).to receive(:all_providers).and_return([
       ["cursor", {priority: 1, weight: 3}],
-      ["anthropic", {priority: 2, weight: 2}],
-      ["macos", {priority: 3, weight: 1}]
+      ["anthropic", {priority: 2, weight: 2}]
     ])
     allow(config_manager).to receive(:reload_config)
     allow(config_manager).to receive(:get_provider_config).with("unknown", anything).and_return({})
@@ -470,22 +447,22 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     it "creates all configured providers" do
       providers = factory.create_all_providers
 
-      expect(providers.size).to eq(3)
-      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic, Aidp::Providers::MacOSUI)
+      expect(providers.size).to eq(2)
+      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic)
     end
 
     it "creates providers by priority" do
       providers = factory.create_providers_by_priority
 
-      expect(providers.size).to eq(3)
-      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic, Aidp::Providers::MacOSUI)
+      expect(providers.size).to eq(2)
+      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic)
     end
 
     it "creates providers by weight" do
       providers = factory.create_providers_by_weight
 
-      expect(providers.size).to eq(6) # cursor(3) + anthropic(2) + macos(1) = 6
-      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic, Aidp::Providers::MacOSUI)
+      expect(providers.size).to eq(5) # cursor(3) + anthropic(2) = 5
+      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic)
     end
 
     it "raises error for unconfigured provider" do
@@ -541,7 +518,7 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     it "gets supported provider names" do
       supported = factory.supported_providers
 
-      expect(supported).to include("cursor", "anthropic", "gemini", "macos")
+      expect(supported).to include("cursor", "anthropic", "gemini")
     end
 
     it "gets configured provider names" do
@@ -584,8 +561,8 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     it "gets all provider summaries" do
       summaries = factory.all_provider_summaries
 
-      expect(summaries.size).to eq(3)
-      expect(summaries.map { |s| s[:name] }).to include("cursor", "anthropic", "macos")
+      expect(summaries.size).to eq(2)
+      expect(summaries.map { |s| s[:name] }).to include("cursor", "anthropic")
     end
   end
 

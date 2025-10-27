@@ -29,11 +29,6 @@ RSpec.describe Aidp::ProviderManager do
       expect(provider).to be_a(Aidp::Providers::Gemini)
     end
 
-    it "supports macos_ui provider" do
-      provider = described_class.get_provider("macos_ui", use_harness: false)
-      expect(provider).to be_a(Aidp::Providers::MacOSUI)
-    end
-
     it "supports github_copilot provider" do
       provider = described_class.get_provider("github_copilot", use_harness: false)
       expect(provider).to be_a(Aidp::Providers::GithubCopilot)
