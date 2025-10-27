@@ -56,36 +56,39 @@ RSpec.describe Aidp::Init::Runner do
 
   let(:analyzer) { instance_double(Aidp::Init::ProjectAnalyzer) }
   let(:doc_generator) { instance_double(Aidp::Init::DocGenerator) }
-  let(:prompt) { fake_prompt_class.new([true, false, true]) }
+  let(:devcontainer_generator) { instance_double(Aidp::Init::DevcontainerGenerator) }
+  let(:prompt) { fake_prompt_class.new([true, false, true, false]) }
 
   before do
     allow(analyzer).to receive(:analyze).and_return(analysis)
     allow(doc_generator).to receive(:generate)
+    allow(devcontainer_generator).to receive(:exists?).and_return(false)
   end
 
   it "runs analysis, gathers preferences, and generates docs" do
-    runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator)
+    runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator)
     result = runner.run
 
     expect(analyzer).to have_received(:analyze).with(explain_detection: nil)
     expect(doc_generator).to have_received(:generate).with(analysis: analysis, preferences: {
       adopt_new_conventions: true,
       stricter_linters: false,
-      migrate_styles: true
+      migrate_styles: true,
+      generate_devcontainer: false
     })
     expect(result[:generated_files]).to include("docs/LLM_STYLE_GUIDE.md")
   end
 
   describe "with options" do
     it "passes explain_detection option to analyzer" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, options: {explain_detection: true})
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {explain_detection: true})
       runner.run
 
       expect(analyzer).to have_received(:analyze).with(explain_detection: true)
     end
 
     it "skips preferences and generation in dry_run mode" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, options: {dry_run: true})
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {dry_run: true})
       result = runner.run
 
       expect(doc_generator).not_to have_received(:generate)
@@ -99,7 +102,7 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "displays high-confidence frameworks" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator)
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator)
       # Just verify it runs without error - actual display testing would require capturing output
       expect { runner.run }.not_to raise_error
     end
