@@ -287,6 +287,12 @@ module Aidp
             usage: "/thinking <show|set|max|reset> [tier]",
             example: "/thinking show",
             handler: method(:cmd_thinking)
+          },
+          "/prompt" => {
+            description: "Inspect and control prompt optimization",
+            usage: "/prompt <explain|stats|expand|reset>",
+            example: "/prompt explain",
+            handler: method(:cmd_prompt)
           }
         }
       end
@@ -1878,6 +1884,165 @@ module Aidp
           message: "Thinking tier reset: #{old_tier} → #{manager.current_tier}\nEscalation count cleared",
           action: :tier_reset
         }
+      end
+
+      # Command: /prompt - Inspect and control prompt optimization
+      def cmd_prompt(args)
+        subcommand = args[0]
+
+        case subcommand
+        when "explain"
+          cmd_prompt_explain
+        when "stats"
+          cmd_prompt_stats
+        when "expand"
+          cmd_prompt_expand(args[1])
+        when "reset"
+          cmd_prompt_reset
+        else
+          {
+            success: false,
+            message: "Unknown subcommand: #{subcommand}\nUsage: /prompt <explain|stats|expand|reset>",
+            action: :none
+          }
+        end
+      rescue => e
+        Aidp.log_error("repl_macros", "Failed to execute prompt command", error: e.message)
+        {
+          success: false,
+          message: "Failed to execute prompt command: #{e.message}",
+          action: :none
+        }
+      end
+
+      # Subcommand: /prompt explain
+      # Shows which fragments were selected for the current prompt and why
+      def cmd_prompt_explain
+        require_relative "prompt_manager"
+
+        prompt_manager = PromptManager.new(@project_dir, config: load_config)
+
+        unless prompt_manager.optimization_enabled?
+          return {
+            success: false,
+            message: "Prompt optimization is not enabled. Check your .aidp/config.yml:\n" \
+                     "prompt_optimization:\n  enabled: true",
+            action: :none
+          }
+        end
+
+        unless prompt_manager.last_optimization_stats
+          return {
+            success: false,
+            message: "No optimization performed yet. Prompt optimization will be used on the next work loop iteration.",
+            action: :none
+          }
+        end
+
+        report = prompt_manager.optimization_report
+        {
+          success: true,
+          message: report,
+          action: :show_optimization_report
+        }
+      end
+
+      # Subcommand: /prompt stats
+      # Shows overall optimizer statistics across all runs
+      def cmd_prompt_stats
+        require_relative "prompt_manager"
+
+        prompt_manager = PromptManager.new(@project_dir, config: load_config)
+
+        unless prompt_manager.optimization_enabled?
+          return {
+            success: false,
+            message: "Prompt optimization is not enabled.",
+            action: :none
+          }
+        end
+
+        stats = prompt_manager.optimizer_stats
+        unless stats
+          return {
+            success: false,
+            message: "No optimization statistics available.",
+            action: :none
+          }
+        end
+
+        lines = []
+        lines << "# Prompt Optimizer Statistics"
+        lines << ""
+        lines << "- **Total Runs**: #{stats[:runs_count]}"
+        lines << "- **Total Fragments Indexed**: #{stats[:total_fragments_indexed]}"
+        lines << "- **Total Fragments Selected**: #{stats[:total_fragments_selected]}"
+        lines << "- **Total Fragments Excluded**: #{stats[:total_fragments_excluded]}"
+        lines << "- **Total Tokens Used**: #{stats[:total_tokens_used]}"
+        lines << "- **Average Fragments/Run**: #{stats[:average_fragments_selected]}"
+        lines << "- **Average Budget Utilization**: #{stats[:average_budget_utilization]}%"
+        lines << "- **Average Optimization Time**: #{stats[:average_optimization_time_ms]}ms"
+
+        {
+          success: true,
+          message: lines.join("\n"),
+          action: :show_optimizer_stats
+        }
+      end
+
+      # Subcommand: /prompt expand <fragment_id>
+      # Adds a specific omitted fragment to the next prompt
+      def cmd_prompt_expand(fragment_id)
+        unless fragment_id
+          return {
+            success: false,
+            message: "Usage: /prompt expand <fragment_id>\nUse /prompt explain to see available fragments",
+            action: :none
+          }
+        end
+
+        # For now, this is a placeholder - full implementation would:
+        # 1. Look up the fragment by ID
+        # 2. Add it to an override list
+        # 3. Include it in the next prompt generation
+        {
+          success: true,
+          message: "Fragment expansion not yet implemented.\n" \
+                   "This will be available in a future update to manually include excluded fragments.",
+          action: :feature_not_implemented
+        }
+      end
+
+      # Subcommand: /prompt reset
+      # Clears optimizer cache and resets to default behavior
+      def cmd_prompt_reset
+        require_relative "prompt_manager"
+
+        prompt_manager = PromptManager.new(@project_dir, config: load_config)
+
+        unless prompt_manager.optimization_enabled?
+          return {
+            success: false,
+            message: "Prompt optimization is not enabled.",
+            action: :none
+          }
+        end
+
+        prompt_manager.optimizer.clear_cache
+
+        {
+          success: true,
+          message: "Optimizer cache cleared. Next prompt will use fresh indexing.",
+          action: :optimizer_reset
+        }
+      end
+
+      private
+
+      # Load configuration for prompt commands
+      def load_config
+        require_relative "../harness/configuration"
+        Aidp::Harness::Configuration.new(@project_dir)
       end
     end
   end

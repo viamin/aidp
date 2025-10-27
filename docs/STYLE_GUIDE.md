@@ -38,7 +38,7 @@ lib/aidp/
 ├── analyze/                 # Analysis mode components
 ├── execute/                 # Execution mode components
 └── providers/               # AI provider integrations
-```
+```text
 
 ### Naming Conventions
 
@@ -91,7 +91,7 @@ def collect_feedback(questions, context = nil)
   display_completion_summary(responses, questions)
   responses
 end
-```
+```text
 
 ## Ruby Conventions
 
@@ -137,7 +137,7 @@ Aidp.log_error("component", "message", error: e.message, context: data)
 # Direct logger access (when needed)
 Aidp.logger.debug("component", "message", metadata...)
 Aidp.logger.info("component", "message", metadata...)
-```
+```text
 
 #### When to Log
 
@@ -235,7 +235,7 @@ def select_provider(preferences)
   Aidp.log_info("harness", "Provider selected", provider: provider.name)
   provider
 end
-```
+```text
 
 #### Log Message Style
 
@@ -251,7 +251,7 @@ Aidp.log_debug("harness", "Executing step", step: step_name, iteration: 3)
 
 # Bad: Interpolation in message
 Aidp.log_debug("harness", "Executing step #{step_name} at iteration 3")
-```
+```text
 
 #### Common Components
 
@@ -299,7 +299,7 @@ mise exec -- bundle exec aidp --setup-config
 ruby script.rb                    # Uses system Ruby (wrong version)
 bundle install                    # Uses system Ruby's bundler
 bundle exec rspec                  # Uses system Ruby
-```
+```text
 
 #### Why mise?
 
@@ -321,7 +321,7 @@ mise install
 mise exec -- bundle install
 mise exec -- bundle exec rspec
 mise exec -- ruby bin/aidp --help
-```
+```text
 
 #### Troubleshooting
 
@@ -387,7 +387,7 @@ Is this operation analyzing meaning or making a judgment?
     │   └─ Implementation: Normal Ruby code
     │
     └─ NO → Reconsider - probably needs AI
-```
+```text
 
 ### Anti-Patterns (ZFC Violations)
 
@@ -407,7 +407,7 @@ def detect_condition(error_message)
     tier: "mini"
   )
 end
-```
+```text
 
 ❌ **Hard-Coded Scoring/Ranking Formulas**
 
@@ -428,7 +428,7 @@ def select_provider(context)
     cache_ttl: 300  # Cache for 5 minutes
   )
 end
-```
+```text
 
 ❌ **Heuristic Thresholds for Decisions**
 
@@ -450,7 +450,7 @@ def should_escalate?(context)
     tier: "mini"
   )
 end
-```
+```text
 
 ❌ **Keyword Matching for Completion**
 
@@ -469,7 +469,7 @@ def work_complete?(response)
   )
   result[:complete]
 end
-```
+```text
 
 ### Implementation Pattern
 
@@ -491,7 +491,7 @@ module Aidp
     end
   end
 end
-```
+```text
 
 **Usage**:
 
@@ -516,7 +516,7 @@ result = engine.decide(:condition_detection,
 if result[:condition] == "rate_limit"
   handle_rate_limit
 end
-```
+```text
 
 ### Cost Management
 
@@ -536,7 +536,7 @@ AIDecisionEngine.decide(:condition_detection,
   schema: schema,
   tier: "thinking"  # Wasteful - simple classification doesn't need deep reasoning
 )
-```
+```text
 
 **Tier Selection Guide**:
 
@@ -576,7 +576,7 @@ AIDecisionEngine.decide(:condition_detection,
   tier: "mini"
   # No cache_ttl - each error is unique
 )
-```
+```text
 
 ### Testing ZFC Code
 
@@ -597,7 +597,7 @@ RSpec.describe "ZFC compliance" do
     expect(result[:condition]).to eq("rate_limit")
   end
 end
-```
+```text
 
 ### Code Review Checklist
 
@@ -675,7 +675,7 @@ puts table.render(:unicode)
 # Configuration and logging
 config = TTY::Config.new
 logger = TTY::Logger.new
-```
+```text
 
 ### User Output Best Practices
 
@@ -693,7 +693,7 @@ puts pastel.red("Error occurred")
 # ❌ Avoid: TTY::Logger for user output (it's for application logging)
 logger = TTY::Logger.new
 logger.info("This goes to log files, not user terminal")
-```
+```text
 
 **When to use each:**
 
@@ -710,7 +710,7 @@ logger.info("This goes to log files, not user terminal")
 def custom_select(items) # Use tty-prompt instead
 def custom_progress_bar(current, total) # Use tty-progressbar instead
 def custom_table(data) # Use tty-table instead
-```
+```text
 
 ### Avoid puts and Common Output Methods
 
@@ -729,7 +729,7 @@ prompt.say("Welcome to the application!")
 name = prompt.ask("Enter your name: ")
 prompt.say("Debug message", color: :yellow)
 prompt.say("Status update", color: :green)
-```
+```text
 
 **Why use TTY::Prompt instead of puts?**
 
@@ -747,7 +747,7 @@ require "pastel"
 pastel = Pastel.new
 puts pastel.green("Success message")
 puts pastel.red("Error message")
-```
+```text
 
 ### Testing Interactive TUI Elements
 
@@ -767,7 +767,7 @@ let(:ui) { described_class.new(prompt: test_prompt) }
 # Test interactions by checking recorded messages
 ui.display_menu("Choose mode", items)
 expect(test_prompt.messages.any? { |msg| msg[:message].include?("Choose mode") }).to be true
-```
+```text
 
 #### 2. Integration Testing with expect Scripts
 
@@ -779,7 +779,7 @@ send "\r"
 expect "Starting in Analyze Mode"
 send "\003"
 expect eof
-```
+```text
 
 #### 3. Testing TUI Logic
 
@@ -788,7 +788,7 @@ expect eof
 allow(tui).to receive(:single_select).and_return("Web Application")
 allow(tui).to receive(:ask).and_return("my-app")
 result = selector.select_workflow(harness_mode: false, mode: :execute)
-```
+```text
 
 #### Key Principles for AI Agents
 
@@ -806,7 +806,7 @@ brew install expect
 
 # Install expect (Ubuntu/Debian)
 sudo apt-get install expect
-```
+```text
 
 #### Example expect Test Script
 
@@ -831,7 +831,7 @@ expect "Starting in Execute Mode"
 # Exit cleanly
 send "\003"
 expect eof
-```
+```text
 
 #### Integration with RSpec
 
@@ -855,7 +855,7 @@ RSpec.describe "TUI Interactions" do
     end
   end
 end
-```
+```text
 
 #### expect Script Best Practices
 
@@ -881,7 +881,7 @@ send " "        # Space to select
 send "\r"
 
 expect "Selected: 2 items"
-```
+```text
 
 ### TTY Component Selection Guide
 
@@ -925,7 +925,7 @@ class QuestionCollector
     end
   end
 end
-```
+```text
 
 ### TUI State Management
 
@@ -949,7 +949,7 @@ class TUIState
     @user_responses[question_id] = response
   end
 end
-```
+```text
 
 ### Benefits of Using TTY Toolkit
 
@@ -993,7 +993,7 @@ Example:
 
 ```ruby
 pending("Add retry backoff logic - tracked in GH#123")
-```
+```text
 
 ### Workflow for Regressions
 
@@ -1060,7 +1060,7 @@ allow(Readline).to receive(:readline).and_return("user response")
 
 # Bad: Mocking application code
 allow(user_interface).to receive(:validate_question).and_return(true) # Don't do this!
-```
+```text
 
 ### Never Put Mock Methods in Production Code
 
@@ -1094,7 +1094,7 @@ end
 # In tests:
 let(:mock_prompt) { instance_double(TTY::Prompt) }
 let(:ui) { UserInterface.new(prompt: mock_prompt) }
-```
+```text
 
 **Why this matters:**
 
@@ -1147,7 +1147,7 @@ class ApiClient
     @http_client.get(url)
   end
 end
-```
+```text
 
 #### Testing with Mock Objects
 
@@ -1194,7 +1194,7 @@ RSpec.describe UserInterface do
     expect(test_prompt.menus_shown.first[:title]).to eq("Choose an option:")
   end
 end
-```
+```text
 
 #### Benefits of This Pattern
 
@@ -1221,7 +1221,7 @@ RSpec.describe SomeClass do
   let(:instance) { SomeClass.new(prompt: test_prompt) }
   # ...
 end
-```
+```text
 
 ### Sandi Metz's Testing Rules
 
@@ -1275,7 +1275,7 @@ module Aidp
     class UserError < StandardError; end
   end
 end
-```
+```text
 
 ### Error Handling Patterns
 
@@ -1303,7 +1303,7 @@ def process_data(data)
 rescue => e
   puts "Something went wrong"  # Don't do this!
 end
-```
+```text
 
 ## Concurrency & Threads
 
@@ -1339,7 +1339,7 @@ def monitor
     sleep 60  # Can't override in tests
   end
 end
-```
+```text
 
 ## Performance
 
@@ -1366,7 +1366,7 @@ end
 def parsed_file(path)
   parse_file(path)  # Slow for repeated calls
 end
-```
+```text
 
 ## Security & Safety
 
@@ -1388,7 +1388,7 @@ logger.info("API request failed", user_id: user.id, endpoint: endpoint)
 
 # Bad: Leaking secrets
 logger.error("Request failed: #{request.inspect}")  # May contain auth headers
-```
+```text
 
 ### Input Validation
 
@@ -1406,7 +1406,7 @@ system("git", "commit", "-m", user_message)  # Safe from injection
 
 # Bad: Shell interpolation risk
 system("git commit -m '#{user_message}'")  # Dangerous!
-```
+```text
 
 ## Commit Hygiene
 
@@ -1428,12 +1428,12 @@ This adds exponential backoff retry logic (3 attempts max) to
 handle transient failures gracefully.
 
 Fixes #123
-```
+```text
 
 ```text
 # Bad: No context
 Fix bug
-```
+```text
 
 ## Code Review Guidelines
 
@@ -1452,6 +1452,211 @@ Fix bug
 - [ ] Error handling is specific and informative
 - [ ] Code follows StandardRB guidelines
 - [ ] No external dependencies in tests (all mocked)
+
+---
+
+## Prompt Optimization (Intelligent Fragment Selection)
+
+AIDP uses **Zero Framework Cognition** to intelligently select only the most relevant fragments from style guides, templates, and source code when building prompts. This section explains how to write documentation that works well with this system.
+
+See [PROMPT_OPTIMIZATION.md](PROMPT_OPTIMIZATION.md) for complete details.
+
+### Why Fragment-Friendly Documentation Matters
+
+The optimizer parses this style guide by markdown headings and scores each section for relevance to the current task. Well-structured documentation helps the AI select the right context, resulting in:
+
+- **30-50% token savings** - Only relevant sections included
+- **Better AI focus** - Less noise, clearer reasoning
+- **Faster iterations** - Smaller prompts, faster responses
+
+### Writing Fragment-Friendly Sections
+
+#### 1. Use Clear, Specific Headings
+
+Headings should clearly indicate the topic. The AI uses these to understand what each section covers.
+
+```markdown
+✅ Good Examples:
+## Testing: RSpec Best Practices
+## Security: OAuth Token Handling
+## API Design: REST Endpoints
+## Performance: Database Query Optimization
+
+❌ Poor Examples:
+## Miscellaneous Guidelines
+## Other Considerations
+## Additional Notes
+## Tips and Tricks
+```text
+
+#### 2. Add Semantic Tags to Headings (Optional)
+
+You can add tags in parentheses to help the AI understand when a section is relevant:
+
+```markdown
+## API Design Principles (rest, graphql, endpoints, json)
+## Testing: Integration Tests (rspec, testing, e2e, fixtures)
+## Security: Authentication (oauth, jwt, tokens, sessions)
+## Database: Migrations (schema, activerecord, sql)
+```text
+
+Common useful tags:
+
+- **Task types**: `feature`, `bugfix`, `refactor`, `test`, `analysis`
+- **Technologies**: `api`, `database`, `security`, `performance`, `cli`, `ui`
+- **Patterns**: `service-object`, `factory`, `observer`, `strategy`, `command`
+- **Concerns**: `error-handling`, `validation`, `logging`, `caching`, `monitoring`
+- **Testing**: `rspec`, `coverage`, `mocking`, `integration`, `e2e`, `fixtures`
+
+#### 3. Keep Sections Focused and Self-Contained
+
+Each section should:
+
+- Cover **one clear topic**
+- Be **3-10 paragraphs** (not too short, not too long)
+- Be **self-contained** (understandable without reading other sections)
+- Include **examples** when helpful
+
+**Good Structure:**
+
+```markdown
+## Error Handling: Custom Exceptions
+
+When creating custom exceptions, inherit from StandardError and provide
+clear error messages that help with debugging.
+
+Example:
+[code example]
+
+This approach allows callers to rescue specific errors and provides
+clear context about what went wrong.
+```text
+
+**Bad Structure:**
+
+```markdown
+## Guidelines
+
+Error handling: Use custom exceptions.
+Testing: Write comprehensive tests.
+Performance: Optimize database queries.
+Security: Validate all input.
+```text
+
+#### 4. Use Semantic Keywords Naturally
+
+Include relevant keywords in the content to help the AI understand context. Don't force keywords - just write naturally about the topic and they'll appear organically.
+
+For a section on testing:
+
+```markdown
+When writing **feature tests**, ensure you cover the happy path and edge cases.
+Use **RSpec** contexts to organize different scenarios. Mock external dependencies
+to keep tests fast and reliable.
+```text
+
+Keywords like "feature", "tests", "RSpec", "mock" help the AI score this section highly for testing-related tasks.
+
+### How the Selection Algorithm Works
+
+When you start a work loop, the optimizer:
+
+1. **Indexes** all fragments (this guide, templates, source code)
+2. **Scores** each fragment 0.0-1.0 based on:
+   - **Task type match** (30%): Is this a feature, bugfix, refactor, or test?
+   - **Tag match** (25%): Do the tags align with the task?
+   - **File match** (25%): Is this relevant to the files being modified?
+   - **Step match** (20%): Does this match the current work loop step?
+3. **Selects** highest-scoring fragments within token budget
+4. **Builds** the optimized PROMPT.md
+
+**Critical sections** (score ≥ 0.9) are **always included**, regardless of budget.
+
+### Example: How Scoring Works
+
+Imagine you're adding OAuth authentication to a User model:
+
+```text
+Task: Add OAuth authentication
+Type: feature
+Files: lib/user.rb, lib/auth/oauth.rb
+Step: implementation
+Tags: security, api, oauth
+```text
+
+The optimizer scores each section:
+
+```text
+## Security: OAuth Token Handling (oauth, tokens, jwt)
+  Task type: 0.85 (feature → security relevant)
+  Tags:      0.95 (perfect match: security, oauth)
+  Files:     0.60 (not file-specific, but auth-related)
+  Step:      0.70 (implementation matches)
+  → Final Score: 0.79 (SELECTED - above 0.75 threshold)
+
+## Testing: Unit Test Patterns (rspec, mocking)
+  Task type: 0.88 (feature → testing relevant)
+  Tags:      0.30 (low match: no testing tags)
+  Files:     0.50 (not file-specific)
+  Step:      0.60 (implementation → testing somewhat relevant)
+  → Final Score: 0.60 (EXCLUDED - below 0.75 threshold)
+
+## Performance: Database Optimization (sql, queries)
+  Task type: 0.40 (feature → performance less relevant)
+  Tags:      0.20 (low match: no performance tags)
+  Files:     0.30 (no database files)
+  Step:      0.50 (implementation → performance somewhat relevant)
+  → Final Score: 0.35 (EXCLUDED - below 0.75 threshold)
+```text
+
+### What This Means for Developers
+
+When you work with AIDP:
+
+- **You won't see everything** - Only sections relevant to your current task appear in PROMPT.md
+- **Trust the selection** - The AI chose what matters based on your task context
+- **Inspect decisions** - Use `/prompt explain` to see what was selected and why
+- **Provide feedback** - If important sections are missing, that helps us improve scoring
+
+### Adjusting Selection Behavior
+
+You can tune selection thresholds in `.aidp/config.yml`:
+
+```yaml
+prompt_optimization:
+  enabled: true
+  max_tokens: 16000
+  include_threshold:
+    style_guide: 0.75  # Lower = more inclusive (0.5-0.9)
+    templates: 0.8
+    source: 0.7
+```text
+
+**Threshold guidance:**
+
+- **0.5-0.6**: Very inclusive, most fragments selected
+- **0.7-0.8**: Balanced (recommended)
+- **0.9+**: Very selective, only critical fragments
+
+### Best Practices Summary
+
+1. ✅ Use clear, specific headings that indicate the topic
+2. ✅ Add semantic tags to headings when helpful
+3. ✅ Keep sections focused (one topic per section)
+4. ✅ Make sections self-contained (3-10 paragraphs)
+5. ✅ Use keywords naturally in content
+6. ✅ Include examples and code snippets
+7. ❌ Avoid generic headings ("Miscellaneous", "Other")
+8. ❌ Don't mix multiple topics in one section
+9. ❌ Don't make sections too long (> 20 paragraphs)
+
+### Further Reading
+
+For complete details on the optimization system:
+
+- [PROMPT_OPTIMIZATION.md](PROMPT_OPTIMIZATION.md) - Full documentation
+- [LLM_STYLE_GUIDE.md](LLM_STYLE_GUIDE.md) - Concise version for AI consumption
+- Issue #175 - Original feature specification
 
 ---
 

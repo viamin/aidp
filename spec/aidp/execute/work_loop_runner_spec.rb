@@ -106,6 +106,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         allow(prompt_manager).to receive(:read).and_return("# Work Loop\n\nTest content")
         allow(prompt_manager).to receive(:archive)
         allow(prompt_manager).to receive(:delete)
+        allow(prompt_manager).to receive(:optimization_enabled?).and_return(false)
 
         allow(checkpoint).to receive(:record_checkpoint).and_return({metrics: {}})
         allow(checkpoint).to receive(:progress_summary).and_return(nil)
@@ -355,6 +356,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         allow(prompt_manager).to receive(:read).and_return("# Work Loop\n\nSTATUS: COMPLETE")
         allow(prompt_manager).to receive(:archive)
         allow(prompt_manager).to receive(:delete)
+        allow(prompt_manager).to receive(:optimization_enabled?).and_return(false)
 
         allow(checkpoint).to receive(:record_checkpoint).and_return({metrics: {}})
         allow(checkpoint).to receive(:progress_summary).and_return(nil)
