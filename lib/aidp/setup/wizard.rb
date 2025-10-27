@@ -92,8 +92,8 @@ module Aidp
         providers_dir = File.join(__dir__, "../providers")
         provider_files = Dir.glob("*.rb", base: providers_dir)
 
-        # Exclude base classes and utility classes
-        excluded_files = ["base.rb", "macos_ui.rb"]
+        # Exclude base classes
+        excluded_files = ["base.rb"]
         provider_files -= excluded_files
 
         providers = {}

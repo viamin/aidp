@@ -150,4 +150,119 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
       repl.send(:handle_command, "/bad")
     end
   end
+
+  describe "#initialize" do
+    it "initializes with default prompt when not provided" do
+      allow(TTY::Prompt).to receive(:new).and_return(prompt)
+      repl = described_class.new(project_dir, provider_manager, config)
+      expect(repl.instance_variable_get(:@prompt)).to eq(prompt)
+    end
+
+    it "initializes with provided prompt" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      expect(repl.instance_variable_get(:@prompt)).to eq(prompt)
+    end
+
+    it "initializes repl macros" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      expect(repl.instance_variable_get(:@repl_macros)).to be_a(Aidp::Execute::ReplMacros)
+    end
+  end
+
+  describe "#display_welcome" do
+    it "displays welcome message" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      expect(prompt).to receive(:say).at_least(:once)
+      repl.send(:display_welcome, "test_step")
+    end
+  end
+
+  describe "#display_completion" do
+    it "displays completed status" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      result = {status: "completed", iterations: 5}
+      expect(prompt).to receive(:ok).with(/completed/)
+      repl.send(:display_completion, result)
+    end
+
+    it "displays cancelled status" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      result = {status: "cancelled", iterations: 3}
+      expect(prompt).to receive(:warn).with(/cancelled/)
+      repl.send(:display_completion, result)
+    end
+
+    it "displays error status" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      result = {status: "error", iterations: 2}
+      expect(prompt).to receive(:error).with(/error/)
+      repl.send(:display_completion, result)
+    end
+  end
+
+  describe "#handle_rollback" do
+    it "pauses work loop before rollback" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(repl).to receive(:execute_git_rollback).and_return({success: true, message: "Done"})
+      allow(async_runner.state).to receive(:paused?).and_return(false)
+
+      repl.send(:handle_rollback, 2)
+
+      expect(async_runner).to have_received(:pause)
+    end
+
+    it "asks to resume after successful rollback" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(repl).to receive(:execute_git_rollback).and_return({success: true, message: "Done"})
+      allow(async_runner.state).to receive(:paused?).and_return(true)
+
+      repl.send(:handle_rollback, 2)
+
+      expect(prompt).to have_received(:yes?)
+    end
+  end
+
+  describe "#handle_interrupt" do
+    it "handles cancel choice" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(prompt).to receive(:select).and_return(:cancel)
+
+      repl.send(:handle_interrupt)
+
+      expect(async_runner).to have_received(:cancel).with(save_checkpoint: true)
+      expect(repl.instance_variable_get(:@running)).to be false
+    end
+
+    it "handles pause choice" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(prompt).to receive(:select).and_return(:pause)
+
+      repl.send(:handle_interrupt)
+
+      expect(async_runner).to have_received(:pause)
+    end
+
+    it "handles continue choice" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(prompt).to receive(:select).and_return(:continue)
+
+      repl.send(:handle_interrupt)
+
+      expect(async_runner).not_to have_received(:cancel)
+      expect(async_runner).not_to have_received(:pause)
+    end
+  end
+
+  describe "#display_output_entry" do
+    it "handles info type" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      expect(prompt).to receive(:say).with("info message")
+      repl.send(:display_output_entry, {message: "info message", type: :info})
+    end
+  end
 end

@@ -5,7 +5,6 @@ require_relative "../providers/base"
 require_relative "../providers/cursor"
 require_relative "../providers/anthropic"
 require_relative "../providers/gemini"
-require_relative "../providers/macos_ui"
 require_relative "../providers/opencode"
 require_relative "../providers/github_copilot"
 require_relative "../providers/codex"
@@ -19,7 +18,6 @@ module Aidp
         "anthropic" => Aidp::Providers::Anthropic,
         "claude" => Aidp::Providers::Anthropic,
         "gemini" => Aidp::Providers::Gemini,
-        "macos" => Aidp::Providers::MacOSUI,
         "opencode" => Aidp::Providers::Opencode,
         "github_copilot" => Aidp::Providers::GithubCopilot,
         "codex" => Aidp::Providers::Codex

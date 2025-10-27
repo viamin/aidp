@@ -47,7 +47,6 @@ RSpec.describe Aidp::Config do
       expect(config[:harness][:max_retries]).to eq(2)
       expect(config[:providers]).to have_key(:cursor)
       expect(config[:providers]).to have_key(:anthropic)
-      expect(config[:providers]).to have_key(:macos)
     end
 
     it "merges user configuration with defaults" do
