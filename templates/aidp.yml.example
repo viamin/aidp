@@ -123,6 +123,93 @@ harness:
     api_key_rotation: false   # Enable API key rotation
     audit_logging: true       # Enable audit logging
 
+# Thinking Depth Configuration
+# Controls model selection based on task complexity
+thinking:
+  # Default tier for new requests (mini, standard, thinking, pro, max)
+  default_tier: "mini"
+
+  # Maximum tier allowed (prevents excessive costs)
+  max_tier: "max"
+
+  # Enable automatic tier escalation on failures
+  auto_escalate: true
+
+  # Number of failures before escalating to next tier
+  escalation_threshold: 2
+
+  # Per-operation tier overrides (optional)
+  overrides:
+    # Example: Use mini tier for simple decisions
+    # decision.condition_detection: mini
+    # decision.error_classification: mini
+    # decision.completion_detection: mini
+
+# Zero Framework Cognition (ZFC) Configuration
+# Delegates semantic analysis to AI instead of pattern matching
+zfc:
+  # Master toggle for ZFC features
+  enabled: false  # Set to true to enable (experimental)
+
+  # Fallback to legacy pattern matching if AI fails
+  fallback_to_legacy: true
+
+  # Individual decision types (can be toggled separately)
+  decisions:
+    # Condition detection (replaces regex patterns)
+    condition_detection:
+      enabled: false
+      tier: "mini"              # AI tier to use
+      cache_ttl: null           # Cache duration in seconds (null = no cache)
+      confidence_threshold: 0.7 # Minimum confidence to accept result
+
+    # Error classification (determines if retryable)
+    error_classification:
+      enabled: false
+      tier: "mini"
+      cache_ttl: null
+      confidence_threshold: 0.7
+
+    # Completion detection (replaces keyword matching)
+    completion_detection:
+      enabled: false
+      tier: "mini"
+      cache_ttl: null
+      confidence_threshold: 0.8
+
+    # Provider selection (replaces load calculation formula)
+    provider_selection:
+      enabled: false
+      tier: "mini"
+      cache_ttl: 300            # Cache for 5 minutes
+      confidence_threshold: 0.7
+
+    # Tier escalation decision (replaces heuristic thresholds)
+    tier_escalation:
+      enabled: false
+      tier: "mini"
+      cache_ttl: null
+      confidence_threshold: 0.7
+
+    # Workflow routing (replaces pattern matching)
+    workflow_routing:
+      enabled: false
+      tier: "mini"
+      cache_ttl: 60             # Cache for 1 minute
+      confidence_threshold: 0.7
+
+  # Cost controls for ZFC
+  cost_limits:
+    max_daily_cost: 5.00        # Maximum daily ZFC cost in USD
+    max_cost_per_decision: 0.01 # Maximum cost per decision
+    alert_threshold: 0.8        # Alert at 80% of budget
+
+  # A/B testing configuration
+  ab_testing:
+    enabled: false              # Enable A/B testing
+    sample_rate: 0.1            # Test 10% of decisions
+    log_comparisons: true       # Log ZFC vs legacy comparisons
+
 # Provider configurations
 providers:
   # Cursor provider (subscription-based)
