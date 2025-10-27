@@ -8,6 +8,12 @@ module Aidp
   module Init
     # Generates .devcontainer configuration for projects
     # Provides sandboxed development environment with network security
+    #
+    # Design Philosophy:
+    # - Use project analysis data (already collected by ProjectAnalyzer)
+    # - Avoid hardcoded framework/tool assumptions
+    # - Prefer templates over code generation
+    # - Let the data drive decisions, not hardcoded logic
     class DevcontainerGenerator
       include Aidp::MessageDisplay
 
@@ -46,34 +52,16 @@ module Aidp
         FileUtils.mkdir_p(@devcontainer_dir) unless Dir.exist?(@devcontainer_dir)
       end
 
-      def generate_dockerfile(analysis, preferences)
-        language = detect_primary_language(analysis)
-        ruby_version = detect_ruby_version(analysis) || "3.4.5"
-        node_version = detect_node_version(analysis) || "20"
-
-        # Use template from .devcontainer/Dockerfile in AIDP repo
+      def generate_dockerfile(analysis, _preferences)
+        # Use AIDP's template as the default (Ruby-based)
+        # Projects can customize after generation
         template_path = File.join(File.dirname(__FILE__), "..", "..", "..", ".devcontainer", "Dockerfile")
 
-        if File.exist?(template_path)
-          content = File.read(template_path)
-
-          # Customize based on project language
-          if language == "ruby"
-            content.gsub!(/ARG RUBY_VERSION=[\d.]+/, "ARG RUBY_VERSION=#{ruby_version}")
-          elsif language == "javascript" || language == "typescript"
-            # Switch to Node base image
-            content = generate_node_dockerfile(node_version, analysis)
-          end
+        content = if File.exist?(template_path)
+          File.read(template_path)
         else
-          # Fallback to generating from scratch
-          content = case language
-          when "ruby"
-            generate_ruby_dockerfile(ruby_version, analysis)
-          when "javascript", "typescript"
-            generate_node_dockerfile(node_version, analysis)
-          else
-            generate_generic_dockerfile(analysis)
-          end
+          # Fallback to basic Dockerfile if template not found
+          generate_basic_dockerfile
         end
 
         file_path = File.join(@devcontainer_dir, "Dockerfile")
@@ -81,9 +69,9 @@ module Aidp
         file_path
       end
 
-      def generate_devcontainer_json(analysis, preferences)
-        detect_primary_language(analysis)
-
+      def generate_devcontainer_json(_analysis, preferences)
+        # Use minimal, universal configuration
+        # Users can customize extensions/settings based on their project needs
         config = {
           name: "#{File.basename(@project_dir)} Development Container",
           build: {
@@ -101,8 +89,12 @@ module Aidp
           remoteUser: "aidp",
           customizations: {
             vscode: {
-              extensions: detect_vscode_extensions(analysis),
-              settings: detect_vscode_settings(analysis, preferences)
+              # Include only universal, language-agnostic extensions
+              # Project-specific extensions should be added by the user
+              extensions: [
+                "editorconfig.editorconfig", # Respect .editorconfig
+                "eamodio.gitlens"            # Git integration
+              ]
             }
           }
         }
@@ -149,199 +141,15 @@ module Aidp
         file_path
       end
 
-      # Helper methods for detection
-
-      def detect_primary_language(analysis)
-        return "unknown" unless analysis[:languages]&.any?
-
-        # Find language with most code
-        analysis[:languages].max_by { |_lang, size| size }&.first&.downcase || "unknown"
-      end
-
-      def detect_ruby_version(analysis)
-        # Look for .ruby-version file
-        ruby_version_file = File.join(@project_dir, ".ruby-version")
-        return File.read(ruby_version_file).strip if File.exist?(ruby_version_file)
-
-        # Look in Gemfile
-        gemfile = File.join(@project_dir, "Gemfile")
-        if File.exist?(gemfile)
-          content = File.read(gemfile)
-          if content =~ /ruby\s+['"]([^'"]+)['"]/
-            return Regexp.last_match(1)
-          end
-        end
-
-        nil
-      end
-
-      def detect_node_version(analysis)
-        # Look for .nvmrc file
-        nvmrc_file = File.join(@project_dir, ".nvmrc")
-        return File.read(nvmrc_file).strip if File.exist?(nvmrc_file)
-
-        # Look in package.json
-        package_json = File.join(@project_dir, "package.json")
-        if File.exist?(package_json)
-          require "json"
-          content = JSON.parse(File.read(package_json))
-          if content["engines"] && content["engines"]["node"]
-            version = content["engines"]["node"]
-            # Extract version number (handle ^, ~, >=, etc.)
-            return version.gsub(/[^0-9.]/, "").split(".").first
-          end
-        end
-
-        nil
-      rescue
-        nil
-      end
-
-      def detect_vscode_extensions(analysis)
-        extensions = []
-        language = detect_primary_language(analysis)
-
-        case language
-        when "ruby"
-          extensions += [
-            "Shopify.ruby-lsp",
-            "testdouble.vscode-standard-ruby"
-          ]
-        when "javascript", "typescript"
-          extensions += [
-            "dbaeumer.vscode-eslint",
-            "esbenp.prettier-vscode"
-          ]
-        when "python"
-          extensions += [
-            "ms-python.python",
-            "ms-python.vscode-pylance"
-          ]
-        end
-
-        # Common extensions
-        extensions += [
-          "eamodio.gitlens",
-          "mhutchie.git-graph",
-          "redhat.vscode-yaml",
-          "streetsidesoftware.code-spell-checker",
-          "editorconfig.editorconfig"
-        ]
-
-        extensions
-      end
-
-      def detect_vscode_settings(analysis, preferences)
-        settings = {}
-        language = detect_primary_language(analysis)
-
-        case language
-        when "ruby"
-          settings["ruby.lsp"] = {
-            "enableExperimentalFeatures" => true
-          }
-          settings["standardRuby.enable"] = true
-        when "javascript", "typescript"
-          settings["editor.formatOnSave"] = true
-          settings["editor.defaultFormatter"] = "esbenp.prettier-vscode"
-        when "python"
-          settings["python.linting.enabled"] = true
-          settings["python.formatting.provider"] = "black"
-        end
-
-        settings
-      end
-
-      # Dockerfile generation methods
-
-      def generate_ruby_dockerfile(ruby_version, analysis)
-        <<~DOCKERFILE
-          ARG RUBY_VERSION=#{ruby_version}
-          FROM ruby:${RUBY_VERSION}
-
-          # Install system dependencies
-          RUN apt-get update && apt-get install -y \\
-              git \\
-              vim \\
-              nano \\
-              curl \\
-              wget \\
-              build-essential \\
-              iptables \\
-              ipset \\
-              && rm -rf /var/lib/apt/lists/*
-
-          # Create non-root user
-          ARG USERNAME=aidp
-          ARG USER_UID=1000
-          ARG USER_GID=$USER_UID
-
-          RUN groupadd --gid $USER_GID $USERNAME \\
-              && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \\
-              && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \\
-              && chmod 0440 /etc/sudoers.d/$USERNAME
-
-          # Set up workspace
-          RUN mkdir -p /workspace && chown -R $USERNAME:$USERNAME /workspace
-          RUN mkdir -p /home/$USERNAME/.aidp && chown -R $USERNAME:$USERNAME /home/$USERNAME/.aidp
-
-          WORKDIR /workspace
-
-          USER $USERNAME
-
-          # Install bundler
-          RUN gem install bundler
-
-          ENV PATH="/home/aidp/.local/bin:${PATH}"
-        DOCKERFILE
-      end
-
-      def generate_node_dockerfile(node_version, analysis)
-        <<~DOCKERFILE
-          FROM node:#{node_version}
-
-          # Install system dependencies
-          RUN apt-get update && apt-get install -y \\
-              git \\
-              vim \\
-              nano \\
-              curl \\
-              wget \\
-              iptables \\
-              ipset \\
-              && rm -rf /var/lib/apt/lists/*
-
-          # Create non-root user
-          ARG USERNAME=aidp
-          ARG USER_UID=1000
-          ARG USER_GID=$USER_UID
-
-          RUN groupadd --gid $USER_GID $USERNAME \\
-              && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \\
-              && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \\
-              && chmod 0440 /etc/sudoers.d/$USERNAME
-
-          # Set up workspace
-          RUN mkdir -p /workspace && chown -R $USERNAME:$USERNAME /workspace
-          RUN mkdir -p /home/$USERNAME/.aidp && chown -R $USERNAME:$USERNAME /home/$USERNAME/.aidp
-
-          WORKDIR /workspace
-
-          USER $USERNAME
-
-          ENV PATH="/home/aidp/.local/bin:${PATH}"
-        DOCKERFILE
-      end
-
-      def generate_generic_dockerfile(analysis)
+      # Generate basic Dockerfile as fallback when template not found
+      # Uses Ubuntu base with minimal tooling - users customize for their needs
+      def generate_basic_dockerfile
         <<~DOCKERFILE
           FROM ubuntu:22.04
 
-          # Install system dependencies
+          # Install essential system dependencies
           RUN apt-get update && apt-get install -y \\
               git \\
-              vim \\
-              nano \\
               curl \\
               wget \\
               build-essential \\
@@ -367,7 +175,8 @@ module Aidp
 
           USER $USERNAME
 
-          ENV PATH="/home/aidp/.local/bin:${PATH}"
+          # Users should customize this Dockerfile for their language/framework needs
+          # See https://containers.dev for examples
         DOCKERFILE
       end
 

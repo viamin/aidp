@@ -952,7 +952,6 @@ module Aidp
         }
       end
 
-<<<<<<< HEAD
       # Default ZFC configuration
       def default_zfc_config
         {
@@ -979,7 +978,9 @@ module Aidp
           enabled: false,
           sample_rate: 0.1,
           log_comparisons: true
-=======
+        }
+      end
+
       def default_devcontainer_config
         {
           enabled: true,
@@ -994,7 +995,6 @@ module Aidp
             verbose_logging: false,
             allowed_domains: []
           }
->>>>>>> afeff6f (feat(devcontainer): add devcontainer generator, detection, firewall, templates, and harness integration)
         }
       end
 
