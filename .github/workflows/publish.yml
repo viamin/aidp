@@ -83,71 +83,94 @@ jobs:
       - name: Update coverage baseline if improved
         run: bundle exec rake coverage:update_baseline_if_improved
 
-      - name: Commit updated coverage badge and baseline to release PR (signed)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check for coverage changes
+        id: coverage-changes
         run: |
           set -euo pipefail
-
-          # Check if there are changes to commit
-          if git diff --quiet badges/coverage.svg coverage_baseline.json; then
-            echo "No changes to coverage files, skipping commit"
-            exit 0
+          CHANGES=$(git status --short -- badges/coverage.svg coverage_baseline.json || true)
+          if [ -z "$CHANGES" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No coverage changes detected."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "$CHANGES"
           fi
 
-          # Get current branch info
-          BRANCH="${{ needs.release-please.outputs.pr-head-branch }}"
-          CURRENT_SHA=$(git rev-parse HEAD)
+      - name: Commit updated coverage badge and baseline to release PR (verified)
+        if: steps.coverage-changes.outputs.changed == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          PR_BRANCH: ${{ needs.release-please.outputs.pr-head-branch }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const core = require('@actions/core');
+            const fs = require('fs');
 
-          echo "Creating signed commit via GitHub API..."
+            const branch = process.env.PR_BRANCH;
+            if (!branch) {
+              core.setFailed('Release PR branch was not detected.');
+              return;
+            }
 
-          # Read and encode files
-          BADGE_CONTENT=$(base64 -w 0 badges/coverage.svg)
-          BASELINE_CONTENT=$(base64 -w 0 coverage_baseline.json)
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
 
-          # Build the input JSON using jq for proper escaping
-          INPUT_JSON=$(jq -n \
-            --arg repo "${{ github.repository }}" \
-            --arg branch "$BRANCH" \
-            --arg sha "$CURRENT_SHA" \
-            --arg badge "$BADGE_CONTENT" \
-            --arg baseline "$BASELINE_CONTENT" \
-            '{
+            let expectedHeadOid;
+            try {
+              const { data: ref } = await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `heads/${branch}`
+              });
+              expectedHeadOid = ref.object.sha;
+            } catch (error) {
+              core.setFailed(`Unable to resolve head ref for ${branch}: ${error.message}`);
+              return;
+            }
+
+            core.info(`Preparing verified commit on ${branch} at ${expectedHeadOid}`);
+
+            const badge = fs.readFileSync('badges/coverage.svg');
+            const baseline = fs.readFileSync('coverage_baseline.json');
+
+            const mutation = `
+              mutation($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit {
+                    oid
+                    url
+                  }
+                }
+              }
+            `;
+
+            const input = {
               branch: {
-                repositoryNameWithOwner: $repo,
-                branchName: $branch
+                repositoryNameWithOwner: `${owner}/${repo}`,
+                branchName: branch
               },
               message: {
-                headline: "chore: update coverage badge and baseline"
+                headline: 'chore: update coverage badge and baseline'
               },
               fileChanges: {
                 additions: [
                   {
-                    path: "badges/coverage.svg",
-                    contents: $badge
+                    path: 'badges/coverage.svg',
+                    contents: badge.toString('base64')
                   },
                   {
-                    path: "coverage_baseline.json",
-                    contents: $baseline
+                    path: 'coverage_baseline.json',
+                    contents: baseline.toString('base64')
                   }
                 ]
               },
-              expectedHeadOid: $sha
-            }')
+              expectedHeadOid
+            };
 
-          # Create commit via GraphQL API (automatically signed by GitHub)
-          gh api graphql -f query='
-            mutation($input: CreateCommitOnBranchInput!) {
-              createCommitOnBranch(input: $input) {
-                commit {
-                  oid
-                  committedDate
-                }
-              }
-            }
-          ' -F input="$INPUT_JSON"
-
-          echo "✅ Created signed commit via GitHub API"
+            const result = await github.graphql(mutation, { input });
+            const commit = result.createCommitOnBranch.commit;
+            core.notice(`Created verified commit ${commit.oid} updating coverage artifacts (${commit.url})`);
 
       - name: Clean up coverage artifacts
         if: always()

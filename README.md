@@ -42,6 +42,75 @@ You can re-run the wizard manually:
 aidp --setup-config
 ```
 
+## Devcontainer Support
+
+AIDP provides first-class devcontainer support for sandboxed, secure AI agent execution. Devcontainers offer:
+
+- **Network Security**: Strict firewall with allowlisted domains only
+- **Sandboxed Environment**: Isolated from your host system
+- **Elevated Permissions**: AI agents can run with full permissions inside the container
+- **Consistent Setup**: Same environment across all developers
+
+### For AIDP Development
+
+This repository includes a `.devcontainer/` setup for developing AIDP itself:
+
+```bash
+# Open in VS Code
+code .
+
+# Press F1 → "Dev Containers: Reopen in Container"
+# Container builds automatically with Ruby 3.4.5, all tools, and firewall
+
+# Run tests inside container
+bundle exec rspec
+
+# Run AIDP inside container
+bundle exec aidp
+```
+
+See [.devcontainer/README.md](.devcontainer/README.md) for complete documentation.
+
+### Generating Devcontainers for Your Projects
+
+Use `aidp init` to generate a devcontainer for any project:
+
+```bash
+# Initialize project with devcontainer
+aidp init
+
+# When prompted:
+# "Generate devcontainer configuration for sandboxed development?" → Yes
+
+# Or use the flag directly
+aidp init --with-devcontainer
+```
+
+This creates:
+
+- `.devcontainer/Dockerfile` - Customized for your project's language/framework
+- `.devcontainer/devcontainer.json` - VS Code configuration and extensions
+- `.devcontainer/init-firewall.sh` - Network security rules
+- `.devcontainer/README.md` - Setup and usage documentation
+
+### Elevated Permissions in Devcontainers
+
+When running inside a devcontainer, you can enable elevated permissions for AI agents:
+
+```yaml
+# aidp.yml
+devcontainer:
+  enabled: true
+  full_permissions_when_in_devcontainer: true  # Run all providers with full permissions
+
+  # Or enable per-provider
+  permissions:
+    skip_permission_checks:
+      - claude  # Adds --dangerously-skip-permissions for Claude Code
+```
+
+AIDP automatically detects when it's running in a devcontainer and adjusts agent permissions accordingly. This is safe because the container is sandboxed from your host system.
+
 ## Core Features
 
 ### Work Loops

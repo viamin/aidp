@@ -4,6 +4,7 @@ require "tty-prompt"
 require_relative "../message_display"
 require_relative "project_analyzer"
 require_relative "doc_generator"
+require_relative "devcontainer_generator"
 
 module Aidp
   module Init
@@ -12,11 +13,12 @@ module Aidp
     class Runner
       include Aidp::MessageDisplay
 
-      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new, analyzer: nil, doc_generator: nil, options: {})
+      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new, analyzer: nil, doc_generator: nil, devcontainer_generator: nil, options: {})
         @project_dir = project_dir
         @prompt = prompt
         @analyzer = analyzer || ProjectAnalyzer.new(project_dir)
         @doc_generator = doc_generator || DocGenerator.new(project_dir)
+        @devcontainer_generator = devcontainer_generator || DevcontainerGenerator.new(project_dir)
         @options = options
       end
 
@@ -62,20 +64,30 @@ module Aidp
 
         @doc_generator.generate(analysis: analysis, preferences: preferences)
 
+        generated_files = [
+          "docs/LLM_STYLE_GUIDE.md",
+          "docs/PROJECT_ANALYSIS.md",
+          "docs/CODE_QUALITY_PLAN.md"
+        ]
+
         display_message("\n📄 Generated documentation:", type: :info)
-        display_message("  - docs/LLM_STYLE_GUIDE.md", type: :success)
-        display_message("  - docs/PROJECT_ANALYSIS.md", type: :success)
-        display_message("  - docs/CODE_QUALITY_PLAN.md", type: :success)
+        generated_files.each { |file| display_message("  - #{file}", type: :success) }
+
+        # Optionally generate devcontainer
+        if @options[:with_devcontainer] || should_generate_devcontainer?(preferences)
+          devcontainer_files = @devcontainer_generator.generate(analysis: analysis, preferences: preferences)
+          generated_files.concat(devcontainer_files)
+
+          display_message("\n📦 Generated devcontainer:", type: :info)
+          devcontainer_files.each { |file| display_message("  - #{file}", type: :success) }
+        end
+
         display_message("\n✅ aidp init complete.", type: :success)
 
         {
           analysis: analysis,
           preferences: preferences,
-          generated_files: [
-            "docs/LLM_STYLE_GUIDE.md",
-            "docs/PROJECT_ANALYSIS.md",
-            "docs/CODE_QUALITY_PLAN.md"
-          ]
+          generated_files: generated_files
         }
       end
 
@@ -225,7 +237,7 @@ module Aidp
         display_message("The following questions will help customize the generated documentation.", type: :info)
         display_message("Press Enter to accept defaults shown in brackets.\n", type: :info)
 
-        {
+        prefs = {
           adopt_new_conventions: ask_yes_no_with_context(
             "Make these conventions official for this repository?",
             context: "This saves the detected patterns to LLM_STYLE_GUIDE.md and guides future AI-assisted work.",
@@ -242,6 +254,21 @@ module Aidp
             default: false
           )
         }
+
+        # Ask about devcontainer generation unless explicitly set via options
+        unless @options.key?(:with_devcontainer)
+          prefs[:generate_devcontainer] = ask_yes_no_with_context(
+            "Generate devcontainer configuration for sandboxed development?",
+            context: "Creates .devcontainer/ with Docker setup and network security for safe AI agent execution.",
+            default: !@devcontainer_generator.exists?
+          )
+        end
+
+        prefs
+      end
+
+      def should_generate_devcontainer?(preferences)
+        preferences[:generate_devcontainer] == true
       end
 
       def ask_yes_no_with_context(question, context:, default:)

@@ -549,6 +549,90 @@ module Aidp
         zfc_ab_testing_config[:enabled] == true
       end
 
+      # Devcontainer configuration methods
+
+      # Get devcontainer configuration
+      def devcontainer_config
+        @config[:devcontainer] || default_devcontainer_config
+      end
+
+      # Check if devcontainer features are enabled
+      def devcontainer_enabled?
+        devcontainer_config[:enabled] != false
+      end
+
+      # Check if full permissions should be granted in devcontainer
+      def full_permissions_in_devcontainer?
+        devcontainer_config[:full_permissions_when_in_devcontainer] == true
+      end
+
+      # Get forced detection value (nil for auto-detection)
+      def devcontainer_force_detection
+        devcontainer_config[:force_detection]
+      end
+
+      # Check if currently in devcontainer (with optional force override)
+      def in_devcontainer?
+        forced = devcontainer_force_detection
+        return forced unless forced.nil?
+
+        require_relative "../utils/devcontainer_detector"
+        Aidp::Utils::DevcontainerDetector.in_devcontainer?
+      end
+
+      # Get devcontainer permissions config
+      def devcontainer_permissions
+        devcontainer_config[:permissions] || {}
+      end
+
+      # Check if dangerous filesystem operations are allowed in devcontainer
+      def devcontainer_dangerous_ops_allowed?
+        devcontainer_permissions[:dangerous_filesystem_ops] == true
+      end
+
+      # Get list of providers that should skip permission checks in devcontainer
+      def devcontainer_skip_permission_checks
+        devcontainer_permissions[:skip_permission_checks] || []
+      end
+
+      # Check if a specific provider should skip permission checks in devcontainer
+      def devcontainer_skip_permissions_for?(provider_name)
+        devcontainer_skip_permission_checks.include?(provider_name.to_s)
+      end
+
+      # Get devcontainer settings
+      def devcontainer_settings
+        devcontainer_config[:settings] || {}
+      end
+
+      # Get timeout multiplier for devcontainer
+      def devcontainer_timeout_multiplier
+        devcontainer_settings[:timeout_multiplier] || 1.0
+      end
+
+      # Check if verbose logging is enabled in devcontainer
+      def devcontainer_verbose_logging?
+        devcontainer_settings[:verbose_logging] == true
+      end
+
+      # Get allowed domains for devcontainer firewall
+      def devcontainer_allowed_domains
+        devcontainer_settings[:allowed_domains] || []
+      end
+
+      # Check if provider should run with full permissions
+      # Combines devcontainer detection with configuration
+      def should_use_full_permissions?(provider_name)
+        return false unless devcontainer_enabled?
+        return false unless in_devcontainer?
+
+        # Check if full permissions are globally enabled for devcontainer
+        return true if full_permissions_in_devcontainer?
+
+        # Check if this specific provider should skip permissions
+        devcontainer_skip_permissions_for?(provider_name)
+      end
+
       private
 
       def validate_configuration!
@@ -894,6 +978,23 @@ module Aidp
           enabled: false,
           sample_rate: 0.1,
           log_comparisons: true
+        }
+      end
+
+      def default_devcontainer_config
+        {
+          enabled: true,
+          full_permissions_when_in_devcontainer: false,
+          force_detection: nil,
+          permissions: {
+            dangerous_filesystem_ops: false,
+            skip_permission_checks: []
+          },
+          settings: {
+            timeout_multiplier: 1.0,
+            verbose_logging: false,
+            allowed_domains: []
+          }
         }
       end
 

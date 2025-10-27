@@ -667,6 +667,47 @@ users:
       cursor:
         priority: 2
 
+# Devcontainer configuration (experimental)
+# Controls behavior when running inside a development container
+devcontainer:
+  # Enable automatic detection of devcontainer environment
+  enabled: true
+
+  # Run agents with full permissions when in devcontainer
+  # This allows more dangerous filesystem operations in the sandboxed environment
+  # Only applies when AIDP detects it's running in a container
+  full_permissions_when_in_devcontainer: false
+
+  # Override detection (useful for testing or forcing behavior)
+  # Set to true/false to force detection result, or null for auto-detection
+  force_detection: null
+
+  # Permissions to grant when in devcontainer
+  permissions:
+    # Allow dangerous filesystem operations
+    dangerous_filesystem_ops: false
+
+    # Skip permission checks for specific providers
+    # Provider-specific flags will be added automatically
+    skip_permission_checks:
+      - "claude"  # Adds --dangerously-skip-permissions for Claude Code
+      # - "cursor"
+      # - "gemini"
+
+  # Container-specific settings
+  settings:
+    # Increase timeouts in container (may be slower)
+    timeout_multiplier: 1.5
+
+    # Enable more verbose logging in devcontainer
+    verbose_logging: true
+
+    # Network allowlist (for firewall configuration)
+    # These will be added to init-firewall.sh if using AIDP's devcontainer
+    allowed_domains: []
+      # - "api.example.com"
+      # - "registry.example.com"
+
 # Configuration tips:
 # - Set max_tokens based on your API plan limits
 # - Use default_flags to customize provider behavior

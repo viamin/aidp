@@ -67,6 +67,12 @@ module Aidp
           args += ["--output-format=text"]
         end
 
+        # Check if we should skip permissions (devcontainer support)
+        if should_skip_permissions?
+          args << "--dangerously-skip-permissions"
+          debug_log("🔓 Running with elevated permissions (devcontainer mode)", level: :info)
+        end
+
         begin
           # Use debug_execute_command with streaming support
           result = debug_execute_command("claude", args: args, input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
@@ -154,6 +160,19 @@ module Aidp
             nil # Use default
           end
         end
+      end
+
+      # Check if we should skip permissions based on devcontainer configuration
+      def should_skip_permissions?
+        # Check if harness context is available
+        return false unless @harness_context
+
+        # Get configuration from harness
+        config = @harness_context.config
+        return false unless config
+
+        # Use configuration method to determine if full permissions should be used
+        config.should_use_full_permissions?("claude")
       end
 
       # Parse stream-json output from Claude CLI
