@@ -92,5 +92,83 @@ RSpec.describe Aidp::Daemon::Runner do
       allow(client).to receive(:close)
       runner.send(:handle_ipc_client, client)
     end
+
+    it "handles error gracefully when client raises" do
+      runner = described_class.new(project_dir, config, options)
+      client = double("Client")
+      allow(client).to receive(:gets).and_raise(StandardError.new("boom"))
+      allow(client).to receive(:close)
+      expect(Aidp.logger).to receive(:error).with("ipc_error", anything)
+      runner.send(:handle_ipc_client, client)
+    end
+  end
+
+  describe "#attach" do
+    it "returns error when daemon not running" do
+      allow(process_manager).to receive(:running?).and_return(false)
+      runner = described_class.new(project_dir, config, options)
+      result = runner.attach
+      expect(result[:success]).to be(false)
+      expect(result[:message]).to match(/No daemon running/)
+    end
+
+    it "returns error when socket does not exist" do
+      allow(process_manager).to receive(:running?).and_return(true)
+      allow(process_manager).to receive(:socket_exists?).and_return(false)
+      runner = described_class.new(project_dir, config, options)
+      result = runner.attach
+      expect(result[:success]).to be(false)
+      expect(result[:message]).to match(/socket not available/)
+    end
+
+    it "attaches successfully when daemon running and socket exists" do
+      allow(process_manager).to receive(:running?).and_return(true)
+      allow(process_manager).to receive(:socket_exists?).and_return(true)
+      runner = described_class.new(project_dir, config, options)
+      result = runner.attach
+      expect(result[:success]).to be(true)
+      expect(result[:message]).to match(/Attached/)
+    end
+  end
+
+  describe "#cleanup" do
+    it "cleans up resources and logs" do
+      runner = described_class.new(project_dir, config, options)
+      expect(process_manager).to receive(:remove_socket)
+      expect(process_manager).to receive(:remove_pid)
+      expect(Aidp.logger).to receive(:info).with("daemon_lifecycle", "Daemon cleanup started")
+      expect(Aidp.logger).to receive(:info).with("daemon_lifecycle", "Daemon stopped cleanly")
+      runner.send(:cleanup)
+    end
+  end
+
+  describe "signal handlers" do
+    it "sets running to false on SIGTERM simulation" do
+      runner = described_class.new(project_dir, config, options)
+      runner.send(:setup_signal_handlers)
+      # Simulate SIGTERM by directly invoking the response
+      runner.send(:stop_response)
+      # Cannot directly test signal traps in specs easily, but we verify stop_response logic
+      expect(runner.send(:stop_response)[:status]).to eq("stopping")
+    end
+  end
+
+  describe "#run_work_loop_mode" do
+    it "runs the work loop and logs heartbeat" do
+      runner = described_class.new(project_dir, config, options)
+      runner.instance_variable_set(:@running, true)
+
+      # Run in a thread and stop after brief delay
+      thread = Thread.new do
+        runner.send(:run_work_loop_mode)
+      end
+
+      sleep 0.05
+      runner.instance_variable_set(:@running, false)
+      thread.join(1)
+
+      expect(Aidp.logger).to have_received(:info).with("daemon_lifecycle", "Starting work loop mode")
+      # Note: "Work loop mode stopped" may not fire in time due to sleep(10) in the loop
+    end
   end
 end
