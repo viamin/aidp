@@ -12,50 +12,51 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    # Development tools
-    git \
-    vim \
-    nano \
-    curl \
-    wget \
-    build-essential \
-    # Networking tools
-    iptables \
-    ipset \
-    jq \
-    dnsutils \
-    netcat-openbsd \
-    # Shell improvements
-    zsh \
-    fzf \
-    # Yamllint for config validation
-    yamllint \
-    # Process management
-    procps \
-    # Clean up
-    && rm -rf /var/lib/apt/lists/*
+  # Development tools
+  build-essential \
+  cmake \
+  curl \
+  git \
+  libssh2-1-dev \
+  libssl-dev \
+  nodejs \
+  npm \
+  pkg-config \
+  vim \
+  # Networking tools
+  dnsutils \
+  ipset \
+  iptables \
+  jq \
+  netcat-openbsd \
+  # Shell improvements
+  fzf \
+  ripgrep \
+  zsh \
+  # Yamllint for config validation
+  yamllint \
+  # Process management
+  procps \
+  # Clean up
+  && rm -rf /var/lib/apt/lists/*
 
 # Install git-delta for better diffs (handle multi-arch)
 ARG DELTA_VERSION=0.18.2
 RUN ARCH="$(dpkg --print-architecture)" \
-    && case "$ARCH" in \
-      amd64|arm64) DELTA_ARCH="$ARCH" ;; \
-      *) echo "Unsupported architecture for git-delta: $ARCH" >&2 && exit 1 ;; \
-    esac \
-    && wget "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb" \
-    && dpkg -i "git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb" \
-    && rm "git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb"
+  && case "$ARCH" in \
+  amd64|arm64) DELTA_ARCH="$ARCH" ;; \
+  *) echo "Unsupported architecture for git-delta: $ARCH" >&2 && exit 1 ;; \
+  esac \
+  && wget "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb" \
+  && dpkg -i "git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb" \
+  && rm "git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb"
 
 # Install mise (asdf successor) for version management
 RUN curl https://mise.run | sh
 ENV PATH="/root/.local/bin:$PATH"
 
-## Use base image non-root user (typically 'vscode'); ensure tooling & deps installed as root earlier.
-
-# (Optional tools installed later via devcontainer postCreateCommand based on user-selected flags.)
-RUN gem install bundler --no-document \
-  && npm install -g markdownlint-cli \
-  && npm cache clean --force || true
+RUN npm install -g markdownlint-cli \
+  && npm cache clean --force
 
 # Copy firewall initialization script
 COPY .devcontainer/init-firewall.sh /usr/local/bin/init-firewall.sh
