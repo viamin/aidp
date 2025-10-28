@@ -13,6 +13,7 @@ Coding standards, architectural patterns, and best practices for the AI Dev Pipe
 - [Testing Guidelines](#testing-guidelines)
 - [Logging Practices](#logging-practices)
 - [Error Handling](#error-handling)
+- [Project-Specific Knowledge Management](#project-specific-knowledge-management)
 
 ## Code Organization
 
@@ -1661,3 +1662,127 @@ For complete details on the optimization system:
 ---
 
 **Good code is not just code that works, but code that is easy to understand, modify, and extend.**
+
+---
+
+## Project-Specific Knowledge Management
+
+### Overview
+
+AIDP's prompt optimization system intelligently selects style guide fragments based on task context. To maximize this feature, structure project-specific knowledge as dedicated style guide sections rather than using external memory systems.
+
+**Principle**: Context is precious - use AIDP's existing optimization rather than adding external dependencies.
+
+### When to Add Project-Specific Sections
+
+Add project-specific sections to `docs/LLM_STYLE_GUIDE.md` when you make decisions that should persist across sessions:
+
+**Good candidates**:
+
+- ✅ Architectural choices and rationale
+- ✅ User preferences and coding style
+- ✅ Framework/library selections
+- ✅ Authentication/authorization patterns
+- ✅ Database design conventions
+- ✅ API design patterns
+- ✅ Error handling strategies
+
+**Poor candidates** (already handled elsewhere):
+
+- ❌ Implementation details (in code comments)
+- ❌ Temporary decisions (in commit messages)
+- ❌ Task tracking (use [persistent tasklist](PERSISTENT_TASKLIST.md))
+- ❌ Build instructions (in README)
+
+### Format for Project-Specific Sections
+
+Use this template in `docs/LLM_STYLE_GUIDE.md`:
+
+```markdown
+## Project-Specific Patterns
+
+### Authentication (Decided: YYYY-MM-DD)
+
+**Decision**: Using OAuth 2.0 with Auth0
+
+**Rationale**: Client requires Google/GitHub login support; Auth0 provides managed OAuth flow
+
+**Implementation Details**:
+
+- PKCE flow for security (no client secret)
+- Sliding window token refresh (15 min access, 7 day refresh)
+- Tokens stored in HTTP-only cookies
+
+**Related Commits**: abc123, def456
+
+**Last Updated**: YYYY-MM-DD
+```
+
+### Key Elements
+
+**1. Decision Date** - Track when decisions were made
+
+**2. Rationale** - Document *why*, not just *what*
+
+**3. Examples** - Include code snippets showing the pattern
+
+**4. Related References** - Link to commits, files, or external docs
+
+**5. Update Tracking** - Track when sections are reviewed/updated
+
+### Benefits Over External Memory Systems
+
+**Zero context overhead**:
+
+- Style guide sections are already in prompt budget
+- AIDP's fragment selector includes them when relevant
+- No additional tokens consumed
+
+**Git-versioned**:
+
+- Changes tracked alongside code
+- Reviewable in pull requests
+- Merge-friendly
+
+**Human-readable**:
+
+- Easy to browse
+- Searchable with standard tools
+- No special tooling required
+
+**Prompt-optimized**:
+
+- Fragment selector scores relevance automatically
+- Only included when task context matches
+- No manual querying needed
+
+### Comparison to External Memory Systems
+
+| Aspect | Style Guide Sections | External Memory (memory-bank-mcp) |
+|--------|---------------------|-----------------------------------|
+| Context Cost | 0 tokens (already in budget) | +1,500 tokens (+18% overhead) |
+| Setup | 0 minutes (add to existing file) | 30-60 minutes (Docker + config) |
+| Maintenance | Git workflow (commit/merge) | Separate database, backups |
+| Prompt Integration | Automatic (fragment selector) | Manual querying or integration |
+| Failure Mode | Always available | Service outage = no memory |
+
+**Verdict**: Style guide sections are superior for most use cases.
+
+### Summary
+
+**Best practice**: Document project-specific decisions in `docs/LLM_STYLE_GUIDE.md` sections.
+
+**Benefits**:
+
+- ✅ Zero context overhead
+- ✅ Zero external dependencies
+- ✅ Git-versioned and reviewable
+- ✅ Automatically included by prompt optimizer
+
+**Avoid**: External memory systems (memory-bank-mcp) unless you have specific needs they address.
+
+**See Also**:
+
+- [Prompt Optimization Guide](PROMPT_OPTIMIZATION.md)
+- [Optional External Tools](OPTIONAL_TOOLS.md)
+- [Persistent Tasklist](PERSISTENT_TASKLIST.md)
