@@ -16,6 +16,26 @@ module Aidp
         nil
       end
 
+      # Parse task filing signals from agent output
+      # Returns array of task hashes with description, priority, and tags
+      def self.parse_task_filing(output)
+        return [] unless output
+
+        tasks = []
+        # Pattern: File task: "description" [priority: high|medium|low] [tags: tag1,tag2]
+        pattern = /File\s+task:\s*"([^"]+)"(?:\s+priority:\s*(high|medium|low))?(?:\s+tags:\s*([^\s]+))?/i
+
+        output.to_s.scan(pattern).each do |description, priority, tags|
+          tasks << {
+            description: description.strip,
+            priority: (priority || "medium").downcase.to_sym,
+            tags: tags ? tags.split(",").map(&:strip) : []
+          }
+        end
+
+        tasks
+      end
+
       def self.normalize_token(raw)
         return nil if raw.nil? || raw.empty?
 

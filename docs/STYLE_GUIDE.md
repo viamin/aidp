@@ -1786,3 +1786,284 @@ Use this template in `docs/LLM_STYLE_GUIDE.md`:
 - [Prompt Optimization Guide](PROMPT_OPTIMIZATION.md)
 - [Optional External Tools](OPTIONAL_TOOLS.md)
 - [Persistent Tasklist](PERSISTENT_TASKLIST.md)
+
+---
+
+## Persistent Tasklist: Cross-Session Task Tracking
+
+AIDP includes a built-in persistent tasklist that tracks tasks across sessions via git-committable `.aidp/tasklist.jsonl` files.
+
+### Overview
+
+**Purpose**: Track discovered tasks, future work, and technical debt without losing context between sessions.
+
+**Storage**: `.aidp/tasklist.jsonl` (JSONL format - one JSON object per line)
+
+**Benefits**:
+
+- ✅ Zero context overhead (tasks loaded on-demand)
+- ✅ Git-tracked history alongside code changes
+- ✅ Resume work across sessions without memory loss
+- ✅ Agents can file tasks during implementation
+
+### Task Filing Signal Pattern
+
+Agents should file tasks using this signal pattern in their output:
+
+```text
+File task: "description" [priority: high|medium|low] [tags: tag1,tag2]
+```
+
+**Examples**:
+
+```text
+File task: "Add rate limiting to /auth/token" priority: high
+File task: "Update API docs with OAuth flow" priority: medium tags: docs,api
+File task: "Refactor error handling in UserService" tags: refactor,backend
+File task: "Add integration tests for checkout flow" priority: high tags: testing
+```
+
+### When to File Tasks
+
+**DO file tasks for**:
+
+- Sub-tasks discovered during implementation
+- Future work that shouldn't be forgotten
+- Technical debt identified during development
+- Follow-up items after completing current work
+- Security issues that need attention
+- Performance optimizations for later
+
+**DON'T file tasks for**:
+
+- Work you can complete immediately
+- Trivial changes (typo fixes, formatting)
+- Tasks already tracked in the issue tracker
+- Work outside the project scope
+
+### Task Properties
+
+**Status** (automatic):
+
+- `pending` - Not yet started (default for new tasks)
+- `in_progress` - Currently being worked on
+- `done` - Completed successfully
+- `abandoned` - No longer relevant or needed
+
+**Priority** (optional):
+
+- `high` - Security issues, critical bugs, blocking work
+- `medium` - Normal priority (default)
+- `low` - Nice-to-have improvements
+
+**Tags** (optional):
+
+- Use for categorization and filtering
+- Common tags: `docs`, `testing`, `refactor`, `security`, `performance`, `api`, `ui`
+
+**Metadata** (automatic):
+
+- `id` - Unique identifier (timestamp + random hex)
+- `created_at` - When task was created
+- `updated_at` - Last modification time
+- `session` - Work loop session where task was discovered
+- `discovered_during` - Context of discovery
+
+### REPL Commands
+
+**List tasks**:
+
+```bash
+/tasks list              # All tasks
+/tasks list pending      # Only pending
+/tasks list in_progress  # Only in-progress
+/tasks list done         # Completed tasks
+```
+
+**Task details**:
+
+```bash
+/tasks show task_1730099445_a3f2
+```
+
+**Update status**:
+
+```bash
+/tasks done task_1730099445_a3f2
+/tasks abandon task_1730099445_b8d1 "Feature requirement changed"
+```
+
+**Statistics**:
+
+```bash
+/tasks stats
+```
+
+### Task Filing Best Practices
+
+**1. Be Specific** (1-200 characters):
+
+- ❌ "Fix bug"
+- ✅ "Fix null pointer error in UserService.authenticate()"
+- ❌ "Update docs"
+- ✅ "Add API documentation for OAuth endpoints"
+
+**2. Use Appropriate Priority**:
+
+- High: Security vulnerabilities, data loss risks, blocking issues
+- Medium: Standard features, non-blocking bugs (default)
+- Low: Cosmetic improvements, optimizations
+
+**3. Tag Meaningfully**:
+
+- Use consistent tag names across the project
+- Limit to 2-3 relevant tags per task
+- Examples: `security,api`, `testing,integration`, `docs,user-facing`
+
+**4. File During Implementation**:
+
+- File tasks as you discover them
+- Include context about why it's needed
+- Don't wait until the end (you'll forget)
+
+**5. Review Pending Tasks**:
+
+- Check pending tasks at session start
+- Mark obsolete tasks as abandoned (with reason)
+- Update priorities as project evolves
+
+### Integration with Work Loops
+
+**Session Start**:
+Work loops automatically display pending tasks:
+
+```text
+📋 Pending Tasks from Previous Sessions:
+  ⚠️  Fix authentication race condition (2d ago)
+  ○  Update API documentation (1d ago)
+  ·  Refactor error handling (today)
+```
+
+**Automatic Filing**:
+When agents output task filing signals, tasks are automatically created:
+
+```text
+📋 Filed task: Add rate limiting to /auth/token (task_1730099445_a3f2)
+```
+
+### JSONL File Format
+
+Tasks are stored in append-only JSONL format (one JSON object per line):
+
+```jsonl
+{"id":"task_001","description":"Add rate limiting","status":"done","priority":"high","created_at":"2025-10-27T10:30:00Z","updated_at":"2025-10-27T14:20:00Z","completed_at":"2025-10-27T14:20:00Z"}
+{"id":"task_002","description":"Update docs","status":"pending","priority":"medium","created_at":"2025-10-27T10:35:00Z","updated_at":"2025-10-27T10:35:00Z"}
+```
+
+**Why JSONL?**:
+
+- Line-based format (git-friendly diffs)
+- Merge-friendly (append-only reduces conflicts)
+- Human-readable for debugging
+- Fast to parse and query
+
+**Append-Only Behavior**:
+
+- Updates append new versions (keeps history)
+- Latest version of each task ID is used
+- Full task history preserved in file
+
+### Example Workflow
+
+**Friday afternoon - Discovery**:
+
+```text
+Agent: "Implementing OAuth flow. I notice we'll need rate limiting."
+Agent: File task: "Add rate limiting to /auth/token" priority: high
+System: 📋 Filed task: Add rate limiting to /auth/token (task_170310_a3f2)
+
+Agent: "Also need to update the API documentation."
+Agent: File task: "Update API docs with OAuth endpoints" priority: medium tags: docs,api
+System: 📋 Filed task: Update API docs with OAuth endpoints (task_170315_b8d1)
+
+[Agent completes OAuth implementation]
+[Commit includes code + .aidp/tasklist.jsonl]
+```
+
+**Monday morning - Resume**:
+
+```bash
+$ aidp execute
+
+📋 Pending Tasks from Previous Sessions:
+  ⚠️  Add rate limiting to /auth/token (3d ago)
+  ○  Update API docs with OAuth endpoints (3d ago)
+
+Agent: "I see pending tasks. Let me work on rate limiting first."
+[Picks up exactly where Friday left off]
+```
+
+**Later - Management**:
+
+```bash
+# Check status
+/tasks list pending
+
+# Mark completed
+/tasks done task_170310_a3f2
+
+# View statistics
+/tasks stats
+```
+
+### Anti-Patterns
+
+**❌ Don't overuse**:
+
+- Filing 50 tasks in one session (overwhelming)
+- Filing tasks for every minor thought
+- Duplicating existing issue tracker
+
+**❌ Don't underuse**:
+
+- Discovering sub-tasks but not filing them
+- Forgetting to file technical debt
+- Losing context between sessions
+
+**❌ Don't misuse**:
+
+- Using as a general note-taking system
+- Filing tasks for other projects
+- Skipping descriptions ("TODO: fix this")
+
+**✅ Balance**:
+
+- File 2-5 tasks per significant work session
+- Focus on actionable, specific work items
+- Use for cross-session continuity
+
+### Troubleshooting
+
+**Tasks not appearing**:
+
+- Check `.aidp/tasklist.jsonl` exists
+- Verify task status (only `pending` shown by default)
+- Try `/tasks list` to see all tasks
+
+**Merge conflicts**:
+
+- Accept both changes (append-only format)
+- Remove any duplicate entries
+- Consider running `/tasks list` to verify state
+
+**Corrupted JSONL**:
+
+- Malformed lines are automatically skipped
+- Check logs for parsing errors
+- Manually fix or remove invalid JSON lines
+
+### Related Documentation
+
+- [REPL Reference](REPL_REFERENCE.md#tasks-subcommand-args) - Complete `/tasks` command docs
+- [Persistent Tasklist PRD](PERSISTENT_TASKLIST.md) - Full technical specification
+- [Work Loops Guide](WORK_LOOPS_GUIDE.md) - Integration with work loops

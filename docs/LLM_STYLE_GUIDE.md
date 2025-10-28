@@ -219,7 +219,13 @@ end
 - Include rationale when refactoring behavior
 - Reference issue IDs for non-trivial changes
 
-## 18. Prompt Optimization
+## 18. Task Filing
+
+**Signal**: `File task: "description" priority: high tags: tag1,tag2`
+
+File discovered sub-tasks, tech debt, or future work. Tasks persist in `.aidp/tasklist.jsonl`. See [STYLE_GUIDE.md](STYLE_GUIDE.md#persistent-tasklist-cross-session-task-tracking) for details.
+
+## 19. Prompt Optimization
 
 AIDP uses intelligent fragment selection - you may not see this entire guide in your prompts. The AI selects only relevant sections based on your current task. Use `/prompt explain` to see what was selected. See `STYLE_GUIDE.md` for details on writing fragment-friendly documentation.
 

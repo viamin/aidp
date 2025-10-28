@@ -25,6 +25,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     allow(File).to receive(:exist?).and_return(false)
     allow(File).to receive(:read).and_return("")
     allow(FileUtils).to receive(:mkdir_p)
+    allow(FileUtils).to receive(:touch)
 
     # Mock Aidp.logger to prevent file system initialization in tests
     mock_logger = instance_double("Aidp::Logger")
