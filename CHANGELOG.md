@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.18.0](https://github.com/viamin/aidp/compare/aidp/v0.17.1...aidp/v0.18.0) (2025-10-28)
+
+
+### Features
+
+* **devcontainer:** add devcontainer generator, detection, firewall, templates, and harness integration ([25d09f9](https://github.com/viamin/aidp/commit/25d09f90a12586069f8498a5c450401985e157a6)), closes [#180](https://github.com/viamin/aidp/issues/180)
+* **devcontainer:** simplify DevcontainerGenerator to prefer templates and minimal defaults; add default_devcontainer_config ([44b7229](https://github.com/viamin/aidp/commit/44b7229a26a1f27d2dad6572f30ef14d2d91c263))
+* **harness:** add coverage, version-control and interactive testing support; add /tools REPL and docs ([96c858f](https://github.com/viamin/aidp/commit/96c858f8a940294648fb1a75544d0ba853177168))
+* **harness:** add coverage, version-control and interactive testing support; add /tools REPL and docs ([#177](https://github.com/viamin/aidp/issues/177)) ([ec799ab](https://github.com/viamin/aidp/commit/ec799ab5d9aa08c91ac1be73a56dbb4c5fd1ed72))
+* **harness:** add Thinking Depth orchestration, model catalog, REPL/CLI and docs ([e31b992](https://github.com/viamin/aidp/commit/e31b9925d59092722d34e752447f61188e13f27d)), closes [#157](https://github.com/viamin/aidp/issues/157)
+* **harness:** add Thinking Depth orchestration, model catalog, REPL/CLI and docs ([#179](https://github.com/viamin/aidp/issues/179)) ([f469752](https://github.com/viamin/aidp/commit/f4697527a50141274a908c55127f4e389ef2bc7f))
+* **harness:** add Zero Framework Cognition (ZFC) decision engine, detector, docs, config and tests ([044556b](https://github.com/viamin/aidp/commit/044556bf48799d3e870532cea28f7a550f530aad)), closes [#165](https://github.com/viamin/aidp/issues/165)
+* **harness:** add Zero Framework Cognition (ZFC) decision engine, detector, docs, config and tests ([#183](https://github.com/viamin/aidp/issues/183)) ([bfae527](https://github.com/viamin/aidp/commit/bfae527f252cb0be6bdfc24f7cdac2eb48f73857))
+* **prompt-optimization:** implement intelligent prompt minimization (ZFC) and integrate into work loops ([aa31cec](https://github.com/viamin/aidp/commit/aa31cec7e7fd16b9c67b105cb45ead502d23ee54)), closes [#175](https://github.com/viamin/aidp/issues/175)
+* **prompt-optimization:** implement intelligent prompt minimization (ZFC) and integrate into work loops ([#193](https://github.com/viamin/aidp/issues/193)) ([81e60ab](https://github.com/viamin/aidp/commit/81e60abfc5539c0794254291ffd673ce702d552e))
+* **version-control:** configurable commit styles, AI co-authoring, and PR automation ([e39c764](https://github.com/viamin/aidp/commit/e39c7640967bb66ad7589cd372c8c562cf03d5b7)), closes [#182](https://github.com/viamin/aidp/issues/182)
+* **version-control:** configurable commit styles, AI co-authoring, and PR automation ([#197](https://github.com/viamin/aidp/issues/197)) ([a279d1c](https://github.com/viamin/aidp/commit/a279d1c9253ab7eb406c2b4dd4f9b45ff1eab1e0))
+
+
+### Documentation
+
+* **memory-integration:** add investigation, optional tools guide, and persistent tasklist PRD ([0e06023](https://github.com/viamin/aidp/commit/0e060230dc5a86d7b2b5b4dbce4fa2be706aacbc)), closes [#176](https://github.com/viamin/aidp/issues/176)
+* **memory-integration:** add investigation, optional tools guide, and persistent tasklist PRD ([#196](https://github.com/viamin/aidp/issues/196)) ([02cdfcc](https://github.com/viamin/aidp/commit/02cdfccf92b864e87fac1d52ceb6e6e415e0bb45))
+
+
+### Dependencies
+
+* **deps-dev:** bump benchmark from 0.4.1 to 0.5.0 ([ae05d18](https://github.com/viamin/aidp/commit/ae05d189648c5dfcb11374e6a07c1dae3363280e))
+* **deps-dev:** bump benchmark from 0.4.1 to 0.5.0 ([#185](https://github.com/viamin/aidp/issues/185)) ([ad14e90](https://github.com/viamin/aidp/commit/ad14e900935c5badde04231f2574bd6da2014f93))
+* **deps-dev:** bump rspec from 3.13.1 to 3.13.2 ([a0645c3](https://github.com/viamin/aidp/commit/a0645c3a643dce45c0fccbe3abe83f94ae61b149))
+* **deps-dev:** bump rspec from 3.13.1 to 3.13.2 ([#187](https://github.com/viamin/aidp/issues/187)) ([3ae6e52](https://github.com/viamin/aidp/commit/3ae6e52e1ff5374da6108388bc93a25a38a539c1))
+* **deps-dev:** bump simplecov-mcp from 1.0.0 to 1.0.1 ([aaa67b8](https://github.com/viamin/aidp/commit/aaa67b88cdd46ef079f4ed7f279a0f9e640276f6))
+* **deps-dev:** bump simplecov-mcp from 1.0.0 to 1.0.1 ([#190](https://github.com/viamin/aidp/issues/190)) ([54bebbc](https://github.com/viamin/aidp/commit/54bebbcce184f35936d92aeff925d8403817f6ef))
+* **deps-dev:** bump webmock from 3.25.1 to 3.26.0 ([b54bdc4](https://github.com/viamin/aidp/commit/b54bdc43295bb8f39b44add056dbbc2b2b1fd76d))
+* **deps-dev:** bump webmock from 3.25.1 to 3.26.0 ([#189](https://github.com/viamin/aidp/issues/189)) ([85904e6](https://github.com/viamin/aidp/commit/85904e604ffb248c0610728f17c310846b50b460))
+
 ## [0.17.1](https://github.com/viamin/aidp/compare/aidp/v0.17.0...aidp/v0.17.1) (2025-10-24)
 
 
