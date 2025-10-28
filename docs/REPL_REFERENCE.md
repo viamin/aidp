@@ -323,6 +323,76 @@ Display help information for REPL commands.
 
 ---
 
+### `/tasks <subcommand> [args]`
+
+Manage persistent tasklist for tracking tasks across sessions.
+
+**Usage:**
+
+```text
+/tasks list [status]     # List tasks with optional status filter
+/tasks show <task_id>    # Show detailed task information
+/tasks done <task_id>    # Mark task as done
+/tasks abandon <task_id> [reason]  # Abandon task with optional reason
+/tasks stats             # Show task statistics
+```
+
+**Examples:**
+
+```bash
+# List all tasks
+/tasks list
+
+# List only pending tasks
+/tasks list pending
+
+# List in-progress tasks
+/tasks list in_progress
+
+# Show details of a specific task
+/tasks show task_1730099445_a3f2
+
+# Mark task as done
+/tasks done task_1730099445_a3f2
+
+# Abandon task with reason
+/tasks abandon task_1730099445_b8d1 "Feature requirement changed"
+
+# View task statistics
+/tasks stats
+```
+
+**Behavior:**
+
+- Tasks persist across sessions in `.aidp/tasklist.jsonl` (git-tracked)
+- Tasks can be created by agents using signal: `File task: "description" priority: high`
+- Tasks have statuses: `pending`, `in_progress`, `done`, `abandoned`
+- Tasks have priorities: `high`, `medium`, `low`
+- Tasks can be tagged for categorization
+- Task IDs are unique and contain timestamp + random hex
+
+**Use Cases:**
+
+- Track sub-tasks discovered during implementation
+- Resume work across sessions without losing context
+- Git-commit task state alongside code changes
+- Query pending work at session start
+- Mark discovered technical debt for future work
+
+**Task Filing (Agent Signal):**
+
+Agents can file tasks during execution:
+
+```text
+File task: "Add rate limiting to /auth/token" priority: high
+File task: "Update API docs with OAuth flow" priority: medium tags: docs,api
+File task: "Refactor error handling" tags: refactor
+```
+
+These tasks are automatically parsed and added to the persistent tasklist.
+
+---
+
 ## Pattern Syntax
 
 REPL commands support glob patterns for file matching:

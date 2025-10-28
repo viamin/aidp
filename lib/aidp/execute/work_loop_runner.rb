@@ -51,6 +51,7 @@ module Aidp
         @checkpoint = Checkpoint.new(project_dir)
         @checkpoint_display = CheckpointDisplay.new
         @guard_policy = GuardPolicy.new(project_dir, config.guards_config)
+        @persistent_tasklist = PersistentTasklist.new(project_dir)
         @iteration_count = 0
         @step_name = nil
         @options = options
@@ -74,6 +75,7 @@ module Aidp
         display_message("  Flow: Deterministic ↔ Agentic with fix-forward core", type: :info)
 
         display_guard_policy_status
+        display_pending_tasks
 
         @unit_scheduler = WorkLoopUnitScheduler.new(units_config)
         base_context = context.dup
@@ -147,6 +149,9 @@ module Aidp
 
           transition_to(:apply_patch)
           agent_result = apply_patch
+
+          # Process agent output for task filing signals
+          process_task_filing(agent_result)
 
           transition_to(:test)
           test_results = @test_runner.run_tests
@@ -774,6 +779,55 @@ module Aidp
         end
 
         display_message("")
+      end
+
+      # Display pending tasks from persistent tasklist
+      def display_pending_tasks
+        pending_tasks = @persistent_tasklist.pending
+        return if pending_tasks.empty?
+
+        display_message("\n📋 Pending Tasks from Previous Sessions:", type: :info)
+
+        # Show up to 5 most recent pending tasks
+        pending_tasks.take(5).each do |task|
+          priority_icon = case task.priority
+          when :high then "⚠️ "
+          when :medium then "○ "
+          when :low then "· "
+          end
+
+          age = ((Time.now - task.created_at) / 86400).to_i
+          age_str = (age > 0) ? " (#{age}d ago)" : " (today)"
+
+          display_message("  #{priority_icon}#{task.description}#{age_str}", type: :info)
+        end
+
+        if pending_tasks.size > 5
+          display_message("  ... and #{pending_tasks.size - 5} more. Use /tasks list to see all", type: :info)
+        end
+
+        display_message("")
+      end
+
+      # Process agent output for task filing signals
+      def process_task_filing(agent_result)
+        return unless agent_result && agent_result[:output]
+
+        filed_tasks = AgentSignalParser.parse_task_filing(agent_result[:output])
+        return if filed_tasks.empty?
+
+        filed_tasks.each do |task_data|
+          task = @persistent_tasklist.create(
+            task_data[:description],
+            priority: task_data[:priority],
+            session: @step_name,
+            discovered_during: "#{@step_name} iteration #{@iteration_count}",
+            tags: task_data[:tags]
+          )
+
+          Aidp.log_info("tasklist", "Filed new task from agent", task_id: task.id, description: task.description)
+          display_message("📋 Filed task: #{task.description} (#{task.id})", type: :info)
+        end
       end
 
       # Validate changes against guard policy

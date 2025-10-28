@@ -51,8 +51,11 @@ module Aidp
           interrupt: :exit
         )
 
-        # Read line with full readline support (Ctrl-A, Ctrl-E, Ctrl-W, etc.)
-        result = reader.read_line(prompt, default: default || "")
+        # TTY::Reader#read_line does not support a :default keyword; we emulate fallback
+        result = reader.read_line(prompt)
+        if (result.nil? || result.chomp.empty?) && !default.nil?
+          return default
+        end
         result&.chomp
       rescue TTY::Reader::InputInterrupt
         raise Interrupt

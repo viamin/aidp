@@ -293,6 +293,12 @@ module Aidp
             usage: "/prompt <explain|stats|expand|reset>",
             example: "/prompt explain",
             handler: method(:cmd_prompt)
+          },
+          "/tasks" => {
+            description: "Manage persistent tasklist (cross-session task tracking)",
+            usage: "/tasks <list|show|done|abandon|stats> [args]",
+            example: "/tasks list pending",
+            handler: method(:cmd_tasks)
           }
         }
       end
@@ -2034,6 +2040,164 @@ module Aidp
           success: true,
           message: "Optimizer cache cleared. Next prompt will use fresh indexing.",
           action: :optimizer_reset
+        }
+      end
+
+      # Manage persistent tasklist
+      def cmd_tasks(args)
+        tasklist = PersistentTasklist.new(@project_dir)
+        subcommand = args[0]
+
+        case subcommand
+        when "list", nil
+          cmd_tasks_list(tasklist, args[1])
+        when "show"
+          cmd_tasks_show(tasklist, args[1])
+        when "done"
+          cmd_tasks_done(tasklist, args[1])
+        when "abandon"
+          cmd_tasks_abandon(tasklist, args[1], args[2..]&.join(" "))
+        when "stats"
+          cmd_tasks_stats(tasklist)
+        else
+          {
+            success: false,
+            message: "Unknown subcommand: #{subcommand}. Use: list, show, done, abandon, stats",
+            action: :none
+          }
+        end
+      rescue => e
+        Aidp.log_error("repl_macros", "Tasks command failed", error: e.message)
+        {success: false, message: "Error: #{e.message}", action: :none}
+      end
+
+      private
+
+      # List tasks with optional status filter
+      def cmd_tasks_list(tasklist, status_filter = nil)
+        status = status_filter&.to_sym
+        tasks = status ? tasklist.all(status: status) : tasklist.all
+
+        if tasks.empty?
+          message = status ? "No #{status} tasks found." : "No tasks found."
+          return {success: true, message: message, action: :display}
+        end
+
+        # Group by status
+        by_status = tasks.group_by(&:status)
+        output = []
+
+        [:pending, :in_progress, :done, :abandoned].each do |st|
+          next unless by_status[st]
+          next if status && st != status # Skip if filtering by specific status
+
+          output << ""
+          output << "#{st.to_s.upcase.tr("_", " ")} (#{by_status[st].size})"
+          output << "=" * 50
+
+          by_status[st].each do |task|
+            priority_icon = case task.priority
+            when :high then "⚠️ "
+            when :medium then "○ "
+            when :low then "· "
+            end
+
+            age = ((Time.now - task.created_at) / 86400).to_i
+            age_str = (age > 0) ? " (#{age}d ago)" : " (today)"
+
+            output << "  #{priority_icon}[#{task.id}] #{task.description}#{age_str}"
+          end
+        end
+
+        {
+          success: true,
+          message: output.join("\n"),
+          action: :display
+        }
+      end
+
+      # Show detailed information about a specific task
+      def cmd_tasks_show(tasklist, task_id)
+        return {success: false, message: "Usage: /tasks show <task_id>", action: :none} unless task_id
+
+        task = tasklist.find(task_id)
+        unless task
+          return {success: false, message: "Task not found: #{task_id}", action: :none}
+        end
+
+        output = []
+        output << ""
+        output << "Task Details:"
+        output << "=" * 50
+        output << "ID:          #{task.id}"
+        output << "Description: #{task.description}"
+        output << "Status:      #{task.status}"
+        output << "Priority:    #{task.priority}"
+        output << "Created:     #{task.created_at}"
+        output << "Updated:     #{task.updated_at}"
+        output << "Session:     #{task.session}" if task.session
+        output << "Context:     #{task.discovered_during}" if task.discovered_during
+        output << "Started:     #{task.started_at}" if task.started_at
+        output << "Completed:   #{task.completed_at}" if task.completed_at
+        output << "Abandoned:   #{task.abandoned_at} (#{task.abandoned_reason})" if task.abandoned_at
+        output << "Tags:        #{task.tags.join(", ")}" if task.tags&.any?
+
+        {
+          success: true,
+          message: output.join("\n"),
+          action: :display
+        }
+      end
+
+      # Mark a task as done
+      def cmd_tasks_done(tasklist, task_id)
+        return {success: false, message: "Usage: /tasks done <task_id>", action: :none} unless task_id
+
+        task = tasklist.update_status(task_id, :done)
+        {
+          success: true,
+          message: "✓ Task marked as done: #{task.description}",
+          action: :display
+        }
+      rescue PersistentTasklist::TaskNotFoundError
+        {success: false, message: "Task not found: #{task_id}", action: :none}
+      end
+
+      # Abandon a task with optional reason
+      def cmd_tasks_abandon(tasklist, task_id, reason = nil)
+        return {success: false, message: "Usage: /tasks abandon <task_id> [reason]", action: :none} unless task_id
+
+        task = tasklist.update_status(task_id, :abandoned, reason: reason)
+        message = "✗ Task abandoned: #{task.description}"
+        message += " (Reason: #{reason})" if reason
+
+        {
+          success: true,
+          message: message,
+          action: :display
+        }
+      rescue PersistentTasklist::TaskNotFoundError
+        {success: false, message: "Task not found: #{task_id}", action: :none}
+      end
+
+      # Show task statistics
+      def cmd_tasks_stats(tasklist)
+        counts = tasklist.counts
+
+        output = []
+        output << ""
+        output << "Task Statistics:"
+        output << "=" * 50
+        output << "Total:       #{counts[:total]}"
+        output << "Pending:     #{counts[:pending]}"
+        output << "In Progress: #{counts[:in_progress]}"
+        output << "Done:        #{counts[:done]}"
+        output << "Abandoned:   #{counts[:abandoned]}"
+
+        {
+          success: true,
+          message: output.join("\n"),
+          action: :display
         }
       end
 
