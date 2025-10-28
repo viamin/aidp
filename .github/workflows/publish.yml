@@ -49,6 +49,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+      - name: Assign release PR to viamin
+        if: steps.find-pr.outputs.pr-number != ''
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          PR_NUMBER: ${{ steps.find-pr.outputs.pr-number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            if (!prNumber) {
+              console.log('Release PR number missing; skipping assignee update.');
+              return;
+            }
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              assignees: ['viamin']
+            });
+            console.log(`Assigned release PR #${prNumber} to viamin.`);
+
   update-coverage-badge:
     name: Update coverage badge on release PR
     runs-on: ubuntu-latest
@@ -104,7 +125,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const core = require('@actions/core');
             const fs = require('fs');
 
             const branch = process.env.PR_BRANCH;
