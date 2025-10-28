@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# If running without NET_ADMIN (capabilities missing), exit gracefully
+if ! command -v iptables >/dev/null 2>&1 || ! command -v ipset >/dev/null 2>&1; then
+    echo "⚠️  iptables/ipset not available (missing NET_ADMIN capability). Skipping firewall setup." >&2
+    exit 0
+fi
+
 echo "🔒 Initializing firewall for AIDP development container..."
 
 # Flush existing iptables rules, but preserve Docker's DNS configuration
@@ -59,7 +65,8 @@ add_domain() {
     local domain=$1
     echo "  Resolving $domain..."
     local ips
-    ips=$(dig +short "$domain" A | grep -E '^[0-9]+\.')
+       # Allow dig or grep to fail without aborting script
+       ips=$(dig +short "$domain" A 2>/dev/null | grep -E '^[0-9]+\.' || true)
     if [ -n "$ips" ]; then
         while IFS= read -r ip; do
             add_ip "$ip"
@@ -70,11 +77,25 @@ add_domain() {
 }
 
 echo "📋 Fetching GitHub IP ranges..."
-# Add GitHub's IP ranges from their API
-GITHUB_IPS=$(curl -s https://api.github.com/meta | grep -oP '(?<="git": \[)[^\]]+' | tr -d '"' | tr ',' '\n' | tr -d ' ')
-for range in $GITHUB_IPS; do
-    add_ip_range "$range"
-done
+GITHUB_META_JSON=$(curl -fsS --max-time 5 https://api.github.com/meta || true)
+if [ -n "${GITHUB_META_JSON}" ]; then
+    # Try jq if present for robust parsing
+    if command -v jq >/dev/null 2>&1; then
+        mapfile -t GITHUB_IPS < <(echo "$GITHUB_META_JSON" | jq -r '.git[]' 2>/dev/null || true)
+    else
+        # Fallback grep-based parsing
+        GITHUB_IPS=$(echo "$GITHUB_META_JSON" | grep -oP '(?<="git": \[)[^\]]+' | tr -d '"' | tr ',' '\n' | tr -d ' ')
+    fi
+    if [ -n "${GITHUB_IPS:-}" ]; then
+        for range in $GITHUB_IPS; do
+            add_ip_range "$range"
+        done
+    else
+        echo "  ⚠️  No GitHub git IP ranges parsed" >&2
+    fi
+else
+    echo "  ⚠️  Failed to fetch GitHub meta API; continuing without GitHub ranges" >&2
+fi
 
 echo "🌐 Adding essential service domains..."
 
@@ -109,7 +130,7 @@ add_domain "vortex.data.microsoft.com"
 
 # Detect host network for local access
 echo "🏠 Detecting host network..."
-HOST_NETWORK=$(ip route | grep default | awk '{print $3}' | head -n1)
+HOST_NETWORK=$(ip route 2>/dev/null | grep default | awk '{print $3}' | head -n1 || true)
 if [ -n "$HOST_NETWORK" ]; then
     HOST_CIDR="${HOST_NETWORK}/16"
     echo "  Adding host network: $HOST_CIDR"
@@ -122,34 +143,34 @@ add_ip_range "127.0.0.0/8"
 echo "🛡️  Configuring iptables rules..."
 
 # Set default policies
-iptables -P INPUT DROP
-iptables -P OUTPUT DROP
-iptables -P FORWARD DROP
+iptables -P INPUT DROP || true
+iptables -P OUTPUT DROP || true
+iptables -P FORWARD DROP || true
 
 # Allow all loopback traffic
-iptables -A INPUT -i lo -j ACCEPT
-iptables -A OUTPUT -o lo -j ACCEPT
+iptables -A INPUT -i lo -j ACCEPT || true
+iptables -A OUTPUT -o lo -j ACCEPT || true
 
 # Allow established and related connections
-iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT || true
+iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT || true
 
 # Allow DNS queries (port 53)
-iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT
+iptables -A OUTPUT -p udp --dport 53 -j ACCEPT || true
+iptables -A OUTPUT -p tcp --dport 53 -j ACCEPT || true
 
 # Allow SSH (port 22)
-iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT || true
 
 # Allow HTTPS (port 443) to allowlisted domains
-iptables -A OUTPUT -p tcp --dport 443 -m set --match-set allowed-domains dst -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 443 -m set --match-set allowed-domains dst -j ACCEPT || true
 
 # Allow HTTP (port 80) to allowlisted domains
-iptables -A OUTPUT -p tcp --dport 80 -m set --match-set allowed-domains dst -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 80 -m set --match-set allowed-domains dst -j ACCEPT || true
 
 # Allow all traffic on Docker bridge network (for docker-in-docker)
-iptables -A INPUT -i docker0 -j ACCEPT || true
-iptables -A OUTPUT -o docker0 -j ACCEPT || true
+iptables -A INPUT -i docker0 -j ACCEPT 2>/dev/null || true
+iptables -A OUTPUT -o docker0 -j ACCEPT 2>/dev/null || true
 
 # Log dropped packets (optional, for debugging)
 # iptables -A OUTPUT -j LOG --log-prefix "DROPPED: " --log-level 4

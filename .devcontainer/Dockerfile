@@ -1,13 +1,12 @@
-# Development container for AIDP
-# Provides a sandboxed environment with all necessary tools and providers
-
+# Update the RUBY_VERSION arg in compose.yaml
 ARG RUBY_VERSION=3.4.5
-ARG TZ=UTC
+FROM ghcr.io/rails/devcontainer/images/ruby:$RUBY_VERSION
 
-FROM ruby:${RUBY_VERSION}
+# Switch to root for system package installation
+USER root
 
 # Set timezone
-ARG TZ
+ARG TZ=UTC
 ENV TZ=${TZ}
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -23,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     # Networking tools
     iptables \
     ipset \
+    jq \
     dnsutils \
     netcat-openbsd \
     # Shell improvements
@@ -50,60 +50,24 @@ RUN ARCH="$(dpkg --print-architecture)" \
 RUN curl https://mise.run | sh
 ENV PATH="/root/.local/bin:$PATH"
 
-# Create non-root user
-ARG USERNAME=aidp
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
+## Use base image non-root user (typically 'vscode'); ensure tooling & deps installed as root earlier.
 
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && apt-get update \
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set up workspace directory
-RUN mkdir -p /workspace && chown -R $USERNAME:$USERNAME /workspace
-
-# Set up .aidp directory for configuration
-RUN mkdir -p /home/$USERNAME/.aidp && chown -R $USERNAME:$USERNAME /home/$USERNAME/.aidp
-
-# Set up command history persistence
-RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
-    && mkdir -p /commandhistory \
-    && touch /commandhistory/.bash_history \
-    && chown -R $USERNAME:$USERNAME /commandhistory \
-    && echo "$SNIPPET" >> /home/$USERNAME/.bashrc
-
-# Install zsh with powerline10k theme
-ARG ZSH_IN_DOCKER_VERSION=1.2.0
-RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh)" -- \
-    -t https://github.com/romkatv/powerlevel10k \
-    -p git \
-    -p https://github.com/zsh-users/zsh-autosuggestions \
-    -p https://github.com/zsh-users/zsh-syntax-highlighting
-
-# Configure fzf key bindings and completion
-RUN echo '[ -f /usr/share/doc/fzf/examples/key-bindings.bash ] && source /usr/share/doc/fzf/examples/key-bindings.bash' >> /home/$USERNAME/.bashrc \
-    && echo '[ -f /usr/share/doc/fzf/examples/completion.bash ] && source /usr/share/doc/fzf/examples/completion.bash' >> /home/$USERNAME/.bashrc
-
-# Set nano as default editor
-ENV EDITOR=nano
+# (Optional tools installed later via devcontainer postCreateCommand based on user-selected flags.)
+RUN gem install bundler --no-document \
+  && npm install -g markdownlint-cli \
+  && npm cache clean --force || true
 
 # Copy firewall initialization script
-COPY init-firewall.sh /usr/local/bin/init-firewall.sh
+COPY .devcontainer/init-firewall.sh /usr/local/bin/init-firewall.sh
 RUN chmod +x /usr/local/bin/init-firewall.sh
 
-# Grant $USERNAME user sudo access to init-firewall.sh without password
-RUN echo "$USERNAME ALL=(ALL) NOPASSWD: /usr/local/bin/init-firewall.sh" >> /etc/sudoers.d/$USERNAME
+# Grant vscode user sudo access to init-firewall.sh without password (USER switched later)
+RUN echo "vscode ALL=(ALL) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/vscode-firewall && chmod 0440 /etc/sudoers.d/vscode-firewall
 
-# Switch to non-root user
-USER $USERNAME
-WORKDIR /workspace
+# Switch to base image user (vscode) for development
+USER vscode
+WORKDIR /workspaces/aidp
 
-# Install Ruby gems globally for development
-ENV GEM_HOME="/home/$USERNAME/.gem"
-ENV PATH="$GEM_HOME/bin:$PATH"
-
-CMD ["/bin/bash"]
+# Ensure binding is always 0.0.0.0
+# Binds the server to all IP addresses of the container, so it can be accessed from outside the container.
+ENV BINDING="0.0.0.0"
