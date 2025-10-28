@@ -92,10 +92,17 @@
   "workspaceFolder": "/workspace",
 
   // Post-create command - install dependencies
-  "postCreateCommand": "bundle install",
+  "postCreateCommand": {
+    "gem-dependencies": "gem install bundler git-curate || true",
+    "install-claude": "npm install -g @anthropic-ai/claude-code || true",
+    "install-markdownlint": "npm install -g markdownlint-cli || true"
+  },
 
   // Post-start command - initialize firewall
-  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "postStartCommand": {
+    "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
+    "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3"
+  },
   "waitFor": "postStartCommand",
 
   // Features to install
@@ -103,7 +110,10 @@
     // GitHub CLI
     "ghcr.io/devcontainers/features/github-cli:1": {},
     // Docker-in-Docker (for testing)
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      // Debian trixie dropped moby packages; use Docker CE instead
+      "moby": false
+    }
   },
 
   // Port forwarding - none needed by default

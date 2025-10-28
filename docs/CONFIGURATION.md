@@ -193,6 +193,16 @@ Configure how AIDP interacts with your version control system during work loops.
   - `stage`: Automatically stage changes (git add)
   - `commit`: Automatically stage and commit changes
 - **`conventional_commits`** (boolean): Use [Conventional Commits](https://www.conventionalcommits.org/) format
+- **`commit_style`** (string): Conventional commit style (only when `conventional_commits: true`):
+  - `default`: Basic conventional format (e.g., `feat: add user authentication`)
+  - `angular`: Include scope in parentheses (e.g., `feat(auth): add login`)
+  - `emoji`: Add emoji prefix (e.g., `✨ feat: add user authentication`)
+- **`co_author_ai`** (boolean): Include "Co-authored-by" attribution with AI provider name (default: true)
+- **`auto_create_pr`** (boolean): Automatically create pull requests after successful builds in watch/daemon mode (default: false)
+- **`pr_strategy`** (string): How to create pull requests (only when `auto_create_pr: true`):
+  - `draft`: Create as draft PR (safe, allows review before merge)
+  - `ready`: Create as ready PR (immediately reviewable)
+  - `auto_merge`: Create and auto-merge (fully autonomous, requires approval rules)
 
 #### Behavior by Mode
 
@@ -204,15 +214,6 @@ Configure how AIDP interacts with your version control system during work loops.
 
 #### Examples
 
-**Git with Auto-Commit**:
-
-```yaml
-version_control:
-  tool: git
-  behavior: commit
-  conventional_commits: true
-```
-
 **Git with Manual Operations**:
 
 ```yaml
@@ -221,6 +222,92 @@ version_control:
   behavior: nothing
   conventional_commits: false
 ```
+
+**Git with Basic Auto-Commit**:
+
+```yaml
+version_control:
+  tool: git
+  behavior: commit
+  conventional_commits: true
+  commit_style: default
+  co_author_ai: true
+```
+
+**Git with Angular-Style Commits**:
+
+```yaml
+version_control:
+  tool: git
+  behavior: commit
+  conventional_commits: true
+  commit_style: angular
+  co_author_ai: true
+```
+
+**Git with Emoji Commits**:
+
+```yaml
+version_control:
+  tool: git
+  behavior: commit
+  conventional_commits: true
+  commit_style: emoji
+  co_author_ai: true
+```
+
+**Fully Autonomous (Watch/Daemon Mode)**:
+
+```yaml
+version_control:
+  tool: git
+  behavior: commit
+  conventional_commits: true
+  commit_style: emoji
+  co_author_ai: true
+  auto_create_pr: true
+  pr_strategy: draft  # or "ready" or "auto_merge"
+```
+
+#### Commit Message Examples
+
+Based on issue #123 "Add feature":
+
+- **Simple (no conventional commits)**:
+
+  ```text
+  implement #123 Add feature
+  ```
+
+- **Default conventional**:
+
+  ```text
+  feat: implement #123 Add feature
+
+  Co-authored-by: Claude <ai@aidp.dev>
+  ```
+
+- **Angular style**:
+
+  ```text
+  feat(implementation): implement #123 Add feature
+
+  Co-authored-by: Claude <ai@aidp.dev>
+  ```
+
+- **Emoji style**:
+
+  ```text
+  ✨ feat: implement #123 Add feature
+
+  Co-authored-by: Claude <ai@aidp.dev>
+  ```
+
+- **Without co-author attribution**:
+
+  ```text
+  feat: implement #123 Add feature
+  ```
 
 ### Interactive Testing Tools
 

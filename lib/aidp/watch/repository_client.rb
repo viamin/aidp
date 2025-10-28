@@ -162,7 +162,7 @@ module Aidp
         response.body
       end
 
-      def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:)
+      def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:, draft: false)
         cmd = [
           "gh", "pr", "create",
           "--repo", full_repo,
@@ -172,6 +172,7 @@ module Aidp
           "--base", base
         ]
         cmd += ["--issue", issue_number.to_s] if issue_number
+        cmd += ["--draft"] if draft
 
         stdout, stderr, status = Open3.capture3(*cmd)
         raise "Failed to create PR via gh: #{stderr.strip}" unless status.success?

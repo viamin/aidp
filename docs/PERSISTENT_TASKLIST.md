@@ -575,7 +575,7 @@ end
 
 ### Integration Points
 
-**1. Work Loop Runner**
+#### 1. Work Loop Runner
 
 Inject persistent tasklist into work loop context:
 
@@ -607,7 +607,7 @@ def execute_step(step_name, step_spec, context = {})
 end
 ```
 
-**2. Agent Signal Parser**
+#### 2. Agent Signal Parser
 
 Parse task filing signals from agent responses:
 
@@ -1083,7 +1083,7 @@ Persistent tasklist provides 90% of external project tracking value at 10% of co
 
 **Friday afternoon - Discovery**:
 
-```
+```text
 Agent: "I'm implementing OAuth. I notice we'll need rate limiting for the token endpoint."
 Agent: File task: "Add rate limiting to /auth/token" priority: high
 System: 📋 Filed task: Add rate limiting to /auth/token (task_170310_a3f2)
@@ -1098,7 +1098,7 @@ System: 📋 Filed task: Update API docs with OAuth flow (task_170315_b8d1)
 
 **Monday morning - Resume**:
 
-```
+```text
 Developer: $ aidp execute
 
 System: 📋 You have 2 pending tasks from previous sessions:
@@ -1112,7 +1112,7 @@ Agent: "I see there are pending tasks. Let me work on rate limiting first."
 
 **Later - Check status**:
 
-```
+```text
 Developer: /tasks list pending
 
 PENDING (1)
@@ -1126,7 +1126,7 @@ IN PROGRESS (1)
 
 **Completion**:
 
-```
+```text
 Developer: /tasks done task_170310_a3f2
 System: ✓ Task marked as done: Add rate limiting to /auth/token
 

@@ -42,6 +42,17 @@ RSpec.describe Aidp::Watch::BuildProcessor do
   end
 
   it "runs harness and posts success comment" do
+    # Create config with auto_create_pr enabled
+    config_path = File.join(tmp_dir, ".aidp", "aidp.yml")
+    FileUtils.mkdir_p(File.dirname(config_path))
+    config_hash = {
+      harness: {default_provider: "test_provider"},
+      providers: {test_provider: {type: "usage_based"}},
+      work_loop: {version_control: {auto_create_pr: true, pr_strategy: "draft"}}
+    }
+    File.write(config_path, YAML.dump(config_hash))
+    processor.instance_variable_set(:@config, nil) # Force config reload
+
     allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
     allow(processor).to receive(:create_pull_request).and_return("https://example.com/pr/77")
     expect(repository_client).to receive(:post_comment).with(issue[:number], include("Implementation complete"))
