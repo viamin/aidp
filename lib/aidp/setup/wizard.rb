@@ -398,24 +398,97 @@ module Aidp
 
         return set([:work_loop, :version_control], {tool: "none", behavior: "nothing"}) if vcs_tool == "none"
 
-        prompt.say("\nNote: Watch mode and fully automatic daemon mode will always commit changes.")
+        prompt.say("\n📋 Commit Behavior (applies to copilot/interactive mode only)")
+        prompt.say("Note: Watch mode and fully automatic daemon mode will always commit changes.")
         behavior = prompt.select("In copilot mode, should aidp:", default: existing[:behavior] || "nothing") do |menu|
           menu.choice "Do nothing (manual git operations)", "nothing"
           menu.choice "Stage changes only", "stage"
           menu.choice "Stage and commit changes", "commit"
         end
 
-        conventional_commits = if behavior == "commit"
-          prompt.yes?("Use conventional commit messages?", default: existing.fetch(:conventional_commits, false))
+        # Commit message configuration
+        commit_config = configure_commit_messages(existing, behavior)
+
+        # PR configuration (only relevant for git with remote)
+        pr_config = if vcs_tool == "git" && behavior == "commit"
+          configure_pull_requests(existing)
         else
-          false
+          {auto_create_pr: false}
         end
 
         set([:work_loop, :version_control], {
           tool: vcs_tool,
           behavior: behavior,
-          conventional_commits: conventional_commits
+          **commit_config,
+          **pr_config
         })
+      end
+
+      def configure_commit_messages(existing, behavior)
+        return {} unless behavior == "commit"
+
+        prompt.say("\n💬 Commit Message Configuration")
+
+        # Conventional commits
+        conventional_commits = prompt.yes?(
+          "Use conventional commit format (e.g., 'feat:', 'fix:', 'docs:')?",
+          default: existing.fetch(:conventional_commits, false)
+        )
+
+        # Commit message style
+        commit_style = if conventional_commits
+          prompt.select("Conventional commit style:", default: existing[:commit_style] || "default") do |menu|
+            menu.choice "Default (e.g., 'feat: add user authentication')", "default"
+            menu.choice "Angular (with scope: 'feat(auth): add login')", "angular"
+            menu.choice "Emoji (e.g., '✨ feat: add user authentication')", "emoji"
+          end
+        else
+          "default"
+        end
+
+        # Co-authored-by attribution
+        co_author = prompt.yes?(
+          "Include 'Co-authored-by: <AI Provider>' in commit messages?",
+          default: existing.fetch(:co_author_ai, true)
+        )
+
+        {
+          conventional_commits: conventional_commits,
+          commit_style: commit_style,
+          co_author_ai: co_author
+        }
+      end
+
+      def configure_pull_requests(existing)
+        prompt.say("\n🔀 Pull Request Configuration")
+
+        # Check if remote exists
+        has_remote = system("git remote -v > /dev/null 2>&1")
+
+        unless has_remote
+          prompt.say("No git remote detected. PR creation will be disabled.")
+          return {auto_create_pr: false}
+        end
+
+        auto_create_pr = prompt.yes?(
+          "Automatically create pull requests after successful builds? (watch/daemon mode only)",
+          default: existing.fetch(:auto_create_pr, false)
+        )
+
+        if auto_create_pr
+          pr_strategy = prompt.select("PR creation strategy:", default: existing[:pr_strategy] || "draft") do |menu|
+            menu.choice "Create as draft PR (safe, allows review before merge)", "draft"
+            menu.choice "Create as ready PR (immediately reviewable)", "ready"
+            menu.choice "Create and auto-merge (fully autonomous, requires approval rules)", "auto_merge"
+          end
+
+          {
+            auto_create_pr: true,
+            pr_strategy: pr_strategy
+          }
+        else
+          {auto_create_pr: false}
+        end
       end
 
       def configure_branching

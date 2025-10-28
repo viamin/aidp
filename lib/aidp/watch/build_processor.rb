@@ -226,13 +226,24 @@ module Aidp
 
       def handle_success(issue:, slug:, branch_name:, base_branch:, plan_data:, working_dir:)
         stage_and_commit(issue, working_dir: working_dir)
-        pr_url = create_pull_request(issue: issue, branch_name: branch_name, base_branch: base_branch, working_dir: working_dir)
+
+        # Check if PR should be created based on VCS preferences
+        vcs_config = config.dig(:work_loop, :version_control) || {}
+        auto_create_pr = vcs_config.fetch(:auto_create_pr, false)
+
+        pr_url = if auto_create_pr
+          create_pull_request(issue: issue, branch_name: branch_name, base_branch: base_branch, working_dir: working_dir)
+        else
+          display_message("ℹ️  Skipping PR creation (disabled in VCS preferences)", type: :muted)
+          nil
+        end
 
         workstream_note = @use_workstreams ? "\n- Workstream: `#{slug}`" : ""
+        pr_line = pr_url ? "\n- Pull Request: #{pr_url}" : ""
+
         comment = <<~COMMENT
           ✅ Implementation complete for ##{issue[:number]}.
-          - Branch: `#{branch_name}`#{workstream_note}
-          - Pull Request: #{pr_url}
+          - Branch: `#{branch_name}`#{workstream_note}#{pr_line}
 
           Summary:
           #{plan_value(plan_data, "summary")}
@@ -281,9 +292,58 @@ module Aidp
           end
 
           run_git(%w[add -A])
-          commit_message = "feat: implement ##{issue[:number]} #{issue[:title]}"
+          commit_message = build_commit_message(issue)
           run_git(["commit", "-m", commit_message])
-          display_message("💾 Created commit: #{commit_message}", type: :info)
+          display_message("💾 Created commit: #{commit_message.lines.first.strip}", type: :info)
+        end
+      end
+
+      def build_commit_message(issue)
+        vcs_config = config.dig(:work_loop, :version_control) || {}
+
+        # Base message components
+        issue_ref = "##{issue[:number]}"
+        title = issue[:title]
+
+        # Determine commit prefix based on configuration
+        prefix = if vcs_config[:conventional_commits]
+          commit_style = vcs_config[:commit_style] || "default"
+          emoji = (commit_style == "emoji") ? "✨ " : ""
+          scope = (commit_style == "angular") ? "(implementation)" : ""
+          "#{emoji}feat#{scope}: "
+        else
+          ""
+        end
+
+        # Build main message
+        main_message = "#{prefix}implement #{issue_ref} #{title}"
+
+        # Add co-author attribution if configured
+        if vcs_config.fetch(:co_author_ai, true)
+          provider_name = detect_current_provider || "AI Agent"
+          co_author = "\n\nCo-authored-by: #{provider_name} <ai@aidp.dev>"
+          main_message + co_author
+        else
+          main_message
+        end
+      end
+
+      def detect_current_provider
+        # Attempt to detect which provider is being used
+        # This is a best-effort detection
+        config_manager = Aidp::Harness::ConfigManager.new(@project_dir)
+        default_provider = config_manager.config.dig(:harness, :default_provider)
+        default_provider&.capitalize
+      rescue
+        nil
+      end
+
+      def config
+        @config ||= begin
+          config_manager = Aidp::Harness::ConfigManager.new(@project_dir)
+          config_manager.config || {}
+        rescue
+          {}
         end
       end
 
@@ -298,12 +358,18 @@ module Aidp
           #{test_summary}
         BODY
 
+        # Determine if PR should be draft based on VCS preferences
+        vcs_config = config.dig(:work_loop, :version_control) || {}
+        pr_strategy = vcs_config[:pr_strategy] || "draft"
+        draft = (pr_strategy == "draft")
+
         output = @repository_client.create_pull_request(
           title: title,
           body: body,
           head: branch_name,
           base: base_branch,
-          issue_number: issue[:number]
+          issue_number: issue[:number],
+          draft: draft
         )
 
         extract_pr_url(output)

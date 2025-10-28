@@ -40,7 +40,7 @@ This document presents the investigation results for integrating long-term memor
 
 **Current AIDP prompt composition** (without MCP servers):
 
-```
+```text
 - Task description: 200 tokens
 - Style guide fragments (optimized): 3,000 tokens
 - Template fragments (optimized): 2,000 tokens
@@ -217,7 +217,7 @@ Users can install memory-bank-mcp or Beads MCP servers and AIDP will automatical
 
 1. **Design Rationale Recall**
 
-   ```
+   ```text
    Agent: "Why did we choose this authentication pattern?"
    Memory Bank: [Retrieves note from 3 weeks ago]
    "OAuth chosen over JWT because client requirement for third-party integrations"
@@ -225,7 +225,7 @@ Users can install memory-bank-mcp or Beads MCP servers and AIDP will automatical
 
 2. **User Preference Learning**
 
-   ```
+   ```text
    Agent stores: "User prefers RSpec over Minitest"
    Agent stores: "User coding style: early returns over nested conditionals"
    Future sessions automatically apply these preferences
@@ -233,7 +233,7 @@ Users can install memory-bank-mcp or Beads MCP servers and AIDP will automatical
 
 3. **Cross-Repository Patterns**
 
-   ```
+   ```text
    Agent working on Project B recalls:
    "In Project A, we solved similar pagination issue with cursor-based approach"
    ```
@@ -320,7 +320,7 @@ Users can install memory-bank-mcp or Beads MCP servers and AIDP will automatical
 
 1. **Multi-Session Task Management**
 
-   ```
+   ```text
    Session 1: Agent discovers "Need to add rate limiting" while implementing auth
    → Beads: Create issue, link as "discovered-from" current work
 
@@ -331,7 +331,7 @@ Users can install memory-bank-mcp or Beads MCP servers and AIDP will automatical
 
 2. **Long-Horizon Planning**
 
-   ```
+   ```text
    Agent builds dependency graph:
    - Setup database migrations [blocks]
    - Implement models [blocks]
@@ -344,7 +344,7 @@ Users can install memory-bank-mcp or Beads MCP servers and AIDP will automatical
 
 3. **Team Coordination**
 
-   ```
+   ```text
    Developer A's machine: Agent discovers security issue, files to Beads
    [git push]
    Developer B's machine: [git pull]
@@ -353,7 +353,7 @@ Users can install memory-bank-mcp or Beads MCP servers and AIDP will automatical
 
 4. **Compaction Continuity**
 
-   ```
+   ```text
    Traditional: Agent loses context after model compaction
    With Beads: Agent reads issue database, orients itself instantly
    "I was working on auth (issue #42), blocked on DB migration (issue #38)"
@@ -598,7 +598,7 @@ project_tracking:
 
 **File**: `templates/skills/memory_aware/SKILL.md`
 
-**Template showing how to leverage memory tools**
+#### Template showing how to leverage memory tools
 
 **Implementation**: 0.5 days
 
@@ -1140,7 +1140,7 @@ prompt_optimization:
 
 **Workflow**:
 
-```
+```text
 1. Agent reads Beads queue → "Work on #45: OAuth integration"
 
 2. Agent searches memory → Finds notes:

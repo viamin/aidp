@@ -35,11 +35,16 @@ RUN apt-get update && apt-get install -y \
     # Clean up
     && rm -rf /var/lib/apt/lists/*
 
-# Install git-delta for better diffs
+# Install git-delta for better diffs (handle multi-arch)
 ARG DELTA_VERSION=0.18.2
-RUN wget https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_amd64.deb \
-    && dpkg -i git-delta_${DELTA_VERSION}_amd64.deb \
-    && rm git-delta_${DELTA_VERSION}_amd64.deb
+RUN ARCH="$(dpkg --print-architecture)" \
+    && case "$ARCH" in \
+      amd64|arm64) DELTA_ARCH="$ARCH" ;; \
+      *) echo "Unsupported architecture for git-delta: $ARCH" >&2 && exit 1 ;; \
+    esac \
+    && wget "https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb" \
+    && dpkg -i "git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb" \
+    && rm "git-delta_${DELTA_VERSION}_${DELTA_ARCH}.deb"
 
 # Install mise (asdf successor) for version management
 RUN curl https://mise.run | sh
@@ -100,12 +105,5 @@ WORKDIR /workspace
 # Install Ruby gems globally for development
 ENV GEM_HOME="/home/$USERNAME/.gem"
 ENV PATH="$GEM_HOME/bin:$PATH"
-
-# Pre-install common development gems
-RUN gem install bundler rake rspec rubocop standard
-
-# Install Claude Code CLI (if not using macOS provider)
-# Note: This can be customized per-project in devcontainer.json
-RUN npm_config_user=root sudo npm install -g @anthropic-ai/claude-code || true
 
 CMD ["/bin/bash"]

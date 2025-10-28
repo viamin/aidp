@@ -31,6 +31,7 @@ aidp config --interactive --dry-run
 - Watch patterns for test reruns and default timeouts
 - Branching strategy (prefix, slug template, checkpoint tags)
 - Artifact directories for evidence packs, logs, and screenshots
+- Version control behavior (tool, commit behavior, commit message style, PR creation)
 
 ### Non-Functional Requirements (NFRs)
 
