@@ -1,35 +1,59 @@
+// For format details, see https://containers.dev/implementors/json_reference/.
+// For config options, see the README at: https://github.com/devcontainers/templates/tree/main/src/ruby
 {
   "name": "AIDP Development Container",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      "RUBY_VERSION": "3.4.5",
-      "TZ": "${localEnv:TZ:UTC}",
-      "DELTA_VERSION": "0.18.2",
-      "ZSH_IN_DOCKER_VERSION": "1.2.0"
-    }
-  },
+  "dockerComposeFile": "compose.yaml",
+  "service": "aidp",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  // Use base image 'vscode' user for compatibility with devcontainer features
+  "remoteUser": "vscode",
 
   // Container configuration
   "capAdd": ["NET_ADMIN", "NET_RAW"],
-  "runArgs": ["--init"],
 
-  // Set environment variables
+  // Features to add to the dev container. More info: https://containers.dev/features.
+  "features": {
+    // GitHub CLI
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/rails/devcontainer/features/activestorage": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {"moby":false},
+    "ghcr.io/rails/devcontainer/features/sqlite3": {}
+  },
+
   "containerEnv": {
     "TZ": "${localEnv:TZ:UTC}",
     "AIDP_ENV": "development",
-    "BUNDLE_PATH": "/workspace/vendor/bundle"
+    "BUNDLE_PATH": "/workspaces/aidp/vendor/bundle"
   },
 
-  // Mount volumes for persistence
-  "mounts": [
-    // Persist bash history
-    "source=aidp-bashhistory,target=/commandhistory,type=volume",
-    // Persist .aidp configuration
-    "source=aidp-config,target=/home/aidp/.aidp,type=volume",
-    // Persist bundler cache
-    "source=aidp-bundle,target=/workspace/vendor/bundle,type=volume"
-  ],
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  "forwardPorts": [],
+
+  // Configure tool-specific properties.
+  // "customizations": {},
+
+  // (Use root only for troubleshooting: set "remoteUser": "root" if needed.)
+
+
+  // Post-create command - install dependencies
+  // Post-create: mandatory bundle install; optional tools below (uncomment to enable)
+  "postCreateCommand": {
+    "bundle-install": "bundle check || bundle install --jobs 4 --retry 3"
+    // OPTIONAL TOOLS (uncomment any you want):
+    // "git-curate": "gem install git-curate --no-document || true",
+    // "claude-code": "npm install -g @anthropic-ai/claude-code || true",
+    // "gemini-cli": "npm install -g @google/gemini-cli || true",
+    // "github-copilot-cli": "npm install -g @githubnext/github-copilot-cli || true",
+    // "codex-cli": "npm install -g openai-cli || true"
+  },
+
+  // Post-start command - initialize firewall
+  "postStartCommand": {
+    "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
+    "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3"
+  },
+  "waitFor": "postStartCommand",
 
   // VS Code customizations
   "customizations": {
@@ -85,39 +109,15 @@
     }
   },
 
-  // Container user
-  "remoteUser": "aidp",
-
-  // Working directory
-  "workspaceFolder": "/workspace",
-
-  // Post-create command - install dependencies
-  "postCreateCommand": {
-    "gem-dependencies": "gem install bundler git-curate || true",
-    "install-claude": "npm install -g @anthropic-ai/claude-code || true",
-    "install-markdownlint": "npm install -g markdownlint-cli || true"
-  },
-
-  // Post-start command - initialize firewall
-  "postStartCommand": {
-    "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
-    "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3"
-  },
-  "waitFor": "postStartCommand",
-
-  // Features to install
-  "features": {
-    // GitHub CLI
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    // Docker-in-Docker (for testing)
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      // Debian trixie dropped moby packages; use Docker CE instead
-      "moby": false
-    }
-  },
-
-  // Port forwarding - none needed by default
-  "forwardPorts": [],
+  // Mount volumes for persistence
+  "mounts": [
+    // Persist bash history
+    "source=aidp-bashhistory,target=/commandhistory,type=volume",
+    // Persist .aidp configuration for vscode user
+    "source=aidp-config,target=/home/vscode/.aidp,type=volume",
+    // Persist bundler cache
+    "source=aidp-bundle,target=/workspace/vendor/bundle,type=volume"
+  ]
 
   // Optional: uncomment to keep container running
   // "overrideCommand": true

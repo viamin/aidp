@@ -23,3 +23,7 @@ code_maat_analysis_report.md
 *.log
 tmp/aruba/*
 coverage/*
+
+# devcontainer caches
+vendor/bundle/*
+.vscode/

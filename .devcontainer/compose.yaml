@@ -1,0 +1,29 @@
+name: "aidp-devcontainer"
+
+services:
+  aidp:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        # Update the RUBY_VERSION arg to match the Ruby version in .tool-versions
+        RUBY_VERSION: 3.4.5
+        DELTA_VERSION: 0.18.2
+
+    volumes:
+    - ../../aidp:/workspaces/aidp:cached
+
+    # Keep container running; init process handled via devcontainer tooling
+    command: sleep infinity
+    init: true
+
+    # Use "forwardPorts" in **devcontainer.json** to forward an app port locally.
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+  #   depends_on:
+  #   - selenium
+
+  # selenium:
+  #   image: selenium/standalone-chromium
+  #   restart: unless-stopped
+
+  
