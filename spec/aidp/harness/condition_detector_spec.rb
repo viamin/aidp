@@ -334,6 +334,161 @@ RSpec.describe Aidp::Harness::ConditionDetector do
     end
   end
 
+  describe "#detect_input_type" do
+    it "detects file input type" do
+      expect(detector.send(:detect_input_type, "Please upload a file")).to eq("file")
+      expect(detector.send(:detect_input_type, "Attach the document")).to eq("file")
+    end
+
+    it "detects email input type" do
+      expect(detector.send(:detect_input_type, "What is your email address?")).to eq("email")
+    end
+
+    it "detects URL input type" do
+      expect(detector.send(:detect_input_type, "Please provide the URL")).to eq("url")
+      expect(detector.send(:detect_input_type, "Enter the link")).to eq("url")
+    end
+
+    it "detects path input type for directory without file keyword" do
+      expect(detector.send(:detect_input_type, "Which directory?")).to eq("path")
+    end
+
+    it "prioritizes file over path when both keywords present" do
+      expect(detector.send(:detect_input_type, "Enter the file path")).to eq("file")
+    end
+
+    it "detects number input type" do
+      expect(detector.send(:detect_input_type, "How many items?")).to eq("number")
+      expect(detector.send(:detect_input_type, "Enter the count")).to eq("number")
+      expect(detector.send(:detect_input_type, "What is the amount?")).to eq("number")
+    end
+
+    it "detects boolean input type" do
+      expect(detector.send(:detect_input_type, "Should I proceed?")).to eq("boolean")
+      expect(detector.send(:detect_input_type, "Yes or no?")).to eq("boolean")
+      expect(detector.send(:detect_input_type, "Please confirm")).to eq("boolean")
+    end
+
+    it "defaults to text input type" do
+      expect(detector.send(:detect_input_type, "Tell me about yourself")).to eq("text")
+    end
+  end
+
+  describe "#detect_urgency" do
+    it "detects high urgency" do
+      expect(detector.send(:detect_urgency, "URGENT: Please respond immediately")).to eq("high")
+      expect(detector.send(:detect_urgency, "This is critical!")).to eq("high")
+      expect(detector.send(:detect_urgency, "This is important")).to eq("high")
+    end
+
+    it "detects medium urgency with polite phrases" do
+      expect(detector.send(:detect_urgency, "Please address this soon")).to eq("medium")
+      expect(detector.send(:detect_urgency, "Can you help?")).to eq("medium")
+    end
+
+    it "detects low urgency" do
+      expect(detector.send(:detect_urgency, "When you have time, please review")).to eq("low")
+    end
+
+    it "defaults to low urgency for neutral messages" do
+      expect(detector.send(:detect_urgency, "Regular message")).to eq("low")
+    end
+  end
+
+  describe "#detect_feedback_type" do
+    it "detects clarification feedback" do
+      expect(detector.send(:detect_feedback_type, "Can you clarify this point?")).to eq("clarification")
+    end
+
+    it "detects choices feedback (plural form)" do
+      expect(detector.send(:detect_feedback_type, "Which option do you prefer?")).to eq("choices")
+    end
+
+    it "detects confirmation feedback" do
+      expect(detector.send(:detect_feedback_type, "Is this correct?")).to eq("confirmation")
+    end
+
+    it "detects file_requests feedback (plural form)" do
+      expect(detector.send(:detect_feedback_type, "Please upload the file")).to eq("file_requests")
+    end
+
+    it "defaults to general feedback" do
+      expect(detector.send(:detect_feedback_type, "Some general question")).to eq("general")
+    end
+  end
+
+  describe "#extract_context" do
+    it "extracts context patterns from text" do
+      text = "Waiting for input from the user. Need feedback on this."
+      contexts = detector.send(:extract_context, text)
+
+      expect(contexts).to be_an(Array)
+      expect(contexts.length).to be > 0
+    end
+
+    it "returns unique context matches" do
+      text = "Need feedback. Need feedback again."
+      contexts = detector.send(:extract_context, text)
+
+      expect(contexts.uniq.length).to eq(contexts.length)
+    end
+
+    it "returns empty array when no context patterns match" do
+      text = "Regular text without context keywords"
+      contexts = detector.send(:extract_context, text)
+
+      expect(contexts).to be_an(Array)
+    end
+  end
+
+  describe "#detect_question_type" do
+    it "detects information questions" do
+      expect(detector.send(:detect_question_type, "What is your name?")).to eq("information")
+      expect(detector.send(:detect_question_type, "What is your email?")).to eq("information")
+    end
+
+    it "detects choice questions" do
+      expect(detector.send(:detect_question_type, "Which do you prefer?")).to eq("choice")
+      expect(detector.send(:detect_question_type, "Which one do you want?")).to eq("choice")
+    end
+
+    it "detects permission questions" do
+      expect(detector.send(:detect_question_type, "Should I proceed?")).to eq("permission")
+      expect(detector.send(:detect_question_type, "Can I continue?")).to eq("permission")
+    end
+
+    it "detects confirmation questions" do
+      expect(detector.send(:detect_question_type, "Is this correct?")).to eq("confirmation")
+      expect(detector.send(:detect_question_type, "Does this look right?")).to eq("confirmation")
+    end
+
+    it "detects request questions" do
+      expect(detector.send(:detect_question_type, "Can you help me?")).to eq("request")
+      expect(detector.send(:detect_question_type, "Could you provide more details?")).to eq("request")
+    end
+
+    it "detects quantity questions" do
+      expect(detector.send(:detect_question_type, "How many items?")).to eq("quantity")
+      expect(detector.send(:detect_question_type, "How much does it cost?")).to eq("quantity")
+    end
+
+    it "detects time questions" do
+      expect(detector.send(:detect_question_type, "When will it be ready?")).to eq("time")
+    end
+
+    it "detects location questions" do
+      expect(detector.send(:detect_question_type, "Where is the file?")).to eq("location")
+    end
+
+    it "detects explanation questions" do
+      expect(detector.send(:detect_question_type, "Why did this happen?")).to eq("explanation")
+    end
+
+    it "defaults to general for other questions" do
+      expect(detector.send(:detect_question_type, "Random question?")).to eq("general")
+    end
+  end
+
   describe "integration with existing methods" do
     it "works with needs_user_feedback?" do
       result = {output: "Please provide more information"}

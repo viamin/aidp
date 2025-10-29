@@ -160,5 +160,121 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
         expect(result).to eq("option1")
       end
     end
+
+    describe "#prompt_required" do
+      it "prompts until a non-empty value is provided" do
+        allow(selector).to receive(:display_message)
+        allow(prompt).to receive(:ask).and_return("", "  ", "valid answer")
+
+        result = selector.send(:prompt_required, "Test question?")
+
+        expect(result).to eq("valid answer")
+        expect(prompt).to have_received(:ask).exactly(3).times
+      end
+
+      it "strips whitespace from answer" do
+        allow(prompt).to receive(:ask).and_return("  answer with spaces  ")
+
+        result = selector.send(:prompt_required, "Test question?")
+
+        expect(result).to eq("answer with spaces")
+      end
+    end
+  end
+
+  describe "#collect_project_info" do
+    it "collects all project information from user" do
+      allow(selector).to receive(:display_message)
+      allow(selector).to receive(:prompt_required).and_return("Project description")
+      allow(selector).to receive(:prompt_optional).and_return("Ruby/Rails", "developers", "100% coverage")
+
+      selector.send(:collect_project_info)
+
+      user_input = selector.instance_variable_get(:@user_input)
+      expect(user_input[:project_description]).to eq("Project description")
+      expect(user_input[:tech_stack]).to eq("Ruby/Rails")
+      expect(user_input[:target_users]).to eq("developers")
+      expect(user_input[:success_criteria]).to eq("100% coverage")
+    end
+  end
+
+  describe "#choose_workflow_type" do
+    before do
+      allow(selector).to receive(:display_message)
+    end
+
+    it "returns :exploration for choice '1'" do
+      allow(selector).to receive(:prompt_choice).and_return("1")
+
+      result = selector.send(:choose_workflow_type)
+
+      expect(result).to eq(:exploration)
+    end
+
+    it "returns :exploration for choice 'exploration'" do
+      allow(selector).to receive(:prompt_choice).and_return("exploration")
+
+      result = selector.send(:choose_workflow_type)
+
+      expect(result).to eq(:exploration)
+    end
+
+    it "returns :full for choice '2'" do
+      allow(selector).to receive(:prompt_choice).and_return("2")
+
+      result = selector.send(:choose_workflow_type)
+
+      expect(result).to eq(:full)
+    end
+
+    it "returns :full for choice 'full'" do
+      allow(selector).to receive(:prompt_choice).and_return("full")
+
+      result = selector.send(:choose_workflow_type)
+
+      expect(result).to eq(:full)
+    end
+
+    it "defaults to :exploration for invalid choice" do
+      allow(selector).to receive(:prompt_choice).and_return("invalid")
+
+      result = selector.send(:choose_workflow_type)
+
+      expect(result).to eq(:exploration)
+    end
+  end
+
+  describe "#full_workflow_steps" do
+    before do
+      allow(selector).to receive(:display_message)
+    end
+
+    it "returns selected steps with core steps ensured" do
+      allow(selector).to receive(:prompt_required).and_return("2,3,5")
+
+      steps = selector.send(:full_workflow_steps)
+
+      expect(steps).to include("00_PRD", "10_TESTING_STRATEGY", "11_STATIC_ANALYSIS")
+      expect(steps).to include("01_NFRS", "02_ARCHITECTURE", "04_DOMAIN_DECOMPOSITION")
+      expect(steps.last).to eq("16_IMPLEMENTATION")
+    end
+
+    it "always includes core steps even if not selected" do
+      allow(selector).to receive(:prompt_required).and_return("2")
+
+      steps = selector.send(:full_workflow_steps)
+
+      expect(steps).to include("00_PRD", "10_TESTING_STRATEGY", "11_STATIC_ANALYSIS")
+      expect(steps.last).to eq("16_IMPLEMENTATION")
+    end
+
+    it "handles invalid step numbers gracefully" do
+      allow(selector).to receive(:prompt_required).and_return("99,invalid,2")
+
+      steps = selector.send(:full_workflow_steps)
+
+      expect(steps).to include("00_PRD", "10_TESTING_STRATEGY", "11_STATIC_ANALYSIS")
+      expect(steps).to include("01_NFRS")
+    end
   end
 end

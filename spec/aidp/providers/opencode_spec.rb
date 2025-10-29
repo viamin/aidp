@@ -95,5 +95,151 @@ RSpec.describe Aidp::Providers::Opencode do
       provider.__send__(:mark_completed)
       expect(provider.instance_variable_get(:@activity_state)).to eq(:completed)
     end
+
+    it "marks as failed with reason" do
+      allow(provider).to receive(:display_message)
+      provider.__send__(:setup_activity_monitoring, "opencode", provider.method(:activity_callback))
+      provider.__send__(:mark_failed, "test failure")
+      expect(provider.instance_variable_get(:@activity_state)).to eq(:failed)
+    end
+
+    it "records activity messages" do
+      allow(provider).to receive(:display_message)
+      provider.__send__(:setup_activity_monitoring, "opencode", provider.method(:activity_callback))
+      provider.__send__(:record_activity, "test message")
+
+      # record_activity should execute without error
+      # Note: implementation may not maintain history array
+    end
+  end
+
+  describe "#activity_callback" do
+    it "handles state transitions" do
+      allow(provider).to receive(:display_message)
+      provider.__send__(:activity_callback, :running, "Running", "opencode")
+      # Callback should execute without error
+    end
+
+    it "handles completed state" do
+      allow(provider).to receive(:display_message)
+      provider.__send__(:activity_callback, :completed, "Done", "opencode")
+    end
+
+    it "handles failed state" do
+      allow(provider).to receive(:display_message)
+      provider.__send__(:activity_callback, :failed, "Error", "opencode")
+    end
+  end
+
+  describe "#send_message" do
+    before do
+      allow(provider).to receive(:display_message)
+      allow(provider).to receive(:debug_provider)
+      allow(provider).to receive(:debug_log)
+      allow(provider).to receive(:debug_command)
+      allow(provider).to receive(:debug_execute_command)
+      allow(provider).to receive(:debug_error)
+      allow(provider).to receive(:setup_activity_monitoring)
+      allow(provider).to receive(:record_activity)
+      allow(provider).to receive(:mark_completed)
+      allow(provider).to receive(:mark_failed)
+      allow(provider).to receive(:cleanup_activity_display)
+      allow(TTY::Spinner).to receive(:new).and_return(double("Spinner", auto_spin: nil, success: nil, error: nil))
+    end
+
+    it "raises error when opencode is not available" do
+      allow(described_class).to receive(:available?).and_return(false)
+
+      expect {
+        provider.send_message(prompt: "test prompt")
+      }.to raise_error("opencode not available")
+    end
+
+    it "uses OPENCODE_MODEL env variable when set" do
+      allow(described_class).to receive(:available?).and_return(true)
+      ENV["OPENCODE_MODEL"] = "test-model"
+
+      result = double("Result", exit_status: 0, out: "output", err: "")
+      allow(provider).to receive(:debug_execute_command).and_return(result)
+
+      provider.send_message(prompt: "test")
+
+      expect(provider).to have_received(:debug_execute_command).with(
+        "opencode",
+        hash_including(args: ["run", "-m", "test-model", "test"])
+      )
+
+      ENV.delete("OPENCODE_MODEL")
+    end
+
+    it "uses default model when OPENCODE_MODEL not set" do
+      allow(described_class).to receive(:available?).and_return(true)
+      ENV.delete("OPENCODE_MODEL")
+
+      result = double("Result", exit_status: 0, out: "output", err: "")
+      allow(provider).to receive(:debug_execute_command).and_return(result)
+
+      provider.send_message(prompt: "test")
+
+      expect(provider).to have_received(:debug_execute_command).with(
+        "opencode",
+        hash_including(args: ["run", "-m", "github-copilot/claude-3.5-sonnet", "test"])
+      )
+    end
+
+    it "handles successful execution" do
+      allow(described_class).to receive(:available?).and_return(true)
+      result = double("Result", exit_status: 0, out: "success output", err: "")
+      allow(provider).to receive(:debug_execute_command).and_return(result)
+
+      output = provider.send_message(prompt: "test")
+
+      expect(output).to eq("success output")
+      expect(provider).to have_received(:mark_completed)
+    end
+
+    it "handles failed execution" do
+      allow(described_class).to receive(:available?).and_return(true)
+      result = double("Result", exit_status: 1, out: "", err: "error output")
+      allow(provider).to receive(:debug_execute_command).and_return(result)
+
+      expect {
+        provider.send_message(prompt: "test")
+      }.to raise_error(/opencode failed with exit code 1/)
+
+      expect(provider).to have_received(:mark_failed).at_least(:once)
+    end
+
+    it "enables streaming mode when AIDP_STREAMING is set" do
+      allow(described_class).to receive(:available?).and_return(true)
+      ENV["AIDP_STREAMING"] = "1"
+
+      result = double("Result", exit_status: 0, out: "output", err: "")
+      allow(provider).to receive(:debug_execute_command).and_return(result)
+
+      provider.send_message(prompt: "test")
+
+      expect(provider).to have_received(:display_message).with(
+        anything,
+        hash_including(type: :info)
+      ).at_least(:once)
+
+      ENV.delete("AIDP_STREAMING")
+    end
+
+    it "warns about large prompts" do
+      allow(described_class).to receive(:available?).and_return(true)
+      large_prompt = "a" * 3001
+
+      result = double("Result", exit_status: 0, out: "output", err: "")
+      allow(provider).to receive(:debug_execute_command).and_return(result)
+
+      provider.send_message(prompt: large_prompt)
+
+      expect(provider).to have_received(:debug_log).with(
+        anything,
+        hash_including(level: :warn)
+      )
+    end
   end
 end

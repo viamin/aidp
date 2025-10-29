@@ -94,6 +94,90 @@ RSpec.describe Aidp::CLI::EnhancedInput do
         enhanced_input.ask("Test question")
         expect(test_prompt.inputs.last[:message]).to eq("Test question")
       end
+
+      it "uses reline to read user input" do
+        allow(input).to receive(:tty?).and_return(true)
+        allow(Reline).to receive(:readline).and_return("user input")
+        allow(Reline).to receive(:output=)
+        allow(Reline).to receive(:input=)
+        allow(Reline).to receive(:completion_append_character=)
+
+        enhanced_input.enable_reline!
+        result = enhanced_input.ask("Enter value:")
+        expect(result).to eq("user input")
+      end
+
+      it "uses default value when user provides empty input" do
+        allow(input).to receive(:tty?).and_return(true)
+        allow(Reline).to receive(:readline).and_return("")
+        allow(Reline).to receive(:output=)
+        allow(Reline).to receive(:input=)
+        allow(Reline).to receive(:completion_append_character=)
+
+        enhanced_input.enable_reline!
+        result = enhanced_input.ask("Enter value:", default: "default_value")
+        expect(result).to eq("default_value")
+      end
+
+      it "strips whitespace from input" do
+        allow(input).to receive(:tty?).and_return(true)
+        allow(Reline).to receive(:readline).and_return("  answer with spaces  ")
+        allow(Reline).to receive(:output=)
+        allow(Reline).to receive(:input=)
+        allow(Reline).to receive(:completion_append_character=)
+
+        enhanced_input.enable_reline!
+        result = enhanced_input.ask("Enter value:")
+        expect(result).to eq("answer with spaces")
+      end
+
+      it "re-prompts when required field is empty" do
+        allow(input).to receive(:tty?).and_return(true)
+        allow(Reline).to receive(:readline).and_return("", "  ", "valid answer")
+        allow(Reline).to receive(:output=)
+        allow(Reline).to receive(:input=)
+        allow(Reline).to receive(:completion_append_character=)
+
+        enhanced_input.enable_reline!
+        result = enhanced_input.ask("Required field:", required: true)
+        expect(result).to eq("valid answer")
+      end
+
+      it "raises Interrupt when user sends Ctrl-D (nil)" do
+        allow(input).to receive(:tty?).and_return(true)
+        allow(Reline).to receive(:readline).and_return(nil)
+        allow(Reline).to receive(:output=)
+        allow(Reline).to receive(:input=)
+        allow(Reline).to receive(:completion_append_character=)
+
+        enhanced_input.enable_reline!
+        expect {
+          enhanced_input.ask("Enter value:")
+        }.to raise_error(Interrupt)
+      end
+
+      it "displays hints on first use when hints are enabled" do
+        enhanced_input.enable_hints!
+        allow(input).to receive(:tty?).and_return(true)
+        allow(Reline).to receive(:readline).and_return("answer")
+        allow(Reline).to receive(:output=)
+        allow(Reline).to receive(:input=)
+        allow(Reline).to receive(:completion_append_character=)
+
+        enhanced_input.enable_reline!
+        enhanced_input.ask("Test:")
+
+        expect(output.string).to include("💡 Hint:")
+        expect(output.string).to include("Ctrl-A")
+      end
+    end
+
+    it "handles Interrupt gracefully during ask" do
+      allow(test_prompt).to receive(:ask).and_raise(Interrupt)
+
+      expect {
+        enhanced_input.ask("Question?")
+      }.to raise_error(Interrupt)
     end
   end
 
