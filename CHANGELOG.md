@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.19.0](https://github.com/viamin/aidp/compare/aidp/v0.18.0...aidp/v0.19.0) (2025-10-28)
+
+
+### Features
+
+* **execute:** add persistent tasklist, REPL /tasks and agent task filing ([1f416d5](https://github.com/viamin/aidp/commit/1f416d5bcebe883fe87fbb9062b07014a33453cf)), closes [#195](https://github.com/viamin/aidp/issues/195)
+* **execute:** add persistent tasklist, REPL /tasks and agent task filing ([#200](https://github.com/viamin/aidp/issues/200)) ([fdbc55a](https://github.com/viamin/aidp/commit/fdbc55a95ef24007b0391b1af2ad2191b67e42ad))
+
+
+### Bug Fixes
+
+* **cli:** emulate default for TTY::Reader in TerminalIO.readline ([43dffb7](https://github.com/viamin/aidp/commit/43dffb70eb0906a82097e4f11ecc92f13dcd28ec))
+* get devcontainer config building ([16e8553](https://github.com/viamin/aidp/commit/16e8553e7e3897a423d70d6f31c4d9f0d6888421))
+* get devcontainer config building ([#202](https://github.com/viamin/aidp/issues/202)) ([7670a23](https://github.com/viamin/aidp/commit/7670a234abbc3e7ae25df5b019a6de1a650bc6f1))
+
 ## [0.18.0](https://github.com/viamin/aidp/compare/aidp/v0.17.1...aidp/v0.18.0) (2025-10-28)
 
 
