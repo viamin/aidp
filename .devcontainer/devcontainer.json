@@ -1,6 +1,7 @@
 // For format details, see https://containers.dev/implementors/json_reference/.
 // For config options, see the README at: https://github.com/devcontainers/templates/tree/main/src/ruby
 {
+  "$schema": "https://raw.githubusercontent.com/microsoft/vscode/main/extensions/configuration-editing/schemas/devContainer.vscode.schema.json",
   "name": "AIDP Development Container",
   "dockerComposeFile": "compose.yaml",
   "service": "aidp",
@@ -22,9 +23,9 @@
     },
     "ghcr.io/rails/devcontainer/features/sqlite3": {},
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts",
-      "nvm": true
-    }
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers-extra/features/mise:1": {}
   },
   "containerEnv": {
     "TZ": "${localEnv:TZ:UTC}",
@@ -99,6 +100,11 @@
           "bash": {
             "path": "/bin/bash"
           }
+        },
+        // Remote ports
+        "remote.autoForwardPorts": true,
+        "remote.portsAttributes": {
+          "*": { "requireLocalPort": true }   // prefer same-number local port
         }
       }
     }
