@@ -105,6 +105,8 @@ GEM
     racc (1.8.1)
     rainbow (3.1.1)
     rake (13.3.0)
+    rbs (3.9.5)
+      logger
     regexp_parser (2.11.3)
     reline (0.6.2)
       io-console (~> 0.5)
@@ -140,6 +142,10 @@ GEM
       lint_roller (~> 1.1)
       rubocop (>= 1.75.0, < 2.0)
       rubocop-ast (>= 1.38.0, < 2.0)
+    ruby-lsp (0.26.2)
+      language_server-protocol (~> 3.17.0)
+      prism (>= 1.2, < 2.0)
+      rbs (>= 3, < 5)
     ruby-progressbar (1.13.0)
     ruby_tree_sitter (2.0.0)
       oppen (~> 1.0)
@@ -269,6 +275,7 @@ DEPENDENCIES
   rake
   reline
   rspec
+  ruby-lsp
   simplecov
   simplecov-mcp
   standard

@@ -20,7 +20,11 @@
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
       "moby": false
     },
-    "ghcr.io/rails/devcontainer/features/sqlite3": {}
+    "ghcr.io/rails/devcontainer/features/sqlite3": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts",
+      "nvm": true
+    }
   },
   "containerEnv": {
     "TZ": "${localEnv:TZ:UTC}",
@@ -35,7 +39,7 @@
   // Post-create command - install dependencies
   // Post-create: mandatory bundle install; optional tools below (uncomment to enable)
   "postCreateCommand": {
-    "bundle-install": "bundle check || bundle install --jobs 4 --retry 3",
+    "markdownlint": "npm install -g markdownlint-cli",
     // OPTIONAL TOOLS (uncomment any you want):
     "git-curate": "gem install git_curate",
     "claude-code": "npm install -g @anthropic-ai/claude-code",
@@ -58,18 +62,17 @@
       "extensions": [
         "Shopify.ruby-lsp",
         "testdouble.vscode-standard-ruby",
-        "kaiwood.endwise",
         "eamodio.gitlens",
         "mhutchie.git-graph",
         "redhat.vscode-yaml",
-        "streetsidesoftware.code-spell-checker",
         "EditorConfig.EditorConfig",
         "GitHub.copilot",
         "GitHub.copilot-chat",
-        "Anthropic.claude-code"
-        // "openai.chatgpt",
-        // "google.gemini-cli-vscode-ide-companion",
-        // "sst-dev.opencode"
+        "Anthropic.claude-code",
+        "openai.chatgpt",
+        "DavidAnson.vscode-markdownlint",
+        "sst-dev.opencode",
+        "google.gemini-cli-vscode-ide-companion"
       ],
       // VS Code settings
       "settings": {
@@ -107,7 +110,9 @@
     // Persist .aidp configuration for vscode user
     "source=aidp-config,target=/home/vscode/.aidp,type=volume",
     // Persist bundler cache
-    "source=aidp-bundle,target=/workspace/vendor/bundle,type=volume"
+    "source=aidp-bundle,target=/workspace/vendor/bundle,type=volume",
+    // Host user's ~/.config bind-mounted into container (read/write)
+    "source=${localEnv:HOME}/.config,target=/home/vscode/.config,type=bind"
   ]
   // Optional: uncomment to keep container running
   // "overrideCommand": true

@@ -19,8 +19,6 @@ RUN apt-get update && apt-get install -y \
   git \
   libssh2-1-dev \
   libssl-dev \
-  nodejs \
-  npm \
   pkg-config \
   vim \
   # Networking tools
@@ -54,9 +52,6 @@ RUN ARCH="$(dpkg --print-architecture)" \
 # Install mise (asdf successor) for version management
 RUN curl https://mise.run | sh
 ENV PATH="/root/.local/bin:$PATH"
-
-RUN npm install -g markdownlint-cli \
-  && npm cache clean --force
 
 # Copy firewall initialization script
 COPY .devcontainer/init-firewall.sh /usr/local/bin/init-firewall.sh
