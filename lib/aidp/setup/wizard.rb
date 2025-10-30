@@ -171,6 +171,20 @@ module Aidp
         # Auto-create minimal provider configs for fallbacks if missing
         cleaned_fallbacks.each { |fp| ensure_provider_billing_config(fp) }
 
+        # Offer editing of existing provider configurations (primary + fallbacks)
+        editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
+        if editable.any? && prompt.yes?("Edit provider configuration details (billing/model family)?", default: false)
+          loop do
+            to_edit = prompt.select("Select a provider to edit:") do |menu|
+              editable.each { |prov| menu.choice prov, prov }
+              menu.choice "Done", :done
+            end
+            break if to_edit == :done
+
+            edit_provider_configuration(to_edit)
+          end
+        end
+
         # Provide informational note (no secret handling stored)
         show_provider_info_note(provider_choice) unless provider_choice == "custom"
       end
@@ -921,12 +935,34 @@ module Aidp
         prompt.say("  • Added provider '#{provider_name}' with billing type '#{provider_type}' and model family '#{model_family}' (no secrets stored)")
       end
 
+      def edit_provider_configuration(provider_name)
+        existing = get([:providers, provider_name.to_sym]) || {}
+        prompt.say("\n🔧 Editing provider '#{provider_name}' (current: type=#{existing[:type] || 'unset'}, model_family=#{existing[:model_family] || 'unset'})")
+        new_type = ask_provider_billing_type_with_default(provider_name, existing[:type])
+        new_family = ask_model_family(provider_name, existing[:model_family] || "auto")
+        set([:providers, provider_name.to_sym], {type: new_type, model_family: new_family})
+        # Normalize immediately so tests relying on canonical value see 'claude' rather than label
+        normalize_existing_model_families!
+        prompt.ok("Updated '#{provider_name}' → type=#{new_type}, model_family=#{new_family}")
+      end
+
       def ask_provider_billing_type(provider_name)
-        prompt.select("Billing model for #{provider_name}:") do |menu|
-          menu.choice "Subscription / flat-rate", "subscription"
-          # e.g. tools that expose an integrated model under a subscription cost
-          menu.choice "Usage-based / metered (API)", "usage_based"
-          menu.choice "Passthrough / local (no billing)", "passthrough"
+        ask_provider_billing_type_with_default(provider_name, nil)
+      end
+
+      BILLING_TYPE_CHOICES = [
+        ["Subscription / flat-rate", "subscription"],
+        ["Usage-based / metered (API)", "usage_based"],
+        ["Passthrough / local (no billing)", "passthrough"]
+      ].freeze
+
+      def ask_provider_billing_type_with_default(provider_name, default_value)
+        default_label = BILLING_TYPE_CHOICES.find { |label, value| value == default_value }&.first
+        suffix = default_value ? " (current: #{default_value})" : ""
+        prompt.select("Billing model for #{provider_name}:#{suffix}", default: default_label) do |menu|
+          BILLING_TYPE_CHOICES.each do |label, value|
+            menu.choice(label, value)
+          end
         end
       end
 
