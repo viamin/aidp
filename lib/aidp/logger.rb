@@ -33,7 +33,7 @@ module Aidp
     attr_reader :level, :json_format
 
     def initialize(project_dir = Dir.pwd, config = {})
-      @project_dir = project_dir
+      @project_dir = sanitize_project_dir(project_dir)
       @config = config
       @level = determine_log_level
       @json_format = config[:json] || false
@@ -194,6 +194,18 @@ module Aidp
 
     def redact_hash(hash)
       hash.transform_values { |v| v.is_a?(String) ? redact(v) : v }
+    end
+
+    # Guard against accidentally passing stream sentinel strings or invalid characters
+    # that would create odd top-level directories like "<STDERR>".
+    def sanitize_project_dir(dir)
+      return Dir.pwd if dir.nil?
+      str = dir.to_s
+      if str.empty? || str.match?(/[<>|]/) || str.match?(/[\x00-\x1F]/)
+        Kernel.warn "[AIDP Logger] Invalid project_dir '#{str}' - falling back to #{Dir.pwd}"
+        return Dir.pwd
+      end
+      str
     end
   end
 

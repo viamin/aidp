@@ -370,4 +370,3 @@ Troubleshooting tips:
 - Not seeing prompts? Ensure neither `--verbose` nor `AIDP_VERBOSE=1` is set and only `DEBUG=1` is active (they'll be in logs instead).
 - Seeing repeated fallback prompts? Inspect logs for provider raw output to diagnose malformed JSON sources.
 - Want to diff plan evolution? Enable `DEBUG=1` and review successive plan summaries in the log.
-
