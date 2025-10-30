@@ -3,9 +3,11 @@
 require "spec_helper"
 
 RSpec.describe Aidp::Workflows::GuidedAgent do
-  let(:project_dir) { Dir.pwd }
+  let(:project_dir) { Dir.mktmpdir("guided_agent_retry_spec") }
 
   before do
+    # Create docs directory in temp location
+    FileUtils.mkdir_p(File.join(project_dir, "docs"))
     # Configuration with only one provider (no fallback possible)
     allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({
       harness: {enabled: true, default_provider: "cursor"},
@@ -18,6 +20,10 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|
       raise "ConnectError: [resource_exhausted] Error"
     end
+  end
+
+  after do
+    FileUtils.rm_rf(project_dir) if project_dir && File.directory?(project_dir)
   end
 
   it "raises ConversationError after exhausting retries when only one provider configured" do

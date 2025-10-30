@@ -3,9 +3,11 @@
 require "spec_helper"
 
 RSpec.describe Aidp::Workflows::GuidedAgent do
-  let(:project_dir) { Dir.pwd }
+  let(:project_dir) { Dir.mktmpdir("guided_agent_spec") }
 
   before do
+    # Create docs directory in temp location
+    FileUtils.mkdir_p(File.join(project_dir, "docs"))
     # Configuration with two providers so fallback is possible
     allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({
       harness: {enabled: true, default_provider: "cursor", fallback_providers: ["claude"]},
@@ -28,6 +30,10 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
     # Fallback provider succeeds immediately
     allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message).and_return('{"complete": true, "questions": [], "reasoning": "done"}')
+  end
+
+  after do
+    FileUtils.rm_rf(project_dir) if project_dir && File.directory?(project_dir)
   end
 
   it "switches from cursor to claude after resource exhaustion and completes planning" do
