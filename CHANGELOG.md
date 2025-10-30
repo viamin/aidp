@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.1](https://github.com/viamin/aidp/compare/aidp/v0.19.0...aidp/v0.19.1) (2025-10-30)
+
+
+### Bug Fixes
+
+* better permissions for devcontainer postCreateCommands ([#203](https://github.com/viamin/aidp/issues/203)) ([3e419df](https://github.com/viamin/aidp/commit/3e419df4ff359477cd35f9fabd85d221c1809814))
+* better permissions for devcontainer postCreateCommands (still needs work) ([d3ae7fc](https://github.com/viamin/aidp/commit/d3ae7fc7693cbd87741ab119a151dfddcd52278c))
+
 ## [0.19.0](https://github.com/viamin/aidp/compare/aidp/v0.18.0...aidp/v0.19.0) (2025-10-28)
 
 
