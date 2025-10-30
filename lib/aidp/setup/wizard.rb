@@ -30,6 +30,8 @@ module Aidp
 
       def run
         display_welcome
+        # Normalize any legacy or label-based model_family entries before prompting
+        normalize_existing_model_families!
         return @saved if skip_wizard?
 
         configure_providers
@@ -907,7 +909,7 @@ module Aidp
           prompt.say("  • Provider '#{provider_name}' already configured (type: #{existing[:type]})")
           # Still ask for model family if not set
           unless existing[:model_family]
-            model_family = ask_model_family(provider_name, existing[:model_family])
+            model_family = ask_model_family(provider_name)
             set([:providers, provider_name.to_sym, :model_family], model_family)
           end
           return
@@ -928,13 +930,52 @@ module Aidp
         end
       end
 
+      MODEL_FAMILY_CHOICES = [
+        ["Auto (let provider decide)", "auto"],
+        ["OpenAI o-series (reasoning models)", "openai_o"],
+        ["Anthropic Claude (balanced)", "claude"],
+        ["Mistral (European/open)", "mistral"],
+        ["Local LLM (self-hosted)", "local"]
+      ].freeze
+
       def ask_model_family(provider_name, default = "auto")
-        prompt.select("Preferred model family for #{provider_name}:", default: default) do |menu|
-          menu.choice "Auto (let provider decide)", "auto"
-          menu.choice "OpenAI o-series (reasoning models)", "openai_o"
-          menu.choice "Anthropic Claude (balanced)", "claude"
-          menu.choice "Mistral (European/open)", "mistral"
-          menu.choice "Local LLM (self-hosted)", "local"
+        # TTY::Prompt validates defaults against the displayed choice labels, not values.
+        # Map the value default (e.g. "auto") to its corresponding label.
+        default_label = MODEL_FAMILY_CHOICES.find { |label, value| value == default }&.first
+
+        prompt.select("Preferred model family for #{provider_name}:", default: default_label) do |menu|
+          MODEL_FAMILY_CHOICES.each do |label, value|
+            menu.choice(label, value)
+          end
+        end
+      end
+
+      # Canonicalization helpers ------------------------------------------------
+      MODEL_FAMILY_LABEL_TO_VALUE = MODEL_FAMILY_CHOICES.each_with_object({}) do |(label, value), h|
+        h[label] = value
+      end.freeze
+      MODEL_FAMILY_VALUES = MODEL_FAMILY_CHOICES.map { |(_, value)| value }.freeze
+
+      def normalize_model_family(value)
+        return "auto" if value.nil? || value.to_s.strip.empty?
+        # Already a canonical value
+        return value if MODEL_FAMILY_VALUES.include?(value)
+        # Try label -> value
+        mapped = MODEL_FAMILY_LABEL_TO_VALUE[value]
+        return mapped if mapped
+        # Unknown legacy entry -> fallback to auto
+        "auto"
+      end
+
+      def normalize_existing_model_families!
+        providers_cfg = @config[:providers]
+        return unless providers_cfg.is_a?(Hash)
+        providers_cfg.each do |prov_name, prov_cfg|
+          next unless prov_cfg.is_a?(Hash)
+          mf = prov_cfg[:model_family]
+            # Normalize and write back only if different to avoid unnecessary YAML churn
+          normalized = normalize_model_family(mf)
+          prov_cfg[:model_family] = normalized
         end
       end
 
