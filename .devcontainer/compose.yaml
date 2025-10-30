@@ -7,7 +7,7 @@ services:
       dockerfile: .devcontainer/Dockerfile
       args:
         # Update the RUBY_VERSION arg to match the Ruby version in .tool-versions
-        RUBY_VERSION: 3.4.5
+        RUBY_VERSION: 3.4.7
         DELTA_VERSION: 0.18.2
 
     volumes:

@@ -8,12 +8,13 @@ group :development do
   gem "benchmark" # Suppress Ruby 3.5.0 deprecation warning
   gem "rake"
   gem "reline" # Suppress Ruby 3.5.0 deprecation warning
+  gem "ruby-lsp", require: false
   gem "simplecov-mcp", require: false
   gem "standard"
 end
 
 group :test do
-  gem "aruba" # System testing framework
+  gem "aruba" # System testing framework for CLIs
   gem "rspec"
   gem "simplecov", require: false
   gem "webmock"

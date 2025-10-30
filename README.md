@@ -60,7 +60,7 @@ This repository includes a `.devcontainer/` setup for developing AIDP itself:
 code .
 
 # Press F1 → "Dev Containers: Reopen in Container"
-# Container builds automatically with Ruby 3.4.5, all tools, and firewall
+# Container builds automatically with Ruby 3.4.7, all tools, and firewall
 
 # Run tests inside container
 bundle exec rspec

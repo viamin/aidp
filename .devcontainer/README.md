@@ -6,7 +6,7 @@ This directory contains the development container configuration for AIDP. The de
 
 ### Base Environment
 
-- **Ruby 3.4.5** with bundler and common development gems
+- **Ruby 3.4.7** with bundler and common development gems
 - **Git** with delta for enhanced diffs
 - **Zsh** with powerline10k theme and useful plugins
 - **Development tools**: vim, nano, fzf, yamllint
