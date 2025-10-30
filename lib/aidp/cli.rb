@@ -146,6 +146,12 @@ module Aidp
 
     class << self
       extend Aidp::MessageDisplay::ClassMethods
+      extend Aidp::RescueLogging
+
+      # Explicit singleton delegator (defensive: ensure availability even if extend fails to attach)
+      def log_rescue(error, component:, action:, fallback: nil, level: :warn, **context)
+        Aidp::RescueLogging.log_rescue(error, component: component, action: action, fallback: fallback, level: level, **context)
+      end
 
       # Store last parsed options for access by UI components (e.g., verbose flag)
       @last_options = nil

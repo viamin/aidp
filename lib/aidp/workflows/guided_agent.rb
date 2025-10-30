@@ -248,6 +248,9 @@ module Aidp
             if switched && switched != provider_name
               display_message("↩️  Switched to provider '#{switched}'", type: :info)
               retry
+            elsif switched == provider_name
+              # No-op switch (same provider). Avoid confusing duplicate messaging.
+              Aidp.logger.debug("guided_agent", "provider_switch_noop", provider: provider_name, reason: classified)
             end
           end
           raise
