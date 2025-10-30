@@ -146,6 +146,8 @@ GEM
       language_server-protocol (~> 3.17.0)
       prism (>= 1.2, < 2.0)
       rbs (>= 3, < 5)
+    ruby-lsp-rspec (0.1.28)
+      ruby-lsp (~> 0.26.0)
     ruby-progressbar (1.13.0)
     ruby_tree_sitter (2.0.0)
       oppen (~> 1.0)
@@ -276,6 +278,7 @@ DEPENDENCIES
   reline
   rspec
   ruby-lsp
+  ruby-lsp-rspec
   simplecov
   simplecov-mcp
   standard

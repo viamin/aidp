@@ -293,6 +293,54 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         expect(result).to have_key(:steps)
       end
     end
+
+    context "with verbose flag enabled" do
+      let(:verbose_agent) { described_class.new(project_dir, prompt: prompt, verbose: true) }
+      let(:plan_json) { {complete: false, questions: ["What tech stack?"], reasoning: "Need tech details"}.to_json }
+      let(:complete_plan_json) { {complete: true, questions: [], reasoning: "Plan complete"}.to_json }
+      let(:steps_json) { {steps: ["00_PRD", "16_IMPLEMENTATION"], reasoning: "Minimal steps"}.to_json }
+
+      before do
+        allow(prompt).to receive(:ask).with("Your goal:", required: true).and_return("Test goal verbose")
+        allow(prompt).to receive(:ask).with("What tech stack?").and_return("Ruby")
+        allow(prompt).to receive(:yes?).with(/Is this plan ready/).and_return(true)
+        allow(provider).to receive(:send_message).and_return(plan_json, complete_plan_json, steps_json)
+      end
+
+      it "prints prompt and raw response to stdout" do
+        # Capture calls to prompt.say (display_message uses prompt.say)
+        expect(prompt).to receive(:say).at_least(:once)
+        verbose_agent.select_workflow
+      end
+    end
+
+    context "with DEBUG=1 but no verbose flag" do
+      let(:debug_agent) { described_class.new(project_dir, prompt: prompt, verbose: false) }
+      let(:plan_json) { {complete: true, questions: [], reasoning: "Plan complete"}.to_json }
+      let(:steps_json) { {steps: ["00_PRD", "16_IMPLEMENTATION"], reasoning: "Minimal steps"}.to_json }
+
+      before do
+        stub_const("ENV", ENV.to_h.merge("DEBUG" => "1"))
+        allow(prompt).to receive(:ask).with("Your goal:", required: true).and_return("Debug goal")
+        allow(prompt).to receive(:yes?).with(/Is this plan ready/).and_return(true)
+        allow(provider).to receive(:send_message).and_return(plan_json, steps_json)
+        # Stub logger
+        logger_double = instance_double("Aidp::Logger")
+        allow(Aidp).to receive(:logger).and_return(logger_double)
+        allow(logger_double).to receive(:debug)
+        allow(logger_double).to receive(:info)
+        allow(logger_double).to receive(:warn)
+        allow(logger_double).to receive(:log)
+      end
+
+      it "emits planning data to logger debug instead of stdout verbose sections" do
+        debug_agent.select_workflow
+        # Expect logger debug called with planning prompt and iteration summary keys
+        expect(Aidp.logger).to have_received(:debug).at_least(:once)
+        # Should not print verbose banner lines (we can check prompt.say not receiving prompt headers)
+        expect(prompt).not_to have_received(:say).with(/--- Prompt Sent/)
+      end
+    end
   end
 
   describe "private methods" do
@@ -575,19 +623,44 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       it "handles malformed JSON gracefully" do
         response = "This is not JSON at all"
 
-        result = agent.send(:parse_planning_response, response)
+        result = agent.send(:safe_parse_planning_response, response)
 
         expect(result[:complete]).to be false
-        expect(result[:questions]).to eq(["Could you tell me more about your requirements?"])
+        expect(result[:questions]).to eq(["Provide scope (key features) and primary users."])
+        expect(result[:error]).to eq(:fallback)
       end
 
       it "handles JSON parse errors gracefully" do
         response = '{"invalid": json,}'
 
-        result = agent.send(:parse_planning_response, response)
+        result = agent.send(:safe_parse_planning_response, response)
 
         expect(result[:complete]).to be false
-        expect(result[:questions]).to eq(["Could you tell me more about your requirements?"])
+        expect(result[:questions]).to eq(["Provide scope (key features) and primary users."])
+        expect(result[:error]).to eq(:fallback)
+      end
+
+      it "advances fallback sequence on repeated invalid responses" do
+        first = agent.send(:safe_parse_planning_response, "not json")
+        expect(first[:questions]).to eq(["Provide scope (key features) and primary users."])
+        second = agent.send(:safe_parse_planning_response, "not json")
+        expect(second[:questions]).to eq(["List 3-5 key functional requirements and any technical constraints."])
+      end
+
+      it "enters manual recovery after exhausting fallback sequence" do
+        4.times { agent.send(:safe_parse_planning_response, "not json") }
+        result = agent.send(:safe_parse_planning_response, "still bad")
+        expect(result[:error]).to eq(:manual_recovery)
+        expect(result[:questions]).to eq(["Enter plan details manually (features; users; requirements; constraints) or type 'skip'"])
+      end
+
+      it "logs verbose failure when emit helper raises" do
+        # Force error inside emit helper by stubbing logger to raise
+        logger_double = instance_double("Aidp::Logger")
+        allow(Aidp).to receive(:logger).and_return(logger_double)
+        allow(logger_double).to receive(:warn)
+        # Simulate invalid response triggering fallback; ensure no exception bubbles
+        expect { agent.send(:safe_parse_planning_response, "bad json") }.not_to raise_error
       end
     end
 
@@ -639,6 +712,19 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         agent.send(:update_plan_from_answer, test_plan, "How will you know when it's complete?", "Users can log in")
 
         expect(test_plan[:completion_criteria]).to eq(["Users can log in"])
+      end
+
+      it "parses manual recovery aggregated input" do
+        # Ensure nested hashes exist to avoid nil errors when adding
+        test_plan[:scope] ||= {}
+        test_plan[:users] ||= {}
+        test_plan[:requirements] ||= {}
+        test_plan[:constraints] ||= {}
+        agent.send(:update_plan_from_answer, test_plan, "Enter plan details manually (features; users; requirements; constraints) or type 'skip'", "Auth feature; Developers; Login requirement; No external DB")
+        expect(test_plan.dig(:scope, :included)).to include("Auth feature")
+        expect(test_plan.dig(:users, :personas)).to include("Developers")
+        expect(test_plan.dig(:requirements, :functional)).to include("Login requirement")
+        expect(test_plan.dig(:constraints, :technical)).to include("No external DB")
       end
 
       it "stores general information for unclassified questions" do

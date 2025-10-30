@@ -251,7 +251,10 @@ module Aidp
         def select_guided_workflow
           # Use the guided agent to help user select workflow
           # Don't pass prompt so it uses EnhancedInput with full readline support
-          guided_agent = Aidp::Workflows::GuidedAgent.new(@project_dir)
+          verbose_flag = (defined?(Aidp::CLI) && Aidp::CLI.respond_to?(:last_options) && Aidp::CLI.last_options) ? Aidp::CLI.last_options[:verbose] : false
+          # Fallback: store verbose in an env for easier access if options not available
+          verbose = verbose_flag || ENV["AIDP_VERBOSE"] == "1"
+          guided_agent = Aidp::Workflows::GuidedAgent.new(@project_dir, verbose: verbose)
           result = guided_agent.select_workflow
 
           # Store user input for later use

@@ -51,7 +51,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
     described_class.new(mock_tui, project_dir: project_dir).tap do |selector|
       # Inject mock dependencies
       selector.instance_variable_set(:@workflow_selector, mock_workflow_selector)
-      allow(Aidp::Workflows::GuidedAgent).to receive(:new).with(project_dir).and_return(mock_guided_agent)
+      allow(Aidp::Workflows::GuidedAgent).to receive(:new).and_return(mock_guided_agent)
     end
   end
 
@@ -123,7 +123,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
         expect(result[:steps]).to eq(["00_PRD", "16_IMPLEMENTATION"])
         expect(result[:user_input]).to eq({project_description: "Test project"})
         expect(result[:workflow]).to eq({name: "guided_workflow"})
-        expect(Aidp::Workflows::GuidedAgent).to have_received(:new).with(project_dir)
+        expect(Aidp::Workflows::GuidedAgent).to have_received(:new)
         expect(mock_guided_agent).to have_received(:select_workflow)
       end
 
@@ -365,7 +365,8 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
         expect(result[:user_input]).to eq({project_description: "Test project"})
         expect(result[:workflow]).to eq({name: "guided_workflow"})
 
-        expect(Aidp::Workflows::GuidedAgent).to have_received(:new).with(project_dir)
+        # Updated: GuidedAgent now receives verbose kw arg, accept any options hash with project_dir
+        expect(Aidp::Workflows::GuidedAgent).to have_received(:new).with(project_dir, hash_including(verbose: anything))
         expect(mock_guided_agent).to have_received(:select_workflow)
       end
 

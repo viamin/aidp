@@ -18,7 +18,7 @@ module Aidp
 
       class ConversationError < StandardError; end
 
-      def initialize(project_dir, prompt: nil, use_enhanced_input: true)
+      def initialize(project_dir, prompt: nil, use_enhanced_input: true, verbose: false)
         @project_dir = project_dir
 
         # Use EnhancedInput with Reline for full readline-style key bindings
@@ -32,6 +32,9 @@ module Aidp
         @provider_manager = Aidp::Harness::ProviderManager.new(@config_manager, prompt: @prompt)
         @conversation_history = []
         @user_input = {}
+        @invalid_planning_responses = 0
+        @verbose = verbose
+        @debug_env = ENV["DEBUG"] == "1" || ENV["DEBUG"] == "2"
       end
 
       # Main entry point for guided workflow selection
@@ -79,6 +82,7 @@ module Aidp
           iteration += 1
           # Ask AI for next question based on current plan
           question_response = get_planning_questions(plan)
+          emit_verbose_iteration(plan, question_response)
 
           # Debug: show raw provider response and parsed result
           debug_log("Planning iteration #{iteration} provider response", level: :debug, data: {
@@ -131,9 +135,10 @@ module Aidp
         end
 
         response = call_provider_for_analysis(system_prompt, user_prompt)
-        parsed = parse_planning_response(response)
+        parsed = safe_parse_planning_response(response)
         # Attach raw response for debug
         parsed[:raw_response] = response
+        emit_verbose_raw_prompt(system_prompt, user_prompt, response)
         parsed
       end
 
@@ -249,6 +254,41 @@ module Aidp
         end
       end
 
+      # Verbose output helpers
+      def emit_verbose_raw_prompt(system_prompt, user_prompt, raw_response)
+        return unless @verbose || @debug_env
+        if @verbose
+          display_message("\n--- Prompt Sent (Planning) ---", type: :muted)
+          display_message(system_prompt.strip, type: :muted)
+          display_message(user_prompt.strip, type: :muted)
+          display_message("--- Raw Provider Response ---", type: :muted)
+          display_message(raw_response.to_s.strip, type: :muted)
+          display_message("------------------------------\n", type: :muted)
+        elsif @debug_env
+          Aidp.logger.debug("guided_agent", "planning_prompt", system: system_prompt.strip, user: user_prompt.strip)
+          Aidp.logger.debug("guided_agent", "planning_raw_response", raw: raw_response.to_s.strip)
+        end
+      rescue => e
+        Aidp.logger.warn("guided_agent", "Failed verbose prompt emit", error: e.message)
+      end
+
+      def emit_verbose_iteration(plan, question_response)
+        return unless @verbose || @debug_env
+        summary = {complete: question_response[:complete], questions: question_response[:questions], reasoning: question_response[:reasoning], error: question_response[:error]}
+        if @verbose
+          display_message("\n=== Planning Iteration Summary ===", type: :info)
+          display_message("Questions: #{(summary[:questions] || []).join(" | ")}", type: :info)
+          display_message("Complete? #{summary[:complete]}", type: :info)
+          display_message("Reasoning: #{summary[:reasoning]}", type: :muted) if summary[:reasoning]
+          display_message("Error: #{summary[:error]}", type: :warning) if summary[:error]
+          display_message("=================================", type: :info)
+        elsif @debug_env
+          Aidp.logger.debug("guided_agent", "iteration_summary", summary: summary, plan_progress_keys: plan.keys)
+        end
+      rescue => e
+        Aidp.logger.warn("guided_agent", "Failed verbose iteration emit", error: e.message)
+      end
+
       def validate_provider_configuration!
         configured = @provider_manager.configured_providers
         if configured.nil? || configured.empty?
@@ -307,20 +347,53 @@ module Aidp
         json_match = response_text.match(/```json\s*(\{.*?\})\s*```/m) ||
           response_text.match(/(\{.*\})/m)
 
-        unless json_match
-          return {complete: false, questions: ["Could you tell me more about your requirements?"]}
-        end
-
+        return {error: :invalid_format} unless json_match
         JSON.parse(json_match[1], symbolize_names: true)
       rescue JSON::ParserError
-        {complete: false, questions: ["Could you tell me more about your requirements?"]}
+        {error: :invalid_format}
+      end
+
+      # Provides structured fallback sequence when provider keeps returning invalid planning JSON.
+      # After exceeding sequence length, switches to manual entry question.
+      def safe_parse_planning_response(response_text)
+        parsed = parse_planning_response(response_text)
+        return parsed unless parsed.is_a?(Hash) && parsed[:error] == :invalid_format
+
+        @invalid_planning_responses += 1
+        fallback_sequence = [
+          "Provide scope (key features) and primary users.",
+          "List 3-5 key functional requirements and any technical constraints.",
+          "Supply any non-functional requirements (performance/security) or type 'skip'."
+        ]
+
+        if @invalid_planning_responses <= fallback_sequence.size
+          {complete: false, questions: [fallback_sequence[@invalid_planning_responses - 1]], reasoning: "Fallback due to invalid provider response (format)", error: :fallback}
+        else
+          display_message("[ERROR] Provider returned invalid planning JSON #{@invalid_planning_responses} times. Enter combined plan details manually.", type: :error)
+          {complete: false, questions: ["Enter plan details manually (features; users; requirements; constraints) or type 'skip'"], reasoning: "Manual recovery mode", error: :manual_recovery}
+        end
       end
 
       def update_plan_from_answer(plan, question, answer)
         # Simple heuristic-based plan updates
         # In a more sophisticated implementation, use AI to categorize answers
 
-        if question.downcase.include?("scope") || question.downcase.include?("include")
+        # IMPORTANT: Check manual recovery sentinel prompt first so it isn't misclassified
+        # by broader keyword heuristics (e.g., it contains the word 'users').
+        if question.start_with?("Enter plan details manually")
+          unless answer.strip.downcase == "skip"
+            parts = answer.split(/;|\|/).map(&:strip).reject(&:empty?)
+            features, users, requirements, constraints = parts
+            plan[:scope][:included] ||= []
+            plan[:scope][:included] << features if features
+            plan[:users][:personas] ||= []
+            plan[:users][:personas] << users if users
+            plan[:requirements][:functional] ||= []
+            plan[:requirements][:functional] << requirements if requirements
+            plan[:constraints][:technical] ||= []
+            plan[:constraints][:technical] << constraints if constraints
+          end
+        elsif question.downcase.include?("scope") || question.downcase.include?("include")
           plan[:scope][:included] ||= []
           plan[:scope][:included] << answer
         elsif question.downcase.include?("user") || question.downcase.include?("who")
@@ -338,7 +411,6 @@ module Aidp
         elsif question.downcase.include?("complete") || question.downcase.include?("done") || question.downcase.include?("success")
           plan[:completion_criteria] << answer
         else
-          # General information
           plan[:additional_context] ||= []
           plan[:additional_context] << {question: question, answer: answer}
         end

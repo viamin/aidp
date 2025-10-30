@@ -147,6 +147,10 @@ module Aidp
     class << self
       extend Aidp::MessageDisplay::ClassMethods
 
+      # Store last parsed options for access by UI components (e.g., verbose flag)
+      @last_options = nil
+      attr_accessor :last_options
+
       def create_prompt
         ::TTY::Prompt.new
       end
@@ -156,6 +160,7 @@ module Aidp
         return run_subcommand(args) if subcommand?(args)
 
         options = parse_options(args)
+        self.last_options = options
 
         if options[:help]
           display_message(options[:parser].to_s, type: :info)
@@ -324,6 +329,7 @@ module Aidp
           opts.on("-h", "--help", "Show this help message") { options[:help] = true }
           opts.on("-v", "--version", "Show version information") { options[:version] = true }
           opts.on("--setup-config", "Setup or reconfigure config file") { options[:setup_config] = true }
+          opts.on("--verbose", "Show detailed prompts and raw provider responses during guided workflow") { options[:verbose] = true }
 
           opts.separator ""
           opts.separator "Examples:"
