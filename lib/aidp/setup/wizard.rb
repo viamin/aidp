@@ -196,13 +196,42 @@ module Aidp
         editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
         if editable.any? && prompt.yes?("Edit provider configuration details (billing/model family)?", default: false)
           loop do
-            to_edit = prompt.select("Select a provider to edit:") do |menu|
-              editable.each { |prov| menu.choice prov, prov }
+            # Build dynamic mapping of display names -> internal names for edit menu
+            available_map = discover_available_providers # {display_name => internal_name}
+            display_name_for = available_map.invert # {internal_name => display_name}
+            to_edit = prompt.select("Select a provider to edit or add:") do |menu|
+              editable.each do |prov|
+                display_label = display_name_for.fetch(prov, prov.capitalize)
+                menu.choice display_label, prov
+              end
+              # Sentinel option: add a new fallback provider that isn't yet in editable list
+              remaining = available_map.values - editable
+              if remaining.any?
+                menu.choice "➕ Add fallback provider…", :add_fallback
+              end
               menu.choice "Done", :done
             end
-            break if to_edit == :done
 
-            edit_provider_configuration(to_edit)
+            case to_edit
+            when :done
+              break
+            when :add_fallback
+              # Allow user to pick from remaining providers by display name
+              remaining_map = available_map.select { |disp, internal| !(editable.include?(internal)) && internal != provider_choice }
+              add_choice = prompt.select("Select provider to add as fallback:") do |menu|
+                remaining_map.each { |disp, internal| menu.choice disp, internal }
+                menu.choice "Cancel", :cancel
+              end
+              next if add_choice == :cancel
+              unless cleaned_fallbacks.include?(add_choice)
+                cleaned_fallbacks << add_choice
+                set([:harness, :fallback_providers], cleaned_fallbacks)
+                ensure_provider_billing_config(add_choice, force: true)
+                editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
+              end
+            else
+              edit_provider_configuration(to_edit)
+            end
           end
         end
 
@@ -299,13 +328,19 @@ module Aidp
         enabled = prompt.yes?("Enable coverage tracking?", default: existing.fetch(:enabled, false))
         return set([:work_loop, :coverage], {enabled: false}) unless enabled
 
-        tool = prompt.select("Which coverage tool do you use?", default: existing[:tool]) do |menu|
-          menu.choice "SimpleCov (Ruby)", "simplecov"
-          menu.choice "NYC/Istanbul (JavaScript)", "nyc"
-          menu.choice "Coverage.py (Python)", "coverage.py"
-          menu.choice "go test -cover (Go)", "go-cover"
-          menu.choice "Jest (JavaScript)", "jest"
-          menu.choice "Other", "other"
+        coverage_tool_choices = [
+          ["SimpleCov (Ruby)", "simplecov"],
+          ["NYC/Istanbul (JavaScript)", "nyc"],
+          ["Coverage.py (Python)", "coverage.py"],
+          ["go test -cover (Go)", "go-cover"],
+          ["Jest (JavaScript)", "jest"],
+          ["Other", "other"]
+        ]
+        coverage_tool_default = existing[:tool]
+        coverage_tool_default_label = coverage_tool_choices.find { |label, value| value == coverage_tool_default }&.first
+        
+        tool = prompt.select("Which coverage tool do you use?", default: coverage_tool_default_label) do |menu|
+          coverage_tool_choices.each { |label, value| menu.choice label, value }
         end
 
         run_command = ask_with_default("Coverage run command", existing[:run_command] || detect_coverage_command(tool))
@@ -337,10 +372,16 @@ module Aidp
         enabled = prompt.yes?("Enable interactive testing tools?", default: existing.fetch(:enabled, false))
         return set([:work_loop, :interactive_testing], {enabled: false}) unless enabled
 
-        app_type = prompt.select("What type of application are you testing?", default: existing[:app_type]) do |menu|
-          menu.choice "Web application", "web"
-          menu.choice "CLI application", "cli"
-          menu.choice "Desktop application", "desktop"
+        app_type_choices = [
+          ["Web application", "web"],
+          ["CLI application", "cli"],
+          ["Desktop application", "desktop"]
+        ]
+        app_type_default = existing[:app_type]
+        app_type_default_label = app_type_choices.find { |label, value| value == app_type_default }&.first
+        
+        app_type = prompt.select("What type of application are you testing?", default: app_type_default_label) do |menu|
+          app_type_choices.each { |label, value| menu.choice label, value }
         end
 
         tools = {}
@@ -419,17 +460,21 @@ module Aidp
 
         # Detect VCS
         detected_vcs = detect_vcs_tool
+        vcs_choices = [
+          ["git", "git"],
+          ["svn", "svn"],
+          ["none (no VCS)", "none"]
+        ]
+        vcs_default = existing[:tool] || detected_vcs || "git"
+        vcs_default_label = vcs_choices.find { |label, value| value == vcs_default }&.first
+        
         vcs_tool = if detected_vcs
-          prompt.select("Detected #{detected_vcs}. Use this version control system?", default: existing[:tool] || detected_vcs) do |menu|
-            menu.choice "git", "git"
-            menu.choice "svn", "svn"
-            menu.choice "none (no VCS)", "none"
+          prompt.select("Detected #{detected_vcs}. Use this version control system?", default: vcs_default_label) do |menu|
+            vcs_choices.each { |label, value| menu.choice label, value }
           end
         else
-          prompt.select("Which version control system do you use?", default: existing[:tool] || "git") do |menu|
-            menu.choice "git", "git"
-            menu.choice "svn", "svn"
-            menu.choice "none (no VCS)", "none"
+          prompt.select("Which version control system do you use?", default: vcs_default_label) do |menu|
+            vcs_choices.each { |label, value| menu.choice label, value }
           end
         end
 
@@ -437,10 +482,18 @@ module Aidp
 
         prompt.say("\n📋 Commit Behavior (applies to copilot/interactive mode only)")
         prompt.say("Note: Watch mode and fully automatic daemon mode will always commit changes.")
-        behavior = prompt.select("In copilot mode, should aidp:", default: existing[:behavior] || "nothing") do |menu|
-          menu.choice "Do nothing (manual git operations)", "nothing"
-          menu.choice "Stage changes only", "stage"
-          menu.choice "Stage and commit changes", "commit"
+        
+        # Map value defaults to choice labels for TTY::Prompt validation
+        behavior_choices = [
+          ["Do nothing (manual git operations)", "nothing"],
+          ["Stage changes only", "stage"],
+          ["Stage and commit changes", "commit"]
+        ]
+        behavior_default = existing[:behavior] || "nothing"
+        behavior_default_label = behavior_choices.find { |label, value| value == behavior_default }&.first
+        
+        behavior = prompt.select("In copilot mode, should aidp:", default: behavior_default_label) do |menu|
+          behavior_choices.each { |label, value| menu.choice label, value }
         end
 
         # Commit message configuration
@@ -474,10 +527,16 @@ module Aidp
 
         # Commit message style
         commit_style = if conventional_commits
-          prompt.select("Conventional commit style:", default: existing[:commit_style] || "default") do |menu|
-            menu.choice "Default (e.g., 'feat: add user authentication')", "default"
-            menu.choice "Angular (with scope: 'feat(auth): add login')", "angular"
-            menu.choice "Emoji (e.g., '✨ feat: add user authentication')", "emoji"
+          commit_style_choices = [
+            ["Default (e.g., 'feat: add user authentication')", "default"],
+            ["Angular (with scope: 'feat(auth): add login')", "angular"],
+            ["Emoji (e.g., '✨ feat: add user authentication')", "emoji"]
+          ]
+          commit_style_default = existing[:commit_style] || "default"
+          commit_style_default_label = commit_style_choices.find { |label, value| value == commit_style_default }&.first
+          
+          prompt.select("Conventional commit style:", default: commit_style_default_label) do |menu|
+            commit_style_choices.each { |label, value| menu.choice label, value }
           end
         else
           "default"
@@ -513,10 +572,16 @@ module Aidp
         )
 
         if auto_create_pr
-          pr_strategy = prompt.select("PR creation strategy:", default: existing[:pr_strategy] || "draft") do |menu|
-            menu.choice "Create as draft PR (safe, allows review before merge)", "draft"
-            menu.choice "Create as ready PR (immediately reviewable)", "ready"
-            menu.choice "Create and auto-merge (fully autonomous, requires approval rules)", "auto_merge"
+          pr_strategy_choices = [
+            ["Create as draft PR (safe, allows review before merge)", "draft"],
+            ["Create as ready PR (immediately reviewable)", "ready"],
+            ["Create and auto-merge (fully autonomous, requires approval rules)", "auto_merge"]
+          ]
+          pr_strategy_default = existing[:pr_strategy] || "draft"
+          pr_strategy_default_label = pr_strategy_choices.find { |label, value| value == pr_strategy_default }&.first
+          
+          pr_strategy = prompt.select("PR creation strategy:", default: pr_strategy_default_label) do |menu|
+            pr_strategy_choices.each { |label, value| menu.choice label, value }
           end
 
           {
@@ -651,11 +716,16 @@ module Aidp
         prompt.say("-" * 40)
         existing = get([:logging]) || {}
 
-        # TODO: Add default back once TTY-Prompt default validation issue is resolved
-        log_level = prompt.select("Log level:") do |menu|
-          menu.choice "Debug", "debug"
-          menu.choice "Info", "info"
-          menu.choice "Error", "error"
+        log_level_choices = [
+          ["Debug", "debug"],
+          ["Info", "info"],
+          ["Error", "error"]
+        ]
+        log_level_default = existing[:level] || "info"
+        log_level_default_label = log_level_choices.find { |label, value| value == log_level_default }&.first
+        
+        log_level = prompt.select("Log level:", default: log_level_default_label) do |menu|
+          log_level_choices.each { |label, value| menu.choice label, value }
         end
         json = prompt.yes?("Use JSON log format?", default: existing.fetch(:json, false))
         max_size = ask_with_default("Max log size (MB)", (existing[:max_size_mb] || 10).to_s) { |value| value.to_i }
@@ -959,7 +1029,9 @@ module Aidp
         else
           "added"
         end
-        prompt.say("  • #{action_word.capitalize} provider '#{provider_name}' with billing type '#{provider_type}' and model family '#{model_family}'")
+        # Enhance messaging with display name when available
+        display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
+        prompt.say("  • #{action_word.capitalize} provider '#{display_name}' (#{provider_name}) with billing type '#{provider_type}' and model family '#{model_family}'")
       end
 
       def edit_provider_configuration(provider_name)
