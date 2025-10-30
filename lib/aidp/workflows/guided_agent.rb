@@ -244,13 +244,23 @@ module Aidp
 
           if classified && attempts < max_attempts
             display_message("⚠️  Provider '#{provider_name}' #{classified.tr("_", " ")} – attempting fallback...", type: :warning)
-            switched = @provider_manager.switch_provider_for_error(classified, stderr: message) if @provider_manager.respond_to?(:switch_provider_for_error)
-            if switched && switched != provider_name
-              display_message("↩️  Switched to provider '#{switched}'", type: :info)
-              retry
-            elsif switched == provider_name
-              # No-op switch (same provider). Avoid confusing duplicate messaging.
-              Aidp.logger.debug("guided_agent", "provider_switch_noop", provider: provider_name, reason: classified)
+            if @provider_manager.respond_to?(:switch_provider_for_error)
+              switched = @provider_manager.switch_provider_for_error(classified, stderr: message)
+              if switched && switched != provider_name
+                display_message("↩️  Switched to provider '#{switched}'", type: :info)
+                retry
+              elsif switched == provider_name
+                # ProviderManager could not advance; mark current as rate limited to encourage next attempt to move on.
+                Aidp.logger.debug("guided_agent", "provider_switch_noop", provider: provider_name, reason: classified)
+                if @provider_manager.respond_to?(:mark_rate_limited)
+                  @provider_manager.mark_rate_limited(provider_name)
+                  next_provider = @provider_manager.switch_provider("rate_limit_forced", previous_error: message)
+                  if next_provider && next_provider != provider_name
+                    display_message("↩️  Switched to provider '#{next_provider}' (forced)", type: :info)
+                    retry
+                  end
+                end
+              end
             end
           end
           raise
