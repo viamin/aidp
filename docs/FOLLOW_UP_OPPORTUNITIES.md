@@ -1,0 +1,59 @@
+# Follow-up Opportunities
+
+This document tracks potential future enhancements and refactors identified during recent provider configuration and wizard improvements. These are not scheduled immediately but can be pulled into upcoming work streams.
+
+## Provider & Wizard Enhancements
+
+- [ ] Summary table of configured providers (primary + fallbacks) before save, with billing type and model family.
+- [ ] Validation warning for duplicate fallback providers with identical billing/model characteristics (redundancy detection).
+- [ ] Ability to remove (delete) a provider configuration from the edit loop.
+- [ ] Reorder fallback providers interactively to express priority.
+- [ ] Persist provider priority metadata for advanced fallback heuristics.
+- [ ] Add guard against selecting a primary provider also listed as a fallback (auto-remove or prevent).
+- [ ] Expand model family list (e.g., gemini, llama, deepseek) with descriptions.
+- [ ] Introduce provider capability hints (reasoning, coding, long-context) displayed during selection.
+- [ ] Provide an optional "quick setup" path that skips advanced provider editing questions.
+- [ ] Add environment variable hinting for each provider (auto-generate export commands in next steps).
+
+## Test Infrastructure
+
+- [ ] Helper factory for common provider selection sequences using `TestPrompt` (reducing duplicated response maps).
+- [ ] Negative specs: no fallbacks selected, editing declined, additional fallback loop exercised.
+- [ ] Spec covering removal of a provider once delete feature exists.
+- [ ] Property-based test (e.g., generating random provider lists) to ensure normalization and ordering stability.
+- [ ] Snapshot test of YAML output for complex multi-provider configuration.
+
+## Prompt / UX Improvements
+
+- [ ] Colorize key wizard sections consistently (providers, work loop, logging) with standardized palette.
+- [ ] Contextual help toggle (press 'h') to show inline tips for current step.
+- [ ] Accessibility review: ensure prompts can be navigated with minimal cognitive load.
+- [ ] Internationalization readiness: extract user-facing strings for future i18n.
+
+## Configuration & Normalization
+
+- [ ] Centralize provider metadata (billing types, model families) in a single registry module.
+- [ ] Add migration utility to upgrade older config versions (schema_version checks beyond v1).
+- [ ] Detect and auto-correct inconsistent capitalization in stored model family values.
+- [ ] Introduce config validation command (`aidp config --validate`) to list warnings without running wizard.
+
+## Performance / Internal
+
+- [ ] Cache discovered providers across wizard invocations within a session.
+- [ ] Parallelize provider capability probing (if introspection added).
+- [ ] Lazy-load provider metadata only when editing loop entered.
+
+## Documentation
+
+- [ ] Add `CONFIGURATION_PROVIDER_GUIDE.md` explaining billing types and model families.
+- [ ] Update `CONTRIBUTING.md` with guidance on using `TestPrompt` for interactive specs.
+- [ ] Record a troubleshooting section for common wizard issues (missing provider, unexpected defaults).
+
+## CLI & Integration
+
+- [ ] Add non-interactive flags to configure providers directly (e.g., `--provider cursor --fallback github_copilot`).
+- [ ] Support exporting current provider setup as JSON for external tooling.
+- [ ] Integrate with an analytics module to track provider switching frequency (for future automated suggestions).
+
+---
+Generated on: #{Time.now.utc.iso8601}

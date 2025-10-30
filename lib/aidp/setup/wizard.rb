@@ -169,9 +169,30 @@ module Aidp
         set([:harness, :fallback_providers], cleaned_fallbacks)
 
         # Auto-create minimal provider configs for fallbacks if missing
-        cleaned_fallbacks.each { |fp| ensure_provider_billing_config(fp) }
+        cleaned_fallbacks.each { |fp| ensure_provider_billing_config(fp, force: true) }
 
         # Offer editing of existing provider configurations (primary + fallbacks)
+        # (editable will be recomputed after any additional fallback additions)
+        editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
+
+        # Optional: allow adding more fallbacks iteratively
+        if prompt.yes?("Add another fallback provider?", default: false)
+          loop do
+            remaining = available_providers.reject { |_, name| ([provider_choice] + cleaned_fallbacks).include?(name) }
+            break if remaining.empty?
+            add_choice = prompt.select("Select additional fallback provider:") do |menu|
+              remaining.each { |display, name| menu.choice display, name }
+              menu.choice "Done", :done
+            end
+            break if add_choice == :done
+            unless cleaned_fallbacks.include?(add_choice)
+              cleaned_fallbacks << add_choice
+              set([:harness, :fallback_providers], cleaned_fallbacks)
+              ensure_provider_billing_config(add_choice, force: true)
+            end
+          end
+        end
+        # Recompute editable after additions
         editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
         if editable.any? && prompt.yes?("Edit provider configuration details (billing/model family)?", default: false)
           loop do
@@ -914,14 +935,13 @@ module Aidp
       end
 
       # Ensure a minimal billing configuration exists for a selected provider (no secrets)
-      def ensure_provider_billing_config(provider_name)
+      def ensure_provider_billing_config(provider_name, force: false)
         return if provider_name.nil? || provider_name == "custom"
         providers_section = get([:providers]) || {}
         existing = providers_section[provider_name.to_sym]
 
-        if existing && existing[:type]
+        if existing && existing[:type] && !force
           prompt.say("  • Provider '#{provider_name}' already configured (type: #{existing[:type]})")
-          # Still ask for model family if not set
           unless existing[:model_family]
             model_family = ask_model_family(provider_name)
             set([:providers, provider_name.to_sym, :model_family], model_family)
@@ -929,15 +949,22 @@ module Aidp
           return
         end
 
-        provider_type = ask_provider_billing_type(provider_name)
-        model_family = ask_model_family(provider_name)
-        set([:providers, provider_name.to_sym], {type: provider_type, model_family: model_family})
-        prompt.say("  • Added provider '#{provider_name}' with billing type '#{provider_type}' and model family '#{model_family}' (no secrets stored)")
+        provider_type = ask_provider_billing_type_with_default(provider_name, existing&.dig(:type))
+        model_family = ask_model_family(provider_name, existing&.dig(:model_family) || "auto")
+        merged = (existing || {}).merge(type: provider_type, model_family: model_family)
+        set([:providers, provider_name.to_sym], merged)
+        normalize_existing_model_families!
+        action_word = if existing
+          force ? "reconfigured" : "updated"
+        else
+          "added"
+        end
+        prompt.say("  • #{action_word.capitalize} provider '#{provider_name}' with billing type '#{provider_type}' and model family '#{model_family}'")
       end
 
       def edit_provider_configuration(provider_name)
         existing = get([:providers, provider_name.to_sym]) || {}
-        prompt.say("\n🔧 Editing provider '#{provider_name}' (current: type=#{existing[:type] || 'unset'}, model_family=#{existing[:model_family] || 'unset'})")
+        prompt.say("\n🔧 Editing provider '#{provider_name}' (current: type=#{existing[:type] || "unset"}, model_family=#{existing[:model_family] || "unset"})")
         new_type = ask_provider_billing_type_with_default(provider_name, existing[:type])
         new_family = ask_model_family(provider_name, existing[:model_family] || "auto")
         set([:providers, provider_name.to_sym], {type: new_type, model_family: new_family})
@@ -1009,7 +1036,7 @@ module Aidp
         providers_cfg.each do |prov_name, prov_cfg|
           next unless prov_cfg.is_a?(Hash)
           mf = prov_cfg[:model_family]
-            # Normalize and write back only if different to avoid unnecessary YAML churn
+          # Normalize and write back only if different to avoid unnecessary YAML churn
           normalized = normalize_model_family(mf)
           prov_cfg[:model_family] = normalized
         end

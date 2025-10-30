@@ -32,9 +32,40 @@ class TestPrompt
       menu = MockMenu.new
       block.call(menu)
       @selections << {title: title, items: menu.choices, options: options, block: true}
+      # Priority: explicit map, then sequence array, then single value, else first menu choice
+      if @responses[:select_map]
+        # Exact match first
+        if @responses[:select_map].key?(title)
+          val = @responses[:select_map][title]
+          return val.is_a?(Array) ? val.shift : val
+        end
+        # Fallback prefix match (handles dynamic suffixes like " (current: xyz)")
+        key = @responses[:select_map].keys.find { |k| title.start_with?(k) }
+        if key
+          val = @responses[:select_map][key]
+          return val.is_a?(Array) ? val.shift : val
+        end
+      end
+      if @responses[:select].is_a?(Array)
+        return @responses[:select].shift
+      end
       @responses[:select] || menu.choices.first[:value]
     else
       @selections << {title: title, items: items, options: options}
+      if @responses[:select_map]
+        if @responses[:select_map].key?(title)
+          val = @responses[:select_map][title]
+          return val.is_a?(Array) ? val.shift : val
+        end
+        key = @responses[:select_map].keys.find { |k| title.start_with?(k) }
+        if key
+          val = @responses[:select_map][key]
+          return val.is_a?(Array) ? val.shift : val
+        end
+      end
+      if @responses[:select].is_a?(Array)
+        return @responses[:select].shift
+      end
       @responses[:select] || (items.is_a?(Hash) ? items.values.first : items.first)
     end
   end
@@ -46,6 +77,13 @@ class TestPrompt
       @selections << {title: title, items: menu.choices, options: options, multi: true, block: true}
     else
       @selections << {title: title, items: items, options: options, multi: true}
+    end
+    if @responses[:multi_select_map] && @responses[:multi_select_map].key?(title)
+      mapped = @responses[:multi_select_map][title]
+      return mapped.is_a?(Array) ? mapped : Array(mapped)
+    end
+    if @responses[:multi_select].is_a?(Array)
+      return @responses[:multi_select]
     end
     @responses[:multi_select] || []
   end
@@ -83,11 +121,25 @@ class TestPrompt
 
   def yes?(message, **options)
     @inputs << {message: message, options: options, type: :yes}
+    if @responses[:yes_map] && @responses[:yes_map].key?(message)
+      val = @responses[:yes_map][message]
+      return val.is_a?(Array) ? val.shift : val
+    end
+    if @responses[:yes?].is_a?(Array)
+      return @responses[:yes?].shift
+    end
     @responses.key?(:yes?) ? @responses[:yes?] : true
   end
 
   def no?(message, **options)
     @inputs << {message: message, options: options, type: :no}
+    if @responses[:no_map] && @responses[:no_map].key?(message)
+      val = @responses[:no_map][message]
+      return val.is_a?(Array) ? val.shift : val
+    end
+    if @responses[:no?].is_a?(Array)
+      return @responses[:no?].shift
+    end
     @responses.key?(:no?) ? @responses[:no?] : false
   end
 
