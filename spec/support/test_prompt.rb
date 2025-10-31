@@ -78,7 +78,7 @@ class TestPrompt
     else
       @selections << {title: title, items: items, options: options, multi: true}
     end
-    if @responses[:multi_select_map] && @responses[:multi_select_map].key?(title)
+    if @responses[:multi_select_map]&.key?(title)
       mapped = @responses[:multi_select_map][title]
       return mapped.is_a?(Array) ? mapped : Array(mapped)
     end
@@ -121,7 +121,7 @@ class TestPrompt
 
   def yes?(message, **options)
     @inputs << {message: message, options: options, type: :yes}
-    if @responses[:yes_map] && @responses[:yes_map].key?(message)
+    if @responses[:yes_map]&.key?(message)
       val = @responses[:yes_map][message]
       return val.is_a?(Array) ? val.shift : val
     end
@@ -133,7 +133,7 @@ class TestPrompt
 
   def no?(message, **options)
     @inputs << {message: message, options: options, type: :no}
-    if @responses[:no_map] && @responses[:no_map].key?(message)
+    if @responses[:no_map]&.key?(message)
       val = @responses[:no_map][message]
       return val.is_a?(Array) ? val.shift : val
     end
