@@ -10,6 +10,7 @@ RSpec.describe Aidp::Harness::State::Persistence do
   let(:persistence) { described_class.new(project_dir, mode, skip_persistence: true) }
   let(:state_dir) { File.join(project_dir, ".aidp", "harness") }
   let(:state_file) { File.join(state_dir, "#{mode}_state.json") }
+  let(:lock_file) { File.join(state_dir, "#{mode}_state.lock") }
 
   after do
     FileUtils.rm_rf(project_dir) if project_dir && Dir.exist?(project_dir)
@@ -41,6 +42,32 @@ RSpec.describe Aidp::Harness::State::Persistence do
     # Note: Other test scenarios require skip_persistence: false
   end
 
+  context "with real persistence (skip_persistence: false)" do
+    let(:real_persistence) { described_class.new(project_dir, mode, skip_persistence: false) }
+
+    it "returns false before save and true after save" do
+      expect(real_persistence.has_state?).to be false
+      real_persistence.save_state({foo: "bar"})
+      expect(real_persistence.has_state?).to be true
+    end
+
+    it "persists and loads state including metadata" do
+      real_persistence.save_state({alpha: 1})
+      loaded = real_persistence.load_state
+      expect(loaded[:alpha]).to eq(1)
+      expect(loaded[:mode]).to eq(mode)
+      expect(loaded[:project_dir]).to eq(project_dir)
+      expect(loaded[:saved_at]).to be_a(String)
+    end
+
+    it "clears state file" do
+      real_persistence.save_state({x: 2})
+      expect(File.exist?(state_file)).to be true
+      real_persistence.clear_state
+      expect(File.exist?(state_file)).to be false
+    end
+  end
+
   describe "#load_state" do
     context "when skip_persistence is true" do
       it "returns empty hash" do
@@ -49,6 +76,15 @@ RSpec.describe Aidp::Harness::State::Persistence do
     end
 
     # Note: File I/O scenarios require skip_persistence: false
+  end
+
+  describe "JSON parse error handling" do
+    it "returns empty hash and warns when file is corrupt" do
+      real = described_class.new(project_dir, mode, skip_persistence: false)
+      FileUtils.mkdir_p(state_dir)
+      File.write(state_file, "{invalid-json")
+      expect(real.load_state).to eq({})
+    end
   end
 
   describe "#save_state" do
@@ -62,6 +98,32 @@ RSpec.describe Aidp::Harness::State::Persistence do
     end
 
     # Note: File write scenarios require skip_persistence: false
+  end
+
+  describe "locking behavior" do
+    it "does not leave lock file after successful save" do
+      real = described_class.new(project_dir, mode, skip_persistence: false)
+      real.save_state({ok: true})
+      expect(File.exist?(lock_file)).to be false
+    end
+
+    it "raises timeout error when lock cannot be acquired" do
+      real = described_class.new(project_dir, mode, skip_persistence: false)
+      FileUtils.mkdir_p(state_dir)
+      File.write(lock_file, "held")
+      # Force try_acquire_lock to never succeed
+      allow(real).to receive(:try_acquire_lock).and_return([false, nil])
+      original_timeout = ENV["AIDP_STATE_LOCK_TIMEOUT"]
+      original_sleep = ENV["AIDP_STATE_LOCK_SLEEP"]
+      begin
+        ENV["AIDP_STATE_LOCK_TIMEOUT"] = "0.2"
+        ENV["AIDP_STATE_LOCK_SLEEP"] = "0.01"
+        expect { real.save_state({z: 9}) }.to raise_error(/Could not acquire state lock/)
+      ensure
+        ENV["AIDP_STATE_LOCK_TIMEOUT"] = original_timeout
+        ENV["AIDP_STATE_LOCK_SLEEP"] = original_sleep
+      end
+    end
   end
 
   describe "#clear_state" do

@@ -147,6 +147,8 @@ RSpec.describe Aidp::CLI::McpDashboard do
 
     describe "#format_server_status" do
       it "formats enabled servers with color" do
+        # Force non-TTY to ensure deterministic plain symbol output regardless of local terminal
+        allow($stdout).to receive(:tty?).and_return(false)
         result = dashboard.send(:format_server_status, {enabled: true}, false)
         expect(result).to eq("✓")
       end
