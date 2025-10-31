@@ -36,6 +36,11 @@
           "hidden": true
         },
         {
+          "type": "spec",
+          "section": "Test Specifications",
+          "hidden": true
+        },
+        {
           "type": "ci",
           "section": "CI/CD",
           "hidden": true

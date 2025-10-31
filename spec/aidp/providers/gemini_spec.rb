@@ -48,14 +48,7 @@ RSpec.describe Aidp::Providers::Gemini do
       allow(TTY::Spinner).to receive(:new).and_return(spinner_double)
     end
 
-    after do
-      Thread.list.each do |t|
-        bt = t.backtrace
-        next unless bt&.any? { |l| l.include?("providers/gemini.rb") }
-        t.kill
-        t.join(0.1)
-      end
-    end
+    include_context "provider_thread_cleanup", "providers/gemini.rb"
 
     context "when gemini is available" do
       it "executes gemini command with correct arguments" do

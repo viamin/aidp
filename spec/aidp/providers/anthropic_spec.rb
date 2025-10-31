@@ -60,15 +60,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       # Use original state transitions (do not stub mark_completed/mark_failed) to ensure loop breaks
     end
 
-    after do
-      # Kill any lingering threads originating from anthropic provider logic
-      Thread.list.each do |t|
-        bt = t.backtrace
-        next unless bt&.any? { |l| l.include?("providers/anthropic.rb") }
-        t.kill
-        t.join(0.1)
-      end
-    end
+    include_context "provider_thread_cleanup", "providers/anthropic.rb"
 
     context "when streaming is disabled" do
       before do
