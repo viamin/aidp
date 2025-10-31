@@ -1,10 +1,32 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../support/test_prompt"
 
 RSpec.describe Aidp::Setup::Wizard do
   let(:tmp_dir) { Dir.mktmpdir }
-  let(:prompt) { TestPrompt.new(responses: {ask: "", yes?: false, multi_select: []}) }
+
+  # Default prompt with comprehensive responses to avoid hanging
+  let(:prompt) do
+    TestPrompt.new(responses: {
+      ask: "",
+      yes?: false,  # Skip all optional configuration sections by default
+      no?: false,
+      multi_select: [],
+      select_map: {
+        # Required provider configuration
+        "Select your primary provider:" => "anthropic",
+        "Billing model for anthropic:" => "usage_based",
+        "Preferred model family for anthropic:" => "Auto (let provider decide)",
+        # Required logging configuration
+        "Log level:" => "Info",
+        # Required VCS configuration
+        "Detected git. Use this version control system?" => "git",
+        "Which version control system do you use?" => "git",
+        "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+      }
+    })
+  end
 
   before do
     FileUtils.mkdir_p(tmp_dir)
@@ -22,7 +44,23 @@ RSpec.describe Aidp::Setup::Wizard do
     end
 
     it "saves config when user confirms" do
-      prompt_with_yes = TestPrompt.new(responses: {ask: "", yes?: true, multi_select: [], select: "anthropic"})
+      prompt_with_yes = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,  # Default to no for optional sections
+        yes_map: {
+          "Save this configuration?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
       wizard = described_class.new(tmp_dir, prompt: prompt_with_yes, dry_run: false)
       wizard.run
       expect(File).to exist(Aidp::ConfigPaths.config_file(tmp_dir))
@@ -33,7 +71,23 @@ RSpec.describe Aidp::Setup::Wizard do
       config_file = Aidp::ConfigPaths.config_file(tmp_dir)
       FileUtils.rm_f(config_file) if File.exist?(config_file)
 
-      prompt_with_no = TestPrompt.new(responses: {ask: "", yes?: false, multi_select: [], select: "anthropic"})
+      prompt_with_no = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,  # Default to no for all optional sections
+        yes_map: {
+          "Save this configuration?" => false
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
       wizard = described_class.new(tmp_dir, prompt: prompt_with_no, dry_run: false)
       wizard.run
       expect(File).not_to exist(config_file)
@@ -56,7 +110,24 @@ RSpec.describe Aidp::Setup::Wizard do
       FileUtils.mkdir_p(config_dir)
       File.write(Aidp::ConfigPaths.config_file(tmp_dir), "schema_version: 1\n")
 
-      prompt_continue = TestPrompt.new(responses: {ask: "", yes?: true, multi_select: [], select: "anthropic"})
+      prompt_continue = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,  # Default to no for optional sections
+        yes_map: {
+          "Would you like to update it?" => true,  # Yes to updating existing config
+          "Save this configuration?" => true  # Yes to saving
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)"
+        }
+      })
       wizard = described_class.new(tmp_dir, prompt: prompt_continue)
       wizard.run
       expect(wizard.saved?).to be true
@@ -464,6 +535,319 @@ RSpec.describe Aidp::Setup::Wizard do
       wizard = described_class.new(tmp_dir, prompt: prompt)
       # discover_available_providers should not raise even if some providers fail to load
       expect { wizard.send(:discover_available_providers) }.not_to raise_error
+    end
+  end
+
+  describe "model family normalization" do
+    context "when normalizing legacy label values" do
+      it "normalizes legacy label values to canonical value" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Preferred model family for cursor:" => "Anthropic Claude (balanced)"
+          }
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        # Inject an existing config with a legacy label stored (simulating previous bug)
+        wizard.instance_variable_get(:@config)[:providers] = {
+          cursor: {type: "usage_based", model_family: "Anthropic Claude (balanced)"}
+        }
+
+        # Run normalization
+        wizard.send(:normalize_existing_model_families!)
+
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:cursor][:model_family]).to eq("claude")
+      end
+
+      it "falls back to auto for unknown entries" do
+        wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
+        wizard.instance_variable_get(:@config)[:providers] = {
+          foo: {type: "usage_based", model_family: "Totally Unknown"}
+        }
+        wizard.send(:normalize_existing_model_families!)
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:foo][:model_family]).to eq("auto")
+      end
+
+      it "leaves canonical values unchanged" do
+        wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
+        wizard.instance_variable_get(:@config)[:providers] = {
+          cursor: {type: "usage_based", model_family: "claude"},
+          mistral: {type: "usage_based", model_family: "mistral"}
+        }
+        wizard.send(:normalize_existing_model_families!)
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:cursor][:model_family]).to eq("claude")
+        expect(providers[:mistral][:model_family]).to eq("mistral")
+      end
+    end
+  end
+
+  describe "fallback provider configuration" do
+    context "when editing fallback provider" do
+      it "edits fallback provider configuration" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Select a provider to edit or add:" => ["github_copilot", :done],
+            "Billing model for github_copilot:" => "usage_based",
+            "Preferred model family for github_copilot:" => "Anthropic Claude (balanced)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["github_copilot"]
+          },
+          yes_map: {
+            "Edit provider configuration details (billing/model family)?" => true,
+            "Add another fallback provider?" => false
+          }
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.run
+
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:cursor][:type]).to eq("subscription")
+        expect(providers[:github_copilot][:type]).to eq("usage_based")
+        expect(providers[:github_copilot][:model_family]).to eq("claude")
+      end
+    end
+
+    context "when configuring fallback immediately" do
+      it "configures selected fallback provider immediately without edit loop" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Billing model for github_copilot:" => "usage_based",
+            "Preferred model family for github_copilot:" => "Anthropic Claude (balanced)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["github_copilot"]
+          },
+          yes_map: {
+            "Add another fallback provider?" => false,
+            "Edit provider configuration details (billing/model family)?" => false
+          }
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        # Inject provider discovery to include github_copilot and cursor if not auto-detected
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "GitHub Copilot CLI" => "github_copilot"
+        })
+
+        wizard.run
+
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:cursor][:type]).to eq("subscription")
+        expect(providers[:cursor][:model_family]).to eq("auto")
+        expect(providers[:github_copilot][:type]).to eq("usage_based")
+        expect(providers[:github_copilot][:model_family]).to eq("claude")
+      end
+    end
+
+    context "when forcing reconfiguration of existing fallback" do
+      it "reconfigures existing fallback provider with force" do
+        # Prepare existing config file to simulate rerun
+        existing_yaml = <<~YML
+          providers:
+            github_copilot:
+              type: subscription
+              model_family: Auto (let provider decide)
+        YML
+        config_path = File.join(tmp_dir, ".aidp.yml")
+        File.write(config_path, existing_yaml)
+
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "usage_based",
+            "Preferred model family for cursor:" => "Anthropic Claude (balanced)",
+            "Billing model for github_copilot:" => "usage_based",
+            "Preferred model family for github_copilot:" => "OpenAI o-series (reasoning models)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["github_copilot"]
+          },
+          yes_map: {
+            "Add another fallback provider?" => false,
+            "Edit provider configuration details (billing/model family)?" => false
+          }
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "GitHub Copilot CLI" => "github_copilot"
+        })
+
+        wizard.run
+
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:github_copilot][:type]).to eq("usage_based")
+        expect(providers[:github_copilot][:model_family]).to eq("openai_o")
+      end
+    end
+
+    context "when adding fallback during interactive flow" do
+      it "includes newly added fallback in edit menu" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Select additional fallback provider:" => ["anthropic", :done],
+            "Billing model for anthropic:" => "usage_based",
+            "Preferred model family for anthropic:" => "Auto (let provider decide)",
+            "Select a provider to edit or add:" => ["anthropic", :done]
+          },
+          yes_map: {
+            "Add another fallback provider?" => true,
+            "Edit provider configuration details (billing/model family)?" => true
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "Anthropic Claude CLI" => "anthropic"
+        })
+
+        wizard.run
+
+        # Find the edit selection log
+        edit_selection = test_prompt.selections.find { |sel| sel[:title] == "Select a provider to edit or add:" }
+        expect(edit_selection).not_to be_nil
+        labels = edit_selection[:items].map { |c| c[:value] }
+        expect(labels).to include("anthropic")
+      end
+
+      it "prompts for billing and model family when GitHub Copilot selected as initial fallback" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Billing model for github_copilot:" => "usage_based",
+            "Preferred model family for github_copilot:" => "Anthropic Claude (balanced)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["github_copilot"]
+          },
+          yes_map: {
+            "Add another fallback provider?" => false,
+            "Edit provider configuration details (billing/model family)?" => false
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "GitHub Copilot CLI" => "github_copilot"
+        })
+
+        wizard.send(:configure_providers)
+
+        # Verify that billing and model family prompts were asked
+        billing_prompt = test_prompt.selections.find { |s| s[:title] == "Billing model for github_copilot:" }
+        expect(billing_prompt).not_to be_nil, "Expected billing prompt for github_copilot but it was not called"
+
+        model_family_prompt = test_prompt.selections.find { |s| s[:title] == "Preferred model family for github_copilot:" }
+        expect(model_family_prompt).not_to be_nil, "Expected model family prompt for github_copilot but it was not called"
+
+        # Verify the configuration was saved
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:github_copilot][:type]).to eq("usage_based")
+        expect(providers[:github_copilot][:model_family]).to eq("claude")
+      end
+
+      it "prompts for billing and model family for BOTH fallback providers when two are selected" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Billing model for github_copilot:" => "usage_based",
+            "Preferred model family for github_copilot:" => "Anthropic Claude (balanced)",
+            "Billing model for anthropic:" => "subscription",
+            "Preferred model family for anthropic:" => "Auto (let provider decide)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["github_copilot", "anthropic"]
+          },
+          yes_map: {
+            "Add another fallback provider?" => false,
+            "Edit provider configuration details (billing/model family)?" => false
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "GitHub Copilot CLI" => "github_copilot",
+          "Anthropic Claude CLI" => "anthropic"
+        })
+
+        wizard.send(:configure_providers)
+
+        # Verify that billing and model family prompts were asked for FIRST fallback
+        billing_prompt_ghc = test_prompt.selections.find { |s| s[:title] == "Billing model for github_copilot:" }
+        expect(billing_prompt_ghc).not_to be_nil, "Expected billing prompt for github_copilot (first fallback) but it was not called"
+
+        model_family_prompt_ghc = test_prompt.selections.find { |s| s[:title] == "Preferred model family for github_copilot:" }
+        expect(model_family_prompt_ghc).not_to be_nil, "Expected model family prompt for github_copilot (first fallback) but it was not called"
+
+        # Verify that billing and model family prompts were asked for SECOND fallback
+        billing_prompt_anthropic = test_prompt.selections.find { |s| s[:title] == "Billing model for anthropic:" }
+        expect(billing_prompt_anthropic).not_to be_nil, "Expected billing prompt for anthropic (second fallback) but it was not called"
+
+        model_family_prompt_anthropic = test_prompt.selections.find { |s| s[:title] == "Preferred model family for anthropic:" }
+        expect(model_family_prompt_anthropic).not_to be_nil, "Expected model family prompt for anthropic (second fallback) but it was not called"
+
+        # Verify both configurations were saved
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:github_copilot][:type]).to eq("usage_based")
+        expect(providers[:github_copilot][:model_family]).to eq("claude")
+        expect(providers[:anthropic][:type]).to eq("subscription")
+        expect(providers[:anthropic][:model_family]).to eq("auto")
+      end
+
+      it "recovers when multi_select returns empty by offering single-select fallback" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Select a fallback provider:" => "github_copilot",
+            "Billing model for cursor:" => "usage_based",
+            "Preferred model family for cursor:" => "Anthropic Claude (balanced)",
+            "Billing model for github_copilot:" => "subscription",
+            "Preferred model family for github_copilot:" => "Auto (let provider decide)"
+          },
+          # Simulate multi_select unexpectedly returning empty
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => []
+          },
+          yes_map: {
+            "No fallback selected. Add one?" => true,
+            "Add another fallback provider?" => false,
+            "Edit provider configuration details (billing/model family)?" => false
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "GitHub Copilot CLI" => "github_copilot"
+        })
+
+        wizard.send(:configure_providers)
+
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:github_copilot][:type]).to eq("subscription")
+        expect(providers[:github_copilot][:model_family]).to eq("auto")
+      end
     end
   end
 end

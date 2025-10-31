@@ -9,6 +9,7 @@ group :development do
   gem "rake"
   gem "reline" # Suppress Ruby 3.5.0 deprecation warning
   gem "ruby-lsp", require: false
+  gem "ruby-lsp-rspec", require: false
   gem "simplecov-mcp", require: false
   gem "standard"
 end

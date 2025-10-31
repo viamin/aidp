@@ -107,6 +107,8 @@ add_domain "index.rubygems.org"
 # AI Provider APIs
 add_domain "api.anthropic.com"
 add_domain "api.openai.com"
+add_domain "auth.openai.com"
+add_domain "chatgpt.com"
 add_domain "generativelanguage.googleapis.com"  # Google AI
 
 # Package managers and registries

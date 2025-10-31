@@ -312,3 +312,61 @@ grep -i "error\|failed" .aidp/debug_logs/*.log
 ```
 
 This debug system should help you identify and resolve issues with analyze mode execution, provider interactions, and error handling.
+
+## Guided Workflow Verbose Mode (`--verbose`)
+
+The guided workflow now supports a dedicated verbosity channel separate from `DEBUG`.
+
+Usage options:
+
+```bash
+aidp --verbose            # Print planning prompts + raw provider responses live
+DEBUG=1 aidp              # Log (not print) planning prompts/responses at debug level
+DEBUG=1 aidp --verbose    # Print to console AND log (dual path)
+AIDP_VERBOSE=1 aidp       # Env-based equivalent of --verbose (helpful in scripts)
+```
+
+Behavior matrix:
+
+| Flag combination | Console output (planning) | Logged (debug) | Notes |
+|------------------|---------------------------|----------------|-------|
+| (none)           | No                        | No             | Minimal, user sees only synthesized questions |
+| `--verbose` or `AIDP_VERBOSE=1` | Yes | No (unless DEBUG=1) | High transparency for interactive sessions |
+| `DEBUG=1`        | No                        | Yes            | Keeps terminal clean but preserves artifacts |
+| `--verbose` + `DEBUG=1` | Yes | Yes | Full traceability |
+
+What is surfaced:
+
+1. Full planning prompt sent to provider each iteration
+2. Raw provider response text (before parsing)
+3. Fallback reasoning when structured parsing fails
+4. Manual recovery sentinel question when activated
+
+Manual Recovery Flow:
+
+If the provider emits invalid planning JSON repeatedly, the system cycles through three structured fallback questions. On continued failure it enters a manual recovery mode, prompting you to supply a single aggregated line:
+
+```text
+Auth feature; Developers; Login requirement; No external DB
+```
+
+This maps to:
+
+- Scope (included features)
+- User personas
+- Functional requirements
+- Technical constraints
+
+Skip manual entry with `skip`.
+
+Implementation notes:
+
+- Manual recovery parsing now runs before generic keyword heuristics to avoid misclassification (the sentinel contains the word `users`).
+- Fallback attempts are counted (`invalid_planning_responses`) to prevent infinite repetition.
+- All emissions use helper methods to centralize formatting (`emit_verbose_raw_prompt`, `emit_verbose_iteration`).
+
+Troubleshooting tips:
+
+- Not seeing prompts? Ensure neither `--verbose` nor `AIDP_VERBOSE=1` is set and only `DEBUG=1` is active (they'll be in logs instead).
+- Seeing repeated fallback prompts? Inspect logs for provider raw output to diagnose malformed JSON sources.
+- Want to diff plan evolution? Enable `DEBUG=1` and review successive plan summaries in the log.
