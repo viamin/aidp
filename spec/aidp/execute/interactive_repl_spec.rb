@@ -265,4 +265,157 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
       repl.send(:display_output_entry, {message: "info message", type: :info})
     end
   end
+
+  describe "#read_command_with_timeout" do
+    it "returns nil on Ctrl-D" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      allow(Reline).to receive(:readline).and_return(nil)
+      allow(repl).to receive(:print)
+      result = repl.send(:read_command_with_timeout)
+      expect(result).to be_nil
+    end
+
+    it "handles errors gracefully" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      allow(Reline).to receive(:readline).and_raise(StandardError.new("Test error"))
+      allow(repl).to receive(:print)
+      result = repl.send(:read_command_with_timeout)
+      expect(result).to be_nil
+    end
+  end
+
+  describe "#setup_completion" do
+    it "sets up completion proc" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.send(:setup_completion)
+      expect(Reline.completion_proc).to be_a(Proc)
+    end
+
+    it "marks completion as set up" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.send(:setup_completion)
+      expect(repl.instance_variable_get(:@completion_setup_needed)).to be false
+    end
+  end
+
+  describe "#print_prompt_text" do
+    it "displays state in prompt for PAUSED" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(async_runner).to receive(:status).and_return({state: "PAUSED", iteration: 5, queued_instructions: {total: 0}})
+      expect(repl).to receive(:print).with(a_string_matching(/PAUSED/))
+      repl.send(:print_prompt_text)
+    end
+
+    it "displays state in prompt for CANCELLED" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(async_runner).to receive(:status).and_return({state: "CANCELLED", iteration: 3, queued_instructions: {total: 0}})
+      expect(repl).to receive(:print).with(a_string_matching(/CANCELLED/))
+      repl.send(:print_prompt_text)
+    end
+
+    it "displays queued instructions for IDLE state" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(async_runner).to receive(:status).and_return({state: "IDLE", iteration: 2, queued_instructions: {total: 3}})
+      expect(repl).to receive(:print).with(a_string_matching(/\+3/))
+      repl.send(:print_prompt_text)
+    end
+  end
+
+  describe "#execute_git_rollback" do
+    it "refuses rollback on master branch" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      allow(repl).to receive(:`).with("git branch --show-current").and_return("master")
+      result = repl.send(:execute_git_rollback, 1)
+      expect(result[:success]).to be false
+      expect(result[:message]).to include("master")
+    end
+
+    it "refuses rollback on empty branch" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      allow(repl).to receive(:`).with("git branch --show-current").and_return("")
+      result = repl.send(:execute_git_rollback, 1)
+      expect(result[:success]).to be false
+    end
+  end
+
+  describe "#start_output_display" do
+    it "starts output display thread" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(async_runner).to receive(:running?).and_return(false)
+      repl.send(:start_output_display)
+      thread = repl.instance_variable_get(:@output_display_thread)
+      expect(thread).to be_a(Thread)
+      thread.kill
+      thread.join(1)
+    end
+  end
+
+  describe "#stop_output_display" do
+    it "stops output display thread" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(async_runner).to receive(:running?).and_return(false)
+      repl.send(:start_output_display)
+      repl.send(:stop_output_display)
+      thread = repl.instance_variable_get(:@output_display_thread)
+      expect(thread).to be_nil
+    end
+
+    it "drains remaining output" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(async_runner).to receive(:drain_output).and_return([{message: "test", type: :info}])
+      expect(prompt).to receive(:say).with("test")
+      repl.send(:stop_output_display)
+    end
+  end
+
+  describe "#handle_rollback" do
+    it "reports rollback success" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(repl).to receive(:execute_git_rollback).and_return({success: true, message: "Rolled back"})
+      allow(async_runner.state).to receive(:paused?).and_return(false)
+
+      expect(prompt).to receive(:ok).with(/Rolled back/)
+      repl.send(:handle_rollback, 2)
+    end
+
+    it "reports rollback failure" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.instance_variable_set(:@async_runner, async_runner)
+      allow(repl).to receive(:execute_git_rollback).and_return({success: false, message: "Failed"})
+      allow(async_runner.state).to receive(:paused?).and_return(false)
+
+      expect(prompt).to receive(:error).with(/Failed/)
+      repl.send(:handle_rollback, 2)
+    end
+  end
+
+  describe "completion proc" do
+    it "completes commands" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.send(:setup_completion)
+      completions = Reline.completion_proc.call("/pau")
+      expect(completions).to be_an(Array)
+    end
+
+    it "completes /ws subcommands" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.send(:setup_completion)
+      completions = Reline.completion_proc.call("/ws lis")
+      expect(completions).to include("list")
+    end
+
+    it "completes /skill subcommands" do
+      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl.send(:setup_completion)
+      completions = Reline.completion_proc.call("/skill sho")
+      expect(completions).to include("show")
+    end
+  end
 end

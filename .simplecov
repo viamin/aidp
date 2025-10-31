@@ -23,7 +23,7 @@ SimpleCov.start do
   add_group "Analysis", "lib/aidp/analyze"
 
   # Initial baseline; raise gradually.
-  minimum_coverage 70
-  minimum_coverage_by_file 40
+  minimum_coverage 80
+  minimum_coverage_by_file 58
   refuse_coverage_drop
 end

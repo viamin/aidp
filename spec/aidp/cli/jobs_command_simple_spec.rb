@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "time"
 
 RSpec.describe Aidp::CLI::JobsCommand do
   let(:input) { StringIO.new }
@@ -260,6 +261,156 @@ RSpec.describe Aidp::CLI::JobsCommand do
       it "formats unknown status" do
         formatted = jobs_command.send(:format_job_status, "unknown")
         expect(formatted).to include("unknown")
+      end
+    end
+
+    describe "#format_time" do
+      it "formats ISO8601 string timestamps" do
+        result = jobs_command.send(:format_time, "2023-01-01T12:34:56Z")
+        expect(result).to eq("2023-01-01 12:34:56")
+      end
+
+      it "returns N/A when time is nil" do
+        expect(jobs_command.send(:format_time, nil)).to eq("N/A")
+      end
+
+      it "falls back to to_s for unparsable input" do
+        expect(jobs_command.send(:format_time, "not-a-time")).to eq("not-a-time")
+      end
+    end
+
+    describe "#format_duration_from_start" do
+      it "returns formatted duration between timestamps" do
+        duration = jobs_command.send(
+          :format_duration_from_start,
+          "2023-01-01T10:00:00Z",
+          "2023-01-01T10:05:30Z"
+        )
+        expect(duration).to eq("5m 30s")
+      end
+
+      it "uses current time when completed_at is nil" do
+        allow(Time).to receive(:now).and_return(Time.parse("2023-01-01T10:02:00Z"))
+
+        duration = jobs_command.send(
+          :format_duration_from_start,
+          "2023-01-01T10:00:00Z",
+          nil
+        )
+        expect(duration).to eq("2m")
+      end
+
+      it "returns N/A when start time missing" do
+        expect(jobs_command.send(:format_duration_from_start, nil, nil)).to eq("N/A")
+      end
+    end
+
+    describe "#format_duration" do
+      it "returns 0s for nil or non-positive values" do
+        expect(jobs_command.send(:format_duration, nil)).to eq("0s")
+        expect(jobs_command.send(:format_duration, 0)).to eq("0s")
+      end
+
+      it "formats durations with hours, minutes, and seconds" do
+        expect(jobs_command.send(:format_duration, 3725)).to eq("1h 2m 5s")
+      end
+    end
+
+    describe "#format_checkpoint_age" do
+      it "returns seconds when under a minute old" do
+        allow(Time).to receive(:now).and_return(Time.parse("2023-01-01T12:00:30Z"))
+        expect(jobs_command.send(:format_checkpoint_age, "2023-01-01T12:00:00Z")).to eq("30s ago")
+      end
+
+      it "returns minutes when under an hour old" do
+        allow(Time).to receive(:now).and_return(Time.parse("2023-01-01T12:05:00Z"))
+        expect(jobs_command.send(:format_checkpoint_age, "2023-01-01T12:02:00Z")).to eq("3m ago")
+      end
+
+      it "returns hours when over an hour old" do
+        allow(Time).to receive(:now).and_return(Time.parse("2023-01-01T15:00:00Z"))
+        expect(jobs_command.send(:format_checkpoint_age, "2023-01-01T13:00:00Z")).to eq("2h ago")
+      end
+    end
+
+    describe "#truncate_message" do
+      it "returns original message when under limit" do
+        expect(jobs_command.send(:truncate_message, "short message")).to eq("short message")
+      end
+
+      it "truncates long messages with ellipsis" do
+        long_message = "a" * 80
+        truncated = jobs_command.send(:truncate_message, long_message)
+        expect(truncated).to end_with("...")
+        expect(truncated.length).to be < long_message.length
+      end
+    end
+
+    describe "#determine_job_status" do
+      it "returns failed for error level" do
+        expect(jobs_command.send(:determine_job_status, {"level" => "error", "message" => ""})).to eq("failed")
+      end
+
+      it "returns completed when message notes completion" do
+        expect(jobs_command.send(:determine_job_status, {"level" => "info", "message" => "Job completed"}))
+          .to eq("completed")
+      end
+
+      it "returns retrying when message includes retrying" do
+        expect(jobs_command.send(:determine_job_status, {"level" => "info", "message" => "retrying now"}))
+          .to eq("retrying")
+      end
+
+      it "returns running for other info messages" do
+        expect(jobs_command.send(:determine_job_status, {"level" => "info", "message" => "working"}))
+          .to eq("running")
+      end
+
+      it "returns unknown for unhandled levels" do
+        expect(jobs_command.send(:determine_job_status, {"level" => "debug", "message" => ""})).to eq("unknown")
+      end
+    end
+
+    describe "#fetch_harness_jobs" do
+      let(:logs_dir) { File.join(temp_dir, ".aidp", "harness_logs") }
+
+      before do
+        FileUtils.mkdir_p(logs_dir)
+        allow(Dir).to receive(:pwd).and_return(temp_dir)
+        allow(jobs_command).to receive(:display_message)
+      end
+
+      it "loads harness jobs from disk sorted by newest first" do
+        File.write(File.join(logs_dir, "old_job.json"), JSON.dump({
+          "created_at" => "2023-01-01T10:00:00Z",
+          "level" => "info",
+          "message" => "Still running"
+        }))
+        File.write(File.join(logs_dir, "new_job.json"), JSON.dump({
+          "created_at" => "2023-01-01T11:00:00Z",
+          "level" => "info",
+          "message" => "completed successfully"
+        }))
+
+        jobs = jobs_command.send(:fetch_harness_jobs)
+
+        expect(jobs.map { |job| job[:id] }).to eq(%w[new_job old_job])
+        expect(jobs.first[:status]).to eq("completed")
+        expect(jobs.first[:message]).to eq("completed successfully")
+      end
+
+      it "skips files with invalid JSON" do
+        File.write(File.join(logs_dir, "good_job.json"), JSON.dump({
+          "created_at" => "2023-01-01T12:00:00Z",
+          "level" => "info",
+          "message" => "All good"
+        }))
+        File.write(File.join(logs_dir, "bad_job.json"), "{invalid")
+
+        jobs = jobs_command.send(:fetch_harness_jobs)
+
+        expect(jobs.size).to eq(1)
+        expect(jobs.first[:id]).to eq("good_job")
       end
     end
   end

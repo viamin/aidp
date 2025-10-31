@@ -42,7 +42,13 @@ RSpec.describe Aidp::Providers::Gemini do
       allow(gemini).to receive(:debug_log)
       allow(gemini).to receive(:debug_command)
       allow(gemini).to receive(:display_message)
+      # Short timeout accelerates any internal loops
+      allow(gemini).to receive(:calculate_timeout).and_return(1)
+      spinner_double = double("Spinner", auto_spin: nil, success: nil, error: nil, update: nil, stop: nil)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner_double)
     end
+
+    include_context "provider_thread_cleanup", "providers/gemini.rb"
 
     context "when gemini is available" do
       it "executes gemini command with correct arguments" do

@@ -328,4 +328,130 @@ RSpec.describe Aidp::Harness::Runner do
       expect(error_handler).to have_received(:handle_error).with(error, runner)
     end
   end
+
+  describe "run loop scenarios" do
+    before do
+      # Stub error handler to execute block directly without retries or extra logic
+      error_handler = double("error_handler")
+      allow(error_handler).to receive(:execute_with_retry) { |&blk| blk.call }
+      allow(error_handler).to receive(:handle_error)
+      runner.instance_variable_set(:@error_handler, error_handler)
+
+      # Basic provider manager stub; individual tests can override additional behavior
+      provider_manager = double("provider_manager")
+      allow(provider_manager).to receive(:current_provider).and_return("anthropic")
+      allow(provider_manager).to receive(:mark_rate_limited)
+      allow(provider_manager).to receive(:switch_provider).and_return(nil)
+      allow(provider_manager).to receive(:next_reset_time).and_return(Time.now + 1)
+      runner.instance_variable_set(:@provider_manager, provider_manager)
+
+      # Status display stub to avoid real output and provide cleanup
+      status_display = double("status_display",
+        update_current_step: nil,
+        update_current_provider: nil,
+        update_rate_limit_countdown: nil,
+        show_rate_limit_wait: nil,
+        cleanup: nil)
+      runner.instance_variable_set(:@status_display, status_display)
+
+      # Default condition detector (tests override where needed)
+      condition_detector = double("condition_detector")
+      allow(condition_detector).to receive(:needs_user_feedback?).and_return(false)
+      allow(condition_detector).to receive(:is_rate_limited?).and_return(false)
+      runner.instance_variable_set(:@condition_detector, condition_detector)
+    end
+    it "marks completed when completion criteria met" do
+      analyze_runner = double("analyze_runner")
+      allow(analyze_runner).to receive(:next_step).and_return("step1", nil)
+      allow(analyze_runner).to receive(:run_step).and_return({status: "completed"})
+      allow(analyze_runner).to receive(:mark_step_in_progress)
+      allow(analyze_runner).to receive(:mark_step_completed)
+      allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
+
+      completion_checker = double("completion_checker", completion_status: {all_complete: true, summary: "All good"})
+      runner.instance_variable_set(:@completion_checker, completion_checker)
+
+      # Inject mocked mode runner
+      allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
+
+      result = runner.run
+      expect(result[:status]).to eq("completed")
+    end
+
+    it "handles unmet completion criteria with user override" do
+      analyze_runner = double("analyze_runner")
+      allow(analyze_runner).to receive(:next_step).and_return("step1", nil)
+      allow(analyze_runner).to receive(:run_step).and_return({status: "completed"})
+      allow(analyze_runner).to receive(:mark_step_in_progress)
+      allow(analyze_runner).to receive(:mark_step_completed)
+      allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
+
+      completion_checker = double("completion_checker", completion_status: {all_complete: false, summary: "Missing artifacts"})
+      runner.instance_variable_set(:@completion_checker, completion_checker)
+
+      # Stub user interface confirmation to override
+      ui = double("user_interface")
+      allow(ui).to receive(:get_confirmation).and_return(true)
+      runner.instance_variable_set(:@user_interface, ui)
+
+      allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
+
+      result = runner.run
+      expect(result[:status]).to eq("completed")
+    end
+
+    it "enters error state when completion criteria not met and user declines override" do
+      analyze_runner = double("analyze_runner")
+      allow(analyze_runner).to receive(:next_step).and_return("step1", nil)
+      allow(analyze_runner).to receive(:run_step).and_return({status: "completed"})
+      allow(analyze_runner).to receive(:mark_step_in_progress)
+      allow(analyze_runner).to receive(:mark_step_completed)
+      allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
+
+      completion_checker = double("completion_checker", completion_status: {all_complete: false, summary: "Missing coverage"})
+      runner.instance_variable_set(:@completion_checker, completion_checker)
+
+      ui = double("user_interface")
+      allow(ui).to receive(:get_confirmation).and_return(false)
+      runner.instance_variable_set(:@user_interface, ui)
+
+      allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
+
+      result = runner.run
+      expect(result[:status]).to eq("error")
+    end
+
+    it "switches providers and waits for reset on rate limit" do
+      analyze_runner = double("analyze_runner")
+      allow(analyze_runner).to receive(:next_step).and_return("step1", nil)
+      allow(analyze_runner).to receive(:run_step).and_return({status: "completed"})
+      allow(analyze_runner).to receive(:mark_step_in_progress)
+      allow(analyze_runner).to receive(:mark_step_completed)
+      allow(analyze_runner).to receive(:all_steps_completed?).and_return(false)
+
+      # Force a rate-limit condition on first result
+      condition_detector = double("condition_detector")
+      allow(condition_detector).to receive(:needs_user_feedback?).and_return(false)
+      allow(condition_detector).to receive(:is_rate_limited?).and_return(true, false)
+      runner.instance_variable_set(:@condition_detector, condition_detector)
+      provider_manager = runner.instance_variable_get(:@provider_manager)
+
+      # Stub countdown methods to avoid real sleep
+      allow(runner).to receive(:sleep_until_reset) { runner.instance_variable_set(:@state, "running") }
+
+      allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
+
+      result = runner.run
+      expect(provider_manager).to have_received(:mark_rate_limited).with("anthropic")
+      expect(result[:status]).not_to eq("error")
+    end
+
+    it "transitions to error state when exception raised" do
+      bad_runner = double("bad_runner")
+      allow(bad_runner).to receive(:next_step).and_raise(StandardError.new("explode"))
+      allow(runner).to receive(:get_mode_runner).and_return(bad_runner)
+      result = runner.run
+      expect(result[:status]).to eq("error")
+    end
+  end
 end

@@ -52,8 +52,15 @@ RSpec.describe Aidp::Providers::Anthropic do
       allow(provider).to receive(:debug_log)
       allow(provider).to receive(:debug_error)
       allow(provider).to receive(:display_message)
-      allow(provider).to receive(:calculate_timeout).and_return(300)
+      # Shorten timeout for faster loop exit
+      allow(provider).to receive(:calculate_timeout).and_return(1)
+      # Provide spinner double with required interface so background loop safely updates it
+      spinner_double = double("Spinner", auto_spin: nil, success: nil, error: nil, update: nil, stop: nil)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner_double)
+      # Use original state transitions (do not stub mark_completed/mark_failed) to ensure loop breaks
     end
+
+    include_context "provider_thread_cleanup", "providers/anthropic.rb"
 
     context "when streaming is disabled" do
       before do
@@ -68,7 +75,7 @@ RSpec.describe Aidp::Providers::Anthropic do
           "claude",
           args: ["--print", "--output-format=text"],
           input: prompt,
-          timeout: 300,
+          timeout: 1,
           streaming: false
         )
       end
@@ -96,7 +103,7 @@ RSpec.describe Aidp::Providers::Anthropic do
           "claude",
           args: ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"],
           input: prompt,
-          timeout: 300,
+          timeout: 1,
           streaming: true
         )
       end
@@ -137,7 +144,7 @@ RSpec.describe Aidp::Providers::Anthropic do
           "claude",
           args: ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"],
           input: prompt,
-          timeout: 300,
+          timeout: 1,
           streaming: true
         )
       end

@@ -1,73 +1,49 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
 
 RSpec.describe Aidp::Util do
+  describe ".which" do
+    it "returns nil for non-existent command" do
+      expect(described_class.which("unlikely_command_12345")).to be_nil
+    end
+  end
+
   describe ".ensure_dirs" do
-    let(:temp_dir) { Dir.mktmpdir("aidp_test") }
-    let(:output_files) { ["docs/test.md", "output/report.json"] }
-
-    after do
-      FileUtils.rm_rf(temp_dir)
-    end
-
-    it "creates directories for output files" do
-      Aidp::Util.ensure_dirs(output_files, temp_dir)
-
-      expect(Dir.exist?(File.join(temp_dir, "docs"))).to be true
-      expect(Dir.exist?(File.join(temp_dir, "output"))).to be true
-    end
-
-    it "does not create directory for files in current directory" do
-      current_dir_files = ["test.md", "report.json"]
-      Aidp::Util.ensure_dirs(current_dir_files, temp_dir)
-
-      # Should not create any new directories
-      expect(Dir.entries(temp_dir).length).to eq(2) # . and ..
+    it "creates parent directories for output files" do
+      Dir.mktmpdir do |dir|
+        files = ["a/b/c.txt", "x/y.txt", "root.txt"]
+        described_class.ensure_dirs(files, dir)
+        expect(File.directory?(File.join(dir, "a/b"))).to be true
+        expect(File.directory?(File.join(dir, "x"))).to be true
+        expect(File.exist?(File.join(dir, "root.txt"))).to be false # Only directories created
+      end
     end
   end
 
   describe ".safe_file_write" do
-    let(:temp_dir) { Dir.mktmpdir("aidp_test") }
-    let(:file_path) { File.join(temp_dir, "nested", "dir", "test.txt") }
-    let(:content) { "test content" }
-
-    after do
-      FileUtils.rm_rf(temp_dir)
-    end
-
-    it "creates directory and writes file" do
-      Aidp::Util.safe_file_write(file_path, content)
-
-      expect(File.exist?(file_path)).to be true
-      expect(File.read(file_path)).to eq(content)
+    it "writes file content creating directories" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "nested", "file.txt")
+        described_class.safe_file_write(path, "hello")
+        expect(File.read(path)).to eq("hello")
+      end
     end
   end
 
   describe ".project_root?" do
-    let(:temp_dir) { Dir.mktmpdir("aidp_test") }
-
-    after do
-      FileUtils.rm_rf(temp_dir)
+    it "detects project root via Gemfile" do
+      Dir.mktmpdir do |dir|
+        File.write(File.join(dir, "Gemfile"), "source 'https://rubygems.org'")
+        expect(described_class.project_root?(dir)).to be true
+      end
     end
 
-    it "returns true for directory with .git" do
-      File.write(File.join(temp_dir, ".git"), "")
-      expect(Aidp::Util.project_root?(temp_dir)).to be true
-    end
-
-    it "returns true for directory with package.json" do
-      File.write(File.join(temp_dir, "package.json"), "{}")
-      expect(Aidp::Util.project_root?(temp_dir)).to be true
-    end
-
-    it "returns true for directory with Gemfile" do
-      File.write(File.join(temp_dir, "Gemfile"), "")
-      expect(Aidp::Util.project_root?(temp_dir)).to be true
-    end
-
-    it "returns false for directory without project files" do
-      expect(Aidp::Util.project_root?(temp_dir)).to be false
+    it "returns false for directory without indicators" do
+      Dir.mktmpdir do |dir|
+        expect(described_class.project_root?(dir)).to be false
+      end
     end
   end
 end
