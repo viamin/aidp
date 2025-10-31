@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.20.0](https://github.com/viamin/aidp/compare/aidp/v0.19.1...aidp/v0.20.0) (2025-10-31)
+
+
+### Features
+
+* **guided:** add --verbose / AIDP_VERBOSE support and planning fallbacks ([e089a88](https://github.com/viamin/aidp/commit/e089a882641be29db4c5d022974d29cfe83e3925))
+* **guided:** add --verbose / AIDP_VERBOSE support and planning fallbacks ([#206](https://github.com/viamin/aidp/issues/206)) ([580a4b2](https://github.com/viamin/aidp/commit/580a4b26f1440150c378081bad6aa299fd902f2e))
+
+
+### Bug Fixes
+
+* add firewall rules to get codex login working ([b19da1d](https://github.com/viamin/aidp/commit/b19da1dce91ea9d551728f64a23c16cb63c2576c))
+* **guided:** force provider fallback when switch_provider_for_error is a no-op and add tests ([a4c7712](https://github.com/viamin/aidp/commit/a4c77127bfae13b30fd1b1bfbb0698ceeabef875))
+* **logger:** sanitize project_dir to avoid invalid top-level paths and add spec ([a1cf400](https://github.com/viamin/aidp/commit/a1cf40006a2d914d3e9b97122ed200d1c78d918b))
+* **setup/wizard:** improve fallback provider selection UX, add recovery & debug logging; add specs and TestPrompt fixes ([36bed67](https://github.com/viamin/aidp/commit/36bed67911d633f09494ca10d311decf04cd076c))
+* **setup/wizard:** improve provider edit/add flow, stabilize prompts, and update specs ([4bc2a3b](https://github.com/viamin/aidp/commit/4bc2a3b09d7b6a191de0bec9d19cb6549981d413))
+* **setup/wizard:** iterative fallback addition, force reconfigure, normalize model families; test + helper updates; add follow-ups doc ([f1e3f07](https://github.com/viamin/aidp/commit/f1e3f079c4d804391da73629b602435020db143a))
+* **setup/wizard:** normalize legacy/label-based model_family entries, use canonical choices in prompt, and add specs ([89550cf](https://github.com/viamin/aidp/commit/89550cfcb818a3f3c17da6e1e2202bc80839c73b))
+
+
+### Improvements
+
+* **rescue_logging:** support singleton/module usage, add CLI delegator & tests, and log no-op provider switch ([e8e2e7c](https://github.com/viamin/aidp/commit/e8e2e7c1bdfd9c160431c4c9f7c1cc2121c76e3f))
+
 ## [0.19.1](https://github.com/viamin/aidp/compare/aidp/v0.19.0...aidp/v0.19.1) (2025-10-30)
 
 
