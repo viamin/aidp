@@ -44,11 +44,11 @@
     // OPTIONAL TOOLS (uncomment any you want):
     "git-curate": "gem install git_curate",
     "claude-code": "npm install -g @anthropic-ai/claude-code",
-    "cursor-agent": "curl https://cursor.com/install -fsS | bash"
-    // "codex": "npm install -g @openai/codex",
-    // "gemini-cli": "npm install -g @google/gemini-cli",
-    // "github-copilot-cli": "npm install -g @github/copilot",
-    // "opencode": "npm i -g opencode-ai",
+    "cursor-agent": "curl https://cursor.com/install -fsS | bash",
+    "codex": "npm install -g @openai/codex",
+    "gemini-cli": "npm install -g @google/gemini-cli",
+    "github-copilot-cli": "npm install -g @github/copilot",
+    "opencode": "npm install -g opencode-ai"
   },
   // Post-start command - initialize firewall
   "postStartCommand": {
@@ -104,7 +104,9 @@
         // Remote ports
         "remote.autoForwardPorts": true,
         "remote.portsAttributes": {
-          "*": { "requireLocalPort": true }   // prefer same-number local port
+          "*": {
+            "requireLocalPort": true
+          } // prefer same-number local port
         }
       }
     }
