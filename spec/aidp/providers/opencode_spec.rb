@@ -141,10 +141,24 @@ RSpec.describe Aidp::Providers::Opencode do
       allow(provider).to receive(:debug_error)
       allow(provider).to receive(:setup_activity_monitoring)
       allow(provider).to receive(:record_activity)
-      allow(provider).to receive(:mark_completed)
-      allow(provider).to receive(:mark_failed)
-      allow(provider).to receive(:cleanup_activity_display)
-      allow(TTY::Spinner).to receive(:new).and_return(double("Spinner", auto_spin: nil, success: nil, error: nil))
+      # Allow actual state transitions so background thread can exit
+      allow(provider).to receive(:mark_completed).and_call_original
+      allow(provider).to receive(:mark_failed).and_call_original
+      # Use a short timeout so activity thread exits quickly if state not updated
+      allow(provider).to receive(:calculate_timeout).and_return(1)
+      # Provide a spinner test double with needed interface
+      spinner_double = double("Spinner", auto_spin: nil, success: nil, error: nil, update: nil, stop: nil)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner_double)
+    end
+
+    after do
+      # Ensure any lingering provider activity threads are terminated to avoid RSpec double leakage
+      Thread.list.each do |t|
+        bt = t.backtrace
+        next unless bt&.any? { |l| l.include?("providers/opencode.rb") }
+        t.kill
+        t.join(0.1)
+      end
     end
 
     it "raises error when opencode is not available" do
@@ -206,8 +220,7 @@ RSpec.describe Aidp::Providers::Opencode do
       expect {
         provider.send_message(prompt: "test")
       }.to raise_error(/opencode failed with exit code 1/)
-
-      expect(provider).to have_received(:mark_failed).at_least(:once)
+      expect(provider.instance_variable_get(:@activity_state)).to eq(:failed)
     end
 
     it "enables streaming mode when AIDP_STREAMING is set" do
