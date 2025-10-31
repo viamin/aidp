@@ -30,7 +30,8 @@
   "containerEnv": {
     "TZ": "${localEnv:TZ:UTC}",
     "AIDP_ENV": "development",
-    "BUNDLE_PATH": "/workspaces/aidp/vendor/bundle"
+    "BUNDLE_PATH": "/workspaces/aidp/vendor/bundle",
+    "AIDP_FIREWALL_LOG": "1"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [],

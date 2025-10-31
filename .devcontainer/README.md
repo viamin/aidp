@@ -96,6 +96,146 @@ The container implements strict outbound network filtering:
 - **SSH**: Allowed (port 22)
 - **HTTP/HTTPS**: Only to allowlisted IPs
 
+### Provider Domain Coverage
+
+The allowlist intentionally includes domains needed for authentication and runtime API access for each supported AI provider CLI:
+
+| Provider | Core Domains |
+|----------|--------------|
+| Anthropic (Claude) | `api.anthropic.com`, `claude.ai`, `console.anthropic.com` |
+| OpenAI / Codex | `api.openai.com`, `auth.openai.com`, `openai.com`, `chat.openai.com`, `chatgpt.com`, `cdn.openai.com`, `oaiusercontent.com` |
+| Google Gemini | `generativelanguage.googleapis.com`, `oauth2.googleapis.com`, `accounts.google.com`, `www.googleapis.com` |
+| GitHub Copilot | `github.com`, `api.github.com`, `raw.githubusercontent.com`, `objects.githubusercontent.com`, `gist.githubusercontent.com`, `cloud.githubusercontent.com`, `copilot-proxy.githubusercontent.com` |
+| Cursor | `api.cursor.sh`, `cursor.sh`, `app.cursor.sh`, `www.cursor.sh` |
+| OpenCode | `api.opencode.ai`, `auth.opencode.ai` |
+
+Additional supporting domains: package registries (`rubygems.org`, `registry.npmjs.org`), VS Code services (updates / marketplace), and a general CDN (`cdn.jsdelivr.net`).
+
+If a provider introduces new endpoints (e.g., beta subdomains), add them in `init-firewall.sh` under the appropriate section.
+
+### Enabling Blocked Domain Logging
+
+Blocked outbound connections can be logged for diagnostics. Logging is disabled by default to avoid noise.
+
+Enable it by setting an environment variable before (re)building the container:
+
+```jsonc
+// devcontainer.json
+"containerEnv": {
+  "AIDP_ENV": "development",
+  "AIDP_FIREWALL_LOG": "1"
+}
+```
+
+Or at runtime (requires container restart of firewall script to take effect):
+
+```bash
+docker exec -it <container> bash -lc 'export AIDP_FIREWALL_LOG=1 && sudo /usr/local/bin/init-firewall.sh'
+```
+
+When enabled, the script:
+
+1. Creates a custom chain `AIDP_BLOCK_LOG`.
+2. Rate-limits logs to `10/min` with a burst of 20.
+3. Logs with prefix `AIDP-FW-BLOCK` at kernel log level 4.
+4. Drops the packet after logging.
+
+### Inspecting Block Logs
+
+Inside the container:
+
+```bash
+sudo dmesg | grep AIDP-FW-BLOCK
+# or if journalctl is available
+sudo journalctl -k | grep AIDP-FW-BLOCK
+```
+
+Each line will include source IP, destination IP, and port. Example:
+
+```text
+[12345.678901] AIDP-FW-BLOCK IN=eth0 OUT= MAC=... SRC=172.18.0.5 DST=93.184.216.34 LEN=60 ... DPT=443
+```
+
+### Promoting a Blocked Domain to Allowlist
+
+1. Reverse-resolve the destination IP (optional):
+
+  ```bash
+  dig -x <IP>
+  ```
+
+1. Add an `add_domain "example.com"` line to `init-firewall.sh` in the correct section.
+
+1. Re-run the firewall script or rebuild the container:
+
+  ```bash
+  sudo /usr/local/bin/init-firewall.sh
+  ```
+
+### Quick Verification of Firewall Health
+
+```bash
+# Should succeed
+curl -I https://api.openai.com 2>/dev/null | head -n1
+curl -I https://api.anthropic.com 2>/dev/null | head -n1
+
+# Should fail (not allowlisted)
+timeout 3 curl -I https://example.org || echo "Blocked as expected"
+```
+
+### Design Principles
+
+- Fail closed (default DROP) rather than fail open.
+- Resolve domains at startup (DNS A records) and build an IP set.
+- Keep script idempotent and safe if dependencies (iptables/ipset) are missing.
+- Provide optional observability (logging) without overwhelming logs.
+
+### Custom Internal CA Certificates
+
+If your organization performs TLS interception or uses private PKI, you can trust internal root/intermediate CAs by placing PEM files (never committed) in `.devcontainer/custom-ca/` (directory is gitignored). During build these are copied into `/usr/local/share/ca-certificates/` and `update-ca-certificates` runs.
+
+Steps:
+
+1. Obtain PEM-encoded cert(s); convert DER if needed:
+
+  ```bash
+  openssl x509 -inform DER -in internal-root.der -out internal-root.pem
+  ```
+
+1. Drop `*.pem` files into `.devcontainer/custom-ca/`.
+1. Rebuild the container (`Dev Containers: Rebuild Container`).
+1. Verify installation:
+
+  ```bash
+  grep subject /etc/ssl/certs/*.pem | grep -i 'Internal Root' || echo 'Check installed cert names'
+  ```
+
+Node tooling:
+
+If a Node CLI still errors with `self signed certificate in certificate chain`, set:
+
+```jsonc
+"containerEnv": {
+  "NODE_EXTRA_CA_CERTS": "/etc/ssl/certs/ca-certificates.crt"
+}
+```
+
+TLS debugging helpers:
+
+```bash
+openssl s_client -connect api.openai.com:443 -showcerts </dev/null | head
+npm config get cafile
+npm config get strict-ssl
+```
+
+Temporary (single-command) bypass (avoid committing or scripting):
+
+```bash
+NODE_TLS_REJECT_UNAUTHORIZED=0 some_node_cli_command
+```
+
+Keep scope narrow; remove after diagnosing.
+
 ### Allowlisted Domains
 
 - GitHub (api.github.com, raw.githubusercontent.com, etc.)
@@ -104,6 +244,8 @@ The container implements strict outbound network filtering:
 - VS Code services
 - npm registry
 - Sentry (error tracking)
+
+See "Provider Domain Coverage" above for the current canonical list. The README list may occasionally drift; `init-firewall.sh` is the source of truth.
 
 ### Adding New Domains
 

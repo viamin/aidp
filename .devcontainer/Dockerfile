@@ -35,6 +35,8 @@ RUN apt-get update && apt-get install -y \
   yamllint \
   # Process management
   procps \
+  # CA certificates utilities
+  ca-certificates \
   # Clean up
   && rm -rf /var/lib/apt/lists/*
 
@@ -52,6 +54,19 @@ RUN ARCH="$(dpkg --print-architecture)" \
 # Copy firewall initialization script
 COPY .devcontainer/init-firewall.sh /usr/local/bin/init-firewall.sh
 RUN chmod +x /usr/local/bin/init-firewall.sh
+
+# Optional: custom root CA bundle install
+# Place custom CA cert(s) in .devcontainer/custom-ca/ (PEM files). They will be added if present.
+COPY .devcontainer/custom-ca/ /tmp/custom-ca/
+RUN if [ -d /tmp/custom-ca ] && ls /tmp/custom-ca/*.pem >/dev/null 2>&1; then \
+      echo "Installing custom CA certificates"; \
+      cp /tmp/custom-ca/*.pem /usr/local/share/ca-certificates/; \
+      update-ca-certificates; \
+    else \
+      echo "No custom CA certificates found"; \
+    fi
+
+# Node / other tooling can also use NODE_EXTRA_CA_CERTS to point to a bundled file if needed.
 
 # Grant vscode user sudo access to init-firewall.sh without password (USER switched later)
 RUN echo "vscode ALL=(ALL) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/vscode-firewall && chmod 0440 /etc/sudoers.d/vscode-firewall

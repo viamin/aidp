@@ -104,20 +104,49 @@ add_domain "rubygems.org"
 add_domain "api.rubygems.org"
 add_domain "index.rubygems.org"
 
-# AI Provider APIs
-add_domain "api.anthropic.com"
-add_domain "api.openai.com"
-add_domain "auth.openai.com"
-add_domain "chatgpt.com"
-add_domain "generativelanguage.googleapis.com"  # Google AI
+# AI Provider APIs (Anthropic / OpenAI / Google Gemini)
+add_domain "api.anthropic.com"              # Anthropic primary API
+add_domain "claude.ai"                      # Anthropic web (auth flows / websocket)
+add_domain "console.anthropic.com"          # Anthropic console (token management)
+
+add_domain "api.openai.com"                 # OpenAI primary API
+add_domain "auth.openai.com"                # OpenAI OAuth
+add_domain "openai.com"                     # OpenAI site (redirects during auth)
+add_domain "chat.openai.com"                # Chat UI (session/token refresh)
+add_domain "chatgpt.com"                    # Legacy / redirect host
+add_domain "cdn.openai.com"                 # Static assets used in auth/UI
+add_domain "oaiusercontent.com"             # File / image assets (optional but common)
+
+add_domain "generativelanguage.googleapis.com"  # Google AI (Gemini) API
+add_domain "oauth2.googleapis.com"          # Google OAuth token endpoint
+add_domain "accounts.google.com"            # Google account login
+add_domain "www.googleapis.com"             # Discovery / ancillary APIs
 
 # Package managers and registries
 add_domain "registry.npmjs.org"
 add_domain "registry.yarnpkg.com"
 
-# Monitoring and error tracking
-add_domain "sentry.io"
-add_domain "o4504617924640768.ingest.us.sentry.io"
+# GitHub / Copilot related
+add_domain "github.com"                     # Main site (auth flows)
+add_domain "api.github.com"                 # API (explicit for clarity)
+add_domain "raw.githubusercontent.com"      # Raw file fetches
+add_domain "objects.githubusercontent.com"  # Asset storage
+add_domain "gist.githubusercontent.com"     # Gists (tool usage)
+add_domain "cloud.githubusercontent.com"    # Cloud auth/token endpoints
+add_domain "copilot-proxy.githubusercontent.com" # Copilot proxy service
+
+# Cursor AI
+add_domain "api.cursor.sh"
+add_domain "cursor.sh"
+add_domain "app.cursor.sh"
+add_domain "www.cursor.sh"
+
+# OpenCode AI
+add_domain "api.opencode.ai"
+add_domain "auth.opencode.ai"
+
+# General CDNs occasionally used during auth / assets
+add_domain "cdn.jsdelivr.net"
 
 # VS Code services
 add_domain "update.code.visualstudio.com"
@@ -169,6 +198,21 @@ iptables -A OUTPUT -p tcp --dport 443 -m set --match-set allowed-domains dst -j 
 
 # Allow HTTP (port 80) to allowlisted domains
 iptables -A OUTPUT -p tcp --dport 80 -m set --match-set allowed-domains dst -j ACCEPT || true
+
+# Optional: logging for blocked egress (disabled by default to avoid log noise)
+# Enable by setting AIDP_FIREWALL_LOG=1 in the container env
+if [ "${AIDP_FIREWALL_LOG:-}" = "1" ]; then
+    echo "🪵 Enabling logging of blocked outbound connections (rate-limited)" >&2
+    # Create a custom chain for logging to prevent duplicate logs
+    iptables -N AIDP_BLOCK_LOG 2>/dev/null || true
+    # Add a rate-limited LOG target then DROP
+    iptables -F AIDP_BLOCK_LOG || true
+    iptables -A AIDP_BLOCK_LOG -m limit --limit 10/min --limit-burst 20 -j LOG --log-prefix "AIDP-FW-BLOCK " --log-level 4 || true
+    iptables -A AIDP_BLOCK_LOG -j DROP || true
+    # Append as final OUTPUT rule for TCP/UDP not yet accepted
+    iptables -A OUTPUT -p tcp -j AIDP_BLOCK_LOG || true
+    iptables -A OUTPUT -p udp -j AIDP_BLOCK_LOG || true
+fi
 
 # Allow all traffic on Docker bridge network (for docker-in-docker)
 iptables -A INPUT -i docker0 -j ACCEPT 2>/dev/null || true
