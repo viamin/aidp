@@ -27,3 +27,6 @@ coverage/*
 # devcontainer caches
 vendor/bundle/*
 .vscode/
+
+# provider artifacts
+.claude/

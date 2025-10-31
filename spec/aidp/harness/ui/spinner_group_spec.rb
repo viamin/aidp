@@ -82,4 +82,165 @@ RSpec.describe Aidp::Harness::UI::SpinnerGroup do
       expect(Aidp::Harness::UI::SpinnerGroup::ExecutionError).to be < Aidp::Harness::UI::SpinnerGroup::SpinnerGroupError
     end
   end
+
+  describe "#run_workflow_steps" do
+    let(:steps) do
+      [
+        {name: "Step 1", block: -> { "result1" }},
+        {name: "Step 2", block: -> { "result2" }}
+      ]
+    end
+
+    it "converts and runs workflow steps" do
+      expect(spinner_group).to receive(:run_concurrent_operations)
+      spinner_group.run_workflow_steps(steps)
+    end
+
+    it "validates steps before running" do
+      invalid_steps = "not an array"
+      expect {
+        spinner_group.run_workflow_steps(invalid_steps)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+
+    it "raises error for empty steps array" do
+      expect {
+        spinner_group.run_workflow_steps([])
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+  end
+
+  describe "#run_analysis_tasks" do
+    let(:tasks) do
+      [
+        {name: "Task 1", block: -> { "result1" }},
+        {name: "Task 2", block: -> { "result2" }}
+      ]
+    end
+
+    it "converts and runs analysis tasks" do
+      expect(spinner_group).to receive(:run_concurrent_operations)
+      spinner_group.run_analysis_tasks(tasks)
+    end
+
+    it "validates tasks before running" do
+      invalid_tasks = "not an array"
+      expect {
+        spinner_group.run_analysis_tasks(invalid_tasks)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+
+    it "raises error for empty tasks array" do
+      expect {
+        spinner_group.run_analysis_tasks([])
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+  end
+
+  describe "#run_provider_operations" do
+    let(:provider_ops) do
+      [
+        {provider: "anthropic", operation: "test", block: -> { "result1" }},
+        {provider: "openai", operation: "test", block: -> { "result2" }}
+      ]
+    end
+
+    it "converts and runs provider operations" do
+      expect(spinner_group).to receive(:run_concurrent_operations)
+      spinner_group.run_provider_operations(provider_ops)
+    end
+
+    it "validates provider operations before running" do
+      invalid_ops = "not an array"
+      expect {
+        spinner_group.run_provider_operations(invalid_ops)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+
+    it "raises error for empty provider operations array" do
+      expect {
+        spinner_group.run_provider_operations([])
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+  end
+
+  describe "SpinnerGroupFormatter" do
+    let(:formatter) { Aidp::Harness::UI::SpinnerGroupFormatter.new }
+
+    it "formats operation title" do
+      result = formatter.format_operation_title("Test Operation")
+      expect(result).to include("Test Operation")
+    end
+
+    it "formats step title" do
+      result = formatter.format_step_title("Test Step")
+      expect(result).to include("Test Step")
+    end
+
+    it "formats task title" do
+      result = formatter.format_task_title("Test Task")
+      expect(result).to include("Test Task")
+    end
+
+    it "formats provider title" do
+      result = formatter.format_provider_title("anthropic", "test")
+      expect(result).to include("anthropic")
+      expect(result).to include("test")
+    end
+
+    it "formats error title" do
+      result = formatter.format_error_title("Original", "Error message")
+      expect(result).to include("Original")
+      expect(result).to include("Error message")
+    end
+
+    it "formats success title" do
+      result = formatter.format_success_title("Completed")
+      expect(result).to include("Completed")
+    end
+
+    it "formats progress title" do
+      result = formatter.format_progress_title("Progress", 5, 10)
+      expect(result).to include("Progress")
+      expect(result).to include("5")
+      expect(result).to include("10")
+    end
+  end
+
+  describe "validation edge cases" do
+    it "raises error for operation without title" do
+      ops = [{block: -> { "test" }}]
+      expect {
+        spinner_group.run_concurrent_operations(ops)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+
+    it "raises error for operation with empty title" do
+      ops = [{title: "", block: -> { "test" }}]
+      expect {
+        spinner_group.run_concurrent_operations(ops)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+
+    it "raises error for operation with whitespace-only title" do
+      ops = [{title: "   ", block: -> { "test" }}]
+      expect {
+        spinner_group.run_concurrent_operations(ops)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+
+    it "raises error for operation with non-callable block" do
+      ops = [{title: "Test", block: "not callable"}]
+      expect {
+        spinner_group.run_concurrent_operations(ops)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+
+    it "raises error for non-hash operation" do
+      ops = ["not a hash"]
+      expect {
+        spinner_group.run_concurrent_operations(ops)
+      }.to raise_error(Aidp::Harness::UI::SpinnerGroup::ExecutionError)
+    end
+  end
 end

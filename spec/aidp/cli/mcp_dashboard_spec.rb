@@ -109,6 +109,115 @@ RSpec.describe Aidp::CLI::McpDashboard do
       output = capture_output { dashboard.display_task_eligibility(required_servers) }
       expect(output).to include("filesystem")
     end
+
+    it "shows eligible providers when servers are available" do
+      # Mock provider info with enabled MCP servers
+      mock_provider_info = instance_double(Aidp::Harness::ProviderInfo,
+        info: {mcp_support: true, mcp_servers: [{name: "filesystem", enabled: true}]})
+      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
+
+      output = capture_output { dashboard.display_task_eligibility(["filesystem"]) }
+      expect(output).to include("Eligible Providers")
+    end
+
+    it "shows warning when no providers are eligible" do
+      output = capture_output { dashboard.display_task_eligibility(required_servers) }
+      expect(output).to include("No providers have all required MCP servers")
+    end
+  end
+
+  describe "private methods" do
+    describe "#build_server_matrix" do
+      it "includes providers with MCP support" do
+        result = dashboard.send(:build_server_matrix)
+        expect(result).to have_key(:servers)
+        expect(result).to have_key(:provider_servers)
+        expect(result).to have_key(:providers)
+      end
+
+      it "filters providers without MCP support" do
+        mock_provider_info = instance_double(Aidp::Harness::ProviderInfo,
+          info: {mcp_support: false})
+        allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
+
+        result = dashboard.send(:build_server_matrix)
+        expect(result[:providers]).to be_empty
+      end
+    end
+
+    describe "#format_server_status" do
+      it "formats enabled servers with color" do
+        result = dashboard.send(:format_server_status, {enabled: true}, false)
+        expect(result).to eq("✓")
+      end
+
+      it "formats disabled servers without color" do
+        result = dashboard.send(:format_server_status, {enabled: false}, true)
+        expect(result).to eq("✗")
+      end
+
+      it "uses ANSI colors for TTY" do
+        allow($stdout).to receive(:tty?).and_return(true)
+        result = dashboard.send(:format_server_status, {enabled: true}, false)
+        expect(result).to include("\e[32m")
+      end
+    end
+
+    describe "#normalize_provider_name" do
+      it "normalizes anthropic to claude" do
+        result = dashboard.send(:normalize_provider_name, "anthropic")
+        expect(result).to eq("claude")
+      end
+
+      it "keeps other provider names unchanged" do
+        result = dashboard.send(:normalize_provider_name, "openai")
+        expect(result).to eq("openai")
+      end
+    end
+
+    describe "#display_server_table" do
+      it "handles empty providers gracefully" do
+        matrix = {providers: [], servers: {}, provider_servers: {}}
+        expect { dashboard.send(:display_server_table, matrix, true) }.not_to raise_error
+      end
+
+      it "displays table with servers" do
+        matrix = {
+          providers: ["anthropic"],
+          servers: {"filesystem" => {providers: {"anthropic" => {name: "filesystem", enabled: true}}}},
+          provider_servers: {"anthropic" => [{name: "filesystem", enabled: true}]}
+        }
+        expect { dashboard.send(:display_server_table, matrix, false) }.not_to raise_error
+      end
+    end
+
+    describe "#display_eligibility_warnings" do
+      it "shows warnings for partially configured servers" do
+        matrix = {
+          providers: ["anthropic", "openai"],
+          servers: {
+            "filesystem" => {
+              providers: {"anthropic" => {name: "filesystem", enabled: true}}
+            }
+          },
+          provider_servers: {}
+        }
+        expect { dashboard.send(:display_eligibility_warnings, matrix) }.not_to raise_error
+      end
+
+      it "skips warnings when all providers have servers" do
+        matrix = {
+          providers: ["anthropic"],
+          servers: {
+            "filesystem" => {
+              providers: {"anthropic" => {name: "filesystem", enabled: true}}
+            }
+          },
+          provider_servers: {}
+        }
+        expect { dashboard.send(:display_eligibility_warnings, matrix) }.not_to raise_error
+      end
+    end
   end
 
   def capture_output(&block)
