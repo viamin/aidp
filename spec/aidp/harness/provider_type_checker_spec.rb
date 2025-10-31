@@ -194,7 +194,7 @@ RSpec.describe Aidp::Harness::ProviderTypeChecker do
       end
 
       it "handles string keys for underlying_service" do
-        instance.set_provider_config("cursor", {type: "passthrough", "underlying_service" => "openai"})
+        instance.set_provider_config("cursor", {:type => "passthrough", "underlying_service" => "openai"})
         expect(instance.has_underlying_service?("cursor")).to be true
       end
     end
@@ -223,7 +223,7 @@ RSpec.describe Aidp::Harness::ProviderTypeChecker do
       end
 
       it "handles string keys" do
-        instance.set_provider_config("cursor", {type: "passthrough", "underlying_service" => "openai"})
+        instance.set_provider_config("cursor", {:type => "passthrough", "underlying_service" => "openai"})
         expect(instance.get_underlying_service("cursor")).to eq("openai")
       end
 
