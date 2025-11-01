@@ -54,7 +54,14 @@ RSpec.describe Aidp::Utils::DevcontainerDetector do
         allow(File).to receive(:exist?).and_call_original
         allow(File).to receive(:exist?).with("/.dockerenv").and_return(false)
         allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
-        allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(false)
+        allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(true)
+        allow(File).to receive(:readlines).with("/proc/1/cgroup").and_return(["0::/\n"])
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("REMOTE_CONTAINERS").and_return(nil)
+        allow(ENV).to receive(:[]).with("VSCODE_REMOTE_CONTAINERS").and_return(nil)
+        allow(ENV).to receive(:[]).with("CODESPACES").and_return(nil)
+        allow(ENV).to receive(:[]).with("container").and_return(nil)
+        allow(ENV).to receive(:[]).with("HOSTNAME").and_return("my-computer")
       end
 
       it "returns false" do
@@ -102,7 +109,11 @@ RSpec.describe Aidp::Utils::DevcontainerDetector do
         allow(File).to receive(:exist?).and_call_original
         allow(File).to receive(:exist?).with("/.dockerenv").and_return(false)
         allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
-        allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(false)
+        allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(true)
+        allow(File).to receive(:readlines).with("/proc/1/cgroup").and_return(["0::/\n"])
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("container").and_return(nil)
+        allow(ENV).to receive(:[]).with("HOSTNAME").and_return("my-computer")
       end
 
       it "returns false" do
@@ -154,6 +165,12 @@ RSpec.describe Aidp::Utils::DevcontainerDetector do
     end
 
     context "when neither env var is set" do
+      before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("REMOTE_CONTAINERS").and_return(nil)
+        allow(ENV).to receive(:[]).with("VSCODE_REMOTE_CONTAINERS").and_return(nil)
+      end
+
       it "returns false" do
         expect(described_class.in_vscode_remote?).to be false
       end
@@ -185,6 +202,10 @@ RSpec.describe Aidp::Utils::DevcontainerDetector do
 
     context "when in Docker" do
       before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("CODESPACES").and_return(nil)
+        allow(ENV).to receive(:[]).with("REMOTE_CONTAINERS").and_return(nil)
+        allow(ENV).to receive(:[]).with("VSCODE_REMOTE_CONTAINERS").and_return(nil)
         allow(File).to receive(:exist?).with("/.dockerenv").and_return(true)
       end
 
@@ -195,6 +216,10 @@ RSpec.describe Aidp::Utils::DevcontainerDetector do
 
     context "when in Podman" do
       before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("CODESPACES").and_return(nil)
+        allow(ENV).to receive(:[]).with("REMOTE_CONTAINERS").and_return(nil)
+        allow(ENV).to receive(:[]).with("VSCODE_REMOTE_CONTAINERS").and_return(nil)
         allow(File).to receive(:exist?).and_call_original
         allow(File).to receive(:exist?).with("/.dockerenv").and_return(false)
         allow(File).to receive(:exist?).with("/run/.containerenv").and_return(true)
@@ -207,10 +232,17 @@ RSpec.describe Aidp::Utils::DevcontainerDetector do
 
     context "when not in container" do
       before do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("CODESPACES").and_return(nil)
+        allow(ENV).to receive(:[]).with("REMOTE_CONTAINERS").and_return(nil)
+        allow(ENV).to receive(:[]).with("VSCODE_REMOTE_CONTAINERS").and_return(nil)
+        allow(ENV).to receive(:[]).with("container").and_return(nil)
+        allow(ENV).to receive(:[]).with("HOSTNAME").and_return("my-computer")
         allow(File).to receive(:exist?).and_call_original
         allow(File).to receive(:exist?).with("/.dockerenv").and_return(false)
         allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
-        allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(false)
+        allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(true)
+        allow(File).to receive(:readlines).with("/proc/1/cgroup").and_return(["0::/\n"])
       end
 
       it "returns :none" do
@@ -250,9 +282,14 @@ RSpec.describe Aidp::Utils::DevcontainerDetector do
       allow(File).to receive(:exist?).and_call_original
       allow(File).to receive(:exist?).with("/.dockerenv").and_return(false)
       allow(File).to receive(:exist?).with("/run/.containerenv").and_return(false)
-      allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(false)
+      allow(File).to receive(:exist?).with("/proc/1/cgroup").and_return(true)
+      allow(File).to receive(:readlines).with("/proc/1/cgroup").and_return(["0::/\n"])
       allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("REMOTE_CONTAINERS").and_return(nil)
+      allow(ENV).to receive(:[]).with("VSCODE_REMOTE_CONTAINERS").and_return(nil)
+      allow(ENV).to receive(:[]).with("CODESPACES").and_return(nil)
       allow(ENV).to receive(:[]).with("container").and_return(nil)
+      allow(ENV).to receive(:[]).with("HOSTNAME").and_return("my-computer")
 
       # First call caches the result
       first_result = described_class.in_container?

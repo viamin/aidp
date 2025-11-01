@@ -279,6 +279,7 @@ module Aidp
 
       def fix_validation_issues
         return unless @config
+        return unless @config.is_a?(Hash)
 
         # Fix common issues that can be automatically corrected
 

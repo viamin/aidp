@@ -97,6 +97,16 @@ else
     echo "  ⚠️  Failed to fetch GitHub meta API; continuing without GitHub ranges" >&2
 fi
 
+echo "📋 Adding Azure IP ranges for GitHub Copilot..."
+# These are common Azure regions used by GitHub Copilot
+# Based on the connection errors, adding specific ranges
+add_ip_range "20.189.173.0/24"    # Azure WestUS2
+add_ip_range "104.208.16.0/24"    # Azure EastUS
+add_ip_range "52.168.112.0/24"    # Azure EastUS2
+add_ip_range "40.79.189.0/24"     # Azure WestUS
+add_ip_range "13.89.178.0/24"     # Azure EastUS
+add_ip_range "20.42.65.0/24"      # Azure WestEurope
+
 echo "🌐 Adding essential service domains..."
 
 # Ruby/Gem repositories
@@ -135,7 +145,16 @@ add_domain "gist.githubusercontent.com"     # Gists (tool usage)
 add_domain "cloud.githubusercontent.com"    # Cloud auth/token endpoints
 add_domain "copilot-proxy.githubusercontent.com" # Copilot proxy service
 
+# GitHub Copilot backend services (Azure)
+add_domain "api.githubcopilot.com"          # Copilot API
+add_domain "copilot-telemetry.githubusercontent.com" # Copilot telemetry
+add_domain "default.exp-tas.com"            # Experimentation service
+add_domain "copilot-completions.githubusercontent.com" # Completions service
+
 # Cursor AI
+add_domain "cursor.com"                     # Install script host
+add_domain "www.cursor.com"                 # Redirect host
+add_domain "downloads.cursor.com"           # Package downloads
 add_domain "api.cursor.sh"
 add_domain "cursor.sh"
 add_domain "app.cursor.sh"
@@ -154,6 +173,8 @@ add_domain "marketplace.visualstudio.com"
 add_domain "vscode.blob.core.windows.net"
 add_domain "vscode.download.prss.microsoft.com"
 add_domain "az764295.vo.msecnd.net"
+add_domain "gallerycdn.vsassets.io"           # VS Code extension gallery CDN
+add_domain "vscode.gallerycdn.vsassets.io"    # VS Code gallery CDN (subdomain)
 
 # Microsoft telemetry (optional, comment out if not desired)
 add_domain "dc.services.visualstudio.com"

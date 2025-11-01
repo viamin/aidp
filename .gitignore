@@ -28,8 +28,13 @@ coverage/*
 vendor/bundle/*
 .vscode/
 
-# provider artifacts
+# provider artifacts and credentials (should never be in repo)
 .claude/
+.cursor/
+.codex/
+.opencode/
+.config/gemini/
+.config/github-cli/
 
 # Local custom CA certificates (never commit internal certs)
 .devcontainer/custom-ca/
