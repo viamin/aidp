@@ -50,6 +50,10 @@ cat << 'EOF' | sudo tee /etc/gemini-cli/settings.json > /dev/null
   "autoAccept": true
 }
 EOF
+DEVCONTAINER_USER="${SUDO_USER:-${USER}}"
+DEVCONTAINER_GROUP="$(id -gn "${DEVCONTAINER_USER}")"
+sudo chown -R "${DEVCONTAINER_USER}:${DEVCONTAINER_GROUP}" /etc/gemini-cli
+sudo chmod -R u+rwX,go+rX /etc/gemini-cli
 
 # Create Gemini wrapper that uses the container-specific config
 cat << 'EOF' | sudo tee "$WRAPPER_DIR/gemini" > /dev/null

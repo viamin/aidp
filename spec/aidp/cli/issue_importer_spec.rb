@@ -227,6 +227,35 @@ RSpec.describe Aidp::IssueImporter do
         expect(result).to eq({number: 123})
         expect(importer).to have_received(:fetch_via_api).with("owner", "repo", "123")
       end
+
+      it "uses fixture when provided" do
+        fixture_data = {
+          "owner/repo#123" => {
+            "status" => 200,
+            "data" => {
+              "number" => 123,
+              "title" => "Fixture Issue",
+              "body" => "Fixture body",
+              "state" => "open",
+              "html_url" => "https://github.com/owner/repo/issues/123",
+              "labels" => [],
+              "milestone" => nil,
+              "assignees" => [],
+              "comments" => 0
+            }
+          }
+        }
+        previous = ENV["AIDP_TEST_ISSUE_FIXTURES"]
+        ENV["AIDP_TEST_ISSUE_FIXTURES"] = fixture_data.to_json
+        allow(importer).to receive(:fetch_via_api)
+        allow(importer).to receive(:display_message)
+
+        result = importer.send(:fetch_issue_data, issue_url)
+        expect(result).to include(number: 123, title: "Fixture Issue", source: "api")
+        expect(importer).not_to have_received(:fetch_via_api)
+      ensure
+        ENV["AIDP_TEST_ISSUE_FIXTURES"] = previous
+      end
     end
 
     context "with invalid URL" do
@@ -253,10 +282,10 @@ RSpec.describe Aidp::IssueImporter do
     end
 
     it "executes gh command and normalizes response" do
-      allow(Open3).to receive(:capture3).and_return([
+      allow(importer).to receive(:capture3_with_timeout).and_return([
         JSON.generate(gh_response),
         "",
-        double(success?: true)
+        double(success?: true, exitstatus: 0)
       ])
 
       result = importer.send(:fetch_via_gh_cli, "owner", "repo", "123")
@@ -270,10 +299,10 @@ RSpec.describe Aidp::IssueImporter do
     end
 
     it "returns nil when gh command fails" do
-      allow(Open3).to receive(:capture3).and_return([
+      allow(importer).to receive(:capture3_with_timeout).and_return([
         "",
         "Error: Not found",
-        double(success?: false)
+        double(success?: false, exitstatus: 1)
       ])
 
       result = importer.send(:fetch_via_gh_cli, "owner", "repo", "123")
@@ -285,10 +314,10 @@ RSpec.describe Aidp::IssueImporter do
     end
 
     it "returns nil when JSON parsing fails" do
-      allow(Open3).to receive(:capture3).and_return([
+      allow(importer).to receive(:capture3_with_timeout).and_return([
         "invalid json",
         "",
-        double(success?: true)
+        double(success?: true, exitstatus: 0)
       ])
 
       result = importer.send(:fetch_via_gh_cli, "owner", "repo", "123")

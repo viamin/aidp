@@ -99,13 +99,16 @@ fi
 
 echo "📋 Adding Azure IP ranges for GitHub Copilot..."
 # These are common Azure regions used by GitHub Copilot
-# Based on the connection errors, adding specific ranges
-add_ip_range "20.189.173.0/24"    # Azure WestUS2
-add_ip_range "104.208.16.0/24"    # Azure EastUS
-add_ip_range "52.168.112.0/24"    # Azure EastUS2
-add_ip_range "40.79.189.0/24"     # Azure WestUS
-add_ip_range "13.89.178.0/24"     # Azure EastUS
-add_ip_range "20.42.65.0/24"      # Azure WestEurope
+# Using broader /16 ranges to handle dynamic IP allocation across Azure regions
+# This is necessary because GitHub Copilot uses many IPs within these ranges
+add_ip_range "20.189.0.0/16"      # Azure WestUS2 (broader range)
+add_ip_range "104.208.0.0/16"     # Azure EastUS (broader range)
+add_ip_range "52.168.0.0/16"      # Azure EastUS2 (broader range - covers .112 and .117)
+add_ip_range "40.79.0.0/16"       # Azure WestUS (broader range)
+add_ip_range "13.89.0.0/16"       # Azure EastUS (broader range)
+add_ip_range "13.69.0.0/16"       # Azure (broader range - covers .239)
+add_ip_range "20.42.0.0/16"       # Azure WestEurope (broader range - covers .65 and .73)
+add_ip_range "20.50.0.0/16"       # Azure (broader range - covers .80)
 
 echo "🌐 Adding essential service domains..."
 

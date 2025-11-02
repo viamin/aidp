@@ -4,11 +4,14 @@ require "json"
 require "net/http"
 require "uri"
 require "open3"
+require "timeout"
 
 module Aidp
   # Handles importing GitHub issues into AIDP work loops
   class IssueImporter
     include Aidp::MessageDisplay
+
+    COMPONENT = "issue_importer"
 
     # Initialize the importer
     #
@@ -16,8 +19,15 @@ module Aidp
     #   available. When nil (default) we auto-detect. This enables deterministic specs without
     #   depending on developer environment.
     def initialize(gh_available: nil, enable_bootstrap: true)
-      @gh_available = gh_available.nil? ? gh_cli_available? : gh_available
+      disabled_via_env = ENV["AIDP_DISABLE_GH_CLI"] == "1"
+      @gh_available = if disabled_via_env
+        false
+      else
+        gh_available.nil? ? gh_cli_available? : gh_available
+      end
       @enable_bootstrap = enable_bootstrap
+      Aidp.log_debug(COMPONENT, "Initialized importer", gh_available: @gh_available, enable_bootstrap: @enable_bootstrap, disabled_via_env: disabled_via_env)
+      Aidp.log_debug(COMPONENT, "GitHub CLI disabled via env flag") if disabled_via_env
     end
 
     def import_issue(identifier)
@@ -81,16 +91,28 @@ module Aidp
       return nil unless match
 
       owner, repo, number = match[1], match[2], match[3]
+      Aidp.log_debug(COMPONENT, "Fetching issue data", owner: owner, repo: repo, number: number, via: (@gh_available ? "gh_cli" : "api"))
 
       # First try GitHub CLI if available (works for private repos)
       if @gh_available
         display_message("🔍 Fetching issue via GitHub CLI...", type: :info)
+        Aidp.log_debug(COMPONENT, "Attempting GitHub CLI fetch", owner: owner, repo: repo, number: number)
         issue_data = fetch_via_gh_cli(owner, repo, number)
-        return issue_data if issue_data
+        if issue_data
+          Aidp.log_debug(COMPONENT, "GitHub CLI fetch succeeded", owner: owner, repo: repo, number: number)
+          return issue_data
+        end
+        Aidp.log_debug(COMPONENT, "GitHub CLI fetch failed, falling back to API", owner: owner, repo: repo, number: number)
       end
 
       # Fallback to public API
       display_message("🔍 Fetching issue via GitHub API...", type: :info)
+      Aidp.log_debug(COMPONENT, "Fetching issue via GitHub API", owner: owner, repo: repo, number: number)
+      fixture = test_fixture(owner, repo, number)
+      if fixture
+        Aidp.log_debug(COMPONENT, "Using test fixture for issue fetch", owner: owner, repo: repo, number: number, status: fixture["status"])
+        return handle_test_fixture(fixture, owner, repo, number)
+      end
       fetch_via_api(owner, repo, number)
     end
 
@@ -101,9 +123,12 @@ module Aidp
         "--json", "title,body,labels,milestone,comments,state,assignees,number,url"
       ]
 
-      stdout, stderr, status = Open3.capture3(*cmd)
+      Aidp.log_debug(COMPONENT, "Running gh cli", owner: owner, repo: repo, number: number, command: cmd.join(" "))
+      stdout, stderr, status = capture3_with_timeout(*cmd, timeout: gh_cli_timeout)
+      Aidp.log_debug(COMPONENT, "Completed gh cli", owner: owner, repo: repo, number: number, exitstatus: status.exitstatus)
 
       unless status.success?
+        Aidp.log_warn(COMPONENT, "GitHub CLI fetch failed", owner: owner, repo: repo, number: number, exitstatus: status.exitstatus, error: stderr.strip)
         display_message("⚠️ GitHub CLI failed: #{stderr.strip}", type: :warn)
         return nil
       end
@@ -112,9 +137,14 @@ module Aidp
         data = JSON.parse(stdout)
         normalize_gh_cli_data(data)
       rescue JSON::ParserError => e
+        Aidp.log_warn(COMPONENT, "GitHub CLI response parse failed", owner: owner, repo: repo, number: number, error: e.message)
         display_message("❌ Failed to parse GitHub CLI response: #{e.message}", type: :error)
         nil
       end
+    rescue Timeout::Error
+      Aidp.log_warn(COMPONENT, "GitHub CLI timed out", owner: owner, repo: repo, number: number, timeout: gh_cli_timeout)
+      display_message("⚠️ GitHub CLI timed out after #{gh_cli_timeout}s, falling back to API", type: :warn)
+      nil
     end
 
     def fetch_via_api(owner, repo, number)
@@ -279,6 +309,103 @@ module Aidp
       status.success?
     rescue Errno::ENOENT
       false
+    end
+
+    def capture3_with_timeout(*cmd, timeout:)
+      stdout_str = +""
+      stderr_str = +""
+      status = nil
+      wait_thr = nil
+
+      Timeout.timeout(timeout) do
+        Open3.popen3(*cmd) do |stdin, stdout_io, stderr_io, thread|
+          wait_thr = thread
+          stdin.close
+          stdout_str = stdout_io.read
+          stderr_str = stderr_io.read
+          status = thread.value
+        end
+      end
+
+      [stdout_str, stderr_str, status]
+    rescue Timeout::Error
+      terminate_process(wait_thr)
+      raise
+    end
+
+    def terminate_process(wait_thr)
+      return unless wait_thr&.alive?
+
+      begin
+        Process.kill("TERM", wait_thr.pid)
+      rescue Errno::ESRCH
+        return
+      end
+
+      begin
+        wait_thr.join(1)
+      rescue
+        nil
+      end
+
+      return unless wait_thr.alive?
+
+      begin
+        Process.kill("KILL", wait_thr.pid)
+      rescue Errno::ESRCH
+        return
+      end
+
+      begin
+        wait_thr.join(1)
+      rescue
+        nil
+      end
+    end
+
+    def gh_cli_timeout
+      Integer(ENV.fetch("AIDP_GH_CLI_TIMEOUT", 5))
+    rescue ArgumentError, TypeError
+      5
+    end
+
+    def test_fixture(owner, repo, number)
+      fixtures_raw = ENV["AIDP_TEST_ISSUE_FIXTURES"]
+      return nil unless fixtures_raw
+
+      fixtures = JSON.parse(fixtures_raw)
+      fixtures["#{owner}/#{repo}##{number}"]
+    rescue JSON::ParserError => e
+      Aidp.log_warn(COMPONENT, "Invalid issue fixtures JSON", error: e.message)
+      nil
+    end
+
+    def handle_test_fixture(fixture, owner, repo, number)
+      status = fixture["status"].to_i
+      case status
+      when 200
+        data = fixture.fetch("data", {})
+        Aidp.log_debug(COMPONENT, "Returning fixture issue data", owner: owner, repo: repo, number: number)
+        normalize_api_data(stringify_keys(data))
+      when 404
+        Aidp.log_warn(COMPONENT, "Fixture indicates issue not found", owner: owner, repo: repo, number: number)
+        display_message("❌ Issue not found (may be private)", type: :error)
+        nil
+      when 403
+        Aidp.log_warn(COMPONENT, "Fixture indicates API rate limit", owner: owner, repo: repo, number: number)
+        display_message("❌ API rate limit exceeded", type: :error)
+        nil
+      else
+        Aidp.log_warn(COMPONENT, "Fixture indicates API error", owner: owner, repo: repo, number: number, status: status)
+        display_message("❌ GitHub API error: #{status}", type: :error)
+        nil
+      end
+    end
+
+    def stringify_keys(hash)
+      hash.each_with_object({}) do |(k, v), result|
+        result[k.to_s] = v
+      end
     end
 
     def perform_bootstrap(issue_data)
