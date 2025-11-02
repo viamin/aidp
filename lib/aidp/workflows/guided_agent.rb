@@ -236,18 +236,28 @@ module Aidp
           result
         rescue => e
           message = e.message.to_s
+
+          # Classify error type for better handling
           classified = if message =~ /resource[_ ]exhausted/i || message =~ /\[resource_exhausted\]/i
             "resource_exhausted"
           elsif message =~ /quota[_ ]exceeded/i || message =~ /\[quota_exceeded\]/i
             "quota_exceeded"
+          elsif /empty response/i.match?(message)
+            "empty_response"
+          else
+            "provider_error"
           end
 
-          if classified && attempts < max_attempts
-            display_message("⚠️  Provider '#{provider_name}' #{classified.tr("_", " ")} – attempting fallback...", type: :warning)
+          # Attempt fallback if we haven't exhausted all providers
+          if attempts < max_attempts
+            display_message("⚠️  Provider '#{provider_name}' failed (#{classified.tr("_", " ")}) – attempting fallback...", type: :warning)
+
             if @provider_manager.respond_to?(:switch_provider_for_error)
+              # Try to switch to fallback provider
               switched = @provider_manager.switch_provider_for_error(classified, stderr: message)
+
               if switched && switched != provider_name
-                display_message("↩️  Switched to provider '#{switched}'", type: :info)
+                display_message("↩️  Switched to provider '#{switched}' – retrying with same prompt", type: :info)
                 retry
               elsif switched == provider_name
                 # ProviderManager could not advance; mark current as rate limited to encourage next attempt to move on.
@@ -256,12 +266,17 @@ module Aidp
                   @provider_manager.mark_rate_limited(provider_name)
                   next_provider = @provider_manager.switch_provider("rate_limit_forced", previous_error: message)
                   if next_provider && next_provider != provider_name
-                    display_message("↩️  Switched to provider '#{next_provider}' (forced)", type: :info)
+                    display_message("↩️  Switched to provider '#{next_provider}' (forced) – retrying with same prompt", type: :info)
                     retry
                   end
                 end
               end
             end
+          end
+
+          # If we get here, either we've exhausted all attempts or couldn't switch providers
+          if attempts >= max_attempts
+            display_message("❌ All providers exhausted after #{attempts} attempts", type: :error)
           end
           raise
         end

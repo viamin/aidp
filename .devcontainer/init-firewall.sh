@@ -66,7 +66,8 @@ add_domain() {
     echo "  Resolving $domain..."
     local ips
        # Allow dig or grep to fail without aborting script
-       ips=$(dig +short "$domain" A 2>/dev/null | grep -E '^[0-9]+\.' || true)
+       # Use +time=1 +tries=2 to limit timeout to 2s per domain (instead of default 15s)
+       ips=$(dig +short +time=1 +tries=2 "$domain" A 2>/dev/null | grep -E '^[0-9]+\.' || true)
     if [ -n "$ips" ]; then
         while IFS= read -r ip; do
             add_ip "$ip"
@@ -97,8 +98,12 @@ else
     echo "  ⚠️  Failed to fetch GitHub meta API; continuing without GitHub ranges" >&2
 fi
 
-echo "📋 Adding Azure IP ranges for GitHub Copilot..."
-# These are common Azure regions used by GitHub Copilot
+echo "📋 Adding GitHub infrastructure IP ranges..."
+# GitHub's main infrastructure (github.com, api.github.com, and Copilot endpoints)
+add_ip_range "140.82.112.0/20"    # GitHub main infrastructure (covers 140.82.112.0 - 140.82.127.255)
+
+echo "📋 Adding Azure IP ranges for GitHub Copilot and VS Code services..."
+# These are common Azure regions used by GitHub Copilot and VS Code
 # Using broader /16 ranges to handle dynamic IP allocation across Azure regions
 # This is necessary because GitHub Copilot uses many IPs within these ranges
 add_ip_range "20.189.0.0/16"      # Azure WestUS2 (broader range)
@@ -107,6 +112,7 @@ add_ip_range "52.168.0.0/16"      # Azure EastUS2 (broader range - covers .112 a
 add_ip_range "40.79.0.0/16"       # Azure WestUS (broader range)
 add_ip_range "13.89.0.0/16"       # Azure EastUS (broader range)
 add_ip_range "13.69.0.0/16"       # Azure (broader range - covers .239)
+add_ip_range "13.66.0.0/16"       # Azure WestUS2 (VS Code sync service)
 add_ip_range "20.42.0.0/16"       # Azure WestEurope (broader range - covers .65 and .73)
 add_ip_range "20.50.0.0/16"       # Azure (broader range - covers .80)
 
@@ -154,6 +160,12 @@ add_domain "copilot-telemetry.githubusercontent.com" # Copilot telemetry
 add_domain "default.exp-tas.com"            # Experimentation service
 add_domain "copilot-completions.githubusercontent.com" # Completions service
 
+# GitHub Copilot subscription-based endpoints (required for commit messages and CLI)
+# Note: These use wildcard subdomains - we'll resolve what we can
+add_domain "business.githubcopilot.com"     # Copilot Business plan endpoint
+add_domain "enterprise.githubcopilot.com"   # Copilot Enterprise plan endpoint
+add_domain "individual.githubcopilot.com"   # Copilot Individual plan endpoint
+
 # Cursor AI
 add_domain "cursor.com"                     # Install script host
 add_domain "www.cursor.com"                 # Redirect host
@@ -178,6 +190,11 @@ add_domain "vscode.download.prss.microsoft.com"
 add_domain "az764295.vo.msecnd.net"
 add_domain "gallerycdn.vsassets.io"           # VS Code extension gallery CDN
 add_domain "vscode.gallerycdn.vsassets.io"    # VS Code gallery CDN (subdomain)
+add_domain "gallery.vsassets.io"              # VS Code extension gallery assets
+add_domain "vscode-sync.trafficmanager.net"   # VS Code Settings Sync
+add_domain "vscode.dev"                       # VS Code web/auth
+add_domain "go.microsoft.com"                 # Microsoft link forwarding
+add_domain "download.visualstudio.microsoft.com" # VS extension dependencies
 
 # Microsoft telemetry (optional, comment out if not desired)
 add_domain "dc.services.visualstudio.com"

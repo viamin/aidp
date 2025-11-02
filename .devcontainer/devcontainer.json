@@ -57,7 +57,7 @@
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh"
   },
-  // Post-start command - initialize firewall
+  // Post-start command - initialize firewall, then ensure bundle
   "postStartCommand": {
     "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
     "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3"
@@ -139,8 +139,12 @@
     "source=aidp-bundle,target=/workspace/vendor/bundle,type=volume",
     // LLM CLI Authentication - Claude (stores in ~/.claude)
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    // LLM CLI Authentication - Other tools in ~/.config (Gemini, GitHub CLI, opencode, etc.)
+    // LLM CLI Authentication - Other tools in ~/.config (Gemini, GitHub CLI config, opencode, etc.)
     "source=${localEnv:HOME}/.config,target=/home/vscode/.config,type=bind",
+    // GitHub CLI Extensions - Share extensions between host and container
+    "source=${localEnv:HOME}/.local/share/gh,target=/home/vscode/.local/share/gh,type=bind,consistency=cached",
+    // GitHub Copilot CLI - Share config and session data between host and container
+    "source=${localEnv:HOME}/.copilot,target=/home/vscode/.copilot,type=bind,consistency=cached",
     // LLM CLI Authentication - Cursor
     "source=${localEnv:HOME}/.cursor,target=/home/vscode/.cursor,type=bind,consistency=cached",
     // LLM CLI Authentication - Codex CLI (OpenAI)

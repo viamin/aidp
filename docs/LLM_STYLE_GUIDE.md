@@ -108,6 +108,7 @@ Aidp.log_error("component", "Failed", error: e.message)
 - Keep failing regressions visible — do **not** mark them pending.
 - **NEVER put mock methods in production code** - use dependency injection instead.
 - **Test Descriptions**: Use clear, behavior-focused titles (e.g., "enqueues email after validation", not "works").
+- Keep all unit specs for a class in its primary spec file; use `context` blocks to cover variations instead of creating extra files.
 
 ### Interactive & External Service Testing
 

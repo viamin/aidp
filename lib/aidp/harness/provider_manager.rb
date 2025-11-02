@@ -132,6 +132,14 @@ module Aidp
           # Treat capacity/resource exhaustion like rate limit for fallback purposes
           Aidp.logger.warn("provider_manager", "Resource/quota exhaustion detected", classified_from: error_type)
           switch_provider("rate_limit", error_details.merge(classified_from: error_type))
+        when "empty_response"
+          # Empty response indicates provider failure, try next provider
+          Aidp.logger.warn("provider_manager", "Empty response from provider", classified_from: error_type)
+          switch_provider("provider_failure", error_details.merge(classified_from: error_type))
+        when "provider_error"
+          # Generic provider error, try next provider
+          Aidp.logger.warn("provider_manager", "Provider error detected", classified_from: error_type)
+          switch_provider("provider_failure", error_details.merge(classified_from: error_type))
         when "authentication"
           switch_provider("authentication_error", error_details)
         when "network"
