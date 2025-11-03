@@ -6,17 +6,27 @@ require_relative "../../../lib/aidp/watch/runner"
 RSpec.describe Aidp::Watch::Runner do
   let(:issues_url) { "https://github.com/owner/repo/issues" }
   let(:prompt) { instance_double(TTY::Prompt) }
-  let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient, full_repo: "owner/repo") }
+  let(:repository_client) do
+    instance_double(Aidp::Watch::RepositoryClient,
+      full_repo: "owner/repo",
+      gh_available?: true)
+  end
   let(:state_store) { instance_double(Aidp::Watch::StateStore) }
   let(:plan_processor) { instance_double(Aidp::Watch::PlanProcessor) }
   let(:build_processor) { instance_double(Aidp::Watch::BuildProcessor) }
+  let(:safety_checker) { instance_double(Aidp::Watch::RepositorySafetyChecker) }
 
   before do
     allow(Aidp::Watch::RepositoryClient).to receive(:parse_issues_url).and_return(["owner", "repo"])
     allow(Aidp::Watch::RepositoryClient).to receive(:new).and_return(repository_client)
+    allow(Aidp::Watch::RepositorySafetyChecker).to receive(:new).and_return(safety_checker)
     allow(Aidp::Watch::StateStore).to receive(:new).and_return(state_store)
     allow(Aidp::Watch::PlanProcessor).to receive(:new).and_return(plan_processor)
     allow(Aidp::Watch::BuildProcessor).to receive(:new).and_return(build_processor)
+
+    # By default, allow safety checks to pass
+    allow(safety_checker).to receive(:validate_watch_mode_safety!)
+    allow(safety_checker).to receive(:should_process_issue?).and_return(true)
   end
 
   describe "#initialize" do
@@ -99,7 +109,7 @@ RSpec.describe Aidp::Watch::Runner do
     it "fetches and processes plan issues" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
       issue = {number: 1, labels: [{"name" => "aidp-plan"}]}
-      detailed_issue = {number: 1, body: "details"}
+      detailed_issue = {number: 1, body: "details", author: "alice"}
 
       allow(repository_client).to receive(:list_issues).and_return([issue])
       allow(repository_client).to receive(:fetch_issue).with(1).and_return(detailed_issue)
@@ -121,13 +131,28 @@ RSpec.describe Aidp::Watch::Runner do
 
       expect(plan_processor).not_to have_received(:process)
     end
+
+    it "skips issues with unauthorized authors" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      issue = {number: 1, labels: [{"name" => "aidp-plan"}]}
+      detailed_issue = {number: 1, body: "details", author: "untrusted"}
+
+      allow(repository_client).to receive(:list_issues).and_return([issue])
+      allow(repository_client).to receive(:fetch_issue).with(1).and_return(detailed_issue)
+      allow(safety_checker).to receive(:should_process_issue?).with(detailed_issue, enforce: false).and_return(false)
+      allow(plan_processor).to receive(:process)
+
+      runner.send(:process_plan_triggers)
+
+      expect(plan_processor).not_to have_received(:process)
+    end
   end
 
   describe "#process_build_triggers" do
     it "fetches and processes build issues" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
       issue = {number: 2, labels: [{"name" => "aidp-build"}]}
-      detailed_issue = {number: 2, body: "build details"}
+      detailed_issue = {number: 2, body: "build details", author: "alice"}
 
       allow(repository_client).to receive(:list_issues).and_return([issue])
       allow(state_store).to receive(:build_status).with(2).and_return({"status" => "pending"})
@@ -145,6 +170,22 @@ RSpec.describe Aidp::Watch::Runner do
 
       allow(repository_client).to receive(:list_issues).and_return([issue])
       allow(state_store).to receive(:build_status).with(2).and_return({"status" => "completed"})
+      allow(build_processor).to receive(:process)
+
+      runner.send(:process_build_triggers)
+
+      expect(build_processor).not_to have_received(:process)
+    end
+
+    it "skips issues with unauthorized authors" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      issue = {number: 2, labels: [{"name" => "aidp-build"}]}
+      detailed_issue = {number: 2, body: "build details", author: "untrusted"}
+
+      allow(repository_client).to receive(:list_issues).and_return([issue])
+      allow(state_store).to receive(:build_status).with(2).and_return({"status" => "pending"})
+      allow(repository_client).to receive(:fetch_issue).with(2).and_return(detailed_issue)
+      allow(safety_checker).to receive(:should_process_issue?).with(detailed_issue, enforce: false).and_return(false)
       allow(build_processor).to receive(:process)
 
       runner.send(:process_build_triggers)
