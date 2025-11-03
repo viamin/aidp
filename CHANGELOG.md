@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.21.1](https://github.com/viamin/aidp/compare/aidp/v0.21.0...aidp/v0.21.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* **workflows/guided_agent:** ensure docs dir created and improve planning UX ([6410744](https://github.com/viamin/aidp/commit/6410744c7e57fcc270785e2e8255dc21082db876)), closes [#217](https://github.com/viamin/aidp/issues/217)
+* **workflows/guided_agent:** ensure docs dir created and improve planning UX ([#220](https://github.com/viamin/aidp/issues/220)) ([9ed0f8c](https://github.com/viamin/aidp/commit/9ed0f8c5a78c0dc1d43462a834f28e3a2dd461fe))
+
+
+### Dependencies
+
+* **deps-dev:** bump rake from 13.3.0 to 13.3.1 ([3d75893](https://github.com/viamin/aidp/commit/3d75893431cc905ed816bb08714f55da31dd626b))
+* **deps-dev:** bump rake from 13.3.0 to 13.3.1 ([#219](https://github.com/viamin/aidp/issues/219)) ([8b6995d](https://github.com/viamin/aidp/commit/8b6995de243f8b9641de171fc4dfcb06eda0288e))
+* **deps-dev:** bump webmock from 3.26.0 to 3.26.1 ([f939941](https://github.com/viamin/aidp/commit/f939941661ef4eabff4f33d41f4b15100f3d2dc1))
+* **deps-dev:** bump webmock from 3.26.0 to 3.26.1 ([#218](https://github.com/viamin/aidp/issues/218)) ([5be86d2](https://github.com/viamin/aidp/commit/5be86d28e710d100acdae3be5edf22e6e013ef83))
+
 ## [0.21.0](https://github.com/viamin/aidp/compare/aidp/v0.20.0...aidp/v0.21.0) (2025-11-03)
 
 
