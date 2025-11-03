@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.21.0](https://github.com/viamin/aidp/compare/aidp/v0.20.0...aidp/v0.21.0) (2025-11-03)
+
+
+### Features
+
+* **devcontainer:** add LLM auth docs, wrapper scripts, mounts, and firewall/debug improvements ([4648f1c](https://github.com/viamin/aidp/commit/4648f1cee45cf570095ab5bde65fc61244072695))
+* enhance firewall setup with custom CA certificates and logging options ([83241e9](https://github.com/viamin/aidp/commit/83241e97b2df31ddb11feb545e50cf4fdc26d990))
+* **watch,safety,docs:** add watch mode safety checks and docs ([0c9e613](https://github.com/viamin/aidp/commit/0c9e61394741f4b7eba9ae92144183df5d4cbcdc)), closes [#284](https://github.com/viamin/aidp/issues/284)
+* **watch,safety,docs:** add watch mode safety checks and docs ([#215](https://github.com/viamin/aidp/issues/215)) ([50c5b81](https://github.com/viamin/aidp/commit/50c5b816ce56e2646ee716314f39aa942c408fc4))
+* **workflows,devcontainer,firewall,tests,docs:** improve provider fallback, run firewall at creation, add GH/Copilot mounts, consolidate specs, and update style guide ([724f605](https://github.com/viamin/aidp/commit/724f60551dbe47d1090a095740a66a593ae1ddc8))
+
+
+### Bug Fixes
+
+* spec failures, firewall IP ranges, gemini permissions ([a2a41fe](https://github.com/viamin/aidp/commit/a2a41fe22101d6eca233c53db229de4c4a27c7ef))
+
+
+### Improvements
+
+* better provider fallback handling ([#211](https://github.com/viamin/aidp/issues/211)) ([a919415](https://github.com/viamin/aidp/commit/a9194159b1d0b937eb09ccac86a0f5b865287f1e))
+
 ## [0.20.0](https://github.com/viamin/aidp/compare/aidp/v0.19.1...aidp/v0.20.0) (2025-10-31)
 
 
