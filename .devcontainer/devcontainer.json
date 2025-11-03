@@ -30,7 +30,12 @@
   "containerEnv": {
     "TZ": "${localEnv:TZ:UTC}",
     "AIDP_ENV": "development",
-    "BUNDLE_PATH": "/workspaces/aidp/vendor/bundle"
+    "BUNDLE_PATH": "/workspaces/aidp/vendor/bundle",
+    "AIDP_FIREWALL_LOG": "1",
+    // LLM CLI tools - dangerous/auto-approve mode (container only)
+    "CODEX_APPROVAL_POLICY": "never",
+    "CODEX_SANDBOX_MODE": "danger-full-access",
+    "OPENCODE_PERMISSION": "allow"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [],
@@ -48,9 +53,11 @@
     "codex": "npm install -g @openai/codex",
     "gemini-cli": "npm install -g @google/gemini-cli",
     "github-copilot-cli": "npm install -g @github/copilot",
-    "opencode": "npm install -g opencode-ai"
+    "opencode": "npm install -g opencode-ai",
+    // Configure LLM tools for auto-approve mode (devcontainer only)
+    "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh"
   },
-  // Post-start command - initialize firewall
+  // Post-start command - initialize firewall, then ensure bundle
   "postStartCommand": {
     "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
     "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3"
@@ -73,7 +80,14 @@
         "openai.chatgpt",
         "DavidAnson.vscode-markdownlint",
         "sst-dev.opencode",
-        "google.gemini-cli-vscode-ide-companion"
+        "google.gemini-cli-vscode-ide-companion",
+        "noku.rails-run-spec-vscode",
+        "sporto.rails-go-to-spec",
+        "Tyriar.sort-lines",
+        "ryu1kn.partial-diff",
+        "bierner.markdown-mermaid",
+        "GitHub.vscode-codeql",
+        "heyimfuzz.banner-comments"
       ],
       // VS Code settings
       "settings": {
@@ -107,7 +121,11 @@
           "*": {
             "requireLocalPort": true
           } // prefer same-number local port
-        }
+        },
+        // LLM CLI Extensions - Dangerous/Auto-approve mode (devcontainer only)
+        // NOTE: These settings only apply inside the devcontainer, not on host
+        "claude-code.dangerouslySkipPermissions": true,
+        "claude-code.useTerminal": false
       }
     }
   },
@@ -119,8 +137,18 @@
     "source=aidp-config,target=/home/vscode/.aidp,type=volume",
     // Persist bundler cache
     "source=aidp-bundle,target=/workspace/vendor/bundle,type=volume",
-    // Host user's ~/.config bind-mounted into container (read/write)
-    "source=${localEnv:HOME}/.config,target=/home/vscode/.config,type=bind"
+    // LLM CLI Authentication - Claude (stores in ~/.claude)
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    // LLM CLI Authentication - Other tools in ~/.config (Gemini, GitHub CLI config, opencode, etc.)
+    "source=${localEnv:HOME}/.config,target=/home/vscode/.config,type=bind",
+    // GitHub CLI Extensions - Share extensions between host and container
+    "source=${localEnv:HOME}/.local/share/gh,target=/home/vscode/.local/share/gh,type=bind,consistency=cached",
+    // GitHub Copilot CLI - Share config and session data between host and container
+    "source=${localEnv:HOME}/.copilot,target=/home/vscode/.copilot,type=bind,consistency=cached",
+    // LLM CLI Authentication - Cursor
+    "source=${localEnv:HOME}/.cursor,target=/home/vscode/.cursor,type=bind,consistency=cached",
+    // LLM CLI Authentication - Codex CLI (OpenAI)
+    "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached"
   ]
   // Optional: uncomment to keep container running
   // "overrideCommand": true

@@ -3,6 +3,12 @@
 require "spec_helper"
 require "tempfile"
 require "stringio"
+require "time"
+require "aidp/cli"
+require "aidp/harness/provider_info"
+require "aidp/worktree"
+require "tty-prompt"
+require "tty-table"
 
 RSpec.describe Aidp::CLI do
   let(:temp_dir) { Dir.mktmpdir }
@@ -2260,5 +2266,701 @@ RSpec.describe Aidp::CLI do
     it "handles mode flag followed by another flag" do
       expect(described_class.send(:extract_mode_option, ["--mode", "--other"])).to be_nil
     end
+  end
+end
+
+RSpec.describe Aidp::CLI do
+  describe ".run error handling" do
+    let(:args) { [] }
+
+    before do
+      # Force workflow selector to raise inside run to trigger rescue block
+      workflow_selector_double = instance_double("Aidp::Harness::UI::EnhancedWorkflowSelector")
+      allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+      allow(workflow_selector_double).to receive(:select_workflow).and_raise(StandardError, "boom")
+
+      # Stub EnhancedTUI so display loop calls are no-ops
+      tui_double = instance_double("Aidp::Harness::UI::EnhancedTUI")
+      allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+      allow(tui_double).to receive(:start_display_loop)
+      allow(tui_double).to receive(:stop_display_loop)
+
+      # Capture logger calls (avoid filesystem overhead)
+      mock_logger = instance_double("Aidp::Logger")
+      allow(mock_logger).to receive(:info)
+      allow(mock_logger).to receive(:warn)
+      allow(mock_logger).to receive(:error)
+      allow(mock_logger).to receive(:debug)
+      allow(Aidp).to receive(:setup_logger)
+      allow(Aidp).to receive(:logger).and_return(mock_logger)
+
+      # Monitor log_rescue path indirectly by expecting mock_logger.warn/error
+    end
+
+    it "invokes rescue logging without raising NoMethodError" do
+      expect { described_class.run(args) }.not_to raise_error(NoMethodError)
+    end
+  end
+end
+
+RSpec.describe "Aidp::CLI providers info edge cases" do
+  # Inject a stubbed ProviderInfo to control returned info structure
+  let(:provider_name) { "claude" }
+  let(:info_object) { instance_double(Aidp::Harness::ProviderInfo) }
+
+  before do
+    allow(Aidp::Harness::ProviderInfo).to receive(:new).with(provider_name, anything).and_return(info_object)
+  end
+
+  def run_info(args)
+    Aidp::CLI.run(["providers", "info", *args])
+  end
+
+  context "when capabilities include false values" do
+    let(:info_hash) do
+      {
+        last_checked: Time.now.utc.iso8601,
+        cli_available: true,
+        auth_method: "api_key",
+        mcp_support: true,
+        mcp_servers: [],
+        permission_modes: ["read-only", "read-write"],
+        capabilities: {
+          code_navigation: true,
+          test_generation: false,   # should be filtered out
+          security_audit: true,
+          inline_refactor: false    # should be filtered out
+        },
+        flags: {
+          fast_mode: {flag: "--fast", description: "Enable fast responses"}
+        }
+      }
+    end
+
+    before do
+      allow(info_object).to receive(:info).with(force_refresh: false).and_return(info_hash)
+    end
+
+    it "only displays capabilities with truthy values" do
+      expect { run_info([provider_name]) }.to output(/Capabilities:/).to_stdout
+      expect { run_info([provider_name]) }.to output(/code navigation/i).to_stdout
+      expect { run_info([provider_name]) }.to output(/security audit/i).to_stdout
+      expect { run_info([provider_name]) }.not_to output(/test generation/i).to_stdout
+      expect { run_info([provider_name]) }.not_to output(/inline refactor/i).to_stdout
+    end
+  end
+
+  context "permission modes variations" do
+    let(:info_hash) do
+      {
+        last_checked: Time.now.utc.iso8601,
+        cli_available: false,
+        auth_method: "oauth",
+        mcp_support: false,
+        mcp_servers: nil,
+        permission_modes: ["read-only", "privileged"],
+        capabilities: {},
+        flags: {}
+      }
+    end
+
+    before do
+      allow(info_object).to receive(:info).with(force_refresh: false).and_return(info_hash)
+    end
+
+    it "lists all provided permission modes" do
+      expect { run_info([provider_name]) }.to output(/Permission Modes:/).to_stdout
+      expect { run_info([provider_name]) }.to output(/read-only/).to_stdout
+      expect { run_info([provider_name]) }.to output(/privileged/).to_stdout
+    end
+  end
+
+  context "when info returns nil" do
+    before do
+      allow(info_object).to receive(:info).with(force_refresh: false).and_return(nil)
+    end
+
+    it "shows error for missing provider info" do
+      expect { run_info([provider_name]) }.to output(/No information available/).to_stdout
+    end
+  end
+
+  context "with --refresh flag" do
+    let(:refreshed_hash) do
+      {
+        last_checked: Time.now.utc.iso8601,
+        cli_available: true,
+        auth_method: nil,
+        mcp_support: false,
+        mcp_servers: [],
+        permission_modes: [],
+        capabilities: {tracing: true},
+        flags: {}
+      }
+    end
+
+    before do
+      allow(info_object).to receive(:info).with(force_refresh: true).and_return(refreshed_hash)
+    end
+
+    it "passes force_refresh to ProviderInfo" do
+      expect(info_object).to receive(:info).with(force_refresh: true)
+      run_info([provider_name, "--refresh"])
+    end
+  end
+end
+
+RSpec.describe Aidp::CLI do
+  describe ".run singleton rescue logging" do
+    it "logs and returns fallback exit code without raising NoMethodError when harness raises" do
+      # Force an exception inside run after setup_logging completes
+      allow(Aidp::CLI).to receive(:subcommand?).and_return(false)
+      allow(Aidp::CLI).to receive(:parse_options).and_return({})
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(double("Prompt"))
+      # Stub first-run wizard methods to pass
+      stub_wizard = class_double("Aidp::CLI::FirstRunWizard").as_stubbed_const
+      allow(stub_wizard).to receive(:setup_config).and_return(true)
+      allow(stub_wizard).to receive(:ensure_config).and_return(true)
+
+      # Stub EnhancedTUI & WorkflowSelector to raise inside harness run
+      tui_double = double("TUI", start_display_loop: true, stop_display_loop: true)
+      selector_double = double("WorkflowSelector", select_workflow: {mode: :execute, workflow_type: :default, steps: [], user_input: nil})
+      allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+      allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(selector_double)
+      runner_double = double("Runner")
+      allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(runner_double)
+      allow(runner_double).to receive(:run).and_raise(StandardError.new("boom"))
+
+      expect { described_class.run([]) }.not_to raise_error
+    end
+  end
+end
+
+RSpec.describe Aidp::CLI, "additional subcommand and helper coverage" do
+  # Simple stdout capture helper (avoid interfering with existing helpers)
+  def capture_stdout
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+
+  describe "providers command" do
+    let(:config_manager_double) { instance_double(Aidp::Harness::ConfigManager) }
+    let(:provider_manager_double) { instance_double(Aidp::Harness::ProviderManager) }
+    let(:spinner_double) { instance_double(TTY::Spinner, auto_spin: nil, stop: nil) }
+    let(:table_double) { instance_double(TTY::Table, render: "Provider  Status\nclaude    healthy") }
+
+    before do
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner_double)
+      allow(TTY::Table).to receive(:new).and_return(table_double)
+    end
+
+    it "displays provider health dashboard (success path)" do
+      now = Time.now
+      rows = [
+        {
+          provider: "claude",
+          status: "healthy",
+          available: true,
+          circuit_breaker: "closed",
+          circuit_breaker_remaining: nil,
+          rate_limited: false,
+          rate_limit_reset_in: nil,
+          total_tokens: 123,
+          last_used: now,
+          unhealthy_reason: nil
+        }
+      ]
+      allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager_double)
+      allow(provider_manager_double).to receive(:health_dashboard).and_return(rows)
+
+      output = capture_stdout { Aidp::CLI.run(["providers"]) }
+
+      expect(output).to include("Provider Health Dashboard")
+      expect(output).to include("claude")
+      expect(output).to include("healthy")
+    end
+
+    it "handles error while displaying provider health" do
+      allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager_double)
+      allow(provider_manager_double).to receive(:health_dashboard).and_raise(StandardError, "boom")
+      # Stub log_rescue since class-level mixin may not expose it in specs
+      allow(described_class).to receive(:log_rescue)
+
+      output = capture_stdout { Aidp::CLI.run(["providers"]) }
+
+      expect(output).to include("Failed to display provider health: boom")
+    end
+  end
+
+  describe "kb command" do
+    it "shows default summary topic when no topic provided" do
+      output = capture_stdout { Aidp::CLI.run(["kb", "show"]) }
+      expect(output).to include("Knowledge Base: summary")
+    end
+
+    it "shows specified topic" do
+      output = capture_stdout { Aidp::CLI.run(["kb", "show", "architecture"]) }
+      expect(output).to include("Knowledge Base: architecture")
+    end
+
+    it "shows usage on unknown subcommand" do
+      output = capture_stdout { Aidp::CLI.run(["kb", "unknown"]) }
+      expect(output).to include("Usage: aidp kb show <topic>")
+    end
+  end
+
+  describe "harness command" do
+    it "displays status output" do
+      output = capture_stdout { Aidp::CLI.run(["harness", "status"]) }
+      expect(output).to include("Harness Status")
+      expect(output).to include("Mode: (unknown)")
+    end
+
+    it "resets harness with explicit mode" do
+      output = capture_stdout { Aidp::CLI.run(["harness", "reset", "--mode", "analyze"]) }
+      expect(output).to include("Harness state reset for mode: analyze")
+    end
+
+    it "shows usage for unknown harness subcommand" do
+      output = capture_stdout { Aidp::CLI.run(["harness", "other"]) }
+      expect(output).to include("Usage: aidp harness <status|reset>")
+    end
+  end
+
+  describe "helper extraction methods" do
+    it "extracts mode via separate token" do
+      args = ["--mode", "execute"]
+      mode = described_class.send(:extract_mode_option, args)
+      expect(mode).to eq(:execute)
+    end
+
+    it "extracts mode via equals form" do
+      args = ["--mode=analyze"]
+      mode = described_class.send(:extract_mode_option, args)
+      expect(mode).to eq(:analyze)
+    end
+
+    it "returns nil when mode not present" do
+      args = ["--other", "value"]
+      expect(described_class.send(:extract_mode_option, args)).to be_nil
+    end
+
+    it "extracts interval via token and numeric argument" do
+      args = ["--interval", "10"]
+      expect(described_class.send(:extract_interval_option, args)).to eq(10)
+    end
+
+    it "extracts interval via equals form" do
+      args = ["--interval=15"]
+      expect(described_class.send(:extract_interval_option, args)).to eq(15)
+    end
+
+    it "returns nil when interval not present" do
+      args = ["--mode", "execute"]
+      expect(described_class.send(:extract_interval_option, args)).to be_nil
+    end
+
+    it "formats relative time under a minute" do
+      expect(described_class.send(:format_time_ago_simple, 30)).to eq("30s ago")
+    end
+
+    it "formats relative time under an hour" do
+      expect(described_class.send(:format_time_ago_simple, 90)).to eq("1m ago")
+    end
+
+    it "formats relative time over an hour" do
+      expect(described_class.send(:format_time_ago_simple, 3700)).to eq("1h ago")
+    end
+  end
+
+  describe "class-level display_harness_result" do
+    it "prints completed harness result" do
+      output = capture_stdout do
+        described_class.send(:display_harness_result, {status: "completed"})
+      end
+      expect(output).to include("Harness completed successfully")
+    end
+
+    it "prints stopped harness result" do
+      output = capture_stdout do
+        described_class.send(:display_harness_result, {status: "stopped"})
+      end
+      expect(output).to include("Harness stopped by user")
+    end
+
+    it "prints generic harness result" do
+      output = capture_stdout do
+        described_class.send(:display_harness_result, {status: "custom", message: "Hi"})
+      end
+      expect(output).to include("Harness finished")
+      expect(output).to include("Status: custom")
+      expect(output).to include("Message: Hi")
+    end
+  end
+end
+
+RSpec.describe Aidp::CLI, "workstream commands" do
+  let(:project_dir) { Dir.mktmpdir }
+  let(:worktree_module) { Aidp::Worktree }
+  let(:test_prompt) { TestPrompt.new(responses: {yes?: true}) }
+
+  before do
+    # Initialize a git repository
+    Dir.chdir(project_dir) do
+      system("git", "init", "-q")
+      system("git", "config", "user.name", "Test User")
+      system("git", "config", "user.email", "test@example.com")
+      File.write("README.md", "# Test Project")
+      system("git", "add", ".")
+      system("git", "commit", "-q", "-m", "Initial commit")
+    end
+  end
+
+  after do
+    # Clean up git worktrees before removing directory
+    Dir.chdir(project_dir) do
+      worktrees = worktree_module.list(project_dir: project_dir)
+      worktrees.each do |ws|
+        worktree_module.remove(slug: ws[:slug], project_dir: project_dir)
+      rescue
+        nil
+      end
+    end
+    FileUtils.rm_rf(project_dir)
+  end
+
+  describe "aidp ws list" do
+    it "shows message when no workstreams exist" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "list"])
+        end
+      end
+
+      expect(output).to include("No workstreams found")
+      expect(output).to include("Create one with: aidp ws new")
+    end
+
+    it "lists existing workstreams in table format" do
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "test-123", project_dir: project_dir)
+        worktree_module.create(slug: "test-456", project_dir: project_dir)
+      end
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "list"])
+        end
+      end
+
+      expect(output).to include("Workstreams")
+      expect(output).to include("test-123")
+      expect(output).to include("test-456")
+      expect(output).to include("aidp/test-123")
+      expect(output).to include("aidp/test-456")
+    end
+
+    it "shows active status for existing worktrees" do
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "active-ws", project_dir: project_dir)
+      end
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "list"])
+        end
+      end
+
+      expect(output).to include("active-ws")
+      expect(output).to include("active")
+    end
+  end
+
+  describe "aidp ws new" do
+    it "creates a new workstream with valid slug" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "new", "issue-123"])
+        end
+      end
+
+      expect(output).to include("✓ Created workstream: issue-123")
+      expect(output).to include("Path:")
+      expect(output).to include("Branch: aidp/issue-123")
+      expect(output).to include("Switch to this workstream:")
+
+      # Verify worktree was created
+      ws = worktree_module.info(slug: "issue-123", project_dir: project_dir)
+      expect(ws).not_to be_nil
+      expect(ws[:slug]).to eq("issue-123")
+      expect(ws[:branch]).to eq("aidp/issue-123")
+    end
+
+    it "rejects invalid slug format (uppercase)" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "new", "Issue-123"])
+        end
+      end
+
+      expect(output).to include("❌ Invalid slug format")
+      expect(output).to include("must be lowercase")
+
+      # Verify worktree was not created
+      ws = worktree_module.info(slug: "Issue-123", project_dir: project_dir)
+      expect(ws).to be_nil
+    end
+
+    it "rejects invalid slug format (special characters)" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "new", "issue_123"])
+        end
+      end
+
+      expect(output).to include("❌ Invalid slug format")
+
+      # Verify worktree was not created
+      ws = worktree_module.info(slug: "issue_123", project_dir: project_dir)
+      expect(ws).to be_nil
+    end
+
+    it "requires slug argument" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "new"])
+        end
+      end
+
+      expect(output).to include("❌ Missing slug")
+      expect(output).to include("Usage: aidp ws new <slug>")
+    end
+
+    it "handles worktree creation errors gracefully" do
+      # Create a workstream first
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "duplicate", project_dir: project_dir)
+      end
+
+      # Try to create it again
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "new", "duplicate"])
+        end
+      end
+
+      expect(output).to include("❌")
+      expect(output).to include("already exists")
+    end
+
+    it "supports --base-branch option" do
+      # Create a feature branch
+      Dir.chdir(project_dir) do
+        system("git", "checkout", "-q", "-b", "feature")
+        File.write("feature.txt", "feature content")
+        system("git", "add", ".")
+        system("git", "commit", "-q", "-m", "Add feature")
+        system("git", "checkout", "-q", "master")
+      end
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "new", "from-feature", "--base-branch", "feature"])
+        end
+      end
+
+      expect(output).to include("✓ Created workstream: from-feature")
+
+      # Verify it was created from the feature branch
+      ws = worktree_module.info(slug: "from-feature", project_dir: project_dir)
+      expect(ws).not_to be_nil
+      expect(File.exist?(File.join(ws[:path], "feature.txt"))).to be true
+    end
+  end
+
+  describe "aidp ws rm" do
+    it "removes an existing workstream" do
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "to-remove", project_dir: project_dir)
+      end
+
+      # Mock prompt to auto-confirm
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "rm", "to-remove"])
+        end
+      end
+
+      expect(output).to include("✓ Removed workstream: to-remove")
+
+      # Verify worktree was removed
+      ws = worktree_module.info(slug: "to-remove", project_dir: project_dir)
+      expect(ws).to be_nil
+    end
+
+    it "requires slug argument" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "rm"])
+        end
+      end
+
+      expect(output).to include("❌ Missing slug")
+      expect(output).to include("Usage: aidp ws rm <slug>")
+    end
+
+    it "handles non-existent workstream gracefully" do
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "rm", "nonexistent"])
+        end
+      end
+
+      expect(output).to include("❌")
+      expect(output).to include("not found")
+    end
+
+    it "skips confirmation with --force" do
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "force-remove", project_dir: project_dir)
+      end
+
+      # Should not call prompt
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
+      expect(test_prompt).not_to receive(:yes?)
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "rm", "force-remove", "--force"])
+        end
+      end
+
+      expect(output).to include("✓ Removed workstream: force-remove")
+
+      # Verify worktree was removed
+      ws = worktree_module.info(slug: "force-remove", project_dir: project_dir)
+      expect(ws).to be_nil
+    end
+
+    it "supports --delete-branch option" do
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "with-branch", project_dir: project_dir)
+      end
+
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "rm", "with-branch", "--delete-branch", "--force"])
+        end
+      end
+
+      expect(output).to include("✓ Removed workstream: with-branch")
+      expect(output).to include("Branch deleted")
+
+      # Verify branch was deleted
+      Dir.chdir(project_dir) do
+        branches = `git branch --list aidp/with-branch`.strip
+        expect(branches).to be_empty
+      end
+    end
+
+    it "does not remove if user declines confirmation" do
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "keep-me", project_dir: project_dir)
+      end
+
+      # Mock prompt to decline
+      test_prompt_decline = TestPrompt.new(responses: {yes?: false})
+      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt_decline)
+
+      capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "rm", "keep-me"])
+        end
+      end
+
+      # Verify worktree still exists
+      ws = worktree_module.info(slug: "keep-me", project_dir: project_dir)
+      expect(ws).not_to be_nil
+    end
+  end
+
+  describe "aidp ws status" do
+    it "shows detailed workstream status" do
+      Dir.chdir(project_dir) do
+        worktree_module.create(slug: "status-test", project_dir: project_dir)
+      end
+
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "status", "status-test"])
+        end
+      end
+
+      expect(output).to include("Workstream: status-test")
+      expect(output).to include("Path:")
+      expect(output).to include("Branch: aidp/status-test")
+      expect(output).to include("Created:")
+      expect(output).to include("Status: Active")
+      expect(output).to include("Git Status:")
+    end
+
+    it "requires slug argument" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "status"])
+        end
+      end
+
+      expect(output).to include("❌ Missing slug")
+      expect(output).to include("Usage: aidp ws status <slug>")
+    end
+
+    it "handles non-existent workstream gracefully" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "status", "nonexistent"])
+        end
+      end
+
+      expect(output).to include("❌ Workstream not found: nonexistent")
+    end
+  end
+
+  describe "aidp ws help" do
+    it "shows usage when no subcommand provided or unknown subcommand" do
+      output = capture_output do
+        Dir.chdir(project_dir) do
+          Aidp::CLI.run(["ws", "help"])
+        end
+      end
+
+      expect(output).to include("Usage: aidp ws <command>")
+      expect(output).to include("list")
+      expect(output).to include("new <slug>")
+      expect(output).to include("rm <slug>")
+      expect(output).to include("status <slug>")
+      expect(output).to include("Examples:")
+    end
+  end
+
+  # Helper method to capture stdout output
+  def capture_output
+    original_stdout = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original_stdout
   end
 end

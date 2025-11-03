@@ -10,6 +10,29 @@ RSpec.describe "aidp issue command", type: :aruba do
     # Setup a temporary git repository
     run_command_and_stop("git init")
     run_command_and_stop("git remote add origin https://github.com/rails/rails.git")
+    set_environment_variable("AIDP_DISABLE_GH_CLI", "1")
+    set_environment_variable("AIDP_DISABLE_BOOTSTRAP", "1")
+    fixtures = {
+      "rails/rails#123" => {
+        "status" => 200,
+        "data" => {
+          "number" => 123,
+          "title" => "Sample issue",
+          "body" => "Issue body",
+          "state" => "open",
+          "html_url" => "https://github.com/rails/rails/issues/123",
+          "labels" => [],
+          "milestone" => nil,
+          "assignees" => [],
+          "comments" => 0
+        }
+      },
+      "rails/rails#999999" => {
+        "status" => 404,
+        "message" => "Not Found"
+      }
+    }
+    set_environment_variable("AIDP_TEST_ISSUE_FIXTURES", fixtures.to_json)
   end
 
   describe "issue --help" do
@@ -60,15 +83,6 @@ RSpec.describe "aidp issue command", type: :aruba do
 
   describe "command execution flow" do
     it "attempts to fetch real issues and handles errors gracefully" do
-      # Stub GitHub API request to avoid real network calls
-      # Use exact string (no regexp) to avoid accidental hostname over-match (CodeQL rule rb/incomplete-hostname-regexp)
-      stub_request(:get, "https://api.github.com/repos/rails/rails/issues/999999")
-        .to_return(
-          status: 404,
-          body: {message: "Not Found"}.to_json,
-          headers: {"Content-Type" => "application/json"}
-        )
-
       run_command_and_stop("aidp issue import rails/rails#999999")
 
       # Should attempt to fetch but may fail due to network/auth issues

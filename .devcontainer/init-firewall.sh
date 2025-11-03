@@ -66,7 +66,8 @@ add_domain() {
     echo "  Resolving $domain..."
     local ips
        # Allow dig or grep to fail without aborting script
-       ips=$(dig +short "$domain" A 2>/dev/null | grep -E '^[0-9]+\.' || true)
+       # Use +time=1 +tries=2 to limit timeout to 2s per domain (instead of default 15s)
+       ips=$(dig +short +time=1 +tries=2 "$domain" A 2>/dev/null | grep -E '^[0-9]+\.' || true)
     if [ -n "$ips" ]; then
         while IFS= read -r ip; do
             add_ip "$ip"
@@ -97,6 +98,24 @@ else
     echo "  ⚠️  Failed to fetch GitHub meta API; continuing without GitHub ranges" >&2
 fi
 
+echo "📋 Adding GitHub infrastructure IP ranges..."
+# GitHub's main infrastructure (github.com, api.github.com, and Copilot endpoints)
+add_ip_range "140.82.112.0/20"    # GitHub main infrastructure (covers 140.82.112.0 - 140.82.127.255)
+
+echo "📋 Adding Azure IP ranges for GitHub Copilot and VS Code services..."
+# These are common Azure regions used by GitHub Copilot and VS Code
+# Using broader /16 ranges to handle dynamic IP allocation across Azure regions
+# This is necessary because GitHub Copilot uses many IPs within these ranges
+add_ip_range "20.189.0.0/16"      # Azure WestUS2 (broader range)
+add_ip_range "104.208.0.0/16"     # Azure EastUS (broader range)
+add_ip_range "52.168.0.0/16"      # Azure EastUS2 (broader range - covers .112 and .117)
+add_ip_range "40.79.0.0/16"       # Azure WestUS (broader range)
+add_ip_range "13.89.0.0/16"       # Azure EastUS (broader range)
+add_ip_range "13.69.0.0/16"       # Azure (broader range - covers .239)
+add_ip_range "13.66.0.0/16"       # Azure WestUS2 (VS Code sync service)
+add_ip_range "20.42.0.0/16"       # Azure WestEurope (broader range - covers .65 and .73)
+add_ip_range "20.50.0.0/16"       # Azure (broader range - covers .80)
+
 echo "🌐 Adding essential service domains..."
 
 # Ruby/Gem repositories
@@ -104,20 +123,64 @@ add_domain "rubygems.org"
 add_domain "api.rubygems.org"
 add_domain "index.rubygems.org"
 
-# AI Provider APIs
-add_domain "api.anthropic.com"
-add_domain "api.openai.com"
-add_domain "auth.openai.com"
-add_domain "chatgpt.com"
-add_domain "generativelanguage.googleapis.com"  # Google AI
+# AI Provider APIs (Anthropic / OpenAI / Google Gemini)
+add_domain "api.anthropic.com"              # Anthropic primary API
+add_domain "claude.ai"                      # Anthropic web (auth flows / websocket)
+add_domain "console.anthropic.com"          # Anthropic console (token management)
+
+add_domain "api.openai.com"                 # OpenAI primary API
+add_domain "auth.openai.com"                # OpenAI OAuth
+add_domain "openai.com"                     # OpenAI site (redirects during auth)
+add_domain "chat.openai.com"                # Chat UI (session/token refresh)
+add_domain "chatgpt.com"                    # Legacy / redirect host
+add_domain "cdn.openai.com"                 # Static assets used in auth/UI
+add_domain "oaiusercontent.com"             # File / image assets (optional but common)
+
+add_domain "generativelanguage.googleapis.com"  # Google AI (Gemini) API
+add_domain "oauth2.googleapis.com"          # Google OAuth token endpoint
+add_domain "accounts.google.com"            # Google account login
+add_domain "www.googleapis.com"             # Discovery / ancillary APIs
 
 # Package managers and registries
 add_domain "registry.npmjs.org"
 add_domain "registry.yarnpkg.com"
 
-# Monitoring and error tracking
-add_domain "sentry.io"
-add_domain "o4504617924640768.ingest.us.sentry.io"
+# GitHub / Copilot related
+add_domain "github.com"                     # Main site (auth flows)
+add_domain "api.github.com"                 # API (explicit for clarity)
+add_domain "raw.githubusercontent.com"      # Raw file fetches
+add_domain "objects.githubusercontent.com"  # Asset storage
+add_domain "gist.githubusercontent.com"     # Gists (tool usage)
+add_domain "cloud.githubusercontent.com"    # Cloud auth/token endpoints
+add_domain "copilot-proxy.githubusercontent.com" # Copilot proxy service
+
+# GitHub Copilot backend services (Azure)
+add_domain "api.githubcopilot.com"          # Copilot API
+add_domain "copilot-telemetry.githubusercontent.com" # Copilot telemetry
+add_domain "default.exp-tas.com"            # Experimentation service
+add_domain "copilot-completions.githubusercontent.com" # Completions service
+
+# GitHub Copilot subscription-based endpoints (required for commit messages and CLI)
+# Note: These use wildcard subdomains - we'll resolve what we can
+add_domain "business.githubcopilot.com"     # Copilot Business plan endpoint
+add_domain "enterprise.githubcopilot.com"   # Copilot Enterprise plan endpoint
+add_domain "individual.githubcopilot.com"   # Copilot Individual plan endpoint
+
+# Cursor AI
+add_domain "cursor.com"                     # Install script host
+add_domain "www.cursor.com"                 # Redirect host
+add_domain "downloads.cursor.com"           # Package downloads
+add_domain "api.cursor.sh"
+add_domain "cursor.sh"
+add_domain "app.cursor.sh"
+add_domain "www.cursor.sh"
+
+# OpenCode AI
+add_domain "api.opencode.ai"
+add_domain "auth.opencode.ai"
+
+# General CDNs occasionally used during auth / assets
+add_domain "cdn.jsdelivr.net"
 
 # VS Code services
 add_domain "update.code.visualstudio.com"
@@ -125,6 +188,13 @@ add_domain "marketplace.visualstudio.com"
 add_domain "vscode.blob.core.windows.net"
 add_domain "vscode.download.prss.microsoft.com"
 add_domain "az764295.vo.msecnd.net"
+add_domain "gallerycdn.vsassets.io"           # VS Code extension gallery CDN
+add_domain "vscode.gallerycdn.vsassets.io"    # VS Code gallery CDN (subdomain)
+add_domain "gallery.vsassets.io"              # VS Code extension gallery assets
+add_domain "vscode-sync.trafficmanager.net"   # VS Code Settings Sync
+add_domain "vscode.dev"                       # VS Code web/auth
+add_domain "go.microsoft.com"                 # Microsoft link forwarding
+add_domain "download.visualstudio.microsoft.com" # VS extension dependencies
 
 # Microsoft telemetry (optional, comment out if not desired)
 add_domain "dc.services.visualstudio.com"
@@ -169,6 +239,21 @@ iptables -A OUTPUT -p tcp --dport 443 -m set --match-set allowed-domains dst -j 
 
 # Allow HTTP (port 80) to allowlisted domains
 iptables -A OUTPUT -p tcp --dport 80 -m set --match-set allowed-domains dst -j ACCEPT || true
+
+# Optional: logging for blocked egress (disabled by default to avoid log noise)
+# Enable by setting AIDP_FIREWALL_LOG=1 in the container env
+if [ "${AIDP_FIREWALL_LOG:-}" = "1" ]; then
+    echo "🪵 Enabling logging of blocked outbound connections (rate-limited)" >&2
+    # Create a custom chain for logging to prevent duplicate logs
+    iptables -N AIDP_BLOCK_LOG 2>/dev/null || true
+    # Add a rate-limited LOG target then DROP
+    iptables -F AIDP_BLOCK_LOG || true
+    iptables -A AIDP_BLOCK_LOG -m limit --limit 10/min --limit-burst 20 -j LOG --log-prefix "AIDP-FW-BLOCK " --log-level 4 || true
+    iptables -A AIDP_BLOCK_LOG -j DROP || true
+    # Append as final OUTPUT rule for TCP/UDP not yet accepted
+    iptables -A OUTPUT -p tcp -j AIDP_BLOCK_LOG || true
+    iptables -A OUTPUT -p udp -j AIDP_BLOCK_LOG || true
+fi
 
 # Allow all traffic on Docker bridge network (for docker-in-docker)
 iptables -A INPUT -i docker0 -j ACCEPT 2>/dev/null || true

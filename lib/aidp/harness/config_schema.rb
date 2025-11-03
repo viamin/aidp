@@ -1110,6 +1110,9 @@ module Aidp
 
       # Apply defaults to configuration
       def self.apply_defaults(config)
+        # Guard against non-hash config (e.g., when YAML parsing fails)
+        return config unless config.is_a?(Hash)
+
         result = deep_dup(config)
 
         # Apply harness defaults

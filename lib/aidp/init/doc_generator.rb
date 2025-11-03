@@ -112,6 +112,12 @@ module Aidp
 
           ---
           Generated from template `planning/generate_llm_style_guide.md` with repository-aware adjustments.
+
+          **Note**: For comprehensive AIDP projects, consider creating both:
+          1. `STYLE_GUIDE.md` - Detailed explanations with examples and rationale
+          2. `LLM_STYLE_GUIDE.md` - Quick reference with `STYLE_GUIDE:line-range` cross-references
+
+          See `planning/generate_llm_style_guide.md` for the two-guide approach.
         GUIDE
 
         File.write(File.join(@project_dir, STYLE_GUIDE_PATH), content)

@@ -1050,6 +1050,16 @@ Maintaining strict discipline around pending specs keeps the suite honest and ac
 - Use descriptive test names
 - Keep helper methods in `private` section
 
+#### Single Spec File Per Class
+
+**Consolidate all examples for a class into the canonical spec file that mirrors the class path.**
+
+- Use the file path to map class name to spec location (`Aidp::Harness::Runner` → `spec/aidp/harness/runner_spec.rb`). Keep unit coverage for that class **only** in that file.
+- When adding new behaviors, prefer organizing with nested `describe`/`context` blocks (e.g., `context "when the user cancels"`), rather than starting a new spec file.
+- If you discover multiple spec files targeting the same class, fold them back into the primary spec file as part of the change you are making. Preserve the original contexts and expectations so history stays readable.
+- **Exceptions**: Higher-level integration specs (`spec/system/**`, `spec/features/**`) may exercise the same class as part of a workflow, but do not duplicate unit expectations. Keep the actual unit specs centralized.
+- When the class has complex modes or collaborators, add shared helper methods or shared examples within the primary file (or `spec/support`) so the contexts stay readable instead of spreading logic across files.
+
 ### Mocking and Stubbing
 
 **Only mock external dependencies** - never mock application code. User input can be considered an external dependency.
