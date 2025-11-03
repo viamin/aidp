@@ -108,10 +108,16 @@ module Aidp
         # Last resort: try any available provider
         next_provider = find_any_available_provider
         if next_provider
-          success = set_current_provider(next_provider, reason, context)
-          if success
-            log_provider_switch(old_provider, next_provider, reason, context)
-            return next_provider
+          # Only attempt switch if it's actually a different provider
+          if next_provider != old_provider
+            success = set_current_provider(next_provider, reason, context)
+            if success
+              log_provider_switch(old_provider, next_provider, reason, context)
+              return next_provider
+            end
+          else
+            # Same provider - no switch possible
+            Aidp.logger.debug("provider_manager", "Only provider available is current provider", provider: next_provider)
           end
         end
 
@@ -1512,7 +1518,13 @@ module Aidp
 
       # Log provider switch
       def log_provider_switch(from_provider, to_provider, reason, context)
-        display_message("🔄 Provider switch: #{from_provider} → #{to_provider} (#{reason})", type: :info)
+        if from_provider == to_provider
+          # Same provider - this indicates no fallback was possible
+          display_message("⚠️  Provider switch failed: #{from_provider} → #{to_provider} (#{reason})", type: :warning)
+          display_message("   No alternative providers available", type: :warning)
+        else
+          display_message("🔄 Provider switch: #{from_provider} → #{to_provider} (#{reason})", type: :info)
+        end
         if context.any?
           display_message("   Context: #{context.inspect}", type: :muted)
         end
@@ -1521,7 +1533,31 @@ module Aidp
       # Log no providers available
       def log_no_providers_available(reason, context)
         display_message("❌ No providers available for switching (#{reason})", type: :error)
-        display_message("   All providers are rate limited, unhealthy, or circuit breaker open", type: :warning)
+
+        # Check if we have any fallback providers configured
+        harness_fallbacks = if @configuration.respond_to?(:fallback_providers)
+          Array(@configuration.fallback_providers).compact
+        else
+          []
+        end
+
+        all_providers = configured_providers
+
+        if harness_fallbacks.empty? && all_providers.size <= 1
+          display_message("   No fallback providers configured in aidp.yml", type: :warning)
+          display_message("   💡 Add fallback providers to enable automatic failover:", type: :info)
+          display_message("      harness:", type: :muted)
+          display_message("        fallback_providers:", type: :muted)
+          display_message("          - anthropic", type: :muted)
+          display_message("          - gemini", type: :muted)
+          display_message("   Run 'aidp config --interactive' to configure providers", type: :info)
+        else
+          display_message("   All providers are rate limited, unhealthy, or circuit breaker open", type: :warning)
+          if harness_fallbacks.any?
+            display_message("   Configured fallbacks: #{harness_fallbacks.join(", ")}", type: :muted)
+          end
+        end
+
         if context.any?
           display_message("   Context: #{context.inspect}", type: :muted)
         end
