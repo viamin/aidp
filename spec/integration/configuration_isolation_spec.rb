@@ -18,6 +18,12 @@ RSpec.describe "Unified Configuration in .aidp/", type: :integration do
   end
 
   after do
+    # Prevent ENOENT getcwd errors in later specs by leaving the temp directory before removal.
+    begin
+      Dir.chdir("/") unless Dir.getwd == "/"
+    rescue Errno::ENOENT
+      Dir.chdir("/")
+    end
     FileUtils.remove_entry(project_dir)
     cleanup_user_config
     cleanup_environment_variables

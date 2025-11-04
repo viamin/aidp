@@ -7,9 +7,9 @@ require "webmock/rspec"
 
 RSpec.describe "aidp issue command", type: :aruba do
   before do
-    # Setup a temporary git repository
-    run_command_and_stop("git init")
-    run_command_and_stop("git remote add origin https://github.com/rails/rails.git")
+    # Setup a temporary git repository using native system calls to avoid Aruba sandbox CWD deletion race conditions
+    system("git init > /dev/null 2>&1")
+    system("git remote add origin https://github.com/rails/rails.git > /dev/null 2>&1")
     set_environment_variable("AIDP_DISABLE_GH_CLI", "1")
     set_environment_variable("AIDP_DISABLE_BOOTSTRAP", "1")
     fixtures = {
