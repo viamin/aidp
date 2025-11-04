@@ -44,6 +44,14 @@ aidp config --interactive --dry-run
 - Log level, JSON formatting, rotation sizes/backups
 - Defaults for background/quick/watch modes used by automation features
 
+### Devcontainer Configuration
+
+- Automatic generation and management of `.devcontainer/devcontainer.json`
+- Auto-detection of required ports based on project type and services
+- Custom port configuration with labels
+- Intelligent merging that preserves user customizations
+- Automatic backups before modifications
+
 ## Preview & Diff
 
 Before writing, the wizard prints the generated YAML along with a unified diff

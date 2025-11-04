@@ -537,6 +537,39 @@ thinking:
 
 For detailed documentation, see [THINKING_DEPTH.md](THINKING_DEPTH.md).
 
+## Devcontainer Configuration
+
+AIDP can automatically generate and manage your `.devcontainer/devcontainer.json` configuration based on your project settings.
+
+```yaml
+devcontainer:
+  manage: true
+  custom_ports:
+    - number: 8080
+      label: "Application Server"
+    - number: 5432
+      label: "PostgreSQL Database"
+  last_generated: "2025-01-04T12:34:56Z"
+```
+
+**Configuration Options**:
+
+- `manage` (boolean): Whether AIDP should generate/update the devcontainer configuration
+- `custom_ports` (array): Additional ports to expose in the devcontainer
+  - `number` (integer): Port number
+  - `label` (string): Human-readable description of the port
+- `last_generated` (string): ISO 8601 timestamp of last generation (auto-managed)
+
+**Behavior**:
+
+- Ports are auto-detected from your project configuration (test frameworks, web servers, databases)
+- Existing devcontainer customizations are preserved during updates
+- Automatic backups are created before modifications
+- Use `aidp devcontainer diff` to preview changes
+- Use `aidp devcontainer apply` to generate/update the configuration
+
+For more details, see the devcontainer documentation in `docs/devcontainer/`.
+
 ## Updating the Configuration
 
 - Run `aidp config --interactive` to re-open the wizard.

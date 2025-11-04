@@ -16,6 +16,7 @@ Extend the AIDP interactive configuration wizard (`aidp config --interactive`) t
 ## Goals
 
 ### Primary Goals
+
 1. **Unified Configuration**: Single wizard for both AIDP and devcontainer setup
 2. **Import Existing Settings**: Parse existing devcontainer to pre-fill wizard defaults
 3. **Intelligent Generation**: Create devcontainer from wizard selections
@@ -24,6 +25,7 @@ Extend the AIDP interactive configuration wizard (`aidp config --interactive`) t
 6. **ZFC Integration**: Use Zero Framework Cognition for intelligent devcontainer generation
 
 ### Non-Goals
+
 - Direct editing of devcontainer.json through a specialized UI
 - Support for docker-compose.yml (focus on devcontainer.json only)
 - Management of Dockerfile content (only devcontainer.json features/settings)
@@ -34,11 +36,13 @@ Extend the AIDP interactive configuration wizard (`aidp config --interactive`) t
 ## User Personas
 
 ### Primary: Solo Developer
+
 - Wants quick setup without manual devcontainer configuration
 - Needs their development environment to match AIDP's expectations
 - Values automatic port forwarding for preview/debugging
 
 ### Secondary: Team Lead
+
 - Setting up standardized devcontainers across team
 - Wants to version control complete development environment
 - Needs documentation for onboarding
@@ -48,33 +52,39 @@ Extend the AIDP interactive configuration wizard (`aidp config --interactive`) t
 ## User Stories
 
 ### Story 1: First-Time Setup
+
 **As a** new AIDP user
 **I want** the wizard to create a complete devcontainer for me
 **So that** I can start developing without manual environment setup
 
 **Acceptance Criteria:**
+
 - Wizard detects no existing devcontainer
 - Offers to create one based on wizard selections
 - Generates working devcontainer.json with appropriate features
 - Ports are forwarded based on selected tools
 
 ### Story 2: Importing Existing Configuration
+
 **As an** existing devcontainer user
 **I want** AIDP wizard to recognize my current devcontainer settings
 **So that** I don't have to re-enter information I've already configured
 
 **Acceptance Criteria:**
+
 - Wizard detects `.devcontainer/devcontainer.json`
 - Extracts ports, features, environment variables
 - Pre-fills wizard questions with detected values
 - Offers to enhance (not replace) existing configuration
 
 ### Story 3: Re-running the Wizard
+
 **As a** developer updating their setup
 **I want** to safely update my devcontainer through the wizard
 **So that** my environment stays in sync with AIDP configuration
 
 **Acceptance Criteria:**
+
 - Wizard creates backup of existing devcontainer
 - Shows diff of proposed changes
 - Merges new settings without clobbering manual edits
@@ -86,7 +96,7 @@ Extend the AIDP interactive configuration wizard (`aidp config --interactive`) t
 
 ### Module Structure
 
-```
+```text
 lib/aidp/
   setup/
     wizard.rb                          # Extended with devcontainer flow
@@ -96,11 +106,11 @@ lib/aidp/
       port_manager.rb                  # Manage port configurations
       backup_manager.rb                # Handle backups
       feature_mapper.rb                # Map wizard choices to devcontainer features
-```
+```text
 
 ### Data Flow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. Wizard Start                                                 │
 │    - Load aidp.yml (existing config)                           │
@@ -148,7 +158,7 @@ lib/aidp/
 │    - Update aidp.yml with devcontainer metadata               │
 │    - Write ZFC recipe (future: for re-application)            │
 └─────────────────────────────────────────────────────────────────┘
-```
+```text
 
 ### Configuration Schema (aidp.yml)
 
@@ -184,7 +194,7 @@ devcontainer:
       vscode:
         extensions:
           - eamodio.gitlens
-```
+```text
 
 ---
 
@@ -195,6 +205,7 @@ devcontainer:
 **Purpose:** Read and parse existing `.devcontainer/devcontainer.json` or `devcontainer.json`
 
 **Methods:**
+
 - `detect_devcontainer()` - Find devcontainer.json in standard locations
 - `parse()` - Parse JSON and extract relevant fields
 - `extract_ports()` - Get forwardPorts and portsAttributes
@@ -204,6 +215,7 @@ devcontainer:
 - `extract_customizations()` - Get vscode extensions, settings
 
 **Error Handling:**
+
 - Invalid JSON → warn user, proceed with defaults
 - Missing file → silently proceed with creation flow
 - Partial config → extract what's available, use defaults for rest
@@ -213,6 +225,7 @@ devcontainer:
 **Purpose:** Create or update devcontainer.json based on wizard selections
 
 **Methods:**
+
 - `generate(config, existing = nil)` - Generate complete devcontainer.json
 - `merge_with_existing(new_config, existing)` - Intelligently merge configurations
 - `build_features_list(wizard_config)` - Map wizard selections to devcontainer features
@@ -236,6 +249,7 @@ devcontainer:
 **Purpose:** Configure port forwarding and firewall rules
 
 **Methods:**
+
 - `detect_required_ports(wizard_config)` - Analyze config for port needs
 - `generate_ports_config()` - Build forwardPorts array
 - `generate_ports_attributes()` - Build portsAttributes with labels
@@ -255,6 +269,7 @@ devcontainer:
 **Purpose:** Safely backup existing devcontainer before modifications
 
 **Methods:**
+
 - `create_backup(source_path)` - Copy to `.aidp/backups/devcontainer-<timestamp>.json`
 - `list_backups()` - List available backups
 - `restore_backup(backup_path)` - Restore from backup (manual command)
@@ -270,15 +285,17 @@ devcontainer:
 **Questions:**
 
 1. **Detect Existing** (automatic, informational only)
-   ```
+
+   ```text
    📦 Devcontainer Configuration
    ────────────────────────────────
    ✓ Found existing devcontainer at .devcontainer/devcontainer.json
    Importing settings...
    ```
 
-2. **Manage Devcontainer?**
-   ```
+1. **Manage Devcontainer?**
+
+   ```text
    Would you like AIDP to manage your devcontainer configuration?
    [Yes] / No
 
@@ -288,8 +305,9 @@ devcontainer:
    - Keep environment in sync with AIDP settings
    ```
 
-3. **Port Configuration** (if manage = yes)
-   ```
+1. **Port Configuration** (if manage = yes)
+
+   ```text
    Configure port forwarding?
    [Yes] / No
 
@@ -301,8 +319,9 @@ devcontainer:
    [8080, 5432]
    ```
 
-4. **Features Selection** (if manage = yes)
-   ```
+1. **Features Selection** (if manage = yes)
+
+   ```text
    Additional devcontainer features? (multi-select)
    ◯ Docker-in-Docker
    ◯ AWS CLI
@@ -311,8 +330,9 @@ devcontainer:
    ◯ None
    ```
 
-5. **Action Selection**
-   ```
+1. **Action Selection**
+
+   ```text
    Devcontainer action:
    • Create new devcontainer (no existing found)
    • Enhance existing devcontainer (merge with current)
@@ -321,8 +341,9 @@ devcontainer:
    [Enhance existing]
    ```
 
-6. **Preview & Confirm**
-   ```
+1. **Preview & Confirm**
+
+   ```text
    📄 Devcontainer Changes Preview
    ════════════════════════════════
 
@@ -350,10 +371,11 @@ devcontainer:
 
 ```bash
 aidp devcontainer diff [--proposed-config=path/to/config.json]
-```
+```text
 
 **Output:**
-```
+
+```text
 Devcontainer Changes
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -367,7 +389,7 @@ Ports:
 
 Environment:
   + AIDP_LOG_LEVEL=info
-```
+```text
 
 ### `aidp devcontainer apply`
 
@@ -375,9 +397,10 @@ Environment:
 
 ```bash
 aidp devcontainer apply [--dry-run] [--force] [--backup]
-```
+```text
 
 **Flags:**
+
 - `--dry-run` - Show what would be changed
 - `--force` - Skip confirmation prompts
 - `--backup` - Create backup even if auto-backup is disabled
@@ -389,18 +412,21 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
 ### Unit Tests
 
 **DevcontainerParser:**
+
 - Parse valid devcontainer.json
 - Handle malformed JSON gracefully
 - Extract all supported fields
 - Handle missing fields with defaults
 
 **DevcontainerGenerator:**
+
 - Generate from scratch (no existing)
 - Merge with existing (preserve custom fields)
 - Map wizard config to features correctly
 - Generate valid JSON output
 
 **PortManager:**
+
 - Detect ports from wizard config
 - Generate proper portsAttributes
 - Create readable PORTS.md
@@ -408,6 +434,7 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
 ### Integration Tests
 
 **Wizard Flow:**
+
 - Complete wizard with devcontainer creation
 - Complete wizard with devcontainer enhancement
 - Wizard with no devcontainer (creation flow)
@@ -428,13 +455,17 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
 ## Documentation Plan
 
 ### docs/SETUP_WIZARD.md
+
 **Updates:**
+
 - Add section on devcontainer integration
 - Screenshots of new wizard questions
 - Example configurations
 
 ### docs/DEVELOPMENT_CONTAINER.md (NEW)
+
 **Contents:**
+
 - Overview of AIDP's devcontainer management
 - File structure explanation
 - Port configuration reference
@@ -443,13 +474,17 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
 - Troubleshooting
 
 ### docs/CONFIGURATION.md
+
 **Updates:**
+
 - Document `devcontainer:` section in aidp.yml
 - Configuration options reference
 - Examples for common setups
 
 ### docs/PORTS.md (NEW)
+
 **Contents:**
+
 - Auto-generated list of configured ports
 - Purpose of each port
 - Security considerations
@@ -460,29 +495,34 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
 ## Rollout Plan
 
 ### Phase 1: Core Infrastructure (Session 1)
+
 - [ ] Create module structure
 - [ ] Implement DevcontainerParser
 - [ ] Implement DevcontainerGenerator (basic)
 - [ ] Unit tests for both modules
 
 ### Phase 2: Port Management (Session 2)
+
 - [ ] Implement PortManager
 - [ ] Port detection logic
 - [ ] PORTS.md generation
 - [ ] Unit tests
 
 ### Phase 3: Wizard Integration (Session 3)
+
 - [ ] Add devcontainer section to wizard
 - [ ] Import flow
 - [ ] Preview/diff display
 - [ ] Integration tests
 
 ### Phase 4: CLI Commands (Session 4)
+
 - [ ] Implement `devcontainer diff`
 - [ ] Implement `devcontainer apply`
 - [ ] Command tests
 
 ### Phase 5: Documentation (Session 5)
+
 - [ ] Write DEVELOPMENT_CONTAINER.md
 - [ ] Update SETUP_WIZARD.md
 - [ ] Update CONFIGURATION.md
@@ -493,15 +533,18 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
 ## Success Metrics
 
 ### Adoption
+
 - % of new users who enable devcontainer management in wizard
 - % of existing users who re-run wizard to add devcontainer
 
 ### Quality
+
 - Zero failed devcontainer builds
 - < 5% of users manually editing devcontainer after wizard
 - All tests passing
 
 ### Documentation
+
 - < 10% of users asking "how do I set up devcontainer" in issues
 
 ---
@@ -584,7 +627,7 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
     "generated_at": "2025-01-03T10:00:00Z"
   }
 }
-```
+```text
 
 ---
 

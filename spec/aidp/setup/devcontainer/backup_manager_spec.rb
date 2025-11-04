@@ -248,7 +248,10 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
     end
 
     it "returns number of deleted backups" do
-      5.times { manager.create_backup(source_file); sleep 1.1 }
+      5.times {
+        manager.create_backup(source_file)
+        sleep 1.1
+      }
 
       deleted_count = manager.cleanup_old_backups(2)
 
@@ -256,7 +259,10 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
     end
 
     it "returns 0 when no backups to delete" do
-      3.times { manager.create_backup(source_file); sleep 1.1 }
+      3.times {
+        manager.create_backup(source_file)
+        sleep 1.1
+      }
 
       deleted_count = manager.cleanup_old_backups(10)
 
@@ -291,7 +297,7 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
     end
 
     it "returns most recent backup" do
-      first = manager.create_backup(source_file)
+      manager.create_backup(source_file)
       sleep 1.1
       second = manager.create_backup(source_file)
 

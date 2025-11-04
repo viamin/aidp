@@ -273,11 +273,21 @@ module Aidp
           end
 
           # Custom ports
-          if wizard_config[:custom_ports]
-            wizard_config[:custom_ports].each do |port|
+          wizard_config[:custom_ports]&.each do |port|
+            if port.is_a?(Hash)
+              # Handle both symbol and string keys from YAML/config
+              port_num = port[:number] || port["number"]
+              port_label = port[:label] || port["label"] || "Custom"
+
               ports << {
-                number: port.is_a?(Hash) ? port[:number] : port,
-                label: port.is_a?(Hash) ? port[:label] : "Custom",
+                number: port_num.to_i,
+                label: port_label,
+                auto_open: false
+              }
+            else
+              ports << {
+                number: port.to_i,
+                label: "Custom",
                 auto_open: false
               }
             end
