@@ -39,6 +39,7 @@ module Aidp
       @json_format = config[:json] || false
       @max_size = config[:max_size_mb] ? config[:max_size_mb] * 1024 * 1024 : DEFAULT_MAX_SIZE
       @max_files = config[:max_backups] || DEFAULT_MAX_FILES
+      @instrument_internal = config.key?(:instrument) ? config[:instrument] : (ENV["AIDP_LOG_INSTRUMENT"] == "1")
 
       ensure_log_directory
       setup_logger
@@ -107,6 +108,12 @@ module Aidp
     def setup_logger
       info_path = File.join(@project_dir, INFO_LOG)
       @logger = create_logger(info_path)
+      # Emit instrumentation after logger is available (avoid recursive Aidp.log_* calls during bootstrap)
+      return unless @instrument_internal
+      if defined?(@root_fallback) && @root_fallback
+        debug("logger", "root_fallback_applied", effective_dir: @root_fallback)
+      end
+      debug("logger", "logger_initialized", path: info_path, project_dir: @project_dir)
     end
 
     def create_logger(path)
@@ -219,6 +226,7 @@ module Aidp
         rescue
           Dir.tmpdir
         end
+        @root_fallback = fallback
         Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{str}'"
         return fallback
       end

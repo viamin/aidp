@@ -11,7 +11,7 @@ module Aidp
       include Aidp::RescueLogging
 
       def initialize(base_dir = ".aidp")
-        @base_dir = base_dir
+        @base_dir = sanitize_base_dir(base_dir)
         ensure_directory_exists
       end
 
@@ -156,7 +156,46 @@ module Aidp
       end
 
       def ensure_directory_exists
-        FileUtils.mkdir_p(@base_dir) unless Dir.exist?(@base_dir)
+        return if Dir.exist?(@base_dir)
+        begin
+          FileUtils.mkdir_p(@base_dir)
+        rescue SystemCallError => e
+          # Fallback when directory creation fails (e.g., attempting to write to '/.aidp')
+          fallback = begin
+            home = Dir.respond_to?(:home) ? Dir.home : nil
+            if home && !home.empty? && File.writable?(home)
+              File.join(home, ".aidp")
+            else
+              File.join(Dir.tmpdir, "aidp_storage")
+            end
+          rescue
+            File.join(Dir.tmpdir, "aidp_storage")
+          end
+          Kernel.warn "[AIDP Storage] Cannot create base directory #{@base_dir}: #{e.class}: #{e.message}. Using fallback #{fallback}"
+          @base_dir = fallback
+          begin
+            FileUtils.mkdir_p(@base_dir) unless Dir.exist?(@base_dir)
+          rescue SystemCallError => e2
+            Kernel.warn "[AIDP Storage] Fallback directory creation also failed: #{e2.class}: #{e2.message}. Continuing without persistent JSON storage."
+          end
+        end
+      end
+
+      def sanitize_base_dir(dir)
+        return Dir.pwd if dir.nil? || dir.to_s.strip.empty?
+        str = dir.to_s
+        # If given root '/', redirect to a writable location to avoid EACCES on CI
+        if str == File::SEPARATOR
+          fallback = begin
+            home = Dir.home
+            (home && !home.empty? && File.writable?(home)) ? File.join(home, ".aidp") : File.join(Dir.tmpdir, "aidp_storage")
+          rescue
+            File.join(Dir.tmpdir, "aidp_storage")
+          end
+          Kernel.warn "[AIDP Storage] Root base_dir detected - using fallback #{fallback} instead of '#{str}'"
+          return fallback
+        end
+        str
       end
     end
   end
