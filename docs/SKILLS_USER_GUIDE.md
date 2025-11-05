@@ -93,7 +93,7 @@ After using `/skill use`, all subsequent AI interactions in that REPL session wi
 # Search for skills by keyword
 aidp skill search "api"
 aidp skill search "testing"
-```text
+```
 
 ### Validating Skills
 
@@ -103,16 +103,15 @@ aidp skill validate
 
 # Validate a specific skill file
 aidp skill validate .aidp/skills/my_skill/SKILL.md
-```text
+```
 
 ### Comparing Skills
 
 ```bash
 # Show differences between your project skill and its template
 aidp skill diff my_custom_skill
-```text
+```
 
-<a id="creating-custom-skills"></a>
 ## Creating Custom Skills
 
 ### Interactive Wizard
@@ -121,7 +120,7 @@ The easiest way to create a new skill is using the interactive wizard:
 
 ```bash
 aidp skill new
-```text
+```
 
 The wizard will guide you through:
 
@@ -148,7 +147,7 @@ aidp skill new --clone existing_skill --id improved_version
 
 # Preview without saving
 aidp skill new --dry-run
-```text
+```
 
 ### Editing Existing Skills
 
@@ -158,18 +157,17 @@ aidp skill edit my_custom_skill
 
 # Preview changes without saving
 aidp skill edit my_custom_skill --dry-run
-```text
+```
 
 ### Deleting Skills
 
 ```bash
 # Delete a project skill (with confirmation)
 aidp skill delete my_custom_skill
-```text
+```
 
 **Note**: You can only delete project skills in `.aidp/skills/`, not template skills.
 
-<a id="skill-routing"></a>
 ## Skill Routing
 
 Skills can be automatically selected based on file paths and task descriptions using routing rules in your `.aidp/aidp.yml` configuration.
@@ -208,7 +206,7 @@ skills:
       full_stack_expert:
         paths: ["app/controllers/api/**/*.rb"]
         tasks: ["api", "endpoint"]
-```text
+```
 
 ### Routing Priority
 
@@ -251,9 +249,8 @@ router.route(
   task: "Update documentation"
 )
 # => "general_developer"
-```text
+```
 
-<a id="advanced-topics"></a>
 ## Advanced Topics
 
 ### Skill Inheritance
@@ -272,7 +269,7 @@ Skills are stored in the following structure:
 .aidp/skills/
 └── my_custom_skill/
     └── SKILL.md        # Main skill file
-```text
+```
 
 ### SKILL.md Format
 
@@ -311,7 +308,7 @@ Detailed instructions for the AI to follow when using this skill...
 
 - Guideline 1
 - Guideline 2
-```text
+```
 
 ### Template Skills Location
 
@@ -327,9 +324,8 @@ templates/skills/
 │   └── SKILL.md
 └── test_analyzer/
     └── SKILL.md
-```text
+```
 
-<a id="troubleshooting"></a>
 ## Troubleshooting
 
 ### Skill Not Found
@@ -356,7 +352,7 @@ templates/skills/
 
 ```bash
 aidp skill validate .aidp/skills/my_skill/SKILL.md
-```text
+```
 
 ### Routing Not Working
 

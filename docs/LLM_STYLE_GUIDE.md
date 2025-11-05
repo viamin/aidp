@@ -104,6 +104,14 @@ See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern ex
 - **Use expect scripts** for TUI flows (AI agents can't test interactively). `STYLE_GUIDE:871-964`
 - Pattern: `spawn`, `expect "text"`, `send "\r"`, `expect eof`
 
+### Testing with tmux
+
+- **Use tmux for TUI testing**: Capture and verify terminal output programmatically. `STYLE_GUIDE:982-1150`
+- **Batch send-keys commands**: Reduce overhead by combining multiple commands with backslash continuation.
+- **Long-running processes**: Use tmux sessions for servers/daemons to enable easy interaction and cleanup.
+- **Pattern**: `tmux new-session -d -s name`, `tmux send-keys -t name "cmd" Enter`, `tmux capture-pane -t name -p`
+- **Always cleanup**: Use `after` hooks or ensure blocks with `tmux kill-session`.
+
 ### Testing Rules (Sandi Metz)
 
 - **Test incoming queries**: Assert what they return. `STYLE_GUIDE:1022-1261`

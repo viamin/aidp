@@ -10,9 +10,15 @@ Coding standards, architectural patterns, and best practices for the AI Dev Pipe
 - [Ruby Version Management](#ruby-version-management)
 - [Zero Framework Cognition (ZFC)](#zero-framework-cognition-zfc)
 - [TTY Toolkit Guidelines](#tty-toolkit-guidelines)
+- [Pending Specs Policy](#pending-specs-policy)
 - [Testing Guidelines](#testing-guidelines)
-- [Logging Practices](#logging-practices)
 - [Error Handling](#error-handling)
+- [Concurrency & Threads](#concurrency--threads)
+- [Performance](#performance)
+- [Security & Safety](#security--safety)
+- [Commit Hygiene](#commit-hygiene)
+- [Code Review Guidelines](#code-review-guidelines)
+- [Prompt Optimization (Intelligent Fragment Selection)](#prompt-optimization-intelligent-fragment-selection)
 - [Project-Specific Knowledge Management](#project-specific-knowledge-management)
 
 ## Code Organization
@@ -39,7 +45,7 @@ lib/aidp/
 ├── analyze/                 # Analysis mode components
 ├── execute/                 # Execution mode components
 └── providers/               # AI provider integrations
-```text
+```
 
 ### Naming Conventions
 
@@ -92,7 +98,7 @@ def collect_feedback(questions, context = nil)
   display_completion_summary(responses, questions)
   responses
 end
-```text
+```
 
 ## Ruby Conventions
 
@@ -138,7 +144,7 @@ Aidp.log_error("component", "message", error: e.message, context: data)
 # Direct logger access (when needed)
 Aidp.logger.debug("component", "message", metadata...)
 Aidp.logger.info("component", "message", metadata...)
-```text
+```
 
 #### When to Log
 
@@ -236,7 +242,7 @@ def select_provider(preferences)
   Aidp.log_info("harness", "Provider selected", provider: provider.name)
   provider
 end
-```text
+```
 
 #### Log Message Style
 
@@ -252,7 +258,7 @@ Aidp.log_debug("harness", "Executing step", step: step_name, iteration: 3)
 
 # Bad: Interpolation in message
 Aidp.log_debug("harness", "Executing step #{step_name} at iteration 3")
-```text
+```
 
 #### Common Components
 
@@ -300,7 +306,7 @@ mise exec -- bundle exec aidp --setup-config
 ruby script.rb                    # Uses system Ruby (wrong version)
 bundle install                    # Uses system Ruby's bundler
 bundle exec rspec                  # Uses system Ruby
-```text
+```
 
 #### Why mise?
 
@@ -322,7 +328,7 @@ mise install
 mise exec -- bundle install
 mise exec -- bundle exec rspec
 mise exec -- ruby bin/aidp --help
-```text
+```
 
 #### Troubleshooting
 
@@ -388,7 +394,7 @@ Is this operation analyzing meaning or making a judgment?
     │   └─ Implementation: Normal Ruby code
     │
     └─ NO → Reconsider - probably needs AI
-```text
+```
 
 ### Anti-Patterns (ZFC Violations)
 
@@ -408,7 +414,7 @@ def detect_condition(error_message)
     tier: "mini"
   )
 end
-```text
+```
 
 ❌ **Hard-Coded Scoring/Ranking Formulas**
 
@@ -429,7 +435,7 @@ def select_provider(context)
     cache_ttl: 300  # Cache for 5 minutes
   )
 end
-```text
+```
 
 ❌ **Heuristic Thresholds for Decisions**
 
@@ -451,7 +457,7 @@ def should_escalate?(context)
     tier: "mini"
   )
 end
-```text
+```
 
 ❌ **Keyword Matching for Completion**
 
@@ -470,7 +476,7 @@ def work_complete?(response)
   )
   result[:complete]
 end
-```text
+```
 
 ### Implementation Pattern
 
@@ -492,7 +498,7 @@ module Aidp
     end
   end
 end
-```text
+```
 
 **Usage**:
 
@@ -517,7 +523,7 @@ result = engine.decide(:condition_detection,
 if result[:condition] == "rate_limit"
   handle_rate_limit
 end
-```text
+```
 
 ### Cost Management
 
@@ -537,7 +543,7 @@ AIDecisionEngine.decide(:condition_detection,
   schema: schema,
   tier: "thinking"  # Wasteful - simple classification doesn't need deep reasoning
 )
-```text
+```
 
 **Tier Selection Guide**:
 
@@ -577,7 +583,7 @@ AIDecisionEngine.decide(:condition_detection,
   tier: "mini"
   # No cache_ttl - each error is unique
 )
-```text
+```
 
 ### Testing ZFC Code
 
@@ -598,7 +604,7 @@ RSpec.describe "ZFC compliance" do
     expect(result[:condition]).to eq("rate_limit")
   end
 end
-```text
+```
 
 ### Code Review Checklist
 
@@ -676,7 +682,7 @@ puts table.render(:unicode)
 # Configuration and logging
 config = TTY::Config.new
 logger = TTY::Logger.new
-```text
+```
 
 ### User Output Best Practices
 
@@ -694,7 +700,7 @@ puts pastel.red("Error occurred")
 # ❌ Avoid: TTY::Logger for user output (it's for application logging)
 logger = TTY::Logger.new
 logger.info("This goes to log files, not user terminal")
-```text
+```
 
 **When to use each:**
 
@@ -711,7 +717,7 @@ logger.info("This goes to log files, not user terminal")
 def custom_select(items) # Use tty-prompt instead
 def custom_progress_bar(current, total) # Use tty-progressbar instead
 def custom_table(data) # Use tty-table instead
-```text
+```
 
 ### Avoid puts and Common Output Methods
 
@@ -730,7 +736,7 @@ prompt.say("Welcome to the application!")
 name = prompt.ask("Enter your name: ")
 prompt.say("Debug message", color: :yellow)
 prompt.say("Status update", color: :green)
-```text
+```
 
 **Why use TTY::Prompt instead of puts?**
 
@@ -748,11 +754,190 @@ require "pastel"
 pastel = Pastel.new
 puts pastel.green("Success message")
 puts pastel.red("Error message")
-```text
+```
 
 ### Testing Interactive TUI Elements
 
 **Use `expect` for testing interactive TUI elements** since `bundle exec aidp` requires live user interaction that cannot be automated with standard RSpec.
+
+### Testing with tmux
+
+**Use tmux for testing TUIs and long-running processes** to enable programmatic interaction and inspection.
+
+#### When to Use tmux for Testing
+
+- **TUI applications**: Capture and verify terminal output programmatically
+- **Long-running processes**: Servers, daemons, watch modes
+- **Interactive CLIs**: Applications requiring user input
+- **Integration tests**: End-to-end testing of terminal applications
+
+#### tmux Testing Pattern
+
+```bash
+# Create a new tmux session for testing
+tmux new-session -d -s test_session
+
+# Send multiple commands efficiently (batched)
+tmux send-keys -t test_session "cd /workspace/aidp" Enter \
+  "bundle exec aidp" Enter \
+  "1" Enter  # Select first option
+
+# Capture output for verification
+tmux capture-pane -t test_session -p > output.txt
+
+# Verify expected content
+grep "Expected output" output.txt
+
+# Clean up
+tmux kill-session -t test_session
+```
+
+#### Batch Commands with send-keys
+
+**Always batch commands when possible** to reduce overhead and improve test reliability:
+
+```bash
+# ✅ Good: Batch multiple commands
+tmux send-keys -t test_session \
+  "export API_KEY=test" Enter \
+  "bundle exec rails server" Enter \
+  "C-c" \
+  "exit" Enter
+
+# ❌ Bad: Multiple send-keys calls
+tmux send-keys -t test_session "export API_KEY=test" Enter
+tmux send-keys -t test_session "bundle exec rails server" Enter
+tmux send-keys -t test_session "C-c"
+tmux send-keys -t test_session "exit" Enter
+```
+
+**Benefits of batching:**
+
+- Faster execution (fewer IPC calls to tmux)
+- More reliable (atomic operation)
+- Easier to read and maintain
+- Reduces race conditions
+
+#### Long-Running Processes
+
+**Use tmux for servers and background processes** to enable easy interaction and cleanup:
+
+```bash
+# Start server in tmux session
+tmux new-session -d -s app_server "bundle exec rails server"
+
+# Run tests against the server
+bundle exec rspec spec/integration/
+
+# Check server logs
+tmux capture-pane -t app_server -p | tail -n 50
+
+# Send Ctrl-C to stop server
+tmux send-keys -t app_server C-c
+
+# Wait for graceful shutdown
+sleep 2
+
+# Kill session if still alive
+tmux kill-session -t app_server 2>/dev/null || true
+```
+
+#### Verifying TUI Output
+
+```bash
+# Start TUI application
+tmux new-session -d -s tui_test "bundle exec aidp"
+
+# Interact with TUI
+tmux send-keys -t tui_test "1" Enter  # Select option 1
+
+# Wait for rendering
+sleep 0.5
+
+# Capture and verify output
+tmux capture-pane -t tui_test -p > /tmp/tui_output.txt
+
+if grep -q "Expected menu item" /tmp/tui_output.txt; then
+  echo "✓ Test passed"
+else
+  echo "✗ Test failed"
+  cat /tmp/tui_output.txt
+  exit 1
+fi
+
+# Cleanup
+tmux kill-session -t tui_test
+```
+
+#### Integration with RSpec
+
+```ruby
+# spec/system/tui_tmux_spec.rb
+RSpec.describe "TUI with tmux" do
+  let(:session_name) { "test_#{Process.pid}" }
+
+  after do
+    system("tmux kill-session -t #{session_name} 2>/dev/null")
+  end
+
+  it "displays the main menu" do
+    # Start TUI in tmux
+    system("tmux new-session -d -s #{session_name} 'bundle exec aidp'")
+    sleep 0.5
+
+    # Capture output
+    output = `tmux capture-pane -t #{session_name} -p`
+
+    # Verify menu is displayed
+    expect(output).to include("Choose your mode")
+    expect(output).to include("Analyze")
+    expect(output).to include("Execute")
+  end
+
+  it "handles mode selection" do
+    # Start and interact with TUI
+    system("tmux new-session -d -s #{session_name} 'bundle exec aidp'")
+    system("tmux send-keys -t #{session_name} '1' Enter")
+    sleep 1
+
+    output = `tmux capture-pane -t #{session_name} -p`
+    expect(output).to include("Starting in Analyze Mode")
+  end
+end
+```
+
+#### tmux Testing Best Practices
+
+1. **Use unique session names**: Include PID or timestamp to avoid conflicts
+2. **Always cleanup**: Use `after` hooks or ensure blocks to kill sessions
+3. **Add sleep delays**: Allow time for rendering and processing
+4. **Batch commands**: Use single send-keys with multiple commands
+5. **Capture strategically**: Use `-p` for printing, `-S` for scrollback
+6. **Handle failures gracefully**: Use `2>/dev/null || true` for cleanup commands
+
+#### Common tmux Commands for Testing
+
+```bash
+# Create session
+tmux new-session -d -s <name> [command]
+
+# Send keys (batch multiple with backslash)
+tmux send-keys -t <name> "command" Enter "another" Enter
+
+# Capture pane output
+tmux capture-pane -t <name> -p              # Print to stdout
+tmux capture-pane -t <name> -p -S -1000     # Include scrollback
+
+# List sessions
+tmux list-sessions
+
+# Kill session
+tmux kill-session -t <name>
+
+# Send signal
+tmux send-keys -t <name> C-c  # Ctrl-C
+tmux send-keys -t <name> C-d  # Ctrl-D (EOF)
+```
 
 ### AI Coding Agent TUI Testing Guidelines
 
@@ -768,7 +953,7 @@ let(:ui) { described_class.new(prompt: test_prompt) }
 # Test interactions by checking recorded messages
 ui.display_menu("Choose mode", items)
 expect(test_prompt.messages.any? { |msg| msg[:message].include?("Choose mode") }).to be true
-```text
+```
 
 #### 2. Integration Testing with expect Scripts
 
@@ -780,7 +965,7 @@ send "\r"
 expect "Starting in Analyze Mode"
 send "\003"
 expect eof
-```text
+```
 
 #### 3. Testing TUI Logic
 
@@ -789,7 +974,7 @@ expect eof
 allow(tui).to receive(:single_select).and_return("Web Application")
 allow(tui).to receive(:ask).and_return("my-app")
 result = selector.select_workflow(harness_mode: false, mode: :execute)
-```text
+```
 
 #### Key Principles for AI Agents
 
@@ -797,7 +982,187 @@ result = selector.select_workflow(harness_mode: false, mode: :execute)
 2. **Mock TTY components** - use `instance_double` and `allow().to receive()`
 3. **Test logic, not interaction** - focus on business logic and state management
 4. **Use expect scripts** - for integration testing of full user flows
-5. **Test error handling** - ensure graceful handling of interrupts
+5. **Use tmux** - for programmatic TUI testing and long-running processes
+6. **Test error handling** - ensure graceful handling of interrupts
+
+#### Testing with tmux
+
+**Use tmux for testing TUIs and long-running processes** to enable programmatic interaction and inspection.
+
+##### When to Use tmux for Testing
+
+- **TUI applications**: Capture and verify terminal output programmatically
+- **Long-running processes**: Servers, daemons, watch modes
+- **Interactive CLIs**: Applications requiring user input
+- **Integration tests**: End-to-end testing of terminal applications
+
+##### tmux Testing Pattern
+
+```bash
+# Create a new tmux session for testing
+tmux new-session -d -s test_session
+
+# Send multiple commands efficiently (batched)
+tmux send-keys -t test_session "cd /workspace/aidp" Enter \
+  "bundle exec aidp" Enter \
+  "1" Enter  # Select first option
+
+# Capture output for verification
+tmux capture-pane -t test_session -p > output.txt
+
+# Verify expected content
+grep "Expected output" output.txt
+
+# Clean up
+tmux kill-session -t test_session
+```
+
+##### Batch Commands with send-keys
+
+**Always batch commands when possible** to reduce overhead and improve test reliability:
+
+```bash
+# ✅ Good: Batch multiple commands
+tmux send-keys -t test_session \
+  "export API_KEY=test" Enter \
+  "bundle exec rails server" Enter \
+  "C-c" \
+  "exit" Enter
+
+# ❌ Bad: Multiple send-keys calls
+tmux send-keys -t test_session "export API_KEY=test" Enter
+tmux send-keys -t test_session "bundle exec rails server" Enter
+tmux send-keys -t test_session "C-c"
+tmux send-keys -t test_session "exit" Enter
+```
+
+**Benefits of batching:**
+
+- Faster execution (fewer IPC calls to tmux)
+- More reliable (atomic operation)
+- Easier to read and maintain
+- Reduces race conditions
+
+##### Long-Running Processes
+
+**Use tmux for servers and background processes** to enable easy interaction and cleanup:
+
+```bash
+# Start server in tmux session
+tmux new-session -d -s app_server "bundle exec rails server"
+
+# Run tests against the server
+bundle exec rspec spec/integration/
+
+# Check server logs
+tmux capture-pane -t app_server -p | tail -n 50
+
+# Send Ctrl-C to stop server
+tmux send-keys -t app_server C-c
+
+# Wait for graceful shutdown
+sleep 2
+
+# Kill session if still alive
+tmux kill-session -t app_server 2>/dev/null || true
+```
+
+##### Verifying TUI Output
+
+```bash
+# Start TUI application
+tmux new-session -d -s tui_test "bundle exec aidp"
+
+# Interact with TUI
+tmux send-keys -t tui_test "1" Enter  # Select option 1
+
+# Wait for rendering
+sleep 0.5
+
+# Capture and verify output
+tmux capture-pane -t tui_test -p > /tmp/tui_output.txt
+
+if grep -q "Expected menu item" /tmp/tui_output.txt; then
+  echo "✓ Test passed"
+else
+  echo "✗ Test failed"
+  cat /tmp/tui_output.txt
+  exit 1
+fi
+
+# Cleanup
+tmux kill-session -t tui_test
+```
+
+##### Integration with RSpec
+
+```ruby
+# spec/system/tui_tmux_spec.rb
+RSpec.describe "TUI with tmux" do
+  let(:session_name) { "test_#{Process.pid}" }
+
+  after do
+    system("tmux kill-session -t #{session_name} 2>/dev/null")
+  end
+
+  it "displays the main menu" do
+    # Start TUI in tmux
+    system("tmux new-session -d -s #{session_name} 'bundle exec aidp'")
+    sleep 0.5
+
+    # Capture output
+    output = `tmux capture-pane -t #{session_name} -p`
+
+    # Verify menu is displayed
+    expect(output).to include("Choose your mode")
+    expect(output).to include("Analyze")
+    expect(output).to include("Execute")
+  end
+
+  it "handles mode selection" do
+    # Start and interact with TUI
+    system("tmux new-session -d -s #{session_name} 'bundle exec aidp'")
+    system("tmux send-keys -t #{session_name} '1' Enter")
+    sleep 1
+
+    output = `tmux capture-pane -t #{session_name} -p`
+    expect(output).to include("Starting in Analyze Mode")
+  end
+end
+```
+
+##### tmux Testing Best Practices
+
+1. **Use unique session names**: Include PID or timestamp to avoid conflicts
+2. **Always cleanup**: Use `after` hooks or ensure blocks to kill sessions
+3. **Add sleep delays**: Allow time for rendering and processing
+4. **Batch commands**: Use single send-keys with multiple commands
+5. **Capture strategically**: Use `-p` for printing, `-S` for scrollback
+6. **Handle failures gracefully**: Use `2>/dev/null || true` for cleanup commands
+
+##### Common tmux Commands for Testing
+
+```bash
+# Create session
+tmux new-session -d -s <name> [command]
+
+# Send keys (batch multiple with backslash)
+tmux send-keys -t <name> "command" Enter "another" Enter
+
+# Capture pane output
+tmux capture-pane -t <name> -p              # Print to stdout
+tmux capture-pane -t <name> -p -S -1000     # Include scrollback
+
+# List sessions
+tmux list-sessions
+
+# Kill session
+tmux kill-session -t <name>
+
+# Send signal
+tmux send-keys -t <name> C-c  # Ctrl-C
+tmux send-keys -t <name> C-d  # Ctrl-D (EOF)
+```
 
 #### Setting Up expect Tests
 
@@ -807,7 +1172,7 @@ brew install expect
 
 # Install expect (Ubuntu/Debian)
 sudo apt-get install expect
-```text
+```
 
 #### Example expect Test Script
 
@@ -832,7 +1197,7 @@ expect "Starting in Execute Mode"
 # Exit cleanly
 send "\003"
 expect eof
-```text
+```
 
 #### Integration with RSpec
 
@@ -856,7 +1221,7 @@ RSpec.describe "TUI Interactions" do
     end
   end
 end
-```text
+```
 
 #### expect Script Best Practices
 
@@ -882,7 +1247,7 @@ send " "        # Space to select
 send "\r"
 
 expect "Selected: 2 items"
-```text
+```
 
 ### TTY Component Selection Guide
 
@@ -926,7 +1291,7 @@ class QuestionCollector
     end
   end
 end
-```text
+```
 
 ### TUI State Management
 
@@ -950,7 +1315,7 @@ class TUIState
     @user_responses[question_id] = response
   end
 end
-```text
+```
 
 ### Benefits of Using TTY Toolkit
 
@@ -961,6 +1326,11 @@ end
 5. **Accessible**: Built-in support for screen readers and accessibility features
 6. **Performance**: Optimized for terminal performance and memory usage
 7. **Composable**: Components can be easily combined to create complex interfaces
+8. **Testable**: TTY components are designed with testing in mind
+
+### Testing TUIs with tmux
+
+For comprehensive testing of TUI applications, see the [Testing with tmux](#testing-with-tmux) section in Testing Guidelines.
 
 ## Pending Specs Policy
 
@@ -994,7 +1364,7 @@ Example:
 
 ```ruby
 pending("Add retry backoff logic - tracked in GH#123")
-```text
+```
 
 ### Workflow for Regressions
 
@@ -1071,7 +1441,7 @@ allow(Readline).to receive(:readline).and_return("user response")
 
 # Bad: Mocking application code
 allow(user_interface).to receive(:validate_question).and_return(true) # Don't do this!
-```text
+```
 
 ### Never Put Mock Methods in Production Code
 
@@ -1105,7 +1475,7 @@ end
 # In tests:
 let(:mock_prompt) { instance_double(TTY::Prompt) }
 let(:ui) { UserInterface.new(prompt: mock_prompt) }
-```text
+```
 
 **Why this matters:**
 
@@ -1158,7 +1528,7 @@ class ApiClient
     @http_client.get(url)
   end
 end
-```text
+```
 
 #### Testing with Mock Objects
 
@@ -1205,7 +1575,7 @@ RSpec.describe UserInterface do
     expect(test_prompt.menus_shown.first[:title]).to eq("Choose an option:")
   end
 end
-```text
+```
 
 #### Benefits of This Pattern
 
@@ -1232,7 +1602,7 @@ RSpec.describe SomeClass do
   let(:instance) { SomeClass.new(prompt: test_prompt) }
   # ...
 end
-```text
+```
 
 ### Sandi Metz's Testing Rules
 
@@ -1286,7 +1656,7 @@ module Aidp
     class UserError < StandardError; end
   end
 end
-```text
+```
 
 ### Error Handling Patterns
 
@@ -1314,7 +1684,7 @@ def process_data(data)
 rescue => e
   puts "Something went wrong"  # Don't do this!
 end
-```text
+```
 
 ## Concurrency & Threads
 
@@ -1350,7 +1720,7 @@ def monitor
     sleep 60  # Can't override in tests
   end
 end
-```text
+```
 
 ## Performance
 
@@ -1377,7 +1747,7 @@ end
 def parsed_file(path)
   parse_file(path)  # Slow for repeated calls
 end
-```text
+```
 
 ## Security & Safety
 
@@ -1399,7 +1769,7 @@ logger.info("API request failed", user_id: user.id, endpoint: endpoint)
 
 # Bad: Leaking secrets
 logger.error("Request failed: #{request.inspect}")  # May contain auth headers
-```text
+```
 
 ### Input Validation
 
@@ -1417,7 +1787,7 @@ system("git", "commit", "-m", user_message)  # Safe from injection
 
 # Bad: Shell interpolation risk
 system("git commit -m '#{user_message}'")  # Dangerous!
-```text
+```
 
 ## Commit Hygiene
 
@@ -1439,12 +1809,12 @@ This adds exponential backoff retry logic (3 attempts max) to
 handle transient failures gracefully.
 
 Fixes #123
-```text
+```
 
 ```text
 # Bad: No context
 Fix bug
-```text
+```
 
 ## Code Review Guidelines
 
@@ -1498,7 +1868,7 @@ Headings should clearly indicate the topic. The AI uses these to understand what
 ## Other Considerations
 ## Additional Notes
 ## Tips and Tricks
-```text
+```
 
 #### 2. Add Semantic Tags to Headings (Optional)
 
@@ -1509,7 +1879,7 @@ You can add tags in parentheses to help the AI understand when a section is rele
 ## Testing: Integration Tests (rspec, testing, e2e, fixtures)
 ## Security: Authentication (oauth, jwt, tokens, sessions)
 ## Database: Migrations (schema, activerecord, sql)
-```text
+```
 
 Common useful tags:
 
@@ -1541,7 +1911,7 @@ Example:
 
 This approach allows callers to rescue specific errors and provides
 clear context about what went wrong.
-```text
+```
 
 **Bad Structure:**
 
@@ -1552,7 +1922,7 @@ Error handling: Use custom exceptions.
 Testing: Write comprehensive tests.
 Performance: Optimize database queries.
 Security: Validate all input.
-```text
+```
 
 #### 4. Use Semantic Keywords Naturally
 
@@ -1564,7 +1934,7 @@ For a section on testing:
 When writing **feature tests**, ensure you cover the happy path and edge cases.
 Use **RSpec** contexts to organize different scenarios. Mock external dependencies
 to keep tests fast and reliable.
-```text
+```
 
 Keywords like "feature", "tests", "RSpec", "mock" help the AI score this section highly for testing-related tasks.
 
@@ -1593,7 +1963,7 @@ Type: feature
 Files: lib/user.rb, lib/auth/oauth.rb
 Step: implementation
 Tags: security, api, oauth
-```text
+```
 
 The optimizer scores each section:
 
@@ -1618,7 +1988,7 @@ The optimizer scores each section:
   Files:     0.30 (no database files)
   Step:      0.50 (implementation → performance somewhat relevant)
   → Final Score: 0.35 (EXCLUDED - below 0.75 threshold)
-```text
+```
 
 ### What This Means for Developers
 
@@ -1641,7 +2011,7 @@ prompt_optimization:
     style_guide: 0.75  # Lower = more inclusive (0.5-0.9)
     templates: 0.8
     source: 0.7
-```text
+```
 
 **Threshold guidance:**
 

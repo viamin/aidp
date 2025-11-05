@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y \
   # Shell improvements
   fzf \
   ripgrep \
+  tmux \
   zsh \
   # Yamllint for config validation
   yamllint \
@@ -59,12 +60,12 @@ RUN chmod +x /usr/local/bin/init-firewall.sh
 # Place custom CA cert(s) in .devcontainer/custom-ca/ (PEM files). They will be added if present.
 COPY .devcontainer/custom-ca/ /tmp/custom-ca/
 RUN if [ -d /tmp/custom-ca ] && ls /tmp/custom-ca/*.pem >/dev/null 2>&1; then \
-      echo "Installing custom CA certificates"; \
-      cp /tmp/custom-ca/*.pem /usr/local/share/ca-certificates/; \
-      update-ca-certificates; \
-    else \
-      echo "No custom CA certificates found"; \
-    fi
+  echo "Installing custom CA certificates"; \
+  cp /tmp/custom-ca/*.pem /usr/local/share/ca-certificates/; \
+  update-ca-certificates; \
+  else \
+  echo "No custom CA certificates found"; \
+  fi
 
 # Node / other tooling can also use NODE_EXTRA_CA_CERTS to point to a bundled file if needed.
 
