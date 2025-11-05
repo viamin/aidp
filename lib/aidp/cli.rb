@@ -391,6 +391,7 @@ module Aidp
         when "mcp" then run_mcp_command(args)
         when "issue" then run_issue_command(args)
         when "config" then run_config_command(args)
+        when "devcontainer" then run_devcontainer_command(args)
         when "init" then run_init_command(args)
         when "watch" then run_watch_command(args)
         when "ws" then run_ws_command(args)
@@ -1093,6 +1094,96 @@ module Aidp
 
         wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: create_prompt, dry_run: dry_run)
         wizard.run
+      end
+
+      def run_devcontainer_command(args)
+        require_relative "cli/devcontainer_commands"
+
+        subcommand = args.shift
+
+        case subcommand
+        when "diff"
+          commands = CLI::DevcontainerCommands.new(project_dir: Dir.pwd, prompt: create_prompt)
+          commands.diff
+        when "apply"
+          options = parse_devcontainer_apply_options(args)
+          commands = CLI::DevcontainerCommands.new(project_dir: Dir.pwd, prompt: create_prompt)
+          commands.apply(options)
+        when "list-backups", "backups"
+          commands = CLI::DevcontainerCommands.new(project_dir: Dir.pwd, prompt: create_prompt)
+          commands.list_backups
+        when "restore"
+          backup = args.shift
+          unless backup
+            display_message("Error: backup index or path required", type: :error)
+            display_devcontainer_usage
+            return
+          end
+          options = parse_devcontainer_restore_options(args)
+          commands = CLI::DevcontainerCommands.new(project_dir: Dir.pwd, prompt: create_prompt)
+          commands.restore(backup, options)
+        when "-h", "--help", nil
+          display_devcontainer_usage
+        else
+          display_message("Unknown devcontainer subcommand: #{subcommand}", type: :error)
+          display_devcontainer_usage
+        end
+      end
+
+      def parse_devcontainer_apply_options(args)
+        options = {}
+        until args.empty?
+          token = args.shift
+          case token
+          when "--dry-run"
+            options[:dry_run] = true
+          when "--force"
+            options[:force] = true
+          when "--no-backup"
+            options[:backup] = false
+          else
+            display_message("Unknown apply option: #{token}", type: :error)
+          end
+        end
+        options
+      end
+
+      def parse_devcontainer_restore_options(args)
+        options = {}
+        until args.empty?
+          token = args.shift
+          case token
+          when "--force"
+            options[:force] = true
+          when "--no-backup"
+            options[:no_backup] = true
+          else
+            display_message("Unknown restore option: #{token}", type: :error)
+          end
+        end
+        options
+      end
+
+      def display_devcontainer_usage
+        display_message("\nUsage: aidp devcontainer <subcommand> [options]", type: :info)
+        display_message("\nSubcommands:", type: :info)
+        display_message("  diff                    Show changes between current and proposed config", type: :muted)
+        display_message("  apply                   Apply configuration from aidp.yml", type: :muted)
+        display_message("  list-backups            List available backups", type: :muted)
+        display_message("  restore <index|path>    Restore from backup", type: :muted)
+        display_message("\nApply Options:", type: :info)
+        display_message("  --dry-run              Preview changes without applying", type: :muted)
+        display_message("  --force                Skip confirmation prompts", type: :muted)
+        display_message("  --no-backup            Don't create backup before applying", type: :muted)
+        display_message("\nRestore Options:", type: :info)
+        display_message("  --force                Skip confirmation prompt", type: :muted)
+        display_message("  --no-backup            Don't create backup before restoring", type: :muted)
+        display_message("\nExamples:", type: :info)
+        display_message("  aidp devcontainer diff", type: :muted)
+        display_message("  aidp devcontainer apply --dry-run", type: :muted)
+        display_message("  aidp devcontainer apply --force", type: :muted)
+        display_message("  aidp devcontainer list-backups", type: :muted)
+        display_message("  aidp devcontainer restore 1", type: :muted)
       end
 
       def run_init_command(args = [])
