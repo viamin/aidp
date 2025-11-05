@@ -5,6 +5,7 @@ require "net/http"
 require "uri"
 require "open3"
 require "timeout"
+require_relative "../execute/prompt_manager"
 
 module Aidp
   # Handles importing GitHub issues into AIDP work loops
@@ -239,12 +240,18 @@ module Aidp
     end
 
     def create_work_loop_prompt(issue_data)
-      # Create PROMPT.md for work loop
+      # Create PROMPT.md for work loop using PromptManager (issue #226)
       prompt_content = generate_prompt_content(issue_data)
 
-      File.write("PROMPT.md", prompt_content)
+      # Use PromptManager to write to .aidp/PROMPT.md and archive immediately
+      prompt_manager = Aidp::Execute::PromptManager.new(Dir.pwd)
+      step_name = "github_issue_#{issue_data[:number]}"
+      prompt_manager.write(prompt_content, step_name: step_name)
+
       display_message("", type: :info)
       display_message("📄 Created PROMPT.md for work loop", type: :success)
+      display_message("   Location: .aidp/PROMPT.md", type: :info)
+      display_message("   Archived to: .aidp/prompt_archive/", type: :info)
       display_message("   You can now run 'aidp execute' to start working on this issue", type: :info)
     end
 
@@ -479,7 +486,12 @@ module Aidp
         + (result.test_commands.empty? ? "" : "Test Commands:\n#{result.test_commands.map { |c| "- #{c}" }.join("\n")}\n\n") \
         + (result.lint_commands.empty? ? "" : "Lint Commands:\n#{result.lint_commands.map { |c| "- #{c}" }.join("\n")}\n")
 
-      File.open("PROMPT.md", "a") { |f| f.puts("\n---\n\n#{tooling_info}") }
+      # Use PromptManager to append to .aidp/PROMPT.md (issue #226)
+      prompt_manager = Aidp::Execute::PromptManager.new(Dir.pwd)
+      current_prompt = prompt_manager.read
+      updated_prompt = current_prompt + "\n---\n\n#{tooling_info}"
+      prompt_manager.write(updated_prompt, step_name: "github_issue_tooling")
+
       display_message("🧪 Detected tooling and appended to PROMPT.md", type: :info)
     end
   end

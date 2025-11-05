@@ -54,7 +54,10 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
     allow(importer).to receive(:normalize_issue_identifier).and_return(issue_data[:url])
     allow(importer).to receive(:fetch_issue_data).and_return(issue_data)
     allow(importer).to receive(:display_imported_issue)
-    allow(importer).to receive(:create_work_loop_prompt) { File.write("PROMPT.md", "Initial") }
+    allow(importer).to receive(:create_work_loop_prompt) do
+      FileUtils.mkdir_p(".aidp")
+      File.write(".aidp/PROMPT.md", "Initial")
+    end
 
     importer.import_issue("org/repo#42")
 
@@ -62,7 +65,7 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
     expect(Open3).to have_received(:capture3).with("git", "checkout", "-b", "aidp/iss-42-add-user-search")
     expect(Open3).to have_received(:capture3).with("git", "tag", "aidp-start/42")
 
-    content = File.read("PROMPT.md")
+    content = File.read(".aidp/PROMPT.md")
     expect(content).to match(/Detected Tooling/i)
   end
 
@@ -73,7 +76,10 @@ RSpec.describe Aidp::IssueImporter, "bootstrap" do
     allow(importer).to receive(:normalize_issue_identifier).and_return(issue_data[:url])
     allow(importer).to receive(:fetch_issue_data).and_return(issue_data)
     allow(importer).to receive(:display_imported_issue)
-    allow(importer).to receive(:create_work_loop_prompt) { File.write("PROMPT.md", "Initial") }
+    allow(importer).to receive(:create_work_loop_prompt) do
+      FileUtils.mkdir_p(".aidp")
+      File.write(".aidp/PROMPT.md", "Initial")
+    end
 
     # Mock git operations but they shouldn't be called
     allow(File).to receive(:exist?).with(".git").and_return(true)

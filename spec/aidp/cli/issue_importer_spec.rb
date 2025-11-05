@@ -412,8 +412,9 @@ RSpec.describe Aidp::IssueImporter do
     it "creates PROMPT.md file" do
       importer.send(:create_work_loop_prompt, issue_data)
 
-      expect(File.exist?("PROMPT.md")).to be true
-      content = File.read("PROMPT.md")
+      prompt_path = File.join(".aidp", "PROMPT.md")
+      expect(File.exist?(prompt_path)).to be true
+      content = File.read(prompt_path)
 
       expect(content).to include("# Work Loop: GitHub Issue #123")
       expect(content).to include("Test Issue")
