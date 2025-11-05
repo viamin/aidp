@@ -95,7 +95,13 @@ module Aidp
 
     def ensure_log_directory
       log_dir = File.join(@project_dir, LOG_DIR)
-      FileUtils.mkdir_p(log_dir) unless Dir.exist?(log_dir)
+      return if Dir.exist?(log_dir)
+      begin
+        FileUtils.mkdir_p(log_dir)
+      rescue SystemCallError => e
+        Kernel.warn "[AIDP Logger] Cannot create log directory #{log_dir}: #{e.class}: #{e.message}. Falling back to STDERR logging."
+        # We intentionally do not re-raise; file logger setup will attempt and then fall back itself.
+      end
     end
 
     def setup_logger
@@ -204,6 +210,17 @@ module Aidp
       if str.empty? || str.match?(/[<>|]/) || str.match?(/[\x00-\x1F]/)
         Kernel.warn "[AIDP Logger] Invalid project_dir '#{str}' - falling back to #{Dir.pwd}"
         return Dir.pwd
+      end
+      # Avoid using filesystem root as project directory for logs; permissions commonly restricted in CI
+      if str == File::SEPARATOR
+        fallback = begin
+          home = Dir.home
+          (home && !home.empty?) ? home : Dir.tmpdir
+        rescue
+          Dir.tmpdir
+        end
+        Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{str}'"
+        return fallback
       end
       str
     end
