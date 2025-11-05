@@ -19,41 +19,40 @@ jobs:
     outputs:
       release-created: ${{ steps.release.outputs.release_created }}
       tag-name: ${{ steps.release.outputs.tag_name }}
-      pr-number: ${{ steps.find-pr.outputs.pr-number }}
-      pr-head-branch: ${{ steps.find-pr.outputs.pr-branch }}
+      pr-number: ${{ steps.extract-pr.outputs.pr-number }}
+      pr-head-branch: ${{ steps.extract-pr.outputs.pr-branch }}
     steps:
       - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38
         id: release
-      - name: Find release PR
-        id: find-pr
+      - name: Extract PR info from release-please
+        id: extract-pr
         run: |
           set -euo pipefail
-          REPO="${GITHUB_REPOSITORY}"
-          PR_JSON=$(gh pr list --repo "$REPO" --label "autorelease: pending" --json number,headRefName --limit 1 || echo '[]')
-          # Ensure jq is available (GitHub hosted runners have it by default)
-          if ! command -v jq >/dev/null 2>&1; then
-            echo "jq not found; cannot parse release PR JSON" >&2
-            PR_NUMBER=""
-            PR_BRANCH=""
+          PR_JSON='${{ steps.release.outputs.pr }}'
+
+          if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+            echo "No release PR from release-please."
+            echo "pr-number=" >> "$GITHUB_OUTPUT"
+            echo "pr-branch=" >> "$GITHUB_OUTPUT"
           else
-            PR_NUMBER=$(jq -r '.[0].number // ""' <<< "$PR_JSON")
-            PR_BRANCH=$(jq -r '.[0].headRefName // ""' <<< "$PR_JSON")
+            PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number // ""')
+            PR_BRANCH=$(echo "$PR_JSON" | jq -r '.headBranchName // ""')
+
+            if [ -n "$PR_NUMBER" ]; then
+              echo "Found release PR #$PR_NUMBER on branch $PR_BRANCH"
+            else
+              echo "Could not extract PR number from release-please output."
+            fi
+
+            echo "pr-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "pr-branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
           fi
-          if [ -n "$PR_NUMBER" ]; then
-            echo "Found release PR #$PR_NUMBER on branch $PR_BRANCH"
-          else
-            echo "No active release PR found (label: autorelease: pending)."
-          fi
-          echo "pr-number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-          echo "pr-branch=$PR_BRANCH" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - name: Assign release PR to viamin
-        if: steps.find-pr.outputs.pr-number != ''
+        if: steps.extract-pr.outputs.pr-number != ''
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
-          PR_NUMBER: ${{ steps.find-pr.outputs.pr-number }}
+          PR_NUMBER: ${{ steps.extract-pr.outputs.pr-number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
