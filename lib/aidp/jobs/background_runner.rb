@@ -6,6 +6,7 @@ require "fileutils"
 require "time"
 require_relative "../rescue_logging"
 require_relative "../concurrency"
+require_relative "../safe_directory"
 
 module Aidp
   module Jobs
@@ -14,6 +15,7 @@ module Aidp
     class BackgroundRunner
       include Aidp::MessageDisplay
       include Aidp::RescueLogging
+      include Aidp::SafeDirectory
 
       attr_reader :project_dir, :jobs_dir
 
@@ -190,7 +192,7 @@ module Aidp
       private
 
       def ensure_jobs_directory
-        FileUtils.mkdir_p(@jobs_dir) unless Dir.exist?(@jobs_dir)
+        @jobs_dir = safe_mkdir_p(@jobs_dir, component_name: "BackgroundRunner")
       end
 
       def generate_job_id

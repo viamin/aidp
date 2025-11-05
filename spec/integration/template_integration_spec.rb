@@ -4,7 +4,7 @@ require "spec_helper"
 require_relative "../support/test_prompt"
 
 RSpec.describe "Template Integration", type: :integration do
-  let(:project_dir) { Dir.pwd }
+  let(:project_dir) { File.expand_path("../../", __dir__) }  # Actual project root, not Aruba temp dir
 
   describe "Execute mode templates" do
     it "has template files for all execute steps" do
