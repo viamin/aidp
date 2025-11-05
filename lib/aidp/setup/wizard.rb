@@ -4,9 +4,14 @@ require "tty-prompt"
 require "yaml"
 require "time"
 require "fileutils"
+require "json"
 
 require_relative "../util"
 require_relative "../config/paths"
+require_relative "devcontainer/parser"
+require_relative "devcontainer/generator"
+require_relative "devcontainer/port_manager"
+require_relative "devcontainer/backup_manager"
 
 module Aidp
   module Setup
@@ -15,6 +20,7 @@ module Aidp
     # while remaining idempotent and safe to re-run.
     class Wizard
       SCHEMA_VERSION = 1
+      DEVCONTAINER_COMPONENT = "setup_wizard.devcontainer"
 
       attr_reader :project_dir, :prompt, :dry_run
 
@@ -41,6 +47,7 @@ module Aidp
         configure_nfrs
         configure_logging
         configure_modes
+        configure_devcontainer
 
         yaml_content = generate_yaml
         display_preview(yaml_content)
@@ -852,6 +859,9 @@ module Aidp
       def save_config(yaml_content)
         Aidp::ConfigPaths.ensure_config_dir(project_dir)
         File.write(config_path, yaml_content)
+
+        # Generate devcontainer if managed
+        generate_devcontainer_file
       end
 
       def display_warnings
@@ -1290,6 +1300,141 @@ module Aidp
 
       def project_file?(relative_path)
         File.exist?(File.join(project_dir, relative_path))
+      end
+
+      def configure_devcontainer
+        prompt.say("\n🐳 Devcontainer Configuration")
+        Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.start")
+
+        # Detect existing devcontainer
+        parser = Devcontainer::Parser.new(project_dir)
+        existing_devcontainer = parser.devcontainer_exists? ? parser.parse : nil
+
+        if existing_devcontainer
+          prompt.say("✓ Found existing devcontainer.json")
+          Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.detected_existing",
+            path: parser.detect)
+        end
+
+        # Ask if user wants AIDP to manage devcontainer
+        manage = prompt.yes?(
+          "Would you like AIDP to manage your devcontainer configuration?",
+          default: (@config.dig(:devcontainer, :manage) || existing_devcontainer) ? true : false
+        )
+
+        unless manage
+          Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.opt_out")
+          return set([:devcontainer, :manage], false)
+        end
+
+        # Build wizard config and detect ports
+        wizard_config = build_wizard_config_for_devcontainer
+        port_manager = Devcontainer::PortManager.new(wizard_config)
+        detected_ports = port_manager.detect_required_ports
+
+        # Show detected ports
+        if detected_ports.any?
+          prompt.say("\nDetected ports:")
+          detected_ports.each do |port|
+            prompt.say("  • #{port[:number]} - #{port[:label]}")
+          end
+          Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.detected_ports",
+            ports: detected_ports.map { |port| port[:number] })
+        end
+
+        # Ask about custom ports
+        custom_ports = []
+        if prompt.yes?("Add custom ports?", default: false)
+          loop do
+            port_num = prompt.ask("Port number (or press Enter to finish):")
+            break if port_num.nil? || port_num.to_s.strip.empty?
+
+            unless port_num.to_s.match?(/^\d+$/)
+              prompt.error("Port must be a number")
+              next
+            end
+
+            port_label = prompt.ask("Port label:", default: "Custom")
+            custom_ports << {number: port_num.to_i, label: port_label}
+          end
+          Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.custom_ports_selected",
+            ports: custom_ports.map { |port| port[:number] })
+        end
+
+        # Save configuration
+        set([:devcontainer, :manage], true)
+        set([:devcontainer, :custom_ports], custom_ports) if custom_ports.any?
+        set([:devcontainer, :last_generated], Time.now.utc.iso8601)
+        Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.enabled",
+          custom_port_count: custom_ports.count,
+          detected_port_count: detected_ports.count)
+      end
+
+      def build_wizard_config_for_devcontainer
+        {
+          providers: @config[:providers]&.keys,
+          test_framework: @config.dig(:work_loop, :test_commands)&.first&.dig(:framework),
+          linters: @config.dig(:work_loop, :linting, :tools),
+          watch_mode: @config.dig(:work_loop, :watch, :enabled),
+          app_type: detect_app_type,
+          services: detect_services,
+          custom_ports: @config.dig(:devcontainer, :custom_ports)
+        }.compact
+      end
+
+      def detect_app_type
+        return "rails_web" if project_file?("config/routes.rb")
+        return "sinatra" if project_file?("config.ru")
+        return "express" if project_file?("app.js") && project_file?("package.json")
+        "cli"
+      end
+
+      def detect_services
+        services = []
+        services << "postgres" if project_file?("config/database.yml")
+        services << "redis" if project_file?("config/redis.yml")
+        services
+      end
+
+      def generate_devcontainer_file
+        unless @config.dig(:devcontainer, :manage)
+          Aidp.log_debug(DEVCONTAINER_COMPONENT, "generate.skip_unmanaged")
+          return
+        end
+
+        Aidp.log_debug(DEVCONTAINER_COMPONENT, "generate.start")
+
+        wizard_config = build_wizard_config_for_devcontainer
+        Aidp.log_debug(DEVCONTAINER_COMPONENT, "generate.wizard_config",
+          keys: wizard_config.keys)
+
+        parser = Devcontainer::Parser.new(project_dir)
+        existing = parser.devcontainer_exists? ? parser.parse : nil
+
+        generator = Devcontainer::Generator.new(project_dir, @config)
+        new_config = generator.generate(wizard_config, existing)
+
+        # Create backup if existing file
+        if existing
+          backup_manager = Devcontainer::BackupManager.new(project_dir)
+          backup_manager.create_backup(
+            parser.detect,
+            {reason: "wizard_update", timestamp: Time.now.utc.iso8601}
+          )
+          prompt.say("  └─ Backup created")
+          Aidp.log_debug(DEVCONTAINER_COMPONENT, "generate.backup_created",
+            path: parser.detect)
+        end
+
+        # Write devcontainer.json
+        devcontainer_path = File.join(project_dir, ".devcontainer", "devcontainer.json")
+        FileUtils.mkdir_p(File.dirname(devcontainer_path))
+        File.write(devcontainer_path, JSON.pretty_generate(new_config))
+
+        prompt.ok("✅ Generated #{devcontainer_path}")
+        Aidp.log_debug(DEVCONTAINER_COMPONENT, "generate.complete",
+          devcontainer_path: devcontainer_path,
+          forward_ports: new_config["forwardPorts"]&.length)
       end
     end
   end
