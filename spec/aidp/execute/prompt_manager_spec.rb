@@ -8,7 +8,7 @@ require "tmpdir"
 RSpec.describe Aidp::Execute::PromptManager do
   let(:temp_dir) { Dir.mktmpdir }
   let(:manager) { described_class.new(temp_dir) }
-  let(:prompt_path) { File.join(temp_dir, "PROMPT.md") }
+  let(:prompt_path) { File.join(temp_dir, ".aidp", "PROMPT.md") }
   let(:archive_dir) { File.join(temp_dir, ".aidp", "prompt_archive") }
 
   after do
@@ -30,6 +30,33 @@ RSpec.describe Aidp::Execute::PromptManager do
 
       expect(File.read(prompt_path)).to eq "New content"
     end
+
+    it "archives immediately when step_name is provided" do
+      content = "# Test Prompt"
+      step_name = "test_step"
+
+      manager.write(content, step_name: step_name)
+
+      # Verify prompt was written
+      expect(File.exist?(prompt_path)).to be true
+
+      # Verify it was archived
+      archive_files = Dir.glob(File.join(archive_dir, "*#{step_name}_PROMPT.md"))
+      expect(archive_files.length).to eq 1
+      expect(File.read(archive_files.first)).to eq content
+    end
+
+    it "does not archive when step_name is nil" do
+      content = "# Test Prompt"
+
+      manager.write(content)
+
+      # Verify prompt was written
+      expect(File.exist?(prompt_path)).to be true
+
+      # Verify nothing was archived
+      expect(Dir.exist?(archive_dir)).to be false
+    end
   end
 
   describe "#read" do
@@ -39,6 +66,7 @@ RSpec.describe Aidp::Execute::PromptManager do
 
     it "returns content when PROMPT.md exists" do
       content = "# Test Content"
+      FileUtils.mkdir_p(File.dirname(prompt_path))
       File.write(prompt_path, content)
 
       expect(manager.read).to eq content
@@ -51,6 +79,7 @@ RSpec.describe Aidp::Execute::PromptManager do
     end
 
     it "returns true when PROMPT.md exists" do
+      FileUtils.mkdir_p(File.dirname(prompt_path))
       File.write(prompt_path, "content")
       expect(manager.exists?).to be true
     end
@@ -64,6 +93,7 @@ RSpec.describe Aidp::Execute::PromptManager do
     end
 
     it "creates archive directory if it doesn't exist" do
+      FileUtils.mkdir_p(File.dirname(prompt_path))
       File.write(prompt_path, "content")
       manager.archive(step_name)
 
@@ -72,6 +102,7 @@ RSpec.describe Aidp::Execute::PromptManager do
 
     it "copies PROMPT.md to archive with timestamp and step name" do
       content = "# Archived Content"
+      FileUtils.mkdir_p(File.dirname(prompt_path))
       File.write(prompt_path, content)
 
       archive_path = manager.archive(step_name)
@@ -82,6 +113,7 @@ RSpec.describe Aidp::Execute::PromptManager do
     end
 
     it "doesn't delete original PROMPT.md" do
+      FileUtils.mkdir_p(File.dirname(prompt_path))
       File.write(prompt_path, "content")
       manager.archive(step_name)
 
@@ -95,6 +127,7 @@ RSpec.describe Aidp::Execute::PromptManager do
     end
 
     it "deletes PROMPT.md when it exists" do
+      FileUtils.mkdir_p(File.dirname(prompt_path))
       File.write(prompt_path, "content")
       manager.delete
 
@@ -163,6 +196,24 @@ RSpec.describe Aidp::Execute::PromptManager do
       expect(pm.last_optimization_stats).to eq(mock_stats)
       expect(pm.optimizer_stats).to eq({invocations: 1})
       expect(File.exist?(prompt_path)).to be true
+    end
+
+    it "archives immediately when step_name is in task_context" do
+      pm = described_class.new(temp_dir, config: config)
+      step_name = "optimized_step"
+
+      used = pm.write_optimized({
+        task_type: :feature,
+        description: "Add login",
+        step_name: step_name
+      })
+
+      expect(used).to be true
+      expect(File.exist?(prompt_path)).to be true
+
+      # Verify it was archived
+      archive_files = Dir.glob(File.join(archive_dir, "*#{step_name}_PROMPT.md"))
+      expect(archive_files.length).to eq 1
     end
 
     it "builds optimization report" do
