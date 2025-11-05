@@ -214,10 +214,14 @@ module Aidp
     def sanitize_project_dir(dir)
       return Dir.pwd if dir.nil?
       str = dir.to_s
+
+      # Check for invalid characters first
       if str.empty? || str.match?(/[<>|]/) || str.match?(/[\x00-\x1F]/)
         Kernel.warn "[AIDP Logger] Invalid project_dir '#{str}' - falling back to #{Dir.pwd}"
-        return Dir.pwd
+        str = Dir.pwd
+        # Fall through to check if Dir.pwd is also problematic
       end
+
       # Avoid using filesystem root as project directory for logs; permissions commonly restricted in CI
       if str == File::SEPARATOR
         fallback = begin
