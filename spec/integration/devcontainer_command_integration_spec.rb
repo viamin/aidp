@@ -131,11 +131,12 @@ RSpec.describe "DevcontainerCommand Integration", type: :integration do
 
       devcontainer_dir = File.join(project_dir, ".devcontainer")
       FileUtils.mkdir_p(devcontainer_dir)
-      File.write(File.join(devcontainer_dir, "devcontainer.json"), JSON.pretty_generate({"name" => "test"}))
+      devcontainer_path = File.join(devcontainer_dir, "devcontainer.json")
+      File.write(devcontainer_path, JSON.pretty_generate({"name" => "test"}))
 
       backup_manager = Aidp::Setup::Devcontainer::BackupManager.new(project_dir)
       backup_manager.create_backup(
-        ".devcontainer/devcontainer.json",
+        devcontainer_path,  # Use absolute path
         {reason: "test", timestamp: Time.now.utc.iso8601}
       )
 
