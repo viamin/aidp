@@ -42,6 +42,16 @@ RSpec.describe "Analyze Mode Integration Workflow", type: :integration do
   end
 
   after do
+    # Ensure we're not inside the project_dir when removing it. If any code under test
+    # changed the global working directory (e.g. via Dir.chdir(project_dir) without restoring),
+    # removing the directory would invalidate Dir.getwd for subsequent specs (ENOENT getcwd).
+    # Switch to a stable location first.
+    begin
+      Dir.chdir("/") unless Dir.getwd == "/"
+    rescue Errno::ENOENT
+      # If current directory was already removed, ignore and continue.
+      Dir.chdir("/")
+    end
     FileUtils.remove_entry(project_dir)
   end
 

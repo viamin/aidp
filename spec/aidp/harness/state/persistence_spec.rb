@@ -17,8 +17,8 @@ RSpec.describe Aidp::Harness::State::Persistence do
   end
 
   describe "#initialize" do
-    it "creates state directory" do
-      persistence
+    it "creates state directory when persistence is enabled" do
+      described_class.new(project_dir, mode, skip_persistence: false)
       expect(Dir.exist?(state_dir)).to be true
     end
 

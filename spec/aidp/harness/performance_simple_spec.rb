@@ -21,6 +21,13 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
   end
 
   after do
+    # Some harness operations may chdir into the project directory; ensure we are not inside it
+    # when removing to avoid subsequent Aruba/RSpec getcwd failures.
+    begin
+      Dir.chdir("/") unless Dir.getwd == "/"
+    rescue Errno::ENOENT
+      Dir.chdir("/")
+    end
     FileUtils.remove_entry(project_dir)
   end
 

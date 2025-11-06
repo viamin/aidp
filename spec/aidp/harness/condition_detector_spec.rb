@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../../lib/aidp/harness/condition_detector"
 
 RSpec.describe Aidp::Harness::ConditionDetector do
   let(:detector) { described_class.new }
@@ -332,6 +333,46 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       patterns = detector.get_rate_limit_patterns(nil)
       expect(patterns).to eq(detector.instance_variable_get(:@rate_limit_patterns)[:common])
     end
+  end
+
+  describe "timeout handling" do
+    it "detects explicit timeout indicator" do
+      start = Time.now
+      result = {error: "Operation timed out after waiting"}
+      expect(detector.is_timeout?(result, start, 120)).to be true
+      info = detector.extract_timeout_info(result, start, 120)
+      expect(info[:timeout_type]).to eq("explicit")
+      expect(info[:indicators]).not_to be_empty
+      expect(detector.get_timeout_status_description(info)).to match(/explicit/i)
+    end
+
+    it "detects duration based timeout" do
+      start = Time.now - 10
+      result = {message: "Still running"}
+      info = detector.extract_timeout_info(result, start, 5)
+      expect(info[:is_timeout]).to be true
+      expect(info[:timeout_type]).to eq("duration")
+    end
+  end
+
+  describe "timeouts utility" do
+    it "returns configured timeout override" do
+      cfg = {timeouts: {analyze: 42}}
+      expect(detector.get_timeout_duration(:analyze, cfg)).to eq(42)
+    end
+
+    it "returns default timeout when not configured" do
+      expect(detector.get_timeout_duration(:provider_call)).to eq(120)
+    end
+  end
+
+  describe "user response validation" do
+    it { expect(detector.validate_user_response("user@example.com", "email")).to be true }
+    it { expect(detector.validate_user_response("http://example.com", "url")).to be true }
+    it { expect(detector.validate_user_response("42", "number")).to be true }
+    it { expect(detector.validate_user_response("yes", "boolean")).to be true }
+    it { expect(detector.validate_user_response("/tmp", "path")).to be true }
+    it { expect(detector.validate_user_response("", "text")).to be false }
   end
 
   describe "#detect_input_type" do
@@ -812,6 +853,7 @@ RSpec.describe Aidp::Harness::ConditionDetector do
     end
   end
 
+  # Additional completion utility methods (merged from duplicate block)
   describe "completion utility methods" do
     let(:completion_info) do
       {

@@ -35,7 +35,7 @@ Traditional prompt building concatenates entire files:
 ```text
 PROMPT.md = LLM_STYLE_GUIDE.md (full) + template.md (full) + all source files
 Result: 50,000+ tokens, mostly irrelevant
-```text
+```
 
 **Intelligent optimization** uses ZFC to select fragments:
 
@@ -45,7 +45,7 @@ Result: 50,000+ tokens, mostly irrelevant
 3. Select highest-scoring fragments within token budget
 4. Build compact, focused prompt
 Result: 8,000-12,000 tokens, all highly relevant
-```text
+```
 
 ### Architecture
 
@@ -62,7 +62,7 @@ Result: 8,000-12,000 tokens, all highly relevant
        ├─► RelevanceScorer   ──► Scored fragments (0.0-1.0)
        ├─► ContextComposer   ──► Selected fragments (budget)
        └─► PromptBuilder     ──► Final PROMPT.md
-```text
+```
 
 ### Zero Framework Cognition Principles
 
@@ -100,7 +100,7 @@ prompt_optimization:
 
   # Debug logging (shows selected fragments)
   log_selected_fragments: true
-```text
+```
 
 ### Threshold Guidance
 
@@ -122,7 +122,7 @@ When enabled, optimization happens automatically during work loops:
 # WorkLoopRunner detects optimization is enabled
 # Builds task context from user input and step
 # Creates optimized PROMPT.md instead of traditional concatenation
-```text
+```
 
 You'll see output like:
 
@@ -131,7 +131,7 @@ You'll see output like:
    Selected: 12 fragments, Excluded: 45
    Tokens: 8,432 (52.7% of budget)
    Avg relevance: 87.3%
-```text
+```
 
 ### Manual Usage (API)
 
@@ -158,7 +158,7 @@ result.write_to_file("PROMPT.md")
 puts result.composition_result.selected_count
 puts result.composition_result.budget_utilization
 puts result.selection_report
-```text
+```
 
 ---
 
@@ -187,7 +187,7 @@ Shows which fragments were selected and why:
 - lib/user.rb:User (90%)
 - lib/auth.rb:authenticate (85%)
 ...
-```text
+```
 
 ### `/prompt stats`
 
@@ -204,7 +204,7 @@ Shows overall optimizer statistics:
 - **Average Fragments/Run**: 12.0
 - **Average Budget Utilization**: 54.2%
 - **Average Optimization Time**: 23.4ms
-```text
+```
 
 ### `/prompt reset`
 
@@ -212,7 +212,7 @@ Clears optimizer cache, forcing fresh indexing on next run:
 
 ```text
 Optimizer cache cleared. Next prompt will use fresh indexing.
-```text
+```
 
 ### `/prompt expand <fragment_id>` (Coming Soon)
 
@@ -253,7 +253,7 @@ Will allow manual inclusion of excluded fragments.
    b. Fill budget with highest-scoring fragments above threshold
    c. Deduplicate overlapping content
 5. Build final prompt from selected fragments
-```text
+```
 
 ---
 
@@ -270,7 +270,7 @@ feature:  ["implementation", "testing", "documentation"]
 bugfix:   ["testing", "debugging", "error-handling"]
 refactor: ["code-quality", "performance", "patterns"]
 test:     ["testing", "coverage", "assertions"]
-```text
+```
 
 ### 2. Tag Match (25% weight)
 
@@ -307,7 +307,7 @@ Scores:
 
 Weighted Total: 0.85*0.3 + 0.60*0.25 + 0.50*0.25 + 0.70*0.2 = 0.73
 Final Score: 0.73 → SELECTED (above 0.7 threshold)
-```text
+```
 
 ---
 
@@ -354,7 +354,7 @@ Medium priority (score ≥ 0.6):
   - Auth module code (2,500 tokens) ✗ (would exceed budget)
 
 Final: 12,000 / 14,000 tokens (85.7% utilization)
-```text
+```
 
 ---
 
@@ -367,7 +367,7 @@ Enable metadata in PROMPT.md for debugging:
 ```yaml
 prompt_optimization:
   log_selected_fragments: true
-```text
+```
 
 Adds footer to PROMPT.md:
 
@@ -395,7 +395,7 @@ Adds footer to PROMPT.md:
 - lib/user.rb:User (score: 0.90)
 - lib/auth.rb:authenticate (score: 0.85)
 ...
-```text
+```
 
 ### Programmatic Access
 
@@ -418,7 +418,7 @@ stats.selected_fragments.each do |scored|
 
   puts "#{fragment.id}: #{score} (#{breakdown.inspect})"
 end
-```text
+```
 
 ---
 
@@ -464,7 +464,7 @@ Performance remains excellent even with large codebases.
 ```yaml
 include_threshold:
   style_guide: 0.65  # Was 0.75, now more inclusive
-```text
+```
 
 ### Issue: Prompt still too large
 
@@ -480,7 +480,7 @@ include_threshold:
 max_tokens: 12000  # Reduced from 16000
 include_threshold:
   style_guide: 0.80  # Increased from 0.75
-```text
+```
 
 ### Issue: Wrong fragments selected
 
@@ -492,13 +492,13 @@ Add tags to style guide headings:
 
 ```markdown
 ## Security Guidelines (auth, oauth, tokens)
-```text
+```
 
 Add tags to templates:
 
 ```markdown
 <!-- tags: api, rest, endpoints -->
-```text
+```
 
 ### Issue: Optimization disabled
 
@@ -514,7 +514,7 @@ Add tags to templates:
 # Verify in console
 config = Aidp::Harness::Configuration.new(project_dir)
 config.prompt_optimization_enabled?  # => true
-```text
+```
 
 ### Issue: Performance degradation
 
@@ -542,7 +542,7 @@ Write comprehensive tests for all features.
 ## Security Best Practices
 
 Always validate user input.
-```text
+```
 
 **Bad** (monolithic):
 
@@ -551,7 +551,7 @@ Always validate user input.
 
 Testing: Write comprehensive tests.
 Security: Always validate input.
-```text
+```
 
 ### 2. Tag Your Content
 
@@ -559,13 +559,13 @@ Style guide:
 
 ```markdown
 ## API Design Principles (rest, graphql, endpoints)
-```text
+```
 
 Templates:
 
 ```markdown
 <!-- tags: database, migration, schema -->
-```text
+```
 
 ### 3. Use Meaningful Task Descriptions
 
@@ -574,14 +574,14 @@ Templates:
 ```ruby
 description: "Add OAuth authentication to User model with token refresh"
 tags: ["security", "api", "oauth"]
-```text
+```
 
 **Bad**:
 
 ```ruby
 description: "Update user stuff"
 tags: []
-```text
+```
 
 ### 4. Monitor Optimization Quality
 
@@ -600,7 +600,7 @@ Week 1: Default thresholds (0.75, 0.8, 0.7)
 Week 2: Monitor excluded fragments, lower if needed
 Week 3: Monitor prompt size, raise if too large
 Week 4: Find sweet spot for your project
-```text
+```
 
 ---
 
@@ -621,7 +621,7 @@ Automatically adjust thresholds based on:
 ```text
 /prompt expand "security-oauth"
 Fragment "Security: OAuth" added to next prompt
-```text
+```
 
 ### Semantic Search (Planned)
 
@@ -653,7 +653,7 @@ description: "Add OAuth authentication to User model"
 affected_files: ["lib/user.rb", "lib/auth/oauth.rb"]
 step_name: "implementation"
 tags: ["security", "api", "oauth"]
-```text
+```
 
 **Selected Fragments** (12 total, 8,234 tokens):
 
@@ -685,7 +685,7 @@ description: "Fix timeout in OAuth token refresh"
 affected_files: ["lib/auth/oauth.rb"]
 step_name: "implementation"
 tags: ["security", "timeout"]
-```text
+```
 
 **Selected Fragments** (8 total, 5,123 tokens):
 
@@ -708,7 +708,7 @@ description: "Extract authentication logic into service objects"
 affected_files: ["lib/user.rb", "lib/auth/*.rb"]
 step_name: "planning"
 tags: ["patterns", "service-objects"]
-```text
+```
 
 **Selected Fragments** (10 total, 6,789 tokens):
 
@@ -739,4 +739,4 @@ Intelligent Prompt Optimization brings **Zero Framework Cognition** to prompt co
 # .aidp/config.yml
 prompt_optimization:
   enabled: true
-```text
+```

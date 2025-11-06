@@ -8,9 +8,16 @@ module Aidp
     # Simple file manager that provides easy access to JSON and CSV storage
     class FileManager
       def initialize(base_dir = ".aidp")
-        @base_dir = base_dir
-        @json_storage = JsonStorage.new(base_dir)
-        @csv_storage = CsvStorage.new(base_dir)
+        @base_dir = sanitize_base_dir(base_dir)
+        @json_storage = JsonStorage.new(@base_dir)
+        @csv_storage = CsvStorage.new(@base_dir)
+        # Normalize base_dir if storages had to fallback
+        json_dir = @json_storage.instance_variable_get(:@base_dir)
+        csv_dir = @csv_storage.instance_variable_get(:@base_dir)
+        if json_dir != @base_dir || csv_dir != @base_dir
+          @base_dir = json_dir # Prefer JSON storage directory
+          Kernel.warn "[AIDP Storage] Base directory normalized to #{@base_dir} after fallback."
+        end
       end
 
       # JSON operations for structured data
@@ -208,6 +215,24 @@ module Aidp
         {success: true, restored_from: source_dir}
       rescue => error
         {success: false, error: error.message}
+      end
+
+      private
+
+      def sanitize_base_dir(dir)
+        return Dir.pwd if dir.nil? || dir.to_s.strip.empty?
+        str = dir.to_s
+        if str == File::SEPARATOR
+          fallback = begin
+            home = Dir.home
+            (home && !home.empty? && File.writable?(home)) ? File.join(home, ".aidp") : File.join(Dir.tmpdir, "aidp_storage")
+          rescue
+            File.join(Dir.tmpdir, "aidp_storage")
+          end
+          Kernel.warn "[AIDP Storage] Root base_dir detected - using fallback #{fallback} instead of '#{str}'"
+          return fallback
+        end
+        str
       end
     end
   end

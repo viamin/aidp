@@ -39,6 +39,7 @@ module Aidp
       @json_format = config[:json] || false
       @max_size = config[:max_size_mb] ? config[:max_size_mb] * 1024 * 1024 : DEFAULT_MAX_SIZE
       @max_files = config[:max_backups] || DEFAULT_MAX_FILES
+      @instrument_internal = config.key?(:instrument) ? config[:instrument] : (ENV["AIDP_LOG_INSTRUMENT"] == "1")
 
       ensure_log_directory
       setup_logger
@@ -95,12 +96,24 @@ module Aidp
 
     def ensure_log_directory
       log_dir = File.join(@project_dir, LOG_DIR)
-      FileUtils.mkdir_p(log_dir) unless Dir.exist?(log_dir)
+      return if Dir.exist?(log_dir)
+      begin
+        FileUtils.mkdir_p(log_dir)
+      rescue SystemCallError => e
+        Kernel.warn "[AIDP Logger] Cannot create log directory #{log_dir}: #{e.class}: #{e.message}. Falling back to STDERR logging."
+        # We intentionally do not re-raise; file logger setup will attempt and then fall back itself.
+      end
     end
 
     def setup_logger
       info_path = File.join(@project_dir, INFO_LOG)
       @logger = create_logger(info_path)
+      # Emit instrumentation after logger is available (avoid recursive Aidp.log_* calls during bootstrap)
+      return unless @instrument_internal
+      if defined?(@root_fallback) && @root_fallback
+        debug("logger", "root_fallback_applied", effective_dir: @root_fallback)
+      end
+      debug("logger", "logger_initialized", path: info_path, project_dir: @project_dir)
     end
 
     def create_logger(path)
@@ -200,12 +213,35 @@ module Aidp
     # that would create odd top-level directories like "<STDERR>".
     def sanitize_project_dir(dir)
       return Dir.pwd if dir.nil?
-      str = dir.to_s
-      if str.empty? || str.match?(/[<>|]/) || str.match?(/[\x00-\x1F]/)
-        Kernel.warn "[AIDP Logger] Invalid project_dir '#{str}' - falling back to #{Dir.pwd}"
+      raw_input = dir.to_s
+      raw_invalid = raw_input.empty? || raw_input.match?(/[<>|]/) || raw_input.match?(/[\x00-\x1F]/)
+      if raw_invalid
+        Kernel.warn "[AIDP Logger] Invalid project_dir '#{raw_input}' - falling back to #{Dir.pwd}"
+        if Dir.pwd == File::SEPARATOR
+          fallback = begin
+            home = Dir.home
+            (home && !home.empty?) ? home : Dir.tmpdir
+          rescue
+            Dir.tmpdir
+          end
+          @root_fallback = fallback
+          Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{Dir.pwd}'"
+          return fallback
+        end
         return Dir.pwd
       end
-      str
+      if raw_input == File::SEPARATOR
+        fallback = begin
+          home = Dir.home
+          (home && !home.empty?) ? home : Dir.tmpdir
+        rescue
+          Dir.tmpdir
+        end
+        @root_fallback = fallback
+        Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{raw_input}'"
+        return fallback
+      end
+      raw_input
     end
   end
 

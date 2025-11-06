@@ -223,16 +223,20 @@ RSpec.describe Aidp::Config do
 
   describe ".validate_harness_config provider validation skip conditions" do
     it "skips provider validation when should_validate is false" do
-      # Use current working directory to satisfy project_dir == Dir.pwd so validation may skip
-      cwd = Dir.pwd
-      cfg_path = File.join(cwd, ".aidp", "aidp.yml")
-      FileUtils.mkdir_p(File.dirname(cfg_path))
-      File.write(cfg_path, {harness: {default_provider: "cursor"}, providers: {cursor: {type: "subscription"}}}.to_yaml)
-      config = {harness: {default_provider: "cursor"}, providers: {cursor: {type: "subscription"}}}
-      errors = described_class.validate_harness_config(config, cwd)
-      # Depending on validator implementation, may still produce errors if validator enforces additional constraints.
-      # We assert no critical default_provider missing error.
-      expect(errors).not_to include("Default provider not specified in harness config")
+      # Use a temp directory that we can actually write to
+      test_dir = Dir.mktmpdir
+      begin
+        cfg_path = File.join(test_dir, ".aidp", "aidp.yml")
+        FileUtils.mkdir_p(File.dirname(cfg_path))
+        File.write(cfg_path, {harness: {default_provider: "cursor"}, providers: {cursor: {type: "subscription"}}}.to_yaml)
+        config = {harness: {default_provider: "cursor"}, providers: {cursor: {type: "subscription"}}}
+        errors = described_class.validate_harness_config(config, test_dir)
+        # Depending on validator implementation, may still produce errors if validator enforces additional constraints.
+        # We assert no critical default_provider missing error.
+        expect(errors).not_to include("Default provider not specified in harness config")
+      ensure
+        FileUtils.rm_rf(test_dir) if test_dir && Dir.exist?(test_dir)
+      end
     end
 
     it "adds error when default_provider missing" do

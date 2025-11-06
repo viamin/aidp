@@ -33,7 +33,6 @@ module Aidp
         @provider_manager = Aidp::Harness::ProviderManager.new(@config_manager, prompt: @prompt)
         @conversation_history = []
         @user_input = {}
-        @invalid_planning_responses = 0
         @verbose = verbose
         @debug_env = ENV["DEBUG"] == "1" || ENV["DEBUG"] == "2"
       end
@@ -138,7 +137,7 @@ module Aidp
         end
 
         response = call_provider_for_analysis(system_prompt, user_prompt)
-        parsed = safe_parse_planning_response(response)
+        parsed = parse_planning_response(response)
         # Attach raw response for debug
         parsed[:raw_response] = response
         emit_verbose_raw_prompt(system_prompt, user_prompt, response)
@@ -378,53 +377,20 @@ module Aidp
         json_match = response_text.match(/```json\s*(\{.*?\})\s*```/m) ||
           response_text.match(/(\{.*\})/m)
 
-        return {error: :invalid_format} unless json_match
-        JSON.parse(json_match[1], symbolize_names: true)
-      rescue JSON::ParserError
-        {error: :invalid_format}
-      end
-
-      # Provides structured fallback sequence when provider keeps returning invalid planning JSON.
-      # After exceeding sequence length, switches to manual entry question.
-      def safe_parse_planning_response(response_text)
-        parsed = parse_planning_response(response_text)
-        return parsed unless parsed.is_a?(Hash) && parsed[:error] == :invalid_format
-
-        @invalid_planning_responses += 1
-        fallback_sequence = [
-          "Provide scope (key features) and primary users.",
-          "List 3-5 key functional requirements and any technical constraints.",
-          "Supply any non-functional requirements (performance/security) or type 'skip'."
-        ]
-
-        if @invalid_planning_responses <= fallback_sequence.size
-          {complete: false, questions: [fallback_sequence[@invalid_planning_responses - 1]], reasoning: "Fallback due to invalid provider response (format)", error: :fallback}
-        else
-          display_message("[ERROR] Provider returned invalid planning JSON #{@invalid_planning_responses} times. Enter combined plan details manually.", type: :error)
-          {complete: false, questions: ["Enter plan details manually (features; users; requirements; constraints) or type 'skip'"], reasoning: "Manual recovery mode", error: :manual_recovery}
+        unless json_match
+          raise ConversationError, "Provider returned invalid format: no JSON found in response"
         end
+
+        JSON.parse(json_match[1], symbolize_names: true)
+      rescue JSON::ParserError => e
+        raise ConversationError, "Provider returned invalid JSON: #{e.message}"
       end
 
       def update_plan_from_answer(plan, question, answer)
         # Simple heuristic-based plan updates
         # In a more sophisticated implementation, use AI to categorize answers
 
-        # IMPORTANT: Check manual recovery sentinel prompt first so it isn't misclassified
-        # by broader keyword heuristics (e.g., it contains the word 'users').
-        if question.start_with?("Enter plan details manually")
-          unless answer.strip.downcase == "skip"
-            parts = answer.split(/;|\|/).map(&:strip).reject(&:empty?)
-            features, users, requirements, constraints = parts
-            plan[:scope][:included] ||= []
-            plan[:scope][:included] << features if features
-            plan[:users][:personas] ||= []
-            plan[:users][:personas] << users if users
-            plan[:requirements][:functional] ||= []
-            plan[:requirements][:functional] << requirements if requirements
-            plan[:constraints][:technical] ||= []
-            plan[:constraints][:technical] << constraints if constraints
-          end
-        elsif question.downcase.include?("scope") || question.downcase.include?("include")
+        if question.downcase.include?("scope") || question.downcase.include?("include")
           plan[:scope][:included] ||= []
           plan[:scope][:included] << answer
         elsif question.downcase.include?("user") || question.downcase.include?("who")

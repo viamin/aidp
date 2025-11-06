@@ -110,7 +110,7 @@ compatible_providers:
   - openai
 ---
 You are a Repository Analyst...
-```text
+```
 
 ### File Locations
 
@@ -160,7 +160,7 @@ aidp/
                 ├── builder.rb
                 ├── differ.rb
                 └── writer.rb
-```text
+```
 
 **User Project** (project-specific files):
 
@@ -174,11 +174,10 @@ my-project/
 │   │       └── SKILL.md
 │   └── init_responses.yml    # From aidp init
 └── aidp.yml                  # Project config with routing
-```text
+```
 
 ---
 
-<a id="requirements-from-issue-149"></a>
 ## Requirements from Issue #149
 
 ### Entry Points
@@ -217,7 +216,6 @@ Extend current schema with:
 
 ---
 
-<a id="architecture"></a>
 ## Architecture
 
 ### High-Level Components
@@ -264,7 +262,7 @@ Extend current schema with:
                                   │   <id>/         │
                                   │     SKILL.md    │
                                   └─────────────────┘
-```text
+```
 
 ### New Classes
 
@@ -308,7 +306,6 @@ Extend current schema with:
 
 ---
 
-<a id="schema-extensions"></a>
 ## Schema Extensions
 
 ### Extended SKILL.md Format
@@ -422,7 +419,7 @@ routing:
 You are a Full Stack Expert specializing in Ruby on Rails and React...
 
 [Content can reference inherited base skill and extend it]
-```text
+```
 
 ### Inheritance Behavior
 
@@ -445,7 +442,6 @@ When a skill inherits from a base:
 
 ---
 
-<a id="wizard-flow-design"></a>
 ## Wizard Flow Design
 
 ### Flow Overview
@@ -507,7 +503,7 @@ Start
         ├─ Write to .aidp/skills/<id>/SKILL.md
         ├─ Create backup (if editing)
         └─ Success message
-```text
+```
 
 ### Detailed Step Definitions
 
@@ -669,7 +665,7 @@ Skill Preview: full_stack_expert v1.0.0
 [Show formatted SKILL.md content]
 
 ════════════════════════════════════════════════════════════
-```text
+```
 
 **Prompts**:
 
@@ -706,7 +702,7 @@ Next steps:
   • Review: aidp skill preview full_stack_expert
   • Edit:   aidp skill edit full_stack_expert
   • Use:    Configure routing in aidp.yml
-```text
+```
 
 ### Wizard Options/Flags
 
@@ -720,7 +716,6 @@ Next steps:
 
 ---
 
-<a id="cli-command-structure"></a>
 ## CLI Command Structure
 
 ### Command Hierarchy
@@ -733,7 +728,7 @@ aidp skill
   ├─ preview <id>
   ├─ diff <id>
   └─ delete <id> [OPTIONS]
-```text
+```
 
 ### Command Specifications
 
@@ -745,7 +740,7 @@ aidp skill
 
 ```bash
 aidp skill new [OPTIONS]
-```text
+```
 
 **Options**:
 
@@ -775,7 +770,7 @@ aidp skill new --minimal --id simple_skill --name "Simple Skill"
 
 # Dry-run mode
 aidp skill new --dry-run --from-template base_developer
-```text
+```
 
 **Output**:
 
@@ -791,7 +786,7 @@ aidp skill new --dry-run --from-template base_developer
 
 ```bash
 aidp skill edit <id> [OPTIONS]
-```text
+```
 
 **Arguments**:
 
@@ -815,7 +810,7 @@ aidp skill edit full_stack_expert --open-editor
 
 # Preview changes without saving
 aidp skill edit full_stack_expert --dry-run
-```text
+```
 
 **Output**:
 
@@ -832,7 +827,7 @@ aidp skill edit full_stack_expert --dry-run
 
 ```bash
 aidp skill list [OPTIONS]
-```text
+```
 
 **Options**:
 
@@ -856,7 +851,7 @@ aidp skill list --expertise ruby
 
 # JSON output
 aidp skill list --format json
-```text
+```
 
 **Output** (table format):
 
@@ -866,7 +861,7 @@ ID                  Name                Version  Source    Expertise
 base_developer      Base Developer      1.0.0    built-in  general
 ruby_expert         Ruby Expert         1.0.0    built-in  ruby, rails
 full_stack_expert   Full Stack Expert   1.0.0    project   ruby, react
-```text
+```
 
 #### `aidp skill preview <id>`
 
@@ -876,7 +871,7 @@ full_stack_expert   Full Stack Expert   1.0.0    project   ruby, react
 
 ```bash
 aidp skill preview <id>
-```text
+```
 
 **Arguments**:
 
@@ -886,7 +881,7 @@ aidp skill preview <id>
 
 ```bash
 aidp skill preview full_stack_expert
-```text
+```
 
 **Output**:
 
@@ -902,7 +897,7 @@ aidp skill preview full_stack_expert
 
 ```bash
 aidp skill diff <id>
-```text
+```
 
 **Arguments**:
 
@@ -913,7 +908,7 @@ aidp skill diff <id>
 ```bash
 # Diff project override vs built-in
 aidp skill diff ruby_expert
-```text
+```
 
 **Output**:
 
@@ -929,7 +924,7 @@ aidp skill diff ruby_expert
 
 ```bash
 aidp skill delete <id> [OPTIONS]
-```text
+```
 
 **Arguments**:
 
@@ -948,7 +943,7 @@ aidp skill delete old_skill
 
 # Force delete without confirmation
 aidp skill delete old_skill --force
-```text
+```
 
 **Output**:
 
@@ -958,7 +953,6 @@ aidp skill delete old_skill --force
 
 ---
 
-<a id="repl-integration"></a>
 ## REPL Integration
 
 ### Slash Commands
@@ -971,7 +965,7 @@ Add new `/skill` command family to REPL:
 /skill list
 /skill preview <id>
 /skill diff <id>
-```text
+```
 
 ### Implementation
 
@@ -1023,7 +1017,7 @@ module Aidp::Harness::ReplCommands
     end
   end
 end
-```text
+```
 
 ### REPL Enhancements
 
@@ -1033,7 +1027,6 @@ end
 
 ---
 
-<a id="aidpyml-routing"></a>
 ## aidp.yml Routing
 
 ### Routing Schema
@@ -1076,7 +1069,7 @@ routing:
     - paths: ["lib/aidp/cli/**"]
       keywords: ["add command"]
       skill: cli_expert
-```text
+```
 
 ### Router Implementation
 
@@ -1111,7 +1104,7 @@ skill_id = router.route(
   task: "Add a new CLI command"
 )
 # => "cli_expert"
-```text
+```
 
 ### Integration Points
 
@@ -1131,7 +1124,6 @@ skill_id = router.route(
 
 ---
 
-<a id="implementation-phases"></a>
 ## Implementation Phases
 
 ### Phase 1: Foundation (Weeks 1-2) ✅
@@ -1285,7 +1277,6 @@ skill_id = router.route(
 
 ---
 
-<a id="testing-strategy"></a>
 ## Testing Strategy
 
 ### Unit Tests
@@ -1418,11 +1409,10 @@ FactoryBot.define do
     source_path { "/tmp/test_skill/SKILL.md" }
   end
 end
-```text
+```
 
 ---
 
-<a id="documentation-requirements"></a>
 ## Documentation Requirements
 
 ### User Documentation
@@ -1586,7 +1576,7 @@ When working on tasks:
 3. Write tests before or alongside code
 4. Review your work for quality
 5. Explain your reasoning clearly
-```text
+```
 
 #### Ruby Expert Skill
 
@@ -1658,7 +1648,7 @@ When writing Ruby code:
 3. Follow StandardRB for consistent style
 4. Leverage Ruby's powerful blocks and enumerables
 5. Document with YARD for public APIs
-```text
+```
 
 ### B. Wizard Screen Mockups
 
@@ -1676,7 +1666,7 @@ How would you like to create your skill?
   ○ Clone an existing skill
 
 [Use arrows to move, space to select, enter to confirm]
-```text
+```
 
 #### Inheritance Selection Screen
 
@@ -1695,7 +1685,7 @@ Choose a base skill to inherit from:
 Selected: ruby_expert
 
 [Use arrows to move, space to select, enter to confirm]
-```text
+```
 
 #### Identity Screen
 
@@ -1716,7 +1706,7 @@ Description: Expert in Ruby on Rails web development
 Version: 1.0.0
 
 [Enter to continue, Ctrl+C to cancel]
-```text
+```
 
 #### Preview Screen
 
@@ -1750,7 +1740,7 @@ What would you like to do?
   ○ Cancel
 
 [Use arrows to move, enter to confirm]
-```text
+```
 
 ### C. Routing Examples
 
@@ -1765,7 +1755,7 @@ routing:
       skill: ruby_expert
     - paths: ["app/**/*.js"]
       skill: javascript_expert
-```text
+```
 
 #### Task-Based Routing
 
@@ -1776,7 +1766,7 @@ routing:
       skill: debugging_expert
     - keywords: ["optimize", "performance"]
       skill: performance_expert
-```text
+```
 
 #### Combined Routing
 
@@ -1792,7 +1782,7 @@ routing:
     - paths: ["app/javascript/components/**"]
       keywords: ["add", "feature", "implement"]
       skill: react_expert
-```text
+```
 
 ---
 

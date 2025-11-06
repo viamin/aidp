@@ -44,6 +44,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   after do
+    Dir.chdir("/") # Ensure we're not in project_dir before removing it
     FileUtils.remove_entry(project_dir)
   end
 
@@ -620,47 +621,44 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         expect(result[:questions]).to eq(["What tech stack?"])
       end
 
-      it "handles malformed JSON gracefully" do
+      it "raises error for malformed JSON" do
         response = "This is not JSON at all"
 
-        result = agent.send(:safe_parse_planning_response, response)
-
-        expect(result[:complete]).to be false
-        expect(result[:questions]).to eq(["Provide scope (key features) and primary users."])
-        expect(result[:error]).to eq(:fallback)
+        expect {
+          agent.send(:parse_planning_response, response)
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError, /no JSON found/)
       end
 
-      it "handles JSON parse errors gracefully" do
+      it "raises error for invalid JSON syntax" do
         response = '{"invalid": json,}'
 
-        result = agent.send(:safe_parse_planning_response, response)
-
-        expect(result[:complete]).to be false
-        expect(result[:questions]).to eq(["Provide scope (key features) and primary users."])
-        expect(result[:error]).to eq(:fallback)
+        expect {
+          agent.send(:parse_planning_response, response)
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError, /invalid JSON/)
       end
 
-      it "advances fallback sequence on repeated invalid responses" do
-        first = agent.send(:safe_parse_planning_response, "not json")
-        expect(first[:questions]).to eq(["Provide scope (key features) and primary users."])
-        second = agent.send(:safe_parse_planning_response, "not json")
-        expect(second[:questions]).to eq(["List 3-5 key functional requirements and any technical constraints."])
+      it "raises error consistently for invalid JSON on multiple calls" do
+        expect {
+          agent.send(:parse_planning_response, "not json")
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError)
+
+        expect {
+          agent.send(:parse_planning_response, "not json")
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError)
       end
 
-      it "enters manual recovery after exhausting fallback sequence" do
-        4.times { agent.send(:safe_parse_planning_response, "not json") }
-        result = agent.send(:safe_parse_planning_response, "still bad")
-        expect(result[:error]).to eq(:manual_recovery)
-        expect(result[:questions]).to eq(["Enter plan details manually (features; users; requirements; constraints) or type 'skip'"])
+      it "propagates errors to allow provider retry logic" do
+        # Verify that parsing errors are raised, allowing call_provider_for_analysis to handle retries
+        expect {
+          agent.send(:parse_planning_response, "not json")
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError)
       end
 
-      it "logs verbose failure when emit helper raises" do
-        # Force error inside emit helper by stubbing logger to raise
-        logger_double = instance_double("Aidp::Logger")
-        allow(Aidp).to receive(:logger).and_return(logger_double)
-        allow(logger_double).to receive(:warn)
-        # Simulate invalid response triggering fallback; ensure no exception bubbles
-        expect { agent.send(:safe_parse_planning_response, "bad json") }.not_to raise_error
+      it "raises errors for bad JSON responses" do
+        # Parsing errors should propagate to allow provider retry/fallback logic
+        expect {
+          agent.send(:parse_planning_response, "bad json")
+        }.to raise_error(Aidp::Workflows::GuidedAgent::ConversationError)
       end
     end
 
@@ -712,19 +710,6 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         agent.send(:update_plan_from_answer, test_plan, "How will you know when it's complete?", "Users can log in")
 
         expect(test_plan[:completion_criteria]).to eq(["Users can log in"])
-      end
-
-      it "parses manual recovery aggregated input" do
-        # Ensure nested hashes exist to avoid nil errors when adding
-        test_plan[:scope] ||= {}
-        test_plan[:users] ||= {}
-        test_plan[:requirements] ||= {}
-        test_plan[:constraints] ||= {}
-        agent.send(:update_plan_from_answer, test_plan, "Enter plan details manually (features; users; requirements; constraints) or type 'skip'", "Auth feature; Developers; Login requirement; No external DB")
-        expect(test_plan.dig(:scope, :included)).to include("Auth feature")
-        expect(test_plan.dig(:users, :personas)).to include("Developers")
-        expect(test_plan.dig(:requirements, :functional)).to include("Login requirement")
-        expect(test_plan.dig(:constraints, :technical)).to include("No external DB")
       end
 
       it "stores general information for unclassified questions" do
@@ -910,6 +895,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   after do
+    Dir.chdir("/") # Ensure we're not in project_dir before removing it
     FileUtils.rm_rf(project_dir) if project_dir && File.directory?(project_dir)
   end
 
@@ -1069,6 +1055,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   after do
+    Dir.chdir("/") # Ensure we're not in project_dir before removing it
     FileUtils.rm_rf(project_dir) if project_dir && File.directory?(project_dir)
   end
 
@@ -1102,6 +1089,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   after do
+    Dir.chdir("/") # Ensure we're not in project_dir before removing it
     FileUtils.rm_rf(project_dir) if project_dir && File.directory?(project_dir)
   end
 
@@ -1165,6 +1153,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   after do
+    Dir.chdir("/") # Ensure we're not in project_dir before removing it
     FileUtils.rm_rf(project_dir)
   end
 

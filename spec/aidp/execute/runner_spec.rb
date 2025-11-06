@@ -236,7 +236,8 @@ RSpec.describe Aidp::Execute::Runner do
 
     it "executes step with harness context" do
       # Use real project directory for template resolution
-      real_runner = described_class.new(Dir.pwd, harness_runner)
+      actual_project_root = File.expand_path("../../../", __dir__)
+      real_runner = described_class.new(actual_project_root, harness_runner)
 
       provider_manager = instance_double("ProviderManager")
       allow(harness_runner).to receive(:provider_manager).and_return(provider_manager)
@@ -247,7 +248,7 @@ RSpec.describe Aidp::Execute::Runner do
       expect(provider_manager).to have_received(:execute_with_provider).with(
         "claude",
         anything,
-        hash_including(step_name: step_name, project_dir: Dir.pwd, harness_mode: true)
+        hash_including(step_name: step_name, project_dir: actual_project_root, harness_mode: true)
       )
     end
 
@@ -334,7 +335,8 @@ RSpec.describe Aidp::Execute::Runner do
     let(:options) { {project_name: "Test Project", description: "Test Description"} }
 
     # Use a real project directory for template tests
-    let(:real_project_runner) { described_class.new(Dir.pwd, harness_runner) }
+    let(:actual_project_root) { File.expand_path("../../../", __dir__) }
+    let(:real_project_runner) { described_class.new(actual_project_root, harness_runner) }
 
     before do
       # Mock harness runner methods needed for skills registry
@@ -401,7 +403,8 @@ RSpec.describe Aidp::Execute::Runner do
   describe "standalone execution" do
     let(:step_name) { "00_PRD" }
     let(:options) { {} }
-    let(:real_standalone_runner) { described_class.new(Dir.pwd) }
+    let(:actual_project_root) { File.expand_path("../../../", __dir__) }
+    let(:real_standalone_runner) { described_class.new(actual_project_root) }
 
     it "executes step synchronously" do
       result = real_standalone_runner.run_step_standalone(step_name, options)

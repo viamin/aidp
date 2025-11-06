@@ -145,8 +145,9 @@ RSpec.describe Aidp::Analyze::Runner do
     end
 
     it "executes step with harness context" do
-      # Use real project directory for template resolution
-      real_runner = described_class.new(Dir.pwd, harness_runner)
+      # Use actual project root for template resolution (not Aruba temp dir)
+      actual_project_root = File.expand_path("../../../", __dir__)
+      real_runner = described_class.new(actual_project_root, harness_runner)
 
       provider_manager = instance_double("ProviderManager")
       allow(harness_runner).to receive(:provider_manager).and_return(provider_manager)
@@ -157,7 +158,7 @@ RSpec.describe Aidp::Analyze::Runner do
       expect(provider_manager).to have_received(:execute_with_provider).with(
         "claude",
         anything,
-        hash_including(step_name: step_name, project_dir: Dir.pwd, harness_mode: true)
+        hash_including(step_name: step_name, project_dir: actual_project_root, harness_mode: true)
       )
     end
 

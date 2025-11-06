@@ -2,12 +2,15 @@
 
 require "json"
 require "fileutils"
+require_relative "../../safe_directory"
 
 module Aidp
   module Harness
     module State
       # Handles file I/O and persistence for state management
       class Persistence
+        include Aidp::SafeDirectory
+
         def initialize(project_dir, mode, skip_persistence: false)
           @project_dir = project_dir
           @mode = mode
@@ -83,7 +86,15 @@ module Aidp
         end
 
         def ensure_state_directory
-          FileUtils.mkdir_p(@state_dir) unless Dir.exist?(@state_dir)
+          return if @skip_persistence  # Don't create directories when persistence is disabled
+
+          original_dir = @state_dir
+          @state_dir = safe_mkdir_p(@state_dir, component_name: "State::Persistence")
+
+          # If fallback occurred, switch to in-memory mode
+          if @state_dir != original_dir
+            @skip_persistence = true
+          end
         end
 
         def with_lock(&block)
