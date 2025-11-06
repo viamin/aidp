@@ -375,7 +375,7 @@ module Aidp
           previous_agent_summary: previous_summary
         )
 
-        @prompt_manager.write(initial_prompt)
+        @prompt_manager.write(initial_prompt, step_name: @step_name)
         display_message("  Created PROMPT.md (#{initial_prompt.length} chars)", type: :info)
       end
 
@@ -603,10 +603,10 @@ module Aidp
 
         return if test_results[:success] && lint_results[:success]
 
-        # Append failures to PROMPT.md
+        # Append failures to PROMPT.md and archive immediately (issue #224)
         current_prompt = @prompt_manager.read
         updated_prompt = current_prompt + "\n\n---\n\n" + failures.join("\n")
-        @prompt_manager.write(updated_prompt)
+        @prompt_manager.write(updated_prompt, step_name: @step_name)
 
         display_message("  [NEXT_PATCH] Added failure reports and diagnostic to PROMPT.md", type: :warning)
       end

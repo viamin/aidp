@@ -19,11 +19,15 @@ module Aidp
 
       def initialize(project_dir, config: nil)
         @project_dir = project_dir
-        @prompt_path = File.join(project_dir, PROMPT_FILENAME)
+        @aidp_dir = File.join(project_dir, ".aidp")
+        @prompt_path = File.join(@aidp_dir, PROMPT_FILENAME)
         @archive_dir = File.join(project_dir, ARCHIVE_DIR)
         @config = config
         @optimizer = nil
         @last_optimization_stats = nil
+
+        # Ensure .aidp directory exists
+        FileUtils.mkdir_p(@aidp_dir)
 
         # Initialize optimizer if enabled
         if config&.respond_to?(:prompt_optimization_enabled?) && config.prompt_optimization_enabled?
@@ -37,8 +41,15 @@ module Aidp
       # Write content to PROMPT.md
       # If optimization is enabled, stores the content but doesn't write yet
       # (use write_optimized instead)
-      def write(content)
+      #
+      # @param content [String] The prompt content to write
+      # @param step_name [String, nil] Optional step name for immediate archiving
+      # @return [String, nil] Archive path if archived, nil otherwise
+      def write(content, step_name: nil)
         File.write(@prompt_path, content)
+
+        # Archive immediately if step_name provided (issue #224)
+        archive(step_name) if step_name
       end
 
       # Write optimized prompt using intelligent fragment selection
@@ -87,6 +98,9 @@ module Aidp
             tokens: result.estimated_tokens,
             budget_utilization: result.composition_result.budget_utilization
           )
+
+          # Archive immediately if step_name provided (issue #224)
+          archive(task_context[:step_name]) if task_context[:step_name]
 
           true
         rescue => e
