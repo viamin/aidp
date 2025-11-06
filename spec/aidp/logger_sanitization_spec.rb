@@ -15,18 +15,26 @@ RSpec.describe "Aidp::Logger project_dir sanitization" do
   end
 
   it "falls back to Dir.pwd for invalid project_dir with angle brackets" do
-    expect(Kernel).to receive(:warn).with(/Invalid project_dir '<STDERR>'/).at_least(:once)
+    # Capture all warnings
+    warnings = []
+    allow(Kernel).to receive(:warn) do |msg|
+      warnings << msg
+    end
+
     l = Aidp::Logger.new(invalid_dir)
     l.info("test", "message")
     l.close
 
     expect(Dir.exist?(invalid_dir)).to be false
 
+    # Check that we got the invalid project_dir warning
+    expect(warnings.any? { |w| w =~ /Invalid project_dir '<STDERR>'/ }).to be true
+
     # Log should be written under current working directory .aidp/logs
     # UNLESS Dir.pwd is root (CI case), in which case it falls back to home/temp
     if Dir.pwd == File::SEPARATOR
       # In CI where Dir.pwd is /, we expect additional root fallback and log in fallback location
-      expect(Kernel).to have_received(:warn).with(/Root directory detected/).at_least(:once)
+      expect(warnings.any? { |w| w =~ /Root directory detected/ }).to be true
       # Log should exist in either home or temp fallback location
       home_log = begin
         File.join(Dir.home, ".aidp/logs/aidp.log")
