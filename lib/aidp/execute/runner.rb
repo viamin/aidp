@@ -308,25 +308,11 @@ module Aidp
       end
 
       def template_search_paths
-        project_paths = [
-          File.join(@project_dir, "templates"),
-          File.join(@project_dir, "templates", "planning"),
-          File.join(@project_dir, "templates", "analysis"),
-          File.join(@project_dir, "templates", "implementation"),
-          File.join(@project_dir, "templates", "COMMON")
-        ]
-
-        # Add gem root templates as fallback (supports execution when project_dir is sanitized or missing templates)
         gem_root = File.expand_path("../../../..", __dir__)
-        gem_paths = [
-          File.join(gem_root, "templates"),
-          File.join(gem_root, "templates", "planning"),
-          File.join(gem_root, "templates", "analysis"),
-          File.join(gem_root, "templates", "implementation"),
-          File.join(gem_root, "templates", "COMMON")
+        [
+          File.join(@project_dir, "templates"),
+          File.join(gem_root, "templates")
         ]
-
-        project_paths + gem_paths
       end
 
       def composed_prompt(step_name, options = {})

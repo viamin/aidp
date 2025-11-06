@@ -213,11 +213,10 @@ module Aidp
     # that would create odd top-level directories like "<STDERR>".
     def sanitize_project_dir(dir)
       return Dir.pwd if dir.nil?
-      original = dir.to_s
-      invalid = original.empty? || original.match?(/[<>|]/) || original.match?(/[\x00-\x1F]/)
-      if invalid
-        Kernel.warn "[AIDP Logger] Invalid project_dir '#{original}' - falling back to #{Dir.pwd}"
-        # If working directory itself is root, also apply root fallback (emit both warnings)
+      raw_input = dir.to_s
+      raw_invalid = raw_input.empty? || raw_input.match?(/[<>|]/) || raw_input.match?(/[\x00-\x1F]/)
+      if raw_invalid
+        Kernel.warn "[AIDP Logger] Invalid project_dir '#{raw_input}' - falling back to #{Dir.pwd}"
         if Dir.pwd == File::SEPARATOR
           fallback = begin
             home = Dir.home
@@ -231,7 +230,7 @@ module Aidp
         end
         return Dir.pwd
       end
-      if original == File::SEPARATOR
+      if raw_input == File::SEPARATOR
         fallback = begin
           home = Dir.home
           (home && !home.empty?) ? home : Dir.tmpdir
@@ -239,10 +238,10 @@ module Aidp
           Dir.tmpdir
         end
         @root_fallback = fallback
-        Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{original}'"
+        Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{raw_input}'"
         return fallback
       end
-      original
+      raw_input
     end
   end
 
