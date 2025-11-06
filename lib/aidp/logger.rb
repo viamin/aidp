@@ -213,17 +213,25 @@ module Aidp
     # that would create odd top-level directories like "<STDERR>".
     def sanitize_project_dir(dir)
       return Dir.pwd if dir.nil?
-      str = dir.to_s
-
-      # Check for invalid characters first
-      if str.empty? || str.match?(/[<>|]/) || str.match?(/[\x00-\x1F]/)
-        Kernel.warn "[AIDP Logger] Invalid project_dir '#{str}' - falling back to #{Dir.pwd}"
-        str = Dir.pwd
-        # Fall through to check if Dir.pwd is also problematic
+      original = dir.to_s
+      invalid = original.empty? || original.match?(/[<>|]/) || original.match?(/[\x00-\x1F]/)
+      if invalid
+        Kernel.warn "[AIDP Logger] Invalid project_dir '#{original}' - falling back to #{Dir.pwd}"
+        # If working directory itself is root, also apply root fallback (emit both warnings)
+        if Dir.pwd == File::SEPARATOR
+          fallback = begin
+            home = Dir.home
+            (home && !home.empty?) ? home : Dir.tmpdir
+          rescue
+            Dir.tmpdir
+          end
+          @root_fallback = fallback
+          Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{Dir.pwd}'"
+          return fallback
+        end
+        return Dir.pwd
       end
-
-      # Avoid using filesystem root as project directory for logs; permissions commonly restricted in CI
-      if str == File::SEPARATOR
+      if original == File::SEPARATOR
         fallback = begin
           home = Dir.home
           (home && !home.empty?) ? home : Dir.tmpdir
@@ -231,10 +239,10 @@ module Aidp
           Dir.tmpdir
         end
         @root_fallback = fallback
-        Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{str}'"
+        Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{original}'"
         return fallback
       end
-      str
+      original
     end
   end
 
