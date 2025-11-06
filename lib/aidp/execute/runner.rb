@@ -309,9 +309,16 @@ module Aidp
 
       def template_search_paths
         gem_root = File.expand_path("../../../..", __dir__)
+        # We search:
+        # 1. Project root templates (supports entries like "planning/create_prd.md" since name carries subfolder)
+        # 2. Project COMMON templates (supports direct filename lookups like "00_PRD.md")
+        # 3. Gem root templates (fallback when project lacks local copies)
+        # 4. Gem COMMON templates (fallback for filename-only lookups)
         [
           File.join(@project_dir, "templates"),
-          File.join(gem_root, "templates")
+          File.join(@project_dir, "templates", "COMMON"),
+          File.join(gem_root, "templates"),
+          File.join(gem_root, "templates", "COMMON")
         ]
       end
 
