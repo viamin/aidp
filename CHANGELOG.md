@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.22.0](https://github.com/viamin/aidp/compare/aidp/v0.21.1...aidp/v0.22.0) (2025-11-06)
+
+
+### Features
+
+* **devcontainer,setup,tests,docs:** add devcontainer integration modules, specs and PRD ([#216](https://github.com/viamin/aidp/issues/216)) ([a566a18](https://github.com/viamin/aidp/commit/a566a1820a003bac6ab2fac12612fa599bbacb6c))
+* **devcontainer:** add devcontainer integration (wizard, CLI, modules, docs, tests) ([cb85ac7](https://github.com/viamin/aidp/commit/cb85ac7ce312ba134eccab0615afc565ecdc32e2))
+* move PROMPT.md to .aidp/ and enable immediate archiving ([9427d41](https://github.com/viamin/aidp/commit/9427d410836f75c6ac9bc51d155a4da41bb82902))
+* move PROMPT.md to .aidp/ and enable immediate archiving ([#229](https://github.com/viamin/aidp/issues/229)) ([9f5b88d](https://github.com/viamin/aidp/commit/9f5b88d55638cb403688e665ab9e681d9374a1b5))
+* **safe_directory:** add SafeDirectory helper and use writable fallbacks ([dfb9c94](https://github.com/viamin/aidp/commit/dfb9c948b65f1ae80cc35492694d8b5185a8c5c0))
+
+
+### Bug Fixes
+
+* **ci:** restore core import in publish workflow to fix coverage updates ([8a43eb4](https://github.com/viamin/aidp/commit/8a43eb461d3f96a51e36b52d1dffaa97ceb9b3d1)), closes [#223](https://github.com/viamin/aidp/issues/223)
+* **ci:** restore core import in publish workflow to fix coverage updates ([#230](https://github.com/viamin/aidp/issues/230)) ([8fafc9a](https://github.com/viamin/aidp/commit/8fafc9a58f85b49a65e9acc281b8f09ae2e047b9))
+* **ci:** use release-please PR output directly instead of manual search ([03a1253](https://github.com/viamin/aidp/commit/03a1253fc47fecc67b0a26753ade887331d5b29e)), closes [#223](https://github.com/viamin/aidp/issues/223)
+* **ci:** use release-please PR output directly instead of manual search ([#231](https://github.com/viamin/aidp/issues/231)) ([ecfc904](https://github.com/viamin/aidp/commit/ecfc90448ed2fb0972dade6b570a600f5e7f93a8))
+* **execute,logger:** add gem-template fallbacks and improve project_dir sanitization ([30f659c](https://github.com/viamin/aidp/commit/30f659c25cb432cee317d931d6b028a600de0f90))
+* **execute,logger:** simplify template search paths and improve project_dir sanitization ([c5b191c](https://github.com/viamin/aidp/commit/c5b191c19e446dce9f93da035a938b25d667ecb7))
+* **execute,runner:** add COMMON template fallbacks to template_search_paths ([be7d7fa](https://github.com/viamin/aidp/commit/be7d7fa04fed0569554f70d75a69df77640d0321))
+* **logger:** allow root fallback when sanitizing project_dir ([2a1072a](https://github.com/viamin/aidp/commit/2a1072ab70ebce5f26383eea70e8183cc68c7d39))
+* **logger:** handle log directory creation errors and avoid using filesystem root ([a92491d](https://github.com/viamin/aidp/commit/a92491d35392c732cc2bebbb78b45e71941c54f5))
+* **spec,execute/runner:** use explicit project root instead of Dir.pwd for deterministic tests ([839b032](https://github.com/viamin/aidp/commit/839b032f8e076d21450ce04c67e3525a98945d26))
+* **spec:** make harness-related specs deterministic ([efc62f9](https://github.com/viamin/aidp/commit/efc62f91ce671d5f4262d7bd97c77163163da1bc))
+* **storage,logger:** sanitize base dirs, add writable fallbacks, and improve logger instrumentation/fallback reporting ([251aef3](https://github.com/viamin/aidp/commit/251aef36beaa62c539a94b0496d3a6344e084ed5))
+* **workflows/guided_agent:** propagate parse errors and remove fragile fallback; add CWD safety for specs ([7abeda9](https://github.com/viamin/aidp/commit/7abeda9d0a8f34dea382f4b021a63850e40d87ca))
+* **workflows/guided_agent:** propagate parse errors and remove fragile fallback; add CWD safety for specs ([#227](https://github.com/viamin/aidp/issues/227)) ([c88ed08](https://github.com/viamin/aidp/commit/c88ed08d0e8d5691c7ec757e4e0d7f3fcdfe4fd9))
+
 ## [0.21.1](https://github.com/viamin/aidp/compare/aidp/v0.21.0...aidp/v0.21.1) (2025-11-03)
 
 
