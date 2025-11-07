@@ -104,7 +104,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
         project_dir: tmp_dir,
         branch: "aidp/issue-77-implement-search",
         base_branch: "main"
-      ).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      ).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
 
       expect(repository_client).to receive(:post_comment).with(issue[:number], include("Implementation complete"))
       expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
@@ -147,7 +147,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
 
     it "includes workstream slug in success comment" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
 
       expect(repository_client).to receive(:post_comment).with(
         issue[:number],
@@ -160,7 +160,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
 
     it "includes workstream slug in failure comment" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(processor_with_workstreams).to receive(:run_harness).and_return({status: "error", message: "tests failed"})
 
       expect(repository_client).to receive(:post_comment).with(
@@ -173,22 +173,22 @@ RSpec.describe Aidp::Watch::BuildProcessor do
 
     it "cleans up workstream on error" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(processor_with_workstreams).to receive(:run_harness).and_raise(StandardError, "boom")
       allow(processor_with_workstreams).to receive(:display_message) # Suppress error display
 
       expect(Aidp::Worktree).to receive(:remove).with(
         slug: "issue-77-implement-search",
         project_dir: tmp_dir,
-        force: true
-      ).and_return({success: true})
+        delete_branch: true
+      ).and_return(true)
 
       expect { processor_with_workstreams.process(issue) }.to raise_error(StandardError, "boom")
     end
 
     it "preserves workstream on success for review" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
 
@@ -197,10 +197,28 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       processor_with_workstreams.process(issue)
     end
 
+    it "syncs local aidp config into workstream directory" do
+      host_config = File.join(tmp_dir, ".aidp", "aidp.yml")
+      FileUtils.mkdir_p(File.dirname(host_config))
+      File.write(host_config, "harness:\n  default_provider: test\n")
+
+      worktree_path = "#{tmp_dir}/.worktrees/issue-77-implement-search"
+      allow(Aidp::Worktree).to receive(:info).and_return(nil)
+      allow(Aidp::Worktree).to receive(:create).and_return({path: worktree_path})
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+
+      processor_with_workstreams.process(issue)
+
+      copied_config = File.join(worktree_path, ".aidp", "aidp.yml")
+      expect(File).to exist(copied_config)
+      expect(File.read(copied_config)).to include("default_provider: test")
+    end
+
     it "passes working_dir to harness runner" do
       workstream_path = "#{tmp_dir}/.worktrees/issue-77-implement-search"
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: workstream_path})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: workstream_path})
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
 
