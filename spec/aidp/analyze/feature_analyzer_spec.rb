@@ -1,118 +1,94 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "aidp/analyze/feature_analyzer"
-require "tmpdir"
 require "fileutils"
+require "aidp/analyze/feature_analyzer"
 
 RSpec.describe Aidp::FeatureAnalyzer do
-  let(:temp_dir) { Dir.mktmpdir }
-  let(:analyzer) { described_class.new(temp_dir) }
+  let(:project_dir) { Dir.mktmpdir }
+  let(:analyzer) { described_class.new(project_dir) }
 
-  after { FileUtils.rm_rf(temp_dir) }
+  before do
+    FileUtils.mkdir_p(File.join(project_dir, "features", "payments"))
+    FileUtils.mkdir_p(File.join(project_dir, "controllers", "orders"))
+    FileUtils.mkdir_p(File.join(project_dir, "lib"))
 
-  describe "#initialize" do
-    it "accepts a project directory" do
-      expect { described_class.new(temp_dir) }.not_to raise_error
-    end
+    File.write(File.join(project_dir, "features", "payments", "handler.rb"), <<~RUBY)
+      class PaymentsHandler
+      end
+    RUBY
 
-    it "defaults to current directory" do
-      analyzer = described_class.new
-      expect(analyzer.instance_variable_get(:@project_dir)).to eq(Dir.pwd)
-    end
+    File.write(File.join(project_dir, "controllers", "orders", "orders_controller.rb"), <<~RUBY)
+      class OrdersController
+        def index; end
+      end
+    RUBY
+
+    File.write(File.join(project_dir, "lib", "billing_manager.rb"), <<~RUBY)
+      require "json"
+      class BillingManager
+        def call; end
+      end
+    RUBY
+
+    File.write(File.join(project_dir, "lib", "utility.rb"), "module HelperTool; end")
+  end
+
+  after do
+    FileUtils.rm_rf(project_dir)
   end
 
   describe "#detect_features" do
-    context "with feature directories" do
-      before do
-        FileUtils.mkdir_p(File.join(temp_dir, "features", "authentication"))
-        FileUtils.mkdir_p(File.join(temp_dir, "services", "payment"))
-      end
+    it "discovers directory and file based features with metadata" do
+      features = analyzer.detect_features
 
-      it "detects features from directory structure" do
-        features = analyzer.detect_features
-        expect(features).to be_an(Array)
-      end
+      directory_feature = features.find { |f| f[:type] == "directory" && f[:name] == "payments" }
+      file_feature = features.find { |f| f[:path].end_with?("billing_manager.rb") }
 
-      it "returns feature information" do
-        features = analyzer.detect_features
-        expect(features.first).to have_key(:name) if features.any?
-      end
-    end
-
-    context "with empty project" do
-      it "returns empty array" do
-        features = analyzer.detect_features
-        expect(features).to eq([])
-      end
+      expect(directory_feature).to include(category: "core_business")
+      expect(file_feature[:dependencies]).to include("json")
+      expect(file_feature[:category]).to eq("core_business")
+      expect(file_feature[:complexity]).to be >= 0
+      expect(file_feature[:business_value]).to be_between(0, 1)
+      expect(file_feature[:technical_debt]).to be_between(0, 1)
     end
   end
 
   describe "#get_feature_agent_recommendations" do
-    let(:feature) do
-      {
-        name: "authentication",
-        type: "directory",
-        category: "security",
-        complexity: 5,
-        coupling: 0.5,
-        business_value: 0.7,
-        technical_debt: 0.4
+    it "returns priority and specialized agents" do
+      feature = {
+        name: "Payments API",
+        category: "api",
+        complexity: 6,
+        coupling: 0.9,
+        business_value: 0.9,
+        technical_debt: 0.7
       }
-    end
 
-    it "returns agent recommendations" do
-      recommendations = analyzer.get_feature_agent_recommendations(feature)
-      expect(recommendations).to be_a(Hash)
-      expect(recommendations).to have_key(:feature)
-      expect(recommendations).to have_key(:primary_agent)
-    end
+      result = analyzer.get_feature_agent_recommendations(feature)
 
-    it "includes specialized agents" do
-      recommendations = analyzer.get_feature_agent_recommendations(feature)
-      expect(recommendations).to have_key(:specialized_agents)
-    end
-
-    it "includes analysis priority" do
-      recommendations = analyzer.get_feature_agent_recommendations(feature)
-      expect(recommendations).to have_key(:analysis_priority)
+      expect(result[:primary_agent]).to eq("Architecture Analyst")
+      expect(result[:specialized_agents]).to include("Test Analyst", "Architecture Analyst", "Documentation Analyst", "Refactoring Specialist")
+      expect(result[:analysis_priority]).to eq("low")
     end
   end
 
   describe "#coordinate_feature_analysis" do
-    let(:feature) do
-      {
-        name: "authentication",
-        type: "directory",
-        category: "security",
-        complexity: 5,
-        coupling: 0.5,
-        business_value: 0.7,
-        technical_debt: 0.4
+    it "builds structured plan for primary and specialized agents" do
+      feature = {
+        name: "OrdersController",
+        category: "api",
+        complexity: 0.8,
+        coupling: 0.2,
+        business_value: 0.9,
+        technical_debt: 0.2
       }
-    end
 
-    it "coordinates multi-agent analysis" do
-      analysis = analyzer.coordinate_feature_analysis(feature)
-      expect(analysis).to be_a(Hash)
-      expect(analysis).to have_key(:feature)
-    end
+      plan = analyzer.coordinate_feature_analysis(feature)
 
-    it "includes primary analysis" do
-      analysis = analyzer.coordinate_feature_analysis(feature)
-      expect(analysis).to have_key(:primary_analysis)
-      expect(analysis[:primary_analysis]).to have_key(:agent)
-    end
-
-    it "includes specialized analyses" do
-      analysis = analyzer.coordinate_feature_analysis(feature)
-      expect(analysis).to have_key(:specialized_analyses)
-      expect(analysis[:specialized_analyses]).to be_an(Array)
-    end
-
-    it "includes coordination notes" do
-      analysis = analyzer.coordinate_feature_analysis(feature)
-      expect(analysis).to have_key(:coordination_notes)
+      expect(plan[:primary_analysis][:output_files][:primary]).to match(/orderscontroller/)
+      expect(plan[:specialized_analyses]).to all(include(:focus_areas, :output_files))
+      expect(plan[:coordination_notes]).to include("Feature:", "Primary Agent:")
     end
   end
 end

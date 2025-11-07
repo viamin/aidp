@@ -3,6 +3,8 @@
 require "spec_helper"
 require "aidp/execute/repl_macros"
 require "aidp/worktree"
+require "aidp/workstream_state"
+require "aidp/skills"
 require "tmpdir"
 require "fileutils"
 
@@ -12,6 +14,18 @@ RSpec.describe Aidp::Execute::ReplMacros do
 
   after do
     FileUtils.rm_rf(temp_dir)
+  end
+
+  describe "#current_skill_object" do
+    it "logs and returns nil when registry fails" do
+      macros = described_class.new(project_dir: temp_dir)
+      macros.instance_variable_set(:@current_skill, "repo-analyst")
+      allow(Aidp::Skills::Registry).to receive(:new).and_raise(StandardError, "boom")
+      allow(Aidp).to receive(:log_error)
+
+      expect(macros.current_skill_object).to be_nil
+      expect(Aidp).to have_received(:log_error).with("repl_macros", /Failed/, hash_including(:error))
+    end
   end
 
   describe "#initialize" do
@@ -89,6 +103,20 @@ RSpec.describe Aidp::Execute::ReplMacros do
     it "returns correct action" do
       result = repl.execute("/pin test.rb")
       expect(result[:action]).to eq(:update_constraints)
+    end
+  end
+
+  describe "/unpin command" do
+    it "removes pinned files discovered via glob patterns" do
+      macros = described_class.new
+      macros.instance_variable_get(:@pinned_files) << "lib/example.rb"
+      allow(macros).to receive(:expand_pattern).and_return(["lib/example.rb"])
+
+      result = macros.send(:cmd_unpin, ["lib/*.rb"])
+
+      expect(result[:success]).to be true
+      expect(result[:message]).to include("Unpinned 1 file")
+      expect(macros.pinned?("lib/example.rb")).to be false
     end
   end
 
@@ -1828,6 +1856,53 @@ RSpec.describe Aidp::Execute::ReplMacros do
         expect(result[:message]).to include("status [slug]")
         expect(result[:message]).to include("Examples:")
       end
+    end
+  end
+
+  describe "/ws status error handling" do
+    it "returns failure when worktree raises" do
+      allow(Aidp::Worktree).to receive(:info).and_raise(Aidp::Worktree::Error, "boom")
+      result = repl.execute("/ws status ghost-stream")
+      expect(result[:success]).to be false
+      expect(result[:message]).to include("Failed to get workstream status")
+    end
+  end
+
+  describe "/ws pause command" do
+    it "requires a slug or current workstream" do
+      result = repl.execute("/ws pause")
+      expect(result[:success]).to be false
+      expect(result[:message]).to include("Usage")
+    end
+
+    it "surfaces pause errors" do
+      allow(Aidp::WorkstreamState).to receive(:pause).and_return({error: "cannot pause"})
+      result = repl.execute("/ws pause api-stream")
+      expect(result[:success]).to be false
+      expect(result[:message]).to include("Failed to pause")
+    end
+
+    it "confirms pause success" do
+      allow(Aidp::WorkstreamState).to receive(:pause).and_return({})
+      result = repl.execute("/ws pause api-stream")
+      expect(result[:success]).to be true
+      expect(result[:message]).to include("Paused workstream")
+    end
+  end
+
+  describe "#matches_pattern?" do
+    let(:macros) { described_class.new }
+
+    it "treats bare ** as match-all" do
+      expect(macros.send(:matches_pattern?, "lib/foo.rb", "**")).to be true
+    end
+
+    it "matches suffix patterns beginning with **" do
+      expect(macros.send(:matches_pattern?, "lib/foo/bar.rb", "**/bar.rb")).to be true
+    end
+
+    it "matches prefix when pattern ends with **" do
+      expect(macros.send(:matches_pattern?, "lib/foo/bar.rb", "lib/**")).to be true
     end
   end
 end
