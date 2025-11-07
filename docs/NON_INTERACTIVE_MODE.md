@@ -2,9 +2,12 @@
 
 ## Overview
 
-AIDP's **Non-Interactive Background Mode** allows the system to run fully autonomously as a persistent background daemon process. This mode is designed for long-running work loops and fully automated "listen" operations with minimal user supervision.
+> **⚠️ STATUS: PARTIALLY IMPLEMENTED**
+> The daemon infrastructure is implemented but CLI commands (`aidp listen`, `aidp attach`, `aidp stop`) are not yet exposed. For now, use watch mode with shell job control (see [FULLY_AUTOMATIC_MODE.md](FULLY_AUTOMATIC_MODE.md)).
 
-When running in non-interactive mode, AIDP operates independently of the terminal session and communicates with users primarily via GitHub issue labels and comments.
+AIDP's **Non-Interactive Background Mode** is designed to allow the system to run fully autonomously as a persistent background daemon process. This mode is designed for long-running work loops and fully automated operations with minimal user supervision.
+
+When running in non-interactive mode, AIDP will operate independently of the terminal session and communicate with users primarily via GitHub issue labels and comments.
 
 This feature implements [GitHub Issue #104](https://github.com/viamin/aidp/issues/104).
 
@@ -42,19 +45,28 @@ AIDP can operate in three distinct modes:
 
 ## Starting Background Mode
 
-### From CLI
+### Current Implementation (Interim Solution)
 
-Start AIDP in background mode directly:
+While the full daemon mode is being implemented, use watch mode with shell job control:
 
 ```bash
-# Start in watch mode (monitors GitHub issues)
-aidp listen --background
+# Start watch mode in background using shell
+nohup aidp watch owner/repo > watch.log 2>&1 &
 
-# Start specific work loop in background
-aidp execute 16_IMPLEMENTATION --background
+# Start work loop in background
+aidp execute 16_IMPLEMENTATION --background  # ✅ This works
 
-# Specify poll interval for watch mode
-aidp listen --background --interval 120
+# Monitor via logs
+tail -f watch.log
+```
+
+### Planned CLI (Coming Soon)
+
+```bash
+# Planned commands (not yet available):
+# aidp listen --background
+# aidp attach
+# aidp stop
 ```
 
 ### From Interactive REPL
@@ -74,15 +86,20 @@ $
 
 ### Verification
 
-Check if daemon is running:
+> **Note:** These commands are planned but not yet implemented.
 
 ```bash
-$ aidp status
-Daemon Status: RUNNING
-PID: 12345
-Mode: watch
-Socket: .aidp/daemon/aidp.sock
-Log: .aidp/logs/current.log
+# Planned (not yet available):
+# $ aidp status
+# Daemon Status: RUNNING
+# PID: 12345
+# Mode: watch
+# Socket: .aidp/daemon/aidp.sock
+# Log: .aidp/logs/current.log
+
+# Current workaround:
+$ ps aux | grep "aidp watch"
+$ ps aux | grep "aidp execute"
 ```
 
 ## Autonomous Background Execution
@@ -130,13 +147,16 @@ Daemon creates PR when complete
 
 ## Reattaching to Daemon
 
-### Using aidp attach
+> **Note:** The `aidp attach` command is planned but not yet implemented.
 
-Restore interactive REPL while daemon continues:
+### Using aidp attach (Planned)
+
+This feature will restore interactive REPL while daemon continues:
 
 ```bash
-$ aidp attach
-🔗 Attaching to daemon (PID: 12345)
+# Planned (not yet available):
+# $ aidp attach
+# 🔗 Attaching to daemon (PID: 12345)
 
 📊 Recent Activity Summary (last hour):
   Total events: 142
@@ -239,13 +259,19 @@ Logs automatically rotate:
 
 ### Graceful Shutdown
 
+> **Note:** The `aidp stop` command is planned but not yet implemented.
+
 Stop daemon safely:
 
 ```bash
-$ aidp stop
-Sending SIGTERM to daemon (PID: 12345)...
-Daemon stopped gracefully
-Checkpoint saved at iteration 25
+# Planned (not yet available):
+# $ aidp stop
+
+# Current workaround:
+$ kill -TERM $(pgrep -f "aidp watch")
+# Or for background jobs:
+$ jobs  # Find job number
+$ kill %1  # Kill job by number
 ```
 
 ### What Happens on Shutdown
@@ -300,12 +326,19 @@ Daemon stopping gracefully...
 Background mode + watch mode = fully autonomous:
 
 ```bash
-# Start watching GitHub in background
-$ aidp listen --background
-Daemon started in watch mode (PID: 12345)
-Monitoring: https://github.com/owner/repo/issues
-Interval: 60s
-Log: .aidp/logs/current.log
+# Current implementation (using shell job control):
+$ nohup aidp watch owner/repo --interval 60 > watch.log 2>&1 &
+# Returns: [1] 12345
+
+# Monitor progress:
+$ tail -f watch.log
+
+# Planned command (not yet available):
+# $ aidp listen --background
+# Daemon started in watch mode (PID: 12345)
+# Monitoring: https://github.com/owner/repo/issues
+# Interval: 60s
+# Log: .aidp/logs/current.log
 
 # Daemon now autonomously:
 # 1. Polls GitHub for label changes
@@ -378,16 +411,17 @@ watch:
 ### Command-Line Options
 
 ```bash
-# Background mode options
-aidp listen --background           # Start in background
-aidp listen --background --interval 120  # Custom interval
-aidp listen --background --once    # Single cycle then exit
+# Currently available:
+aidp watch owner/repo                    # Start watch mode (foreground)
+aidp watch owner/repo --interval 120     # Custom poll interval
+aidp watch owner/repo --once             # Single cycle then exit
+aidp execute STEP --background           # Work loop in background ✅
 
-# Daemon control
-aidp status                        # Check daemon status
-aidp attach                        # Attach to running daemon
-aidp stop                          # Stop daemon gracefully
-aidp stop --force                  # Force stop (not recommended)
+# Planned (not yet available):
+# aidp listen --background          # Start watch daemon
+# aidp status                       # Check daemon status
+# aidp attach                       # Attach to running daemon
+# aidp stop                         # Stop daemon gracefully
 ```
 
 ## File Structure

@@ -163,16 +163,25 @@ module Aidp
       end
 
       def public_repos_allowed?
-        @config.dig(:safety, :allow_public_repos) == true
+        # Support both string and symbol keys
+        safety_config = @config[:safety] || @config["safety"] || {}
+        (safety_config[:allow_public_repos] || safety_config["allow_public_repos"]) == true
       end
 
       def author_allowlist
-        @author_allowlist ||= Array(@config.dig(:safety, :author_allowlist)).compact.map(&:to_s)
+        # Support both string and symbol keys
+        safety_config = @config[:safety] || @config["safety"] || {}
+        @author_allowlist ||= Array(
+          safety_config[:author_allowlist] || safety_config["author_allowlist"]
+        ).compact.map(&:to_s)
       end
 
       def safe_environment?
         # Check if running in a container
-        in_container? || @config.dig(:safety, :require_container) == false
+        # Support both string and symbol keys
+        safety_config = @config[:safety] || @config["safety"] || {}
+        require_container = safety_config[:require_container] || safety_config["require_container"]
+        in_container? || require_container == false
       end
 
       def in_container?
