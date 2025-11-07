@@ -15,14 +15,22 @@ module Aidp
     class BuildProcessor
       include Aidp::MessageDisplay
 
-      BUILD_LABEL = "aidp-build"
+      DEFAULT_BUILD_LABEL = "aidp-build"
+      DEFAULT_NEEDS_INPUT_LABEL = "aidp-needs-input"
       IMPLEMENTATION_STEP = "16_IMPLEMENTATION"
 
-      def initialize(repository_client:, state_store:, project_dir: Dir.pwd, use_workstreams: true)
+      attr_reader :build_label, :needs_input_label
+
+      def initialize(repository_client:, state_store:, project_dir: Dir.pwd, use_workstreams: true, verbose: false, label_config: {})
         @repository_client = repository_client
         @state_store = state_store
         @project_dir = project_dir
         @use_workstreams = use_workstreams
+        @verbose = verbose
+
+        # Load label configuration
+        @build_label = label_config[:build_trigger] || label_config["build_trigger"] || DEFAULT_BUILD_LABEL
+        @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || DEFAULT_NEEDS_INPUT_LABEL
       end
 
       def process(issue)
@@ -55,6 +63,8 @@ module Aidp
 
         if result[:status] == "completed"
           handle_success(issue: issue, slug: slug, branch_name: branch_name, base_branch: base_branch, plan_data: plan_data, working_dir: working_dir)
+        elsif result[:status] == "needs_clarification"
+          handle_clarification_request(issue: issue, slug: slug, result: result)
         else
           handle_failure(issue: issue, slug: slug, result: result)
         end
@@ -203,15 +213,33 @@ module Aidp
         prompt_manager = Aidp::Execute::PromptManager.new(working_dir)
         prompt_manager.write(content)
         display_message("📝 Wrote PROMPT.md with implementation contract", type: :info)
+
+        if @verbose
+          display_message("\n--- Implementation Prompt ---", type: :muted)
+          display_message(content.strip, type: :muted)
+          display_message("--- End Prompt ---\n", type: :muted)
+        end
       end
 
       def build_user_input(issue:, plan_data:)
         tasks = Array(plan_value(plan_data, "tasks"))
-        {
+        user_input = {
           "Implementation Contract" => plan_value(plan_data, "summary").to_s,
           "Tasks" => tasks.map { |task| "- #{task}" }.join("\n"),
           "Issue URL" => issue[:url]
         }.delete_if { |_k, v| v.nil? || v.empty? }
+
+        if @verbose
+          display_message("\n--- User Input for Harness ---", type: :muted)
+          user_input.each do |key, value|
+            display_message("#{key}:", type: :muted)
+            display_message(value, type: :muted)
+            display_message("", type: :muted)
+          end
+          display_message("--- End User Input ---\n", type: :muted)
+        end
+
+        user_input
       end
 
       def run_harness(user_input:, working_dir: @project_dir)
@@ -220,8 +248,20 @@ module Aidp
           workflow_type: :watch_mode,
           user_input: user_input
         }
+
+        display_message("🚀 Running harness in execute mode...", type: :info) if @verbose
+
         runner = Aidp::Harness::Runner.new(working_dir, :execute, options)
-        runner.run
+        result = runner.run
+
+        if @verbose
+          display_message("\n--- Harness Result ---", type: :muted)
+          display_message("Status: #{result[:status]}", type: :muted)
+          display_message("Message: #{result[:message]}", type: :muted) if result[:message]
+          display_message("--- End Result ---\n", type: :muted)
+        end
+
+        result
       end
 
       def handle_success(issue:, slug:, branch_name:, base_branch:, plan_data:, working_dir:)
@@ -257,10 +297,60 @@ module Aidp
         )
         display_message("🎉 Posted completion comment for issue ##{issue[:number]}", type: :success)
 
+        # Remove build label after successful completion
+        begin
+          @repository_client.remove_labels(issue[:number], @build_label)
+          display_message("🏷️  Removed '#{@build_label}' label after completion", type: :info)
+        rescue => e
+          display_message("⚠️  Failed to remove build label: #{e.message}", type: :warn)
+          # Don't fail the process if label removal fails
+        end
+
         # Keep workstream for review - don't auto-cleanup on success
         if @use_workstreams
           display_message("ℹ️  Workstream #{slug} preserved for review. Remove with: aidp ws rm #{slug}", type: :muted)
         end
+      end
+
+      def handle_clarification_request(issue:, slug:, result:)
+        questions = result[:clarification_questions] || []
+        workstream_note = @use_workstreams ? " The workstream `#{slug}` has been preserved." : " The branch has been preserved."
+
+        # Build comment with questions
+        comment_parts = []
+        comment_parts << "❓ Implementation needs clarification for ##{issue[:number]}."
+        comment_parts << ""
+        comment_parts << "The AI agent needs additional information to proceed with implementation:"
+        comment_parts << ""
+        questions.each_with_index do |question, index|
+          comment_parts << "#{index + 1}. #{question}"
+        end
+        comment_parts << ""
+        comment_parts << "**Next Steps**: Please reply with answers to the questions above. Once resolved, remove the `#{@needs_input_label}` label and add the `#{@build_label}` label to resume implementation."
+        comment_parts << ""
+        comment_parts << workstream_note.to_s
+
+        comment = comment_parts.join("\n")
+        @repository_client.post_comment(issue[:number], comment)
+
+        # Update labels: remove build trigger, add needs input
+        begin
+          @repository_client.replace_labels(
+            issue[:number],
+            old_labels: [@build_label],
+            new_labels: [@needs_input_label]
+          )
+          display_message("🏷️  Updated labels: removed '#{@build_label}', added '#{@needs_input_label}' (needs clarification)", type: :info)
+        rescue => e
+          display_message("⚠️  Failed to update labels for issue ##{issue[:number]}: #{e.message}", type: :warn)
+        end
+
+        @state_store.record_build_status(
+          issue[:number],
+          status: "needs_clarification",
+          details: {questions: questions, workstream: slug}
+        )
+        display_message("💬 Posted clarification request for issue ##{issue[:number]}", type: :success)
       end
 
       def handle_failure(issue:, slug:, result:)

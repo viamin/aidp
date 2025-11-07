@@ -10,9 +10,10 @@ module Aidp
       class BackupManager
         class BackupError < StandardError; end
 
-        def initialize(project_dir)
+        def initialize(project_dir, clock: Time)
           @project_dir = project_dir
           @backup_dir = File.join(project_dir, ".aidp", "backups", "devcontainer")
+          @clock = clock
         end
 
         # Create a backup of the devcontainer file
@@ -26,7 +27,7 @@ module Aidp
 
           ensure_backup_directory_exists
 
-          timestamp = Time.now.utc.strftime("%Y%m%d_%H%M%S")
+          timestamp = current_time.utc.strftime("%Y%m%d_%H%M%S")
           backup_filename = "devcontainer-#{timestamp}.json"
           backup_path = File.join(@backup_dir, backup_filename)
 
@@ -163,11 +164,17 @@ module Aidp
         end
 
         def parse_timestamp(timestamp_str)
-          return Time.now if timestamp_str.nil?
+          return current_time if timestamp_str.nil?
 
           Time.strptime(timestamp_str, "%Y%m%d_%H%M%S")
         rescue ArgumentError
-          Time.now
+          current_time
+        end
+
+        attr_reader :clock
+
+        def current_time
+          clock.respond_to?(:call) ? clock.call : clock.now
         end
       end
     end

@@ -170,6 +170,160 @@ RSpec.describe Aidp::Watch::RepositoryClient do
     end
   end
 
+  describe "#add_labels" do
+    let(:issue_number) { 123 }
+    let(:labels) { %w[bug enhancement] }
+
+    context "when GitHub CLI is available" do
+      let(:gh_available) { true }
+
+      it "adds labels via gh CLI" do
+        expect(Open3).to receive(:capture3).with(
+          "gh", "issue", "edit", "123", "--repo", "testowner/testrepo",
+          "--add-label", "bug", "--add-label", "enhancement"
+        ).and_return(["success", "", double(success?: true)])
+
+        client.add_labels(issue_number, labels)
+      end
+
+      it "skips when labels array is empty" do
+        expect(Open3).not_to receive(:capture3)
+        client.add_labels(issue_number, [])
+      end
+    end
+
+    context "when GitHub CLI is not available" do
+      let(:gh_available) { false }
+
+      it "adds labels via GitHub API" do
+        uri = URI("https://api.github.com/repos/testowner/testrepo/issues/123/labels")
+        request = instance_double(Net::HTTP::Post)
+        http = instance_double(Net::HTTP)
+        response = double(code: "201", body: "success")
+
+        expect(Net::HTTP::Post).to receive(:new).with(uri).and_return(request)
+        expect(request).to receive(:[]=).with("Content-Type", "application/json")
+        expect(request).to receive(:body=).with(JSON.dump({labels: labels}))
+        expect(Net::HTTP).to receive(:start).with(uri.hostname, uri.port, use_ssl: true).and_yield(http)
+        expect(http).to receive(:request).with(request).and_return(response)
+
+        client.add_labels(issue_number, labels)
+      end
+
+      it "skips when labels array is empty" do
+        expect(Net::HTTP).not_to receive(:start)
+        client.add_labels(issue_number, [])
+      end
+    end
+  end
+
+  describe "#remove_labels" do
+    let(:issue_number) { 123 }
+    let(:labels) { %w[wontfix duplicate] }
+
+    context "when GitHub CLI is available" do
+      let(:gh_available) { true }
+
+      it "removes labels via gh CLI" do
+        expect(Open3).to receive(:capture3).with(
+          "gh", "issue", "edit", issue_number.to_s, "--repo", client.full_repo,
+          "--remove-label", "wontfix", "--remove-label", "duplicate"
+        ).and_return(["success", "", double(success?: true)])
+
+        client.remove_labels(issue_number, labels)
+      end
+
+      it "skips when labels array is empty" do
+        expect(Open3).not_to receive(:capture3)
+        client.remove_labels(issue_number, [])
+      end
+    end
+
+    context "when GitHub CLI is not available" do
+      let(:gh_available) { false }
+
+      it "removes labels via GitHub API" do
+        http = instance_double(Net::HTTP)
+
+        # Mock the first label deletion
+        uri1 = URI("https://api.github.com/repos/#{client.full_repo}/issues/#{issue_number}/labels/wontfix")
+        request1 = instance_double(Net::HTTP::Delete)
+        response1 = double(code: "204")
+
+        expect(Net::HTTP::Delete).to receive(:new).with(uri1).and_return(request1)
+        expect(Net::HTTP).to receive(:start).with(uri1.hostname, uri1.port, use_ssl: true).and_yield(http)
+        expect(http).to receive(:request).with(request1).and_return(response1)
+
+        # Mock the second label deletion
+        uri2 = URI("https://api.github.com/repos/#{client.full_repo}/issues/#{issue_number}/labels/duplicate")
+        request2 = instance_double(Net::HTTP::Delete)
+        response2 = double(code: "204")
+
+        expect(Net::HTTP::Delete).to receive(:new).with(uri2).and_return(request2)
+        expect(Net::HTTP).to receive(:start).with(uri2.hostname, uri2.port, use_ssl: true).and_yield(http)
+        expect(http).to receive(:request).with(request2).and_return(response2)
+
+        client.remove_labels(issue_number, labels)
+      end
+
+      it "handles 404 responses gracefully" do
+        http = instance_double(Net::HTTP)
+        uri = URI("https://api.github.com/repos/#{client.full_repo}/issues/#{issue_number}/labels/nonexistent")
+        request = instance_double(Net::HTTP::Delete)
+        response = double(code: "404")
+
+        expect(Net::HTTP::Delete).to receive(:new).with(uri).and_return(request)
+        expect(Net::HTTP).to receive(:start).with(uri.hostname, uri.port, use_ssl: true).and_yield(http)
+        expect(http).to receive(:request).with(request).and_return(response)
+
+        expect {
+          client.remove_labels(issue_number, ["nonexistent"])
+        }.not_to raise_error
+      end
+
+      it "skips when labels array is empty" do
+        expect(Net::HTTP).not_to receive(:start)
+        client.remove_labels(issue_number, [])
+      end
+    end
+  end
+
+  describe "#replace_labels" do
+    let(:issue_number) { 123 }
+    let(:old_labels) { %w[aidp-plan] }
+    let(:new_labels) { %w[aidp-needs-input] }
+
+    it "removes old labels and adds new labels" do
+      allow(client).to receive(:remove_labels)
+      allow(client).to receive(:add_labels)
+
+      client.replace_labels(issue_number, old_labels: old_labels, new_labels: new_labels)
+
+      expect(client).to have_received(:remove_labels).with(issue_number, *old_labels)
+      expect(client).to have_received(:add_labels).with(issue_number, *new_labels)
+    end
+
+    it "skips removing when old_labels is empty" do
+      allow(client).to receive(:remove_labels)
+      allow(client).to receive(:add_labels)
+
+      client.replace_labels(issue_number, old_labels: [], new_labels: new_labels)
+
+      expect(client).not_to have_received(:remove_labels)
+      expect(client).to have_received(:add_labels).with(issue_number, *new_labels)
+    end
+
+    it "skips adding when new_labels is empty" do
+      allow(client).to receive(:remove_labels)
+      allow(client).to receive(:add_labels)
+
+      client.replace_labels(issue_number, old_labels: old_labels, new_labels: [])
+
+      expect(client).to have_received(:remove_labels).with(issue_number, *old_labels)
+      expect(client).not_to have_received(:add_labels)
+    end
+  end
+
   describe Aidp::Watch::RepositoryClient::BinaryChecker do
     let(:checker) { described_class.new }
 

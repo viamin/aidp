@@ -209,17 +209,59 @@ AIDP can automatically monitor GitHub repositories and respond to labeled issues
 # Start watch mode for a repository
 aidp watch https://github.com/owner/repo/issues
 
-# Optional: specify polling interval and provider
-aidp watch owner/repo --interval 60 --provider claude
+# Optional: specify polling interval, provider, and verbose output
+aidp watch owner/repo --interval 60 --provider claude --verbose
 
 # Run a single cycle (useful for CI/testing)
 aidp watch owner/repo --once
 ```
 
-**How it works:**
+**Label Workflow:**
 
-1. **Planning** (`aidp-plan` label): When this label is added to an issue, AIDP generates an implementation plan with task breakdown and clarifying questions, posting it as a comment
-2. **Building** (`aidp-build` label): Once the plan is approved, this label triggers autonomous implementation via work loops, creating a branch and pull request
+AIDP uses a smart label-based workflow to manage the lifecycle of automated issue resolution:
+
+1. **Planning Phase** (`aidp-plan` label):
+   - Add this label to an issue to trigger plan generation
+   - AIDP generates an implementation plan with task breakdown and clarifying questions
+   - Posts the plan as a comment on the issue
+   - Automatically removes the `aidp-plan` label
+
+2. **Review & Clarification**:
+   - **If questions exist**: AIDP adds `aidp-needs-input` label and waits for user response
+     - User responds to questions in a comment
+     - User manually removes `aidp-needs-input` and adds `aidp-build` to proceed
+   - **If no questions**: AIDP adds `aidp-ready` label, indicating it's ready to build
+     - User can review the plan before proceeding
+     - User manually adds `aidp-build` label when ready
+
+3. **Implementation Phase** (`aidp-build` label):
+   - Triggers autonomous implementation via work loops
+   - Creates a feature branch and commits changes
+   - Runs tests and linters with automatic fixes
+   - **If clarification needed during implementation**:
+     - Posts clarification questions as a comment
+     - Automatically removes `aidp-build` label and adds `aidp-needs-input`
+     - Preserves work-in-progress for later resumption
+     - User responds to questions, then manually removes `aidp-needs-input` and re-adds `aidp-build`
+   - **On success**:
+     - Posts completion comment with summary
+     - Automatically removes the `aidp-build` label
+
+**Customizable Labels:**
+
+All label names are configurable to match your repository's existing label scheme. Configure via the interactive wizard or manually in `aidp.yml`:
+
+```yaml
+# .aidp/aidp.yml
+watch:
+  labels:
+    plan_trigger: aidp-plan        # Label to trigger plan generation
+    needs_input: aidp-needs-input  # Label when plan needs user input
+    ready_to_build: aidp-ready     # Label when plan is ready to build
+    build_trigger: aidp-build      # Label to trigger implementation
+```
+
+Run `aidp config --interactive` and enable watch mode to configure labels interactively.
 
 **Safety Features:**
 
@@ -228,7 +270,7 @@ aidp watch owner/repo --once
 - **Container Requirement**: Optionally require sandboxed environment
 - **Force Override**: `--force` flag to bypass safety checks (dangerous!)
 
-**Configuration:**
+**Safety Configuration:**
 
 ```yaml
 # .aidp/aidp.yml
@@ -240,6 +282,17 @@ watch:
       - team-member
     require_container: true    # Require devcontainer/Docker environment
 ```
+
+Run `aidp config --interactive` and enable watch mode to configure safety settings interactively.
+
+**Clarification Requests:**
+
+AIDP can automatically request clarification when it needs more information during implementation. This works in both watch mode and interactive mode:
+
+- **Watch Mode**: Posts clarification questions as a GitHub comment, updates labels to `aidp-needs-input`, and waits for user response
+- **Interactive Mode**: Prompts the user directly in the terminal to answer questions before continuing
+
+This ensures AIDP never gets stuck - if it needs more information, it will ask for it rather than making incorrect assumptions or failing silently.
 
 See [Watch Mode Guide](docs/FULLY_AUTOMATIC_MODE.md) and [Watch Mode Safety](docs/WATCH_MODE_SAFETY.md) for complete documentation.
 
@@ -316,6 +369,20 @@ aidp ws rm <slug> --delete-branch  # Also delete git branch
 aidp ws rm <slug> --force          # Skip confirmation
 ```
 
+### Configuration Commands
+
+```bash
+# Interactive configuration wizard (recommended)
+aidp config --interactive       # Configure all settings including watch mode
+
+# Legacy setup wizard
+aidp --setup-config             # Re-run basic setup wizard
+
+# Help and version
+aidp --help                     # Show all commands
+aidp --version                  # Show version
+```
+
 ### System Commands
 
 ```bash
@@ -328,11 +395,6 @@ aidp providers
 # Harness state management
 aidp harness status
 aidp harness reset
-
-# Configuration
-aidp --setup-config             # Re-run setup wizard
-aidp --help                     # Show all commands
-aidp --version                  # Show version
 ```
 
 ## AI Providers

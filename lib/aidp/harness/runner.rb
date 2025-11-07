@@ -27,11 +27,12 @@ module Aidp
         waiting_for_rate_limit: "waiting_for_rate_limit",
         stopped: "stopped",
         completed: "completed",
-        error: "error"
+        error: "error",
+        needs_clarification: "needs_clarification"
       }.freeze
 
       # Public accessors for testing and integration
-      attr_reader :current_provider, :current_step, :user_input, :execution_log, :provider_manager
+      attr_reader :current_provider, :current_step, :user_input, :execution_log, :provider_manager, :clarification_questions
 
       def initialize(project_dir, mode = :analyze, options = {})
         @project_dir = project_dir
@@ -132,7 +133,9 @@ module Aidp
           cleanup
         end
 
-        {status: @state, message: get_completion_message}
+        result = {status: @state, message: get_completion_message}
+        result[:clarification_questions] = @clarification_questions if @clarification_questions
+        result
       end
 
       # Pause the harness execution
@@ -248,11 +251,22 @@ module Aidp
       end
 
       def handle_user_feedback_request(result)
-        @state = STATES[:waiting_for_user]
-        log_execution("Waiting for user feedback")
-
         # Extract questions from result
         questions = @condition_detector.extract_questions(result)
+
+        # Check if we're in watch mode (non-interactive)
+        if @options[:workflow_type] == :watch_mode
+          # Store questions for later retrieval and set state to needs_clarification
+          @clarification_questions = questions
+          @state = STATES[:needs_clarification]
+          log_execution("Clarification needed in watch mode", {question_count: questions.size})
+          # Don't continue - exit the loop so we can return this status
+          return
+        end
+
+        # Interactive mode: collect feedback from user
+        @state = STATES[:waiting_for_user]
+        log_execution("Waiting for user feedback")
 
         # Collect user input
         user_responses = @user_interface.collect_feedback(questions)

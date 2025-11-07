@@ -3,7 +3,8 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
-require "open3"
+
+StatusStub = Struct.new(:exitstatus)
 
 RSpec.describe "Workstream End-to-End Workflows", :system do
   let(:temp_dir) { Dir.mktmpdir("aidp_workstream_e2e") }
@@ -30,10 +31,33 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
   end
 
   def run_aidp(*args)
-    env = {"RSPEC_RUNNING" => "true"}
-    cmd = ["bundle", "exec", "aidp", *args]
-    stdout, stderr, status = Open3.capture3(env, *cmd, chdir: temp_dir)
-    [stdout, stderr, status]
+    stdout_read, stdout_write = IO.pipe
+    stderr_read, stderr_write = IO.pipe
+    exit_code = nil
+
+    Dir.chdir(temp_dir) do
+      original_stdout = $stdout.dup
+      original_stderr = $stderr.dup
+      begin
+        $stdout.reopen(stdout_write)
+        $stderr.reopen(stderr_write)
+        stdout_write.close
+        stderr_write.close
+        exit_code = Aidp::CLI.run(args)
+      ensure
+        $stdout.reopen(original_stdout)
+        $stderr.reopen(original_stderr)
+        original_stdout.close
+        original_stderr.close
+      end
+    end
+
+    stdout = stdout_read.read
+    stderr = stderr_read.read
+    stdout_read.close
+    stderr_read.close
+
+    [stdout, stderr, StatusStub.new(exit_code || 0)]
   end
 
   describe "create workstream → list → remove workflow" do

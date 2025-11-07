@@ -12,8 +12,8 @@ RSpec.describe Aidp::Watch::Runner do
       gh_available?: true)
   end
   let(:state_store) { instance_double(Aidp::Watch::StateStore) }
-  let(:plan_processor) { instance_double(Aidp::Watch::PlanProcessor) }
-  let(:build_processor) { instance_double(Aidp::Watch::BuildProcessor) }
+  let(:plan_processor) { instance_double(Aidp::Watch::PlanProcessor, plan_label: "aidp-plan") }
+  let(:build_processor) { instance_double(Aidp::Watch::BuildProcessor, build_label: "aidp-build") }
   let(:safety_checker) { instance_double(Aidp::Watch::RepositorySafetyChecker) }
 
   before do

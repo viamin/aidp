@@ -26,8 +26,9 @@ module Aidp
         Focus on concrete engineering tasks. Ensure questions are actionable.
       PROMPT
 
-      def initialize(provider_name: nil)
+      def initialize(provider_name: nil, verbose: false)
         @provider_name = provider_name
+        @verbose = verbose
       end
 
       def generate(issue)
@@ -67,7 +68,21 @@ module Aidp
 
       def generate_with_provider(provider, issue)
         payload = build_prompt(issue)
+
+        if @verbose
+          display_message("\n--- Plan Generation Prompt ---", type: :muted)
+          display_message(payload.strip, type: :muted)
+          display_message("--- End Prompt ---\n", type: :muted)
+        end
+
         response = provider.send_message(prompt: payload)
+
+        if @verbose
+          display_message("\n--- Provider Response ---", type: :muted)
+          display_message(response.strip, type: :muted)
+          display_message("--- End Response ---\n", type: :muted)
+        end
+
         parsed = parse_structured_response(response)
 
         return parsed if parsed

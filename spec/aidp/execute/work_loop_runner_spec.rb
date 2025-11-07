@@ -733,4 +733,130 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       expect(prompt_manager).to be_a(Aidp::Execute::PromptManager)
     end
   end
+
+  describe "guard and task helpers" do
+    let(:guard_policy) do
+      instance_double(
+        "GuardPolicy",
+        enabled?: guard_enabled,
+        summary: {
+          include_patterns: ["lib/**"],
+          exclude_patterns: ["tmp/**"],
+          confirm_patterns: ["config/secrets.yml"],
+          max_lines_per_commit: 100
+        },
+        validate_changes: {valid: true},
+        files_requiring_confirmation: confirmation_files,
+        confirmed?: false,
+        confirm_file: nil
+      )
+    end
+    let(:guard_enabled) { true }
+    let(:confirmation_files) { [] }
+    let(:task_struct) { Struct.new(:description, :priority, :created_at, :id) }
+    let(:tasklist) { instance_double("PersistentTasklist", pending: pending_tasks, create: created_task) }
+    let(:pending_tasks) { [] }
+    let(:created_task) { task_struct.new("Follow up", :high, Time.now, "TASK-1") }
+
+    before do
+      runner.instance_variable_set(:@guard_policy, guard_policy)
+      runner.instance_variable_set(:@persistent_tasklist, tasklist)
+      allow(runner).to receive(:display_message)
+      allow(tasklist).to receive(:pending).and_return(pending_tasks)
+      allow(tasklist).to receive(:create).and_return(created_task)
+      allow(Aidp).to receive(:log_info)
+    end
+
+    describe "#display_guard_policy_status" do
+      it "prints guard policy summary when enabled" do
+        runner.send(:display_guard_policy_status)
+        expect(runner).to have_received(:display_message).with(a_string_matching(/Include patterns/), type: :info)
+        expect(runner).to have_received(:display_message).with(a_string_matching(/Require confirmation/), type: :warning)
+      end
+
+      it "skips output when guards disabled" do
+        allow(guard_policy).to receive(:enabled?).and_return(false)
+        runner.send(:display_guard_policy_status)
+        expect(runner).not_to have_received(:display_message)
+      end
+    end
+
+    describe "#display_pending_tasks" do
+      let(:pending_tasks) do
+        now = Time.utc(2024, 1, 10)
+        allow(Time).to receive(:now).and_return(now)
+        [
+          task_struct.new("Fix auth bug", :high, now - 5 * 86_400, "T-1"),
+          task_struct.new("Refine docs", :medium, now, "T-2"),
+          task_struct.new("Cleanup", :low, now, "T-3"),
+          task_struct.new("Investigate logs", :low, now, "T-4"),
+          task_struct.new("Tune query", :medium, now, "T-5"),
+          task_struct.new("Extra task", :low, now, "T-6")
+        ]
+      end
+
+      it "lists recent tasks and truncates overflow" do
+        runner.send(:display_pending_tasks)
+        expect(runner).to have_received(:display_message).with(a_string_matching(/Pending Tasks/), type: :info)
+        expect(runner).to have_received(:display_message).with(a_string_including("... and 1 more"), type: :info)
+      end
+    end
+
+    describe "#process_task_filing" do
+      it "creates persistent tasks from agent signals" do
+        runner.instance_variable_set(:@step_name, "Implement feature")
+        runner.instance_variable_set(:@iteration_count, 2)
+        allow(Aidp::Execute::AgentSignalParser).to receive(:parse_task_filing).and_return([
+          {description: "Handle edge case", priority: :high, tags: %w[bug]}
+        ])
+
+        runner.send(:process_task_filing, {output: "task payload"})
+
+        expect(tasklist).to have_received(:create).with(
+          "Handle edge case",
+          hash_including(priority: :high, tags: %w[bug])
+        )
+        expect(Aidp).to have_received(:log_info).with("tasklist", /Filed new task/, hash_including(task_id: "TASK-1"))
+      end
+
+      it "skips when agent output is empty" do
+        runner.send(:process_task_filing, nil)
+        expect(tasklist).not_to have_received(:create)
+      end
+    end
+
+    describe "#validate_guard_policy" do
+      it "displays violations when validation fails" do
+        allow(runner).to receive(:get_diff_stats).and_return({"lib/file.rb" => {additions: 10, deletions: 0}})
+        allow(guard_policy).to receive(:validate_changes).and_return({valid: false, errors: ["Too many changes"]})
+
+        result = runner.send(:validate_guard_policy, ["lib/file.rb"])
+
+        expect(result[:valid]).to be false
+        expect(runner).to have_received(:display_message).with(a_string_matching(/Guard Policy Violations/), type: :error)
+      end
+
+      it "short-circuits when guard policy disabled" do
+        allow(guard_policy).to receive(:enabled?).and_return(false)
+        result = runner.send(:validate_guard_policy, ["lib/file.rb"])
+        expect(result).to eq(valid: true)
+      end
+    end
+
+    describe "#handle_confirmation_requests" do
+      let(:confirmation_files) { ["config/secrets.yml"] }
+
+      it "auto-skips confirmations in automated mode" do
+        runner.instance_variable_set(:@options, {automated: true})
+        runner.send(:handle_confirmation_requests)
+        expect(runner).to have_received(:display_message).with(a_string_matching(/Automated mode/), type: :info)
+      end
+
+      it "confirms files interactively when not automated" do
+        runner.instance_variable_set(:@options, {})
+        runner.send(:handle_confirmation_requests)
+        expect(guard_policy).to have_received(:confirm_file).with("config/secrets.yml")
+      end
+    end
+  end
 end

@@ -65,6 +65,20 @@ module Aidp
         gh_available? ? create_pull_request_via_gh(title: title, body: body, head: head, base: base, issue_number: issue_number) : raise("GitHub CLI not available - cannot create PR")
       end
 
+      def add_labels(number, *labels)
+        gh_available? ? add_labels_via_gh(number, labels.flatten) : add_labels_via_api(number, labels.flatten)
+      end
+
+      def remove_labels(number, *labels)
+        gh_available? ? remove_labels_via_gh(number, labels.flatten) : remove_labels_via_api(number, labels.flatten)
+      end
+
+      def replace_labels(number, old_labels:, new_labels:)
+        # Remove old labels and add new ones atomically where possible
+        remove_labels(number, *old_labels) unless old_labels.empty?
+        add_labels(number, *new_labels) unless new_labels.empty?
+      end
+
       private
 
       def list_issues_via_gh(labels:, state:)
@@ -178,6 +192,66 @@ module Aidp
         raise "Failed to create PR via gh: #{stderr.strip}" unless status.success?
 
         stdout.strip
+      end
+
+      def add_labels_via_gh(number, labels)
+        return if labels.empty?
+
+        cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo]
+        labels.each { |label| cmd += ["--add-label", label] }
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to add labels via gh: #{stderr.strip}" unless status.success?
+
+        stdout.strip
+      end
+
+      def add_labels_via_api(number, labels)
+        return if labels.empty?
+
+        uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/labels")
+        request = Net::HTTP::Post.new(uri)
+        request["Content-Type"] = "application/json"
+        request.body = JSON.dump({labels: labels})
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        raise "Failed to add labels via API (#{response.code})" unless response.code.start_with?("2")
+        response.body
+      end
+
+      def remove_labels_via_gh(number, labels)
+        return if labels.empty?
+
+        cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo]
+        labels.each { |label| cmd += ["--remove-label", label] }
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to remove labels via gh: #{stderr.strip}" unless status.success?
+
+        stdout.strip
+      end
+
+      def remove_labels_via_api(number, labels)
+        return if labels.empty?
+
+        labels.each do |label|
+          # URL encode the label name
+          encoded_label = URI.encode_www_form_component(label)
+          uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/labels/#{encoded_label}")
+          request = Net::HTTP::Delete.new(uri)
+
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+            http.request(request)
+          end
+
+          # 404 is OK - label didn't exist
+          unless response.code.start_with?("2") || response.code == "404"
+            raise "Failed to remove label '#{label}' via API (#{response.code})"
+          end
+        end
       end
 
       def normalize_issue(raw)

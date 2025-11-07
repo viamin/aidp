@@ -786,6 +786,79 @@ module Aidp
           watch_enabled: watch,
           quick_mode_default: quick_mode
         })
+
+        # Configure watch mode settings if enabled
+        configure_watch_mode if watch
+      end
+
+      def configure_watch_mode
+        prompt.say("\n👀 Watch Mode Configuration")
+        prompt.say("-" * 40)
+
+        configure_watch_safety
+        configure_watch_labels
+      end
+
+      def configure_watch_safety
+        prompt.say("\n🔒 Watch mode safety settings")
+        existing = get([:watch, :safety]) || {}
+
+        allow_public_repos = prompt.yes?(
+          "Allow watch mode on public repositories?",
+          default: existing.fetch(:allow_public_repos, false)
+        )
+
+        prompt.say("\n📝 Author allowlist (GitHub usernames allowed to trigger watch mode)")
+        prompt.say("  Leave empty to allow all authors (not recommended for public repos)")
+        author_allowlist = ask_list(
+          "Author allowlist (comma-separated GitHub usernames)",
+          existing[:author_allowlist] || [],
+          allow_empty: true
+        )
+
+        require_container = prompt.yes?(
+          "Require watch mode to run in a container?",
+          default: existing.fetch(:require_container, true)
+        )
+
+        set([:watch, :safety], {
+          allow_public_repos: allow_public_repos,
+          author_allowlist: author_allowlist,
+          require_container: require_container
+        })
+      end
+
+      def configure_watch_labels
+        prompt.say("\n🏷️  Watch mode label configuration")
+        prompt.say("  Configure GitHub issue labels that trigger watch mode actions")
+        existing = get([:watch, :labels]) || {}
+
+        plan_trigger = ask_with_default(
+          "Label to trigger plan generation",
+          existing[:plan_trigger] || "aidp-plan"
+        )
+
+        needs_input = ask_with_default(
+          "Label for plans needing user input",
+          existing[:needs_input] || "aidp-needs-input"
+        )
+
+        ready_to_build = ask_with_default(
+          "Label for plans ready to build",
+          existing[:ready_to_build] || "aidp-ready"
+        )
+
+        build_trigger = ask_with_default(
+          "Label to trigger implementation",
+          existing[:build_trigger] || "aidp-build"
+        )
+
+        set([:watch, :labels], {
+          plan_trigger: plan_trigger,
+          needs_input: needs_input,
+          ready_to_build: ready_to_build,
+          build_trigger: build_trigger
+        })
       end
 
       # -------------------------------------------
@@ -816,6 +889,7 @@ module Aidp
           .sub(/^nfrs:/, "# Non-functional requirements to reference during planning\nnfrs:")
           .sub(/^logging:/, "# Logging configuration\nlogging:")
           .sub(/^modes:/, "# Defaults for background/watch/quick modes\nmodes:")
+          .sub(/^watch:/, "# Watch mode safety and label configuration\nwatch:")
       end
 
       def display_preview(yaml_content)
