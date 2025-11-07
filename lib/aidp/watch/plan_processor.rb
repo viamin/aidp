@@ -11,13 +11,32 @@ module Aidp
     class PlanProcessor
       include Aidp::MessageDisplay
 
-      PLAN_LABEL = "aidp-plan"
+      # Default label names
+      DEFAULT_PLAN_LABEL = "aidp-plan"
+      DEFAULT_NEEDS_INPUT_LABEL = "aidp-needs-input"
+      DEFAULT_READY_LABEL = "aidp-ready"
+      DEFAULT_BUILD_LABEL = "aidp-build"
+
       COMMENT_HEADER = "## 🤖 AIDP Plan Proposal"
 
-      def initialize(repository_client:, state_store:, plan_generator:)
+      attr_reader :plan_label, :needs_input_label, :ready_label, :build_label
+
+      def initialize(repository_client:, state_store:, plan_generator:, label_config: {})
         @repository_client = repository_client
         @state_store = state_store
         @plan_generator = plan_generator
+
+        # Load label configuration with defaults
+        @plan_label = label_config[:plan_trigger] || label_config["plan_trigger"] || DEFAULT_PLAN_LABEL
+        @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || DEFAULT_NEEDS_INPUT_LABEL
+        @ready_label = label_config[:ready_to_build] || label_config["ready_to_build"] || DEFAULT_READY_LABEL
+        @build_label = label_config[:build_trigger] || label_config["build_trigger"] || DEFAULT_BUILD_LABEL
+      end
+
+      # For backward compatibility
+      def self.plan_label_from_config(config)
+        labels = config[:labels] || config["labels"] || {}
+        labels[:plan_trigger] || labels["plan_trigger"] || DEFAULT_PLAN_LABEL
       end
 
       def process(issue)
@@ -35,14 +54,39 @@ module Aidp
 
         display_message("💬 Posted plan comment for issue ##{number}", type: :success)
         @state_store.record_plan(number, plan_data.merge(comment_body: comment_body, comment_hint: COMMENT_HEADER))
+
+        # Update labels: remove plan trigger, add appropriate status label
+        update_labels_after_plan(number, plan_data)
       end
 
       private
+
+      def update_labels_after_plan(number, plan_data)
+        questions = Array(plan_data[:questions])
+        has_questions = questions.any? && !questions.all? { |q| q.to_s.strip.empty? }
+
+        # Determine which label to add based on whether there are questions
+        new_label = has_questions ? @needs_input_label : @ready_label
+        status_text = has_questions ? "needs input" : "ready to build"
+
+        begin
+          @repository_client.replace_labels(
+            number,
+            old_labels: [@plan_label],
+            new_labels: [new_label]
+          )
+          display_message("🏷️  Updated labels: removed '#{@plan_label}', added '#{new_label}' (#{status_text})", type: :info)
+        rescue => e
+          display_message("⚠️  Failed to update labels for issue ##{number}: #{e.message}", type: :warn)
+          # Don't fail the whole process if label update fails
+        end
+      end
 
       def build_comment(issue:, plan:)
         summary = plan[:summary].to_s.strip
         tasks = Array(plan[:tasks])
         questions = Array(plan[:questions])
+        has_questions = questions.any? && !questions.all? { |q| q.to_s.strip.empty? }
 
         parts = []
         parts << COMMENT_HEADER
@@ -59,7 +103,14 @@ module Aidp
         parts << "### Clarifying Questions"
         parts << format_numbered(questions, placeholder: "_No questions identified_")
         parts << ""
-        parts << "Please reply inline with answers to the questions above. Once the discussion is resolved, apply the `aidp-build` label to begin implementation."
+
+        # Add instructions based on whether there are questions
+        parts << if has_questions
+          "**Next Steps**: Please reply with answers to the questions above. Once resolved, remove the `#{@needs_input_label}` label and add the `#{@build_label}` label to begin implementation."
+        else
+          "**Next Steps**: This plan is ready for implementation. Add the `#{@build_label}` label to begin."
+        end
+
         parts.join("\n")
       end
 

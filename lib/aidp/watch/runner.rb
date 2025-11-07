@@ -19,12 +19,13 @@ module Aidp
 
       DEFAULT_INTERVAL = 30
 
-      def initialize(issues_url:, interval: DEFAULT_INTERVAL, provider_name: nil, gh_available: nil, project_dir: Dir.pwd, once: false, use_workstreams: true, prompt: TTY::Prompt.new, safety_config: {}, force: false)
+      def initialize(issues_url:, interval: DEFAULT_INTERVAL, provider_name: nil, gh_available: nil, project_dir: Dir.pwd, once: false, use_workstreams: true, prompt: TTY::Prompt.new, safety_config: {}, force: false, verbose: false)
         @prompt = prompt
         @interval = interval
         @once = once
         @project_dir = project_dir
         @force = force
+        @verbose = verbose
 
         owner, repo = RepositoryClient.parse_issues_url(issues_url)
         @repository_client = RepositoryClient.new(owner: owner, repo: repo, gh_available: gh_available)
@@ -33,16 +34,23 @@ module Aidp
           config: safety_config
         )
         @state_store = StateStore.new(project_dir: project_dir, repository: "#{owner}/#{repo}")
+
+        # Extract label configuration from safety_config (it's actually the full watch config)
+        label_config = safety_config[:labels] || safety_config["labels"] || {}
+
         @plan_processor = PlanProcessor.new(
           repository_client: @repository_client,
           state_store: @state_store,
-          plan_generator: PlanGenerator.new(provider_name: provider_name)
+          plan_generator: PlanGenerator.new(provider_name: provider_name, verbose: verbose),
+          label_config: label_config
         )
         @build_processor = BuildProcessor.new(
           repository_client: @repository_client,
           state_store: @state_store,
           project_dir: project_dir,
-          use_workstreams: use_workstreams
+          use_workstreams: use_workstreams,
+          verbose: verbose,
+          label_config: label_config
         )
       end
 
@@ -73,9 +81,10 @@ module Aidp
       end
 
       def process_plan_triggers
-        issues = @repository_client.list_issues(labels: [PlanProcessor::PLAN_LABEL], state: "open")
+        plan_label = @plan_processor.plan_label
+        issues = @repository_client.list_issues(labels: [plan_label], state: "open")
         issues.each do |issue|
-          next unless issue_has_label?(issue, PlanProcessor::PLAN_LABEL)
+          next unless issue_has_label?(issue, plan_label)
 
           detailed = @repository_client.fetch_issue(issue[:number])
 
@@ -89,9 +98,10 @@ module Aidp
       end
 
       def process_build_triggers
-        issues = @repository_client.list_issues(labels: [BuildProcessor::BUILD_LABEL], state: "open")
+        build_label = @build_processor.build_label
+        issues = @repository_client.list_issues(labels: [build_label], state: "open")
         issues.each do |issue|
-          next unless issue_has_label?(issue, BuildProcessor::BUILD_LABEL)
+          next unless issue_has_label?(issue, build_label)
 
           status = @state_store.build_status(issue[:number])
           next if status["status"] == "completed"

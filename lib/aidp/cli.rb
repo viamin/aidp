@@ -1231,7 +1231,7 @@ module Aidp
 
       def run_watch_command(args)
         if args.empty?
-          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams] [--force]", type: :info)
+          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams] [--force] [--verbose]", type: :info)
           return
         end
 
@@ -1241,6 +1241,7 @@ module Aidp
         once = false
         use_workstreams = true # Default to using workstreams
         force = false
+        verbose = false
 
         until args.empty?
           token = args.shift
@@ -1256,6 +1257,8 @@ module Aidp
             use_workstreams = false
           when "--force"
             force = true
+          when "--verbose"
+            verbose = true
           else
             display_message("⚠️  Unknown watch option: #{token}", type: :warn)
           end
@@ -1275,7 +1278,8 @@ module Aidp
           use_workstreams: use_workstreams,
           prompt: create_prompt,
           safety_config: watch_config,
-          force: force
+          force: force,
+          verbose: verbose
         )
         runner.start
       rescue ArgumentError => e

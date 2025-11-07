@@ -56,6 +56,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
     allow(processor).to receive(:create_pull_request).and_return("https://example.com/pr/77")
     expect(repository_client).to receive(:post_comment).with(issue[:number], include("Implementation complete"))
+    expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
 
     processor.process(issue)
 
@@ -106,6 +107,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       ).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
 
       expect(repository_client).to receive(:post_comment).with(issue[:number], include("Implementation complete"))
+      expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
 
       processor_with_workstreams.process(issue)
 
@@ -129,6 +131,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
 
       expect(Aidp::Worktree).not_to receive(:create)
       expect(repository_client).to receive(:post_comment).with(issue[:number], include("Implementation complete"))
+      expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
 
       processor_with_workstreams.process(issue)
     end
@@ -137,6 +140,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       expect(processor_without_workstreams).to receive(:checkout_branch).with("main", "aidp/issue-77-implement-search")
       expect(Aidp::Worktree).not_to receive(:create)
       expect(repository_client).to receive(:post_comment).with(issue[:number], include("Implementation complete"))
+      expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
 
       processor_without_workstreams.process(issue)
     end
@@ -149,6 +153,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
         issue[:number],
         include("issue-77-implement-search")
       )
+      expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
 
       processor_with_workstreams.process(issue)
     end
@@ -185,6 +190,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
       allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
 
       expect(Aidp::Worktree).not_to receive(:remove)
 
@@ -196,6 +202,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
       allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: workstream_path})
       allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
 
       expect(processor_with_workstreams).to receive(:run_harness).with(
         hash_including(working_dir: workstream_path)

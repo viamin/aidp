@@ -30,6 +30,11 @@ RSpec.describe Aidp::Watch::PlanProcessor do
 
   it "posts plan comment and stores metadata" do
     expect(repository_client).to receive(:post_comment).with(42, /AIDP Plan Proposal/)
+    expect(repository_client).to receive(:replace_labels).with(
+      42,
+      old_labels: ["aidp-plan"],
+      new_labels: ["aidp-needs-input"]
+    )
     processor.process(issue)
 
     data = state_store.plan_data(42)
