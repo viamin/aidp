@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.23.0](https://github.com/viamin/aidp/compare/aidp/v0.22.0...aidp/v0.23.0) (2025-11-07)
+
+
+### Features
+
+* (watch): add label-driven workflow, clarification handling, label config, and verbose mode ([40843df](https://github.com/viamin/aidp/commit/40843dfc836c4d6fcadb94948fc08004cb10fda0))
+* (watch): add label-driven workflow, clarification handling, label config, and verbose mode ([#235](https://github.com/viamin/aidp/issues/235)) ([eb1b397](https://github.com/viamin/aidp/commit/eb1b397f62e71e055dde409073517365a0b15d71))
+
+
+### Improvements
+
+* inject clock into BackupManager for deterministic timestamps ([a2fda9b](https://github.com/viamin/aidp/commit/a2fda9b9e630c5468ce86c8d4caa106ce0c14aca))
+
+
+### Documentation
+
+* **devcontainer,watch,tree-sitter:** add robust tree-sitter support, pass watch safety config, and update docs ([57744e1](https://github.com/viamin/aidp/commit/57744e174a2a6e4c71253da862fd71ad7c5813d6))
+* **devcontainer,watch,tree-sitter:** add robust tree-sitter support, pass watch safety config, and update docs ([#232](https://github.com/viamin/aidp/issues/232)) ([8aff49c](https://github.com/viamin/aidp/commit/8aff49c7691573d7820f4c94b2df38a488d9f5bd))
+
 ## [0.22.0](https://github.com/viamin/aidp/compare/aidp/v0.21.1...aidp/v0.22.0) (2025-11-06)
 
 
