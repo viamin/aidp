@@ -1231,7 +1231,7 @@ module Aidp
 
       def run_watch_command(args)
         if args.empty?
-          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams]", type: :info)
+          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams] [--force]", type: :info)
           return
         end
 
@@ -1240,6 +1240,7 @@ module Aidp
         provider_name = nil
         once = false
         use_workstreams = true # Default to using workstreams
+        force = false
 
         until args.empty?
           token = args.shift
@@ -1253,10 +1254,17 @@ module Aidp
             once = true
           when "--no-workstreams"
             use_workstreams = false
+          when "--force"
+            force = true
           else
             display_message("⚠️  Unknown watch option: #{token}", type: :warn)
           end
         end
+
+        # Load watch safety configuration
+        config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
+        config = config_manager.config || {}
+        watch_config = config[:watch] || config["watch"] || {}
 
         runner = Aidp::Watch::Runner.new(
           issues_url: issues_url,
@@ -1265,7 +1273,9 @@ module Aidp
           project_dir: Dir.pwd,
           once: once,
           use_workstreams: use_workstreams,
-          prompt: create_prompt
+          prompt: create_prompt,
+          safety_config: watch_config,
+          force: force
         )
         runner.start
       rescue ArgumentError => e

@@ -48,8 +48,8 @@ AIDP provides first-class devcontainer support for sandboxed, secure AI agent ex
 
 - **Network Security**: Strict firewall with allowlisted domains only
 - **Sandboxed Environment**: Isolated from your host system
-- **Elevated Permissions**: AI agents can run with full permissions inside the container
 - **Consistent Setup**: Same environment across all developers
+- **Automatic Management**: AIDP can generate and update your devcontainer configuration
 
 ### For AIDP Development
 
@@ -73,43 +73,54 @@ See [.devcontainer/README.md](.devcontainer/README.md) for complete documentatio
 
 ### Generating Devcontainers for Your Projects
 
-Use `aidp init` to generate a devcontainer for any project:
+AIDP can automatically generate and manage devcontainer configurations through the interactive wizard:
 
 ```bash
-# Initialize project with devcontainer
-aidp init
+# Launch the interactive configuration wizard
+aidp config --interactive
 
-# When prompted:
-# "Generate devcontainer configuration for sandboxed development?" → Yes
+# During the wizard, you'll be asked:
+# - Whether you want AIDP to manage your devcontainer configuration
+# - If you want to add custom ports beyond auto-detected ones
 
-# Or use the flag directly
-aidp init --with-devcontainer
+# The wizard will detect ports based on your project type and generate
+# a complete devcontainer.json configuration
 ```
 
-This creates:
-
-- `.devcontainer/Dockerfile` - Customized for your project's language/framework
-- `.devcontainer/devcontainer.json` - VS Code configuration and extensions
-- `.devcontainer/init-firewall.sh` - Network security rules
-- `.devcontainer/README.md` - Setup and usage documentation
-
-### Elevated Permissions in Devcontainers
-
-When running inside a devcontainer, you can enable elevated permissions for AI agents:
+You can also manage devcontainer configuration manually:
 
 ```yaml
-# aidp.yml
+# .aidp/aidp.yml
 devcontainer:
-  enabled: true
-  full_permissions_when_in_devcontainer: true  # Run all providers with full permissions
-
-  # Or enable per-provider
-  permissions:
-    skip_permission_checks:
-      - claude  # Adds --dangerously-skip-permissions for Claude Code
+  manage: true
+  custom_ports:
+    - number: 3000
+      label: "Application Server"
+    - number: 5432
+      label: "PostgreSQL"
 ```
 
-AIDP automatically detects when it's running in a devcontainer and adjusts agent permissions accordingly. This is safe because the container is sandboxed from your host system.
+Then apply the configuration:
+
+```bash
+# Preview changes
+aidp devcontainer diff
+
+# Apply configuration
+aidp devcontainer apply
+
+# List backups
+aidp devcontainer list-backups
+
+# Restore from backup
+aidp devcontainer restore 0
+```
+
+See [docs/DEVELOPMENT_CONTAINER.md](docs/DEVELOPMENT_CONTAINER.md) for complete devcontainer management documentation.
+
+### Devcontainer Detection
+
+AIDP automatically detects when it's running inside a devcontainer and adjusts its behavior accordingly. This detection uses multiple heuristics including environment variables, filesystem markers, and cgroup information. See [DevcontainerDetector](lib/aidp/utils/devcontainer_detector.rb) for implementation details.
 
 ## Core Features
 
@@ -189,6 +200,48 @@ aidp ws rm issue-123-fix-auth --delete-branch
 - Work on multiple features in parallel
 
 See [Workstreams Guide](docs/WORKSTREAMS.md) for detailed usage.
+
+### Watch Mode (Automated GitHub Integration)
+
+AIDP can automatically monitor GitHub repositories and respond to labeled issues, creating plans and executing implementations autonomously:
+
+```bash
+# Start watch mode for a repository
+aidp watch https://github.com/owner/repo/issues
+
+# Optional: specify polling interval and provider
+aidp watch owner/repo --interval 60 --provider claude
+
+# Run a single cycle (useful for CI/testing)
+aidp watch owner/repo --once
+```
+
+**How it works:**
+
+1. **Planning** (`aidp-plan` label): When this label is added to an issue, AIDP generates an implementation plan with task breakdown and clarifying questions, posting it as a comment
+2. **Building** (`aidp-build` label): Once the plan is approved, this label triggers autonomous implementation via work loops, creating a branch and pull request
+
+**Safety Features:**
+
+- **Public Repository Protection**: Disabled by default for public repos (require explicit opt-in)
+- **Author Allowlist**: Restrict automation to trusted GitHub users only
+- **Container Requirement**: Optionally require sandboxed environment
+- **Force Override**: `--force` flag to bypass safety checks (dangerous!)
+
+**Configuration:**
+
+```yaml
+# .aidp/aidp.yml
+watch:
+  safety:
+    allow_public_repos: true  # Required for public repositories
+    author_allowlist:          # Only these users can trigger automation
+      - trusted-maintainer
+      - team-member
+    require_container: true    # Require devcontainer/Docker environment
+```
+
+See [Watch Mode Guide](docs/FULLY_AUTOMATIC_MODE.md) and [Watch Mode Safety](docs/WATCH_MODE_SAFETY.md) for complete documentation.
 
 ## Command Reference
 
@@ -291,7 +344,6 @@ AIDP intelligently manages multiple providers with automatic switching:
 - **Cursor CLI** - IDE-integrated provider for code-specific tasks
 - **Gemini CLI** - Google's Gemini command-line interface for general tasks
 - **GitHub Copilot CLI** - GitHub's AI pair programmer command-line interface
-- **macOS UI** - macOS-specific UI automation provider
 - **OpenCode** - Alternative open-source code generation provider
 
 The system automatically switches providers when:

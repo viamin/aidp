@@ -111,24 +111,35 @@ aidp devcontainer restore 0 --no-backup
 
 ### Auto-Detection
 
-AIDP automatically detects required ports based on:
+AIDP automatically detects required ports based on wizard configuration:
 
 **Project Type**:
 
-- Rails web app → Port 3000
-- Sinatra app → Port 4567
-- Express/Node.js app → Port 3000
-- CLI tool → No web ports
+- Web applications (Rails, Sinatra, Express) → Port 3000 (default)
+- Custom application port can be specified via `app_port` setting
+- CLI tools → No web ports
 
-**Services**:
+**Watch Mode**:
 
-- PostgreSQL (detected via `config/database.yml`) → Port 5432
-- Redis (detected via `config/redis.yml`) → Port 6379
+- When watch mode is enabled → Port 7681 (Remote Terminal via ttyd)
 
-**Test Frameworks**:
+**Interactive Tools**:
 
-- RSpec → Adds Ruby feature
-- Playwright → Adds Playwright and Chrome features
+- Playwright → Port 9222 (Chrome DevTools Protocol for debugging)
+- MCP Server → Port 8080 (Model Context Protocol, if enabled)
+
+**Custom Services**:
+
+- PostgreSQL → Port 5432
+- Redis → Port 6379
+- MySQL → Port 3306
+- Custom ports defined in `devcontainer.custom_ports`
+
+**Features**:
+
+- Test frameworks (RSpec, Jest, Playwright) → Adds corresponding language features
+- Linters (StandardRB, ESLint) → Adds language-specific features
+- GitHub CLI → Added for all provider selections
 
 ### Intelligent Merging
 
@@ -180,10 +191,13 @@ AIDP uses standard ports for common services:
 
 | Service | Port | Label |
 |---------|------|-------|
-| Rails/Sinatra | 3000 | Web Application |
-| Express/Node.js | 3000 | Web Application |
-| PostgreSQL | 5432 | PostgreSQL Database |
-| Redis | 6379 | Redis Cache |
+| Web Application | 3000 | Application (default) |
+| Remote Terminal | 7681 | Remote Terminal (ttyd) |
+| Playwright Debug | 9222 | Playwright Debug |
+| MCP Server | 8080 | MCP Server |
+| PostgreSQL | 5432 | PostgreSQL |
+| Redis | 6379 | Redis |
+| MySQL | 3306 | MySQL |
 
 ### Custom Ports
 
@@ -319,9 +333,43 @@ devcontainer build .
 devcontainer run-user-commands .
 ```
 
+## Container Detection
+
+AIDP automatically detects when it's running inside a devcontainer using multiple heuristics:
+
+- **Environment Variables**: `REMOTE_CONTAINERS`, `VSCODE_REMOTE_CONTAINERS`, `CODESPACES`
+- **Filesystem Markers**: `/.dockerenv`, `/run/.containerenv`
+- **Cgroup Information**: Checks for Docker, Podman, containerd in `/proc/1/cgroup`
+- **Hostname Patterns**: Container-specific hostname formats
+
+This detection allows AIDP to adjust its behavior when running in containerized environments. The detection logic is implemented in `lib/aidp/utils/devcontainer_detector.rb`.
+
+## Implementation Details
+
+AIDP's devcontainer management consists of two systems:
+
+1. **Legacy System** (`lib/aidp/init/devcontainer_generator.rb`):
+   - Used by early `aidp init` commands
+   - Copies template files from AIDP's own `.devcontainer/`
+   - Generates static Dockerfile, firewall scripts, and README
+
+2. **Modern System** (`lib/aidp/setup/devcontainer/`):
+   - Used by `aidp config --interactive` wizard
+   - Generates `devcontainer.json` based on project analysis
+   - Supports intelligent merging with existing configurations
+   - Provides backup/restore functionality
+   - Uses wizard configuration to detect required features and ports
+
+The modern system is recommended for all new projects. See the code in:
+
+- `lib/aidp/setup/devcontainer/generator.rb` - Configuration generation
+- `lib/aidp/setup/devcontainer/parser.rb` - Parsing existing configs
+- `lib/aidp/setup/devcontainer/port_manager.rb` - Port detection and management
+- `lib/aidp/setup/devcontainer/backup_manager.rb` - Backup/restore functionality
+- `lib/aidp/cli/devcontainer_commands.rb` - CLI command implementation
+
 ## See Also
 
 - [Configuration Reference](CONFIGURATION.md) - Full aidp.yml schema
 - [Setup Wizard](SETUP_WIZARD.md) - Interactive configuration guide
 - [Devcontainer Specification](https://containers.dev) - Official devcontainer docs
-- [Devcontainer Technical Docs](devcontainer/README.md) - AIDP implementation details

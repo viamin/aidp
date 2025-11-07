@@ -94,29 +94,28 @@ follows:
 
 ## Running in Background
 
-Watch mode can run as a persistent background daemon for unattended operation. See [NON_INTERACTIVE_MODE.md](NON_INTERACTIVE_MODE.md) for complete details on:
-
-- Starting watch mode in background (`aidp listen --background`)
-- Detaching/attaching to running daemon
-- Monitoring via structured logs
-- Safe shutdown and recovery
-
-**Quick Example:**
+Watch mode runs continuously in the foreground by default. For unattended operation, you can run it in the background using standard shell job control:
 
 ```bash
-# Start watch mode as background daemon
-$ aidp listen --background
-Daemon started in watch mode (PID: 12345)
+# Run watch mode in background using shell job control
+nohup aidp watch owner/repo > watch.log 2>&1 &
 
-# Daemon runs 24/7, processing GitHub triggers
-# Monitor via logs:
-$ tail -f .aidp/logs/current.log
+# Or using screen/tmux for persistent sessions
+screen -dmS aidp-watch aidp watch owner/repo
+
+# Monitor via logs
+tail -f watch.log
+
+# Or check the process
+ps aux | grep "aidp watch"
 ```
+
+**Note:** Background daemon mode with `--background` flag is planned for future releases. For now, use shell job control or process managers like systemd, supervisor, or Docker for production deployments.
 
 ## Related Documentation
 
-- [NON_INTERACTIVE_MODE.md](NON_INTERACTIVE_MODE.md) - Background daemon mode for unattended operation
-- [Work Loops Guide](WORK_LOOPS_GUIDE.md) – foundational mechanics of the
-  fix-forward execution engine used during the build trigger.
-- [CLI Reference](../README.md) – general Aidp CLI capabilities including other
-  automation modes.
+- [Watch Mode Safety](WATCH_MODE_SAFETY.md) - Security features and best practices for watch mode
+- [Non-Interactive Mode](NON_INTERACTIVE_MODE.md) - Background daemon mode details (implementation in progress)
+- [Work Loops Guide](WORK_LOOPS_GUIDE.md) - Foundational mechanics of the fix-forward execution engine used during the build trigger
+- [CLI Reference](../README.md) - General AIDP CLI capabilities including other automation modes
+- [Workstreams Guide](WORKSTREAMS.md) - Using git worktrees for parallel development

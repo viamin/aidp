@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
   libssh2-1-dev \
   libssl-dev \
   pkg-config \
+  libtree-sitter-dev \
   vim \
   # Networking tools
   dnsutils \
