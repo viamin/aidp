@@ -6,9 +6,22 @@ require "fileutils"
 require "time"
 require_relative "../../../../lib/aidp/setup/devcontainer/backup_manager"
 
+class IncrementingClock
+  def initialize(start_time = Time.utc(2023, 1, 1, 12, 0, 0))
+    @current_time = start_time
+  end
+
+  def now
+    current = @current_time
+    @current_time += 1
+    current
+  end
+end
+
 RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
   let(:project_dir) { Dir.mktmpdir }
-  let(:manager) { described_class.new(project_dir) }
+  let(:clock) { IncrementingClock.new }
+  let(:manager) { described_class.new(project_dir, clock: clock) }
   let(:source_file) { File.join(project_dir, ".devcontainer", "devcontainer.json") }
   let(:backup_dir) { File.join(project_dir, ".aidp", "backups", "devcontainer") }
 
@@ -92,7 +105,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "lists all backup files" do
       manager.create_backup(source_file)
-      sleep 1.1  # Ensure different timestamps (1 second resolution)
       manager.create_backup(source_file)
 
       backups = manager.list_backups
@@ -125,7 +137,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "sorts backups by timestamp, newest first" do
       first_backup = manager.create_backup(source_file)
-      sleep 1.1
       second_backup = manager.create_backup(source_file)
 
       backups = manager.list_backups
@@ -167,7 +178,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "creates backup of target before restoring" do
       backup_path = manager.create_backup(source_file)
-      sleep 1.1  # Ensure unique timestamp for next backup
       File.write(target_file, '{"name": "modified"}')
 
       initial_backup_count = manager.list_backups.size
@@ -225,7 +235,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
     it "keeps specified number of backups" do
       5.times do |i|
         manager.create_backup(source_file, {index: i})
-        sleep 1.1
       end
 
       manager.cleanup_old_backups(3)
@@ -237,7 +246,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
       backups = []
       3.times do |i|
         backups << manager.create_backup(source_file, {index: i})
-        sleep 1.1
       end
 
       manager.cleanup_old_backups(1)
@@ -250,7 +258,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
     it "returns number of deleted backups" do
       5.times {
         manager.create_backup(source_file)
-        sleep 1.1
       }
 
       deleted_count = manager.cleanup_old_backups(2)
@@ -261,7 +268,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
     it "returns 0 when no backups to delete" do
       3.times {
         manager.create_backup(source_file)
-        sleep 1.1
       }
 
       deleted_count = manager.cleanup_old_backups(10)
@@ -271,7 +277,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "deletes metadata files along with backups" do
       manager.create_backup(source_file, {reason: "test"})
-      sleep 1.1
       manager.create_backup(source_file)
 
       manager.cleanup_old_backups(1)
@@ -282,7 +287,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "handles missing metadata files gracefully" do
       manager.create_backup(source_file)
-      sleep 1.1
       manager.create_backup(source_file)
 
       expect {
@@ -298,7 +302,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "returns most recent backup" do
       manager.create_backup(source_file)
-      sleep 1.1
       second = manager.create_backup(source_file)
 
       latest = manager.latest_backup
@@ -324,7 +327,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "calculates total size of all backups" do
       manager.create_backup(source_file)
-      sleep 1.1
       manager.create_backup(source_file)
 
       size = manager.total_backup_size
@@ -359,7 +361,6 @@ RSpec.describe Aidp::Setup::Devcontainer::BackupManager do
 
     it "creates unique filenames for sequential backups" do
       first = manager.create_backup(source_file)
-      sleep 1  # Ensure different second
       second = manager.create_backup(source_file)
 
       expect(File.basename(first)).not_to eq(File.basename(second))
