@@ -463,6 +463,11 @@ module Aidp
           commit_message = build_commit_message(issue)
           run_git(["commit", "-m", commit_message])
           display_message("💾 Created commit: #{commit_message.lines.first.strip}", type: :info)
+
+          # Push the branch to remote
+          current_branch = run_git(%w[branch --show-current]).strip
+          run_git(["push", "-u", "origin", current_branch])
+          display_message("⬆️  Pushed branch '#{current_branch}' to remote", type: :info)
         end
       end
 
