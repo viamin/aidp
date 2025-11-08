@@ -299,7 +299,7 @@ module Aidp
           error_message = e.message
 
           # Check if error is rate limiting
-          if e.message.match?(/rate.?limit/i) || e.message.match?(/quota/i)
+          if e.message.match?(/rate.?limit/i) || e.message.match?(/quota/i) || e.message.match?(/session limit/i)
             rate_limited = true
           end
 

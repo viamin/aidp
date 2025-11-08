@@ -231,28 +231,35 @@ RSpec.describe Aidp::Harness::Runner do
 
   describe "#handle_rate_limit" do
     let(:provider_manager) { double("provider_manager") }
+    let(:condition_detector) { double("condition_detector") }
+    let(:reset_time) { Time.now + 3600 }
 
     before do
       runner.instance_variable_set(:@provider_manager, provider_manager)
+      runner.instance_variable_set(:@condition_detector, condition_detector)
       runner.instance_variable_set(:@current_provider, "cursor")
       allow(provider_manager).to receive(:mark_rate_limited)
+      allow(provider_manager).to receive(:current_provider).and_return("cursor")
       allow(provider_manager).to receive(:switch_provider).and_return("claude")
+      allow(condition_detector).to receive(:extract_rate_limit_info).and_return({reset_time: reset_time})
     end
 
-    it "handles rate limiting by switching providers" do
+    it "handles rate limiting by switching providers and passing reset time" do
       result = {error: "rate limit exceeded"}
 
       runner.send(:handle_rate_limit, result)
 
-      expect(provider_manager).to have_received(:mark_rate_limited).with("cursor")
+      expect(provider_manager).to have_received(:mark_rate_limited).with("cursor", reset_time)
       expect(provider_manager).to have_received(:switch_provider)
       expect(runner.instance_variable_get(:@current_provider)).to eq("claude")
       expect(runner.instance_variable_get(:@state)).to eq("running")
+      expect(condition_detector).to have_received(:extract_rate_limit_info).with(result, "cursor")
     end
 
-    it "waits for reset when all providers are rate limited" do
+    it "waits for reset when all providers are rate limited and no reset info" do
       allow(provider_manager).to receive(:switch_provider).and_return(nil)
       allow(provider_manager).to receive(:next_reset_time).and_return(Time.now + 60)
+      allow(condition_detector).to receive(:extract_rate_limit_info).and_return(nil)
 
       # Mock the wait_for_rate_limit_reset method
       allow(runner).to receive(:wait_for_rate_limit_reset)
@@ -260,7 +267,23 @@ RSpec.describe Aidp::Harness::Runner do
       result = {error: "rate limit exceeded"}
       runner.send(:handle_rate_limit, result)
 
+      expect(provider_manager).to have_received(:mark_rate_limited).with("cursor", nil)
       expect(runner).to have_received(:wait_for_rate_limit_reset)
+    end
+
+    it "does not switch again when provider manager already rotated upstream" do
+      runner.instance_variable_set(:@current_provider, "anthropic")
+      allow(provider_manager).to receive(:current_provider).and_return("codex")
+      allow(condition_detector).to receive(:extract_rate_limit_info).and_return(nil)
+      allow(provider_manager).to receive(:switch_provider)
+
+      result = {error: "rate limit exceeded"}
+      runner.send(:handle_rate_limit, result)
+
+      expect(provider_manager).to have_received(:mark_rate_limited).with("anthropic", nil)
+      expect(provider_manager).not_to have_received(:switch_provider)
+      expect(runner.instance_variable_get(:@current_provider)).to eq("codex")
+      expect(runner.instance_variable_get(:@state)).to eq("running")
     end
   end
 
@@ -441,8 +464,10 @@ RSpec.describe Aidp::Harness::Runner do
 
       allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
 
+      allow(provider_manager).to receive(:mark_rate_limited)
+
       result = runner.run
-      expect(provider_manager).to have_received(:mark_rate_limited).with("anthropic")
+      expect(provider_manager).to have_received(:mark_rate_limited).with("anthropic", nil)
       expect(result[:status]).not_to eq("error")
     end
 

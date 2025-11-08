@@ -36,11 +36,12 @@ module Aidp
         end
 
         begin
+          command_args = ["--prompt", prompt]
           # Use debug_execute_command with streaming support
-          result = debug_execute_command("gemini", args: ["--print"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
+          result = debug_execute_command("gemini", args: command_args, timeout: timeout_seconds, streaming: streaming_enabled)
 
           # Log the results
-          debug_command("gemini", args: ["--print"], input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
+          debug_command("gemini", args: command_args, input: nil, output: result.out, error: result.err, exit_code: result.exit_status)
 
           if result.exit_status == 0
             result.out

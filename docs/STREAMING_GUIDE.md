@@ -65,7 +65,7 @@ AIDP supports two types of streaming:
 
 ### 📺 **Display Streaming** (Reduced output buffering)
 
-- **Google Gemini** (`gemini --print`)
+- **Google Gemini** (`gemini --prompt "..."`)
 - **Cursor AI** (`cursor-agent`)
 - **Codex CLI** (`codex exec`)
 - **OpenCode** (`opencode run`)

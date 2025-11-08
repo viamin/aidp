@@ -30,8 +30,8 @@ RSpec.describe Aidp::Harness::ConditionDetector do
 
     it "initializes with reset time patterns" do
       patterns = detector.instance_variable_get(:@reset_time_patterns)
-      expect(patterns).to include(/reset.{0,20}in.{0,20}(\d+).{0,20}seconds/i)
-      expect(patterns).to include(/retry.{0,20}after.{0,20}(\d+).{0,20}seconds/i)
+      expect(patterns).to include(/reset(?:s)?\s+in\s+(\d+)\s+seconds/i)
+      expect(patterns).to include(/retry\s+after\s+(\d+)\s+seconds/i)
     end
   end
 
@@ -76,6 +76,11 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       expect(detector.is_rate_limited?(result, "cursor")).to be true
     end
 
+    it "detects session limit reached messages" do
+      result = {error: "Session limit reached ∙ resets 4am"}
+      expect(detector.is_rate_limited?(result, "anthropic")).to be true
+    end
+
     it "returns false for non-rate-limited results" do
       result = {status: "success", output: "Task completed"}
       expect(detector.is_rate_limited?(result)).to be false
@@ -101,10 +106,12 @@ RSpec.describe Aidp::Harness::ConditionDetector do
 
     it "extracts reset time from message" do
       result = {error: "Rate limit exceeded. Reset in 120 seconds"}
+      approx_start = Time.now
       info = detector.extract_rate_limit_info(result)
+      expected_time = approx_start + 120
 
       expect(info[:reset_time]).to be_a(Time)
-      expect(info[:reset_time]).to be > Time.now
+      expect(info[:reset_time]).to be_within(1).of(expected_time)
     end
 
     it "extracts retry after value" do
@@ -142,6 +149,14 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       expect(info[:limit_type]).to eq("package_limit")
     end
 
+    it "detects session limit type and reset time" do
+      result = {error: "Session limit reached. Resets 4am"}
+      info = detector.extract_rate_limit_info(result, "anthropic")
+
+      expect(info[:limit_type]).to eq("session_limit")
+      expect(info[:reset_time]).to be > Time.now
+    end
+
     it "returns nil for non-rate-limited results" do
       result = {status: "success", output: "Task completed"}
       expect(detector.extract_rate_limit_info(result)).to be_nil
@@ -151,10 +166,12 @@ RSpec.describe Aidp::Harness::ConditionDetector do
   describe "#extract_reset_time" do
     it "extracts seconds from now" do
       text = "Rate limit exceeded. Reset in 120 seconds"
+      approx_start = Time.now
       reset_time = detector.send(:extract_reset_time, text)
+      expected_time = approx_start + 120
 
       expect(reset_time).to be_a(Time)
-      expect(reset_time).to be > Time.now
+      expect(reset_time).to be_within(1).of(expected_time)
     end
 
     it "extracts specific timestamp" do
@@ -174,6 +191,17 @@ RSpec.describe Aidp::Harness::ConditionDetector do
       expect(reset_time).to be_a(Time)
       expect(reset_time).to be > Time.now
       expect(reset_time).to be <= Time.now + 61
+    end
+
+    it "parses reset time phrases like 'resets 4am'" do
+      text = "Session limit reached ∙ resets 4am"
+      reset_time = detector.send(:extract_reset_time, text)
+
+      expect(reset_time).to be_a(Time)
+      expect(reset_time).to be > Time.now
+      expect(reset_time).to be <= Time.now + 86_400
+      expect(reset_time.hour).to eq(4)
+      expect(reset_time.min).to eq(0)
     end
   end
 

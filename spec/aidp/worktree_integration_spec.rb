@@ -60,6 +60,20 @@ RSpec.describe Aidp::Worktree, "integration with real git", :integration do
     expect(Dir.exist?(worktree_path)).to be false
   end
 
+  it "recovers from missing but registered worktree directories" do
+    result = described_class.create(slug: "stale-entry", project_dir: project_dir)
+    stale_path = result[:path]
+
+    # Simulate manual deletion without deregistering
+    FileUtils.rm_rf(stale_path)
+
+    expect {
+      described_class.create(slug: "stale-entry", project_dir: project_dir)
+    }.not_to raise_error
+
+    described_class.remove(slug: "stale-entry", project_dir: project_dir)
+  end
+
   it "raises error when not in a git repository" do
     non_git_dir = Dir.mktmpdir("non_git")
 

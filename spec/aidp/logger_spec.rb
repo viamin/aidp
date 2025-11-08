@@ -34,6 +34,24 @@ RSpec.describe Aidp::Logger do
       logger_from_env.close
       ENV.delete("AIDP_LOG_LEVEL")
     end
+
+    it "treats DEBUG=1 as debug level when no explicit level provided" do
+      ENV["DEBUG"] = "1"
+      logger_from_debug = described_class.new(project_dir)
+      expect(logger_from_debug.level).to eq(:debug)
+      logger_from_debug.close
+    ensure
+      ENV.delete("DEBUG")
+    end
+
+    it "treats AIDP_DEBUG=1 as debug level when no explicit level provided" do
+      ENV["AIDP_DEBUG"] = "1"
+      logger_from_aidp_debug = described_class.new(project_dir)
+      expect(logger_from_aidp_debug.level).to eq(:debug)
+      logger_from_aidp_debug.close
+    ensure
+      ENV.delete("AIDP_DEBUG")
+    end
   end
 
   describe "#info" do

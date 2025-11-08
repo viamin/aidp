@@ -288,15 +288,30 @@ module Aidp
         log_execution("User feedback collected", {responses: user_responses.keys})
       end
 
-      def handle_rate_limit(_result)
+      def handle_rate_limit(result)
         @state = STATES[:waiting_for_rate_limit]
         log_execution("Rate limit detected, switching provider")
 
-        # Mark current provider as rate limited
-        @provider_manager.mark_rate_limited(@current_provider)
+        rate_limit_info = nil
+        if @condition_detector.respond_to?(:extract_rate_limit_info)
+          rate_limit_info = @condition_detector.extract_rate_limit_info(result, @current_provider)
+        end
+        reset_time = rate_limit_info && rate_limit_info[:reset_time]
 
-        # Switch to next provider
-        next_provider = @provider_manager.switch_provider
+        # Mark current provider as rate limited
+        @provider_manager.mark_rate_limited(@current_provider, reset_time)
+
+        # Provider manager might already have switched upstream (e.g., during CLI execution)
+        manager_current = @provider_manager.current_provider
+        if manager_current && manager_current != @current_provider
+          @current_provider = manager_current
+          @state = STATES[:running]
+          log_execution("Provider already switched upstream", new_provider: manager_current)
+          return
+        end
+
+        # Switch to next provider explicitly when still on the rate-limited provider
+        next_provider = @provider_manager.switch_provider("rate_limit", previous_provider: @current_provider)
         @current_provider = next_provider
 
         if next_provider

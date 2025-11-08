@@ -84,10 +84,28 @@ module Aidp
     private
 
     def determine_log_level
-      # Priority: ENV > config > default
-      level_str = ENV["AIDP_LOG_LEVEL"] || @config[:level] || "info"
-      level_sym = level_str.to_sym
+      # Priority: explicit env override > DEBUG flags > config > default
+      level_str = if ENV["AIDP_LOG_LEVEL"]
+        ENV["AIDP_LOG_LEVEL"]
+      elsif debug_env_enabled?
+        "debug"
+      elsif @config[:level]
+        @config[:level]
+      else
+        "info"
+      end
+      level_sym = level_str.to_s.to_sym
       LEVELS.key?(level_sym) ? level_sym : :info
+    end
+
+    def debug_env_enabled?
+      raw = ENV["AIDP_DEBUG"] || ENV["DEBUG"]
+      return false if raw.nil?
+
+      normalized = raw.to_s.strip.downcase
+      return true if %w[true on yes debug].include?(normalized)
+
+      /\A\d+\z/.match?(normalized) ? normalized.to_i.positive? : false
     end
 
     def should_log?(level)

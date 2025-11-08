@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "json"
+require "open3"
 require_relative "workstream_state"
 
 module Aidp
@@ -32,16 +33,14 @@ module Aidp
           raise WorktreeExists, "Worktree already exists at #{worktree_path}"
         end
 
-        # Create the worktree
-        cmd = ["git", "worktree", "add", "-b", branch, worktree_path]
-        cmd << base_branch if base_branch
-
-        Dir.chdir(project_dir) do
-          success = system(*cmd, out: File::NULL, err: File::NULL)
-          unless success
-            raise Error, "Failed to create worktree: #{$?.exitstatus}"
-          end
-        end
+        branch_exists = branch_exists?(project_dir, branch)
+        run_worktree_add!(
+          project_dir: project_dir,
+          branch: branch,
+          branch_exists: branch_exists,
+          worktree_path: worktree_path,
+          base_branch: base_branch
+        )
 
         # Initialize .aidp directory in the worktree
         ensure_aidp_dir(worktree_path)
@@ -202,6 +201,64 @@ module Aidp
       # Path to the worktree registry file
       def registry_file_path(project_dir)
         File.join(project_dir, ".aidp", "worktrees.json")
+      end
+
+      def branch_exists?(project_dir, branch)
+        Dir.chdir(project_dir) do
+          system("git", "show-ref", "--verify", "--quiet", "refs/heads/#{branch}")
+        end
+      end
+
+      def run_worktree_add!(project_dir:, branch:, branch_exists:, worktree_path:, base_branch:)
+        prune_attempted = false
+
+        loop do
+          cmd = build_worktree_command(branch_exists: branch_exists, branch: branch, worktree_path: worktree_path, base_branch: base_branch)
+          stdout, stderr, status = Dir.chdir(project_dir) { Open3.capture3(*cmd) }
+
+          return if status.success?
+
+          error_output = stderr.strip.empty? ? stdout.strip : stderr.strip
+
+          if !branch_exists && branch_already_exists?(error_output, branch)
+            Aidp.log_debug("worktree", "branch_exists_retry", branch: branch)
+            branch_exists = true
+            next
+          end
+
+          if !prune_attempted && missing_registered_worktree?(error_output)
+            Aidp.log_debug("worktree", "prune_missing_worktree", branch: branch, path: worktree_path)
+            Dir.chdir(project_dir) { Open3.capture3("git", "worktree", "prune") }
+            prune_attempted = true
+            next
+          end
+
+          raise Error, "Failed to create worktree (status=#{status.exitstatus}): #{error_output}"
+        end
+      end
+
+      def build_worktree_command(branch_exists:, branch:, worktree_path:, base_branch:)
+        if branch_exists
+          ["git", "worktree", "add", worktree_path, branch]
+        else
+          cmd = ["git", "worktree", "add", "-b", branch, worktree_path]
+          cmd << base_branch if base_branch
+          cmd
+        end
+      end
+
+      def branch_already_exists?(error_output, branch)
+        return false if error_output.nil? || error_output.empty?
+
+        normalized = error_output.downcase
+        normalized.include?("branch '#{branch.downcase}' already exists") ||
+          normalized.include?("a branch named '#{branch.downcase}' already exists")
+      end
+
+      def missing_registered_worktree?(error_output)
+        return false if error_output.nil? || error_output.empty?
+
+        error_output.downcase.include?("missing but already registered worktree")
       end
     end
   end
