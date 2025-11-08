@@ -10,7 +10,19 @@ end
 
 RSpec.describe Aidp::RescueLogging do
   let(:tmpdir) { Dir.mktmpdir }
-  let(:logger) { Aidp::Logger.new(tmpdir, level: "debug") }
+  let(:logger) { Aidp::Logger.new(tmpdir, level: "debug", file: ".aidp/logs/aidp.log") }
+
+  around do |example|
+    original = ENV["AIDP_LOG_FILE"]
+    ENV.delete("AIDP_LOG_FILE")
+    example.run
+  ensure
+    if original
+      ENV["AIDP_LOG_FILE"] = original
+    else
+      ENV.delete("AIDP_LOG_FILE")
+    end
+  end
 
   before do
     Aidp.instance_variable_set(:@logger, logger)

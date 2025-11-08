@@ -4,12 +4,32 @@ require "spec_helper"
 require "aidp/logger"
 require "tmpdir"
 require "json"
+require "pathname"
 
 RSpec.describe Aidp::Logger do
   let(:project_dir) { Dir.mktmpdir }
   let(:config) { {} }
   let(:logger) { described_class.new(project_dir, config) }
-  let(:info_log) { File.join(project_dir, ".aidp/logs/aidp.log") }
+  let(:log_relative_path) do
+    value = ENV["AIDP_LOG_FILE"].to_s.strip
+    value.empty? ? ".aidp/logs/aidp.log" : value
+  end
+  let(:info_log) do
+    path = log_relative_path
+    Pathname.new(path).absolute? ? path : File.join(project_dir, path)
+  end
+
+  around do |example|
+    original = ENV["AIDP_LOG_FILE"]
+    ENV.delete("AIDP_LOG_FILE")
+    example.run
+  ensure
+    if original
+      ENV["AIDP_LOG_FILE"] = original
+    else
+      ENV.delete("AIDP_LOG_FILE")
+    end
+  end
 
   after do
     logger.close
@@ -222,6 +242,33 @@ RSpec.describe Aidp::Logger do
       logger
       log_dir = File.join(project_dir, ".aidp/logs")
       expect(Dir.exist?(log_dir)).to be true
+    end
+  end
+
+  describe "custom log file path" do
+    it "uses AIDP_LOG_FILE environment variable when set" do
+      original = ENV["AIDP_LOG_FILE"]
+      ENV["AIDP_LOG_FILE"] = "aidp.env.log"
+
+      env_logger = described_class.new(project_dir)
+      env_logger.info("test", "env path")
+      env_logger.close
+
+      expect(File.exist?(File.join(project_dir, "aidp.env.log"))).to be true
+    ensure
+      ENV["AIDP_LOG_FILE"] = original
+      FileUtils.rm_f(File.join(project_dir, "aidp.env.log"))
+    end
+
+    it "uses file path from config when provided" do
+      relative_path = "custom/aidp.config.log"
+      config_logger = described_class.new(project_dir, file: relative_path)
+      config_logger.info("test", "config path")
+      config_logger.close
+
+      expect(File.exist?(File.join(project_dir, relative_path))).to be true
+    ensure
+      FileUtils.rm_rf(File.join(project_dir, "custom"))
     end
   end
 

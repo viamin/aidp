@@ -3,6 +3,7 @@
 require "logger"
 require "json"
 require "fileutils"
+require "pathname"
 
 module Aidp
   # Unified structured logger for all AIDP operations
@@ -124,7 +125,7 @@ module Aidp
     end
 
     def setup_logger
-      info_path = File.join(@project_dir, INFO_LOG)
+      info_path = determine_log_file_path
       @logger = create_logger(info_path)
       # Emit instrumentation after logger is available (avoid recursive Aidp.log_* calls during bootstrap)
       return unless @instrument_internal
@@ -197,6 +198,17 @@ module Aidp
       }.merge(metadata)
 
       JSON.generate(entry)
+    end
+
+    def determine_log_file_path
+      custom = (ENV["AIDP_LOG_FILE"] || @config[:file]).to_s.strip
+      relative_path = custom.empty? ? INFO_LOG : custom
+
+      if Pathname.new(relative_path).absolute?
+        relative_path
+      else
+        File.join(@project_dir, relative_path)
+      end
     end
 
     # Redaction patterns for common secrets
