@@ -170,6 +170,36 @@ RSpec.describe Aidp::Watch::RepositoryClient do
     end
   end
 
+  describe "#create_pull_request_via_gh" do
+    let(:gh_available) { true }
+    let(:status) { instance_double(Process::Status, success?: true) }
+
+    it "uses supported flags only for gh pr create" do
+      expect(Open3).to receive(:capture3).with(
+        "gh", "pr", "create",
+        "--repo", "testowner/testrepo",
+        "--title", "Title",
+        "--body", "Body",
+        "--head", "feature",
+        "--base", "main",
+        "--draft",
+        "--assignee", "octocat"
+      ).and_return(["https://example.com/pr/1", "", status])
+
+      output = client.send(
+        :create_pull_request_via_gh,
+        title: "Title",
+        body: "Body",
+        head: "feature",
+        base: "main",
+        issue_number: 123,
+        draft: true,
+        assignee: "octocat"
+      )
+      expect(output).to include("https://example.com/pr/1")
+    end
+  end
+
   describe "#add_labels" do
     let(:issue_number) { 123 }
     let(:labels) { %w[bug enhancement] }

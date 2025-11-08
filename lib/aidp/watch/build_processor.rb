@@ -526,6 +526,7 @@ module Aidp
         body = <<~BODY
           ## Summary
           - Automated resolution for ##{issue[:number]}
+          - Fixes ##{issue[:number]}
 
           ## Testing
           #{test_summary}

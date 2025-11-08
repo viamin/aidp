@@ -200,6 +200,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
       it "creates a draft PR" do
         expect(repository_client).to receive(:create_pull_request) do |args|
           expect(args[:draft]).to be true
+          expect(args[:body]).to include("Fixes ##{issue[:number]}")
           "https://github.com/owner/repo/pull/456"
         end
 
