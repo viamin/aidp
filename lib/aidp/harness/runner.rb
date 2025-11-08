@@ -50,6 +50,7 @@ module Aidp
         # Store workflow configuration
         @selected_steps = options[:selected_steps]
         @workflow_type = options[:workflow_type]
+        @non_interactive = options[:non_interactive] || (@workflow_type == :watch_mode)
 
         # Initialize components
         @config_manager = ConfigManager.new(project_dir)
@@ -115,12 +116,18 @@ module Aidp
               display_message(completion_status[:summary], type: :info)
 
               # Ask user if they want to continue anyway
-              if @user_interface.get_confirmation("Continue anyway? This may indicate issues that should be addressed.", default: false)
-                @state = STATES[:completed]
-                log_execution("Harness completed with user override")
+              if confirmation_prompt_allowed?
+                if @user_interface.get_confirmation("Continue anyway? This may indicate issues that should be addressed.", default: false)
+                  @state = STATES[:completed]
+                  log_execution("Harness completed with user override")
+                else
+                  @state = STATES[:error]
+                  log_execution("Harness stopped due to unmet completion criteria")
+                end
               else
+                display_message("⚠️  Non-interactive mode: cannot override failed completion criteria. Stopping run.", type: :warning)
                 @state = STATES[:error]
-                log_execution("Harness stopped due to unmet completion criteria")
+                log_execution("Harness stopped due to unmet completion criteria in non-interactive mode")
               end
             end
           end
@@ -333,6 +340,10 @@ module Aidp
           @state = STATES[:error]
           raise "All providers rate limited with no reset time available"
         end
+      end
+
+      def confirmation_prompt_allowed?
+        !@non_interactive
       end
 
       def sleep_until_reset(reset_time)

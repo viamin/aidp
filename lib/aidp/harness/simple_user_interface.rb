@@ -26,6 +26,10 @@ module Aidp
         responses
       end
 
+      def get_confirmation(message, default: true)
+        @prompt.yes?(message, default: default)
+      end
+
       private
 
       def show_context(context)

@@ -444,6 +444,29 @@ RSpec.describe Aidp::Harness::Runner do
       expect(result[:status]).to eq("error")
     end
 
+    it "fails without prompting when completion criteria unmet in non-interactive mode" do
+      analyze_runner = double("analyze_runner")
+      allow(analyze_runner).to receive(:next_step).and_return("step1", nil)
+      allow(analyze_runner).to receive(:run_step).and_return({status: "completed"})
+      allow(analyze_runner).to receive(:mark_step_in_progress)
+      allow(analyze_runner).to receive(:mark_step_completed)
+      allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
+
+      completion_checker = double("completion_checker", completion_status: {all_complete: false, summary: "Missing tests"})
+      runner.instance_variable_set(:@completion_checker, completion_checker)
+
+      ui = double("user_interface")
+      runner.instance_variable_set(:@user_interface, ui)
+      runner.instance_variable_set(:@workflow_type, :watch_mode)
+      runner.instance_variable_set(:@non_interactive, true)
+
+      expect(ui).not_to receive(:get_confirmation)
+      allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
+
+      result = runner.run
+      expect(result[:status]).to eq("error")
+    end
+
     it "switches providers and waits for reset on rate limit" do
       analyze_runner = double("analyze_runner")
       allow(analyze_runner).to receive(:next_step).and_return("step1", nil)

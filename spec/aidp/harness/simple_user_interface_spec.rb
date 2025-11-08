@@ -113,4 +113,17 @@ RSpec.describe Aidp::Harness::SimpleUserInterface do
       expect(test_prompt.messages.any? { |msg| msg[:message].include?("User registration") }).to be true
     end
   end
+
+  describe "#get_confirmation" do
+    it "delegates to prompt yes? call" do
+      test_prompt = TestPrompt.new(responses: {yes?: false})
+      ui = described_class.new(prompt: test_prompt)
+
+      result = ui.get_confirmation("Proceed?", default: true)
+
+      expect(result).to be false
+      expect(test_prompt.inputs.last[:message]).to eq("Proceed?")
+      expect(test_prompt.inputs.last[:options][:default]).to be true
+    end
+  end
 end
