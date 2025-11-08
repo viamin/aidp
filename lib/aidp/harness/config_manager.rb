@@ -101,6 +101,11 @@ module Aidp
         }
       end
 
+      # Get max retries (alias for backward compatibility with ErrorHandler)
+      def max_retries(options = {})
+        retry_config(options)[:max_attempts]
+      end
+
       # Get circuit breaker configuration
       def circuit_breaker_config(options = {})
         harness_config = harness_config(options)

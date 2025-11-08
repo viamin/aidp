@@ -2,6 +2,7 @@
 
 require "open3"
 require "time"
+require "fileutils"
 
 require_relative "../message_display"
 require_relative "../execute/prompt_manager"
@@ -55,6 +56,8 @@ module Aidp
           working_dir = @project_dir
         end
 
+        sync_local_aidp_config(working_dir)
+
         prompt_content = build_prompt(issue: issue, plan_data: plan_data)
         write_prompt(prompt_content, working_dir: working_dir)
 
@@ -70,7 +73,19 @@ module Aidp
         end
       rescue => e
         display_message("❌ Implementation failed: #{e.message}", type: :error)
-        @state_store.record_build_status(issue[:number], status: "failed", details: {error: e.message})
+        Aidp.log_error(
+          "build_processor",
+          "Implementation failed with exception",
+          issue: issue[:number],
+          error: e.message,
+          error_class: e.class.name,
+          backtrace: e.backtrace&.first(10)
+        )
+        @state_store.record_build_status(
+          issue[:number],
+          status: "failed",
+          details: {error: e.message, error_class: e.class.name, backtrace: e.backtrace&.first(3)}
+        )
         cleanup_workstream(slug) if @use_workstreams && slug
         raise
       end
@@ -147,20 +162,18 @@ module Aidp
           base_branch: base_branch
         )
 
-        if result[:success]
-          display_message("✅ Workstream created at #{result[:path]}", type: :success)
-          result[:path]
-        else
-          raise "Failed to create workstream: #{result[:message]}"
-        end
+        worktree_path = worktree_path_from_result(result)
+        display_message("✅ Workstream created at #{worktree_path}", type: :success)
+        worktree_path
       end
 
       def cleanup_workstream(slug)
         return unless slug
 
         display_message("🧹 Cleaning up workstream: #{slug}", type: :info)
-        result = Aidp::Worktree.remove(slug: slug, project_dir: @project_dir, force: true)
-        if result[:success]
+        result = Aidp::Worktree.remove(slug: slug, project_dir: @project_dir, delete_branch: true)
+        removed = (result == true) || (result.respond_to?(:[]) && result[:success])
+        if removed
           display_message("✅ Workstream removed", type: :success)
         else
           display_message("⚠️  Failed to remove workstream: #{result[:message]}", type: :warn)
@@ -258,18 +271,63 @@ module Aidp
           display_message("\n--- Harness Result ---", type: :muted)
           display_message("Status: #{result[:status]}", type: :muted)
           display_message("Message: #{result[:message]}", type: :muted) if result[:message]
+          if result[:error]
+            display_message("Error: #{result[:error]}", type: :muted)
+            display_message("Error Details: #{result[:error_details]}", type: :muted) if result[:error_details]
+          end
           display_message("--- End Result ---\n", type: :muted)
         end
 
+        # Log errors to aidp.log
+        if result[:status] == "error"
+          error_msg = result[:message] || "Unknown error"
+          error_details = {
+            status: result[:status],
+            message: error_msg,
+            error: result[:error]&.to_s,
+            error_class: result[:error]&.class&.name,
+            backtrace: result[:backtrace]&.first(5)
+          }.compact
+          Aidp.log_error("build_processor", "Harness execution failed", **error_details)
+        end
+
         result
+      end
+
+      def sync_local_aidp_config(target_dir)
+        return if target_dir.nil? || target_dir == @project_dir
+
+        source_config = File.join(@project_dir, ".aidp", "aidp.yml")
+        return unless File.exist?(source_config)
+
+        target_config = File.join(target_dir, ".aidp", "aidp.yml")
+        FileUtils.mkdir_p(File.dirname(target_config))
+
+        # Only copy when target missing or differs
+        if !File.exist?(target_config) || File.read(source_config) != File.read(target_config)
+          FileUtils.cp(source_config, target_config)
+        end
+      rescue => e
+        display_message("⚠️  Failed to sync AIDP config to workstream: #{e.message}", type: :warn)
+      end
+
+      def worktree_path_from_result(result)
+        return result if result.is_a?(String)
+
+        path = result[:path] || result["path"]
+        return path if path
+
+        message = result[:message] || "unknown error"
+        raise "Failed to create workstream: #{message}"
       end
 
       def handle_success(issue:, slug:, branch_name:, base_branch:, plan_data:, working_dir:)
         stage_and_commit(issue, working_dir: working_dir)
 
         # Check if PR should be created based on VCS preferences
+        # For watch mode, default to creating PRs (set to false to disable)
         vcs_config = config.dig(:work_loop, :version_control) || {}
-        auto_create_pr = vcs_config.fetch(:auto_create_pr, false)
+        auto_create_pr = vcs_config.fetch(:auto_create_pr, true)
 
         pr_url = if auto_create_pr
           create_pull_request(issue: issue, branch_name: branch_name, base_branch: base_branch, working_dir: working_dir)
@@ -355,20 +413,40 @@ module Aidp
 
       def handle_failure(issue:, slug:, result:)
         message = result[:message] || "Unknown failure"
+        error_info = result[:error] || result[:error_details]
         workstream_note = @use_workstreams ? " The workstream `#{slug}` has been left intact for debugging." : " The branch has been left intact for debugging."
+
+        # Build detailed error message for the comment
+        error_details_section = if error_info
+          "\nError: #{error_info}"
+        else
+          ""
+        end
+
         comment = <<~COMMENT
           ❌ Implementation attempt for ##{issue[:number]} failed.
 
           Status: #{result[:status]}
-          Details: #{message}
+          Details: #{message}#{error_details_section}
 
           Please review the repository for partial changes.#{workstream_note}
         COMMENT
         @repository_client.post_comment(issue[:number], comment)
+
+        # Log the failure with full details
+        Aidp.log_error(
+          "build_processor",
+          "Build failed for issue ##{issue[:number]}",
+          status: result[:status],
+          message: message,
+          error: error_info&.to_s,
+          workstream: slug
+        )
+
         @state_store.record_build_status(
           issue[:number],
           status: "failed",
-          details: {message: message, workstream: slug}
+          details: {message: message, error: error_info&.to_s, workstream: slug}
         )
         display_message("⚠️  Build failure recorded for issue ##{issue[:number]}", type: :warn)
       end
@@ -453,13 +531,17 @@ module Aidp
         pr_strategy = vcs_config[:pr_strategy] || "draft"
         draft = (pr_strategy == "draft")
 
+        # Assign PR to the issue author
+        assignee = issue[:author]
+
         output = @repository_client.create_pull_request(
           title: title,
           body: body,
           head: branch_name,
           base: base_branch,
           issue_number: issue[:number],
-          draft: draft
+          draft: draft,
+          assignee: assignee
         )
 
         extract_pr_url(output)

@@ -61,8 +61,8 @@ module Aidp
         gh_available? ? post_comment_via_gh(number, body) : post_comment_via_api(number, body)
       end
 
-      def create_pull_request(title:, body:, head:, base:, issue_number:)
-        gh_available? ? create_pull_request_via_gh(title: title, body: body, head: head, base: base, issue_number: issue_number) : raise("GitHub CLI not available - cannot create PR")
+      def create_pull_request(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
+        gh_available? ? create_pull_request_via_gh(title: title, body: body, head: head, base: base, issue_number: issue_number, draft: draft, assignee: assignee) : raise("GitHub CLI not available - cannot create PR")
       end
 
       def add_labels(number, *labels)
@@ -176,7 +176,7 @@ module Aidp
         response.body
       end
 
-      def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:, draft: false)
+      def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
         cmd = [
           "gh", "pr", "create",
           "--repo", full_repo,
@@ -187,6 +187,7 @@ module Aidp
         ]
         cmd += ["--issue", issue_number.to_s] if issue_number
         cmd += ["--draft"] if draft
+        cmd += ["--assignee", assignee] if assignee
 
         stdout, stderr, status = Open3.capture3(*cmd)
         raise "Failed to create PR via gh: #{stderr.strip}" unless status.success?

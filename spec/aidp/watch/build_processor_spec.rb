@@ -104,7 +104,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
         project_dir: tmp_dir,
         branch: "aidp/issue-77-implement-search",
         base_branch: "main"
-      ).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      ).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
 
       expect(repository_client).to receive(:post_comment).with(issue[:number], include("Implementation complete"))
       expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
@@ -147,7 +147,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
 
     it "includes workstream slug in success comment" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
 
       expect(repository_client).to receive(:post_comment).with(
         issue[:number],
@@ -160,7 +160,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
 
     it "includes workstream slug in failure comment" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(processor_with_workstreams).to receive(:run_harness).and_return({status: "error", message: "tests failed"})
 
       expect(repository_client).to receive(:post_comment).with(
@@ -173,22 +173,22 @@ RSpec.describe Aidp::Watch::BuildProcessor do
 
     it "cleans up workstream on error" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(processor_with_workstreams).to receive(:run_harness).and_raise(StandardError, "boom")
       allow(processor_with_workstreams).to receive(:display_message) # Suppress error display
 
       expect(Aidp::Worktree).to receive(:remove).with(
         slug: "issue-77-implement-search",
         project_dir: tmp_dir,
-        force: true
-      ).and_return({success: true})
+        delete_branch: true
+      ).and_return(true)
 
       expect { processor_with_workstreams.process(issue) }.to raise_error(StandardError, "boom")
     end
 
     it "preserves workstream on success for review" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
 
@@ -197,10 +197,28 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       processor_with_workstreams.process(issue)
     end
 
+    it "syncs local aidp config into workstream directory" do
+      host_config = File.join(tmp_dir, ".aidp", "aidp.yml")
+      FileUtils.mkdir_p(File.dirname(host_config))
+      File.write(host_config, "harness:\n  default_provider: test\n")
+
+      worktree_path = "#{tmp_dir}/.worktrees/issue-77-implement-search"
+      allow(Aidp::Worktree).to receive(:info).and_return(nil)
+      allow(Aidp::Worktree).to receive(:create).and_return({path: worktree_path})
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+
+      processor_with_workstreams.process(issue)
+
+      copied_config = File.join(worktree_path, ".aidp", "aidp.yml")
+      expect(File).to exist(copied_config)
+      expect(File.read(copied_config)).to include("default_provider: test")
+    end
+
     it "passes working_dir to harness runner" do
       workstream_path = "#{tmp_dir}/.worktrees/issue-77-implement-search"
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      allow(Aidp::Worktree).to receive(:create).and_return({success: true, path: workstream_path})
+      allow(Aidp::Worktree).to receive(:create).and_return({path: workstream_path})
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
 
@@ -209,6 +227,136 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       ).and_return({status: "completed"})
 
       processor_with_workstreams.process(issue)
+    end
+  end
+
+  describe "error logging" do
+    it "logs errors to aidp.log when harness fails" do
+      # Stub the harness runner to return an error
+      runner = instance_double(Aidp::Harness::Runner)
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner)
+      allow(runner).to receive(:run).and_return({
+        status: "error",
+        message: "Harness encountered an error and stopped: RuntimeError: Test error",
+        error: "Test error",
+        error_class: "RuntimeError",
+        backtrace: ["line1", "line2", "line3"]
+      })
+      allow(repository_client).to receive(:post_comment)
+
+      # Expect two log_error calls: one from run_harness, one from handle_failure
+      expect(Aidp).to receive(:log_error).with(
+        "build_processor",
+        "Harness execution failed",
+        hash_including(
+          status: "error",
+          error: "Test error"
+        )
+      )
+      expect(Aidp).to receive(:log_error).with(
+        "build_processor",
+        "Build failed for issue ##{issue[:number]}",
+        hash_including(
+          status: "error",
+          error: "Test error"
+        )
+      )
+
+      processor.process(issue)
+    end
+
+    it "logs exception details when process raises" do
+      allow(processor).to receive(:ensure_git_repo!)
+      allow(processor).to receive(:detect_base_branch).and_return("main")
+      allow(processor).to receive(:run_harness).and_raise(StandardError, "Something went wrong")
+
+      expect(Aidp).to receive(:log_error).with(
+        "build_processor",
+        "Implementation failed with exception",
+        hash_including(
+          issue: issue[:number],
+          error: "Something went wrong",
+          error_class: "StandardError"
+        )
+      )
+
+      expect { processor.process(issue) }.to raise_error(StandardError, "Something went wrong")
+    end
+
+    it "includes error details in failure comment" do
+      allow(processor).to receive(:run_harness).and_return({
+        status: "error",
+        message: "Tests failed",
+        error: "NoMethodError: undefined method 'foo'",
+        error_class: "NoMethodError"
+      })
+
+      expect(repository_client).to receive(:post_comment).with(
+        issue[:number],
+        include("NoMethodError: undefined method 'foo'")
+      )
+
+      processor.process(issue)
+    end
+  end
+
+  describe "PR creation with assignee" do
+    let(:issue_with_author) do
+      issue.merge(author: "testuser")
+    end
+
+    before do
+      state_store.record_plan(issue_with_author[:number], summary: plan_data["summary"], tasks: plan_data["tasks"], questions: plan_data["questions"], comment_body: "comment", comment_hint: plan_data["comment_hint"])
+    end
+
+    it "passes issue author as assignee when creating PR" do
+      allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+
+      expect(repository_client).to receive(:create_pull_request).with(
+        hash_including(assignee: "testuser")
+      ).and_return("https://example.com/pr/77")
+
+      processor.process(issue_with_author)
+    end
+
+    it "creates PR by default when auto_create_pr is not configured" do
+      allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+
+      expect(repository_client).to receive(:create_pull_request).and_return("https://example.com/pr/77")
+
+      processor.process(issue_with_author)
+    end
+  end
+
+  describe "verbose mode" do
+    let(:verbose_processor) { described_class.new(repository_client: repository_client, state_store: state_store, project_dir: tmp_dir, use_workstreams: false, verbose: true) }
+
+    before do
+      allow(verbose_processor).to receive(:ensure_git_repo!)
+      allow(verbose_processor).to receive(:detect_base_branch).and_return("main")
+      allow(verbose_processor).to receive(:checkout_branch)
+      allow(verbose_processor).to receive(:write_prompt)
+      allow(verbose_processor).to receive(:stage_and_commit)
+    end
+
+    it "displays error details in verbose mode" do
+      runner = instance_double(Aidp::Harness::Runner)
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner)
+      allow(runner).to receive(:run).and_return({
+        status: "error",
+        message: "Test error",
+        error: "Something failed",
+        error_details: "Detailed error info",
+        backtrace: ["line1"]
+      })
+      allow(repository_client).to receive(:post_comment)
+      allow(Aidp).to receive(:log_error)
+
+      expect { verbose_processor.process(issue) }.to output(/Error: Something failed/).to_stdout_from_any_process
     end
   end
 end

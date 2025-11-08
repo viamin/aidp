@@ -13,6 +13,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -48,7 +49,11 @@ jobs:
       - name: Run unit tests with coverage
         env:
           COVERAGE: "1"
-        run: bundle exec rspec spec/ --exclude-pattern "spec/system/**/*_spec.rb"
+        run: |
+          # Ensure .rspec_status is writable to prevent hangs
+          touch .rspec_status
+          chmod 644 .rspec_status
+          bundle exec rspec spec/ --exclude-pattern "spec/system/**/*_spec.rb"
 
       - name: Generate coverage summary & badge
         run: |
