@@ -1264,6 +1264,9 @@ module Aidp
           end
         end
 
+        # Initialize logger for watch mode
+        setup_logging(Dir.pwd)
+
         # Load watch safety configuration
         config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
         config = config_manager.config || {}

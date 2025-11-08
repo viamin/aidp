@@ -44,6 +44,7 @@ module Aidp
         @current_provider = nil
         @user_input = options[:user_input] || {} # Include user input from workflow selection
         @execution_log = []
+        @last_error = nil
         @prompt = options[:prompt] || TTY::Prompt.new
 
         # Store workflow configuration
@@ -125,7 +126,8 @@ module Aidp
           end
         rescue => e
           @state = STATES[:error]
-          log_execution("Harness error: #{e.message}", {error: e.class.name})
+          @last_error = e
+          log_execution("Harness error: #{e.message}", {error: e.class.name, backtrace: e.backtrace&.first(5)})
           handle_error(e)
         ensure
           # Save state before exiting
@@ -135,6 +137,11 @@ module Aidp
 
         result = {status: @state, message: get_completion_message}
         result[:clarification_questions] = @clarification_questions if @clarification_questions
+        if @last_error
+          result[:error] = @last_error.message
+          result[:error_class] = @last_error.class.name
+          result[:backtrace] = @last_error.backtrace&.first(10)
+        end
         result
       end
 
@@ -419,7 +426,11 @@ module Aidp
         when STATES[:stopped]
           "Harness stopped by user."
         when STATES[:error]
-          "Harness encountered an error and stopped."
+          if @last_error
+            "Harness encountered an error and stopped: #{@last_error.class.name}: #{@last_error.message}"
+          else
+            "Harness encountered an error and stopped."
+          end
         else
           "Harness finished in state: #{@state}"
         end

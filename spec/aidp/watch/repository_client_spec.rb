@@ -155,7 +155,7 @@ RSpec.describe Aidp::Watch::RepositoryClient do
       it "calls GitHub CLI to create PR" do
         allow(client).to receive(:create_pull_request_via_gh).and_return("PR created")
         client.create_pull_request(**pr_params)
-        expect(client).to have_received(:create_pull_request_via_gh).with(pr_params)
+        expect(client).to have_received(:create_pull_request_via_gh).with(pr_params.merge(draft: false, assignee: nil))
       end
     end
 
