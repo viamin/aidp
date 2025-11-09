@@ -35,7 +35,6 @@
     // LLM CLI tools - dangerous/auto-approve mode (container only)
     "CODEX_APPROVAL_POLICY": "never",
     "CODEX_SANDBOX_MODE": "danger-full-access",
-    "OPENCODE_PERMISSION": "allow",
     "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
