@@ -350,6 +350,60 @@ RSpec.describe Aidp::Harness::Runner do
 
       expect(error_handler).to have_received(:handle_error).with(error, runner)
     end
+
+    it "protects ensure block from save_state exceptions" do
+      state_manager = runner.instance_variable_get(:@state_manager)
+      mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
+
+      # Make save_state raise an exception
+      allow(state_manager).to receive(:save_state).and_raise(StandardError, "Failed to save state")
+
+      # Mock cleanup to verify it still runs despite save_state failure
+      allow(runner).to receive(:cleanup).and_call_original
+
+      # Trigger the ensure block by running and letting it complete
+      allow(runner).to receive(:get_mode_runner).and_return(mode_runner)
+
+      # Should NOT raise exception despite save_state failing
+      expect { runner.run }.not_to raise_error
+
+      # Cleanup should still have been called
+      expect(runner).to have_received(:cleanup)
+    end
+
+    it "protects ensure block from cleanup exceptions" do
+      state_manager = runner.instance_variable_get(:@state_manager)
+      mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
+
+      # Make cleanup raise an exception
+      allow(runner).to receive(:cleanup).and_raise(StandardError, "Cleanup failed")
+
+      # Mock save_state to verify it ran before cleanup
+      allow(state_manager).to receive(:save_state)
+
+      # Trigger the ensure block
+      allow(runner).to receive(:get_mode_runner).and_return(mode_runner)
+
+      # Should NOT raise exception despite cleanup failing
+      expect { runner.run }.not_to raise_error
+
+      # save_state should have been called (may be called multiple times during execution)
+      expect(state_manager).to have_received(:save_state).at_least(:once)
+    end
+
+    it "sets last_error when save_state fails and no previous error exists" do
+      state_manager = runner.instance_variable_get(:@state_manager)
+      mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
+      save_error = StandardError.new("Save state failed")
+
+      allow(state_manager).to receive(:save_state).and_raise(save_error)
+      allow(runner).to receive(:get_mode_runner).and_return(mode_runner)
+
+      runner.run
+
+      # last_error should be set to the save_state error
+      expect(runner.instance_variable_get(:@last_error)).to eq(save_error)
+    end
   end
 
   describe "run loop scenarios" do

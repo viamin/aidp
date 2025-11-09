@@ -880,4 +880,151 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       end
     end
   end
+
+  describe "exception handling during agent calls (fix-forward)" do
+    let(:step_spec) { {"name" => "test_step", "templates" => ["test.md"]} }
+    let(:context) { {user_input: {}} }
+    let(:test_runner) { runner.instance_variable_get(:@test_runner) }
+    let(:prompt_manager) { runner.instance_variable_get(:@prompt_manager) }
+
+    before do
+      # Mock all the infrastructure
+      allow(runner).to receive(:create_initial_prompt)
+      allow(runner).to receive(:display_message)
+      allow(runner).to receive(:transition_to)
+      allow(test_runner).to receive(:run_tests).and_return({success: true})
+      allow(test_runner).to receive(:run_linters).and_return({success: true})
+      allow(runner).to receive(:record_periodic_checkpoint)
+      allow(runner).to receive(:process_task_filing)
+      allow(runner).to receive(:agent_marked_complete?).and_return(false, true) # Complete after retry
+      allow(runner).to receive(:archive_and_cleanup)
+      allow(runner).to receive(:display_state_summary)
+      allow(runner).to receive(:record_final_checkpoint)
+    end
+
+    it "catches exceptions from apply_patch and continues with fix-forward" do
+      # First call raises exception, subsequent calls succeed
+      exception = StandardError.new("Network timeout")
+      call_count = 0
+      allow(runner).to receive(:apply_patch) do
+        call_count += 1
+        if call_count == 1
+          raise exception
+        else
+          {status: "completed", output: "fixed"}
+        end
+      end
+
+      # Mock append_exception_to_prompt
+      allow(runner).to receive(:append_exception_to_prompt)
+
+      result = runner.send(:run_primary_agentic_unit, step_spec, context)
+
+      # Should have caught exception and continued
+      expect(runner).to have_received(:append_exception_to_prompt).with(exception)
+      expect(call_count).to be >= 2 # At least one failure + one success
+      expect(result).to be_a(Hash)
+      expect(result[:terminate]).to be(true)
+      expect(result[:completed]).to be(true)
+    end
+
+    it "appends exception details to PROMPT.md for agent visibility" do
+      begin
+        NetworkError.new("Connection refused")
+      rescue
+        StandardError.new("Connection refused")
+      end
+      exception_with_backtrace = StandardError.new("Test error")
+      exception_with_backtrace.set_backtrace([
+        "/path/to/file.rb:10:in `method1'",
+        "/path/to/file.rb:20:in `method2'",
+        "/path/to/file.rb:30:in `method3'"
+      ])
+
+      # Use a real call to test the method
+      allow(prompt_manager).to receive(:read).and_return("# Existing prompt\n\nSome content")
+      allow(prompt_manager).to receive(:write)
+
+      runner.send(:append_exception_to_prompt, exception_with_backtrace)
+
+      # Verify it wrote the exception details to PROMPT.md
+      expect(prompt_manager).to have_received(:write) do |content, options|
+        expect(content).to include("Fix-Forward Exception")
+        expect(content).to include("StandardError")
+        expect(content).to include("Test error")
+        expect(content).to include("Stack Trace")
+        expect(content).to include("/path/to/file.rb:10")
+        expect(content).to include("Fix-forward instructions")
+      end
+    end
+
+    it "logs exception details when agent call fails" do
+      exception = StandardError.new("API rate limit")
+      call_count = 0
+
+      allow(runner).to receive(:apply_patch) do
+        call_count += 1
+        if call_count == 1
+          raise exception
+        else
+          {status: "completed", output: "done"}
+        end
+      end
+      allow(runner).to receive(:append_exception_to_prompt)
+
+      runner.send(:run_primary_agentic_unit, step_spec, context)
+
+      # Verify logger was called with error details
+      expect(Aidp.logger).to have_received(:error).with(
+        "work_loop",
+        "Exception during agent call",
+        hash_including(
+          error: "API rate limit",
+          error_class: "StandardError"
+        )
+      ).at_least(:once)
+    end
+
+    it "continues to next iteration after exception using fix-forward pattern" do
+      exception = StandardError.new("Temporary failure")
+      call_count = 0
+
+      allow(runner).to receive(:apply_patch) do
+        call_count += 1
+        if call_count == 1
+          raise exception
+        else
+          {status: "completed", output: "success"}
+        end
+      end
+      allow(runner).to receive(:append_exception_to_prompt)
+
+      result = runner.send(:run_primary_agentic_unit, step_spec, context)
+
+      # Should have called apply_patch at least twice (once failed, then succeeded)
+      expect(call_count).to be >= 2
+      expect(result[:completed]).to be(true)
+    end
+
+    it "displays error message when exception occurs" do
+      exception = ArgumentError.new("Invalid input")
+      call_count = 0
+      allow(runner).to receive(:apply_patch) do
+        call_count += 1
+        if call_count == 1
+          raise exception
+        else
+          {status: "completed", output: "done"}
+        end
+      end
+      allow(runner).to receive(:append_exception_to_prompt)
+
+      runner.send(:run_primary_agentic_unit, step_spec, context)
+
+      expect(runner).to have_received(:display_message).with(
+        a_string_matching(/Exception during agent call.*ArgumentError.*Invalid input/),
+        type: :error
+      )
+    end
+  end
 end

@@ -615,7 +615,7 @@ module Aidp
             yield
           end
         end
-      rescue Aidp::Concurrency::MaxAttemptsExceededError
+      rescue Aidp::Concurrency::MaxAttemptsError
         raise "Could not acquire state lock within timeout"
       ensure
         # Clean up lock file

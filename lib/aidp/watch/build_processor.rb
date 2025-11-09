@@ -72,7 +72,8 @@ module Aidp
           handle_failure(issue: issue, slug: slug, result: result)
         end
       rescue => e
-        display_message("❌ Implementation failed: #{e.message}", type: :error)
+        # Don't re-raise - handle gracefully for fix-forward pattern
+        display_message("❌ Implementation failed with exception: #{e.message}", type: :error)
         Aidp.log_error(
           "build_processor",
           "Implementation failed with exception",
@@ -81,13 +82,20 @@ module Aidp
           error_class: e.class.name,
           backtrace: e.backtrace&.first(10)
         )
-        @state_store.record_build_status(
-          issue[:number],
-          status: "failed",
-          details: {error: e.message, error_class: e.class.name, backtrace: e.backtrace&.first(3)}
-        )
-        cleanup_workstream(slug) if @use_workstreams && slug
-        raise
+
+        # Create error result to pass to handle_failure
+        error_result = {
+          status: "error",
+          error: e.message,
+          error_class: e.class.name,
+          message: "Exception during harness execution: #{e.message}"
+        }
+
+        # Handle as failure (posts comment, updates state) but DON'T re-raise
+        handle_failure(issue: issue, slug: slug, result: error_result)
+
+        # Note: We intentionally DON'T re-raise here to allow watch mode to continue
+        # The error has been logged, recorded, and reported to GitHub
       end
 
       private

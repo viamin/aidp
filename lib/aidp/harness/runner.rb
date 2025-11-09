@@ -137,9 +137,21 @@ module Aidp
           log_execution("Harness error: #{e.message}", {error: e.class.name, backtrace: e.backtrace&.first(5)})
           handle_error(e)
         ensure
-          # Save state before exiting
-          save_state
-          cleanup
+          # Save state before exiting - protect against exceptions during cleanup
+          begin
+            save_state
+          rescue => e
+            # Don't let state save failures kill the whole run or prevent cleanup
+            Aidp.logger.error("harness", "Failed to save state during cleanup: #{e.message}", error: e.class.name)
+            @last_error ||= e # Only set if no previous error
+          end
+
+          begin
+            cleanup
+          rescue => e
+            # Don't let cleanup failures propagate
+            Aidp.logger.error("harness", "Failed during cleanup: #{e.message}", error: e.class.name)
+          end
         end
 
         result = {status: @state, message: get_completion_message}

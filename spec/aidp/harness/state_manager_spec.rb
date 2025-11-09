@@ -381,4 +381,21 @@ RSpec.describe Aidp::Harness::StateManager do
       expect(summary[:harness_metrics]).to be_a(Hash)
     end
   end
+
+  describe "lock acquisition" do
+    it "raises error when lock cannot be acquired within timeout" do
+      # Create a state manager that actually tries to use file locks
+      real_project_dir = Dir.mktmpdir
+      real_state_manager = described_class.new(real_project_dir, :analyze)
+
+      # Stub the backoff retry to immediately raise MaxAttemptsError
+      allow(Aidp::Concurrency::Backoff).to receive(:retry).and_raise(Aidp::Concurrency::MaxAttemptsError, "Max attempts exceeded")
+
+      expect {
+        real_state_manager.send(:with_lock) {}
+      }.to raise_error(RuntimeError, "Could not acquire state lock within timeout")
+
+      FileUtils.rm_rf(real_project_dir)
+    end
+  end
 end

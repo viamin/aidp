@@ -148,7 +148,27 @@ module Aidp
           transition_to(:ready) unless @current_state == :ready
 
           transition_to(:apply_patch)
-          agent_result = apply_patch
+
+          # Wrap agent call in exception handling for true fix-forward
+          begin
+            agent_result = apply_patch
+          rescue => e
+            # Convert exception to error result for fix-forward handling
+            Aidp.logger.error("work_loop", "Exception during agent call",
+              step: @step_name,
+              iteration: @iteration_count,
+              error: e.message,
+              error_class: e.class.name,
+              backtrace: e.backtrace&.first(5))
+
+            display_message("  ⚠️  Exception during agent call: #{e.class.name}: #{e.message}", type: :error)
+
+            # Append exception to PROMPT.md so agent can see and fix it
+            append_exception_to_prompt(e)
+
+            # Continue to next iteration with fix-forward pattern
+            next
+          end
 
           # Process agent output for task filing signals
           process_task_filing(agent_result)
@@ -612,6 +632,47 @@ module Aidp
         @prompt_manager.write(updated_prompt, step_name: @step_name)
 
         display_message("  [NEXT_PATCH] Added failure reports, strategy, and diagnostic to PROMPT.md", type: :warning)
+      end
+
+      # Append exception details to PROMPT.md for fix-forward handling
+      # This allows the agent to see and fix errors that occur during execution
+      def append_exception_to_prompt(exception)
+        error_report = []
+
+        error_report << "## Fix-Forward Exception in Iteration #{@iteration_count}"
+        error_report << ""
+        error_report << "**CRITICAL**: An exception occurred during this iteration. Please analyze and fix the underlying issue."
+        error_report << ""
+        error_report << "### Exception Details"
+        error_report << "- **Type**: `#{exception.class.name}`"
+        error_report << "- **Message**: #{exception.message}"
+        error_report << ""
+
+        if exception.backtrace && !exception.backtrace.empty?
+          error_report << "### Stack Trace (First 10 lines)"
+          error_report << "```"
+          exception.backtrace.first(10).each do |line|
+            error_report << line
+          end
+          error_report << "```"
+          error_report << ""
+        end
+
+        error_report << "### Required Action"
+        error_report << "1. Analyze the exception type and message"
+        error_report << "2. Review the stack trace to identify the source"
+        error_report << "3. Fix the underlying code issue"
+        error_report << "4. Ensure the fix doesn't break existing functionality"
+        error_report << ""
+        error_report << "**Fix-forward instructions**: Do not rollback changes. Identify the root cause and fix it in the next iteration."
+        error_report << ""
+
+        # Append to PROMPT.md
+        current_prompt = @prompt_manager.read
+        updated_prompt = current_prompt + "\n\n---\n\n" + error_report.join("\n")
+        @prompt_manager.write(updated_prompt, step_name: @step_name)
+
+        display_message("  [EXCEPTION] Added exception details to PROMPT.md for fix-forward", type: :error)
       end
 
       # Check if we should reinject the style guide at this iteration
