@@ -15,7 +15,8 @@ end
 
 ENV["RACK_ENV"] = "test"
 ENV["RSPEC_RUNNING"] = "true" # Signal that we're running tests
-ENV["AIDP_LOG_FILE"] ||= ".aidp/logs/aidp.test.log"
+# Always capture test output in dedicated log, regardless of outer env.
+ENV["AIDP_LOG_FILE"] = ".aidp/logs/aidp.test.log"
 ENV["AIDP_DISABLE_BOOTSTRAP"] ||= "1" # Default off in tests; enable explicitly in bootstrap specs
 
 require "aidp"

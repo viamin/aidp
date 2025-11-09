@@ -568,6 +568,27 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         runner.send(:prepare_next_iteration, test_results, lint_results, diagnostic)
       end
 
+      it "embeds recovery strategy with detected commands" do
+        test_results = {
+          success: false,
+          output: "Boom",
+          failures: [{command: "bundle exec rspec"}]
+        }
+        lint_results = {
+          success: false,
+          output: "Lint boom",
+          failures: [{command: "bundle exec standardrb"}]
+        }
+
+        expect(prompt_manager).to receive(:write) do |content|
+          expect(content).to include("Recovery Strategy")
+          expect(content).to include("`bundle exec rspec`")
+          expect(content).to include("`bundle exec standardrb`")
+        end
+
+        runner.send(:prepare_next_iteration, test_results, lint_results, nil)
+      end
+
       it "does not append when all tests pass" do
         test_results = {success: true, output: "All passed", failures: []}
         lint_results = {success: true, output: "All passed", failures: []}

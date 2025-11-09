@@ -72,7 +72,7 @@ RSpec.describe Aidp::Harness::Runner do
     end
 
     it "initializes all components" do
-      expect(runner.instance_variable_get(:@config_manager)).to be_a(Aidp::Harness::ConfigManager)
+      expect(runner.instance_variable_get(:@configuration)).to be_a(Aidp::Harness::Configuration)
       expect(runner.instance_variable_get(:@state_manager)).to be_a(Aidp::Harness::StateManager)
       expect(runner.instance_variable_get(:@condition_detector)).to be_a(Aidp::Harness::ZfcConditionDetector)
       expect(runner.instance_variable_get(:@provider_manager)).to be_a(Aidp::Harness::ProviderManager)

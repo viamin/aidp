@@ -2,7 +2,7 @@
 
 require "timeout"
 require "json"
-require_relative "config_manager"
+require_relative "configuration"
 require_relative "state_manager"
 require_relative "condition_detector"
 require_relative "provider_manager"
@@ -53,18 +53,18 @@ module Aidp
         @non_interactive = options[:non_interactive] || (@workflow_type == :watch_mode)
 
         # Initialize components
-        @config_manager = ConfigManager.new(project_dir)
+        @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
-        @provider_manager = ProviderManager.new(@config_manager, prompt: @prompt)
+        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
 
         # Use ZFC-enabled condition detector
         # ZfcConditionDetector will create its own ProviderFactory if needed
         # Falls back to legacy pattern matching when ZFC is disabled
         require_relative "zfc_condition_detector"
-        @condition_detector = ZfcConditionDetector.new(@config_manager)
+        @condition_detector = ZfcConditionDetector.new(@configuration)
 
         @user_interface = SimpleUserInterface.new
-        @error_handler = ErrorHandler.new(@provider_manager, @config_manager)
+        @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @status_display = StatusDisplay.new
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
       end
@@ -197,9 +197,9 @@ module Aidp
         {
           harness: status,
           configuration: {
-            default_provider: @config_manager.default_provider,
-            fallback_providers: @config_manager.fallback_providers,
-            max_retries: @config_manager.harness_config[:max_retries]
+            default_provider: @configuration.default_provider,
+            fallback_providers: @configuration.fallback_providers,
+            max_retries: @configuration.harness_config[:max_retries]
           },
           provider_manager: @provider_manager.status,
           error_stats: @error_handler.error_stats

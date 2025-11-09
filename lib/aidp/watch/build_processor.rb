@@ -224,7 +224,7 @@ module Aidp
 
       def write_prompt(content, working_dir: @project_dir)
         prompt_manager = Aidp::Execute::PromptManager.new(working_dir)
-        prompt_manager.write(content)
+        prompt_manager.write(content, step_name: IMPLEMENTATION_STEP)
         display_message("📝 Wrote PROMPT.md with implementation contract", type: :info)
 
         if @verbose
@@ -341,6 +341,11 @@ module Aidp
 
       def handle_success(issue:, slug:, branch_name:, base_branch:, plan_data:, working_dir:)
         changes_committed = stage_and_commit(issue, working_dir: working_dir)
+
+        unless changes_committed
+          handle_no_changes(issue: issue, slug: slug, branch_name: branch_name)
+          return
+        end
 
         # Check if PR should be created based on VCS preferences
         # For watch mode, default to creating PRs (set to false to disable)
@@ -485,6 +490,30 @@ module Aidp
           details: {message: message, error: error_info&.to_s, workstream: slug}
         )
         display_message("⚠️  Build failure recorded for issue ##{issue[:number]}", type: :warn)
+      end
+
+      def handle_no_changes(issue:, slug:, branch_name:)
+        location_note = if @use_workstreams
+          "The workstream `#{slug}` has been preserved for review."
+        else
+          "Branch `#{branch_name}` remains checked out for inspection."
+        end
+
+        @state_store.record_build_status(
+          issue[:number],
+          status: "no_changes",
+          details: {branch: branch_name, workstream: slug}
+        )
+
+        Aidp.log_warn(
+          "build_processor",
+          "noop_build_result",
+          issue: issue[:number],
+          branch: branch_name,
+          workstream: slug
+        )
+
+        display_message("⚠️  Implementation produced no changes; labels remain untouched. #{location_note}", type: :warn)
       end
 
       def stage_and_commit(issue, working_dir: @project_dir)

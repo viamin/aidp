@@ -65,6 +65,21 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     expect(status["pr_url"]).to eq("https://example.com/pr/77")
   end
 
+  it "reports no changes when stage_and_commit returns false" do
+    allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+    allow(processor).to receive(:stage_and_commit).and_return(false)
+
+    expect(processor).not_to receive(:create_pull_request)
+    expect(repository_client).not_to receive(:post_comment)
+    expect(repository_client).not_to receive(:remove_labels)
+
+    processor.process(issue)
+
+    status = state_store.build_status(issue[:number])
+    expect(status["status"]).to eq("no_changes")
+    expect(status["branch"]).to eq("aidp/issue-77-implement-search")
+  end
+
   it "records failure when harness fails" do
     allow(processor).to receive(:run_harness).and_return({status: "error", message: "tests failed"})
     expect(repository_client).to receive(:post_comment).with(issue[:number], include("failed"))

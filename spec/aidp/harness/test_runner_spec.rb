@@ -41,6 +41,26 @@ RSpec.describe Aidp::Harness::TestRunner do
       end
     end
 
+    context "when config omits commands but tooling detects tests" do
+      before do
+        allow(config).to receive(:test_commands).and_return([])
+        allow(Aidp::ToolingDetector).to receive(:detect).and_return(
+          Aidp::ToolingDetector::Result.new(
+            test_commands: ["echo detected tests"],
+            lint_commands: []
+          )
+        )
+      end
+
+      it "falls back to detected commands" do
+        result = runner.run_tests
+
+        expect(result[:success]).to be true
+        expect(result[:output]).to include("All passed")
+        expect(Aidp::ToolingDetector).to have_received(:detect).with(temp_dir)
+      end
+    end
+
     context "when test command fails" do
       before do
         allow(config).to receive(:test_commands).and_return(["exit 1"])
@@ -113,6 +133,26 @@ RSpec.describe Aidp::Harness::TestRunner do
         expect(result[:success]).to be false
         expect(result[:output]).to include("error")
         expect(result[:output]).to include("Exit Code: 1")
+      end
+    end
+
+    context "when config omits lint commands but tooling detects them" do
+      before do
+        allow(config).to receive(:lint_commands).and_return([])
+        allow(Aidp::ToolingDetector).to receive(:detect).and_return(
+          Aidp::ToolingDetector::Result.new(
+            test_commands: [],
+            lint_commands: ["echo lint fallback"]
+          )
+        )
+      end
+
+      it "runs detected lint command" do
+        result = runner.run_linters
+
+        expect(result[:success]).to be true
+        expect(result[:output]).to include("All passed")
+        expect(Aidp::ToolingDetector).to have_received(:detect).with(temp_dir)
       end
     end
   end

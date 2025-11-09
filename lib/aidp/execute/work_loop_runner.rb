@@ -598,6 +598,9 @@ module Aidp
           failures << ""
         end
 
+        strategy = build_failure_strategy(test_results, lint_results)
+        failures.concat(strategy) unless strategy.empty?
+
         failures << "**Fix-forward instructions**: Do not rollback changes. Build on what exists and fix the failures above."
         failures << ""
 
@@ -608,7 +611,7 @@ module Aidp
         updated_prompt = current_prompt + "\n\n---\n\n" + failures.join("\n")
         @prompt_manager.write(updated_prompt, step_name: @step_name)
 
-        display_message("  [NEXT_PATCH] Added failure reports and diagnostic to PROMPT.md", type: :warning)
+        display_message("  [NEXT_PATCH] Added failure reports, strategy, and diagnostic to PROMPT.md", type: :warning)
       end
 
       # Check if we should reinject the style guide at this iteration
@@ -649,6 +652,32 @@ module Aidp
         reminder << "Ensure your fixes align with project conventions above."
 
         reminder.join("\n")
+      end
+
+      def build_failure_strategy(test_results, lint_results)
+        return [] if test_results[:success] && lint_results[:success]
+
+        lines = ["### Recovery Strategy", ""]
+
+        unless test_results[:success]
+          commands = format_command_list(test_results[:failures])
+          lines << "- Re-run #{commands} locally to reproduce the failing specs listed above."
+          lines << "- Triage the exact failures before moving on to new work."
+        end
+
+        unless lint_results[:success]
+          commands = format_command_list(lint_results[:failures])
+          lines << "- Execute #{commands} and fix each reported offense."
+        end
+
+        lines << ""
+        lines
+      end
+
+      def format_command_list(failures)
+        commands = Array(failures).map { |failure| failure[:command] }.compact
+        commands = ["the configured command"] if commands.empty?
+        commands.map { |cmd| "`#{cmd}`" }.join(" or ")
       end
 
       # Load current step's template content
