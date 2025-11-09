@@ -34,7 +34,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     allow(processor).to receive(:detect_base_branch).and_return("main")
     allow(processor).to receive(:checkout_branch)
     allow(processor).to receive(:write_prompt)
-    allow(processor).to receive(:stage_and_commit)
+    allow(processor).to receive(:stage_and_commit).and_return(true)
   end
 
   after do
@@ -86,7 +86,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(processor_with_workstreams).to receive(:run_harness).and_return({status: "completed", message: "done"})
       allow(processor_with_workstreams).to receive(:create_pull_request).and_return("https://example.com/pr/77")
       allow(processor_with_workstreams).to receive(:write_prompt)
-      allow(processor_with_workstreams).to receive(:stage_and_commit)
+      allow(processor_with_workstreams).to receive(:stage_and_commit).and_return(true)
 
       allow(processor_without_workstreams).to receive(:ensure_git_repo!)
       allow(processor_without_workstreams).to receive(:detect_base_branch).and_return("main")
@@ -94,7 +94,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(processor_without_workstreams).to receive(:run_harness).and_return({status: "completed", message: "done"})
       allow(processor_without_workstreams).to receive(:create_pull_request).and_return("https://example.com/pr/77")
       allow(processor_without_workstreams).to receive(:write_prompt)
-      allow(processor_without_workstreams).to receive(:stage_and_commit)
+      allow(processor_without_workstreams).to receive(:stage_and_commit).and_return(true)
     end
 
     it "creates workstream when use_workstreams is true" do
@@ -340,7 +340,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(verbose_processor).to receive(:detect_base_branch).and_return("main")
       allow(verbose_processor).to receive(:checkout_branch)
       allow(verbose_processor).to receive(:write_prompt)
-      allow(verbose_processor).to receive(:stage_and_commit)
+      allow(verbose_processor).to receive(:stage_and_commit).and_return(true)
     end
 
     it "displays error details in verbose mode" do

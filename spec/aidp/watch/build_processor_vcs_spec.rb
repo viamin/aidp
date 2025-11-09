@@ -146,7 +146,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     let(:slug) { "issue-123" }
 
     before do
-      allow(processor).to receive(:stage_and_commit)
+      allow(processor).to receive(:stage_and_commit).and_return(true)
       allow(processor).to receive(:plan_value).and_return("Implementation complete")
       allow(state_store).to receive(:record_build_status)
       allow(repository_client).to receive(:post_comment)
@@ -230,6 +230,27 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
           issue: issue,
           branch_name: branch_name,
           base_branch: base_branch,
+          working_dir: project_dir)
+      end
+    end
+
+    context "when no commits were created" do
+      before do
+        create_config({auto_create_pr: true})
+        processor.instance_variable_set(:@config, nil)
+      end
+
+      it "skips PR creation entirely" do
+        allow(processor).to receive(:stage_and_commit).and_return(false)
+        allow(repository_client).to receive(:remove_labels)
+        expect(processor).not_to receive(:create_pull_request)
+
+        processor.send(:handle_success,
+          issue: issue,
+          slug: slug,
+          branch_name: branch_name,
+          base_branch: base_branch,
+          plan_data: plan_data,
           working_dir: project_dir)
       end
     end
