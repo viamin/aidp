@@ -3,6 +3,7 @@
 require "logger"
 require "json"
 require "fileutils"
+require "pathname"
 
 module Aidp
   # Unified structured logger for all AIDP operations
@@ -84,10 +85,28 @@ module Aidp
     private
 
     def determine_log_level
-      # Priority: ENV > config > default
-      level_str = ENV["AIDP_LOG_LEVEL"] || @config[:level] || "info"
-      level_sym = level_str.to_sym
+      # Priority: explicit env override > DEBUG flags > config > default
+      level_str = if ENV["AIDP_LOG_LEVEL"]
+        ENV["AIDP_LOG_LEVEL"]
+      elsif debug_env_enabled?
+        "debug"
+      elsif @config[:level]
+        @config[:level]
+      else
+        "info"
+      end
+      level_sym = level_str.to_s.to_sym
       LEVELS.key?(level_sym) ? level_sym : :info
+    end
+
+    def debug_env_enabled?
+      raw = ENV["AIDP_DEBUG"] || ENV["DEBUG"]
+      return false if raw.nil?
+
+      normalized = raw.to_s.strip.downcase
+      return true if %w[true on yes debug].include?(normalized)
+
+      /\A\d+\z/.match?(normalized) ? normalized.to_i.positive? : false
     end
 
     def should_log?(level)
@@ -106,7 +125,7 @@ module Aidp
     end
 
     def setup_logger
-      info_path = File.join(@project_dir, INFO_LOG)
+      info_path = determine_log_file_path
       @logger = create_logger(info_path)
       # Emit instrumentation after logger is available (avoid recursive Aidp.log_* calls during bootstrap)
       return unless @instrument_internal
@@ -179,6 +198,17 @@ module Aidp
       }.merge(metadata)
 
       JSON.generate(entry)
+    end
+
+    def determine_log_file_path
+      custom = (ENV["AIDP_LOG_FILE"] || @config[:file]).to_s.strip
+      relative_path = custom.empty? ? INFO_LOG : custom
+
+      if Pathname.new(relative_path).absolute?
+        relative_path
+      else
+        File.join(@project_dir, relative_path)
+      end
     end
 
     # Redaction patterns for common secrets

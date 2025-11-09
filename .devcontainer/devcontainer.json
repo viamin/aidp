@@ -35,7 +35,6 @@
     // LLM CLI tools - dangerous/auto-approve mode (container only)
     "CODEX_APPROVAL_POLICY": "never",
     "CODEX_SANDBOX_MODE": "danger-full-access",
-    "OPENCODE_PERMISSION": "allow",
     "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -54,7 +53,7 @@
     "codex": "npm install -g @openai/codex",
     "gemini-cli": "npm install -g @google/gemini-cli",
     "github-copilot-cli": "npm install -g @github/copilot",
-    "opencode": "npm install -g opencode-ai",
+    "opencode": "npm i -g opencode-ai@latest",
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh"
   },
@@ -144,6 +143,8 @@
     "source=${localEnv:HOME}/.config,target=/home/vscode/.config,type=bind",
     // GitHub CLI Extensions - Share extensions between host and container
     "source=${localEnv:HOME}/.local/share/gh,target=/home/vscode/.local/share/gh,type=bind,consistency=cached",
+    // opencode Extensions - Share extensions between host and container
+    "source=${localEnv:HOME}/.local/share/opencode,target=/home/vscode/.local/share/opencode,type=bind,consistency=cached",
     // GitHub Copilot CLI - Share config and session data between host and container
     "source=${localEnv:HOME}/.copilot,target=/home/vscode/.copilot,type=bind,consistency=cached",
     // LLM CLI Authentication - Cursor

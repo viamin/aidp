@@ -50,6 +50,7 @@ module Aidp
         # Store workflow configuration
         @selected_steps = options[:selected_steps]
         @workflow_type = options[:workflow_type]
+        @non_interactive = options[:non_interactive] || (@workflow_type == :watch_mode)
 
         # Initialize components
         @config_manager = ConfigManager.new(project_dir)
@@ -115,12 +116,18 @@ module Aidp
               display_message(completion_status[:summary], type: :info)
 
               # Ask user if they want to continue anyway
-              if @user_interface.get_confirmation("Continue anyway? This may indicate issues that should be addressed.", default: false)
-                @state = STATES[:completed]
-                log_execution("Harness completed with user override")
+              if confirmation_prompt_allowed?
+                if @user_interface.get_confirmation("Continue anyway? This may indicate issues that should be addressed.", default: false)
+                  @state = STATES[:completed]
+                  log_execution("Harness completed with user override")
+                else
+                  @state = STATES[:error]
+                  log_execution("Harness stopped due to unmet completion criteria")
+                end
               else
+                display_message("⚠️  Non-interactive mode: cannot override failed completion criteria. Stopping run.", type: :warning)
                 @state = STATES[:error]
-                log_execution("Harness stopped due to unmet completion criteria")
+                log_execution("Harness stopped due to unmet completion criteria in non-interactive mode")
               end
             end
           end
@@ -288,15 +295,30 @@ module Aidp
         log_execution("User feedback collected", {responses: user_responses.keys})
       end
 
-      def handle_rate_limit(_result)
+      def handle_rate_limit(result)
         @state = STATES[:waiting_for_rate_limit]
         log_execution("Rate limit detected, switching provider")
 
-        # Mark current provider as rate limited
-        @provider_manager.mark_rate_limited(@current_provider)
+        rate_limit_info = nil
+        if @condition_detector.respond_to?(:extract_rate_limit_info)
+          rate_limit_info = @condition_detector.extract_rate_limit_info(result, @current_provider)
+        end
+        reset_time = rate_limit_info && rate_limit_info[:reset_time]
 
-        # Switch to next provider
-        next_provider = @provider_manager.switch_provider
+        # Mark current provider as rate limited
+        @provider_manager.mark_rate_limited(@current_provider, reset_time)
+
+        # Provider manager might already have switched upstream (e.g., during CLI execution)
+        manager_current = @provider_manager.current_provider
+        if manager_current && manager_current != @current_provider
+          @current_provider = manager_current
+          @state = STATES[:running]
+          log_execution("Provider already switched upstream", new_provider: manager_current)
+          return
+        end
+
+        # Switch to next provider explicitly when still on the rate-limited provider
+        next_provider = @provider_manager.switch_provider("rate_limit", previous_provider: @current_provider)
         @current_provider = next_provider
 
         if next_provider
@@ -318,6 +340,10 @@ module Aidp
           @state = STATES[:error]
           raise "All providers rate limited with no reset time available"
         end
+      end
+
+      def confirmation_prompt_allowed?
+        !@non_interactive
       end
 
       def sleep_until_reset(reset_time)

@@ -17,6 +17,8 @@ RSpec.describe Aidp::Watch::Runner do
   let(:safety_checker) { instance_double(Aidp::Watch::RepositorySafetyChecker) }
 
   before do
+    allow(Aidp).to receive(:log_info)
+    allow(Aidp).to receive(:log_debug)
     allow(Aidp::Watch::RepositoryClient).to receive(:parse_issues_url).and_return(["owner", "repo"])
     allow(Aidp::Watch::RepositoryClient).to receive(:new).and_return(repository_client)
     allow(Aidp::Watch::RepositorySafetyChecker).to receive(:new).and_return(safety_checker)
@@ -90,6 +92,30 @@ RSpec.describe Aidp::Watch::Runner do
 
       expect(runner).to have_received(:display_message).with(/interrupted/, type: :warning)
     end
+
+    it "logs cycle activity" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      allow(runner).to receive(:display_message)
+      allow(runner).to receive(:process_cycle)
+
+      runner.start
+
+      expect(Aidp).to have_received(:log_info).with(
+        "watch_runner",
+        "watch_mode_started",
+        hash_including(repo: "owner/repo", interval: 30, once: true)
+      )
+      expect(Aidp).to have_received(:log_debug).with(
+        "watch_runner",
+        "poll_cycle.begin",
+        hash_including(repo: "owner/repo", interval: 30)
+      )
+      expect(Aidp).to have_received(:log_debug).with(
+        "watch_runner",
+        "poll_cycle.complete",
+        hash_including(once: true, next_poll_in: nil)
+      )
+    end
   end
 
   describe "#process_cycle" do
@@ -146,6 +172,21 @@ RSpec.describe Aidp::Watch::Runner do
 
       expect(plan_processor).not_to have_received(:process)
     end
+
+    it "logs plan polling and processing" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      issue = {number: 1, labels: [{"name" => "aidp-plan"}]}
+      detailed_issue = {number: 1, body: "details", author: "alice"}
+
+      allow(repository_client).to receive(:list_issues).and_return([issue])
+      allow(repository_client).to receive(:fetch_issue).with(1).and_return(detailed_issue)
+      allow(plan_processor).to receive(:process)
+
+      runner.send(:process_plan_triggers)
+
+      expect(Aidp).to have_received(:log_debug).with("watch_runner", "plan_poll", hash_including(total: 1))
+      expect(Aidp).to have_received(:log_debug).with("watch_runner", "plan_process", hash_including(issue: 1))
+    end
   end
 
   describe "#process_build_triggers" do
@@ -191,6 +232,22 @@ RSpec.describe Aidp::Watch::Runner do
       runner.send(:process_build_triggers)
 
       expect(build_processor).not_to have_received(:process)
+    end
+
+    it "logs build polling and processing" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      issue = {number: 2, labels: [{"name" => "aidp-build"}]}
+      detailed_issue = {number: 2, body: "build details", author: "alice"}
+
+      allow(repository_client).to receive(:list_issues).and_return([issue])
+      allow(state_store).to receive(:build_status).with(2).and_return({"status" => "pending"})
+      allow(repository_client).to receive(:fetch_issue).with(2).and_return(detailed_issue)
+      allow(build_processor).to receive(:process)
+
+      runner.send(:process_build_triggers)
+
+      expect(Aidp).to have_received(:log_debug).with("watch_runner", "build_poll", hash_including(total: 1))
+      expect(Aidp).to have_received(:log_debug).with("watch_runner", "build_process", hash_including(issue: 2))
     end
   end
 

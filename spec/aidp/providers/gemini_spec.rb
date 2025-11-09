@@ -55,8 +55,7 @@ RSpec.describe Aidp::Providers::Gemini do
         expect(gemini).to receive(:debug_execute_command).with(
           "gemini",
           hash_including(
-            args: ["--print"],
-            input: sample_prompt,
+            args: ["--prompt", sample_prompt],
             timeout: anything,
             streaming: false
           )
@@ -74,7 +73,7 @@ RSpec.describe Aidp::Providers::Gemini do
       it "logs debug information" do
         expect(gemini).to receive(:debug_provider).with("gemini", "Starting execution", hash_including(:timeout))
         expect(gemini).to receive(:debug_log).with("📝 Sending prompt to gemini...", level: :info)
-        expect(gemini).to receive(:debug_command).with("gemini", hash_including(args: ["--print"]))
+        expect(gemini).to receive(:debug_command).with("gemini", hash_including(args: ["--prompt", sample_prompt], input: nil))
 
         gemini.send_message(prompt: sample_prompt)
       end

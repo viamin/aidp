@@ -185,7 +185,6 @@ module Aidp
           "--head", head,
           "--base", base
         ]
-        cmd += ["--issue", issue_number.to_s] if issue_number
         cmd += ["--draft"] if draft
         cmd += ["--assignee", assignee] if assignee
 

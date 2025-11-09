@@ -58,12 +58,25 @@ module Aidp
         # Validate safety requirements before starting
         @safety_checker.validate_watch_mode_safety!(force: @force)
 
+        Aidp.log_info(
+          "watch_runner",
+          "watch_mode_started",
+          repo: @repository_client.full_repo,
+          interval: @interval,
+          once: @once,
+          use_workstreams: @use_workstreams,
+          verbose: @verbose
+        )
+
         display_message("👀 Watch mode enabled for #{@repository_client.full_repo}", type: :highlight)
         display_message("Polling every #{@interval} seconds. Press Ctrl+C to stop.", type: :muted)
 
         loop do
+          Aidp.log_debug("watch_runner", "poll_cycle.begin", repo: @repository_client.full_repo, interval: @interval)
           process_cycle
+          Aidp.log_debug("watch_runner", "poll_cycle.complete", once: @once, next_poll_in: @once ? nil : @interval)
           break if @once
+          Aidp.log_debug("watch_runner", "poll_cycle.sleep", seconds: @interval)
           sleep @interval
         end
       rescue Interrupt
@@ -83,14 +96,22 @@ module Aidp
       def process_plan_triggers
         plan_label = @plan_processor.plan_label
         issues = @repository_client.list_issues(labels: [plan_label], state: "open")
+        Aidp.log_debug("watch_runner", "plan_poll", label: plan_label, total: issues.size)
         issues.each do |issue|
-          next unless issue_has_label?(issue, plan_label)
+          unless issue_has_label?(issue, plan_label)
+            Aidp.log_debug("watch_runner", "plan_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
+            next
+          end
 
           detailed = @repository_client.fetch_issue(issue[:number])
 
           # Check author authorization before processing
-          next unless @safety_checker.should_process_issue?(detailed, enforce: false)
+          unless @safety_checker.should_process_issue?(detailed, enforce: false)
+            Aidp.log_debug("watch_runner", "plan_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+            next
+          end
 
+          Aidp.log_debug("watch_runner", "plan_process", issue: detailed[:number])
           @plan_processor.process(detailed)
         rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
           Aidp.log_warn("watch_runner", "unauthorized issue author", issue: issue[:number], error: e.message)
@@ -100,17 +121,28 @@ module Aidp
       def process_build_triggers
         build_label = @build_processor.build_label
         issues = @repository_client.list_issues(labels: [build_label], state: "open")
+        Aidp.log_debug("watch_runner", "build_poll", label: build_label, total: issues.size)
         issues.each do |issue|
-          next unless issue_has_label?(issue, build_label)
+          unless issue_has_label?(issue, build_label)
+            Aidp.log_debug("watch_runner", "build_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
+            next
+          end
 
           status = @state_store.build_status(issue[:number])
-          next if status["status"] == "completed"
+          if status["status"] == "completed"
+            Aidp.log_debug("watch_runner", "build_skip_completed", issue: issue[:number])
+            next
+          end
 
           detailed = @repository_client.fetch_issue(issue[:number])
 
           # Check author authorization before processing
-          next unless @safety_checker.should_process_issue?(detailed, enforce: false)
+          unless @safety_checker.should_process_issue?(detailed, enforce: false)
+            Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+            next
+          end
 
+          Aidp.log_debug("watch_runner", "build_process", issue: detailed[:number])
           @build_processor.process(detailed)
         rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
           Aidp.log_warn("watch_runner", "unauthorized issue author", issue: issue[:number], error: e.message)

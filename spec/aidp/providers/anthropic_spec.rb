@@ -150,6 +150,28 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
     end
 
+    context "when harness config requests full permissions" do
+      let(:config_double) { double("configuration", should_use_full_permissions?: true) }
+      let(:harness_context) { double("harness_context", config: config_double) }
+
+      before do
+        provider.instance_variable_set(:@harness_context, harness_context)
+      end
+
+      after do
+        provider.instance_variable_set(:@harness_context, nil)
+      end
+
+      it "includes the skip permissions flag" do
+        provider.send_message(prompt: prompt)
+
+        expect(provider).to have_received(:debug_execute_command).with(
+          "claude",
+          hash_including(args: array_including("--dangerously-skip-permissions"))
+        )
+      end
+    end
+
     context "when command fails" do
       before do
         allow(provider).to receive(:debug_execute_command).and_return(failed_result)

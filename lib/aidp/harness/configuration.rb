@@ -600,7 +600,16 @@ module Aidp
 
       # Get devcontainer configuration
       def devcontainer_config
-        @config[:devcontainer] || default_devcontainer_config
+        return @devcontainer_config if defined?(@devcontainer_config)
+
+        raw_config = @config[:devcontainer] || @config["devcontainer"]
+        base = deep_dup(default_devcontainer_config)
+
+        @devcontainer_config = if raw_config.is_a?(Hash)
+          deep_merge_hashes(base, deep_symbolize_keys(raw_config))
+        else
+          base
+        end
       end
 
       # Check if devcontainer features are enabled
@@ -629,7 +638,10 @@ module Aidp
 
       # Get devcontainer permissions config
       def devcontainer_permissions
-        devcontainer_config[:permissions] || {}
+        permissions = devcontainer_config[:permissions]
+        return {} unless permissions.is_a?(Hash)
+
+        permissions.transform_keys { |key| key.to_sym }
       end
 
       # Check if dangerous filesystem operations are allowed in devcontainer
@@ -639,7 +651,15 @@ module Aidp
 
       # Get list of providers that should skip permission checks in devcontainer
       def devcontainer_skip_permission_checks
-        devcontainer_permissions[:skip_permission_checks] || []
+        permissions = devcontainer_config[:permissions]
+        list = nil
+
+        if permissions.is_a?(Hash)
+          list = permissions[:skip_permission_checks] || permissions["skip_permission_checks"]
+        end
+
+        list = default_skip_permission_checks if list.nil?
+        Array(list).map(&:to_s)
       end
 
       # Check if a specific provider should skip permission checks in devcontainer
@@ -1055,7 +1075,7 @@ module Aidp
           force_detection: nil,
           permissions: {
             dangerous_filesystem_ops: false,
-            skip_permission_checks: []
+            skip_permission_checks: ["claude"]
           },
           settings: {
             timeout_multiplier: 1.0,
@@ -1063,6 +1083,47 @@ module Aidp
             allowed_domains: []
           }
         }
+      end
+
+      def default_skip_permission_checks
+        Array(default_devcontainer_config.dig(:permissions, :skip_permission_checks)).map(&:to_s)
+      end
+
+      def deep_symbolize_keys(value)
+        case value
+        when Hash
+          value.each_with_object({}) do |(key, val), memo|
+            memo[key.to_sym] = deep_symbolize_keys(val)
+          end
+        when Array
+          value.map { |item| deep_symbolize_keys(item) }
+        else
+          value
+        end
+      end
+
+      def deep_merge_hashes(base, overrides)
+        overrides.each do |key, value|
+          base[key] = if base[key].is_a?(Hash) && value.is_a?(Hash)
+            deep_merge_hashes(base[key], value)
+          else
+            value
+          end
+        end
+        base
+      end
+
+      def deep_dup(value)
+        case value
+        when Hash
+          value.each_with_object({}) do |(key, val), memo|
+            memo[key] = deep_dup(val)
+          end
+        when Array
+          value.map { |item| deep_dup(item) }
+        else
+          value
+        end
       end
 
       # Custom error class for configuration issues

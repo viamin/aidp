@@ -245,6 +245,34 @@ RSpec.describe Aidp::Harness::Configuration do
     end
   end
 
+  describe "devcontainer permissions" do
+    before do
+      allow(configuration).to receive(:in_devcontainer?).and_return(true)
+    end
+
+    it "skips permissions for claude by default when in devcontainer" do
+      expect(configuration.should_use_full_permissions?("claude")).to be true
+    end
+
+    it "does not skip permissions for other providers by default" do
+      expect(configuration.should_use_full_permissions?("codex")).to be false
+    end
+
+    context "with partial devcontainer configuration" do
+      let(:mock_config) do
+        super().merge({
+          devcontainer: {
+            manage: false
+          }
+        })
+      end
+
+      it "still uses default skip list for claude" do
+        expect(configuration.should_use_full_permissions?("claude")).to be true
+      end
+    end
+  end
+
   describe "work loop configuration" do
     it "returns default deterministic units when not configured" do
       units_config = configuration.work_loop_units_config

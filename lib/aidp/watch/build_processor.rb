@@ -256,10 +256,19 @@ module Aidp
       end
 
       def run_harness(user_input:, working_dir: @project_dir)
+        Aidp.log_info(
+          "build_processor",
+          "starting_harness",
+          issue_dir: working_dir,
+          workflow_type: :watch_mode,
+          selected_steps: [IMPLEMENTATION_STEP]
+        )
+
         options = {
           selected_steps: [IMPLEMENTATION_STEP],
           workflow_type: :watch_mode,
-          user_input: user_input
+          user_input: user_input,
+          non_interactive: true
         }
 
         display_message("🚀 Running harness in execute mode...", type: :info) if @verbose
@@ -277,6 +286,15 @@ module Aidp
           end
           display_message("--- End Result ---\n", type: :muted)
         end
+
+        Aidp.log_info(
+          "build_processor",
+          "harness_result",
+          status: result[:status],
+          message: result[:message],
+          error: result[:error],
+          error_class: result[:error_class]
+        )
 
         # Log errors to aidp.log
         if result[:status] == "error"
@@ -322,14 +340,32 @@ module Aidp
       end
 
       def handle_success(issue:, slug:, branch_name:, base_branch:, plan_data:, working_dir:)
-        stage_and_commit(issue, working_dir: working_dir)
+        changes_committed = stage_and_commit(issue, working_dir: working_dir)
 
         # Check if PR should be created based on VCS preferences
         # For watch mode, default to creating PRs (set to false to disable)
         vcs_config = config.dig(:work_loop, :version_control) || {}
         auto_create_pr = vcs_config.fetch(:auto_create_pr, true)
 
-        pr_url = if auto_create_pr
+        pr_url = if !changes_committed
+          Aidp.log_info(
+            "build_processor",
+            "skipping_pr_no_commits",
+            issue: issue[:number],
+            branch: branch_name,
+            working_dir: working_dir
+          )
+          display_message("ℹ️  Skipping PR creation because there are no commits on #{branch_name}.", type: :muted)
+          nil
+        elsif auto_create_pr
+          Aidp.log_info(
+            "build_processor",
+            "creating_pull_request",
+            issue: issue[:number],
+            branch: branch_name,
+            base_branch: base_branch,
+            working_dir: working_dir
+          )
           create_pull_request(issue: issue, branch_name: branch_name, base_branch: base_branch, working_dir: working_dir)
         else
           display_message("ℹ️  Skipping PR creation (disabled in VCS preferences)", type: :muted)
@@ -452,18 +488,47 @@ module Aidp
       end
 
       def stage_and_commit(issue, working_dir: @project_dir)
+        commit_created = false
+
         Dir.chdir(working_dir) do
           status_output = run_git(%w[status --porcelain])
           if status_output.strip.empty?
             display_message("ℹ️  No file changes detected after work loop.", type: :muted)
-            return
+            Aidp.log_info("build_processor", "no_changes_after_work_loop", issue: issue[:number], working_dir: working_dir)
+            return commit_created
           end
+
+          changed_entries = status_output.lines.map(&:strip).reject(&:empty?)
+          Aidp.log_info(
+            "build_processor",
+            "changes_detected_after_work_loop",
+            issue: issue[:number],
+            working_dir: working_dir,
+            changed_file_count: changed_entries.length,
+            changed_files_sample: changed_entries.first(10)
+          )
 
           run_git(%w[add -A])
           commit_message = build_commit_message(issue)
           run_git(["commit", "-m", commit_message])
           display_message("💾 Created commit: #{commit_message.lines.first.strip}", type: :info)
+          Aidp.log_info(
+            "build_processor",
+            "commit_created",
+            working_dir: working_dir,
+            issue: issue[:number],
+            commit_summary: commit_message.lines.first.strip
+          )
+
+          # Push the branch to remote
+          current_branch = run_git(%w[branch --show-current]).strip
+          run_git(["push", "-u", "origin", current_branch])
+          display_message("⬆️  Pushed branch '#{current_branch}' to remote", type: :info)
+          Aidp.log_info("build_processor", "branch_pushed", branch: current_branch, working_dir: working_dir)
+          commit_created = true
         end
+
+        commit_created
       end
 
       def build_commit_message(issue)
@@ -521,6 +586,7 @@ module Aidp
         body = <<~BODY
           ## Summary
           - Automated resolution for ##{issue[:number]}
+          - Fixes ##{issue[:number]}
 
           ## Testing
           #{test_summary}
@@ -544,7 +610,16 @@ module Aidp
           assignee: assignee
         )
 
-        extract_pr_url(output)
+        pr_url = extract_pr_url(output)
+        Aidp.log_info(
+          "build_processor",
+          "pull_request_created",
+          issue: issue[:number],
+          branch: branch_name,
+          base_branch: base_branch,
+          pr_url: pr_url
+        )
+        pr_url
       end
 
       def gather_test_summary(working_dir: @project_dir)

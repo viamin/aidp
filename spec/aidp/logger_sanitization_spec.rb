@@ -8,6 +8,18 @@ RSpec.describe "Aidp::Logger project_dir sanitization" do
   let(:invalid_dir) { "<STDERR>" }
   let(:logger) { Aidp::Logger.new(invalid_dir) }
 
+  around do |example|
+    original = ENV["AIDP_LOG_FILE"]
+    ENV.delete("AIDP_LOG_FILE")
+    example.run
+  ensure
+    if original
+      ENV["AIDP_LOG_FILE"] = original
+    else
+      ENV.delete("AIDP_LOG_FILE")
+    end
+  end
+
   after do
     logger.close
     # Clean up any accidentally created directories (should not exist if sanitization works)

@@ -34,7 +34,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     allow(processor).to receive(:detect_base_branch).and_return("main")
     allow(processor).to receive(:checkout_branch)
     allow(processor).to receive(:write_prompt)
-    allow(processor).to receive(:stage_and_commit)
+    allow(processor).to receive(:stage_and_commit).and_return(true)
   end
 
   after do
@@ -86,7 +86,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(processor_with_workstreams).to receive(:run_harness).and_return({status: "completed", message: "done"})
       allow(processor_with_workstreams).to receive(:create_pull_request).and_return("https://example.com/pr/77")
       allow(processor_with_workstreams).to receive(:write_prompt)
-      allow(processor_with_workstreams).to receive(:stage_and_commit)
+      allow(processor_with_workstreams).to receive(:stage_and_commit).and_return(true)
 
       allow(processor_without_workstreams).to receive(:ensure_git_repo!)
       allow(processor_without_workstreams).to receive(:detect_base_branch).and_return("main")
@@ -94,7 +94,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(processor_without_workstreams).to receive(:run_harness).and_return({status: "completed", message: "done"})
       allow(processor_without_workstreams).to receive(:create_pull_request).and_return("https://example.com/pr/77")
       allow(processor_without_workstreams).to receive(:write_prompt)
-      allow(processor_without_workstreams).to receive(:stage_and_commit)
+      allow(processor_without_workstreams).to receive(:stage_and_commit).and_return(true)
     end
 
     it "creates workstream when use_workstreams is true" do
@@ -340,7 +340,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(verbose_processor).to receive(:detect_base_branch).and_return("main")
       allow(verbose_processor).to receive(:checkout_branch)
       allow(verbose_processor).to receive(:write_prompt)
-      allow(verbose_processor).to receive(:stage_and_commit)
+      allow(verbose_processor).to receive(:stage_and_commit).and_return(true)
     end
 
     it "displays error details in verbose mode" do
@@ -357,6 +357,280 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(Aidp).to receive(:log_error)
 
       expect { verbose_processor.process(issue) }.to output(/Error: Something failed/).to_stdout_from_any_process
+    end
+  end
+
+  describe "git push integration" do
+    let(:issue_with_author) do
+      issue.merge(author: "testuser")
+    end
+
+    before do
+      state_store.record_plan(issue_with_author[:number], summary: plan_data["summary"], tasks: plan_data["tasks"], questions: plan_data["questions"], comment_body: "comment", comment_hint: plan_data["comment_hint"])
+
+      allow(processor).to receive(:ensure_git_repo!)
+      allow(processor).to receive(:detect_base_branch).and_return("main")
+      allow(processor).to receive(:checkout_branch)
+      allow(processor).to receive(:write_prompt)
+      allow(processor).to receive(:stage_and_commit).and_call_original
+      allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+      allow(repository_client).to receive(:create_pull_request).and_return("https://example.com/pr/77")
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+    end
+
+    it "pushes branch to remote after committing" do
+      # Mock git commands
+      allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M file.rb\n")
+      allow(processor).to receive(:run_git).with(%w[add -A])
+      allow(processor).to receive(:run_git).with(["commit", "-m", anything])
+      allow(processor).to receive(:run_git).with(%w[branch --show-current]).and_return("aidp/issue-77-implement-search\n")
+
+      expect(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77-implement-search"])
+
+      processor.process(issue_with_author)
+    end
+
+    it "displays push confirmation message" do
+      allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M file.rb\n")
+      allow(processor).to receive(:run_git).with(%w[add -A])
+      allow(processor).to receive(:run_git).with(["commit", "-m", anything])
+      allow(processor).to receive(:run_git).with(%w[branch --show-current]).and_return("aidp/issue-77-implement-search\n")
+      allow(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77-implement-search"])
+
+      expect { processor.process(issue_with_author) }.to output(/Pushed branch.*to remote/).to_stdout_from_any_process
+    end
+
+    it "skips push when no changes detected" do
+      allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("")
+
+      expect(processor).not_to receive(:run_git).with(["push", "-u", "origin", anything])
+
+      processor.process(issue_with_author)
+    end
+  end
+
+  describe "complete build trigger flow" do
+    let(:issue_with_author) do
+      issue.merge(author: "testuser")
+    end
+
+    before do
+      state_store.record_plan(issue_with_author[:number], summary: plan_data["summary"], tasks: plan_data["tasks"], questions: plan_data["questions"], comment_body: "comment", comment_hint: plan_data["comment_hint"])
+    end
+
+    it "executes complete flow: git setup → harness → commit → push → PR → comment → cleanup" do
+      allow(processor).to receive(:ensure_git_repo!)
+      allow(processor).to receive(:detect_base_branch).and_return("main")
+      allow(processor).to receive(:checkout_branch)
+      allow(processor).to receive(:write_prompt)
+
+      # Mock harness run
+      runner = instance_double(Aidp::Harness::Runner)
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner)
+      allow(runner).to receive(:run).and_return({status: "completed", message: "Harness completed successfully"})
+
+      # Mock git operations
+      allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M file.rb\n")
+      allow(processor).to receive(:run_git).with(%w[add -A])
+      allow(processor).to receive(:run_git).with(["commit", "-m", anything])
+      allow(processor).to receive(:run_git).with(%w[branch --show-current]).and_return("aidp/issue-77-implement-search\n")
+      allow(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77-implement-search"])
+
+      # Mock PR creation
+      expect(repository_client).to receive(:create_pull_request).with(
+        hash_including(
+          assignee: "testuser",
+          draft: true,
+          head: "aidp/issue-77-implement-search",
+          base: "main"
+        )
+      ).and_return("https://github.com/owner/repo/pull/123")
+
+      # Mock GitHub API calls
+      expect(repository_client).to receive(:post_comment).with(
+        issue_with_author[:number],
+        include("Implementation complete")
+      )
+      expect(repository_client).to receive(:remove_labels).with(issue_with_author[:number], "aidp-build")
+
+      processor.process(issue_with_author)
+
+      # Verify state was recorded
+      status = state_store.build_status(issue_with_author[:number])
+      expect(status["status"]).to eq("completed")
+      expect(status["pr_url"]).to eq("https://github.com/owner/repo/pull/123")
+    end
+
+    it "handles PR creation failure gracefully" do
+      allow(processor).to receive(:ensure_git_repo!)
+      allow(processor).to receive(:detect_base_branch).and_return("main")
+      allow(processor).to receive(:checkout_branch)
+      allow(processor).to receive(:write_prompt)
+      allow(processor).to receive(:run_harness).and_return({status: "completed"})
+
+      # Mock git operations
+      allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M file.rb\n")
+      allow(processor).to receive(:run_git).with(%w[add -A])
+      allow(processor).to receive(:run_git).with(["commit", "-m", anything])
+      allow(processor).to receive(:run_git).with(%w[branch --show-current]).and_return("aidp/issue-77-implement-search\n")
+      allow(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77-implement-search"])
+
+      # Mock PR creation failure
+      allow(repository_client).to receive(:create_pull_request).and_raise(RuntimeError, "Failed to create PR via gh: branch not found")
+      allow(repository_client).to receive(:post_comment)
+
+      expect { processor.process(issue_with_author) }.to raise_error(RuntimeError, /Failed to create PR/)
+    end
+
+    it "includes PR URL in success comment when PR is created" do
+      allow(processor).to receive(:ensure_git_repo!)
+      allow(processor).to receive(:detect_base_branch).and_return("main")
+      allow(processor).to receive(:checkout_branch)
+      allow(processor).to receive(:write_prompt)
+      allow(processor).to receive(:run_harness).and_return({status: "completed"})
+
+      # Mock git operations
+      allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M file.rb\n")
+      allow(processor).to receive(:run_git).with(%w[add -A])
+      allow(processor).to receive(:run_git).with(["commit", "-m", anything])
+      allow(processor).to receive(:run_git).with(%w[branch --show-current]).and_return("aidp/issue-77\n")
+      allow(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77"])
+
+      allow(repository_client).to receive(:create_pull_request).and_return("https://github.com/owner/repo/pull/999")
+      allow(repository_client).to receive(:remove_labels)
+
+      expect(repository_client).to receive(:post_comment).with(
+        issue_with_author[:number],
+        include("Pull Request: https://github.com/owner/repo/pull/999")
+      )
+
+      processor.process(issue_with_author)
+    end
+  end
+
+  describe "PR creation control" do
+    let(:issue_with_author) { issue.merge(author: "testuser") }
+
+    before do
+      state_store.record_plan(issue_with_author[:number], summary: plan_data["summary"], tasks: plan_data["tasks"], questions: plan_data["questions"], comment_body: "comment", comment_hint: plan_data["comment_hint"])
+    end
+
+    it "skips PR creation when auto_create_pr is false" do
+      # Create config with auto_create_pr disabled
+      config_path = File.join(tmp_dir, ".aidp", "aidp.yml")
+      FileUtils.mkdir_p(File.dirname(config_path))
+      config_hash = {
+        harness: {default_provider: "test_provider"},
+        providers: {test_provider: {type: "usage_based"}},
+        work_loop: {version_control: {auto_create_pr: false}}
+      }
+      File.write(config_path, YAML.dump(config_hash))
+
+      # Create fresh processor with new config
+      processor = described_class.new(repository_client: repository_client, state_store: state_store, project_dir: tmp_dir, use_workstreams: false)
+      allow(processor).to receive(:ensure_git_repo!)
+      allow(processor).to receive(:detect_base_branch).and_return("main")
+      allow(processor).to receive(:checkout_branch)
+      allow(processor).to receive(:write_prompt)
+      allow(processor).to receive(:run_harness).and_return({status: "completed"})
+
+      # Mock git operations
+      allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M file.rb\n")
+      allow(processor).to receive(:run_git).with(%w[add -A])
+      allow(processor).to receive(:run_git).with(["commit", "-m", anything])
+      allow(processor).to receive(:run_git).with(%w[branch --show-current]).and_return("aidp/issue-77\n")
+      allow(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77"])
+
+      # Ensure PR creation is NOT called
+      expect(repository_client).not_to receive(:create_pull_request)
+
+      # But comment should still be posted (without PR URL)
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+
+      processor.process(issue_with_author)
+    end
+  end
+
+  describe "clarification needed flow" do
+    it "handles clarification requests from harness" do
+      questions = ["What database should we use?", "Should this be async?"]
+      allow(processor).to receive(:write_prompt)
+      allow(processor).to receive(:run_harness).and_return({
+        status: "needs_clarification",
+        clarification_questions: questions
+      })
+
+      # Should not attempt to commit or create PR
+      expect(processor).not_to receive(:stage_and_commit)
+      expect(repository_client).not_to receive(:create_pull_request)
+
+      # Should post clarification comment with questions
+      expect(repository_client).to receive(:post_comment).with(
+        issue[:number],
+        include("needs clarification")
+      )
+
+      # Should update labels
+      expect(repository_client).to receive(:replace_labels).with(
+        issue[:number],
+        old_labels: ["aidp-build"],
+        new_labels: ["aidp-needs-input"]
+      )
+
+      processor.process(issue)
+    end
+
+    it "includes all questions in clarification comment" do
+      questions = ["Question 1?", "Question 2?", "Question 3?"]
+      allow(processor).to receive(:write_prompt)
+      allow(processor).to receive(:run_harness).and_return({
+        status: "needs_clarification",
+        clarification_questions: questions
+      })
+
+      expect(repository_client).to receive(:post_comment).with(
+        issue[:number],
+        a_string_including("1. Question 1?", "2. Question 2?", "3. Question 3?")
+      )
+
+      allow(repository_client).to receive(:replace_labels)
+
+      processor.process(issue)
+    end
+  end
+
+  describe "error handling edge cases" do
+    it "handles missing plan data gracefully" do
+      allow(state_store).to receive(:plan_data).with(issue[:number]).and_return(nil)
+
+      expect { processor.process(issue) }.not_to raise_error
+    end
+
+    it "records failure status with error details" do
+      allow(processor).to receive(:write_prompt)
+      allow(processor).to receive(:run_harness).and_return({
+        status: "error",
+        error: "Something went wrong",
+        error_class: "RuntimeError"
+      })
+
+      # Allow the initial "running" status call
+      allow(state_store).to receive(:record_build_status).with(
+        issue[:number],
+        hash_including(status: "running")
+      )
+
+      # Expect the final "failed" status call (note: status is "failed" not "failure")
+      expect(state_store).to receive(:record_build_status).with(
+        issue[:number],
+        hash_including(status: "failed")
+      )
+
+      allow(repository_client).to receive(:post_comment)
+
+      processor.process(issue)
     end
   end
 end

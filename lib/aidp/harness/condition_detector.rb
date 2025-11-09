@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 module Aidp
   module Harness
     # Detects run conditions (rate limits, user feedback, completion, errors)
@@ -15,14 +17,16 @@ module Aidp
             /429/i,
             /rate.{0,20}exceeded/i,
             /throttled/i,
-            /limit.{0,20}exceeded/i
+            /limit.{0,20}exceeded/i,
+            /session limit/i
           ],
           # Anthropic/Claude specific
           anthropic: [
             /rate limit exceeded/i,
             /too many requests/i,
             /quota.{0,20}exceeded/i,
-            /anthropic.{0,20}rate.{0,20}limit/i
+            /anthropic.{0,20}rate.{0,20}limit/i,
+            /session limit reached/i
           ],
           # OpenAI specific
           openai: [
@@ -143,10 +147,10 @@ module Aidp
 
         # Rate limit reset time patterns
         @reset_time_patterns = [
-          /reset.{0,20}in.{0,20}(\d+).{0,20}seconds/i,
-          /retry.{0,20}after.{0,20}(\d+).{0,20}seconds/i,
+          /reset(?:s)?\s+in\s+(\d+)\s+seconds/i,
+          /retry\s+after\s+(\d+)\s+seconds/i,
           /wait[^\d]*(\d+)[^\d]*seconds/i,
-          /(\d+).{0,20}seconds.{0,20}until.{0,20}reset/i,
+          /(\d+)\s+seconds\s+until\s+reset/i,
           /reset.{0,20}at.{0,20}(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i,
           /retry.{0,20}after.{0,20}(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i
         ]
@@ -168,7 +172,18 @@ module Aidp
           result[:output],
           result[:response],
           result[:body]
-        ].compact.join(" ")
+        ].compact.join(" ").strip
+
+        return nil if text_content.empty?
+
+        {
+          provider: provider,
+          detected_at: Time.now,
+          reset_time: extract_reset_time(text_content),
+          retry_after: extract_retry_after(text_content),
+          limit_type: detect_limit_type(text_content, provider),
+          message: text_content
+        }
 
         return false if text_content.empty?
 
@@ -205,17 +220,34 @@ module Aidp
 
       # Extract reset time from rate limit message
       def extract_reset_time(text_content)
+        # Handle expressions like "resets 4am" or "reset at 4:30pm"
+        time_of_day_match = text_content.match(/reset(?:s)?(?:\s+at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i)
+        if time_of_day_match
+          hour = time_of_day_match[1].to_i
+          minute = time_of_day_match[2] ? time_of_day_match[2].to_i : 0
+          meridiem = time_of_day_match[3].downcase
+
+          hour %= 12
+          hour += 12 if meridiem == "pm"
+
+          now = Time.now
+          reset_time = Time.new(now.year, now.month, now.day, hour, minute, 0, now.utc_offset)
+          reset_time += 86_400 if reset_time <= now
+          return reset_time
+        end
+
         @reset_time_patterns.each do |pattern|
           match = text_content.match(pattern)
           next unless match
 
           if match[1].match?(/^\d+$/)
             # Seconds from now
-            Time.now + match[1].to_i
+            return Time.now + match[1].to_i
           else
             # Specific timestamp
             begin
-              Time.parse(match[1])
+              parsed_time = Time.parse(match[1])
+              return parsed_time if parsed_time
             rescue ArgumentError
               nil
             end
@@ -246,6 +278,8 @@ module Aidp
 
       # Detect the type of rate limit
       def detect_limit_type(text_content, provider)
+        return "session_limit" if text_content.match?(/session limit/i)
+
         case provider&.to_s&.downcase
         when "anthropic", "claude"
           if text_content.match?(/requests per minute/i)
