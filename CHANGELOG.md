@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.24.0](https://github.com/viamin/aidp/compare/aidp/v0.23.0...aidp/v0.24.0) (2025-11-10)
+
+
+### Features
+
+* enhance provider configuration wizard with table display and metadata registry ([3317646](https://github.com/viamin/aidp/commit/33176469396a2f145c3acce5d541b4f1247caa85))
+* enhance provider configuration wizard with table display and metadata registry ([#248](https://github.com/viamin/aidp/issues/248)) ([a71e83e](https://github.com/viamin/aidp/commit/a71e83e884a227cb5209fdc4ae8250080fedce0f))
+* implement real-time provider metrics tracking for dashboard (issue [#242](https://github.com/viamin/aidp/issues/242)) ([8a09c63](https://github.com/viamin/aidp/commit/8a09c63861b40f0593d7158d9668597f942e318f))
+* implement real-time provider metrics tracking for dashboard (issue [#242](https://github.com/viamin/aidp/issues/242)) ([#250](https://github.com/viamin/aidp/issues/250)) ([f7f7a57](https://github.com/viamin/aidp/commit/f7f7a571ef00dd472629fc064809977e14c427dd))
+* implement standardized provider interfaces (issue [#243](https://github.com/viamin/aidp/issues/243)) ([c594c69](https://github.com/viamin/aidp/commit/c594c699051ce96b5dc88efeeddbc5c6ab03656f))
+* implement standardized provider interfaces (issue [#243](https://github.com/viamin/aidp/issues/243)) ([#247](https://github.com/viamin/aidp/issues/247)) ([0fa2644](https://github.com/viamin/aidp/commit/0fa26445fd9bc9733aa88b18477e5f57616ce765))
+
+
+### Bug Fixes
+
+* (watch) add git push integration after commit and enhance tests ([7ba0330](https://github.com/viamin/aidp/commit/7ba03305dd6ce791b5e69dcc5658a10de33a1550))
+* (watch) add git push integration after commit and enhance tests ([#241](https://github.com/viamin/aidp/issues/241)) ([a234c6f](https://github.com/viamin/aidp/commit/a234c6fc53d81170a46ea4bf1090cd981294cf3a))
+* (watch) init logger, surface harness errors, and pass PR assignee ([80450f2](https://github.com/viamin/aidp/commit/80450f2d2f677c7478c5b5f8f969db49d7195446))
+* (watch) normalize workstream create/remove results and sync local .aidp config ([67e0a96](https://github.com/viamin/aidp/commit/67e0a96e89849c3de25d73e389bffde940aba998))
+* add around block to manage AIDP_LOG_FILE environment variable during logger tests ([a88a7ef](https://github.com/viamin/aidp/commit/a88a7ef0c03a215aadffdc98bf6ec3166e7df501))
+* add detailed tests for capability registry functionality and provider management ([6a0e075](https://github.com/viamin/aidp/commit/6a0e0759ab0971cdd412b9e5e09363661827104b))
+* enhance devcontainer configuration handling, improve logger file path management, and add tests for permissions and PR creation logic ([548ce24](https://github.com/viamin/aidp/commit/548ce24548b364e0ffde458b3c0ae049d2035682))
+* enhance exception handling and logging across multiple components; implement fix-forward pattern in tests ([77a9e32](https://github.com/viamin/aidp/commit/77a9e327bd8b2a75eb04b4993640ec7efb363966))
+* enhance failure handling and recovery strategy in work loop runner; update related tests ([60f8594](https://github.com/viamin/aidp/commit/60f8594ce6e3d9ba5e5003c3c00de17c10afcbe1))
+* enhance logging in BuildProcessor and update PR creation logic based on commit status ([1e882e2](https://github.com/viamin/aidp/commit/1e882e2ca3b8dd34e1f1ea3163175e9f4927a8b4))
+* enhance permission handling for devcontainer and Codespace environments; update related tests ([1587ce6](https://github.com/viamin/aidp/commit/1587ce6e37340289904ddd0c21cc29cc01c48901))
+* enhance rate limit handling, improve logging, and update streaming command ([712ea29](https://github.com/viamin/aidp/commit/712ea29f8b3b2cabea45a1883f0c359c4497f9d1))
+* enhance work loop functionality with new decision-making templates and diagnostics; update related configurations and tests ([3b8609b](https://github.com/viamin/aidp/commit/3b8609bb77b03a7c586cc416034ea9477fdd0a4b))
+* ensure correct project directory is set before calling provider; add related tests ([9c55010](https://github.com/viamin/aidp/commit/9c55010175b030b78d7e353185f6dc178241d93e))
+* expose project_dir in ConfigManager to prevent permission errors ([11c96bc](https://github.com/viamin/aidp/commit/11c96bc126ba2d493353fdf601b561ae0e58768c))
+* expose project_dir in Configuration class for Runner specs ([dddb524](https://github.com/viamin/aidp/commit/dddb524a2e256b2e9589b0429c5f50cd165da383))
+* implement non-interactive mode handling and confirmation prompt delegation ([e5d6964](https://github.com/viamin/aidp/commit/e5d6964cef20f5fb2066cdc7f4c746565877053b))
+* prepend work loop instructions to prompt and add related tests ([e1139f7](https://github.com/viamin/aidp/commit/e1139f75ea7bd28aaa776408dfc790f694809e4d))
+* remove execution log persistence to prevent unbounded growth; update related tests ([3002668](https://github.com/viamin/aidp/commit/3002668dca9f9566adb7893da2987ff15d1f5dad))
+* remove OPENCODE_PERMISSION setting from devcontainer configuration ([e0c67dc](https://github.com/viamin/aidp/commit/e0c67dc5f896dc62493bfbd1f1de53f824af6cc4))
+* reset harness state before execution and add related tests ([7a2bbaf](https://github.com/viamin/aidp/commit/7a2bbafe21d496c49cc9180f62a424b98dccaeea))
+* resolve linter and test failures in provider adapter implementation ([1959c5b](https://github.com/viamin/aidp/commit/1959c5b92300e5d5c0ade0b5f01cd23b4c433923))
+* update pull request body to include issue fix reference and enhance tests for PR creation ([f5370e8](https://github.com/viamin/aidp/commit/f5370e809e2c1b39638517428fe2f81263718f60))
+
+
+### Improvements
+
+* move gem executable to exe/ and gitignore development binstubs ([30632a4](https://github.com/viamin/aidp/commit/30632a40f8b8f01d790fabba5ab65e855e841a6e))
+
+
+### Documentation
+
+* add code TODOs for wizard default selection, error handling, AST analysis, and work loop enhancements ([9202561](https://github.com/viamin/aidp/commit/9202561c244075f95b62e7beeb01f28ce64e8911))
+* add future work section for capability registry integration in provider adapter guide ([82f6a34](https://github.com/viamin/aidp/commit/82f6a34fe5fd969f98a378aa4dbcc695451b4996))
+
+
+### Dependencies
+
+* **deps-dev:** bump reline from 0.6.2 to 0.6.3 ([d590fcc](https://github.com/viamin/aidp/commit/d590fcca9137034df5c0d01f80bc6eef23412074))
+* **deps-dev:** bump reline from 0.6.2 to 0.6.3 ([#249](https://github.com/viamin/aidp/issues/249)) ([9a2ce00](https://github.com/viamin/aidp/commit/9a2ce00b1b5d602434b0681b6f34c9e642dc8b4f))
+
 ## [0.23.0](https://github.com/viamin/aidp/compare/aidp/v0.22.0...aidp/v0.23.0) (2025-11-07)
 
 
