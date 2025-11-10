@@ -43,8 +43,7 @@ module Aidp
 
         Aidp.log_debug("CapabilityRegistry", "registered provider",
           provider: provider_name,
-          capabilities: caps.keys
-        )
+          capabilities: caps.keys)
       end
 
       # Unregister a provider
@@ -96,7 +95,7 @@ module Aidp
             when :max_context_window
               caps[:context_window] && caps[:context_window] <= required_value
             when :reasoning_tier
-              caps[:reasoning_tiers] && caps[:reasoning_tiers].include?(required_value)
+              caps[:reasoning_tiers]&.include?(required_value)
             else
               # Exact match for boolean and other values
               caps[key] == required_value

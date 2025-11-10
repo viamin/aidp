@@ -706,10 +706,22 @@ module Aidp
               priority: :critical
             }
           # Legacy error type mappings for backward compatibility
-          when :timeout, :network_error, :server_error
+          when :timeout
+            {
+              action: :switch_model,
+              reason: "Timeout error, trying faster model",
+              priority: :medium
+            }
+          when :network_error
             {
               action: :switch_provider,
-              reason: "Error detected, switching provider",
+              reason: "Network error, switching provider",
+              priority: :medium
+            }
+          when :server_error
+            {
+              action: :switch_provider,
+              reason: "Server error, switching provider",
               priority: :medium
             }
           when :authentication, :permission_denied

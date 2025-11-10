@@ -132,16 +132,18 @@ module Aidp
       # @param error [StandardError] the error to classify
       # @return [Symbol] error category (:rate_limited, :auth_expired, :quota_exceeded, :transient, :permanent)
       def classify_error(error)
-        message = error.message.to_s.downcase
+        message = error.message.to_s
 
+        # First check provider-specific patterns
         error_patterns.each do |category, patterns|
           patterns.each do |pattern|
             return category if message.match?(pattern)
           end
         end
 
-        # Default to transient for unknown errors
-        :transient
+        # Fall back to ErrorTaxonomy for classification
+        require_relative "error_taxonomy"
+        Aidp::Providers::ErrorTaxonomy.classify_message(message)
       end
 
       # Get normalized error metadata
@@ -189,8 +191,7 @@ module Aidp
         message = message.gsub(/token[:\s=]+[^\s&]+/i, "token=[REDACTED]")
         message = message.gsub(/password[:\s=]+[^\s&]+/i, "password=[REDACTED]")
         message = message.gsub(/bearer\s+[^\s&]+/i, "bearer [REDACTED]")
-        message = message.gsub(/sk-[a-zA-Z0-9_-]{20,}/i, "sk-[REDACTED]")
-        message
+        message.gsub(/sk-[a-zA-Z0-9_-]{20,}/i, "sk-[REDACTED]")
       end
 
       # Configuration validation
