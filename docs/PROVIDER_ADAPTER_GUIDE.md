@@ -80,6 +80,7 @@ end
 ### Required Methods
 
 #### `name`
+
 Returns the provider's unique identifier (lowercase, alphanumeric + underscores/hyphens).
 
 ```ruby
@@ -89,6 +90,7 @@ end
 ```
 
 #### `display_name`
+
 Returns a human-friendly name for UI display.
 
 ```ruby
@@ -98,9 +100,11 @@ end
 ```
 
 #### `send_message(prompt:, session: nil, **options)`
+
 Sends a prompt to the provider and returns the response.
 
 **Parameters:**
+
 - `prompt` (String): The prompt to send
 - `session` (String, nil): Optional session identifier for context
 - `options` (Hash): Additional provider-specific options
@@ -123,6 +127,7 @@ end
 ### Optional Methods
 
 #### `available?`
+
 Checks if the provider CLI or API is accessible.
 
 ```ruby
@@ -132,6 +137,7 @@ end
 ```
 
 #### `supports_mcp?`
+
 Returns true if the provider supports Model Context Protocol.
 
 ```ruby
@@ -141,6 +147,7 @@ end
 ```
 
 #### `fetch_mcp_servers`
+
 Returns array of configured MCP servers.
 
 ```ruby
@@ -199,6 +206,7 @@ Some providers support an elevated permissions mode for development environments
 ### Interface Methods
 
 #### `supports_dangerous_mode?`
+
 Returns true if the provider supports dangerous/elevated permissions.
 
 ```ruby
@@ -208,6 +216,7 @@ end
 ```
 
 #### `dangerous_mode_flags`
+
 Returns array of provider-specific CLI flags for enabling dangerous mode.
 
 ```ruby

@@ -280,12 +280,14 @@ rerun --ignore "node_modules/**,vendor/**" -- bin/aidp
 ### Rerun Not Detecting Changes
 
 1. Check file patterns:
+
    ```bash
    # Debug mode shows what files are being watched
    rerun --verbose --pattern "**/*.rb" -- bin/aidp
    ```
 
 2. Verify inotify limits (Linux):
+
    ```bash
    # Check current limit
    cat /proc/sys/fs/inotify/max_user_watches
@@ -321,6 +323,7 @@ Ensure rerun has correct permissions:
 If rerun doesn't fit your needs:
 
 1. **Guard** - More features, Ruby-focused
+
    ```bash
    gem install guard guard-rspec
    guard init rspec
@@ -328,12 +331,14 @@ If rerun doesn't fit your needs:
    ```
 
 2. **Watchman** - Facebook's file watching service
+
    ```bash
    apt-get install watchman
    watchman-make -p 'lib/**/*.rb' -t test
    ```
 
 3. **Nodemon** - JavaScript ecosystem (can run any command)
+
    ```bash
    npm install -g nodemon
    nodemon --exec "bin/aidp" --watch lib --ext rb
