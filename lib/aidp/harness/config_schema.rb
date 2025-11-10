@@ -886,6 +886,31 @@ module Aidp
                     type: :string
                   }
                 },
+                dangerous_mode: {
+                  type: :hash,
+                  required: false,
+                  default: {},
+                  properties: {
+                    enabled: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    },
+                    flags: {
+                      type: :array,
+                      required: false,
+                      default: [],
+                      items: {
+                        type: :string
+                      }
+                    },
+                    auto_enable_in_devcontainer: {
+                      type: :boolean,
+                      required: false,
+                      default: true
+                    }
+                  }
+                },
                 models: {
                   type: :array,
                   required: false,

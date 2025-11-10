@@ -44,6 +44,68 @@ module Aidp
         self.class.available?
       end
 
+      # ProviderAdapter interface methods
+
+      def capabilities
+        {
+          reasoning_tiers: ["mini", "standard", "thinking"],
+          context_window: 200_000,
+          supports_json_mode: true,
+          supports_tool_use: true,
+          supports_vision: false,
+          supports_file_upload: true,
+          streaming: true
+        }
+      end
+
+      def supports_dangerous_mode?
+        true
+      end
+
+      def dangerous_mode_flags
+        ["--dangerously-skip-permissions"]
+      end
+
+      def error_patterns
+        {
+          rate_limited: [
+            /rate.?limit/i,
+            /too.?many.?requests/i,
+            /429/,
+            /overloaded/i
+          ],
+          auth_expired: [
+            /oauth.*token.*expired/i,
+            /authentication.*error/i,
+            /invalid.*api.*key/i,
+            /unauthorized/i,
+            /401/
+          ],
+          quota_exceeded: [
+            /quota.*exceeded/i,
+            /usage.*limit/i,
+            /credit.*exhausted/i
+          ],
+          transient: [
+            /timeout/i,
+            /connection.*reset/i,
+            /temporary.*error/i,
+            /service.*unavailable/i,
+            /503/,
+            /502/,
+            /504/
+          ],
+          permanent: [
+            /invalid.*model/i,
+            /unsupported.*operation/i,
+            /not.*found/i,
+            /404/,
+            /bad.*request/i,
+            /400/
+          ]
+        }
+      end
+
       def send_message(prompt:, session: nil)
         raise "claude CLI not available" unless self.class.available?
 

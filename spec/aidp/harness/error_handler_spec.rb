@@ -57,7 +57,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       result = error_handler.handle_error(error, context)
 
       expect(result).to include(:success, :action, :retry_count, :delay, :strategy)
-      expect(result[:strategy]).to eq("timeout")
+      expect(result[:strategy]).to eq("transient")
     end
 
     it "handles rate limit errors without retry" do
@@ -317,7 +317,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         error = Timeout::Error.new("Connection timeout")
         result = classifier.classify_error(error, {})
 
-        expect(result[:error_type]).to eq(:timeout)
+        expect(result[:error_type]).to eq(:transient)
         expect(result[:error]).to eq(error)
       end
 
@@ -329,7 +329,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
         result = classifier.classify_error(error, {})
 
-        expect(result[:error_type]).to eq(:rate_limit)
+        expect(result[:error_type]).to eq(:rate_limited)
       end
 
       it "classifies authentication errors from HTTP status" do
@@ -340,7 +340,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
         result = classifier.classify_error(error, {})
 
-        expect(result[:error_type]).to eq(:authentication)
+        expect(result[:error_type]).to eq(:auth_expired)
       end
 
       it "classifies server errors from HTTP status" do
@@ -351,28 +351,28 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
         result = classifier.classify_error(error, {})
 
-        expect(result[:error_type]).to eq(:server_error)
+        expect(result[:error_type]).to eq(:transient)
       end
 
       it "classifies network errors" do
         error = SocketError.new("Connection refused")
         result = classifier.classify_error(error, {})
 
-        expect(result[:error_type]).to eq(:network_error)
+        expect(result[:error_type]).to eq(:transient)
       end
 
       it "classifies errors by message content" do
         error = StandardError.new("Rate limit exceeded")
         result = classifier.classify_error(error, {})
 
-        expect(result[:error_type]).to eq(:rate_limit)
+        expect(result[:error_type]).to eq(:rate_limited)
       end
 
-      it "returns default for unknown errors" do
+      it "returns transient for unknown errors" do
         error = StandardError.new("Unknown error")
         result = classifier.classify_error(error, {})
 
-        expect(result[:error_type]).to eq(:default)
+        expect(result[:error_type]).to eq(:transient)
       end
     end
 
