@@ -1,6 +1,9 @@
 .rspec_status
 pkg/*
 
+# Development binstubs (gem executables are in exe/)
+/bin/
+
 # Aidp analyze mode output files
 *.csv
 git.log
