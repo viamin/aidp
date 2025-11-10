@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require "tty-table"
 require "yaml"
 require "time"
 require "fileutils"
@@ -8,6 +9,7 @@ require "json"
 
 require_relative "../util"
 require_relative "../config/paths"
+require_relative "provider_registry"
 require_relative "devcontainer/parser"
 require_relative "devcontainer/generator"
 require_relative "devcontainer/port_manager"
@@ -260,7 +262,10 @@ module Aidp
                 editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
               end
             else
-              edit_provider_configuration(to_edit)
+              # Edit the selected provider or offer to remove it
+              edit_or_remove_provider(to_edit, provider_choice, cleaned_fallbacks)
+              # Refresh editable list after potential removal
+              editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
             end
           end
         end
@@ -1115,22 +1120,81 @@ module Aidp
       end
 
       def show_provider_summary(primary, fallbacks)
+        Aidp.log_debug("wizard.provider_summary", "displaying provider configuration table", primary: primary, fallback_count: fallbacks&.size || 0)
         prompt.say("\n📋 Provider Configuration Summary:")
         providers_config = get([:providers]) || {}
 
-        # Show primary
+        rows = []
+
+        # Add primary provider to table
         if primary && primary != "custom"
           primary_cfg = providers_config[primary.to_sym] || {}
-          prompt.say("  ✓ Primary: #{primary} (#{primary_cfg[:type] || "not configured"}, #{primary_cfg[:model_family] || "auto"})")
+          rows << [
+            "Primary",
+            primary,
+            primary_cfg[:type] || "not configured",
+            primary_cfg[:model_family] || "auto"
+          ]
         end
 
-        # Show fallbacks
+        # Add fallback providers to table
         if fallbacks && !fallbacks.empty?
-          fallbacks.each do |fallback|
+          fallbacks.each_with_index do |fallback, index|
             fallback_cfg = providers_config[fallback.to_sym] || {}
-            prompt.say("  ✓ Fallback: #{fallback} (#{fallback_cfg[:type] || "not configured"}, #{fallback_cfg[:model_family] || "auto"})")
+            rows << [
+              "Fallback #{index + 1}",
+              fallback,
+              fallback_cfg[:type] || "not configured",
+              fallback_cfg[:model_family] || "auto"
+            ]
           end
         end
+
+        # Detect duplicate providers with identical characteristics
+        duplicates = detect_duplicate_providers(rows)
+        if duplicates.any?
+          Aidp.log_warn("wizard.provider_summary", "duplicate provider configurations detected", duplicates: duplicates)
+        end
+
+        if rows.any?
+          table = TTY::Table.new(
+            header: ["Role", "Provider", "Billing Type", "Model Family"],
+            rows: rows
+          )
+          prompt.say(table.render(:unicode, padding: [0, 1]))
+
+          # Show warning for duplicates
+          if duplicates.any?
+            prompt.say("")
+            prompt.warn("⚠️  Duplicate configurations detected:")
+            duplicates.each do |dup|
+              prompt.say("   • #{dup[:providers].join(" and ")} have identical billing type (#{dup[:type]}) and model family (#{dup[:family]})")
+            end
+            prompt.say("   Consider using different providers or model families for better redundancy.")
+          end
+        else
+          prompt.say("  (No providers configured)")
+        end
+      end
+
+      def detect_duplicate_providers(rows)
+        # Group providers by their billing type and model family
+        # Returns array of duplicate groups with identical characteristics
+        duplicates = []
+        config_groups = rows.group_by { |row| [row[2], row[3]] }
+
+        config_groups.each do |(type, family), group|
+          next if group.size < 2
+          next if type == "not configured" # Skip unconfigured providers
+
+          duplicates << {
+            providers: group.map { |row| row[1] },
+            type: type,
+            family: family
+          }
+        end
+
+        duplicates
       end
 
       # Ensure a minimal billing configuration exists for a selected provider (no secrets)
@@ -1163,6 +1227,42 @@ module Aidp
         prompt.say("  • #{action_word.capitalize} provider '#{display_name}' (#{provider_name}) with billing type '#{provider_type}' and model family '#{model_family}'")
       end
 
+      def edit_or_remove_provider(provider_name, primary_provider, fallbacks)
+        is_primary = (provider_name == primary_provider)
+        display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
+
+        action = prompt.select("What would you like to do with '#{display_name}'?") do |menu|
+          menu.choice "Edit configuration", :edit
+          unless is_primary
+            menu.choice "Remove from configuration", :remove
+          end
+          menu.choice "Cancel", :cancel
+        end
+
+        case action
+        when :edit
+          edit_provider_configuration(provider_name)
+        when :remove
+          if is_primary
+            prompt.warn("Cannot remove primary provider. Change primary provider first.")
+          else
+            remove_fallback_provider(provider_name, fallbacks)
+          end
+        when :cancel
+          Aidp.log_debug("wizard.edit_provider", "user cancelled edit operation", provider: provider_name)
+        end
+      end
+
+      def remove_fallback_provider(provider_name, fallbacks)
+        display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
+        if prompt.yes?("Remove '#{display_name}' from fallback providers?", default: false)
+          fallbacks.delete(provider_name)
+          set([:harness, :fallback_providers], fallbacks)
+          Aidp.log_info("wizard.remove_provider", "removed fallback provider", provider: provider_name)
+          prompt.ok("Removed '#{display_name}' from fallback providers")
+        end
+      end
+
       def edit_provider_configuration(provider_name)
         existing = get([:providers, provider_name.to_sym]) || {}
         prompt.say("\n🔧 Editing provider '#{provider_name}' (current: type=#{existing[:type] || "unset"}, model_family=#{existing[:model_family] || "unset"})")
@@ -1178,54 +1278,38 @@ module Aidp
         ask_provider_billing_type_with_default(provider_name, nil)
       end
 
-      BILLING_TYPE_CHOICES = [
-        ["Subscription / flat-rate", "subscription"],
-        ["Usage-based / metered (API)", "usage_based"],
-        ["Passthrough / local (no billing)", "passthrough"]
-      ].freeze
-
       def ask_provider_billing_type_with_default(provider_name, default_value)
-        default_label = BILLING_TYPE_CHOICES.find { |label, value| value == default_value }&.first
+        choices = ProviderRegistry.billing_type_choices
+        default_label = choices.find { |label, value| value == default_value }&.first
         suffix = default_value ? " (current: #{default_value})" : ""
         prompt.select("Billing model for #{provider_name}:#{suffix}", default: default_label) do |menu|
-          BILLING_TYPE_CHOICES.each do |label, value|
+          choices.each do |label, value|
             menu.choice(label, value)
           end
         end
       end
 
-      MODEL_FAMILY_CHOICES = [
-        ["Auto (let provider decide)", "auto"],
-        ["OpenAI o-series (reasoning models)", "openai_o"],
-        ["Anthropic Claude (balanced)", "claude"],
-        ["Mistral (European/open)", "mistral"],
-        ["Local LLM (self-hosted)", "local"]
-      ].freeze
-
       def ask_model_family(provider_name, default = "auto")
         # TTY::Prompt validates defaults against the displayed choice labels, not values.
         # Map the value default (e.g. "auto") to its corresponding label.
-        default_label = MODEL_FAMILY_CHOICES.find { |label, value| value == default }&.first
+        choices = ProviderRegistry.model_family_choices
+        default_label = choices.find { |label, value| value == default }&.first
 
         prompt.select("Preferred model family for #{provider_name}:", default: default_label) do |menu|
-          MODEL_FAMILY_CHOICES.each do |label, value|
+          choices.each do |label, value|
             menu.choice(label, value)
           end
         end
       end
 
       # Canonicalization helpers ------------------------------------------------
-      MODEL_FAMILY_LABEL_TO_VALUE = MODEL_FAMILY_CHOICES.each_with_object({}) do |(label, value), h|
-        h[label] = value
-      end.freeze
-      MODEL_FAMILY_VALUES = MODEL_FAMILY_CHOICES.map { |(_, value)| value }.freeze
-
       def normalize_model_family(value)
         return "auto" if value.nil? || value.to_s.strip.empty?
         # Already a canonical value
-        return value if MODEL_FAMILY_VALUES.include?(value)
+        return value if ProviderRegistry.valid_model_family?(value)
         # Try label -> value
-        mapped = MODEL_FAMILY_LABEL_TO_VALUE[value]
+        choices = ProviderRegistry.model_family_choices
+        mapped = choices.find { |label, _| label == value }&.last
         return mapped if mapped
         # Unknown legacy entry -> fallback to auto
         "auto"
