@@ -477,6 +477,49 @@ providers:
 - [ ] Update documentation
 - [ ] Register provider in `ProviderFactory`
 
+## Future Work: Capability Registry Integration
+
+The `Aidp::Providers::CapabilityRegistry` has been implemented and tested (100% coverage), but integration with the coordinator and provider selection logic is not yet complete. The following tasks remain:
+
+### Provider Registration
+
+- [ ] Auto-register providers in `ProviderFactory` when they are instantiated
+- [ ] Register all providers at coordinator initialization
+- [ ] Add registry instance to coordinator state
+
+### Provider Selection Logic
+
+- [ ] Update coordinator to query registry for capability-based provider selection
+- [ ] Implement fallback selection when preferred provider lacks required capability
+- [ ] Add `--require-capability` CLI flag for filtering providers
+- [ ] Support context window filtering (e.g., `--min-context 100000`)
+
+### Reasoning Tier Integration
+
+- [ ] Map CLI `--thinking-depth` flag to reasoning tier requirements
+- [ ] Query registry for providers supporting requested tier
+- [ ] Implement automatic tier downgrade when preferred tier unavailable
+
+### Telemetry and Debugging
+
+- [ ] Log capability mismatches when provider selection fails
+- [ ] Add `aidp providers capabilities` CLI command to show registry state
+- [ ] Include capability compatibility in provider health checks
+
+### Documentation
+
+- [ ] Add capability-based selection examples to user guide
+- [ ] Document reasoning tier to provider capability mapping
+- [ ] Update architecture diagrams showing registry integration
+
+### Testing
+
+- [ ] Add integration tests showing end-to-end capability-based selection
+- [ ] Test coordinator behavior when no providers match requirements
+- [ ] Verify registry queries during actual provider operations
+
+See [Issue #243](https://github.com/viamin/aidp/issues/243) for the original standardized provider interfaces design.
+
 ## References
 
 - [Issue #243 - Standardized Provider Interfaces](https://github.com/viamin/aidp/issues/243)
@@ -484,3 +527,5 @@ providers:
 - [ProviderAdapter Module](../lib/aidp/providers/adapter.rb)
 - [Anthropic Provider (Reference)](../lib/aidp/providers/anthropic.rb)
 - [Conformance Test Suite](../spec/aidp/providers/adapter_conformance_spec.rb)
+- [CapabilityRegistry Implementation](../lib/aidp/providers/capability_registry.rb)
+- [CapabilityRegistry Tests](../spec/aidp/providers/capability_registry_spec.rb)
