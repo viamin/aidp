@@ -433,6 +433,22 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     end
   end
 
+  describe "#run_harness" do
+    it "clears prior harness state before execution" do
+      state_manager = instance_double(Aidp::Harness::StateManager, clear_state: true)
+      allow(Aidp::Harness::StateManager).to receive(:new).and_return(state_manager)
+
+      runner = instance_double(Aidp::Harness::Runner)
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner)
+      allow(runner).to receive(:run).and_return({status: "completed", message: "done"})
+
+      processor.send(:run_harness, user_input: {}, working_dir: tmp_dir)
+
+      expect(state_manager).to have_received(:clear_state)
+      expect(Aidp::Harness::Runner).to have_received(:new).with(tmp_dir, :execute, hash_including(:selected_steps))
+    end
+  end
+
   describe "complete build trigger flow" do
     let(:issue_with_author) do
       issue.merge(author: "testuser")

@@ -264,6 +264,8 @@ module Aidp
       end
 
       def run_harness(user_input:, working_dir: @project_dir)
+        reset_harness_state(working_dir)
+
         Aidp.log_info(
           "build_processor",
           "starting_harness",
@@ -318,6 +320,14 @@ module Aidp
         end
 
         result
+      end
+
+      def reset_harness_state(working_dir)
+        state_manager = Aidp::Harness::StateManager.new(working_dir, :execute)
+        state_manager.clear_state
+      rescue => e
+        display_message("⚠️  Failed to reset harness state before execution: #{e.message}", type: :warn)
+        Aidp.log_warn("build_processor", "failed_to_reset_harness_state", error: e.message, working_dir: working_dir)
       end
 
       def sync_local_aidp_config(target_dir)
