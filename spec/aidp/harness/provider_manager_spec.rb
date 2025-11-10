@@ -20,6 +20,18 @@ RSpec.describe Aidp::Harness::ProviderManager do
     # Default stub for provider_models - specific tests can override with .with(provider)
     allow(configuration).to receive(:provider_models).and_return(["model1", "model2"])
 
+    # Stub project_dir for ProviderMetrics initialization
+    allow(configuration).to receive(:project_dir).and_return(Dir.pwd)
+    allow(configuration).to receive(:root_dir).and_return(Dir.pwd)
+
+    # Mock ProviderMetrics to prevent loading persisted data from disk
+    mock_metrics_persistence = instance_double(Aidp::Harness::ProviderMetrics)
+    allow(Aidp::Harness::ProviderMetrics).to receive(:new).and_return(mock_metrics_persistence)
+    allow(mock_metrics_persistence).to receive(:load_metrics).and_return({})
+    allow(mock_metrics_persistence).to receive(:load_rate_limits).and_return({})
+    allow(mock_metrics_persistence).to receive(:save_metrics)
+    allow(mock_metrics_persistence).to receive(:save_rate_limits)
+
     # Mock binary checker path lookup
     allow(mock_binary_checker).to receive(:which).and_return("/usr/bin/mock")
 
