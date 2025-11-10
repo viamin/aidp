@@ -555,4 +555,31 @@ RSpec.describe Aidp::Harness::Runner do
       expect(result[:status]).to eq("error")
     end
   end
+
+  describe "#run" do
+    it "returns completion criteria failure reason in non-interactive mode" do
+      execute_runner = described_class.new(temp_dir, :execute, non_interactive: true)
+      mode_runner = instance_double("mode_runner")
+      completion_checker = instance_double("completion_checker")
+
+      execute_runner.instance_variable_set(:@completion_checker, completion_checker)
+
+      allow(execute_runner).to receive(:load_state)
+      allow(execute_runner).to receive(:update_state)
+      allow(execute_runner).to receive(:should_stop?).and_return(true)
+      allow(execute_runner).to receive(:get_mode_runner).and_return(mode_runner)
+      allow(mode_runner).to receive(:all_steps_completed?).and_return(true)
+      allow(completion_checker).to receive(:completion_status).and_return({
+        all_complete: false,
+        summary: "❌ 1/2 criteria failed: tests_passing",
+        criteria: {tests_passing: false}
+      })
+
+      result = execute_runner.run
+
+      expect(result[:status]).to eq("error")
+      expect(result[:reason]).to eq(:completion_criteria)
+      expect(result[:failure_metadata]).to include(:criteria)
+    end
+  end
 end

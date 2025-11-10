@@ -67,6 +67,8 @@ module Aidp
         @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @status_display = StatusDisplay.new
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
+        @failure_reason = nil
+        @failure_metadata = nil
       end
 
       # Main execution method - runs the harness loop
@@ -121,11 +123,13 @@ module Aidp
                   @state = STATES[:completed]
                   log_execution("Harness completed with user override")
                 else
+                  mark_completion_failure(completion_status)
                   @state = STATES[:error]
                   log_execution("Harness stopped due to unmet completion criteria")
                 end
               else
                 display_message("⚠️  Non-interactive mode: cannot override failed completion criteria. Stopping run.", type: :warning)
+                mark_completion_failure(completion_status)
                 @state = STATES[:error]
                 log_execution("Harness stopped due to unmet completion criteria in non-interactive mode")
               end
@@ -155,6 +159,8 @@ module Aidp
         end
 
         result = {status: @state, message: get_completion_message}
+        result[:reason] = @failure_reason if @failure_reason
+        result[:failure_metadata] = @failure_metadata if @failure_metadata
         result[:clarification_questions] = @clarification_questions if @clarification_questions
         if @last_error
           result[:error] = @last_error.message
@@ -473,6 +479,11 @@ module Aidp
         else
           "Harness finished in state: #{@state}"
         end
+      end
+
+      def mark_completion_failure(completion_status)
+        @failure_reason = :completion_criteria
+        @failure_metadata = completion_status
       end
 
       private

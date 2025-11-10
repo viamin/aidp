@@ -1028,4 +1028,48 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       )
     end
   end
+
+  describe "#build_decider_prompt" do
+    let(:template_path) { File.join(project_dir, "templates", "work_loop", "decide_whats_next.md") }
+
+    it "loads template and replaces placeholders with context" do
+      template_body = "# Decide\n{{DETERMINISTIC_OUTPUTS}}\n\n{{PREVIOUS_AGENT_SUMMARY}}\n"
+      allow(File).to receive(:exist?).and_return(false)
+      allow(File).to receive(:exist?).with(template_path).and_return(true)
+      allow(File).to receive(:read).with(template_path).and_return(template_body)
+
+      context = {
+        deterministic_outputs: [
+          {name: "run_full_tests", status: "failure", finished_at: "2025-11-10T00:00:00Z", output_path: ".aidp/out/tests.log"}
+        ],
+        previous_agent_summary: "Latest summary goes here."
+      }
+
+      prompt = runner.send(:build_decider_prompt, context)
+
+      expect(prompt).to include("run_full_tests")
+      expect(prompt).to include("Latest summary goes here.")
+      expect(prompt).to include("tests.log")
+    end
+  end
+
+  describe "#build_diagnose_prompt" do
+    let(:template_path) { File.join(project_dir, "templates", "work_loop", "diagnose_failures.md") }
+
+    it "loads diagnosis template and substitutes context" do
+      template_body = "## Outputs\n{{DETERMINISTIC_OUTPUTS}}\n## Summary\n{{PREVIOUS_AGENT_SUMMARY}}\n"
+      allow(File).to receive(:exist?).and_return(false)
+      allow(File).to receive(:exist?).with(template_path).and_return(true)
+      allow(File).to receive(:read).with(template_path).and_return(template_body)
+
+      context = {
+        deterministic_outputs: [{name: "run_full_tests", status: "failure", finished_at: "now", output_path: "out.log"}],
+        previous_agent_summary: "Agent summary."
+      }
+
+      prompt = runner.send(:build_diagnose_prompt, context)
+      expect(prompt).to include("run_full_tests")
+      expect(prompt).to include("Agent summary.")
+    end
+  end
 end

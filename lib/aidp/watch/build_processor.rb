@@ -7,7 +7,9 @@ require "fileutils"
 require_relative "../message_display"
 require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
+require_relative "../harness/state_manager"
 require_relative "../worktree"
+require_relative "../execute/progress"
 
 module Aidp
   module Watch
@@ -68,6 +70,8 @@ module Aidp
           handle_success(issue: issue, slug: slug, branch_name: branch_name, base_branch: base_branch, plan_data: plan_data, working_dir: working_dir)
         elsif result[:status] == "needs_clarification"
           handle_clarification_request(issue: issue, slug: slug, result: result)
+        elsif result[:reason] == :completion_criteria
+          handle_incomplete_criteria(issue: issue, slug: slug, branch_name: branch_name, working_dir: working_dir, metadata: result[:failure_metadata])
         else
           handle_failure(issue: issue, slug: slug, result: result)
         end
@@ -264,7 +268,7 @@ module Aidp
       end
 
       def run_harness(user_input:, working_dir: @project_dir)
-        reset_harness_state(working_dir)
+        reset_work_loop_state(working_dir)
 
         Aidp.log_info(
           "build_processor",
@@ -322,12 +326,23 @@ module Aidp
         result
       end
 
-      def reset_harness_state(working_dir)
+      def reset_work_loop_state(working_dir)
         state_manager = Aidp::Harness::StateManager.new(working_dir, :execute)
         state_manager.clear_state
+        Aidp::Execute::Progress.new(working_dir).reset
       rescue => e
-        display_message("⚠️  Failed to reset harness state before execution: #{e.message}", type: :warn)
-        Aidp.log_warn("build_processor", "failed_to_reset_harness_state", error: e.message, working_dir: working_dir)
+        display_message("⚠️  Failed to reset work loop state before execution: #{e.message}", type: :warn)
+        Aidp.log_warn("build_processor", "failed_to_reset_work_loop_state", error: e.message, working_dir: working_dir)
+      end
+
+      def enqueue_decider_followup(target_dir)
+        work_loop_dir = File.join(target_dir, ".aidp", "work_loop")
+        FileUtils.mkdir_p(work_loop_dir)
+        request_path = File.join(work_loop_dir, "initial_units.txt")
+        File.open(request_path, "a") { |file| file.puts("decide_whats_next") }
+        Aidp.log_info("build_processor", "scheduled_decider_followup", request_path: request_path)
+      rescue => e
+        Aidp.log_warn("build_processor", "failed_to_schedule_decider", error: e.message)
       end
 
       def sync_local_aidp_config(target_dir)
@@ -361,7 +376,7 @@ module Aidp
         changes_committed = stage_and_commit(issue, working_dir: working_dir)
 
         unless changes_committed
-          handle_no_changes(issue: issue, slug: slug, branch_name: branch_name)
+          handle_no_changes(issue: issue, slug: slug, branch_name: branch_name, working_dir: working_dir)
           return
         end
 
@@ -510,7 +525,7 @@ module Aidp
         display_message("⚠️  Build failure recorded for issue ##{issue[:number]}", type: :warn)
       end
 
-      def handle_no_changes(issue:, slug:, branch_name:)
+      def handle_no_changes(issue:, slug:, branch_name:, working_dir:)
         location_note = if @use_workstreams
           "The workstream `#{slug}` has been preserved for review."
         else
@@ -532,6 +547,27 @@ module Aidp
         )
 
         display_message("⚠️  Implementation produced no changes; labels remain untouched. #{location_note}", type: :warn)
+        enqueue_decider_followup(working_dir)
+      end
+
+      def handle_incomplete_criteria(issue:, slug:, branch_name:, working_dir:, metadata:)
+        display_message("⚠️  Completion criteria unmet; scheduling additional fix-forward iteration.", type: :warn)
+        enqueue_decider_followup(working_dir)
+
+        @state_store.record_build_status(
+          issue[:number],
+          status: "pending_fix_forward",
+          details: {branch: branch_name, workstream: slug, criteria: metadata}
+        )
+
+        Aidp.log_info(
+          "build_processor",
+          "pending_fix_forward",
+          issue: issue[:number],
+          branch: branch_name,
+          workstream: slug,
+          criteria: metadata
+        )
       end
 
       def stage_and_commit(issue, working_dir: @project_dir)

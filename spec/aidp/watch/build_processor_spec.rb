@@ -78,6 +78,28 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     status = state_store.build_status(issue[:number])
     expect(status["status"]).to eq("no_changes")
     expect(status["branch"]).to eq("aidp/issue-77-implement-search")
+
+    request_path = File.join(tmp_dir, ".aidp", "work_loop", "initial_units.txt")
+    expect(File.read(request_path)).to include("decide_whats_next")
+  end
+
+  it "schedules fix-forward when completion criteria unmet" do
+    result = {
+      status: "error",
+      reason: :completion_criteria,
+      failure_metadata: {criteria: {tests_passing: false}}
+    }
+    allow(processor).to receive(:run_harness).and_return(result)
+    expect(repository_client).not_to receive(:post_comment)
+
+    processor.process(issue)
+
+    status = state_store.build_status(issue[:number])
+    expect(status["status"]).to eq("pending_fix_forward")
+    expect(status["criteria"]).to eq(result[:failure_metadata])
+
+    request_path = File.join(tmp_dir, ".aidp", "work_loop", "initial_units.txt")
+    expect(File.read(request_path)).to include("decide_whats_next")
   end
 
   it "records failure when harness fails" do
@@ -434,9 +456,12 @@ RSpec.describe Aidp::Watch::BuildProcessor do
   end
 
   describe "#run_harness" do
-    it "clears prior harness state before execution" do
+    it "clears harness state and progress before execution" do
       state_manager = instance_double(Aidp::Harness::StateManager, clear_state: true)
       allow(Aidp::Harness::StateManager).to receive(:new).and_return(state_manager)
+
+      progress = instance_double(Aidp::Execute::Progress, reset: true)
+      allow(Aidp::Execute::Progress).to receive(:new).and_return(progress)
 
       runner = instance_double(Aidp::Harness::Runner)
       allow(Aidp::Harness::Runner).to receive(:new).and_return(runner)
@@ -445,6 +470,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       processor.send(:run_harness, user_input: {}, working_dir: tmp_dir)
 
       expect(state_manager).to have_received(:clear_state)
+      expect(progress).to have_received(:reset)
       expect(Aidp::Harness::Runner).to have_received(:new).with(tmp_dir, :execute, hash_including(:selected_steps))
     end
   end

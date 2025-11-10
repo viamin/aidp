@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
 require "aidp/execute/work_loop_unit_scheduler"
 
 RSpec.describe Aidp::Execute::WorkLoopUnitScheduler do
@@ -16,6 +17,12 @@ RSpec.describe Aidp::Execute::WorkLoopUnitScheduler do
 
       attr_reader :now
     end.new
+  end
+
+  let(:project_dir) { Dir.mktmpdir }
+
+  after do
+    FileUtils.remove_entry(project_dir)
   end
 
   let(:units_config) do
@@ -42,7 +49,7 @@ RSpec.describe Aidp::Execute::WorkLoopUnitScheduler do
     }
   end
 
-  subject(:scheduler) { described_class.new(units_config, clock: clock) }
+  subject(:scheduler) { described_class.new(units_config, project_dir: project_dir, clock: clock) }
 
   def make_result(definition, status:, finished_at: clock.now)
     Aidp::Execute::DeterministicUnits::Result.new(
@@ -104,6 +111,25 @@ RSpec.describe Aidp::Execute::WorkLoopUnitScheduler do
       context = scheduler.deterministic_context
       expect(context.last[:name]).to eq("run_full_tests")
       expect(context.last[:status]).to eq(:failure)
+    end
+  end
+
+  describe "initial unit requests" do
+    it "queues requested units from initial_units.txt" do
+      request_path = File.join(project_dir, ".aidp", "work_loop", "initial_units.txt")
+      FileUtils.mkdir_p(File.dirname(request_path))
+      File.write(request_path, "decide_whats_next\nrun_full_tests\n")
+
+      scheduler = described_class.new(units_config, project_dir: project_dir, clock: clock)
+
+      first_unit = scheduler.next_unit
+      expect(first_unit).to be_agentic
+      expect(first_unit.name).to eq(:decide_whats_next)
+
+      scheduler.record_agentic_result({status: :completed}, requested_next: nil)
+      second_unit = scheduler.next_unit
+      expect(second_unit).to be_deterministic
+      expect(second_unit.definition.name).to eq("run_full_tests")
     end
   end
 end

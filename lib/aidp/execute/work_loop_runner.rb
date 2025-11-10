@@ -77,7 +77,7 @@ module Aidp
         display_guard_policy_status
         display_pending_tasks
 
-        @unit_scheduler = WorkLoopUnitScheduler.new(units_config)
+        @unit_scheduler = WorkLoopUnitScheduler.new(units_config, project_dir: @project_dir)
         base_context = context.dup
 
         loop do
@@ -97,6 +97,8 @@ module Aidp
 
           agentic_payload = if unit.name == :decide_whats_next
             run_decider_agentic_unit(enriched_context)
+          elsif unit.name == :diagnose_failures
+            run_diagnose_agentic_unit(enriched_context)
           else
             run_primary_agentic_unit(step_spec, enriched_context)
           end
@@ -243,6 +245,34 @@ module Aidp
         )
       end
 
+      def run_diagnose_agentic_unit(context)
+        Aidp.logger.info("work_loop", "Running diagnose_failures agentic unit", step: @step_name)
+
+        prompt = build_diagnose_prompt(context)
+
+        agent_result = @provider_manager.execute_with_provider(
+          @provider_manager.current_provider,
+          prompt,
+          {
+            step_name: @step_name,
+            iteration: @iteration_count,
+            project_dir: @project_dir,
+            mode: :diagnose_failures
+          }
+        )
+
+        requested = AgentSignalParser.extract_next_unit(agent_result[:output])
+
+        build_agentic_payload(
+          agent_result: agent_result,
+          response: agent_result,
+          summary: agent_result[:output],
+          completed: false,
+          terminate: false,
+          requested_next: requested
+        )
+      end
+
       def units_config
         if @config.respond_to?(:work_loop_units_config)
           @config.work_loop_units_config
@@ -263,41 +293,94 @@ module Aidp
       end
 
       def build_decider_prompt(context)
-        outputs = Array(context[:deterministic_outputs])
-        summary = context[:previous_agent_summary]
+        template = load_work_loop_template("decide_whats_next.md", default_decider_template)
+        replacements = {
+          "{{DETERMINISTIC_OUTPUTS}}" => format_deterministic_outputs(context[:deterministic_outputs]),
+          "{{PREVIOUS_AGENT_SUMMARY}}" => format_previous_agent_summary(context[:previous_agent_summary])
+        }
+        replacements.reduce(template) { |body, (token, value)| body.gsub(token, value) }
+      end
 
-        sections = []
-        sections << "# Decide Next Work Loop Unit"
-        sections << ""
-        sections << "You are operating in the Aidp work loop. Determine what should happen next."
-        sections << ""
-        sections << "## Recent Deterministic Outputs"
+      def build_diagnose_prompt(context)
+        template = load_work_loop_template("diagnose_failures.md", default_diagnose_template)
+        replacements = {
+          "{{DETERMINISTIC_OUTPUTS}}" => format_deterministic_outputs(context[:deterministic_outputs]),
+          "{{PREVIOUS_AGENT_SUMMARY}}" => format_previous_agent_summary(context[:previous_agent_summary])
+        }
+        replacements.reduce(template) { |body, (token, value)| body.gsub(token, value) }
+      end
 
-        if outputs.empty?
-          sections << "- None recorded yet."
-        else
-          outputs.each do |entry|
-            sections << "- #{entry[:name]} (status: #{entry[:status]}, finished_at: #{entry[:finished_at]})"
-            sections << "  Output: #{entry[:output_path] || "n/a"}"
-          end
-        end
+      def load_work_loop_template(relative_path, fallback)
+        template_path = File.join(@project_dir, "templates", "work_loop", relative_path)
+        return File.read(template_path) if File.exist?(template_path)
 
-        if summary
-          sections << ""
-          sections << "## Previous Agent Summary"
-          sections << summary
-        end
+        fallback
+      rescue => e
+        Aidp.logger.warn("work_loop", "Unable to load #{relative_path}", error: e.message)
+        fallback
+      end
 
-        sections << ""
-        sections << "## Instructions"
-        sections << "- Decide whether to run another deterministic unit or resume agentic editing."
-        sections << "- Announce your decision with `NEXT_UNIT: <unit_name>`."
-        sections << "- Valid values: names defined in configuration, `agentic`, or `wait_for_github`."
-        sections << "- Provide a concise rationale below."
-        sections << ""
-        sections << "## Rationale"
+      def default_decider_template
+        <<~TEMPLATE
+          # Decide Next Work Loop Unit
 
-        sections.join("\n")
+          ## Deterministic Outputs
+
+          {{DETERMINISTIC_OUTPUTS}}
+
+          ## Previous Agent Summary
+
+          {{PREVIOUS_AGENT_SUMMARY}}
+
+          ## Guidance
+          - Decide whether to run another deterministic unit or resume agentic editing.
+          - Announce your decision with `NEXT_UNIT: <unit_name>`.
+          - Valid values: names defined in configuration, `agentic`, or `wait_for_github`.
+          - Provide a concise rationale below.
+
+          ## Rationale
+        TEMPLATE
+      end
+
+      def default_diagnose_template
+        <<~TEMPLATE
+          # Diagnose Failures
+
+          ## Recent Deterministic Outputs
+
+          {{DETERMINISTIC_OUTPUTS}}
+
+          ## Previous Agent Summary
+
+          {{PREVIOUS_AGENT_SUMMARY}}
+
+          ## Instructions
+          - Identify the root cause of the failures above.
+          - Recommend the next concrete action (another deterministic unit, agentic editing, or waiting).
+          - Emit `NEXT_UNIT: <unit_name>` on its own line.
+
+          ## Analysis
+        TEMPLATE
+      end
+
+      def format_deterministic_outputs(entries)
+        data = Array(entries)
+        return "- None recorded yet." if data.empty?
+
+        data.map do |entry|
+          name = entry[:name] || "unknown_unit"
+          status = entry[:status] || "unknown"
+          finished_at = entry[:finished_at]&.to_s || "unknown"
+          output = entry[:output_path] || "n/a"
+          "- #{name} (status: #{status}, finished_at: #{finished_at})\n  Output: #{output}"
+        end.join("\n")
+      end
+
+      def format_previous_agent_summary(summary)
+        content = summary.to_s.strip
+        return "_No previous agent summary._" if content.empty?
+
+        content
       end
 
       # Transition to a new state in the fix-forward state machine

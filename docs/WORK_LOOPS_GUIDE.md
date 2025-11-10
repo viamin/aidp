@@ -318,6 +318,13 @@ Agent sees style guide reminder → Realizes failures due to style violations �
 
 Notice how we **never rolled back** — each iteration built on the previous work. At iteration 5, the system automatically reminds the agent of the LLM_STYLE_GUIDE to prevent drift from project conventions.
 
+## Templates and Unit Catalog
+
+- `templates/work_loop/decide_whats_next.md` renders the lightweight decision prompt that selects the next unit after deterministic work.
+- `templates/work_loop/diagnose_failures.md` summarizes failing deterministic units and captures the rationale for the next step.
+- The default unit catalog lives under `work_loop.units` in `.aidp/aidp.yml`. Enable or add deterministic units such as `run_full_tests`, `run_lint`, or `wait_for_github` to match your project’s tooling.
+- Watch mode queues extra units by writing to `.aidp/work_loop/initial_units.txt` inside each worktree. The scheduler consumes and clears that file at the start of the next harness run so queued requests execute immediately.
+
 ## How It Works
 
 ### The Work Loop Cycle
