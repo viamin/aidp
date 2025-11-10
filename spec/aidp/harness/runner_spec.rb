@@ -320,13 +320,11 @@ RSpec.describe Aidp::Harness::Runner do
     it "saves state correctly" do
       state_manager = double("state_manager")
       allow(state_manager).to receive(:save_state)
-      allow(state_manager).to receive(:add_execution_log)
       runner.instance_variable_set(:@state_manager, state_manager)
       runner.instance_variable_set(:@state, "running")
       runner.instance_variable_set(:@current_step, "test_step")
       runner.instance_variable_set(:@current_provider, "cursor")
       runner.instance_variable_set(:@user_input, {"test" => "data"})
-      runner.instance_variable_set(:@execution_log, [{message: "test"}])
 
       runner.send(:save_state)
 
@@ -335,7 +333,8 @@ RSpec.describe Aidp::Harness::Runner do
         current_step: "test_step",
         current_provider: "cursor"
       ))
-      expect(state_manager).to have_received(:add_execution_log).with({message: "test"})
+      # Execution log is no longer persisted to state
+      expect(state_manager).not_to have_received(:save_state).with(hash_including(:execution_log))
     end
   end
 

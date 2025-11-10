@@ -156,6 +156,8 @@ module Aidp
             TIMEOUT_STATIC_ANALYSIS
           when /REFACTORING_RECOMMENDATIONS/
             TIMEOUT_REFACTORING_RECOMMENDATIONS
+          when /IMPLEMENTATION/
+            TIMEOUT_IMPLEMENTATION
           else
             nil # Use default
           end

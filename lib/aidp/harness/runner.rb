@@ -419,20 +419,14 @@ module Aidp
       end
 
       def save_state
-        # Save harness-specific state
+        # Save harness-specific state (execution_log removed to prevent unbounded growth)
         @state_manager.save_state({
           state: @state,
           current_step: @current_step,
           current_provider: @current_provider,
           user_input: @user_input,
-          execution_log: @execution_log,
           last_saved: Time.now
         })
-
-        # Also save execution log entries to state manager
-        @execution_log.each do |entry|
-          @state_manager.add_execution_log(entry)
-        end
       end
 
       def handle_error(error)
@@ -445,6 +439,7 @@ module Aidp
       end
 
       def log_execution(message, data = {})
+        # Keep in-memory log for runtime diagnostics (not persisted)
         log_entry = {
           timestamp: Time.now,
           message: message,
@@ -453,7 +448,13 @@ module Aidp
         }
         @execution_log << log_entry
 
-        # Also log to standard logging if available
+        # Log to persistent logger instead of state file
+        Aidp.logger.info("harness_execution", message,
+          state: @state,
+          step: @current_step,
+          **data.slice(:error, :error_class, :criteria, :all_complete, :summary).compact)
+
+        # Also log to standard output in debug mode
         puts "[#{Time.now.strftime("%H:%M:%S")}] #{message}" if ENV["AIDP_DEBUG"] == "1"
       end
 

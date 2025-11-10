@@ -129,20 +129,6 @@ module Aidp
         update_state(user_input: current_input, last_updated: Time.now)
       end
 
-      # Get execution log
-      def execution_log
-        state = load_state
-        return [] unless state
-        state[:execution_log] || []
-      end
-
-      # Add to execution log
-      def add_execution_log(entry)
-        current_log = execution_log
-        current_log << entry
-        update_state(execution_log: current_log, last_updated: Time.now)
-      end
-
       # Get provider state
       def provider_state
         state = load_state

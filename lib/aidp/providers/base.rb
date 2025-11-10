@@ -33,6 +33,7 @@ module Aidp
       TIMEOUT_DOCUMENTATION_ANALYSIS = 300 # 5 minutes - documentation analysis
       TIMEOUT_STATIC_ANALYSIS = 450 # 7.5 minutes - static analysis
       TIMEOUT_REFACTORING_RECOMMENDATIONS = 600 # 10 minutes - refactoring
+      TIMEOUT_IMPLEMENTATION = 900 # 15 minutes - implementation (write files, run tests, fix issues)
 
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name
 

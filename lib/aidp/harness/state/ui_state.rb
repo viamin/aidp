@@ -19,16 +19,6 @@ module Aidp
           update_state(user_input: current_input)
         end
 
-        def execution_log
-          state[:execution_log] || []
-        end
-
-        def add_execution_log(entry)
-          current_log = execution_log
-          current_log << entry
-          update_state(execution_log: current_log)
-        end
-
         def current_step
           state[:current_step]
         end
