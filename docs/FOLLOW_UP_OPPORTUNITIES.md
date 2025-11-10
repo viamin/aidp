@@ -7,6 +7,9 @@ This document tracks potential future enhancements and refactors identified duri
 - [x] Summary table of configured providers (primary + fallbacks) before save, with billing type and model family.
 - [x] Validation warning for duplicate fallback providers with identical billing/model characteristics (redundancy detection).
 - [x] Ability to remove (delete) a provider configuration from the edit loop.
+- [x] Real-time provider metrics tracking (LastUsed, token usage, rate-limit reset times) (#242)
+- [x] Persist provider metrics to disk for dashboard visibility across CLI invocations (#242)
+- [x] Extract rate-limit reset times from provider error messages (especially Claude) (#242)
 - [ ] Reorder fallback providers interactively to express priority.
 - [ ] Persist provider priority metadata for advanced fallback heuristics.
 - [x] Add guard against selecting a primary provider also listed as a fallback (auto-remove or prevent).

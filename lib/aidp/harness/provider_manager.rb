@@ -2,6 +2,7 @@
 
 require "tty-prompt"
 require_relative "provider_factory"
+require_relative "provider_metrics"
 require_relative "../rescue_logging"
 require_relative "../concurrency"
 
@@ -40,6 +41,20 @@ module Aidp
         @unavailable_cache = {}
         @binary_check_cache = {}
         @binary_check_ttl = 300 # seconds
+
+        # Initialize persistence
+        project_dir = if configuration.respond_to?(:project_dir)
+          configuration.project_dir
+        elsif configuration.respond_to?(:root_dir)
+          configuration.root_dir
+        else
+          Dir.pwd
+        end
+        @metrics_persistence = ProviderMetrics.new(project_dir)
+
+        # Load persisted metrics
+        load_persisted_metrics
+
         initialize_fallback_chains
         initialize_provider_health
         initialize_model_configs
@@ -932,6 +947,9 @@ module Aidp
         # Update provider health
         update_provider_health(provider_name, "rate_limited")
 
+        # Persist rate limit info to disk
+        save_persisted_rate_limits
+
         # Switch to next provider if current one is rate limited
         if provider_name == current_provider
           switch_provider("rate_limit", {provider: provider_name})
@@ -996,6 +1014,9 @@ module Aidp
           metrics[:last_error_time] = Time.now
           update_provider_health(provider_name, "error", {error: error})
         end
+
+        # Persist metrics to disk
+        save_persisted_metrics
       end
 
       # Record model metrics
@@ -1610,6 +1631,49 @@ module Aidp
         # Default reset time calculation for models
         # Most models reset rate limits every hour
         Time.now + (60 * 60)
+      end
+
+      # Load persisted metrics from disk
+      def load_persisted_metrics
+        return unless @metrics_persistence
+
+        # Load provider metrics
+        persisted_metrics = @metrics_persistence.load_metrics
+        @provider_metrics.merge!(persisted_metrics) if persisted_metrics.is_a?(Hash)
+
+        # Load rate limit info
+        persisted_rate_limits = @metrics_persistence.load_rate_limits
+        @rate_limit_info.merge!(persisted_rate_limits) if persisted_rate_limits.is_a?(Hash)
+
+        # Clean up expired rate limits
+        cleanup_expired_rate_limits
+      rescue => e
+        log_rescue(e, component: "provider_manager", action: "load_persisted_metrics", fallback: nil)
+      end
+
+      # Save persisted metrics to disk
+      def save_persisted_metrics
+        return unless @metrics_persistence
+        @metrics_persistence.save_metrics(@provider_metrics)
+      rescue => e
+        log_rescue(e, component: "provider_manager", action: "save_persisted_metrics", fallback: nil)
+      end
+
+      # Save persisted rate limits to disk
+      def save_persisted_rate_limits
+        return unless @metrics_persistence
+        @metrics_persistence.save_rate_limits(@rate_limit_info)
+      rescue => e
+        log_rescue(e, component: "provider_manager", action: "save_persisted_rate_limits", fallback: nil)
+      end
+
+      # Clean up expired rate limits from memory
+      def cleanup_expired_rate_limits
+        now = Time.now
+        @rate_limit_info.delete_if do |_provider, info|
+          reset_time = info[:reset_time]
+          reset_time && now >= reset_time
+        end
       end
     end
   end

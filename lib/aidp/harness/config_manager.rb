@@ -10,6 +10,8 @@ module Aidp
     class ConfigManager
       include ProviderTypeChecker
 
+      attr_reader :project_dir
+
       def initialize(project_dir = Dir.pwd)
         @project_dir = project_dir
         @loader = ConfigLoader.new(project_dir)

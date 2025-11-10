@@ -13,6 +13,18 @@ RSpec.describe Aidp::Harness::ProviderManager do
     allow(configuration).to receive(:provider_models).with("claude").and_return(["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"])
     allow(configuration).to receive(:provider_models).with("gemini").and_return(["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro"])
     allow(configuration).to receive(:provider_models).with("cursor").and_return(["cursor-default", "cursor-fast", "cursor-precise"])
+
+    # Stub project_dir for ProviderMetrics initialization
+    allow(configuration).to receive(:project_dir).and_return(Dir.pwd)
+    allow(configuration).to receive(:root_dir).and_return(Dir.pwd)
+
+    # Mock ProviderMetrics to prevent loading persisted data from disk
+    mock_metrics_persistence = instance_double(Aidp::Harness::ProviderMetrics)
+    allow(Aidp::Harness::ProviderMetrics).to receive(:new).and_return(mock_metrics_persistence)
+    allow(mock_metrics_persistence).to receive(:load_metrics).and_return({})
+    allow(mock_metrics_persistence).to receive(:load_rate_limits).and_return({})
+    allow(mock_metrics_persistence).to receive(:save_metrics)
+    allow(mock_metrics_persistence).to receive(:save_rate_limits)
   end
 
   describe "model switching" do

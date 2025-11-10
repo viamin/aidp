@@ -13,9 +13,9 @@ Gem::Specification.new do |s|
   s.license = "MIT"
 
   s.files = Dir.chdir(__dir__) do
-    Dir["bin/*", "lib/**/*.rb", "templates/**/*", "README.md", "LICENSE"]
+    Dir["exe/*", "lib/**/*.rb", "templates/**/*", "README.md", "LICENSE"]
   end
-  s.bindir = "bin"
+  s.bindir = "exe"
   s.executables = ["aidp"]
   s.require_paths = ["lib"]
   s.required_ruby_version = ">= 3.3"

@@ -229,15 +229,33 @@ module Aidp
           end
 
           combined_prompt = "#{system_prompt}\n\n#{user_prompt}"
+
+          # Record timing for metrics
+          start_time = Time.now
           result = provider.send_message(prompt: combined_prompt)
+          duration = Time.now - start_time
 
           if result.nil? || result.empty?
+            # Record failed metric
+            @provider_manager.record_metrics(provider_name, success: false, duration: duration, error: StandardError.new("Empty response")) if @provider_manager.respond_to?(:record_metrics)
             raise ConversationError, "Provider request failed: empty response"
           end
+
+          # Record successful metric
+          @provider_manager.record_metrics(provider_name, success: true, duration: duration) if @provider_manager.respond_to?(:record_metrics)
 
           result
         rescue => e
           message = e.message.to_s
+
+          # Record failed metric (if we haven't already from empty response check)
+          if defined?(start_time) && defined?(provider_name) && defined?(duration).nil?
+            duration = Time.now - start_time
+            @provider_manager.record_metrics(provider_name, success: false, duration: duration, error: e) if @provider_manager.respond_to?(:record_metrics)
+          end
+
+          # Extract rate limit reset time from error message (especially Claude)
+          extract_and_save_rate_limit_info(provider_name, message) if defined?(provider_name)
 
           # Classify error type for better handling
           classified = if message =~ /resource[_ ]exhausted/i || message =~ /\[resource_exhausted\]/i
@@ -317,6 +335,41 @@ module Aidp
         end
       rescue => e
         Aidp.logger.warn("guided_agent", "Failed verbose iteration emit", error: e.message)
+      end
+
+      # Extract rate limit reset time from error message and save to provider manager
+      def extract_and_save_rate_limit_info(provider_name, error_message)
+        return unless @provider_manager.respond_to?(:mark_rate_limited)
+        return unless error_message
+
+        # Claude error format: "please try again in 1m23s" or "retry after X seconds/minutes"
+        reset_time = nil
+
+        if error_message =~ /try again in (\d+)m(\d+)s/i
+          minutes = $1.to_i
+          seconds = $2.to_i
+          reset_time = Time.now + (minutes * 60) + seconds
+        elsif error_message =~ /try again in (\d+)s/i
+          seconds = $1.to_i
+          reset_time = Time.now + seconds
+        elsif error_message =~ /try again in (\d+)m/i
+          minutes = $1.to_i
+          reset_time = Time.now + (minutes * 60)
+        elsif error_message =~ /retry after (\d+) seconds?/i
+          seconds = $1.to_i
+          reset_time = Time.now + seconds
+        elsif error_message =~ /retry after (\d+) minutes?/i
+          minutes = $1.to_i
+          reset_time = Time.now + (minutes * 60)
+        end
+
+        # Mark provider as rate limited with extracted reset time
+        if reset_time
+          @provider_manager.mark_rate_limited(provider_name, reset_time)
+          Aidp.logger.info("guided_agent", "Extracted rate limit reset time", provider: provider_name, reset_at: reset_time.iso8601)
+        end
+      rescue => e
+        Aidp.logger.warn("guided_agent", "Failed to extract rate limit info", error: e.message)
       end
 
       def validate_provider_configuration!
