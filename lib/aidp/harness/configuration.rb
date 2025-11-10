@@ -7,6 +7,8 @@ module Aidp
   module Harness
     # Handles loading and validation of harness configuration from aidp.yml
     class Configuration
+      attr_reader :project_dir
+
       def initialize(project_dir)
         @project_dir = project_dir
         @config = Aidp::Config.load_harness_config(project_dir)
