@@ -3,6 +3,7 @@
 require "net/http"
 require_relative "../debug_mixin"
 require_relative "../concurrency"
+require_relative "../providers/error_taxonomy"
 
 module Aidp
   module Harness
@@ -252,9 +253,10 @@ module Aidp
       # Check if we should retry based on error type and strategy
       def should_retry?(error_info, strategy)
         return false unless strategy[:enabled]
-        return false if error_info[:error_type] == :rate_limit
-        return false if error_info[:error_type] == :authentication
-        return false if error_info[:error_type] == :permission_denied
+
+        # Use ErrorTaxonomy to determine if error is retryable
+        error_type = error_info[:error_type]
+        return false unless Aidp::Providers::ErrorTaxonomy.retryable?(error_type)
 
         # Check circuit breaker
         circuit_breaker_key = "#{error_info[:provider]}:#{error_info[:model]}"
@@ -337,7 +339,62 @@ module Aidp
 
       def initialize_retry_strategies
         @retry_strategies = {
-          # Network errors - retry with exponential backoff
+          # Transient errors - retry with exponential backoff
+          transient: {
+            name: "transient",
+            enabled: true,
+            max_retries: 3,
+            backoff_strategy: :exponential,
+            base_delay: 1.0,
+            max_delay: 30.0,
+            jitter: true
+          },
+
+          # Rate limited errors - no retry, immediate switch
+          rate_limited: {
+            name: "rate_limited",
+            enabled: false,
+            max_retries: 0,
+            backoff_strategy: :none,
+            base_delay: 0.0,
+            max_delay: 0.0,
+            jitter: false
+          },
+
+          # Authentication expired - no retry, switch provider
+          auth_expired: {
+            name: "auth_expired",
+            enabled: false,
+            max_retries: 0,
+            backoff_strategy: :none,
+            base_delay: 0.0,
+            max_delay: 0.0,
+            jitter: false
+          },
+
+          # Quota exceeded - no retry, switch provider
+          quota_exceeded: {
+            name: "quota_exceeded",
+            enabled: false,
+            max_retries: 0,
+            backoff_strategy: :none,
+            base_delay: 0.0,
+            max_delay: 0.0,
+            jitter: false
+          },
+
+          # Permanent errors - no retry, escalate
+          permanent: {
+            name: "permanent",
+            enabled: false,
+            max_retries: 0,
+            backoff_strategy: :none,
+            base_delay: 0.0,
+            max_delay: 0.0,
+            jitter: false
+          },
+
+          # Legacy aliases for backward compatibility
           network_error: {
             name: "network_error",
             enabled: true,
@@ -347,8 +404,6 @@ module Aidp
             max_delay: 30.0,
             jitter: true
           },
-
-          # Server errors - retry with linear backoff
           server_error: {
             name: "server_error",
             enabled: true,
@@ -358,8 +413,6 @@ module Aidp
             max_delay: 10.0,
             jitter: true
           },
-
-          # Timeout errors - retry with exponential backoff
           timeout: {
             name: "timeout",
             enabled: true,
@@ -369,8 +422,6 @@ module Aidp
             max_delay: 15.0,
             jitter: true
           },
-
-          # Rate limit errors - no retry, immediate switch
           rate_limit: {
             name: "rate_limit",
             enabled: false,
@@ -380,8 +431,6 @@ module Aidp
             max_delay: 0.0,
             jitter: false
           },
-
-          # Authentication errors - no retry, escalate
           authentication: {
             name: "authentication",
             enabled: false,
@@ -391,8 +440,6 @@ module Aidp
             max_delay: 0.0,
             jitter: false
           },
-
-          # Permission denied - no retry, escalate
           permission_denied: {
             name: "permission_denied",
             enabled: false,
@@ -586,41 +633,36 @@ module Aidp
         private
 
         def classify_error_type(error)
-          return :unknown if error.nil?
+          return :transient if error.nil?
 
+          # Use standardized error taxonomy for classification
+          message = error.message.to_s
+
+          # First, use ErrorTaxonomy to classify by message
+          category = Aidp::Providers::ErrorTaxonomy.classify_message(message)
+
+          # Override with more specific classification based on error type
           case error
           when Timeout::Error
-            :timeout
+            :transient
           when Net::HTTPError
             case error.response.code.to_i
             when 429
-              :rate_limit
+              :rate_limited
             when 401, 403
-              :authentication
+              :auth_expired
             when 500..599
-              :server_error
+              :transient
+            when 400
+              :permanent
             else
-              :network_error
+              :transient
             end
           when SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH
-            :network_error
-          when StandardError
-            # Check error message for common patterns
-            message = error.message.downcase
-
-            if message.include?("rate limit") || message.include?("quota")
-              :rate_limit
-            elsif message.include?("timeout")
-              :timeout
-            elsif message.include?("auth") || message.include?("permission")
-              :authentication
-            elsif message.include?("server") || message.include?("internal")
-              :server_error
-            else
-              :default
-            end
+            :transient
           else
-            :default
+            # Use message-based classification from ErrorTaxonomy
+            category
           end
         end
       end
@@ -629,39 +671,58 @@ module Aidp
         def create_recovery_plan(error_info, _context = {})
           error_type = error_info[:error_type]
 
+          # Use ErrorTaxonomy to determine recovery strategy
           case error_type
-          when :rate_limit
+          when :rate_limited
             {
               action: :switch_provider,
               reason: "Rate limit reached, switching provider",
               priority: :high
             }
+          when :auth_expired
+            # Attempt a provider switch so workflows can continue with alternate providers
+            # while the user resolves credentials for the failing provider
+            {
+              action: :switch_provider,
+              reason: "Authentication expired – switching provider to continue",
+              priority: :critical
+            }
+          when :quota_exceeded
+            {
+              action: :switch_provider,
+              reason: "Quota exceeded, switching provider",
+              priority: :high
+            }
+          when :transient
+            {
+              action: :switch_model,
+              reason: "Transient error, trying alternate model",
+              priority: :medium
+            }
+          when :permanent
+            {
+              action: :escalate,
+              reason: "Permanent error, requires manual intervention",
+              priority: :critical
+            }
+          # Legacy error type mappings for backward compatibility
+          when :timeout, :network_error, :server_error
+            {
+              action: :switch_provider,
+              reason: "Error detected, switching provider",
+              priority: :medium
+            }
           when :authentication, :permission_denied
-            # Previously we escalated immediately. Instead, attempt a provider switch
-            # so workflows can continue with alternate providers (e.g., Gemini, Cursor)
-            # while the user resolves credentials for the failing provider.
             {
               action: :switch_provider,
               reason: "Authentication/permission issue – switching provider to continue",
               priority: :critical
             }
-          when :timeout
-            {
-              action: :switch_model,
-              reason: "Timeout error, trying faster model",
-              priority: :medium
-            }
-          when :network_error
+          when :rate_limit
             {
               action: :switch_provider,
-              reason: "Network error, switching provider",
+              reason: "Rate limit reached, switching provider",
               priority: :high
-            }
-          when :server_error
-            {
-              action: :switch_provider,
-              reason: "Server error, switching provider",
-              priority: :medium
             }
           else
             {

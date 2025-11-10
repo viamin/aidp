@@ -2,6 +2,7 @@
 
 require "tty-prompt"
 require "tty-spinner"
+require_relative "adapter"
 
 module Aidp
   module Providers
@@ -9,6 +10,7 @@ module Aidp
 
     class Base
       include Aidp::MessageDisplay
+      include Aidp::Providers::Adapter
 
       # Activity indicator states
       ACTIVITY_STATES = {
