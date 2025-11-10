@@ -567,16 +567,20 @@ module Aidp
         # Prepend work loop instructions to every iteration
         full_prompt = build_work_loop_header(@step_name, @iteration_count) + "\n\n" + prompt_content
 
-        # Send to provider via provider_manager
-        @provider_manager.execute_with_provider(
-          @provider_manager.current_provider,
-          full_prompt,
-          {
-            step_name: @step_name,
-            iteration: @iteration_count,
-            project_dir: @project_dir
-          }
-        )
+        # CRITICAL: Change to project directory before calling provider
+        # This ensures Claude CLI runs in the correct directory and can create files
+        Dir.chdir(@project_dir) do
+          # Send to provider via provider_manager
+          @provider_manager.execute_with_provider(
+            @provider_manager.current_provider,
+            full_prompt,
+            {
+              step_name: @step_name,
+              iteration: @iteration_count,
+              project_dir: @project_dir
+            }
+          )
+        end
       end
 
       def build_work_loop_header(step_name, iteration)

@@ -22,6 +22,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
   before do
     allow(Dir).to receive(:exist?).and_return(true)
+    allow(Dir).to receive(:chdir).and_yield
     allow(File).to receive(:exist?).and_return(false)
     allow(File).to receive(:read).and_return("")
     allow(FileUtils).to receive(:mkdir_p)

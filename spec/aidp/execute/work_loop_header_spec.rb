@@ -68,6 +68,19 @@ RSpec.describe "Work Loop Header Prepending" do
 
       expect(sent_prompt).to include("The working directory is: #{@tmpdir}")
     end
+
+    it "changes to project directory before calling provider" do
+      runner = create_runner
+      execution_dir = nil
+      allow(provider_manager).to receive(:execute_with_provider) do |_, _, _|
+        execution_dir = Dir.pwd
+        {status: "success"}
+      end
+
+      runner.send(:send_to_agent)
+
+      expect(execution_dir).to eq(@tmpdir)
+    end
   end
 
   describe "#build_work_loop_header" do
