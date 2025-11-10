@@ -43,6 +43,14 @@ This document tracks potential future enhancements and refactors identified duri
 - [ ] Parallelize provider capability probing (if introspection added).
 - [ ] Lazy-load provider metadata only when editing loop entered.
 
+## Code TODOs
+
+- [ ] Add default selection back to wizard once TTY-Prompt default validation issue is resolved ([lib/aidp/setup/wizard.rb:143](lib/aidp/setup/wizard.rb#L143))
+- [ ] Integrate error handler with actual provider execution ([lib/aidp/harness/error_handler.rb:429](lib/aidp/harness/error_handler.rb#L429))
+- [ ] Implement actual AST analysis for seam detection ([lib/aidp/analyze/seams.rb:139](lib/aidp/analyze/seams.rb#L139))
+- [ ] Implement interactive confirmation via REPL for guard policy in work loop ([lib/aidp/execute/work_loop_runner.rb](lib/aidp/execute/work_loop_runner.rb))
+- [ ] Enhance WorkLoopRunner to accept iteration callbacks for async monitoring ([lib/aidp/execute/async_work_loop_runner.rb:168](lib/aidp/execute/async_work_loop_runner.rb#L168))
+
 ## Documentation
 
 - [ ] Add `CONFIGURATION_PROVIDER_GUIDE.md` explaining billing types and model families.
