@@ -77,7 +77,7 @@ module Aidp
         display_guard_policy_status
         display_pending_tasks
 
-        @unit_scheduler = WorkLoopUnitScheduler.new(units_config)
+        @unit_scheduler = WorkLoopUnitScheduler.new(units_config, project_dir: @project_dir)
         base_context = context.dup
 
         loop do
@@ -97,6 +97,8 @@ module Aidp
 
           agentic_payload = if unit.name == :decide_whats_next
             run_decider_agentic_unit(enriched_context)
+          elsif unit.name == :diagnose_failures
+            run_diagnose_agentic_unit(enriched_context)
           else
             run_primary_agentic_unit(step_spec, enriched_context)
           end
@@ -148,7 +150,27 @@ module Aidp
           transition_to(:ready) unless @current_state == :ready
 
           transition_to(:apply_patch)
-          agent_result = apply_patch
+
+          # Wrap agent call in exception handling for true fix-forward
+          begin
+            agent_result = apply_patch
+          rescue => e
+            # Convert exception to error result for fix-forward handling
+            Aidp.logger.error("work_loop", "Exception during agent call",
+              step: @step_name,
+              iteration: @iteration_count,
+              error: e.message,
+              error_class: e.class.name,
+              backtrace: e.backtrace&.first(5))
+
+            display_message("  ⚠️  Exception during agent call: #{e.class.name}: #{e.message}", type: :error)
+
+            # Append exception to PROMPT.md so agent can see and fix it
+            append_exception_to_prompt(e)
+
+            # Continue to next iteration with fix-forward pattern
+            next
+          end
 
           # Process agent output for task filing signals
           process_task_filing(agent_result)
@@ -223,6 +245,34 @@ module Aidp
         )
       end
 
+      def run_diagnose_agentic_unit(context)
+        Aidp.logger.info("work_loop", "Running diagnose_failures agentic unit", step: @step_name)
+
+        prompt = build_diagnose_prompt(context)
+
+        agent_result = @provider_manager.execute_with_provider(
+          @provider_manager.current_provider,
+          prompt,
+          {
+            step_name: @step_name,
+            iteration: @iteration_count,
+            project_dir: @project_dir,
+            mode: :diagnose_failures
+          }
+        )
+
+        requested = AgentSignalParser.extract_next_unit(agent_result[:output])
+
+        build_agentic_payload(
+          agent_result: agent_result,
+          response: agent_result,
+          summary: agent_result[:output],
+          completed: false,
+          terminate: false,
+          requested_next: requested
+        )
+      end
+
       def units_config
         if @config.respond_to?(:work_loop_units_config)
           @config.work_loop_units_config
@@ -243,41 +293,94 @@ module Aidp
       end
 
       def build_decider_prompt(context)
-        outputs = Array(context[:deterministic_outputs])
-        summary = context[:previous_agent_summary]
+        template = load_work_loop_template("decide_whats_next.md", default_decider_template)
+        replacements = {
+          "{{DETERMINISTIC_OUTPUTS}}" => format_deterministic_outputs(context[:deterministic_outputs]),
+          "{{PREVIOUS_AGENT_SUMMARY}}" => format_previous_agent_summary(context[:previous_agent_summary])
+        }
+        replacements.reduce(template) { |body, (token, value)| body.gsub(token, value) }
+      end
 
-        sections = []
-        sections << "# Decide Next Work Loop Unit"
-        sections << ""
-        sections << "You are operating in the Aidp work loop. Determine what should happen next."
-        sections << ""
-        sections << "## Recent Deterministic Outputs"
+      def build_diagnose_prompt(context)
+        template = load_work_loop_template("diagnose_failures.md", default_diagnose_template)
+        replacements = {
+          "{{DETERMINISTIC_OUTPUTS}}" => format_deterministic_outputs(context[:deterministic_outputs]),
+          "{{PREVIOUS_AGENT_SUMMARY}}" => format_previous_agent_summary(context[:previous_agent_summary])
+        }
+        replacements.reduce(template) { |body, (token, value)| body.gsub(token, value) }
+      end
 
-        if outputs.empty?
-          sections << "- None recorded yet."
-        else
-          outputs.each do |entry|
-            sections << "- #{entry[:name]} (status: #{entry[:status]}, finished_at: #{entry[:finished_at]})"
-            sections << "  Output: #{entry[:output_path] || "n/a"}"
-          end
-        end
+      def load_work_loop_template(relative_path, fallback)
+        template_path = File.join(@project_dir, "templates", "work_loop", relative_path)
+        return File.read(template_path) if File.exist?(template_path)
 
-        if summary
-          sections << ""
-          sections << "## Previous Agent Summary"
-          sections << summary
-        end
+        fallback
+      rescue => e
+        Aidp.logger.warn("work_loop", "Unable to load #{relative_path}", error: e.message)
+        fallback
+      end
 
-        sections << ""
-        sections << "## Instructions"
-        sections << "- Decide whether to run another deterministic unit or resume agentic editing."
-        sections << "- Announce your decision with `NEXT_UNIT: <unit_name>`."
-        sections << "- Valid values: names defined in configuration, `agentic`, or `wait_for_github`."
-        sections << "- Provide a concise rationale below."
-        sections << ""
-        sections << "## Rationale"
+      def default_decider_template
+        <<~TEMPLATE
+          # Decide Next Work Loop Unit
 
-        sections.join("\n")
+          ## Deterministic Outputs
+
+          {{DETERMINISTIC_OUTPUTS}}
+
+          ## Previous Agent Summary
+
+          {{PREVIOUS_AGENT_SUMMARY}}
+
+          ## Guidance
+          - Decide whether to run another deterministic unit or resume agentic editing.
+          - Announce your decision with `NEXT_UNIT: <unit_name>`.
+          - Valid values: names defined in configuration, `agentic`, or `wait_for_github`.
+          - Provide a concise rationale below.
+
+          ## Rationale
+        TEMPLATE
+      end
+
+      def default_diagnose_template
+        <<~TEMPLATE
+          # Diagnose Failures
+
+          ## Recent Deterministic Outputs
+
+          {{DETERMINISTIC_OUTPUTS}}
+
+          ## Previous Agent Summary
+
+          {{PREVIOUS_AGENT_SUMMARY}}
+
+          ## Instructions
+          - Identify the root cause of the failures above.
+          - Recommend the next concrete action (another deterministic unit, agentic editing, or waiting).
+          - Emit `NEXT_UNIT: <unit_name>` on its own line.
+
+          ## Analysis
+        TEMPLATE
+      end
+
+      def format_deterministic_outputs(entries)
+        data = Array(entries)
+        return "- None recorded yet." if data.empty?
+
+        data.map do |entry|
+          name = entry[:name] || "unknown_unit"
+          status = entry[:status] || "unknown"
+          finished_at = entry[:finished_at]&.to_s || "unknown"
+          output = entry[:output_path] || "n/a"
+          "- #{name} (status: #{status}, finished_at: #{finished_at})\n  Output: #{output}"
+        end.join("\n")
+      end
+
+      def format_previous_agent_summary(summary)
+        content = summary.to_s.strip
+        return "_No previous agent summary._" if content.empty?
+
+        content
       end
 
       # Transition to a new state in the fix-forward state machine
@@ -544,16 +647,50 @@ module Aidp
         prompt_content = @prompt_manager.read
         return {status: "error", message: "PROMPT.md not found"} unless prompt_content
 
-        # Send to provider via provider_manager
-        @provider_manager.execute_with_provider(
-          @provider_manager.current_provider,
-          prompt_content,
-          {
-            step_name: @step_name,
-            iteration: @iteration_count,
-            project_dir: @project_dir
-          }
-        )
+        # Prepend work loop instructions to every iteration
+        full_prompt = build_work_loop_header(@step_name, @iteration_count) + "\n\n" + prompt_content
+
+        # CRITICAL: Change to project directory before calling provider
+        # This ensures Claude CLI runs in the correct directory and can create files
+        Dir.chdir(@project_dir) do
+          # Send to provider via provider_manager
+          @provider_manager.execute_with_provider(
+            @provider_manager.current_provider,
+            full_prompt,
+            {
+              step_name: @step_name,
+              iteration: @iteration_count,
+              project_dir: @project_dir
+            }
+          )
+        end
+      end
+
+      def build_work_loop_header(step_name, iteration)
+        parts = []
+        parts << "# Work Loop: #{step_name} (Iteration #{iteration})"
+        parts << ""
+        parts << "## Instructions"
+        parts << "You are working in a work loop. Your responsibilities:"
+        parts << "1. Read the task description below to understand what needs to be done"
+        parts << "2. **Write/edit code files** to implement the required changes"
+        parts << "3. Run tests to verify your changes work correctly"
+        parts << "4. Update the task list in PROMPT.md as you complete items"
+        parts << "5. When ALL tasks are complete and tests pass, mark the step COMPLETE"
+        parts << ""
+        parts << "## Important Notes"
+        parts << "- You have full file system access - create and edit files as needed"
+        parts << "- The working directory is: #{@project_dir}"
+        parts << "- After you finish, tests and linters will run automatically"
+        parts << "- If tests/linters fail, you'll see the errors in the next iteration and can fix them"
+        parts << ""
+        parts << "## Completion Criteria"
+        parts << "Mark this step COMPLETE by adding this line to PROMPT.md:"
+        parts << "```"
+        parts << "STATUS: COMPLETE"
+        parts << "```"
+        parts << ""
+        parts.join("\n")
       end
 
       def prompt_marked_complete?
@@ -598,6 +735,9 @@ module Aidp
           failures << ""
         end
 
+        strategy = build_failure_strategy(test_results, lint_results)
+        failures.concat(strategy) unless strategy.empty?
+
         failures << "**Fix-forward instructions**: Do not rollback changes. Build on what exists and fix the failures above."
         failures << ""
 
@@ -608,7 +748,48 @@ module Aidp
         updated_prompt = current_prompt + "\n\n---\n\n" + failures.join("\n")
         @prompt_manager.write(updated_prompt, step_name: @step_name)
 
-        display_message("  [NEXT_PATCH] Added failure reports and diagnostic to PROMPT.md", type: :warning)
+        display_message("  [NEXT_PATCH] Added failure reports, strategy, and diagnostic to PROMPT.md", type: :warning)
+      end
+
+      # Append exception details to PROMPT.md for fix-forward handling
+      # This allows the agent to see and fix errors that occur during execution
+      def append_exception_to_prompt(exception)
+        error_report = []
+
+        error_report << "## Fix-Forward Exception in Iteration #{@iteration_count}"
+        error_report << ""
+        error_report << "**CRITICAL**: An exception occurred during this iteration. Please analyze and fix the underlying issue."
+        error_report << ""
+        error_report << "### Exception Details"
+        error_report << "- **Type**: `#{exception.class.name}`"
+        error_report << "- **Message**: #{exception.message}"
+        error_report << ""
+
+        if exception.backtrace && !exception.backtrace.empty?
+          error_report << "### Stack Trace (First 10 lines)"
+          error_report << "```"
+          exception.backtrace.first(10).each do |line|
+            error_report << line
+          end
+          error_report << "```"
+          error_report << ""
+        end
+
+        error_report << "### Required Action"
+        error_report << "1. Analyze the exception type and message"
+        error_report << "2. Review the stack trace to identify the source"
+        error_report << "3. Fix the underlying code issue"
+        error_report << "4. Ensure the fix doesn't break existing functionality"
+        error_report << ""
+        error_report << "**Fix-forward instructions**: Do not rollback changes. Identify the root cause and fix it in the next iteration."
+        error_report << ""
+
+        # Append to PROMPT.md
+        current_prompt = @prompt_manager.read
+        updated_prompt = current_prompt + "\n\n---\n\n" + error_report.join("\n")
+        @prompt_manager.write(updated_prompt, step_name: @step_name)
+
+        display_message("  [EXCEPTION] Added exception details to PROMPT.md for fix-forward", type: :error)
       end
 
       # Check if we should reinject the style guide at this iteration
@@ -649,6 +830,32 @@ module Aidp
         reminder << "Ensure your fixes align with project conventions above."
 
         reminder.join("\n")
+      end
+
+      def build_failure_strategy(test_results, lint_results)
+        return [] if test_results[:success] && lint_results[:success]
+
+        lines = ["### Recovery Strategy", ""]
+
+        unless test_results[:success]
+          commands = format_command_list(test_results[:failures])
+          lines << "- Re-run #{commands} locally to reproduce the failing specs listed above."
+          lines << "- Triage the exact failures before moving on to new work."
+        end
+
+        unless lint_results[:success]
+          commands = format_command_list(lint_results[:failures])
+          lines << "- Execute #{commands} and fix each reported offense."
+        end
+
+        lines << ""
+        lines
+      end
+
+      def format_command_list(failures)
+        commands = Array(failures).map { |failure| failure[:command] }.compact
+        commands = ["the configured command"] if commands.empty?
+        commands.map { |cmd| "`#{cmd}`" }.join(" or ")
       end
 
       # Load current step's template content

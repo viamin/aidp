@@ -156,6 +156,8 @@ module Aidp
             TIMEOUT_STATIC_ANALYSIS
           when /REFACTORING_RECOMMENDATIONS/
             TIMEOUT_REFACTORING_RECOMMENDATIONS
+          when /IMPLEMENTATION/
+            TIMEOUT_IMPLEMENTATION
           else
             nil # Use default
           end
@@ -163,16 +165,20 @@ module Aidp
       end
 
       # Check if we should skip permissions based on devcontainer configuration
+      # Overrides base class to add logging and Claude-specific config check
       def should_skip_permissions?
-        # Check if harness context is available
-        return false unless @harness_context
+        # Use base class devcontainer detection
+        if in_devcontainer_or_codespace?
+          debug_log("🔓 Detected devcontainer/codespace environment - enabling full permissions", level: :info)
+          return true
+        end
 
-        # Get configuration from harness
-        config = @harness_context.config
-        return false unless config
+        # Fallback: Check harness context for Claude-specific configuration
+        if @harness_context&.config&.respond_to?(:should_use_full_permissions?)
+          return @harness_context.config.should_use_full_permissions?("claude")
+        end
 
-        # Use configuration method to determine if full permissions should be used
-        config.should_use_full_permissions?("claude")
+        false
       end
 
       # Parse stream-json output from Claude CLI

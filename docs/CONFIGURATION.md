@@ -64,7 +64,13 @@ work_loop:
         min_interval_seconds: 300
         next:
           success: agentic
-          failure: decide_whats_next
+          failure: diagnose_failures
+      - name: run_lint
+        command: bundle exec standardrb
+        min_interval_seconds: 300
+        next:
+          success: agentic
+          failure: diagnose_failures
       - name: wait_for_github
         type: wait
         metadata:
@@ -107,6 +113,12 @@ work_loop:
           run: "npx playwright test"
           specs_dir: ".aidp/tests/web"
 ```
+
+### Work Loop Templates
+
+- `templates/work_loop/decide_whats_next.md` renders the lightweight decision prompt that chooses the next unit after deterministic runs.
+- `templates/work_loop/diagnose_failures.md` summarizes failing deterministic units and captures the rationale for the next action.
+- Watch mode queues extra units by writing to `.aidp/work_loop/initial_units.txt` inside the active worktree. The scheduler consumes and clears that file on the next harness run.
 
 ### Coverage Tools
 

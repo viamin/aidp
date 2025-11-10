@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require_relative "deterministic_unit"
 require_relative "../logger"
 
@@ -18,18 +19,21 @@ module Aidp
 
       attr_reader :last_agentic_summary
 
-      def initialize(units_config, clock: Time)
+      def initialize(units_config, project_dir:, clock: Time)
         @clock = clock
+        @project_dir = project_dir
         @deterministic_definitions = build_deterministic_definitions(units_config[:deterministic])
         @defaults = default_options.merge(units_config[:defaults] || {})
         @pending_units = []
+        @initial_unit_requests = read_initial_unit_requests
         @deterministic_history = []
         @deterministic_state = Hash.new { |h, key| h[key] = default_deterministic_state }
         @agentic_runs = []
         @last_agentic_summary = nil
         @consecutive_deciders = 0
         @completed = false
-        @started = false
+        apply_initial_requests
+        @started = @pending_units.any?
       end
 
       def next_unit
@@ -171,6 +175,27 @@ module Aidp
           Aidp.logger.warn("work_loop", "Skipping invalid deterministic unit configuration",
             name: config[:name], error: e.message)
         end
+      end
+
+      def read_initial_unit_requests
+        return [] unless @project_dir
+
+        path = File.join(@project_dir, ".aidp", "work_loop", "initial_units.txt")
+        return [] unless File.exist?(path)
+
+        requests = File.readlines(path, chomp: true).map(&:strip).reject(&:empty?)
+        File.delete(path)
+        requests
+      rescue => e
+        Aidp.logger.warn("work_loop", "Failed to read initial work loop requests", error: e.message)
+        []
+      end
+
+      def apply_initial_requests
+        Array(@initial_unit_requests).each do |request|
+          queue_requested_unit(request.to_sym)
+        end
+        @initial_unit_requests = []
       end
 
       def default_deterministic_state

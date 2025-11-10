@@ -863,7 +863,7 @@ module Aidp
               max_backoff_seconds: 1800,
               next: {
                 success: :agentic,
-                failure: :decide_whats_next,
+                failure: :diagnose_failures,
                 else: :decide_whats_next
               }
             },
@@ -876,7 +876,7 @@ module Aidp
               max_backoff_seconds: 1800,
               next: {
                 success: :agentic,
-                failure: :decide_whats_next,
+                failure: :diagnose_failures,
                 else: :decide_whats_next
               }
             },

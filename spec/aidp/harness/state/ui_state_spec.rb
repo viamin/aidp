@@ -10,7 +10,6 @@ RSpec.describe Aidp::Harness::State::UIState do
   let(:populated_state) do
     {
       user_input: {key1: "value1"},
-      execution_log: ["entry1"],
       current_step: "step1",
       mode: "interactive",
       saved_at: Time.now,
@@ -68,45 +67,6 @@ RSpec.describe Aidp::Harness::State::UIState do
       end
 
       ui_state.add_user_input("new_key", "new_value")
-    end
-  end
-
-  describe "#execution_log" do
-    context "when no execution log exists" do
-      it "returns empty array" do
-        expect(ui_state.execution_log).to eq([])
-      end
-    end
-
-    context "when execution log exists" do
-      before do
-        allow(persistence).to receive(:load_state).and_return(execution_log: ["entry1", "entry2"])
-      end
-
-      it "returns the execution log" do
-        expect(ui_state.execution_log).to eq(["entry1", "entry2"])
-      end
-    end
-  end
-
-  describe "#add_execution_log" do
-    it "adds log entry and saves state" do
-      expect(persistence).to receive(:save_state) do |state|
-        expect(state[:execution_log]).to eq(["test entry"])
-        expect(state[:last_updated]).to be_a(Time)
-      end
-
-      ui_state.add_execution_log("test entry")
-    end
-
-    it "appends to existing log entries" do
-      allow(persistence).to receive(:load_state).and_return(execution_log: ["entry1"])
-
-      expect(persistence).to receive(:save_state) do |state|
-        expect(state[:execution_log]).to eq(["entry1", "entry2"])
-      end
-
-      ui_state.add_execution_log("entry2")
     end
   end
 

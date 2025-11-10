@@ -2,7 +2,7 @@
 
 require "timeout"
 require "json"
-require_relative "config_manager"
+require_relative "configuration"
 require_relative "state_manager"
 require_relative "condition_detector"
 require_relative "provider_manager"
@@ -53,20 +53,22 @@ module Aidp
         @non_interactive = options[:non_interactive] || (@workflow_type == :watch_mode)
 
         # Initialize components
-        @config_manager = ConfigManager.new(project_dir)
+        @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
-        @provider_manager = ProviderManager.new(@config_manager, prompt: @prompt)
+        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
 
         # Use ZFC-enabled condition detector
         # ZfcConditionDetector will create its own ProviderFactory if needed
         # Falls back to legacy pattern matching when ZFC is disabled
         require_relative "zfc_condition_detector"
-        @condition_detector = ZfcConditionDetector.new(@config_manager)
+        @condition_detector = ZfcConditionDetector.new(@configuration)
 
         @user_interface = SimpleUserInterface.new
-        @error_handler = ErrorHandler.new(@provider_manager, @config_manager)
+        @error_handler = ErrorHandler.new(@provider_manager, @configuration)
         @status_display = StatusDisplay.new
         @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
+        @failure_reason = nil
+        @failure_metadata = nil
       end
 
       # Main execution method - runs the harness loop
@@ -121,11 +123,13 @@ module Aidp
                   @state = STATES[:completed]
                   log_execution("Harness completed with user override")
                 else
+                  mark_completion_failure(completion_status)
                   @state = STATES[:error]
                   log_execution("Harness stopped due to unmet completion criteria")
                 end
               else
                 display_message("⚠️  Non-interactive mode: cannot override failed completion criteria. Stopping run.", type: :warning)
+                mark_completion_failure(completion_status)
                 @state = STATES[:error]
                 log_execution("Harness stopped due to unmet completion criteria in non-interactive mode")
               end
@@ -137,12 +141,26 @@ module Aidp
           log_execution("Harness error: #{e.message}", {error: e.class.name, backtrace: e.backtrace&.first(5)})
           handle_error(e)
         ensure
-          # Save state before exiting
-          save_state
-          cleanup
+          # Save state before exiting - protect against exceptions during cleanup
+          begin
+            save_state
+          rescue => e
+            # Don't let state save failures kill the whole run or prevent cleanup
+            Aidp.logger.error("harness", "Failed to save state during cleanup: #{e.message}", error: e.class.name)
+            @last_error ||= e # Only set if no previous error
+          end
+
+          begin
+            cleanup
+          rescue => e
+            # Don't let cleanup failures propagate
+            Aidp.logger.error("harness", "Failed during cleanup: #{e.message}", error: e.class.name)
+          end
         end
 
         result = {status: @state, message: get_completion_message}
+        result[:reason] = @failure_reason if @failure_reason
+        result[:failure_metadata] = @failure_metadata if @failure_metadata
         result[:clarification_questions] = @clarification_questions if @clarification_questions
         if @last_error
           result[:error] = @last_error.message
@@ -197,9 +215,9 @@ module Aidp
         {
           harness: status,
           configuration: {
-            default_provider: @config_manager.default_provider,
-            fallback_providers: @config_manager.fallback_providers,
-            max_retries: @config_manager.harness_config[:max_retries]
+            default_provider: @configuration.default_provider,
+            fallback_providers: @configuration.fallback_providers,
+            max_retries: @configuration.harness_config[:max_retries]
           },
           provider_manager: @provider_manager.status,
           error_stats: @error_handler.error_stats
@@ -407,20 +425,14 @@ module Aidp
       end
 
       def save_state
-        # Save harness-specific state
+        # Save harness-specific state (execution_log removed to prevent unbounded growth)
         @state_manager.save_state({
           state: @state,
           current_step: @current_step,
           current_provider: @current_provider,
           user_input: @user_input,
-          execution_log: @execution_log,
           last_saved: Time.now
         })
-
-        # Also save execution log entries to state manager
-        @execution_log.each do |entry|
-          @state_manager.add_execution_log(entry)
-        end
       end
 
       def handle_error(error)
@@ -433,6 +445,7 @@ module Aidp
       end
 
       def log_execution(message, data = {})
+        # Keep in-memory log for runtime diagnostics (not persisted)
         log_entry = {
           timestamp: Time.now,
           message: message,
@@ -441,7 +454,13 @@ module Aidp
         }
         @execution_log << log_entry
 
-        # Also log to standard logging if available
+        # Log to persistent logger instead of state file
+        Aidp.logger.info("harness_execution", message,
+          state: @state,
+          step: @current_step,
+          **data.slice(:error, :error_class, :criteria, :all_complete, :summary).compact)
+
+        # Also log to standard output in debug mode
         puts "[#{Time.now.strftime("%H:%M:%S")}] #{message}" if ENV["AIDP_DEBUG"] == "1"
       end
 
@@ -460,6 +479,11 @@ module Aidp
         else
           "Harness finished in state: #{@state}"
         end
+      end
+
+      def mark_completion_failure(completion_status)
+        @failure_reason = :completion_criteria
+        @failure_metadata = completion_status
       end
 
       private

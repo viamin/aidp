@@ -79,6 +79,20 @@ module Aidp
             args += ["--session", session]
           end
 
+          # In devcontainer, ensure sandbox mode and approval policy are set
+          # These are already set via environment variables in devcontainer.json
+          # but we verify and log them here for visibility
+          if in_devcontainer_or_codespace?
+            unless ENV["CODEX_SANDBOX_MODE"] == "danger-full-access"
+              ENV["CODEX_SANDBOX_MODE"] = "danger-full-access"
+              debug_log("🔓 Set CODEX_SANDBOX_MODE=danger-full-access for devcontainer", level: :info)
+            end
+            unless ENV["CODEX_APPROVAL_POLICY"] == "never"
+              ENV["CODEX_APPROVAL_POLICY"] = "never"
+              debug_log("🔓 Set CODEX_APPROVAL_POLICY=never for devcontainer", level: :info)
+            end
+          end
+
           # Use debug_execute_command for better debugging
           result = debug_execute_command("codex", args: args, timeout: timeout_seconds, streaming: streaming_enabled)
 

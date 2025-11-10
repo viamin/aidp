@@ -65,6 +65,43 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     expect(status["pr_url"]).to eq("https://example.com/pr/77")
   end
 
+  it "reports no changes when stage_and_commit returns false" do
+    allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+    allow(processor).to receive(:stage_and_commit).and_return(false)
+
+    expect(processor).not_to receive(:create_pull_request)
+    expect(repository_client).not_to receive(:post_comment)
+    expect(repository_client).not_to receive(:remove_labels)
+
+    processor.process(issue)
+
+    status = state_store.build_status(issue[:number])
+    expect(status["status"]).to eq("no_changes")
+    expect(status["branch"]).to eq("aidp/issue-77-implement-search")
+
+    request_path = File.join(tmp_dir, ".aidp", "work_loop", "initial_units.txt")
+    expect(File.read(request_path)).to include("decide_whats_next")
+  end
+
+  it "schedules fix-forward when completion criteria unmet" do
+    result = {
+      status: "error",
+      reason: :completion_criteria,
+      failure_metadata: {criteria: {tests_passing: false}}
+    }
+    allow(processor).to receive(:run_harness).and_return(result)
+    expect(repository_client).not_to receive(:post_comment)
+
+    processor.process(issue)
+
+    status = state_store.build_status(issue[:number])
+    expect(status["status"]).to eq("pending_fix_forward")
+    expect(status["criteria"]).to eq(result[:failure_metadata])
+
+    request_path = File.join(tmp_dir, ".aidp", "work_loop", "initial_units.txt")
+    expect(File.read(request_path)).to include("decide_whats_next")
+  end
+
   it "records failure when harness fails" do
     allow(processor).to receive(:run_harness).and_return({status: "error", message: "tests failed"})
     expect(repository_client).to receive(:post_comment).with(issue[:number], include("failed"))
@@ -171,19 +208,18 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       processor_with_workstreams.process(issue)
     end
 
-    it "cleans up workstream on error" do
+    it "preserves workstream on error for debugging (fix-forward)" do
       allow(Aidp::Worktree).to receive(:info).and_return(nil)
       allow(Aidp::Worktree).to receive(:create).and_return({path: "#{tmp_dir}/.worktrees/issue-77-implement-search"})
       allow(processor_with_workstreams).to receive(:run_harness).and_raise(StandardError, "boom")
       allow(processor_with_workstreams).to receive(:display_message) # Suppress error display
+      allow(repository_client).to receive(:post_comment) # Mock failure comment posting
 
-      expect(Aidp::Worktree).to receive(:remove).with(
-        slug: "issue-77-implement-search",
-        project_dir: tmp_dir,
-        delete_branch: true
-      ).and_return(true)
+      # Fix-forward pattern: DON'T clean up workstream on error - keep it for debugging
+      expect(Aidp::Worktree).not_to receive(:remove)
 
-      expect { processor_with_workstreams.process(issue) }.to raise_error(StandardError, "boom")
+      # Exception should NOT be re-raised (fix-forward pattern)
+      expect { processor_with_workstreams.process(issue) }.not_to raise_error
     end
 
     it "preserves workstream on success for review" do
@@ -269,7 +305,9 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(processor).to receive(:ensure_git_repo!)
       allow(processor).to receive(:detect_base_branch).and_return("main")
       allow(processor).to receive(:run_harness).and_raise(StandardError, "Something went wrong")
+      allow(repository_client).to receive(:post_comment) # Mock failure comment posting
 
+      # Allow multiple log_error calls (rescue block + handle_failure)
       expect(Aidp).to receive(:log_error).with(
         "build_processor",
         "Implementation failed with exception",
@@ -279,8 +317,15 @@ RSpec.describe Aidp::Watch::BuildProcessor do
           error_class: "StandardError"
         )
       )
+      expect(Aidp).to receive(:log_error).with(
+        "build_processor",
+        "Build failed for issue ##{issue[:number]}",
+        hash_including(status: "error")
+      )
 
-      expect { processor.process(issue) }.to raise_error(StandardError, "Something went wrong")
+      # Exception should NOT be re-raised (fix-forward pattern)
+      # Instead it should be handled gracefully
+      expect { processor.process(issue) }.not_to raise_error
     end
 
     it "includes error details in failure comment" do
@@ -410,6 +455,26 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     end
   end
 
+  describe "#run_harness" do
+    it "clears harness state and progress before execution" do
+      state_manager = instance_double(Aidp::Harness::StateManager, clear_state: true)
+      allow(Aidp::Harness::StateManager).to receive(:new).and_return(state_manager)
+
+      progress = instance_double(Aidp::Execute::Progress, reset: true)
+      allow(Aidp::Execute::Progress).to receive(:new).and_return(progress)
+
+      runner = instance_double(Aidp::Harness::Runner)
+      allow(Aidp::Harness::Runner).to receive(:new).and_return(runner)
+      allow(runner).to receive(:run).and_return({status: "completed", message: "done"})
+
+      processor.send(:run_harness, user_input: {}, working_dir: tmp_dir)
+
+      expect(state_manager).to have_received(:clear_state)
+      expect(progress).to have_received(:reset)
+      expect(Aidp::Harness::Runner).to have_received(:new).with(tmp_dir, :execute, hash_including(:selected_steps))
+    end
+  end
+
   describe "complete build trigger flow" do
     let(:issue_with_author) do
       issue.merge(author: "testuser")
@@ -480,7 +545,9 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(repository_client).to receive(:create_pull_request).and_raise(RuntimeError, "Failed to create PR via gh: branch not found")
       allow(repository_client).to receive(:post_comment)
 
-      expect { processor.process(issue_with_author) }.to raise_error(RuntimeError, /Failed to create PR/)
+      # Fix-forward: Exceptions should be handled gracefully, NOT re-raised
+      # The error will be logged and a failure comment posted
+      expect { processor.process(issue_with_author) }.not_to raise_error
     end
 
     it "includes PR URL in success comment when PR is created" do

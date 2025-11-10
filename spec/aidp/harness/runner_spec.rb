@@ -72,7 +72,7 @@ RSpec.describe Aidp::Harness::Runner do
     end
 
     it "initializes all components" do
-      expect(runner.instance_variable_get(:@config_manager)).to be_a(Aidp::Harness::ConfigManager)
+      expect(runner.instance_variable_get(:@configuration)).to be_a(Aidp::Harness::Configuration)
       expect(runner.instance_variable_get(:@state_manager)).to be_a(Aidp::Harness::StateManager)
       expect(runner.instance_variable_get(:@condition_detector)).to be_a(Aidp::Harness::ZfcConditionDetector)
       expect(runner.instance_variable_get(:@provider_manager)).to be_a(Aidp::Harness::ProviderManager)
@@ -320,13 +320,11 @@ RSpec.describe Aidp::Harness::Runner do
     it "saves state correctly" do
       state_manager = double("state_manager")
       allow(state_manager).to receive(:save_state)
-      allow(state_manager).to receive(:add_execution_log)
       runner.instance_variable_set(:@state_manager, state_manager)
       runner.instance_variable_set(:@state, "running")
       runner.instance_variable_set(:@current_step, "test_step")
       runner.instance_variable_set(:@current_provider, "cursor")
       runner.instance_variable_set(:@user_input, {"test" => "data"})
-      runner.instance_variable_set(:@execution_log, [{message: "test"}])
 
       runner.send(:save_state)
 
@@ -335,7 +333,8 @@ RSpec.describe Aidp::Harness::Runner do
         current_step: "test_step",
         current_provider: "cursor"
       ))
-      expect(state_manager).to have_received(:add_execution_log).with({message: "test"})
+      # Execution log is no longer persisted to state
+      expect(state_manager).not_to have_received(:save_state).with(hash_including(:execution_log))
     end
   end
 
@@ -349,6 +348,60 @@ RSpec.describe Aidp::Harness::Runner do
       runner.send(:handle_error, error)
 
       expect(error_handler).to have_received(:handle_error).with(error, runner)
+    end
+
+    it "protects ensure block from save_state exceptions" do
+      state_manager = runner.instance_variable_get(:@state_manager)
+      mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
+
+      # Make save_state raise an exception
+      allow(state_manager).to receive(:save_state).and_raise(StandardError, "Failed to save state")
+
+      # Mock cleanup to verify it still runs despite save_state failure
+      allow(runner).to receive(:cleanup).and_call_original
+
+      # Trigger the ensure block by running and letting it complete
+      allow(runner).to receive(:get_mode_runner).and_return(mode_runner)
+
+      # Should NOT raise exception despite save_state failing
+      expect { runner.run }.not_to raise_error
+
+      # Cleanup should still have been called
+      expect(runner).to have_received(:cleanup)
+    end
+
+    it "protects ensure block from cleanup exceptions" do
+      state_manager = runner.instance_variable_get(:@state_manager)
+      mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
+
+      # Make cleanup raise an exception
+      allow(runner).to receive(:cleanup).and_raise(StandardError, "Cleanup failed")
+
+      # Mock save_state to verify it ran before cleanup
+      allow(state_manager).to receive(:save_state)
+
+      # Trigger the ensure block
+      allow(runner).to receive(:get_mode_runner).and_return(mode_runner)
+
+      # Should NOT raise exception despite cleanup failing
+      expect { runner.run }.not_to raise_error
+
+      # save_state should have been called (may be called multiple times during execution)
+      expect(state_manager).to have_received(:save_state).at_least(:once)
+    end
+
+    it "sets last_error when save_state fails and no previous error exists" do
+      state_manager = runner.instance_variable_get(:@state_manager)
+      mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
+      save_error = StandardError.new("Save state failed")
+
+      allow(state_manager).to receive(:save_state).and_raise(save_error)
+      allow(runner).to receive(:get_mode_runner).and_return(mode_runner)
+
+      runner.run
+
+      # last_error should be set to the save_state error
+      expect(runner.instance_variable_get(:@last_error)).to eq(save_error)
     end
   end
 
@@ -500,6 +553,33 @@ RSpec.describe Aidp::Harness::Runner do
       allow(runner).to receive(:get_mode_runner).and_return(bad_runner)
       result = runner.run
       expect(result[:status]).to eq("error")
+    end
+  end
+
+  describe "#run" do
+    it "returns completion criteria failure reason in non-interactive mode" do
+      execute_runner = described_class.new(temp_dir, :execute, non_interactive: true)
+      mode_runner = instance_double("mode_runner")
+      completion_checker = instance_double("completion_checker")
+
+      execute_runner.instance_variable_set(:@completion_checker, completion_checker)
+
+      allow(execute_runner).to receive(:load_state)
+      allow(execute_runner).to receive(:update_state)
+      allow(execute_runner).to receive(:should_stop?).and_return(true)
+      allow(execute_runner).to receive(:get_mode_runner).and_return(mode_runner)
+      allow(mode_runner).to receive(:all_steps_completed?).and_return(true)
+      allow(completion_checker).to receive(:completion_status).and_return({
+        all_complete: false,
+        summary: "❌ 1/2 criteria failed: tests_passing",
+        criteria: {tests_passing: false}
+      })
+
+      result = execute_runner.run
+
+      expect(result[:status]).to eq("error")
+      expect(result[:reason]).to eq(:completion_criteria)
+      expect(result[:failure_metadata]).to include(:criteria)
     end
   end
 end
