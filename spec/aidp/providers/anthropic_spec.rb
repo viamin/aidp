@@ -71,9 +71,13 @@ RSpec.describe Aidp::Providers::Anthropic do
       it "uses text output format" do
         provider.send_message(prompt: prompt)
 
+        # In devcontainer, expect --dangerously-skip-permissions flag
+        expected_args = ["--print", "--output-format=text"]
+        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
+
         expect(provider).to have_received(:debug_execute_command).with(
           "claude",
-          args: ["--print", "--output-format=text"],
+          args: expected_args,
           input: prompt,
           timeout: 1,
           streaming: false
@@ -99,9 +103,13 @@ RSpec.describe Aidp::Providers::Anthropic do
       it "uses stream-json output format" do
         provider.send_message(prompt: prompt)
 
+        # In devcontainer, expect --dangerously-skip-permissions flag
+        expected_args = ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"]
+        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
+
         expect(provider).to have_received(:debug_execute_command).with(
           "claude",
-          args: ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"],
+          args: expected_args,
           input: prompt,
           timeout: 1,
           streaming: true
@@ -140,9 +148,13 @@ RSpec.describe Aidp::Providers::Anthropic do
       it "uses stream-json output format" do
         provider.send_message(prompt: prompt)
 
+        # In devcontainer, expect --dangerously-skip-permissions flag
+        expected_args = ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"]
+        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
+
         expect(provider).to have_received(:debug_execute_command).with(
           "claude",
-          args: ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"],
+          args: expected_args,
           input: prompt,
           timeout: 1,
           streaming: true

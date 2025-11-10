@@ -391,6 +391,31 @@ module Aidp
         spinner&.stop
       end
 
+      # Check if we should skip permissions based on devcontainer/codespace environment
+      # This enables providers to run with elevated permissions in safe development environments
+      # Returns true if running in a devcontainer or GitHub Codespace
+      def in_devcontainer_or_codespace?
+        ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
+      end
+
+      # Check if provider should skip sandbox permissions
+      # Providers can override this to add additional logic beyond environment detection
+      def should_skip_permissions?
+        # First, check for devcontainer/codespace environment (most reliable)
+        return true if in_devcontainer_or_codespace?
+
+        # Fallback: Check if harness context is available and has configuration
+        return false unless @harness_context
+
+        # Get configuration from harness
+        config = @harness_context.config
+        return false unless config
+
+        # Use configuration method to determine if full permissions should be used
+        # Provider subclasses should pass their provider name
+        false # Base implementation returns false, subclasses should override
+      end
+
       private
     end
   end
