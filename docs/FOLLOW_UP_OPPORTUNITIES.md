@@ -4,12 +4,12 @@ This document tracks potential future enhancements and refactors identified duri
 
 ## Provider & Wizard Enhancements
 
-- [ ] Summary table of configured providers (primary + fallbacks) before save, with billing type and model family.
-- [ ] Validation warning for duplicate fallback providers with identical billing/model characteristics (redundancy detection).
-- [ ] Ability to remove (delete) a provider configuration from the edit loop.
+- [x] Summary table of configured providers (primary + fallbacks) before save, with billing type and model family.
+- [x] Validation warning for duplicate fallback providers with identical billing/model characteristics (redundancy detection).
+- [x] Ability to remove (delete) a provider configuration from the edit loop.
 - [ ] Reorder fallback providers interactively to express priority.
 - [ ] Persist provider priority metadata for advanced fallback heuristics.
-- [ ] Add guard against selecting a primary provider also listed as a fallback (auto-remove or prevent).
+- [x] Add guard against selecting a primary provider also listed as a fallback (auto-remove or prevent).
 - [ ] Expand model family list (e.g., gemini, llama, deepseek) with descriptions.
 - [ ] Introduce provider capability hints (reasoning, coding, long-context) displayed during selection.
 - [ ] Provide an optional "quick setup" path that skips advanced provider editing questions.
@@ -19,7 +19,7 @@ This document tracks potential future enhancements and refactors identified duri
 
 - [ ] Helper factory for common provider selection sequences using `TestPrompt` (reducing duplicated response maps).
 - [ ] Negative specs: no fallbacks selected, editing declined, additional fallback loop exercised.
-- [ ] Spec covering removal of a provider once delete feature exists.
+- [ ] Spec covering removal of a provider (delete feature now exists).
 - [ ] Property-based test (e.g., generating random provider lists) to ensure normalization and ordering stability.
 - [ ] Snapshot test of YAML output for complex multi-provider configuration.
 
@@ -32,7 +32,7 @@ This document tracks potential future enhancements and refactors identified duri
 
 ## Configuration & Normalization
 
-- [ ] Centralize provider metadata (billing types, model families) in a single registry module.
+- [x] Centralize provider metadata (billing types, model families) in a single registry module.
 - [ ] Add migration utility to upgrade older config versions (schema_version checks beyond v1).
 - [ ] Detect and auto-correct inconsistent capitalization in stored model family values.
 - [ ] Introduce config validation command (`aidp config --validate`) to list warnings without running wizard.
