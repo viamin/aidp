@@ -564,16 +564,46 @@ module Aidp
         prompt_content = @prompt_manager.read
         return {status: "error", message: "PROMPT.md not found"} unless prompt_content
 
+        # Prepend work loop instructions to every iteration
+        full_prompt = build_work_loop_header(@step_name, @iteration_count) + "\n\n" + prompt_content
+
         # Send to provider via provider_manager
         @provider_manager.execute_with_provider(
           @provider_manager.current_provider,
-          prompt_content,
+          full_prompt,
           {
             step_name: @step_name,
             iteration: @iteration_count,
             project_dir: @project_dir
           }
         )
+      end
+
+      def build_work_loop_header(step_name, iteration)
+        parts = []
+        parts << "# Work Loop: #{step_name} (Iteration #{iteration})"
+        parts << ""
+        parts << "## Instructions"
+        parts << "You are working in a work loop. Your responsibilities:"
+        parts << "1. Read the task description below to understand what needs to be done"
+        parts << "2. **Write/edit code files** to implement the required changes"
+        parts << "3. Run tests to verify your changes work correctly"
+        parts << "4. Update the task list in PROMPT.md as you complete items"
+        parts << "5. When ALL tasks are complete and tests pass, mark the step COMPLETE"
+        parts << ""
+        parts << "## Important Notes"
+        parts << "- You have full file system access - create and edit files as needed"
+        parts << "- The working directory is: #{@project_dir}"
+        parts << "- After you finish, tests and linters will run automatically"
+        parts << "- If tests/linters fail, you'll see the errors in the next iteration and can fix them"
+        parts << ""
+        parts << "## Completion Criteria"
+        parts << "Mark this step COMPLETE by adding this line to PROMPT.md:"
+        parts << "```"
+        parts << "STATUS: COMPLETE"
+        parts << "```"
+        parts << ""
+        parts.join("\n")
       end
 
       def prompt_marked_complete?
