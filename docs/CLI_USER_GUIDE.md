@@ -387,6 +387,15 @@ claude     healthy    yes    closed   no           8,234   23:45:12  -
 gemini     unhealthy  no     open     no           0       -         No API key
 ```
 
+**Dashboard Updates:**
+
+The provider health dashboard now reflects real-time state:
+
+- **LastUsed** - Shows when each provider was last called during workflows (updates automatically)
+- **Tokens** - Displays cumulative token usage tracked across all provider invocations
+- **RateLimited** - Shows time remaining until rate limit resets (e.g., "yes (2m15s)")
+- All metrics are persisted to `.aidp/provider_metrics.yml` and `.aidp/provider_rate_limits.yml`
+
 **Status Values:**
 
 - `healthy` - Provider is working correctly
