@@ -338,8 +338,8 @@ RSpec.describe Aidp::Setup::ProviderRegistry do
       expect(described_class.model_family_values).to include("local")
     end
 
-    it "has exactly 5 model family values" do
-      expect(described_class.model_family_values.length).to eq(5)
+    it "has exactly 8 model family values" do
+      expect(described_class.model_family_values.length).to eq(8)
     end
   end
 

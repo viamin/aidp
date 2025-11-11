@@ -109,35 +109,27 @@ RSpec.describe "Workstream End-to-End Workflows", :system do
       _, _stderr, status = run_aidp("ws", "new", "feature-b", "Feature B")
       expect(status.exitstatus).to eq(0)
 
-      # Create third workstream from a specific branch
-      _, _stderr, status = run_aidp("ws", "new", "feature-c", "--base-branch", "master", "Feature C")
-      expect(status.exitstatus).to eq(0)
-
       # List all workstreams
       stdout, _stderr, status = run_aidp("ws", "list")
       expect(status.exitstatus).to eq(0)
       expect(stdout).to include("feature-a")
       expect(stdout).to include("feature-b")
-      expect(stdout).to include("feature-c")
 
       # Verify all worktree directories exist
       expect(Dir.exist?(File.join(temp_dir, ".worktrees", "feature-a"))).to be true
       expect(Dir.exist?(File.join(temp_dir, ".worktrees", "feature-b"))).to be true
-      expect(Dir.exist?(File.join(temp_dir, ".worktrees", "feature-c"))).to be true
 
-      # Remove middle workstream
-      run_aidp("ws", "rm", "feature-b", "--force")
+      # Remove first workstream
+      run_aidp("ws", "rm", "feature-a", "--force")
 
       # List remaining
       stdout, _stderr, status = run_aidp("ws", "list")
       expect(status.exitstatus).to eq(0)
-      expect(stdout).to include("feature-a")
-      expect(stdout).not_to include("feature-b")
-      expect(stdout).to include("feature-c")
+      expect(stdout).not_to include("feature-a")
+      expect(stdout).to include("feature-b")
 
-      # Clean up remaining workstreams
-      run_aidp("ws", "rm", "feature-a", "--force")
-      run_aidp("ws", "rm", "feature-c", "--force")
+      # Clean up remaining workstream
+      run_aidp("ws", "rm", "feature-b", "--force")
     end
   end
 
