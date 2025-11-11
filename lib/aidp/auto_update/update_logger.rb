@@ -138,7 +138,6 @@ module Aidp
           event: data[:event],
           error: e.message)
       end
-
     end
   end
 end

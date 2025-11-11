@@ -186,4 +186,30 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
       expect(status[:supervisor]).to eq("supervisord")
     end
   end
+
+  describe ".from_config" do
+    it "creates coordinator from configuration" do
+      config = {
+        "enabled" => true,
+        "policy" => "minor",
+        "supervisor" => "supervisord"
+      }
+
+      coordinator = described_class.from_config(config, project_dir: project_dir)
+
+      expect(coordinator).to be_a(described_class)
+    end
+
+    it "handles nil config by using defaults" do
+      coordinator = described_class.from_config(nil, project_dir: project_dir)
+
+      expect(coordinator).to be_a(described_class)
+    end
+
+    it "handles empty config by using defaults" do
+      coordinator = described_class.from_config({}, project_dir: project_dir)
+
+      expect(coordinator).to be_a(described_class)
+    end
+  end
 end
