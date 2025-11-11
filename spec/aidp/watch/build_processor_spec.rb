@@ -35,6 +35,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     allow(processor).to receive(:checkout_branch)
     allow(processor).to receive(:write_prompt)
     allow(processor).to receive(:stage_and_commit).and_return(true)
+    allow(repository_client).to receive(:most_recent_label_actor).and_return(nil)
   end
 
   after do
@@ -95,6 +96,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(processor_without_workstreams).to receive(:create_pull_request).and_return("https://example.com/pr/77")
       allow(processor_without_workstreams).to receive(:write_prompt)
       allow(processor_without_workstreams).to receive(:stage_and_commit).and_return(true)
+      allow(repository_client).to receive(:most_recent_label_actor).and_return(nil)
     end
 
     it "creates workstream when use_workstreams is true" do
@@ -631,6 +633,140 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(repository_client).to receive(:post_comment)
 
       processor.process(issue)
+    end
+  end
+
+  describe "label actor tagging and PR assignment" do
+    let(:issue_with_author) do
+      issue.merge(author: "issue_author")
+    end
+
+    before do
+      state_store.record_plan(issue_with_author[:number], summary: plan_data["summary"], tasks: plan_data["tasks"], questions: plan_data["questions"], comment_body: "comment", comment_hint: plan_data["comment_hint"])
+
+      # Create config with auto_create_pr enabled
+      config_path = File.join(tmp_dir, ".aidp", "aidp.yml")
+      FileUtils.mkdir_p(File.dirname(config_path))
+      config_hash = {
+        harness: {default_provider: "test_provider"},
+        providers: {test_provider: {type: "usage_based"}},
+        work_loop: {version_control: {auto_create_pr: true, pr_strategy: "draft"}}
+      }
+      File.write(config_path, YAML.dump(config_hash))
+      processor.instance_variable_set(:@config, nil)
+
+      allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+      allow(repository_client).to receive(:remove_labels)
+    end
+
+    describe "clarification handler tagging" do
+      it "tags the label actor in clarification comments when available" do
+        allow(repository_client).to receive(:most_recent_label_actor).with(issue[:number]).and_return("alice")
+        allow(processor).to receive(:run_harness).and_return({
+          status: "needs_clarification",
+          clarification_questions: ["What should happen on error?"]
+        })
+        allow(repository_client).to receive(:replace_labels)
+
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          expect(body).to include("cc @alice")
+          expect(body).to include("Implementation needs clarification")
+        end
+
+        processor.process(issue)
+      end
+
+      it "does not include tag in clarification when label actor is nil" do
+        allow(repository_client).to receive(:most_recent_label_actor).with(issue[:number]).and_return(nil)
+        allow(processor).to receive(:run_harness).and_return({
+          status: "needs_clarification",
+          clarification_questions: ["What should happen on error?"]
+        })
+        allow(repository_client).to receive(:replace_labels)
+
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          expect(body).not_to include("cc @")
+          expect(body).to include("Implementation needs clarification")
+        end
+
+        processor.process(issue)
+      end
+    end
+
+    describe "success handler tagging" do
+      it "tags the label actor in success comments when available" do
+        allow(repository_client).to receive(:most_recent_label_actor).with(issue_with_author[:number]).and_return("bob")
+        allow(processor).to receive(:create_pull_request).and_return("https://example.com/pr/77")
+
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          expect(body).to include("cc @bob")
+          expect(body).to include("Implementation complete")
+        end
+
+        processor.process(issue_with_author)
+      end
+
+      it "does not include tag in success when label actor is nil" do
+        allow(repository_client).to receive(:most_recent_label_actor).with(issue_with_author[:number]).and_return(nil)
+        allow(processor).to receive(:create_pull_request).and_return("https://example.com/pr/77")
+
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          expect(body).not_to include("cc @")
+          expect(body).to include("Implementation complete")
+        end
+
+        processor.process(issue_with_author)
+      end
+    end
+
+    describe "PR assignment" do
+      it "assigns PR to label actor when available" do
+        allow(repository_client).to receive(:most_recent_label_actor).with(issue_with_author[:number]).and_return("charlie")
+        allow(repository_client).to receive(:post_comment)
+
+        expect(repository_client).to receive(:create_pull_request) do |args|
+          expect(args[:assignee]).to eq("charlie")
+          "https://example.com/pr/77"
+        end
+
+        processor.send(:create_pull_request,
+          issue: issue_with_author,
+          branch_name: "test-branch",
+          base_branch: "main",
+          working_dir: tmp_dir)
+      end
+
+      it "falls back to issue author when label actor is nil" do
+        allow(repository_client).to receive(:most_recent_label_actor).with(issue_with_author[:number]).and_return(nil)
+        allow(repository_client).to receive(:post_comment)
+
+        expect(repository_client).to receive(:create_pull_request) do |args|
+          expect(args[:assignee]).to eq("issue_author")
+          "https://example.com/pr/77"
+        end
+
+        processor.send(:create_pull_request,
+          issue: issue_with_author,
+          branch_name: "test-branch",
+          base_branch: "main",
+          working_dir: tmp_dir)
+      end
+
+      it "includes 'Fixes #' in PR body" do
+        allow(repository_client).to receive(:most_recent_label_actor).with(issue_with_author[:number]).and_return("dave")
+        allow(repository_client).to receive(:post_comment)
+
+        expect(repository_client).to receive(:create_pull_request) do |args|
+          expect(args[:body]).to start_with("Fixes ##{issue_with_author[:number]}")
+          "https://example.com/pr/77"
+        end
+
+        processor.send(:create_pull_request,
+          issue: issue_with_author,
+          branch_name: "test-branch",
+          base_branch: "main",
+          working_dir: tmp_dir)
+      end
     end
   end
 end

@@ -38,7 +38,15 @@ RSpec.describe Aidp::Logger do
 
   describe "log levels" do
     it "defaults to info level" do
-      expect(logger.level).to eq(:info)
+      # Clear DEBUG env var for this test
+      original_debug = ENV["DEBUG"]
+      ENV.delete("DEBUG")
+      ENV.delete("AIDP_DEBUG")
+      clean_logger = described_class.new(project_dir)
+      expect(clean_logger.level).to eq(:info)
+      clean_logger.close
+    ensure
+      ENV["DEBUG"] = original_debug if original_debug
     end
 
     it "respects config level" do
