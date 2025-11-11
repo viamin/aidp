@@ -49,7 +49,10 @@ module Aidp
         display_message("🧠 Generating plan for issue ##{number} (#{issue[:title]})", type: :info)
         plan_data = @plan_generator.generate(issue)
 
-        comment_body = build_comment(issue: issue, plan: plan_data)
+        # Fetch the user who added the most recent label
+        label_actor = @repository_client.most_recent_label_actor(number)
+
+        comment_body = build_comment(issue: issue, plan: plan_data, label_actor: label_actor)
         @repository_client.post_comment(number, comment_body)
 
         display_message("💬 Posted plan comment for issue ##{number}", type: :success)
@@ -82,7 +85,7 @@ module Aidp
         end
       end
 
-      def build_comment(issue:, plan:)
+      def build_comment(issue:, plan:, label_actor: nil)
         summary = plan[:summary].to_s.strip
         tasks = Array(plan[:tasks])
         questions = Array(plan[:questions])
@@ -91,6 +94,13 @@ module Aidp
         parts = []
         parts << COMMENT_HEADER
         parts << ""
+
+        # Tag the label actor if available
+        if label_actor
+          parts << "cc @#{label_actor}"
+          parts << ""
+        end
+
         parts << "**Issue**: [##{issue[:number]}](#{issue[:url]})"
         parts << "**Title**: #{issue[:title]}"
         parts << ""

@@ -150,6 +150,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
       allow(processor).to receive(:plan_value).and_return("Implementation complete")
       allow(state_store).to receive(:record_build_status)
       allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:most_recent_label_actor).and_return(nil)
     end
 
     context "when auto_create_pr is disabled" do

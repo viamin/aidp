@@ -410,12 +410,17 @@ module Aidp
           nil
         end
 
+        # Fetch the user who added the most recent label
+        label_actor = @repository_client.most_recent_label_actor(issue[:number])
+
         workstream_note = @use_workstreams ? "\n- Workstream: `#{slug}`" : ""
         pr_line = pr_url ? "\n- Pull Request: #{pr_url}" : ""
+        actor_tag = label_actor ? "cc @#{label_actor}\n\n" : ""
 
         comment = <<~COMMENT
           ✅ Implementation complete for ##{issue[:number]}.
-          - Branch: `#{branch_name}`#{workstream_note}#{pr_line}
+
+          #{actor_tag}- Branch: `#{branch_name}`#{workstream_note}#{pr_line}
 
           Summary:
           #{plan_value(plan_data, "summary")}
@@ -448,10 +453,20 @@ module Aidp
         questions = result[:clarification_questions] || []
         workstream_note = @use_workstreams ? " The workstream `#{slug}` has been preserved." : " The branch has been preserved."
 
+        # Fetch the user who added the most recent label
+        label_actor = @repository_client.most_recent_label_actor(issue[:number])
+
         # Build comment with questions
         comment_parts = []
         comment_parts << "❓ Implementation needs clarification for ##{issue[:number]}."
         comment_parts << ""
+
+        # Tag the label actor if available
+        if label_actor
+          comment_parts << "cc @#{label_actor}"
+          comment_parts << ""
+        end
+
         comment_parts << "The AI agent needs additional information to proceed with implementation:"
         comment_parts << ""
         questions.each_with_index do |question, index|
@@ -690,9 +705,10 @@ module Aidp
         title = "aidp: Resolve ##{issue[:number]} - #{issue[:title]}"
         test_summary = gather_test_summary(working_dir: working_dir)
         body = <<~BODY
+          Fixes ##{issue[:number]}
+
           ## Summary
           - Automated resolution for ##{issue[:number]}
-          - Fixes ##{issue[:number]}
 
           ## Testing
           #{test_summary}
@@ -703,8 +719,18 @@ module Aidp
         pr_strategy = config_value(vcs_config, :pr_strategy, "draft")
         draft = (pr_strategy == "draft")
 
-        # Assign PR to the issue author
-        assignee = issue[:author]
+        # Fetch the user who added the most recent label to assign the PR
+        label_actor = @repository_client.most_recent_label_actor(issue[:number])
+        assignee = label_actor || issue[:author]
+
+        Aidp.log_info(
+          "build_processor",
+          "assigning_pr",
+          issue: issue[:number],
+          assignee: assignee,
+          label_actor: label_actor,
+          fallback_to_author: label_actor.nil?
+        )
 
         output = @repository_client.create_pull_request(
           title: title,
@@ -723,7 +749,8 @@ module Aidp
           issue: issue[:number],
           branch: branch_name,
           base_branch: base_branch,
-          pr_url: pr_url
+          pr_url: pr_url,
+          assignee: assignee
         )
         pr_url
       end

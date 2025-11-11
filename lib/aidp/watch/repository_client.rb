@@ -79,6 +79,10 @@ module Aidp
         add_labels(number, *new_labels) unless new_labels.empty?
       end
 
+      def most_recent_label_actor(number)
+        gh_available? ? most_recent_label_actor_via_gh(number) : nil
+      end
+
       private
 
       def list_issues_via_gh(labels:, state:)
@@ -252,6 +256,58 @@ module Aidp
             raise "Failed to remove label '#{label}' via API (#{response.code})"
           end
         end
+      end
+
+      def most_recent_label_actor_via_gh(number)
+        # Use GitHub GraphQL API via gh cli to fetch the most recent label event actor
+        query = <<~GRAPHQL
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $number) {
+                timelineItems(last: 100, itemTypes: [LABELED_EVENT]) {
+                  nodes {
+                    ... on LabeledEvent {
+                      createdAt
+                      actor {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        cmd = [
+          "gh", "api", "graphql",
+          "-f", "query=#{query}",
+          "-F", "owner=#{owner}",
+          "-F", "repo=#{repo}",
+          "-F", "number=#{number}"
+        ]
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        unless status.success?
+          Aidp.log_warn("repository_client", "Failed to fetch label events via GraphQL", error: stderr.strip)
+          return nil
+        end
+
+        data = JSON.parse(stdout)
+        events = data.dig("data", "repository", "issue", "timelineItems", "nodes") || []
+
+        # Filter out events without actors and sort by createdAt to get most recent
+        valid_events = events.select { |event| event.dig("actor", "login") }
+        return nil if valid_events.empty?
+
+        most_recent = valid_events.max_by { |event| event["createdAt"] }
+        most_recent.dig("actor", "login")
+      rescue JSON::ParserError => e
+        Aidp.log_warn("repository_client", "Failed to parse GraphQL response", error: e.message)
+        nil
+      rescue => e
+        Aidp.log_warn("repository_client", "Unexpected error fetching label actor", error: e.message)
+        nil
       end
 
       def normalize_issue(raw)

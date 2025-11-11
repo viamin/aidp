@@ -42,6 +42,21 @@ module Aidp
           description: "Balanced performance for general-purpose tasks"
         },
         {
+          label: "Google Gemini (multimodal)",
+          value: "gemini",
+          description: "Google's multimodal AI with strong reasoning and vision capabilities"
+        },
+        {
+          label: "Meta Llama (open-source)",
+          value: "llama",
+          description: "Meta's open-source model family, suitable for self-hosting"
+        },
+        {
+          label: "DeepSeek (efficient reasoning)",
+          value: "deepseek",
+          description: "Cost-efficient reasoning models with strong performance"
+        },
+        {
           label: "Mistral (European/open)",
           value: "mistral",
           description: "European provider with open-source focus"

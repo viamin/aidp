@@ -849,5 +849,258 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(providers[:github_copilot][:model_family]).to eq("auto")
       end
     end
+
+    context "when removing a provider" do
+      it "removes provider from fallback list when user confirms removal" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Billing model for anthropic:" => "usage_based",
+            "Preferred model family for anthropic:" => "Anthropic Claude (balanced)",
+            "Select a provider to edit or add:" => ["anthropic", :done],
+            "What would you like to do with 'Anthropic Claude CLI'?" => :remove
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["anthropic"]
+          },
+          yes_map: {
+            "Edit provider configuration details (billing/model family)?" => true,
+            "Add another fallback provider?" => false,
+            "Remove 'Anthropic Claude CLI' from fallback providers?" => true
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "Anthropic Claude CLI" => "anthropic"
+        })
+
+        wizard.run
+
+        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        fallback_providers = harness_config[:fallback_providers]
+        expect(fallback_providers).not_to include("anthropic")
+      end
+
+      it "removes provider from fallback list when deleted from multi-fallback configuration" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Billing model for anthropic:" => "usage_based",
+            "Preferred model family for anthropic:" => "Anthropic Claude (balanced)",
+            "Billing model for github_copilot:" => "subscription",
+            "Preferred model family for github_copilot:" => "Auto (let provider decide)",
+            "Select a provider to edit or add:" => ["anthropic", :done],
+            "What would you like to do with 'Anthropic Claude CLI'?" => :remove
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["anthropic", "github_copilot"]
+          },
+          yes_map: {
+            "Edit provider configuration details (billing/model family)?" => true,
+            "Add another fallback provider?" => false,
+            "Remove 'Anthropic Claude CLI' from fallback providers?" => true
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "Anthropic Claude CLI" => "anthropic",
+          "GitHub Copilot CLI" => "github_copilot"
+        })
+
+        wizard.run
+
+        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        fallback_providers = harness_config[:fallback_providers]
+        expect(fallback_providers).not_to include("anthropic")
+        expect(fallback_providers).to include("github_copilot")
+      end
+
+      it "keeps provider when user declines removal" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Billing model for anthropic:" => "usage_based",
+            "Preferred model family for anthropic:" => "Anthropic Claude (balanced)",
+            "Select a provider to edit or add:" => ["anthropic", :done],
+            "What would you like to do with 'Anthropic Claude CLI'?" => :remove
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["anthropic"]
+          },
+          yes_map: {
+            "Edit provider configuration details (billing/model family)?" => true,
+            "Add another fallback provider?" => false,
+            "Remove 'Anthropic Claude CLI' from fallback providers?" => false
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "Anthropic Claude CLI" => "anthropic"
+        })
+
+        wizard.run
+
+        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        fallback_providers = harness_config[:fallback_providers]
+        expect(fallback_providers).to include("anthropic")
+      end
+    end
+
+    context "with no fallbacks selected" do
+      it "completes wizard successfully without fallback providers" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => []
+          },
+          yes_map: {
+            "No fallback selected. Add one?" => false,
+            "Edit provider configuration details (billing/model family)?" => false
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor"
+        })
+
+        wizard.run
+
+        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        expect(harness_config[:fallback_providers]).to eq([])
+      end
+
+      it "does not prompt for additional fallback when user declines initial offer" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => []
+          },
+          yes_map: {
+            "No fallback selected. Add one?" => false,
+            "Edit provider configuration details (billing/model family)?" => false,
+            "Add another fallback provider?" => false
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "Anthropic Claude CLI" => "anthropic"
+        })
+
+        wizard.run
+
+        add_another_calls = test_prompt.selections.count { |s| s[:title] == "Add another fallback provider?" }
+        expect(add_another_calls).to eq(0)
+      end
+    end
+
+    context "when editing is declined" do
+      it "skips provider editing when user declines" do
+        test_prompt = TestPrompt.new(responses: {
+          select_map: {
+            "Select your primary provider:" => "cursor",
+            "Billing model for cursor:" => "subscription",
+            "Preferred model family for cursor:" => "Auto (let provider decide)",
+            "Billing model for anthropic:" => "usage_based",
+            "Preferred model family for anthropic:" => "Anthropic Claude (balanced)"
+          },
+          multi_select_map: {
+            "Select fallback providers (used if primary fails):" => ["anthropic"]
+          },
+          yes_map: {
+            "Edit provider configuration details (billing/model family)?" => false,
+            "Add another fallback provider?" => false
+          }
+        })
+
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        allow(wizard).to receive(:discover_available_providers).and_return({
+          "Cursor AI" => "cursor",
+          "Anthropic Claude CLI" => "anthropic"
+        })
+
+        wizard.run
+
+        # No edit menu should have been shown
+        edit_calls = test_prompt.selections.count { |s| s[:title] == "Select a provider to edit or add:" }
+        expect(edit_calls).to eq(0)
+      end
+    end
+
+    context "with case-insensitive model family normalization" do
+      it "normalizes uppercase model family values" do
+        wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
+        wizard.instance_variable_get(:@config)[:providers] = {
+          cursor: {type: "usage_based", model_family: "CLAUDE"}
+        }
+        wizard.send(:normalize_existing_model_families!)
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:cursor][:model_family]).to eq("claude")
+      end
+
+      it "normalizes mixed-case model family values" do
+        wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
+        wizard.instance_variable_get(:@config)[:providers] = {
+          cursor: {type: "usage_based", model_family: "Gemini"},
+          anthropic: {type: "usage_based", model_family: "LLaMA"}
+        }
+        wizard.send(:normalize_existing_model_families!)
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:cursor][:model_family]).to eq("gemini")
+        expect(providers[:anthropic][:model_family]).to eq("llama")
+      end
+
+      it "normalizes model family labels case-insensitively" do
+        wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
+        wizard.instance_variable_get(:@config)[:providers] = {
+          cursor: {type: "usage_based", model_family: "anthropic claude (balanced)"}
+        }
+        wizard.send(:normalize_existing_model_families!)
+        providers = wizard.instance_variable_get(:@config)[:providers]
+        expect(providers[:cursor][:model_family]).to eq("claude")
+      end
+    end
+  end
+
+  describe "ProviderRegistry integration" do
+    it "validates new model families are available" do
+      expect(Aidp::Setup::ProviderRegistry.valid_model_family?("gemini")).to be true
+      expect(Aidp::Setup::ProviderRegistry.valid_model_family?("llama")).to be true
+      expect(Aidp::Setup::ProviderRegistry.valid_model_family?("deepseek")).to be true
+    end
+
+    it "provides labels for new model families" do
+      expect(Aidp::Setup::ProviderRegistry.model_family_label("gemini")).to eq("Google Gemini (multimodal)")
+      expect(Aidp::Setup::ProviderRegistry.model_family_label("llama")).to eq("Meta Llama (open-source)")
+      expect(Aidp::Setup::ProviderRegistry.model_family_label("deepseek")).to eq("DeepSeek (efficient reasoning)")
+    end
+
+    it "includes new model families in choices" do
+      choices = Aidp::Setup::ProviderRegistry.model_family_choices
+      values = choices.map(&:last)
+      expect(values).to include("gemini", "llama", "deepseek")
+    end
   end
 end
