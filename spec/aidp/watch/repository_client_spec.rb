@@ -613,4 +613,117 @@ RSpec.describe Aidp::Watch::RepositoryClient do
       end
     end
   end
+
+  describe "#most_recent_label_actor" do
+    let(:issue_number) { 123 }
+
+    context "when GitHub CLI is available" do
+      let(:gh_available) { true }
+
+      it "fetches the most recent label actor via GraphQL" do
+        graphql_response = {
+          "data" => {
+            "repository" => {
+              "issue" => {
+                "timelineItems" => {
+                  "nodes" => [
+                    {
+                      "createdAt" => "2023-01-01T10:00:00Z",
+                      "actor" => {"login" => "user1"}
+                    },
+                    {
+                      "createdAt" => "2023-01-02T10:00:00Z",
+                      "actor" => {"login" => "user2"}
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+
+        allow(Open3).to receive(:capture3).and_return([JSON.dump(graphql_response), "", double(success?: true)])
+        result = client.most_recent_label_actor(issue_number)
+
+        expect(result).to eq("user2")
+      end
+
+      it "returns nil when there are no label events" do
+        graphql_response = {
+          "data" => {
+            "repository" => {
+              "issue" => {
+                "timelineItems" => {
+                  "nodes" => []
+                }
+              }
+            }
+          }
+        }
+
+        allow(Open3).to receive(:capture3).and_return([JSON.dump(graphql_response), "", double(success?: true)])
+        result = client.most_recent_label_actor(issue_number)
+
+        expect(result).to be_nil
+      end
+
+      it "filters out events without actors" do
+        graphql_response = {
+          "data" => {
+            "repository" => {
+              "issue" => {
+                "timelineItems" => {
+                  "nodes" => [
+                    {
+                      "createdAt" => "2023-01-01T10:00:00Z",
+                      "actor" => nil
+                    },
+                    {
+                      "createdAt" => "2023-01-02T10:00:00Z",
+                      "actor" => {"login" => "user2"}
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+
+        allow(Open3).to receive(:capture3).and_return([JSON.dump(graphql_response), "", double(success?: true)])
+        result = client.most_recent_label_actor(issue_number)
+
+        expect(result).to eq("user2")
+      end
+
+      it "returns nil when GraphQL query fails" do
+        allow(Open3).to receive(:capture3).and_return(["", "GraphQL error", double(success?: false)])
+        result = client.most_recent_label_actor(issue_number)
+
+        expect(result).to be_nil
+      end
+
+      it "returns nil when JSON parsing fails" do
+        allow(Open3).to receive(:capture3).and_return(["invalid json", "", double(success?: true)])
+        result = client.most_recent_label_actor(issue_number)
+
+        expect(result).to be_nil
+      end
+
+      it "returns nil on unexpected errors" do
+        allow(Open3).to receive(:capture3).and_raise(StandardError.new("Unexpected error"))
+        result = client.most_recent_label_actor(issue_number)
+
+        expect(result).to be_nil
+      end
+    end
+
+    context "when GitHub CLI is not available" do
+      let(:gh_available) { false }
+
+      it "returns nil" do
+        result = client.most_recent_label_actor(issue_number)
+        expect(result).to be_nil
+      end
+    end
+  end
 end
