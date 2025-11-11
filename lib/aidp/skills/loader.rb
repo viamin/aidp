@@ -34,7 +34,7 @@ module Aidp
           raise Aidp::Errors::ValidationError, "Skill file not found: #{file_path}"
         end
 
-        content = File.read(file_path)
+        content = File.read(file_path, encoding: "UTF-8")
         load_from_string(content, source_path: file_path, provider: provider)
       end
 
@@ -139,6 +139,8 @@ module Aidp
       # @return [Array(Hash, String)] Tuple of [metadata, markdown_content]
       # @raise [Aidp::Errors::ValidationError] if frontmatter is missing or invalid
       def self.parse_frontmatter(content, source_path:)
+        # Ensure content is UTF-8 encoded
+        content = content.encode("UTF-8", invalid: :replace, undef: :replace) unless content.encoding == Encoding::UTF_8
         lines = content.lines
 
         unless lines.first&.strip == "---"

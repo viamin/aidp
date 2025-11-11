@@ -82,7 +82,7 @@ module Aidp
         guide_path = File.join(@project_dir, "docs", "LLM_STYLE_GUIDE.md")
         return nil unless File.exist?(guide_path)
 
-        File.read(guide_path)
+        File.read(guide_path, encoding: "UTF-8")
       end
 
       # Parse markdown content into fragments
@@ -90,6 +90,8 @@ module Aidp
       # @param content [String] Markdown content
       # @return [Array<Fragment>] Parsed fragments
       def parse_fragments(content)
+        # Ensure content is UTF-8 encoded
+        content = content.encode("UTF-8", invalid: :replace, undef: :replace) unless content.encoding == Encoding::UTF_8
         lines = content.lines
         current_content = []
         current_heading = nil
