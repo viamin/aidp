@@ -382,8 +382,8 @@ module Aidp
 
         # Check if PR should be created based on VCS preferences
         # For watch mode, default to creating PRs (set to false to disable)
-        vcs_config = config.dig(:work_loop, :version_control) || {}
-        auto_create_pr = vcs_config.fetch(:auto_create_pr, true)
+        vcs_config = config_dig(:work_loop, :version_control) || {}
+        auto_create_pr = config_value(vcs_config, :auto_create_pr, true)
 
         pr_url = if !changes_committed
           Aidp.log_info(
@@ -630,15 +630,15 @@ module Aidp
       end
 
       def build_commit_message(issue)
-        vcs_config = config.dig(:work_loop, :version_control) || {}
+        vcs_config = config_dig(:work_loop, :version_control) || {}
 
         # Base message components
         issue_ref = "##{issue[:number]}"
         title = issue[:title]
 
         # Determine commit prefix based on configuration
-        prefix = if vcs_config[:conventional_commits]
-          commit_style = vcs_config[:commit_style] || "default"
+        prefix = if config_value(vcs_config, :conventional_commits)
+          commit_style = config_value(vcs_config, :commit_style, "default")
           emoji = (commit_style == "emoji") ? "✨ " : ""
           scope = (commit_style == "angular") ? "(implementation)" : ""
           "#{emoji}feat#{scope}: "
@@ -650,7 +650,7 @@ module Aidp
         main_message = "#{prefix}implement #{issue_ref} #{title}"
 
         # Add co-author attribution if configured
-        if vcs_config.fetch(:co_author_ai, true)
+        if config_value(vcs_config, :co_author_ai, true)
           provider_name = detect_current_provider || "AI Agent"
           co_author = "\n\nCo-authored-by: #{provider_name} <ai@aidp.dev>"
           main_message + co_author
@@ -673,9 +673,32 @@ module Aidp
         @config ||= begin
           config_manager = Aidp::Harness::ConfigManager.new(@project_dir)
           config_manager.config || {}
-        rescue
+        rescue => e
+          Aidp.log_error("build_processor", "config_load_exception", project_dir: @project_dir, error: e.message, backtrace: e.backtrace&.first(5))
           {}
         end
+      end
+
+      # Helper to safely dig into config with both string and symbol keys
+      def config_dig(*keys)
+        value = config
+        keys.each do |key|
+          return nil unless value.is_a?(Hash)
+          # Try both symbol and string versions of the key
+          value = value[key] || value[key.to_s] || value[key.to_sym]
+          return nil if value.nil?
+        end
+        value
+      end
+
+      # Helper to get config value with both string and symbol key support
+      def config_value(hash, key, default = nil)
+        return default unless hash.is_a?(Hash)
+        # Check each key variation explicitly to handle false/nil values correctly
+        return hash[key] if hash.key?(key)
+        return hash[key.to_s] if hash.key?(key.to_s)
+        return hash[key.to_sym] if hash.key?(key.to_sym)
+        default
       end
 
       def create_pull_request(issue:, branch_name:, base_branch:, working_dir: @project_dir)
@@ -692,8 +715,8 @@ module Aidp
         BODY
 
         # Determine if PR should be draft based on VCS preferences
-        vcs_config = config.dig(:work_loop, :version_control) || {}
-        pr_strategy = vcs_config[:pr_strategy] || "draft"
+        vcs_config = config_dig(:work_loop, :version_control) || {}
+        pr_strategy = config_value(vcs_config, :pr_strategy, "draft")
         draft = (pr_strategy == "draft")
 
         # Fetch the user who added the most recent label to assign the PR

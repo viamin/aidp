@@ -15,6 +15,7 @@ RSpec.describe Aidp::Worktree, "integration with real git", :integration do
       system("git", "init", out: File::NULL, err: File::NULL)
       system("git", "config", "user.name", "Test User", out: File::NULL, err: File::NULL)
       system("git", "config", "user.email", "test@example.com", out: File::NULL, err: File::NULL)
+      system("git", "config", "commit.gpgsign", "false", out: File::NULL, err: File::NULL)
 
       # Create initial commit
       File.write("README.md", "# Test\n")
@@ -43,10 +44,10 @@ RSpec.describe Aidp::Worktree, "integration with real git", :integration do
     expect(File.exist?(git_file)).to be true
 
     # Verify branch exists
-    branches = Dir.chdir(project_dir) do
-      `git branch`.lines.map(&:strip).map { |b| b.gsub(/^[*+]\s+/, "") }
+    branch_exists = Dir.chdir(project_dir) do
+      system("git", "show-ref", "--verify", "--quiet", "refs/heads/aidp/real-worktree")
     end
-    expect(branches).to include("aidp/real-worktree")
+    expect(branch_exists).to be true
   end
 
   it "removes a real git worktree" do

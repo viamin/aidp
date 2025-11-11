@@ -21,7 +21,7 @@ This guide provides architectural patterns, design decisions, and implementation
 
 ### Hexagonal Architecture Layers
 
-```
+```plaintext
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                         │
 │  ┌──────────────────┐           ┌──────────────────┐        │
@@ -65,6 +65,7 @@ This guide provides architectural patterns, design decisions, and implementation
 ### Core Entities
 
 #### LabelEvent (Value Object)
+
 ```ruby
 # Represents a single label addition event
 {
@@ -76,6 +77,7 @@ This guide provides architectural patterns, design decisions, and implementation
 ```
 
 #### Actor (Value Object)
+
 ```ruby
 # Represents the GitHub user who performed an action
 {
@@ -87,11 +89,13 @@ This guide provides architectural patterns, design decisions, and implementation
 ### Domain Services
 
 #### LabelActorResolver
+
 **Responsibility**: Determine which user to tag/assign based on label events
 
 **Design Pattern**: Strategy Pattern + Service Object
 
 **Contract**:
+
 ```ruby
 class LabelActorResolver
   # @param label_events [Array<Hash>] Array of label events
@@ -110,6 +114,7 @@ end
 ```
 
 **Implementation Strategy**:
+
 1. Filter events to only "labeled" type
 2. Filter to only the specified label names
 3. Sort by created_at descending
@@ -127,6 +132,7 @@ end
 **Application**: `RepositoryClient` acts as a repository for GitHub resources
 
 **Benefits**:
+
 - Testable without hitting real GitHub API
 - Centralized API interaction logic
 - Easy to swap between gh CLI and REST API
@@ -138,6 +144,7 @@ end
 **Application**: `LabelActorResolver` service
 
 **Benefits**:
+
 - Single Responsibility Principle
 - Reusable across PlanProcessor and BuildProcessor
 - Easily testable in isolation
@@ -149,6 +156,7 @@ end
 **Application**: GraphQL query execution and response parsing in `RepositoryClient`
 
 **Benefits**:
+
 - Isolates GraphQL-specific code
 - Domain layer doesn't know about GraphQL structure
 - Easy to change query structure without affecting callers
@@ -160,6 +168,7 @@ end
 **Application**: Comment building in PlanProcessor and BuildProcessor
 
 **Current Structure**:
+
 ```ruby
 # Template in processors
 def build_comment(issue:, plan:, actor: nil)
@@ -178,6 +187,7 @@ end
 **Application**: When no label actor is found
 
 **Implementation**:
+
 ```ruby
 actor = resolve_label_actor(issue_number) || AnonymousActor.new
 comment = build_comment_with_actor(actor)
@@ -202,6 +212,7 @@ end
 ### Design by Contract Principles
 
 All public methods must specify:
+
 1. **Preconditions**: What must be true before the method executes
 2. **Postconditions**: What will be true after the method executes
 3. **Invariants**: What remains true throughout the object's lifetime
@@ -271,11 +282,13 @@ end
 #### New Method: `fetch_label_events`
 
 **Signature**:
+
 ```ruby
 def fetch_label_events(issue_number)
 ```
 
 **GraphQL Query**:
+
 ```graphql
 query($owner: String!, $repo: String!, $issueNumber: Int!) {
   repository(owner: $owner, name: $repo) {
@@ -308,6 +321,7 @@ query($owner: String!, $repo: String!, $issueNumber: Int!) {
 ```
 
 **Implementation Strategy**:
+
 ```ruby
 def fetch_label_events(issue_number)
   raise "GraphQL not available without gh CLI" unless gh_available?
@@ -355,6 +369,7 @@ end
 #### Updated Method: `create_pull_request`
 
 **Current Signature**:
+
 ```ruby
 def create_pull_request(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
 ```
@@ -362,6 +377,7 @@ def create_pull_request(title:, body:, head:, base:, issue_number:, draft: false
 **Enhancement**: Already supports `assignee` parameter - just needs to be used
 
 **Implementation Note**: The assignee parameter is already threaded through to `create_pull_request_via_gh`:
+
 ```ruby
 cmd += ["--assignee", assignee] if assignee
 ```
@@ -371,11 +387,13 @@ cmd += ["--assignee", assignee] if assignee
 #### Updated Method: `process`
 
 **Changes**:
+
 1. Fetch label actor after generating plan
 2. Pass actor to comment builder
 3. Include actor mention in comment
 
 **Implementation**:
+
 ```ruby
 def process(issue)
   number = issue[:number]
@@ -419,10 +437,12 @@ end
 #### Updated Method: `build_comment`
 
 **Changes**:
+
 1. Accept optional `actor` parameter
 2. Add mention in header or next steps
 
 **Implementation Strategy 1** (Header Mention):
+
 ```ruby
 def build_comment(issue:, plan:, actor: nil)
   summary = plan[:summary].to_s.strip
@@ -444,6 +464,7 @@ end
 ```
 
 **Implementation Strategy 2** (Next Steps Mention - RECOMMENDED):
+
 ```ruby
 def build_comment(issue:, plan:, actor: nil)
   # ... build comment parts ...
@@ -474,10 +495,12 @@ end
 #### Updated Method: `handle_clarification_request`
 
 **Changes**:
+
 1. Fetch label actor
 2. Include mention in clarification comment
 
 **Implementation**:
+
 ```ruby
 def handle_clarification_request(issue:, slug:, result:)
   questions = result[:clarification_questions] || []
@@ -522,11 +545,13 @@ end
 #### Updated Method: `handle_success`
 
 **Changes**:
+
 1. Fetch label actor for most recent build label
 2. Pass to PR creation
 3. Include mention in success comment
 
 **Implementation**:
+
 ```ruby
 def handle_success(issue:, slug:, branch_name:, base_branch:, plan_data:, working_dir:)
   changes_committed = stage_and_commit(issue, working_dir: working_dir)
@@ -583,11 +608,13 @@ end
 #### Updated Method: `create_pull_request`
 
 **Changes**:
+
 1. Accept assignee parameter
 2. Pass to repository_client
 3. Update PR body with "Fixes #" syntax
 
 **Implementation**:
+
 ```ruby
 def create_pull_request(issue:, branch_name:, base_branch:, working_dir: @project_dir, assignee: nil)
   title = "aidp: Resolve ##{issue[:number]} - #{issue[:title]}"
@@ -639,6 +666,7 @@ end
 #### New Private Method: `fetch_label_actor`
 
 **Implementation**:
+
 ```ruby
 private
 
@@ -668,6 +696,7 @@ end
 **File**: `spec/aidp/watch/repository_client_spec.rb`
 
 **Test Cases**:
+
 ```ruby
 describe "#fetch_label_events" do
   context "when GitHub CLI is available" do
@@ -724,6 +753,7 @@ end
 **File**: `spec/aidp/watch/plan_processor_spec.rb`
 
 **Test Cases**:
+
 ```ruby
 describe "#process" do
   context "when label actor is found" do
@@ -782,6 +812,7 @@ end
 **File**: `spec/aidp/watch/build_processor_spec.rb`
 
 **Test Cases**:
+
 ```ruby
 describe "#handle_clarification_request" do
   let(:result) { {status: "needs_clarification", clarification_questions: ["Q1", "Q2"]} }
@@ -859,6 +890,7 @@ end
 **File**: `spec/aidp/watch/build_processor_vcs_spec.rb`
 
 **Test Cases**:
+
 ```ruby
 describe "PR body generation" do
   it "includes Fixes syntax at the beginning" do
@@ -887,6 +919,7 @@ end
 **Approach**: Use tmux-based testing for end-to-end verification
 
 **Test Scenario**:
+
 1. Set up test repository with labeled issue
 2. Run watch mode
 3. Verify comment posted with correct mention
@@ -915,12 +948,14 @@ end
 ### Principle: Fail Fast for Programmer Errors, Graceful Degradation for External Failures
 
 #### Fail Fast (Raise Errors)
+
 - Invalid method arguments (precondition violations)
 - GitHub CLI not available when required
 - Malformed GraphQL responses that indicate bugs
 - Contract violations
 
 #### Graceful Degradation (Log and Continue)
+
 - Label events not found (return empty array)
 - Actor resolution returns nil (proceed without mention)
 - GraphQL API temporary failures (log warning, return nil)
@@ -985,6 +1020,7 @@ Aidp.log_error("plan_processor", "graphql_query_failed",
 ## Implementation Checklist
 
 ### Phase 1: Infrastructure (RepositoryClient)
+
 - [ ] Add `fetch_label_events` method with GraphQL query
 - [ ] Implement GraphQL query builder
 - [ ] Implement GraphQL response parser
@@ -994,12 +1030,14 @@ Aidp.log_error("plan_processor", "graphql_query_failed",
 - [ ] Add logging for all GraphQL operations
 
 ### Phase 2: Domain Logic (Actor Resolution)
+
 - [ ] Implement `resolve_actor_from_events` helper
 - [ ] Handle edge cases (no events, bot actors, multiple labels)
 - [ ] Add unit tests for actor resolution logic
 - [ ] Add logging for actor resolution decisions
 
 ### Phase 3: PlanProcessor Integration
+
 - [ ] Add `fetch_label_actor` method
 - [ ] Update `process` to fetch actor
 - [ ] Update `build_comment` to accept actor parameter
@@ -1008,6 +1046,7 @@ Aidp.log_error("plan_processor", "graphql_query_failed",
 - [ ] Add integration tests for full flow
 
 ### Phase 4: BuildProcessor Integration
+
 - [ ] Add `fetch_label_actor` method (reuse logic from PlanProcessor)
 - [ ] Update `handle_clarification_request` with actor mention
 - [ ] Update `handle_success` with actor mention
@@ -1018,6 +1057,7 @@ Aidp.log_error("plan_processor", "graphql_query_failed",
 - [ ] Add integration tests for PR creation and issue closure
 
 ### Phase 5: Testing and Validation
+
 - [ ] Run full test suite and ensure all tests pass
 - [ ] Test with real GitHub repository (manual testing)
 - [ ] Verify GraphQL query performance
@@ -1054,11 +1094,13 @@ end
 ### Rate Limiting
 
 **GitHub GraphQL API Limits**:
+
 - 5,000 points per hour
 - Each query costs points based on complexity
 - Monitor `X-RateLimit-*` headers
 
 **Mitigation**:
+
 ```ruby
 def fetch_label_events(issue_number)
   response = execute_graphql_query(query, variables)
@@ -1096,12 +1138,14 @@ end
 ### Observability
 
 **Metrics to Track**:
+
 - GraphQL query latency
 - Actor resolution success rate
 - PR assignment success rate
 - Issue auto-closure rate
 
 **Implementation**:
+
 ```ruby
 def fetch_label_events(issue_number)
   start_time = Time.now
@@ -1225,6 +1269,7 @@ This implementation guide provides:
 7. **Observability**: Extensive logging and monitoring recommendations
 
 The implementation follows SOLID principles:
+
 - **S**: Single Responsibility - Each class/method has one reason to change
 - **O**: Open/Closed - Extension points through dependency injection
 - **L**: Liskov Substitution - Null Object pattern for missing actors
@@ -1232,6 +1277,7 @@ The implementation follows SOLID principles:
 - **D**: Dependency Inversion - Depend on abstractions (RepositoryClient interface)
 
 Domain-Driven Design principles:
+
 - **Ubiquitous Language**: LabelEvent, Actor, resolve_actor, mention
 - **Value Objects**: LabelEvent, Actor (immutable data structures)
 - **Domain Services**: LabelActorResolver (stateless domain logic)

@@ -2615,6 +2615,7 @@ RSpec.describe Aidp::CLI, "workstream commands" do
       system("git", "init", "-q")
       system("git", "config", "user.name", "Test User")
       system("git", "config", "user.email", "test@example.com")
+      system("git", "config", "commit.gpgsign", "false")
       File.write("README.md", "# Test Project")
       system("git", "add", ".")
       system("git", "commit", "-q", "-m", "Initial commit")
@@ -2761,11 +2762,14 @@ RSpec.describe Aidp::CLI, "workstream commands" do
     it "supports --base-branch option" do
       # Create a feature branch
       Dir.chdir(project_dir) do
+        # Get the current branch (the initial branch created by git init)
+        initial_branch = `git branch --show-current`.strip
         system("git", "checkout", "-q", "-b", "feature")
         File.write("feature.txt", "feature content")
         system("git", "add", ".")
         system("git", "commit", "-q", "-m", "Add feature")
-        system("git", "checkout", "-q", "master")
+        # Go back to initial branch
+        system("git", "checkout", "-q", initial_branch)
       end
 
       output = capture_output do
