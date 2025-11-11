@@ -66,5 +66,87 @@ This document tracks potential future enhancements and refactors identified duri
 - [ ] Support exporting current provider setup as JSON for external tooling.
 - [ ] Integrate with an analytics module to track provider switching frequency (for future automated suggestions).
 
+## Tool Configuration Expansion (Issue #150) - MVP Complete, Enhancements Pending
+
+- [ ] Fix /tools REPL command tests (9 failing tests need config fixes in spec/aidp/execute/repl_macros_spec.rb:655-928)
+- [ ] Update CONFIGURATION.md with coverage tools section, VCS behavior section, interactive testing section, and model family section
+- [ ] Update INTERACTIVE_REPL.md with /tools command reference and examples
+- [ ] Work loop integration: Execute coverage commands and parse reports
+- [ ] Work loop integration: Execute interactive tests (MCP tools, expect scripts, AppleScript)
+- [ ] Work loop integration: Apply VCS behavior (staging, committing, conventional commits)
+- [ ] Work loop integration: Use model_family field for provider selection and fallback logic
+
+## Skills System - Complete, Optional Enhancements Available
+
+- [ ] --open-editor option to open skill content in $EDITOR (low priority, TTY::Prompt already provides editor integration)
+- [ ] Harness integration for automatic skill selection during workflow execution
+- [ ] REPL integration with /skill commands for interactive skill management
+- [ ] Init integration to offer skill creation during project setup (aidp init)
+- [ ] Tab completion for shell autocompletion of skill commands
+- [ ] Telemetry for skill usage tracking (optional, privacy considerations)
+
+## Thinking Depth System - MVP Complete, Advanced Features Pending
+
+### Phase 2: Intelligent Coordinator Integration
+- [ ] Implement ComplexityEstimator for task analysis
+- [ ] Coordinator tier selection based on complexity estimation
+- [ ] Escalation & backoff policy (escalate on N failures, de-escalate on success)
+- [ ] Provider switching for tier (switch provider if current doesn't support required tier)
+
+### Phase 3: Advanced Features
+- [ ] Per-skill/template tier overrides in configuration
+- [ ] Permission modes by tier (safe/tools/dangerous permissions based on tier)
+- [ ] Plain language control for tier selection (parse user messages for tier hints)
+- [ ] Timeline & evidence pack integration (log tier changes to work_loop.jsonl)
+
+### Testing & Validation
+- [ ] Performance benchmarks (latency impact of tier switching)
+- [ ] Real-world cost tracking in production usage
+
+## Parallel Workstreams - Core Complete, Polish Pending
+
+### Testing
+- [ ] Integration tests for end-to-end parallel execution
+- [ ] System tests for resource monitoring and performance benchmarks
+- [ ] Failure recovery scenario testing
+
+### Documentation
+- [ ] User guide with parallel execution examples
+- [ ] Performance tuning guide (optimal concurrency settings)
+- [ ] Troubleshooting guide for parallel execution issues
+- [ ] Best practices document for parallel workflows
+
+### Future Enhancements
+- [ ] Priority queue for workstream scheduling (high/normal/low priorities)
+- [ ] Real-time progress dashboard with live status for all running workstreams
+- [ ] Dependency management (declare workstream dependencies, automatic ordering)
+- [ ] Smart scheduling based on resource requirements and availability
+
+## Zero Framework Cognition (ZFC) - Phase 1 Foundation Complete, Phases 2-4 Pending
+
+### Phase 1 Remaining Items
+- [ ] Performance benchmarks for ZFC decision-making latency
+- [ ] Real-world cost tracking (requires production deployment with ZFC enabled)
+
+### Phase 2: Decision Logic (Core ZFC)
+- [ ] AI-driven provider selection (replace load calculation formula with AI decision)
+- [ ] AI-driven tier escalation (replace heuristic thresholds with AI judgment)
+- [ ] AI-based workflow routing (replace pattern matching with AI selection)
+- [ ] Integration testing for Phase 2 features
+- [ ] Documentation updates for AI decision-making
+
+### Phase 3: Quality Judgments (Polish)
+- [ ] AI-driven health assessment (replace scoring formula with AI evaluation)
+- [ ] AI-based project analysis (replace pattern matching with AI analysis)
+- [ ] Testing & refinement for Phase 3 features
+
+### Phase 4: Documentation & Governance
+- [ ] Create ZFC_GUIDELINES.md with compliant vs violated pattern examples
+- [ ] Update STYLE_GUIDE.md with ZFC section
+- [ ] Update LLM_STYLE_GUIDE.md with ZFC section
+- [ ] Create scripts/check_zfc_compliance.rb for automated ZFC violation detection
+- [ ] Add CI check for ZFC compliance in new PRs
+- [ ] Add to pre-commit hooks (optional)
+
 ---
-Generated on: #{Time.now.utc.iso8601}
+Last Updated: 2025-11-11
