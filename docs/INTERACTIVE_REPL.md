@@ -753,6 +753,7 @@ Context now: 16,500 / 20,000 tokens (82.5%)
 ```
 
 **Use Cases**:
+
 - Understand why the agent's responses changed
 - Check if optimization is affecting quality
 - Force full context when precision is critical
@@ -845,6 +846,7 @@ Most recent completion: 2 hours ago (Task #3)
 ```
 
 **Use Cases**:
+
 - Track work across multiple sessions
 - Remember what needs to be done
 - Monitor long-term feature development
