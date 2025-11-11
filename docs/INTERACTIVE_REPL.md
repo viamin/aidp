@@ -645,6 +645,213 @@ See [THINKING_DEPTH.md](THINKING_DEPTH.md) for complete thinking depth documenta
 
 ---
 
+### Session Management
+
+#### `/background`
+
+Detach REPL and enter background daemon mode.
+
+**Usage:**
+
+```text
+/background
+```
+
+**Behavior:**
+
+- Detaches the current REPL session
+- Work loop continues running in background
+- Session becomes a background job (see `aidp jobs list`)
+- REPL exits, returning you to your shell
+
+**Example:**
+
+```text
+aidp[5]> /background
+Detaching REPL and entering background mode...
+Background job ID: 20251111_143022_abc123
+Monitor with: aidp jobs status 20251111_143022_abc123
+$
+```
+
+**Use Case**: You want to start a long-running task interactively, provide some initial feedback, then detach and continue working.
+
+---
+
+### Prompt Optimization
+
+#### `/prompt`
+
+Inspect and control prompt optimization during execution.
+
+**Subcommands:**
+
+- `/prompt explain` - Show why prompt was optimized
+- `/prompt stats` - Display token savings statistics
+- `/prompt expand` - Force expand truncated sections
+- `/prompt reset` - Reset optimization and use full prompts
+
+**Usage:**
+
+```text
+/prompt explain
+/prompt stats
+/prompt expand
+/prompt reset
+```
+
+**Example - Explain:**
+
+```text
+aidp[8]> /prompt explain
+
+Prompt Optimization Status
+───────────────────────────────────────
+Enabled: Yes
+Trigger: Context length exceeded 80% threshold (16,000 / 20,000 tokens)
+
+Optimizations Applied:
+  • PLAN section: truncated oldest 5 tasks (saving ~1,200 tokens)
+  • PROMPT section: truncated file examples (saving ~800 tokens)
+  • Total savings: ~2,000 tokens
+
+Expandable sections: PLAN, PROMPT
+Use /prompt expand to restore full content
+```
+
+**Example - Stats:**
+
+```text
+aidp[8]> /prompt stats
+
+Token Usage Statistics
+───────────────────────────────────────
+Current context: 14,500 / 20,000 tokens (72.5%)
+Saved by optimization: 2,000 tokens (10.0%)
+Without optimization would be: 16,500 tokens (82.5%)
+
+Breakdown:
+  PLAN truncation: 1,200 tokens saved
+  PROMPT truncation: 800 tokens saved
+```
+
+**Example - Expand:**
+
+```text
+aidp[8]> /prompt expand
+Expanding all truncated prompt sections...
+Context now: 16,500 / 20,000 tokens (82.5%)
+Warning: Near context limit threshold
+```
+
+**Example - Reset:**
+
+```text
+aidp[8]> /prompt reset
+Prompt optimization reset. Using full prompts.
+Context now: 16,500 / 20,000 tokens (82.5%)
+```
+
+**Use Cases**:
+- Understand why the agent's responses changed
+- Check if optimization is affecting quality
+- Force full context when precision is critical
+- Monitor token usage during long sessions
+
+---
+
+### Task Management
+
+#### `/tasks`
+
+Manage persistent task list that persists across work loop sessions.
+
+**Subcommands:**
+
+- `/tasks list` - Show all tasks
+- `/tasks show <id>` - Show task details
+- `/tasks done <id>` - Mark task as completed
+- `/tasks abandon <id>` - Abandon/remove task
+- `/tasks stats` - Show completion statistics
+
+**Usage:**
+
+```text
+/tasks list
+/tasks show 3
+/tasks done 3
+/tasks abandon 7
+/tasks stats
+```
+
+**Example - List:**
+
+```text
+aidp[5]> /tasks list
+
+Persistent Task List
+───────────────────────────────────────
+  1. [ ] Implement user authentication
+  2. [x] Add login form validation
+  3. [ ] Write unit tests for auth module
+  4. [ ] Update API documentation
+  5. [x] Fix password reset flow
+  6. [ ] Add 2FA support
+
+Status: 2 / 6 completed (33.3%)
+```
+
+**Example - Show:**
+
+```text
+aidp[5]> /tasks show 3
+
+Task #3
+───────────────────────────────────────
+Description: Write unit tests for auth module
+Status: Pending
+Added: 2025-11-10 14:22:15
+Dependencies: Task #1 (Implement user authentication)
+
+Notes:
+- Cover login, logout, registration
+- Test password validation edge cases
+- Mock external auth providers
+```
+
+**Example - Done:**
+
+```text
+aidp[5]> /tasks done 3
+✓ Task #3 marked as completed
+Progress: 3 / 6 tasks (50.0%)
+```
+
+**Example - Stats:**
+
+```text
+aidp[5]> /tasks stats
+
+Task Completion Statistics
+───────────────────────────────────────
+Total tasks: 6
+Completed: 3 (50.0%)
+Pending: 3 (50.0%)
+Abandoned: 0 (0.0%)
+
+Average time to complete: 2.5 days
+Oldest pending task: 5 days (Task #1)
+Most recent completion: 2 hours ago (Task #3)
+```
+
+**Use Cases**:
+- Track work across multiple sessions
+- Remember what needs to be done
+- Monitor long-term feature development
+- Share task state between team members (when tasks.yml is committed)
+
+---
+
 ### Standard REPL Macros
 
 All standard REPL macros from [REPL_REFERENCE.md](REPL_REFERENCE.md) are also available:
