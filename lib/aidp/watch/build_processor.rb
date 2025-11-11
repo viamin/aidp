@@ -355,7 +355,7 @@ module Aidp
         FileUtils.mkdir_p(File.dirname(target_config))
 
         # Only copy when target missing or differs
-        if !File.exist?(target_config) || File.read(source_config) != File.read(target_config)
+        if !File.exist?(target_config) || File.read(source_config, encoding: "UTF-8") != File.read(target_config, encoding: "UTF-8")
           FileUtils.cp(source_config, target_config)
         end
       rescue => e
@@ -760,7 +760,7 @@ module Aidp
           log_path = File.join(".aidp", "logs", "test_runner.log")
           return "- Fix-forward harness executed; refer to #{log_path}" unless File.exist?(log_path)
 
-          recent = File.readlines(log_path).last(20).map(&:strip).reject(&:empty?)
+          recent = File.readlines(log_path, encoding: "UTF-8").last(20).map(&:strip).reject(&:empty?)
           if recent.empty?
             "- Fix-forward harness executed successfully."
           else
