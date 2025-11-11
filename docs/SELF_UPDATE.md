@@ -17,6 +17,7 @@ This guide explains how to configure and use Aidp's self-updating functionality 
 Aidp can automatically update itself when running in watch mode inside devcontainers. This ensures you're always running the latest version without manual intervention.
 
 **Key Features:**
+
 - Semver-based update policies (exact, patch, minor, major)
 - Checkpoint system preserves watch mode state across updates
 - Restart loop protection prevents infinite failures
@@ -189,6 +190,7 @@ aidp settings auto-update status
 ```
 
 **Output:**
+
 ```
 Auto-Update Configuration
 ============================================================
@@ -266,6 +268,7 @@ Checkpoints preserve watch mode state across updates.
 **Location:** `.aidp/checkpoints/`
 
 **Contents:**
+
 ```json
 {
   "checkpoint_id": "uuid-v4",
@@ -298,6 +301,7 @@ Checkpoints preserve watch mode state across updates.
 ```
 
 **Lifecycle:**
+
 1. Created before update (exit code 75)
 2. Validated on next boot (checksum, version compatibility)
 3. Restored to resume watch mode
@@ -584,6 +588,7 @@ bash support/supervisord/aidp-watch-wrapper.sh
 ---
 
 For more information:
+
 - [Configuration Reference](CONFIGURATION.md)
 - [Development Containers](DEVELOPMENT_CONTAINER.md)
 - [Watch Mode Safety](WATCH_MODE_SAFETY.md)

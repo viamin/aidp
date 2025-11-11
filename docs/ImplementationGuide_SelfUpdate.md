@@ -187,11 +187,13 @@ end
 ```
 
 **Preconditions**:
+
 - `current_version` must be a valid semver string
 - `policy` must be a valid UpdatePolicy object
 - Bundler must be available in the environment
 
 **Postconditions**:
+
 - Returns an UpdateCheck object
 - Never raises exceptions (returns error state in UpdateCheck)
 - Logs all version comparisons for audit trail
@@ -254,10 +256,12 @@ end
 ```
 
 **Preconditions**:
+
 - `project_dir` must exist and be writable
 - Checkpoint data must be serializable to JSON
 
 **Postconditions**:
+
 - Checkpoint saved atomically (write to temp file, then rename)
 - Checkpoint integrity verified via checksum
 - Logs all save/restore operations
@@ -342,10 +346,12 @@ end
 ```
 
 **Preconditions**:
+
 - All dependencies must be initialized
 - For `initiate_update`: current_state must be complete and valid
 
 **Postconditions**:
+
 - `check_for_update`: Never raises, always returns UpdateCheck
 - `initiate_update`: Either exits with code 75 or raises UpdateError
 - `restore_from_checkpoint`: Returns checkpoint or nil, never raises
@@ -361,6 +367,7 @@ end
 **Solution**: CheckpointStore abstracts persistence behind a clean interface
 
 **Benefits**:
+
 - Easy to swap storage backends (JSON → SQLite → Redis)
 - Simplified testing with in-memory implementation
 - Consistent error handling
@@ -372,6 +379,7 @@ end
 **Solution**: Policy object encapsulates the decision logic
 
 **Benefits**:
+
 - New policies added without modifying existing code
 - Policy configuration decoupled from enforcement
 - Easy to test each policy in isolation
@@ -383,6 +391,7 @@ end
 **Solution**: Coordinator provides simple interface for complex multi-step process
 
 **Benefits**:
+
 - Simplified caller code
 - Centralized error handling and logging
 - Transaction-like semantics for update workflow
@@ -394,6 +403,7 @@ end
 **Solution**: Checkpoint encapsulates state snapshot
 
 **Benefits**:
+
 - Preserves encapsulation (no need to expose internal state)
 - State evolution handled via versioned schema
 - Rollback capability
@@ -405,6 +415,7 @@ end
 **Solution**: Adapters wrap external dependencies
 
 **Benefits**:
+
 - Testability via adapter mocks
 - Isolates changes to external APIs
 - Consistent error handling
@@ -492,6 +503,7 @@ auto_update:
 **Objective**: Detect available gem versions using bundler and RubyGems API
 
 **Dependencies**:
+
 - `Gem::Version` (Ruby stdlib)
 - `Bundler` CLI
 - `Net::HTTP` for RubyGems API (fallback)
@@ -1217,6 +1229,7 @@ end
 **Risk**: Malicious gem update could execute arbitrary code
 
 **Mitigation**:
+
 - Only update via `bundle update aidp` (respects Gemfile.lock)
 - Require explicit user opt-in (disabled by default)
 - Log all update attempts for audit trail
@@ -1227,6 +1240,7 @@ end
 **Risk**: Corrupted checkpoint could cause data loss or unexpected behavior
 
 **Mitigation**:
+
 - Atomic writes (temp file + rename)
 - SHA256 checksum validation
 - Schema version in checkpoint
@@ -1237,6 +1251,7 @@ end
 **Risk**: Buggy update could cause infinite restart loop
 
 **Mitigation**:
+
 - Track consecutive failures in persistent state
 - Max 3 failures before disabling auto-update
 - Exponential backoff between retries
@@ -1247,6 +1262,7 @@ end
 **Risk**: Wrapper scripts could be exploited if project_dir is malicious
 
 **Mitigation**:
+
 - Use absolute paths only
 - Validate `PROJECT_DIR` before cd
 - Run with minimal privileges
@@ -1266,6 +1282,7 @@ cd "$PROJECT_DIR" || exit 1
 **Risk**: Sensitive data in checkpoint/logs
 
 **Mitigation**:
+
 - Aidp.logger already redacts secrets
 - No API keys in checkpoint
 - File permissions: 0600 for checkpoints

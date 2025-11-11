@@ -88,35 +88,41 @@ This document tracks potential future enhancements and refactors identified duri
 ## Thinking Depth System - MVP Complete, Advanced Features Pending
 
 ### Phase 2: Intelligent Coordinator Integration
+
 - [ ] Implement ComplexityEstimator for task analysis
 - [ ] Coordinator tier selection based on complexity estimation
 - [ ] Escalation & backoff policy (escalate on N failures, de-escalate on success)
 - [ ] Provider switching for tier (switch provider if current doesn't support required tier)
 
 ### Phase 3: Advanced Features
+
 - [ ] Per-skill/template tier overrides in configuration
 - [ ] Permission modes by tier (safe/tools/dangerous permissions based on tier)
 - [ ] Plain language control for tier selection (parse user messages for tier hints)
 - [ ] Timeline & evidence pack integration (log tier changes to work_loop.jsonl)
 
 ### Testing & Validation
+
 - [ ] Performance benchmarks (latency impact of tier switching)
 - [ ] Real-world cost tracking in production usage
 
 ## Parallel Workstreams - Core Complete, Polish Pending
 
 ### Testing
+
 - [ ] Integration tests for end-to-end parallel execution
 - [ ] System tests for resource monitoring and performance benchmarks
 - [ ] Failure recovery scenario testing
 
 ### Documentation
+
 - [ ] User guide with parallel execution examples
 - [ ] Performance tuning guide (optimal concurrency settings)
 - [ ] Troubleshooting guide for parallel execution issues
 - [ ] Best practices document for parallel workflows
 
 ### Future Enhancements
+
 - [ ] Priority queue for workstream scheduling (high/normal/low priorities)
 - [ ] Real-time progress dashboard with live status for all running workstreams
 - [ ] Dependency management (declare workstream dependencies, automatic ordering)
@@ -125,10 +131,12 @@ This document tracks potential future enhancements and refactors identified duri
 ## Zero Framework Cognition (ZFC) - Phase 1 Foundation Complete, Phases 2-4 Pending
 
 ### Phase 1 Remaining Items
+
 - [ ] Performance benchmarks for ZFC decision-making latency
 - [ ] Real-world cost tracking (requires production deployment with ZFC enabled)
 
 ### Phase 2: Decision Logic (Core ZFC)
+
 - [ ] AI-driven provider selection (replace load calculation formula with AI decision)
 - [ ] AI-driven tier escalation (replace heuristic thresholds with AI judgment)
 - [ ] AI-based workflow routing (replace pattern matching with AI selection)
@@ -136,11 +144,13 @@ This document tracks potential future enhancements and refactors identified duri
 - [ ] Documentation updates for AI decision-making
 
 ### Phase 3: Quality Judgments (Polish)
+
 - [ ] AI-driven health assessment (replace scoring formula with AI evaluation)
 - [ ] AI-based project analysis (replace pattern matching with AI analysis)
 - [ ] Testing & refinement for Phase 3 features
 
 ### Phase 4: Documentation & Governance
+
 - [ ] Create ZFC_GUIDELINES.md with compliant vs violated pattern examples
 - [ ] Update STYLE_GUIDE.md with ZFC section
 - [ ] Update LLM_STYLE_GUIDE.md with ZFC section

@@ -107,6 +107,7 @@ docs/
 ## Testing Summary
 
 All tests passing:
+
 - ✅ Coordinator: check, initiate, restore, status
 - ✅ VersionDetector: all semver policies (off, exact, patch, minor, major)
 - ✅ CheckpointStore: save, restore, cleanup
@@ -133,6 +134,7 @@ supervisorctl status aidp-watch
 ## Next Steps (Optional Enhancements)
 
 Future improvements that could be made:
+
 1. Container-based integration tests with actual supervisors
 2. Metrics dashboard for update history
 3. Notification system (Slack, email) for updates
@@ -141,6 +143,7 @@ Future improvements that could be made:
 ## Implementation Complete
 
 All tasks from the implementation contract have been completed:
+
 - ✅ Configuration schema
 - ✅ Version detection with semver policies
 - ✅ Checkpoint persistence and restoration

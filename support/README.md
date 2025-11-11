@@ -11,23 +11,27 @@ Aidp's auto-update feature uses exit code 75 to signal the supervisor that an up
 ### supervisord
 
 **Files:**
+
 - `supervisord/aidp-watch.conf` - supervisord program configuration
 - `supervisord/aidp-watch-wrapper.sh` - Wrapper script that handles updates
 
 **Setup:**
 
 1. Copy the configuration file:
+
    ```bash
    cp support/supervisord/aidp-watch.conf /etc/supervisor/conf.d/
    ```
 
 2. Copy the wrapper script:
+
    ```bash
    cp support/supervisord/aidp-watch-wrapper.sh /usr/local/bin/
    chmod +x /usr/local/bin/aidp-watch-wrapper.sh
    ```
 
 3. Set environment variables in supervisor config or export them:
+
    ```bash
    export PROJECT_DIR=/workspace/your-project
    export HOME=/home/vscode
@@ -35,6 +39,7 @@ Aidp's auto-update feature uses exit code 75 to signal the supervisor that an up
    ```
 
 4. Reload supervisord:
+
    ```bash
    supervisorctl reread
    supervisorctl update
@@ -42,6 +47,7 @@ Aidp's auto-update feature uses exit code 75 to signal the supervisor that an up
    ```
 
 **Monitoring:**
+
 ```bash
 supervisorctl status aidp-watch
 supervisorctl tail -f aidp-watch
@@ -50,12 +56,14 @@ supervisorctl tail -f aidp-watch
 ### s6
 
 **Files:**
+
 - `s6/aidp-watch/run` - s6 run script
 - `s6/aidp-watch/finish` - s6 finish script (handles exit code 75)
 
 **Setup:**
 
 1. Copy the service directory:
+
    ```bash
    cp -r support/s6/aidp-watch /etc/s6/aidp-watch
    chmod +x /etc/s6/aidp-watch/run
@@ -63,16 +71,19 @@ supervisorctl tail -f aidp-watch
    ```
 
 2. Set environment variables:
+
    ```bash
    export PROJECT_DIR=/workspace/your-project
    ```
 
 3. Enable and start the service:
+
    ```bash
    s6-svc -u /etc/s6/aidp-watch
    ```
 
 **Monitoring:**
+
 ```bash
 s6-svstat /etc/s6/aidp-watch
 ```
@@ -80,12 +91,14 @@ s6-svstat /etc/s6/aidp-watch
 ### runit
 
 **Files:**
+
 - `runit/aidp-watch/run` - runit run script
 - `runit/aidp-watch/finish` - runit finish script (handles exit code 75)
 
 **Setup:**
 
 1. Copy the service directory:
+
    ```bash
    cp -r support/runit/aidp-watch /etc/sv/aidp-watch
    chmod +x /etc/sv/aidp-watch/run
@@ -93,16 +106,19 @@ s6-svstat /etc/s6/aidp-watch
    ```
 
 2. Set environment variables:
+
    ```bash
    export PROJECT_DIR=/workspace/your-project
    ```
 
 3. Enable and start the service:
+
    ```bash
    ln -s /etc/sv/aidp-watch /etc/service/
    ```
 
 **Monitoring:**
+
 ```bash
 sv status aidp-watch
 sv log aidp-watch
@@ -119,11 +135,13 @@ All supervisor scripts support the following environment variables:
 ## Logs
 
 The wrapper scripts log to:
+
 - `$PROJECT_DIR/.aidp/logs/wrapper.log` (supervisord)
 - `$PROJECT_DIR/.aidp/logs/s6-finish.log` (s6)
 - `$PROJECT_DIR/.aidp/logs/runit-finish.log` (runit)
 
 Aidp's own logs are in:
+
 - `$PROJECT_DIR/.aidp/logs/updates.log` - Auto-update audit log
 - `$PROJECT_DIR/.aidp/logs/aidp.log` - Main application log
 
@@ -146,27 +164,34 @@ See `docs/SELF_UPDATE.md` for complete configuration and troubleshooting.
 ## Troubleshooting
 
 ### Wrapper script not found
+
 Ensure the wrapper script is executable and in the correct location:
+
 ```bash
 which aidp-watch-wrapper.sh
 ls -la /usr/local/bin/aidp-watch-wrapper.sh
 ```
 
 ### Updates not triggering
+
 Check that:
+
 1. Auto-update is enabled in `.aidp/aidp.yml`
 2. Supervisor is correctly configured
 3. Exit code 75 is in the supervisor's restart codes
 4. Logs show the update check is running
 
 ### Bundle update fails
+
 Check:
+
 1. `Gemfile` allows the newer version of aidp
 2. Network connectivity to rubygems.org
 3. File permissions on project directory
 4. Ruby version compatibility
 
 View update logs:
+
 ```bash
 cat $PROJECT_DIR/.aidp/logs/updates.log | jq
 cat $PROJECT_DIR/.aidp/logs/wrapper.log
@@ -175,12 +200,14 @@ cat $PROJECT_DIR/.aidp/logs/wrapper.log
 ## Testing
 
 Test the wrapper script manually:
+
 ```bash
 export PROJECT_DIR=/workspace/your-project
 bash support/supervisord/aidp-watch-wrapper.sh
 ```
 
 Simulate exit code 75:
+
 ```bash
 # In a test script
 exit 75
