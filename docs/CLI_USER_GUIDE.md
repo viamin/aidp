@@ -6,10 +6,13 @@ Complete guide to using the AI Dev Pipeline command-line interface.
 
 - [Quick Start](#quick-start)
 - [Copilot Mode](#copilot-mode)
+- [Harness Mode](#harness-mode)
 - [Background Jobs](#background-jobs)
 - [Progress Checkpoints](#progress-checkpoints)
 - [System Management](#system-management)
 - [Workflow Examples](#workflow-examples)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
 - [Tips & Best Practices](#tips--best-practices)
 
 ## Quick Start
@@ -99,40 +102,204 @@ aidp init
 # - LLM_STYLE_GUIDE.md
 # - PROJECT_ANALYSIS.md
 # - CODE_QUALITY_PLAN.md
-aidp analyze --background
-
-# Background with log following
-aidp analyze --background --follow
 ```
 
-**Available Analyze Workflows:**
-
-- Full Analysis (all steps)
-- Code Structure Analysis
-- Dependency Analysis
-- Quality Metrics Only
-- Custom Step Selection
+**Note**: To run full analysis or development workflows, use Copilot mode (`aidp`) and select your desired workflow. The harness will automatically execute all steps and handle error recovery.
 
 ### Interactive Workflow Selection
 
-When you run `aidp execute` or `aidp analyze` without flags, you get an interactive workflow selector:
+When you run `aidp` (Copilot mode), you get an interactive workflow selector:
 
 ```bash
-$ aidp execute
+$ aidp
 
 Welcome to AI Dev Pipeline! Choose your mode
-> 🏗️ Execute Mode - Build new features with guided development workflow
 
-Select a workflow:
+Available workflows:
 > Full PRD to Implementation - Complete feature development lifecycle
   PRD Only - Generate Product Requirements Document
   Architecture Only - Design system architecture
   Implementation Only - Code the feature
+  Full Analysis - Complete codebase analysis
   Custom - Select specific steps
 
 # Answer any workflow-specific questions
-# Workflow runs automatically with progress tracking
+# Harness runs workflow automatically with progress tracking
 ```
+
+## Harness Mode
+
+The AIDP Harness is the autonomous execution engine that runs complete workflows from start to finish. When you use Copilot mode or background jobs, the harness handles provider switching, rate limits, error recovery, and user interaction automatically.
+
+### Overview
+
+The harness transforms AIDP from a step-by-step tool into an intelligent development assistant by:
+
+- **Automatic Step Execution**: Runs all workflow steps sequentially without manual intervention
+- **Intelligent Error Recovery**: Retries failed operations with exponential backoff
+- **Provider Management**: Switches between configured providers when needed
+- **Rate Limit Handling**: Automatically waits and switches providers when rate limited
+- **Progress Persistence**: Saves state so you can resume after interruptions
+
+### Harness States
+
+The harness progresses through several states during execution:
+
+| State | Description | What You Can Do |
+|-------|-------------|-----------------|
+| 🚀 **Running** | Actively executing steps | Monitor progress, pause, or stop |
+| ⏸️ **Paused for Input** | Waiting for your response to questions | Answer questions to continue |
+| ⏳ **Rate Limited** | Waiting for provider cooldown | Wait for automatic resume or switch providers |
+| ❌ **Error - Retrying** | Encountered error, attempting recovery | Monitor recovery or cancel if stuck |
+| ✅ **Completed** | All steps finished successfully | Review results |
+
+### User Interaction
+
+#### Answering Agent Questions
+
+When the agent needs information, you'll see numbered questions:
+
+```text
+🤖 Agent Questions:
+1. What is the primary purpose of this application?
+2. What are the main user personas?
+3. What are the key features to implement?
+
+Please answer each question (press Enter after each):
+```
+
+Simply type your answers and press Enter after each one.
+
+#### File Selection with @ Symbol
+
+To provide files to the agent, type `@` to open the file selector:
+
+```text
+📁 Select files to include:
+1. lib/models/user.rb
+2. spec/models/user_spec.rb
+3. README.md
+
+Enter numbers (comma-separated) or type 'all': 1,2
+```
+
+#### Control Commands During Execution
+
+While the harness is running:
+
+- **`p` + Enter**: Pause execution
+- **`r` + Enter**: Resume execution
+- **`s` + Enter**: Stop execution
+- **`Ctrl+C`**: Emergency stop
+
+### Provider Management
+
+#### Automatic Provider Switching
+
+The harness automatically switches providers when:
+
+- **Rate Limits**: Provider hits API rate limits - immediate switch
+- **Failures**: Provider fails after retry attempts - switch after 2-3 failures
+- **Timeouts**: Provider doesn't respond in time - switch after timeout
+- **Configuration**: Based on your fallback provider chain
+
+#### Provider Status Display
+
+```text
+🔄 Current Provider: Claude (claude-3-5-sonnet)
+📊 Token Usage: 1,250 / 10,000 (12.5%)
+⏱️  Response Time: 2.3s
+🔄 Fallback Chain: Claude → Gemini → Cursor
+```
+
+#### Configuring Providers
+
+Control provider behavior through your `aidp.yml`:
+
+```yaml
+harness:
+  default_provider: "claude"
+  fallback_providers: ["gemini", "cursor"]
+  max_retries: 3
+
+providers:
+  claude:
+    type: "usage_based"
+    max_tokens: 100000
+  gemini:
+    type: "usage_based"
+    max_tokens: 50000
+  cursor:
+    type: "subscription"
+```
+
+### Error Handling & Recovery
+
+#### Automatic Retry Strategies
+
+The harness implements different retry strategies based on error type:
+
+| Error Type | Strategy | Retries | Behavior |
+|------------|----------|---------|----------|
+| **Rate Limit** | Immediate switch | 0 | Switch to fallback provider immediately |
+| **Network Error** | Linear backoff | 3 | Retry with 1s, 2s, 3s delays |
+| **Server Error** | Exponential backoff | 5 | Retry with 2s, 4s, 8s, 16s, 32s delays |
+| **Timeout** | Fixed delay | 2 | Retry after 5s delay |
+| **Auth Error** | Immediate fail | 0 | No retry, report authentication failure |
+
+#### Error Recovery Display
+
+```text
+❌ Error: Rate limit exceeded
+🔄 Switching to Gemini (gemini-pro)
+⏳ Retrying in 1.2s...
+✅ Recovery successful
+```
+
+#### Manual Error Handling
+
+If automatic recovery fails:
+
+```bash
+# 1. Check overall status
+aidp status
+
+# 2. Check harness state
+aidp harness status
+
+# 3. Review error logs
+tail -f .aidp/logs/errors.log
+
+# 4. Reset harness if stuck
+aidp harness reset --mode=analyze  # or --mode=execute
+
+# 5. Restart workflow
+aidp  # Copilot mode
+```
+
+### Progress Tracking
+
+The harness provides real-time progress updates through checkpoints (see [Progress Checkpoints](#progress-checkpoints) section).
+
+Example status display:
+
+```text
+📊 AIDP Harness Status
+═══════════════════════════════════════
+
+🔍 Current Workflow Progress:
+  ✅ 01_REPOSITORY_ANALYSIS (2m 15s)
+  ✅ 02_ARCHITECTURE_ANALYSIS (1m 45s)
+  🔄 03_TEST_ANALYSIS (running...)
+  ⏳ 04_FUNCTIONALITY_ANALYSIS (pending)
+  ⏳ 05_DOCUMENTATION_ANALYSIS (pending)
+
+🔄 Current Provider: Claude (claude-3-5-sonnet)
+📊 Token Usage: 3,250 / 10,000 (32.5%)
+⏱️  Total Runtime: 4m 2s
+```
+
+Progress is automatically saved and can be resumed after interruptions.
 
 ## Background Jobs
 
@@ -824,11 +991,10 @@ When things go wrong:
 
 ```bash
 # Execution
-aidp execute                           # Interactive execute mode
-aidp execute --background              # Background execution
-aidp execute --background --follow     # Background + follow logs
-aidp analyze                           # Interactive analyze mode
-aidp analyze --background              # Background analysis
+aidp                                   # Start Copilot mode (interactive)
+aidp init                              # High-level project analysis
+aidp --background                      # Start workflow in background
+aidp --background --follow             # Background + follow logs
 
 # Jobs
 aidp jobs list                         # List all jobs
@@ -875,9 +1041,222 @@ export AIDP_LOG_FILE=aidp.log          # Log to file
 export TREE_SITTER_PARSERS="path/to/parsers"
 ```
 
+## Configuration
+
+### Harness Configuration
+
+Configure harness behavior through your `aidp.yml` file:
+
+```yaml
+harness:
+  enabled: true
+  max_retries: 2
+  default_provider: "claude"
+  fallback_providers: ["gemini", "cursor"]
+
+  # Rate limit handling
+  rate_limit_strategy: "provider_first"  # or "model_first", "cost_optimized"
+  rate_limit_cooldown: 60  # seconds
+
+  # Circuit breaker
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    timeout: 60
+    success_threshold: 3
+```
+
+### Provider Configuration
+
+Configure each provider's behavior:
+
+```yaml
+providers:
+  claude:
+    type: "usage_based"  # API-based provider
+    max_tokens: 100000
+    retry_count: 3
+    timeout: 30
+
+  gemini:
+    type: "usage_based"
+    max_tokens: 50000
+    retry_count: 2
+    timeout: 45
+
+  cursor:
+    type: "subscription"  # No API key needed
+    retry_count: 1
+    timeout: 60
+```
+
+### Error Recovery Configuration
+
+Customize retry strategies:
+
+```yaml
+harness:
+  error_recovery:
+    network_error:
+      strategy: "linear_backoff"
+      max_retries: 3
+      base_delay: 1.0
+    server_error:
+      strategy: "exponential_backoff"
+      max_retries: 5
+      base_delay: 2.0
+    timeout:
+      strategy: "fixed_delay"
+      max_retries: 2
+      delay: 5.0
+```
+
+### Configuration File Locations
+
+AIDP looks for configuration in this order:
+
+1. `./aidp.yml` (project root)
+2. `./.aidp.yml` (project root, hidden)
+3. `~/.aidp.yml` (user home directory)
+4. Default values (built-in)
+
+### Validation
+
+Check your configuration:
+
+```bash
+# Validate configuration file
+aidp config validate
+
+# Show current configuration
+aidp config show
+
+# Show specific section
+aidp config show harness
+aidp config show providers
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Harness Won't Start
+
+**Symptoms**: Workflow fails to start, no progress display
+
+**Solutions**:
+```bash
+# Check configuration
+aidp config validate
+
+# Reset to defaults
+aidp config reset
+
+# Check file permissions
+ls -la aidp.yml
+chmod 644 aidp.yml
+```
+
+#### Provider Authentication Errors
+
+**Symptoms**: "Authentication failed", "Invalid API key"
+
+**Solutions**:
+```bash
+# Set API keys
+export AIDP_CLAUDE_API_KEY="your-claude-api-key"
+export AIDP_GEMINI_API_KEY="your-gemini-api-key"
+
+# Add to shell profile for persistence
+echo 'export AIDP_CLAUDE_API_KEY="your-key"' >> ~/.bashrc
+
+# Verify configuration
+aidp config show providers
+aidp providers  # Check provider health
+```
+
+#### Rate Limit Issues
+
+**Symptoms**: Frequent pauses, "Rate limit exceeded" errors
+
+**Solutions**:
+```bash
+# Configure fallback providers
+# Add to aidp.yml:
+harness:
+  fallback_providers: ["gemini", "cursor"]
+  rate_limit_strategy: "provider_first"
+
+# Check current status
+aidp harness status
+aidp providers
+```
+
+#### Harness Stuck in Loop
+
+**Symptoms**: Keeps retrying same step, no progress
+
+**Solutions**:
+```bash
+# Stop and reset
+aidp harness stop
+aidp harness reset --mode=analyze  # or --mode=execute
+
+# Check for stuck jobs
+aidp jobs
+
+# Review error logs
+tail -f .aidp/logs/errors.log
+```
+
+#### State Corruption
+
+**Symptoms**: "State file corrupted", can't resume
+
+**Solutions**:
+```bash
+# Reset harness state
+aidp harness reset --mode=analyze --clear-all
+
+# Remove corrupted state files
+rm -f .aidp/harness/analyze_state.json
+rm -f .aidp/harness/execute_state.json
+
+# Restart workflow
+aidp
+```
+
+### Debug Mode
+
+Enable detailed logging for troubleshooting:
+
+```bash
+# Run with debug logging
+AIDP_DEBUG=1 aidp
+
+# Run with verbose output
+AIDP_VERBOSE=1 aidp
+
+# Set debug log level
+AIDP_LOG_LEVEL=debug aidp
+```
+
+### Getting Help
+
+```bash
+# Show help
+aidp help
+
+# Show harness help
+aidp harness help
+
+# Show configuration help
+aidp config help
+```
+
 ## Next Steps
 
 - Read the [Work Loops Guide](WORK_LOOPS_GUIDE.md) to understand iterative execution
-- Check [Configuration Guide](harness-configuration.md) for advanced options
-- See [Troubleshooting Guide](harness-troubleshooting.md) for common issues
+- Check [Interactive REPL Guide](INTERACTIVE_REPL.md) for REPL commands
+- See [Skills User Guide](SKILLS_USER_GUIDE.md) for skill management
 - Review [README](../README.md) for installation and setup
