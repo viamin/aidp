@@ -13,7 +13,7 @@ This document tracks potential future enhancements and refactors identified duri
 - [ ] Reorder fallback providers interactively to express priority.
 - [ ] Persist provider priority metadata for advanced fallback heuristics.
 - [x] Add guard against selecting a primary provider also listed as a fallback (auto-remove or prevent).
-- [ ] Expand model family list (e.g., gemini, llama, deepseek) with descriptions.
+- [x] Expand model family list (e.g., gemini, llama, deepseek) with descriptions.
 - [ ] Introduce provider capability hints (reasoning, coding, long-context) displayed during selection.
 - [ ] Provide an optional "quick setup" path that skips advanced provider editing questions.
 - [ ] Add environment variable hinting for each provider (auto-generate export commands in next steps).
@@ -21,8 +21,8 @@ This document tracks potential future enhancements and refactors identified duri
 ## Test Infrastructure
 
 - [ ] Helper factory for common provider selection sequences using `TestPrompt` (reducing duplicated response maps).
-- [ ] Negative specs: no fallbacks selected, editing declined, additional fallback loop exercised.
-- [ ] Spec covering removal of a provider (delete feature now exists).
+- [x] Negative specs: no fallbacks selected, editing declined, additional fallback loop exercised.
+- [x] Spec covering removal of a provider (delete feature now exists).
 - [ ] Property-based test (e.g., generating random provider lists) to ensure normalization and ordering stability.
 - [ ] Snapshot test of YAML output for complex multi-provider configuration.
 
@@ -37,7 +37,7 @@ This document tracks potential future enhancements and refactors identified duri
 
 - [x] Centralize provider metadata (billing types, model families) in a single registry module.
 - [ ] Add migration utility to upgrade older config versions (schema_version checks beyond v1).
-- [ ] Detect and auto-correct inconsistent capitalization in stored model family values.
+- [x] Detect and auto-correct inconsistent capitalization in stored model family values.
 - [ ] Introduce config validation command (`aidp config --validate`) to list warnings without running wizard.
 
 ## Performance / Internal

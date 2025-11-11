@@ -1305,12 +1305,20 @@ module Aidp
       # Canonicalization helpers ------------------------------------------------
       def normalize_model_family(value)
         return "auto" if value.nil? || value.to_s.strip.empty?
-        # Already a canonical value
-        return value if ProviderRegistry.valid_model_family?(value)
-        # Try label -> value
+
+        normalized_input = value.to_s.strip.downcase
+
+        # Check for exact canonical value match (case-insensitive)
+        canonical_match = ProviderRegistry.model_family_values.find do |v|
+          v.downcase == normalized_input
+        end
+        return canonical_match if canonical_match
+
+        # Try label -> value mapping (case-insensitive)
         choices = ProviderRegistry.model_family_choices
-        mapped = choices.find { |label, _| label == value }&.last
+        mapped = choices.find { |label, _| label.downcase == value.to_s.downcase }&.last
         return mapped if mapped
+
         # Unknown legacy entry -> fallback to auto
         "auto"
       end
