@@ -3,17 +3,21 @@
 require "fileutils"
 require "json"
 require "socket"
+require_relative "../safe_directory"
 
 module Aidp
   module AutoUpdate
     # Service for logging update events in JSON Lines format
     class UpdateLogger
+      include Aidp::SafeDirectory
+
       attr_reader :log_file
 
       def initialize(project_dir: Dir.pwd)
         @project_dir = project_dir
-        @log_file = File.join(project_dir, ".aidp", "logs", "updates.log")
-        ensure_log_directory
+        log_dir = File.join(project_dir, ".aidp", "logs")
+        actual_dir = safe_mkdir_p(log_dir, component_name: "UpdateLogger")
+        @log_file = File.join(actual_dir, "updates.log")
       end
 
       # Log an update check
@@ -135,14 +139,6 @@ module Aidp
           error: e.message)
       end
 
-      def ensure_log_directory
-        FileUtils.mkdir_p(File.dirname(@log_file))
-      rescue => e
-        Aidp.log_error("update_logger", "mkdir_failed",
-          dir: File.dirname(@log_file),
-          error: e.message)
-        raise
-      end
     end
   end
 end

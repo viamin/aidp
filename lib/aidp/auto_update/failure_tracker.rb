@@ -3,19 +3,23 @@
 require "fileutils"
 require "json"
 require "time"
+require_relative "../safe_directory"
 
 module Aidp
   module AutoUpdate
     # Service for tracking update failures to prevent restart loops
     class FailureTracker
+      include Aidp::SafeDirectory
+
       attr_reader :state_file, :max_failures
 
       def initialize(project_dir: Dir.pwd, max_failures: 3)
         @project_dir = project_dir
-        @state_file = File.join(project_dir, ".aidp", "auto_update_failures.json")
+        state_dir = File.join(project_dir, ".aidp")
+        actual_dir = safe_mkdir_p(state_dir, component_name: "FailureTracker")
+        @state_file = File.join(actual_dir, "auto_update_failures.json")
         @max_failures = max_failures
         @state = load_state
-        ensure_state_directory
       end
 
       # Record a failure
@@ -152,14 +156,6 @@ module Aidp
           last_success: nil,
           last_success_version: nil
         }
-      end
-
-      def ensure_state_directory
-        FileUtils.mkdir_p(File.dirname(@state_file))
-      rescue => e
-        Aidp.log_error("failure_tracker", "mkdir_failed",
-          dir: File.dirname(@state_file),
-          error: e.message)
       end
     end
   end

@@ -3,17 +3,20 @@
 require "fileutils"
 require "json"
 require_relative "checkpoint"
+require_relative "../safe_directory"
 
 module Aidp
   module AutoUpdate
     # Repository for persisting and restoring checkpoint state
     class CheckpointStore
+      include Aidp::SafeDirectory
+
       attr_reader :checkpoint_dir
 
       def initialize(project_dir: Dir.pwd)
         @project_dir = project_dir
-        @checkpoint_dir = File.join(project_dir, ".aidp", "checkpoints")
-        ensure_checkpoint_directory
+        original_dir = File.join(project_dir, ".aidp", "checkpoints")
+        @checkpoint_dir = safe_mkdir_p(original_dir, component_name: "CheckpointStore")
       end
 
       # Save checkpoint atomically
@@ -150,15 +153,6 @@ module Aidp
 
       def checkpoint_path(checkpoint_id)
         File.join(@checkpoint_dir, "#{checkpoint_id}.json")
-      end
-
-      def ensure_checkpoint_directory
-        FileUtils.mkdir_p(@checkpoint_dir)
-      rescue => e
-        Aidp.log_error("checkpoint_store", "mkdir_failed",
-          dir: @checkpoint_dir,
-          error: e.message)
-        raise
       end
 
       def load_checkpoint_file(file_path)
