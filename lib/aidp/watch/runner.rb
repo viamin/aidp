@@ -9,6 +9,8 @@ require_relative "state_store"
 require_relative "plan_generator"
 require_relative "plan_processor"
 require_relative "build_processor"
+require_relative "review_processor"
+require_relative "ci_fix_processor"
 
 module Aidp
   module Watch
@@ -52,6 +54,22 @@ module Aidp
           verbose: verbose,
           label_config: label_config
         )
+        @review_processor = ReviewProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          provider_name: provider_name,
+          project_dir: project_dir,
+          label_config: label_config,
+          verbose: verbose
+        )
+        @ci_fix_processor = CiFixProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          provider_name: provider_name,
+          project_dir: project_dir,
+          label_config: label_config,
+          verbose: verbose
+        )
       end
 
       def start
@@ -91,6 +109,8 @@ module Aidp
       def process_cycle
         process_plan_triggers
         process_build_triggers
+        process_review_triggers
+        process_ci_fix_triggers
       end
 
       def process_plan_triggers
@@ -149,9 +169,66 @@ module Aidp
         end
       end
 
+      def process_review_triggers
+        review_label = @review_processor.review_label
+        prs = @repository_client.list_pull_requests(labels: [review_label], state: "open")
+        Aidp.log_debug("watch_runner", "review_poll", label: review_label, total: prs.size)
+        prs.each do |pr|
+          unless pr_has_label?(pr, review_label)
+            Aidp.log_debug("watch_runner", "review_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
+            next
+          end
+
+          detailed = @repository_client.fetch_pull_request(pr[:number])
+
+          # Check author authorization before processing
+          unless @safety_checker.should_process_issue?(detailed, enforce: false)
+            Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            next
+          end
+
+          Aidp.log_debug("watch_runner", "review_process", pr: detailed[:number])
+          @review_processor.process(detailed)
+        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
+          Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
+        end
+      end
+
+      def process_ci_fix_triggers
+        ci_fix_label = @ci_fix_processor.ci_fix_label
+        prs = @repository_client.list_pull_requests(labels: [ci_fix_label], state: "open")
+        Aidp.log_debug("watch_runner", "ci_fix_poll", label: ci_fix_label, total: prs.size)
+        prs.each do |pr|
+          unless pr_has_label?(pr, ci_fix_label)
+            Aidp.log_debug("watch_runner", "ci_fix_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
+            next
+          end
+
+          detailed = @repository_client.fetch_pull_request(pr[:number])
+
+          # Check author authorization before processing
+          unless @safety_checker.should_process_issue?(detailed, enforce: false)
+            Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            next
+          end
+
+          Aidp.log_debug("watch_runner", "ci_fix_process", pr: detailed[:number])
+          @ci_fix_processor.process(detailed)
+        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
+          Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
+        end
+      end
+
       def issue_has_label?(issue, label)
         Array(issue[:labels]).any? do |issue_label|
           name = issue_label.is_a?(Hash) ? issue_label["name"] : issue_label.to_s
+          name.casecmp(label).zero?
+        end
+      end
+
+      def pr_has_label?(pr, label)
+        Array(pr[:labels]).any? do |pr_label|
+          name = pr_label.is_a?(Hash) ? pr_label["name"] : pr_label.to_s
           name.casecmp(label).zero?
         end
       end

@@ -83,6 +83,31 @@ module Aidp
         gh_available? ? most_recent_label_actor_via_gh(number) : nil
       end
 
+      # PR-specific operations
+      def fetch_pull_request(number)
+        gh_available? ? fetch_pull_request_via_gh(number) : fetch_pull_request_via_api(number)
+      end
+
+      def fetch_pull_request_diff(number)
+        gh_available? ? fetch_pull_request_diff_via_gh(number) : fetch_pull_request_diff_via_api(number)
+      end
+
+      def fetch_pull_request_files(number)
+        gh_available? ? fetch_pull_request_files_via_gh(number) : fetch_pull_request_files_via_api(number)
+      end
+
+      def fetch_ci_status(number)
+        gh_available? ? fetch_ci_status_via_gh(number) : fetch_ci_status_via_api(number)
+      end
+
+      def post_review_comment(number, body, commit_id: nil, path: nil, line: nil)
+        gh_available? ? post_review_comment_via_gh(number, body, commit_id: commit_id, path: path, line: line) : post_review_comment_via_api(number, body, commit_id: commit_id, path: path, line: line)
+      end
+
+      def list_pull_requests(labels: [], state: "open")
+        gh_available? ? list_pull_requests_via_gh(labels: labels, state: state) : list_pull_requests_via_api(labels: labels, state: state)
+      end
+
       private
 
       def list_issues_via_gh(labels:, state:)
@@ -308,6 +333,315 @@ module Aidp
       rescue => e
         Aidp.log_warn("repository_client", "Unexpected error fetching label actor", error: e.message)
         nil
+      end
+
+      # PR operations via gh CLI
+      def list_pull_requests_via_gh(labels:, state:)
+        json_fields = %w[number title labels updatedAt state url headRefName baseRefName]
+        cmd = ["gh", "pr", "list", "--repo", full_repo, "--state", state, "--json", json_fields.join(",")]
+        labels.each do |label|
+          cmd += ["--label", label]
+        end
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        unless status.success?
+          warn("GitHub CLI PR list failed: #{stderr}")
+          return []
+        end
+
+        JSON.parse(stdout).map { |raw| normalize_pull_request(raw) }
+      rescue JSON::ParserError => e
+        warn("Failed to parse GH CLI PR list response: #{e.message}")
+        []
+      end
+
+      def list_pull_requests_via_api(labels:, state:)
+        label_param = labels.join(",")
+        uri = URI("https://api.github.com/repos/#{full_repo}/pulls?state=#{state}")
+        uri.query = [uri.query, "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&") unless label_param.empty?
+
+        response = Net::HTTP.get_response(uri)
+        return [] unless response.code == "200"
+
+        JSON.parse(response.body).map { |raw| normalize_pull_request_api(raw) }
+      rescue => e
+        warn("GitHub API PR list failed: #{e.message}")
+        []
+      end
+
+      def fetch_pull_request_via_gh(number)
+        fields = %w[number title body labels state url headRefName baseRefName commits author mergeable]
+        cmd = ["gh", "pr", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "GitHub CLI error: #{stderr.strip}" unless status.success?
+
+        data = JSON.parse(stdout)
+        normalize_pull_request_detail(data)
+      rescue JSON::ParserError => e
+        raise "Failed to parse GitHub CLI PR response: #{e.message}"
+      end
+
+      def fetch_pull_request_via_api(number)
+        uri = URI("https://api.github.com/repos/#{full_repo}/pulls/#{number}")
+        response = Net::HTTP.get_response(uri)
+        raise "GitHub API error (#{response.code})" unless response.code == "200"
+
+        data = JSON.parse(response.body)
+        normalize_pull_request_detail_api(data)
+      end
+
+      def fetch_pull_request_diff_via_gh(number)
+        cmd = ["gh", "pr", "diff", number.to_s, "--repo", full_repo]
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to fetch PR diff via gh: #{stderr.strip}" unless status.success?
+
+        stdout
+      end
+
+      def fetch_pull_request_diff_via_api(number)
+        uri = URI("https://api.github.com/repos/#{full_repo}/pulls/#{number}")
+        request = Net::HTTP::Get.new(uri)
+        request["Accept"] = "application/vnd.github.v3.diff"
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        raise "GitHub API diff failed (#{response.code})" unless response.code == "200"
+        response.body
+      end
+
+      def fetch_pull_request_files_via_gh(number)
+        # Use gh api to fetch changed files
+        cmd = ["gh", "api", "repos/#{full_repo}/pulls/#{number}/files", "--jq", "."]
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to fetch PR files via gh: #{stderr.strip}" unless status.success?
+
+        JSON.parse(stdout).map { |file| normalize_pr_file(file) }
+      rescue JSON::ParserError => e
+        raise "Failed to parse PR files response: #{e.message}"
+      end
+
+      def fetch_pull_request_files_via_api(number)
+        uri = URI("https://api.github.com/repos/#{full_repo}/pulls/#{number}/files")
+        response = Net::HTTP.get_response(uri)
+        raise "GitHub API files failed (#{response.code})" unless response.code == "200"
+
+        JSON.parse(response.body).map { |file| normalize_pr_file(file) }
+      rescue JSON::ParserError => e
+        raise "Failed to parse PR files response: #{e.message}"
+      end
+
+      def fetch_ci_status_via_gh(number)
+        # Fetch PR to get the head SHA
+        pr_data = fetch_pull_request_via_gh(number)
+        head_sha = pr_data[:head_sha]
+
+        # Fetch check runs for the commit
+        cmd = ["gh", "api", "repos/#{full_repo}/commits/#{head_sha}/check-runs", "--jq", "."]
+        stdout, stderr, status = Open3.capture3(*cmd)
+
+        if status.success?
+          data = JSON.parse(stdout)
+          check_runs = data["check_runs"] || []
+          normalize_ci_status(check_runs, head_sha)
+        else
+          # Fallback to status checks
+          {sha: head_sha, state: "unknown", checks: []}
+        end
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to fetch CI status", error: e.message)
+        {sha: nil, state: "unknown", checks: []}
+      end
+
+      def fetch_ci_status_via_api(number)
+        pr_data = fetch_pull_request_via_api(number)
+        head_sha = pr_data[:head_sha]
+
+        uri = URI("https://api.github.com/repos/#{full_repo}/commits/#{head_sha}/check-runs")
+        request = Net::HTTP::Get.new(uri)
+        request["Accept"] = "application/vnd.github.v3+json"
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          check_runs = data["check_runs"] || []
+          normalize_ci_status(check_runs, head_sha)
+        else
+          {sha: head_sha, state: "unknown", checks: []}
+        end
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to fetch CI status", error: e.message)
+        {sha: nil, state: "unknown", checks: []}
+      end
+
+      def post_review_comment_via_gh(number, body, commit_id: nil, path: nil, line: nil)
+        if path && line && commit_id
+          # Post inline review comment
+          cmd = [
+            "gh", "pr", "review", number.to_s,
+            "--repo", full_repo,
+            "--comment",
+            "--body", body
+          ]
+          # Note: gh CLI doesn't support inline comments directly, so we post a general comment
+          # For inline comments, we'd need to use the API
+          post_review_comment_via_api(number, body, commit_id: commit_id, path: path, line: line)
+        else
+          # Post general review comment
+          cmd = ["gh", "pr", "comment", number.to_s, "--repo", full_repo, "--body", body]
+          stdout, stderr, status = Open3.capture3(*cmd)
+          raise "Failed to post review comment via gh: #{stderr.strip}" unless status.success?
+
+          stdout.strip
+        end
+      end
+
+      def post_review_comment_via_api(number, body, commit_id: nil, path: nil, line: nil)
+        if path && line && commit_id
+          # Post inline review comment
+          uri = URI("https://api.github.com/repos/#{full_repo}/pulls/#{number}/reviews")
+          request = Net::HTTP::Post.new(uri)
+          request["Content-Type"] = "application/json"
+          request["Accept"] = "application/vnd.github.v3+json"
+
+          review_data = {
+            body: body,
+            event: "COMMENT",
+            comments: [
+              {
+                path: path,
+                line: line,
+                body: body
+              }
+            ]
+          }
+
+          request.body = JSON.dump(review_data)
+
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+            http.request(request)
+          end
+
+          raise "GitHub API review comment failed (#{response.code}): #{response.body}" unless response.code.start_with?("2")
+          response.body
+        else
+          # Post general comment on the PR
+          uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/comments")
+          request = Net::HTTP::Post.new(uri)
+          request["Content-Type"] = "application/json"
+          request.body = JSON.dump({body: body})
+
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+            http.request(request)
+          end
+
+          raise "GitHub API comment failed (#{response.code})" unless response.code.start_with?("2")
+          response.body
+        end
+      end
+
+      # Normalization methods for PRs
+      def normalize_pull_request(raw)
+        {
+          number: raw["number"],
+          title: raw["title"],
+          labels: Array(raw["labels"]).map { |label| label.is_a?(Hash) ? label["name"] : label },
+          updated_at: raw["updatedAt"],
+          state: raw["state"],
+          url: raw["url"],
+          head_ref: raw["headRefName"],
+          base_ref: raw["baseRefName"]
+        }
+      end
+
+      def normalize_pull_request_api(raw)
+        {
+          number: raw["number"],
+          title: raw["title"],
+          labels: Array(raw["labels"]).map { |label| label["name"] },
+          updated_at: raw["updated_at"],
+          state: raw["state"],
+          url: raw["html_url"],
+          head_ref: raw.dig("head", "ref"),
+          base_ref: raw.dig("base", "ref")
+        }
+      end
+
+      def normalize_pull_request_detail(raw)
+        {
+          number: raw["number"],
+          title: raw["title"],
+          body: raw["body"] || "",
+          author: raw.dig("author", "login") || raw["author"],
+          labels: Array(raw["labels"]).map { |label| label.is_a?(Hash) ? label["name"] : label },
+          state: raw["state"],
+          url: raw["url"],
+          head_ref: raw["headRefName"],
+          base_ref: raw["baseRefName"],
+          head_sha: raw.dig("commits", 0, "oid") || raw["headRefOid"],
+          mergeable: raw["mergeable"]
+        }
+      end
+
+      def normalize_pull_request_detail_api(raw)
+        {
+          number: raw["number"],
+          title: raw["title"],
+          body: raw["body"] || "",
+          author: raw.dig("user", "login"),
+          labels: Array(raw["labels"]).map { |label| label["name"] },
+          state: raw["state"],
+          url: raw["html_url"],
+          head_ref: raw.dig("head", "ref"),
+          base_ref: raw.dig("base", "ref"),
+          head_sha: raw.dig("head", "sha"),
+          mergeable: raw["mergeable"]
+        }
+      end
+
+      def normalize_pr_file(raw)
+        {
+          filename: raw["filename"],
+          status: raw["status"],
+          additions: raw["additions"],
+          deletions: raw["deletions"],
+          changes: raw["changes"],
+          patch: raw["patch"]
+        }
+      end
+
+      def normalize_ci_status(check_runs, head_sha)
+        checks = check_runs.map do |run|
+          {
+            name: run["name"],
+            status: run["status"],
+            conclusion: run["conclusion"],
+            details_url: run["details_url"],
+            output: run["output"]
+          }
+        end
+
+        # Determine overall state
+        if checks.any? { |c| c[:conclusion] == "failure" }
+          state = "failure"
+        elsif checks.any? { |c| c[:status] != "completed" }
+          state = "pending"
+        elsif checks.all? { |c| c[:conclusion] == "success" }
+          state = "success"
+        else
+          state = "unknown"
+        end
+
+        {
+          sha: head_sha,
+          state: state,
+          checks: checks
+        }
       end
 
       def normalize_issue(raw)
