@@ -6,6 +6,7 @@ require_relative "../providers/cursor"
 require_relative "../providers/anthropic"
 require_relative "../providers/gemini"
 require_relative "../providers/opencode"
+require_relative "../providers/kilocode"
 require_relative "../providers/github_copilot"
 require_relative "../providers/codex"
 
@@ -19,6 +20,7 @@ module Aidp
         "claude" => Aidp::Providers::Anthropic,
         "gemini" => Aidp::Providers::Gemini,
         "opencode" => Aidp::Providers::Opencode,
+        "kilocode" => Aidp::Providers::Kilocode,
         "github_copilot" => Aidp::Providers::GithubCopilot,
         "codex" => Aidp::Providers::Codex
       }.freeze
