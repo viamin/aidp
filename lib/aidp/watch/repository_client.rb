@@ -495,12 +495,12 @@ module Aidp
       end
 
       def post_review_comment_via_api(number, body, commit_id: nil, path: nil, line: nil)
-        http_response = if path && line && commit_id
+        uri, request = if path && line && commit_id
           # Post inline review comment
-          uri = URI("https://api.github.com/repos/#{full_repo}/pulls/#{number}/reviews")
-          request = Net::HTTP::Post.new(uri)
-          request["Content-Type"] = "application/json"
-          request["Accept"] = "application/vnd.github.v3+json"
+          review_uri = URI("https://api.github.com/repos/#{full_repo}/pulls/#{number}/reviews")
+          review_request = Net::HTTP::Post.new(review_uri)
+          review_request["Content-Type"] = "application/json"
+          review_request["Accept"] = "application/vnd.github.v3+json"
 
           review_data = {
             body: body,
@@ -514,30 +514,25 @@ module Aidp
             ]
           }
 
-          request.body = JSON.dump(review_data)
-
-          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-            http.request(request)
-          end
-
-          raise "GitHub API review comment failed (#{response.code}): #{response.body}" unless response.code.start_with?("2")
-          response
+          review_request.body = JSON.dump(review_data)
+          [review_uri, review_request]
         else
           # Post general comment on the PR
-          uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/comments")
-          request = Net::HTTP::Post.new(uri)
-          request["Content-Type"] = "application/json"
-          request.body = JSON.dump({body: body})
-
-          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-            http.request(request)
-          end
-
-          raise "GitHub API comment failed (#{response.code})" unless response.code.start_with?("2")
-          response
+          comment_uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/comments")
+          comment_request = Net::HTTP::Post.new(comment_uri)
+          comment_request["Content-Type"] = "application/json"
+          comment_request.body = JSON.dump({body: body})
+          [comment_uri, comment_request]
         end
 
-        http_response.body
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        error_msg = path && line && commit_id ? "GitHub API review comment failed (#{response.code}): #{response.body}" : "GitHub API comment failed (#{response.code})"
+        raise error_msg unless response.code.start_with?("2")
+
+        response.body
       end
 
       # Normalization methods for PRs
