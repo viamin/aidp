@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.25.0](https://github.com/viamin/aidp/compare/aidp/v0.24.0...aidp/v0.25.0) (2025-11-12)
+
+
+### Features
+
+* add auto-update management commands and configuration ([a954448](https://github.com/viamin/aidp/commit/a954448187e0101d6e32a317263152b7f4a79c19))
+* add auto-update management commands and configuration ([#259](https://github.com/viamin/aidp/issues/259)) ([bc06057](https://github.com/viamin/aidp/commit/bc060576f4edd1c4a1ec3f013bdb43c6b1b5fe81))
+* add Kilocode CLI installation to devcontainer and update documentation ([cb4d33e](https://github.com/viamin/aidp/commit/cb4d33e8e9ab33dc8076be50d88d2c386ab50d50))
+* Add PR review and CI-fix automation ([#256](https://github.com/viamin/aidp/issues/256)) ([6570f8c](https://github.com/viamin/aidp/commit/6570f8c0b422f13d36164fab4bbba8dc27c983cf))
+* Add PR review and CI-fix automation ([#256](https://github.com/viamin/aidp/issues/256)) ([#263](https://github.com/viamin/aidp/issues/263)) ([b7e85be](https://github.com/viamin/aidp/commit/b7e85beacd0ff8b2e54153491b202b4e2fa93d62))
+* expand model families and improve normalization ([0aee0a4](https://github.com/viamin/aidp/commit/0aee0a4dc816f1303115d9bb80ad144883cc2cc7))
+* expand model families and improve normalization ([#251](https://github.com/viamin/aidp/issues/251)) ([c1d3b67](https://github.com/viamin/aidp/commit/c1d3b6788de1bd5607cd080726341451925dd2e6))
+* implement Kilocode provider with comprehensive features and tests ([3231e54](https://github.com/viamin/aidp/commit/3231e54d68266cd901ba6cb46b8f06c1b4785a52))
+* implement Kilocode provider with comprehensive features and tests ([#258](https://github.com/viamin/aidp/issues/258)) ([11f47f5](https://github.com/viamin/aidp/commit/11f47f57782ac9d6305dc6acd31427b987a0e8ea))
+
+
+### Bug Fixes
+
+* add tests for bundler_adapter and fix linter error ([94bc640](https://github.com/viamin/aidp/commit/94bc64003b8a57186c74b47310c0a951553d6f58))
+* add UTF-8 encoding for file reads and message display ([9d7f888](https://github.com/viamin/aidp/commit/9d7f8888ed12ae072929bd0742e5f1a546354420))
+* add UTF-8 encoding for file reads and message display ([#261](https://github.com/viamin/aidp/issues/261)) ([6335bc6](https://github.com/viamin/aidp/commit/6335bc65e16b9306de0060e05668516f9eb33f9a))
+* correct provider class name in reviewer specs ([70c6fc4](https://github.com/viamin/aidp/commit/70c6fc449e1bc2bef09d967bef2c437ed6782094))
+* correct provider initialization and API usage ([4976d6c](https://github.com/viamin/aidp/commit/4976d6c66b5318b918275ebbc77554f08bb887b7))
+* ensure UTF-8 encoding when reading markdown files ([34153f1](https://github.com/viamin/aidp/commit/34153f137a8cd01d7562ce3943d90bc9b1454991))
+* replace unquoted variable expansion with direct command execution in supervisor scripts ([8163e27](https://github.com/viamin/aidp/commit/8163e276a6970a3bcb70be1cfbbbeedbacdd89b6))
+* SafeDirectory tests to work when running as root ([75c9ef2](https://github.com/viamin/aidp/commit/75c9ef27635ddb817885c73dfca917f9046b5556))
+* SafeDirectory tests to work when running as root ([#260](https://github.com/viamin/aidp/issues/260)) ([37ebaf7](https://github.com/viamin/aidp/commit/37ebaf7754a8a38d3efb3d0c499d4efd2b6f111d))
+* simplify error handling in Kilocode provider ([1ff67ce](https://github.com/viamin/aidp/commit/1ff67ce08cd0037173908c90ff16205df491fa9b))
+* simplify rescue clause in checkpoint and runner classes ([49bb405](https://github.com/viamin/aidp/commit/49bb4054cc8306b76bd423c46984d8bc840ea0b7))
+* specify StandardError in rescue clauses for better error handling ([ccad6b7](https://github.com/viamin/aidp/commit/ccad6b74e3e17d6cf7ac8752f8450ee106b6884e))
+* update documentation for self-updating Aidp, renaming sections and improving formatting ([c6d68b6](https://github.com/viamin/aidp/commit/c6d68b69e450e272e55ed3ee440f4b627dfe302b))
+* update implementation guide and tests for GitHub user tagging and PR assignment ([5acb4ba](https://github.com/viamin/aidp/commit/5acb4baf690a4b842f42e93f03e82f8c13a29074))
+* use SafeDirectory in auto_update classes to handle permissions ([d49a951](https://github.com/viamin/aidp/commit/d49a951f0989ab325e5b09ab9ca4234d664f3de4))
+* use SafeDirectory in auto_update classes to handle permissions ([#262](https://github.com/viamin/aidp/issues/262)) ([e4afb9a](https://github.com/viamin/aidp/commit/e4afb9a019a99149ab6c43c6632af885e50e99fc))
+
+
+### Improvements
+
+* replace system() with Open3.capture3 in checkpoint.rb ([7b66971](https://github.com/viamin/aidp/commit/7b66971a4bfdf6ec86544059c6d9959d6d3f0d17))
+* replace system() with Open3.capture3 in checkpoint.rb ([#264](https://github.com/viamin/aidp/issues/264)) ([e1be6c7](https://github.com/viamin/aidp/commit/e1be6c717e33a08551d6feba3300dca08791515c))
+
+
+### Documentation
+
+* Add comprehensive documentation and tests for PR review/CI-fix ([#256](https://github.com/viamin/aidp/issues/256)) ([9fb9c65](https://github.com/viamin/aidp/commit/9fb9c65face6617b353ff11a51ca5233f0a4ead6))
+* Archive implementation records and create comprehensive docs index ([37c2f59](https://github.com/viamin/aidp/commit/37c2f592e1102499111685dc65d0826c8de7c995))
+* Consolidate harness documentation and fix critical issues ([85d0b40](https://github.com/viamin/aidp/commit/85d0b40c73e6ba4500a622f4e6fb61f5e34b07a6))
+* enhance documentation with additional details and formatting improvements ([e1f8ba1](https://github.com/viamin/aidp/commit/e1f8ba1af8084060148f36f7a562ca5697543964))
+* Extract unfinished work from implementation records to FOLLOW_UP_OPPORTUNITIES.md ([62d5355](https://github.com/viamin/aidp/commit/62d53550027ba16a6d08fabd768a14f8c6437697))
+
 ## [0.24.0](https://github.com/viamin/aidp/compare/aidp/v0.23.0...aidp/v0.24.0) (2025-11-10)
 
 
