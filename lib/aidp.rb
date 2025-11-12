@@ -26,6 +26,7 @@ require_relative "aidp/providers/base"
 require_relative "aidp/providers/cursor"
 require_relative "aidp/providers/anthropic"
 require_relative "aidp/providers/gemini"
+require_relative "aidp/providers/kilocode"
 # Supervised providers removed - using direct execution model
 require_relative "aidp/provider_manager"
 

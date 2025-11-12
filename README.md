@@ -406,6 +406,7 @@ AIDP intelligently manages multiple providers with automatic switching:
 - **Cursor CLI** - IDE-integrated provider for code-specific tasks
 - **Gemini CLI** - Google's Gemini command-line interface for general tasks
 - **GitHub Copilot CLI** - GitHub's AI pair programmer command-line interface
+- **Kilocode** - Modern AI coding assistant with autonomous mode support
 - **OpenCode** - Alternative open-source code generation provider
 
 The system automatically switches providers when:
@@ -456,12 +457,37 @@ providers:
     type: "subscription"
 ```
 
+### Provider Installation
+
+Each provider requires its CLI tool to be installed:
+
+```bash
+# Cursor CLI
+npm install -g @cursor/cli
+
+# Kilocode CLI
+npm install -g @kilocode/cli
+
+# OpenCode CLI
+npm install -g @opencode/cli
+
+# GitHub Copilot CLI (requires GitHub account)
+gh extension install github/gh-copilot
+```
+
 ### Environment Variables
 
 ```bash
-# Set API keys
+# Set API keys for usage-based providers
 export AIDP_CLAUDE_API_KEY="your-claude-api-key"
 export AIDP_GEMINI_API_KEY="your-gemini-api-key"
+
+# Kilocode authentication (get token from kilocode.ai profile)
+export KILOCODE_TOKEN="your-kilocode-api-token"
+
+# Optional: Configure provider-specific settings
+export KILOCODE_MODEL="your-preferred-model"
+export AIDP_KILOCODE_TIMEOUT="600"  # Custom timeout in seconds
 ```
 
 ## Tree-sitter Static Analysis

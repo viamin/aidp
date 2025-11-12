@@ -142,6 +142,8 @@ module Aidp
           Aidp::Providers::Anthropic.new(prompt: prompt)
         when "gemini"
           Aidp::Providers::Gemini.new(prompt: prompt)
+        when "kilocode"
+          Aidp::Providers::Kilocode.new(prompt: prompt)
         when "github_copilot"
           Aidp::Providers::GithubCopilot.new(prompt: prompt)
         when "codex"
