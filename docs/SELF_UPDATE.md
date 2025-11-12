@@ -26,7 +26,7 @@ Aidp can automatically update itself when running in watch mode inside devcontai
 
 ## How It Works
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    Aidp Watch Mode                          │
 │                                                             │
@@ -191,7 +191,7 @@ aidp settings auto-update status
 
 **Output:**
 
-```
+```text
 Auto-Update Configuration
 ============================================================
 Enabled: Yes
