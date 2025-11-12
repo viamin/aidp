@@ -5,7 +5,7 @@ require "aidp/watch/reviewers/senior_dev_reviewer"
 
 RSpec.describe Aidp::Watch::Reviewers::SeniorDevReviewer do
   let(:reviewer) { described_class.new }
-  let(:provider) { instance_double(Aidp::Providers::AnthropicProvider) }
+  let(:provider) { instance_double(Aidp::Providers::Anthropic) }
   let(:pr_data) do
     {
       number: 123,

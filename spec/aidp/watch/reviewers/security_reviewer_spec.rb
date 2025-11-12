@@ -5,7 +5,7 @@ require "aidp/watch/reviewers/security_reviewer"
 
 RSpec.describe Aidp::Watch::Reviewers::SecurityReviewer do
   let(:reviewer) { described_class.new }
-  let(:provider) { instance_double(Aidp::Providers::AnthropicProvider) }
+  let(:provider) { instance_double(Aidp::Providers::Anthropic) }
 
   before do
     allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
