@@ -147,18 +147,21 @@ docs/devcontainer/
 ### By Audience
 
 **End Users** (start here):
+
 - CLI User Guide
 - Skills Quickstart
 - Work Loops Guide
 - Configuration
 
 **Power Users**:
+
 - Interactive REPL
 - Thinking Depth
 - Workstreams
 - Prompt Optimization
 
 **Developers**:
+
 - Implementation Guide
 - Provider Adapter Guide
 - Style Guide
@@ -214,7 +217,7 @@ When adding or updating documentation:
 - **General Help**: [CLI User Guide](CLI_USER_GUIDE.md)
 - **Configuration Issues**: [Configuration](CONFIGURATION.md)
 - **Troubleshooting**: [Debug Guide](DEBUG_GUIDE.md)
-- **GitHub Issues**: Report bugs and request features at https://github.com/viamin/aidp/issues
+- **GitHub Issues**: Report bugs and request features at <https://github.com/viamin/aidp/issues>
 
 ## Documentation Stats
 
