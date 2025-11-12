@@ -3,18 +3,18 @@
 require "spec_helper"
 require "aidp/watch/reviewers/base_reviewer"
 
-RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
-  # Create a concrete test class since BaseReviewer is abstract
-  let(:test_reviewer_class) do
-    Class.new(described_class) do
-      PERSONA_NAME = "Test Reviewer"
-      FOCUS_AREAS = ["Testing", "Quality"].freeze
+# Define test reviewer class outside the RSpec block to avoid Lint/ConstantDefinitionInBlock
+class TestReviewer < Aidp::Watch::Reviewers::BaseReviewer
+  PERSONA_NAME = "Test Reviewer"
+  FOCUS_AREAS = ["Testing", "Quality"].freeze
 
-      def review(pr_data:, files:, diff:)
-        {persona: PERSONA_NAME, findings: []}
-      end
-    end
+  def review(pr_data:, files:, diff:)
+    {persona: PERSONA_NAME, findings: []}
   end
+end
+
+RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
+  let(:test_reviewer_class) { TestReviewer }
 
   let(:reviewer) { test_reviewer_class.new }
   let(:provider) { instance_double(Aidp::Providers::Anthropic) }
@@ -40,7 +40,12 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
 
   describe "#review" do
     it "raises NotImplementedError in base class" do
-      base_reviewer = described_class.new
+      # Create an anonymous subclass with the required constants but no review implementation
+      minimal_reviewer_class = Class.new(described_class) do
+        const_set(:PERSONA_NAME, "Minimal")
+        const_set(:FOCUS_AREAS, [].freeze)
+      end
+      base_reviewer = minimal_reviewer_class.new
       expect {
         base_reviewer.review(pr_data: {}, files: [], diff: "")
       }.to raise_error(NotImplementedError, "Subclasses must implement #review")
@@ -102,7 +107,7 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
       diff = (1..100).map { |i| "line#{i}" }.join("\n")
       result = reviewer.send(:truncate_diff, diff, max_lines: 50)
       lines = result.lines
-      expect(lines.length).to eq(51) # 50 lines + truncation message
+      expect(lines.length).to eq(52) # 50 lines + newline + truncation message with newline
       expect(result).to include("... (diff truncated, 50 more lines)")
     end
 
@@ -159,7 +164,7 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
       prompt = reviewer.send(:system_prompt)
       expect(prompt).to include('"findings"')
       expect(prompt).to include('"severity"')
-      expect(prompt).to include('high|major|minor|nit')
+      expect(prompt).to include("high|major|minor|nit")
     end
 
     it "includes severity level definitions" do

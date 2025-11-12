@@ -11,6 +11,7 @@ aidp watch viamin/aidp
 ```
 
 Watch mode now monitors for two new labels:
+
 - `aidp-review` - Code review
 - `aidp-fix-ci` - CI auto-fix
 
@@ -82,12 +83,14 @@ Changes committed and pushed. CI will re-run.
 ## What Gets Auto-Fixed?
 
 **Can Fix:**
+
 - ✅ Linting errors (formatting, style)
 - ✅ Simple test failures (typos, imports)
 - ✅ Missing dependencies
 - ✅ Config errors (paths, env vars)
 
 **Cannot Fix:**
+
 - ❌ Complex logic errors
 - ❌ Security vulnerabilities
 - ❌ Performance regressions
@@ -114,7 +117,7 @@ harness:
 
 Reviews and fixes are logged to:
 
-```
+```text
 .aidp/logs/pr_reviews/
 ├── pr_123_20250112_143022.json
 └── ci_fix_123_20250112_150311.json

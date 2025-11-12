@@ -1145,6 +1145,7 @@ aidp config show providers
 **Symptoms**: Workflow fails to start, no progress display
 
 **Solutions**:
+
 ```bash
 # Check configuration
 aidp config validate
@@ -1162,6 +1163,7 @@ chmod 644 aidp.yml
 **Symptoms**: "Authentication failed", "Invalid API key"
 
 **Solutions**:
+
 ```bash
 # Set API keys
 export AIDP_CLAUDE_API_KEY="your-claude-api-key"
@@ -1180,6 +1182,7 @@ aidp providers  # Check provider health
 **Symptoms**: Frequent pauses, "Rate limit exceeded" errors
 
 **Solutions**:
+
 ```bash
 # Configure fallback providers
 # Add to aidp.yml:
@@ -1197,6 +1200,7 @@ aidp providers
 **Symptoms**: Keeps retrying same step, no progress
 
 **Solutions**:
+
 ```bash
 # Stop and reset
 aidp harness stop
@@ -1214,6 +1218,7 @@ tail -f .aidp/logs/errors.log
 **Symptoms**: "State file corrupted", can't resume
 
 **Solutions**:
+
 ```bash
 # Reset harness state
 aidp harness reset --mode=analyze --clear-all

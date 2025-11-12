@@ -14,7 +14,9 @@ Two new label-triggered modes extend Aidp's watch capabilities:
 When you add the `aidp-review` label to a PR, Aidp evaluates the code from three expert perspectives:
 
 ### 1. Senior Developer
+
 **Focus Areas:**
+
 - Code correctness and logic errors
 - Architecture and design patterns
 - API design and consistency
@@ -24,7 +26,9 @@ When you add the `aidp-review` label to a PR, Aidp evaluates the code from three
 - Documentation completeness
 
 ### 2. Security Specialist
+
 **Focus Areas:**
+
 - Injection vulnerabilities (SQL, command, XSS, etc.)
 - Authentication and authorization flaws
 - Sensitive data exposure
@@ -37,7 +41,9 @@ When you add the `aidp-review` label to a PR, Aidp evaluates the code from three
 - OWASP Top 10 vulnerabilities
 
 ### 3. Performance Analyst
+
 **Focus Areas:**
+
 - Algorithm complexity (O(n) vs O(n²), etc.)
 - Database query optimization (N+1 queries, missing indexes)
 - Memory allocation and garbage collection pressure
@@ -53,7 +59,7 @@ When you add the `aidp-review` label to a PR, Aidp evaluates the code from three
 
 Reviews are posted as PR comments with severity-categorized findings:
 
-```
+```text
 ## 🤖 AIDP Code Review
 
 ### Summary
@@ -78,10 +84,12 @@ User input is directly interpolated into SQL query without sanitization.
 Use parameterized queries instead:
 User.where("name = ?", params[:name])
 ```
+
 </details>
 
 ...
-```
+
+```text
 
 ### Severity Levels
 
@@ -118,20 +126,24 @@ When you add the `aidp-fix-ci` label to a PR with failing CI checks, Aidp:
 
 ### CI Fix Output
 
-```
+```text
+
 ## 🤖 AIDP CI Fix
 
 ✅ Successfully analyzed and fixed CI failures!
 
 **Root Causes:**
+
 - Missing import statement in test file
 - Incorrect module path in spec/support/helpers.rb
 
 **Applied Fixes:**
+
 - spec/models/user_spec.rb: Added missing require statement
 - spec/support/helpers.rb: Fixed module namespace
 
 The fixes have been committed and pushed to this PR. CI should re-run automatically.
+
 ```
 
 ## Usage in Watch Mode
@@ -143,6 +155,7 @@ aidp watch viamin/aidp --interval 30
 ```
 
 Watch mode now automatically monitors for:
+
 - `aidp-plan` - Generate implementation plan
 - `aidp-build` - Execute autonomous work loop
 - **`aidp-review`** - Review pull request code
@@ -185,7 +198,7 @@ harness:
 
 All review activities are logged to `.aidp/logs/pr_reviews/`:
 
-```
+```text
 .aidp/logs/pr_reviews/
 ├── pr_123_20250112_143022.json  # Review results
 └── ci_fix_123_20250112_150311.json  # CI fix attempts
@@ -194,6 +207,7 @@ All review activities are logged to `.aidp/logs/pr_reviews/`:
 ### Log Format
 
 **Review Log:**
+
 ```json
 {
   "pr_number": 123,
@@ -219,6 +233,7 @@ All review activities are logged to `.aidp/logs/pr_reviews/`:
 ```
 
 **CI Fix Log:**
+
 ```json
 {
   "pr_number": 123,
@@ -252,11 +267,13 @@ Aidp includes safeguards to prevent infinite feedback loops:
 ### Security Considerations
 
 **Rule-of-Two Policy** - Watch mode respects repository safety checks:
+
 - Only processes PRs from authorized authors
 - Validates repository ownership before running
 - Supports `--force` flag for testing (use with caution)
 
 **Review-Only vs Fix Mode:**
+
 - **`aidp-review`** - Read-only analysis, no commits
 - **`aidp-fix-ci`** - Commits and pushes fixes to PR branch
 
@@ -292,6 +309,7 @@ Aidp will process the PR again with the latest changes.
 ### Review Not Triggering
 
 **Check:**
+
 1. Is watch mode running? (`aidp watch viamin/aidp`)
 2. Does the PR have the correct label? (default: `aidp-review`)
 3. Is the PR author authorized? (see safety checker logs)
@@ -300,6 +318,7 @@ Aidp will process the PR again with the latest changes.
 ### CI Fix Not Working
 
 **Check:**
+
 1. Are CI checks actually failing? (not just pending)
 2. Is the failure type auto-fixable? (see "What Aidp Can Fix" above)
 3. Check CI fix logs in `.aidp/logs/pr_reviews/ci_fix_*.json`
@@ -325,22 +344,25 @@ See [examples/review_output_example.md](examples/review_output_example.md) for a
 
 ### Example CI Fix Scenarios
 
-**Scenario 1: Linting Errors**
-```
+#### Scenario 1: Linting Errors
+
+```text
 CI Error: RuboCop found 5 style violations
 Aidp Fix: Auto-corrected formatting and style issues
 Result: CI passes ✅
 ```
 
-**Scenario 2: Missing Test Fixtures**
-```
+#### Scenario 2: Missing Test Fixtures
+
+```text
 CI Error: Fixture file not found: spec/fixtures/users.yml
 Aidp Fix: Cannot auto-fix (requires domain knowledge)
 Result: Posted explanation, manual fix needed ⚠️
 ```
 
-**Scenario 3: Dependency Conflict**
-```
+#### Scenario 3: Dependency Conflict
+
+```text
 CI Error: Gem version conflict between foo (>= 2.0) and bar (< 1.5)
 Aidp Fix: Updated Gemfile to compatible versions
 Result: CI passes ✅

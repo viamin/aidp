@@ -18,7 +18,7 @@ RSpec.describe Aidp::Watch::Reviewers::PerformanceReviewer do
 
     it "defines performance-focused FOCUS_AREAS" do
       expect(described_class::FOCUS_AREAS).to include(
-        "Algorithm complexity and efficiency",
+        "Algorithm complexity (O(n) vs O(n²), etc.)",
         "Database query optimization (N+1 queries, missing indexes)"
       )
     end

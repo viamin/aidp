@@ -18,8 +18,8 @@ RSpec.describe Aidp::Watch::Reviewers::SecurityReviewer do
 
     it "defines security-focused FOCUS_AREAS" do
       expect(described_class::FOCUS_AREAS).to include(
-        "Injection vulnerabilities (SQL, XSS, Command Injection)",
-        "Authentication and authorization issues"
+        "Injection vulnerabilities (SQL, command, XSS, etc.)",
+        "Authentication and authorization flaws"
       )
     end
   end
