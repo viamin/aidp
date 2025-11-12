@@ -40,19 +40,25 @@ if [ $EXIT_CODE -eq 75 ]; then
 
   # Update aidp gem
   if command -v mise &> /dev/null; then
-    UPDATE_CMD="mise exec -- bundle update aidp"
+    if mise exec -- bundle update aidp >> "$AIDP_LOG" 2>&1; then
+      NEW_VERSION=$(bundle exec aidp version 2>/dev/null || echo "unknown")
+      log "Aidp updated successfully to version $NEW_VERSION"
+      # Supervisor will restart us automatically with exit code 0
+      exit 0
+    else
+      log "ERROR: Bundle update failed"
+      exit 1
+    fi
   else
-    UPDATE_CMD="bundle update aidp"
-  fi
-
-  if $UPDATE_CMD >> "$AIDP_LOG" 2>&1; then
-    NEW_VERSION=$(bundle exec aidp version 2>/dev/null || echo "unknown")
-    log "Aidp updated successfully to version $NEW_VERSION"
-    # Supervisor will restart us automatically with exit code 0
-    exit 0
-  else
-    log "ERROR: Bundle update failed"
-    exit 1
+    if bundle update aidp >> "$AIDP_LOG" 2>&1; then
+      NEW_VERSION=$(bundle exec aidp version 2>/dev/null || echo "unknown")
+      log "Aidp updated successfully to version $NEW_VERSION"
+      # Supervisor will restart us automatically with exit code 0
+      exit 0
+    else
+      log "ERROR: Bundle update failed"
+      exit 1
+    fi
   fi
 fi
 
