@@ -168,7 +168,7 @@ module Aidp
             commit_sha: commit_sha.strip,
             remote_url: remote_url.strip
           }
-        rescue StandardError => e
+        rescue => e
           Aidp.log_debug("checkpoint", "worktree_context_unavailable", error: e.message)
           {}
         end

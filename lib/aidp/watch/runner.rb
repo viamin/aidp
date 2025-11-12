@@ -333,7 +333,7 @@ module Aidp
         Aidp.log_debug("watch_runner", "worktree_context_unavailable", error: e.message)
         {}
       end
-      
+
       def pr_has_label?(pr, label)
         Array(pr[:labels]).any? do |pr_label|
           name = pr_label.is_a?(Hash) ? pr_label["name"] : pr_label.to_s
