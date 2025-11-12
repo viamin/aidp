@@ -495,7 +495,7 @@ module Aidp
       end
 
       def post_review_comment_via_api(number, body, commit_id: nil, path: nil, line: nil)
-        response = if path && line && commit_id
+        http_response = if path && line && commit_id
           # Post inline review comment
           uri = URI("https://api.github.com/repos/#{full_repo}/pulls/#{number}/reviews")
           request = Net::HTTP::Post.new(uri)
@@ -516,12 +516,12 @@ module Aidp
 
           request.body = JSON.dump(review_data)
 
-          http_response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
             http.request(request)
           end
 
-          raise "GitHub API review comment failed (#{http_response.code}): #{http_response.body}" unless http_response.code.start_with?("2")
-          http_response
+          raise "GitHub API review comment failed (#{response.code}): #{response.body}" unless response.code.start_with?("2")
+          response
         else
           # Post general comment on the PR
           uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/comments")
@@ -529,15 +529,15 @@ module Aidp
           request["Content-Type"] = "application/json"
           request.body = JSON.dump({body: body})
 
-          http_response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
             http.request(request)
           end
 
-          raise "GitHub API comment failed (#{http_response.code})" unless http_response.code.start_with?("2")
-          http_response
+          raise "GitHub API comment failed (#{response.code})" unless response.code.start_with?("2")
+          response
         end
 
-        response.body
+        http_response.body
       end
 
       # Normalization methods for PRs

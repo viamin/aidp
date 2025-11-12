@@ -77,7 +77,7 @@ module Aidp
         begin
           @repository_client.remove_labels(number, @review_label)
           display_message("🏷️  Removed '#{@review_label}' label after review", type: :info)
-        rescue StandardError => e
+        rescue => e
           display_message("⚠️  Failed to remove review label: #{e.message}", type: :warn)
         end
       rescue => e
@@ -94,7 +94,7 @@ module Aidp
         COMMENT
         begin
           @repository_client.post_comment(number, error_comment)
-        rescue StandardError
+        rescue
           nil
         end
       end

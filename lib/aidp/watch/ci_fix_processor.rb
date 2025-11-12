@@ -60,7 +60,7 @@ module Aidp
           @state_store.record_ci_fix(number, {status: "no_failures", timestamp: Time.now.utc.iso8601})
           begin
             @repository_client.remove_labels(number, @ci_fix_label)
-          rescue StandardError
+          rescue
             nil
           end
           return
@@ -109,7 +109,7 @@ module Aidp
         COMMENT
         begin
           @repository_client.post_comment(pr[:number], error_comment)
-        rescue StandardError
+        rescue
           nil
         end
       end
