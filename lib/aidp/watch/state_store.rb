@@ -53,6 +53,49 @@ module Aidp
         save!
       end
 
+      # Review tracking methods
+      def review_processed?(pr_number)
+        reviews.key?(pr_number.to_s)
+      end
+
+      def review_data(pr_number)
+        reviews[pr_number.to_s]
+      end
+
+      def record_review(pr_number, data)
+        payload = {
+          "timestamp" => data[:timestamp] || Time.now.utc.iso8601,
+          "reviewers" => data[:reviewers],
+          "total_findings" => data[:total_findings]
+        }.compact
+
+        reviews[pr_number.to_s] = payload
+        save!
+      end
+
+      # CI fix tracking methods
+      def ci_fix_completed?(pr_number)
+        fix_data = ci_fixes[pr_number.to_s]
+        fix_data && fix_data["status"] == "completed"
+      end
+
+      def ci_fix_data(pr_number)
+        ci_fixes[pr_number.to_s]
+      end
+
+      def record_ci_fix(pr_number, data)
+        payload = {
+          "status" => data[:status],
+          "timestamp" => data[:timestamp] || Time.now.utc.iso8601,
+          "reason" => data[:reason],
+          "root_causes" => data[:root_causes],
+          "fixes_count" => data[:fixes_count]
+        }.compact
+
+        ci_fixes[pr_number.to_s] = payload
+        save!
+      end
+
       private
 
       def ensure_directory
@@ -81,6 +124,8 @@ module Aidp
           base = load_state
           base["plans"] ||= {}
           base["builds"] ||= {}
+          base["reviews"] ||= {}
+          base["ci_fixes"] ||= {}
           base
         end
       end
@@ -91,6 +136,14 @@ module Aidp
 
       def builds
         state["builds"]
+      end
+
+      def reviews
+        state["reviews"]
+      end
+
+      def ci_fixes
+        state["ci_fixes"]
       end
 
       def stringify_keys(hash)
