@@ -331,7 +331,7 @@ class AutoUpdate::Coordinator
     @failure_tracker.reset_on_success
 
     checkpoint
-  rescue => e
+  rescue StandardError => e
     @failure_tracker.record_failure
     @update_logger.log_failure("Checkpoint restore failed: #{e.message}")
     nil
@@ -526,7 +526,7 @@ module Aidp
           policy_reason: policy_reason(available),
           checked_at: Time.now
         )
-      rescue => e
+      rescue StandardError => e
         Aidp.log_error("auto_update", "version_check_failed", error: e.message)
         UpdateCheck.failed(e.message)
       end
@@ -597,7 +597,7 @@ def save_checkpoint(checkpoint)
 
   Aidp.log_info("auto_update", "checkpoint_saved", id: checkpoint.id)
   true
-rescue => e
+rescue StandardError => e
   Aidp.log_error("auto_update", "checkpoint_save_failed", error: e.message)
   File.delete(temp_file) if File.exist?(temp_file)
   false
@@ -1187,7 +1187,7 @@ end
 
 ```ruby
 # 1. Always log errors with context
-rescue => e
+rescue StandardError => e
   Aidp.log_error("auto_update", "operation_failed",
     error: e.message,
     checkpoint_id: checkpoint.id,
@@ -1205,7 +1205,7 @@ class VersionPolicyError < UpdateError; end
 # 3. Graceful degradation for non-critical features
 def check_for_update
   # Implementation...
-rescue => e
+rescue StandardError => e
   Aidp.log_error("auto_update", "check_failed", error: e.message)
   UpdateCheck.unavailable
 end
