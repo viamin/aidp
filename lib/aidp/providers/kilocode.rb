@@ -100,7 +100,7 @@ module Aidp
             debug_error(StandardError.new("kilocode failed"), {exit_code: result.exit_status, stderr: result.err})
             raise "kilocode failed with exit code #{result.exit_status}: #{result.err}"
           end
-        rescue StandardError => e
+        rescue => e
           spinner&.error("✗")
           mark_failed("kilocode execution failed: #{e.message}")
           debug_error(e, {provider: "kilocode", prompt_length: prompt.length})
