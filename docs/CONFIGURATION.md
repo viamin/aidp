@@ -494,6 +494,132 @@ logging:
   max_backups: 5
 ```
 
+## Auto-Update
+
+```yaml
+auto_update:
+  enabled: false                  # Master switch for auto-update
+  policy: off                     # off|exact|patch|minor|major
+  allow_prerelease: false         # Allow prerelease versions (alpha/beta/rc)
+  check_interval_seconds: 3600    # How often to check for updates (min: 300, max: 86400)
+  supervisor: none                # Supervisor type: supervisord|s6|runit|none
+  max_consecutive_failures: 3     # Restart loop protection (min: 1, max: 10)
+```
+
+**Auto-update enables Aidp to update itself automatically when running in watch mode.** This is designed for devcontainer environments where Aidp runs continuously.
+
+### Update Policies
+
+| Policy | Description | Example |
+|--------|-------------|---------|
+| `off` | No automatic updates | Always stay on current version |
+| `exact` | Only exact version matches | 1.2.3 → 1.2.3 (no updates) |
+| `patch` | Allow patch updates | 1.2.3 → 1.2.4 ✓, 1.2.3 → 1.3.0 ✗ |
+| `minor` | Allow minor + patch updates | 1.2.3 → 1.3.0 ✓, 1.2.3 → 2.0.0 ✗ |
+| `major` | Allow all updates | 1.2.3 → 2.0.0 ✓ |
+
+**Recommended**: Use `minor` for automatic updates or `patch` for conservative environments.
+
+### Supervisor Integration
+
+Auto-update requires a process supervisor to handle restarts. Supported supervisors:
+
+- **supervisord** - Recommended, widely used
+- **s6** - Lightweight, fast startup
+- **runit** - Simple, reliable
+- **none** - Disables supervisor integration (auto-update won't restart)
+
+See [SELF_UPDATE.md](SELF_UPDATE.md) for complete setup instructions and supervisor configuration.
+
+### How It Works
+
+1. **Check**: Aidp checks for updates every `check_interval_seconds` while running in watch mode
+2. **Checkpoint**: If an allowed update is available, Aidp saves current state to `.aidp/checkpoints/`
+3. **Exit**: Aidp exits with code 75, signaling the supervisor to update
+4. **Update**: Supervisor runs `bundle update aidp`
+5. **Restart**: Supervisor restarts Aidp
+6. **Restore**: Aidp restores from checkpoint and resumes watch mode
+
+### CLI Commands
+
+Manage auto-update settings via CLI:
+
+```bash
+# Show current status
+aidp settings auto-update status
+
+# Enable/disable
+aidp settings auto-update on
+aidp settings auto-update off
+
+# Set policy
+aidp settings auto-update policy minor
+
+# Toggle prerelease
+aidp settings auto-update prerelease
+```
+
+### Example Configurations
+
+**Conservative (patch updates only):**
+
+```yaml
+auto_update:
+  enabled: true
+  policy: patch
+  allow_prerelease: false
+  check_interval_seconds: 7200  # Check every 2 hours
+  supervisor: supervisord
+  max_consecutive_failures: 2
+```
+
+**Aggressive (all updates):**
+
+```yaml
+auto_update:
+  enabled: true
+  policy: major
+  allow_prerelease: true
+  check_interval_seconds: 1800  # Check every 30 minutes
+  supervisor: supervisord
+  max_consecutive_failures: 3
+```
+
+**Disabled:**
+
+```yaml
+auto_update:
+  enabled: false
+  policy: off
+  # Other settings ignored when disabled
+```
+
+### Logs and Monitoring
+
+Auto-update maintains comprehensive logs:
+
+- **Update log**: `.aidp/logs/updates.log` (JSON Lines format)
+- **Wrapper log**: `.aidp/logs/wrapper.log` (supervisor wrapper)
+- **Checkpoints**: `.aidp/checkpoints/` (state snapshots)
+
+```bash
+# View recent updates
+cat .aidp/logs/updates.log | jq 'select(.event=="success")'
+
+# Monitor in real-time
+tail -f .aidp/logs/wrapper.log
+```
+
+### Security and Safety
+
+- **Opt-in by default**: Auto-update is disabled unless explicitly enabled
+- **Bundler respects Gemfile.lock**: Only updates aidp gem according to version constraints
+- **Restart loop protection**: Disables auto-update after max_consecutive_failures
+- **Checksum validation**: Checkpoints verified before restoration
+- **Audit trail**: All update attempts logged
+
+See [SELF_UPDATE.md](SELF_UPDATE.md) for complete documentation, troubleshooting, and security considerations.
+
 ## Modes
 
 ```yaml

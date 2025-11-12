@@ -82,6 +82,8 @@ module Aidp
       def render_template(template, options: {})
         return template if options.empty?
 
+        # Ensure template is UTF-8 encoded
+        template = template.encode("UTF-8", invalid: :replace, undef: :replace) unless template.encoding == Encoding::UTF_8
         rendered = template.dup
 
         options.each do |key, value|
@@ -158,6 +160,8 @@ module Aidp
       def extract_placeholders(text)
         return [] if text.nil? || text.empty?
 
+        # Ensure text is UTF-8 encoded
+        text = text.encode("UTF-8", invalid: :replace, undef: :replace) unless text.encoding == Encoding::UTF_8
         scanner = StringScanner.new(text)
         placeholders = []
 

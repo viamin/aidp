@@ -323,6 +323,11 @@ module Aidp
           opts.separator "    show <id>                - Show detailed skill information"
           opts.separator "    search <query>           - Search skills by keyword"
           opts.separator "    validate [path]          - Validate skill file format"
+          opts.separator "  settings                 Manage runtime settings"
+          opts.separator "    auto-update status       - Show auto-update configuration"
+          opts.separator "    auto-update on|off       - Enable/disable auto-updates"
+          opts.separator "    auto-update policy <pol> - Set update policy (off/exact/patch/minor/major)"
+          opts.separator "    auto-update prerelease   - Toggle prerelease updates"
           opts.separator "  harness                  Manage harness state"
           opts.separator "  config                   Manage configuration"
           opts.separator "    status                   - Show harness status"
@@ -376,7 +381,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work skill].include?(args.first)
+        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work skill settings].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -397,6 +402,7 @@ module Aidp
         when "ws" then run_ws_command(args)
         when "work" then run_work_command(args)
         when "skill" then run_skill_command(args)
+        when "settings" then run_settings_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -1852,6 +1858,164 @@ module Aidp
 
       def display_config_usage
         display_message("Usage: aidp config --interactive [--dry-run]", type: :info)
+      end
+
+      def run_settings_command(args)
+        require_relative "auto_update"
+        require "yaml"
+        require "tty-table"
+
+        subcommand = args.shift
+
+        case subcommand
+        when "auto-update"
+          action = args.shift
+
+          case action
+          when "status", nil
+            # Show current auto-update status
+            coordinator = Aidp::AutoUpdate.coordinator(project_dir: Dir.pwd)
+            status = coordinator.status
+
+            display_message("Auto-Update Configuration", type: :highlight)
+            display_message("=" * 60, type: :muted)
+            display_message("Enabled: #{status[:enabled] ? "Yes" : "No"}", type: status[:enabled] ? :success : :muted)
+            display_message("Policy: #{status[:policy]}", type: :info)
+            display_message("Supervisor: #{status[:supervisor]}", type: :info)
+            display_message("Allow Prerelease: #{coordinator.policy.allow_prerelease}", type: :info)
+            display_message("Check Interval: #{coordinator.policy.check_interval_seconds}s", type: :info)
+            display_message("Max Consecutive Failures: #{coordinator.policy.max_consecutive_failures}", type: :info)
+            display_message("", type: :info)
+            display_message("Current Version: #{status[:current_version]}", type: :info)
+            display_message("Latest Available: #{status[:available_version] || "checking..."}", type: :info)
+
+            if status[:update_available]
+              if status[:update_allowed]
+                display_message("Update Available: Yes (allowed by policy)", type: :success)
+              else
+                display_message("Update Available: Yes (blocked by policy: #{status[:policy_reason]})", type: :warning)
+              end
+            else
+              display_message("Update Available: No", type: :muted)
+            end
+
+            display_message("", type: :info)
+            display_message("Failure Tracker:", type: :highlight)
+            failure_status = status[:failure_tracker]
+            display_message("Consecutive Failures: #{failure_status[:failures]}/#{failure_status[:max_failures]}", type: :info)
+            display_message("Last Success: #{failure_status[:last_success] || "never"}", type: :muted)
+
+            if status[:recent_updates]&.any?
+              display_message("", type: :info)
+              display_message("Recent Updates:", type: :highlight)
+              status[:recent_updates].each do |entry|
+                timestamp = entry["timestamp"] || entry[:timestamp]
+                event = entry["event"] || entry[:event]
+                display_message("  #{timestamp} - #{event}", type: :muted)
+              end
+            end
+
+          when "on"
+            # Enable auto-update
+            update_config_value(:auto_update, :enabled, true)
+            display_message("✓ Auto-update enabled", type: :success)
+            display_message("", type: :info)
+            display_message("Make sure to configure a supervisor for watch mode.", type: :muted)
+            display_message("See: docs/SELF_UPDATE.md", type: :muted)
+
+          when "off"
+            # Disable auto-update
+            update_config_value(:auto_update, :enabled, false)
+            display_message("✓ Auto-update disabled", type: :success)
+
+          when "policy"
+            # Set update policy
+            policy = args.shift
+            unless %w[off exact patch minor major].include?(policy)
+              display_message("❌ Invalid policy. Must be: off, exact, patch, minor, major", type: :error)
+              return
+            end
+
+            update_config_value(:auto_update, :policy, policy)
+            display_message("✓ Auto-update policy set to: #{policy}", type: :success)
+            display_message("", type: :info)
+            case policy
+            when "off"
+              display_message("No automatic updates will be performed", type: :muted)
+            when "exact"
+              display_message("Only exact version matches allowed", type: :muted)
+            when "patch"
+              display_message("Patch updates allowed (e.g., 1.2.3 → 1.2.4)", type: :muted)
+            when "minor"
+              display_message("Minor + patch updates allowed (e.g., 1.2.3 → 1.3.0)", type: :muted)
+            when "major"
+              display_message("All updates allowed (e.g., 1.2.3 → 2.0.0)", type: :muted)
+            end
+
+          when "prerelease"
+            # Toggle prerelease
+            current = load_auto_update_config[:allow_prerelease]
+            new_value = !current
+            update_config_value(:auto_update, :allow_prerelease, new_value)
+            display_message("✓ Prerelease updates: #{new_value ? "enabled" : "disabled"}", type: :success)
+
+          else
+            display_message("Usage: aidp settings auto-update <command>", type: :info)
+            display_message("", type: :info)
+            display_message("Commands:", type: :info)
+            display_message("  status                Show current configuration", type: :info)
+            display_message("  on                    Enable auto-updates", type: :info)
+            display_message("  off                   Disable auto-updates", type: :info)
+            display_message("  policy <policy>       Set update policy", type: :info)
+            display_message("    Policies: off, exact, patch, minor, major", type: :muted)
+            display_message("  prerelease            Toggle prerelease updates", type: :info)
+            display_message("", type: :info)
+            display_message("Examples:", type: :info)
+            display_message("  aidp settings auto-update status", type: :info)
+            display_message("  aidp settings auto-update on", type: :info)
+            display_message("  aidp settings auto-update policy minor", type: :info)
+            display_message("  aidp settings auto-update prerelease", type: :info)
+          end
+
+        else
+          display_message("Usage: aidp settings <category> <command>", type: :info)
+          display_message("", type: :info)
+          display_message("Categories:", type: :info)
+          display_message("  auto-update           Auto-update configuration", type: :info)
+          display_message("", type: :info)
+          display_message("Examples:", type: :info)
+          display_message("  aidp settings auto-update status", type: :info)
+        end
+      end
+
+      # Load current auto_update config
+      def load_auto_update_config
+        config_path = File.join(Dir.pwd, ".aidp", "aidp.yml")
+        return {} unless File.exist?(config_path)
+
+        full_config = YAML.safe_load_file(config_path, permitted_classes: [Date, Time, Symbol], aliases: true)
+        full_config["auto_update"] || full_config[:auto_update] || {}
+      end
+
+      # Update a specific configuration value
+      def update_config_value(section, key, value)
+        config_path = File.join(Dir.pwd, ".aidp", "aidp.yml")
+
+        # Load existing config
+        config = if File.exist?(config_path)
+          YAML.safe_load_file(config_path, permitted_classes: [Date, Time, Symbol], aliases: true) || {}
+        else
+          {}
+        end
+
+        # Ensure section exists
+        config[section.to_s] ||= {}
+
+        # Update value
+        config[section.to_s][key.to_s] = value
+
+        # Write back
+        File.write(config_path, YAML.dump(config))
       end
 
       def run_skill_command(args)

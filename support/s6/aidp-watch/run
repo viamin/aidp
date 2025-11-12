@@ -1,0 +1,15 @@
+#!/bin/sh
+# s6 run script for aidp watch mode
+
+exec 2>&1
+
+PROJECT_DIR="${PROJECT_DIR:-/workspace/project}"
+
+cd "$PROJECT_DIR" || exit 1
+
+# Run aidp watch with appropriate Ruby version manager
+if command -v mise > /dev/null 2>&1; then
+  exec mise exec -- bundle exec aidp watch
+else
+  exec bundle exec aidp watch
+fi

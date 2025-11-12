@@ -1083,6 +1083,56 @@ module Aidp
               max: 365
             }
           }
+        },
+        auto_update: {
+          type: :hash,
+          required: false,
+          default: {
+            enabled: false,
+            policy: "off",
+            allow_prerelease: false,
+            check_interval_seconds: 3600,
+            supervisor: "none",
+            max_consecutive_failures: 3
+          },
+          properties: {
+            enabled: {
+              type: :boolean,
+              required: false,
+              default: false
+            },
+            policy: {
+              type: :string,
+              required: false,
+              default: "off",
+              enum: ["off", "exact", "patch", "minor", "major"]
+            },
+            allow_prerelease: {
+              type: :boolean,
+              required: false,
+              default: false
+            },
+            check_interval_seconds: {
+              type: :integer,
+              required: false,
+              default: 3600,
+              min: 300,
+              max: 86400
+            },
+            supervisor: {
+              type: :string,
+              required: false,
+              default: "none",
+              enum: ["none", "supervisord", "s6", "runit"]
+            },
+            max_consecutive_failures: {
+              type: :integer,
+              required: false,
+              default: 3,
+              min: 1,
+              max: 10
+            }
+          }
         }
       }.freeze
 

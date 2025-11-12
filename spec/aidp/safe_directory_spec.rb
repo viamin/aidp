@@ -49,19 +49,36 @@ RSpec.describe Aidp::SafeDirectory do
 
     context "when directory creation fails" do
       it "falls back to an alternative directory" do
-        # Use root directory which should fail in most environments
+        # Mock FileUtils to simulate permission failure for specific path
         invalid_path = File.join(File::SEPARATOR, "invalid_aidp_test_#{SecureRandom.hex(4)}")
+
+        allow(FileUtils).to receive(:mkdir_p).and_wrap_original do |original, path|
+          if path == invalid_path
+            raise Errno::EACCES, "Permission denied"
+          else
+            original.call(path)
+          end
+        end
 
         result = instance.safe_mkdir_p(invalid_path, component_name: "TestComponent")
 
         # Should return a fallback path, not the original
         expect(result).not_to eq(invalid_path)
         # Fallback should either be in home or temp
-        expect(result).to match(%r{(/home/|/tmp/)})
+        expect(result).to match(%r{(/home/|/tmp/|/root/)})
       end
 
       it "includes component name in warning messages" do
         invalid_path = File.join(File::SEPARATOR, "invalid_aidp_test_#{SecureRandom.hex(4)}")
+
+        # Mock FileUtils to simulate permission failure for specific path
+        allow(FileUtils).to receive(:mkdir_p).and_wrap_original do |original, path|
+          if path == invalid_path
+            raise Errno::EACCES, "Permission denied"
+          else
+            original.call(path)
+          end
+        end
 
         expect(Kernel).to receive(:warn).with(/TestComponent/).at_least(:once)
         instance.safe_mkdir_p(invalid_path, component_name: "TestComponent")

@@ -1,0 +1,48 @@
+#!/bin/bash
+# s6 finish script for aidp watch mode
+# Handles exit code 75 (auto-update request)
+
+set -euo pipefail
+
+EXIT_CODE=$1
+PROJECT_DIR="${PROJECT_DIR:-/workspace/project}"
+AIDP_LOG="${PROJECT_DIR}/.aidp/logs/s6-finish.log"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$AIDP_LOG")"
+
+log() {
+  echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] $*" >> "$AIDP_LOG"
+}
+
+log "Aidp exited with code $EXIT_CODE"
+
+# Exit code 75 = update requested
+if [ "$EXIT_CODE" -eq 75 ]; then
+  log "Update requested, running bundle update aidp"
+
+  cd "$PROJECT_DIR" || exit 1
+
+  if command -v mise > /dev/null 2>&1; then
+    if mise exec -- bundle update aidp >> "$AIDP_LOG" 2>&1; then
+      NEW_VERSION=$(bundle exec aidp version 2>/dev/null || echo "unknown")
+      log "Aidp updated successfully to version $NEW_VERSION"
+      exit 0
+    else
+      log "ERROR: Bundle update failed"
+      exit 1
+    fi
+  else
+    if bundle update aidp >> "$AIDP_LOG" 2>&1; then
+      NEW_VERSION=$(bundle exec aidp version 2>/dev/null || echo "unknown")
+      log "Aidp updated successfully to version $NEW_VERSION"
+      exit 0
+    else
+      log "ERROR: Bundle update failed"
+      exit 1
+    fi
+  fi
+fi
+
+# Pass through exit code
+exit "$EXIT_CODE"
