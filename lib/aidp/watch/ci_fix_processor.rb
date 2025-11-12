@@ -229,13 +229,16 @@ module Aidp
 
       def extract_json(text)
         # Try to extract JSON from code fences or find JSON object
+        # Use non-greedy matching to avoid ReDoS
         return text if text.start_with?("{") && text.end_with?("}")
 
-        if text =~ /```json\s*(\{.*\})\s*```/m
+        # Match code fence with non-greedy quantifier
+        if text =~ /```json\s*(\{.*?\})\s*```/m
           return $1
         end
 
-        json_match = text.match(/\{.*\}/m)
+        # Find JSON object with non-greedy quantifier
+        json_match = text.match(/\{.*?\}/m)
         json_match ? json_match[0] : text
       end
 
