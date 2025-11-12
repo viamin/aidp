@@ -4,6 +4,7 @@ require "securerandom"
 require "time"
 require "socket"
 require "digest"
+require "open3"
 
 module Aidp
   module AutoUpdate
@@ -154,14 +155,20 @@ module Aidp
         private
 
         def capture_worktree_context
-          return {} unless system("git rev-parse --git-dir > /dev/null 2>&1")
+          # Check if we're in a git repository
+          _stdout, _stderr, status = Open3.capture3("git", "rev-parse", "--git-dir")
+          return {} unless status.success?
+
+          branch, = Open3.capture3("git", "rev-parse", "--abbrev-ref", "HEAD")
+          commit_sha, = Open3.capture3("git", "rev-parse", "HEAD")
+          remote_url, = Open3.capture3("git", "config", "--get", "remote.origin.url")
 
           {
-            branch: `git rev-parse --abbrev-ref HEAD`.strip,
-            commit_sha: `git rev-parse HEAD`.strip,
-            remote_url: `git config --get remote.origin.url`.strip
+            branch: branch.strip,
+            commit_sha: commit_sha.strip,
+            remote_url: remote_url.strip
           }
-        rescue => e
+        rescue StandardError => e
           Aidp.log_debug("checkpoint", "worktree_context_unavailable", error: e.message)
           {}
         end
