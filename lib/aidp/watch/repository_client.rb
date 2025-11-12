@@ -529,7 +529,7 @@ module Aidp
           http.request(request)
         end
 
-        error_msg = path && line && commit_id ? "GitHub API review comment failed (#{response.code}): #{response.body}" : "GitHub API comment failed (#{response.code})"
+        error_msg = (path && line && commit_id) ? "GitHub API review comment failed (#{response.code}): #{response.body}" : "GitHub API comment failed (#{response.code})"
         raise error_msg unless response.code.start_with?("2")
 
         response.body
