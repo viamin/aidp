@@ -58,7 +58,11 @@ module Aidp
           display_message("✅ CI is passing for PR ##{number}. No fixes needed.", type: :success)
           post_success_comment(pr_data)
           @state_store.record_ci_fix(number, {status: "no_failures", timestamp: Time.now.utc.iso8601})
-          @repository_client.remove_labels(number, @ci_fix_label) rescue nil
+          begin
+            @repository_client.remove_labels(number, @ci_fix_label)
+          rescue StandardError
+            nil
+          end
           return
         end
 
@@ -103,7 +107,11 @@ module Aidp
 
           Please investigate the CI failures manually or retry by re-adding the `#{@ci_fix_label}` label.
         COMMENT
-        @repository_client.post_comment(pr[:number], error_comment) rescue nil
+        begin
+          @repository_client.post_comment(pr[:number], error_comment)
+        rescue StandardError
+          nil
+        end
       end
 
       private
@@ -354,6 +362,12 @@ module Aidp
       def handle_failure(pr:, fix_result:)
         reason = fix_result[:reason] || fix_result[:error] || "Unknown error"
 
+        analysis_section = if fix_result[:analysis]
+          "**Analysis:**\n#{fix_result[:analysis][:root_causes]&.map { |c| "- #{c}" }&.join("\n")}"
+        else
+          ""
+        end
+
         comment = <<~COMMENT
           #{COMMENT_HEADER}
 
@@ -361,7 +375,7 @@ module Aidp
 
           **Reason:** #{reason}
 
-          #{fix_result[:analysis] ? "**Analysis:**\n#{fix_result[:analysis][:root_causes]&.map { |c| "- #{c}" }&.join("\n")}" : ""}
+          #{analysis_section}
 
           Please review the CI failures manually. You may need to:
           1. Check the full CI logs for more context
