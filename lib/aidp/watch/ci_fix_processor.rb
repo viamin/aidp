@@ -237,17 +237,28 @@ module Aidp
 
       def extract_json(text)
         # Try to extract JSON from code fences or find JSON object
-        # Use non-greedy matching to avoid ReDoS
+        # Avoid regex to prevent ReDoS - use simple string operations
         return text if text.start_with?("{") && text.end_with?("}")
 
-        # Match code fence with non-greedy quantifier
-        if text =~ /```json\s*(\{.*?\})\s*```/m
-          return $1
+        # Extract from code fence using string operations
+        fence_start = text.index("```json")
+        if fence_start
+          json_start = text.index("{", fence_start)
+          fence_end = text.index("```", fence_start + 7)
+          if json_start && fence_end && json_start < fence_end
+            json_end = text.rindex("}", fence_end - 1)
+            return text[json_start..json_end] if json_end && json_end > json_start
+          end
         end
 
-        # Find JSON object with non-greedy quantifier
-        json_match = text.match(/\{.*?\}/m)
-        json_match ? json_match[0] : text
+        # Find JSON object using string operations
+        first_brace = text.index("{")
+        last_brace = text.rindex("}")
+        if first_brace && last_brace && last_brace > first_brace
+          text[first_brace..last_brace]
+        else
+          text
+        end
       end
 
       def checkout_pr_branch(pr_data)
