@@ -80,17 +80,15 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
       allow(repository_client).to receive(:remove_labels)
 
       # Mock provider response
-      provider = instance_double(Aidp::Providers::Anthropic::Provider)
-      allow(Aidp::Providers::Factory).to receive(:create).and_return(provider)
-      allow(provider).to receive(:chat).and_return(
-        {
-          content: JSON.dump({
-            "can_fix" => false,
-            "reason" => "Failures require manual investigation",
-            "root_causes" => ["Complex test failures"],
-            "fixes" => []
-          })
-        }
+      provider = instance_double(Aidp::Providers::Anthropic)
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
+      allow(provider).to receive(:send_message).and_return(
+        JSON.dump({
+          "can_fix" => false,
+          "reason" => "Failures require manual investigation",
+          "root_causes" => ["Complex test failures"],
+          "fixes" => []
+        })
       )
 
       expect(repository_client).to receive(:post_comment).with(456, /Could not automatically fix/)
@@ -117,17 +115,15 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
       allow(repository_client).to receive(:remove_labels)
 
       # Mock provider response
-      provider = instance_double(Aidp::Providers::Anthropic::Provider)
-      allow(Aidp::Providers::Factory).to receive(:create).and_return(provider)
-      allow(provider).to receive(:chat).and_return(
-        {
-          content: JSON.dump({
-            "can_fix" => false,
-            "reason" => "Test failures",
-            "root_causes" => [],
-            "fixes" => []
-          })
-        }
+      provider = instance_double(Aidp::Providers::Anthropic)
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
+      allow(provider).to receive(:send_message).and_return(
+        JSON.dump({
+          "can_fix" => false,
+          "reason" => "Test failures",
+          "root_causes" => [],
+          "fixes" => []
+        })
       )
 
       processor.process(pr)

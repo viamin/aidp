@@ -6,7 +6,8 @@ require "json"
 require "time"
 
 require_relative "../message_display"
-require_relative "../providers/factory"
+require_relative "../provider_manager"
+require_relative "../harness/config_manager"
 require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
 require_relative "../harness/state_manager"
@@ -142,19 +143,20 @@ module Aidp
       end
 
       def analyze_failures_with_ai(pr_data:, failures:)
-        provider = Aidp::Providers::Factory.create(
-          @provider_name,
-          system_context: ci_fix_system_prompt,
-          additional_options: {temperature: 0.2}
-        )
+        provider_name = @provider_name || detect_default_provider
+        provider = Aidp::ProviderManager.get_provider(provider_name, use_harness: false)
 
         user_prompt = build_ci_analysis_prompt(pr_data: pr_data, failures: failures)
+        full_prompt = "#{ci_fix_system_prompt}\n\n#{user_prompt}"
 
-        response = provider.chat([{role: "user", content: user_prompt}])
-        content = extract_content(response)
+        response = provider.send_message(prompt: full_prompt)
+        content = response.to_s.strip
+
+        # Extract JSON from response (handle code fences)
+        json_content = extract_json(content)
 
         # Parse JSON response
-        parsed = JSON.parse(content)
+        parsed = JSON.parse(json_content)
 
         {
           can_fix: parsed["can_fix"],
@@ -218,12 +220,23 @@ module Aidp
         PROMPT
       end
 
-      def extract_content(response)
-        if response.is_a?(Hash)
-          response[:content] || response["content"] || ""
-        else
-          response.to_s
+      def detect_default_provider
+        config_manager = Aidp::Harness::ConfigManager.new(@project_dir)
+        config_manager.default_provider || "anthropic"
+      rescue
+        "anthropic"
+      end
+
+      def extract_json(text)
+        # Try to extract JSON from code fences or find JSON object
+        return text if text.start_with?("{") && text.end_with?("}")
+
+        if text =~ /```json\s*(\{.*\})\s*```/m
+          return $1
         end
+
+        json_match = text.match(/\{.*\}/m)
+        json_match ? json_match[0] : text
       end
 
       def checkout_pr_branch(pr_data)

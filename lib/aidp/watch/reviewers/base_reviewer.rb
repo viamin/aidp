@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "../../providers/factory"
+require_relative "../../provider_manager"
+require_relative "../../harness/config_manager"
 
 module Aidp
   module Watch
@@ -40,11 +41,17 @@ module Aidp
         protected
 
         def provider
-          @provider ||= Aidp::Providers::Factory.create(
-            @provider_name,
-            system_context: system_prompt,
-            additional_options: {temperature: 0.3}
-          )
+          @provider ||= begin
+            provider_name = @provider_name || detect_default_provider
+            Aidp::ProviderManager.get_provider(provider_name, use_harness: false)
+          end
+        end
+
+        def detect_default_provider
+          config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
+          config_manager.default_provider || "anthropic"
+        rescue
+          "anthropic"
         end
 
         def system_prompt
@@ -79,26 +86,34 @@ module Aidp
         end
 
         def analyze_with_provider(user_prompt)
-          response = provider.chat([{role: "user", content: user_prompt}])
-          content = extract_content(response)
+          full_prompt = "#{system_prompt}\n\n#{user_prompt}"
+          response = provider.send_message(prompt: full_prompt)
+          content = response.to_s.strip
+
+          # Extract JSON from response (handle code fences)
+          json_content = extract_json(content)
 
           # Parse JSON response
-          parsed = JSON.parse(content)
+          parsed = JSON.parse(json_content)
           parsed["findings"] || []
         rescue JSON::ParserError => e
-          Aidp.log_error("reviewer", "Failed to parse provider response", persona: @persona_name, error: e.message)
+          Aidp.log_error("reviewer", "Failed to parse provider response", persona: @persona_name, error: e.message, content: content)
           []
         rescue => e
           Aidp.log_error("reviewer", "Review failed", persona: @persona_name, error: e.message)
           []
         end
 
-        def extract_content(response)
-          if response.is_a?(Hash)
-            response[:content] || response["content"] || ""
-          else
-            response.to_s
+        def extract_json(text)
+          # Try to extract JSON from code fences or find JSON object
+          return text if text.start_with?("{") && text.end_with?("}")
+
+          if text =~ /```json\s*(\{.*\})\s*```/m
+            return $1
           end
+
+          json_match = text.match(/\{.*\}/m)
+          json_match ? json_match[0] : text
         end
 
         def build_review_prompt(pr_data:, files:, diff:)
