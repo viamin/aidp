@@ -270,7 +270,9 @@ module Aidp
       raw_input = dir.to_s
       raw_invalid = raw_input.empty? || raw_input.match?(/[<>|]/) || raw_input.match?(/[\x00-\x1F]/)
       if raw_invalid
-        Kernel.warn "[AIDP Logger] Invalid project_dir '#{raw_input}' - falling back to #{Dir.pwd}"
+        unless ENV["RSPEC_RUNNING"] == "true"
+          Kernel.warn "[AIDP Logger] Invalid project_dir '#{raw_input}' - falling back to #{Dir.pwd}"
+        end
         if Dir.pwd == File::SEPARATOR
           fallback = begin
             home = Dir.home
@@ -279,7 +281,9 @@ module Aidp
             Dir.tmpdir
           end
           @root_fallback = fallback
-          Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{Dir.pwd}'"
+          unless ENV["RSPEC_RUNNING"] == "true"
+            Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{Dir.pwd}'"
+          end
           return fallback
         end
         return Dir.pwd
@@ -292,7 +296,9 @@ module Aidp
           Dir.tmpdir
         end
         @root_fallback = fallback
-        Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{raw_input}'"
+        unless ENV["RSPEC_RUNNING"] == "true"
+          Kernel.warn "[AIDP Logger] Root directory detected - using #{fallback} for logging instead of '#{raw_input}'"
+        end
         return fallback
       end
       raw_input

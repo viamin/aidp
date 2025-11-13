@@ -60,7 +60,7 @@ RSpec.describe Aidp::Harness::UI::SpinnerHelper do
     it "uses custom error message" do
       expect {
         helper.with_spinner("Test", error_message: "Custom error") { raise "test" }
-      }.to raise_error
+      }.to raise_error(RuntimeError)
 
       expect(spinner_double).to have_received(:error)
     end
