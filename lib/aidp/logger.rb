@@ -18,6 +18,27 @@ module Aidp
   #   Aidp.setup_logger(project_dir, config)
   #   Aidp.logger.info("component", "message", key: "value")
   class Logger
+    # Custom log device that suppresses IOError exceptions for closed streams.
+    # This prevents "log shifting failed. closed stream" errors during test cleanup.
+    class SafeLogDevice < ::Logger::LogDevice
+      private
+
+      # Override handle_write_errors to suppress warnings for closed stream errors.
+      # Ruby's Logger::LogDevice calls warn() when write operations fail, which
+      # produces "log shifting failed. closed stream" messages during test cleanup.
+      def handle_write_errors(mesg)
+        yield
+      rescue *@reraise_write_errors
+        raise
+      rescue IOError => e
+        # Silently ignore closed stream errors - these are expected during
+        # test cleanup when loggers are finalized after streams are closed
+        return if e.message.include?("closed stream")
+        warn("log #{mesg} failed. #{e}")
+      rescue => e
+        warn("log #{mesg} failed. #{e}")
+      end
+    end
     LEVELS = {
       debug: ::Logger::DEBUG,
       info: ::Logger::INFO,
@@ -140,14 +161,17 @@ module Aidp
       dir = File.dirname(path)
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
 
-      logger = ::Logger.new(path, @max_files, @max_size)
+      # Create logger with custom SafeLogDevice that suppresses closed stream errors
+      logdev = SafeLogDevice.new(path, shift_age: @max_files, shift_size: @max_size)
+      logger = ::Logger.new(logdev)
       logger.level = ::Logger::DEBUG # Control at write level instead
       logger.formatter = proc { |severity, datetime, progname, msg| "#{msg}\n" }
       logger
     rescue => e
       # Fall back to STDERR if file logging fails
       Kernel.warn "[AIDP Logger] Failed to create log file at #{path}: #{e.message}. Falling back to STDERR."
-      logger = ::Logger.new($stderr)
+      logdev = SafeLogDevice.new($stderr)
+      logger = ::Logger.new(logdev)
       logger.level = ::Logger::DEBUG
       logger.formatter = proc { |severity, datetime, progname, msg| "#{msg}\n" }
       logger
