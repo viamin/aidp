@@ -268,6 +268,68 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     end
   end
 
+  describe "PROMPT.md file location" do
+    it "writes PROMPT.md to .aidp directory, never to project root" do
+      allow(processor).to receive(:ensure_git_repo!)
+      allow(processor).to receive(:detect_base_branch).and_return("main")
+      allow(processor).to receive(:checkout_branch)
+      allow(processor).to receive(:run_harness).and_return({status: "completed"})
+      allow(processor).to receive(:stage_and_commit).and_return(true)
+      allow(repository_client).to receive(:create_pull_request).and_return("https://example.com/pr/77")
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+
+      # Call process which internally calls write_prompt
+      # We need to allow the actual write_prompt to execute
+      allow(processor).to receive(:write_prompt).and_call_original
+
+      processor.process(issue)
+
+      # Verify PROMPT.md exists in .aidp directory
+      aidp_prompt_path = File.join(tmp_dir, ".aidp", "PROMPT.md")
+      expect(File.exist?(aidp_prompt_path)).to be true
+
+      # Verify PROMPT.md does NOT exist in project root
+      root_prompt_path = File.join(tmp_dir, "PROMPT.md")
+      expect(File.exist?(root_prompt_path)).to be false
+    end
+
+    it "writes PROMPT.md to .aidp in workstream directory" do
+      processor_with_workstreams = described_class.new(
+        repository_client: repository_client,
+        state_store: state_store,
+        project_dir: tmp_dir,
+        use_workstreams: true
+      )
+
+      workstream_path = "#{tmp_dir}/.worktrees/issue-77-implement-search"
+      FileUtils.mkdir_p(workstream_path)
+
+      allow(processor_with_workstreams).to receive(:ensure_git_repo!)
+      allow(processor_with_workstreams).to receive(:detect_base_branch).and_return("main")
+      allow(Aidp::Worktree).to receive(:info).and_return(nil)
+      allow(Aidp::Worktree).to receive(:create).and_return({path: workstream_path})
+      allow(processor_with_workstreams).to receive(:run_harness).and_return({status: "completed"})
+      allow(processor_with_workstreams).to receive(:stage_and_commit).and_return(true)
+      allow(repository_client).to receive(:create_pull_request).and_return("https://example.com/pr/77")
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+
+      # Allow write_prompt to execute
+      allow(processor_with_workstreams).to receive(:write_prompt).and_call_original
+
+      processor_with_workstreams.process(issue)
+
+      # Verify PROMPT.md exists in workstream's .aidp directory
+      workstream_prompt_path = File.join(workstream_path, ".aidp", "PROMPT.md")
+      expect(File.exist?(workstream_prompt_path)).to be true
+
+      # Verify PROMPT.md does NOT exist in workstream root
+      workstream_root_prompt_path = File.join(workstream_path, "PROMPT.md")
+      expect(File.exist?(workstream_root_prompt_path)).to be false
+    end
+  end
+
   describe "error logging" do
     it "logs errors to aidp.log when harness fails" do
       # Stub the harness runner to return an error
