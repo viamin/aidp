@@ -108,6 +108,10 @@ module Aidp
         gh_available? ? list_pull_requests_via_gh(labels: labels, state: state) : list_pull_requests_via_api(labels: labels, state: state)
       end
 
+      def fetch_pr_comments(number)
+        gh_available? ? fetch_pr_comments_via_gh(number) : fetch_pr_comments_via_api(number)
+      end
+
       private
 
       def list_issues_via_gh(labels:, state:)
@@ -535,6 +539,27 @@ module Aidp
         response.body
       end
 
+      def fetch_pr_comments_via_gh(number)
+        cmd = ["gh", "api", "repos/#{full_repo}/issues/#{number}/comments", "--jq", "."]
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to fetch PR comments via gh: #{stderr.strip}" unless status.success?
+
+        JSON.parse(stdout).map { |raw| normalize_pr_comment(raw) }
+      rescue JSON::ParserError => e
+        raise "Failed to parse PR comments response: #{e.message}"
+      end
+
+      def fetch_pr_comments_via_api(number)
+        uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/comments")
+        response = Net::HTTP.get_response(uri)
+        return [] unless response.code == "200"
+
+        JSON.parse(response.body).map { |raw| normalize_pr_comment(raw) }
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to fetch PR comments", error: e.message)
+        []
+      end
+
       # Normalization methods for PRs
       def normalize_pull_request(raw)
         {
@@ -698,6 +723,16 @@ module Aidp
         else
           {"body" => comment.to_s}
         end
+      end
+
+      def normalize_pr_comment(raw)
+        {
+          id: raw["id"],
+          body: raw["body"],
+          author: raw.dig("user", "login"),
+          created_at: raw["created_at"],
+          updated_at: raw["updated_at"]
+        }
       end
     end
   end

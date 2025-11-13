@@ -799,6 +799,30 @@ RSpec.describe Aidp::Watch::RepositoryClient do
     end
   end
 
+  describe "#fetch_pr_comments" do
+    let(:pr_number) { 789 }
+
+    context "when GitHub CLI is available" do
+      let(:gh_available) { true }
+
+      it "fetches comments via gh CLI" do
+        allow(client).to receive(:fetch_pr_comments_via_gh).and_return([])
+        client.fetch_pr_comments(pr_number)
+        expect(client).to have_received(:fetch_pr_comments_via_gh).with(pr_number)
+      end
+    end
+
+    context "when GitHub CLI is not available" do
+      let(:gh_available) { false }
+
+      it "fetches comments via API" do
+        allow(client).to receive(:fetch_pr_comments_via_api).and_return([])
+        client.fetch_pr_comments(pr_number)
+        expect(client).to have_received(:fetch_pr_comments_via_api).with(pr_number)
+      end
+    end
+  end
+
   describe "#fetch_ci_status" do
     let(:pr_number) { 456 }
 
