@@ -218,7 +218,9 @@ aidp watch owner/repo --once
 
 **Label Workflow:**
 
-AIDP uses a smart label-based workflow to manage the lifecycle of automated issue resolution:
+AIDP uses a smart label-based workflow to manage both issues and pull requests:
+
+#### Issue Workflow (Plan & Build)
 
 1. **Planning Phase** (`aidp-plan` label):
    - Add this label to an issue to trigger plan generation
@@ -247,6 +249,31 @@ AIDP uses a smart label-based workflow to manage the lifecycle of automated issu
      - Posts completion comment with summary
      - Automatically removes the `aidp-build` label
 
+#### Pull Request Workflow (Review, CI Fix, Change Requests)
+
+4. **Code Review** (`aidp-review` label):
+   - Add this label to any PR to trigger automated code review
+   - AIDP analyzes code from three expert perspectives (Senior Developer, Security Specialist, Performance Analyst)
+   - Posts a comprehensive review comment with severity-categorized findings (High Priority, Major, Minor, Nit)
+   - Automatically removes the label after posting review
+   - No commits are made - review only
+
+5. **CI Fix** (`aidp-fix-ci` label):
+   - Add this label to a PR with failing CI checks
+   - AIDP analyzes CI failure logs and identifies root causes
+   - Automatically fixes issues like linting errors, simple test failures, and dependency problems
+   - Commits and pushes fixes to the PR branch
+   - Posts a summary of what was fixed
+   - Automatically removes the label after completion
+
+6. **Change Requests** (`aidp-request-changes` label):
+   - Comment on your own PR describing desired changes, then add this label
+   - AIDP implements the requested changes on the PR branch
+   - Runs tests/linters and commits changes
+   - **If clarification needed**: Replaces label with `aidp-needs-input` and posts questions
+   - User responds to questions and re-applies the label to continue
+   - Automatically removes the label after completion
+
 **Customizable Labels:**
 
 All label names are configurable to match your repository's existing label scheme. Configure via the interactive wizard or manually in `aidp.yml`:
@@ -255,10 +282,16 @@ All label names are configurable to match your repository's existing label schem
 # .aidp/aidp.yml
 watch:
   labels:
-    plan_trigger: aidp-plan        # Label to trigger plan generation
-    needs_input: aidp-needs-input  # Label when plan needs user input
-    ready_to_build: aidp-ready     # Label when plan is ready to build
-    build_trigger: aidp-build      # Label to trigger implementation
+    # Issue-based automation
+    plan_trigger: aidp-plan                    # Trigger plan generation
+    needs_input: aidp-needs-input              # Needs user input/clarification
+    ready_to_build: aidp-ready                 # Plan ready for implementation
+    build_trigger: aidp-build                  # Trigger implementation
+
+    # PR-based automation
+    review_trigger: aidp-review                # Trigger code review
+    ci_fix_trigger: aidp-fix-ci                # Trigger CI auto-fix
+    change_request_trigger: aidp-request-changes  # Trigger PR change implementation
 ```
 
 Run `aidp config --interactive` and enable watch mode to configure labels interactively.
@@ -294,7 +327,12 @@ AIDP can automatically request clarification when it needs more information duri
 
 This ensures AIDP never gets stuck - if it needs more information, it will ask for it rather than making incorrect assumptions or failing silently.
 
-See [Watch Mode Guide](docs/FULLY_AUTOMATIC_MODE.md) and [Watch Mode Safety](docs/WATCH_MODE_SAFETY.md) for complete documentation.
+**Additional Documentation:**
+
+- [Watch Mode Guide](docs/FULLY_AUTOMATIC_MODE.md) - Complete guide to watch mode setup and operation
+- [Watch Mode Safety](docs/WATCH_MODE_SAFETY.md) - Security features and best practices
+- [PR Automation Guide](docs/PR_AUTOMATION.md) - Detailed guide for code review, CI fixes, and PR changes
+- [PR Change Requests](docs/PR_CHANGE_REQUESTS.md) - Comprehensive documentation for automated PR modifications
 
 ## Command Reference
 
