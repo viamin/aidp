@@ -6,8 +6,41 @@ require "tmpdir"
 
 RSpec.describe "Work Loop Header Prepending" do
   let(:provider_manager) { double("ProviderManager", current_provider: "test") }
-  let(:config) { double("Config", guards_config: {}) }
+  let(:config) do
+    double("Config",
+      guards_config: {},
+      # Thinking depth configuration
+      default_tier: "standard",
+      max_tier: "pro",
+      allow_provider_switch_for_tier?: true,
+      escalation_fail_attempts: 2,
+      escalation_complexity_threshold: {files_changed: 10, modules_touched: 5},
+      permission_for_tier: "tools",
+      tier_override_for: nil)
+  end
   let(:prompt_content) { "## Tasks\n- [ ] Implement feature X" }
+
+  # Mock CapabilityRegistry for ThinkingDepthManager
+  let(:mock_registry) do
+    instance_double("CapabilityRegistry",
+      valid_tier?: true,
+      compare_tiers: 0,
+      next_tier: nil,
+      previous_tier: nil,
+      best_model_for_tier: ["anthropic", "claude-3-5-sonnet-20241022", {tier: "standard"}],
+      provider_names: ["anthropic"])
+  end
+
+  before do
+    # Mock CapabilityRegistry class
+    registry_class = Class.new do
+      def initialize(*args)
+      end
+    end
+
+    stub_const("Aidp::Harness::CapabilityRegistry", registry_class)
+    allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
+  end
 
   around do |example|
     Dir.mktmpdir do |tmpdir|
