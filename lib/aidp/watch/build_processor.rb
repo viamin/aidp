@@ -228,10 +228,30 @@ module Aidp
         relevant.map do |comment|
           author = comment["author"] || "unknown"
           created = comment["createdAt"] ? Time.parse(comment["createdAt"]).utc.iso8601 : "unknown"
-          "### #{author} (#{created})\n#{comment["body"]}"
+          body = strip_archived_plans(comment["body"])
+          "### #{author} (#{created})\n#{body}"
         end.join("\n\n")
       rescue
         "_Unable to parse comment thread._"
+      end
+
+      def strip_archived_plans(content)
+        return content unless content
+
+        # Remove all archived plan sections (wrapped in HTML comments)
+        result = content.dup
+
+        # Remove archived plan blocks
+        result = result.gsub(/<!-- ARCHIVED_PLAN_START.*?<!-- ARCHIVED_PLAN_END -->/m, "")
+
+        # Remove HTML-commented sections from active plan
+        # Keep the content between START and END markers, but strip the markers themselves
+        # This preserves the current plan while removing archived content
+        result = result.gsub(/<!-- (PLAN_SUMMARY_START|PLAN_TASKS_START|CLARIFYING_QUESTIONS_START) -->/, "")
+        result = result.gsub(/<!-- (PLAN_SUMMARY_END|PLAN_TASKS_END|CLARIFYING_QUESTIONS_END) -->/, "")
+
+        # Clean up any extra blank lines
+        result.gsub(/\n{3,}/, "\n\n").strip
       end
 
       def write_prompt(content, working_dir: @project_dir)

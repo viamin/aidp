@@ -65,7 +65,42 @@ follows:
    - Structured task list.
    - Clarifying questions for the requester.
 3. The plan is posted as a comment instructing collaborators to reply inline.
-4. Plan metadata is cached locally to avoid duplicate comments.
+4. Plan metadata is cached locally with iteration tracking.
+
+#### Iterative Planning
+
+Watch mode supports multiple planning cycles for issues that need refinement:
+
+1. **Initial Plan**: When `aidp-plan` is first added to an issue, Aidp generates and
+   posts a plan comment with structured sections (summary, tasks, questions).
+
+2. **Re-planning**: If the `aidp-plan` label is re-applied to an issue that already
+   has a plan, Aidp detects this and performs an iterative update:
+   - Archives the previous plan content in a collapsible `<details>` section with HTML comments
+   - Generates a fresh plan based on current issue state and comments
+   - Updates the same comment (preserving comment thread context)
+   - Increments the iteration counter in state tracking
+
+3. **Archived Plans**: Previous iterations are preserved in the comment using HTML
+   comment markers (`<!-- ARCHIVED_PLAN_START -->` ... `<!-- ARCHIVED_PLAN_END -->`),
+   allowing users to review the planning evolution while keeping the current plan
+   visible.
+
+4. **Clean Build Prompts**: When the `aidp-build` trigger runs, archived plan sections
+   are automatically stripped from the implementation prompt, ensuring the AI agent
+   only sees the current, active plan.
+
+**Example workflow:**
+```
+1. Add aidp-plan → Initial plan posted (Iteration 1)
+2. Team discusses, identifies issues in comments
+3. Re-add aidp-plan → Plan updated, old plan archived (Iteration 2)
+4. Repeat as needed for complex issues
+5. Add aidp-build → Implementation uses only latest plan
+```
+
+This iterative approach allows for collaborative refinement of implementation plans
+without losing historical context or confusing the build agent with outdated information.
 
 ### Build Trigger (`aidp-build`)
 
