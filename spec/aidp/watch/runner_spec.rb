@@ -294,4 +294,141 @@ RSpec.describe Aidp::Watch::Runner do
       expect(result).to be true
     end
   end
+
+  describe "#process_change_request_triggers" do
+    let(:change_request_processor) { instance_double(Aidp::Watch::ChangeRequestProcessor) }
+
+    before do
+      allow(Aidp::Watch::ChangeRequestProcessor).to receive(:new).and_return(change_request_processor)
+      allow(change_request_processor).to receive(:change_request_label).and_return("aidp-request-changes")
+    end
+
+    it "fetches and processes PRs with change request label" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {number: 123, labels: [{"name" => "aidp-request-changes"}], title: "Fix bug"}
+      detailed_pr = {number: 123, title: "Fix bug", author: "alice"}
+
+      allow(repository_client).to receive(:list_pull_requests).and_return([pr])
+      allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(detailed_pr)
+      allow(change_request_processor).to receive(:process)
+
+      runner.send(:process_change_request_triggers)
+
+      expect(change_request_processor).to have_received(:process).with(detailed_pr)
+    end
+
+    it "skips PRs without the label" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {number: 123, labels: [{"name" => "other-label"}]}
+
+      allow(repository_client).to receive(:list_pull_requests).and_return([pr])
+      allow(change_request_processor).to receive(:process)
+
+      runner.send(:process_change_request_triggers)
+
+      expect(change_request_processor).not_to have_received(:process)
+    end
+
+    it "skips PRs with unauthorized authors" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {number: 123, labels: [{"name" => "aidp-request-changes"}]}
+      detailed_pr = {number: 123, title: "Fix bug", author: "untrusted"}
+
+      allow(repository_client).to receive(:list_pull_requests).and_return([pr])
+      allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(detailed_pr)
+      allow(safety_checker).to receive(:should_process_issue?).with(detailed_pr, enforce: false).and_return(false)
+      allow(change_request_processor).to receive(:process)
+
+      runner.send(:process_change_request_triggers)
+
+      expect(change_request_processor).not_to have_received(:process)
+    end
+
+    it "logs change request polling and processing" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {number: 123, labels: [{"name" => "aidp-request-changes"}]}
+      detailed_pr = {number: 123, title: "Fix bug", author: "alice"}
+
+      allow(repository_client).to receive(:list_pull_requests).and_return([pr])
+      allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(detailed_pr)
+      allow(change_request_processor).to receive(:process)
+
+      runner.send(:process_change_request_triggers)
+
+      expect(Aidp).to have_received(:log_debug).with("watch_runner", "change_request_poll", hash_including(total: 1))
+      expect(Aidp).to have_received(:log_debug).with("watch_runner", "change_request_process", hash_including(pr: 123))
+    end
+
+    it "handles UnauthorizedAuthorError gracefully" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {number: 123, labels: [{"name" => "aidp-request-changes"}]}
+      detailed_pr = {number: 123, title: "Fix bug", author: "untrusted"}
+
+      allow(repository_client).to receive(:list_pull_requests).and_return([pr])
+      allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(detailed_pr)
+      allow(safety_checker).to receive(:should_process_issue?).and_raise(Aidp::Watch::RepositorySafetyChecker::UnauthorizedAuthorError.new("Unauthorized"))
+
+      expect {
+        runner.send(:process_change_request_triggers)
+      }.not_to raise_error
+
+      expect(Aidp).to have_received(:log_warn).with("watch_runner", "unauthorized PR author", hash_including(pr: 123))
+    end
+
+    it "processes multiple PRs" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr1 = {number: 123, labels: [{"name" => "aidp-request-changes"}]}
+      pr2 = {number: 456, labels: [{"name" => "aidp-request-changes"}]}
+      detailed_pr1 = {number: 123, title: "Fix bug", author: "alice"}
+      detailed_pr2 = {number: 456, title: "Add feature", author: "bob"}
+
+      allow(repository_client).to receive(:list_pull_requests).and_return([pr1, pr2])
+      allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(detailed_pr1)
+      allow(repository_client).to receive(:fetch_pull_request).with(456).and_return(detailed_pr2)
+      allow(change_request_processor).to receive(:process)
+
+      runner.send(:process_change_request_triggers)
+
+      expect(change_request_processor).to have_received(:process).with(detailed_pr1)
+      expect(change_request_processor).to have_received(:process).with(detailed_pr2)
+    end
+  end
+
+  describe "#pr_has_label?" do
+    it "finds label in hash format" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {labels: [{"name" => "aidp-request-changes"}]}
+
+      result = runner.send(:pr_has_label?, pr, "aidp-request-changes")
+
+      expect(result).to be true
+    end
+
+    it "finds label case-insensitively" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {labels: [{"name" => "AIDP-REQUEST-CHANGES"}]}
+
+      result = runner.send(:pr_has_label?, pr, "aidp-request-changes")
+
+      expect(result).to be true
+    end
+
+    it "returns false when label not found" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {labels: [{"name" => "bug"}]}
+
+      result = runner.send(:pr_has_label?, pr, "aidp-request-changes")
+
+      expect(result).to be false
+    end
+
+    it "handles string labels" do
+      runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      pr = {labels: ["aidp-request-changes"]}
+
+      result = runner.send(:pr_has_label?, pr, "aidp-request-changes")
+
+      expect(result).to be true
+    end
+  end
 end
