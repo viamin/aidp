@@ -1394,14 +1394,27 @@ module Aidp
 
       # Execute a prompt with a specific provider
       def execute_with_provider(provider_type, prompt, options = {})
+        # Extract model from options if provided
+        model_name = options.delete(:model)
+
         # Create provider factory instance
         provider_factory = ProviderFactory.new
 
-        # Create provider instance
-        provider = provider_factory.create_provider(provider_type, options)
+        # Add model to provider options if specified
+        provider_options = options.dup
+        provider_options[:model] = model_name if model_name
 
-        # Set current provider
+        # Create provider instance
+        provider = provider_factory.create_provider(provider_type, provider_options)
+
+        # Set current provider and model
         @current_provider = provider_type
+        @current_model = model_name if model_name
+
+        Aidp.logger.debug("provider_manager", "Executing with provider",
+          provider: provider_type,
+          model: model_name,
+          prompt_length: prompt.length)
 
         # Execute the prompt with the provider
         result = provider.send_message(prompt: prompt, session: nil)
@@ -1410,15 +1423,17 @@ module Aidp
         {
           status: "completed",
           provider: provider_type,
+          model: model_name,
           output: result,
           metadata: {
             provider_type: provider_type,
+            model: model_name,
             prompt_length: prompt.length,
             timestamp: Time.now.strftime("%Y-%m-%dT%H:%M:%S.%3N%z")
           }
         }
       rescue => e
-        log_rescue(e, component: "provider_manager", action: "execute_with_provider", fallback: "error_result", provider: provider_type, prompt_length: prompt.length)
+        log_rescue(e, component: "provider_manager", action: "execute_with_provider", fallback: "error_result", provider: provider_type, model: model_name, prompt_length: prompt.length)
         # Return error result
         {
           status: "error",

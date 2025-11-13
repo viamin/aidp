@@ -5,7 +5,9 @@ require "aidp/execute/work_loop_runner"
 
 RSpec.describe Aidp::Execute::WorkLoopRunner do
   let(:project_dir) { "/tmp/test_project" }
-  let(:provider_manager) { instance_double("ProviderManager") }
+  let(:provider_manager) do
+    instance_double("ProviderManager", current_provider: "anthropic")
+  end
   let(:config) do
     instance_double(
       "Configuration",
@@ -15,9 +17,29 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       work_loop_units_config: {
         deterministic: [],
         defaults: {initial_unit: :agentic}
-      }
+      },
+      # Thinking depth configuration
+      default_tier: "standard",
+      max_tier: "pro",
+      allow_provider_switch_for_tier?: true,
+      escalation_fail_attempts: 2,
+      escalation_complexity_threshold: {files_changed: 10, modules_touched: 5},
+      permission_for_tier: "tools",
+      tier_override_for: nil
     )
   end
+
+  # Mock CapabilityRegistry for ThinkingDepthManager
+  let(:mock_registry) do
+    instance_double("CapabilityRegistry",
+      valid_tier?: true,
+      compare_tiers: 0,
+      next_tier: nil,
+      previous_tier: nil,
+      best_model_for_tier: ["anthropic", "claude-3-5-sonnet-20241022", {tier: "standard"}],
+      provider_names: ["anthropic"])
+  end
+
   let(:runner) { described_class.new(project_dir, provider_manager, config) }
 
   before do
@@ -35,6 +57,18 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     allow(mock_logger).to receive(:error)
     allow(mock_logger).to receive(:debug)
     allow(Aidp).to receive(:logger).and_return(mock_logger)
+
+    # Mock CapabilityRegistry class - stub at load time before WorkLoopRunner instantiates it
+    registry_class = Class.new do
+      def initialize(*args)
+      end
+    end
+
+    # Stub the class constant
+    stub_const("Aidp::Harness::CapabilityRegistry", registry_class)
+
+    # Mock the new method to return our mock_registry
+    allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
   end
 
   describe "Fix-Forward State Machine" do
