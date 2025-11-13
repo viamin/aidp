@@ -373,7 +373,8 @@ module Aidp
 
       def build_commit_message(pr_data, analysis)
         prefix = @config[:commit_message_prefix]
-        changes_summary = analysis[:changes]&.map { |c| c["description"] }&.join(", ") || "requested changes"
+        changes_summary = analysis[:changes]&.map { |c| c["description"] }&.join(", ")
+        changes_summary = "requested changes" if changes_summary.nil? || changes_summary.empty?
 
         message = "#{prefix}: #{changes_summary}\n\n"
         message += "Implements change request from PR ##{pr_data[:number]} review comments.\n"

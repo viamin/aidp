@@ -367,6 +367,7 @@ RSpec.describe Aidp::Watch::Runner do
       allow(repository_client).to receive(:list_pull_requests).and_return([pr])
       allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(detailed_pr)
       allow(safety_checker).to receive(:should_process_issue?).and_raise(Aidp::Watch::RepositorySafetyChecker::UnauthorizedAuthorError.new("Unauthorized"))
+      allow(Aidp).to receive(:log_warn)
 
       expect {
         runner.send(:process_change_request_triggers)
