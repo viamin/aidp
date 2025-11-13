@@ -24,6 +24,24 @@ require "tempfile"
 require "fileutils"
 require "logger"
 
+# Monkey-patch Logger::LogDevice to suppress closed stream warnings during tests
+# This prevents "log shifting failed. closed stream" messages during test cleanup
+class Logger::LogDevice
+  alias_method :original_handle_write_errors, :handle_write_errors
+
+  def handle_write_errors(mesg)
+    yield
+  rescue *@reraise_write_errors
+    raise
+  rescue IOError => e
+    # Silently ignore closed stream errors during tests
+    return if e.message.include?("closed stream")
+    warn("log #{mesg} failed. #{e}")
+  rescue => e
+    warn("log #{mesg} failed. #{e}")
+  end
+end
+
 # Aruba configuration for system tests
 require "aruba/rspec"
 
@@ -52,4 +70,17 @@ RSpec.configure do |config|
 
   # Show the 10 slowest examples at the end of the test run
   config.profile_examples = 5
+
+  # Clean up loggers after each test to prevent closed stream warnings
+  config.after(:each) do
+    # Close the Aidp logger if it exists
+    if defined?(Aidp) && Aidp.instance_variable_get(:@logger)
+      begin
+        Aidp.instance_variable_get(:@logger)&.close
+      rescue IOError
+        # Ignore closed stream errors during cleanup
+      end
+      Aidp.instance_variable_set(:@logger, nil)
+    end
+  end
 end

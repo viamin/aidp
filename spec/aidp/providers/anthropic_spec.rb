@@ -198,7 +198,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       it "logs the error" do
         expect {
           provider.send_message(prompt: prompt)
-        }.to raise_error
+        }.to raise_error(RuntimeError)
 
         expect(provider).to have_received(:debug_error).at_least(:once)
       end
@@ -220,7 +220,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       it "logs the authentication error" do
         expect {
           provider.send_message(prompt: prompt)
-        }.to raise_error
+        }.to raise_error(RuntimeError)
 
         expect(provider).to have_received(:debug_error).at_least(:once)
       end
