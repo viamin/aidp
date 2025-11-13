@@ -156,8 +156,11 @@ module Aidp
         )
 
         # Log error and exit
-        warn("Error in workstream #{slug}: #{e.message}")
-        warn(e.backtrace.first(5).join("\n"))
+        # Suppress backtrace noise during tests while keeping it for production debugging
+        unless ENV["RSPEC_RUNNING"] == "true"
+          warn("Error in workstream #{slug}: #{e.message}")
+          warn(e.backtrace.first(5).join("\n"))
+        end
         exit(1)
       end
 

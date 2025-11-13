@@ -80,8 +80,14 @@ RSpec.describe Aidp::SafeDirectory do
           end
         end
 
+        # Temporarily enable warnings for this test
+        original_rspec_running = ENV["RSPEC_RUNNING"]
+        ENV["RSPEC_RUNNING"] = "false"
+
         expect(Kernel).to receive(:warn).with(/TestComponent/).at_least(:once)
         instance.safe_mkdir_p(invalid_path, component_name: "TestComponent")
+      ensure
+        ENV["RSPEC_RUNNING"] = original_rspec_running
       end
     end
   end
