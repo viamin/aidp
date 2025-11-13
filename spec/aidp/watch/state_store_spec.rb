@@ -28,6 +28,47 @@ RSpec.describe Aidp::Watch::StateStore do
       expect(reloaded.plan_processed?(101)).to be true
       expect(reloaded.plan_data(101)["summary"]).to eq("Build feature")
     end
+
+    it "tracks plan iterations" do
+      # First plan
+      store.record_plan(102, summary: "Initial plan", tasks: ["Task 1"], questions: [], comment_body: "body1", comment_id: "comment-1")
+
+      expect(store.plan_iteration_count(102)).to eq(1)
+      data = store.plan_data(102)
+      expect(data["iteration"]).to eq(1)
+      expect(data["previous_iteration_at"]).to be_nil
+
+      # Second iteration
+      first_timestamp = data["posted_at"]
+      sleep 0.01 # Ensure different timestamp
+      store.record_plan(102, summary: "Revised plan", tasks: ["Task 2"], questions: [], comment_body: "body2", comment_id: "comment-1")
+
+      expect(store.plan_iteration_count(102)).to eq(2)
+      data = store.plan_data(102)
+      expect(data["iteration"]).to eq(2)
+      expect(data["previous_iteration_at"]).to eq(first_timestamp)
+      expect(data["summary"]).to eq("Revised plan")
+
+      # Third iteration
+      sleep 0.01
+      store.record_plan(102, summary: "Final plan", tasks: ["Task 3"], questions: [], comment_body: "body3", comment_id: "comment-1")
+
+      expect(store.plan_iteration_count(102)).to eq(3)
+      data = store.plan_data(102)
+      expect(data["iteration"]).to eq(3)
+    end
+
+    it "persists comment_id across iterations" do
+      store.record_plan(103, summary: "Plan v1", tasks: [], questions: [], comment_body: "body", comment_id: "comment-123")
+
+      data = store.plan_data(103)
+      expect(data["comment_id"]).to eq("comment-123")
+
+      store.record_plan(103, summary: "Plan v2", tasks: [], questions: [], comment_body: "body", comment_id: "comment-123")
+
+      data = store.plan_data(103)
+      expect(data["comment_id"]).to eq("comment-123")
+    end
   end
 
   describe "build status" do

@@ -41,21 +41,46 @@ module Aidp
 
       def process(issue)
         number = issue[:number]
-        if @state_store.plan_processed?(number)
-          display_message("ℹ️  Plan for issue ##{number} already posted. Skipping.", type: :muted)
-          return
+        existing_plan = @state_store.plan_data(number)
+
+        if existing_plan
+          display_message("🔄 Re-planning for issue ##{number} (iteration #{@state_store.plan_iteration_count(number) + 1})", type: :info)
+        else
+          display_message("🧠 Generating plan for issue ##{number} (#{issue[:title]})", type: :info)
         end
 
-        display_message("🧠 Generating plan for issue ##{number} (#{issue[:title]})", type: :info)
         plan_data = @plan_generator.generate(issue)
 
         # Fetch the user who added the most recent label
         label_actor = @repository_client.most_recent_label_actor(number)
 
-        comment_body = build_comment(issue: issue, plan: plan_data, label_actor: label_actor)
-        @repository_client.post_comment(number, comment_body)
+        # If updating existing plan, archive the previous content
+        archived_content = existing_plan ? archive_previous_plan(number, existing_plan) : nil
 
-        display_message("💬 Posted plan comment for issue ##{number}", type: :success)
+        comment_body = build_comment(issue: issue, plan: plan_data, label_actor: label_actor, archived_content: archived_content)
+
+        if existing_plan && existing_plan["comment_id"]
+          # Update existing comment
+          @repository_client.update_comment(existing_plan["comment_id"], comment_body)
+          display_message("📝 Updated plan comment for issue ##{number}", type: :success)
+        elsif existing_plan
+          # Try to find existing comment by header
+          existing_comment = @repository_client.find_comment(number, COMMENT_HEADER)
+          if existing_comment
+            @repository_client.update_comment(existing_comment[:id], comment_body)
+            display_message("📝 Updated plan comment for issue ##{number}", type: :success)
+            plan_data = plan_data.merge(comment_id: existing_comment[:id])
+          else
+            # Fallback to posting new comment if we can't find the old one
+            @repository_client.post_comment(number, comment_body)
+            display_message("💬 Posted new plan comment for issue ##{number}", type: :success)
+          end
+        else
+          # First time planning - post new comment
+          @repository_client.post_comment(number, comment_body)
+          display_message("💬 Posted plan comment for issue ##{number}", type: :success)
+        end
+
         @state_store.record_plan(number, plan_data.merge(comment_body: comment_body, comment_hint: COMMENT_HEADER))
 
         # Update labels: remove plan trigger, add appropriate status label
@@ -63,6 +88,31 @@ module Aidp
       end
 
       private
+
+      def archive_previous_plan(number, existing_plan)
+        iteration = @state_store.plan_iteration_count(number)
+        timestamp = existing_plan["posted_at"] || "unknown"
+
+        archived_parts = []
+        archived_parts << "<!-- ARCHIVED_PLAN_START iteration=#{iteration} timestamp=#{timestamp} -->"
+        archived_parts << "<details>"
+        archived_parts << "<summary>📋 Previous Plan (Iteration #{iteration}) - #{timestamp}</summary>"
+        archived_parts << ""
+        archived_parts << "<!-- ARCHIVED_PLAN_SUMMARY_START -->"
+        archived_parts << "### Plan Summary"
+        archived_parts << existing_plan["summary"].to_s
+        archived_parts << "<!-- ARCHIVED_PLAN_SUMMARY_END -->"
+        archived_parts << ""
+        archived_parts << "<!-- ARCHIVED_PLAN_TASKS_START -->"
+        archived_parts << "### Proposed Tasks"
+        archived_parts << format_bullets(Array(existing_plan["tasks"]), placeholder: "_No tasks_")
+        archived_parts << "<!-- ARCHIVED_PLAN_TASKS_END -->"
+        archived_parts << ""
+        archived_parts << "</details>"
+        archived_parts << "<!-- ARCHIVED_PLAN_END -->"
+
+        archived_parts.join("\n")
+      end
 
       def update_labels_after_plan(number, plan_data)
         questions = Array(plan_data[:questions])
@@ -85,7 +135,7 @@ module Aidp
         end
       end
 
-      def build_comment(issue:, plan:, label_actor: nil)
+      def build_comment(issue:, plan:, label_actor: nil, archived_content: nil)
         summary = plan[:summary].to_s.strip
         tasks = Array(plan[:tasks])
         questions = Array(plan[:questions])
@@ -104,14 +154,27 @@ module Aidp
         parts << "**Issue**: [##{issue[:number]}](#{issue[:url]})"
         parts << "**Title**: #{issue[:title]}"
         parts << ""
+
+        # Add archived content if this is a plan update
+        if archived_content
+          parts << archived_content
+          parts << ""
+        end
+
+        parts << "<!-- PLAN_SUMMARY_START -->"
         parts << "### Plan Summary"
         parts << (summary.empty? ? "_No summary generated_" : summary)
+        parts << "<!-- PLAN_SUMMARY_END -->"
         parts << ""
+        parts << "<!-- PLAN_TASKS_START -->"
         parts << "### Proposed Tasks"
         parts << format_bullets(tasks, placeholder: "_Pending task breakdown_")
+        parts << "<!-- PLAN_TASKS_END -->"
         parts << ""
+        parts << "<!-- CLARIFYING_QUESTIONS_START -->"
         parts << "### Clarifying Questions"
         parts << format_numbered(questions, placeholder: "_No questions identified_")
+        parts << "<!-- CLARIFYING_QUESTIONS_END -->"
         parts << ""
 
         # Add instructions based on whether there are questions
