@@ -668,7 +668,7 @@ module Aidp
         full_prompt = build_work_loop_header(@step_name, @iteration_count) + "\n\n" + prompt_content
 
         # Select model based on thinking depth tier
-        provider_name, model_name, model_data = select_model_for_current_tier
+        provider_name, model_name, _model_data = select_model_for_current_tier
 
         if provider_name.nil? || model_name.nil?
           Aidp.logger.error("work_loop", "Failed to select model for tier",
