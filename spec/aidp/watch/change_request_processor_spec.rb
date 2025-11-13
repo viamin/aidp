@@ -335,5 +335,208 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         expect(JSON.parse(result)).to eq({"key" => "value"})
       end
     end
+
+    describe "#build_commit_message" do
+      let(:analysis) do
+        {
+          changes: [
+            {"description" => "Fixed typo"},
+            {"description" => "Updated import"}
+          ],
+          reason: "Clear and actionable"
+        }
+      end
+
+      it "builds commit message with changes" do
+        result = processor.send(:build_commit_message, pr, analysis)
+        expect(result).to include("aidp: pr-change")
+        expect(result).to include("Fixed typo, Updated import")
+        expect(result).to include("PR #123")
+        expect(result).to include("Co-authored-by: AIDP")
+      end
+
+      it "handles empty changes array" do
+        analysis_no_changes = {changes: [], reason: "Already applied"}
+        result = processor.send(:build_commit_message, pr, analysis_no_changes)
+        expect(result).to include("requested changes")
+      end
+
+      it "includes reason when present" do
+        result = processor.send(:build_commit_message, pr, analysis)
+        expect(result).to include("Clear and actionable")
+      end
+    end
+
+    describe "#build_analysis_prompt" do
+      it "builds prompt with PR data and comments" do
+        result = processor.send(:build_analysis_prompt, pr_data: pr, comments: comments, diff: diff)
+        expect(result).to include("PR #123")
+        expect(result).to include("Feature implementation")
+        expect(result).to include("alice")
+        expect(result).to include("fix the typo")
+      end
+
+      it "sorts comments by creation time newest first" do
+        old_comment = {
+          id: 1,
+          body: "Old comment",
+          author: "alice",
+          created_at: "2024-01-01T10:00:00Z",
+          updated_at: "2024-01-01T10:00:00Z"
+        }
+        new_comment = {
+          id: 2,
+          body: "New comment",
+          author: "bob",
+          created_at: "2024-01-02T10:00:00Z",
+          updated_at: "2024-01-02T10:00:00Z"
+        }
+        sorted_comments = [old_comment, new_comment]
+
+        result = processor.send(:build_analysis_prompt, pr_data: pr, comments: sorted_comments, diff: diff)
+
+        # Newer comment should appear first in the prompt
+        bob_pos = result.index("bob")
+        alice_pos = result.index("alice")
+        expect(bob_pos).to be < alice_pos
+      end
+    end
+
+    describe "#change_request_system_prompt" do
+      it "returns system prompt" do
+        result = processor.send(:change_request_system_prompt)
+        expect(result).to include("software engineer")
+        expect(result).to include("can_implement")
+        expect(result).to include("needs_clarification")
+        expect(result).to include("JSON format")
+      end
+    end
+
+    describe "#detect_default_provider" do
+      it "returns anthropic as default" do
+        result = processor.send(:detect_default_provider)
+        expect(result).to eq("anthropic")
+      end
+
+      it "handles config errors gracefully" do
+        allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:default_provider).and_raise(StandardError)
+        result = processor.send(:detect_default_provider)
+        expect(result).to eq("anthropic")
+      end
+    end
+
+    describe "git operations" do
+      describe "#run_git" do
+        it "executes git command successfully" do
+          allow(Open3).to receive(:capture3).with("git", "status").and_return(["output", "", double(success?: true)])
+          result = processor.send(:run_git, ["status"])
+          expect(result).to eq("output")
+        end
+
+        it "raises on git command failure" do
+          allow(Open3).to receive(:capture3).with("git", "bad-command").and_return(["", "error", double(success?: false)])
+          expect {
+            processor.send(:run_git, ["bad-command"])
+          }.to raise_error(/git bad-command failed/)
+        end
+
+        it "allows failure when specified" do
+          allow(Open3).to receive(:capture3).with("git", "pull").and_return(["", "conflict", double(success?: false)])
+          result = processor.send(:run_git, ["pull"], allow_failure: true)
+          expect(result).to eq("")
+        end
+      end
+
+      describe "#checkout_pr_branch" do
+        before do
+          allow(processor).to receive(:run_git)
+        end
+
+        it "checks out PR branch" do
+          expect(processor).to receive(:run_git).with(%w[fetch origin])
+          expect(processor).to receive(:run_git).with(["checkout", "feature-branch"])
+          expect(processor).to receive(:run_git).with(%w[pull --ff-only], allow_failure: true)
+
+          processor.send(:checkout_pr_branch, pr)
+        end
+      end
+
+      describe "#apply_changes" do
+        let(:changes) do
+          [
+            {"file" => "test.rb", "action" => "edit", "content" => "new content"},
+            {"file" => "delete.rb", "action" => "delete"},
+            {"file" => "invalid.rb", "action" => "unknown"}
+          ]
+        end
+
+        it "creates/edits files" do
+          expect(File).to receive(:write).with(File.join(tmp_dir, "test.rb"), "new content")
+          allow(File).to receive(:exist?).and_return(true)
+          allow(File).to receive(:delete)
+
+          processor.send(:apply_changes, changes)
+        end
+
+        it "deletes files" do
+          allow(File).to receive(:write)
+          expect(File).to receive(:exist?).with(File.join(tmp_dir, "delete.rb")).and_return(true)
+          expect(File).to receive(:delete).with(File.join(tmp_dir, "delete.rb"))
+
+          processor.send(:apply_changes, changes)
+        end
+
+        it "skips unknown actions" do
+          allow(File).to receive(:write)
+          allow(File).to receive(:exist?)
+          allow(File).to receive(:delete)
+
+          # Should not raise error for unknown action
+          expect { processor.send(:apply_changes, changes) }.not_to raise_error
+        end
+      end
+
+      describe "#commit_and_push" do
+        let(:analysis) { {changes: [{"description" => "Fix"}], reason: "test"} }
+
+        it "commits and pushes when changes exist" do
+          allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb\n")
+          expect(processor).to receive(:run_git).with(%w[add -A])
+          expect(processor).to receive(:run_git).with(["commit", "-m", anything])
+          expect(processor).to receive(:run_git).with(["push", "origin", "feature-branch"])
+
+          result = processor.send(:commit_and_push, pr, analysis)
+          expect(result).to be true
+        end
+
+        it "returns false when no changes to commit" do
+          allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("")
+
+          result = processor.send(:commit_and_push, pr, analysis)
+          expect(result).to be false
+        end
+      end
+    end
+
+    describe "error comment helpers" do
+      before do
+        allow(repository_client).to receive(:post_comment)
+        allow(repository_client).to receive(:remove_labels)
+      end
+
+      describe "#post_max_rounds_comment" do
+        it "posts max rounds error" do
+          expect(repository_client).to receive(:post_comment).with(123, /Maximum clarification rounds/)
+          processor.send(:post_max_rounds_comment, pr)
+        end
+      end
+
+      describe "#post_diff_too_large_comment" do
+        it "posts diff size error" do
+          expect(repository_client).to receive(:post_comment).with(123, /diff is too large/)
+          processor.send(:post_diff_too_large_comment, pr, 3000)
+        end
+      end
+    end
   end
 end
