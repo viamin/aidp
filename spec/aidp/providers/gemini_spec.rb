@@ -135,7 +135,7 @@ RSpec.describe Aidp::Providers::Gemini do
           hash_including(exit_code: 1, stderr: "API key invalid")
         )
 
-        expect { gemini.send_message(prompt: sample_prompt) }.to raise_error
+        expect { gemini.send_message(prompt: sample_prompt) }.to raise_error(RuntimeError)
       end
     end
 
