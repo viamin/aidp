@@ -59,6 +59,12 @@ module Aidp
         @state_history = []
         @deterministic_runner = DeterministicUnits::Runner.new(project_dir)
         @unit_scheduler = nil
+
+        # Initialize thinking depth manager for intelligent model selection
+        require_relative "../harness/thinking_depth_manager"
+        @thinking_depth_manager = Aidp::Harness::ThinkingDepthManager.new(config)
+        @consecutive_failures = 0
+        @last_tier = nil
       end
 
       # Execute a step using fix-forward work loop pattern
@@ -181,6 +187,9 @@ module Aidp
 
           record_periodic_checkpoint(test_results, lint_results)
 
+          # Track failures and escalate thinking tier if needed
+          track_failures_and_escalate(test_results, lint_results)
+
           tests_pass = test_results[:success] && lint_results[:success]
 
           if tests_pass
@@ -222,14 +231,18 @@ module Aidp
 
         prompt = build_decider_prompt(context)
 
+        # Select model based on thinking depth tier
+        provider_name, model_name, _model_data = select_model_for_current_tier
+
         agent_result = @provider_manager.execute_with_provider(
-          @provider_manager.current_provider,
+          provider_name,
           prompt,
           {
             step_name: @step_name,
             iteration: @iteration_count,
             project_dir: @project_dir,
-            mode: :decide_whats_next
+            mode: :decide_whats_next,
+            model: model_name
           }
         )
 
@@ -250,14 +263,18 @@ module Aidp
 
         prompt = build_diagnose_prompt(context)
 
+        # Select model based on thinking depth tier
+        provider_name, model_name, _model_data = select_model_for_current_tier
+
         agent_result = @provider_manager.execute_with_provider(
-          @provider_manager.current_provider,
+          provider_name,
           prompt,
           {
             step_name: @step_name,
             iteration: @iteration_count,
             project_dir: @project_dir,
-            mode: :diagnose_failures
+            mode: :diagnose_failures,
+            model: model_name
           }
         )
 
@@ -650,17 +667,36 @@ module Aidp
         # Prepend work loop instructions to every iteration
         full_prompt = build_work_loop_header(@step_name, @iteration_count) + "\n\n" + prompt_content
 
+        # Select model based on thinking depth tier
+        provider_name, model_name, _model_data = select_model_for_current_tier
+
+        if provider_name.nil? || model_name.nil?
+          Aidp.logger.error("work_loop", "Failed to select model for tier",
+            tier: @thinking_depth_manager.current_tier,
+            step: @step_name,
+            iteration: @iteration_count)
+          return {status: "error", message: "No model available for tier #{@thinking_depth_manager.current_tier}"}
+        end
+
+        # Log model selection
+        tier = @thinking_depth_manager.current_tier
+        if @last_tier != tier
+          display_message("  💡 Using tier: #{tier} (#{provider_name}/#{model_name})", type: :info)
+          @last_tier = tier
+        end
+
         # CRITICAL: Change to project directory before calling provider
         # This ensures Claude CLI runs in the correct directory and can create files
         Dir.chdir(@project_dir) do
-          # Send to provider via provider_manager
+          # Send to provider via provider_manager with selected model
           @provider_manager.execute_with_provider(
-            @provider_manager.current_provider,
+            provider_name,
             full_prompt,
             {
               step_name: @step_name,
               iteration: @iteration_count,
-              project_dir: @project_dir
+              project_dir: @project_dir,
+              model: model_name
             }
           )
         end
@@ -1113,6 +1149,100 @@ module Aidp
           @guard_policy.confirm_file(file)
           display_message("   ✓ Confirmed", type: :success)
         end
+      end
+
+      # Select model based on current thinking depth tier
+      # Returns [provider_name, model_name, model_data]
+      def select_model_for_current_tier
+        current_tier = @thinking_depth_manager.current_tier
+        provider_name, model_name, model_data = @thinking_depth_manager.select_model_for_tier(
+          current_tier,
+          provider: @provider_manager.current_provider
+        )
+
+        Aidp.logger.debug("work_loop", "Selected model for tier",
+          tier: current_tier,
+          provider: provider_name,
+          model: model_name,
+          step: @step_name,
+          iteration: @iteration_count)
+
+        [provider_name, model_name, model_data]
+      end
+
+      # Track test/lint failures and escalate tier if needed
+      def track_failures_and_escalate(test_results, lint_results)
+        tests_pass = test_results[:success] && lint_results[:success]
+
+        if tests_pass
+          # Reset failure count on success
+          @consecutive_failures = 0
+        else
+          # Increment failure count
+          @consecutive_failures += 1
+
+          # Check if we should escalate based on consecutive failures
+          if @thinking_depth_manager.should_escalate_on_failures?(@consecutive_failures)
+            escalate_thinking_tier("consecutive_failures")
+          end
+        end
+
+        # Check complexity-based escalation
+        changed_files = get_changed_files
+        if @thinking_depth_manager.should_escalate_on_complexity?(
+          files_changed: changed_files.size,
+          modules_touched: estimate_modules_touched(changed_files)
+        )
+          escalate_thinking_tier("complexity_threshold")
+        end
+      end
+
+      # Escalate to next thinking tier
+      def escalate_thinking_tier(reason)
+        old_tier = @thinking_depth_manager.current_tier
+        new_tier = @thinking_depth_manager.escalate_tier(reason: reason)
+
+        if new_tier
+          display_message("  ⬆️  Escalated thinking tier: #{old_tier} → #{new_tier} (#{reason})", type: :warning)
+          Aidp.logger.info("work_loop", "Escalated thinking tier",
+            from: old_tier,
+            to: new_tier,
+            reason: reason,
+            step: @step_name,
+            iteration: @iteration_count,
+            consecutive_failures: @consecutive_failures)
+
+          # Reset last tier to trigger display of new tier
+          @last_tier = nil
+        else
+          Aidp.logger.debug("work_loop", "Cannot escalate tier further",
+            current: old_tier,
+            max: @thinking_depth_manager.max_tier,
+            reason: reason)
+        end
+      end
+
+      # Estimate number of modules touched based on file paths
+      def estimate_modules_touched(files)
+        # Group files by their top-level directory or module
+        modules = files.map do |file|
+          parts = file.split("/")
+          # Consider top 2 levels as module identifier
+          parts.take(2).join("/")
+        end.uniq
+
+        modules.size
+      end
+
+      # Get thinking depth status for display
+      def thinking_depth_status
+        {
+          current_tier: @thinking_depth_manager.current_tier,
+          max_tier: @thinking_depth_manager.max_tier,
+          can_escalate: @thinking_depth_manager.can_escalate?,
+          consecutive_failures: @consecutive_failures,
+          escalation_count: @thinking_depth_manager.escalation_count
+        }
       end
     end
   end
