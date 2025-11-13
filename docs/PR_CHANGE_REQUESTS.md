@@ -96,6 +96,7 @@ watch:
 ### Example 1: Simple Code Fix
 
 **Comment:**
+
 ```
 Please fix the typo in the error message on line 42 of src/validator.rb.
 It should say "Invalid input" instead of "Invlaid input".
@@ -108,6 +109,7 @@ It should say "Invalid input" instead of "Invlaid input".
 ### Example 2: Refactoring Request
 
 **Comment:**
+
 ```
 Can you extract the validation logic in the `process` method into a separate
 `validate_input` private method? This would make the code more readable.
@@ -120,6 +122,7 @@ Can you extract the validation logic in the `process` method into a separate
 ### Example 3: Multiple File Changes
 
 **Comment:**
+
 ```
 Please update the following:
 1. Add a `timeout` parameter to the HTTP client in lib/client.rb
@@ -134,6 +137,7 @@ Please update the following:
 ### Example 4: Clarification Needed
 
 **Comment:**
+
 ```
 Please improve the error handling.
 ```
@@ -141,6 +145,7 @@ Please improve the error handling.
 **Action:** Apply `aidp-request-changes` label
 
 **AIDP Response:**
+
 ```
 I need clarification to implement the requested changes.
 
@@ -176,6 +181,7 @@ Maximum 3 clarification rounds per change request. After that, manual implementa
 ### Comment Weighting
 
 When multiple comments exist:
+
 - Newer comments are weighted higher
 - All approved commenter input is considered
 - The most recent request takes precedence for conflicts
@@ -185,6 +191,7 @@ When multiple comments exist:
 ### Automatic Label Removal
 
 AIDP automatically removes the `aidp-request-changes` label after:
+
 - Successfully implementing changes
 - Determining changes cannot be implemented
 - Test/lint failures (fix-forward)
@@ -194,6 +201,7 @@ AIDP automatically removes the `aidp-request-changes` label after:
 ### Label Replacement
 
 When clarification is needed, AIDP:
+
 1. Removes `aidp-request-changes`
 2. Adds `aidp-needs-input`
 
@@ -204,11 +212,13 @@ After responding to questions, re-apply `aidp-request-changes` to continue.
 ### Writing Effective Change Requests
 
 **Good:**
+
 - "Fix the typo in line 42: 'occured' → 'occurred'"
 - "Extract the sorting logic into a `sort_by_priority` method"
 - "Add error handling for nil values in the `process_data` method"
 
 **Needs Improvement:**
+
 - "Make it better" (too vague)
 - "Fix the bug" (no context)
 - "Refactor everything" (too broad)
@@ -218,11 +228,13 @@ After responding to questions, re-apply `aidp-request-changes` to continue.
 For large refactorings, break into multiple change requests:
 
 **Instead of:**
+
 ```
 Completely refactor the authentication system
 ```
 
 **Do:**
+
 ```
 Step 1: Extract validation logic to AuthValidator
 Step 2: Move password hashing to PasswordHasher
@@ -244,6 +256,7 @@ You can use multiple AIDP labels together:
 ### Changes Not Applied
 
 **Check:**
+
 1. Is watch mode running? (`aidp watch <repo-url>`)
 2. Is the label correctly applied?
 3. Are you on the author allowlist (public repos)?
@@ -253,6 +266,7 @@ You can use multiple AIDP labels together:
 ### Clarification Loop
 
 If stuck in clarification rounds:
+
 1. Provide very specific instructions in your next comment
 2. Include file paths, line numbers, and exact changes
 3. Consider implementing manually if too complex
@@ -260,6 +274,7 @@ If stuck in clarification rounds:
 ### Test Failures
 
 If tests consistently fail:
+
 1. Review the test output in AIDP's comment
 2. Verify your request is technically correct
 3. Check if tests need updating separately
@@ -312,6 +327,7 @@ Always use an allowlist for public repositories to prevent unauthorized users fr
 ### Code Review
 
 AIDP-implemented changes should still be reviewed:
+
 - AIDP posts a summary of all changes
 - Review the diff before merging
 - Use `aidp-review` label for automated code review
@@ -319,6 +335,7 @@ AIDP-implemented changes should still be reviewed:
 ### Sensitive Changes
 
 Avoid using PR change requests for:
+
 - Security-critical code
 - Authentication/authorization logic
 - Database migrations

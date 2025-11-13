@@ -91,6 +91,7 @@ Watch mode supports multiple planning cycles for issues that need refinement:
    only sees the current, active plan.
 
 **Example workflow:**
+
 ```
 1. Add aidp-plan → Initial plan posted (Iteration 1)
 2. Team discusses, identifies issues in comments

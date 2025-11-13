@@ -241,8 +241,8 @@ module Aidp
         # Remove all archived plan sections (wrapped in HTML comments)
         result = content.dup
 
-        # Remove archived plan blocks
-        result = result.gsub(/<!-- ARCHIVED_PLAN_START.*?<!-- ARCHIVED_PLAN_END -->/m, "")
+        # Remove archived plan blocks - using non-greedy match with proper bounds to avoid ReDoS
+        result = result.gsub(/<!-- ARCHIVED_PLAN_START -->.*?<!-- ARCHIVED_PLAN_END -->/m, "")
 
         # Remove HTML-commented sections from active plan
         # Keep the content between START and END markers, but strip the markers themselves
