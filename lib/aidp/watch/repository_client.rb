@@ -166,25 +166,9 @@ module Aidp
         raise "GitHub API error (#{response.code})" unless response.code == "200"
 
         data = JSON.parse(response.body)
-        comments = fetch_comments_via_api(number)
+        comments = fetch_pr_comments_via_api(number)
         data["comments"] = comments
         normalize_issue_detail_api(data)
-      end
-
-      def fetch_comments_via_api(number)
-        uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}/comments")
-        response = Net::HTTP.get_response(uri)
-        return [] unless response.code == "200"
-
-        JSON.parse(response.body).map do |raw|
-          {
-            "body" => raw["body"],
-            "author" => raw.dig("user", "login"),
-            "createdAt" => raw["created_at"]
-          }
-        end
-      rescue
-        []
       end
 
       def post_comment_via_gh(number, body)
@@ -716,9 +700,9 @@ module Aidp
       def normalize_comment(comment)
         if comment.is_a?(Hash)
           {
-            "body" => comment["body"],
-            "author" => comment["author"] || comment.dig("user", "login"),
-            "createdAt" => comment["createdAt"] || comment["created_at"]
+            "body" => comment["body"] || comment[:body],
+            "author" => comment["author"] || comment[:author] || comment.dig("user", "login"),
+            "createdAt" => comment["createdAt"] || comment[:created_at] || comment["created_at"]
           }
         else
           {"body" => comment.to_s}

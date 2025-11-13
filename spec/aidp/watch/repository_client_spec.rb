@@ -1618,40 +1618,6 @@ RSpec.describe Aidp::Watch::RepositoryClient do
       end
     end
 
-    describe "#fetch_comments_via_api" do
-      let(:gh_available) { false }
-
-      it "fetches comments successfully" do
-        comments_response = JSON.dump([
-          {"body" => "Comment 1", "user" => {"login" => "user1"}, "created_at" => "2023-01-01"},
-          {"body" => "Comment 2", "user" => {"login" => "user2"}, "created_at" => "2023-01-02"}
-        ])
-
-        response = double(code: "200", body: comments_response)
-        allow(Net::HTTP).to receive(:get_response).and_return(response)
-
-        result = client.send(:fetch_comments_via_api, issue_number)
-        expect(result).to be_an(Array)
-        expect(result.length).to eq(2)
-        expect(result.first["author"]).to eq("user1")
-      end
-
-      it "returns empty array on API failure" do
-        response = double(code: "404")
-        allow(Net::HTTP).to receive(:get_response).and_return(response)
-
-        result = client.send(:fetch_comments_via_api, issue_number)
-        expect(result).to eq([])
-      end
-
-      it "returns empty array on exception" do
-        allow(Net::HTTP).to receive(:get_response).and_raise(StandardError.new("Error"))
-
-        result = client.send(:fetch_comments_via_api, issue_number)
-        expect(result).to eq([])
-      end
-    end
-
     describe "#post_comment_via_gh" do
       let(:gh_available) { true }
 
