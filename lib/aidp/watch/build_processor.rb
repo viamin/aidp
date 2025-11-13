@@ -244,16 +244,16 @@ module Aidp
         # Remove archived plan blocks
         start_marker = "<!-- ARCHIVED_PLAN_START -->"
         end_marker = "<!-- ARCHIVED_PLAN_END -->"
-        
+
         loop do
           start_idx = result.index(start_marker)
           break unless start_idx
-          
+
           end_idx = result.index(end_marker, start_idx)
           break unless end_idx
-          
+
           # Remove the entire block including markers
-          result = result[0...start_idx] + result[(end_idx + end_marker.length)..-1]
+          result = result[0...start_idx] + result[(end_idx + end_marker.length)..]
         end
 
         # Remove HTML-commented sections from active plan

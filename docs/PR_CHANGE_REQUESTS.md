@@ -97,7 +97,7 @@ watch:
 
 **Comment:**
 
-```
+```text
 Please fix the typo in the error message on line 42 of src/validator.rb.
 It should say "Invalid input" instead of "Invlaid input".
 ```
@@ -110,7 +110,7 @@ It should say "Invalid input" instead of "Invlaid input".
 
 **Comment:**
 
-```
+```text
 Can you extract the validation logic in the `process` method into a separate
 `validate_input` private method? This would make the code more readable.
 ```
@@ -123,7 +123,7 @@ Can you extract the validation logic in the `process` method into a separate
 
 **Comment:**
 
-```
+```text
 Please update the following:
 1. Add a `timeout` parameter to the HTTP client in lib/client.rb
 2. Update the corresponding test in spec/client_spec.rb
@@ -138,7 +138,7 @@ Please update the following:
 
 **Comment:**
 
-```
+```text
 Please improve the error handling.
 ```
 
@@ -146,7 +146,7 @@ Please improve the error handling.
 
 **AIDP Response:**
 
-```
+```text
 I need clarification to implement the requested changes.
 
 Questions:
@@ -229,13 +229,13 @@ For large refactorings, break into multiple change requests:
 
 **Instead of:**
 
-```
+```text
 Completely refactor the authentication system
 ```
 
 **Do:**
 
-```
+```text
 Step 1: Extract validation logic to AuthValidator
 Step 2: Move password hashing to PasswordHasher
 Step 3: Add unit tests for new classes
@@ -245,7 +245,7 @@ Step 3: Add unit tests for new classes
 
 You can use multiple AIDP labels together:
 
-```
+```text
 1. Apply aidp-request-changes for code changes
 2. After changes are pushed, apply aidp-review for review
 3. Apply aidp-fix-ci if tests fail
