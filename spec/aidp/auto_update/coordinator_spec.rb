@@ -156,12 +156,12 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
             "Accept" => "*/*",
             "Accept-Encoding" => "gzip;q=1.0,deflate;q=0.6,identity;q=0.3",
             "Host" => "rubygems.org",
-            "User-Agent" => "Aidp/0.24.0"
+            "User-Agent" => "Aidp/#{Aidp::VERSION}"
           }
         )
         .to_return(
           status: 200,
-          body: {version: "0.25.0"}.to_json,
+          body: {version: Aidp::VERSION}.to_json,
           headers: {"Content-Type" => "application/json"}
         )
 

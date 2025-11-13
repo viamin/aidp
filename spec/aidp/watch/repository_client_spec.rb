@@ -799,6 +799,187 @@ RSpec.describe Aidp::Watch::RepositoryClient do
     end
   end
 
+  describe "#fetch_pr_comments" do
+    let(:pr_number) { 789 }
+
+    context "when GitHub CLI is available" do
+      let(:gh_available) { true }
+
+      it "fetches comments via gh CLI" do
+        allow(client).to receive(:fetch_pr_comments_via_gh).and_return([])
+        client.fetch_pr_comments(pr_number)
+        expect(client).to have_received(:fetch_pr_comments_via_gh).with(pr_number)
+      end
+    end
+
+    context "when GitHub CLI is not available" do
+      let(:gh_available) { false }
+
+      it "fetches comments via API" do
+        allow(client).to receive(:fetch_pr_comments_via_api).and_return([])
+        client.fetch_pr_comments(pr_number)
+        expect(client).to have_received(:fetch_pr_comments_via_api).with(pr_number)
+      end
+    end
+  end
+
+  describe "#fetch_pr_comments_via_gh" do
+    let(:gh_available) { true }
+    let(:pr_number) { 123 }
+
+    it "fetches and normalizes PR comments via gh CLI" do
+      comments_json = JSON.dump([
+        {
+          "id" => 1,
+          "body" => "Great work!",
+          "user" => {"login" => "alice"},
+          "created_at" => "2024-01-01T10:00:00Z",
+          "updated_at" => "2024-01-01T10:00:00Z"
+        },
+        {
+          "id" => 2,
+          "body" => "Needs review",
+          "user" => {"login" => "bob"},
+          "created_at" => "2024-01-02T11:00:00Z",
+          "updated_at" => "2024-01-02T11:00:00Z"
+        }
+      ])
+
+      allow(Open3).to receive(:capture3).with(
+        "gh", "api", "repos/testowner/testrepo/issues/123/comments", "--jq", "."
+      ).and_return([comments_json, "", double(success?: true)])
+
+      result = client.send(:fetch_pr_comments_via_gh, pr_number)
+
+      expect(result).to be_an(Array)
+      expect(result.length).to eq(2)
+      expect(result.first[:id]).to eq(1)
+      expect(result.first[:body]).to eq("Great work!")
+      expect(result.first[:author]).to eq("alice")
+      expect(result.last[:author]).to eq("bob")
+    end
+
+    it "raises error on gh CLI failure" do
+      allow(Open3).to receive(:capture3).and_return(["", "API error", double(success?: false)])
+
+      expect {
+        client.send(:fetch_pr_comments_via_gh, pr_number)
+      }.to raise_error(/Failed to fetch PR comments/)
+    end
+
+    it "raises error on JSON parse failure" do
+      allow(Open3).to receive(:capture3).and_return(["invalid json", "", double(success?: true)])
+
+      expect {
+        client.send(:fetch_pr_comments_via_gh, pr_number)
+      }.to raise_error(/Failed to parse PR comments/)
+    end
+  end
+
+  describe "#fetch_pr_comments_via_api" do
+    let(:gh_available) { false }
+    let(:pr_number) { 123 }
+
+    it "fetches and normalizes PR comments via API" do
+      comments_json = JSON.dump([
+        {
+          "id" => 1,
+          "body" => "Comment 1",
+          "user" => {"login" => "user1"},
+          "created_at" => "2024-01-01T10:00:00Z",
+          "updated_at" => "2024-01-01T10:00:00Z"
+        }
+      ])
+
+      response = double(code: "200", body: comments_json)
+      allow(Net::HTTP).to receive(:get_response).and_return(response)
+
+      result = client.send(:fetch_pr_comments_via_api, pr_number)
+
+      expect(result).to be_an(Array)
+      expect(result.length).to eq(1)
+      expect(result.first[:id]).to eq(1)
+      expect(result.first[:author]).to eq("user1")
+    end
+
+    it "returns empty array on API failure" do
+      response = double(code: "404")
+      allow(Net::HTTP).to receive(:get_response).and_return(response)
+
+      result = client.send(:fetch_pr_comments_via_api, pr_number)
+      expect(result).to eq([])
+    end
+
+    it "returns empty array on exception" do
+      allow(Net::HTTP).to receive(:get_response).and_raise(StandardError.new("Network error"))
+
+      result = client.send(:fetch_pr_comments_via_api, pr_number)
+      expect(result).to eq([])
+    end
+  end
+
+  describe "#normalize_pr_comment" do
+    it "normalizes PR comment data" do
+      raw = {
+        "id" => 42,
+        "body" => "Test comment",
+        "user" => {"login" => "testuser"},
+        "created_at" => "2024-01-01T10:00:00Z",
+        "updated_at" => "2024-01-01T11:00:00Z"
+      }
+
+      result = client.send(:normalize_pr_comment, raw)
+
+      expect(result[:id]).to eq(42)
+      expect(result[:body]).to eq("Test comment")
+      expect(result[:author]).to eq("testuser")
+      expect(result[:created_at]).to eq("2024-01-01T10:00:00Z")
+      expect(result[:updated_at]).to eq("2024-01-01T11:00:00Z")
+    end
+  end
+
+  describe "#normalize_comment" do
+    it "normalizes comment with string keys" do
+      comment = {
+        "body" => "Test",
+        "author" => "alice",
+        "createdAt" => "2024-01-01"
+      }
+
+      result = client.send(:normalize_comment, comment)
+      expect(result["body"]).to eq("Test")
+      expect(result["author"]).to eq("alice")
+    end
+
+    it "normalizes comment with symbol keys" do
+      comment = {
+        body: "Test",
+        author: "bob",
+        created_at: "2024-01-01"
+      }
+
+      result = client.send(:normalize_comment, comment)
+      expect(result["body"]).to eq("Test")
+      expect(result["author"]).to eq("bob")
+    end
+
+    it "extracts author from user.login" do
+      comment = {
+        "body" => "Test",
+        "user" => {"login" => "charlie"},
+        "created_at" => "2024-01-01"
+      }
+
+      result = client.send(:normalize_comment, comment)
+      expect(result["author"]).to eq("charlie")
+    end
+
+    it "handles non-hash input" do
+      result = client.send(:normalize_comment, "plain string")
+      expect(result["body"]).to eq("plain string")
+    end
+  end
+
   describe "#fetch_ci_status" do
     let(:pr_number) { 456 }
 
@@ -1591,40 +1772,6 @@ RSpec.describe Aidp::Watch::RepositoryClient do
         expect {
           client.send(:fetch_issue_via_api, issue_number)
         }.to raise_error(/GitHub API error/)
-      end
-    end
-
-    describe "#fetch_comments_via_api" do
-      let(:gh_available) { false }
-
-      it "fetches comments successfully" do
-        comments_response = JSON.dump([
-          {"body" => "Comment 1", "user" => {"login" => "user1"}, "created_at" => "2023-01-01"},
-          {"body" => "Comment 2", "user" => {"login" => "user2"}, "created_at" => "2023-01-02"}
-        ])
-
-        response = double(code: "200", body: comments_response)
-        allow(Net::HTTP).to receive(:get_response).and_return(response)
-
-        result = client.send(:fetch_comments_via_api, issue_number)
-        expect(result).to be_an(Array)
-        expect(result.length).to eq(2)
-        expect(result.first["author"]).to eq("user1")
-      end
-
-      it "returns empty array on API failure" do
-        response = double(code: "404")
-        allow(Net::HTTP).to receive(:get_response).and_return(response)
-
-        result = client.send(:fetch_comments_via_api, issue_number)
-        expect(result).to eq([])
-      end
-
-      it "returns empty array on exception" do
-        allow(Net::HTTP).to receive(:get_response).and_raise(StandardError.new("Error"))
-
-        result = client.send(:fetch_comments_via_api, issue_number)
-        expect(result).to eq([])
       end
     end
 

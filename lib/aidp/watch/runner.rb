@@ -12,6 +12,7 @@ require_relative "build_processor"
 require_relative "../auto_update"
 require_relative "review_processor"
 require_relative "ci_fix_processor"
+require_relative "change_request_processor"
 
 module Aidp
   module Watch
@@ -77,6 +78,16 @@ module Aidp
           label_config: label_config,
           verbose: verbose
         )
+        @change_request_processor = ChangeRequestProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          provider_name: provider_name,
+          project_dir: project_dir,
+          label_config: label_config,
+          change_request_config: safety_config[:pr_change_requests] || safety_config["pr_change_requests"] || {},
+          safety_config: safety_config[:safety] || safety_config["safety"] || {},
+          verbose: verbose
+        )
       end
 
       def start
@@ -122,6 +133,7 @@ module Aidp
         check_for_updates_if_due
         process_review_triggers
         process_ci_fix_triggers
+        process_change_request_triggers
       end
 
       def process_plan_triggers
@@ -225,6 +237,31 @@ module Aidp
 
           Aidp.log_debug("watch_runner", "ci_fix_process", pr: detailed[:number])
           @ci_fix_processor.process(detailed)
+        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
+          Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
+        end
+      end
+
+      def process_change_request_triggers
+        change_request_label = @change_request_processor.change_request_label
+        prs = @repository_client.list_pull_requests(labels: [change_request_label], state: "open")
+        Aidp.log_debug("watch_runner", "change_request_poll", label: change_request_label, total: prs.size)
+        prs.each do |pr|
+          unless pr_has_label?(pr, change_request_label)
+            Aidp.log_debug("watch_runner", "change_request_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
+            next
+          end
+
+          detailed = @repository_client.fetch_pull_request(pr[:number])
+
+          # Check author authorization before processing
+          unless @safety_checker.should_process_issue?(detailed, enforce: false)
+            Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            next
+          end
+
+          Aidp.log_debug("watch_runner", "change_request_process", pr: detailed[:number])
+          @change_request_processor.process(detailed)
         rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
           Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
         end
