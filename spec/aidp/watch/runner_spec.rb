@@ -125,6 +125,7 @@ RSpec.describe Aidp::Watch::Runner do
       allow(runner).to receive(:process_build_triggers)
       allow(runner).to receive(:process_review_triggers)
       allow(runner).to receive(:process_ci_fix_triggers)
+      allow(runner).to receive(:process_change_request_triggers)
 
       runner.send(:process_cycle)
 
@@ -132,6 +133,7 @@ RSpec.describe Aidp::Watch::Runner do
       expect(runner).to have_received(:process_build_triggers)
       expect(runner).to have_received(:process_review_triggers)
       expect(runner).to have_received(:process_ci_fix_triggers)
+      expect(runner).to have_received(:process_change_request_triggers)
     end
   end
 
