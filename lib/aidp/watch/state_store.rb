@@ -96,6 +96,34 @@ module Aidp
         save!
       end
 
+      # Change request tracking methods
+      def change_request_processed?(pr_number)
+        change_requests.key?(pr_number.to_s)
+      end
+
+      def change_request_data(pr_number)
+        change_requests[pr_number.to_s]
+      end
+
+      def record_change_request(pr_number, data)
+        payload = {
+          "status" => data[:status],
+          "timestamp" => data[:timestamp] || Time.now.utc.iso8601,
+          "changes_applied" => data[:changes_applied],
+          "commits" => data[:commits],
+          "reason" => data[:reason],
+          "clarification_count" => data[:clarification_count]
+        }.compact
+
+        change_requests[pr_number.to_s] = payload
+        save!
+      end
+
+      def reset_change_request_state(pr_number)
+        change_requests.delete(pr_number.to_s)
+        save!
+      end
+
       private
 
       def ensure_directory
@@ -126,6 +154,7 @@ module Aidp
           base["builds"] ||= {}
           base["reviews"] ||= {}
           base["ci_fixes"] ||= {}
+          base["change_requests"] ||= {}
           base
         end
       end
@@ -144,6 +173,10 @@ module Aidp
 
       def ci_fixes
         state["ci_fixes"]
+      end
+
+      def change_requests
+        state["change_requests"]
       end
 
       def stringify_keys(hash)

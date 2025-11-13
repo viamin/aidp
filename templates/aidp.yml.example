@@ -708,6 +708,56 @@ devcontainer:
       # - "api.example.com"
       # - "registry.example.com"
 
+# Watch mode configuration
+# Configures automated monitoring and processing of GitHub issues/PRs
+watch:
+  # Label configuration for different triggers
+  labels:
+    plan_trigger: "aidp-plan"                    # Trigger plan generation
+    needs_input: "aidp-needs-input"              # Request clarification
+    ready_to_build: "aidp-ready"                 # Ready for implementation
+    build_trigger: "aidp-build"                  # Trigger implementation
+    review_trigger: "aidp-review"                # Trigger code review
+    ci_fix_trigger: "aidp-fix-ci"                # Trigger CI fix
+    change_request_trigger: "aidp-request-changes"  # Trigger PR change requests
+
+  # Safety configuration
+  safety:
+    # Allow watch mode on public repositories (default: false for safety)
+    allow_public_repos: false
+
+    # List of GitHub usernames allowed to trigger automated actions
+    # Empty list means all authenticated users (for private repos)
+    author_allowlist: []
+      # - "user1"
+      # - "user2"
+
+    # Require running in a container environment (additional safety)
+    require_container: false
+
+  # PR change request configuration
+  pr_change_requests:
+    # Enable/disable PR change request feature
+    enabled: true
+
+    # Allow changes across multiple files in a single request
+    allow_multi_file_edits: true
+
+    # Run tests and linters before pushing changes
+    # If tests fail, changes are committed locally but not pushed
+    run_tests_before_push: true
+
+    # Prefix for commit messages created by change request processor
+    commit_message_prefix: "aidp: pr-change"
+
+    # Require at least one comment before processing change request
+    # This ensures there's context for what changes are requested
+    require_comment_reference: true
+
+    # Maximum PR diff size (in lines) to process
+    # Large PRs are skipped to avoid overwhelming the AI analysis
+    max_diff_size: 2000
+
 # Configuration tips:
 # - Set max_tokens based on your API plan limits
 # - Use default_flags to customize provider behavior
@@ -724,3 +774,6 @@ devcontainer:
 # - Use time-based configs for different usage patterns
 # - Use step-specific configs for different workflow steps
 # - Use user-specific configs for personalized experiences
+# - Configure watch mode safety settings before using on public repositories
+# - Set author_allowlist to restrict who can trigger automated actions
+# - Adjust max_diff_size based on your typical PR sizes and AI capabilities
