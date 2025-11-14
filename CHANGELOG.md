@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.26.0](https://github.com/viamin/aidp/compare/aidp/v0.25.0...aidp/v0.26.0) (2025-11-14)
+
+
+### Features
+
+* add Kilo-Code extension to development container configuration ([ba3a5a1](https://github.com/viamin/aidp/commit/ba3a5a195074e4249055529356f164044c0fa0ed))
+* add mock responses for test runner methods in WorkLoopRunner specs ([ea1efb4](https://github.com/viamin/aidp/commit/ea1efb4a9bbcdd5f3cc2296a53ae9e792b01e09f))
+* add suppression of logs and warnings in test/CI environments ([b18b8db](https://github.com/viamin/aidp/commit/b18b8db1b05432d2a6d8bf7518fd76bdd9d38836))
+* enhance test runner with output filtering and mode configuration ([f7714e2](https://github.com/viamin/aidp/commit/f7714e2addb8bba658cc89e2f78942be6adb278b))
+* implement filtering strategies for output processing in Aidp harness ([04c1a87](https://github.com/viamin/aidp/commit/04c1a87bad68138ba390f0e6201448da4ad82059))
+* implement intelligent test/linter output filtering ([#265](https://github.com/viamin/aidp/issues/265)) ([4062af4](https://github.com/viamin/aidp/commit/4062af4915288f6f8b27ca0f4afca9bd50a5221b))
+* implement intelligent test/linter output filtering ([#265](https://github.com/viamin/aidp/issues/265)) ([#284](https://github.com/viamin/aidp/issues/284)) ([d42f579](https://github.com/viamin/aidp/commit/d42f5795df78ab8a6d376b44e0927d31ee395ac1))
+* implement PR change requests via label workflow ([6c9df9f](https://github.com/viamin/aidp/commit/6c9df9f253ae89cf6b90313ad0962569ec464ed4)), closes [#257](https://github.com/viamin/aidp/issues/257)
+* implement PR change requests via label workflow ([#268](https://github.com/viamin/aidp/issues/268)) ([4756a77](https://github.com/viamin/aidp/commit/4756a77f89902b27aac648e66eebdb53dc22a4f2))
+* implement required/optional command distinction and new command types ([#234](https://github.com/viamin/aidp/issues/234)) ([e7f8f52](https://github.com/viamin/aidp/commit/e7f8f529c56dfda0d5fd5208d376adfabe5d93da))
+* implement required/optional command distinction and new command types ([#234](https://github.com/viamin/aidp/issues/234)) ([#285](https://github.com/viamin/aidp/issues/285)) ([c628a29](https://github.com/viamin/aidp/commit/c628a29f9abbc1a5ff4588f12ca567af1c7b3736))
+* integrate thinking depth model selection in work loops ([ce9e290](https://github.com/viamin/aidp/commit/ce9e2906896697bcbbbab9758c0874ecefc5c73e))
+* integrate thinking depth model selection in work loops ([#275](https://github.com/viamin/aidp/issues/275)) ([e5d6de7](https://github.com/viamin/aidp/commit/e5d6de79df19bcb12717a950a1ff82ea056b83a5))
+* remove PROMPT.md and update documentation for intelligent test/linter output filtering ([66b1cf4](https://github.com/viamin/aidp/commit/66b1cf4ab7eebf85ead975818c7cbac6b2036314))
+
+
+### Bug Fixes
+
+* add error class to remaining raise_error matchers ([7174950](https://github.com/viamin/aidp/commit/71749507f6bafa290768c48874c70b077a8be320))
+* disable RSpec status persistence in CI to avoid permission errors ([75d66e0](https://github.com/viamin/aidp/commit/75d66e02d8df4b53a6abb472b14eeac3530b800c))
+* enable warnings in tests that verify warning behavior ([5562d47](https://github.com/viamin/aidp/commit/5562d479a6bde43eaa0e19cd64fb2892a5430f63))
+* enhance regex for removing archived plan blocks to prevent ReDoS ([0700067](https://github.com/viamin/aidp/commit/070006766bbf3fdced6bc82b5160e5d7b66554b0))
+* extra log lines in spec results and rspec exception ([#277](https://github.com/viamin/aidp/issues/277)) ([8e1b892](https://github.com/viamin/aidp/commit/8e1b892aabea9c38d1662513f2f40a5afb8f72e6))
+* handle archived plan markers with attributes in strip_archived_plans ([e6bed38](https://github.com/viamin/aidp/commit/e6bed3800a611f22500e143898e763f0db1a5379))
+* improve regex for removing archived plan blocks to prevent ReDoS ([6028374](https://github.com/viamin/aidp/commit/60283746070e6884bd0ec6900bbed9e9a612d156))
+* prevent closed stream errors in EnhancedTUI tests ([c902a21](https://github.com/viamin/aidp/commit/c902a2175a96617ee0dd4c1f40f73700f2789a49))
+* prevent closed stream errors in EnhancedTUI tests ([#281](https://github.com/viamin/aidp/issues/281)) ([25652b0](https://github.com/viamin/aidp/commit/25652b03659ca270747d72d63a0c16292e1e2281))
+* refactor archived plan block removal to avoid potential performance issues ([d48753b](https://github.com/viamin/aidp/commit/d48753bff57141397bafcec8582999ca746359ad))
+* replace regex with safe string matching to prevent ReDoS ([f48d1d7](https://github.com/viamin/aidp/commit/f48d1d7ad5fac140027e94e4d6562ecc77352c37))
+* resolve spec failures in runner and change_request_processor ([e17cb3c](https://github.com/viamin/aidp/commit/e17cb3cd58d057c265f24eff0d6060a798aa2e87))
+* save PROMPT.md to .aidp directory in init-prompt.sh ([8379bdf](https://github.com/viamin/aidp/commit/8379bdfe92803c76428fdf8c40bab7fa669911e5))
+* save PROMPT.md to .aidp directory in init-prompt.sh ([#283](https://github.com/viamin/aidp/issues/283)) ([b1c831e](https://github.com/viamin/aidp/commit/b1c831e171232c680abb7591e6bfcf023314b4f5))
+* suppress 'closed stream' log errors in tests ([3e55750](https://github.com/viamin/aidp/commit/3e557500bf7f97e3e054513482a12726cd13158a))
+* suppress 'closed stream' log errors in tests ([59a6647](https://github.com/viamin/aidp/commit/59a6647c4b6af912135850040eeda371f0a913fe))
+* suppress directory permission warnings in tests ([cb968f9](https://github.com/viamin/aidp/commit/cb968f9376ed3d7e59e0a86a098db773cbfeec4c))
+* suppress logger warnings and improve test expectations ([d42d552](https://github.com/viamin/aidp/commit/d42d55235bcfab21ee62ac7ac1fbfaf1ed9d430d))
+* suppress workstream error backtraces in tests ([00ba246](https://github.com/viamin/aidp/commit/00ba24698cf775f235639027a20fc1cfbf7492ca))
+* update markdown code block formatting in documentation ([1f99b56](https://github.com/viamin/aidp/commit/1f99b56925bbac5910a661c88c388c3e3763fcb9))
+* update README and documentation for clarity and consistency in command workflows ([eaa087c](https://github.com/viamin/aidp/commit/eaa087c87ddd7e8f6d0309bd7d897bbbfc21db71))
+
+
+### Improvements
+
+* consolidate duplicate comment fetching methods ([0d1c1d1](https://github.com/viamin/aidp/commit/0d1c1d1279bf5f1ab5844f42558d531d5266cb23))
+* streamline failure marker detection in filter strategy ([6dc019a](https://github.com/viamin/aidp/commit/6dc019a992e180fc83bb0064b9f04361b09eb694))
+* use Aidp::VERSION in WebMock stub for version resilience ([b26aef6](https://github.com/viamin/aidp/commit/b26aef61a896742f5d936e580b38224c9868179d))
+
+
+### Documentation
+
+* update README with all 7 watch mode labels and consolidate PR docs ([f13dcb8](https://github.com/viamin/aidp/commit/f13dcb88f6f38b6a736282e4841a8f587778a1d3))
+* update README with all 7 watch mode labels and consolidate PR docs ([#278](https://github.com/viamin/aidp/issues/278)) ([7d9db2a](https://github.com/viamin/aidp/commit/7d9db2a128b06ae1f53255ae82a6c0e07abfc2e4))
+
 ## [0.25.0](https://github.com/viamin/aidp/compare/aidp/v0.24.0...aidp/v0.25.0) (2025-11-12)
 
 
