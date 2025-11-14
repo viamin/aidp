@@ -138,6 +138,56 @@ RSpec.describe Aidp::Watch::RepositoryClient do
     end
   end
 
+  describe "#find_comment" do
+    let(:issue_number) { 123 }
+    let(:header_text) { "🤖 AIDP Plan Proposal" }
+
+    context "when GitHub CLI is available" do
+      let(:gh_available) { true }
+
+      it "calls GitHub CLI to find comment" do
+        allow(client).to receive(:find_comment_via_gh).and_return({id: 1, body: "comment"})
+        client.find_comment(issue_number, header_text)
+        expect(client).to have_received(:find_comment_via_gh).with(issue_number, header_text)
+      end
+    end
+
+    context "when GitHub CLI is not available" do
+      let(:gh_available) { false }
+
+      it "calls GitHub API to find comment" do
+        allow(client).to receive(:find_comment_via_api).and_return({id: 1, body: "comment"})
+        client.find_comment(issue_number, header_text)
+        expect(client).to have_received(:find_comment_via_api).with(issue_number, header_text)
+      end
+    end
+  end
+
+  describe "#update_comment" do
+    let(:comment_id) { 456 }
+    let(:body) { "Updated comment" }
+
+    context "when GitHub CLI is available" do
+      let(:gh_available) { true }
+
+      it "calls GitHub CLI to update comment" do
+        allow(client).to receive(:update_comment_via_gh).and_return("success")
+        client.update_comment(comment_id, body)
+        expect(client).to have_received(:update_comment_via_gh).with(comment_id, body)
+      end
+    end
+
+    context "when GitHub CLI is not available" do
+      let(:gh_available) { false }
+
+      it "calls GitHub API to update comment" do
+        allow(client).to receive(:update_comment_via_api).and_return("success")
+        client.update_comment(comment_id, body)
+        expect(client).to have_received(:update_comment_via_api).with(comment_id, body)
+      end
+    end
+  end
+
   describe "#create_pull_request" do
     let(:pr_params) do
       {
@@ -1826,6 +1876,128 @@ RSpec.describe Aidp::Watch::RepositoryClient do
         expect {
           client.send(:post_comment_via_api, issue_number, "Test comment")
         }.to raise_error(/GitHub API comment failed/)
+      end
+    end
+
+    describe "#find_comment_via_gh" do
+      let(:gh_available) { true }
+      let(:issue_number) { 123 }
+      let(:header_text) { "🤖 AIDP Plan Proposal" }
+
+      it "finds comment with matching header text" do
+        comments = [
+          {id: 1, body: "Some other comment"},
+          {id: 2, body: "🤖 AIDP Plan Proposal\n\nThis is the plan"}
+        ]
+        allow(client).to receive(:fetch_pr_comments_via_gh).and_return(comments)
+
+        result = client.send(:find_comment_via_gh, issue_number, header_text)
+        expect(result[:id]).to eq(2)
+      end
+
+      it "returns nil when no comment matches" do
+        comments = [{id: 1, body: "Some other comment"}]
+        allow(client).to receive(:fetch_pr_comments_via_gh).and_return(comments)
+
+        result = client.send(:find_comment_via_gh, issue_number, header_text)
+        expect(result).to be_nil
+      end
+
+      it "returns nil on error" do
+        allow(client).to receive(:fetch_pr_comments_via_gh).and_raise(StandardError.new("API error"))
+
+        result = client.send(:find_comment_via_gh, issue_number, header_text)
+        expect(result).to be_nil
+      end
+    end
+
+    describe "#find_comment_via_api" do
+      let(:gh_available) { false }
+      let(:issue_number) { 123 }
+      let(:header_text) { "🤖 AIDP Plan Proposal" }
+
+      it "finds comment with matching header text" do
+        comments = [
+          {id: 1, body: "Some other comment"},
+          {id: 2, body: "🤖 AIDP Plan Proposal\n\nThis is the plan"}
+        ]
+        allow(client).to receive(:fetch_pr_comments_via_api).and_return(comments)
+
+        result = client.send(:find_comment_via_api, issue_number, header_text)
+        expect(result[:id]).to eq(2)
+      end
+
+      it "returns nil when no comment matches" do
+        comments = [{id: 1, body: "Some other comment"}]
+        allow(client).to receive(:fetch_pr_comments_via_api).and_return(comments)
+
+        result = client.send(:find_comment_via_api, issue_number, header_text)
+        expect(result).to be_nil
+      end
+
+      it "returns nil on error" do
+        allow(client).to receive(:fetch_pr_comments_via_api).and_raise(StandardError.new("API error"))
+
+        result = client.send(:find_comment_via_api, issue_number, header_text)
+        expect(result).to be_nil
+      end
+    end
+
+    describe "#update_comment_via_gh" do
+      let(:gh_available) { true }
+      let(:comment_id) { 456 }
+      let(:body) { "Updated comment" }
+
+      it "updates comment successfully" do
+        allow(Open3).to receive(:capture3).and_return(["success", "", double(success?: true)])
+
+        result = client.send(:update_comment_via_gh, comment_id, body)
+        expect(result).to eq("success")
+      end
+
+      it "raises error on CLI failure" do
+        allow(Open3).to receive(:capture3).and_return(["", "Error", double(success?: false)])
+
+        expect {
+          client.send(:update_comment_via_gh, comment_id, body)
+        }.to raise_error(/Failed to update comment/)
+      end
+    end
+
+    describe "#update_comment_via_api" do
+      let(:gh_available) { false }
+      let(:comment_id) { 456 }
+      let(:body) { "Updated comment" }
+
+      it "updates comment successfully" do
+        http = instance_double(Net::HTTP)
+        request = instance_double(Net::HTTP::Patch)
+        response = double(code: "200", body: "success", start_with?: true)
+
+        allow(Net::HTTP::Patch).to receive(:new).and_return(request)
+        allow(request).to receive(:[]=)
+        allow(request).to receive(:body=)
+        allow(Net::HTTP).to receive(:start).and_yield(http)
+        allow(http).to receive(:request).and_return(response)
+
+        result = client.send(:update_comment_via_api, comment_id, body)
+        expect(result).to eq("success")
+      end
+
+      it "raises error on API failure" do
+        http = instance_double(Net::HTTP)
+        request = instance_double(Net::HTTP::Patch)
+        response = double(code: "400", body: "Bad request", start_with?: false)
+
+        allow(Net::HTTP::Patch).to receive(:new).and_return(request)
+        allow(request).to receive(:[]=)
+        allow(request).to receive(:body=)
+        allow(Net::HTTP).to receive(:start).and_yield(http)
+        allow(http).to receive(:request).and_return(response)
+
+        expect {
+          client.send(:update_comment_via_api, comment_id, body)
+        }.to raise_error(/GitHub API update comment failed/)
       end
     end
 

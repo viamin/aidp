@@ -22,14 +22,21 @@ module Aidp
         path
       rescue SystemCallError => e
         fallback = determine_fallback_path(path)
-        Kernel.warn "[#{component_name}] Cannot create directory #{path}: #{e.class}: #{e.message}"
-        Kernel.warn "[#{component_name}] Using fallback directory: #{fallback}"
+
+        # Suppress permission warnings during tests to reduce noise
+        unless ENV["RSPEC_RUNNING"] == "true"
+          Kernel.warn "[#{component_name}] Cannot create directory #{path}: #{e.class}: #{e.message}"
+          Kernel.warn "[#{component_name}] Using fallback directory: #{fallback}"
+        end
 
         # Try to create fallback directory
         begin
           FileUtils.mkdir_p(fallback) unless Dir.exist?(fallback)
         rescue SystemCallError => e2
-          Kernel.warn "[#{component_name}] Fallback directory creation also failed: #{e2.class}: #{e2.message}"
+          # Suppress fallback errors during tests too
+          unless ENV["RSPEC_RUNNING"] == "true"
+            Kernel.warn "[#{component_name}] Fallback directory creation also failed: #{e2.class}: #{e2.message}"
+          end
         end
 
         fallback

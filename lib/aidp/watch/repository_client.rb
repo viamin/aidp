@@ -61,6 +61,14 @@ module Aidp
         gh_available? ? post_comment_via_gh(number, body) : post_comment_via_api(number, body)
       end
 
+      def find_comment(number, header_text)
+        gh_available? ? find_comment_via_gh(number, header_text) : find_comment_via_api(number, header_text)
+      end
+
+      def update_comment(comment_id, body)
+        gh_available? ? update_comment_via_gh(comment_id, body) : update_comment_via_api(comment_id, body)
+      end
+
       def create_pull_request(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
         gh_available? ? create_pull_request_via_gh(title: title, body: body, head: head, base: base, issue_number: issue_number, draft: draft, assignee: assignee) : raise("GitHub CLI not available - cannot create PR")
       end
@@ -190,6 +198,44 @@ module Aidp
         end
 
         raise "GitHub API comment failed (#{response.code})" unless response.code.start_with?("2")
+        response.body
+      end
+
+      def find_comment_via_gh(number, header_text)
+        comments = fetch_pr_comments_via_gh(number)
+        comments.find { |comment| comment[:body]&.include?(header_text) }
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to find comment", error: e.message)
+        nil
+      end
+
+      def find_comment_via_api(number, header_text)
+        comments = fetch_pr_comments_via_api(number)
+        comments.find { |comment| comment[:body]&.include?(header_text) }
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to find comment", error: e.message)
+        nil
+      end
+
+      def update_comment_via_gh(comment_id, body)
+        cmd = ["gh", "api", "repos/#{full_repo}/issues/comments/#{comment_id}", "-X", "PATCH", "-f", "body=#{body}"]
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to update comment via gh: #{stderr.strip}" unless status.success?
+
+        stdout.strip
+      end
+
+      def update_comment_via_api(comment_id, body)
+        uri = URI("https://api.github.com/repos/#{full_repo}/issues/comments/#{comment_id}")
+        request = Net::HTTP::Patch.new(uri)
+        request["Content-Type"] = "application/json"
+        request.body = JSON.dump({body: body})
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        raise "GitHub API update comment failed (#{response.code})" unless response.code.start_with?("2")
         response.body
       end
 

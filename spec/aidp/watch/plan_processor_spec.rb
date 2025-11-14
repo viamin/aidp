@@ -44,9 +44,74 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     expect(data["questions"]).to include("Any performance constraints?")
   end
 
-  it "skips when plan already recorded" do
-    state_store.record_plan(42, summary: "cached", tasks: [], questions: [], comment_body: "cached")
-    expect(repository_client).not_to receive(:post_comment)
+  it "updates existing plan when re-planning" do
+    # First plan
+    state_store.record_plan(42, summary: "Initial plan", tasks: ["Task 1"], questions: [], comment_body: "body1", comment_id: "comment-123")
+
+    # Mock the update_comment call for re-planning
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    expect(repository_client).to receive(:update_comment).with("comment-123", /AIDP Plan Proposal/)
+    expect(repository_client).to receive(:replace_labels).with(
+      42,
+      old_labels: ["aidp-plan"],
+      new_labels: ["aidp-needs-input"]
+    )
+
+    processor.process(issue)
+
+    # Verify iteration tracking
+    data = state_store.plan_data(42)
+    expect(state_store.plan_iteration_count(42)).to eq(2)
+    expect(data["iteration"]).to eq(2)
+  end
+
+  it "archives previous plan content when updating" do
+    # First plan
+    state_store.record_plan(42, summary: "Old summary", tasks: ["Old task"], questions: [], comment_body: "body1", comment_id: "comment-123")
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:replace_labels)
+
+    expect(repository_client).to receive(:update_comment) do |_id, body|
+      # Verify archived content is present
+      expect(body).to include("ARCHIVED_PLAN_START")
+      expect(body).to include("Previous Plan (Iteration 1)")
+      expect(body).to include("Old summary")
+      expect(body).to include("Old task")
+      expect(body).to include("ARCHIVED_PLAN_END")
+    end
+
+    processor.process(issue)
+  end
+
+  it "finds and updates comment when comment_id is missing" do
+    # Plan exists but without comment_id
+    state_store.record_plan(42, summary: "Old plan", tasks: [], questions: [], comment_body: "body1")
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:replace_labels)
+
+    # Mock finding the comment
+    expect(repository_client).to receive(:find_comment).with(42, "## 🤖 AIDP Plan Proposal").and_return({id: "found-123", body: "old body"})
+    expect(repository_client).to receive(:update_comment).with("found-123", /AIDP Plan Proposal/)
+
+    processor.process(issue)
+
+    # Verify comment_id is now stored
+    data = state_store.plan_data(42)
+    expect(data["comment_id"]).to eq("found-123")
+  end
+
+  it "posts new comment when existing comment cannot be found" do
+    # Plan exists but comment cannot be found
+    state_store.record_plan(42, summary: "Old plan", tasks: [], questions: [], comment_body: "body1")
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:replace_labels)
+
+    expect(repository_client).to receive(:find_comment).with(42, "## 🤖 AIDP Plan Proposal").and_return(nil)
+    expect(repository_client).to receive(:post_comment).with(42, /AIDP Plan Proposal/)
+
     processor.process(issue)
   end
 

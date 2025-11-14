@@ -10,7 +10,10 @@ RSpec.describe "Aidp::Logger project_dir sanitization" do
 
   around do |example|
     original = ENV["AIDP_LOG_FILE"]
+    original_rspec_running = ENV["RSPEC_RUNNING"]
     ENV.delete("AIDP_LOG_FILE")
+    # Temporarily disable RSPEC_RUNNING to allow warnings in these tests
+    ENV["RSPEC_RUNNING"] = "false"
     example.run
   ensure
     if original
@@ -18,6 +21,7 @@ RSpec.describe "Aidp::Logger project_dir sanitization" do
     else
       ENV.delete("AIDP_LOG_FILE")
     end
+    ENV["RSPEC_RUNNING"] = original_rspec_running
   end
 
   after do

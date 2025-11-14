@@ -23,12 +23,15 @@ module Aidp
         def initialize(prompt: TTY::Prompt.new, tty: $stdin)
           @cursor = TTY::Cursor
           @screen = TTY::Screen
-          @pastel = Pastel.new
           @prompt = prompt
 
           # Headless (non-interactive) detection for test/CI environments:
           # - STDIN not a TTY (captured by PTY/tmux harness or test environment)
           @headless = !!(tty.nil? || !tty.tty?)
+
+          # Initialize Pastel with disabled colors in headless mode to avoid
+          # "closed stream" errors when checking TTY capabilities
+          @pastel = Pastel.new(enabled: !@headless)
 
           @current_mode = nil
           @workflow_active = false
