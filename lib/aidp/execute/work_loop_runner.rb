@@ -182,22 +182,45 @@ module Aidp
           process_task_filing(agent_result)
 
           transition_to(:test)
+          # Run all configured checks
           test_results = @test_runner.run_tests
           lint_results = @test_runner.run_linters
+          build_results = @test_runner.run_builds
+          doc_results = @test_runner.run_documentation
 
-          record_periodic_checkpoint(test_results, lint_results)
+          # Run formatters only if agent marked work complete (per issue #234)
+          formatter_results = if agent_marked_complete?(agent_result)
+            @test_runner.run_formatters
+          else
+            {success: true, output: "Formatters: Skipped (work not complete)", failures: [], required_failures: []}
+          end
+
+          all_results = {
+            tests: test_results,
+            lints: lint_results,
+            formatters: formatter_results,
+            builds: build_results,
+            docs: doc_results
+          }
+
+          record_periodic_checkpoint(all_results)
 
           # Track failures and escalate thinking tier if needed
-          track_failures_and_escalate(test_results, lint_results)
+          track_failures_and_escalate(all_results)
 
-          tests_pass = test_results[:success] && lint_results[:success]
+          # All required checks must pass for completion
+          all_checks_pass = test_results[:success] &&
+            lint_results[:success] &&
+            formatter_results[:success] &&
+            build_results[:success] &&
+            doc_results[:success]
 
-          if tests_pass
+          if all_checks_pass
             transition_to(:pass)
 
             if agent_marked_complete?(agent_result)
               transition_to(:done)
-              record_final_checkpoint(test_results, lint_results)
+              record_final_checkpoint(all_results)
               display_message("✅ Step #{@step_name} completed after #{@iteration_count} iterations", type: :success)
               display_state_summary
               archive_and_cleanup
@@ -210,18 +233,18 @@ module Aidp
                 terminate: true
               )
             else
-              display_message("  Tests passed but work not marked complete", type: :info)
+              display_message("  All checks passed but work not marked complete", type: :info)
               transition_to(:next_patch)
             end
           else
             transition_to(:fail)
-            display_message("  Tests or linters failed", type: :warning)
+            display_message("  Required checks failed", type: :warning)
 
             transition_to(:diagnose)
-            diagnostic = diagnose_failures(test_results, lint_results)
+            diagnostic = diagnose_failures(all_results)
 
             transition_to(:next_patch)
-            prepare_next_iteration(test_results, lint_results, diagnostic)
+            prepare_next_iteration(all_results, diagnostic)
           end
         end
       end
@@ -438,27 +461,26 @@ module Aidp
         result[:status] == "completed" || prompt_marked_complete?
       end
 
-      # Diagnose test/lint failures
+      # Diagnose all failures (tests, lints, formatters, builds, docs)
       # Returns diagnostic information to help agent understand what went wrong
-      def diagnose_failures(test_results, lint_results)
+      def diagnose_failures(all_results)
         diagnostic = {
           iteration: @iteration_count,
           failures: []
         }
 
-        unless test_results[:success]
-          diagnostic[:failures] << {
-            type: "tests",
-            count: test_results[:failures]&.size || 0,
-            commands: test_results[:failures]&.map { |f| f[:command] } || []
-          }
-        end
+        # Check each result type for failures
+        all_results.each do |category, results|
+          next if results[:success]
 
-        unless lint_results[:success]
+          # Only include required failures in diagnostic
+          required_failures = results[:required_failures] || results[:failures] || []
+          next if required_failures.empty?
+
           diagnostic[:failures] << {
-            type: "linters",
-            count: lint_results[:failures]&.size || 0,
-            commands: lint_results[:failures]&.map { |f| f[:command] } || []
+            type: category.to_s,
+            count: required_failures.size,
+            commands: required_failures.map { |f| f[:command] }
           }
         end
 
@@ -737,7 +759,7 @@ module Aidp
         prompt_content.match?(/^STATUS:\s*COMPLETE/i)
       end
 
-      def prepare_next_iteration(test_results, lint_results, diagnostic = nil)
+      def prepare_next_iteration(all_results, diagnostic = nil)
         # Only append failures to PROMPT.md for agent to see
         # This follows fix-forward: never rollback, only add information for next patch
         failures = []
@@ -759,25 +781,30 @@ module Aidp
           failures << ""
         end
 
-        unless test_results[:success]
-          failures << "### Test Failures"
-          failures << test_results[:output]
+        # Add failure output for each category that has failures
+        category_labels = {
+          tests: "Test",
+          lints: "Linter",
+          formatters: "Formatter",
+          builds: "Build",
+          docs: "Documentation"
+        }
+
+        all_results.each do |category, results|
+          next if results[:success]
+
+          failures << "### #{category_labels[category]} Failures"
+          failures << results[:output]
           failures << ""
         end
 
-        unless lint_results[:success]
-          failures << "### Linter Failures"
-          failures << lint_results[:output]
-          failures << ""
-        end
-
-        strategy = build_failure_strategy(test_results, lint_results)
+        strategy = build_failure_strategy(all_results)
         failures.concat(strategy) unless strategy.empty?
 
         failures << "**Fix-forward instructions**: Do not rollback changes. Build on what exists and fix the failures above."
         failures << ""
 
-        return if test_results[:success] && lint_results[:success]
+        return if all_results.values.all? { |result| result[:success] }
 
         # Append failures to PROMPT.md and archive immediately (issue #224)
         current_prompt = @prompt_manager.read
@@ -868,20 +895,27 @@ module Aidp
         reminder.join("\n")
       end
 
-      def build_failure_strategy(test_results, lint_results)
-        return [] if test_results[:success] && lint_results[:success]
+      def build_failure_strategy(all_results)
+        return [] if all_results.values.all? { |result| result[:success] }
 
         lines = ["### Recovery Strategy", ""]
 
-        unless test_results[:success]
-          commands = format_command_list(test_results[:failures])
-          lines << "- Re-run #{commands} locally to reproduce the failing specs listed above."
-          lines << "- Triage the exact failures before moving on to new work."
-        end
+        category_strategies = {
+          tests: "Re-run %s locally to reproduce the failing specs listed above. Triage the exact failures before moving on to new work.",
+          lints: "Execute %s and fix each reported offense.",
+          formatters: "Run %s to fix formatting issues.",
+          builds: "Run %s to diagnose and fix build errors.",
+          docs: "Review and update documentation using %s to meet requirements."
+        }
 
-        unless lint_results[:success]
-          commands = format_command_list(lint_results[:failures])
-          lines << "- Execute #{commands} and fix each reported offense."
+        all_results.each do |category, results|
+          next if results[:success]
+
+          strategy_template = category_strategies[category]
+          next unless strategy_template
+
+          commands = format_command_list(results[:failures])
+          lines << "- #{strategy_template % commands}"
         end
 
         lines << ""
@@ -962,13 +996,16 @@ module Aidp
       end
 
       # Record checkpoint at regular intervals
-      def record_periodic_checkpoint(test_results, lint_results)
+      def record_periodic_checkpoint(all_results)
         # Record every CHECKPOINT_INTERVAL iterations or on iteration 1
         return unless @iteration_count == 1 || (@iteration_count % CHECKPOINT_INTERVAL == 0)
 
         metrics = {
-          tests_passing: test_results[:success],
-          linters_passing: lint_results[:success]
+          tests_passing: all_results[:tests][:success],
+          linters_passing: all_results[:lints][:success],
+          formatters_passing: all_results[:formatters][:success],
+          builds_passing: all_results[:builds][:success],
+          docs_passing: all_results[:docs][:success]
         }
 
         checkpoint_data = @checkpoint.record_checkpoint(@step_name, @iteration_count, metrics)
@@ -983,10 +1020,13 @@ module Aidp
       end
 
       # Record final checkpoint when step completes
-      def record_final_checkpoint(test_results, lint_results)
+      def record_final_checkpoint(all_results)
         metrics = {
-          tests_passing: test_results[:success],
-          linters_passing: lint_results[:success],
+          tests_passing: all_results[:tests][:success],
+          linters_passing: all_results[:lints][:success],
+          formatters_passing: all_results[:formatters][:success],
+          builds_passing: all_results[:builds][:success],
+          docs_passing: all_results[:docs][:success],
           completed: true
         }
 
@@ -1170,11 +1210,11 @@ module Aidp
         [provider_name, model_name, model_data]
       end
 
-      # Track test/lint failures and escalate tier if needed
-      def track_failures_and_escalate(test_results, lint_results)
-        tests_pass = test_results[:success] && lint_results[:success]
+      # Track test/lint/formatter/build/doc failures and escalate tier if needed
+      def track_failures_and_escalate(all_results)
+        all_pass = all_results.values.all? { |result| result[:success] }
 
-        if tests_pass
+        if all_pass
           # Reset failure count on success
           @consecutive_failures = 0
         else

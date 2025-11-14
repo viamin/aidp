@@ -16,30 +16,63 @@ module Aidp
       end
 
       # Run all configured tests
-      # Returns: { success: boolean, output: string, failures: array }
+      # Returns: { success: boolean, output: string, failures: array, required_failures: array }
       def run_tests
         @iteration_count += 1
-        test_commands = resolved_test_commands
-        return {success: true, output: "", failures: []} if test_commands.empty?
-
-        mode = determine_test_output_mode
-        results = test_commands.map { |cmd| execute_command(cmd, "test") }
-        aggregate_results(results, "Tests", mode: mode)
+        run_command_category(:test, "Tests")
       end
 
       # Run all configured linters
-      # Returns: { success: boolean, output: string, failures: array }
+      # Returns: { success: boolean, output: string, failures: array, required_failures: array }
       def run_linters
         @iteration_count += 1
-        lint_commands = resolved_lint_commands
-        return {success: true, output: "", failures: []} if lint_commands.empty?
+        run_command_category(:lint, "Linters")
+      end
 
-        mode = determine_lint_output_mode
-        results = lint_commands.map { |cmd| execute_command(cmd, "linter") }
-        aggregate_results(results, "Linters", mode: mode)
+      # Run all configured formatters
+      # Returns: { success: boolean, output: string, failures: array, required_failures: array }
+      def run_formatters
+        run_command_category(:formatter, "Formatters")
+      end
+
+      # Run all configured build commands
+      # Returns: { success: boolean, output: string, failures: array, required_failures: array }
+      def run_builds
+        run_command_category(:build, "Build")
+      end
+
+      # Run all configured documentation commands
+      # Returns: { success: boolean, output: string, failures: array, required_failures: array }
+      def run_documentation
+        run_command_category(:documentation, "Documentation")
       end
 
       private
+
+      # Run commands for a specific category (test, lint, formatter, build, documentation)
+      def run_command_category(category, display_name)
+        commands = resolved_commands(category)
+
+        # If no commands configured, return success (empty check passes)
+        return {success: true, output: "", failures: [], required_failures: []} if commands.empty?
+
+        # Determine output mode based on category
+        mode = determine_output_mode(category)
+
+        # Execute all commands
+        results = commands.map do |cmd_config|
+          # Handle both string commands (legacy) and hash format (new)
+          if cmd_config.is_a?(String)
+            result = execute_command(cmd_config, category.to_s)
+            result.merge(required: true)
+          else
+            result = execute_command(cmd_config[:command], category.to_s)
+            result.merge(required: cmd_config[:required])
+          end
+        end
+
+        aggregate_results(results, display_name, mode: mode)
+      end
 
       def execute_command(command, type)
         stdout, stderr, status = Open3.capture3(command, chdir: @project_dir)
@@ -55,19 +88,31 @@ module Aidp
       end
 
       def aggregate_results(results, category, mode: :full)
-        failures = results.reject { |r| r[:success] }
-        success = failures.empty?
+        # Separate required and optional command failures
+        all_failures = results.reject { |r| r[:success] }
+        required_failures = all_failures.select { |r| r[:required] }
+        optional_failures = all_failures.reject { |r| r[:required] }
 
-        output = if success
-          "#{category}: All passed"
+        # Success only if all REQUIRED commands pass
+        # Optional command failures don't block completion
+        success = required_failures.empty?
+
+        output = if all_failures.empty?
+          "#{category}: All passed (#{results.length} commands)"
+        elsif required_failures.empty?
+          "#{category}: Required checks passed (#{optional_failures.length} optional warnings)\n" +
+            format_failures(optional_failures, "#{category} - Optional", mode: mode)
         else
-          format_failures(failures, category, mode: mode)
+          format_failures(required_failures, "#{category} - Required", mode: mode) +
+            (optional_failures.any? ? "\n" + format_failures(optional_failures, "#{category} - Optional", mode: mode) : "")
         end
 
         {
           success: success,
           output: output,
-          failures: failures
+          failures: all_failures,
+          required_failures: required_failures,
+          optional_failures: optional_failures
         }
       end
 
@@ -128,43 +173,66 @@ module Aidp
         end
       end
 
-      def determine_test_output_mode
-        # Check if config has test_output_mode method
-        if @config.respond_to?(:test_output_mode)
-          @config.test_output_mode
-        elsif @iteration_count > 1
-          :failures_only
+      def determine_output_mode(category)
+        # Check config for category-specific mode
+        case category
+        when :test
+          if @config.respond_to?(:test_output_mode)
+            @config.test_output_mode
+          elsif @iteration_count > 1
+            :failures_only
+          else
+            :full
+          end
+        when :lint
+          if @config.respond_to?(:lint_output_mode)
+            @config.lint_output_mode
+          elsif @iteration_count > 1
+            :failures_only
+          else
+            :full
+          end
         else
           :full
         end
       end
 
-      def determine_lint_output_mode
-        # Check if config has lint_output_mode method
-        if @config.respond_to?(:lint_output_mode)
-          @config.lint_output_mode
-        elsif @iteration_count > 1
-          :failures_only
+      # Resolve commands for a specific category
+      # Returns normalized command configs (array of {command:, required:} hashes)
+      def resolved_commands(category)
+        case category
+        when :test
+          resolved_test_commands
+        when :lint
+          resolved_lint_commands
+        when :formatter
+          @config.formatter_commands
+        when :build
+          @config.build_commands
+        when :documentation
+          @config.documentation_commands
         else
-          :full
+          []
         end
       end
 
       def resolved_test_commands
-        explicit = Array(@config.test_commands).compact.map(&:strip).reject(&:empty?)
+        explicit = @config.test_commands
         return explicit unless explicit.empty?
 
-        detected = detected_tooling.test_commands
-        log_fallback(:tests, detected) unless detected.empty?
+        # Auto-detect test commands if none explicitly configured
+        detected = detected_tooling.test_commands.map { |cmd| {command: cmd, required: true} }
+        log_fallback(:tests, detected.map { |c| c[:command] }) unless detected.empty?
         detected
       end
 
       def resolved_lint_commands
-        explicit = Array(@config.lint_commands).compact.map(&:strip).reject(&:empty?)
+        explicit = @config.lint_commands
         return explicit unless explicit.empty?
 
-        detected = detected_tooling.lint_commands
-        log_fallback(:linters, detected) unless detected.empty?
+        # Auto-detect lint commands if none explicitly configured
+        detected = detected_tooling.lint_commands.map { |cmd| {command: cmd, required: true} }
+        log_fallback(:linters, detected.map { |c| c[:command] }) unless detected.empty?
         detected
       end
 
