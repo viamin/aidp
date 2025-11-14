@@ -13,6 +13,11 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       "Configuration",
       test_commands: ["bundle exec rspec"],
       lint_commands: ["bundle exec standardrb"],
+      formatter_commands: [],
+      build_commands: [],
+      documentation_commands: [],
+      test_output_mode: :full,
+      lint_output_mode: :full,
       guards_config: {enabled: false},
       work_loop_units_config: {
         deterministic: [],
@@ -27,6 +32,16 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       permission_for_tier: "tools",
       tier_override_for: nil
     )
+  end
+
+  let(:empty_all_results) do
+    {
+      tests: {success: true, output: "", failures: []},
+      lints: {success: true, output: "", failures: []},
+      formatters: {success: true, output: "", failures: []},
+      builds: {success: true, output: "", failures: []},
+      docs: {success: true, output: "", failures: []}
+    }
   end
 
   # Mock CapabilityRegistry for ThinkingDepthManager
@@ -692,7 +707,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         }
         lint_results = {success: true, failures: []}
 
-        diagnostic = runner.send(:diagnose_failures, test_results, lint_results)
+        all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+        diagnostic = runner.send(:diagnose_failures, all_results)
 
         expect(diagnostic[:failures]).to have_attributes(size: 1)
         expect(diagnostic[:failures][0][:type]).to eq("tests")
@@ -708,10 +724,11 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           ]
         }
 
-        diagnostic = runner.send(:diagnose_failures, test_results, lint_results)
+        all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+        diagnostic = runner.send(:diagnose_failures, all_results)
 
         expect(diagnostic[:failures]).to have_attributes(size: 1)
-        expect(diagnostic[:failures][0][:type]).to eq("linters")
+        expect(diagnostic[:failures][0][:type]).to eq("lints")
         expect(diagnostic[:failures][0][:count]).to eq(1)
       end
 
@@ -725,7 +742,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           failures: [{command: "standardrb"}]
         }
 
-        diagnostic = runner.send(:diagnose_failures, test_results, lint_results)
+        all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+        diagnostic = runner.send(:diagnose_failures, all_results)
 
         expect(diagnostic[:failures]).to have_attributes(size: 2)
       end
@@ -757,7 +775,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           expect(content).to include("Test failure output")
         end
 
-        runner.send(:prepare_next_iteration, test_results, lint_results, diagnostic)
+        all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+        runner.send(:prepare_next_iteration, all_results, diagnostic)
       end
 
       it "includes diagnostic summary in failures" do
@@ -780,7 +799,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           expect(content).to include("Tests: 3 failures")
         end
 
-        runner.send(:prepare_next_iteration, test_results, lint_results, diagnostic)
+        all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+        runner.send(:prepare_next_iteration, all_results, diagnostic)
       end
 
       it "embeds recovery strategy with detected commands" do
@@ -801,16 +821,14 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           expect(content).to include("`bundle exec standardrb`")
         end
 
-        runner.send(:prepare_next_iteration, test_results, lint_results, nil)
+        all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+        runner.send(:prepare_next_iteration, all_results, nil)
       end
 
       it "does not append when all tests pass" do
-        test_results = {success: true, output: "All passed", failures: []}
-        lint_results = {success: true, output: "All passed", failures: []}
-
         expect(prompt_manager).not_to receive(:write)
 
-        runner.send(:prepare_next_iteration, test_results, lint_results, nil)
+        runner.send(:prepare_next_iteration, empty_all_results, nil)
       end
     end
 
@@ -932,7 +950,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).to include("Iteration 5")
           end
 
-          runner.send(:prepare_next_iteration, test_results, lint_results, diagnostic)
+          all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+          runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
 
         it "does not include style guide reminder at iteration 3" do
@@ -950,7 +969,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).not_to include("Style Guide & Template Reminder")
           end
 
-          runner.send(:prepare_next_iteration, test_results, lint_results, diagnostic)
+          all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
+          runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
       end
     end

@@ -54,7 +54,7 @@
     "gemini-cli": "npm install -g @google/gemini-cli",
     "github-copilot-cli": "npm install -g @github/copilot",
     "opencode": "npm i -g opencode-ai@latest",
-    "kilocode": "npm install -g @kilocode/cli",
+    "kilocode": "npm i -g @kilocode/cli",
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh"
   },
