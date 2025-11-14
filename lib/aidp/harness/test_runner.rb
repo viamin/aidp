@@ -6,7 +6,7 @@ require_relative "output_filter"
 
 module Aidp
   module Harness
-    # Executes test, lint, formatter, build, and documentation commands configured in aidp.yml
+    # Executes test and linter commands configured in aidp.yml
     # Returns results with exit status and output
     class TestRunner
       def initialize(project_dir, config)
@@ -19,16 +19,14 @@ module Aidp
       # Returns: { success: boolean, output: string, failures: array, required_failures: array }
       def run_tests
         @iteration_count += 1
-        mode = determine_test_output_mode
-        run_command_category(:test, "Tests", mode: mode)
+        run_command_category(:test, "Tests")
       end
 
       # Run all configured linters
       # Returns: { success: boolean, output: string, failures: array, required_failures: array }
       def run_linters
         @iteration_count += 1
-        mode = determine_lint_output_mode
-        run_command_category(:lint, "Linters", mode: mode)
+        run_command_category(:lint, "Linters")
       end
 
       # Run all configured formatters
@@ -52,20 +50,25 @@ module Aidp
       private
 
       # Run commands for a specific category (test, lint, formatter, build, documentation)
-      def run_command_category(category, display_name, mode: :full)
+      def run_command_category(category, display_name)
         commands = resolved_commands(category)
 
-        return {
-          success: true,
-          output: "#{display_name}: No commands configured",
-          failures: [],
-          required_failures: [],
-          optional_failures: []
-        } if commands.empty?
+        # If no commands configured, return success (empty check passes)
+        return {success: true, output: "", failures: [], required_failures: []} if commands.empty?
 
+        # Determine output mode based on category
+        mode = determine_output_mode(category)
+
+        # Execute all commands
         results = commands.map do |cmd_config|
-          result = execute_command(cmd_config[:command], category.to_s)
-          result.merge(required: cmd_config[:required])
+          # Handle both string commands (legacy) and hash format (new)
+          if cmd_config.is_a?(String)
+            result = execute_command(cmd_config, category.to_s)
+            result.merge(required: true)
+          else
+            result = execute_command(cmd_config[:command], category.to_s)
+            result.merge(required: cmd_config[:required])
+          end
         end
 
         aggregate_results(results, display_name, mode: mode)
@@ -85,10 +88,13 @@ module Aidp
       end
 
       def aggregate_results(results, category, mode: :full)
+        # Separate required and optional command failures
         all_failures = results.reject { |r| r[:success] }
         required_failures = all_failures.select { |r| r[:required] }
         optional_failures = all_failures.reject { |r| r[:required] }
 
+        # Success only if all REQUIRED commands pass
+        # Optional command failures don't block completion
         success = required_failures.empty?
 
         output = if all_failures.empty?
@@ -118,6 +124,7 @@ module Aidp
           output << "Exit Code: #{failure[:exit_code]}"
           output << "--- Output ---"
 
+          # Apply filtering based on mode and framework
           filtered_stdout = filter_output(failure[:stdout], mode, detect_framework_from_command(failure[:command]))
           filtered_stderr = filter_output(failure[:stderr], mode, :unknown)
 
@@ -127,6 +134,67 @@ module Aidp
         end
 
         output.join("\n")
+      end
+
+      def filter_output(raw_output, mode, framework)
+        return raw_output if mode == :full || raw_output.nil? || raw_output.empty?
+
+        filter_config = {
+          mode: mode,
+          include_context: true,
+          context_lines: 3,
+          max_lines: 500
+        }
+
+        filter = OutputFilter.new(filter_config)
+        filter.filter(raw_output, framework: framework)
+      rescue NameError
+        # Logging infrastructure not available
+        raw_output
+      rescue => e
+        Aidp.log_warn("test_runner", "filter_failed",
+          error: e.message,
+          framework: framework)
+        raw_output  # Fallback to unfiltered on error
+      end
+
+      def detect_framework_from_command(command)
+        case command
+        when /rspec/
+          :rspec
+        when /minitest/
+          :minitest
+        when /jest/
+          :jest
+        when /pytest/
+          :pytest
+        else
+          :unknown
+        end
+      end
+
+      def determine_output_mode(category)
+        # Check config for category-specific mode
+        case category
+        when :test
+          if @config.respond_to?(:test_output_mode)
+            @config.test_output_mode
+          elsif @iteration_count > 1
+            :failures_only
+          else
+            :full
+          end
+        when :lint
+          if @config.respond_to?(:lint_output_mode)
+            @config.lint_output_mode
+          elsif @iteration_count > 1
+            :failures_only
+          else
+            :full
+          end
+        else
+          :full
+        end
       end
 
       # Resolve commands for a specific category
@@ -152,6 +220,7 @@ module Aidp
         explicit = @config.test_commands
         return explicit unless explicit.empty?
 
+        # Auto-detect test commands if none explicitly configured
         detected = detected_tooling.test_commands.map { |cmd| {command: cmd, required: true} }
         log_fallback(:tests, detected.map { |c| c[:command] }) unless detected.empty?
         detected
@@ -161,65 +230,10 @@ module Aidp
         explicit = @config.lint_commands
         return explicit unless explicit.empty?
 
+        # Auto-detect lint commands if none explicitly configured
         detected = detected_tooling.lint_commands.map { |cmd| {command: cmd, required: true} }
         log_fallback(:linters, detected.map { |c| c[:command] }) unless detected.empty?
         detected
-      end
-
-      def filter_output(raw_output, mode, framework)
-        return raw_output if mode == :full || raw_output.nil? || raw_output.empty?
-
-        filter_config = {
-          mode: mode,
-          include_context: true,
-          context_lines: 3,
-          max_lines: 500
-        }
-
-        filter = OutputFilter.new(filter_config)
-        filter.filter(raw_output, framework: framework)
-      rescue NameError
-        raw_output
-      rescue => e
-        Aidp.log_warn("test_runner", "filter_failed",
-          error: e.message,
-          framework: framework)
-        raw_output
-      end
-
-      def detect_framework_from_command(command)
-        case command
-        when /rspec/
-          :rspec
-        when /minitest/
-          :minitest
-        when /jest/
-          :jest
-        when /pytest/
-          :pytest
-        else
-          :unknown
-        end
-      end
-
-      def determine_test_output_mode
-        if @config.respond_to?(:test_output_mode)
-          @config.test_output_mode
-        elsif @iteration_count > 1
-          :failures_only
-        else
-          :full
-        end
-      end
-
-      def determine_lint_output_mode
-        if @config.respond_to?(:lint_output_mode)
-          @config.lint_output_mode
-        elsif @iteration_count > 1
-          :failures_only
-        else
-          :full
-        end
       end
 
       def detected_tooling

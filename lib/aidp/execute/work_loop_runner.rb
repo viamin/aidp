@@ -210,10 +210,10 @@ module Aidp
 
           # All required checks must pass for completion
           all_checks_pass = test_results[:success] &&
-            lint_results[:success] &&
-            formatter_results[:success] &&
-            build_results[:success] &&
-            doc_results[:success]
+                           lint_results[:success] &&
+                           formatter_results[:success] &&
+                           build_results[:success] &&
+                           doc_results[:success]
 
           if all_checks_pass
             transition_to(:pass)

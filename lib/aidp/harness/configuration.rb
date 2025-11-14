@@ -754,11 +754,7 @@ module Aidp
           when Hash
             # Handle both symbol and string keys
             command_value = cmd[:command] || cmd["command"]
-            required_value = if cmd.key?(:required)
-              cmd[:required]
-            else
-              (cmd.key?("required") ? cmd["required"] : true)
-            end
+            required_value = cmd.key?(:required) ? cmd[:required] : (cmd.key?("required") ? cmd["required"] : true)
 
             unless command_value.is_a?(String) && !command_value.empty?
               raise ConfigurationError, "Command must be a non-empty string, got: #{command_value.inspect}"
