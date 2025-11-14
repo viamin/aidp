@@ -122,6 +122,53 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       result = processor.send(:strip_archived_plans, content)
       expect(result).to eq(content)
     end
+
+    it "handles malformed start marker without closing -->" do
+      content = <<~COMMENT
+        <!-- ARCHIVED_PLAN_START iteration=1
+        This is malformed
+        <!-- ARCHIVED_PLAN_END -->
+
+        Current plan content
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      # Should not crash and should return content relatively intact
+      expect(result).to include("Current plan content")
+    end
+
+    it "handles start marker without corresponding end marker" do
+      content = <<~COMMENT
+        <!-- ARCHIVED_PLAN_START iteration=1 timestamp=2024-01-01 -->
+        Old plan without end marker
+
+        Current plan content
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      # Should not crash and should preserve content when end marker is missing
+      expect(result).to include("Current plan content")
+    end
+
+    it "handles nested HTML comments in archived sections" do
+      content = <<~COMMENT
+        <!-- ARCHIVED_PLAN_START iteration=1 timestamp=2024-01-01 -->
+        <!-- Some nested comment -->
+        Old plan with nested comments
+        <!-- Another nested comment -->
+        <!-- ARCHIVED_PLAN_END -->
+
+        Current plan content
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      expect(result).not_to include("Old plan with nested comments")
+      expect(result).not_to include("nested comment")
+      expect(result).to include("Current plan content")
+    end
   end
 
   it "runs harness and posts success comment" do
