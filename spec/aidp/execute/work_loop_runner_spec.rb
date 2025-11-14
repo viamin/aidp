@@ -183,6 +183,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           failures: [{command: "standardrb"}]
         })
 
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
+          failures: []
+        })
+
         step_spec = {"templates" => ["test_template.md"]}
 
         result = runner.execute_step("test_step", step_spec, {})
@@ -217,6 +235,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           failures: []
         })
 
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
+          failures: []
+        })
+
         # Expect error log when max iterations reached
         expect(mock_logger).to receive(:error).with(
           "work_loop",
@@ -248,6 +284,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           failures: []
         })
 
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
+          failures: []
+        })
+
         step_spec = {"templates" => ["test_template.md"]}
         runner.execute_step("test_step", step_spec, {})
 
@@ -274,6 +328,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           failures: []
         })
 
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
+          failures: []
+        })
+
         # Verify state summary is displayed
         expect(runner).to receive(:display_state_summary)
 
@@ -292,6 +364,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         allow(test_runner).to receive(:run_linters).and_return({
           success: true,
           output: "Linters pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
           failures: []
         })
 
@@ -318,6 +408,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         allow(test_runner).to receive(:run_linters).and_return({
           success: true,
           output: "Linters pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
           failures: []
         })
 
@@ -360,6 +468,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         allow(test_runner).to receive(:run_linters).and_return({
           success: true,
           output: "Linters pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
           failures: []
         })
 
@@ -425,6 +551,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           failures: []
         })
 
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
+          failures: []
+        })
+
         step_spec = {"templates" => ["test_template.md"]}
 
         # Verify that failures are appended, not replaced
@@ -447,6 +591,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         allow(test_runner).to receive(:run_linters).and_return({
           success: true,
           output: "All passed",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
           failures: []
         })
 
@@ -479,6 +641,24 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         allow(test_runner).to receive(:run_linters).and_return({
           success: true,
           output: "All passed",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_builds).and_return({
+          success: true,
+          output: "Builds pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_documentation).and_return({
+          success: true,
+          output: "Documentation pass",
+          failures: []
+        })
+
+        allow(test_runner).to receive(:run_formatters).and_return({
+          success: true,
+          output: "Formatters pass",
           failures: []
         })
 
