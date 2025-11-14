@@ -99,6 +99,13 @@ module Aidp
       private
 
       def setup_logger(log_file, verbose)
+        # Suppress logger output in test/CI environments
+        if suppress_error_logs?
+          logger = ::Logger.new(IO::NULL)
+          logger.level = ::Logger::FATAL
+          return logger
+        end
+
         output_stream = log_file || @output || $stdout
         logger = ::Logger.new(output_stream)
         logger.level = verbose ? ::Logger::DEBUG : ::Logger::INFO
@@ -106,6 +113,10 @@ module Aidp
           "#{datetime.strftime("%Y-%m-%d %H:%M:%S")} [#{severity}] #{msg}\n"
         end
         logger
+      end
+
+      def suppress_error_logs?
+        ENV["RSPEC_RUNNING"] || ENV["CI"] || ENV["RAILS_ENV"] == "test" || ENV["RACK_ENV"] == "test"
       end
 
       def setup_recovery_strategies

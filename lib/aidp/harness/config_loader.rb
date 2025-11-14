@@ -316,17 +316,19 @@ module Aidp
       def handle_validation_errors(errors)
         error_message = "Configuration validation failed:\n" + errors.join("\n")
 
-        # Log error
-        if defined?(Rails) && Rails.logger
-          Rails.logger.error(error_message)
-        else
-          warn(error_message)
+        # Log error (suppress in test/CI environments)
+        unless suppress_config_warnings?
+          if defined?(Rails) && Rails.logger
+            Rails.logger.error(error_message)
+          else
+            warn(error_message)
+          end
         end
 
         # In development, try to fix common issues
         if ENV["AIDP_ENV"] == "development" || ENV["RACK_ENV"] == "development"
           if @validator.fix_common_issues
-            warn("Attempted to fix configuration issues. Please review the updated configuration file.")
+            warn("Attempted to fix configuration issues. Please review the updated configuration file.") unless suppress_config_warnings?
           end
         end
       end
@@ -334,11 +336,13 @@ module Aidp
       def log_warnings(warnings)
         warning_message = "Configuration warnings:\n" + warnings.join("\n")
 
-        # Log warnings
-        if defined?(Rails) && Rails.logger
-          Rails.logger.warn(warning_message)
-        else
-          warn(warning_message)
+        # Log warnings (suppress in test/CI environments)
+        unless suppress_config_warnings?
+          if defined?(Rails) && Rails.logger
+            Rails.logger.warn(warning_message)
+          else
+            warn(warning_message)
+          end
         end
       end
 
@@ -389,6 +393,11 @@ module Aidp
         else
           false
         end
+      end
+
+      # Suppress configuration warnings in test/CI environments
+      def suppress_config_warnings?
+        ENV["RSPEC_RUNNING"] || ENV["CI"] || ENV["RAILS_ENV"] == "test" || ENV["RACK_ENV"] == "test"
       end
     end
   end

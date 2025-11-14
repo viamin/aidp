@@ -93,6 +93,10 @@ require_relative "aidp/harness/state_manager"
 require_relative "aidp/harness/error_handler"
 require_relative "aidp/harness/status_display"
 require_relative "aidp/harness/runner"
+require_relative "aidp/harness/filter_strategy"
+require_relative "aidp/harness/generic_filter_strategy"
+require_relative "aidp/harness/rspec_filter_strategy"
+require_relative "aidp/harness/output_filter"
 
 # UI components
 require_relative "aidp/harness/ui/spinner_helper"

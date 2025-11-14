@@ -205,12 +205,12 @@ module Aidp
           rescue
             File.join(Dir.tmpdir, "aidp_storage")
           end
-          Kernel.warn "[AIDP Storage] Cannot create base directory #{@base_dir}: #{e.class}: #{e.message}. Using fallback #{fallback}"
+          warn_storage("[AIDP Storage] Cannot create base directory #{@base_dir}: #{e.class}: #{e.message}. Using fallback #{fallback}")
           @base_dir = fallback
           begin
             FileUtils.mkdir_p(@base_dir) unless Dir.exist?(@base_dir)
           rescue SystemCallError => e2
-            Kernel.warn "[AIDP Storage] Fallback directory creation also failed: #{e2.class}: #{e2.message}. Continuing without persistent CSV storage."
+            warn_storage("[AIDP Storage] Fallback directory creation also failed: #{e2.class}: #{e2.message}. Continuing without persistent CSV storage.")
           end
         end
       end
@@ -225,10 +225,16 @@ module Aidp
           rescue
             File.join(Dir.tmpdir, "aidp_storage")
           end
-          Kernel.warn "[AIDP Storage] Root base_dir detected - using fallback #{fallback} instead of '#{str}'"
+          warn_storage("[AIDP Storage] Root base_dir detected - using fallback #{fallback} instead of '#{str}'")
           return fallback
         end
         str
+      end
+
+      # Suppress storage warnings in test/CI environments
+      def warn_storage(message)
+        return if ENV["RSPEC_RUNNING"] || ENV["CI"] || ENV["RAILS_ENV"] == "test" || ENV["RACK_ENV"] == "test"
+        Kernel.warn(message)
       end
     end
   end

@@ -176,6 +176,26 @@ module Aidp
         work_loop_config[:lint_commands] || []
       end
 
+      # Get test output mode
+      def test_output_mode
+        work_loop_config.dig(:test, :output_mode) || :full
+      end
+
+      # Get max output lines for tests
+      def test_max_output_lines
+        work_loop_config.dig(:test, :max_output_lines) || 500
+      end
+
+      # Get lint output mode
+      def lint_output_mode
+        work_loop_config.dig(:lint, :output_mode) || :full
+      end
+
+      # Get max output lines for linters
+      def lint_max_output_lines
+        work_loop_config.dig(:lint, :max_output_lines) || 300
+      end
+
       # Get guards configuration
       def guards_config
         work_loop_config[:guards] || default_guards_config
