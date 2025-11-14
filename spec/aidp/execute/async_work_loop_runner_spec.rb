@@ -7,7 +7,8 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
   let(:project_dir) { "/tmp/test_project" }
   let(:provider_manager) { instance_double(Aidp::Harness::ProviderManager) }
   let(:config) { instance_double(Aidp::Config) }
-  let(:options) { {timeout: 60, cancel_timeout: 0.1} } # Use short timeout for faster tests
+  let(:test_prompt) { TestPrompt.new }
+  let(:options) { {timeout: 60, cancel_timeout: 0.1, prompt: test_prompt} } # Use short timeout for faster tests
   let(:runner) { described_class.new(project_dir, provider_manager, config, options) }
   let(:sync_runner) { instance_double(Aidp::Execute::WorkLoopRunner) }
 

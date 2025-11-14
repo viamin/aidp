@@ -17,7 +17,7 @@ This directory contains the development container configuration for AIDP. The de
 - Access limited to:
   - GitHub and Git repositories
   - Ruby/Gem repositories (rubygems.org)
-  - AI provider APIs (Anthropic, OpenAI, Google)
+  - AI provider APIs (Anthropic, OpenAI, Google, OpenRouter)
   - VS Code services
   - Local network
 
@@ -108,6 +108,7 @@ The allowlist intentionally includes domains needed for authentication and runti
 | GitHub Copilot | `github.com`, `api.github.com`, `raw.githubusercontent.com`, `objects.githubusercontent.com`, `gist.githubusercontent.com`, `cloud.githubusercontent.com`, `copilot-proxy.githubusercontent.com` |
 | Cursor | `api.cursor.sh`, `cursor.sh`, `app.cursor.sh`, `www.cursor.sh` |
 | OpenCode | `api.opencode.ai`, `auth.opencode.ai` |
+| OpenRouter | `openrouter.ai` |
 
 Additional supporting domains: package registries (`rubygems.org`, `registry.npmjs.org`), VS Code services (updates / marketplace), and a general CDN (`cdn.jsdelivr.net`).
 

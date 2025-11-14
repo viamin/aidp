@@ -55,7 +55,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       provider_names: ["anthropic"])
   end
 
-  let(:runner) { described_class.new(project_dir, provider_manager, config) }
+  let(:test_prompt) { TestPrompt.new }
+  let(:runner) { described_class.new(project_dir, provider_manager, config, prompt: test_prompt) }
 
   before do
     allow(Dir).to receive(:exist?).and_return(true)

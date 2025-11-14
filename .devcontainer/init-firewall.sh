@@ -123,7 +123,7 @@ add_domain "rubygems.org"
 add_domain "api.rubygems.org"
 add_domain "index.rubygems.org"
 
-# AI Provider APIs (Anthropic / OpenAI / Google Gemini)
+# AI Provider APIs (Anthropic / OpenAI / Google Gemini / OpenRouter)
 add_domain "api.anthropic.com"              # Anthropic primary API
 add_domain "claude.ai"                      # Anthropic web (auth flows / websocket)
 add_domain "console.anthropic.com"          # Anthropic console (token management)
@@ -180,6 +180,9 @@ add_domain "www.cursor.sh"
 # OpenCode AI
 add_domain "api.opencode.ai"
 add_domain "auth.opencode.ai"
+
+# OpenRouter
+add_domain "openrouter.ai"
 
 # General CDNs occasionally used during auth / assets
 add_domain "cdn.jsdelivr.net"

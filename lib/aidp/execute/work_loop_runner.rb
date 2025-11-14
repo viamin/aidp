@@ -47,6 +47,7 @@ module Aidp
         @project_dir = project_dir
         @provider_manager = provider_manager
         @config = config
+        @prompt = options[:prompt] || TTY::Prompt.new
         @prompt_manager = PromptManager.new(project_dir, config: config)
         @test_runner = Aidp::Harness::TestRunner.new(project_dir, config)
         @checkpoint = Checkpoint.new(project_dir)
