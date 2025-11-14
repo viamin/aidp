@@ -84,6 +84,9 @@ LINT_CMDS=$(read_multiline "Lint/format commands" "END")
 
 TIMESTAMP=$(iso_now)
 
+# Ensure .aidp directory exists
+mkdir -p .aidp
+
 # Build bullet lists
 format_list_markdown() {
   # Reads lines from stdin, outputs "- item" bullets (or a single "- N/A")
@@ -111,7 +114,7 @@ if [[ -z "${FIRST_SLICE// }" ]]; then
   FIRST_SLICE="Establish scaffolding and test harness"
 fi
 
-cat > PROMPT.md <<EOF
+cat > .aidp/PROMPT.md <<EOF
 # PROJECT BRIEF
 A concise, unambiguous description of what we are building.
 
@@ -373,17 +376,17 @@ blockers: []
 EOF
 
 echo
-echo "✅ Wrote PROMPT.md"
+echo "✅ Wrote .aidp/PROMPT.md"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "You are in a Git repo. Consider committing PROMPT.md:"
-  echo "  git add PROMPT.md && git commit -m 'chore: add PROMPT.md for agent loop'"
+  echo "You are in a Git repo. Note: .aidp/PROMPT.md is gitignored by default."
+  echo "The work loop will manage this file automatically."
 fi
 
 echo
 echo "Optional loop runner example (edit to your agent CLI):"
 cat <<'RUNNER'
 while :; do
-  cat PROMPT.md | <AGENT_CMD> > .agent.out || true
+  cat .aidp/PROMPT.md | <AGENT_CMD> > .agent.out || true
   # Apply patches from output (requires GNU awk):
   awk '/^\*\*\* BEGIN PATCH/{flag=1;print;next}/^\*\*\* End Patch/{print;flag=0}flag' .agent.out \
     | git apply -p0 --reject --whitespace=fix || true

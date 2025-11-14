@@ -31,6 +31,16 @@ RSpec.describe Aidp::Execute::PromptManager do
       expect(File.read(prompt_path)).to eq "New content"
     end
 
+    it "never writes PROMPT.md to project root" do
+      content = "# Test Prompt"
+      root_prompt_path = File.join(temp_dir, "PROMPT.md")
+
+      manager.write(content)
+
+      expect(File.exist?(prompt_path)).to be true
+      expect(File.exist?(root_prompt_path)).to be false
+    end
+
     it "archives immediately when step_name is provided" do
       content = "# Test Prompt"
       step_name = "test_step"
@@ -138,6 +148,12 @@ RSpec.describe Aidp::Execute::PromptManager do
   describe "#path" do
     it "returns the full path to PROMPT.md" do
       expect(manager.path).to eq prompt_path
+    end
+
+    it "always returns path within .aidp directory, never project root" do
+      expect(manager.path).to include(".aidp")
+      expect(manager.path).not_to eq File.join(temp_dir, "PROMPT.md")
+      expect(File.basename(File.dirname(manager.path))).to eq ".aidp"
     end
   end
 
