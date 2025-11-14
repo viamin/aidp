@@ -1,17 +1,39 @@
 # PR Review & CI-Fix Automation
 
-Aidp's watch mode now includes automated pull request reviewing and CI failure remediation through GitHub labels.
+AIDP's watch mode includes automated pull request reviewing and CI failure remediation through GitHub labels.
 
-## Overview
+## Quick Start
 
-Two new label-triggered modes extend Aidp's watch capabilities:
+### 1. Start Watch Mode
 
-1. **`aidp-review`** - Performs multi-persona code analysis and posts review comments (no commits)
-2. **`aidp-fix-ci`** - Automatically fixes failing CI checks, commits changes, and pushes to PR branch
+```bash
+aidp watch owner/repo
+```
+
+Watch mode monitors for two PR automation labels:
+
+- `aidp-review` - Multi-persona code review (read-only)
+- `aidp-fix-ci` - Automatic CI failure fixes (commits and pushes)
+
+### 2. Trigger a Code Review
+
+On any open pull request:
+
+1. Add the `aidp-review` label
+2. Wait ~1-2 minutes
+3. AIDP posts a multi-persona review comment with categorized findings
+
+### 3. Auto-Fix CI Failures
+
+On a PR with failing CI:
+
+1. Add the `aidp-fix-ci` label
+2. Wait ~2-3 minutes
+3. AIDP analyzes, fixes, commits, and pushes changes
 
 ## Multi-Persona Review Pipeline
 
-When you add the `aidp-review` label to a PR, Aidp evaluates the code from three expert perspectives:
+When you add the `aidp-review` label to a PR, AIDP evaluates the code from three expert perspectives:
 
 ### 1. Senior Developer
 
@@ -59,23 +81,25 @@ When you add the `aidp-review` label to a PR, Aidp evaluates the code from three
 
 Reviews are posted as PR comments with severity-categorized findings:
 
-```text
+### Example Review
+
+```markdown
 ## 🤖 AIDP Code Review
 
 ### Summary
 
 | Severity | Count |
 |----------|-------|
-| 🔴 High Priority | 2 |
-| 🟠 Major | 3 |
-| 🟡 Minor | 5 |
-| ⚪ Nit | 8 |
+| 🔴 High Priority | 1 |
+| 🟠 Major | 2 |
+| 🟡 Minor | 3 |
+| ⚪ Nit | 5 |
 
 ### 🔴 High Priority Issues
 
 **SQL Injection Risk** (Security Specialist)
 `lib/api/users.rb:42`
-User input is directly interpolated into SQL query without sanitization.
+User input directly interpolated into SQL query without sanitization.
 
 <details>
 <summary>💡 Suggested fix</summary>
@@ -87,9 +111,33 @@ User.where("name = ?", params[:name])
 
 </details>
 
-...
+### 🟠 Major Issues
 
-```text
+**N+1 Query Detected** (Performance Analyst)
+`app/controllers/posts_controller.rb:15`
+Loading comments in loop causes N+1 queries.
+
+💡 Use eager loading: `Post.includes(:comments).all`
+
+### 🟡 Minor Issues
+
+**Missing Error Handling** (Senior Developer)
+`lib/client.rb:28`
+Network call has no timeout or error handling.
+
+💡 Add timeout and rescue NetworkError
+
+### ⚪ Nits
+
+<details>
+<summary>5 stylistic suggestions (click to expand)</summary>
+
+- Inconsistent naming in method `processData` (use snake_case)
+- Missing RDoc comment for public method
+- ...
+
+</details>
+```
 
 ### Severity Levels
 
@@ -100,7 +148,7 @@ User.where("name = ?", params[:name])
 
 ## CI Failure Analysis & Auto-Fix
 
-When you add the `aidp-fix-ci` label to a PR with failing CI checks, Aidp:
+When you add the `aidp-fix-ci` label to a PR with failing CI checks, AIDP:
 
 1. **Analyzes** the CI failure logs and identifies root causes
 2. **Proposes** fixes if it can confidently resolve the issues
@@ -108,26 +156,27 @@ When you add the `aidp-fix-ci` label to a PR with failing CI checks, Aidp:
 4. **Commits** and **pushes** the changes
 5. **Posts** a summary explaining what was fixed
 
-### What Aidp Can Fix
+### What AIDP Can Fix
 
 **Common fixable CI failures:**
-- **Linting errors** - Formatting, style violations
-- **Simple test failures** - Typos, missing imports, incorrect assertions
-- **Dependency issues** - Missing packages in manifest
-- **Configuration errors** - Incorrect paths, missing environment variables
 
-### What Aidp Won't Fix
+- ✅ Linting errors - Formatting, style violations
+- ✅ Simple test failures - Typos, missing imports, incorrect assertions
+- ✅ Dependency issues - Missing packages in manifest
+- ✅ Configuration errors - Incorrect paths, missing environment variables
+
+### What AIDP Won't Fix
 
 **Complex issues requiring domain knowledge:**
-- Complex logic errors requiring business context
-- Failing integration tests that may indicate real bugs
-- Security scan failures
-- Performance regression issues
 
-### CI Fix Output
+- ❌ Complex logic errors requiring business context
+- ❌ Failing integration tests that may indicate real bugs
+- ❌ Security scan failures
+- ❌ Performance regression issues
 
-```text
+### CI Fix Output Example
 
+```markdown
 ## 🤖 AIDP CI Fix
 
 ✅ Successfully analyzed and fixed CI failures!
@@ -143,33 +192,17 @@ When you add the `aidp-fix-ci` label to a PR with failing CI checks, Aidp:
 - spec/support/helpers.rb: Fixed module namespace
 
 The fixes have been committed and pushed to this PR. CI should re-run automatically.
-
 ```
 
-## Usage in Watch Mode
-
-### Starting Watch Mode with PR Review
-
-```bash
-aidp watch viamin/aidp --interval 30
-```
-
-Watch mode now automatically monitors for:
-
-- `aidp-plan` - Generate implementation plan
-- `aidp-build` - Execute autonomous work loop
-- **`aidp-review`** - Review pull request code
-- **`aidp-fix-ci`** - Fix failing CI checks
-
-### Workflow Example
+## Workflow Example
 
 1. **Developer creates PR** with new feature
 2. **Add `aidp-review` label** to trigger code review
-3. **Aidp posts review** with categorized findings from all three personas
+3. **AIDP posts review** with categorized findings from all three personas
 4. **Developer addresses** high priority and major issues
 5. **CI fails** due to linting errors
 6. **Add `aidp-fix-ci` label** to auto-fix
-7. **Aidp fixes and pushes** the corrections
+7. **AIDP fixes and pushes** the corrections
 8. **CI passes**, PR is ready for merge
 
 ## Configuration
@@ -257,9 +290,9 @@ All review activities are logged to `.aidp/logs/pr_reviews/`:
 
 ### Avoiding Infinite Loops
 
-Aidp includes safeguards to prevent infinite feedback loops:
+AIDP includes safeguards to prevent infinite feedback loops:
 
-1. **One-time processing** - Each PR/issue is processed once per label application
+1. **One-time processing** - Each PR is processed once per label application
 2. **Label removal** - Labels are automatically removed after processing
 3. **State tracking** - StateStore prevents re-processing completed reviews
 4. **Max attempts** - CI fix attempts are limited (default: 3)
@@ -284,7 +317,7 @@ To re-run a review or fix after making changes:
 1. Remove the label from the PR
 2. Re-add the label to trigger a fresh analysis
 
-Aidp will process the PR again with the latest changes.
+AIDP will process the PR again with the latest changes.
 
 ## Limitations
 
@@ -310,19 +343,42 @@ Aidp will process the PR again with the latest changes.
 
 **Check:**
 
-1. Is watch mode running? (`aidp watch viamin/aidp`)
+1. Is watch mode running? (`aidp watch owner/repo`)
 2. Does the PR have the correct label? (default: `aidp-review`)
 3. Is the PR author authorized? (see safety checker logs)
 4. Has the PR already been reviewed? (check state store in `.aidp/watch/`)
+
+**Solutions:**
+
+```bash
+# Verify watch mode is running
+$ ps aux | grep "aidp watch"
+
+# Check state store
+$ cat .aidp/watch/<repo-name>.yml
+
+# Clear state store entry to re-run
+$ rm .aidp/watch/<repo-name>.yml
+```
 
 ### CI Fix Not Working
 
 **Check:**
 
 1. Are CI checks actually failing? (not just pending)
-2. Is the failure type auto-fixable? (see "What Aidp Can Fix" above)
+2. Is the failure type auto-fixable? (see "What AIDP Can Fix" above)
 3. Check CI fix logs in `.aidp/logs/pr_reviews/ci_fix_*.json`
 4. Review error messages in watch mode output
+
+**Solutions:**
+
+```bash
+# Review CI fix logs
+$ cat .aidp/logs/pr_reviews/ci_fix_*.json
+
+# Check watch mode output
+$ tail -f watch.log
+```
 
 ### Re-running Failed Reviews
 
@@ -336,75 +392,35 @@ vim .aidp/watch/<repo-name>.yml
 # Re-add label to PR
 ```
 
-## Examples
+## CI Fix Scenarios
 
-### Example Review Output
-
-See [examples/review_output_example.md](examples/review_output_example.md) for a complete example review with all severity levels.
-
-### Example CI Fix Scenarios
-
-#### Scenario 1: Linting Errors
+### Scenario 1: Linting Errors
 
 ```text
 CI Error: RuboCop found 5 style violations
-Aidp Fix: Auto-corrected formatting and style issues
+AIDP Fix: Auto-corrected formatting and style issues
 Result: CI passes ✅
 ```
 
-#### Scenario 2: Missing Test Fixtures
+### Scenario 2: Missing Test Fixtures
 
 ```text
 CI Error: Fixture file not found: spec/fixtures/users.yml
-Aidp Fix: Cannot auto-fix (requires domain knowledge)
+AIDP Fix: Cannot auto-fix (requires domain knowledge)
 Result: Posted explanation, manual fix needed ⚠️
 ```
 
-#### Scenario 3: Dependency Conflict
+### Scenario 3: Dependency Conflict
 
 ```text
 CI Error: Gem version conflict between foo (>= 2.0) and bar (< 1.5)
-Aidp Fix: Updated Gemfile to compatible versions
+AIDP Fix: Updated Gemfile to compatible versions
 Result: CI passes ✅
-```
-
-## API Reference
-
-### ReviewProcessor
-
-```ruby
-# lib/aidp/watch/review_processor.rb
-ReviewProcessor.new(
-  repository_client: client,
-  state_store: store,
-  provider_name: "anthropic",
-  project_dir: Dir.pwd,
-  label_config: {review_trigger: "aidp-review"},
-  verbose: false
-)
-
-processor.process(pr_data)
-```
-
-### CiFixProcessor
-
-```ruby
-# lib/aidp/watch/ci_fix_processor.rb
-CiFixProcessor.new(
-  repository_client: client,
-  state_store: store,
-  provider_name: "anthropic",
-  project_dir: Dir.pwd,
-  label_config: {ci_fix_trigger: "aidp-fix-ci"},
-  verbose: false
-)
-
-processor.process(pr_data)
 ```
 
 ## Related Documentation
 
-- [Watch Mode Guide](watch_mode.md)
-- [Label Configuration](configuration.md#labels)
-- [Safety Policies](safety_policies.md)
-- [State Management](state_management.md)
+- [Watch Mode Guide](FULLY_AUTOMATIC_MODE.md) - Complete guide to watch mode
+- [PR Change Requests](PR_CHANGE_REQUESTS.md) - Automated PR modifications
+- [Watch Mode Safety](WATCH_MODE_SAFETY.md) - Security features and best practices
+- [Configuration Reference](../README.md#watch-mode-automated-github-integration) - Watch mode setup

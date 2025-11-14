@@ -27,14 +27,26 @@ module Aidp
         plans[issue_number.to_s]
       end
 
+      def plan_iteration_count(issue_number)
+        plan = plans[issue_number.to_s]
+        return 0 unless plan
+        plan["iteration"] || 1
+      end
+
       def record_plan(issue_number, data)
+        existing_plan = plans[issue_number.to_s]
+        iteration = existing_plan ? (existing_plan["iteration"] || 1) + 1 : 1
+
         payload = {
           "summary" => data[:summary],
           "tasks" => data[:tasks],
           "questions" => data[:questions],
           "comment_body" => data[:comment_body],
           "comment_hint" => data[:comment_hint],
-          "posted_at" => data[:posted_at] || Time.now.utc.iso8601
+          "comment_id" => data[:comment_id],
+          "posted_at" => data[:posted_at] || Time.now.utc.iso8601,
+          "iteration" => iteration,
+          "previous_iteration_at" => existing_plan ? existing_plan["posted_at"] : nil
         }.compact
 
         plans[issue_number.to_s] = payload
