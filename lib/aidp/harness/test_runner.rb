@@ -2,6 +2,7 @@
 
 require "open3"
 require_relative "../tooling_detector"
+require_relative "output_filter"
 
 module Aidp
   module Harness
@@ -11,26 +12,31 @@ module Aidp
       def initialize(project_dir, config)
         @project_dir = project_dir
         @config = config
+        @iteration_count = 0
       end
 
       # Run all configured tests
       # Returns: { success: boolean, output: string, failures: array }
       def run_tests
+        @iteration_count += 1
         test_commands = resolved_test_commands
         return {success: true, output: "", failures: []} if test_commands.empty?
 
+        mode = determine_test_output_mode
         results = test_commands.map { |cmd| execute_command(cmd, "test") }
-        aggregate_results(results, "Tests")
+        aggregate_results(results, "Tests", mode: mode)
       end
 
       # Run all configured linters
       # Returns: { success: boolean, output: string, failures: array }
       def run_linters
+        @iteration_count += 1
         lint_commands = resolved_lint_commands
         return {success: true, output: "", failures: []} if lint_commands.empty?
 
+        mode = determine_lint_output_mode
         results = lint_commands.map { |cmd| execute_command(cmd, "linter") }
-        aggregate_results(results, "Linters")
+        aggregate_results(results, "Linters", mode: mode)
       end
 
       private
@@ -48,14 +54,14 @@ module Aidp
         }
       end
 
-      def aggregate_results(results, category)
+      def aggregate_results(results, category, mode: :full)
         failures = results.reject { |r| r[:success] }
         success = failures.empty?
 
         output = if success
           "#{category}: All passed"
         else
-          format_failures(failures, category)
+          format_failures(failures, category, mode: mode)
         end
 
         {
@@ -65,19 +71,83 @@ module Aidp
         }
       end
 
-      def format_failures(failures, category)
+      def format_failures(failures, category, mode: :full)
         output = ["#{category} Failures:", ""]
 
         failures.each do |failure|
           output << "Command: #{failure[:command]}"
           output << "Exit Code: #{failure[:exit_code]}"
           output << "--- Output ---"
-          output << failure[:stdout] unless failure[:stdout].strip.empty?
-          output << failure[:stderr] unless failure[:stderr].strip.empty?
+
+          # Apply filtering based on mode and framework
+          filtered_stdout = filter_output(failure[:stdout], mode, detect_framework_from_command(failure[:command]))
+          filtered_stderr = filter_output(failure[:stderr], mode, :unknown)
+
+          output << filtered_stdout unless filtered_stdout.strip.empty?
+          output << filtered_stderr unless filtered_stderr.strip.empty?
           output << ""
         end
 
         output.join("\n")
+      end
+
+      def filter_output(raw_output, mode, framework)
+        return raw_output if mode == :full || raw_output.nil? || raw_output.empty?
+
+        filter_config = {
+          mode: mode,
+          include_context: true,
+          context_lines: 3,
+          max_lines: 500
+        }
+
+        filter = OutputFilter.new(filter_config)
+        filter.filter(raw_output, framework: framework)
+      rescue => e
+        Aidp.log_warn("test_runner", "filter_failed",
+          error: e.message,
+          framework: framework)
+        raw_output  # Fallback to unfiltered on error
+      rescue NameError
+        # Logging infrastructure not available
+        raw_output
+      end
+
+      def detect_framework_from_command(command)
+        case command
+        when /rspec/
+          :rspec
+        when /minitest/
+          :minitest
+        when /jest/
+          :jest
+        when /pytest/
+          :pytest
+        else
+          :unknown
+        end
+      end
+
+      def determine_test_output_mode
+        # Check if config has test_output_mode method
+        if @config.respond_to?(:test_output_mode)
+          @config.test_output_mode
+        elsif @iteration_count > 1
+          :failures_only
+        else
+          :full
+        end
+      end
+
+      def determine_lint_output_mode
+        # Check if config has lint_output_mode method
+        if @config.respond_to?(:lint_output_mode)
+          @config.lint_output_mode
+        elsif @iteration_count > 1
+          :failures_only
+        else
+          :full
+        end
       end
 
       def resolved_test_commands
