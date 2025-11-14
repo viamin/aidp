@@ -228,10 +228,49 @@ module Aidp
         relevant.map do |comment|
           author = comment["author"] || "unknown"
           created = comment["createdAt"] ? Time.parse(comment["createdAt"]).utc.iso8601 : "unknown"
-          "### #{author} (#{created})\n#{comment["body"]}"
+          body = strip_archived_plans(comment["body"])
+          "### #{author} (#{created})\n#{body}"
         end.join("\n\n")
       rescue
         "_Unable to parse comment thread._"
+      end
+
+      def strip_archived_plans(content)
+        return content unless content
+
+        # Remove all archived plan sections (wrapped in HTML comments)
+        result = content.dup
+
+        # Remove archived plan blocks
+        # Safe string-based approach to avoid ReDoS vulnerabilities
+        start_prefix = "<!-- ARCHIVED_PLAN_START"
+        end_marker = "<!-- ARCHIVED_PLAN_END -->"
+
+        loop do
+          # Find the start of an archived plan block (may have attributes after ARCHIVED_PLAN_START)
+          start_idx = result.index(start_prefix)
+          break unless start_idx
+
+          # Find the closing --> of the start marker
+          start_marker_end = result.index("-->", start_idx)
+          break unless start_marker_end
+
+          # Find the corresponding end marker
+          end_idx = result.index(end_marker, start_marker_end)
+          break unless end_idx
+
+          # Remove the entire block including markers
+          result = result[0...start_idx] + result[(end_idx + end_marker.length)..]
+        end
+
+        # Remove HTML-commented sections from active plan
+        # Keep the content between START and END markers, but strip the markers themselves
+        # This preserves the current plan while removing archived content
+        result = result.gsub(/<!-- (PLAN_SUMMARY_START|PLAN_TASKS_START|CLARIFYING_QUESTIONS_START) -->/, "")
+        result = result.gsub(/<!-- (PLAN_SUMMARY_END|PLAN_TASKS_END|CLARIFYING_QUESTIONS_END) -->/, "")
+
+        # Clean up any extra blank lines
+        result.gsub(/\n{3,}/, "\n\n").strip
       end
 
       def write_prompt(content, working_dir: @project_dir)

@@ -42,6 +42,135 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     FileUtils.rm_rf(tmp_dir)
   end
 
+  describe "#strip_archived_plans" do
+    it "removes archived plan sections from comments" do
+      content = <<~COMMENT
+        ## 🤖 AIDP Plan Proposal
+
+        <!-- ARCHIVED_PLAN_START iteration=1 timestamp=2024-01-01 -->
+        <details>
+        <summary>Previous Plan</summary>
+        Old content here
+        </details>
+        <!-- ARCHIVED_PLAN_END -->
+
+        <!-- PLAN_SUMMARY_START -->
+        ### Plan Summary
+        Current summary
+        <!-- PLAN_SUMMARY_END -->
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      expect(result).not_to include("ARCHIVED_PLAN_START")
+      expect(result).not_to include("Old content here")
+      expect(result).to include("Current summary")
+      expect(result).not_to include("<!-- PLAN_SUMMARY_START -->")
+      expect(result).not_to include("<!-- PLAN_SUMMARY_END -->")
+    end
+
+    it "removes HTML markers from current plan sections" do
+      content = <<~COMMENT
+        <!-- PLAN_SUMMARY_START -->
+        ### Plan Summary
+        This is the summary
+        <!-- PLAN_SUMMARY_END -->
+
+        <!-- PLAN_TASKS_START -->
+        ### Tasks
+        - Task 1
+        <!-- PLAN_TASKS_END -->
+
+        <!-- CLARIFYING_QUESTIONS_START -->
+        ### Questions
+        1. Question 1
+        <!-- CLARIFYING_QUESTIONS_END -->
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      expect(result).to include("This is the summary")
+      expect(result).to include("Task 1")
+      expect(result).to include("Question 1")
+      expect(result).not_to include("PLAN_SUMMARY_START")
+      expect(result).not_to include("PLAN_TASKS_START")
+      expect(result).not_to include("CLARIFYING_QUESTIONS_START")
+    end
+
+    it "handles multiple archived plans" do
+      content = <<~COMMENT
+        <!-- ARCHIVED_PLAN_START iteration=1 timestamp=2024-01-01 -->
+        Old plan 1
+        <!-- ARCHIVED_PLAN_END -->
+
+        <!-- ARCHIVED_PLAN_START iteration=2 timestamp=2024-01-02 -->
+        Old plan 2
+        <!-- ARCHIVED_PLAN_END -->
+
+        Current plan content
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      expect(result).not_to include("Old plan 1")
+      expect(result).not_to include("Old plan 2")
+      expect(result).to include("Current plan content")
+    end
+
+    it "returns content unchanged when no markers present" do
+      content = "Just a regular comment with no markers"
+      result = processor.send(:strip_archived_plans, content)
+      expect(result).to eq(content)
+    end
+
+    it "handles malformed start marker without closing -->" do
+      content = <<~COMMENT
+        <!-- ARCHIVED_PLAN_START iteration=1
+        This is malformed
+        <!-- ARCHIVED_PLAN_END -->
+
+        Current plan content
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      # Should not crash and should return content relatively intact
+      expect(result).to include("Current plan content")
+    end
+
+    it "handles start marker without corresponding end marker" do
+      content = <<~COMMENT
+        <!-- ARCHIVED_PLAN_START iteration=1 timestamp=2024-01-01 -->
+        Old plan without end marker
+
+        Current plan content
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      # Should not crash and should preserve content when end marker is missing
+      expect(result).to include("Current plan content")
+    end
+
+    it "handles nested HTML comments in archived sections" do
+      content = <<~COMMENT
+        <!-- ARCHIVED_PLAN_START iteration=1 timestamp=2024-01-01 -->
+        <!-- Some nested comment -->
+        Old plan with nested comments
+        <!-- Another nested comment -->
+        <!-- ARCHIVED_PLAN_END -->
+
+        Current plan content
+      COMMENT
+
+      result = processor.send(:strip_archived_plans, content)
+
+      expect(result).not_to include("Old plan with nested comments")
+      expect(result).not_to include("nested comment")
+      expect(result).to include("Current plan content")
+    end
+  end
+
   it "runs harness and posts success comment" do
     # Create config with auto_create_pr enabled
     config_path = File.join(tmp_dir, ".aidp", "aidp.yml")
