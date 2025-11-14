@@ -168,12 +168,27 @@ module Aidp
 
       # Get test commands
       def test_commands
-        work_loop_config[:test_commands] || []
+        normalize_commands(work_loop_config[:test_commands] || [])
       end
 
       # Get lint commands
       def lint_commands
-        work_loop_config[:lint_commands] || []
+        normalize_commands(work_loop_config[:lint_commands] || [])
+      end
+
+      # Get formatter commands
+      def formatter_commands
+        normalize_commands(work_loop_config[:formatter_commands] || [])
+      end
+
+      # Get build commands
+      def build_commands
+        normalize_commands(work_loop_config[:build_commands] || [])
+      end
+
+      # Get documentation commands
+      def documentation_commands
+        normalize_commands(work_loop_config[:documentation_commands] || [])
       end
 
       # Get test output mode
@@ -723,6 +738,38 @@ module Aidp
       end
 
       private
+
+      # Normalize command configuration to consistent format
+      # Supports both string format and object format with required flag
+      # Examples:
+      #   "bundle exec rspec" -> {command: "bundle exec rspec", required: true}
+      #   {command: "rubocop", required: false} -> {command: "rubocop", required: false}
+      def normalize_commands(commands)
+        return [] if commands.nil? || commands.empty?
+
+        commands.map do |cmd|
+          case cmd
+          when String
+            {command: cmd, required: true}
+          when Hash
+            # Handle both symbol and string keys
+            command_value = cmd[:command] || cmd["command"]
+            required_value = cmd.key?(:required) ? cmd[:required] : (cmd.key?("required") ? cmd["required"] : true)
+
+            unless command_value.is_a?(String) && !command_value.empty?
+              raise ConfigurationError, "Command must be a non-empty string, got: #{command_value.inspect}"
+            end
+
+            unless [true, false].include?(required_value)
+              raise ConfigurationError, "Required flag must be boolean, got: #{required_value.inspect}"
+            end
+
+            {command: command_value, required: required_value}
+          else
+            raise ConfigurationError, "Command must be a string or hash, got: #{cmd.class}"
+          end
+        end
+      end
 
       def validate_configuration!
         errors = Aidp::Config.validate_harness_config(@config, @project_dir)

@@ -375,6 +375,9 @@ module Aidp
                 max_iterations: 50,
                 test_commands: [],
                 lint_commands: [],
+                formatter_commands: [],
+                build_commands: [],
+                documentation_commands: [],
                 units: {},
                 guards: {enabled: false},
                 version_control: {tool: "git", behavior: "nothing", conventional_commits: false},
@@ -397,18 +400,37 @@ module Aidp
                 test_commands: {
                   type: :array,
                   required: false,
-                  default: [],
-                  items: {
-                    type: :string
-                  }
+                  default: []
+                  # Items can be strings or {command: string, required: boolean}
+                  # Validation handled in Configuration class for flexibility
                 },
                 lint_commands: {
                   type: :array,
                   required: false,
-                  default: [],
-                  items: {
-                    type: :string
-                  }
+                  default: []
+                  # Items can be strings or {command: string, required: boolean}
+                  # Validation handled in Configuration class for flexibility
+                },
+                formatter_commands: {
+                  type: :array,
+                  required: false,
+                  default: []
+                  # Items can be strings or {command: string, required: boolean}
+                  # Validation handled in Configuration class for flexibility
+                },
+                build_commands: {
+                  type: :array,
+                  required: false,
+                  default: []
+                  # Items can be strings or {command: string, required: boolean}
+                  # Validation handled in Configuration class for flexibility
+                },
+                documentation_commands: {
+                  type: :array,
+                  required: false,
+                  default: []
+                  # Items can be strings or {command: string, required: boolean}
+                  # Validation handled in Configuration class for flexibility
                 },
                 units: {
                   type: :hash,

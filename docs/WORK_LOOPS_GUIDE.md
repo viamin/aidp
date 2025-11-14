@@ -527,12 +527,29 @@ harness:
   work_loop:
     enabled: true
     max_iterations: 50
+
+    # Simple format - all commands are required by default
     test_commands:
       - "bundle exec rspec"
       - "npm test"
     lint_commands:
       - "bundle exec standardrb"
       - "npm run lint"
+
+    # New command types (Issue #234)
+    formatter_commands:
+      - "bundle exec standardrb --fix"
+    build_commands:
+      - "bundle exec rake build"
+    documentation_commands:
+      - "bundle exec yard doc"
+
+    # Advanced format with required/optional flags
+    # test_commands:
+    #   - command: "bundle exec rspec"
+    #     required: true
+    #   - command: "bundle exec rspec --tag slow"
+    #     required: false
 ```
 
 ### Configuration Options
@@ -541,17 +558,47 @@ harness:
 |--------|------|---------|-------------|
 | `enabled` | boolean | `true` | Enable/disable work loops |
 | `max_iterations` | integer | `50` | Safety limit for iterations |
-| `test_commands` | array | `[]` | Commands to run tests |
-| `lint_commands` | array | `[]` | Commands to run linters |
+| `test_commands` | array | `[]` | Commands to run tests (all required by default) |
+| `lint_commands` | array | `[]` | Commands to run linters (all required by default) |
+| `formatter_commands` | array | `[]` | Commands to run formatters after agent completion (Issue #234) |
+| `build_commands` | array | `[]` | Commands to verify builds must pass (Issue #234) |
+| `documentation_commands` | array | `[]` | Commands to validate documentation (Issue #234) |
 
 **Note**: Style guide reinforcement happens automatically every 5 iterations (hardcoded) to prevent the agent from drifting away from project conventions during long fix-forward loops.
 
-### Test and Lint Commands
+### Required vs Optional Commands (Issue #234)
+
+**Problem**: AIDP could previously declare work complete without running or passing all quality checks (tests, linters, formatters, builds, documentation).
+
+**Solution**: All configured commands are now enforced before completion. Additionally, commands can be marked as `required` (must pass) or optional (warnings only):
+
+```yaml
+test_commands:
+  # String format (defaults to required: true)
+  - "bundle exec rspec"
+
+  # Object format with explicit required flag
+  - command: "bundle exec rspec --tag slow"
+    required: false  # Won't block completion if fails
+
+  - command: "bundle exec rspec --tag critical"
+    required: true   # Must pass before completion
+```
+
+**Behavior**:
+- **Required commands**: If ANY required command fails, work loop continues until fixed
+- **Optional commands**: Failures logged as warnings but don't block completion
+- **Empty categories**: If no commands configured for a category, that category passes
+- **Formatters**: Run only AFTER agent marks work complete (not on every iteration)
+- **All checks must pass**: Tests, lints, formatters, builds, and docs must all pass before declaring work complete
+
+### Command Execution
 
 - Commands run in your project directory
 - Only **failures** are sent back to the agent
 - Successful runs don't add to PROMPT.md (keeps it concise)
 - Commands can be anything that returns exit code 0 for success
+- Exit code ≠ 0 is treated as failure
 
 ## PROMPT.md Structure
 
