@@ -242,14 +242,21 @@ module Aidp
         result = content.dup
 
         # Remove archived plan blocks
-        start_marker = "<!-- ARCHIVED_PLAN_START -->"
+        # Safe string-based approach to avoid ReDoS vulnerabilities
+        start_prefix = "<!-- ARCHIVED_PLAN_START"
         end_marker = "<!-- ARCHIVED_PLAN_END -->"
 
         loop do
-          start_idx = result.index(start_marker)
+          # Find the start of an archived plan block (may have attributes after ARCHIVED_PLAN_START)
+          start_idx = result.index(start_prefix)
           break unless start_idx
 
-          end_idx = result.index(end_marker, start_idx)
+          # Find the closing --> of the start marker
+          start_marker_end = result.index("-->", start_idx)
+          break unless start_marker_end
+
+          # Find the corresponding end marker
+          end_idx = result.index(end_marker, start_marker_end)
           break unless end_idx
 
           # Remove the entire block including markers
