@@ -251,14 +251,14 @@ AIDP uses a smart label-based workflow to manage both issues and pull requests:
 
 #### Pull Request Workflow (Review, CI Fix, Change Requests)
 
-4. **Code Review** (`aidp-review` label):
+1. **Code Review** (`aidp-review` label):
    - Add this label to any PR to trigger automated code review
    - AIDP analyzes code from three expert perspectives (Senior Developer, Security Specialist, Performance Analyst)
    - Posts a comprehensive review comment with severity-categorized findings (High Priority, Major, Minor, Nit)
    - Automatically removes the label after posting review
    - No commits are made - review only
 
-5. **CI Fix** (`aidp-fix-ci` label):
+2. **CI Fix** (`aidp-fix-ci` label):
    - Add this label to a PR with failing CI checks
    - AIDP analyzes CI failure logs and identifies root causes
    - Automatically fixes issues like linting errors, simple test failures, and dependency problems
@@ -266,7 +266,7 @@ AIDP uses a smart label-based workflow to manage both issues and pull requests:
    - Posts a summary of what was fixed
    - Automatically removes the label after completion
 
-6. **Change Requests** (`aidp-request-changes` label):
+3. **Change Requests** (`aidp-request-changes` label):
    - Comment on your own PR describing desired changes, then add this label
    - AIDP implements the requested changes on the PR branch
    - Runs tests/linters and commits changes

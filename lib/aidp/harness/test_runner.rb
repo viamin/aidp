@@ -103,14 +103,14 @@ module Aidp
 
         filter = OutputFilter.new(filter_config)
         filter.filter(raw_output, framework: framework)
+      rescue NameError
+        # Logging infrastructure not available
+        raw_output
       rescue => e
         Aidp.log_warn("test_runner", "filter_failed",
           error: e.message,
           framework: framework)
         raw_output  # Fallback to unfiltered on error
-      rescue NameError
-        # Logging infrastructure not available
-        raw_output
       end
 
       def detect_framework_from_command(command)

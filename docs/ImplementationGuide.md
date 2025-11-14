@@ -189,6 +189,7 @@ end
 **Application**: `OutputFilter` uses strategies for each framework
 
 **Benefits**:
+
 - Easy to add new framework support
 - Clear separation of filtering logic
 - Testable in isolation
@@ -219,6 +220,7 @@ end
 **Application**: `TestRunner` service
 
 **Benefits**:
+
 - Single Responsibility Principle
 - Reusable across work loops
 - Easily testable
@@ -230,6 +232,7 @@ end
 **Application**: TestRunner composes OutputFilter
 
 **Benefits**:
+
 - Loose coupling
 - Easy to swap implementations
 - Clear dependencies
@@ -301,6 +304,7 @@ end
 **Application**: Command construction in ToolingDetector
 
 **Benefits**:
+
 - Fluent interface for command building
 - Encapsulates framework-specific logic
 - Easy to test command construction

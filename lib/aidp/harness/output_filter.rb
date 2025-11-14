@@ -63,7 +63,7 @@ module Aidp
         strategy = strategy_for_framework(framework)
         filtered = strategy.filter(output, self)
         truncate_if_needed(filtered)
-      rescue StandardError => e
+      rescue => e
         # External failure - graceful degradation
         begin
           Aidp.log_error("output_filter", "filtering_failed",
@@ -115,7 +115,9 @@ module Aidp
         return output if lines.count <= @max_lines
 
         truncated = lines.first(@max_lines).join
-        truncated + "\n\n[Output truncated - #{lines.count - @max_lines} more lines omitted]"
+        # Only add newline if truncated doesn't already end with one
+        separator = truncated.end_with?("\n") ? "" : "\n"
+        truncated + separator + "[Output truncated - #{lines.count - @max_lines} more lines omitted]"
       end
 
       def reduction_stats(input, output)

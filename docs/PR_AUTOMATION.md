@@ -129,14 +129,18 @@ Network call has no timeout or error handling.
 
 ### ⚪ Nits
 
+<!-- markdownlint-disable MD033 -->
 <details>
 <summary>5 stylistic suggestions (click to expand)</summary>
+<!-- markdownlint-enable MD033 -->
 
 - Inconsistent naming in method `processData` (use snake_case)
 - Missing RDoc comment for public method
 - ...
 
+<!-- markdownlint-disable MD033 -->
 </details>
+<!-- markdownlint-enable MD033 -->
 ```
 
 ### Severity Levels

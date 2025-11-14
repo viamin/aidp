@@ -24,7 +24,7 @@ module Aidp
         parts = []
 
         # Extract summary line
-        if summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) }
+        if (summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) })
           parts << "RSpec Summary:"
           parts << summary
           parts << ""
@@ -63,7 +63,7 @@ module Aidp
         parts = []
 
         # Extract only summary and failure locations
-        if summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) }
+        if (summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) })
           parts << summary
         end
 

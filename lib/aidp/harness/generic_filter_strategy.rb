@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
 require_relative "filter_strategy"
 
 module Aidp
@@ -30,7 +29,7 @@ module Aidp
         relevant_lines = Set.new
         failure_indices.each do |index|
           if filter_instance.include_context
-            range = extract_with_context(lines, index, filter_instance.context_lines)
+            extract_with_context(lines, index, filter_instance.context_lines)
             start_idx = [0, index - filter_instance.context_lines].max
             end_idx = [lines.length - 1, index + filter_instance.context_lines].min
             (start_idx..end_idx).each { |idx| relevant_lines.add(idx) }
