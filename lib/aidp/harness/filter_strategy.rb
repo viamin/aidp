@@ -23,21 +23,17 @@ module Aidp
 
       # Find failure markers in output
       def find_failure_markers(output)
-        # Common failure patterns across frameworks
-        patterns = [
-          /FAILED/i,
-          /ERROR/i,
-          /FAIL:/i,
-          /failures?:/i,
-          /\d+\) /,  # Numbered failures
-          /^  \d+\)/  # Indented numbered failures
-        ]
-
         lines = output.lines
         markers = []
 
         lines.each_with_index do |line, index|
-          if patterns.any? { |pattern| line.match?(pattern) }
+          # Check for failure patterns using safe string methods
+          if line.match?(/FAILED/i) ||
+              line.match?(/ERROR/i) ||
+              line.match?(/FAIL:/i) ||
+              line.match?(/failures?:/i) ||
+              line.match?(/^\s*\d{1,4}\)\s/) ||  # Numbered failures (limit digits to prevent ReDoS)
+              line.include?(") ")  # Additional simple check for numbered patterns
             markers << index
           end
         end
