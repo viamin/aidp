@@ -586,6 +586,7 @@ test_commands:
 ```
 
 **Behavior**:
+
 - **Required commands**: If ANY required command fails, work loop continues until fixed
 - **Optional commands**: Failures logged as warnings but don't block completion
 - **Empty categories**: If no commands configured for a category, that category passes

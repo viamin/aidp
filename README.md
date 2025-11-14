@@ -251,6 +251,7 @@ AIDP uses a smart label-based workflow to manage both issues and pull requests:
 
 #### Pull Request Workflow (Review, CI Fix, Change Requests)
 
+<!-- markdownlint-disable-next-line MD029 -->
 1. **Code Review** (`aidp-review` label):
    - Add this label to any PR to trigger automated code review
    - AIDP analyzes code from three expert perspectives (Senior Developer, Security Specialist, Performance Analyst)
