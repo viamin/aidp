@@ -16,7 +16,7 @@ module Aidp
         csv_dir = @csv_storage.instance_variable_get(:@base_dir)
         if json_dir != @base_dir || csv_dir != @base_dir
           @base_dir = json_dir # Prefer JSON storage directory
-          Kernel.warn "[AIDP Storage] Base directory normalized to #{@base_dir} after fallback."
+          warn_storage("[AIDP Storage] Base directory normalized to #{@base_dir} after fallback.")
         end
       end
 
@@ -229,10 +229,16 @@ module Aidp
           rescue
             File.join(Dir.tmpdir, "aidp_storage")
           end
-          Kernel.warn "[AIDP Storage] Root base_dir detected - using fallback #{fallback} instead of '#{str}'"
+          warn_storage("[AIDP Storage] Root base_dir detected - using fallback #{fallback} instead of '#{str}'")
           return fallback
         end
         str
+      end
+
+      # Suppress storage warnings in test/CI environments
+      def warn_storage(message)
+        return if ENV["RSPEC_RUNNING"] || ENV["CI"] || ENV["RAILS_ENV"] == "test" || ENV["RACK_ENV"] == "test"
+        Kernel.warn(message)
       end
     end
   end
