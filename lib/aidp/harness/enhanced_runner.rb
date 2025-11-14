@@ -6,6 +6,7 @@ require_relative "ui/job_monitor"
 require_relative "ui/workflow_controller"
 require_relative "ui/progress_display"
 require_relative "ui/status_widget"
+require_relative "../errors"
 
 module Aidp
   module Harness
@@ -158,6 +159,10 @@ module Aidp
               handle_completion_criteria_not_met(completion_status)
             end
           end
+        rescue Aidp::Errors::ConfigurationError
+          # Configuration errors should crash immediately (crash-early principle)
+          # Re-raise without catching
+          raise
         rescue => e
           @state = STATES[:error]
           # Single error message - don't duplicate

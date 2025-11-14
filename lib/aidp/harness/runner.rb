@@ -11,6 +11,7 @@ require_relative "error_handler"
 require_relative "status_display"
 require_relative "completion_checker"
 require_relative "../concurrency"
+require_relative "../errors"
 
 module Aidp
   module Harness
@@ -135,6 +136,10 @@ module Aidp
               end
             end
           end
+        rescue Aidp::Errors::ConfigurationError
+          # Configuration errors should crash immediately (crash-early principle)
+          # Re-raise without catching
+          raise
         rescue => e
           @state = STATES[:error]
           @last_error = e

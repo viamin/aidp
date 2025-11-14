@@ -8,6 +8,7 @@ require_relative "work_loop_unit_scheduler"
 require_relative "deterministic_unit"
 require_relative "agent_signal_parser"
 require_relative "../harness/test_runner"
+require_relative "../errors"
 
 module Aidp
   module Execute
@@ -160,6 +161,10 @@ module Aidp
           # Wrap agent call in exception handling for true fix-forward
           begin
             agent_result = apply_patch
+          rescue Aidp::Errors::ConfigurationError
+            # Configuration errors should crash immediately (crash-early principle)
+            # Re-raise without catching
+            raise
           rescue => e
             # Convert exception to error result for fix-forward handling
             Aidp.logger.error("work_loop", "Exception during agent call",
@@ -176,6 +181,27 @@ module Aidp
 
             # Continue to next iteration with fix-forward pattern
             next
+          end
+
+          # Check for fatal configuration errors (crash early per LLM_STYLE_GUIDE)
+          if agent_result[:status] == "error" && agent_result[:message]&.include?("No model available")
+            tier = @thinking_depth_manager.current_tier
+            provider = @provider_manager.current_provider
+
+            error_msg = "No model configured for thinking tier '#{tier}'.\n\n" \
+                       "Current provider: #{provider}\n" \
+                       "Required tier: #{tier}\n\n" \
+                       "To fix this, add a model to your aidp.yml:\n\n" \
+                       "thinking_depth:\n" \
+                       "  tiers:\n" \
+                       "    #{tier}:\n" \
+                       "      models:\n" \
+                       "        - provider: #{provider}\n" \
+                       "          model: <model-name>  # e.g., claude-3-5-sonnet-20241022\n\n" \
+                       "Or run: aidp models list\n" \
+                       "to see available models for your configured providers."
+
+            raise Aidp::Errors::ConfigurationError, error_msg
           end
 
           # Process agent output for task filing signals

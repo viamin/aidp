@@ -140,6 +140,8 @@ add_domain "generativelanguage.googleapis.com"  # Google AI (Gemini) API
 add_domain "oauth2.googleapis.com"          # Google OAuth token endpoint
 add_domain "accounts.google.com"            # Google account login
 add_domain "www.googleapis.com"             # Discovery / ancillary APIs
+add_domain "kilocode.ai"                    # Kilocode CLI auth / signup
+add_domain "api.kilocode.ai"                # Kilocode API endpoint for runs
 
 # Package managers and registries
 add_domain "registry.npmjs.org"

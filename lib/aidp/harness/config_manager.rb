@@ -359,19 +359,19 @@ module Aidp
       def load_config_with_options(options)
         # Apply different loading strategies based on options
         if options[:mode]
-          @loader.get_mode_config(options[:mode], options[:force_reload])
+          @loader.mode_config(options[:mode], options[:force_reload])
         elsif options[:environment]
-          @loader.get_environment_config(options[:environment], options[:force_reload])
+          @loader.environment_config(options[:environment], options[:force_reload])
         elsif options[:step]
           @loader.get_step_config(options[:step], options[:force_reload])
         elsif options[:features]
-          @loader.get_config_with_features(options[:features], options[:force_reload])
+          @loader.config_with_features(options[:features], options[:force_reload])
         elsif options[:user]
           @loader.get_user_config(options[:user], options[:force_reload])
         elsif options[:time_based]
-          @loader.get_time_based_config(options[:force_reload])
+          @loader.time_based_config(options[:force_reload])
         elsif options[:overrides]
-          @loader.get_config_with_overrides(options[:overrides])
+          @loader.config_with_overrides(options[:overrides])
         else
           @loader.load_config(options[:force_reload])
         end
