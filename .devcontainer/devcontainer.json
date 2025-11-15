@@ -4,6 +4,10 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vscode/main/extensions/configuration-editing/schemas/devContainer.vscode.schema.json",
   "name": "AIDP Development Container",
   "dockerComposeFile": "compose.yaml",
+  "runServices": [
+    "qdrant",
+    "aidp"
+  ],
   "service": "aidp",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   // Use base image 'vscode' user for compatibility with devcontainer features
@@ -38,7 +42,10 @@
     "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  "forwardPorts": [],
+  "forwardPorts": [
+    6333,
+    6334
+  ],
   // Configure tool-specific properties.
   // "customizations": {},
   // (Use root only for troubleshooting: set "remoteUser": "root" if needed.)
@@ -152,7 +159,9 @@
     // LLM CLI Authentication - Cursor
     "source=${localEnv:HOME}/.cursor,target=/home/vscode/.cursor,type=bind,consistency=cached",
     // LLM CLI Authentication - Codex CLI (OpenAI)
-    "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached",
+    // LLM CLI Authentication - Kilocode
+    "source=${localEnv:HOME}/.kilocode,target=/home/vscode/.kilocode,type=bind,consistency=cached"
   ]
   // Optional: uncomment to keep container running
   // "overrideCommand": true

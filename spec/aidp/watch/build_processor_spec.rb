@@ -629,14 +629,14 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       processor.process(issue_with_author)
     end
 
-    it "displays push confirmation message" do
+    it "pushes branch to remote" do
       allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M file.rb\n")
       allow(processor).to receive(:run_git).with(%w[add -A])
       allow(processor).to receive(:run_git).with(["commit", "-m", anything])
       allow(processor).to receive(:run_git).with(%w[branch --show-current]).and_return("aidp/issue-77-implement-search\n")
-      allow(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77-implement-search"])
+      expect(processor).to receive(:run_git).with(["push", "-u", "origin", "aidp/issue-77-implement-search"])
 
-      expect { processor.process(issue_with_author) }.to output(/Pushed branch.*to remote/).to_stdout_from_any_process
+      processor.process(issue_with_author)
     end
 
     it "skips push when no changes detected" do

@@ -835,7 +835,7 @@ module Aidp
 
       def configure_watch_labels
         prompt.say("\n🏷️  Watch mode label configuration")
-        prompt.say("  Configure GitHub issue labels that trigger watch mode actions")
+        prompt.say("  Configure GitHub issue and PR labels that trigger watch mode actions")
         existing = get([:watch, :labels]) || {}
 
         plan_trigger = ask_with_default(
@@ -858,11 +858,29 @@ module Aidp
           existing[:build_trigger] || "aidp-build"
         )
 
+        review_trigger = ask_with_default(
+          "Label to trigger code review",
+          existing[:review_trigger] || "aidp-review"
+        )
+
+        ci_fix_trigger = ask_with_default(
+          "Label to trigger CI remediation",
+          existing[:ci_fix_trigger] || "aidp-fix-ci"
+        )
+
+        change_request_trigger = ask_with_default(
+          "Label to trigger PR change implementation",
+          existing[:change_request_trigger] || "aidp-request-changes"
+        )
+
         set([:watch, :labels], {
           plan_trigger: plan_trigger,
           needs_input: needs_input,
           ready_to_build: ready_to_build,
-          build_trigger: build_trigger
+          build_trigger: build_trigger,
+          review_trigger: review_trigger,
+          ci_fix_trigger: ci_fix_trigger,
+          change_request_trigger: change_request_trigger
         })
       end
 
@@ -953,9 +971,9 @@ module Aidp
       def show_next_steps
         prompt.say("\n🎉 Setup complete!")
         prompt.say("\nNext steps:")
-        prompt.say("  1. Export provider API keys as environment variables.")
-        prompt.say("  2. Run 'aidp init' to analyze the project.")
-        prompt.say("  3. Run 'aidp execute' to start a work loop.")
+        prompt.say("  1. Configure provider tools (set required API keys or connections).")
+        prompt.say("  2. Run 'aidp' to start a work loop.")
+        prompt.say("  3. Run 'aidp watch <owner/repo>' to enable watch mode automation.")
         prompt.say("")
       end
 

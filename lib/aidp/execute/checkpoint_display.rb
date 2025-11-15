@@ -8,17 +8,18 @@ module Aidp
     class CheckpointDisplay
       include Aidp::MessageDisplay
 
-      def initialize
+      def initialize(prompt: nil)
         @pastel = Pastel.new
+        @prompt = prompt || TTY::Prompt.new
       end
 
       # Display a checkpoint during work loop iteration
       def display_checkpoint(checkpoint_data, show_details: false)
         return unless checkpoint_data
 
-        puts
-        puts @pastel.bold("📊 Checkpoint - Iteration #{checkpoint_data[:iteration]}")
-        puts @pastel.dim("─" * 60)
+        @prompt.say("")
+        @prompt.say(@pastel.bold("📊 Checkpoint - Iteration #{checkpoint_data[:iteration]}"))
+        @prompt.say(@pastel.dim("─" * 60))
 
         display_metrics(checkpoint_data[:metrics])
         display_status(checkpoint_data[:status])
@@ -27,52 +28,52 @@ module Aidp
           display_trends(checkpoint_data[:trends]) if checkpoint_data[:trends]
         end
 
-        puts @pastel.dim("─" * 60)
-        puts
+        @prompt.say(@pastel.dim("─" * 60))
+        @prompt.say("")
       end
 
       # Display progress summary with trends
       def display_progress_summary(summary)
         return unless summary
 
-        puts
-        puts @pastel.bold("📈 Progress Summary")
-        puts @pastel.dim("=" * 60)
+        @prompt.say("")
+        @prompt.say(@pastel.bold("📈 Progress Summary"))
+        @prompt.say(@pastel.dim("=" * 60))
 
         current = summary[:current]
-        puts "Step: #{@pastel.cyan(current[:step_name])}"
-        puts "Iteration: #{current[:iteration]}"
-        puts "Status: #{format_status(current[:status])}"
-        puts
+        @prompt.say("Step: #{@pastel.cyan(current[:step_name])}")
+        @prompt.say("Iteration: #{current[:iteration]}")
+        @prompt.say("Status: #{format_status(current[:status])}")
+        @prompt.say("")
 
-        puts @pastel.bold("Current Metrics:")
+        @prompt.say(@pastel.bold("Current Metrics:"))
         display_metrics(current[:metrics])
 
         if summary[:trends]
-          puts
-          puts @pastel.bold("Trends:")
+          @prompt.say("")
+          @prompt.say(@pastel.bold("Trends:"))
           display_trends(summary[:trends])
         end
 
         if summary[:quality_score]
-          puts
+          @prompt.say("")
           display_quality_score(summary[:quality_score])
         end
 
-        puts @pastel.dim("=" * 60)
-        puts
+        @prompt.say(@pastel.dim("=" * 60))
+        @prompt.say("")
       end
 
       # Display checkpoint history as a table
       def display_checkpoint_history(history, limit: 10)
         return if history.empty?
 
-        puts
-        puts @pastel.bold("📜 Checkpoint History (Last #{[limit, history.size].min})")
-        puts @pastel.dim("=" * 80)
+        @prompt.say("")
+        @prompt.say(@pastel.bold("📜 Checkpoint History (Last #{[limit, history.size].min})"))
+        @prompt.say(@pastel.dim("=" * 80))
 
         # Table header
-        puts format_table_row([
+        @prompt.say(format_table_row([
           "Iteration",
           "Time",
           "LOC",
@@ -80,15 +81,15 @@ module Aidp
           "Quality",
           "PRD Progress",
           "Status"
-        ], header: true)
-        puts @pastel.dim("-" * 80)
+        ], header: true))
+        @prompt.say(@pastel.dim("-" * 80))
 
         # Table rows
         history.last(limit).each do |checkpoint|
           metrics = checkpoint[:metrics]
           timestamp = Time.parse(checkpoint[:timestamp]).strftime("%H:%M:%S")
 
-          puts format_table_row([
+          @prompt.say(format_table_row([
             checkpoint[:iteration].to_s,
             timestamp,
             metrics[:lines_of_code].to_s,
@@ -96,11 +97,11 @@ module Aidp
             "#{metrics[:code_quality]}%",
             "#{metrics[:prd_task_progress]}%",
             format_status(checkpoint[:status])
-          ])
+          ]))
         end
 
-        puts @pastel.dim("=" * 80)
-        puts
+        @prompt.say(@pastel.dim("=" * 80))
+        @prompt.say("")
       end
 
       # Display inline progress indicator (for work loop)
@@ -124,15 +125,15 @@ module Aidp
       private
 
       def display_metrics(metrics)
-        puts "  Lines of Code: #{@pastel.yellow(metrics[:lines_of_code].to_s)}"
-        puts "  Test Coverage: #{format_percentage_with_color(metrics[:test_coverage])}"
-        puts "  Code Quality: #{format_percentage_with_color(metrics[:code_quality])}"
-        puts "  PRD Task Progress: #{format_percentage_with_color(metrics[:prd_task_progress])}"
-        puts "  File Count: #{metrics[:file_count]}"
+        @prompt.say("  Lines of Code: #{@pastel.yellow(metrics[:lines_of_code].to_s)}")
+        @prompt.say("  Test Coverage: #{format_percentage_with_color(metrics[:test_coverage])}")
+        @prompt.say("  Code Quality: #{format_percentage_with_color(metrics[:code_quality])}")
+        @prompt.say("  PRD Task Progress: #{format_percentage_with_color(metrics[:prd_task_progress])}")
+        @prompt.say("  File Count: #{metrics[:file_count]}")
       end
 
       def display_status(status)
-        puts "  Overall Status: #{format_status(status)}"
+        @prompt.say("  Overall Status: #{format_status(status)}")
       end
 
       def format_status(status)
@@ -156,7 +157,7 @@ module Aidp
           arrow = trend_arrow(trend_data[:direction])
           change = format_change(trend_data[:change], trend_data[:change_percent])
 
-          puts "  #{metric_name}: #{arrow} #{change}"
+          @prompt.say("  #{metric_name}: #{arrow} #{change}")
         end
       end
 
@@ -185,7 +186,7 @@ module Aidp
           :red
         end
 
-        puts "  Quality Score: #{@pastel.send(color, "#{score.round(2)}%")}"
+        @prompt.say("  Quality Score: #{@pastel.send(color, "#{score.round(2)}%")}")
       end
 
       def format_percentage(value)

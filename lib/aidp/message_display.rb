@@ -25,7 +25,6 @@ module Aidp
 
     # Instance helper for displaying a colored message via TTY::Prompt
     def display_message(message, type: :info)
-      return if suppress_display_message?(message)
       # Ensure message is UTF-8 encoded to handle emoji and special characters
       message_str = message.to_s
       message_str = message_str.force_encoding("UTF-8") if message_str.encoding.name == "ASCII-8BIT"
@@ -43,32 +42,9 @@ module Aidp
       end
     end
 
-    # Check if specific display message should be suppressed in test/CI environments
-    def suppress_display_message?(message)
-      return false unless in_test_environment?
-
-      message_str = message.to_s
-      # Only suppress specific automated status messages, not CLI output
-      message_str.include?("🔄 Provider switch:") ||
-        message_str.include?("🔄 Model switch:") ||
-        message_str.include?("🔴 Circuit breaker opened") ||
-        message_str.include?("🟢 Circuit breaker reset") ||
-        message_str.include?("❌ No providers available") ||
-        message_str.include?("❌ No models available") ||
-        message_str.include?("📊 Execution Summary") ||
-        message_str.include?("▶️  [") ||  # Workstream execution messages
-        message_str.include?("✅ [") ||    # Workstream success messages
-        message_str.include?("❌ [")       # Workstream failure messages
-    end
-
-    def in_test_environment?
-      ENV["RSPEC_RUNNING"] || ENV["CI"] || ENV["RAILS_ENV"] == "test" || ENV["RACK_ENV"] == "test"
-    end
-
     module ClassMethods
       # Class-level display helper (uses fresh prompt to respect $stdout changes)
       def display_message(message, type: :info)
-        return if suppress_display_message?(message)
         # Ensure message is UTF-8 encoded to handle emoji and special characters
         message_str = message.to_s
         message_str = message_str.force_encoding("UTF-8") if message_str.encoding.name == "ASCII-8BIT"
@@ -77,28 +53,6 @@ module Aidp
       end
 
       private
-
-      # Check if specific display message should be suppressed in test/CI environments
-      def suppress_display_message?(message)
-        return false unless in_test_environment?
-
-        message_str = message.to_s
-        # Only suppress specific automated status messages, not CLI output
-        message_str.include?("🔄 Provider switch:") ||
-          message_str.include?("🔄 Model switch:") ||
-          message_str.include?("🔴 Circuit breaker opened") ||
-          message_str.include?("🟢 Circuit breaker reset") ||
-          message_str.include?("❌ No providers available") ||
-          message_str.include?("❌ No models available") ||
-          message_str.include?("📊 Execution Summary") ||
-          message_str.include?("▶️  [") ||  # Workstream execution messages
-          message_str.include?("✅ [") ||    # Workstream success messages
-          message_str.include?("❌ [")       # Workstream failure messages
-      end
-
-      def in_test_environment?
-        ENV["RSPEC_RUNNING"] || ENV["CI"] || ENV["RAILS_ENV"] == "test" || ENV["RACK_ENV"] == "test"
-      end
 
       # Don't memoize - create fresh prompt each time to respect $stdout redirection in tests
       def class_message_display_prompt

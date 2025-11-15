@@ -16,6 +16,8 @@ services:
     # Keep container running; init process handled via devcontainer tooling
     command: sleep infinity
     init: true
+    depends_on:
+    - qdrant
 
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally.
     # (Adding the "ports" property to this file will not forward from a Codespace.)
@@ -26,4 +28,15 @@ services:
   #   image: selenium/standalone-chromium
   #   restart: unless-stopped
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+    - qdrant-data:/qdrant/storage
+    ports:
+    - "6333:6333"
+    - "6334:6334"
+
+volumes:
+  qdrant-data:
   

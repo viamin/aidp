@@ -54,7 +54,8 @@ RSpec.describe "Work Loop Header Prepending" do
   end
 
   def create_runner
-    runner = Aidp::Execute::WorkLoopRunner.new(@tmpdir, provider_manager, config)
+    test_prompt = TestPrompt.new
+    runner = Aidp::Execute::WorkLoopRunner.new(@tmpdir, provider_manager, config, prompt: test_prompt)
     runner.instance_variable_set(:@step_name, "16_IMPLEMENTATION")
     runner.instance_variable_set(:@iteration_count, 3)
     runner

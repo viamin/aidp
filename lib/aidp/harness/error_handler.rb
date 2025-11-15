@@ -4,6 +4,7 @@ require "net/http"
 require_relative "../debug_mixin"
 require_relative "../concurrency"
 require_relative "../providers/error_taxonomy"
+require_relative "../errors"
 
 module Aidp
   module Harness
@@ -107,6 +108,10 @@ module Aidp
           begin
             attempt += 1
             return yield
+          rescue Aidp::Errors::ConfigurationError
+            # Configuration errors should crash immediately (crash-early principle)
+            # Re-raise without catching
+            raise
           rescue => error
             current_provider = current_provider_safely
 
@@ -483,7 +488,7 @@ module Aidp
         }
       end
 
-      def attempt_provider_switch(error_info, _recovery_plan)
+      def attempt_provider_switch(error_info, recovery_plan)
         new_provider = @provider_manager.switch_provider_for_error(
           error_info[:error_type],
           error_info[:context]
@@ -497,6 +502,18 @@ module Aidp
             reason: "Error recovery: #{error_info[:error_type]}"
           }
         else
+          # If this is an auth error and we have no fallback providers, crash
+          if recovery_plan[:crash_if_no_fallback]
+            error_msg = "All providers have failed authentication.\n\n" \
+                       "Last provider: #{error_info[:provider]}\n" \
+                       "Error: #{error_info[:error]&.message || error_info[:error]}\n\n" \
+                       "Please check your API credentials for all configured providers.\n" \
+                       "Run 'aidp config --interactive' to update credentials."
+
+            raise Aidp::Errors::ConfigurationError, error_msg
+          end
+
+          # For non-auth errors, return failure result
           {
             success: false,
             action: :provider_switch_failed,
@@ -680,12 +697,13 @@ module Aidp
               priority: :high
             }
           when :auth_expired
-            # Attempt a provider switch so workflows can continue with alternate providers
-            # while the user resolves credentials for the failing provider
+            # Try to switch to another provider. If no providers available, this will
+            # be detected in attempt_recovery and we'll crash (crash-early principle)
             {
               action: :switch_provider,
               reason: "Authentication expired – switching provider to continue",
-              priority: :critical
+              priority: :critical,
+              crash_if_no_fallback: true
             }
           when :quota_exceeded
             {
@@ -725,10 +743,13 @@ module Aidp
               priority: :medium
             }
           when :authentication, :permission_denied
+            # Try to switch to another provider. If no providers available, this will
+            # be detected in attempt_recovery and we'll crash (crash-early principle)
             {
               action: :switch_provider,
               reason: "Authentication/permission issue – switching provider to continue",
-              priority: :critical
+              priority: :critical,
+              crash_if_no_fallback: true
             }
           when :rate_limit
             {

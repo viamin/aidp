@@ -64,12 +64,28 @@ RSpec.configure do |config|
 
   config.expect_with :rspec do |c|
     c.syntax = :expect
+    # Suppress false positive warnings about raise_error
+    c.on_potential_false_positives = :nothing
   end
 
   config.order = :random
 
   # Show the 10 slowest examples at the end of the test run
   config.profile_examples = 5
+
+  # Set up global test prompt to suppress verbose output
+  config.before(:suite) do
+    # Monkey-patch TTY::Prompt to use TestPrompt in test environment
+    # This ensures all components use our quiet prompt without needing explicit injection
+    TTY::Prompt.class_eval do
+      alias_method :original_say, :say
+
+      def say(message, **options)
+        return if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.to_s.match?(pattern) }
+        original_say(message, **options)
+      end
+    end
+  end
 
   # Clean up loggers after each test to prevent closed stream warnings
   config.after(:each) do

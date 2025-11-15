@@ -78,7 +78,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       expect(result[:new_provider]).to eq("gemini")
     end
 
-    it "handles authentication errors with provider switching" do
+    it "switches providers for authentication errors when fallback available" do
       error = StandardError.new("Authentication failed")
       allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
         error: error,
@@ -90,9 +90,33 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         message: "Authentication failed"
       })
 
+      # Simulate successful provider switch
+      allow(provider_manager).to receive(:switch_provider_for_error).and_return("gemini")
+
       result = error_handler.handle_error(error, context)
 
       expect(result[:action]).to eq(:provider_switch)
+      expect(result[:new_provider]).to eq("gemini")
+    end
+
+    it "crashes when authentication fails and no fallback providers available" do
+      error = StandardError.new("Authentication failed")
+      allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
+        error: error,
+        error_type: :authentication,
+        provider: "claude",
+        model: "model1",
+        timestamp: Time.now,
+        context: context,
+        message: "Authentication failed"
+      })
+
+      # Simulate no available providers
+      allow(provider_manager).to receive(:switch_provider_for_error).and_return(nil)
+
+      expect {
+        error_handler.handle_error(error, context)
+      }.to raise_error(Aidp::Errors::ConfigurationError, /All providers have failed authentication/)
     end
 
     it "records error in metrics manager" do
@@ -239,13 +263,34 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       expect(result[:new_model]).to eq("model2")
     end
 
-    it "switches providers for authentication errors" do
-      auth_error_info = error_info.merge(error_type: :authentication)
+    it "switches providers for authentication errors when fallback available" do
+      auth_error_info = error_info.merge(
+        error_type: :authentication,
+        error: StandardError.new("Authentication failed")
+      )
+
+      # Simulate successful provider switch
+      allow(provider_manager).to receive(:switch_provider_for_error).and_return("gemini")
 
       result = error_handler.attempt_recovery(auth_error_info, {})
 
       expect(result[:success]).to be true
       expect(result[:action]).to eq(:provider_switch)
+      expect(result[:new_provider]).to eq("gemini")
+    end
+
+    it "crashes when authentication fails and no fallback providers available" do
+      auth_error_info = error_info.merge(
+        error_type: :authentication,
+        error: StandardError.new("Authentication failed")
+      )
+
+      # Simulate no available providers
+      allow(provider_manager).to receive(:switch_provider_for_error).and_return(nil)
+
+      expect {
+        error_handler.attempt_recovery(auth_error_info, {})
+      }.to raise_error(Aidp::Errors::ConfigurationError, /All providers have failed authentication/)
     end
 
     it "handles provider switch failure" do
@@ -397,12 +442,13 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         expect(plan[:reason]).to include("Timeout")
       end
 
-      it "plans provider switching for authentication errors" do
+      it "plans provider switch for authentication errors with crash-if-no-fallback flag" do
         error_info = {error_type: :authentication, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
         expect(plan[:action]).to eq(:switch_provider)
+        expect(plan[:crash_if_no_fallback]).to be true
         expect(plan[:reason]).to include("Authentication")
       end
 

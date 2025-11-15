@@ -158,5 +158,64 @@ This document tracks potential future enhancements and refactors identified duri
 - [ ] Add CI check for ZFC compliance in new PRs
 - [ ] Add to pre-commit hooks (optional)
 
+## Error Handling & Crash-Early Compliance
+
+- [ ] Replace project-wide `rescue => e` catch-alls with targeted handling. Audit identified ~70 files (CLI, daemon, work loop, providers, watch processors, storage, auto-update, etc.) where programming errors are swallowed instead of crashing. Each rescue block needs to either handle narrowly-scoped external failures (e.g., IO, network) or re-raise after logging so regressions surface immediately per `LLM_STYLE_GUIDE` §5. To reproduce the audit list, run the helper script below from the repo root; it walks `lib/` and prints every file/line where `rescue => e` (or similar) appears without a subsequent `raise`/`fail` before the next `rescue/ensure/end`, giving you the exact ~70 offenders:
+
+  ```bash
+  python3 - <<'PY'
+  import pathlib, re
+  root = pathlib.Path("lib")
+  pattern = re.compile(r"rescue\s*=>\s*[a-zA-Z_]+")
+  openers = re.compile(r"\b(class|module|def|if|unless|case|while|until|for|begin|do)\b")
+  closer = re.compile(r"^end$")
+  max_lines = 200
+  files = {}
+  for path in sorted(root.rglob("*.rb")):
+      lines = path.read_text().splitlines()
+      for i, line in enumerate(lines):
+          if not pattern.search(line) or line.strip().startswith("#"):
+              continue
+          depth = 0
+          raise_found = False
+          j = i + 1
+          while j < len(lines) and j < i + 1 + max_lines:
+              ahead = lines[j].strip()
+              if ahead.startswith("#"):
+                  j += 1
+                  continue
+              if re.search(r"\b(raise|fail)\b", ahead):
+                  raise_found = True
+                  break
+              if pattern.search(lines[j]) and not ahead.startswith("#"):
+                  if depth == 0:
+                      break
+              if ahead.startswith("ensure") and depth == 0:
+                  break
+              if closer.match(ahead):
+                  if depth == 0:
+                      break
+                  depth -= 1
+                  j += 1
+                  continue
+              if openers.search(ahead):
+                  depth += 1
+              j += 1
+          if not raise_found:
+              files.setdefault(str(path), []).append(i + 1)
+  for path in sorted(files):
+      print(f"{path}:{','.join(map(str, files[path]))}")
+  print("TOTAL FILES", len(files))
+  PY
+  ```
+
+## Prompt Optimization Enhancements
+
+- [ ] Implement dynamic threshold adjustment (`lib/aidp/prompt_optimization/threshold_adjuster.rb`, `spec/aidp/prompt_optimization/threshold_adjuster_spec.rb`) to track optimization outcomes, tune inclusion thresholds, monitor token budgets, and surface adjustment recommendations based on success/failure signals.
+- [ ] Update `docs/WORK_LOOPS_GUIDE.md`, `docs/CONFIGURATION.md`, and `docs/INTERACTIVE_REPL.md` with prompt optimization sections covering workflow impact, configuration keys, and new `/prompt` commands.
+- [ ] Add end-to-end coverage in `spec/integration/prompt_optimization_spec` for multi-iteration flows, token budget enforcement, threshold adjustments, deduplication, and REPL command behavior.
+- [ ] Create performance benchmarks in `spec/performance/prompt_optimization_benchmark.rb` to measure indexing throughput, fragment selection latency, token estimation accuracy, and memory usage on large inputs.
+- [ ] Implement the `/prompt expand <fragment_id>` REPL command to manually pull specific fragments into the next optimized prompt for debugging or overrides.
+
 ---
 Last Updated: 2025-11-11
