@@ -195,7 +195,7 @@ RSpec.describe Aidp::Providers::Gemini do
     end
 
     it "returns adaptive timeout when available" do
-      allow(gemini).to receive(:get_adaptive_timeout).and_return(180)
+      allow(gemini).to receive(:adaptive_timeout).and_return(180)
 
       expect(gemini).to receive(:display_message).with(
         /Using adaptive timeout: 180 seconds/,
@@ -207,7 +207,7 @@ RSpec.describe Aidp::Providers::Gemini do
     end
 
     it "returns default timeout when no overrides" do
-      allow(gemini).to receive(:get_adaptive_timeout).and_return(nil)
+      allow(gemini).to receive(:adaptive_timeout).and_return(nil)
 
       expect(gemini).to receive(:display_message).with(
         /Using default timeout.*5 minutes/,
@@ -219,7 +219,7 @@ RSpec.describe Aidp::Providers::Gemini do
     end
   end
 
-  describe "#get_adaptive_timeout (private)" do
+  describe "#adaptive_timeout (private)" do
     after do
       ENV.delete("AIDP_CURRENT_STEP") if ENV["AIDP_CURRENT_STEP"]
     end
@@ -227,68 +227,68 @@ RSpec.describe Aidp::Providers::Gemini do
     it "returns repository analysis timeout for REPOSITORY_ANALYSIS step" do
       ENV["AIDP_CURRENT_STEP"] = "REPOSITORY_ANALYSIS"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_REPOSITORY_ANALYSIS)
     end
 
     it "returns architecture analysis timeout for ARCHITECTURE_ANALYSIS step" do
       ENV["AIDP_CURRENT_STEP"] = "ARCHITECTURE_ANALYSIS"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_ARCHITECTURE_ANALYSIS)
     end
 
     it "returns test analysis timeout for TEST_ANALYSIS step" do
       ENV["AIDP_CURRENT_STEP"] = "TEST_ANALYSIS"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_TEST_ANALYSIS)
     end
 
     it "returns functionality analysis timeout for FUNCTIONALITY_ANALYSIS step" do
       ENV["AIDP_CURRENT_STEP"] = "FUNCTIONALITY_ANALYSIS"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_FUNCTIONALITY_ANALYSIS)
     end
 
     it "returns documentation analysis timeout for DOCUMENTATION_ANALYSIS step" do
       ENV["AIDP_CURRENT_STEP"] = "DOCUMENTATION_ANALYSIS"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_DOCUMENTATION_ANALYSIS)
     end
 
     it "returns static analysis timeout for STATIC_ANALYSIS step" do
       ENV["AIDP_CURRENT_STEP"] = "STATIC_ANALYSIS"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_STATIC_ANALYSIS)
     end
 
     it "returns refactoring timeout for REFACTORING_RECOMMENDATIONS step" do
       ENV["AIDP_CURRENT_STEP"] = "REFACTORING_RECOMMENDATIONS"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_REFACTORING_RECOMMENDATIONS)
     end
 
     it "returns nil for unknown step" do
       ENV["AIDP_CURRENT_STEP"] = "UNKNOWN_STEP"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to be_nil
     end
 
     it "returns nil when no step is set" do
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to be_nil
     end
 
     it "handles partial matches in step names" do
       ENV["AIDP_CURRENT_STEP"] = "SOME_REPOSITORY_ANALYSIS_TASK"
 
-      timeout = gemini.__send__(:get_adaptive_timeout)
+      timeout = gemini.__send__(:adaptive_timeout)
       expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_REPOSITORY_ANALYSIS)
     end
   end
