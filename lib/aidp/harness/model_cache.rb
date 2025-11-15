@@ -63,7 +63,7 @@ module Aidp
         Aidp.log_debug("model_cache", "cache hit",
           provider: provider, count: models&.size || 0)
         models
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to read cache",
           provider: provider, error: e.message)
         nil
@@ -98,7 +98,7 @@ module Aidp
             provider: provider)
           false
         end
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "error caching models",
           provider: provider, error: e.message)
         false
@@ -115,7 +115,7 @@ module Aidp
         save_cache(cache_data)
         Aidp.log_info("model_cache", "invalidated cache", provider: provider)
         true
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to invalidate cache",
           provider: provider, error: e.message)
         false
@@ -128,7 +128,7 @@ module Aidp
         save_cache({})
         Aidp.log_info("model_cache", "invalidated all caches")
         true
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to invalidate all",
           error: e.message)
         false
@@ -156,7 +156,7 @@ module Aidp
         end
 
         providers
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to get cached providers",
           error: e.message)
         []
@@ -178,7 +178,7 @@ module Aidp
           cached_providers: cached_providers,
           cache_file_size: file_size
         }
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to get stats",
           error: e.message)
         {total_providers: 0, cached_providers: [], cache_file_size: 0}
@@ -198,7 +198,7 @@ module Aidp
 
       def default_cache_file
         File.join(Dir.home, ".aidp", "cache", "models.json")
-      rescue ArgumentError, StandardError => e
+      rescue => e
         # Fallback to temp directory if home directory is not accessible
         Aidp.log_debug("model_cache", "home directory not accessible, using temp",
           error: e.message)
@@ -224,12 +224,12 @@ module Aidp
           Aidp.log_info("model_cache", "using fallback cache directory",
             cache_file: @cache_file)
           true
-        rescue StandardError => fallback_error
+        rescue => fallback_error
           Aidp.log_error("model_cache", "failed to create fallback cache directory",
             error: fallback_error.message)
           false
         end
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to create cache directory",
           cache_dir: cache_dir, error: e.message)
         false
@@ -245,7 +245,7 @@ module Aidp
           error: e.message)
         # Reset corrupted cache
         {}
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to load cache",
           error: e.message)
         {}
@@ -257,7 +257,7 @@ module Aidp
         ensure_cache_directory
         File.write(@cache_file, JSON.pretty_generate(data))
         true
-      rescue StandardError => e
+      rescue => e
         Aidp.log_error("model_cache", "failed to save cache",
           error: e.message, cache_file: @cache_file)
         false
