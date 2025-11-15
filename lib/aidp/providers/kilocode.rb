@@ -10,8 +10,57 @@ module Aidp
     class Kilocode < Base
       include Aidp::DebugMixin
 
+      # Model name pattern for OpenAI models (since Kilocode uses OpenAI)
+      MODEL_PATTERN = /^gpt-[\d.o-]+(?:-turbo)?(?:-mini)?$/i
+
       def self.available?
         !!Aidp::Util.which("kilocode")
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if it matches OpenAI model pattern
+      def self.supports_model_family?(family_name)
+        MODEL_PATTERN.match?(family_name)
+      end
+
+      # Discover available models from registry
+      #
+      # Note: Kilocode CLI doesn't have a standard model listing command
+      # Returns registry-based models that match OpenAI patterns
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        begin
+          require_relative "../harness/model_registry"
+          registry = Aidp::Harness::ModelRegistry.new
+
+          # Get all OpenAI models from registry
+          models = registry.all_families.filter_map do |family|
+            next unless supports_model_family?(family)
+
+            info = registry.get_model_info(family)
+            next unless info
+
+            {
+              name: family,
+              family: family,
+              tier: info["tier"],
+              capabilities: info["capabilities"] || [],
+              context_window: info["context_window"],
+              provider: "kilocode"
+            }
+          end
+
+          Aidp.log_info("kilocode_provider", "using registry models", count: models.size)
+          models
+        rescue => e
+          Aidp.log_debug("kilocode_provider", "discovery failed", error: e.message)
+          []
+        end
       end
 
       def name

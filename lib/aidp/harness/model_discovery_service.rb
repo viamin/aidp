@@ -20,17 +20,12 @@ module Aidp
     class ModelDiscoveryService
       attr_reader :cache, :registry
 
-      PROVIDER_CLASSES = {
-        "anthropic" => "Aidp::Providers::Anthropic",
-        "cursor" => "Aidp::Providers::Cursor",
-        "gemini" => "Aidp::Providers::Gemini"
-      }.freeze
-
       def initialize(cache: nil, registry: nil)
         @cache = cache || ModelCache.new
         @registry = registry || ModelRegistry.new
+        @provider_classes = discover_provider_classes
         Aidp.log_debug("model_discovery_service", "initialized",
-          providers: PROVIDER_CLASSES.keys)
+          providers: @provider_classes.keys)
       end
 
       # Discover models for a specific provider
@@ -72,7 +67,7 @@ module Aidp
       def discover_all_models(use_cache: true)
         results = {}
 
-        PROVIDER_CLASSES.each_key do |provider|
+        @provider_classes.each_key do |provider|
           models = discover_models(provider, use_cache: use_cache)
           results[provider] = models if models.any?
         end
@@ -149,7 +144,7 @@ module Aidp
       def providers_supporting(family_name)
         providers = []
 
-        PROVIDER_CLASSES.each do |provider_name, class_name|
+        @provider_classes.each do |provider_name, class_name|
           provider_class = constantize_provider(class_name)
           next unless provider_class
 
@@ -204,7 +199,7 @@ module Aidp
       end
 
       def get_provider_class(provider)
-        class_name = PROVIDER_CLASSES[provider]
+        class_name = @provider_classes[provider]
         return nil unless class_name
 
         constantize_provider(class_name)
@@ -218,6 +213,46 @@ module Aidp
         Aidp.log_debug("model_discovery_service", "provider class not found",
           class: class_name, error: e.message)
         nil
+      end
+
+      # Dynamically discover all provider classes from the providers directory
+      #
+      # @return [Hash] Hash of provider_name => class_name
+      def discover_provider_classes
+        providers_dir = File.join(__dir__, "../providers")
+        provider_files = Dir.glob("*.rb", base: providers_dir)
+
+        # Exclude base classes and utility files
+        excluded_files = ["base.rb", "adapter.rb", "error_taxonomy.rb", "capability_registry.rb"]
+        provider_files -= excluded_files
+
+        providers = {}
+
+        provider_files.each do |file|
+          provider_name = File.basename(file, ".rb")
+          # Convert to class name (e.g., "anthropic" -> "Anthropic", "github_copilot" -> "GithubCopilot")
+          class_name = provider_name.split("_").map(&:capitalize).join
+          full_class_name = "Aidp::Providers::#{class_name}"
+
+          # Try to load and verify the provider class exists
+          begin
+            require_relative "../providers/#{provider_name}"
+            provider_class = constantize_provider(full_class_name)
+            if provider_class&.respond_to?(:discover_models)
+              providers[provider_name] = full_class_name
+            end
+          rescue => e
+            # Skip providers that can't be loaded or don't implement discover_models
+            if ENV["DEBUG"]
+              Aidp.log_debug("model_discovery_service", "skipping provider",
+                provider: provider_name, reason: e.message)
+            end
+          end
+        end
+
+        Aidp.log_debug("model_discovery_service", "discovered provider classes",
+          count: providers.size, providers: providers.keys)
+        providers
       end
     end
   end
