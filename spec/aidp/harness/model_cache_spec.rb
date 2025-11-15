@@ -35,12 +35,12 @@ RSpec.describe Aidp::Harness::ModelCache do
       it "falls back to temp directory" do
         # Mock FileUtils to simulate permission denied
         unwritable_cache_file = "/unwritable/aidp/cache/models.json"
-        allow(FileUtils).to receive(:mkdir_p) do |path|
+        allow(FileUtils).to receive(:mkdir_p).and_wrap_original do |original_method, path|
           if path.include?("/unwritable/")
             raise Errno::EACCES, "Permission denied"
           else
             # Call original for temp directory
-            FileUtils.mkdir_p(path)
+            original_method.call(path)
           end
         end
 
@@ -53,11 +53,11 @@ RSpec.describe Aidp::Harness::ModelCache do
 
       it "enables cache when fallback succeeds" do
         unwritable_cache_file = "/unwritable/aidp/cache/models.json"
-        allow(FileUtils).to receive(:mkdir_p) do |path|
+        allow(FileUtils).to receive(:mkdir_p).and_wrap_original do |original_method, path|
           if path.include?("/unwritable/")
             raise Errno::EACCES, "Permission denied"
           else
-            FileUtils.mkdir_p(path)
+            original_method.call(path)
           end
         end
 
