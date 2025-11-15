@@ -67,6 +67,9 @@ RSpec.describe Aidp::Harness::ModelCache do
         models = [{name: "test-model", tier: "standard"}]
         result = cache_with_fallback.cache_models("anthropic", models)
         expect(result).to be true
+
+        # Clean up the fallback cache to avoid polluting production
+        FileUtils.rm_rf(File.dirname(cache_with_fallback.cache_file))
       end
     end
 
