@@ -6,6 +6,7 @@ require "yaml"
 require_relative "../../../lib/aidp/harness/thinking_depth_manager"
 require_relative "../../../lib/aidp/harness/capability_registry"
 require_relative "../../../lib/aidp/harness/configuration"
+require_relative "../../../lib/aidp/harness/model_cache"
 
 RSpec.describe Aidp::Harness::ThinkingDepthManager do
   let(:temp_dir) { Dir.mktmpdir }
@@ -630,35 +631,35 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
     end
 
     before do
-      allow(Aidp).to receive(:display_message)
+      allow(manager).to receive(:display_message)
     end
 
     it "displays error message with tier and provider" do
-      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
-      expect(Aidp).to receive(:display_message).with(/Provider: anthropic/, type: :info)
+      expect(manager).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      expect(manager).to receive(:display_message).with(/Provider: anthropic/, type: :info)
       manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", discovered_models)
     end
 
     it "displays discovered model suggestions" do
-      expect(Aidp).to receive(:display_message).with(/Discovered models for this tier/, type: :highlight)
-      expect(Aidp).to receive(:display_message).with(/claude-3-5-sonnet-20241022/, type: :info)
+      expect(manager).to receive(:display_message).with(/Discovered models for this tier/, type: :highlight)
+      expect(manager).to receive(:display_message).with(/claude-3-5-sonnet-20241022/, type: :info)
       manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", discovered_models)
     end
 
     it "displays YAML snippet with first model" do
-      expect(Aidp).to receive(:display_message).with(/Add to aidp.yml:/, type: :highlight)
-      expect(Aidp).to receive(:display_message).with(/providers:/, type: :info)
-      expect(Aidp).to receive(:display_message).with(/anthropic:/, type: :info)
-      expect(Aidp).to receive(:display_message).with(/model: claude-3-5-sonnet-20241022/, type: :info)
+      expect(manager).to receive(:display_message).with(/Add to aidp.yml:/, type: :highlight)
+      expect(manager).to receive(:display_message).with(/providers:/, type: :info)
+      expect(manager).to receive(:display_message).with(/anthropic:/, type: :info)
+      expect(manager).to receive(:display_message).with(/model: claude-3-5-sonnet-20241022/, type: :info)
       manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", discovered_models)
     end
 
     it "limits suggestions to 3 models" do
       many_models = (1..10).map { |i| {"name" => "model-#{i}", "family" => "test"} }
-      allow(Aidp).to receive(:display_message)
-      expect(Aidp).to receive(:display_message).with(/model-1/, type: :info)
-      expect(Aidp).to receive(:display_message).with(/model-2/, type: :info)
-      expect(Aidp).to receive(:display_message).with(/model-3/, type: :info)
+      allow(manager).to receive(:display_message)
+      expect(manager).to receive(:display_message).with(/model-1/, type: :info)
+      expect(manager).to receive(:display_message).with(/model-2/, type: :info)
+      expect(manager).to receive(:display_message).with(/model-3/, type: :info)
 
       manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", many_models)
     end
@@ -666,26 +667,26 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
 
   describe "#display_tier_error_with_discovery_hint" do
     before do
-      allow(Aidp).to receive(:display_message)
+      allow(manager).to receive(:display_message)
     end
 
     it "displays error message" do
-      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      expect(manager).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
       manager.send(:display_tier_error_with_discovery_hint, "standard", "anthropic")
     end
 
     it "displays discovery hint" do
-      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
-      expect(Aidp).to receive(:display_message).with(/Provider: anthropic/, type: :info)
-      expect(Aidp).to receive(:display_message).with(/Suggested actions/, type: :highlight)
-      expect(Aidp).to receive(:display_message).with(/aidp models discover/, type: :info)
-      expect(Aidp).to receive(:display_message).with(/aidp models list/, type: :info)
-      expect(Aidp).to receive(:display_message).with(/aidp models validate/, type: :info)
+      expect(manager).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      expect(manager).to receive(:display_message).with(/Provider: anthropic/, type: :info)
+      expect(manager).to receive(:display_message).with(/Suggested actions/, type: :highlight)
+      expect(manager).to receive(:display_message).with(/aidp models discover/, type: :info)
+      expect(manager).to receive(:display_message).with(/aidp models list/, type: :info)
+      expect(manager).to receive(:display_message).with(/aidp models validate/, type: :info)
       manager.send(:display_tier_error_with_discovery_hint, "standard", "anthropic")
     end
 
     it "handles nil provider" do
-      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      expect(manager).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
       manager.send(:display_tier_error_with_discovery_hint, "standard", nil)
     end
   end

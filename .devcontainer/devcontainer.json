@@ -68,7 +68,8 @@
   // Post-start command - initialize firewall, then ensure bundle
   "postStartCommand": {
     "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
-    "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3"
+    "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3",
+    "fix-aidp-permissions": "sudo chown -R vscode:vscode /home/vscode/.aidp"
   },
   "waitFor": "postStartCommand",
   // VS Code customizations
