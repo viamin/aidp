@@ -38,7 +38,11 @@ module Aidp
 
         return nil unless provider_cache
 
-        cached_at = Time.parse(provider_cache["cached_at"]) rescue nil
+        cached_at = begin
+          Time.parse(provider_cache["cached_at"])
+        rescue
+          nil
+        end
         return nil unless cached_at
 
         ttl = provider_cache["ttl"] || DEFAULT_TTL
@@ -113,7 +117,11 @@ module Aidp
         providers = []
 
         cache_data.each do |provider, data|
-          cached_at = Time.parse(data["cached_at"]) rescue nil
+          cached_at = begin
+            Time.parse(data["cached_at"])
+          rescue
+            nil
+          end
           next unless cached_at
 
           ttl = data["ttl"] || DEFAULT_TTL

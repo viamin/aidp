@@ -350,12 +350,10 @@ module Aidp
         @discovery_threads ||= []
 
         thread = Thread.new do
-          begin
-            discover_and_cache_models(provider_name)
-          rescue StandardError => e
-            Aidp.log_debug("setup_wizard", "background discovery failed",
-              provider: provider_name, error: e.message)
-          end
+          discover_and_cache_models(provider_name)
+        rescue => e
+          Aidp.log_debug("setup_wizard", "background discovery failed",
+            provider: provider_name, error: e.message)
         end
 
         @discovery_threads << {thread: thread, provider: provider_name}
@@ -367,7 +365,7 @@ module Aidp
         return false unless provider_class
 
         provider_class.respond_to?(:available?) && provider_class.available?
-      rescue StandardError => e
+      rescue => e
         Aidp.log_debug("setup_wizard", "provider availability check failed",
           provider: provider_name, error: e.message)
         false
@@ -418,9 +416,9 @@ module Aidp
               cached_models = cache.get_cached_models(provider)
 
               if cached_models&.any?
-                prompt.say("  💾 Discovered #{cached_models.size} model#{cached_models.size == 1 ? "" : "s"} for #{provider}")
+                prompt.say("  💾 Discovered #{cached_models.size} model#{"s" unless cached_models.size == 1} for #{provider}")
               end
-            rescue StandardError => e
+            rescue => e
               Aidp.log_debug("setup_wizard", "failed to check cached models",
                 provider: provider, error: e.message)
             end
@@ -455,7 +453,7 @@ module Aidp
             tier_models = by_tier[tier] || []
             next if tier_models.empty?
 
-            prompt.say("  #{tier.capitalize} tier: #{tier_models.size} model#{tier_models.size == 1 ? "" : "s"}")
+            prompt.say("  #{tier.capitalize} tier: #{tier_models.size} model#{"s" unless tier_models.size == 1}")
           end
         end
       end

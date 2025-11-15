@@ -10,7 +10,7 @@ module Aidp
       include Aidp::DebugMixin
 
       # Model name pattern for Anthropic Claude models
-      MODEL_PATTERN = /^claude-[\d\.-]+-(?:opus|sonnet|haiku)(?:-\d{8})?$/i
+      MODEL_PATTERN = /^claude-[\d.-]+-(?:opus|sonnet|haiku)(?:-\d{8})?$/i
 
       def self.available?
         !!Aidp::Util.which("claude")
@@ -54,7 +54,7 @@ module Aidp
 
         begin
           require "open3"
-          output, error, status = Open3.capture3("claude", "models", "list", {timeout: 10})
+          output, _, status = Open3.capture3("claude", "models", "list", {timeout: 10})
           return [] unless status.success?
 
           parse_models_list(output)

@@ -341,7 +341,7 @@ module Aidp
         # Check if there are discovered models in cache
         discovered_models = check_discovered_models(tier, provider)
 
-        if discovered_models && discovered_models.any?
+        if discovered_models&.any?
           display_tier_error_with_suggestions(tier, provider, discovered_models)
         else
           display_tier_error_with_discovery_hint(tier, provider)
@@ -368,7 +368,7 @@ module Aidp
         end
 
         tier_models.any? ? tier_models : nil
-      rescue StandardError => e
+      rescue => e
         Aidp.log_debug("thinking_depth_manager", "failed to check cached models",
           error: e.message)
         nil

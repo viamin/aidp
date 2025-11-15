@@ -72,7 +72,7 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
       it "performs discovery even with cache available" do
         allow(mock_cache).to receive(:get_cached_models).with("anthropic").and_return(sample_models)
 
-        models = service.discover_models("anthropic", use_cache: false)
+        service.discover_models("anthropic", use_cache: false)
         expect(Aidp::Providers::Anthropic).to have_received(:discover_models)
       end
     end

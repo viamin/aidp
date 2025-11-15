@@ -9,7 +9,7 @@ module Aidp
       include Aidp::DebugMixin
 
       # Model name pattern for Gemini models
-      MODEL_PATTERN = /^gemini-[\d\.]+-(?:pro|flash|ultra)(?:-\d+)?$/i
+      MODEL_PATTERN = /^gemini-[\d.]+-(?:pro|flash|ultra)(?:-\d+)?$/i
 
       def self.available?
         !!Aidp::Util.which("gemini")

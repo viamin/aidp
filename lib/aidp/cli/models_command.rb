@@ -147,7 +147,7 @@ module Aidp
           display_message("Error loading model registry: #{e.message}", type: :error)
           Aidp.log_error("models_command", "registry error", error: e.message)
           1
-        rescue StandardError => e
+        rescue => e
           display_message("Error listing models: #{e.message}", type: :error)
           Aidp.log_error("models_command", "unexpected error", error: e.message, backtrace: e.backtrace.first(5))
           1
@@ -213,7 +213,7 @@ module Aidp
 
       def build_footer(count)
         tips = [
-          "💡 Showing #{count} model#{count == 1 ? "" : "s"} from the static registry",
+          "💡 Showing #{count} model#{"s" unless count == 1} from the static registry",
           "💡 Model families are provider-agnostic (e.g., 'claude-3-5-sonnet' works across providers)"
         ]
         tips.join("\n")
@@ -238,7 +238,7 @@ module Aidp
             provider_name = provider_class.name.split("::").last.downcase
             providers << provider_name
           end
-        rescue StandardError => e
+        rescue => e
           # Log but don't fail if provider check fails
           Aidp.log_debug("models_command", "provider check failed", provider: provider_class.name, error: e.message)
         end
@@ -256,10 +256,10 @@ module Aidp
           spinner.auto_spin
 
           # Discover models
-          if options[:provider]
-            results = {options[:provider] => discovery_service.discover_models(options[:provider], use_cache: false)}
+          results = if options[:provider]
+            {options[:provider] => discovery_service.discover_models(options[:provider], use_cache: false)}
           else
-            results = discovery_service.discover_all_models(use_cache: false)
+            discovery_service.discover_all_models(use_cache: false)
           end
 
           spinner.success("✓")
@@ -290,10 +290,10 @@ module Aidp
             return 1
           end
 
-          display_message("\n✅ Discovered #{total_models} total model#{total_models == 1 ? "" : "s"}", type: :success)
+          display_message("\n✅ Discovered #{total_models} total model#{"s" unless total_models == 1}", type: :success)
           display_message("💾 Models cached for 24 hours\n", type: :info)
           0
-        rescue StandardError => e
+        rescue => e
           display_message("Error discovering models: #{e.message}", type: :error)
           Aidp.log_error("models_command", "discovery error", error: e.message, backtrace: e.backtrace.first(5))
           1
@@ -321,7 +321,7 @@ module Aidp
 
           display_message("💡 Run 'aidp models discover' to see the updated models\n", type: :info)
           0
-        rescue StandardError => e
+        rescue => e
           display_message("Error refreshing cache: #{e.message}", type: :error)
           Aidp.log_error("models_command", "refresh error", error: e.message, backtrace: e.backtrace.first(5))
           1
@@ -377,7 +377,7 @@ module Aidp
 
           # Return exit code
           issues.empty? ? 0 : 1
-        rescue StandardError => e
+        rescue => e
           display_message("Error validating configuration: #{e.message}", type: :error)
           Aidp.log_error("models_command", "validation error",
             error: e.message, backtrace: e.backtrace.first(5))
@@ -396,19 +396,17 @@ module Aidp
       end
 
       def load_configuration
-        begin
-          project_dir = Dir.pwd
-          unless Aidp::Config.config_exists?(project_dir)
-            display_message("❌ No aidp.yml configuration file found", type: :error)
-            display_message("Run 'aidp config --interactive' to create one", type: :info)
-            return nil
-          end
-
-          Aidp::Harness::Configuration.new(project_dir)
-        rescue => e
-          display_message("❌ Error loading configuration: #{e.message}", type: :error)
-          nil
+        project_dir = Dir.pwd
+        unless Aidp::Config.config_exists?(project_dir)
+          display_message("❌ No aidp.yml configuration file found", type: :error)
+          display_message("Run 'aidp config --interactive' to create one", type: :info)
+          return nil
         end
+
+        Aidp::Harness::Configuration.new(project_dir)
+      rescue => e
+        display_message("❌ Error loading configuration: #{e.message}", type: :error)
+        nil
       end
 
       def validate_tier_coverage(config)
@@ -438,7 +436,7 @@ module Aidp
         configured_providers.any? do |provider_name|
           provider_cfg = config.provider_config(provider_name)
           tier_config = provider_cfg.dig(:thinking, :tiers, tier.to_sym) ||
-                        provider_cfg.dig(:thinking, :tiers, tier)
+            provider_cfg.dig(:thinking, :tiers, tier)
 
           tier_config && tier_config[:models] && !tier_config[:models].empty?
         end
@@ -572,7 +570,7 @@ module Aidp
 
         # Display errors
         if issues.any?
-          display_message("❌ Found #{issues.size} configuration error#{issues.size == 1 ? "" : "s"}:\n", type: :error)
+          display_message("❌ Found #{issues.size} configuration error#{"s" unless issues.size == 1}:\n", type: :error)
 
           issues.each_with_index do |issue, idx|
             display_message("\n#{idx + 1}. #{issue[:message]}", type: :error)
@@ -599,7 +597,7 @@ module Aidp
 
         # Display warnings
         if warnings.any?
-          display_message("⚠️  Found #{warnings.size} warning#{warnings.size == 1 ? "" : "s"}:\n", type: :warning)
+          display_message("⚠️  Found #{warnings.size} warning#{"s" unless warnings.size == 1}:\n", type: :warning)
 
           warnings.each_with_index do |warning, idx|
             display_message("\n#{idx + 1}. #{warning[:message]}", type: :warning)

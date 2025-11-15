@@ -171,7 +171,7 @@ module Aidp
           raise InvalidRegistrySchema, "Model family '#{family}' missing required 'tier' field"
         end
         unless VALID_TIERS.include?(info["tier"])
-          raise InvalidRegistrySchema, "Model family '#{family}' has invalid tier '#{info['tier']}'. Valid: #{VALID_TIERS.join(", ")}"
+          raise InvalidRegistrySchema, "Model family '#{family}' has invalid tier '#{info["tier"]}'. Valid: #{VALID_TIERS.join(", ")}"
         end
 
         # Optional but validated if present
