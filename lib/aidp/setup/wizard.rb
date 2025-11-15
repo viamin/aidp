@@ -52,6 +52,9 @@ module Aidp
         configure_modes
         configure_devcontainer
 
+        # Finalize any background model discovery
+        finalize_background_discovery
+
         yaml_content = generate_yaml
         display_preview(yaml_content)
         display_diff(yaml_content) if @existing_config.any?
@@ -336,6 +339,95 @@ module Aidp
         else
           prompt.say("💡 Skipped tier configuration. You can run 'aidp models discover' later")
         end
+      end
+
+      # Trigger background model discovery for a provider
+      # Runs asynchronously and caches results without blocking the wizard
+      def trigger_background_discovery(provider_name)
+        return unless provider_available_for_discovery?(provider_name)
+
+        # Store reference to display notification later
+        @discovery_threads ||= []
+
+        thread = Thread.new do
+          begin
+            discover_and_cache_models(provider_name)
+          rescue StandardError => e
+            Aidp.log_debug("setup_wizard", "background discovery failed",
+              provider: provider_name, error: e.message)
+          end
+        end
+
+        @discovery_threads << {thread: thread, provider: provider_name}
+      end
+
+      # Check if provider CLI is available for discovery
+      def provider_available_for_discovery?(provider_name)
+        provider_class = get_provider_class(provider_name)
+        return false unless provider_class
+
+        provider_class.respond_to?(:available?) && provider_class.available?
+      rescue StandardError => e
+        Aidp.log_debug("setup_wizard", "provider availability check failed",
+          provider: provider_name, error: e.message)
+        false
+      end
+
+      # Perform model discovery and cache results
+      def discover_and_cache_models(provider_name)
+        require_relative "../harness/model_discovery_service"
+
+        service = Aidp::Harness::ModelDiscoveryService.new
+        models = service.discover_models(provider_name, use_cache: false)
+
+        if models.any?
+          Aidp.log_info("setup_wizard", "discovered models in background",
+            provider: provider_name, count: models.size)
+        end
+
+        models
+      end
+
+      # Get provider class for discovery
+      def get_provider_class(provider_name)
+        class_name = "Aidp::Providers::#{provider_name.capitalize}"
+        Object.const_get(class_name)
+      rescue NameError
+        nil
+      end
+
+      # Wait for background discovery to complete and show notifications
+      def finalize_background_discovery
+        return unless @discovery_threads&.any?
+
+        @discovery_threads.each do |entry|
+          thread = entry[:thread]
+          provider = entry[:provider]
+
+          # Wait up to 5 seconds for discovery to complete
+          thread.join(5)
+
+          if thread.alive?
+            Aidp.log_debug("setup_wizard", "discovery still running",
+              provider: provider)
+          else
+            # Discovery completed - show notification
+            begin
+              require_relative "../harness/model_cache"
+              cache = Aidp::Harness::ModelCache.new
+              cached_models = cache.get_cached_models(provider)
+
+              if cached_models&.any?
+                prompt.say("  💾 Discovered #{cached_models.size} model#{cached_models.size == 1 ? "" : "s"} for #{provider}")
+              end
+            rescue StandardError => e
+              Aidp.log_debug("setup_wizard", "failed to check cached models",
+                provider: provider, error: e.message)
+            end
+          end
+        end
+
+        @discovery_threads = []
       end
 
       def discover_models_for_providers(providers)
@@ -1384,6 +1476,9 @@ module Aidp
         # Enhance messaging with display name when available
         display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
         prompt.say("  • #{action_word.capitalize} provider '#{display_name}' (#{provider_name}) with billing type '#{provider_type}' and model family '#{model_family}'")
+
+        # Trigger background model discovery for newly added/updated provider
+        trigger_background_discovery(provider_name) unless @dry_run
       end
 
       def edit_or_remove_provider(provider_name, primary_provider, fallbacks)

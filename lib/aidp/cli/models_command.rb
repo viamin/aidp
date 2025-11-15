@@ -147,7 +147,7 @@ module Aidp
           display_message("Error loading model registry: #{e.message}", type: :error)
           Aidp.log_error("models_command", "registry error", error: e.message)
           1
-        rescue => e
+        rescue StandardError => e
           display_message("Error listing models: #{e.message}", type: :error)
           Aidp.log_error("models_command", "unexpected error", error: e.message, backtrace: e.backtrace.first(5))
           1
@@ -238,7 +238,7 @@ module Aidp
             provider_name = provider_class.name.split("::").last.downcase
             providers << provider_name
           end
-        rescue => e
+        rescue StandardError => e
           # Log but don't fail if provider check fails
           Aidp.log_debug("models_command", "provider check failed", provider: provider_class.name, error: e.message)
         end
@@ -293,7 +293,7 @@ module Aidp
           display_message("\n✅ Discovered #{total_models} total model#{total_models == 1 ? "" : "s"}", type: :success)
           display_message("💾 Models cached for 24 hours\n", type: :info)
           0
-        rescue => e
+        rescue StandardError => e
           display_message("Error discovering models: #{e.message}", type: :error)
           Aidp.log_error("models_command", "discovery error", error: e.message, backtrace: e.backtrace.first(5))
           1
@@ -321,7 +321,7 @@ module Aidp
 
           display_message("💡 Run 'aidp models discover' to see the updated models\n", type: :info)
           0
-        rescue => e
+        rescue StandardError => e
           display_message("Error refreshing cache: #{e.message}", type: :error)
           Aidp.log_error("models_command", "refresh error", error: e.message, backtrace: e.backtrace.first(5))
           1
@@ -377,7 +377,7 @@ module Aidp
 
           # Return exit code
           issues.empty? ? 0 : 1
-        rescue => e
+        rescue StandardError => e
           display_message("Error validating configuration: #{e.message}", type: :error)
           Aidp.log_error("models_command", "validation error",
             error: e.message, backtrace: e.backtrace.first(5))

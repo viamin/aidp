@@ -471,14 +471,18 @@ thinking_depth:
   - [x] Update wizard progress indicators
   - [x] Write integration tests
 
-### Phase 5: Auto-Discovery on Provider Configuration
+### Phase 5: Auto-Discovery on Provider Configuration ✅ COMPLETED
 
-- [ ] **Add discovery hooks to provider configuration**
-  - [ ] After provider credentials validated, trigger discovery
-  - [ ] Run discovery in background (non-blocking)
-  - [ ] Cache results immediately
-  - [ ] Show notification: "Discovered X models for {provider}"
-  - [ ] Write integration tests
+- [x] **Add discovery hooks to provider configuration**
+  - [x] After provider credentials validated, trigger discovery
+  - [x] Run discovery in background (non-blocking)
+  - [x] Cache results immediately
+  - [x] Show notification: "Discovered X models for {provider}"
+  - [x] Implemented in setup wizard's `ensure_provider_billing_config` method
+  - [x] Background threads created for each provider configuration
+  - [x] Notifications displayed via `finalize_background_discovery`
+  - [x] Graceful handling of provider CLI unavailability
+  - [ ] Write integration tests (deferred)
 
 - [ ] **Implement lazy discovery**
   - [ ] On first use of unconfigured tier, check if models available
