@@ -28,6 +28,22 @@ RSpec.describe Aidp::Setup::Wizard do
     })
   end
 
+  # Clean up any background discovery threads after each test
+  after do
+    if defined?(wizard)
+      threads = wizard.instance_variable_get(:@discovery_threads)
+      if threads&.any?
+        threads.each do |entry|
+          thread = entry[:thread]
+          if thread&.alive?
+            thread.kill
+            thread.join(0.1) rescue nil
+          end
+        end
+      end
+    end
+  end
+
   before do
     FileUtils.mkdir_p(tmp_dir)
     File.write(File.join(tmp_dir, "Gemfile"), "source 'https://rubygems.org'")

@@ -412,8 +412,11 @@ module Aidp
           thread.join(timeout)
 
           if thread.alive?
-            Aidp.log_debug("setup_wizard", "discovery still running",
+            Aidp.log_debug("setup_wizard", "discovery timeout, killing thread",
               provider: provider)
+            # Kill thread to prevent hanging
+            thread.kill
+            thread.join(0.1) # Brief wait for cleanup
           else
             # Discovery completed - show notification
             begin
