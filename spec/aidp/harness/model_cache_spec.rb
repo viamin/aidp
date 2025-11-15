@@ -215,6 +215,27 @@ RSpec.describe Aidp::Harness::ModelCache do
         expect(cached.first[:capabilities]).to eq(["chat", "code"])
         expect(cached.first[:metadata]).to be_a(Hash)
       end
+
+      it "returns nil when models array is nil in cache" do
+        cache_data = {
+          "test_provider" => {
+            "cached_at" => Time.now.iso8601,
+            "ttl" => 3600,
+            "models" => nil
+          }
+        }
+        File.write(temp_cache_file.path, JSON.pretty_generate(cache_data))
+
+        cached = cache.get_cached_models("test_provider")
+        expect(cached).to be_nil
+      end
+
+      it "returns empty array when models is empty array" do
+        cache.cache_models("empty_provider", [])
+
+        cached = cache.get_cached_models("empty_provider")
+        expect(cached).to eq([])
+      end
     end
 
     context "when cache is expired" do

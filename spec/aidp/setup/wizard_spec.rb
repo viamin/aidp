@@ -1327,6 +1327,47 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.send(:discover_and_cache_models, "anthropic")
       end
+
+      it "returns models when discovery succeeds" do
+        models = [{name: "test-model", tier: "standard"}]
+        discovery_service = instance_double(Aidp::Harness::ModelDiscoveryService)
+        allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)
+        allow(discovery_service).to receive(:discover_models).and_return(models)
+
+        result = wizard.send(:discover_and_cache_models, "anthropic")
+        expect(result).to eq(models)
+      end
+
+      it "logs info when models are discovered" do
+        models = [{name: "test-model", tier: "standard"}]
+        discovery_service = instance_double(Aidp::Harness::ModelDiscoveryService)
+        allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)
+        allow(discovery_service).to receive(:discover_models).and_return(models)
+
+        expect(Aidp).to receive(:log_info).with("setup_wizard", "discovered models in background",
+          hash_including(provider: "anthropic", count: 1))
+
+        wizard.send(:discover_and_cache_models, "anthropic")
+      end
+    end
+
+    describe "#get_provider_class" do
+      let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+      it "returns provider class for known provider" do
+        result = wizard.send(:get_provider_class, "anthropic")
+        expect(result).to eq(Aidp::Providers::Anthropic)
+      end
+
+      it "returns nil for unknown provider" do
+        result = wizard.send(:get_provider_class, "nonexistent")
+        expect(result).to be_nil
+      end
+
+      it "handles provider names with different cases" do
+        result = wizard.send(:get_provider_class, "ANTHROPIC")
+        expect(result).to eq(Aidp::Providers::Anthropic)
+      end
     end
   end
 end
