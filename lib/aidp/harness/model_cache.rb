@@ -60,6 +60,8 @@ module Aidp
         end
 
         models = provider_cache["models"]
+        # Convert string keys to symbols for consistency with fresh discovery
+        models = models.map { |m| m.transform_keys(&:to_sym) } if models
         Aidp.log_debug("model_cache", "cache hit",
           provider: provider, count: models&.size || 0)
         models

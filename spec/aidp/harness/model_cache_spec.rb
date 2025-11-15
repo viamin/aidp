@@ -176,11 +176,11 @@ RSpec.describe Aidp::Harness::ModelCache do
         cache.cache_models("anthropic", models, ttl: 3600)
       end
 
-      it "returns cached models" do
+      it "returns cached models with symbolized keys" do
         cached = cache.get_cached_models("anthropic")
         expect(cached).to be_an(Array)
         expect(cached.size).to eq(1)
-        expect(cached.first["name"]).to eq("claude-3-5-sonnet-20241022")
+        expect(cached.first[:name]).to eq("claude-3-5-sonnet-20241022")
       end
     end
 
