@@ -7,7 +7,7 @@ require_relative "../harness/model_registry"
 require_relative "../harness/model_discovery_service"
 
 module Aidp
-  module CLI
+  class CLI
     # Command handler for `aidp models` subcommand group
     #
     # Provides commands for viewing and discovering AI models:
@@ -352,11 +352,11 @@ module Aidp
         parse_validate_options(args)
 
         begin
-          display_message("\n🔍 Validating model configuration...\n", type: :highlight)
-
           # Load configuration
           config = load_configuration
           return 1 unless config
+
+          display_message("\n🔍 Validating model configuration...\n", type: :highlight)
 
           # Collect validation issues
           issues = []
@@ -403,9 +403,11 @@ module Aidp
           return nil
         end
 
-        Aidp::Harness::Configuration.new(project_dir)
+        config_data = Aidp::Config.load(project_dir) || {}
+        providers_section = config_data[:providers] || config_data["providers"] || {}
+        SimpleConfiguration.new(providers_section)
       rescue => e
-        display_message("❌ Error loading configuration: #{e.message}", type: :error)
+        display_message("Error validating configuration: #{e.message}", type: :error)
         nil
       end
 
@@ -544,7 +546,11 @@ module Aidp
 
       def suggest_alternative_model(provider_name, tier, invalid_model)
         # Get models from registry for this tier and provider
-        tier_models = registry.models_for_tier(tier.to_s)
+        tier_models = if registry.is_a?(Aidp::Harness::ModelRegistry)
+          registry.models_for_tier(tier.to_s)
+        else
+          []
+        end
         provider_class = get_provider_class(provider_name)
         return "Check model name or use a different provider" unless provider_class
 
@@ -617,6 +623,40 @@ module Aidp
         display_message("💡 Run 'aidp models discover' to see available models", type: :info)
         display_message("💡 Run 'aidp models list --tier=<tier>' to see models for a specific tier\n", type: :info)
       end
+
+      # Lightweight configuration wrapper for CLI validation
+      class SimpleConfiguration
+        def initialize(providers_section)
+          @providers = (providers_section || {}).each_with_object({}) do |(name, cfg), result|
+            result[name.to_s] = deep_symbolize(cfg || {})
+          end
+        end
+
+        def configured_providers
+          @providers.keys
+        end
+
+        def provider_config(name)
+          @providers[name.to_s] || {}
+        end
+
+        private
+
+        def deep_symbolize(value)
+          case value
+          when Hash
+            value.each_with_object({}) do |(key, val), result|
+              result_key = key.is_a?(String) ? key.to_sym : key
+              result[result_key] = deep_symbolize(val)
+            end
+          when Array
+            value.map { |item| deep_symbolize(item) }
+          else
+            value
+          end
+        end
+      end
+      private_constant :SimpleConfiguration
     end
   end
 end
