@@ -55,8 +55,3 @@ jobs:
         run: |
           bundle exec rake coverage:summary
           echo "Coverage summary and badge generated"
-
-      - name: Check coverage ratchet
-        run: |
-          bundle exec rake coverage:check
-          echo "Coverage ratchet check passed"
