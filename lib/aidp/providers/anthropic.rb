@@ -64,81 +64,83 @@ module Aidp
         end
       end
 
-      private
+      class << self
+        private
 
-      def self.parse_models_list(output)
-        return [] if output.nil? || output.empty?
+        def parse_models_list(output)
+          return [] if output.nil? || output.empty?
 
-        models = []
-        lines = output.lines.map(&:strip)
+          models = []
+          lines = output.lines.map(&:strip)
 
-        # Skip header and separator lines
-        lines.reject! { |line| line.empty? || line.match?(/^[-=]+$/) || line.match?(/^(Model|Name)/i) }
+          # Skip header and separator lines
+          lines.reject! { |line| line.empty? || line.match?(/^[-=]+$/) || line.match?(/^(Model|Name)/i) }
 
-        lines.each do |line|
-          model_info = parse_model_line(line)
-          models << model_info if model_info
+          lines.each do |line|
+            model_info = parse_model_line(line)
+            models << model_info if model_info
+          end
+
+          Aidp.log_info("anthropic_provider", "discovered models", count: models.size)
+          models
         end
 
-        Aidp.log_info("anthropic_provider", "discovered models", count: models.size)
-        models
-      end
+        def parse_model_line(line)
+          # Format 1: Simple list of model names
+          if line.match?(/^claude-\d/)
+            model_name = line.split.first
+            return build_model_info(model_name)
+          end
 
-      def self.parse_model_line(line)
-        # Format 1: Simple list of model names
-        if line.match?(/^claude-\d/)
-          model_name = line.split.first
-          return build_model_info(model_name)
+          # Format 2: Table format with columns
+          parts = line.split(/\s{2,}/)
+          if parts.size >= 1 && parts[0].match?(/^claude/)
+            model_name = parts[0]
+            model_name = "#{model_name}-#{parts[1]}" if parts.size > 1 && parts[1].match?(/^\d{8}$/)
+            return build_model_info(model_name)
+          end
+
+          # Format 3: JSON-like or key-value pairs
+          if line.match?(/name:\s*(.+)/)
+            model_name = $1.strip
+            return build_model_info(model_name)
+          end
+
+          nil
         end
 
-        # Format 2: Table format with columns
-        parts = line.split(/\s{2,}/)
-        if parts.size >= 1 && parts[0].match?(/^claude/)
-          model_name = parts[0]
-          model_name = "#{model_name}-#{parts[1]}" if parts.size > 1 && parts[1].match?(/^\d{8}$/)
-          return build_model_info(model_name)
+        def build_model_info(model_name)
+          family = model_family(model_name)
+          tier = classify_tier(model_name)
+
+          {
+            name: model_name,
+            family: family,
+            tier: tier,
+            capabilities: extract_capabilities(model_name),
+            context_window: infer_context_window(family),
+            provider: "anthropic"
+          }
         end
 
-        # Format 3: JSON-like or key-value pairs
-        if line.match?(/name:\s*(.+)/)
-          model_name = $1.strip
-          return build_model_info(model_name)
+        def classify_tier(model_name)
+          name_lower = model_name.downcase
+          return "advanced" if name_lower.include?("opus")
+          return "mini" if name_lower.include?("haiku")
+          return "standard" if name_lower.include?("sonnet")
+          "standard"
         end
 
-        nil
-      end
+        def extract_capabilities(model_name)
+          capabilities = ["chat", "code"]
+          name_lower = model_name.downcase
+          capabilities << "vision" unless name_lower.include?("haiku")
+          capabilities
+        end
 
-      def self.build_model_info(model_name)
-        family = model_family(model_name)
-        tier = classify_tier(model_name)
-
-        {
-          name: model_name,
-          family: family,
-          tier: tier,
-          capabilities: extract_capabilities(model_name),
-          context_window: infer_context_window(family),
-          provider: "anthropic"
-        }
-      end
-
-      def self.classify_tier(model_name)
-        name_lower = model_name.downcase
-        return "advanced" if name_lower.include?("opus")
-        return "mini" if name_lower.include?("haiku")
-        return "standard" if name_lower.include?("sonnet")
-        "standard"
-      end
-
-      def self.extract_capabilities(model_name)
-        capabilities = ["chat", "code"]
-        name_lower = model_name.downcase
-        capabilities << "vision" unless name_lower.include?("haiku")
-        capabilities
-      end
-
-      def self.infer_context_window(family)
-        family.match?(/claude-3/) ? 200_000 : nil
+        def infer_context_window(family)
+          family.match?(/claude-3/) ? 200_000 : nil
+        end
       end
 
       # Public instance methods (called from workflows and harness)
