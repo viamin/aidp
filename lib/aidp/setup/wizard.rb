@@ -43,6 +43,7 @@ module Aidp
         return @saved if skip_wizard?
 
         configure_providers
+        configure_thinking_tiers
         configure_work_loop
         configure_branching
         configure_artifacts
@@ -278,6 +279,146 @@ module Aidp
       end
 
       # Removed MCP configuration step (MCP now expected to be provider-specific if used)
+
+      # -------------------------------------------
+      # Thinking tier configuration (automated model discovery)
+      # -------------------------------------------
+      def configure_thinking_tiers
+        prompt.say("\n🧠 Thinking Tier Configuration")
+        prompt.say("-" * 40)
+
+        # Get configured providers
+        primary_provider = get([:harness, :default_provider])
+        fallback_providers = Array(get([:harness, :fallback_providers]))
+        all_providers = ([primary_provider] + fallback_providers).compact.uniq
+
+        if all_providers.empty?
+          prompt.warn("⚠️  No providers configured. Skipping tier configuration.")
+          return
+        end
+
+        # Check if user wants to use automated discovery
+        existing_tiers = get([:thinking, :tiers])
+        if existing_tiers && !existing_tiers.empty?
+          prompt.say("📝 Found existing tier configuration")
+          unless prompt.yes?("Would you like to update it with discovered models?", default: false)
+            return
+          end
+        elsif !prompt.yes?("Auto-configure thinking tiers with discovered models?", default: true)
+          prompt.say("💡 You can run 'aidp models discover' later to see available models")
+          return
+        end
+
+        # Run model discovery
+        prompt.say("\n🔍 Discovering available models...")
+        discovered_models = discover_models_for_providers(all_providers)
+
+        if discovered_models.empty?
+          prompt.warn("⚠️  No models discovered. Ensure provider CLIs are installed.")
+          prompt.say("💡 You can configure tiers manually or run 'aidp models discover' later")
+          return
+        end
+
+        # Display discovered models
+        display_discovered_models(discovered_models)
+
+        # Generate tier configuration
+        tier_config = generate_tier_configuration(discovered_models, primary_provider)
+
+        # Show preview
+        prompt.say("\n📋 Proposed tier configuration:")
+        display_tier_preview(tier_config)
+
+        # Confirm and save
+        if prompt.yes?("\nSave this tier configuration?", default: true)
+          set([:thinking, :tiers], tier_config)
+          prompt.ok("✅ Thinking tiers configured successfully")
+        else
+          prompt.say("💡 Skipped tier configuration. You can run 'aidp models discover' later")
+        end
+      end
+
+      def discover_models_for_providers(providers)
+        require_relative "../harness/model_discovery_service"
+
+        service = Aidp::Harness::ModelDiscoveryService.new
+        all_models = {}
+
+        providers.each do |provider|
+          models = service.discover_models(provider, use_cache: true)
+          all_models[provider] = models if models.any?
+        rescue => e
+          Aidp.log_debug("setup_wizard", "discovery failed", provider: provider, error: e.message)
+          # Continue with other providers
+        end
+
+        all_models
+      end
+
+      def display_discovered_models(discovered_models)
+        discovered_models.each do |provider, models|
+          prompt.say("\n✓ Found #{models.size} models for #{provider}:")
+          by_tier = models.group_by { |m| m[:tier] }
+          %w[mini standard advanced].each do |tier|
+            tier_models = by_tier[tier] || []
+            next if tier_models.empty?
+
+            prompt.say("  #{tier.capitalize} tier: #{tier_models.size} model#{tier_models.size == 1 ? "" : "s"}")
+          end
+        end
+      end
+
+      def generate_tier_configuration(discovered_models, primary_provider)
+        tier_config = {}
+
+        # For each tier, try to find a model
+        %w[mini standard advanced].each do |tier|
+          # Try primary provider first
+          model = find_model_for_tier(discovered_models[primary_provider], tier)
+
+          # Fallback to other providers if needed
+          if !model
+            discovered_models.each do |provider, models|
+              next if provider == primary_provider
+              model = find_model_for_tier(models, tier)
+              break if model
+            end
+          end
+
+          # Add to config if found
+          if model
+            tier_config[tier.to_sym] = {
+              models: [
+                {
+                  provider: model[:provider],
+                  model: model[:name]
+                }
+              ]
+            }
+          end
+        end
+
+        tier_config
+      end
+
+      def find_model_for_tier(models, target_tier)
+        return nil unless models
+
+        models.find { |m| m[:tier] == target_tier }
+      end
+
+      def display_tier_preview(tier_config)
+        return if tier_config.empty?
+
+        tier_config.each do |tier, config|
+          models = config[:models] || []
+          prompt.say("  #{tier}:")
+          models.each do |model_entry|
+            prompt.say("    - provider: #{model_entry[:provider]}")
+            prompt.say("      model: #{model_entry[:model]}")
+          end
+        end
+      end
 
       # -------------------------------------------
       # Work loop configuration
