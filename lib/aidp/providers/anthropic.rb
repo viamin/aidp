@@ -9,8 +9,56 @@ module Aidp
     class Anthropic < Base
       include Aidp::DebugMixin
 
+      # Supported model families (without version dates)
+      SUPPORTED_FAMILIES = [
+        "claude-3-5-sonnet",
+        "claude-3-5-haiku",
+        "claude-3-opus",
+        "claude-3-sonnet",
+        "claude-3-haiku"
+      ].freeze
+
+      # Track latest version per family (updated periodically)
+      LATEST_VERSIONS = {
+        "claude-3-5-sonnet" => "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku" => "claude-3-5-haiku-20241022",
+        "claude-3-opus" => "claude-3-opus-20240229",
+        "claude-3-sonnet" => "claude-3-sonnet-20240229",
+        "claude-3-haiku" => "claude-3-haiku-20240307"
+      }.freeze
+
       def self.available?
         !!Aidp::Util.which("claude")
+      end
+
+      # Normalize a provider-specific model name to its model family
+      #
+      # Anthropic uses date-versioned models (e.g., "claude-3-5-sonnet-20241022").
+      # This method strips the date suffix to get the family name.
+      #
+      # @param provider_model_name [String] The versioned model name
+      # @return [String] The model family name (e.g., "claude-3-5-sonnet")
+      def self.model_family(provider_model_name)
+        # Strip date suffix: "claude-3-5-sonnet-20241022" → "claude-3-5-sonnet"
+        provider_model_name.sub(/-\d{8}$/, "")
+      end
+
+      # Convert a model family name to the provider's preferred model name
+      #
+      # For Anthropic, we use the latest known version for the family.
+      #
+      # @param family_name [String] The model family name
+      # @return [String] The provider-specific model name
+      def self.provider_model_name(family_name)
+        LATEST_VERSIONS[family_name] || family_name
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if the family is supported
+      def self.supports_model_family?(family_name)
+        SUPPORTED_FAMILIES.include?(family_name)
       end
 
       def name

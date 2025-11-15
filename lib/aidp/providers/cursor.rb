@@ -10,8 +10,52 @@ module Aidp
     class Cursor < Base
       include Aidp::DebugMixin
 
+      # Map provider-specific names to model families
+      # Cursor uses simplified names (dots instead of hyphens for Claude models)
+      SUPPORTED_MODELS = {
+        # Anthropic models (Cursor uses simplified names)
+        "claude-3.5-sonnet" => "claude-3-5-sonnet",
+        "claude-3.5-haiku" => "claude-3-5-haiku",
+        "claude-3-opus" => "claude-3-opus",
+        "claude-3-sonnet" => "claude-3-sonnet",
+        "claude-3-haiku" => "claude-3-haiku",
+
+        # OpenAI models
+        "gpt-4-turbo" => "gpt-4-turbo",
+        "gpt-4o" => "gpt-4o",
+        "gpt-4o-mini" => "gpt-4o-mini",
+        "gpt-3.5-turbo" => "gpt-3.5-turbo",
+
+        # Cursor-specific
+        "cursor-fast" => "cursor-fast"
+      }.freeze
+
       def self.available?
         !!Aidp::Util.which("cursor-agent")
+      end
+
+      # Map provider's model name to model family name
+      #
+      # @param provider_model_name [String] Cursor's model name (e.g., "claude-3.5-sonnet")
+      # @return [String, nil] The model family name or nil if not supported
+      def self.model_family(provider_model_name)
+        SUPPORTED_MODELS[provider_model_name]
+      end
+
+      # Map family name back to provider's naming convention
+      #
+      # @param family_name [String] The model family name
+      # @return [String, nil] Cursor's model name or nil if not supported
+      def self.provider_model_name(family_name)
+        SUPPORTED_MODELS.key(family_name) || family_name
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if the family is supported
+      def self.supports_model_family?(family_name)
+        SUPPORTED_MODELS.value?(family_name)
       end
 
       def name

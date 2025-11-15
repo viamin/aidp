@@ -1,0 +1,180 @@
+# Model Registry - Model family tier classifications
+# Uses model families (without version dates) for tier mapping
+# Providers handle version-specific naming
+#
+# Tier levels:
+#   - mini: Fast, cost-effective models for simple tasks
+#   - standard: Balanced models for most use cases
+#   - advanced: High-capability models for complex reasoning
+#
+# Each model family entry includes:
+#   - name: Human-readable model name
+#   - tier: Default tier classification (mini, standard, advanced)
+#   - capabilities: List of supported features (chat, code, vision, etc.)
+#   - context_window: Maximum context size in tokens
+#   - max_output: Maximum output tokens
+#   - speed: Relative speed (very_fast, fast, medium, slow)
+#   - cost_per_1m_input: Cost per 1M input tokens (USD, optional)
+#   - cost_per_1m_output: Cost per 1M output tokens (USD, optional)
+#   - version_pattern: Regex to match versioned model names
+
+model_families:
+  # Anthropic Claude Models
+  claude-3-5-sonnet:
+    name: "Claude 3.5 Sonnet"
+    tier: standard
+    capabilities: [chat, code, vision]
+    context_window: 200000
+    max_output: 8192
+    speed: fast
+    cost_per_1m_input: 3.00
+    cost_per_1m_output: 15.00
+    version_pattern: 'claude-3-5-sonnet-\d{8}'
+
+  claude-3-5-haiku:
+    name: "Claude 3.5 Haiku"
+    tier: mini
+    capabilities: [chat, code]
+    context_window: 200000
+    max_output: 8192
+    speed: very_fast
+    cost_per_1m_input: 1.00
+    cost_per_1m_output: 5.00
+    version_pattern: 'claude-3-5-haiku-\d{8}'
+
+  claude-3-opus:
+    name: "Claude 3 Opus"
+    tier: advanced
+    capabilities: [chat, code, vision]
+    context_window: 200000
+    max_output: 4096
+    speed: medium
+    cost_per_1m_input: 15.00
+    cost_per_1m_output: 75.00
+    version_pattern: 'claude-3-opus-\d{8}'
+
+  claude-3-sonnet:
+    name: "Claude 3 Sonnet"
+    tier: standard
+    capabilities: [chat, code, vision]
+    context_window: 200000
+    max_output: 4096
+    speed: fast
+    cost_per_1m_input: 3.00
+    cost_per_1m_output: 15.00
+    version_pattern: 'claude-3-sonnet-\d{8}'
+
+  claude-3-haiku:
+    name: "Claude 3 Haiku"
+    tier: mini
+    capabilities: [chat, code]
+    context_window: 200000
+    max_output: 4096
+    speed: very_fast
+    cost_per_1m_input: 0.25
+    cost_per_1m_output: 1.25
+    version_pattern: 'claude-3-haiku-\d{8}'
+
+  # OpenAI Models
+  gpt-4-turbo:
+    name: "GPT-4 Turbo"
+    tier: advanced
+    capabilities: [chat, code, vision]
+    context_window: 128000
+    max_output: 4096
+    speed: fast
+    cost_per_1m_input: 10.00
+    cost_per_1m_output: 30.00
+    version_pattern: 'gpt-4-turbo(-\d{4}-\d{2}-\d{2})?'
+
+  gpt-4o:
+    name: "GPT-4o"
+    tier: advanced
+    capabilities: [chat, code, vision]
+    context_window: 128000
+    max_output: 4096
+    speed: very_fast
+    cost_per_1m_input: 5.00
+    cost_per_1m_output: 15.00
+    version_pattern: 'gpt-4o(-\d{4}-\d{2}-\d{2})?'
+
+  gpt-4o-mini:
+    name: "GPT-4o Mini"
+    tier: mini
+    capabilities: [chat, code]
+    context_window: 128000
+    max_output: 16384
+    speed: very_fast
+    cost_per_1m_input: 0.15
+    cost_per_1m_output: 0.60
+    version_pattern: 'gpt-4o-mini(-\d{4}-\d{2}-\d{2})?'
+
+  gpt-3.5-turbo:
+    name: "GPT-3.5 Turbo"
+    tier: mini
+    capabilities: [chat]
+    context_window: 16385
+    max_output: 4096
+    speed: very_fast
+    cost_per_1m_input: 0.50
+    cost_per_1m_output: 1.50
+    version_pattern: 'gpt-3\.5-turbo(-\d{4})?'
+
+  # Google Gemini Models
+  gemini-1.5-pro:
+    name: "Gemini 1.5 Pro"
+    tier: advanced
+    capabilities: [chat, code, vision]
+    context_window: 1000000
+    max_output: 8192
+    speed: medium
+    cost_per_1m_input: 3.50
+    cost_per_1m_output: 10.50
+    version_pattern: 'gemini-1\.5-pro(-\d+)?'
+
+  gemini-1.5-flash:
+    name: "Gemini 1.5 Flash"
+    tier: standard
+    capabilities: [chat, code, vision]
+    context_window: 1000000
+    max_output: 8192
+    speed: very_fast
+    cost_per_1m_input: 0.35
+    cost_per_1m_output: 1.05
+    version_pattern: 'gemini-1\.5-flash(-\d+)?'
+
+  gemini-2.0-flash:
+    name: "Gemini 2.0 Flash"
+    tier: standard
+    capabilities: [chat, code, vision]
+    context_window: 1000000
+    max_output: 8192
+    speed: very_fast
+    cost_per_1m_input: 0.40
+    cost_per_1m_output: 1.20
+    version_pattern: 'gemini-2\.0-flash(-\d+)?'
+
+  # Provider-specific models
+  cursor-fast:
+    name: "Cursor Fast"
+    tier: mini
+    capabilities: [chat, code]
+    context_window: 32000
+    speed: very_fast
+    version_pattern: 'cursor-fast'
+
+  copilot-gpt-4:
+    name: "GitHub Copilot GPT-4"
+    tier: advanced
+    capabilities: [chat, code]
+    context_window: 8192
+    speed: fast
+    version_pattern: 'copilot-gpt-4'
+
+  copilot-gpt-3.5-turbo:
+    name: "GitHub Copilot GPT-3.5 Turbo"
+    tier: mini
+    capabilities: [chat, code]
+    context_window: 4096
+    speed: very_fast
+    version_pattern: 'copilot-gpt-3\.5-turbo'

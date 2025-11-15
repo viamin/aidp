@@ -381,7 +381,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work skill settings].include?(args.first)
+        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work skill settings models].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -403,6 +403,7 @@ module Aidp
         when "work" then run_work_command(args)
         when "skill" then run_skill_command(args)
         when "settings" then run_settings_command(args)
+        when "models" then run_models_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -1019,6 +1020,12 @@ module Aidp
           display_message("   Status: #{result[:status]}", type: :info)
           display_message("   Message: #{result[:message]}", type: :info) if result[:message]
         end
+      end
+
+      def run_models_command(args)
+        require_relative "cli/models_command"
+        models_cmd = Aidp::CLI::ModelsCommand.new(prompt: create_prompt)
+        models_cmd.run(args)
       end
 
       def run_issue_command(args)

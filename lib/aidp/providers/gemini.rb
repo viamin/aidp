@@ -8,8 +8,51 @@ module Aidp
     class Gemini < Base
       include Aidp::DebugMixin
 
+      # Supported model families (without version suffixes)
+      SUPPORTED_FAMILIES = [
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-2.0-flash"
+      ].freeze
+
+      # Track model versions (Gemini sometimes uses version suffixes)
+      SUPPORTED_MODELS = {
+        "gemini-1.5-pro" => "gemini-1.5-pro",
+        "gemini-1.5-flash" => "gemini-1.5-flash",
+        "gemini-2.0-flash" => "gemini-2.0-flash"
+      }.freeze
+
       def self.available?
         !!Aidp::Util.which("gemini")
+      end
+
+      # Normalize a provider-specific model name to its model family
+      #
+      # Gemini may use version suffixes (e.g., "gemini-1.5-pro-001").
+      # This method strips version suffixes to get the family name.
+      #
+      # @param provider_model_name [String] The model name
+      # @return [String] The model family name
+      def self.model_family(provider_model_name)
+        # Strip version suffix: "gemini-1.5-pro-001" → "gemini-1.5-pro"
+        base_name = provider_model_name.sub(/-\d+$/, "")
+        SUPPORTED_MODELS[base_name] || base_name
+      end
+
+      # Convert a model family name to the provider's preferred model name
+      #
+      # @param family_name [String] The model family name
+      # @return [String] The provider-specific model name
+      def self.provider_model_name(family_name)
+        SUPPORTED_MODELS[family_name] || family_name
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if the family is supported
+      def self.supports_model_family?(family_name)
+        SUPPORTED_FAMILIES.include?(family_name)
       end
 
       def name
