@@ -687,22 +687,22 @@ RSpec.describe Aidp::Providers::Anthropic do
   end
 
   describe ".provider_model_name" do
-    it "returns latest version for known family" do
+    it "returns family name as-is for flexibility" do
       result = described_class.provider_model_name("claude-3-5-sonnet")
-      expect(result).to eq("claude-3-5-sonnet-20241022")
+      expect(result).to eq("claude-3-5-sonnet")
     end
 
-    it "returns latest version for Haiku" do
+    it "returns family name for Haiku" do
       result = described_class.provider_model_name("claude-3-5-haiku")
-      expect(result).to eq("claude-3-5-haiku-20241022")
+      expect(result).to eq("claude-3-5-haiku")
     end
 
-    it "returns latest version for Opus" do
+    it "returns family name for Opus" do
       result = described_class.provider_model_name("claude-3-opus")
-      expect(result).to eq("claude-3-opus-20240229")
+      expect(result).to eq("claude-3-opus")
     end
 
-    it "returns family name for unknown family" do
+    it "returns provided name for any model" do
       result = described_class.provider_model_name("unknown-model")
       expect(result).to eq("unknown-model")
     end
@@ -721,10 +721,9 @@ RSpec.describe Aidp::Providers::Anthropic do
       expect(described_class.supports_model_family?("claude-3-opus")).to be true
     end
 
-    it "returns true for all supported families" do
-      described_class::SUPPORTED_FAMILIES.each do |family|
-        expect(described_class.supports_model_family?(family)).to be true
-      end
+    it "returns true for versioned Claude models" do
+      expect(described_class.supports_model_family?("claude-3-5-sonnet-20241022")).to be true
+      expect(described_class.supports_model_family?("claude-3-opus-20240229")).to be true
     end
 
     it "returns false for unsupported model" do

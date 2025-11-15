@@ -10,52 +10,78 @@ module Aidp
     class Cursor < Base
       include Aidp::DebugMixin
 
-      # Map provider-specific names to model families
-      # Cursor uses simplified names (dots instead of hyphens for Claude models)
-      SUPPORTED_MODELS = {
-        # Anthropic models (Cursor uses simplified names)
-        "claude-3.5-sonnet" => "claude-3-5-sonnet",
-        "claude-3.5-haiku" => "claude-3-5-haiku",
-        "claude-3-opus" => "claude-3-opus",
-        "claude-3-sonnet" => "claude-3-sonnet",
-        "claude-3-haiku" => "claude-3-haiku",
-
-        # OpenAI models
-        "gpt-4-turbo" => "gpt-4-turbo",
-        "gpt-4o" => "gpt-4o",
-        "gpt-4o-mini" => "gpt-4o-mini",
-        "gpt-3.5-turbo" => "gpt-3.5-turbo",
-
-        # Cursor-specific
-        "cursor-fast" => "cursor-fast"
-      }.freeze
-
       def self.available?
         !!Aidp::Util.which("cursor-agent")
       end
 
-      # Map provider's model name to model family name
+      # Normalize Cursor's model name to family name
       #
-      # @param provider_model_name [String] Cursor's model name (e.g., "claude-3.5-sonnet")
-      # @return [String, nil] The model family name or nil if not supported
+      # Cursor may use different naming conventions (e.g., dots vs hyphens)
+      #
+      # @param provider_model_name [String] Cursor's model name
+      # @return [String] The normalized family name
       def self.model_family(provider_model_name)
-        SUPPORTED_MODELS[provider_model_name]
+        # Normalize cursor naming to standard family names
+        # cursor uses dots: "claude-3.5-sonnet" -> "claude-3-5-sonnet"
+        provider_model_name.gsub(/(\d)\.(\d)/, '\1-\2')
       end
 
-      # Map family name back to provider's naming convention
+      # Convert family name to Cursor's naming convention
       #
       # @param family_name [String] The model family name
-      # @return [String, nil] Cursor's model name or nil if not supported
+      # @return [String] Cursor's model name
       def self.provider_model_name(family_name)
-        SUPPORTED_MODELS.key(family_name) || family_name
+        # Cursor uses dots for version numbers
+        # "claude-3-5-sonnet" -> "claude-3.5-sonnet"
+        family_name.gsub(/(\d)-(\d)/, '\1.\2')
       end
 
       # Check if this provider supports a given model family
       #
+      # Cursor supports Claude, GPT, and Cursor-specific models
+      #
       # @param family_name [String] The model family name
-      # @return [Boolean] True if the family is supported
+      # @return [Boolean] True if likely supported
       def self.supports_model_family?(family_name)
-        SUPPORTED_MODELS.value?(family_name)
+        family_name.match?(/^(claude|gpt|cursor)-/)
+      end
+
+      # Discover available models from Cursor
+      #
+      # Note: Cursor doesn't have a public model listing API
+      # Returns registry-based models that match Cursor patterns
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        begin
+          require_relative "../harness/model_registry"
+          registry = Aidp::Harness::ModelRegistry.new
+
+          # Get all models from registry that Cursor might support
+          models = registry.all_families.filter_map do |family|
+            next unless supports_model_family?(family)
+
+            info = registry.get_model_info(family)
+            next unless info
+
+            {
+              name: provider_model_name(family),
+              family: family,
+              tier: info["tier"],
+              capabilities: info["capabilities"] || [],
+              context_window: info["context_window"],
+              provider: "cursor"
+            }
+          end
+
+          Aidp.log_info("cursor_provider", "using registry models", count: models.size)
+          models
+        rescue => e
+          Aidp.log_debug("cursor_provider", "discovery failed", error: e.message)
+          []
+        end
       end
 
       def name

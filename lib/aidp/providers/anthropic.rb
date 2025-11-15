@@ -9,23 +9,8 @@ module Aidp
     class Anthropic < Base
       include Aidp::DebugMixin
 
-      # Supported model families (without version dates)
-      SUPPORTED_FAMILIES = [
-        "claude-3-5-sonnet",
-        "claude-3-5-haiku",
-        "claude-3-opus",
-        "claude-3-sonnet",
-        "claude-3-haiku"
-      ].freeze
-
-      # Track latest version per family (updated periodically)
-      LATEST_VERSIONS = {
-        "claude-3-5-sonnet" => "claude-3-5-sonnet-20241022",
-        "claude-3-5-haiku" => "claude-3-5-haiku-20241022",
-        "claude-3-opus" => "claude-3-opus-20240229",
-        "claude-3-sonnet" => "claude-3-sonnet-20240229",
-        "claude-3-haiku" => "claude-3-haiku-20240307"
-      }.freeze
+      # Model name pattern for Anthropic Claude models
+      MODEL_PATTERN = /^claude-[\d\.-]+-(?:opus|sonnet|haiku)(?:-\d{8})?$/i
 
       def self.available?
         !!Aidp::Util.which("claude")
@@ -45,20 +30,115 @@ module Aidp
 
       # Convert a model family name to the provider's preferred model name
       #
-      # For Anthropic, we use the latest known version for the family.
+      # Returns the family name as-is. Users can configure specific versions in aidp.yml.
       #
       # @param family_name [String] The model family name
-      # @return [String] The provider-specific model name
+      # @return [String] The model name (same as family for flexibility)
       def self.provider_model_name(family_name)
-        LATEST_VERSIONS[family_name] || family_name
+        family_name
       end
 
       # Check if this provider supports a given model family
       #
       # @param family_name [String] The model family name
-      # @return [Boolean] True if the family is supported
+      # @return [Boolean] True if it matches Claude model pattern
       def self.supports_model_family?(family_name)
-        SUPPORTED_FAMILIES.include?(family_name)
+        MODEL_PATTERN.match?(family_name)
+      end
+
+      # Discover available models from Claude CLI
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        begin
+          require "open3"
+          output, error, status = Open3.capture3("claude", "models", "list", {timeout: 10})
+          return [] unless status.success?
+
+          parse_models_list(output)
+        rescue => e
+          Aidp.log_debug("anthropic_provider", "discovery failed", error: e.message)
+          []
+        end
+      end
+
+      private
+
+      def self.parse_models_list(output)
+        return [] if output.nil? || output.empty?
+
+        models = []
+        lines = output.lines.map(&:strip)
+
+        # Skip header and separator lines
+        lines.reject! { |line| line.empty? || line.match?(/^[-=]+$/) || line.match?(/^(Model|Name)/i) }
+
+        lines.each do |line|
+          model_info = parse_model_line(line)
+          models << model_info if model_info
+        end
+
+        Aidp.log_info("anthropic_provider", "discovered models", count: models.size)
+        models
+      end
+
+      def self.parse_model_line(line)
+        # Format 1: Simple list of model names
+        if line.match?(/^claude-\d/)
+          model_name = line.split.first
+          return build_model_info(model_name)
+        end
+
+        # Format 2: Table format with columns
+        parts = line.split(/\s{2,}/)
+        if parts.size >= 1 && parts[0].match?(/^claude/)
+          model_name = parts[0]
+          model_name = "#{model_name}-#{parts[1]}" if parts.size > 1 && parts[1].match?(/^\d{8}$/)
+          return build_model_info(model_name)
+        end
+
+        # Format 3: JSON-like or key-value pairs
+        if line.match?(/name:\s*(.+)/)
+          model_name = $1.strip
+          return build_model_info(model_name)
+        end
+
+        nil
+      end
+
+      def self.build_model_info(model_name)
+        family = model_family(model_name)
+        tier = classify_tier(model_name)
+
+        {
+          name: model_name,
+          family: family,
+          tier: tier,
+          capabilities: extract_capabilities(model_name),
+          context_window: infer_context_window(family),
+          provider: "anthropic"
+        }
+      end
+
+      def self.classify_tier(model_name)
+        name_lower = model_name.downcase
+        return "advanced" if name_lower.include?("opus")
+        return "mini" if name_lower.include?("haiku")
+        return "standard" if name_lower.include?("sonnet")
+        "standard"
+      end
+
+      def self.extract_capabilities(model_name)
+        capabilities = ["chat", "code"]
+        name_lower = model_name.downcase
+        capabilities << "vision" unless name_lower.include?("haiku")
+        capabilities
+      end
+
+      def self.infer_context_window(family)
+        family.match?(/claude-3/) ? 200_000 : nil
       end
 
       def name

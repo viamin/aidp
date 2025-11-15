@@ -2,10 +2,6 @@
 
 require_relative "model_cache"
 require_relative "model_registry"
-require_relative "model_discoverers/base"
-require_relative "model_discoverers/anthropic"
-require_relative "model_discoverers/cursor"
-require_relative "model_discoverers/gemini"
 
 module Aidp
   module Harness
@@ -13,7 +9,7 @@ module Aidp
     #
     # Orchestrates model discovery across multiple providers:
     # 1. Checks cache first (with TTL)
-    # 2. Falls back to dynamic discovery via provider CLIs
+    # 2. Falls back to dynamic discovery via provider.discover_models
     # 3. Merges with static registry for comprehensive results
     # 4. Caches results for future use
     #
@@ -24,12 +20,17 @@ module Aidp
     class ModelDiscoveryService
       attr_reader :cache, :registry
 
+      PROVIDER_CLASSES = {
+        "anthropic" => "Aidp::Providers::Anthropic",
+        "cursor" => "Aidp::Providers::Cursor",
+        "gemini" => "Aidp::Providers::Gemini"
+      }.freeze
+
       def initialize(cache: nil, registry: nil)
         @cache = cache || ModelCache.new
         @registry = registry || ModelRegistry.new
-        @discoverers = build_discoverers
         Aidp.log_debug("model_discovery_service", "initialized",
-          discoverers: @discoverers.keys)
+          providers: PROVIDER_CLASSES.keys)
       end
 
       # Discover models for a specific provider
@@ -71,7 +72,7 @@ module Aidp
       def discover_all_models(use_cache: true)
         results = {}
 
-        @discoverers.each_key do |provider|
+        PROVIDER_CLASSES.each_key do |provider|
           models = discover_models(provider, use_cache: use_cache)
           results[provider] = models if models.any?
         end
@@ -148,13 +149,12 @@ module Aidp
       def providers_supporting(family_name)
         providers = []
 
-        @discoverers.each do |provider, discoverer|
-          next unless discoverer.available?
+        PROVIDER_CLASSES.each do |provider_name, class_name|
+          provider_class = constantize_provider(class_name)
+          next unless provider_class
 
-          # Check if provider supports this family
-          provider_class = get_provider_class(provider)
-          if provider_class&.respond_to?(:supports_model_family?)
-            providers << provider if provider_class.supports_model_family?(family_name)
+          if provider_class.respond_to?(:supports_model_family?)
+            providers << provider_name if provider_class.supports_model_family?(family_name)
           end
         end
 
@@ -177,45 +177,47 @@ module Aidp
 
       private
 
-      def build_discoverers
-        {
-          "anthropic" => ModelDiscoverers::Anthropic.new,
-          "cursor" => ModelDiscoverers::Cursor.new,
-          "gemini" => ModelDiscoverers::Gemini.new
-        }
-      end
-
       def perform_discovery(provider)
-        discoverer = @discoverers[provider]
-        unless discoverer
-          Aidp.log_warn("model_discovery_service", "no discoverer for provider",
+        provider_class = get_provider_class(provider)
+        unless provider_class
+          Aidp.log_warn("model_discovery_service", "unknown provider",
             provider: provider)
           return []
         end
 
-        unless discoverer.available?
+        unless provider_class.respond_to?(:available?) && provider_class.available?
           Aidp.log_debug("model_discovery_service", "provider not available",
             provider: provider)
           return []
         end
 
-        models = discoverer.discover_models
+        unless provider_class.respond_to?(:discover_models)
+          Aidp.log_warn("model_discovery_service", "provider missing discover_models",
+            provider: provider)
+          return []
+        end
+
+        models = provider_class.discover_models
         Aidp.log_info("model_discovery_service", "discovered models",
           provider: provider, count: models.size)
         models
       end
 
       def get_provider_class(provider)
-        case provider
-        when "anthropic"
-          Aidp::Providers::Anthropic
-        when "cursor"
-          Aidp::Providers::Cursor
-        when "gemini"
-          Aidp::Providers::Gemini
-        else
-          nil
-        end
+        class_name = PROVIDER_CLASSES[provider]
+        return nil unless class_name
+
+        constantize_provider(class_name)
+      end
+
+      def constantize_provider(class_name)
+        # Safely constantize the provider class
+        parts = class_name.split("::")
+        parts.reduce(Object) { |mod, name| mod.const_get(name) }
+      rescue NameError => e
+        Aidp.log_debug("model_discovery_service", "provider class not found",
+          class: class_name, error: e.message)
+        nil
       end
     end
   end

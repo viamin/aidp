@@ -31,14 +31,9 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
   end
 
   describe "#discover_models" do
-    let(:mock_discoverer) { instance_double(Aidp::Harness::ModelDiscoverers::Anthropic) }
-
     before do
-      allow(service).to receive(:instance_variable_get).with(:@discoverers).and_return(
-        {"anthropic" => mock_discoverer}
-      )
-      allow(mock_discoverer).to receive(:available?).and_return(true)
-      allow(mock_discoverer).to receive(:discover_models).and_return(sample_models)
+      allow(Aidp::Providers::Anthropic).to receive(:available?).and_return(true)
+      allow(Aidp::Providers::Anthropic).to receive(:discover_models).and_return(sample_models)
     end
 
     context "when cache is enabled and has data" do
@@ -47,7 +42,7 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
 
         models = service.discover_models("anthropic", use_cache: true)
         expect(models).to eq(sample_models)
-        expect(mock_discoverer).not_to have_received(:discover_models)
+        expect(Aidp::Providers::Anthropic).not_to have_received(:discover_models)
       end
     end
 
@@ -60,7 +55,7 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
       it "performs discovery" do
         models = service.discover_models("anthropic", use_cache: true)
         expect(models).to eq(sample_models)
-        expect(mock_discoverer).to have_received(:discover_models)
+        expect(Aidp::Providers::Anthropic).to have_received(:discover_models)
       end
 
       it "caches the discovered models" do
@@ -78,13 +73,13 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
         allow(mock_cache).to receive(:get_cached_models).with("anthropic").and_return(sample_models)
 
         models = service.discover_models("anthropic", use_cache: false)
-        expect(mock_discoverer).to have_received(:discover_models)
+        expect(Aidp::Providers::Anthropic).to have_received(:discover_models)
       end
     end
 
     context "when provider is not available" do
       before do
-        allow(mock_discoverer).to receive(:available?).and_return(false)
+        allow(Aidp::Providers::Anthropic).to receive(:available?).and_return(false)
         allow(mock_cache).to receive(:get_cached_models).with("anthropic").and_return(nil)
       end
 
@@ -97,7 +92,7 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
     context "when discovery fails" do
       before do
         allow(mock_cache).to receive(:get_cached_models).with("anthropic").and_return(nil)
-        allow(mock_discoverer).to receive(:discover_models).and_raise(StandardError, "Discovery failed")
+        allow(Aidp::Providers::Anthropic).to receive(:discover_models).and_raise(StandardError, "Discovery failed")
       end
 
       it "returns empty array gracefully" do
@@ -108,20 +103,13 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
   end
 
   describe "#discover_all_models" do
-    let(:anthropic_discoverer) { instance_double(Aidp::Harness::ModelDiscoverers::Anthropic) }
-    let(:cursor_discoverer) { instance_double(Aidp::Harness::ModelDiscoverers::Cursor) }
-
     before do
-      allow(service).to receive(:instance_variable_get).with(:@discoverers).and_return(
-        {
-          "anthropic" => anthropic_discoverer,
-          "cursor" => cursor_discoverer
-        }
-      )
-      allow(anthropic_discoverer).to receive(:available?).and_return(true)
-      allow(cursor_discoverer).to receive(:available?).and_return(true)
-      allow(anthropic_discoverer).to receive(:discover_models).and_return(sample_models)
-      allow(cursor_discoverer).to receive(:discover_models).and_return([])
+      allow(Aidp::Providers::Anthropic).to receive(:available?).and_return(true)
+      allow(Aidp::Providers::Cursor).to receive(:available?).and_return(true)
+      allow(Aidp::Providers::Gemini).to receive(:available?).and_return(true)
+      allow(Aidp::Providers::Anthropic).to receive(:discover_models).and_return(sample_models)
+      allow(Aidp::Providers::Cursor).to receive(:discover_models).and_return([])
+      allow(Aidp::Providers::Gemini).to receive(:discover_models).and_return([])
       allow(mock_cache).to receive(:get_cached_models).and_return(nil)
       allow(mock_cache).to receive(:cache_models)
     end
@@ -136,6 +124,7 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
     it "excludes providers with no models" do
       results = service.discover_all_models(use_cache: false)
       expect(results).not_to have_key("cursor")
+      expect(results).not_to have_key("gemini")
     end
   end
 
@@ -155,14 +144,9 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
   end
 
   describe "#refresh_cache" do
-    let(:mock_discoverer) { instance_double(Aidp::Harness::ModelDiscoverers::Anthropic) }
-
     before do
-      allow(service).to receive(:instance_variable_get).with(:@discoverers).and_return(
-        {"anthropic" => mock_discoverer}
-      )
-      allow(mock_discoverer).to receive(:available?).and_return(true)
-      allow(mock_discoverer).to receive(:discover_models).and_return(sample_models)
+      allow(Aidp::Providers::Anthropic).to receive(:available?).and_return(true)
+      allow(Aidp::Providers::Anthropic).to receive(:discover_models).and_return(sample_models)
       allow(mock_cache).to receive(:invalidate)
       allow(mock_cache).to receive(:cache_models)
     end
@@ -170,24 +154,16 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
     it "invalidates and rediscovers for specific provider" do
       service.refresh_cache("anthropic")
       expect(mock_cache).to have_received(:invalidate).with("anthropic")
-      expect(mock_discoverer).to have_received(:discover_models)
+      expect(Aidp::Providers::Anthropic).to have_received(:discover_models)
     end
   end
 
   describe "#refresh_all_caches" do
-    let(:anthropic_discoverer) { instance_double(Aidp::Harness::ModelDiscoverers::Anthropic) }
-    let(:cursor_discoverer) { instance_double(Aidp::Harness::ModelDiscoverers::Cursor) }
-
     before do
-      allow(service).to receive(:instance_variable_get).with(:@discoverers).and_return(
-        {
-          "anthropic" => anthropic_discoverer,
-          "cursor" => cursor_discoverer
-        }
-      )
-      allow(anthropic_discoverer).to receive(:available?).and_return(true)
-      allow(cursor_discoverer).to receive(:available?).and_return(false)
-      allow(anthropic_discoverer).to receive(:discover_models).and_return(sample_models)
+      allow(Aidp::Providers::Anthropic).to receive(:available?).and_return(true)
+      allow(Aidp::Providers::Cursor).to receive(:available?).and_return(false)
+      allow(Aidp::Providers::Gemini).to receive(:available?).and_return(false)
+      allow(Aidp::Providers::Anthropic).to receive(:discover_models).and_return(sample_models)
       allow(mock_cache).to receive(:invalidate_all)
       allow(mock_cache).to receive(:cache_models)
     end
@@ -195,7 +171,7 @@ RSpec.describe Aidp::Harness::ModelDiscoveryService do
     it "invalidates all caches and rediscovers" do
       service.refresh_all_caches
       expect(mock_cache).to have_received(:invalidate_all)
-      expect(anthropic_discoverer).to have_received(:discover_models)
+      expect(Aidp::Providers::Anthropic).to have_received(:discover_models)
     end
   end
 end

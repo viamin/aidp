@@ -8,19 +8,8 @@ module Aidp
     class Gemini < Base
       include Aidp::DebugMixin
 
-      # Supported model families (without version suffixes)
-      SUPPORTED_FAMILIES = [
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-        "gemini-2.0-flash"
-      ].freeze
-
-      # Track model versions (Gemini sometimes uses version suffixes)
-      SUPPORTED_MODELS = {
-        "gemini-1.5-pro" => "gemini-1.5-pro",
-        "gemini-1.5-flash" => "gemini-1.5-flash",
-        "gemini-2.0-flash" => "gemini-2.0-flash"
-      }.freeze
+      # Model name pattern for Gemini models
+      MODEL_PATTERN = /^gemini-[\d\.]+-(?:pro|flash|ultra)(?:-\d+)?$/i
 
       def self.available?
         !!Aidp::Util.which("gemini")
@@ -35,24 +24,61 @@ module Aidp
       # @return [String] The model family name
       def self.model_family(provider_model_name)
         # Strip version suffix: "gemini-1.5-pro-001" → "gemini-1.5-pro"
-        base_name = provider_model_name.sub(/-\d+$/, "")
-        SUPPORTED_MODELS[base_name] || base_name
+        provider_model_name.sub(/-\d+$/, "")
       end
 
       # Convert a model family name to the provider's preferred model name
       #
       # @param family_name [String] The model family name
-      # @return [String] The provider-specific model name
+      # @return [String] The provider-specific model name (same as family)
       def self.provider_model_name(family_name)
-        SUPPORTED_MODELS[family_name] || family_name
+        family_name
       end
 
       # Check if this provider supports a given model family
       #
       # @param family_name [String] The model family name
-      # @return [Boolean] True if the family is supported
+      # @return [Boolean] True if it matches Gemini model pattern
       def self.supports_model_family?(family_name)
-        SUPPORTED_FAMILIES.include?(family_name)
+        MODEL_PATTERN.match?(family_name)
+      end
+
+      # Discover available models from Gemini
+      #
+      # Note: Gemini CLI doesn't have a standard model listing command
+      # Returns registry-based models that match Gemini patterns
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        begin
+          require_relative "../harness/model_registry"
+          registry = Aidp::Harness::ModelRegistry.new
+
+          # Get all Gemini models from registry
+          models = registry.all_families.filter_map do |family|
+            next unless supports_model_family?(family)
+
+            info = registry.get_model_info(family)
+            next unless info
+
+            {
+              name: family,
+              family: family,
+              tier: info["tier"],
+              capabilities: info["capabilities"] || [],
+              context_window: info["context_window"],
+              provider: "gemini"
+            }
+          end
+
+          Aidp.log_info("gemini_provider", "using registry models", count: models.size)
+          models
+        rescue => e
+          Aidp.log_debug("gemini_provider", "discovery failed", error: e.message)
+          []
+        end
       end
 
       def name
