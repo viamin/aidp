@@ -534,4 +534,154 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       expect(model).to eq("o1-preview")
     end
   end
+
+  describe "#check_discovered_models" do
+    let(:cache_path) { File.join(temp_dir, ".aidp", "cache", "models.json") }
+    let(:cached_models) do
+      [
+        {"name" => "claude-3-5-sonnet-20241022", "family" => "claude-3-5-sonnet"},
+        {"name" => "claude-3-haiku-20240307", "family" => "claude-3-haiku"}
+      ]
+    end
+
+    before do
+      FileUtils.mkdir_p(File.dirname(cache_path))
+      cache_data = {
+        "anthropic" => {
+          "models" => cached_models,
+          "cached_at" => Time.now.iso8601
+        }
+      }
+      File.write(cache_path, JSON.generate(cache_data))
+
+      # Point manager to temp cache directory
+      cache = Aidp::Harness::ModelCache.new(cache_dir: File.join(temp_dir, ".aidp", "cache"))
+      allow(Aidp::Harness::ModelCache).to receive(:new).and_return(cache)
+    end
+
+    it "returns discovered models for the specified tier" do
+      # Mock registry to return standard tier for claude-3-5-sonnet
+      allow(registry).to receive(:get_model_info).with("claude-3-5-sonnet").and_return({"tier" => "standard"})
+
+      models = manager.send(:check_discovered_models, "standard", "anthropic")
+      expect(models).to be_a(Array)
+      expect(models.size).to be > 0
+    end
+
+    it "returns nil when no cached models found" do
+      # Clear cache
+      File.delete(cache_path)
+
+      models = manager.send(:check_discovered_models, "standard", "anthropic")
+      expect(models).to be_nil
+    end
+
+    it "returns nil on error" do
+      # Corrupt cache file
+      File.write(cache_path, "invalid json")
+
+      models = manager.send(:check_discovered_models, "standard", "anthropic")
+      expect(models).to be_nil
+    end
+  end
+
+  describe "#display_enhanced_tier_error" do
+    before do
+      stub_const("Aidp::MessageDisplay", Module.new)
+      allow(Aidp).to receive(:display_message)
+    end
+
+    context "when discovered models are available" do
+      let(:discovered_models) do
+        [
+          {"name" => "claude-3-5-sonnet-20241022", "family" => "claude-3-5-sonnet"},
+          {"name" => "claude-3-5-sonnet-20240620", "family" => "claude-3-5-sonnet"}
+        ]
+      end
+
+      before do
+        allow(manager).to receive(:check_discovered_models).and_return(discovered_models)
+      end
+
+      it "displays error with model suggestions" do
+        expect(manager).to receive(:display_tier_error_with_suggestions).with("standard", "anthropic", discovered_models)
+        manager.send(:display_enhanced_tier_error, "standard", "anthropic")
+      end
+    end
+
+    context "when no discovered models are available" do
+      before do
+        allow(manager).to receive(:check_discovered_models).and_return(nil)
+      end
+
+      it "displays error with discovery hint" do
+        expect(manager).to receive(:display_tier_error_with_discovery_hint).with("standard", "anthropic")
+        manager.send(:display_enhanced_tier_error, "standard", "anthropic")
+      end
+    end
+  end
+
+  describe "#display_tier_error_with_suggestions" do
+    let(:discovered_models) do
+      [
+        {"name" => "claude-3-5-sonnet-20241022", "family" => "claude-3-5-sonnet"},
+        {"name" => "claude-3-5-sonnet-20240620", "family" => "claude-3-5-sonnet"}
+      ]
+    end
+
+    before do
+      allow(Aidp).to receive(:display_message)
+    end
+
+    it "displays error message with tier and provider" do
+      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      expect(Aidp).to receive(:display_message).with(/Provider: anthropic/, type: :info)
+      manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", discovered_models)
+    end
+
+    it "displays discovered model suggestions" do
+      expect(Aidp).to receive(:display_message).with(/Discovered models for this tier/, type: :highlight)
+      expect(Aidp).to receive(:display_message).with(/claude-3-5-sonnet-20241022/, type: :info)
+      manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", discovered_models)
+    end
+
+    it "displays YAML snippet with first model" do
+      expect(Aidp).to receive(:display_message).with(/Add to aidp.yml:/, type: :highlight)
+      expect(Aidp).to receive(:display_message).with(/providers:/, type: :info)
+      expect(Aidp).to receive(:display_message).with(/anthropic:/, type: :info)
+      expect(Aidp).to receive(:display_message).with(/model: claude-3-5-sonnet-20241022/, type: :info)
+      manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", discovered_models)
+    end
+
+    it "limits suggestions to 3 models" do
+      many_models = (1..10).map { |i| {"name" => "model-#{i}", "family" => "test"} }
+      allow(Aidp).to receive(:display_message)
+      expect(Aidp).to receive(:display_message).with(/model-1/, type: :info)
+      expect(Aidp).to receive(:display_message).with(/model-2/, type: :info)
+      expect(Aidp).to receive(:display_message).with(/model-3/, type: :info)
+
+      manager.send(:display_tier_error_with_suggestions, "standard", "anthropic", many_models)
+    end
+  end
+
+  describe "#display_tier_error_with_discovery_hint" do
+    before do
+      allow(Aidp).to receive(:display_message)
+    end
+
+    it "displays error message" do
+      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      manager.send(:display_tier_error_with_discovery_hint, "standard", "anthropic")
+    end
+
+    it "displays discovery hint" do
+      expect(Aidp).to receive(:display_message).with(/Run.*aidp models discover/, type: :highlight)
+      manager.send(:display_tier_error_with_discovery_hint, "standard", "anthropic")
+    end
+
+    it "handles nil provider" do
+      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      manager.send(:display_tier_error_with_discovery_hint, "standard", nil)
+    end
+  end
 end

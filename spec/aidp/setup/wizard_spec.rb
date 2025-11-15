@@ -1103,4 +1103,192 @@ RSpec.describe Aidp::Setup::Wizard do
       expect(values).to include("gemini", "llama", "deepseek")
     end
   end
+
+  describe "background model discovery" do
+    describe "#trigger_background_discovery" do
+      let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+      before do
+        # Mock provider availability check
+        allow(wizard).to receive(:provider_available_for_discovery?).and_return(true)
+        allow(wizard).to receive(:discover_and_cache_models)
+      end
+
+      it "starts background discovery thread for provider" do
+        wizard.send(:trigger_background_discovery, "anthropic")
+
+        # Verify thread was created
+        threads = wizard.instance_variable_get(:@discovery_threads)
+        expect(threads).to be_a(Array)
+        expect(threads.size).to eq(1)
+        expect(threads.first[:provider]).to eq("anthropic")
+        expect(threads.first[:thread]).to be_a(Thread)
+
+        # Clean up thread
+        threads.first[:thread].kill if threads.first[:thread].alive?
+      end
+
+      it "does not start discovery when provider not available" do
+        allow(wizard).to receive(:provider_available_for_discovery?).and_return(false)
+
+        wizard.send(:trigger_background_discovery, "anthropic")
+
+        threads = wizard.instance_variable_get(:@discovery_threads)
+        expect(threads).to be_nil
+      end
+
+      it "handles discovery errors gracefully" do
+        allow(wizard).to receive(:discover_and_cache_models).and_raise(StandardError.new("Discovery failed"))
+
+        expect do
+          wizard.send(:trigger_background_discovery, "anthropic")
+          threads = wizard.instance_variable_get(:@discovery_threads)
+          threads.first[:thread].join if threads&.first
+        end.not_to raise_error
+
+        # Clean up
+        threads = wizard.instance_variable_get(:@discovery_threads)
+        threads&.first&.dig(:thread)&.kill if threads&.first&.dig(:thread)&.alive?
+      end
+    end
+
+    describe "#finalize_background_discovery" do
+      let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+      context "when discovery threads completed successfully" do
+        before do
+          # Create a completed thread
+          thread = Thread.new { sleep 0.01 }
+          thread.join
+          wizard.instance_variable_set(:@discovery_threads, [{thread: thread, provider: "anthropic"}])
+
+          # Mock cache with discovered models
+          cache = instance_double(Aidp::Harness::ModelCache)
+          allow(Aidp::Harness::ModelCache).to receive(:new).and_return(cache)
+          allow(cache).to receive(:get_cached_models).with("anthropic").and_return([
+            {name: "claude-3-5-sonnet-20241022", family: "claude-3-5-sonnet"}
+          ])
+        end
+
+        it "shows notification for discovered models" do
+          expect(prompt).to receive(:say).with(/Discovered 1 model/)
+          wizard.send(:finalize_background_discovery)
+        end
+
+        it "clears discovery threads" do
+          wizard.send(:finalize_background_discovery)
+          threads = wizard.instance_variable_get(:@discovery_threads)
+          expect(threads).to eq([])
+        end
+      end
+
+      context "when discovery threads still running" do
+        before do
+          # Create a long-running thread
+          thread = Thread.new { sleep 10 }
+          wizard.instance_variable_set(:@discovery_threads, [{thread: thread, provider: "anthropic"}])
+        end
+
+        after do
+          # Clean up thread
+          threads = wizard.instance_variable_get(:@discovery_threads)
+          threads&.first&.dig(:thread)&.kill if threads&.first&.dig(:thread)&.alive?
+        end
+
+        it "waits up to 5 seconds for completion" do
+          start_time = Time.now
+          wizard.send(:finalize_background_discovery)
+          elapsed = Time.now - start_time
+
+          # Should wait around 5 seconds (with some tolerance)
+          expect(elapsed).to be_within(1).of(5)
+        end
+
+        it "does not crash when thread still running" do
+          expect { wizard.send(:finalize_background_discovery) }.not_to raise_error
+        end
+      end
+
+      context "when no discovery threads exist" do
+        it "does nothing without error" do
+          wizard.instance_variable_set(:@discovery_threads, nil)
+          expect { wizard.send(:finalize_background_discovery) }.not_to raise_error
+        end
+      end
+
+      context "when cache check fails" do
+        before do
+          thread = Thread.new { sleep 0.01 }
+          thread.join
+          wizard.instance_variable_set(:@discovery_threads, [{thread: thread, provider: "anthropic"}])
+
+          # Mock cache to raise error
+          allow(Aidp::Harness::ModelCache).to receive(:new).and_raise(StandardError.new("Cache error"))
+        end
+
+        it "handles error gracefully" do
+          expect { wizard.send(:finalize_background_discovery) }.not_to raise_error
+        end
+      end
+    end
+
+    describe "#provider_available_for_discovery?" do
+      let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+      before do
+        # Mock provider class
+        provider_class = class_double("Aidp::Providers::Anthropic")
+        allow(provider_class).to receive(:installed?).and_return(true)
+        stub_const("Aidp::Providers::Anthropic", provider_class)
+      end
+
+      it "returns true when provider is installed" do
+        result = wizard.send(:provider_available_for_discovery?, "anthropic")
+        expect(result).to be true
+      end
+
+      it "returns false when provider not installed" do
+        provider_class = class_double("Aidp::Providers::Cursor")
+        allow(provider_class).to receive(:installed?).and_return(false)
+        stub_const("Aidp::Providers::Cursor", provider_class)
+
+        result = wizard.send(:provider_available_for_discovery?, "cursor")
+        expect(result).to be false
+      end
+
+      it "returns false when provider class not found" do
+        result = wizard.send(:provider_available_for_discovery?, "nonexistent")
+        expect(result).to be false
+      end
+    end
+
+    describe "#discover_and_cache_models" do
+      let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+      before do
+        # Mock discovery service
+        discovery_service = instance_double(Aidp::Harness::ModelDiscoveryService)
+        allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)
+        allow(discovery_service).to receive(:discover_models).with("anthropic", use_cache: false).and_return([
+          {name: "claude-3-5-sonnet-20241022", family: "claude-3-5-sonnet"}
+        ])
+      end
+
+      it "calls discovery service for provider" do
+        discovery_service = Aidp::Harness::ModelDiscoveryService.new
+        allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)
+
+        expect(discovery_service).to receive(:discover_models).with("anthropic", use_cache: false)
+        wizard.send(:discover_and_cache_models, "anthropic")
+      end
+
+      it "does not raise error on discovery failure" do
+        discovery_service = instance_double(Aidp::Harness::ModelDiscoveryService)
+        allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)
+        allow(discovery_service).to receive(:discover_models).and_raise(StandardError.new("Discovery failed"))
+
+        expect { wizard.send(:discover_and_cache_models, "anthropic") }.not_to raise_error
+      end
+    end
+  end
 end

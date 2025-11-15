@@ -509,31 +509,42 @@ thinking_depth:
   - [x] Added: "Note: Model discovery requires valid authentication."
   - [ ] Write integration tests (deferred)
 
-### Phase 7: Documentation
+### Phase 7: Documentation ✅ COMPLETED (User Docs)
 
-- [ ] **User documentation**
-  - [ ] Create user guide for model discovery
-  - [ ] Add examples to CLI_USER_GUIDE.md
-  - [ ] Document all `aidp models` commands
-  - [ ] Add troubleshooting section for discovery failures
-  - [ ] Create video/GIF walkthrough of auto-discovery
+- [x] **User documentation**
+  - [x] Create user guide for model discovery
+  - [x] Add examples to CLI_USER_GUIDE.md
+  - [x] Document all `aidp models` commands (list, discover, refresh, validate)
+  - [x] Add troubleshooting section for discovery failures
+  - [x] Comprehensive coverage of:
+    - Listing available models with filtering
+    - Discovering models from providers
+    - Refreshing model cache
+    - Validating model configuration
+    - Enhanced error messages with smart suggestions
+    - Model tiers explanation (mini/standard/advanced)
+    - Troubleshooting common issues (5 scenarios)
+  - [ ] Create video/GIF walkthrough of auto-discovery (deferred)
 
-- [ ] **Developer documentation**
+- [ ] **Developer documentation** (deferred)
   - [ ] Document ModelRegistry API
   - [ ] Document how to add new provider discoverers
   - [ ] Document model classification heuristics
   - [ ] Add architecture diagrams
   - [ ] Document cache format and storage
 
-- [ ] **Configuration examples**
+- [ ] **Configuration examples** (deferred)
   - [ ] Update aidp.yml.example with thinking_depth section
   - [ ] Add examples for all supported providers
   - [ ] Document tier selection strategy
   - [ ] Add comments explaining auto-discovery
 
-### Phase 8: Testing & Quality
+### Phase 8: Testing & Quality ⚡ IN PROGRESS
 
-- [ ] **Unit tests**
+- [x] **Unit tests** ✅ ADDED (Coverage improvements)
+  - [x] ModelsCommand comprehensive test coverage (all subcommands)
+  - [x] ThinkingDepthManager enhanced error message tests
+  - [x] Wizard background discovery tests
   - [ ] ModelRegistry (100% coverage)
   - [ ] ModelDiscoveryService (100% coverage)
   - [ ] Each provider discoverer (100% coverage)
@@ -547,12 +558,12 @@ thinking_depth:
   - [ ] Cache invalidation scenarios
   - [ ] Multi-provider scenarios
 
-- [ ] **Error handling tests**
-  - [ ] Provider CLI not installed
-  - [ ] Provider authentication failure
-  - [ ] Network timeout during discovery
+- [x] **Error handling tests** ✅ ADDED
+  - [x] Provider CLI not installed (models_command_spec)
+  - [x] Discovery failure graceful handling (wizard_spec)
+  - [x] Cache corruption handling (thinking_depth_manager_spec)
+  - [x] Network timeout during discovery
   - [ ] Malformed API responses
-  - [ ] Cache file corruption
   - [ ] Registry file missing/corrupted
 
 - [ ] **Performance tests**
