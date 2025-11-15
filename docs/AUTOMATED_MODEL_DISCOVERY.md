@@ -445,12 +445,14 @@ thinking_depth:
   - [x] Show diff of what changed
   - [x] Write integration tests
 
-- [ ] **Implement `aidp models validate` command** (Future enhancement)
-  - [ ] Check that all tiers have at least one model
-  - [ ] Verify model names are valid for their providers
-  - [ ] Check for tier coverage gaps
-  - [ ] Suggest fixes for common issues
-  - [ ] Write integration tests
+- [x] **Implement `aidp models validate` command** ✅ COMPLETED
+  - [x] Check that all tiers have at least one model
+  - [x] Verify model names are valid for their providers
+  - [x] Check for tier coverage gaps
+  - [x] Suggest fixes for common issues
+  - [x] Smart validation uses provider pattern matching (not hardcoded lists)
+  - [x] Helpful error messages with YAML snippets
+  - [ ] Write integration tests (deferred)
 
 ### Phase 4: Integration with Config Wizard ✅ COMPLETED
 

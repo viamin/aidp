@@ -42,6 +42,9 @@ module Aidp
         when "refresh"
           args.shift
           run_refresh_command(args)
+        when "validate"
+          args.shift
+          run_validate_command(args)
         else
           display_message("Unknown models subcommand: #{subcommand}", type: :error)
           display_help
@@ -65,6 +68,7 @@ module Aidp
         display_message("  list              List all available models with tier information", type: :info)
         display_message("  discover          Discover models from configured providers", type: :info)
         display_message("  refresh           Refresh the model discovery cache", type: :info)
+        display_message("  validate          Validate model configuration for all tiers", type: :info)
         display_message("\nOptions:", type: :info)
         display_message("  --provider=<name> Filter/target specific provider", type: :info)
         display_message("  --tier=<tier>     Filter by tier (mini, standard, advanced)", type: :info)
@@ -75,6 +79,7 @@ module Aidp
         display_message("  aidp models discover", type: :info)
         display_message("  aidp models discover --provider=anthropic", type: :info)
         display_message("  aidp models refresh", type: :info)
+        display_message("  aidp models validate", type: :info)
       end
 
       def run_list_command(args)
@@ -341,6 +346,278 @@ module Aidp
 
       def parse_refresh_options(args)
         parse_discover_options(args)
+      end
+
+      def run_validate_command(args)
+        parse_validate_options(args)
+
+        begin
+          display_message("\n🔍 Validating model configuration...\n", type: :highlight)
+
+          # Load configuration
+          config = load_configuration
+          return 1 unless config
+
+          # Collect validation issues
+          issues = []
+          warnings = []
+
+          # Validate tier coverage
+          tier_issues = validate_tier_coverage(config)
+          issues.concat(tier_issues[:errors])
+          warnings.concat(tier_issues[:warnings])
+
+          # Validate provider models
+          provider_issues = validate_provider_models(config)
+          issues.concat(provider_issues[:errors])
+          warnings.concat(provider_issues[:warnings])
+
+          # Display results
+          display_validation_results(issues, warnings)
+
+          # Return exit code
+          issues.empty? ? 0 : 1
+        rescue => e
+          display_message("Error validating configuration: #{e.message}", type: :error)
+          Aidp.log_error("models_command", "validation error",
+            error: e.message, backtrace: e.backtrace.first(5))
+          1
+        end
+      end
+
+      def parse_validate_options(args)
+        args.each do |arg|
+          case arg
+          when "--help", "-h"
+            display_help
+            exit 0
+          end
+        end
+      end
+
+      def load_configuration
+        begin
+          project_dir = Dir.pwd
+          unless Aidp::Config.config_exists?(project_dir)
+            display_message("❌ No aidp.yml configuration file found", type: :error)
+            display_message("Run 'aidp config --interactive' to create one", type: :info)
+            return nil
+          end
+
+          Aidp::Harness::Configuration.new(project_dir)
+        rescue => e
+          display_message("❌ Error loading configuration: #{e.message}", type: :error)
+          nil
+        end
+      end
+
+      def validate_tier_coverage(config)
+        errors = []
+        warnings = []
+
+        # Check each tier for model coverage
+        Aidp::Harness::ModelRegistry::VALID_TIERS.each do |tier|
+          has_model = tier_has_model?(config, tier)
+
+          unless has_model
+            errors << {
+              tier: tier,
+              message: "No model configured for '#{tier}' tier",
+              fix: generate_tier_fix_suggestion(tier, config)
+            }
+          end
+        end
+
+        {errors: errors, warnings: warnings}
+      end
+
+      def tier_has_model?(config, tier)
+        # Check if any provider has a model for this tier
+        configured_providers = config.configured_providers
+
+        configured_providers.any? do |provider_name|
+          provider_cfg = config.provider_config(provider_name)
+          tier_config = provider_cfg.dig(:thinking, :tiers, tier.to_sym) ||
+                        provider_cfg.dig(:thinking, :tiers, tier)
+
+          tier_config && tier_config[:models] && !tier_config[:models].empty?
+        end
+      end
+
+      def validate_provider_models(config)
+        errors = []
+        warnings = []
+
+        configured_providers = config.configured_providers
+
+        configured_providers.each do |provider_name|
+          provider_class = get_provider_class(provider_name)
+          next unless provider_class
+
+          provider_cfg = config.provider_config(provider_name)
+          thinking_cfg = provider_cfg[:thinking] || {}
+          tiers_cfg = thinking_cfg[:tiers] || {}
+
+          # Validate models in each tier
+          tiers_cfg.each do |tier, tier_config|
+            next unless tier_config[:models]
+
+            tier_config[:models].each do |model_entry|
+              model_name = model_entry.is_a?(Hash) ? model_entry[:model] : model_entry
+              next unless model_name
+
+              # Check if provider supports this model family
+              family = get_model_family(provider_class, model_name)
+              next unless family
+
+              unless provider_supports_model?(provider_class, family)
+                errors << {
+                  provider: provider_name,
+                  tier: tier,
+                  model: model_name,
+                  message: "Model '#{model_name}' not supported by provider '#{provider_name}'",
+                  fix: suggest_alternative_model(provider_name, tier, model_name)
+                }
+              end
+
+              # Check if model exists in registry
+              model_info = registry.get_model_info(family)
+              unless model_info
+                warnings << {
+                  provider: provider_name,
+                  tier: tier,
+                  model: model_name,
+                  message: "Model family '#{family}' not found in registry (may still work)"
+                }
+              end
+            end
+          end
+        end
+
+        {errors: errors, warnings: warnings}
+      end
+
+      def get_provider_class(provider_name)
+        class_name = "Aidp::Providers::#{provider_name.capitalize}"
+        Object.const_get(class_name)
+      rescue NameError
+        nil
+      end
+
+      def get_model_family(provider_class, model_name)
+        return model_name unless provider_class.respond_to?(:model_family)
+        provider_class.model_family(model_name)
+      end
+
+      def provider_supports_model?(provider_class, family)
+        return true unless provider_class.respond_to?(:supports_model_family?)
+        provider_class.supports_model_family?(family)
+      end
+
+      def generate_tier_fix_suggestion(tier, config)
+        # Get a model from registry for this tier
+        tier_models = registry.models_for_tier(tier)
+        return "Configure a model for this tier in aidp.yml" if tier_models.empty?
+
+        # Find a model that works with configured providers
+        configured_providers = config.configured_providers
+        suggested_model = nil
+
+        tier_models.each do |family|
+          configured_providers.each do |provider_name|
+            provider_class = get_provider_class(provider_name)
+            next unless provider_class
+
+            if provider_supports_model?(provider_class, family)
+              suggested_model = {family: family, provider: provider_name}
+              break
+            end
+          end
+          break if suggested_model
+        end
+
+        if suggested_model
+          "Add to aidp.yml under providers.#{suggested_model[:provider]}.thinking.tiers.#{tier}.models:\n" \
+          "  - model: #{suggested_model[:family]}"
+        else
+          "Configure a model for this tier in aidp.yml"
+        end
+      end
+
+      def suggest_alternative_model(provider_name, tier, invalid_model)
+        # Get models from registry for this tier and provider
+        tier_models = registry.models_for_tier(tier.to_s)
+        provider_class = get_provider_class(provider_name)
+        return "Check model name or use a different provider" unless provider_class
+
+        # Find valid alternatives
+        alternatives = tier_models.select do |family|
+          provider_supports_model?(provider_class, family)
+        end
+
+        if alternatives.any?
+          "Try using: #{alternatives.first(3).join(", ")}"
+        else
+          "Provider '#{provider_name}' doesn't support any models for tier '#{tier}'"
+        end
+      end
+
+      def display_validation_results(issues, warnings)
+        if issues.empty? && warnings.empty?
+          display_message("✅ Configuration is valid!\n", type: :success)
+          display_message("All tiers have models configured", type: :info)
+          display_message("All configured models are valid for their providers\n", type: :info)
+          return
+        end
+
+        # Display errors
+        if issues.any?
+          display_message("❌ Found #{issues.size} configuration error#{issues.size == 1 ? "" : "s"}:\n", type: :error)
+
+          issues.each_with_index do |issue, idx|
+            display_message("\n#{idx + 1}. #{issue[:message]}", type: :error)
+
+            if issue[:tier]
+              display_message("   Tier: #{issue[:tier]}", type: :info)
+            end
+
+            if issue[:provider]
+              display_message("   Provider: #{issue[:provider]}", type: :info)
+            end
+
+            if issue[:model]
+              display_message("   Model: #{issue[:model]}", type: :info)
+            end
+
+            if issue[:fix]
+              display_message("\n   💡 Suggested fix:", type: :highlight)
+              display_message("   #{issue[:fix]}", type: :info)
+            end
+          end
+          display_message("\n", type: :info)
+        end
+
+        # Display warnings
+        if warnings.any?
+          display_message("⚠️  Found #{warnings.size} warning#{warnings.size == 1 ? "" : "s"}:\n", type: :warning)
+
+          warnings.each_with_index do |warning, idx|
+            display_message("\n#{idx + 1}. #{warning[:message]}", type: :warning)
+
+            if warning[:provider]
+              display_message("   Provider: #{warning[:provider]}", type: :info)
+            end
+
+            if warning[:model]
+              display_message("   Model: #{warning[:model]}", type: :info)
+            end
+          end
+          display_message("\n", type: :info)
+        end
+
+        # Display helpful tips
+        display_message("💡 Run 'aidp models discover' to see available models", type: :info)
+        display_message("💡 Run 'aidp models list --tier=<tier>' to see models for a specific tier\n", type: :info)
       end
     end
   end
