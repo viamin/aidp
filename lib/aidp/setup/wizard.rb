@@ -399,15 +399,17 @@ module Aidp
       end
 
       # Wait for background discovery to complete and show notifications
-      def finalize_background_discovery
+      #
+      # @param timeout [Numeric] Maximum seconds to wait per thread (default: 5)
+      def finalize_background_discovery(timeout: 5)
         return unless @discovery_threads&.any?
 
         @discovery_threads.each do |entry|
           thread = entry[:thread]
           provider = entry[:provider]
 
-          # Wait up to 5 seconds for discovery to complete
-          thread.join(5)
+          # Wait up to timeout seconds for discovery to complete
+          thread.join(timeout)
 
           if thread.alive?
             Aidp.log_debug("setup_wizard", "discovery still running",

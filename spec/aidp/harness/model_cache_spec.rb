@@ -189,6 +189,32 @@ RSpec.describe Aidp::Harness::ModelCache do
         expect(cached.size).to eq(1)
         expect(cached.first[:name]).to eq("claude-3-5-sonnet-20241022")
       end
+
+      it "symbolizes all model keys" do
+        cached = cache.get_cached_models("anthropic")
+
+        # Verify all keys are symbols, not strings
+        expect(cached.first.keys).to all(be_a(Symbol))
+        expect(cached.first[:tier]).to eq("standard")
+        expect(cached.first[:provider]).to eq("anthropic")
+      end
+
+      it "handles models with complex nested data" do
+        complex_models = [
+          {
+            name: "test-model",
+            tier: "standard",
+            capabilities: ["chat", "code"],
+            metadata: {"version" => "1.0", "context_window" => 100000}
+          }
+        ]
+        cache.cache_models("test", complex_models)
+
+        cached = cache.get_cached_models("test")
+        expect(cached.first[:name]).to eq("test-model")
+        expect(cached.first[:capabilities]).to eq(["chat", "code"])
+        expect(cached.first[:metadata]).to be_a(Hash)
+      end
     end
 
     context "when cache is expired" do

@@ -1184,8 +1184,8 @@ RSpec.describe Aidp::Setup::Wizard do
 
       context "when discovery threads still running" do
         before do
-          # Create a long-running thread
-          thread = Thread.new { sleep 10 }
+          # Create a long-running thread (longer than test timeout)
+          thread = Thread.new { sleep 1 }
           wizard.instance_variable_set(:@discovery_threads, [{thread: thread, provider: "anthropic"}])
         end
 
@@ -1195,17 +1195,32 @@ RSpec.describe Aidp::Setup::Wizard do
           threads&.first&.dig(:thread)&.kill if threads&.first&.dig(:thread)&.alive?
         end
 
-        it "waits up to 5 seconds for completion" do
+        it "waits for timeout duration" do
           start_time = Time.now
-          wizard.send(:finalize_background_discovery)
+          wizard.send(:finalize_background_discovery, timeout: 0.1)
           elapsed = Time.now - start_time
 
-          # Should wait around 5 seconds (with some tolerance)
-          expect(elapsed).to be_within(1).of(5)
+          # Should wait around 0.1 seconds (with some tolerance)
+          expect(elapsed).to be_within(0.05).of(0.1)
         end
 
         it "does not crash when thread still running" do
-          expect { wizard.send(:finalize_background_discovery) }.not_to raise_error
+          expect { wizard.send(:finalize_background_discovery, timeout: 0.1) }.not_to raise_error
+        end
+
+        it "uses custom timeout value" do
+          start_time = Time.now
+          wizard.send(:finalize_background_discovery, timeout: 0.05)
+          elapsed = Time.now - start_time
+
+          # Should wait around 0.05 seconds (with some tolerance)
+          expect(elapsed).to be < 0.15
+        end
+
+        it "clears discovery threads after completion" do
+          wizard.send(:finalize_background_discovery, timeout: 0.1)
+          threads = wizard.instance_variable_get(:@discovery_threads)
+          expect(threads).to eq([])
         end
       end
 
@@ -1291,6 +1306,26 @@ RSpec.describe Aidp::Setup::Wizard do
         allow(discovery_service).to receive(:discover_models).and_raise(StandardError.new("Discovery failed"))
 
         expect { wizard.send(:discover_and_cache_models, "anthropic") }.not_to raise_error
+      end
+
+      it "returns empty array on discovery failure" do
+        discovery_service = instance_double(Aidp::Harness::ModelDiscoveryService)
+        allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)
+        allow(discovery_service).to receive(:discover_models).and_raise(StandardError.new("Discovery failed"))
+
+        result = wizard.send(:discover_and_cache_models, "anthropic")
+        expect(result).to eq([])
+      end
+
+      it "logs debug message on failure" do
+        discovery_service = instance_double(Aidp::Harness::ModelDiscoveryService)
+        allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)
+        allow(discovery_service).to receive(:discover_models).and_raise(StandardError.new("Discovery failed"))
+
+        expect(Aidp).to receive(:log_debug).with("setup_wizard", "background discovery failed",
+          hash_including(provider: "anthropic", error: "Discovery failed"))
+
+        wizard.send(:discover_and_cache_models, "anthropic")
       end
     end
   end
