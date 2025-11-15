@@ -2,12 +2,15 @@
 
 require_relative "capability_registry"
 require_relative "configuration"
+require_relative "../message_display"
 
 module Aidp
   module Harness
     # Manages thinking depth tier selection and escalation
     # Integrates with CapabilityRegistry and Configuration to select appropriate models
     class ThinkingDepthManager
+      include Aidp::MessageDisplay
+
       attr_reader :configuration, :registry
 
       def initialize(configuration, registry: nil, root_dir: nil)
@@ -376,35 +379,35 @@ module Aidp
 
       # Display error with model suggestions from cache
       def display_tier_error_with_suggestions(tier, provider, models)
-        Aidp.display_message("\n❌ No model configured for '#{tier}' tier", type: :error)
-        Aidp.display_message("   Provider: #{provider}", type: :info) if provider
+        display_message("\n❌ No model configured for '#{tier}' tier", type: :error)
+        display_message("   Provider: #{provider}", type: :info) if provider
 
-        Aidp.display_message("\n💡 Discovered models for this tier:", type: :highlight)
+        display_message("\n💡 Discovered models for this tier:", type: :highlight)
         models.first(3).each do |model|
           model_name = model[:name] || model["name"]
-          Aidp.display_message("   - #{model_name}", type: :info)
+          display_message("   - #{model_name}", type: :info)
         end
 
-        Aidp.display_message("\n   Add to aidp.yml:", type: :highlight)
-        Aidp.display_message("   providers:", type: :info)
-        Aidp.display_message("     #{provider}:", type: :info)
-        Aidp.display_message("       thinking:", type: :info)
-        Aidp.display_message("         tiers:", type: :info)
-        Aidp.display_message("           #{tier}:", type: :info)
-        Aidp.display_message("             models:", type: :info)
+        display_message("\n   Add to aidp.yml:", type: :highlight)
+        display_message("   providers:", type: :info)
+        display_message("     #{provider}:", type: :info)
+        display_message("       thinking:", type: :info)
+        display_message("         tiers:", type: :info)
+        display_message("           #{tier}:", type: :info)
+        display_message("             models:", type: :info)
         first_model = models.first[:name] || models.first["name"]
-        Aidp.display_message("               - model: #{first_model}\n", type: :info)
+        display_message("               - model: #{first_model}\n", type: :info)
       end
 
       # Display error with discovery hint
       def display_tier_error_with_discovery_hint(tier, provider)
-        Aidp.display_message("\n❌ No model configured for '#{tier}' tier", type: :error)
-        Aidp.display_message("   Provider: #{provider}", type: :info) if provider
+        display_message("\n❌ No model configured for '#{tier}' tier", type: :error)
+        display_message("   Provider: #{provider}", type: :info) if provider
 
-        Aidp.display_message("\n💡 Suggested actions:", type: :highlight)
-        Aidp.display_message("   1. Run 'aidp models discover' to find available models", type: :info)
-        Aidp.display_message("   2. Run 'aidp models list --tier=#{tier}' to see models for this tier", type: :info)
-        Aidp.display_message("   3. Run 'aidp models validate' to check your configuration\n", type: :info)
+        display_message("\n💡 Suggested actions:", type: :highlight)
+        display_message("   1. Run 'aidp models discover' to find available models", type: :info)
+        display_message("   2. Run 'aidp models list --tier=#{tier}' to see models for this tier", type: :info)
+        display_message("   3. Run 'aidp models validate' to check your configuration\n", type: :info)
       end
     end
   end

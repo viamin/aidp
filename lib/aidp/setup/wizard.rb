@@ -9,6 +9,7 @@ require "json"
 
 require_relative "../util"
 require_relative "../config/paths"
+require_relative "../harness/capability_registry"
 require_relative "provider_registry"
 require_relative "devcontainer/parser"
 require_relative "devcontainer/generator"
@@ -24,6 +25,11 @@ module Aidp
       SCHEMA_VERSION = 1
       DEVCONTAINER_COMPONENT = "setup_wizard.devcontainer"
 
+      DEFAULT_AUTOCONFIG_TIERS = %w[mini standard pro].freeze
+      LEGACY_TIER_ALIASES = {
+        advanced: :pro
+      }.freeze
+
       attr_reader :project_dir, :prompt, :dry_run
 
       def initialize(project_dir = Dir.pwd, prompt: nil, dry_run: false)
@@ -38,8 +44,9 @@ module Aidp
 
       def run
         display_welcome
-        # Normalize any legacy or label-based model_family entries before prompting
+        # Normalize any legacy tier/model_family entries before prompting
         normalize_existing_model_families!
+        normalize_existing_thinking_tiers!
         return @saved if skip_wizard?
 
         configure_providers
@@ -458,7 +465,7 @@ module Aidp
         discovered_models.each do |provider, models|
           prompt.say("\n✓ Found #{models.size} models for #{provider}:")
           by_tier = models.group_by { |m| m[:tier] }
-          %w[mini standard advanced].each do |tier|
+          valid_thinking_tiers.each do |tier|
             tier_models = by_tier[tier] || []
             next if tier_models.empty?
 
@@ -470,29 +477,30 @@ module Aidp
       def generate_tier_configuration(discovered_models, primary_provider)
         tier_config = {}
 
-        # For each tier, try to find a model
-        %w[mini standard advanced].each do |tier|
-          # Try primary provider first
-          model = find_model_for_tier(discovered_models[primary_provider], tier)
+        # Configure the three most common tiers: mini, standard, and pro
+        DEFAULT_AUTOCONFIG_TIERS.each do |tier|
+          tier_models = []
 
-          # Fallback to other providers if needed
-          if !model
-            discovered_models.each do |provider, models|
-              next if provider == primary_provider
-              model = find_model_for_tier(models, tier)
-              break if model
-            end
+          # Collect primary provider models first (if available)
+          primary_models = find_models_for_tier(discovered_models[primary_provider], tier)
+          tier_models.concat(primary_models) if primary_models&.any?
+
+          # Add models from other providers
+          discovered_models.each do |provider, models|
+            next if provider == primary_provider
+            provider_models = find_models_for_tier(models, tier)
+            tier_models.concat(provider_models) if provider_models&.any?
           end
 
-          # Add to config if found
-          if model
+          # Add to config if we found any models for this tier
+          if tier_models.any?
             tier_config[tier.to_sym] = {
-              models: [
+              models: tier_models.map { |m|
                 {
-                  provider: model[:provider],
-                  model: model[:name]
+                  provider: m[:provider],
+                  model: m[:name]
                 }
-              ]
+              }
             }
           end
         end
@@ -504,6 +512,12 @@ module Aidp
         return nil unless models
 
         models.find { |m| m[:tier] == target_tier }
+      end
+
+      def find_models_for_tier(models, target_tier)
+        return [] unless models
+
+        models.select { |m| m[:tier] == target_tier }
       end
 
       def display_tier_preview(tier_config)
@@ -1596,6 +1610,44 @@ module Aidp
         end
       end
 
+      def normalize_existing_thinking_tiers!
+        tiers_cfg = @config.dig(:thinking, :tiers)
+        return unless tiers_cfg.is_a?(Hash)
+
+        LEGACY_TIER_ALIASES.each do |legacy, canonical|
+          next unless tiers_cfg.key?(legacy)
+
+          legacy_cfg = tiers_cfg.delete(legacy) || {}
+          canonical_cfg = tiers_cfg[canonical] || {}
+          merged_models = merge_tier_models(canonical_cfg[:models], legacy_cfg[:models])
+          tiers_cfg[canonical] = canonical_cfg.merge(models: merged_models)
+          @warnings << "Normalized thinking tier '#{legacy}' to '#{canonical}'"
+        end
+
+        valid = valid_thinking_tiers
+        tiers_cfg.keys.each do |tier|
+          next if valid.include?(tier.to_s)
+
+          tiers_cfg.delete(tier)
+          @warnings << "Removed unsupported thinking tier '#{tier}' from configuration"
+        end
+      end
+
+      def merge_tier_models(existing_models, new_models)
+        combined = []
+        (Array(existing_models) + Array(new_models)).each do |entry|
+          next unless entry.is_a?(Hash)
+          provider = entry[:provider]
+          model = entry[:model]
+          next unless provider && model
+
+          unless combined.any? { |m| m[:provider] == provider && m[:model] == model }
+            combined << entry
+          end
+        end
+        combined
+      end
+
       def load_existing_config
         return {} unless File.exist?(config_path)
         YAML.safe_load_file(config_path, permitted_classes: [Time]) || {}
@@ -1727,6 +1779,12 @@ module Aidp
 
       def project_file?(relative_path)
         File.exist?(File.join(project_dir, relative_path))
+      end
+
+      def valid_thinking_tiers
+        Aidp::Harness::CapabilityRegistry::VALID_TIERS
+      rescue NameError
+        %w[mini standard thinking pro max]
       end
 
       def configure_devcontainer
