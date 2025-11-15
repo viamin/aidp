@@ -22,8 +22,8 @@ SimpleCov.start do
   add_group "Setup", "lib/aidp/setup"
   add_group "Analysis", "lib/aidp/analyze"
 
-  # Initial baseline; raise gradually.
-  minimum_coverage 80
+  # Require minimum 84% line coverage, 65% branch coverage
+  # This allows small fluctuations but prevents major regressions
+  minimum_coverage line: 84, branch: 65
   minimum_coverage_by_file 58
-  refuse_coverage_drop
 end

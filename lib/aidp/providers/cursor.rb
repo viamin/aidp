@@ -14,6 +14,76 @@ module Aidp
         !!Aidp::Util.which("cursor-agent")
       end
 
+      # Normalize Cursor's model name to family name
+      #
+      # Cursor may use different naming conventions (e.g., dots vs hyphens)
+      #
+      # @param provider_model_name [String] Cursor's model name
+      # @return [String] The normalized family name
+      def self.model_family(provider_model_name)
+        # Normalize cursor naming to standard family names
+        # cursor uses dots: "claude-3.5-sonnet" -> "claude-3-5-sonnet"
+        provider_model_name.gsub(/(\d)\.(\d)/, '\1-\2')
+      end
+
+      # Convert family name to Cursor's naming convention
+      #
+      # @param family_name [String] The model family name
+      # @return [String] Cursor's model name
+      def self.provider_model_name(family_name)
+        # Cursor uses dots for version numbers
+        # "claude-3-5-sonnet" -> "claude-3.5-sonnet"
+        family_name.gsub(/(\d)-(\d)/, '\1.\2')
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # Cursor supports Claude, GPT, and Cursor-specific models
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if likely supported
+      def self.supports_model_family?(family_name)
+        family_name.match?(/^(claude|gpt|cursor)-/)
+      end
+
+      # Discover available models from Cursor
+      #
+      # Note: Cursor doesn't have a public model listing API
+      # Returns registry-based models that match Cursor patterns
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        begin
+          require_relative "../harness/model_registry"
+          registry = Aidp::Harness::ModelRegistry.new
+
+          # Get all models from registry that Cursor might support
+          models = registry.all_families.filter_map do |family|
+            next unless supports_model_family?(family)
+
+            info = registry.get_model_info(family)
+            next unless info
+
+            {
+              name: provider_model_name(family),
+              family: family,
+              tier: info["tier"],
+              capabilities: info["capabilities"] || [],
+              context_window: info["context_window"],
+              provider: "cursor"
+            }
+          end
+
+          Aidp.log_info("cursor_provider", "using registry models", count: models.size)
+          models
+        rescue => e
+          Aidp.log_debug("cursor_provider", "discovery failed", error: e.message)
+          []
+        end
+      end
+
       def name
         "cursor"
       end
@@ -97,58 +167,6 @@ module Aidp
       end
 
       private
-
-      def calculate_timeout
-        # Priority order for timeout calculation:
-        # 1. Quick mode (for testing)
-        # 2. Environment variable override
-        # 3. Adaptive timeout based on step type
-        # 4. Default timeout
-
-        if ENV["AIDP_QUICK_MODE"]
-          display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
-          return TIMEOUT_QUICK_MODE
-        end
-
-        if ENV["AIDP_CURSOR_TIMEOUT"]
-          return ENV["AIDP_CURSOR_TIMEOUT"].to_i
-        end
-
-        if adaptive_timeout
-          display_message("🧠 Using adaptive timeout: #{adaptive_timeout} seconds", type: :info)
-          return adaptive_timeout
-        end
-
-        # Default timeout
-        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
-        TIMEOUT_DEFAULT
-      end
-
-      def adaptive_timeout
-        @adaptive_timeout ||= begin
-          # Timeout recommendations based on step type patterns
-          step_name = ENV["AIDP_CURRENT_STEP"] || ""
-
-          case step_name
-          when /REPOSITORY_ANALYSIS/
-            TIMEOUT_REPOSITORY_ANALYSIS
-          when /ARCHITECTURE_ANALYSIS/
-            TIMEOUT_ARCHITECTURE_ANALYSIS
-          when /TEST_ANALYSIS/
-            TIMEOUT_TEST_ANALYSIS
-          when /FUNCTIONALITY_ANALYSIS/
-            TIMEOUT_FUNCTIONALITY_ANALYSIS
-          when /DOCUMENTATION_ANALYSIS/
-            TIMEOUT_DOCUMENTATION_ANALYSIS
-          when /STATIC_ANALYSIS/
-            TIMEOUT_STATIC_ANALYSIS
-          when /REFACTORING_RECOMMENDATIONS/
-            TIMEOUT_REFACTORING_RECOMMENDATIONS
-          else
-            nil # Use default
-          end
-        end
-      end
 
       def activity_callback(state, message, provider)
         # This is now handled by the animated display thread

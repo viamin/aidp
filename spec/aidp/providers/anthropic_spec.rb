@@ -655,4 +655,83 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
     end
   end
+
+  describe ".model_family" do
+    it "strips date suffix from versioned model names" do
+      expect(described_class.model_family("claude-3-5-sonnet-20241022")).to eq("claude-3-5-sonnet")
+    end
+
+    it "handles different date versions" do
+      expect(described_class.model_family("claude-3-5-sonnet-20250101")).to eq("claude-3-5-sonnet")
+    end
+
+    it "handles Haiku models" do
+      expect(described_class.model_family("claude-3-5-haiku-20241022")).to eq("claude-3-5-haiku")
+    end
+
+    it "handles Opus models" do
+      expect(described_class.model_family("claude-3-opus-20240229")).to eq("claude-3-opus")
+    end
+
+    it "returns unmodified name if no date suffix" do
+      expect(described_class.model_family("claude-3-5-sonnet")).to eq("claude-3-5-sonnet")
+    end
+
+    it "handles Claude 3 Sonnet" do
+      expect(described_class.model_family("claude-3-sonnet-20240229")).to eq("claude-3-sonnet")
+    end
+
+    it "handles Claude 3 Haiku" do
+      expect(described_class.model_family("claude-3-haiku-20240307")).to eq("claude-3-haiku")
+    end
+  end
+
+  describe ".provider_model_name" do
+    it "returns family name as-is for flexibility" do
+      result = described_class.provider_model_name("claude-3-5-sonnet")
+      expect(result).to eq("claude-3-5-sonnet")
+    end
+
+    it "returns family name for Haiku" do
+      result = described_class.provider_model_name("claude-3-5-haiku")
+      expect(result).to eq("claude-3-5-haiku")
+    end
+
+    it "returns family name for Opus" do
+      result = described_class.provider_model_name("claude-3-opus")
+      expect(result).to eq("claude-3-opus")
+    end
+
+    it "returns provided name for any model" do
+      result = described_class.provider_model_name("unknown-model")
+      expect(result).to eq("unknown-model")
+    end
+  end
+
+  describe ".supports_model_family?" do
+    it "returns true for supported Claude 3.5 Sonnet" do
+      expect(described_class.supports_model_family?("claude-3-5-sonnet")).to be true
+    end
+
+    it "returns true for supported Claude 3.5 Haiku" do
+      expect(described_class.supports_model_family?("claude-3-5-haiku")).to be true
+    end
+
+    it "returns true for supported Claude 3 Opus" do
+      expect(described_class.supports_model_family?("claude-3-opus")).to be true
+    end
+
+    it "returns true for versioned Claude models" do
+      expect(described_class.supports_model_family?("claude-3-5-sonnet-20241022")).to be true
+      expect(described_class.supports_model_family?("claude-3-opus-20240229")).to be true
+    end
+
+    it "returns false for unsupported model" do
+      expect(described_class.supports_model_family?("gpt-4")).to be false
+    end
+
+    it "returns false for non-existent model" do
+      expect(described_class.supports_model_family?("unknown-model")).to be false
+    end
+  end
 end

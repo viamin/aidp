@@ -10,8 +10,31 @@ module Aidp
     class Kilocode < Base
       include Aidp::DebugMixin
 
+      # Model name pattern for OpenAI models (since Kilocode uses OpenAI)
+      MODEL_PATTERN = /^gpt-[\d.o-]+(?:-turbo)?(?:-mini)?$/i
+
       def self.available?
         !!Aidp::Util.which("kilocode")
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if it matches OpenAI model pattern
+      def self.supports_model_family?(family_name)
+        MODEL_PATTERN.match?(family_name)
+      end
+
+      # Discover available models from registry
+      #
+      # Note: Kilocode CLI doesn't have a standard model listing command
+      # Returns registry-based models that match OpenAI patterns
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        discover_models_from_registry(MODEL_PATTERN, "kilocode")
       end
 
       def name
@@ -112,58 +135,6 @@ module Aidp
 
       private
 
-      def calculate_timeout
-        # Priority order for timeout calculation:
-        # 1. Quick mode (for testing)
-        # 2. Environment variable override
-        # 3. Adaptive timeout based on step type
-        # 4. Default timeout
-
-        if ENV["AIDP_QUICK_MODE"]
-          display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
-          return TIMEOUT_QUICK_MODE
-        end
-
-        if ENV["AIDP_KILOCODE_TIMEOUT"]
-          return ENV["AIDP_KILOCODE_TIMEOUT"].to_i
-        end
-
-        if adaptive_timeout
-          display_message("🧠 Using adaptive timeout: #{adaptive_timeout} seconds", type: :info)
-          return adaptive_timeout
-        end
-
-        # Default timeout
-        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
-        TIMEOUT_DEFAULT
-      end
-
-      def adaptive_timeout
-        @adaptive_timeout ||= begin
-          # Timeout recommendations based on step type patterns
-          step_name = ENV["AIDP_CURRENT_STEP"] || ""
-
-          case step_name
-          when /REPOSITORY_ANALYSIS/
-            TIMEOUT_REPOSITORY_ANALYSIS
-          when /ARCHITECTURE_ANALYSIS/
-            TIMEOUT_ARCHITECTURE_ANALYSIS
-          when /TEST_ANALYSIS/
-            TIMEOUT_TEST_ANALYSIS
-          when /FUNCTIONALITY_ANALYSIS/
-            TIMEOUT_FUNCTIONALITY_ANALYSIS
-          when /DOCUMENTATION_ANALYSIS/
-            TIMEOUT_DOCUMENTATION_ANALYSIS
-          when /STATIC_ANALYSIS/
-            TIMEOUT_STATIC_ANALYSIS
-          when /REFACTORING_RECOMMENDATIONS/
-            TIMEOUT_REFACTORING_RECOMMENDATIONS
-          else
-            nil # Use default
-          end
-        end
-      end
-
       def activity_callback(state, message, provider)
         # This is now handled by the animated display thread
         # Only print static messages for state changes
@@ -175,27 +146,6 @@ module Aidp
         when :failed
           display_message("❌ kilocode execution failed: #{message}", type: :error)
         end
-      end
-
-      def setup_activity_monitoring(provider_name, callback)
-        @activity_callback = callback
-        @activity_state = :starting
-        @activity_start_time = Time.now
-      end
-
-      def record_activity(message)
-        @activity_state = :running
-        @activity_callback&.call(:running, message, "kilocode")
-      end
-
-      def mark_completed
-        @activity_state = :completed
-        @activity_callback&.call(:completed, "Execution completed", "kilocode")
-      end
-
-      def mark_failed(reason)
-        @activity_state = :failed
-        @activity_callback&.call(:failed, reason, "kilocode")
       end
     end
   end

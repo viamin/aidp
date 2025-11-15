@@ -185,6 +185,9 @@ module Aidp
           end
         end
 
+        # Enhanced error message with discovery hints
+        display_enhanced_tier_error(tier, provider)
+
         Aidp.log_error("thinking_depth_manager", "No model found for tier",
           tier: tier,
           provider: provider)
@@ -329,6 +332,79 @@ module Aidp
 
         # Keep history bounded
         @tier_history.shift if @tier_history.size > 100
+      end
+
+      # Display enhanced error message with discovery hints
+      def display_enhanced_tier_error(tier, provider)
+        return unless defined?(Aidp::MessageDisplay)
+
+        # Check if there are discovered models in cache
+        discovered_models = check_discovered_models(tier, provider)
+
+        if discovered_models&.any?
+          display_tier_error_with_suggestions(tier, provider, discovered_models)
+        else
+          display_tier_error_with_discovery_hint(tier, provider)
+        end
+      end
+
+      # Check cache for discovered models for this tier
+      def check_discovered_models(tier, provider)
+        require_relative "model_cache"
+        require_relative "model_registry"
+
+        cache = Aidp::Harness::ModelCache.new
+        registry = Aidp::Harness::ModelRegistry.new
+
+        # Get all cached models for the provider
+        cached_models = cache.get_cached_models(provider)
+        return nil unless cached_models&.any?
+
+        # Filter to models for the requested tier
+        tier_models = cached_models.select do |model|
+          family = model[:family] || model["family"]
+          model_info = registry.get_model_info(family)
+          model_info && model_info["tier"] == tier.to_s
+        end
+
+        tier_models.any? ? tier_models : nil
+      rescue => e
+        Aidp.log_debug("thinking_depth_manager", "failed to check cached models",
+          error: e.message)
+        nil
+      end
+
+      # Display error with model suggestions from cache
+      def display_tier_error_with_suggestions(tier, provider, models)
+        Aidp.display_message("\n❌ No model configured for '#{tier}' tier", type: :error)
+        Aidp.display_message("   Provider: #{provider}", type: :info) if provider
+
+        Aidp.display_message("\n💡 Discovered models for this tier:", type: :highlight)
+        models.first(3).each do |model|
+          model_name = model[:name] || model["name"]
+          Aidp.display_message("   - #{model_name}", type: :info)
+        end
+
+        Aidp.display_message("\n   Add to aidp.yml:", type: :highlight)
+        Aidp.display_message("   providers:", type: :info)
+        Aidp.display_message("     #{provider}:", type: :info)
+        Aidp.display_message("       thinking:", type: :info)
+        Aidp.display_message("         tiers:", type: :info)
+        Aidp.display_message("           #{tier}:", type: :info)
+        Aidp.display_message("             models:", type: :info)
+        first_model = models.first[:name] || models.first["name"]
+        Aidp.display_message("               - model: #{first_model}\n", type: :info)
+      end
+
+      # Display error with discovery hint
+      def display_tier_error_with_discovery_hint(tier, provider)
+        Aidp.display_message("\n❌ No model configured for '#{tier}' tier", type: :error)
+        Aidp.display_message("   Provider: #{provider}", type: :info) if provider
+
+        Aidp.display_message("\n💡 Suggested actions:", type: :highlight)
+        Aidp.display_message("   1. Run 'aidp models discover' to find available models", type: :info)
+        Aidp.display_message("   2. Run 'aidp models list --tier=#{tier}' to see models for this tier", type: :info)
+        Aidp.display_message("   3. Run 'aidp models validate' to check your configuration\n", type: :info)
       end
     end
   end

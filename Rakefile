@@ -27,33 +27,17 @@ task default: :spec
 
 # Coverage tasks
 #
-# Coverage Ratchet System:
-# The coverage ratchet prevents test coverage from decreasing over time.
-# - coverage_baseline.json: Committed to git, tracks minimum allowed coverage
+# Coverage is enforced using SimpleCov's minimum_coverage feature (see .simplecov)
+# - Minimum thresholds: 84% line coverage, 80% branch coverage
 # - coverage:run: Runs tests with coverage enabled (excludes system tests to match CI)
-# - coverage:check: Verifies coverage hasn't decreased (±0.1% tolerance for CI/local variance)
-# - coverage:update_baseline: Updates baseline when coverage improves
-# - prep/pc tasks: Automatically run coverage:check before commits
-#
-# Tolerance:
-# - Allows ±0.1% variance to account for CI/local environment differences
-# - Prevents false failures from Ruby version, gem version, or timing differences
-# - Real decreases (>0.1%) still fail the build
-#
-# Automatic Updates:
-# - When PRs are merged to main and coverage improves, CI automatically:
-#   1. Creates a new branch with updated coverage_baseline.json
-#   2. Opens a PR for the baseline update
-#   3. Enables auto-merge (respects branch protection rules)
+# - coverage:summary: Generates summary.json and coverage badge SVG
+# - prep/pc tasks: Automatically run coverage:run before commits
 #
 # Local Workflow:
 # 1. Make changes and add tests
 # 2. Run 'rake prep' or 'rake pc' before committing
-# 3. If coverage improved and you want to update baseline locally:
-#    - Run 'rake coverage:update_baseline' and commit the file
-#    - Or just merge to main and let CI create a PR for it
-# 4. If coverage decreased beyond tolerance, add more tests
-# 5. CI will fail if coverage decreases >0.1% on any branch
+# 3. SimpleCov will fail the test suite if coverage drops below 84%
+# 4. Add more tests if coverage is below the minimum threshold
 namespace :coverage do
   desc "Run RSpec with coverage (COVERAGE=1)"
   task :run do
@@ -174,202 +158,6 @@ namespace :coverage do
     File.write(ratchet_file, JSON.pretty_generate({line_coverage: current, updated_at: Time.now.utc.iso8601}))
     puts "Ratchet updated to #{current}%"
   end
-
-  desc "Check coverage against ratchet baseline (fails if coverage decreased)"
-  task :check do
-    require "json"
-
-    # Tolerance for measurement variance between CI and local (0.1%)
-    tolerance = 0.1
-
-    # Check for coverage data
-    resultset = File.join(COVERAGE_DIR, ".resultset.json")
-    unless File.exist?(resultset)
-      puts "❌ No coverage data found. Run 'rake coverage:run' first."
-      exit 1
-    end
-
-    # Calculate current coverage
-    data = JSON.parse(File.read(resultset))
-    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
-    unless coverage_hash
-      puts "❌ Unexpected resultset structure, cannot find rspec.coverage"
-      exit 1
-    end
-
-    covered = 0
-    total = 0
-    coverage_hash.each_value do |file_cov|
-      lines = file_cov["lines"]
-      lines.each do |val|
-        next if val.nil?
-
-        total += 1
-        covered += 1 if val > 0
-      end
-    end
-    current = (total.positive? ? (covered.to_f / total * 100.0) : 0.0).round(2)
-
-    # Check against baseline
-    baseline_file = "coverage_baseline.json"
-    unless File.exist?(baseline_file)
-      puts "⚠️  No coverage baseline found at #{baseline_file}"
-      puts "   Creating initial baseline at #{current}%"
-      File.write(baseline_file, JSON.pretty_generate({
-        line_coverage: current,
-        created_at: Time.now.utc.iso8601,
-        note: "Coverage ratchet baseline - do not decrease this value"
-      }))
-      puts "✅ Baseline created. Commit this file to git."
-      next
-    end
-
-    baseline_data = JSON.parse(File.read(baseline_file))
-    baseline = baseline_data["line_coverage"]
-    difference = (current - baseline).round(2)
-
-    puts "\n📊 Coverage Ratchet Check"
-    puts "=" * 60
-    puts "Current coverage:  #{current}%"
-    puts "Baseline coverage: #{baseline}%"
-    puts "Difference:        #{difference}%"
-    puts "Tolerance:         ±#{tolerance}%"
-    puts "=" * 60
-
-    # Check coverage changes
-    if difference < -tolerance
-      # Coverage decreased beyond tolerance
-      puts "\n❌ COVERAGE DECREASED!"
-      puts "   Coverage dropped from #{baseline}% to #{current}%"
-      puts "   This exceeds the allowed tolerance of #{tolerance}%"
-      puts "\n   To fix:"
-      puts "   1. Add tests to restore coverage to at least #{baseline}%"
-      puts "   2. Or if intentional, update baseline: rake coverage:update_baseline"
-      exit 1
-    elsif difference == 0
-      # Coverage exactly the same
-      puts "\n✅ Coverage unchanged at #{current}%, baseline not updated"
-    elsif difference.abs <= tolerance
-      # Coverage changed but within tolerance (small variance)
-      puts "\n✅ Coverage maintained at #{current}% (within tolerance)"
-    else
-      # Coverage improved beyond tolerance
-      puts "\n✅ Coverage improved! #{current}% > #{baseline}%"
-    end
-  end
-
-  desc "Update coverage baseline to current level"
-  task :update_baseline do
-    require "json"
-
-    resultset = File.join(COVERAGE_DIR, ".resultset.json")
-    unless File.exist?(resultset)
-      puts "❌ No coverage data found. Run 'rake coverage:run' first."
-      exit 1
-    end
-
-    data = JSON.parse(File.read(resultset))
-    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
-    unless coverage_hash
-      puts "❌ Unexpected resultset structure"
-      exit 1
-    end
-
-    covered = 0
-    total = 0
-    coverage_hash.each_value do |file_cov|
-      lines = file_cov["lines"]
-      lines.each do |val|
-        next if val.nil?
-
-        total += 1
-        covered += 1 if val > 0
-      end
-    end
-    current = (total.positive? ? (covered.to_f / total * 100.0) : 0.0).round(2)
-
-    baseline_file = "coverage_baseline.json"
-    previous = if File.exist?(baseline_file)
-      begin
-        JSON.parse(File.read(baseline_file))["line_coverage"]
-      rescue
-        nil
-      end
-    end
-
-    File.write(baseline_file, JSON.pretty_generate({
-      line_coverage: current,
-      updated_at: Time.now.utc.iso8601,
-      note: "Coverage ratchet baseline - do not decrease this value"
-    }))
-
-    if previous && current > previous
-      puts "✅ Baseline updated from #{previous}% to #{current}%"
-    elsif previous && current == previous
-      puts "✅ Baseline unchanged at #{current}%"
-    else
-      puts "✅ Baseline set to #{current}%"
-    end
-    puts "   File: #{baseline_file}"
-    puts "   Make sure to commit this file!"
-  end
-
-  desc "Update baseline if coverage improved (safe for automation)"
-  task :update_baseline_if_improved do
-    require "json"
-
-    resultset = File.join(COVERAGE_DIR, ".resultset.json")
-    unless File.exist?(resultset)
-      puts "No coverage data found. Skipping baseline update."
-      next
-    end
-
-    data = JSON.parse(File.read(resultset))
-    coverage_hash = data["RSpec"]["coverage"] if data["RSpec"]
-    unless coverage_hash
-      puts "Unexpected resultset structure. Skipping baseline update."
-      next
-    end
-
-    covered = 0
-    total = 0
-    coverage_hash.each_value do |file_cov|
-      lines = file_cov["lines"]
-      lines.each do |val|
-        next if val.nil?
-
-        total += 1
-        covered += 1 if val > 0
-      end
-    end
-    current = (total.positive? ? (covered.to_f / total * 100.0) : 0.0).round(2)
-
-    baseline_file = "coverage_baseline.json"
-    previous = if File.exist?(baseline_file)
-      begin
-        JSON.parse(File.read(baseline_file))["line_coverage"]
-      rescue
-        nil
-      end
-    end
-
-    # Only update if improved
-    if previous.nil? || current > previous
-      File.write(baseline_file, JSON.pretty_generate({
-        line_coverage: current,
-        updated_at: Time.now.utc.iso8601,
-        note: "Coverage ratchet baseline - do not decrease this value"
-      }))
-
-      if previous
-        puts "✅ Baseline updated from #{previous}% to #{current}%"
-      else
-        puts "✅ Initial baseline set to #{current}%"
-      end
-    else
-      puts "Coverage unchanged at #{current}%, baseline not updated"
-    end
-  end
 end
 
 # Markdown lint tasks
@@ -380,10 +168,9 @@ namespace :markdownlint do
   end
 end
 
-# Short pre-commit preparation task: runs formatters + coverage + ratchet check + smart baseline update
-desc "Run standard:fix, markdownlint:fix, coverage:run, coverage:check, and auto-update baseline if improved (pre-commit helper)"
-task prep: ["standard:fix", "markdownlint:fix", "coverage:run", "coverage:check",
-  "coverage:update_baseline_if_improved"]
+# Short pre-commit preparation task: runs formatters + coverage
+desc "Run standard:fix, markdownlint:fix, and coverage:run (pre-commit helper)"
+task prep: ["standard:fix", "markdownlint:fix", "coverage:run"]
 
 desc "Alias for prep"
 task pc: :prep

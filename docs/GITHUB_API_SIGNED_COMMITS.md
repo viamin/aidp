@@ -24,56 +24,74 @@ The `publish.yml` workflow now creates **verified commits** using GitHub's Graph
 The workflow now uses this approach in the `update-coverage-badge` job:
 
 ```yaml
-- name: Commit updated coverage badge and baseline to release PR (signed)
+- name: Commit updated coverage badge to release PR (verified)
+  uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
   env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  run: |
-    # Check for changes
-    if git diff --quiet badges/coverage.svg coverage_baseline.json; then
-      echo "No changes to coverage files, skipping commit"
-      exit 0
-    fi
+    PR_BRANCH: ${{ needs.release-please.outputs.pr-head-branch }}
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    script: |
+      const fs = require('fs');
 
-    # Get branch and commit info
-    BRANCH="${{ needs.release-please.outputs.pr-head-branch }}"
-    CURRENT_SHA=$(git rev-parse HEAD)
+      const branch = process.env.PR_BRANCH;
+      if (!branch) {
+        core.setFailed('Release PR branch was not detected.');
+        return;
+      }
 
-    # Encode files as base64
-    BADGE_CONTENT=$(base64 -w 0 badges/coverage.svg)
-    BASELINE_CONTENT=$(base64 -w 0 coverage_baseline.json)
+      const owner = context.repo.owner;
+      const repo = context.repo.repo;
 
-    # Create signed commit via GraphQL API
-    gh api graphql -f query='
-      mutation($input: CreateCommitOnBranchInput!) {
-        createCommitOnBranch(input: $input) {
-          commit {
-            oid
-            committedDate
+      let expectedHeadOid;
+      try {
+        const { data: ref } = await github.rest.git.getRef({
+          owner,
+          repo,
+          ref: `heads/${branch}`
+        });
+        expectedHeadOid = ref.object.sha;
+      } catch (error) {
+        core.setFailed(`Unable to resolve head ref for ${branch}: ${error.message}`);
+        return;
+      }
+
+      core.info(`Preparing verified commit on ${branch} at ${expectedHeadOid}`);
+
+      const badge = fs.readFileSync('badges/coverage.svg');
+
+      const mutation = `
+        mutation($input: CreateCommitOnBranchInput!) {
+          createCommitOnBranch(input: $input) {
+            commit {
+              oid
+              url
+            }
           }
         }
-      }
-    ' -f input="{
-      \"branch\": {
-        \"repositoryNameWithOwner\": \"${{ github.repository }}\",
-        \"branchName\": \"$BRANCH\"
-      },
-      \"message\": {
-        \"headline\": \"chore: update coverage badge and baseline\"
-      },
-      \"fileChanges\": {
-        \"additions\": [
-          {
-            \"path\": \"badges/coverage.svg\",
-            \"contents\": \"$BADGE_CONTENT\"
-          },
-          {
-            \"path\": \"coverage_baseline.json\",
-            \"contents\": \"$BASELINE_CONTENT\"
-          }
-        ]
-      },
-      \"expectedHeadOid\": \"$CURRENT_SHA\"
-    }"
+      `;
+
+      const input = {
+        branch: {
+          repositoryNameWithOwner: `${owner}/${repo}`,
+          branchName: branch
+        },
+        message: {
+          headline: 'chore: update coverage badge'
+        },
+        fileChanges: {
+          additions: [
+            {
+              path: 'badges/coverage.svg',
+              contents: badge.toString('base64')
+            }
+          ]
+        },
+        expectedHeadOid
+      };
+
+      const result = await github.graphql(mutation, { input });
+      const commit = result.createCommitOnBranch.commit;
+      core.notice(`Created verified commit ${commit.oid} updating coverage badge (${commit.url})`);
 ```
 
 ## Key Features

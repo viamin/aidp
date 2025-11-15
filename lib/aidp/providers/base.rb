@@ -324,6 +324,42 @@ module Aidp
         end
       end
 
+      # Helper method for registry-based model discovery
+      #
+      # Providers that use the model registry can call this method to discover models
+      # based on a model family pattern.
+      #
+      # @param model_pattern [Regexp] Pattern to match model families
+      # @param provider_name [String] Name of the provider
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models_from_registry(model_pattern, provider_name)
+        require_relative "../harness/model_registry"
+        registry = Aidp::Harness::ModelRegistry.new
+
+        # Get all models from registry that match the pattern
+        models = registry.all_families.filter_map do |family|
+          next unless model_pattern.match?(family)
+
+          info = registry.get_model_info(family)
+          next unless info
+
+          {
+            name: family,
+            family: family,
+            tier: info["tier"],
+            capabilities: info["capabilities"] || [],
+            context_window: info["context_window"],
+            provider: provider_name
+          }
+        end
+
+        Aidp.log_info("#{provider_name}_provider", "using registry models", count: models.size)
+        models
+      rescue => e
+        Aidp.log_debug("#{provider_name}_provider", "discovery failed", error: e.message)
+        []
+      end
+
       protected
 
       # Log message to job if in background mode
@@ -371,8 +407,6 @@ module Aidp
         (success_rate * 50) + ((1 - rate_limit_ratio) * 30) + (response_time_score * 0.2)
       end
 
-      protected
-
       # Update spinner status with elapsed time
       # This is a shared method used by all providers to display progress
       def update_spinner_status(spinner, elapsed, provider_name)
@@ -417,6 +451,68 @@ module Aidp
         # Use configuration method to determine if full permissions should be used
         # Provider subclasses should pass their provider name
         false # Base implementation returns false, subclasses should override
+      end
+
+      # Calculate timeout for provider operations
+      #
+      # Priority order:
+      # 1. Quick mode (for testing)
+      # 2. Provider-specific environment variable override
+      # 3. Adaptive timeout based on step type
+      # 4. Default timeout
+      #
+      # Override provider_env_var to customize the environment variable name
+      def calculate_timeout
+        if ENV["AIDP_QUICK_MODE"]
+          display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
+          return TIMEOUT_QUICK_MODE
+        end
+
+        provider_env_var = "AIDP_#{name.upcase}_TIMEOUT"
+        return ENV[provider_env_var].to_i if ENV[provider_env_var]
+
+        step_timeout = adaptive_timeout
+        if step_timeout
+          display_message("🧠 Using adaptive timeout: #{step_timeout} seconds", type: :info)
+          return step_timeout
+        end
+
+        # Default timeout
+        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
+        TIMEOUT_DEFAULT
+      end
+
+      # Get adaptive timeout based on step type
+      #
+      # This method returns different timeout values based on the type of operation
+      # being performed, as indicated by the AIDP_CURRENT_STEP environment variable.
+      # Returns nil for unknown steps to allow calculate_timeout to use the default.
+      def adaptive_timeout
+        @adaptive_timeout ||= begin
+          # Timeout recommendations based on step type patterns
+          step_name = ENV["AIDP_CURRENT_STEP"] || ""
+
+          case step_name
+          when /REPOSITORY_ANALYSIS/
+            TIMEOUT_REPOSITORY_ANALYSIS
+          when /ARCHITECTURE_ANALYSIS/
+            TIMEOUT_ARCHITECTURE_ANALYSIS
+          when /TEST_ANALYSIS/
+            TIMEOUT_TEST_ANALYSIS
+          when /FUNCTIONALITY_ANALYSIS/
+            TIMEOUT_FUNCTIONALITY_ANALYSIS
+          when /DOCUMENTATION_ANALYSIS/
+            TIMEOUT_DOCUMENTATION_ANALYSIS
+          when /STATIC_ANALYSIS/
+            TIMEOUT_STATIC_ANALYSIS
+          when /REFACTORING_RECOMMENDATIONS/
+            TIMEOUT_REFACTORING_RECOMMENDATIONS
+          when /IMPLEMENTATION/
+            TIMEOUT_IMPLEMENTATION
+          else
+            nil # Return nil for unknown steps
+          end
+        end
       end
 
       private

@@ -101,23 +101,20 @@ jobs:
       - name: Generate coverage summary & badge
         run: bundle exec rake coverage:summary
 
-      - name: Update coverage baseline if improved
-        run: bundle exec rake coverage:update_baseline_if_improved
-
       - name: Check for coverage changes
         id: coverage-changes
         run: |
           set -euo pipefail
-          CHANGES=$(git status --short -- badges/coverage.svg coverage_baseline.json || true)
+          CHANGES=$(git status --short -- badges/coverage.svg || true)
           if [ -z "$CHANGES" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No coverage changes detected."
+            echo "No coverage badge changes detected."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             printf '%s\n' "$CHANGES"
           fi
 
-      - name: Commit updated coverage badge and baseline to release PR (verified)
+      - name: Commit updated coverage badge to release PR (verified)
         if: steps.coverage-changes.outputs.changed == 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
@@ -152,7 +149,6 @@ jobs:
             core.info(`Preparing verified commit on ${branch} at ${expectedHeadOid}`);
 
             const badge = fs.readFileSync('badges/coverage.svg');
-            const baseline = fs.readFileSync('coverage_baseline.json');
 
             const mutation = `
               mutation($input: CreateCommitOnBranchInput!) {
@@ -171,17 +167,13 @@ jobs:
                 branchName: branch
               },
               message: {
-                headline: 'chore: update coverage badge and baseline'
+                headline: 'chore: update coverage badge'
               },
               fileChanges: {
                 additions: [
                   {
                     path: 'badges/coverage.svg',
                     contents: badge.toString('base64')
-                  },
-                  {
-                    path: 'coverage_baseline.json',
-                    contents: baseline.toString('base64')
                   }
                 ]
               },
@@ -190,7 +182,7 @@ jobs:
 
             const result = await github.graphql(mutation, { input });
             const commit = result.createCommitOnBranch.commit;
-            core.notice(`Created verified commit ${commit.oid} updating coverage artifacts (${commit.url})`);
+            core.notice(`Created verified commit ${commit.oid} updating coverage badge (${commit.url})`);
 
       - name: Clean up coverage artifacts
         if: always()

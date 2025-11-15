@@ -98,5 +98,22 @@ RSpec.configure do |config|
       end
       Aidp.instance_variable_set(:@logger, nil)
     end
+
+    # Kill any leftover threads to prevent test suite hangs
+    # Keep only the main thread and RSpec's internal threads
+    Thread.list.each do |thread|
+      next if thread == Thread.main
+      next if thread == Thread.current
+      # Don't kill SimpleCov's result thread
+      next if thread.backtrace&.any? { |line| line.include?("simplecov") }
+
+      # Kill and join with timeout to prevent hanging
+      thread.kill
+      begin
+        thread.join(0.1)
+      rescue
+        nil
+      end
+    end
   end
 end

@@ -9,9 +9,142 @@ module Aidp
     class Anthropic < Base
       include Aidp::DebugMixin
 
+      # Model name pattern for Anthropic Claude models
+      MODEL_PATTERN = /^claude-[\d.-]+-(?:opus|sonnet|haiku)(?:-\d{8})?$/i
+
       def self.available?
         !!Aidp::Util.which("claude")
       end
+
+      # Normalize a provider-specific model name to its model family
+      #
+      # Anthropic uses date-versioned models (e.g., "claude-3-5-sonnet-20241022").
+      # This method strips the date suffix to get the family name.
+      #
+      # @param provider_model_name [String] The versioned model name
+      # @return [String] The model family name (e.g., "claude-3-5-sonnet")
+      def self.model_family(provider_model_name)
+        # Strip date suffix: "claude-3-5-sonnet-20241022" → "claude-3-5-sonnet"
+        provider_model_name.sub(/-\d{8}$/, "")
+      end
+
+      # Convert a model family name to the provider's preferred model name
+      #
+      # Returns the family name as-is. Users can configure specific versions in aidp.yml.
+      #
+      # @param family_name [String] The model family name
+      # @return [String] The model name (same as family for flexibility)
+      def self.provider_model_name(family_name)
+        family_name
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if it matches Claude model pattern
+      def self.supports_model_family?(family_name)
+        MODEL_PATTERN.match?(family_name)
+      end
+
+      # Discover available models from Claude CLI
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        begin
+          require "open3"
+          output, _, status = Open3.capture3("claude", "models", "list", {timeout: 10})
+          return [] unless status.success?
+
+          parse_models_list(output)
+        rescue => e
+          Aidp.log_debug("anthropic_provider", "discovery failed", error: e.message)
+          []
+        end
+      end
+
+      class << self
+        private
+
+        def parse_models_list(output)
+          return [] if output.nil? || output.empty?
+
+          models = []
+          lines = output.lines.map(&:strip)
+
+          # Skip header and separator lines
+          lines.reject! { |line| line.empty? || line.match?(/^[-=]+$/) || line.match?(/^(Model|Name)/i) }
+
+          lines.each do |line|
+            model_info = parse_model_line(line)
+            models << model_info if model_info
+          end
+
+          Aidp.log_info("anthropic_provider", "discovered models", count: models.size)
+          models
+        end
+
+        def parse_model_line(line)
+          # Format 1: Simple list of model names
+          if line.match?(/^claude-\d/)
+            model_name = line.split.first
+            return build_model_info(model_name)
+          end
+
+          # Format 2: Table format with columns
+          parts = line.split(/\s{2,}/)
+          if parts.size >= 1 && parts[0].match?(/^claude/)
+            model_name = parts[0]
+            model_name = "#{model_name}-#{parts[1]}" if parts.size > 1 && parts[1].match?(/^\d{8}$/)
+            return build_model_info(model_name)
+          end
+
+          # Format 3: JSON-like or key-value pairs
+          if line.match?(/name:\s*(.+)/)
+            model_name = $1.strip
+            return build_model_info(model_name)
+          end
+
+          nil
+        end
+
+        def build_model_info(model_name)
+          family = model_family(model_name)
+          tier = classify_tier(model_name)
+
+          {
+            name: model_name,
+            family: family,
+            tier: tier,
+            capabilities: extract_capabilities(model_name),
+            context_window: infer_context_window(family),
+            provider: "anthropic"
+          }
+        end
+
+        def classify_tier(model_name)
+          name_lower = model_name.downcase
+          return "advanced" if name_lower.include?("opus")
+          return "mini" if name_lower.include?("haiku")
+          return "standard" if name_lower.include?("sonnet")
+          "standard"
+        end
+
+        def extract_capabilities(model_name)
+          capabilities = ["chat", "code"]
+          name_lower = model_name.downcase
+          capabilities << "vision" unless name_lower.include?("haiku")
+          capabilities
+        end
+
+        def infer_context_window(family)
+          family.match?(/claude-3/) ? 200_000 : nil
+        end
+      end
+
+      # Public instance methods (called from workflows and harness)
+      public
 
       def name
         "anthropic"
@@ -155,7 +288,9 @@ module Aidp
             # Detect auth issues in stdout/stderr (Claude sometimes prints JSON with auth error to stdout)
             combined = [result.out, result.err].compact.join("\n")
             if combined.downcase.include?("oauth token has expired") || combined.downcase.include?("authentication_error")
-              error_message = "Authentication error from Claude CLI: token expired or invalid. Run 'claude /login' or refresh credentials."
+              error_message = "Authentication error from Claude CLI: token expired or invalid.\n" \
+                              "Run 'claude /login' or refresh credentials.\n" \
+                              "Note: Model discovery requires valid authentication."
               debug_error(StandardError.new(error_message), {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
               # Raise a recognizable error for classifier
               raise error_message
@@ -171,60 +306,6 @@ module Aidp
       end
 
       private
-
-      def calculate_timeout
-        # Priority order for timeout calculation:
-        # 1. Quick mode (for testing)
-        # 2. Environment variable override
-        # 3. Adaptive timeout based on step type
-        # 4. Default timeout
-
-        if ENV["AIDP_QUICK_MODE"]
-          display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
-          return TIMEOUT_QUICK_MODE
-        end
-
-        if ENV["AIDP_ANTHROPIC_TIMEOUT"]
-          return ENV["AIDP_ANTHROPIC_TIMEOUT"].to_i
-        end
-
-        if adaptive_timeout
-          display_message("🧠 Using adaptive timeout: #{adaptive_timeout} seconds", type: :info)
-          return adaptive_timeout
-        end
-
-        # Default timeout
-        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
-        TIMEOUT_DEFAULT
-      end
-
-      def adaptive_timeout
-        @adaptive_timeout ||= begin
-          # Timeout recommendations based on step type patterns
-          step_name = ENV["AIDP_CURRENT_STEP"] || ""
-
-          case step_name
-          when /REPOSITORY_ANALYSIS/
-            TIMEOUT_REPOSITORY_ANALYSIS
-          when /ARCHITECTURE_ANALYSIS/
-            TIMEOUT_ARCHITECTURE_ANALYSIS
-          when /TEST_ANALYSIS/
-            TIMEOUT_TEST_ANALYSIS
-          when /FUNCTIONALITY_ANALYSIS/
-            TIMEOUT_FUNCTIONALITY_ANALYSIS
-          when /DOCUMENTATION_ANALYSIS/
-            TIMEOUT_DOCUMENTATION_ANALYSIS
-          when /STATIC_ANALYSIS/
-            TIMEOUT_STATIC_ANALYSIS
-          when /REFACTORING_RECOMMENDATIONS/
-            TIMEOUT_REFACTORING_RECOMMENDATIONS
-          when /IMPLEMENTATION/
-            TIMEOUT_IMPLEMENTATION
-          else
-            nil # Use default
-          end
-        end
-      end
 
       # Check if we should skip permissions based on devcontainer configuration
       # Overrides base class to add logging and Claude-specific config check

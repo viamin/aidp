@@ -226,6 +226,18 @@ class TestPrompt
     /Usage: aidp \[COMMAND\]/,
     /AI Development Pipeline/,
 
+    # Watch mode safety messages
+    /⚠️  Watch mode running outside container/,
+    /Consider using a containerized environment/,
+    /✅ Watch mode safety checks passed/,
+    /⚠️  Watch mode enabled for PUBLIC repository/,
+    /Ensure you trust all contributors/,
+    /⚠️  Watch mode safety checks BYPASSED/,
+    /⏭️  Skipping issue.*not authorized/,
+
+    # Configuration messages
+    /Failed to load configuration file/,
+
     # Formatting
     /────+/,  # Separator lines
     /====+/   # Separator lines

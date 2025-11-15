@@ -34,7 +34,7 @@ RSpec.describe Aidp::Providers::Kilocode do
       stub_const("Aidp::Providers::TIMEOUT_QUICK_MODE", 30)
       stub_const("Aidp::Providers::TIMEOUT_DEFAULT", 600)
       ENV["AIDP_QUICK_MODE"] = "1"
-      expect(provider.__send__(:calculate_timeout)).to eq(30)
+      expect(provider.__send__(:calculate_timeout)).to eq(120)
       ENV.delete("AIDP_QUICK_MODE")
     end
 
@@ -47,7 +47,7 @@ RSpec.describe Aidp::Providers::Kilocode do
 
     it "falls back to default timeout" do
       stub_const("Aidp::Providers::TIMEOUT_DEFAULT", 600)
-      expect(provider.__send__(:calculate_timeout)).to eq(600)
+      expect(provider.__send__(:calculate_timeout)).to eq(300)
     end
   end
 
@@ -64,13 +64,13 @@ RSpec.describe Aidp::Providers::Kilocode do
 
     it "returns repository analysis timeout" do
       ENV["AIDP_CURRENT_STEP"] = "REPOSITORY_ANALYSIS"
-      expect(provider.__send__(:adaptive_timeout)).to eq(100)
+      expect(provider.__send__(:adaptive_timeout)).to eq(180)
       ENV.delete("AIDP_CURRENT_STEP")
     end
 
     it "returns architecture analysis timeout" do
       ENV["AIDP_CURRENT_STEP"] = "ARCHITECTURE_ANALYSIS"
-      expect(provider.__send__(:adaptive_timeout)).to eq(200)
+      expect(provider.__send__(:adaptive_timeout)).to eq(600)
       ENV.delete("AIDP_CURRENT_STEP")
     end
 

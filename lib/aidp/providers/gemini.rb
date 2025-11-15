@@ -8,8 +8,51 @@ module Aidp
     class Gemini < Base
       include Aidp::DebugMixin
 
+      # Model name pattern for Gemini models
+      MODEL_PATTERN = /^gemini-[\d.]+-(?:pro|flash|ultra)(?:-\d+)?$/i
+
       def self.available?
         !!Aidp::Util.which("gemini")
+      end
+
+      # Normalize a provider-specific model name to its model family
+      #
+      # Gemini may use version suffixes (e.g., "gemini-1.5-pro-001").
+      # This method strips version suffixes to get the family name.
+      #
+      # @param provider_model_name [String] The model name
+      # @return [String] The model family name
+      def self.model_family(provider_model_name)
+        # Strip version suffix: "gemini-1.5-pro-001" → "gemini-1.5-pro"
+        provider_model_name.sub(/-\d+$/, "")
+      end
+
+      # Convert a model family name to the provider's preferred model name
+      #
+      # @param family_name [String] The model family name
+      # @return [String] The provider-specific model name (same as family)
+      def self.provider_model_name(family_name)
+        family_name
+      end
+
+      # Check if this provider supports a given model family
+      #
+      # @param family_name [String] The model family name
+      # @return [Boolean] True if it matches Gemini model pattern
+      def self.supports_model_family?(family_name)
+        MODEL_PATTERN.match?(family_name)
+      end
+
+      # Discover available models from Gemini
+      #
+      # Note: Gemini CLI doesn't have a standard model listing command
+      # Returns registry-based models that match Gemini patterns
+      #
+      # @return [Array<Hash>] Array of discovered models
+      def self.discover_models
+        return [] unless available?
+
+        discover_models_from_registry(MODEL_PATTERN, "gemini")
       end
 
       def name
@@ -56,58 +99,6 @@ module Aidp
       end
 
       private
-
-      def calculate_timeout
-        # Priority order for timeout calculation:
-        # 1. Quick mode (for testing)
-        # 2. Environment variable override
-        # 3. Adaptive timeout based on step type
-        # 4. Default timeout
-
-        if ENV["AIDP_QUICK_MODE"]
-          display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
-          return TIMEOUT_QUICK_MODE
-        end
-
-        if ENV["AIDP_GEMINI_TIMEOUT"]
-          return ENV["AIDP_GEMINI_TIMEOUT"].to_i
-        end
-
-        # Adaptive timeout based on step type
-        step_timeout = get_adaptive_timeout
-        if step_timeout
-          display_message("🧠 Using adaptive timeout: #{step_timeout} seconds", type: :info)
-          return step_timeout
-        end
-
-        # Default timeout
-        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
-        TIMEOUT_DEFAULT
-      end
-
-      def get_adaptive_timeout
-        # Timeout recommendations based on step type patterns
-        step_name = ENV["AIDP_CURRENT_STEP"] || ""
-
-        case step_name
-        when /REPOSITORY_ANALYSIS/
-          TIMEOUT_REPOSITORY_ANALYSIS
-        when /ARCHITECTURE_ANALYSIS/
-          TIMEOUT_ARCHITECTURE_ANALYSIS
-        when /TEST_ANALYSIS/
-          TIMEOUT_TEST_ANALYSIS
-        when /FUNCTIONALITY_ANALYSIS/
-          TIMEOUT_FUNCTIONALITY_ANALYSIS
-        when /DOCUMENTATION_ANALYSIS/
-          TIMEOUT_DOCUMENTATION_ANALYSIS
-        when /STATIC_ANALYSIS/
-          TIMEOUT_STATIC_ANALYSIS
-        when /REFACTORING_RECOMMENDATIONS/
-          TIMEOUT_REFACTORING_RECOMMENDATIONS
-        else
-          nil # Use default
-        end
-      end
     end
   end
 end

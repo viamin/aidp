@@ -43,6 +43,7 @@ module Aidp
         return @saved if skip_wizard?
 
         configure_providers
+        configure_thinking_tiers
         configure_work_loop
         configure_branching
         configure_artifacts
@@ -50,6 +51,9 @@ module Aidp
         configure_logging
         configure_modes
         configure_devcontainer
+
+        # Finalize any background model discovery
+        finalize_background_discovery
 
         yaml_content = generate_yaml
         display_preview(yaml_content)
@@ -278,6 +282,242 @@ module Aidp
       end
 
       # Removed MCP configuration step (MCP now expected to be provider-specific if used)
+
+      # -------------------------------------------
+      # Thinking tier configuration (automated model discovery)
+      # -------------------------------------------
+      def configure_thinking_tiers
+        prompt.say("\n🧠 Thinking Tier Configuration")
+        prompt.say("-" * 40)
+
+        # Get configured providers
+        primary_provider = get([:harness, :default_provider])
+        fallback_providers = Array(get([:harness, :fallback_providers]))
+        all_providers = ([primary_provider] + fallback_providers).compact.uniq
+
+        if all_providers.empty?
+          prompt.warn("⚠️  No providers configured. Skipping tier configuration.")
+          return
+        end
+
+        # Check if user wants to use automated discovery
+        existing_tiers = get([:thinking, :tiers])
+        if existing_tiers && !existing_tiers.empty?
+          prompt.say("📝 Found existing tier configuration")
+          unless prompt.yes?("Would you like to update it with discovered models?", default: false)
+            return
+          end
+        elsif !prompt.yes?("Auto-configure thinking tiers with discovered models?", default: true)
+          prompt.say("💡 You can run 'aidp models discover' later to see available models")
+          return
+        end
+
+        # Run model discovery
+        prompt.say("\n🔍 Discovering available models...")
+        discovered_models = discover_models_for_providers(all_providers)
+
+        if discovered_models.empty?
+          prompt.warn("⚠️  No models discovered. Ensure provider CLIs are installed.")
+          prompt.say("💡 You can configure tiers manually or run 'aidp models discover' later")
+          return
+        end
+
+        # Display discovered models
+        display_discovered_models(discovered_models)
+
+        # Generate tier configuration
+        tier_config = generate_tier_configuration(discovered_models, primary_provider)
+
+        # Show preview
+        prompt.say("\n📋 Proposed tier configuration:")
+        display_tier_preview(tier_config)
+
+        # Confirm and save
+        if prompt.yes?("\nSave this tier configuration?", default: true)
+          set([:thinking, :tiers], tier_config)
+          prompt.ok("✅ Thinking tiers configured successfully")
+        else
+          prompt.say("💡 Skipped tier configuration. You can run 'aidp models discover' later")
+        end
+      end
+
+      # Trigger background model discovery for a provider
+      # Runs asynchronously and caches results without blocking the wizard
+      def trigger_background_discovery(provider_name)
+        return unless provider_available_for_discovery?(provider_name)
+
+        # Store reference to display notification later
+        @discovery_threads ||= []
+
+        thread = Thread.new do
+          discover_and_cache_models(provider_name)
+        rescue => e
+          Aidp.log_debug("setup_wizard", "background discovery failed",
+            provider: provider_name, error: e.message)
+        end
+
+        @discovery_threads << {thread: thread, provider: provider_name}
+      end
+
+      # Check if provider CLI is available for discovery
+      def provider_available_for_discovery?(provider_name)
+        provider_class = get_provider_class(provider_name)
+        return false unless provider_class
+
+        provider_class.respond_to?(:available?) && provider_class.available?
+      rescue => e
+        Aidp.log_debug("setup_wizard", "provider availability check failed",
+          provider: provider_name, error: e.message)
+        false
+      end
+
+      # Perform model discovery and cache results
+      def discover_and_cache_models(provider_name)
+        require_relative "../harness/model_discovery_service"
+
+        service = Aidp::Harness::ModelDiscoveryService.new
+        models = service.discover_models(provider_name, use_cache: false)
+
+        if models.any?
+          Aidp.log_info("setup_wizard", "discovered models in background",
+            provider: provider_name, count: models.size)
+        end
+
+        models
+      rescue => e
+        Aidp.log_debug("setup_wizard", "background discovery failed",
+          provider: provider_name, error: e.message)
+        []
+      end
+
+      # Get provider class for discovery
+      def get_provider_class(provider_name)
+        class_name = "Aidp::Providers::#{provider_name.capitalize}"
+        Object.const_get(class_name)
+      rescue NameError
+        nil
+      end
+
+      # Wait for background discovery to complete and show notifications
+      #
+      # @param timeout [Numeric] Maximum seconds to wait per thread (default: 5)
+      def finalize_background_discovery(timeout: 5)
+        return unless @discovery_threads&.any?
+
+        @discovery_threads.each do |entry|
+          thread = entry[:thread]
+          provider = entry[:provider]
+
+          # Wait up to timeout seconds for discovery to complete
+          thread.join(timeout)
+
+          if thread.alive?
+            Aidp.log_debug("setup_wizard", "discovery timeout, killing thread",
+              provider: provider)
+            # Kill thread to prevent hanging
+            thread.kill
+            thread.join(0.1) # Brief wait for cleanup
+          else
+            # Discovery completed - show notification
+            begin
+              require_relative "../harness/model_cache"
+              cache = Aidp::Harness::ModelCache.new
+              cached_models = cache.get_cached_models(provider)
+
+              if cached_models&.any?
+                prompt.say("  💾 Discovered #{cached_models.size} model#{"s" unless cached_models.size == 1} for #{provider}")
+              end
+            rescue => e
+              Aidp.log_debug("setup_wizard", "failed to check cached models",
+                provider: provider, error: e.message)
+            end
+          end
+        end
+
+        @discovery_threads = []
+      end
+
+      def discover_models_for_providers(providers)
+        require_relative "../harness/model_discovery_service"
+
+        service = Aidp::Harness::ModelDiscoveryService.new
+        all_models = {}
+
+        providers.each do |provider|
+          models = service.discover_models(provider, use_cache: true)
+          all_models[provider] = models if models.any?
+        rescue => e
+          Aidp.log_debug("setup_wizard", "discovery failed", provider: provider, error: e.message)
+          # Continue with other providers
+        end
+
+        all_models
+      end
+
+      def display_discovered_models(discovered_models)
+        discovered_models.each do |provider, models|
+          prompt.say("\n✓ Found #{models.size} models for #{provider}:")
+          by_tier = models.group_by { |m| m[:tier] }
+          %w[mini standard advanced].each do |tier|
+            tier_models = by_tier[tier] || []
+            next if tier_models.empty?
+
+            prompt.say("  #{tier.capitalize} tier: #{tier_models.size} model#{"s" unless tier_models.size == 1}")
+          end
+        end
+      end
+
+      def generate_tier_configuration(discovered_models, primary_provider)
+        tier_config = {}
+
+        # For each tier, try to find a model
+        %w[mini standard advanced].each do |tier|
+          # Try primary provider first
+          model = find_model_for_tier(discovered_models[primary_provider], tier)
+
+          # Fallback to other providers if needed
+          if !model
+            discovered_models.each do |provider, models|
+              next if provider == primary_provider
+              model = find_model_for_tier(models, tier)
+              break if model
+            end
+          end
+
+          # Add to config if found
+          if model
+            tier_config[tier.to_sym] = {
+              models: [
+                {
+                  provider: model[:provider],
+                  model: model[:name]
+                }
+              ]
+            }
+          end
+        end
+
+        tier_config
+      end
+
+      def find_model_for_tier(models, target_tier)
+        return nil unless models
+
+        models.find { |m| m[:tier] == target_tier }
+      end
+
+      def display_tier_preview(tier_config)
+        return if tier_config.empty?
+
+        tier_config.each do |tier, config|
+          models = config[:models] || []
+          prompt.say("  #{tier}:")
+          models.each do |model_entry|
+            prompt.say("    - provider: #{model_entry[:provider]}")
+            prompt.say("      model: #{model_entry[:model]}")
+          end
+        end
+      end
 
       # -------------------------------------------
       # Work loop configuration
@@ -1243,6 +1483,9 @@ module Aidp
         # Enhance messaging with display name when available
         display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
         prompt.say("  • #{action_word.capitalize} provider '#{display_name}' (#{provider_name}) with billing type '#{provider_type}' and model family '#{model_family}'")
+
+        # Trigger background model discovery for newly added/updated provider
+        trigger_background_discovery(provider_name) unless @dry_run
       end
 
       def edit_or_remove_provider(provider_name, primary_provider, fallbacks)

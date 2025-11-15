@@ -10,6 +10,7 @@ Complete guide to using the AI Dev Pipeline command-line interface.
 - [Background Jobs](#background-jobs)
 - [Progress Checkpoints](#progress-checkpoints)
 - [System Management](#system-management)
+- [Model Management](#model-management)
 - [Workflow Examples](#workflow-examples)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
@@ -733,6 +734,344 @@ AI Dev Pipeline Status
 Analyze Mode: available
 Execute Mode: available
 Use 'aidp analyze' or 'aidp execute' to start a workflow
+```
+
+## Model Management
+
+AIDP provides powerful model discovery and validation tools to help you manage AI models across different providers.
+
+### Listing Available Models
+
+View all available models from the static registry:
+
+```bash
+# List all available models
+aidp models list
+
+# Filter by tier (mini, standard, advanced)
+aidp models list --tier=mini
+aidp models list --tier=standard
+aidp models list --tier=advanced
+
+# Filter by provider
+aidp models list --provider=anthropic
+aidp models list --provider=cursor
+```
+
+**Example output:**
+
+```text
+Available Models
+
+Provider    Model Family           Tier      Capabilities       Context  Speed
+anthropic   claude-3-5-sonnet     standard  vision,thinking    200K     fast
+anthropic   claude-3-haiku        mini      vision             200K     fast
+anthropic   claude-3-opus         advanced  vision,thinking    200K     medium
+cursor      gpt-4o                standard  vision             128K     fast
+cursor      gpt-4o-mini           mini      vision             128K     fast
+
+💡 Showing 5 models from the static registry
+💡 Model families are provider-agnostic (e.g., 'claude-3-5-sonnet' works across providers)
+```
+
+### Discovering Models from Providers
+
+Automatically discover models available from configured providers:
+
+```bash
+# Discover models from all configured providers
+aidp models discover
+
+# Discover models from a specific provider
+aidp models discover --provider=anthropic
+```
+
+**What happens during discovery:**
+
+1. AIDP queries each provider's CLI tool
+2. Models are classified into tiers (mini/standard/advanced)
+3. Results are cached for 24 hours
+4. Provider-specific versions are mapped to model families
+
+**Example output:**
+
+```text
+🔍 Discovering models from configured providers...
+[✓] Querying provider APIs...
+
+✓ Found 12 models for anthropic:
+  Mini tier:
+    - claude-3-haiku-20240307
+  Standard tier:
+    - claude-3-5-sonnet-20241022
+    - claude-3-5-sonnet-20240620
+  Advanced tier:
+    - claude-3-opus-20240229
+
+✅ Discovered 12 total models
+💾 Models cached for 24 hours
+```
+
+**Auto-Discovery during setup:**
+
+When you configure a provider through the setup wizard, AIDP automatically discovers available models in the background. You'll see a notification when discovery completes:
+
+```bash
+$ aidp --setup-config
+
+# After configuring anthropic provider...
+💾 Discovered 12 models for anthropic
+```
+
+### Refreshing Model Cache
+
+Clear cached model data and re-discover:
+
+```bash
+# Refresh cache for all providers
+aidp models refresh
+
+# Refresh cache for specific provider
+aidp models refresh --provider=anthropic
+```
+
+Use this when:
+
+- New models have been released
+- Provider CLI was recently updated
+- Cache appears stale or incorrect
+
+### Validating Model Configuration
+
+Validate your `aidp.yml` configuration to ensure all tiers have models and all configured models are valid:
+
+```bash
+aidp models validate
+```
+
+**What gets validated:**
+
+1. **Tier coverage** - Every tier (mini/standard/advanced) has at least one model configured
+2. **Provider compatibility** - All configured models are supported by their providers
+3. **Registry presence** - Models exist in the model registry
+
+**Example output (valid configuration):**
+
+```text
+🔍 Validating model configuration...
+
+✅ Configuration is valid!
+All tiers have models configured
+All configured models are valid for their providers
+```
+
+**Example output (issues found):**
+
+```text
+🔍 Validating model configuration...
+
+❌ Found 2 configuration errors:
+
+1. No model configured for 'advanced' tier
+   Tier: advanced
+
+   💡 Suggested fix:
+   Add to aidp.yml under providers.anthropic.thinking.tiers.advanced.models:
+     - model: claude-3-opus
+
+2. Model 'invalid-model' not supported by provider 'cursor'
+   Provider: cursor
+   Tier: mini
+   Model: invalid-model
+
+   💡 Suggested fix:
+   Try using: gpt-4o-mini, claude-3-haiku
+
+💡 Run 'aidp models discover' to see available models
+💡 Run 'aidp models list --tier=<tier>' to see models for a specific tier
+```
+
+### Enhanced Error Messages
+
+When a tier configuration is missing, AIDP provides smart error messages that:
+
+1. **Check the cache** for discovered models
+2. **Show suggestions** from available models
+3. **Generate YAML snippets** for easy copy-paste
+
+**Example error with suggestions:**
+
+```text
+❌ No model configured for 'standard' tier
+   Provider: anthropic
+
+💡 Discovered models for this tier:
+   - claude-3-5-sonnet-20241022
+   - claude-3-5-sonnet-20240620
+
+   Add to aidp.yml:
+   providers:
+     anthropic:
+       thinking:
+         tiers:
+           standard:
+             models:
+               - model: claude-3-5-sonnet-20241022
+```
+
+### Model Configuration in aidp.yml
+
+Configure models for each thinking tier in your `aidp.yml`:
+
+```yaml
+providers:
+  anthropic:
+    type: usage_based
+    api_key: ${ANTHROPIC_API_KEY}
+    thinking:
+      tiers:
+        mini:
+          models:
+            - model: claude-3-haiku
+        standard:
+          models:
+            - model: claude-3-5-sonnet
+        advanced:
+          models:
+            - model: claude-3-opus
+```
+
+**Tips:**
+
+- Use model families (e.g., `claude-3-5-sonnet`) rather than specific versions
+- Providers automatically select the latest version of each family
+- Configure at least one model per tier for complete coverage
+- Multiple models per tier enable fallback strategies
+
+### Understanding Model Tiers
+
+AIDP organizes models into three tiers:
+
+- **Mini tier**: Fast, cost-effective models for simple tasks
+  - Examples: `claude-3-haiku`, `gpt-4o-mini`
+  - Use for: Code formatting, simple edits, basic queries
+
+- **Standard tier**: Balanced models for most development work
+  - Examples: `claude-3-5-sonnet`, `gpt-4o`
+  - Use for: Feature development, refactoring, code review
+
+- **Advanced tier**: Most capable models for complex tasks
+  - Examples: `claude-3-opus`, `o1-preview`
+  - Use for: Architecture design, complex algorithms, deep reasoning
+
+AIDP automatically selects the appropriate tier based on task complexity and can escalate between tiers as needed.
+
+### Troubleshooting Model Discovery
+
+#### Discovery returns no models
+
+**Possible causes:**
+
+1. Provider CLI not installed
+2. Provider not authenticated
+3. Provider CLI not in PATH
+
+**Solutions:**
+
+```bash
+# Check if provider CLI is installed
+which claude  # For Anthropic
+which cursor  # For Cursor
+
+# Authenticate with provider
+claude /login     # For Anthropic
+cursor --auth     # For Cursor (check provider docs)
+
+# Verify provider is configured in aidp.yml
+cat .aidp/aidp.yml | grep -A 5 "providers:"
+```
+
+#### Models discovered but not showing in validation
+
+**Possible causes:**
+
+1. Cache is stale
+2. Model not in static registry
+
+**Solutions:**
+
+```bash
+# Refresh the cache
+aidp models refresh
+
+# Check if models are in cache
+ls -lh ~/.aidp/cache/models.json
+
+# Validate configuration
+aidp models validate
+```
+
+#### "Model not supported by provider" error
+
+**Possible causes:**
+
+1. Model family not available for this provider
+2. Typo in model name
+
+**Solutions:**
+
+```bash
+# List models available for this provider
+aidp models list --provider=anthropic
+
+# Discover latest models from provider
+aidp models discover --provider=anthropic
+
+# Check model name spelling in aidp.yml
+cat .aidp/aidp.yml | grep -A 10 "tiers:"
+```
+
+#### Provider CLI authentication errors
+
+**Possible causes:**
+
+1. Auth token expired
+2. Invalid credentials
+3. Network issues
+
+**Solutions:**
+
+```bash
+# Re-authenticate with provider
+claude /login     # Anthropic
+# Follow provider-specific auth instructions
+
+# Verify auth works
+claude models     # Should list models if authenticated
+
+# Check network connectivity
+ping api.anthropic.com
+```
+
+#### Auto-discovery not running during setup
+
+**Possible causes:**
+
+1. Provider CLI not installed when wizard ran
+2. Provider authentication failed
+3. Background discovery timeout
+
+**Solutions:**
+
+```bash
+# Manually discover after setup
+aidp models discover
+
+# Check provider installation
+which claude  # Should return path if installed
+
+# Check logs for errors
+cat ~/.aidp/logs/aidp.log | grep discovery
 ```
 
 ## Workflow Examples
