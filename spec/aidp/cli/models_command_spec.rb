@@ -3,6 +3,7 @@
 require "spec_helper"
 require "tempfile"
 require "yaml"
+require_relative "../../../lib/aidp/cli/models_command"
 
 RSpec.describe Aidp::CLI::ModelsCommand do
   let(:test_prompt) { TestPrompt.new(responses: {}) }
