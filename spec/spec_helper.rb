@@ -109,7 +109,11 @@ RSpec.configure do |config|
 
       # Kill and join with timeout to prevent hanging
       thread.kill
-      thread.join(0.1) rescue nil
+      begin
+        thread.join(0.1)
+      rescue
+        nil
+      end
     end
   end
 end

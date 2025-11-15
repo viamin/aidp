@@ -37,7 +37,11 @@ RSpec.describe Aidp::Setup::Wizard do
           thread = entry[:thread]
           if thread&.alive?
             thread.kill
-            thread.join(0.1) rescue nil
+            begin
+              thread.join(0.1)
+            rescue
+              nil
+            end
           end
         end
       end
