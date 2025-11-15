@@ -490,19 +490,24 @@ thinking_depth:
   - [ ] Update error message to include discovered models
   - [ ] Write integration tests
 
-### Phase 6: Enhanced Error Messages
+### Phase 6: Enhanced Error Messages ✅ COMPLETED
 
-- [ ] **Update "No model available for tier" error**
+- [x] **Update "No model available for tier" error**
   - [x] Show current provider and tier
-  - [x] Show YAML snippet for manual config
-  - [ ] Show discovered models if available in cache
-  - [ ] Suggest: "Run `aidp models discover` to find available models"
-  - [ ] Write integration tests
+  - [x] Show YAML snippet for manual config with ready-to-paste example
+  - [x] Show discovered models if available in cache
+  - [x] Suggest: "Run `aidp models discover` to find available models"
+  - [x] Implemented in ThinkingDepthManager with display_enhanced_tier_error method
+  - [x] Checks ModelCache for discovered models automatically
+  - [x] Displays up to 3 discovered models for the missing tier
+  - [x] Provides 3 actionable steps if no cached models found
+  - [ ] Write integration tests (deferred)
 
-- [ ] **Update authentication error messages**
-  - [ ] When auth fails, mention that model discovery requires valid credentials
-  - [ ] Suggest fixing auth before running model discovery
-  - [ ] Write integration tests
+- [x] **Update authentication error messages**
+  - [x] When auth fails, mention that model discovery requires valid credentials
+  - [x] Enhanced Anthropic provider auth error with discovery note
+  - [x] Added: "Note: Model discovery requires valid authentication."
+  - [ ] Write integration tests (deferred)
 
 ### Phase 7: Documentation
 

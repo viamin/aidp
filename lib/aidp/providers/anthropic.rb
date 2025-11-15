@@ -141,6 +141,9 @@ module Aidp
         family.match?(/claude-3/) ? 200_000 : nil
       end
 
+      # Public instance methods (called from workflows and harness)
+      public
+
       def name
         "anthropic"
       end
@@ -283,7 +286,9 @@ module Aidp
             # Detect auth issues in stdout/stderr (Claude sometimes prints JSON with auth error to stdout)
             combined = [result.out, result.err].compact.join("\n")
             if combined.downcase.include?("oauth token has expired") || combined.downcase.include?("authentication_error")
-              error_message = "Authentication error from Claude CLI: token expired or invalid. Run 'claude /login' or refresh credentials."
+              error_message = "Authentication error from Claude CLI: token expired or invalid.\n" \
+                              "Run 'claude /login' or refresh credentials.\n" \
+                              "Note: Model discovery requires valid authentication."
               debug_error(StandardError.new(error_message), {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
               # Raise a recognizable error for classifier
               raise error_message
