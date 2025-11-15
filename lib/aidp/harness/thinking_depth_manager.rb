@@ -169,7 +169,7 @@ module Aidp
             Aidp.log_warn("thinking_depth_manager", "Provider lacks tier, switching disabled",
               tier: tier,
               provider: provider)
-            return nil
+            return try_fallback_tiers(tier, provider)
           end
         end
 
@@ -188,13 +188,23 @@ module Aidp
           end
         end
 
-        # Enhanced error message with discovery hints
-        display_enhanced_tier_error(tier, provider)
-
-        Aidp.log_error("thinking_depth_manager", "No model found for tier",
+        # No model found for requested tier - try fallback to other tiers
+        Aidp.log_warn("thinking_depth_manager", "No model found for requested tier, trying fallback",
           tier: tier,
           provider: provider)
-        nil
+
+        result = try_fallback_tiers(tier, provider)
+
+        unless result
+          # Enhanced error message with discovery hints
+          display_enhanced_tier_error(tier, provider)
+
+          Aidp.log_error("thinking_depth_manager", "No model found for tier or fallback tiers",
+            tier: tier,
+            provider: provider)
+        end
+
+        result
       end
 
       # Get tier for a specific model
@@ -335,6 +345,61 @@ module Aidp
 
         # Keep history bounded
         @tier_history.shift if @tier_history.size > 100
+      end
+
+      # Try to find a model in fallback tiers when requested tier has no models
+      # Tries lower tiers first (cheaper), then higher tiers
+      # Returns [provider_name, model_name, model_data] or nil
+      def try_fallback_tiers(requested_tier, provider)
+        # Generate fallback order: try lower tiers first, then higher
+        fallback_tiers = generate_fallback_tier_order(requested_tier)
+
+        fallback_tiers.each do |fallback_tier|
+          # Try specified provider first if given
+          if provider
+            model_name, model_data = @registry.best_model_for_tier(fallback_tier, provider)
+            if model_name
+              Aidp.log_warn("thinking_depth_manager", "Falling back to different tier",
+                requested_tier: requested_tier,
+                fallback_tier: fallback_tier,
+                provider: provider,
+                model: model_name)
+              return [provider, model_name, model_data]
+            end
+          end
+
+          # Try all available providers
+          @registry.provider_names.each do |prov_name|
+            next if prov_name == provider # Skip if already tried above
+
+            model_name, model_data = @registry.best_model_for_tier(fallback_tier, prov_name)
+            if model_name
+              Aidp.log_warn("thinking_depth_manager", "Falling back to different tier and provider",
+                requested_tier: requested_tier,
+                fallback_tier: fallback_tier,
+                requested_provider: provider,
+                fallback_provider: prov_name,
+                model: model_name)
+              return [prov_name, model_name, model_data]
+            end
+          end
+        end
+
+        nil
+      end
+
+      # Generate fallback tier order: lower tiers first (cheaper), then higher
+      # For example, if tier is "standard", try: mini, thinking, pro, max
+      def generate_fallback_tier_order(tier)
+        current_priority = @registry.tier_priority(tier) || 1
+        all_tiers = CapabilityRegistry::VALID_TIERS
+
+        # Split into lower and higher tiers
+        lower_tiers = all_tiers.select { |t| (@registry.tier_priority(t) || 0) < current_priority }.reverse
+        higher_tiers = all_tiers.select { |t| (@registry.tier_priority(t) || 0) > current_priority }
+
+        # Try lower tiers first (cost optimization), then higher tiers
+        lower_tiers + higher_tiers
       end
 
       # Display enhanced error message with discovery hints

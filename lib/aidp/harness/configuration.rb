@@ -383,12 +383,12 @@ module Aidp
 
       # Get default thinking tier
       def default_tier
-        thinking_config[:default_tier] || "standard"
+        thinking_config[:default_tier] || default_thinking_config[:default_tier]
       end
 
       # Get maximum thinking tier
       def max_tier
-        thinking_config[:max_tier] || "standard"
+        thinking_config[:max_tier] || default_thinking_config[:max_tier]
       end
 
       # Check if provider switching for tier is allowed
