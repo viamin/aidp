@@ -432,6 +432,38 @@ module Aidp
         thinking_overrides[key] || thinking_overrides[key.to_sym]
       end
 
+      # Get tiers configuration from user's config
+      def thinking_tiers_config
+        thinking_config[:tiers] || {}
+      end
+
+      # Get models configured for a specific tier
+      # Returns array of {provider:, model:} hashes
+      def models_for_tier(tier)
+        tier_config = thinking_tiers_config[tier] || thinking_tiers_config[tier.to_sym]
+        return [] unless tier_config
+
+        models = tier_config[:models] || tier_config["models"]
+        return [] unless models
+
+        # Normalize to array of hashes with symbol keys
+        Array(models).map do |model_entry|
+          if model_entry.is_a?(Hash)
+            {
+              provider: (model_entry[:provider] || model_entry["provider"]).to_s,
+              model: (model_entry[:model] || model_entry["model"]).to_s
+            }
+          else
+            nil
+          end
+        end.compact
+      end
+
+      # Get all configured tiers
+      def configured_tiers
+        thinking_tiers_config.keys.map(&:to_s)
+      end
+
       # Get fallback configuration
       def fallback_config
         harness_config[:fallback] || default_fallback_config
