@@ -331,6 +331,7 @@ thinking_depth:
 > **⚡ ARCHITECTURAL REFACTORING COMPLETED (2025-11-15)**
 >
 > After initial implementation, a major architectural refactoring was completed to address key design principles:
+>
 > - **Provider-Centric Design**: Moved all discovery logic from `lib/aidp/harness/model_discoverers/` into `lib/aidp/providers/`
 > - **Pattern-Based Support**: Replaced hardcoded `SUPPORTED_FAMILIES`, `SUPPORTED_MODELS`, and `LATEST_VERSIONS` with regex `MODEL_PATTERN` matching
 > - **Zero-PR Model Support**: New model versions automatically work if they match the pattern

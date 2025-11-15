@@ -760,7 +760,7 @@ aidp models list --provider=cursor
 
 **Example output:**
 
-```
+```text
 Available Models
 
 Provider    Model Family           Tier      Capabilities       Context  Speed
@@ -795,7 +795,7 @@ aidp models discover --provider=anthropic
 
 **Example output:**
 
-```
+```text
 🔍 Discovering models from configured providers...
 [✓] Querying provider APIs...
 
@@ -836,6 +836,7 @@ aidp models refresh --provider=anthropic
 ```
 
 Use this when:
+
 - New models have been released
 - Provider CLI was recently updated
 - Cache appears stale or incorrect
@@ -856,7 +857,7 @@ aidp models validate
 
 **Example output (valid configuration):**
 
-```
+```text
 🔍 Validating model configuration...
 
 ✅ Configuration is valid!
@@ -866,7 +867,7 @@ All configured models are valid for their providers
 
 **Example output (issues found):**
 
-```
+```text
 🔍 Validating model configuration...
 
 ❌ Found 2 configuration errors:
@@ -900,7 +901,7 @@ When a tier configuration is missing, AIDP provides smart error messages that:
 
 **Example error with suggestions:**
 
-```
+```text
 ❌ No model configured for 'standard' tier
    Provider: anthropic
 
@@ -970,6 +971,7 @@ AIDP automatically selects the appropriate tier based on task complexity and can
 #### Discovery returns no models
 
 **Possible causes:**
+
 1. Provider CLI not installed
 2. Provider not authenticated
 3. Provider CLI not in PATH
@@ -992,6 +994,7 @@ cat .aidp/aidp.yml | grep -A 5 "providers:"
 #### Models discovered but not showing in validation
 
 **Possible causes:**
+
 1. Cache is stale
 2. Model not in static registry
 
@@ -1011,6 +1014,7 @@ aidp models validate
 #### "Model not supported by provider" error
 
 **Possible causes:**
+
 1. Model family not available for this provider
 2. Typo in model name
 
@@ -1030,6 +1034,7 @@ cat .aidp/aidp.yml | grep -A 10 "tiers:"
 #### Provider CLI authentication errors
 
 **Possible causes:**
+
 1. Auth token expired
 2. Invalid credentials
 3. Network issues
@@ -1051,6 +1056,7 @@ ping api.anthropic.com
 #### Auto-discovery not running during setup
 
 **Possible causes:**
+
 1. Provider CLI not installed when wizard ran
 2. Provider authentication failed
 3. Background discovery timeout
