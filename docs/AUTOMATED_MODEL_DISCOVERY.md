@@ -546,10 +546,10 @@ thinking_depth:
   - [x] ModelsCommand comprehensive test coverage (all subcommands)
   - [x] ThinkingDepthManager enhanced error message tests
   - [x] Wizard background discovery tests
+  - [x] ModelCache (38 tests, 100% coverage including permission handling)
   - [ ] ModelRegistry (100% coverage)
   - [ ] ModelDiscoveryService (100% coverage)
   - [ ] Each provider discoverer (100% coverage)
-  - [ ] ModelCache (100% coverage)
   - [ ] Tier classification logic (100% coverage)
 
 - [ ] **Integration tests**
