@@ -143,8 +143,103 @@ class TestPrompt
     @responses.key?(:no?) ? @responses[:no?] : false
   end
 
+  # Patterns for noisy messages that should be suppressed in test output
+  SUPPRESS_PATTERNS = [
+    # Work loop messages
+    /🔄 Starting hybrid work loop/,
+    /Flow: Deterministic/,
+    /State machine:/,
+    /Iteration \d+/,
+    /Required checks failed/,
+    /\[DIAGNOSE\]/,
+    /\[NEXT_PATCH\]/,
+    /\[STYLE_GUIDE\]/,
+    /⚠️  Max iterations/,
+    /✅ Step /,
+    /📊 Fix-Forward State Summary/,
+    /Total iterations:/,
+    /State transitions:/,
+    /All checks passed but/,
+    /💡 Using tier:/,
+    /Created PROMPT\.md/,
+    /Created optimized PROMPT\.md/,
+
+    # Provider/model messages
+    /🔄 Provider switch:/,
+    /🔄 Model switch:/,
+    /🔴 Circuit breaker opened/,
+    /🟢 Circuit breaker reset/,
+    /❌ No providers available/,
+    /❌ No models available/,
+    /📊 Execution Summary/,
+
+    # Workstream execution messages
+    /▶️  \[/,
+    /✅ \[/,
+    /❌ \[/,
+
+    # GitHub/Issue messages
+    /🏷️  Updated labels:/,
+    /🏷️  Removed .* label/,
+    /🏷️  Replaced .* with .* label/,
+    /🧠 Generating plan/,
+    /💬 Posted plan comment/,
+    /💬 Posted.*comment/,
+    /💬 Posted clarification request/,
+    /🎉 Posted completion comment/,
+    /🎉 Posted success comment/,
+    /📝 Updated plan comment/,
+    /📝 Processing change request/,
+    /📝 Processing \d+ .* files/,
+    /💾 Writing knowledge base/,
+
+    # Checkpoint messages
+    /📊 Checkpoint - Iteration/,
+    /📜 Checkpoint History/,
+    /Progress: \[=+\s*\]/,
+
+    # Workstream messages
+    /🔄 Reusing existing workstream:/,
+    /🛠️  Starting implementation/,
+    /🛠️  Running deterministic unit:/,
+    /🌿 Creating workstream:/,
+    /🌿 Checked out branch:/,
+    /✅ Workstream created/,
+    /ℹ️  Workstream .* preserved/,
+    /📝 Wrote PROMPT\.md/,
+    /💾 Created commit:/,
+    /⬆️  Pushed branch/,
+    /⬆️  Pushed changes to/,
+    /ℹ️  Skipping PR creation/,
+    /❌ Implementation failed/,
+    /⚠️  Build failure recorded/,
+    /⚠️  No recorded plan/,
+    /⚠️  Completion criteria unmet/,
+    /⚠️  Implementation produced no changes/,
+    /ℹ️  No file changes detected/,
+
+    # CLI/Startup messages
+    /AIDP initializing\.\.\./,
+    /Press Ctrl\+C to stop/,
+    /✅ Harness completed successfully/,
+    /All steps finished automatically/,
+    /Usage: aidp \[COMMAND\]/,
+    /AI Development Pipeline/,
+
+    # Formatting
+    /────+/,  # Separator lines
+    /====+/   # Separator lines
+  ].freeze
+
   def say(message, **options)
+    message_str = message.to_s
+
+    # Suppress noisy messages in test output but still record them
     @messages << {message: message, options: options, type: :say}
+
+    # Don't print to stdout if it matches suppression patterns
+    return @responses[:say] if SUPPRESS_PATTERNS.any? { |pattern| message_str.match?(pattern) }
+
     @responses[:say]
   end
 

@@ -51,7 +51,7 @@ module Aidp
         @prompt_manager = PromptManager.new(project_dir, config: config)
         @test_runner = Aidp::Harness::TestRunner.new(project_dir, config)
         @checkpoint = Checkpoint.new(project_dir)
-        @checkpoint_display = CheckpointDisplay.new
+        @checkpoint_display = CheckpointDisplay.new(prompt: @prompt)
         @guard_policy = GuardPolicy.new(project_dir, config.guards_config)
         @persistent_tasklist = PersistentTasklist.new(project_dir)
         @iteration_count = 0
