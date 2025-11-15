@@ -675,7 +675,12 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
     end
 
     it "displays discovery hint" do
-      expect(Aidp).to receive(:display_message).with(/Run.*aidp models discover/, type: :highlight)
+      expect(Aidp).to receive(:display_message).with(/No model configured for 'standard' tier/, type: :error)
+      expect(Aidp).to receive(:display_message).with(/Provider: anthropic/, type: :info)
+      expect(Aidp).to receive(:display_message).with(/Suggested actions/, type: :highlight)
+      expect(Aidp).to receive(:display_message).with(/aidp models discover/, type: :info)
+      expect(Aidp).to receive(:display_message).with(/aidp models list/, type: :info)
+      expect(Aidp).to receive(:display_message).with(/aidp models validate/, type: :info)
       manager.send(:display_tier_error_with_discovery_hint, "standard", "anthropic")
     end
 

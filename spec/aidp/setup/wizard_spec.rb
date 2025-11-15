@@ -1238,18 +1238,18 @@ RSpec.describe Aidp::Setup::Wizard do
       before do
         # Mock provider class
         provider_class = class_double("Aidp::Providers::Anthropic")
-        allow(provider_class).to receive(:installed?).and_return(true)
+        allow(provider_class).to receive(:available?).and_return(true)
         stub_const("Aidp::Providers::Anthropic", provider_class)
       end
 
-      it "returns true when provider is installed" do
+      it "returns true when provider is available" do
         result = wizard.send(:provider_available_for_discovery?, "anthropic")
         expect(result).to be true
       end
 
-      it "returns false when provider not installed" do
+      it "returns false when provider not available" do
         provider_class = class_double("Aidp::Providers::Cursor")
-        allow(provider_class).to receive(:installed?).and_return(false)
+        allow(provider_class).to receive(:available?).and_return(false)
         stub_const("Aidp::Providers::Cursor", provider_class)
 
         result = wizard.send(:provider_available_for_discovery?, "cursor")
@@ -1266,6 +1266,9 @@ RSpec.describe Aidp::Setup::Wizard do
       let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
 
       before do
+        # Load the class before mocking
+        require_relative "../../../lib/aidp/harness/model_discovery_service"
+
         # Mock discovery service
         discovery_service = instance_double(Aidp::Harness::ModelDiscoveryService)
         allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(discovery_service)

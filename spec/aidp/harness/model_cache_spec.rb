@@ -16,6 +16,8 @@ RSpec.describe Aidp::Harness::ModelCache do
 
   describe "#initialize" do
     it "creates cache with default file path" do
+      # Mock Dir.home to return a valid path
+      allow(Dir).to receive(:home).and_return("/home/test_user")
       default_cache = described_class.new
       expect(default_cache.cache_file).to include(".aidp/cache/models.json")
     end

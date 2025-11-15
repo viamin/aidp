@@ -384,6 +384,10 @@ module Aidp
         end
 
         models
+      rescue => e
+        Aidp.log_debug("setup_wizard", "background discovery failed",
+          provider: provider_name, error: e.message)
+        []
       end
 
       # Get provider class for discovery
