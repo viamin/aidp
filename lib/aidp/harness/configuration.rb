@@ -383,12 +383,12 @@ module Aidp
 
       # Get default thinking tier
       def default_tier
-        thinking_config[:default_tier] || "standard"
+        thinking_config[:default_tier] || default_thinking_config[:default_tier]
       end
 
       # Get maximum thinking tier
       def max_tier
-        thinking_config[:max_tier] || "standard"
+        thinking_config[:max_tier] || default_thinking_config[:max_tier]
       end
 
       # Check if provider switching for tier is allowed
@@ -430,6 +430,36 @@ module Aidp
       # @param key [String] skill or template key (e.g., "skill.generate_tests", "template.large_refactor")
       def tier_override_for(key)
         thinking_overrides[key] || thinking_overrides[key.to_sym]
+      end
+
+      # Get tiers configuration from user's config
+      def thinking_tiers_config
+        thinking_config[:tiers] || {}
+      end
+
+      # Get models configured for a specific tier
+      # Returns array of {provider:, model:} hashes
+      def models_for_tier(tier)
+        tier_config = thinking_tiers_config[tier] || thinking_tiers_config[tier.to_sym]
+        return [] unless tier_config
+
+        models = tier_config[:models] || tier_config["models"]
+        return [] unless models
+
+        # Normalize to array of hashes with symbol keys
+        Array(models).map do |model_entry|
+          if model_entry.is_a?(Hash)
+            {
+              provider: (model_entry[:provider] || model_entry["provider"]).to_s,
+              model: (model_entry[:model] || model_entry["model"]).to_s
+            }
+          end
+        end.compact
+      end
+
+      # Get all configured tiers
+      def configured_tiers
+        thinking_tiers_config.keys.map(&:to_s)
       end
 
       # Get fallback configuration

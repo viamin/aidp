@@ -32,6 +32,8 @@ RSpec.describe "Work Loop Header Prepending" do
   end
 
   before do
+    allow(config).to receive(:models_for_tier).and_return([])
+
     # Mock CapabilityRegistry class
     registry_class = Class.new do
       def initialize(*args)
