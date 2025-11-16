@@ -1443,5 +1443,82 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard.send(:configure_nfrs)
       end
     end
+
+    describe "#configure_devcontainer" do
+      let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+      it "saves manage: false when user declines devcontainer management" do
+        test_prompt = TestPrompt.new(responses: {
+          yes_map: {"Would you like AIDP to manage your devcontainer configuration?" => false}
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:configure_devcontainer)
+
+        config = wizard.instance_variable_get(:@config)
+        expect(config.dig(:devcontainer, :manage)).to be false
+      end
+
+      it "saves manage: true when user accepts devcontainer management" do
+        test_prompt = TestPrompt.new(responses: {
+          yes?: false,  # Default no for sub-questions
+          yes_map: {"Would you like AIDP to manage your devcontainer configuration?" => true}
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:configure_devcontainer)
+
+        config = wizard.instance_variable_get(:@config)
+        expect(config.dig(:devcontainer, :manage)).to be true
+      end
+
+      it "uses existing manage value as default when present" do
+        # Create config with manage: false
+        config_dir = Aidp::ConfigPaths.config_dir(tmp_dir)
+        FileUtils.mkdir_p(config_dir)
+        File.write(Aidp::ConfigPaths.config_file(tmp_dir), <<~YAML)
+          schema_version: 1
+          devcontainer:
+            manage: false
+        YAML
+
+        test_prompt = TestPrompt.new(responses: {yes?: false})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        # Expect prompt.yes? to be called with default: false
+        expect(test_prompt).to receive(:yes?).with(
+          "Would you like AIDP to manage your devcontainer configuration?",
+          default: false
+        ).and_return(false)
+        wizard.send(:configure_devcontainer)
+      end
+
+      it "defaults based on existing devcontainer when no config value" do
+        # Create a .devcontainer directory to simulate existing devcontainer
+        devcontainer_dir = File.join(tmp_dir, ".devcontainer")
+        FileUtils.mkdir_p(devcontainer_dir)
+        File.write(File.join(devcontainer_dir, "devcontainer.json"), "{}")
+
+        test_prompt = TestPrompt.new(responses: {yes?: false})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        # Should default to true because existing devcontainer.json exists
+        expect(test_prompt).to receive(:yes?).with(
+          "Would you like AIDP to manage your devcontainer configuration?",
+          default: true
+        ).and_return(false)
+        wizard.send(:configure_devcontainer)
+      end
+
+      it "defaults to false when no existing config or devcontainer" do
+        test_prompt = TestPrompt.new(responses: {yes?: false})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        # Should default to false when neither config nor devcontainer exists
+        expect(test_prompt).to receive(:yes?).with(
+          "Would you like AIDP to manage your devcontainer configuration?",
+          default: false
+        ).and_return(false)
+        wizard.send(:configure_devcontainer)
+      end
+    end
   end
 end

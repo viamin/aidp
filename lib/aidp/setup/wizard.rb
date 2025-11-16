@@ -926,7 +926,7 @@ module Aidp
 
         # Check existing configuration for previous choice
         existing_configure = @config.dig(:nfrs, :configure)
-        default_configure = existing_configure.nil? ? true : existing_configure
+        default_configure = existing_configure.nil? || existing_configure
 
         configure = prompt.yes?("Configure NFRs?", default: default_configure)
 
@@ -1811,10 +1811,18 @@ module Aidp
             path: parser.detect)
         end
 
+        # Check existing configuration for previous choice
+        existing_manage = @config.dig(:devcontainer, :manage)
+        default_manage = if existing_manage.nil?
+          existing_devcontainer ? true : false
+        else
+          existing_manage
+        end
+
         # Ask if user wants AIDP to manage devcontainer
         manage = prompt.yes?(
           "Would you like AIDP to manage your devcontainer configuration?",
-          default: (@config.dig(:devcontainer, :manage) || existing_devcontainer) ? true : false
+          default: default_manage
         )
 
         unless manage
