@@ -16,7 +16,6 @@ module Aidp
         :supports_tool_use,    # Boolean: supports tool/function calling
         :supports_vision,      # Boolean: supports image/vision inputs
         :supports_file_upload, # Boolean: supports file uploads
-        :streaming,            # Boolean: supports streaming responses
         :supports_mcp,         # Boolean: supports Model Context Protocol
         :max_tokens,           # Maximum tokens per response
         :supports_dangerous_mode # Boolean: supports elevated permissions mode

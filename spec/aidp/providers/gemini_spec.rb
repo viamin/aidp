@@ -56,8 +56,7 @@ RSpec.describe Aidp::Providers::Gemini do
           "gemini",
           hash_including(
             args: ["--prompt", sample_prompt],
-            timeout: anything,
-            streaming: false
+            timeout: anything
           )
         ).and_return(mock_result)
 
@@ -76,44 +75,6 @@ RSpec.describe Aidp::Providers::Gemini do
         expect(gemini).to receive(:debug_command).with("gemini", hash_including(args: ["--prompt", sample_prompt], input: nil))
 
         gemini.send_message(prompt: sample_prompt)
-      end
-
-      context "when streaming is enabled via AIDP_STREAMING" do
-        before { ENV["AIDP_STREAMING"] = "1" }
-        after { ENV.delete("AIDP_STREAMING") }
-
-        it "enables streaming mode" do
-          expect(gemini).to receive(:debug_execute_command).with(
-            "gemini",
-            hash_including(streaming: true)
-          ).and_return(mock_result)
-
-          expect(gemini).to receive(:display_message).with(
-            /Display streaming enabled.*gemini CLI does not support true streaming/,
-            type: :info
-          )
-
-          gemini.send_message(prompt: sample_prompt)
-        end
-      end
-
-      context "when streaming is enabled via DEBUG" do
-        before { ENV["DEBUG"] = "1" }
-        after { ENV.delete("DEBUG") }
-
-        it "enables streaming mode" do
-          expect(gemini).to receive(:debug_execute_command).with(
-            "gemini",
-            hash_including(streaming: true)
-          ).and_return(mock_result)
-
-          expect(gemini).to receive(:display_message).with(
-            /Display streaming enabled.*gemini CLI does not support true streaming/,
-            type: :info
-          )
-
-          gemini.send_message(prompt: sample_prompt)
-        end
       end
     end
 

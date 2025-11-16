@@ -62,104 +62,24 @@ RSpec.describe Aidp::Providers::Anthropic do
 
     include_context "provider_thread_cleanup", "providers/anthropic.rb"
 
-    context "when streaming is disabled" do
-      before do
-        ENV.delete("AIDP_STREAMING")
-        ENV.delete("DEBUG")
-      end
+    it "uses text output format" do
+      provider.send_message(prompt: prompt)
 
-      it "uses text output format" do
-        provider.send_message(prompt: prompt)
+      # In devcontainer, expect --dangerously-skip-permissions flag
+      expected_args = ["--print", "--output-format=text"]
+      expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
 
-        # In devcontainer, expect --dangerously-skip-permissions flag
-        expected_args = ["--print", "--output-format=text"]
-        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
-
-        expect(provider).to have_received(:debug_execute_command).with(
-          "claude",
-          args: expected_args,
-          input: prompt,
-          timeout: 1,
-          streaming: false
-        )
-      end
-
-      it "returns the output directly" do
-        result = provider.send_message(prompt: prompt)
-        expect(result).to eq("Test response")
-      end
+      expect(provider).to have_received(:debug_execute_command).with(
+        "claude",
+        args: expected_args,
+        input: prompt,
+        timeout: 1
+      )
     end
 
-    context "when streaming is enabled via AIDP_STREAMING" do
-      before do
-        ENV["AIDP_STREAMING"] = "1"
-        ENV.delete("DEBUG")
-      end
-
-      after do
-        ENV.delete("AIDP_STREAMING")
-      end
-
-      it "uses stream-json output format" do
-        provider.send_message(prompt: prompt)
-
-        # In devcontainer, expect --dangerously-skip-permissions flag
-        expected_args = ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"]
-        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
-
-        expect(provider).to have_received(:debug_execute_command).with(
-          "claude",
-          args: expected_args,
-          input: prompt,
-          timeout: 1,
-          streaming: true
-        )
-      end
-
-      it "shows true streaming message" do
-        provider.send_message(prompt: prompt)
-
-        expect(provider).to have_received(:display_message).with(
-          "📺 True streaming enabled - real-time chunks from Claude API",
-          type: :info
-        )
-      end
-
-      it "parses stream-json output" do
-        allow(successful_result).to receive(:out).and_return('{"type":"content_block_delta","delta":{"text":"Hello"}}')
-        allow(provider).to receive(:parse_stream_json_output).and_return("Hello")
-
-        provider.send_message(prompt: prompt)
-
-        expect(provider).to have_received(:parse_stream_json_output).with('{"type":"content_block_delta","delta":{"text":"Hello"}}')
-      end
-    end
-
-    context "when streaming is enabled via DEBUG" do
-      before do
-        ENV.delete("AIDP_STREAMING")
-        ENV["DEBUG"] = "1"
-      end
-
-      after do
-        ENV.delete("DEBUG")
-      end
-
-      it "uses stream-json output format" do
-        provider.send_message(prompt: prompt)
-
-        # In devcontainer, expect --dangerously-skip-permissions flag
-        expected_args = ["--print", "--verbose", "--output-format=stream-json", "--include-partial-messages"]
-        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
-
-        expect(provider).to have_received(:debug_execute_command).with(
-          "claude",
-          args: expected_args,
-          input: prompt,
-          timeout: 1,
-          streaming: true
-        )
-      end
+    it "returns the output directly" do
+      result = provider.send_message(prompt: prompt)
+      expect(result).to eq("Test response")
     end
 
     context "when harness config requests full permissions" do
@@ -266,98 +186,6 @@ RSpec.describe Aidp::Providers::Anthropic do
           instance_of(StandardError),
           hash_including(provider: "claude", prompt_length: prompt.length)
         )
-      end
-    end
-  end
-
-  describe "#parse_stream_json_output" do
-    context "with valid stream-json output" do
-      it "extracts content from content_block_delta" do
-        output = '{"type":"content_block_delta","delta":{"text":"Hello"}}' + "\n" \
-          '{"type":"content_block_delta","delta":{"text":" world"}}'
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("Hello world")
-      end
-
-      it "extracts content from message structure" do
-        output = '{"message":{"content":[{"text":"Hello world"}]}}'
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("Hello world")
-      end
-
-      it "extracts content from array content structure" do
-        output = '{"content":[{"text":"Hello"},{"text":" world"}]}'
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("Hello world")
-      end
-
-      it "handles string content in message" do
-        output = '{"message":{"content":"Hello world"}}'
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("Hello world")
-      end
-    end
-
-    context "with invalid JSON" do
-      it "treats invalid JSON lines as plain text" do
-        output = "Invalid JSON line\n" + '{"type":"content_block_delta","delta":{"text":"Valid"}}'
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("Invalid JSON lineValid")
-      end
-
-      it "handles completely invalid JSON gracefully" do
-        output = "Not JSON at all"
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("Not JSON at all")
-      end
-    end
-
-    context "with empty or nil input" do
-      it "handles nil input" do
-        result = provider.__send__(:parse_stream_json_output, nil)
-        expect(result).to be_nil
-      end
-
-      it "handles empty input" do
-        result = provider.__send__(:parse_stream_json_output, "")
-        expect(result).to eq("")
-      end
-    end
-
-    context "with mixed content" do
-      it "combines multiple content blocks" do
-        output = '{"type":"content_block_delta","delta":{"text":"First"}}' + "\n" \
-          '{"type":"content_block_delta","delta":{"text":" second"}}' + "\n" \
-          '{"message":{"content":"Third"}}'
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("First secondThird")
-      end
-    end
-
-    context "when parsing fails" do
-      it "returns original output on parsing error" do
-        output = "Some output"
-        allow(provider).to receive(:debug_log)
-
-        # Temporarily stub JSON.parse to raise an error for this test
-        original_parse = JSON.method(:parse)
-        allow(JSON).to receive(:parse) do |*args|
-          if args.first.include?("Some output")
-            raise StandardError.new("Parse error")
-          else
-            original_parse.call(*args)
-          end
-        end
-
-        result = provider.__send__(:parse_stream_json_output, output)
-        expect(result).to eq("Some output")
       end
     end
   end

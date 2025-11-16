@@ -149,7 +149,7 @@ providers:
       code_generation: true
       analysis: true
       vision: true
-      streaming: true
+      supports_json_mode: true
       function_calling: true
       tool_use: true
 
@@ -254,7 +254,7 @@ providers:
       file_upload: true
       code_generation: true
       analysis: true
-      streaming: true
+      supports_json_mode: true
 
     # Monitoring configuration
     monitoring:
@@ -365,7 +365,7 @@ providers:
       code_generation: true
       analysis: true
       vision: true
-      streaming: true
+      supports_json_mode: true
 
     # Monitoring configuration
     monitoring:

@@ -627,7 +627,6 @@ RSpec.describe "ProviderAdapter Conformance" do
         expect(caps[:supports_tool_use]).to be false
         expect(caps[:supports_vision]).to be false
         expect(caps[:supports_file_upload]).to be false
-        expect(caps[:streaming]).to be false
       end
     end
   end

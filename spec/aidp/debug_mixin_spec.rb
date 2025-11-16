@@ -374,38 +374,10 @@ RSpec.describe Aidp::DebugMixin do
       allow(instance).to receive(:debug_error)
     end
 
-    context "when streaming is disabled" do
-      it "uses null printer" do
-        expect(TTY::Command).to receive(:new).with(printer: :null).and_call_original
+    it "uses null printer" do
+      expect(TTY::Command).to receive(:new).with(printer: :null).and_call_original
 
-        instance.debug_execute_command(command, args: args, input: input, timeout: timeout, streaming: false)
-      end
-
-      it "does not show streaming message" do
-        instance.debug_execute_command(command, args: args, input: input, timeout: timeout, streaming: false)
-
-        expect(instance).not_to have_received(:debug_log).with(
-          "📺 Streaming mode enabled - showing real-time output",
-          level: :info
-        )
-      end
-    end
-
-    context "when streaming is enabled" do
-      it "uses progress printer" do
-        expect(TTY::Command).to receive(:new).with(printer: :progress).and_call_original
-
-        instance.debug_execute_command(command, args: args, input: input, timeout: timeout, streaming: true)
-      end
-
-      it "shows streaming message" do
-        instance.debug_execute_command(command, args: args, input: input, timeout: timeout, streaming: true)
-
-        expect(instance).to have_received(:debug_log).with(
-          "📺 Streaming mode enabled - showing real-time output",
-          level: :info
-        )
-      end
+      instance.debug_execute_command(command, args: args, input: input, timeout: timeout)
     end
 
     context "with input from file" do

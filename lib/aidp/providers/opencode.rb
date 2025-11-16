@@ -54,12 +54,6 @@ module Aidp
         debug_provider("opencode", "Starting execution", {timeout: timeout_seconds})
         debug_log("📝 Sending prompt to opencode (length: #{prompt.length})", level: :info)
 
-        # Check if streaming mode is enabled
-        streaming_enabled = ENV["AIDP_STREAMING"] == "1" || ENV["DEBUG"] == "1"
-        if streaming_enabled
-          display_message("📺 Display streaming enabled - output buffering reduced (opencode does not support true streaming)", type: :info)
-        end
-
         # Check if prompt is too large and warn
         if prompt.length > 3000
           debug_log("⚠️  Large prompt detected (#{prompt.length} chars) - this may cause rate limiting", level: :warn)
@@ -90,7 +84,7 @@ module Aidp
           # Use debug_execute_command for better debugging
           # opencode run command with prompt and model
           model = ENV["OPENCODE_MODEL"] || "github-copilot/claude-3.5-sonnet"
-          result = debug_execute_command("opencode", args: ["run", "-m", model, prompt], timeout: timeout_seconds, streaming: streaming_enabled)
+          result = debug_execute_command("opencode", args: ["run", "-m", model, prompt], timeout: timeout_seconds)
 
           # Log the results
           debug_command("opencode", args: ["run", "-m", model, prompt], input: nil, output: result.out, error: result.err, exit_code: result.exit_status)

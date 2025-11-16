@@ -223,23 +223,6 @@ RSpec.describe Aidp::Providers::Opencode do
       expect(provider.instance_variable_get(:@activity_state)).to eq(:failed)
     end
 
-    it "enables streaming mode when AIDP_STREAMING is set" do
-      allow(described_class).to receive(:available?).and_return(true)
-      ENV["AIDP_STREAMING"] = "1"
-
-      result = double("Result", exit_status: 0, out: "output", err: "")
-      allow(provider).to receive(:debug_execute_command).and_return(result)
-
-      provider.send_message(prompt: "test")
-
-      expect(provider).to have_received(:display_message).with(
-        anything,
-        hash_including(type: :info)
-      ).at_least(:once)
-
-      ENV.delete("AIDP_STREAMING")
-    end
-
     it "warns about large prompts" do
       allow(described_class).to receive(:available?).and_return(true)
       large_prompt = "a" * 3001
