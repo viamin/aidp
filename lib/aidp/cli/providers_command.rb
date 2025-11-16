@@ -97,7 +97,11 @@ module Aidp
         if info[:permission_modes]&.any?
           display_message("\nPermission Modes:", type: :highlight)
           info[:permission_modes].each do |mode|
-            display_message("  • #{mode[:name]}: #{mode[:description]}", type: :info)
+            if mode.is_a?(Hash)
+              display_message("  • #{mode[:name]}: #{mode[:description]}", type: :info)
+            else
+              display_message("  • #{mode}", type: :info)
+            end
           end
         end
 

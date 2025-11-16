@@ -780,12 +780,18 @@ RSpec.describe Aidp::CLI do
     end
 
     it "routes to info subcommand when info is first arg" do
-      expect(described_class).to receive(:run_providers_info_command).with(["claude"])
+      command_double = instance_double(Aidp::CLI::ProvidersCommand)
+      expect(Aidp::CLI::ProvidersCommand).to receive(:new).and_return(command_double)
+      expect(command_double).to receive(:run).with(["claude"], subcommand: "info")
       described_class.send(:run_providers_command, ["info", "claude"])
     end
 
     it "routes to refresh subcommand when refresh is first arg" do
-      expect(described_class).to receive(:run_providers_refresh_command).with([])
+      config_manager = instance_double(Aidp::Harness::ConfigManager, provider_names: ["claude"])
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
+      command_double = instance_double(Aidp::CLI::ProvidersCommand)
+      expect(Aidp::CLI::ProvidersCommand).to receive(:new).and_return(command_double)
+      expect(command_double).to receive(:run).with([], subcommand: "refresh")
       described_class.send(:run_providers_command, ["refresh"])
     end
 
@@ -824,120 +830,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  describe ".run_providers_refresh_command" do
-    before do
-      allow(described_class).to receive(:display_message)
-      require_relative "../../lib/aidp/harness/provider_info"
-    end
-
-    it "refreshes single provider when name provided" do
-      spinner = instance_double(TTY::Spinner, auto_spin: nil, success: nil, error: nil)
-      allow(TTY::Spinner).to receive(:new).and_return(spinner)
-      info_double = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).with("claude", Dir.pwd).and_return(info_double)
-      allow(info_double).to receive(:gather_info).and_return({cli_available: true})
-
-      described_class.send(:run_providers_refresh_command, ["claude"])
-      expect(info_double).to have_received(:gather_info)
-      expect(spinner).to have_received(:success).with("(available)")
-    end
-
-    it "refreshes all providers when no name provided" do
-      config_manager = instance_double(Aidp::Harness::ConfigManager, provider_names: ["claude", "cursor"])
-      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
-      spinner = instance_double(TTY::Spinner, auto_spin: nil, success: nil, error: nil)
-      allow(TTY::Spinner).to receive(:new).and_return(spinner)
-
-      info_double1 = instance_double(Aidp::Harness::ProviderInfo)
-      info_double2 = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).with("claude", Dir.pwd).and_return(info_double1)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).with("cursor", Dir.pwd).and_return(info_double2)
-      allow(info_double1).to receive(:gather_info).and_return({cli_available: true})
-      allow(info_double2).to receive(:gather_info).and_return({cli_available: false})
-
-      described_class.send(:run_providers_refresh_command, [])
-      expect(info_double1).to have_received(:gather_info)
-      expect(info_double2).to have_received(:gather_info)
-      expect(spinner).to have_received(:success).with("(available)")
-      expect(spinner).to have_received(:error).with("(unavailable)")
-    end
-  end
-
-  describe ".run_providers_info_command" do
-    before do
-      allow(described_class).to receive(:display_message)
-      require_relative "../../lib/aidp/harness/provider_info"
-    end
-
-    it "shows models catalog when provider name missing" do
-      described_class.send(:run_providers_info_command, [])
-      expect(described_class).to have_received(:display_message).with("Models Catalog - Thinking Depth Tiers", type: :highlight)
-    end
-
-    it "shows error when info returns nil" do
-      info_double = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
-      allow(info_double).to receive(:info).and_return(nil)
-      described_class.send(:run_providers_info_command, ["claude"])
-      expect(described_class).to have_received(:display_message).with(/No information available/, type: :error)
-    end
-
-    it "displays info with MCP servers none configured" do
-      info_hash = {
-        last_checked: Time.now.iso8601,
-        cli_available: true,
-        mcp_support: true,
-        mcp_servers: []
-      }
-      info_double = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
-      allow(info_double).to receive(:info).and_return(info_hash)
-
-      described_class.send(:run_providers_info_command, ["claude"])
-      expect(described_class).to have_received(:display_message).with(/MCP Servers: None configured/, type: :muted)
-    end
-
-    it "displays info when capabilities have false values" do
-      info_hash = {
-        last_checked: Time.now.iso8601,
-        cli_available: false,
-        capabilities: {code_editing: true, test_generation: false, supports_json_mode: true}
-      }
-      info_double = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
-      allow(info_double).to receive(:info).and_return(info_hash)
-
-      described_class.send(:run_providers_info_command, ["gemini"])
-      expect(described_class).to have_received(:display_message).with(/Code Editing/, type: :success)
-      expect(described_class).to have_received(:display_message).with(/Supports Json Mode/, type: :success)
-    end
-
-    it "displays rich provider info including truncation of flags" do
-      flags = {}
-      12.times { |i| flags["flag_#{i}"] = {flag: "--flag-#{i}", description: "Description #{i} " * 5} }
-      info_hash = {
-        last_checked: Time.now.iso8601,
-        cli_available: true,
-        auth_method: "api_key",
-        mcp_support: true,
-        mcp_servers: [
-          {name: "filesystem", status: "ready", enabled: true, description: "FS access"},
-          {name: "dash-api", status: "ready", enabled: false, description: "Dash API"}
-        ],
-        permission_modes: ["read", "write"],
-        capabilities: {code_editing: true, test_generation: true, doc_analysis: false},
-        flags: flags
-      }
-      info_double = instance_double(Aidp::Harness::ProviderInfo)
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
-      expect(info_double).to receive(:info).with(force_refresh: true).and_return(info_hash)
-      described_class.send(:run_providers_info_command, ["claude", "--refresh"])
-      expect(described_class).to have_received(:display_message).with(/Provider Information: claude/, type: :highlight)
-      expect(described_class).to have_received(:display_message).with(/MCP Servers:/, type: :highlight)
-      expect(described_class).to have_received(:display_message).with(/Notable Flags:/, type: :highlight)
-      expect(described_class).to have_received(:display_message).with(/\.\.\. and 2 more flags/, type: :muted)
-    end
-  end
 
   describe ".run_jobs_command" do
     let(:jobs_cmd) { instance_double(Aidp::CLI::JobsCommand) }
@@ -1720,8 +1612,11 @@ RSpec.describe Aidp::CLI do
     it "refreshes all providers when no name provided" do
       config_manager = instance_double(Aidp::Harness::ConfigManager, provider_names: ["claude", "cursor"])
       allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
-      described_class.send(:run_providers_refresh_command, [])
-      expect(described_class).to have_received(:display_message).with(/Provider information refreshed/, type: :success)
+      command_double = instance_double(Aidp::CLI::ProvidersCommand)
+      allow(Aidp::CLI::ProvidersCommand).to receive(:new).and_return(command_double)
+      allow(command_double).to receive(:run)
+      described_class.send(:run_providers_command, ["refresh"])
+      expect(command_double).to have_received(:run).with([], subcommand: "refresh")
     end
   end
 
