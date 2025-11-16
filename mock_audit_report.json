@@ -111,56 +111,56 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 213,
+          "line_num": 211,
           "line": "scanner.instance_variable_set(:@symbols, [",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 216,
+          "line_num": 214,
           "line": "scanner.instance_variable_set(:@imports, [",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 219,
+          "line_num": 217,
           "line": "scanner.instance_variable_set(:@calls, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 220,
+          "line_num": 218,
           "line": "scanner.instance_variable_set(:@metrics, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 221,
+          "line_num": 219,
           "line": "scanner.instance_variable_set(:@seams, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 222,
+          "line_num": 220,
           "line": "scanner.instance_variable_set(:@hotspots, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 223,
+          "line_num": 221,
           "line": "scanner.instance_variable_set(:@tests, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 224,
+          "line_num": 222,
           "line": "scanner.instance_variable_set(:@cycles, [])",
           "pattern": "instance_variable manipulation"
         }
@@ -3743,7 +3743,7 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 177,
+          "line_num": 175,
           "line": "user_input = selector.instance_variable_get(:@user_input)",
           "pattern": "instance_variable manipulation"
         }
@@ -5193,28 +5193,28 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 593,
+          "line_num": 591,
           "line": "expect(factory.instance_variable_get(:@provider_instances)).to be_empty",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 594,
+          "line_num": 592,
           "line": "expect(factory.instance_variable_get(:@provider_configs)).to be_empty",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 600,
+          "line_num": 598,
           "line": "expect(factory.instance_variable_get(:@provider_instances)).to be_empty",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 601,
+          "line_num": 599,
           "line": "expect(factory.instance_variable_get(:@provider_configs)).to be_empty",
           "pattern": "instance_variable manipulation"
         }
