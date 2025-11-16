@@ -47,8 +47,6 @@ RSpec.describe Aidp::CLI::McpDashboard do
     allow(mock_provider_info_class).to receive(:new).and_return(mock_provider_info)
   end
 
-  # Initialization is tested implicitly through functionality tests
-
   describe "#display_dashboard" do
     it "displays dashboard without errors" do
       expect { dashboard.display_dashboard }.not_to raise_error

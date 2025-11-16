@@ -19,8 +19,6 @@ RSpec.describe Aidp::Analyze::TreeSitterScan do
     FileUtils.rm_rf(temp_dir)
   end
 
-  # Initialization is tested implicitly through functionality tests
-
   describe "#discover_files" do
     before do
       # Create test Ruby files

@@ -16,8 +16,6 @@ RSpec.describe Aidp::Analyze::TreeSitterGrammarLoader do
 
   after { FileUtils.rm_rf(temp_dir) }
 
-  # Initialization is tested implicitly by the functionality tests below
-
   describe "#load_grammar" do
     it "loads ruby grammar" do
       grammar = loader.load_grammar("ruby")

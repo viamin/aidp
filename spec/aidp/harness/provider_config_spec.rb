@@ -20,8 +20,6 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     FileUtils.rm_rf(project_dir) if Dir.exist?(project_dir)
   end
 
-  # Initialization is tested implicitly through functionality tests
-
   describe "configuration access" do
     let(:valid_config) do
       {

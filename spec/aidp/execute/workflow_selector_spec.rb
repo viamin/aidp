@@ -8,8 +8,6 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
   let(:workflow_selector) { instance_double(Aidp::Workflows::Selector) }
   let(:selector) { described_class.new(prompt: prompt, workflow_selector: workflow_selector) }
 
-  # Initialization is tested implicitly through functionality tests
-
   describe "#select_workflow" do
     context "with harness_mode: true" do
       it "uses default values" do

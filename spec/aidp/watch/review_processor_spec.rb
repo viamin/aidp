@@ -65,8 +65,6 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
 
-      # Reviewer test doubles already configured with default responses via let blocks
-
       expect(repository_client).to receive(:post_comment).with(123, /AIDP Code Review/)
 
       processor.process(pr)
@@ -80,8 +78,6 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       allow(repository_client).to receive(:fetch_pull_request_files).with(123).and_return(files)
       allow(repository_client).to receive(:fetch_pull_request_diff).with(123).and_return(diff)
       allow(repository_client).to receive(:post_comment)
-
-      # Reviewer test doubles already configured with default responses via let blocks
 
       expect(repository_client).to receive(:remove_labels).with(123, "aidp-review")
 
@@ -130,8 +126,6 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       allow(repository_client).to receive(:fetch_pull_request_diff).with(123).and_return(diff)
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
-
-      # Reviewer test doubles already configured with default responses via let blocks
 
       processor.process(pr)
 

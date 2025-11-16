@@ -7,8 +7,6 @@ require "stringio"
 describe Aidp::CLI::TerminalIO do
   let(:output) { StringIO.new }
 
-  # Initialization with dependencies is tested implicitly by the functionality tests below
-
   describe "#ready?" do
     it "returns true for a StringIO" do
       io = described_class.new(input: StringIO.new("hi"), output: output)

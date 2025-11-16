@@ -241,7 +241,7 @@ end
 
 ## 📝 All Commits (34 total)
 
-```
+```text
 1d0a810 Add dependency injection to EnhancedRunner
 1785162 Extract providers commands into ProvidersCommand class
 0141ccd Fix internal class mocking violation in interactive_repl_spec

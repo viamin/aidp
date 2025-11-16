@@ -24,8 +24,6 @@ RSpec.describe Aidp::IssueImporter do
     FileUtils.rm_rf(temp_dir)
   end
 
-  # Initialization is tested implicitly through functionality tests
-
   describe "#import_issue" do
     let(:issue_data) do
       {

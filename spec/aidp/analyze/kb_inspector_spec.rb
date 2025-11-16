@@ -19,8 +19,6 @@ RSpec.describe Aidp::Analyze::KBInspector do
     FileUtils.rm_rf(temp_dir)
   end
 
-  # Initialization is tested implicitly by the functionality tests below
-
   describe "#show" do
     before do
       # Create sample KB files
