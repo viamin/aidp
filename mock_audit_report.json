@@ -6198,172 +6198,154 @@
           "reason": "Direct instance variable manipulation (code smell)",
           "line_num": 147,
           "line": "performance_metrics = status_display.instance_variable_get(:@performance_metrics)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 156,
-          "line": "error_summary_data = status_display.instance_variable_get(:@error_summary)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 166,
-          "line": "expect(status_display.instance_variable_get(:@display_mode)).to eq(:detailed)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 172,
-          "line": "expect(status_display.instance_variable_get(:@update_interval)).to eq(5)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 179,
-          "line": "display_config = status_display.instance_variable_get(:@display_config)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 189,
-          "line": "provider_status = status_display.instance_variable_get(:@provider_status)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 197,
-          "line": "circuit_breaker_status = status_display.instance_variable_get(:@circuit_breaker_status)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 204,
-          "line": "performance_metrics = status_display.instance_variable_get(:@performance_metrics)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 212,
-          "line": "error_summary = status_display.instance_variable_get(:@error_summary)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 217,
-          "line": "status_display.instance_variable_set(:@start_time, Time.now - 60)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 220,
-          "line": "performance_metrics = status_display.instance_variable_get(:@performance_metrics)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 227,
-          "line": "status_display.instance_variable_set(:@start_time, Time.now - 30)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 228,
-          "line": "status_display.instance_variable_set(:@current_step, \"Test Step\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 229,
-          "line": "status_display.instance_variable_set(:@current_provider, \"claude\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 230,
-          "line": "status_display.instance_variable_set(:@current_model, \"model1\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 231,
-          "line": "status_display.instance_variable_set(:@running, true)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 257,
-          "line": "status_display.instance_variable_set(:@start_time, Time.now - 60)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 258,
-          "line": "status_display.instance_variable_set(:@current_step, \"Test Step\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 259,
-          "line": "status_display.instance_variable_set(:@current_provider, \"claude\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 260,
-          "line": "status_display.instance_variable_set(:@current_model, \"model1\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 269,
-          "line": "status_display.instance_variable_set(:@provider_status, {",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 279,
-          "line": "status_display.instance_variable_set(:@performance_metrics, {",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 291,
-          "line": "status_display.instance_variable_set(:@error_summary, {",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 305,
-          "line": "status_display.instance_variable_set(:@circuit_breaker_status, {",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
+          "pattern": "instance_variable 
+
+    Line 1238: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: allow().to receive
+      Code: allow(Aidp::Harness::ProviderFactory).to receive(:new).with(retry_failure_config_manager).and_return(retry_failure_provider_factory)
+
+    Line 1289: Mocking internal AIDP class: Aidp::Harness::ConfigManager
+      Pattern: instance_double
+      Code: let(:config_manager) { instance_double("Aidp::Harness::ConfigManager") }
+
+    Line 1289: Mocking internal AIDP class: Aidp::Harness::ConfigManager
+      Pattern: double
+      Code: let(:config_manager) { instance_double("Aidp::Harness::ConfigManager") }
+
+    Line 1292: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: instance_double
+      Code: let(:provider_factory) { instance_double("Aidp::Harness::ProviderFactory") }
+
+    Line 1292: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: double
+      Code: let(:provider_factory) { instance_double("Aidp::Harness::ProviderFactory") }
+
+    Line 1296: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: allow().to receive
+      Code: allow(Aidp::Harness::ProviderFactory).to receive(:new).and_return(provider_factory)
+
+    Line 1299: Direct instance variable manipulation (code smell)
+      Pattern: instance_variable manipulation
+      Code: allow(agent.instance_variable_get(:@config_manager)).to receive(:respond_to?).and_return(false)
+
+    Line 1300: Direct instance variable manipulation (code smell)
+      Pattern: instance_variable manipulation
+      Code: agent.instance_variable_set(:@provider_manager, provider_manager)
+
+    Line 1306: Mocking internal AIDP class: Aidp::Logger
+      Pattern: instance_double
+      Code: mock_logger = instance_double("Aidp::Logger")
+
+    Line 1306: Mocking internal AIDP class: Aidp::Logger
+      Pattern: double
+      Code: mock_logger = instance_double("Aidp::Logger")
+
+
+  NEEDS REVIEW (6):
+    Line 330: Mocking unknown class (might be internal): Aidp
+      Pattern: allow().to receive
+      Code: allow(Aidp).to receive(:logger).and_return(logger_double)
+
+    Line 1288: Mocking unknown class (might be internal): ProviderManager
+      Pattern: instance_double
+      Code: let(:provider_manager) { instance_double("ProviderManager", current_provider: "cursor") }
+
+    Line 1293: Mocking unknown class (might be internal): Provider
+      Pattern: instance_double
+      Code: let(:provider) { instance_double("Provider", send_message: nil) }
+
+    Line 1299: Mocking method call or complex expression: agent.instance_variable_get(:@config_manager)
+      Pattern: allow().to receive
+      Code: allow(agent.instance_variable_get(:@config_manager)).to receive(:respond_to?).and_return(false)
+
+    Line 1311: Mocking unknown class (might be internal): Aidp
+      Pattern: allow().to receive
+      Code: allow(Aidp).to receive(:logger).and_return(mock_logger)
+
+    Line 1324: Mocking unknown class (might be internal): Aidp.logger
+      Pattern: expect().to receive
+      Code: expect(Aidp.logger).to receive(:debug).with("guided_agent", "provider_switch_noop", hash_including(provider: "cursor", reason: "resource_exhausted"))
+
+--------------------------------------------------------------------------------
+File: spec/aidp/workstream_executor_spec.rb
+--------------------------------------------------------------------------------
+
+  VIOLATIONS (5):
+    Line 31: Direct instance variable manipulation (code smell)
+      Pattern: instance_variable manipulation
+      Code: expect(executor.instance_variable_get(:@project_dir)).to eq(project_dir)
+
+    Line 32: Direct instance variable manipulation (code smell)
+      Pattern: instance_variable manipulation
+      Code: expect(executor.instance_variable_get(:@max_concurrent)).to eq(2)
+
+    Line 37: Direct instance variable manipulation (code smell)
+      Pattern: instance_variable manipulation
+      Code: expect(default_executor.instance_variable_get(:@max_concurrent)).to eq(3)
+
+    Line 41: Direct instance variable manipulation (code smell)
+      Pattern: instance_variable manipulation
+      Code: results = executor.instance_variable_get(:@results)
+
+    Line 42: Direct instance variable manipulation (code smell)
+      Pattern: instance_variable manipulation
+      Code: start_times = executor.instance_variable_get(:@start_times)
+
+--------------------------------------------------------------------------------
+File: spec/integration/issue_command_integration_spec.rb
+--------------------------------------------------------------------------------
+
+  VIOLATIONS (2):
+    Line 54: Mocking internal AIDP class: Aidp::IssueImporter
+      Pattern: allow().to receive
+      Code: allow(Aidp::IssueImporter).to receive(:new).and_return(mock_importer)
+
+    Line 116: Mocking internal AIDP class: Aidp::CLI
+      Pattern: allow().to receive
+      Code: allow(Aidp::CLI).to receive(:display_message) do |message, **_options|
+
+--------------------------------------------------------------------------------
+File: spec/integration/jobs_command_integration_spec.rb
+--------------------------------------------------------------------------------
+
+  VIOLATIONS (2):
+    Line 14: Mocking internal AIDP class: Aidp::Jobs::BackgroundRunner
+      Pattern: allow().to receive
+      Code: allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(background_runner)
+
+    Line 28: Mocking internal AIDP class: Aidp::Jobs::BackgroundRunner
+      Pattern: allow().to receive
+      Code: allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(background_runner)
+
+--------------------------------------------------------------------------------
+File: spec/system/analyze_mode_workflow_spec.rb
+--------------------------------------------------------------------------------
+
+  VIOLATIONS (1):
+    Line 20: Mocking internal AIDP class: Aidp::CLI
+      Pattern: allow().to receive
+      Code: allow(Aidp::CLI).to receive(:new).and_return(mock_cli)
+
+--------------------------------------------------------------------------------
+File: spec/system/guided_workflow_golden_path_spec.rb
+--------------------------------------------------------------------------------
+
+  VIOLATIONS (2):
+    Line 92: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: allow().to receive
+      Code: allow(Aidp::Harness::ProviderFactory).to receive(:new).with(system_test_config_manager).and_return(system_test_provider_factory)
+
+    Line 193: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: allow().to receive
+      Code: allow(Aidp::Harness::ProviderFactory).to receive(:new).with(system_test_config_manager).and_return(recovery_provider_factory)
+
+================================================================================
+Total violations: 1016
+Total needing review: 276
+================================================================================
+
+Detailed JSON report saved to: mock_audit_report.json
+variable manipulation (code smell)",
           "line_num": 315,
           "line": "status_display.instance_variable_set(:@token_usage, {",
           "pattern": "instance_variable manipulation"
