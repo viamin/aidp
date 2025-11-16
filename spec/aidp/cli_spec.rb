@@ -106,31 +106,10 @@ RSpec.describe Aidp::CLI do
       expect { described_class.display_message("Test message") }.not_to raise_error
     end
 
-    it "can handle the startup path without NoMethodError" do
-      # Test the specific path that was failing - startup with configuration check
-      # Mock the configuration check to avoid interactive prompts
-      allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
-      allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(double("TUI",
-        start_display_loop: nil,
-        stop_display_loop: nil,
-        single_select: "🔬 Analyze Mode - Analyze your codebase for insights and recommendations"))
-      allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(double("Selector",
-        select_workflow: {status: :success, next_step: nil}))
-
-      # This should not raise NoMethodError for display_message
-      expect { described_class.run([]) }.not_to raise_error
-    end
-
-    context "when config setup is cancelled" do
-      before do
-        allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(false)
-      end
-
-      it "returns 1 and shows cancellation message" do
-        result = described_class.run([])
-        expect(result).to eq(1)
-      end
-    end
+    # Integration tests removed to eliminate internal class mocking violations
+    # - "can handle the startup path without NoMethodError" test (mocked FirstRunWizard, EnhancedTUI, EnhancedWorkflowSelector)
+    # - "when config setup is cancelled" context (mocked FirstRunWizard)
+    # Coverage: spec/system/guided_workflow_golden_path_spec.rb
 
     # Integration tests removed to eliminate internal class mocking violations
     # Coverage: spec/system/guided_workflow_golden_path_spec.rb
