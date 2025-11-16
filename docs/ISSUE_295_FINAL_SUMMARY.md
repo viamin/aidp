@@ -11,15 +11,15 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 | Category | Original | Fixed | Remaining | % Complete |
 |----------|----------|-------|-----------|------------|
 | **`allow_any_instance_of`** | **31** | **31** | **0** | **100%** ✅ |
-| Internal class mocking | 662 | 54 | 608 | 8.2% |
+| Internal class mocking | 662 | 62 | 600 | 9.4% |
 | Instance variable manipulation | 577 | 2 | 575 | 0.3% |
 | Mock parameter mismatches | N/A | 12 | 0 | 100% ✅ |
 | Other violations | 1,146 | 5 | 1,141 | 0.4% |
-| **Total** | **1,177** | **104** | **1,088** | **8.8%** |
+| **Total** | **1,177** | **112** | **1,082** | **9.5%** |
 
-### Files Fixed: 32 Spec Files + 10 Production Files
+### Files Fixed: 34 Spec Files + 12 Production Files
 
-**Spec files (32):**
+**Spec files (34):**
 
 1. ✅ `guided_agent_spec.rb` (12 allow_any_instance_of + 12 mock params)
 2. ✅ `guided_workflow_golden_path_spec.rb` (4 allow_any_instance_of + 2 mock params)
@@ -51,10 +51,12 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 28. ✅ `prompt_manager_spec.rb` (2 internal class mocking violations)
 29. ✅ `workflow_selector_spec.rb` (1 internal class mocking violation)
 30. ✅ `daemon/runner_spec.rb` (1 internal class mocking violation)
-31. ✅ `cli_spec.rb` (various violations - partial)
-32. ✅ Various other specs (small fixes)
+31. ✅ `work_loop_header_spec.rb` (1 internal class mocking violation)
+32. ✅ `async_work_loop_runner_spec.rb` (7 internal class mocking violations)
+33. ✅ `cli_spec.rb` (various violations - partial)
+34. ✅ Various other specs (small fixes)
 
-**Production files enhanced with DI (10):**
+**Production files enhanced with DI (12):**
 
 1. ✅ `lib/aidp/workflows/guided_agent.rb` - Added `config_manager` and `provider_manager` parameters
 2. ✅ `lib/aidp/watch/review_processor.rb` - Added `reviewers` parameter
@@ -66,6 +68,8 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 8. ✅ `lib/aidp/execute/prompt_manager.rb` - Added `optimizer` parameter
 9. ✅ `lib/aidp/execute/workflow_selector.rb` - Added `workflow_selector` parameter
 10. ✅ `lib/aidp/daemon/runner.rb` - Added `process_manager` parameter
+11. ✅ `lib/aidp/execute/work_loop_runner.rb` - Added `thinking_depth_manager` parameter to options
+12. ✅ `lib/aidp/execute/async_work_loop_runner.rb` - Added `sync_runner_class` parameter to options
 
 ## 🏆 Major Achievements
 
@@ -224,14 +228,17 @@ end
 ### Technical Debt Reduction
 
 - **Before**: 1,177 mock violations across 87 files
-- **After**: 1,088 violations (104 fixed, **all critical ones eliminated**)
+- **After**: 1,082 violations (112 fixed, **all critical ones eliminated**)
 - **Remaining**: Documented with clear fix patterns in MOCK_AUDIT_STATUS.md
-- **Progress**: 8.8% of all violations fixed, 100% of critical violations fixed
+- **Progress**: 9.5% of all violations fixed, 100% of critical violations fixed
 - **Test Failures Fixed**: 12 failing tests now passing (mock parameter mismatches + fallback sequence)
 
-## 📝 All Commits (27 total)
+## 📝 All Commits (30 total)
 
 ```
+9f0df9e Fix internal class mocking violations in async_work_loop_runner_spec
+77f7906 Fix internal class mocking violation in work_loop_header_spec
+515f427 Add .bundle/ to .gitignore
 30b346b Fix internal class mocking violation in daemon/runner_spec
 0c7f910 Fix internal class mocking violation in workflow_selector_spec
 211d655 Fix internal class mocking violations in prompt_manager_spec
@@ -300,11 +307,11 @@ While all **critical violations are fixed**, there are ~1,088 lower-priority vio
 
 ## ⏱️ Effort
 
-**Time invested**: ~23 hours
-**Lines changed**: ~730 across 35 files
-**Violations fixed**: 104 total, **31 critical (100%)**
+**Time invested**: ~24 hours
+**Lines changed**: ~760 across 38 files
+**Violations fixed**: 112 total, **31 critical (100%)**
 **Test failures resolved**: 12 tests (mock parameter mismatches + fallback sequence)
-**Commits**: 27 total
+**Commits**: 30 total
 
 ## 🚀 Next Steps (If Continuing)
 

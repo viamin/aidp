@@ -2781,63 +2781,15 @@
       "violations": [
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::WorkLoopRunner",
-          "line_num": 39,
-          "line": "allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::WorkLoopRunner"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::WorkLoopRunner",
-          "line_num": 84,
-          "line": "allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::WorkLoopRunner"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::WorkLoopRunner",
-          "line_num": 118,
-          "line": "allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::WorkLoopRunner"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::WorkLoopRunner",
-          "line_num": 147,
-          "line": "allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::WorkLoopRunner"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::WorkLoopRunner",
-          "line_num": 180,
-          "line": "allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::WorkLoopRunner"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::WorkLoopRunner",
-          "line_num": 214,
-          "line": "allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::WorkLoopRunner"
-        },
-        {
-          "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 224,
+          "line_num": 223,
           "line": "runner.state.instance_variable_set(:@current_state, :cancelled)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Checkpoint",
-          "line_num": 242,
+          "line_num": 241,
           "line": "checkpoint = instance_double(\"Checkpoint\")",
           "pattern": "instance_double",
           "target": "Checkpoint"
@@ -2845,29 +2797,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 243,
+          "line_num": 242,
           "line": "allow(sync_runner).to receive(:instance_variable_get).with(:@checkpoint).and_return(checkpoint)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::WorkLoopRunner",
-          "line_num": 305,
-          "line": "allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::WorkLoopRunner"
-        },
-        {
-          "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 356,
+          "line_num": 354,
           "line": "runner.state.instance_variable_set(:@current_state, :unexpected)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Checkpoint",
-          "line_num": 365,
+          "line_num": 363,
           "line": "let(:checkpoint) { instance_double(\"Checkpoint\") }",
           "pattern": "instance_double",
           "target": "Checkpoint"
@@ -2875,28 +2819,28 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 368,
+          "line_num": 366,
           "line": "runner.instance_variable_set(:@sync_runner, sync_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 369,
+          "line_num": 367,
           "line": "allow(sync_runner).to receive(:instance_variable_get).with(:@checkpoint).and_return(checkpoint)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 382,
+          "line_num": 380,
           "line": "runner.instance_variable_set(:@sync_runner, sync_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 383,
+          "line_num": 381,
           "line": "allow(sync_runner).to receive(:instance_variable_get).with(:@checkpoint).and_return(nil)",
           "pattern": "instance_variable manipulation"
         }
@@ -3508,23 +3452,31 @@
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::CapabilityRegistry",
-          "line_num": 44,
-          "line": "allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::CapabilityRegistry"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ThinkingDepthManager",
+          "line_num": 35,
+          "line": "instance_double(\"Aidp::Harness::ThinkingDepthManager\",",
+          "pattern": "instance_double",
+          "target": "Aidp::Harness::ThinkingDepthManager"
+        },
+        {
+          "type": "violation",
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ThinkingDepthManager",
+          "line_num": 35,
+          "line": "instance_double(\"Aidp::Harness::ThinkingDepthManager\",",
+          "pattern": "double",
+          "target": "Aidp::Harness::ThinkingDepthManager"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 61,
+          "line_num": 64,
           "line": "runner.instance_variable_set(:@step_name, \"16_IMPLEMENTATION\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 62,
+          "line_num": 65,
           "line": "runner.instance_variable_set(:@iteration_count, 3)",
           "pattern": "instance_variable manipulation"
         }
