@@ -10,11 +10,11 @@ module Aidp
     # Main daemon runner for background mode execution
     # Manages work loops, watch mode, and IPC communication
     class Runner
-      def initialize(project_dir, config, options = {})
+      def initialize(project_dir, config, options = {}, process_manager: nil)
         @project_dir = project_dir
         @config = config
         @options = options
-        @process_manager = ProcessManager.new(project_dir)
+        @process_manager = process_manager || ProcessManager.new(project_dir)
         @running = false
         @work_loop_runner = nil
         @watch_runner = nil
