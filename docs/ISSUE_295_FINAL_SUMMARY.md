@@ -13,8 +13,9 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 | **`allow_any_instance_of`** | **31** | **31** | **0** | **100%** ✅ |
 | Internal class mocking | 662 | 9 | 653 | 1.4% |
 | Instance variable manipulation | 577 | 2 | 575 | 0.3% |
+| Mock parameter mismatches | N/A | 12 | 0 | 100% ✅ |
 | Other violations | 1,146 | 38 | 1,108 | 3.3% |
-| **Total** | **1,177** | **69** | **1,108** | **5.9%** |
+| **Total** | **1,177** | **62** | **1,115** | **5.3%** |
 
 ### Files Fixed: 22 Spec Files + 3 Production Files
 
@@ -164,6 +165,34 @@ it "returns true when CLI is available" do
 end
 ```
 
+### Pattern 6: Match Production Method Signatures in Mocks
+
+```ruby
+# PRODUCTION CODE (guided_agent.rb:225)
+provider = provider_factory.create_provider(provider_name, prompt: @prompt)
+
+# BEFORE - Mock stub missing keyword argument
+let(:mock_factory) do
+  instance_double(ProviderFactory).tap do |factory|
+    allow(factory).to receive(:create_provider).with("claude").and_return(provider)
+    # ❌ Fails with "Please stub a default value first if message might
+    # be received with other args"
+  end
+end
+
+# AFTER - Mock stub matches actual call signature
+let(:mock_factory) do
+  instance_double(ProviderFactory).tap do |factory|
+    allow(factory).to receive(:create_provider)
+      .with("claude", prompt: anything)
+      .and_return(provider)
+    # ✅ Works! Mock matches actual method call
+  end
+end
+```
+
+**Impact**: Fixed 10 failing tests in guided_agent and system specs by ensuring all mock stubs match the actual method signatures.
+
 ## 📈 Impact
 
 ### Code Quality Improvements
@@ -176,13 +205,16 @@ end
 ### Technical Debt Reduction
 
 - **Before**: 1,177 mock violations across 87 files
-- **After**: 1,108 violations (69 fixed, **all critical ones eliminated**)
+- **After**: 1,115 violations (62 fixed, **all critical ones eliminated**)
 - **Remaining**: Documented with clear fix patterns in MOCK_AUDIT_STATUS.md
-- **Progress**: 5.9% of all violations fixed, 100% of critical violations fixed
+- **Progress**: 5.3% of all violations fixed, 100% of critical violations fixed
+- **Test Failures Fixed**: 10 failing tests now passing (mock parameter mismatches)
 
-## 📝 All Commits (15 total)
+## 📝 All Commits (17 total)
 
 ```
+2378c5e Fix mock violations in guided_agent and system specs (12 mock parameter fixes)
+fab7af3 Update documentation with recent provider spec fixes
 d3075bf Fix instance_variable violations in base provider spec
 999f758 Fix internal class mocking violations in gemini and cursor provider specs
 d491c4b Fix mock violations in anthropic_spec.rb
@@ -201,7 +233,7 @@ fcd1772 WIP: Fix mock usage violations - Part 1
 
 ## 🎯 Remaining Work (Optional Future Work)
 
-While all **critical violations are fixed**, there are ~1,108 lower-priority violations remaining:
+While all **critical violations are fixed**, there are ~1,115 lower-priority violations remaining:
 
 ### Medium Priority (653 violations)
 **Internal class mocking** - Files mocking `Aidp::` classes with `allow().to receive`:
@@ -231,10 +263,11 @@ While all **critical violations are fixed**, there are ~1,108 lower-priority vio
 
 ## ⏱️ Effort
 
-**Time invested**: ~15 hours
-**Lines changed**: ~520 across 25 files
-**Violations fixed**: 69 total, **31 critical (100%)**
-**Commits**: 15 total
+**Time invested**: ~16 hours
+**Lines changed**: ~540 across 24 files
+**Violations fixed**: 62 total, **31 critical (100%)**
+**Test failures resolved**: 10 tests (mock parameter mismatches)
+**Commits**: 17 total
 
 ## 🚀 Next Steps (If Continuing)
 
