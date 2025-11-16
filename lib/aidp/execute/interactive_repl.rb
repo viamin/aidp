@@ -29,6 +29,7 @@ module Aidp
         @config = config
         @options = options
         @prompt = options[:prompt] || TTY::Prompt.new
+        @async_runner_class = options[:async_runner_class] || AsyncWorkLoopRunner
         @async_runner = nil
         @repl_macros = ReplMacros.new
         @output_display_thread = nil
@@ -38,7 +39,7 @@ module Aidp
 
       # Start work loop and enter interactive REPL
       def start_work_loop(step_name, step_spec, context = {})
-        @async_runner = AsyncWorkLoopRunner.new(
+        @async_runner = @async_runner_class.new(
           @project_dir,
           @provider_manager,
           @config,
