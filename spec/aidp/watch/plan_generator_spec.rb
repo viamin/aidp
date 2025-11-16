@@ -44,6 +44,7 @@ RSpec.describe Aidp::Watch::PlanGenerator do
       end
 
       before do
+        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["cursor"])
         allow(plan_generator).to receive(:resolve_provider).and_return(mock_provider)
         allow(mock_provider).to receive(:send_message).and_return(provider_response)
       end
@@ -69,6 +70,7 @@ RSpec.describe Aidp::Watch::PlanGenerator do
 
     context "when provider is not available" do
       before do
+        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["cursor"])
         allow(plan_generator).to receive(:resolve_provider).and_return(nil)
         allow(plan_generator).to receive(:display_message)
       end
@@ -83,7 +85,7 @@ RSpec.describe Aidp::Watch::PlanGenerator do
 
       it "displays warning message" do
         expect(plan_generator).to receive(:display_message).with(
-          /No active provider available.*heuristic/,
+          /All providers unavailable.*heuristic/,
           type: :warn
         )
 
@@ -92,8 +94,12 @@ RSpec.describe Aidp::Watch::PlanGenerator do
     end
 
     context "when provider raises error" do
+      let(:mock_provider) { double("provider") }
+
       before do
-        allow(plan_generator).to receive(:resolve_provider).and_raise(StandardError, "Connection failed")
+        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["cursor"])
+        allow(plan_generator).to receive(:resolve_provider).and_return(mock_provider)
+        allow(mock_provider).to receive(:send_message).and_raise(StandardError, "Connection failed")
         allow(plan_generator).to receive(:display_message)
       end
 
@@ -107,11 +113,55 @@ RSpec.describe Aidp::Watch::PlanGenerator do
 
       it "displays error message" do
         expect(plan_generator).to receive(:display_message).with(
-          /Plan generation failed.*heuristic/,
+          /All providers unavailable.*heuristic/,
           type: :warn
         )
 
         plan_generator.generate(sample_issue)
+      end
+    end
+
+    context "when multiple providers in fallback chain" do
+      let(:provider1) { double("provider1") }
+      let(:provider2) { double("provider2") }
+      let(:provider_response) do
+        '{"plan_summary": "Test summary", "plan_tasks": ["Task 1"], "clarifying_questions": []}'
+      end
+
+      before do
+        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["anthropic", "cursor"])
+        allow(plan_generator).to receive(:display_message)
+      end
+
+      it "tries next provider when first fails" do
+        allow(plan_generator).to receive(:resolve_provider).with("anthropic").and_return(provider1)
+        allow(plan_generator).to receive(:resolve_provider).with("cursor").and_return(provider2)
+        allow(provider1).to receive(:send_message).and_raise(Timeout::Error, "Timeout")
+        allow(provider2).to receive(:send_message).and_return(provider_response)
+
+        result = plan_generator.generate(sample_issue)
+
+        expect(result[:summary]).to eq("Test summary")
+        expect(result[:tasks]).to eq(["Task 1"])
+      end
+
+      it "tries next provider when first is unavailable" do
+        allow(plan_generator).to receive(:resolve_provider).with("anthropic").and_return(nil)
+        allow(plan_generator).to receive(:resolve_provider).with("cursor").and_return(provider2)
+        allow(provider2).to receive(:send_message).and_return(provider_response)
+
+        result = plan_generator.generate(sample_issue)
+
+        expect(result[:summary]).to eq("Test summary")
+      end
+
+      it "falls back to heuristic when all providers fail" do
+        allow(plan_generator).to receive(:resolve_provider).and_return(nil)
+
+        result = plan_generator.generate(sample_issue)
+
+        expect(result[:summary]).to include("implement user authentication")
+        expect(result[:tasks]).to include("Add login form")
       end
     end
   end
