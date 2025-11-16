@@ -924,8 +924,18 @@ module Aidp
         prompt.say("\n📋 Non-functional requirements & preferred libraries")
         prompt.say("-" * 40)
 
-        return delete_path([:nfrs]) unless prompt.yes?("Configure NFRs?", default: true)
+        # Check existing configuration for previous choice
+        existing_configure = @config.dig(:nfrs, :configure)
+        default_configure = existing_configure.nil? ? true : existing_configure
 
+        configure = prompt.yes?("Configure NFRs?", default: default_configure)
+
+        unless configure
+          Aidp.log_debug("setup_wizard.nfrs", "opt_out")
+          return set([:nfrs, :configure], false)
+        end
+
+        set([:nfrs, :configure], true)
         categories = %i[performance security reliability accessibility internationalization]
         categories.each do |category|
           existing = get([:nfrs, category])

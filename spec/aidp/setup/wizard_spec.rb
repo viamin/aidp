@@ -1389,5 +1389,59 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(result).to eq(Aidp::Providers::Anthropic)
       end
     end
+
+    describe "#configure_nfrs" do
+      let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+      it "saves configure: false when user declines NFR configuration" do
+        test_prompt = TestPrompt.new(responses: {
+          yes_map: {"Configure NFRs?" => false}
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:configure_nfrs)
+
+        config = wizard.instance_variable_get(:@config)
+        expect(config.dig(:nfrs, :configure)).to be false
+      end
+
+      it "saves configure: true when user accepts NFR configuration" do
+        test_prompt = TestPrompt.new(responses: {
+          yes?: false,  # Default no for sub-questions
+          yes_map: {"Configure NFRs?" => true}
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:configure_nfrs)
+
+        config = wizard.instance_variable_get(:@config)
+        expect(config.dig(:nfrs, :configure)).to be true
+      end
+
+      it "uses existing configure value as default when present" do
+        # Create config with configure: false
+        config_dir = Aidp::ConfigPaths.config_dir(tmp_dir)
+        FileUtils.mkdir_p(config_dir)
+        File.write(Aidp::ConfigPaths.config_file(tmp_dir), <<~YAML)
+          schema_version: 1
+          nfrs:
+            configure: false
+        YAML
+
+        test_prompt = TestPrompt.new(responses: {yes?: false})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        # Expect prompt.yes? to be called with default: false
+        expect(test_prompt).to receive(:yes?).with("Configure NFRs?", default: false).and_return(false)
+        wizard.send(:configure_nfrs)
+      end
+
+      it "defaults to true when no existing configure value" do
+        test_prompt = TestPrompt.new(responses: {yes?: false})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        # Expect prompt.yes? to be called with default: true
+        expect(test_prompt).to receive(:yes?).with("Configure NFRs?", default: true).and_return(false)
+        wizard.send(:configure_nfrs)
+      end
+    end
   end
 end
