@@ -25,7 +25,6 @@ module Aidp
       @prompt = prompt
     end
 
-
     # Instance version of analyze command (used by specs)
     def analyze(project_dir, step = nil, options = {})
       # Simple implementation for spec compatibility
@@ -95,7 +94,6 @@ module Aidp
         display_message("   Message: #{result[:message]}", type: :info) if result[:message]
       end
     end
-
 
     class << self
       extend Aidp::MessageDisplay::ClassMethods
