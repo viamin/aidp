@@ -401,52 +401,9 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  describe ".run_checkpoint_command" do
-    let(:checkpoint) { instance_double(Aidp::Execute::Checkpoint) }
-    let(:display) { instance_double(Aidp::Execute::CheckpointDisplay) }
-
-    before do
-      allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)
-      allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(display)
-      allow(described_class).to receive(:display_message)
-    end
-
-    it "shows latest checkpoint" do
-      checkpoint_data = {iteration: 5, status: "healthy", metrics: {}}
-      allow(checkpoint).to receive(:latest_checkpoint).and_return(checkpoint_data)
-      allow(display).to receive(:display_checkpoint)
-
-      expect { described_class.send(:run_checkpoint_command, ["show"]) }.not_to raise_error
-      expect(display).to have_received(:display_checkpoint).with(checkpoint_data, show_details: true)
-    end
-
-    it "handles no checkpoint data gracefully" do
-      allow(checkpoint).to receive(:latest_checkpoint).and_return(nil)
-      described_class.send(:run_checkpoint_command, ["show"])
-      expect(described_class).to have_received(:display_message).with("No checkpoint data found.", type: :info)
-    end
-
-    it "shows checkpoint history" do
-      history = [
-        {iteration: 1, timestamp: Time.now, metrics: {loc: 100}},
-        {iteration: 2, timestamp: Time.now + 60, metrics: {loc: 120}}
-      ]
-      allow(checkpoint).to receive(:checkpoint_history).with(limit: 2).and_return(history)
-      allow(display).to receive(:display_checkpoint_history)
-
-      described_class.send(:run_checkpoint_command, ["history", "2"])
-      expect(display).to have_received(:display_checkpoint_history).with(history, limit: 2)
-    end
-
-    it "shows summary" do
-      summary = {iteration: 3, metrics: {loc: 150}}
-      allow(checkpoint).to receive(:progress_summary).and_return(summary)
-      allow(display).to receive(:display_progress_summary)
-
-      described_class.send(:run_checkpoint_command, ["summary"])
-      expect(display).to have_received(:display_progress_summary).with(summary)
-    end
-  end
+  # Checkpoint command tests moved to spec/aidp/cli/checkpoint_command_spec.rb
+  # These were testing run_checkpoint_command that mocked internal AIDP classes (Checkpoint, CheckpointDisplay)
+  # Coverage: spec/aidp/cli/checkpoint_command_spec.rb
 
   describe ".run_providers_command" do
     let(:config_manager) { instance_double(Aidp::Harness::ConfigManager) }
@@ -1178,55 +1135,8 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  describe "checkpoint extended subcommands" do
-    let(:checkpoint) { instance_double(Aidp::Execute::Checkpoint) }
-    let(:display) { instance_double(Aidp::Execute::CheckpointDisplay) }
-    before do
-      allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)
-      allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(display)
-      allow(described_class).to receive(:display_message)
-    end
-
-    it "shows metrics when data present" do
-      metrics_cp = {metrics: {lines_of_code: 100, file_count: 10, test_coverage: 80, code_quality: 90, prd_task_progress: 50, tests_passing: true, linters_passing: true}}
-      allow(checkpoint).to receive(:latest_checkpoint).and_return(metrics_cp)
-      described_class.send(:run_checkpoint_command, ["metrics"])
-      expect(described_class).to have_received(:display_message).with(/Lines of Code:/, type: :info)
-    end
-
-    it "handles metrics with no data" do
-      allow(checkpoint).to receive(:latest_checkpoint).and_return(nil)
-      described_class.send(:run_checkpoint_command, ["metrics"])
-      expect(described_class).to have_received(:display_message).with("No checkpoint data found.", type: :info)
-    end
-
-    it "clears checkpoint data after confirmation when --force provided" do
-      allow(checkpoint).to receive(:clear)
-      described_class.send(:run_checkpoint_command, ["clear", "--force"])
-      expect(checkpoint).to have_received(:clear)
-      expect(described_class).to have_received(:display_message).with("✓ Checkpoint data cleared.", type: :success)
-    end
-
-    it "documents current behavior: false values don't display (potential bug)" do
-      # Current implementation: if metrics[:tests_passing] checks VALUE truthiness
-      # This means false values won't display at all, which may be unintended.
-      # The code likely should use metrics.key?(:tests_passing) to check presence.
-      metrics_cp = {metrics: {lines_of_code: 100, file_count: 10, test_coverage: 80, code_quality: 90, prd_task_progress: 50, tests_passing: false, linters_passing: false}}
-      allow(checkpoint).to receive(:latest_checkpoint).and_return(metrics_cp)
-      described_class.send(:run_checkpoint_command, ["metrics"])
-      # Current behavior: false values cause if block to skip
-      expect(described_class).not_to have_received(:display_message).with(/Tests:/, type: :info)
-      expect(described_class).not_to have_received(:display_message).with(/Linters:/, type: :info)
-    end
-
-    it "shows passing status when tests/linters are true" do
-      metrics_cp = {metrics: {lines_of_code: 100, file_count: 10, test_coverage: 80, code_quality: 90, prd_task_progress: 50, tests_passing: true, linters_passing: true}}
-      allow(checkpoint).to receive(:latest_checkpoint).and_return(metrics_cp)
-      described_class.send(:run_checkpoint_command, ["metrics"])
-      expect(described_class).to have_received(:display_message).with(/Tests: ✓ Passing/, type: :info)
-      expect(described_class).to have_received(:display_message).with(/Linters: ✓ Passing/, type: :info)
-    end
-  end
+  # Checkpoint extended subcommands tests moved to spec/aidp/cli/checkpoint_command_spec.rb
+  # Coverage: spec/aidp/cli/checkpoint_command_spec.rb
 
   describe "providers refresh subcommand" do
     before do
