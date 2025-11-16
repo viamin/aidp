@@ -1,7 +1,7 @@
 {
   "total_files": 194,
-  "files_with_violations": 78,
-  "files_clean": 105,
+  "files_with_violations": 77,
+  "files_clean": 106,
   "files_need_review": 11,
   "violations_by_file": [
     {
@@ -8585,25 +8585,6 @@
       ]
     },
     {
-      "file": "spec/aidp/providers/base_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 307,
-          "line": "expect(provider.instance_variable_get(:@output_count)).to eq(1)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 308,
-          "line": "expect(provider.instance_variable_get(:@last_output_time)).to be_a(Time)",
-          "pattern": "instance_variable manipulation"
-        }
-      ]
-    },
-    {
       "file": "spec/aidp/providers/capability_registry_spec.rb",
       "violations": [
         {
@@ -8785,16 +8766,8 @@
       "violations": [
         {
           "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
+          "reason": "Mocking internal AIDP class: Aidp::Util",
           "line_num": 9,
-          "line": "allow(described_class).to receive(:available?).and_return(true)",
-          "pattern": "allow().to receive",
-          "target": "described_class"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Util",
-          "line_num": 10,
           "line": "allow(Aidp::Util).to receive(:which).with(\"cursor-agent\").and_return(\"/usr/local/bin/cursor-agent\")",
           "pattern": "allow().to receive",
           "target": "Aidp::Util"
@@ -8802,7 +8775,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Util",
-          "line_num": 15,
+          "line_num": 14,
           "line": "allow(Aidp::Util).to receive(:which).with(\"cursor-agent\").and_return(\"/usr/local/bin/cursor-agent\")",
           "pattern": "allow().to receive",
           "target": "Aidp::Util"
@@ -8810,18 +8783,10 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Util",
-          "line_num": 20,
+          "line_num": 19,
           "line": "allow(Aidp::Util).to receive(:which).with(\"cursor-agent\").and_return(nil)",
           "pattern": "allow().to receive",
           "target": "Aidp::Util"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 21,
-          "line": "allow(described_class).to receive(:available?).and_return(false)",
-          "pattern": "allow().to receive",
-          "target": "described_class"
         }
       ]
     },
@@ -8846,19 +8811,19 @@
         },
         {
           "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
+          "reason": "Mocking internal AIDP class: Aidp::Util",
           "line_num": 39,
-          "line": "allow(described_class).to receive(:available?).and_return(true)",
+          "line": "allow(Aidp::Util).to receive(:which).with(\"gemini\").and_return(\"/usr/local/bin/gemini\")",
           "pattern": "allow().to receive",
-          "target": "described_class"
+          "target": "Aidp::Util"
         },
         {
           "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
+          "reason": "Mocking internal AIDP class: Aidp::Util",
           "line_num": 105,
-          "line": "allow(described_class).to receive(:available?).and_return(false)",
+          "line": "allow(Aidp::Util).to receive(:which).with(\"gemini\").and_return(nil)",
           "pattern": "allow().to receive",
-          "target": "described_class"
+          "target": "Aidp::Util"
         }
       ]
     },
