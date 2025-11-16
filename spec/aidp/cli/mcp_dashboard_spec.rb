@@ -19,9 +19,12 @@ RSpec.describe Aidp::CLI::McpDashboard do
     )
   end
 
+  let(:mock_provider_info_class) do
+    class_double(Aidp::Harness::ProviderInfo)
+  end
+
   let(:dashboard) do
-    allow(Aidp::Harness::Configuration).to receive(:new).and_return(mock_config)
-    described_class.new(temp_dir)
+    described_class.new(temp_dir, configuration: mock_config, provider_info_class: mock_provider_info_class)
   end
 
   after { FileUtils.rm_rf(temp_dir) }
@@ -41,7 +44,7 @@ RSpec.describe Aidp::CLI::McpDashboard do
     # Mock ProviderInfo to avoid file system dependencies
     mock_provider_info = instance_double(Aidp::Harness::ProviderInfo,
       info: {mcp_support: true, mcp_servers: []})
-    allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
+    allow(mock_provider_info_class).to receive(:new).and_return(mock_provider_info)
   end
 
   # Initialization is tested implicitly through functionality tests
@@ -99,7 +102,7 @@ RSpec.describe Aidp::CLI::McpDashboard do
       # Mock provider info with enabled MCP servers
       mock_provider_info = instance_double(Aidp::Harness::ProviderInfo,
         info: {mcp_support: true, mcp_servers: [{name: "filesystem", enabled: true}]})
-      allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
+      allow(mock_provider_info_class).to receive(:new).and_return(mock_provider_info)
 
       output = capture_output { dashboard.display_task_eligibility(["filesystem"]) }
       expect(output).to include("Eligible Providers")
@@ -123,7 +126,7 @@ RSpec.describe Aidp::CLI::McpDashboard do
       it "filters providers without MCP support" do
         mock_provider_info = instance_double(Aidp::Harness::ProviderInfo,
           info: {mcp_support: false})
-        allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
+        allow(mock_provider_info_class).to receive(:new).and_return(mock_provider_info)
 
         result = dashboard.send(:build_server_matrix)
         expect(result[:providers]).to be_empty
