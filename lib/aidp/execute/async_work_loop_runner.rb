@@ -27,6 +27,7 @@ module Aidp
         @config = config
         @options = options
         @cancel_timeout = options[:cancel_timeout] || 5 # seconds to wait for graceful shutdown
+        @sync_runner_class = options[:sync_runner_class] || WorkLoopRunner
         @state = WorkLoopState.new
         @instruction_queue = InstructionQueue.new
         @work_thread = nil
@@ -133,7 +134,7 @@ module Aidp
       # Main async execution loop
       def run_async_loop
         # Create synchronous runner (runs in this thread)
-        @sync_runner = WorkLoopRunner.new(
+        @sync_runner = @sync_runner_class.new(
           @project_dir,
           @provider_manager,
           @config,

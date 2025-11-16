@@ -8,9 +8,14 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
   let(:provider_manager) { instance_double(Aidp::Harness::ProviderManager) }
   let(:config) { instance_double(Aidp::Config) }
   let(:test_prompt) { TestPrompt.new }
-  let(:options) { {timeout: 60, cancel_timeout: 0.1, prompt: test_prompt} } # Use short timeout for faster tests
-  let(:runner) { described_class.new(project_dir, provider_manager, config, options) }
   let(:sync_runner) { instance_double(Aidp::Execute::WorkLoopRunner) }
+  let(:sync_runner_class) do
+    class_double(Aidp::Execute::WorkLoopRunner).tap do |klass|
+      allow(klass).to receive(:new).and_return(sync_runner)
+    end
+  end
+  let(:options) { {timeout: 60, cancel_timeout: 0.1, prompt: test_prompt, sync_runner_class: sync_runner_class} }
+  let(:runner) { described_class.new(project_dir, provider_manager, config, options) }
 
   describe "#initialize" do
     it "creates an instance with required dependencies" do
@@ -36,7 +41,6 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
     let(:barrier) { Concurrent::Promises.resolvable_future }
 
     before do
-      allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)
       # Make execute_step block until we release it
       allow(sync_runner).to receive(:execute_step) { barrier.wait }
     end
@@ -81,7 +85,6 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
     let(:step_spec) { {type: "implementation"} }
 
     before do
-      allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)
       allow(sync_runner).to receive(:execute_step).and_return({status: "completed"})
     end
 
@@ -115,7 +118,6 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
     let(:barrier) { Concurrent::Promises.resolvable_future }
 
     before do
-      allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)
       allow(sync_runner).to receive(:execute_step) { barrier.wait }
     end
 
@@ -144,7 +146,6 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
     let(:barrier) { Concurrent::Promises.resolvable_future }
 
     before do
-      allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)
       allow(sync_runner).to receive(:execute_step) { barrier.wait }
     end
 
@@ -177,7 +178,6 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
     let(:barrier) { Concurrent::Promises.resolvable_future }
 
     before do
-      allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)
       allow(sync_runner).to receive(:execute_step) { barrier.wait }
     end
 
@@ -211,7 +211,6 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
     let(:barrier) { Concurrent::Promises.resolvable_future }
 
     before do
-      allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)
       allow(sync_runner).to receive(:execute_step) { barrier.wait }
     end
 
@@ -302,7 +301,6 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
       step_spec = {type: "implementation"}
       barrier = Concurrent::Promises.resolvable_future
 
-      allow(Aidp::Execute::WorkLoopRunner).to receive(:new).and_return(sync_runner)
       allow(sync_runner).to receive(:execute_step) { barrier.wait }
 
       runner.execute_step_async(step_name, step_spec)
