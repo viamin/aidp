@@ -1,73 +1,9 @@
 {
   "total_files": 194,
-  "files_with_violations": 87,
-  "files_clean": 96,
+  "files_with_violations": 78,
+  "files_clean": 105,
   "files_need_review": 11,
   "violations_by_file": [
-    {
-      "file": "spec/aidp/analyze/json_file_storage_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 17,
-          "line": "expect(storage.instance_variable_get(:@project_dir)).to eq(temp_dir)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 22,
-          "line": "expect(custom_storage.instance_variable_get(:@storage_dir)).to eq(File.join(temp_dir, \"custom_storage\"))",
-          "pattern": "instance_variable manipulation"
-        }
-      ]
-    },
-    {
-      "file": "spec/aidp/analyze/kb_inspector_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 24,
-          "line": "expect(inspector.instance_variable_get(:@kb_dir)).to eq(kb_dir)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 28,
-          "line": "expect(inspector.instance_variable_get(:@data)).to be_a(Hash)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 206,
-          "line": "inspector.instance_variable_set(:@data, {seams: []})",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 230,
-          "line": "inspector.instance_variable_set(:@data, {hotspots: []})",
-          "pattern": "instance_variable manipulation"
-        }
-      ]
-    },
-    {
-      "file": "spec/aidp/analyze/ruby_maat_integration_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 15,
-          "line": "expect(integration.instance_variable_get(:@prompt)).to eq(test_prompt)",
-          "pattern": "instance_variable manipulation"
-        }
-      ]
-    },
     {
       "file": "spec/aidp/analyze/runner_spec.rb",
       "violations": [
@@ -170,143 +106,61 @@
       ]
     },
     {
-      "file": "spec/aidp/analyze/tree_sitter_grammar_loader_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 21,
-          "line": "expect(loader.instance_variable_get(:@project_dir)).to eq(temp_dir)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 25,
-          "line": "grammars_dir = loader.instance_variable_get(:@grammars_dir)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 30,
-          "line": "loaded = loader.instance_variable_get(:@loaded_grammars)",
-          "pattern": "instance_variable manipulation"
-        }
-      ]
-    },
-    {
       "file": "spec/aidp/analyze/tree_sitter_scan_spec.rb",
       "violations": [
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 24,
-          "line": "expect(scanner.instance_variable_get(:@root)).to eq(temp_dir)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 25,
-          "line": "expect(scanner.instance_variable_get(:@kb_dir)).to eq(kb_dir)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 26,
-          "line": "expect(scanner.instance_variable_get(:@langs)).to eq(%w[ruby])",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 30,
-          "line": "expect(scanner.instance_variable_get(:@symbols)).to eq([])",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 31,
-          "line": "expect(scanner.instance_variable_get(:@imports)).to eq([])",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 32,
-          "line": "expect(scanner.instance_variable_get(:@calls)).to eq([])",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 33,
-          "line": "expect(scanner.instance_variable_get(:@metrics)).to eq([])",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 34,
-          "line": "expect(scanner.instance_variable_get(:@seams)).to eq([])",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 227,
+          "line_num": 213,
           "line": "scanner.instance_variable_set(:@symbols, [",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 230,
+          "line_num": 216,
           "line": "scanner.instance_variable_set(:@imports, [",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 233,
+          "line_num": 219,
           "line": "scanner.instance_variable_set(:@calls, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 234,
+          "line_num": 220,
           "line": "scanner.instance_variable_set(:@metrics, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 235,
+          "line_num": 221,
           "line": "scanner.instance_variable_set(:@seams, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 236,
+          "line_num": 222,
           "line": "scanner.instance_variable_set(:@hotspots, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 237,
+          "line_num": 223,
           "line": "scanner.instance_variable_set(:@tests, [])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 238,
+          "line_num": 224,
           "line": "scanner.instance_variable_set(:@cycles, [])",
           "pattern": "instance_variable manipulation"
         }
@@ -383,20 +237,6 @@
           "line": "allow(Reline).to receive(:completion_append_character=)",
           "pattern": "allow().to receive",
           "target": "Reline"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 85,
-          "line": "expect(enhanced_input.instance_variable_get(:@use_reline)).to be true",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 90,
-          "line": "expect(enhanced_input.instance_variable_get(:@show_hints)).to be true",
-          "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
@@ -589,27 +429,6 @@
           "line": "allow(Reline).to receive(:completion_append_character=)",
           "pattern": "allow().to receive",
           "target": "Reline"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 187,
-          "line": "expect(enhanced_input.instance_variable_get(:@show_hints)).to be true",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 194,
-          "line": "expect(enhanced_input.instance_variable_get(:@use_reline)).to be false",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 201,
-          "line": "expect(enhanced_input.instance_variable_get(:@use_reline)).to be true",
-          "pattern": "instance_variable manipulation"
         }
       ]
     },
@@ -635,37 +454,6 @@
       ]
     },
     {
-      "file": "spec/aidp/cli/issue_importer_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 32,
-          "line": "expect([true, false]).to include(importer_with_detection.instance_variable_get(:@gh_available))",
-          "pattern": "instance_variable manipulation"
-        }
-      ]
-    },
-    {
-      "file": "spec/aidp/cli/jobs_command_simple_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 16,
-          "line": "cmd.instance_variable_set(:@file_manager, file_manager)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 17,
-          "line": "cmd.instance_variable_set(:@background_runner, background_runner)",
-          "pattern": "instance_variable manipulation"
-        }
-      ]
-    },
-    {
       "file": "spec/aidp/cli/mcp_dashboard_spec.rb",
       "violations": [
         {
@@ -686,37 +474,8 @@
         },
         {
           "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 49,
-          "line": "expect(dashboard.instance_variable_get(:@root_dir)).to eq(temp_dir)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::Configuration",
-          "line_num": 54,
-          "line": "allow(Aidp::Harness::Configuration).to receive(:new).and_return(mock_config)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::Configuration"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 56,
-          "line": "expect(dashboard.instance_variable_get(:@root_dir)).to eq(Dir.pwd)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 60,
-          "line": "expect(dashboard.instance_variable_get(:@configuration)).not_to be_nil",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderInfo",
-          "line_num": 117,
+          "line_num": 102,
           "line": "allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderInfo"
@@ -724,7 +483,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderInfo",
-          "line_num": 141,
+          "line_num": 126,
           "line": "allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderInfo"
@@ -1034,25 +793,6 @@
           "line": "allow(Aidp::CLI).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
-        }
-      ]
-    },
-    {
-      "file": "spec/aidp/cli/terminal_io_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 14,
-          "line": "expect(io.instance_variable_get(:@input)).to respond_to(:gets)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 15,
-          "line": "expect(io.instance_variable_get(:@output)).to respond_to(:write)",
-          "pattern": "instance_variable manipulation"
         }
       ]
     },
@@ -4439,28 +4179,7 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 17,
-          "line": "expect(selector.instance_variable_get(:@user_input)).to eq({})",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 21,
-          "line": "expect(selector.instance_variable_get(:@prompt)).to eq(prompt)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 25,
-          "line": "expect(selector.instance_variable_get(:@workflow_selector)).to eq(workflow_selector)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 193,
+          "line_num": 181,
           "line": "user_input = selector.instance_variable_get(:@user_input)",
           "pattern": "instance_variable manipulation"
         }
@@ -5986,35 +5705,28 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 26,
-          "line": "expect(provider_config.instance_variable_get(:@provider_name)).to eq(\"cursor\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 598,
+          "line_num": 593,
           "line": "expect(factory.instance_variable_get(:@provider_instances)).to be_empty",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 599,
+          "line_num": 594,
           "line": "expect(factory.instance_variable_get(:@provider_configs)).to be_empty",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 605,
+          "line_num": 600,
           "line": "expect(factory.instance_variable_get(:@provider_instances)).to be_empty",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 606,
+          "line_num": 601,
           "line": "expect(factory.instance_variable_get(:@provider_configs)).to be_empty",
           "pattern": "instance_variable manipulation"
         }
@@ -8392,27 +8104,6 @@
       ]
     },
     {
-      "file": "spec/aidp/init/runner_spec.rb",
-      "violations": [
-        {
-          "type": "needs_review",
-          "reason": "Mocking unknown class (might be internal): Object",
-          "line_num": 351,
-          "line": "allow_any_instance_of(Object).to receive(:system).and_return(true)",
-          "pattern": "allow_any_instance_of",
-          "target": "Object"
-        },
-        {
-          "type": "needs_review",
-          "reason": "Mocking unknown class (might be internal): Object",
-          "line_num": 361,
-          "line": "allow_any_instance_of(Object).to receive(:system).and_return(false)",
-          "pattern": "allow_any_instance_of",
-          "target": "Object"
-        }
-      ]
-    },
-    {
       "file": "spec/aidp/jobs/background_runner_spec.rb",
       "violations": [
         {
@@ -8845,16 +8536,24 @@
       "violations": [
         {
           "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
+          "reason": "Mocking internal AIDP class: Aidp::Util",
           "line_num": 10,
-          "line": "allow(described_class).to receive(:available?).and_return(true)",
+          "line": "allow(Aidp::Util).to receive(:which).with(\"claude\").and_return(\"/usr/local/bin/claude\")",
           "pattern": "allow().to receive",
-          "target": "described_class"
+          "target": "Aidp::Util"
         },
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Util",
-          "line_num": 11,
+          "line_num": 16,
+          "line": "allow(Aidp::Util).to receive(:which).with(\"claude\").and_return(nil)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Util"
+        },
+        {
+          "type": "violation",
+          "reason": "Mocking internal AIDP class: Aidp::Util",
+          "line_num": 47,
           "line": "allow(Aidp::Util).to receive(:which).with(\"claude\").and_return(\"/usr/local/bin/claude\")",
           "pattern": "allow().to receive",
           "target": "Aidp::Util"
@@ -8862,40 +8561,26 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 20,
+          "line_num": 161,
           "line": "allow(described_class).to receive(:available?).and_return(false)",
           "pattern": "allow().to receive",
           "target": "described_class"
         },
         {
           "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 90,
-          "line": "provider.instance_variable_set(:@harness_context, harness_context)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 94,
-          "line": "provider.instance_variable_set(:@harness_context, nil)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 165,
-          "line": "allow(described_class).to receive(:available?).and_return(false)",
+          "reason": "Mocking internal AIDP class: Aidp::Util",
+          "line_num": 310,
+          "line": "allow(Aidp::Util).to receive(:which).with(\"claude\").and_return(\"/usr/local/bin/claude\")",
           "pattern": "allow().to receive",
-          "target": "described_class"
+          "target": "Aidp::Util"
         },
         {
           "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 319,
-          "line": "allow(described_class).to receive(:available?).and_return(false)",
+          "reason": "Mocking internal AIDP class: Aidp::Util",
+          "line_num": 318,
+          "line": "allow(Aidp::Util).to receive(:which).with(\"claude\").and_return(nil)",
           "pattern": "allow().to receive",
-          "target": "described_class"
+          "target": "Aidp::Util"
         }
       ]
     },
@@ -10646,9 +10331,9 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 422,
-          "line": "allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:default_provider).and_raise(StandardError)",
-          "pattern": "allow_any_instance_of",
+          "line_num": 425,
+          "line": "allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(failing_config_manager)",
+          "pattern": "allow().to receive",
           "target": "Aidp::Harness::ConfigManager"
         }
       ]
@@ -10796,107 +10481,6 @@
           "line": "allow(Aidp::Harness::ConfigManager).to receive(:new).and_raise(StandardError)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ConfigManager"
-        }
-      ]
-    },
-    {
-      "file": "spec/aidp/watch/review_processor_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SeniorDevReviewer",
-          "line_num": 48,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SeniorDevReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SecurityReviewer",
-          "line_num": 51,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SecurityReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::PerformanceReviewer",
-          "line_num": 54,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::PerformanceReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SeniorDevReviewer",
-          "line_num": 73,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SeniorDevReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SecurityReviewer",
-          "line_num": 76,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SecurityReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::PerformanceReviewer",
-          "line_num": 79,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::PerformanceReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SeniorDevReviewer",
-          "line_num": 104,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SeniorDevReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SecurityReviewer",
-          "line_num": 113,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SecurityReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::PerformanceReviewer",
-          "line_num": 116,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::PerformanceReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SeniorDevReviewer",
-          "line_num": 138,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SeniorDevReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::SecurityReviewer",
-          "line_num": 141,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::SecurityReviewer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Watch::Reviewers::PerformanceReviewer",
-          "line_num": 144,
-          "line": "allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Watch::Reviewers::PerformanceReviewer"
         }
       ]
     },
@@ -11251,104 +10835,48 @@
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 905,
-          "line": "allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Harness::ConfigManager"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
+          "line_num": 953,
+          "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).with(mock_config_manager).and_return(mock_provider_factory)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Harness::ProviderFactory"
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Cursor",
-          "line_num": 915,
-          "line": "allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Cursor"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
+          "line_num": 1008,
+          "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).with(mock_config_manager).and_return(tracking_provider_factory)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Harness::ProviderFactory"
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 925,
-          "line": "allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message).and_return('{\"complete\": true, \"questions\": [], \"reasoning\": \"done\"}')",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Anthropic"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
+          "line_num": 1071,
+          "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).with(single_provider_config_manager).and_return(single_provider_factory)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Harness::ProviderFactory"
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Cursor",
-          "line_num": 958,
-          "line": "allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Cursor"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
+          "line_num": 1169,
+          "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).with(resource_exhaustion_config_manager).and_return(resource_exhaustion_provider_factory)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Harness::ProviderFactory"
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 963,
-          "line": "allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message) do |instance, prompt:, session: nil|",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Anthropic"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 988,
-          "line": "allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Harness::ConfigManager"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Cursor",
-          "line_num": 996,
-          "line": "allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message).and_return(\"\")",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Cursor"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 1034,
-          "line": "allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Harness::ConfigManager"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Cursor",
-          "line_num": 1044,
-          "line": "allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Cursor"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 1054,
-          "line": "allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message).and_return('{\"complete\": true, \"questions\": [], \"reasoning\": \"done\"}')",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Anthropic"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 1078,
-          "line": "allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Harness::ConfigManager"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Cursor",
-          "line_num": 1086,
-          "line": "allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Cursor"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
+          "line_num": 1233,
+          "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).with(retry_failure_config_manager).and_return(retry_failure_provider_factory)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Harness::ProviderFactory"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): ProviderManager",
-          "line_num": 1126,
+          "line_num": 1283,
           "line": "let(:provider_manager) { instance_double(\"ProviderManager\", current_provider: \"cursor\") }",
           "pattern": "instance_double",
           "target": "ProviderManager"
@@ -11356,7 +10884,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 1127,
+          "line_num": 1284,
           "line": "let(:config_manager) { instance_double(\"Aidp::Harness::ConfigManager\") }",
           "pattern": "instance_double",
           "target": "Aidp::Harness::ConfigManager"
@@ -11364,7 +10892,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 1127,
+          "line_num": 1284,
           "line": "let(:config_manager) { instance_double(\"Aidp::Harness::ConfigManager\") }",
           "pattern": "double",
           "target": "Aidp::Harness::ConfigManager"
@@ -11372,7 +10900,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
-          "line_num": 1130,
+          "line_num": 1287,
           "line": "let(:provider_factory) { instance_double(\"Aidp::Harness::ProviderFactory\") }",
           "pattern": "instance_double",
           "target": "Aidp::Harness::ProviderFactory"
@@ -11380,7 +10908,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
-          "line_num": 1130,
+          "line_num": 1287,
           "line": "let(:provider_factory) { instance_double(\"Aidp::Harness::ProviderFactory\") }",
           "pattern": "double",
           "target": "Aidp::Harness::ProviderFactory"
@@ -11388,7 +10916,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Provider",
-          "line_num": 1131,
+          "line_num": 1288,
           "line": "let(:provider) { instance_double(\"Provider\", send_message: nil) }",
           "pattern": "instance_double",
           "target": "Provider"
@@ -11396,7 +10924,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
-          "line_num": 1134,
+          "line_num": 1291,
           "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).and_return(provider_factory)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderFactory"
@@ -11404,7 +10932,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: agent.instance_variable_get(:@config_manager)",
-          "line_num": 1137,
+          "line_num": 1294,
           "line": "allow(agent.instance_variable_get(:@config_manager)).to receive(:respond_to?).and_return(false)",
           "pattern": "allow().to receive",
           "target": "agent.instance_variable_get(:@config_manager)"
@@ -11412,21 +10940,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1137,
+          "line_num": 1294,
           "line": "allow(agent.instance_variable_get(:@config_manager)).to receive(:respond_to?).and_return(false)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1138,
+          "line_num": 1295,
           "line": "agent.instance_variable_set(:@provider_manager, provider_manager)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Logger",
-          "line_num": 1144,
+          "line_num": 1301,
           "line": "mock_logger = instance_double(\"Aidp::Logger\")",
           "pattern": "instance_double",
           "target": "Aidp::Logger"
@@ -11434,7 +10962,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Logger",
-          "line_num": 1144,
+          "line_num": 1301,
           "line": "mock_logger = instance_double(\"Aidp::Logger\")",
           "pattern": "double",
           "target": "Aidp::Logger"
@@ -11442,7 +10970,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 1149,
+          "line_num": 1306,
           "line": "allow(Aidp).to receive(:logger).and_return(mock_logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -11450,7 +10978,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp.logger",
-          "line_num": 1162,
+          "line_num": 1319,
           "line": "expect(Aidp.logger).to receive(:debug).with(\"guided_agent\", \"provider_switch_noop\", hash_including(provider: \"cursor\", reason: \"resource_exhausted\"))",
           "pattern": "expect().to receive",
           "target": "Aidp.logger"
@@ -11557,35 +11085,19 @@
       "violations": [
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Cursor",
-          "line_num": 50,
-          "line": "allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Cursor"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
+          "line_num": 92,
+          "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).with(system_test_config_manager).and_return(system_test_provider_factory)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Harness::ProviderFactory"
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 57,
-          "line": "allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Anthropic"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Cursor",
-          "line_num": 126,
-          "line": "allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Cursor"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 136,
-          "line": "allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message).and_return(",
-          "pattern": "allow_any_instance_of",
-          "target": "Aidp::Providers::Anthropic"
+          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderFactory",
+          "line_num": 193,
+          "line": "allow(Aidp::Harness::ProviderFactory).to receive(:new).with(system_test_config_manager).and_return(recovery_provider_factory)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Harness::ProviderFactory"
         }
       ]
     }
