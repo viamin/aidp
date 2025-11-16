@@ -304,9 +304,10 @@ RSpec.describe Aidp::Providers::Base do
       provider.setup_activity_monitoring("test_step")
       provider.record_activity("test message")
 
-      expect(provider.instance_variable_get(:@output_count)).to eq(1)
-      expect(provider.instance_variable_get(:@last_output_time)).to be_a(Time)
       expect(provider.activity_state).to eq(:working)
+      # Verify activity was recorded through public API
+      summary = provider.activity_summary
+      expect(summary[:output_count]).to eq(1)
     end
 
     it "marks as completed" do
