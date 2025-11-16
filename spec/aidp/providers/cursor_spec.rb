@@ -6,7 +6,6 @@ RSpec.describe Aidp::Providers::Cursor do
   let(:provider) { described_class.new }
 
   before do
-    allow(described_class).to receive(:available?).and_return(true)
     allow(Aidp::Util).to receive(:which).with("cursor-agent").and_return("/usr/local/bin/cursor-agent")
   end
 
@@ -18,7 +17,6 @@ RSpec.describe Aidp::Providers::Cursor do
 
     it "returns false when cursor-agent CLI is not available" do
       allow(Aidp::Util).to receive(:which).with("cursor-agent").and_return(nil)
-      allow(described_class).to receive(:available?).and_return(false)
       expect(described_class.available?).to be false
     end
   end
