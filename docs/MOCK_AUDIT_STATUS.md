@@ -140,19 +140,23 @@ let(:mock_config_manager) { instance_double(Aidp::Harness::ConfigManager, config
 let(:agent) { described_class.new(..., config_manager: mock_config_manager) }
 ```
 
+## Completed Work
+
+### ✅ High Priority: All 31 `allow_any_instance_of` violations FIXED!
+
+**Files fixed:**
+1. ✅ `spec/aidp/workflows/guided_agent_spec.rb` (12 violations) - Added DI to GuidedAgent
+2. ✅ `spec/system/guided_workflow_golden_path_spec.rb` (4 violations) - Used DI in system tests
+3. ✅ `spec/aidp/watch/review_processor_spec.rb` (12 violations) - Added reviewers DI to ReviewProcessor
+4. ✅ `spec/aidp/watch/change_request_processor_spec.rb` (1 violation) - Proper ConfigManager mocking
+5. ✅ `spec/aidp/init/runner_spec.rb` (2 violations) - Scoped system() mocking to runner instance
+
+**Production files enhanced with DI:**
+1. `lib/aidp/workflows/guided_agent.rb` - Added config_manager and provider_manager parameters
+2. `lib/aidp/watch/review_processor.rb` - Added reviewers parameter
+3. `lib/aidp/cli/jobs_command.rb` - Added file_manager and background_runner parameters
+
 ## Remaining Work
-
-### High Priority (31 violations)
-
-**`allow_any_instance_of` violations** - These are the most critical anti-patterns:
-
-1. `spec/aidp/init/runner_spec.rb` (2 violations)
-2. `spec/aidp/watch/change_request_processor_spec.rb` (1 violation)
-3. `spec/aidp/watch/review_processor_spec.rb` (12 violations)
-4. `spec/aidp/workflows/guided_agent_spec.rb` (12 violations) - DI added to production code
-5. `spec/system/guided_workflow_golden_path_spec.rb` (4 violations)
-
-**Recommended approach**: Add dependency injection to the production classes, then update specs to use test doubles via DI.
 
 ### Medium Priority (662 violations)
 
@@ -229,11 +233,13 @@ The audit script recognizes these as legitimate external dependencies:
 
 ## Estimated Effort
 
-- **Completed**: ~8 hours
-- **Remaining**: ~40-60 hours for complete fix
-- **Quick wins** (fix all allow_any_instance_of): ~4-6 hours
-- **Medium effort** (fix provider and CLI specs): ~15-20 hours
-- **Full completion** (all 1,177 violations): ~50+ hours
+- **Completed**: ~12 hours
+  - ✅ All allow_any_instance_of violations (31) - DONE
+  - ✅ 18 spec files with various violations - DONE
+  - ✅ 3 production files with DI improvements - DONE
+- **Remaining**: ~35-50 hours for complete fix
+  - Medium effort (fix provider and CLI specs): ~15-20 hours
+  - Full completion (all remaining ~1,000 violations): ~40+ hours
 
 ## References
 
