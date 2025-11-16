@@ -686,11 +686,15 @@ module Aidp
         case subcommand
         when "info"
           args.shift # Remove 'info'
-          run_providers_info_command(args)
+          require_relative "cli/providers_command"
+          command = ProvidersCommand.new(prompt: create_prompt)
+          command.run(args, subcommand: "info")
           return
         when "refresh"
           args.shift # Remove 'refresh'
-          run_providers_refresh_command(args)
+          require_relative "cli/providers_command"
+          command = ProvidersCommand.new(prompt: create_prompt)
+          command.run(args, subcommand: "refresh")
           return
         end
 
@@ -773,164 +777,6 @@ module Aidp
       rescue => e
         Aidp.logger.warn("cli", "Failed to display provider health", error_class: e.class.name, error_message: e.message)
         display_message("Failed to display provider health: #{e.message}", type: :error)
-      end
-
-      def run_providers_info_command(args)
-        require_relative "harness/provider_info"
-
-        provider_name = args.shift
-
-        # If no provider specified, show models catalog table
-        unless provider_name
-          run_providers_models_catalog
-          return
-        end
-
-        force_refresh = args.include?("--refresh")
-
-        display_message("Provider Information: #{provider_name}", type: :highlight)
-        display_message("=" * 60, type: :muted)
-
-        provider_info = Aidp::Harness::ProviderInfo.new(provider_name, Dir.pwd)
-        info = provider_info.info(force_refresh: force_refresh)
-
-        if info.nil?
-          display_message("No information available for provider: #{provider_name}", type: :error)
-          return
-        end
-
-        # Display basic info
-        display_message("Last Checked: #{info[:last_checked]}", type: :info)
-        display_message("CLI Available: #{info[:cli_available] ? "Yes" : "No"}", type: info[:cli_available] ? :success : :error)
-
-        # Display authentication
-        if info[:auth_method]
-          display_message("\nAuthentication Method: #{info[:auth_method]}", type: :info)
-        end
-
-        # Display MCP support
-        display_message("\nMCP Support: #{info[:mcp_support] ? "Yes" : "No"}", type: info[:mcp_support] ? :success : :info)
-
-        # Display MCP servers if available
-        if info[:mcp_servers]&.any?
-          display_message("\nMCP Servers: (#{info[:mcp_servers].size} configured)", type: :highlight)
-          info[:mcp_servers].each do |server|
-            status_symbol = server[:enabled] ? "✓" : "○"
-            display_message("  #{status_symbol} #{server[:name]} (#{server[:status]})", type: server[:enabled] ? :success : :muted)
-            display_message("    #{server[:description]}", type: :muted) if server[:description]
-          end
-        elsif info[:mcp_support]
-          display_message("\nMCP Servers: None configured", type: :muted)
-        end
-
-        # Display permission modes
-        if info[:permission_modes]&.any?
-          display_message("\nPermission Modes:", type: :highlight)
-          info[:permission_modes].each do |mode|
-            display_message("  - #{mode}", type: :info)
-          end
-        end
-
-        # Display capabilities
-        if info[:capabilities]&.any?
-          display_message("\nCapabilities:", type: :highlight)
-          info[:capabilities].each do |cap, value|
-            next unless value
-
-            display_message("  ✓ #{cap.to_s.split("_").map(&:capitalize).join(" ")}", type: :success)
-          end
-        end
-
-        # Display notable flags
-        if info[:flags]&.any?
-          display_message("\nNotable Flags: (#{info[:flags].size} total)", type: :highlight)
-          # Show first 10 flags
-          info[:flags].take(10).each do |name, flag_info|
-            display_message("  #{flag_info[:flag]}", type: :info)
-            display_message("    #{flag_info[:description][0..80]}...", type: :muted) if flag_info[:description]
-          end
-
-          if info[:flags].size > 10
-            display_message("\n  ... and #{info[:flags].size - 10} more flags", type: :muted)
-            display_message("  Run '#{get_binary_name(provider_name)} --help' for full details", type: :muted)
-          end
-        end
-
-        display_message("\n" + "=" * 60, type: :muted)
-        display_message("Tip: Use --refresh to update this information", type: :muted)
-      end
-
-      def run_providers_models_catalog
-        require_relative "harness/capability_registry"
-        require "tty-table"
-
-        display_message("Models Catalog - Thinking Depth Tiers", type: :highlight)
-        display_message("=" * 80, type: :muted)
-
-        registry = Aidp::Harness::CapabilityRegistry.new
-        unless registry.load_catalog
-          display_message("No models catalog found. Create .aidp/models_catalog.yml first.", type: :error)
-          return
-        end
-
-        rows = []
-        registry.provider_names.sort.each do |provider|
-          models = registry.models_for_provider(provider)
-          models.each do |model_name, model_data|
-            tier = model_data["tier"] || "-"
-            context = model_data["context_window"] ? "#{model_data["context_window"] / 1000}k" : "-"
-            tools = model_data["supports_tools"] ? "yes" : "no"
-            cost_input = model_data["cost_per_mtok_input"]
-            cost = cost_input ? "$#{cost_input}/MTok" : "-"
-
-            rows << [provider, model_name, tier, context, tools, cost]
-          end
-        end
-
-        if rows.empty?
-          display_message("No models found in catalog", type: :info)
-          return
-        end
-
-        header = ["Provider", "Model", "Tier", "Context", "Tools", "Cost"]
-        table = TTY::Table.new(header, rows)
-        display_message(table.render(:basic), type: :info)
-
-        display_message("\n" + "=" * 80, type: :muted)
-        display_message("Use '/thinking show' in REPL to see current tier configuration", type: :muted)
-      end
-
-      def run_providers_refresh_command(args)
-        require_relative "harness/provider_info"
-        require "tty-spinner"
-
-        provider_name = args.shift
-        config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
-        providers_to_refresh = if provider_name
-          [provider_name]
-        else
-          config_manager.provider_names
-        end
-
-        display_message("Refreshing provider information...", type: :info)
-        display_message("", type: :info)
-
-        providers_to_refresh.each do |prov|
-          spinner = TTY::Spinner.new("[:spinner] #{prov}...", format: :dots)
-          spinner.auto_spin
-
-          provider_info = Aidp::Harness::ProviderInfo.new(prov, Dir.pwd)
-          info = provider_info.gather_info
-
-          if info[:cli_available]
-            spinner.success("(available)")
-          else
-            spinner.error("(unavailable)")
-          end
-        end
-
-        display_message("\n✓ Provider information refreshed", type: :success)
-        display_message("Use 'aidp providers info <name>' to view details", type: :muted)
       end
 
       def run_mcp_command(args)
