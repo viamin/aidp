@@ -5,55 +5,71 @@ require "aidp/harness/enhanced_runner"
 
 RSpec.describe Aidp::Harness::EnhancedRunner do
   let(:project_dir) { Dir.mktmpdir }
-  let(:options) { {selected_steps: ["step1", "step2"], workflow_type: :default} }
+
+  # Mock dependencies for injection
+  let(:mock_configuration) { double("Configuration") }
+  let(:mock_state_manager) { double("StateManager") }
+  let(:mock_condition_detector) do
+    double("ConditionDetector",
+      needs_user_feedback?: false,
+      extract_questions: [],
+      is_rate_limited?: false)
+  end
+  let(:mock_provider_manager) { double("ProviderManager", current_provider: "test") }
+  let(:mock_error_handler) { double("ErrorHandler", execute_with_retry: {status: "completed"}) }
+  let(:mock_completion_checker) { double("CompletionChecker", completion_status: {all_complete: true}) }
+  let(:mock_tui) do
+    double("EnhancedTUI").tap do |tui|
+      allow(tui).to receive(:instance_variable_set)
+      allow(tui).to receive(:instance_variable_get).with(:@jobs).and_return({"main_workflow" => {}})
+    end
+  end
+  let(:mock_workflow_selector) { double("EnhancedWorkflowSelector") }
+  let(:mock_job_monitor) { double("JobMonitor") }
+  let(:mock_workflow_controller) { double("WorkflowController") }
+  let(:mock_progress_display) { double("ProgressDisplay") }
+  let(:mock_status_widget) { double("StatusWidget") }
+
+  let(:default_options) do
+    {
+      selected_steps: ["step1", "step2"],
+      workflow_type: :default,
+      tui: mock_tui,
+      workflow_selector: mock_workflow_selector,
+      job_monitor: mock_job_monitor,
+      workflow_controller: mock_workflow_controller,
+      progress_display: mock_progress_display,
+      status_widget: mock_status_widget,
+      configuration: mock_configuration,
+      state_manager: mock_state_manager,
+      condition_detector: mock_condition_detector,
+      provider_manager: mock_provider_manager,
+      error_handler: mock_error_handler,
+      completion_checker: mock_completion_checker
+    }
+  end
 
   before do
-    # Stub out heavy dependencies inside initializer so we don't need a real config file
+    # Stub out UI methods and logging
     allow(Aidp.logger).to receive(:info)
     allow(Aidp.logger).to receive(:error)
     allow(Aidp::Harness::UI).to receive(:with_processing_spinner).and_yield
-
-    mock_config = double("Configuration")
-    allow(Aidp::Harness::Configuration).to receive(:new).and_return(mock_config)
-    allow(Aidp::Harness::StateManager).to receive(:new).and_return(double("StateManager"))
-    allow(Aidp::Harness::ConditionDetector).to receive(:new).and_return(double("ConditionDetector",
-      needs_user_feedback?: false,
-      extract_questions: [],
-      is_rate_limited?: false))
-    allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(double("ProviderManager", current_provider: "test"))
-    allow(Aidp::Harness::ErrorHandler).to receive(:new).and_return(double("ErrorHandler", execute_with_retry: {status: "completed"}))
-    allow(Aidp::Harness::CompletionChecker).to receive(:new).and_return(double("CompletionChecker", completion_status: {all_complete: true}))
   end
 
   after { FileUtils.rm_rf(project_dir) }
 
-  def build_runner(mode = :analyze)
-    r = described_class.new(project_dir, mode, options)
-    tui = r.instance_variable_get(:@tui)
-    tui.instance_variable_set(:@jobs, {"main_workflow" => {}})
-    r
+  def build_runner(mode = :analyze, custom_options = {})
+    described_class.new(project_dir, mode, default_options.merge(custom_options))
   end
 
   # Helper to create instances with dependency injection
-  def create_instance(mode: :analyze, tui: nil, provider_manager: nil, selected_steps: ["step1", "step2"], workflow_type: :default, sleeper: nil)
-    opts = {selected_steps: selected_steps, workflow_type: workflow_type}
-    instance = if sleeper
+  def create_instance(mode: :analyze, sleeper: nil, **custom_options)
+    opts = default_options.merge(custom_options)
+    if sleeper
       described_class.new(project_dir, mode, opts, sleeper: sleeper)
     else
       described_class.new(project_dir, mode, opts)
     end
-
-    # Inject TUI if provided
-    instance.instance_variable_set(:@tui, tui) if tui
-
-    # Inject provider_manager if provided (or explicitly set to nil)
-    instance.instance_variable_set(:@provider_manager, provider_manager) if provider_manager || provider_manager.nil?
-
-    # Set up jobs hash in TUI
-    current_tui = instance.instance_variable_get(:@tui)
-    current_tui&.instance_variable_set(:@jobs, {"main_workflow" => {}})
-
-    instance
   end
 
   describe "#status" do
