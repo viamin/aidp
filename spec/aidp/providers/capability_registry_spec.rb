@@ -492,7 +492,6 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
         :supports_tool_use,
         :supports_vision,
         :supports_file_upload,
-        :supports_json_mode,
         :supports_mcp,
         :max_tokens,
         :supports_dangerous_mode
