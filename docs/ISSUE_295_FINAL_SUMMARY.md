@@ -11,31 +11,36 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 | Category | Original | Fixed | Remaining | % Complete |
 |----------|----------|-------|-----------|------------|
 | **`allow_any_instance_of`** | **31** | **31** | **0** | **100%** ✅ |
-| Other violations | 1,146 | 27 | 1,119 | 2.4% |
-| **Total** | **1,177** | **58** | **1,119** | **4.9%** |
+| Internal class mocking | 662 | 9 | 653 | 1.4% |
+| Instance variable manipulation | 577 | 2 | 575 | 0.3% |
+| Other violations | 1,146 | 38 | 1,108 | 3.3% |
+| **Total** | **1,177** | **69** | **1,108** | **5.9%** |
 
-### Files Fixed: 19 Spec Files + 3 Production Files
+### Files Fixed: 22 Spec Files + 3 Production Files
 
-**Spec files (19):**
+**Spec files (22):**
 1. ✅ `guided_agent_spec.rb` (12 allow_any_instance_of + other violations)
 2. ✅ `guided_workflow_golden_path_spec.rb` (4 allow_any_instance_of)
 3. ✅ `review_processor_spec.rb` (12 allow_any_instance_of)
 4. ✅ `change_request_processor_spec.rb` (1 allow_any_instance_of)
 5. ✅ `init/runner_spec.rb` (2 allow_any_instance_of)
 6. ✅ `anthropic_spec.rb` (4 described_class + 2 instance_variable + 1 internal class)
-7. ✅ `json_file_storage_spec.rb` (initialization tests)
-8. ✅ `ruby_maat_integration_spec.rb` (initialization test)
-9. ✅ `kb_inspector_spec.rb` (instance_variable violations)
-10. ✅ `tree_sitter_grammar_loader_spec.rb` (initialization tests)
-11. ✅ `tree_sitter_scan_spec.rb` (initialization tests)
-12. ✅ `terminal_io_spec.rb` (initialization test)
-13. ✅ `enhanced_input_spec.rb` (used new attr_readers)
-14. ✅ `issue_importer_spec.rb` (initialization test)
-15. ✅ `workflow_selector_spec.rb` (initialization tests)
-16. ✅ `provider_config_spec.rb` (initialization test)
-17. ✅ `mcp_dashboard_spec.rb` (initialization tests)
-18. ✅ `jobs_command_simple_spec.rb` (dependency injection)
-19. ✅ `cli_spec.rb` (various violations - partial)
+7. ✅ `gemini_spec.rb` (4 internal class mocking violations)
+8. ✅ `cursor_spec.rb` (5 internal class mocking violations)
+9. ✅ `base_spec.rb` (2 instance_variable violations)
+10. ✅ `json_file_storage_spec.rb` (initialization tests)
+11. ✅ `ruby_maat_integration_spec.rb` (initialization test)
+12. ✅ `kb_inspector_spec.rb` (instance_variable violations)
+13. ✅ `tree_sitter_grammar_loader_spec.rb` (initialization tests)
+14. ✅ `tree_sitter_scan_spec.rb` (initialization tests)
+15. ✅ `terminal_io_spec.rb` (initialization test)
+16. ✅ `enhanced_input_spec.rb` (used new attr_readers)
+17. ✅ `issue_importer_spec.rb` (initialization test)
+18. ✅ `workflow_selector_spec.rb` (initialization tests)
+19. ✅ `provider_config_spec.rb` (initialization test)
+20. ✅ `mcp_dashboard_spec.rb` (initialization tests)
+21. ✅ `jobs_command_simple_spec.rb` (dependency injection)
+22. ✅ `cli_spec.rb` (various violations - partial)
 
 **Production files enhanced with DI (3):**
 1. ✅ `lib/aidp/workflows/guided_agent.rb` - Added `config_manager` and `provider_manager` parameters
@@ -171,12 +176,15 @@ end
 ### Technical Debt Reduction
 
 - **Before**: 1,177 mock violations across 87 files
-- **After**: 1,119 violations (58 fixed, **all critical ones eliminated**)
+- **After**: 1,108 violations (69 fixed, **all critical ones eliminated**)
 - **Remaining**: Documented with clear fix patterns in MOCK_AUDIT_STATUS.md
+- **Progress**: 5.9% of all violations fixed, 100% of critical violations fixed
 
-## 📝 All Commits (12 total)
+## 📝 All Commits (15 total)
 
 ```
+d3075bf Fix instance_variable violations in base provider spec
+999f758 Fix internal class mocking violations in gemini and cursor provider specs
 d491c4b Fix mock violations in anthropic_spec.rb
 d0459aa Update status: ALL allow_any_instance_of violations fixed!
 ed734e4 Fix final 3 allow_any_instance_of violations
@@ -193,22 +201,24 @@ fcd1772 WIP: Fix mock usage violations - Part 1
 
 ## 🎯 Remaining Work (Optional Future Work)
 
-While all **critical violations are fixed**, there are ~1,119 lower-priority violations remaining:
+While all **critical violations are fixed**, there are ~1,108 lower-priority violations remaining:
 
-### Medium Priority (662 violations)
+### Medium Priority (653 violations)
 **Internal class mocking** - Files mocking `Aidp::` classes with `allow().to receive`:
 - `cli_spec.rb` (200 violations)
 - `enhanced_runner_spec.rb` (111 violations)
 - `harness/runner_spec.rb` (70 violations)
-- Provider specs (various)
+- Provider specs: codex (17), github_copilot (17), and others
+- **Recent progress**: Fixed anthropic_spec, gemini_spec, cursor_spec (9 violations total)
 
 **Recommended approach**: Continue adding dependency injection to production classes.
 
-### Lower Priority (450+ violations)
+### Lower Priority (575 violations)
 **Instance variable manipulation** - Mostly in test setup:
 - `enhanced_runner_spec.rb` (101 violations)
 - `harness/runner_spec.rb` (70 violations)
 - Various other specs
+- **Recent progress**: Fixed base_spec (2 violations)
 
 **Recommended approach**: Remove simple init tests, add public readers where needed.
 
@@ -221,9 +231,10 @@ While all **critical violations are fixed**, there are ~1,119 lower-priority vio
 
 ## ⏱️ Effort
 
-**Time invested**: ~14 hours
-**Lines changed**: ~500 across 22 files
-**Violations fixed**: 58 total, **31 critical (100%)**
+**Time invested**: ~15 hours
+**Lines changed**: ~520 across 25 files
+**Violations fixed**: 69 total, **31 critical (100%)**
+**Commits**: 15 total
 
 ## 🚀 Next Steps (If Continuing)
 
