@@ -85,6 +85,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     # Mock the new method to return our mock_registry
     allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
+    allow(config).to receive(:models_for_tier).and_return([])
   end
 
   describe "Fix-Forward State Machine" do

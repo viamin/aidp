@@ -173,7 +173,7 @@ module Aidp
               Aidp.log_warn("thinking_depth_manager", "Provider lacks tier in config, switching disabled",
                 tier: tier,
                 provider: provider)
-              return try_fallback_tiers(tier, provider)
+              return nil
             end
           end
 
@@ -206,11 +206,15 @@ module Aidp
             Aidp.log_warn("thinking_depth_manager", "Provider lacks tier in catalog, switching disabled",
               tier: tier,
               provider: provider)
-            return try_fallback_tiers(tier, provider)
+            return nil
           end
         end
 
         # Try all providers in catalog
+        if provider && !configuration.allow_provider_switch_for_tier?
+          return nil
+        end
+
         providers_to_try = provider ? [@registry.provider_names - [provider]].flatten : @registry.provider_names
 
         providers_to_try.each do |prov_name|

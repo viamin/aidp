@@ -12,6 +12,8 @@ module Aidp
 
       # Model name pattern for OpenAI models (since Codex uses OpenAI)
       MODEL_PATTERN = /^gpt-[\d.o-]+(?:-turbo)?(?:-mini)?$/i
+      LONG_PROMPT_THRESHOLD = 8000
+      LONG_PROMPT_TIMEOUT = 900 # 15 minutes for large prompts
 
       def self.available?
         !!Aidp::Util.which("codex")
@@ -60,7 +62,8 @@ module Aidp
       def send_message(prompt:, session: nil)
         raise "codex CLI not available" unless self.class.available?
 
-        # Smart timeout calculation
+        # Smart timeout calculation (store prompt length for adaptive logic)
+        @current_codex_prompt_length = prompt.length
         timeout_seconds = calculate_timeout
 
         debug_provider("codex", "Starting execution", {timeout: timeout_seconds})
@@ -139,6 +142,7 @@ module Aidp
           raise
         ensure
           cleanup_activity_display(activity_display_thread, spinner)
+          @current_codex_prompt_length = nil
         end
       end
 
@@ -184,6 +188,7 @@ module Aidp
 
       # Internal helper for send_with_options - executes with custom arguments
       def send_with_custom_args(prompt:, args:)
+        @current_codex_prompt_length = prompt.length
         timeout_seconds = calculate_timeout
 
         debug_provider("codex", "Starting execution", {timeout: timeout_seconds, args: args})
@@ -214,6 +219,8 @@ module Aidp
           mark_failed("codex execution failed: #{e.message}")
           debug_error(e, {provider: "codex", prompt_length: prompt.length})
           raise
+        ensure
+          @current_codex_prompt_length = nil
         end
       end
 
@@ -227,6 +234,22 @@ module Aidp
         when :failed
           display_message("\n❌ Codex CLI failed: #{message}", type: :error)
         end
+      end
+
+      def calculate_timeout
+        env_override = ENV["AIDP_CODEX_TIMEOUT"]
+        return env_override.to_i if env_override&.match?(/^\d+$/)
+
+        base_timeout = super
+
+        prompt_length = @current_codex_prompt_length
+        return base_timeout unless prompt_length && prompt_length >= LONG_PROMPT_THRESHOLD
+
+        extended_timeout = [base_timeout, LONG_PROMPT_TIMEOUT].max
+        if extended_timeout > base_timeout
+          display_message("⏱️  Codex prompt length #{prompt_length} detected - extending timeout to #{extended_timeout} seconds", type: :info)
+        end
+        extended_timeout
       end
     end
   end

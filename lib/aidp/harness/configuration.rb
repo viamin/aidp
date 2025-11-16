@@ -453,8 +453,6 @@ module Aidp
               provider: (model_entry[:provider] || model_entry["provider"]).to_s,
               model: (model_entry[:model] || model_entry["model"]).to_s
             }
-          else
-            nil
           end
         end.compact
       end
