@@ -830,7 +830,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-
   describe ".run_jobs_command" do
     let(:jobs_cmd) { instance_double(Aidp::CLI::JobsCommand) }
 
