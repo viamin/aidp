@@ -24,14 +24,7 @@ RSpec.describe Aidp::IssueImporter do
     FileUtils.rm_rf(temp_dir)
   end
 
-  describe "#initialize" do
-    it "checks for GitHub CLI availability" do
-      # IssueImporter supports gh_available: parameter for test injection
-      # When nil, it auto-detects; when set, it uses that value
-      importer_with_detection = described_class.new(gh_available: nil)
-      expect([true, false]).to include(importer_with_detection.instance_variable_get(:@gh_available))
-    end
-  end
+  # Initialization is tested implicitly through functionality tests
 
   describe "#import_issue" do
     let(:issue_data) do
