@@ -35,26 +35,28 @@ RSpec.describe Aidp::CLI::FirstRunWizard do
 
     context "interactive" do
       it "invokes the setup wizard" do
-        wizard = instance_double(Aidp::Setup::Wizard)
-        expect(Aidp::Setup::Wizard).to receive(:new)
+        wizard_instance = instance_double(Aidp::Setup::Wizard)
+        wizard_class = class_double(Aidp::Setup::Wizard)
+        allow(wizard_class).to receive(:new)
           .with(temp_dir, prompt: test_prompt)
-          .and_return(wizard)
-        expect(wizard).to receive(:run).and_return(true)
+          .and_return(wizard_instance)
+        expect(wizard_instance).to receive(:run).and_return(true)
 
-        described_class.ensure_config(temp_dir, prompt: test_prompt)
+        described_class.ensure_config(temp_dir, prompt: test_prompt, wizard_class: wizard_class)
       end
     end
   end
 
   describe ".setup_config" do
     it "runs the wizard interactively" do
-      wizard = instance_double(Aidp::Setup::Wizard)
-      expect(Aidp::Setup::Wizard).to receive(:new)
+      wizard_instance = instance_double(Aidp::Setup::Wizard)
+      wizard_class = class_double(Aidp::Setup::Wizard)
+      allow(wizard_class).to receive(:new)
         .with(temp_dir, prompt: test_prompt)
-        .and_return(wizard)
-      expect(wizard).to receive(:run).and_return(true)
+        .and_return(wizard_instance)
+      expect(wizard_instance).to receive(:run).and_return(true)
 
-      described_class.setup_config(temp_dir, prompt: test_prompt)
+      described_class.setup_config(temp_dir, prompt: test_prompt, wizard_class: wizard_class)
     end
 
     it "skips in non-interactive mode" do
