@@ -64,7 +64,7 @@ module Aidp
 
         # Initialize thinking depth manager for intelligent model selection
         require_relative "../harness/thinking_depth_manager"
-        @thinking_depth_manager = Aidp::Harness::ThinkingDepthManager.new(config)
+        @thinking_depth_manager = options[:thinking_depth_manager] || Aidp::Harness::ThinkingDepthManager.new(config)
         @consecutive_failures = 0
         @last_tier = nil
       end

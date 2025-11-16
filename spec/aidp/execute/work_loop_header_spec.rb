@@ -31,17 +31,14 @@ RSpec.describe "Work Loop Header Prepending" do
       provider_names: ["anthropic"])
   end
 
+  let(:mock_thinking_depth_manager) do
+    instance_double("Aidp::Harness::ThinkingDepthManager",
+      select_model_for_tier: ["anthropic", "claude-3-5-sonnet-20241022", {tier: "standard"}],
+      current_tier: "standard")
+  end
+
   before do
     allow(config).to receive(:models_for_tier).and_return([])
-
-    # Mock CapabilityRegistry class
-    registry_class = Class.new do
-      def initialize(*args)
-      end
-    end
-
-    stub_const("Aidp::Harness::CapabilityRegistry", registry_class)
-    allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
   end
 
   around do |example|
@@ -57,7 +54,13 @@ RSpec.describe "Work Loop Header Prepending" do
 
   def create_runner
     test_prompt = TestPrompt.new
-    runner = Aidp::Execute::WorkLoopRunner.new(@tmpdir, provider_manager, config, prompt: test_prompt)
+    runner = Aidp::Execute::WorkLoopRunner.new(
+      @tmpdir,
+      provider_manager,
+      config,
+      prompt: test_prompt,
+      thinking_depth_manager: mock_thinking_depth_manager
+    )
     runner.instance_variable_set(:@step_name, "16_IMPLEMENTATION")
     runner.instance_variable_set(:@iteration_count, 3)
     runner
