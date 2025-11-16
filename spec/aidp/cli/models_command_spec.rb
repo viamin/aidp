@@ -7,15 +7,13 @@ require_relative "../../../lib/aidp/cli/models_command"
 
 RSpec.describe Aidp::CLI::ModelsCommand do
   let(:test_prompt) { TestPrompt.new(responses: {}) }
-  let(:models_command) { described_class.new(prompt: test_prompt) }
-  let(:temp_dir) { Dir.mktmpdir("models_command_test") }
   let(:mock_registry) { instance_double(Aidp::Harness::ModelRegistry) }
   let(:mock_discovery) { instance_double(Aidp::Harness::ModelDiscoveryService) }
   let(:mock_config) { instance_double(Aidp::Harness::Configuration) }
+  let(:models_command) { described_class.new(prompt: test_prompt, registry: mock_registry, discovery_service: mock_discovery) }
+  let(:temp_dir) { Dir.mktmpdir("models_command_test") }
 
   before do
-    allow(Aidp::Harness::ModelRegistry).to receive(:new).and_return(mock_registry)
-    allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(mock_discovery)
     allow(models_command).to receive(:display_message)
   end
 

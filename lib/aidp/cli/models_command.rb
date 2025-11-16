@@ -22,10 +22,10 @@ module Aidp
     class ModelsCommand
       include Aidp::MessageDisplay
 
-      def initialize(prompt: TTY::Prompt.new)
+      def initialize(prompt: TTY::Prompt.new, registry: nil, discovery_service: nil)
         @prompt = prompt
-        @registry = nil
-        @discovery_service = nil
+        @registry = registry
+        @discovery_service = discovery_service
       end
 
       # Main entry point for models subcommand
