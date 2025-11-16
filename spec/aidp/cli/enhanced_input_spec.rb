@@ -82,12 +82,12 @@ RSpec.describe Aidp::CLI::EnhancedInput do
 
         # Enable reline and ensure it's being used
         enhanced_input.enable_reline!
-        expect(enhanced_input.instance_variable_get(:@use_reline)).to be true
+        expect(enhanced_input.use_reline).to be true
       end
 
       it "shows hints when enabled" do
         enhanced_input.enable_hints!
-        expect(enhanced_input.instance_variable_get(:@show_hints)).to be true
+        expect(enhanced_input.show_hints).to be true
 
         # Mock the reline interaction without actually calling it
         allow(input).to receive(:tty?).and_return(false)
@@ -184,21 +184,21 @@ RSpec.describe Aidp::CLI::EnhancedInput do
   describe "#enable_hints!" do
     it "enables hints display" do
       expect { enhanced_input.enable_hints! }.not_to raise_error
-      expect(enhanced_input.instance_variable_get(:@show_hints)).to be true
+      expect(enhanced_input.show_hints).to be true
     end
   end
 
   describe "#disable_reline!" do
     it "disables reline usage" do
       enhanced_input.disable_reline!
-      expect(enhanced_input.instance_variable_get(:@use_reline)).to be false
+      expect(enhanced_input.use_reline).to be false
     end
   end
 
   describe "#enable_reline!" do
     it "enables reline usage" do
       enhanced_input.enable_reline!
-      expect(enhanced_input.instance_variable_get(:@use_reline)).to be true
+      expect(enhanced_input.use_reline).to be true
     end
   end
 
