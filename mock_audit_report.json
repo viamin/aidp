@@ -608,105 +608,9 @@
           "target": "Aidp::CLI::FirstRunWizard"
         },
         {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::CLI::FirstRunWizard",
-          "line_num": 228,
-          "line": "allow(Aidp::CLI::FirstRunWizard).to receive(:setup_config).and_return(true)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::CLI::FirstRunWizard"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::CLI::FirstRunWizard",
-          "line_num": 229,
-          "line": "allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::CLI::FirstRunWizard"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::CLI::FirstRunWizard",
-          "line_num": 239,
-          "line": "expect(Aidp::CLI::FirstRunWizard).to receive(:setup_config)",
-          "pattern": "expect().to receive",
-          "target": "Aidp::CLI::FirstRunWizard"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::CLI::FirstRunWizard",
-          "line_num": 245,
-          "line": "allow(Aidp::CLI::FirstRunWizard).to receive(:setup_config).and_return(false)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::CLI::FirstRunWizard"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedTUI",
-          "line_num": 256,
-          "line": "expect(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)",
-          "pattern": "expect().to receive",
-          "target": "Aidp::Harness::UI::EnhancedTUI"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedWorkflowSelector",
-          "line_num": 257,
-          "line": "expect(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)",
-          "pattern": "expect().to receive",
-          "target": "Aidp::Harness::UI::EnhancedWorkflowSelector"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::EnhancedRunner",
-          "line_num": 293,
-          "line": "expect(Aidp::Harness::EnhancedRunner).to receive(:new).with(",
-          "pattern": "expect().to receive",
-          "target": "Aidp::Harness::EnhancedRunner"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 332,
-          "line": "allow(described_class).to receive(:log_rescue)",
-          "pattern": "allow().to receive",
-          "target": "described_class"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 342,
-          "line": "allow(described_class).to receive(:log_rescue)",
-          "pattern": "allow().to receive",
-          "target": "described_class"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 365,
-          "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
-          "pattern": "allow().to receive",
-          "target": "described_class"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 379,
-          "line": "allow(described_class).to receive(:log_rescue) # avoid dependency on mixin",
-          "pattern": "allow().to receive",
-          "target": "described_class"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking the class under test (described_class)",
-          "line_num": 381,
-          "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
-          "pattern": "allow().to receive",
-          "target": "described_class"
-        },
-        {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 525,
+          "line_num": 362,
           "line": "allow(Aidp).to receive(:setup_logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -714,7 +618,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 526,
+          "line_num": 363,
           "line": "allow(Aidp).to receive(:logger).and_return(double(\"Logger\", info: nil, warn: nil, level: \"info\"))",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -722,7 +626,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 536,
+          "line_num": 373,
           "line": "expect(Aidp).to receive(:setup_logger).with(temp_project_dir, {level: \"debug\", output: \"file\"})",
           "pattern": "expect().to receive",
           "target": "Aidp"
@@ -730,7 +634,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 542,
+          "line_num": 379,
           "line": "expect(Aidp).to receive(:setup_logger).with(temp_project_dir, {})",
           "pattern": "expect().to receive",
           "target": "Aidp"
@@ -738,7 +642,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 551,
+          "line_num": 388,
           "line": "allow(described_class).to receive(:log_rescue)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -746,7 +650,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 553,
+          "line_num": 390,
           "line": "expect(Aidp).to receive(:setup_logger).once",
           "pattern": "expect().to receive",
           "target": "Aidp"
@@ -754,7 +658,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 561,
+          "line_num": 398,
           "line": "expect(Aidp).to receive(:setup_logger).with(temp_project_dir, {})",
           "pattern": "expect().to receive",
           "target": "Aidp"
@@ -762,7 +666,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 568,
+          "line_num": 405,
           "line": "allow(Aidp).to receive(:logger).and_return(logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -770,7 +674,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 578,
+          "line_num": 415,
           "line": "allow(Aidp).to receive(:logger).and_return(logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -778,7 +682,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 580,
+          "line_num": 417,
           "line": "allow(described_class).to receive(:log_rescue)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -786,7 +690,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 590,
+          "line_num": 427,
           "line": "expect(described_class).to receive(:run_status_command)",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -794,7 +698,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 595,
+          "line_num": 432,
           "line": "expect(described_class).to receive(:run_jobs_command).with([\"list\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -802,7 +706,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 600,
+          "line_num": 437,
           "line": "expect(described_class).to receive(:run_kb_command).with([\"show\", \"topic\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -810,7 +714,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 605,
+          "line_num": 442,
           "line": "expect(described_class).to receive(:run_harness_command).with([\"status\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -818,7 +722,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 610,
+          "line_num": 447,
           "line": "expect(described_class).to receive(:run_providers_command).with([\"info\", \"claude\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -826,7 +730,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 615,
+          "line_num": 452,
           "line": "expect(described_class).to receive(:run_checkpoint_command).with([\"summary\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -834,7 +738,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 620,
+          "line_num": 457,
           "line": "expect(described_class).to receive(:run_mcp_command).with([\"dashboard\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -842,7 +746,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 625,
+          "line_num": 462,
           "line": "expect(described_class).to receive(:run_issue_command).with([\"import\", \"123\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -850,7 +754,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 630,
+          "line_num": 467,
           "line": "expect(described_class).to receive(:run_config_command).with([\"--interactive\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -858,7 +762,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 635,
+          "line_num": 472,
           "line": "expect(described_class).to receive(:run_init_command).with([\"--dry-run\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -866,7 +770,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 640,
+          "line_num": 477,
           "line": "expect(described_class).to receive(:run_watch_command).with([\"https://example.com/issues\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -874,7 +778,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 645,
+          "line_num": 482,
           "line": "expect(described_class).to receive(:run_ws_command).with([\"list\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -882,7 +786,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 650,
+          "line_num": 487,
           "line": "expect(described_class).to receive(:run_work_command).with([\"--workstream\", \"slug\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -890,7 +794,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 655,
+          "line_num": 492,
           "line": "expect(described_class).to receive(:run_skill_command).with([\"list\"])",
           "pattern": "expect().to receive",
           "target": "described_class"
@@ -898,7 +802,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 660,
+          "line_num": 497,
           "line": "allow(described_class).to receive(:run_status_command)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -906,7 +810,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 666,
+          "line_num": 503,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -914,7 +818,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Execute::Checkpoint",
-          "line_num": 682,
+          "line_num": 519,
           "line": "allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)",
           "pattern": "allow().to receive",
           "target": "Aidp::Execute::Checkpoint"
@@ -922,7 +826,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Execute::CheckpointDisplay",
-          "line_num": 683,
+          "line_num": 520,
           "line": "allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(display)",
           "pattern": "allow().to receive",
           "target": "Aidp::Execute::CheckpointDisplay"
@@ -930,7 +834,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 684,
+          "line_num": 521,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -938,7 +842,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 730,
+          "line_num": 567,
           "line": "allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ConfigManager"
@@ -946,7 +850,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderManager",
-          "line_num": 731,
+          "line_num": 568,
           "line": "allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderManager"
@@ -954,7 +858,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 733,
+          "line_num": 570,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -962,7 +866,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI::ProvidersCommand",
-          "line_num": 749,
+          "line_num": 586,
           "line": "expect(Aidp::CLI::ProvidersCommand).to receive(:new).and_return(command_double)",
           "pattern": "expect().to receive",
           "target": "Aidp::CLI::ProvidersCommand"
@@ -970,7 +874,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 756,
+          "line_num": 593,
           "line": "allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ConfigManager"
@@ -978,7 +882,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI::ProvidersCommand",
-          "line_num": 758,
+          "line_num": 595,
           "line": "expect(Aidp::CLI::ProvidersCommand).to receive(:new).and_return(command_double)",
           "pattern": "expect().to receive",
           "target": "Aidp::CLI::ProvidersCommand"
@@ -986,7 +890,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp.logger",
-          "line_num": 790,
+          "line_num": 627,
           "line": "allow(Aidp.logger).to receive(:warn)",
           "pattern": "allow().to receive",
           "target": "Aidp.logger"
@@ -994,7 +898,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI::JobsCommand",
-          "line_num": 803,
+          "line_num": 640,
           "line": "allow(Aidp::CLI::JobsCommand).to receive(:new).and_return(jobs_cmd)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI::JobsCommand"
@@ -1002,7 +906,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 820,
+          "line_num": 657,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1010,7 +914,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 863,
+          "line_num": 700,
           "line": "allow(described_class).to receive(:display_message) # suppress output collection unless needed",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1018,7 +922,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Jobs::BackgroundRunner",
-          "line_num": 886,
+          "line_num": 723,
           "line": "allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(bg_runner)",
           "pattern": "allow().to receive",
           "target": "Aidp::Jobs::BackgroundRunner"
@@ -1026,14 +930,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 890,
+          "line_num": 727,
           "line": "allow(bg_runner).to receive(:instance_variable_get).with(:@jobs_dir).and_return(jobs_dir)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Concurrency::Wait",
-          "line_num": 904,
+          "line_num": 741,
           "line": "allow(Aidp::Concurrency::Wait).to receive(:for_file)",
           "pattern": "allow().to receive",
           "target": "Aidp::Concurrency::Wait"
@@ -1041,7 +945,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Concurrency::Wait",
-          "line_num": 913,
+          "line_num": 750,
           "line": "allow(Aidp::Concurrency::Wait).to receive(:for_file).with(log_file, timeout: 10, interval: 0.2)",
           "pattern": "allow().to receive",
           "target": "Aidp::Concurrency::Wait"
@@ -1049,7 +953,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Concurrency::Wait",
-          "line_num": 921,
+          "line_num": 758,
           "line": "allow(Aidp::Concurrency::Wait).to receive(:for_file).and_raise(Aidp::Concurrency::TimeoutError.new(\"timeout\"))",
           "pattern": "allow().to receive",
           "target": "Aidp::Concurrency::Wait"
@@ -1057,7 +961,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 923,
+          "line_num": 760,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1065,7 +969,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 935,
+          "line_num": 772,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1073,7 +977,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 946,
+          "line_num": 783,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1081,7 +985,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 956,
+          "line_num": 793,
           "line": "allow(described_class).to receive(:display_message) # generic stub; specific examples capture separately when needed",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1089,7 +993,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 961,
+          "line_num": 798,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1097,7 +1001,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 969,
+          "line_num": 806,
           "line": "allow(Aidp::Worktree).to receive(:info).and_return(nil)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1105,7 +1009,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 971,
+          "line_num": 808,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1113,7 +1017,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 983,
+          "line_num": 820,
           "line": "allow(Aidp::Worktree).to receive(:info).and_return(ws_info)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1121,7 +1025,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Jobs::BackgroundRunner",
-          "line_num": 984,
+          "line_num": 821,
           "line": "allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(bg_runner)",
           "pattern": "allow().to receive",
           "target": "Aidp::Jobs::BackgroundRunner"
@@ -1129,7 +1033,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1007,
+          "line_num": 844,
           "line": "allow(Aidp::Worktree).to receive(:info).and_return(ws_info)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1137,7 +1041,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::StateManager",
-          "line_num": 1008,
+          "line_num": 845,
           "line": "allow(Aidp::Harness::StateManager).to receive(:new).and_return(state_manager)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::StateManager"
@@ -1145,7 +1049,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedTUI",
-          "line_num": 1009,
+          "line_num": 846,
           "line": "allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::UI::EnhancedTUI"
@@ -1153,7 +1057,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedWorkflowSelector",
-          "line_num": 1010,
+          "line_num": 847,
           "line": "allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(selector)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::UI::EnhancedWorkflowSelector"
@@ -1161,7 +1065,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::EnhancedRunner",
-          "line_num": 1017,
+          "line_num": 854,
           "line": "allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(runner)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::EnhancedRunner"
@@ -1169,7 +1073,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1042,
+          "line_num": 879,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1177,7 +1081,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1052,
+          "line_num": 889,
           "line": "allow(Aidp::Worktree).to receive(:info).and_return({slug: \"ws-x\", path: \"/tmp/ws-x\", branch: \"ws-x\", created_at: Time.now.iso8601, active: true})",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1185,7 +1089,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1054,
+          "line_num": 891,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1193,7 +1097,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1064,
+          "line_num": 901,
           "line": "allow(described_class).to receive(:display_message) # general stub; per test may override",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1201,7 +1105,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1070,
+          "line_num": 907,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1209,7 +1113,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1075,
+          "line_num": 912,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1217,7 +1121,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1119,
+          "line_num": 956,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1225,7 +1129,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1122,
+          "line_num": 959,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1233,7 +1137,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1140,
+          "line_num": 977,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1241,7 +1145,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1142,
+          "line_num": 979,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1249,7 +1153,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1166,
+          "line_num": 1003,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1257,7 +1161,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Wizard::Builder",
-          "line_num": 1170,
+          "line_num": 1007,
           "line": "allow(Aidp::Skills::Wizard::Builder).to receive(:new).and_return(builder)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Wizard::Builder"
@@ -1265,7 +1169,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Wizard::TemplateLibrary",
-          "line_num": 1171,
+          "line_num": 1008,
           "line": "allow(Aidp::Skills::Wizard::TemplateLibrary).to receive(:new).and_return(template_library)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Wizard::TemplateLibrary"
@@ -1273,7 +1177,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1172,
+          "line_num": 1009,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1281,7 +1185,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1204,
+          "line_num": 1041,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1289,7 +1193,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1205,
+          "line_num": 1042,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1297,7 +1201,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1220,
+          "line_num": 1057,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1305,7 +1209,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1224,
+          "line_num": 1061,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1313,7 +1217,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1226,
+          "line_num": 1063,
           "line": "allow(described_class).to receive(:create_prompt).and_return(TestPrompt.new(responses: {yes?: true}))",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1321,7 +1225,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1244,
+          "line_num": 1081,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1329,7 +1233,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Wizard::Controller",
-          "line_num": 1246,
+          "line_num": 1083,
           "line": "allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Wizard::Controller"
@@ -1337,7 +1241,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1264,
+          "line_num": 1101,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1345,7 +1249,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1265,
+          "line_num": 1102,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1353,7 +1257,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Wizard::TemplateLibrary",
-          "line_num": 1269,
+          "line_num": 1106,
           "line": "allow(Aidp::Skills::Wizard::TemplateLibrary).to receive(:new).and_return(template_library)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Wizard::TemplateLibrary"
@@ -1361,7 +1265,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Wizard::Differ",
-          "line_num": 1270,
+          "line_num": 1107,
           "line": "allow(Aidp::Skills::Wizard::Differ).to receive(:new).and_return(differ)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Wizard::Differ"
@@ -1369,7 +1273,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1320,
+          "line_num": 1157,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1377,7 +1281,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Registry",
-          "line_num": 1321,
+          "line_num": 1158,
           "line": "allow(Aidp::Skills::Registry).to receive(:new).and_return(registry)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Registry"
@@ -1385,7 +1289,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Wizard::Controller",
-          "line_num": 1324,
+          "line_num": 1161,
           "line": "allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Wizard::Controller"
@@ -1393,7 +1297,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1375,
+          "line_num": 1212,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1401,7 +1305,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Loader",
-          "line_num": 1381,
+          "line_num": 1218,
           "line": "allow(Aidp::Skills::Loader).to receive(:load_from_file).with(skill_path)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Loader"
@@ -1409,7 +1313,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Loader",
-          "line_num": 1390,
+          "line_num": 1227,
           "line": "allow(Aidp::Skills::Loader).to receive(:load_from_file).with(skill_path).and_raise(Aidp::Errors::ValidationError.new(\"Invalid format\"))",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Loader"
@@ -1417,7 +1321,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1402,
+          "line_num": 1239,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1425,7 +1329,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Skills::Wizard::Controller",
-          "line_num": 1404,
+          "line_num": 1241,
           "line": "allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)",
           "pattern": "allow().to receive",
           "target": "Aidp::Skills::Wizard::Controller"
@@ -1433,7 +1337,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1457,
+          "line_num": 1294,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1441,7 +1345,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 1469,
+          "line_num": 1306,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(prompt_instance)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -1449,7 +1353,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Init::Runner",
-          "line_num": 1470,
+          "line_num": 1307,
           "line": "allow(Aidp::Init::Runner).to receive(:new).and_return(runner)",
           "pattern": "allow().to receive",
           "target": "Aidp::Init::Runner"
@@ -1457,7 +1361,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1477,
+          "line_num": 1314,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1465,7 +1369,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1487,
+          "line_num": 1324,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1473,7 +1377,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Watch::Runner",
-          "line_num": 1498,
+          "line_num": 1335,
           "line": "allow(Aidp::Watch::Runner).to receive(:new).and_return(watch_runner)",
           "pattern": "allow().to receive",
           "target": "Aidp::Watch::Runner"
@@ -1481,7 +1385,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Watch::Runner",
-          "line_num": 1504,
+          "line_num": 1341,
           "line": "allow(Aidp::Watch::Runner).to receive(:new).and_return(watch_runner)",
           "pattern": "allow().to receive",
           "target": "Aidp::Watch::Runner"
@@ -1489,7 +1393,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Watch::Runner",
-          "line_num": 1510,
+          "line_num": 1347,
           "line": "allow(Aidp::Watch::Runner).to receive(:new).and_raise(ArgumentError.new(\"bad interval\"))",
           "pattern": "allow().to receive",
           "target": "Aidp::Watch::Runner"
@@ -1497,7 +1401,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1511,
+          "line_num": 1348,
           "line": "allow(described_class).to receive(:log_rescue)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1505,7 +1409,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Execute::Checkpoint",
-          "line_num": 1521,
+          "line_num": 1358,
           "line": "allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)",
           "pattern": "allow().to receive",
           "target": "Aidp::Execute::Checkpoint"
@@ -1513,7 +1417,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Execute::CheckpointDisplay",
-          "line_num": 1522,
+          "line_num": 1359,
           "line": "allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(display)",
           "pattern": "allow().to receive",
           "target": "Aidp::Execute::CheckpointDisplay"
@@ -1521,7 +1425,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1523,
+          "line_num": 1360,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1529,7 +1433,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1569,
+          "line_num": 1406,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1537,7 +1441,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderInfo",
-          "line_num": 1574,
+          "line_num": 1411,
           "line": "allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderInfo"
@@ -1545,7 +1449,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 1579,
+          "line_num": 1416,
           "line": "allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ConfigManager"
@@ -1553,7 +1457,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI::ProvidersCommand",
-          "line_num": 1581,
+          "line_num": 1418,
           "line": "allow(Aidp::CLI::ProvidersCommand).to receive(:new).and_return(command_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI::ProvidersCommand"
@@ -1561,7 +1465,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 1592,
+          "line_num": 1429,
           "line": "allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ConfigManager"
@@ -1569,7 +1473,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderManager",
-          "line_num": 1593,
+          "line_num": 1430,
           "line": "allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(pm)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderManager"
@@ -1577,7 +1481,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1596,
+          "line_num": 1433,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1585,7 +1489,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI::McpDashboard",
-          "line_num": 1622,
+          "line_num": 1459,
           "line": "allow(Aidp::CLI::McpDashboard).to receive(:new).and_return(dashboard)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI::McpDashboard"
@@ -1593,7 +1497,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1623,
+          "line_num": 1460,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1601,7 +1505,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1653,
+          "line_num": 1490,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1609,7 +1513,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1654,
+          "line_num": 1491,
           "line": "allow(Aidp::Worktree).to receive(:list).and_return([",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1617,7 +1521,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamState",
-          "line_num": 1658,
+          "line_num": 1495,
           "line": "allow(Aidp::WorkstreamState).to receive(:read).and_return({status: \"active\"})",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamState"
@@ -1625,7 +1529,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamState",
-          "line_num": 1659,
+          "line_num": 1496,
           "line": "allow(Aidp::WorkstreamState).to receive(:pause).and_return({})",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamState"
@@ -1633,7 +1537,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamState",
-          "line_num": 1660,
+          "line_num": 1497,
           "line": "allow(Aidp::WorkstreamState).to receive(:resume).and_return({})",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamState"
@@ -1641,7 +1545,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamState",
-          "line_num": 1661,
+          "line_num": 1498,
           "line": "allow(Aidp::WorkstreamState).to receive(:complete).and_return({})",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamState"
@@ -1649,7 +1553,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamState",
-          "line_num": 1670,
+          "line_num": 1507,
           "line": "allow(Aidp::WorkstreamState).to receive(:read).and_return({status: \"paused\"})",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamState"
@@ -1657,7 +1561,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamExecutor",
-          "line_num": 1683,
+          "line_num": 1520,
           "line": "allow(Aidp::WorkstreamExecutor).to receive(:new).and_return(executor)",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamExecutor"
@@ -1665,7 +1569,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Execute::Checkpoint",
-          "line_num": 1760,
+          "line_num": 1597,
           "line": "allow(Aidp::Execute::Checkpoint).to receive(:new).and_return(checkpoint)",
           "pattern": "allow().to receive",
           "target": "Aidp::Execute::Checkpoint"
@@ -1673,7 +1577,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Execute::CheckpointDisplay",
-          "line_num": 1761,
+          "line_num": 1598,
           "line": "allow(Aidp::Execute::CheckpointDisplay).to receive(:new).and_return(display)",
           "pattern": "allow().to receive",
           "target": "Aidp::Execute::CheckpointDisplay"
@@ -1681,7 +1585,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1766,
+          "line_num": 1603,
           "line": "allow(described_class).to receive(:display_message) do |msg, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1689,7 +1593,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1770,
+          "line_num": 1607,
           "line": "allow(described_class).to receive(:print)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1697,7 +1601,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1792,
+          "line_num": 1629,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1705,7 +1609,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1802,
+          "line_num": 1639,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1713,7 +1617,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::IssueImporter",
-          "line_num": 1814,
+          "line_num": 1651,
           "line": "allow(Aidp::IssueImporter).to receive(:new).and_return(importer)",
           "pattern": "allow().to receive",
           "target": "Aidp::IssueImporter"
@@ -1721,7 +1625,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1833,
+          "line_num": 1670,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1729,7 +1633,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 1834,
+          "line_num": 1671,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -1737,7 +1641,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Setup::Wizard",
-          "line_num": 1849,
+          "line_num": 1686,
           "line": "expect(Aidp::Setup::Wizard).to receive(:new).with(Dir.pwd, prompt: test_prompt, dry_run: false).and_return(wizard)",
           "pattern": "expect().to receive",
           "target": "Aidp::Setup::Wizard"
@@ -1745,7 +1649,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1856,
+          "line_num": 1693,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1753,7 +1657,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1862,
+          "line_num": 1699,
           "line": "allow(Aidp::Worktree).to receive(:list).and_return([])",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1761,7 +1665,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1879,
+          "line_num": 1716,
           "line": "allow(Aidp::Worktree).to receive(:create).and_return(result)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1769,7 +1673,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1885,
+          "line_num": 1722,
           "line": "allow(Aidp::Worktree).to receive(:create).and_raise(Aidp::Worktree::Error.new(\"failed\"))",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1777,7 +1681,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1891,
+          "line_num": 1728,
           "line": "allow(Aidp::Worktree).to receive(:remove)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1785,7 +1689,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1893,
+          "line_num": 1730,
           "line": "allow(described_class).to receive(:create_prompt).and_return(prompt)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1793,7 +1697,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1899,
+          "line_num": 1736,
           "line": "allow(Aidp::Worktree).to receive(:remove)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1801,7 +1705,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1911,
+          "line_num": 1748,
           "line": "allow(Aidp::Worktree).to receive(:info).and_return(nil)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1809,7 +1713,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1923,
+          "line_num": 1760,
           "line": "allow(Aidp::Worktree).to receive(:list).and_return([{slug: \"ws-a\", branch: \"ws-a\", created_at: Time.now.iso8601, active: true}])",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1817,7 +1721,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamExecutor",
-          "line_num": 1925,
+          "line_num": 1762,
           "line": "allow(Aidp::WorkstreamExecutor).to receive(:new).and_return(executor)",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamExecutor"
@@ -1825,7 +1729,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Worktree",
-          "line_num": 1938,
+          "line_num": 1775,
           "line": "allow(Aidp::Worktree).to receive(:info).and_return(ws_info)",
           "pattern": "allow().to receive",
           "target": "Aidp::Worktree"
@@ -1833,7 +1737,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::WorkstreamState",
-          "line_num": 1939,
+          "line_num": 1776,
           "line": "allow(Aidp::WorkstreamState).to receive(:read).and_return({status: \"active\", iterations: 0, elapsed: 0, events: []})",
           "pattern": "allow().to receive",
           "target": "Aidp::WorkstreamState"
@@ -1841,7 +1745,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1942,
+          "line_num": 1779,
           "line": "allow(described_class).to receive(:system)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1849,7 +1753,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1952,
+          "line_num": 1789,
           "line": "before { allow(described_class).to receive(:display_message) }",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1857,7 +1761,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1962,
+          "line_num": 1799,
           "line": "allow(described_class).to receive(:display_message) { |m, type:| messages << {m: m, type: type} }",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1865,7 +1769,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1970,
+          "line_num": 1807,
           "line": "allow(described_class).to receive(:display_message) { |m, type:| messages << {m: m, type: type} }",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1873,7 +1777,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 1984,
+          "line_num": 1821,
           "line": "allow(Aidp).to receive(:logger).and_return(logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -1881,7 +1785,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 1986,
+          "line_num": 1823,
           "line": "allow(Aidp).to receive(:setup_logger) do",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -1889,7 +1793,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 1990,
+          "line_num": 1827,
           "line": "allow(described_class).to receive(:log_rescue)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1897,7 +1801,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 2027,
+          "line_num": 1864,
           "line": "allow(described_class).to receive(:display_message) do |m, type:|",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1905,7 +1809,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 2062,
+          "line_num": 1899,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1913,7 +1817,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 2088,
+          "line_num": 1925,
           "line": "allow(described_class).to receive(:display_message)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -1921,7 +1825,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedWorkflowSelector",
-          "line_num": 2138,
+          "line_num": 1975,
           "line": "workflow_selector_double = instance_double(\"Aidp::Harness::UI::EnhancedWorkflowSelector\")",
           "pattern": "instance_double",
           "target": "Aidp::Harness::UI::EnhancedWorkflowSelector"
@@ -1929,7 +1833,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedWorkflowSelector",
-          "line_num": 2138,
+          "line_num": 1975,
           "line": "workflow_selector_double = instance_double(\"Aidp::Harness::UI::EnhancedWorkflowSelector\")",
           "pattern": "double",
           "target": "Aidp::Harness::UI::EnhancedWorkflowSelector"
@@ -1937,7 +1841,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedWorkflowSelector",
-          "line_num": 2139,
+          "line_num": 1976,
           "line": "allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::UI::EnhancedWorkflowSelector"
@@ -1945,7 +1849,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedTUI",
-          "line_num": 2143,
+          "line_num": 1980,
           "line": "tui_double = instance_double(\"Aidp::Harness::UI::EnhancedTUI\")",
           "pattern": "instance_double",
           "target": "Aidp::Harness::UI::EnhancedTUI"
@@ -1953,7 +1857,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedTUI",
-          "line_num": 2143,
+          "line_num": 1980,
           "line": "tui_double = instance_double(\"Aidp::Harness::UI::EnhancedTUI\")",
           "pattern": "double",
           "target": "Aidp::Harness::UI::EnhancedTUI"
@@ -1961,7 +1865,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedTUI",
-          "line_num": 2144,
+          "line_num": 1981,
           "line": "allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::UI::EnhancedTUI"
@@ -1969,7 +1873,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Logger",
-          "line_num": 2149,
+          "line_num": 1986,
           "line": "mock_logger = instance_double(\"Aidp::Logger\")",
           "pattern": "instance_double",
           "target": "Aidp::Logger"
@@ -1977,7 +1881,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Logger",
-          "line_num": 2149,
+          "line_num": 1986,
           "line": "mock_logger = instance_double(\"Aidp::Logger\")",
           "pattern": "double",
           "target": "Aidp::Logger"
@@ -1985,7 +1889,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 2154,
+          "line_num": 1991,
           "line": "allow(Aidp).to receive(:setup_logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -1993,7 +1897,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 2155,
+          "line_num": 1992,
           "line": "allow(Aidp).to receive(:logger).and_return(mock_logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -2001,7 +1905,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderInfo",
-          "line_num": 2172,
+          "line_num": 2009,
           "line": "allow(Aidp::Harness::ProviderInfo).to receive(:new).with(provider_name, anything).and_return(info_object)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderInfo"
@@ -2009,7 +1913,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2277,
+          "line_num": 2114,
           "line": "allow(Aidp::CLI).to receive(:subcommand?).and_return(false)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -2017,7 +1921,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2278,
+          "line_num": 2115,
           "line": "allow(Aidp::CLI).to receive(:parse_options).and_return({})",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -2025,7 +1929,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2279,
+          "line_num": 2116,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(double(\"Prompt\"))",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -2033,7 +1937,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI::FirstRunWizard",
-          "line_num": 2281,
+          "line_num": 2118,
           "line": "stub_wizard = class_double(\"Aidp::CLI::FirstRunWizard\").as_stubbed_const",
           "pattern": "class_double",
           "target": "Aidp::CLI::FirstRunWizard"
@@ -2041,7 +1945,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI::FirstRunWizard",
-          "line_num": 2281,
+          "line_num": 2118,
           "line": "stub_wizard = class_double(\"Aidp::CLI::FirstRunWizard\").as_stubbed_const",
           "pattern": "double",
           "target": "Aidp::CLI::FirstRunWizard"
@@ -2049,7 +1953,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedTUI",
-          "line_num": 2288,
+          "line_num": 2125,
           "line": "allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::UI::EnhancedTUI"
@@ -2057,7 +1961,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI::EnhancedWorkflowSelector",
-          "line_num": 2289,
+          "line_num": 2126,
           "line": "allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(selector_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::UI::EnhancedWorkflowSelector"
@@ -2065,7 +1969,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::EnhancedRunner",
-          "line_num": 2291,
+          "line_num": 2128,
           "line": "allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(runner_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::EnhancedRunner"
@@ -2073,7 +1977,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ConfigManager",
-          "line_num": 2317,
+          "line_num": 2154,
           "line": "allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ConfigManager"
@@ -2081,7 +1985,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderManager",
-          "line_num": 2338,
+          "line_num": 2175,
           "line": "allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderManager"
@@ -2089,7 +1993,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderManager",
-          "line_num": 2349,
+          "line_num": 2186,
           "line": "allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager_double)",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::ProviderManager"
@@ -2097,7 +2001,7 @@
         {
           "type": "violation",
           "reason": "Mocking the class under test (described_class)",
-          "line_num": 2352,
+          "line_num": 2189,
           "line": "allow(described_class).to receive(:log_rescue)",
           "pattern": "allow().to receive",
           "target": "described_class"
@@ -2105,7 +2009,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2657,
+          "line_num": 2494,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -2113,7 +2017,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2684,
+          "line_num": 2521,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -2121,7 +2025,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2702,
+          "line_num": 2539,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -2129,7 +2033,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2723,
+          "line_num": 2560,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
@@ -2137,7 +2041,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::CLI",
-          "line_num": 2748,
+          "line_num": 2585,
           "line": "allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt_decline)",
           "pattern": "allow().to receive",
           "target": "Aidp::CLI"
