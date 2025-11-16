@@ -15,37 +15,6 @@ RSpec.describe Aidp::CLI do
   let(:test_prompt) { TestPrompt.new }
   let(:cli) { described_class.new(prompt: test_prompt) }
 
-  # Mock TUI components to prevent interactive prompts
-  let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI) }
-  let(:mock_workflow_selector) { instance_double(Aidp::Harness::UI::EnhancedWorkflowSelector) }
-  let(:mock_harness_runner) { instance_double(Aidp::Harness::EnhancedRunner) }
-
-  before do
-    # Mock TUI components to prevent interactive prompts
-    allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
-    allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
-    allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(mock_harness_runner)
-
-    # Mock TUI methods
-    allow(mock_tui).to receive(:start_display_loop)
-    allow(mock_tui).to receive(:stop_display_loop)
-    allow(mock_tui).to receive(:show_message)
-    allow(mock_tui).to receive(:single_select).and_return("🔬 Analyze Mode - Analyze your codebase for insights and recommendations")
-
-    # Mock workflow selector
-    allow(mock_workflow_selector).to receive(:select_workflow).and_return({
-      workflow_type: :simple,
-      steps: ["01_REPOSITORY_ANALYSIS"],
-      user_input: {}
-    })
-
-    # Mock harness runner
-    allow(mock_harness_runner).to receive(:run).and_return({
-      status: "completed",
-      message: "Test completed"
-    })
-  end
-
   after do
     FileUtils.rm_rf(temp_dir)
   end
@@ -253,19 +222,29 @@ RSpec.describe Aidp::CLI do
     end
 
     context "when setup-config flag is used" do
+      # Define mocks locally for this integration test
+      let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI, start_display_loop: nil, stop_display_loop: nil) }
+      let(:mock_workflow_selector) { instance_double(Aidp::Harness::UI::EnhancedWorkflowSelector) }
+      let(:mock_harness_runner) { instance_double(Aidp::Harness::EnhancedRunner, run: {status: "completed", message: "Done"}) }
+
+      before do
+        # Set up mocks for TUI components
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(mock_harness_runner)
+      end
+
       it "forces configuration setup" do
         allow(Aidp::CLI::FirstRunWizard).to receive(:setup_config).and_return(true)
         allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
 
         # Mock TUI components to prevent actual execution
-        allow(mock_tui).to receive(:start_display_loop)
         allow(mock_workflow_selector).to receive(:select_workflow).and_return({
           mode: :execute,
           workflow_type: :simple,
           steps: [],
           user_input: {}
         })
-        allow(mock_harness_runner).to receive(:run).and_return({status: "completed", message: "Done"})
 
         expect(Aidp::CLI::FirstRunWizard).to receive(:setup_config)
 
@@ -281,10 +260,20 @@ RSpec.describe Aidp::CLI do
     end
 
     context "when running copilot mode" do
+      # Define mocks locally for this integration test context
+      let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI, start_display_loop: nil, stop_display_loop: nil) }
+      let(:mock_workflow_selector) { instance_double(Aidp::Harness::UI::EnhancedWorkflowSelector) }
+      let(:mock_harness_runner) { instance_double(Aidp::Harness::EnhancedRunner, run: {status: "completed", message: "Done"}) }
+
       before do
         allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
         allow(Aidp).to receive(:setup_logger)
         allow(Aidp).to receive(:logger).and_return(double("Logger", info: nil, warn: nil, level: "info"))
+
+        # Set up mocks for TUI components
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(mock_harness_runner)
       end
 
       it "initializes TUI and workflow selector" do
