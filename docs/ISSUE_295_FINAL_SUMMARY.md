@@ -11,15 +11,15 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 | Category | Original | Fixed | Remaining | % Complete |
 |----------|----------|-------|-----------|------------|
 | **`allow_any_instance_of`** | **31** | **31** | **0** | **100%** ✅ |
-| Internal class mocking | 662 | 63 | 599 | 9.5% |
+| Internal class mocking | 662 | 93 | 569 | 14.0% |
 | Instance variable manipulation | 577 | 2 | 575 | 0.3% |
 | Mock parameter mismatches | N/A | 12 | 0 | 100% ✅ |
-| Other violations | 1,146 | 5 | 1,141 | 0.4% |
-| **Total** | **1,177** | **113** | **1,081** | **9.6%** |
+| Other violations | 1,146 | 8 | 1,138 | 0.7% |
+| **Total** | **1,177** | **146** | **1,048** | **12.4%** |
 
-### Files Fixed: 35 Spec Files + 13 Production Files
+### Files Fixed: 36 Spec Files + 15 Production Files
 
-**Spec files (35):**
+**Spec files (36):**
 
 1. ✅ `guided_agent_spec.rb` (12 allow_any_instance_of + 12 mock params)
 2. ✅ `guided_workflow_golden_path_spec.rb` (4 allow_any_instance_of + 2 mock params)
@@ -54,10 +54,12 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 31. ✅ `work_loop_header_spec.rb` (1 internal class mocking violation)
 32. ✅ `async_work_loop_runner_spec.rb` (7 internal class mocking violations)
 33. ✅ `interactive_repl_spec.rb` (1 internal class mocking violation)
-34. ✅ `cli_spec.rb` (various violations - partial)
-35. ✅ Various other specs (small fixes)
+34. ✅ `providers_command_spec.rb` (new file, replaces providers_info_spec - 23 violations eliminated)
+35. ✅ `enhanced_runner_spec.rb` (7 internal class mocking violations)
+36. ✅ `cli_spec.rb` (various violations - partial)
+37. ✅ Various other specs (small fixes)
 
-**Production files enhanced with DI (13):**
+**Production files enhanced with DI (15):**
 
 1. ✅ `lib/aidp/workflows/guided_agent.rb` - Added `config_manager` and `provider_manager` parameters
 2. ✅ `lib/aidp/watch/review_processor.rb` - Added `reviewers` parameter
@@ -72,6 +74,8 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 11. ✅ `lib/aidp/execute/work_loop_runner.rb` - Added `thinking_depth_manager` parameter to options
 12. ✅ `lib/aidp/execute/async_work_loop_runner.rb` - Added `sync_runner_class` parameter to options
 13. ✅ `lib/aidp/execute/interactive_repl.rb` - Added `async_runner_class` parameter to options
+14. ✅ `lib/aidp/cli/providers_command.rb` - New command class extracted from CLI with full DI for ProviderInfo, CapabilityRegistry, ConfigManager
+15. ✅ `lib/aidp/harness/enhanced_runner.rb` - Added comprehensive DI for all components (TUI, configuration, state_manager, provider_manager, etc.)
 
 ## 🏆 Major Achievements
 
@@ -230,14 +234,16 @@ end
 ### Technical Debt Reduction
 
 - **Before**: 1,177 mock violations across 87 files
-- **After**: 1,081 violations (113 fixed, **all critical ones eliminated**)
+- **After**: 1,048 violations (146 fixed, **all critical ones eliminated**)
 - **Remaining**: Documented with clear fix patterns in MOCK_AUDIT_STATUS.md
-- **Progress**: 9.6% of all violations fixed, 100% of critical violations fixed
+- **Progress**: 12.4% of all violations fixed, 100% of critical violations fixed
 - **Test Failures Fixed**: 12 failing tests now passing (mock parameter mismatches + fallback sequence)
 
-## 📝 All Commits (31 total)
+## 📝 All Commits (34 total)
 
 ```
+1d0a810 Add dependency injection to EnhancedRunner
+1785162 Extract providers commands into ProvidersCommand class
 0141ccd Fix internal class mocking violation in interactive_repl_spec
 9f0df9e Fix internal class mocking violations in async_work_loop_runner_spec
 77f7906 Fix internal class mocking violation in work_loop_header_spec
@@ -275,17 +281,17 @@ ca0f776 Document mock audit status and fix patterns
 
 ## 🎯 Remaining Work (Optional Future Work)
 
-While all **critical violations are fixed**, there are ~1,081 lower-priority violations remaining:
+While all **critical violations are fixed**, there are ~1,048 lower-priority violations remaining:
 
-### Medium Priority (599 violations)
+### Medium Priority (569 violations)
 
 **Internal class mocking** - Files mocking `Aidp::` classes with `allow().to receive`:
 
 - `cli_spec.rb` (200 violations)
-- `enhanced_runner_spec.rb` (111 violations)
+- `enhanced_runner_spec.rb` (104 violations remaining - instance variable manipulations)
 - `harness/runner_spec.rb` (70 violations)
-- `providers_info_spec.rb` (23 violations - mostly CLI class method mocking)
-- **Recent progress**: ✅ Fixed ALL provider specs and related command specs (63 violations total including: anthropic 7, gemini 4, cursor 5, base 2, opencode 6, kilocode 9, codex 9, github_copilot 9, first_run_wizard 2, mcp_dashboard 4, models_command 2, prompt_manager 2, workflow_selector 1, daemon/runner 1, work_loop_header 1, async_work_loop_runner 7, interactive_repl 1)
+- ~~`providers_info_spec.rb` (23 violations)~~ ✅ **FIXED** - Refactored into ProvidersCommand
+- **Recent progress**: ✅ Fixed ALL provider specs and related command specs (93 violations total including: anthropic 7, gemini 4, cursor 5, base 2, opencode 6, kilocode 9, codex 9, github_copilot 9, first_run_wizard 2, mcp_dashboard 4, models_command 2, prompt_manager 2, workflow_selector 1, daemon/runner 1, work_loop_header 1, async_work_loop_runner 7, interactive_repl 1, providers_info 23, enhanced_runner 7)
 
 **Recommended approach**: Continue adding dependency injection to production classes. CLI class method tests may require extracting logic into separate testable classes.
 
@@ -310,11 +316,12 @@ While all **critical violations are fixed**, there are ~1,081 lower-priority vio
 
 ## ⏱️ Effort
 
-**Time invested**: ~24 hours
-**Lines changed**: ~770 across 39 files
-**Violations fixed**: 113 total, **31 critical (100%)**
+**Time invested**: ~28 hours
+**Lines changed**: ~1,400 across 45 files
+**Violations fixed**: 146 total, **31 critical (100%)**
 **Test failures resolved**: 12 tests (mock parameter mismatches + fallback sequence)
-**Commits**: 31 total
+**Commits**: 34 total
+**Major refactorings**: 2 (ProvidersCommand extraction, EnhancedRunner DI)
 
 ## 🚀 Next Steps (If Continuing)
 
@@ -326,7 +333,7 @@ While all **critical violations are fixed**, there are ~1,081 lower-priority vio
 4. **Then**: Fix harness and runner specs - ~180 violations
 5. **Finally**: Clean up remaining instance_variable manipulations - ~575 violations
 
-**Estimated remaining effort**: 27-38 hours for complete fix of all 1,081 remaining violations.
+**Estimated remaining effort**: 24-35 hours for complete fix of all 1,048 remaining violations.
 
 ## 🎉 Conclusion
 

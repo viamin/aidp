@@ -4183,9 +4183,23 @@
       "file": "spec/aidp/harness/enhanced_runner_spec.rb",
       "violations": [
         {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 23,
+          "line": "allow(tui).to receive(:instance_variable_set)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 24,
+          "line": "allow(tui).to receive(:instance_variable_get).with(:@jobs).and_return({\"main_workflow\" => {}})",
+          "pattern": "instance_variable manipulation"
+        },
+        {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp.logger",
-          "line_num": 12,
+          "line_num": 54,
           "line": "allow(Aidp.logger).to receive(:info)",
           "pattern": "allow().to receive",
           "target": "Aidp.logger"
@@ -4193,7 +4207,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp.logger",
-          "line_num": 13,
+          "line_num": 55,
           "line": "allow(Aidp.logger).to receive(:error)",
           "pattern": "allow().to receive",
           "target": "Aidp.logger"
@@ -4201,238 +4215,148 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI",
-          "line_num": 14,
+          "line_num": 56,
           "line": "allow(Aidp::Harness::UI).to receive(:with_processing_spinner).and_yield",
           "pattern": "allow().to receive",
           "target": "Aidp::Harness::UI"
         },
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::Configuration",
-          "line_num": 17,
-          "line": "allow(Aidp::Harness::Configuration).to receive(:new).and_return(mock_config)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::Configuration"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::StateManager",
-          "line_num": 18,
-          "line": "allow(Aidp::Harness::StateManager).to receive(:new).and_return(double(\"StateManager\"))",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::StateManager"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ConditionDetector",
-          "line_num": 19,
-          "line": "allow(Aidp::Harness::ConditionDetector).to receive(:new).and_return(double(\"ConditionDetector\",",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ConditionDetector"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderManager",
-          "line_num": 23,
-          "line": "allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(double(\"ProviderManager\", current_provider: \"test\"))",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ProviderManager"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ErrorHandler",
-          "line_num": 24,
-          "line": "allow(Aidp::Harness::ErrorHandler).to receive(:new).and_return(double(\"ErrorHandler\", execute_with_retry: {status: \"completed\"}))",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ErrorHandler"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::CompletionChecker",
-          "line_num": 25,
-          "line": "allow(Aidp::Harness::CompletionChecker).to receive(:new).and_return(double(\"CompletionChecker\", completion_status: {all_complete: true}))",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::CompletionChecker"
-        },
-        {
-          "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 32,
-          "line": "tui = r.instance_variable_get(:@tui)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 33,
-          "line": "tui.instance_variable_set(:@jobs, {\"main_workflow\" => {}})",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 47,
-          "line": "instance.instance_variable_set(:@tui, tui) if tui",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 50,
-          "line": "instance.instance_variable_set(:@provider_manager, provider_manager) if provider_manager || provider_manager.nil?",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 53,
-          "line": "current_tui = instance.instance_variable_get(:@tui)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 54,
-          "line": "current_tui&.instance_variable_set(:@jobs, {\"main_workflow\" => {}})",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 111,
+          "line_num": 127,
           "line": "instance.instance_variable_set(:@current_provider, \"test_provider\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 130,
+          "line_num": 146,
           "line": "instance.instance_variable_set(:@current_step, \"step1\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 143,
+          "line_num": 159,
           "line": "instance.instance_variable_set(:@user_input, {key: \"value\"})",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 156,
+          "line_num": 172,
           "line": "instance.instance_variable_set(:@execution_log, [\"step1\", \"step2\"])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 207,
+          "line_num": 223,
           "line": "instance.instance_variable_set(:@completion_checker, completion_checker)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 212,
+          "line_num": 228,
           "line": "instance.instance_variable_set(:@workflow_controller, workflow_controller)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 221,
+          "line_num": 237,
           "line": "expect(instance.instance_variable_get(:@state)).to eq(\"completed\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 222,
+          "line_num": 238,
           "line": "expect(instance.instance_variable_get(:@start_time)).to eq(freeze_time)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 259,
+          "line_num": 275,
           "line": "instance.instance_variable_set(:@completion_checker, completion_checker)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 344,
+          "line_num": 360,
           "line": "paused_instance.instance_variable_set(:@completion_checker, completion_checker)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 349,
+          "line_num": 365,
           "line": "paused_instance.instance_variable_set(:@workflow_controller, workflow_controller)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 370,
+          "line_num": 386,
           "line": "paused_instance.instance_variable_set(:@state, \"paused\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 391,
+          "line_num": 407,
           "line": "paused_instance.instance_variable_set(:@state, \"waiting_for_user\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 405,
+          "line_num": 421,
           "line": "paused_instance.instance_variable_set(:@state, \"waiting_for_rate_limit\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 435,
+          "line_num": 451,
           "line": "thread_tracking_instance.instance_variable_set(:@completion_checker, completion_checker)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 440,
+          "line_num": 456,
           "line": "thread_tracking_instance.instance_variable_set(:@workflow_controller, workflow_controller)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 460,
+          "line_num": 476,
           "line": "allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return(jobs)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 496,
+          "line_num": 512,
           "line": "instance.instance_variable_set(:@error_handler, mock_error_handler)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 497,
+          "line_num": 513,
           "line": "instance.instance_variable_set(:@condition_detector, mock_condition_detector)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Thread",
-          "line_num": 507,
+          "line_num": 523,
           "line": "allow(Thread).to receive(:new).and_yield",
           "pattern": "allow().to receive",
           "target": "Thread"
@@ -4440,14 +4364,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 619,
+          "line_num": 635,
           "line": "instance.instance_variable_set(:@project_dir, project_dir)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Thread",
-          "line_num": 659,
+          "line_num": 675,
           "line": "expect(Thread).to receive(:new).once",
           "pattern": "expect().to receive",
           "target": "Thread"
@@ -4455,161 +4379,161 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 673,
+          "line_num": 689,
           "line": "instance.instance_variable_set(:@condition_detector, mock_condition_detector)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 674,
+          "line_num": 690,
           "line": "instance.instance_variable_set(:@workflow_controller, mock_workflow_controller)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 675,
+          "line_num": 691,
           "line": "instance.instance_variable_set(:@state_manager, mock_state_manager)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 676,
+          "line_num": 692,
           "line": "instance.instance_variable_set(:@user_input, {})",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 699,
+          "line_num": 715,
           "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 776,
+          "line_num": 792,
           "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 805,
+          "line_num": 821,
           "line": "instance.instance_variable_set(:@workflow_type, \"test_workflow\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 806,
+          "line_num": 822,
           "line": "instance.instance_variable_set(:@selected_steps, %w[step1 step2])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 824,
+          "line_num": 840,
           "line": "instance.instance_variable_set(:@selected_steps, nil)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 846,
+          "line_num": 862,
           "line": "instance.instance_variable_set(:@current_provider, \"test_provider\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 864,
+          "line_num": 880,
           "line": "instance.instance_variable_set(:@current_provider, nil)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 907,
+          "line_num": 923,
           "line": "instance.instance_variable_set(:@workflow_controller, mock_workflow_controller)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 915,
+          "line_num": 931,
           "line": "expect(instance.instance_variable_get(:@state)).to eq(\"stopped\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 939,
+          "line_num": 955,
           "line": "instance.instance_variable_set(:@state, \"running\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 940,
+          "line_num": 956,
           "line": "instance.instance_variable_set(:@mode, \"test\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 941,
+          "line_num": 957,
           "line": "instance.instance_variable_set(:@current_step, \"step1\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 942,
+          "line_num": 958,
           "line": "instance.instance_variable_set(:@current_provider, \"test_provider\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 943,
+          "line_num": 959,
           "line": "instance.instance_variable_set(:@start_time, start_time)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 944,
+          "line_num": 960,
           "line": "instance.instance_variable_set(:@user_input, {key1: \"value1\", key2: \"value2\"})",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 945,
+          "line_num": 961,
           "line": "instance.instance_variable_set(:@execution_log, [\"event1\", \"event2\", \"event3\"])",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 948,
+          "line_num": 964,
           "line": "allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return({\"job1\" => {}, \"job2\" => {}})",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 968,
+          "line_num": 984,
           "line": "instance.instance_variable_set(:@start_time, nil)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Harness::UI",
-          "line_num": 982,
+          "line_num": 998,
           "line": "expect(Aidp::Harness::UI).to receive(:with_processing_spinner).with(\"Test message\").and_yield",
           "pattern": "expect().to receive",
           "target": "Aidp::Harness::UI"
@@ -4617,21 +4541,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 992,
+          "line_num": 1008,
           "line": "instance.instance_variable_set(:@mode, :analyze)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 993,
+          "line_num": 1009,
           "line": "instance.instance_variable_set(:@project_dir, \"/test/project\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Analyze::Runner",
-          "line_num": 995,
+          "line_num": 1011,
           "line": "expect(Aidp::Analyze::Runner).to receive(:new).with(\"/test/project\", instance, prompt: be_a(TTY::Prompt))",
           "pattern": "expect().to receive",
           "target": "Aidp::Analyze::Runner"
@@ -4639,21 +4563,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1001,
+          "line_num": 1017,
           "line": "instance.instance_variable_set(:@mode, :execute)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1002,
+          "line_num": 1018,
           "line": "instance.instance_variable_set(:@project_dir, \"/test/project\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Execute::Runner",
-          "line_num": 1004,
+          "line_num": 1020,
           "line": "expect(Aidp::Execute::Runner).to receive(:new).with(\"/test/project\", instance, prompt: be_a(TTY::Prompt))",
           "pattern": "expect().to receive",
           "target": "Aidp::Execute::Runner"
@@ -4661,315 +4585,315 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1010,
+          "line_num": 1026,
           "line": "instance.instance_variable_set(:@mode, :unsupported)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1030,
+          "line_num": 1046,
           "line": "instance.instance_variable_set(:@state, \"stopped\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1035,
+          "line_num": 1051,
           "line": "instance.instance_variable_set(:@state, \"completed\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1040,
+          "line_num": 1056,
           "line": "instance.instance_variable_set(:@state, \"error\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1045,
+          "line_num": 1061,
           "line": "instance.instance_variable_set(:@state, \"running\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1052,
+          "line_num": 1068,
           "line": "instance.instance_variable_set(:@state, \"paused\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1057,
+          "line_num": 1073,
           "line": "instance.instance_variable_set(:@state, \"waiting_for_user\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1062,
+          "line_num": 1078,
           "line": "instance.instance_variable_set(:@state, \"waiting_for_rate_limit\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1067,
+          "line_num": 1083,
           "line": "instance.instance_variable_set(:@state, \"running\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1074,
-          "line": "instance.instance_variable_set(:@state, \"paused\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1075,
-          "line": "sleeper = instance.instance_variable_get(:@sleeper)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1082,
-          "line": "instance.instance_variable_set(:@state, \"waiting_for_user\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
           "line_num": 1090,
-          "line": "instance.instance_variable_set(:@state, \"waiting_for_rate_limit\")",
+          "line": "instance.instance_variable_set(:@state, \"paused\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1150,
-          "line": "instance.instance_variable_set(:@state_manager, mock_state_manager)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1151,
-          "line": "instance.instance_variable_set(:@state, \"running\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1152,
-          "line": "instance.instance_variable_set(:@current_step, \"step1\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1153,
-          "line": "instance.instance_variable_set(:@current_provider, \"test_provider\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1154,
-          "line": "instance.instance_variable_set(:@user_input, {key: \"value\"})",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1180,
-          "line": "instance.instance_variable_set(:@state_manager, mock_state_manager)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1181,
-          "line": "instance.instance_variable_set(:@user_input, {})",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1225,
-          "line": "instance.instance_variable_set(:@state_manager, mock_state_manager)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1226,
-          "line": "instance.instance_variable_set(:@state, \"completed\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1227,
-          "line": "instance.instance_variable_set(:@current_step, \"final_step\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1228,
-          "line": "instance.instance_variable_set(:@current_provider, \"test_provider\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1229,
-          "line": "instance.instance_variable_set(:@user_input, {key: \"value\"})",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1260,
-          "line": "instance.instance_variable_set(:@mode, :analyze)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1269,
-          "line": "instance.instance_variable_set(:@mode, :execute)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1283,
-          "line": "instance.instance_variable_set(:@execution_log, [])",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1341,
-          "line": "instance.instance_variable_set(:@workflow_controller, mock_workflow_controller)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1370,
-          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"completed\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1387,
-          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"error\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1398,
-          "line": "instance.instance_variable_set(:@current_provider, \"current_provider\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1411,
-          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1440,
-          "line": "expect(instance.instance_variable_get(:@current_provider)).to eq(\"new_provider\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1441,
-          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1486,
-          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1498,
-          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"error\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1509,
-          "line": "instance.instance_variable_set(:@state, \"waiting_for_rate_limit\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1519,
+          "line_num": 1091,
           "line": "sleeper = instance.instance_variable_get(:@sleeper)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1532,
-          "line": "allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return(jobs)",
+          "line_num": 1098,
+          "line": "instance.instance_variable_set(:@state, \"waiting_for_user\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1549,
+          "line_num": 1106,
+          "line": "instance.instance_variable_set(:@state, \"waiting_for_rate_limit\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1166,
+          "line": "instance.instance_variable_set(:@state_manager, mock_state_manager)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1167,
+          "line": "instance.instance_variable_set(:@state, \"running\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1168,
+          "line": "instance.instance_variable_set(:@current_step, \"step1\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1169,
+          "line": "instance.instance_variable_set(:@current_provider, \"test_provider\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1170,
+          "line": "instance.instance_variable_set(:@user_input, {key: \"value\"})",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1196,
+          "line": "instance.instance_variable_set(:@state_manager, mock_state_manager)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1197,
+          "line": "instance.instance_variable_set(:@user_input, {})",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1241,
+          "line": "instance.instance_variable_set(:@state_manager, mock_state_manager)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1242,
           "line": "instance.instance_variable_set(:@state, \"completed\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1554,
+          "line_num": 1243,
+          "line": "instance.instance_variable_set(:@current_step, \"final_step\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1244,
+          "line": "instance.instance_variable_set(:@current_provider, \"test_provider\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1245,
+          "line": "instance.instance_variable_set(:@user_input, {key: \"value\"})",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1276,
+          "line": "instance.instance_variable_set(:@mode, :analyze)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1285,
+          "line": "instance.instance_variable_set(:@mode, :execute)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1299,
+          "line": "instance.instance_variable_set(:@execution_log, [])",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1357,
+          "line": "instance.instance_variable_set(:@workflow_controller, mock_workflow_controller)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1386,
+          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"completed\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1403,
+          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"error\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1414,
+          "line": "instance.instance_variable_set(:@current_provider, \"current_provider\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1427,
+          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1456,
+          "line": "expect(instance.instance_variable_get(:@current_provider)).to eq(\"new_provider\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1457,
+          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1502,
+          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"running\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1514,
+          "line": "expect(instance.instance_variable_get(:@state)).to eq(\"error\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1525,
+          "line": "instance.instance_variable_set(:@state, \"waiting_for_rate_limit\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1535,
+          "line": "sleeper = instance.instance_variable_get(:@sleeper)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1548,
+          "line": "allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return(jobs)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1565,
+          "line": "instance.instance_variable_set(:@state, \"completed\")",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 1570,
           "line": "instance.instance_variable_set(:@state, \"stopped\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1559,
+          "line_num": 1575,
           "line": "instance.instance_variable_set(:@state, \"error\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1564,
+          "line_num": 1580,
           "line": "instance.instance_variable_set(:@state, \"unknown\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): ModeRunner",
-          "line_num": 1571,
+          "line_num": 1587,
           "line": "let(:mock_runner) { instance_double(\"ModeRunner\") }",
           "pattern": "instance_double",
           "target": "ModeRunner"
@@ -4977,14 +4901,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1583,
+          "line_num": 1599,
           "line": "allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return({})",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Thread",
-          "line_num": 1593,
+          "line_num": 1609,
           "line": "allow(Thread).to receive(:new).and_yield",
           "pattern": "allow().to receive",
           "target": "Thread"
@@ -4992,21 +4916,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1596,
+          "line_num": 1612,
           "line": "instance.instance_variable_set(:@error_handler, mock_error_handler)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1741,
+          "line_num": 1757,
           "line": "expect(instance.instance_variable_get(:@current_provider)).to eq(\"openai\")",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Configuration",
-          "line_num": 1747,
+          "line_num": 1763,
           "line": "let(:mock_configuration) { instance_double(\"Configuration\") }",
           "pattern": "instance_double",
           "target": "Configuration"
@@ -5014,14 +4938,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1750,
+          "line_num": 1766,
           "line": "instance.instance_variable_set(:@configuration, mock_configuration)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 1860,
+          "line_num": 1876,
           "line": "mock_condition_detector = instance.instance_variable_get(:@condition_detector)",
           "pattern": "instance_variable manipulation"
         }
