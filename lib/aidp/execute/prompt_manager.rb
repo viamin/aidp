@@ -17,20 +17,20 @@ module Aidp
 
       attr_reader :optimizer, :last_optimization_stats
 
-      def initialize(project_dir, config: nil)
+      def initialize(project_dir, config: nil, optimizer: nil)
         @project_dir = project_dir
         @aidp_dir = File.join(project_dir, ".aidp")
         @prompt_path = File.join(@aidp_dir, PROMPT_FILENAME)
         @archive_dir = File.join(project_dir, ARCHIVE_DIR)
         @config = config
-        @optimizer = nil
+        @optimizer = optimizer
         @last_optimization_stats = nil
 
         # Ensure .aidp directory exists
         FileUtils.mkdir_p(@aidp_dir)
 
-        # Initialize optimizer if enabled
-        if config&.respond_to?(:prompt_optimization_enabled?) && config.prompt_optimization_enabled?
+        # Initialize optimizer if enabled and not provided
+        if @optimizer.nil? && config&.respond_to?(:prompt_optimization_enabled?) && config.prompt_optimization_enabled?
           @optimizer = Aidp::PromptOptimization::Optimizer.new(
             project_dir: project_dir,
             config: config.prompt_optimization_config
