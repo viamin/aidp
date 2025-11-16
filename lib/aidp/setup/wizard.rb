@@ -924,8 +924,18 @@ module Aidp
         prompt.say("\n📋 Non-functional requirements & preferred libraries")
         prompt.say("-" * 40)
 
-        return delete_path([:nfrs]) unless prompt.yes?("Configure NFRs?", default: true)
+        # Check existing configuration for previous choice
+        existing_configure = @config.dig(:nfrs, :configure)
+        default_configure = existing_configure.nil? || existing_configure
 
+        configure = prompt.yes?("Configure NFRs?", default: default_configure)
+
+        unless configure
+          Aidp.log_debug("setup_wizard.nfrs", "opt_out")
+          return set([:nfrs, :configure], false)
+        end
+
+        set([:nfrs, :configure], true)
         categories = %i[performance security reliability accessibility internationalization]
         categories.each do |category|
           existing = get([:nfrs, category])
@@ -1801,10 +1811,18 @@ module Aidp
             path: parser.detect)
         end
 
+        # Check existing configuration for previous choice
+        existing_manage = @config.dig(:devcontainer, :manage)
+        default_manage = if existing_manage.nil?
+          existing_devcontainer ? true : false
+        else
+          existing_manage
+        end
+
         # Ask if user wants AIDP to manage devcontainer
         manage = prompt.yes?(
           "Would you like AIDP to manage your devcontainer configuration?",
-          default: (@config.dig(:devcontainer, :manage) || existing_devcontainer) ? true : false
+          default: default_manage
         )
 
         unless manage
