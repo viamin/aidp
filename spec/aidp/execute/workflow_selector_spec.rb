@@ -6,11 +6,7 @@ require_relative "../../../lib/aidp/execute/workflow_selector"
 RSpec.describe Aidp::Execute::WorkflowSelector do
   let(:prompt) { instance_double(TTY::Prompt) }
   let(:workflow_selector) { instance_double(Aidp::Workflows::Selector) }
-  let(:selector) { described_class.new(prompt: prompt) }
-
-  before do
-    allow(Aidp::Workflows::Selector).to receive(:new).and_return(workflow_selector)
-  end
+  let(:selector) { described_class.new(prompt: prompt, workflow_selector: workflow_selector) }
 
   # Initialization is tested implicitly through functionality tests
 

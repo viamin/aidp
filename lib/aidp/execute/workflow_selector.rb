@@ -10,10 +10,10 @@ module Aidp
     class WorkflowSelector
       include Aidp::MessageDisplay
 
-      def initialize(prompt: TTY::Prompt.new)
+      def initialize(prompt: TTY::Prompt.new, workflow_selector: nil)
         @user_input = {}
         @prompt = prompt
-        @workflow_selector = Aidp::Workflows::Selector.new(prompt: @prompt)
+        @workflow_selector = workflow_selector || Aidp::Workflows::Selector.new(prompt: @prompt)
       end
 
       # Main entry point for interactive workflow selection
