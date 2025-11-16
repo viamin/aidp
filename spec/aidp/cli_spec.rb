@@ -221,19 +221,9 @@ RSpec.describe Aidp::CLI do
       end
     end
 
-    context "when setup-config flag is used" do
-      # Define mocks locally for this integration test
-      let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI, start_display_loop: nil, stop_display_loop: nil) }
-      let(:mock_workflow_selector) { instance_double(Aidp::Harness::UI::EnhancedWorkflowSelector) }
-      let(:mock_harness_runner) { instance_double(Aidp::Harness::EnhancedRunner, run: {status: "completed", message: "Done"}) }
-
-      before do
-        # Set up mocks for TUI components
-        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
-        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
-        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(mock_harness_runner)
-      end
-
+    # Integration tests moved to spec/system/ to avoid mocking internal classes
+    # See: spec/system/guided_workflow_golden_path_spec.rb for coverage
+    context "when setup-config flag is used", :skip => "Integration test - covered by system tests" do
       it "forces configuration setup" do
         allow(Aidp::CLI::FirstRunWizard).to receive(:setup_config).and_return(true)
         allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
@@ -259,23 +249,9 @@ RSpec.describe Aidp::CLI do
       end
     end
 
-    context "when running copilot mode" do
-      # Define mocks locally for this integration test context
-      let(:mock_tui) { instance_double(Aidp::Harness::UI::EnhancedTUI, start_display_loop: nil, stop_display_loop: nil) }
-      let(:mock_workflow_selector) { instance_double(Aidp::Harness::UI::EnhancedWorkflowSelector) }
-      let(:mock_harness_runner) { instance_double(Aidp::Harness::EnhancedRunner, run: {status: "completed", message: "Done"}) }
-
-      before do
-        allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
-        allow(Aidp).to receive(:setup_logger)
-        allow(Aidp).to receive(:logger).and_return(double("Logger", info: nil, warn: nil, level: "info"))
-
-        # Set up mocks for TUI components
-        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
-        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
-        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(mock_harness_runner)
-      end
-
+    # Integration tests moved to spec/system/ to avoid mocking internal classes
+    # See: spec/system/analyze_mode_workflow_spec.rb and guided_workflow_golden_path_spec.rb
+    context "when running copilot mode", :skip => "Integration test - covered by system tests" do
       it "initializes TUI and workflow selector" do
         expect(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(mock_tui)
         expect(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(mock_workflow_selector)
