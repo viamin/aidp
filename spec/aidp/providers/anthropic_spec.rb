@@ -5,19 +5,16 @@ require "spec_helper"
 RSpec.describe Aidp::Providers::Anthropic do
   let(:provider) { described_class.new }
 
-  before do
-    # Mock availability check
-    allow(described_class).to receive(:available?).and_return(true)
-    allow(Aidp::Util).to receive(:which).with("claude").and_return("/usr/local/bin/claude")
-  end
-
   describe "#available?" do
     it "returns true when claude CLI is available" do
+      allow(Aidp::Util).to receive(:which).with("claude").and_return("/usr/local/bin/claude")
+      expect(described_class.available?).to be true
       expect(provider.available?).to be true
     end
 
     it "returns false when claude CLI is not available" do
-      allow(described_class).to receive(:available?).and_return(false)
+      allow(Aidp::Util).to receive(:which).with("claude").and_return(nil)
+      expect(described_class.available?).to be false
       expect(provider.available?).to be false
     end
   end
@@ -46,6 +43,9 @@ RSpec.describe Aidp::Providers::Anthropic do
     let(:failed_result) { double("result", exit_status: 1, out: "", err: "Error message") }
 
     before do
+      # Mock CLI availability for provider instantiation
+      allow(Aidp::Util).to receive(:which).with("claude").and_return("/usr/local/bin/claude")
+
       allow(provider).to receive(:debug_execute_command).and_return(successful_result)
       allow(provider).to receive(:debug_command)
       allow(provider).to receive(:debug_provider)
@@ -87,11 +87,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       let(:harness_context) { double("harness_context", config: config_double) }
 
       before do
-        provider.instance_variable_set(:@harness_context, harness_context)
-      end
-
-      after do
-        provider.instance_variable_set(:@harness_context, nil)
+        provider.set_harness_context(harness_context)
       end
 
       it "includes the skip permissions flag" do
@@ -310,13 +306,16 @@ RSpec.describe Aidp::Providers::Anthropic do
     end
 
     before do
+      # Mock CLI availability for provider instantiation
+      allow(Aidp::Util).to receive(:which).with("claude").and_return("/usr/local/bin/claude")
+
       allow(provider).to receive(:debug_execute_command).and_return(mcp_list_result)
       allow(provider).to receive(:debug_log)
     end
 
     context "when claude CLI is not available" do
       before do
-        allow(described_class).to receive(:available?).and_return(false)
+        allow(Aidp::Util).to receive(:which).with("claude").and_return(nil)
       end
 
       it "returns empty array" do
