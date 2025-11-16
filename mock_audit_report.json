@@ -6198,48 +6198,42 @@
           "reason": "Direct instance variable manipulation (code smell)",
           "line_num": 398,
           "line": "status_display.instance_variable_set(:@rate_limit_status, {",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 410,
-          "line": "status_display.instance_variable_set(:@start_time, Time.now - 60)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 411,
-          "line": "status_display.instance_variable_set(:@current_step, \"Test Step\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 412,
-          "line": "status_display.instance_variable_set(:@current_provider, \"claude\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 413,
-          "line": "status_display.instance_variable_set(:@current_model, \"model1\")",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 548,
-          "line": "status_display.instance_variable_get(:@running) == true",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 551,
-          "line": "expect(status_display.instance_variable_get(:@running)).to be true",
+          "pattern": "instance_variable manipulatio
+      Code: allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(background_runner)
+
+    Line 28: Mocking internal AIDP class: Aidp::Jobs::BackgroundRunner
+      Pattern: allow().to receive
+      Code: allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(background_runner)
+
+--------------------------------------------------------------------------------
+File: spec/system/analyze_mode_workflow_spec.rb
+--------------------------------------------------------------------------------
+
+  VIOLATIONS (1):
+    Line 20: Mocking internal AIDP class: Aidp::CLI
+      Pattern: allow().to receive
+      Code: allow(Aidp::CLI).to receive(:new).and_return(mock_cli)
+
+--------------------------------------------------------------------------------
+File: spec/system/guided_workflow_golden_path_spec.rb
+--------------------------------------------------------------------------------
+
+  VIOLATIONS (2):
+    Line 92: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: allow().to receive
+      Code: allow(Aidp::Harness::ProviderFactory).to receive(:new).with(system_test_config_manager).and_return(system_test_provider_factory)
+
+    Line 193: Mocking internal AIDP class: Aidp::Harness::ProviderFactory
+      Pattern: allow().to receive
+      Code: allow(Aidp::Harness::ProviderFactory).to receive(:new).with(system_test_config_manager).and_return(recovery_provider_factory)
+
+================================================================================
+Total violations: 989
+Total needing review: 275
+================================================================================
+
+Detailed JSON report saved to: mock_audit_report.json
+le_get(:@running)).to be true",
           "pattern": "instance_variable manipulation"
         },
         {
