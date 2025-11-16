@@ -900,34 +900,68 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   context "when primary provider returns empty response and fallback providers exist" do
-    before do
-      # Configuration with two providers so fallback is possible
-      allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({
+    let(:mock_config) do
+      {
         harness: {enabled: true, default_provider: "cursor", fallback_providers: ["claude"]},
         providers: {
           cursor: {type: "api", api_key: "x", models: ["cursor-default"]},
           claude: {type: "api", api_key: "y", models: ["claude-3-5-sonnet-20241022"]}
         }
-      })
+      }
+    end
 
-      # First provider (cursor) returns empty response
-      call_counter = 0
-      allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|
-        call_counter += 1
-        if call_counter == 1
-          "" # Empty response
-        else
-          '{"complete": true, "questions": [], "reasoning": "done"}'
+    let(:mock_config_manager) do
+      instance_double(Aidp::Harness::ConfigManager, config: mock_config)
+    end
+
+    let(:cursor_provider) do
+      instance_double(Aidp::Providers::Cursor).tap do |provider|
+        call_counter = 0
+        allow(provider).to receive(:send_message) do |prompt:, session: nil|
+          call_counter += 1
+          if call_counter == 1
+            "" # Empty response
+          else
+            '{"complete": true, "questions": [], "reasoning": "done"}'
+          end
         end
       end
+    end
 
-      # Fallback provider (claude) succeeds immediately with same prompt
-      allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message).and_return('{"complete": true, "questions": [], "reasoning": "done"}')
+    let(:claude_provider) do
+      instance_double(Aidp::Providers::Anthropic).tap do |provider|
+        allow(provider).to receive(:send_message).and_return('{"complete": true, "questions": [], "reasoning": "done"}')
+      end
+    end
+
+    let(:mock_provider_manager) do
+      instance_double(Aidp::Harness::ProviderManager).tap do |manager|
+        allow(manager).to receive(:current_provider).and_return("cursor", "claude")
+        allow(manager).to receive(:configured_providers).and_return(["cursor", "claude"])
+        allow(manager).to receive(:switch_provider_for_error).and_return("claude")
+      end
+    end
+
+    let(:mock_provider_factory) do
+      instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
+        allow(factory).to receive(:create_provider).with("cursor").and_return(cursor_provider)
+        allow(factory).to receive(:create_provider).with("claude").and_return(claude_provider)
+      end
+    end
+
+    before do
+      allow(Aidp::Harness::ProviderFactory).to receive(:new).with(mock_config_manager).and_return(mock_provider_factory)
     end
 
     it "switches from cursor to claude after empty response and completes planning" do
       test_prompt = TestPrompt.new(responses: {ask: "I want to improve provider fallback", yes?: true})
-      agent = described_class.new(project_dir, prompt: test_prompt, verbose: false)
+      agent = described_class.new(
+        project_dir,
+        prompt: test_prompt,
+        verbose: false,
+        config_manager: mock_config_manager,
+        provider_manager: mock_provider_manager
+      )
 
       # Capture display messages to verify fallback behavior
       displayed_messages = []
@@ -948,22 +982,39 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     it "retries with the same PROMPT.md content on fallback" do
-      test_prompt = TestPrompt.new(responses: {ask: "I want to improve provider fallback", yes?: true})
-      agent = described_class.new(project_dir, prompt: test_prompt, verbose: false)
-
       # Track prompts sent to each provider
       cursor_prompts = []
       claude_prompts = []
 
-      allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|
-        cursor_prompts << prompt
-        "" # Empty response triggers fallback
+      tracking_cursor_provider = instance_double(Aidp::Providers::Cursor).tap do |provider|
+        allow(provider).to receive(:send_message) do |prompt:, session: nil|
+          cursor_prompts << prompt
+          "" # Empty response triggers fallback
+        end
       end
 
-      allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message) do |instance, prompt:, session: nil|
-        claude_prompts << prompt
-        '{"complete": true, "questions": [], "reasoning": "done"}'
+      tracking_claude_provider = instance_double(Aidp::Providers::Anthropic).tap do |provider|
+        allow(provider).to receive(:send_message) do |prompt:, session: nil|
+          claude_prompts << prompt
+          '{"complete": true, "questions": [], "reasoning": "done"}'
+        end
       end
+
+      tracking_provider_factory = instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
+        allow(factory).to receive(:create_provider).with("cursor").and_return(tracking_cursor_provider)
+        allow(factory).to receive(:create_provider).with("claude").and_return(tracking_claude_provider)
+      end
+
+      allow(Aidp::Harness::ProviderFactory).to receive(:new).with(mock_config_manager).and_return(tracking_provider_factory)
+
+      test_prompt = TestPrompt.new(responses: {ask: "I want to improve provider fallback", yes?: true})
+      agent = described_class.new(
+        project_dir,
+        prompt: test_prompt,
+        verbose: false,
+        config_manager: mock_config_manager,
+        provider_manager: mock_provider_manager
+      )
 
       workflow = nil
       expect { workflow = agent.select_workflow }.not_to raise_error
@@ -983,22 +1034,52 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   context "when primary provider returns empty response and no fallback providers exist" do
-    before do
-      # Configuration with only one provider (no fallback possible)
-      allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({
+    let(:single_provider_config) do
+      {
         harness: {enabled: true, default_provider: "cursor"},
         providers: {
           cursor: {type: "api", api_key: "x", models: ["cursor-default"]}
         }
-      })
+      }
+    end
 
-      # Provider always returns empty response
-      allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message).and_return("")
+    let(:single_provider_config_manager) do
+      instance_double(Aidp::Harness::ConfigManager, config: single_provider_config)
+    end
+
+    let(:failing_cursor_provider) do
+      instance_double(Aidp::Providers::Cursor).tap do |provider|
+        allow(provider).to receive(:send_message).and_return("")
+      end
+    end
+
+    let(:single_provider_manager) do
+      instance_double(Aidp::Harness::ProviderManager).tap do |manager|
+        allow(manager).to receive(:current_provider).and_return("cursor")
+        allow(manager).to receive(:configured_providers).and_return(["cursor"])
+        allow(manager).to receive(:switch_provider_for_error).and_return("cursor")
+      end
+    end
+
+    let(:single_provider_factory) do
+      instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
+        allow(factory).to receive(:create_provider).with("cursor").and_return(failing_cursor_provider)
+      end
+    end
+
+    before do
+      allow(Aidp::Harness::ProviderFactory).to receive(:new).with(single_provider_config_manager).and_return(single_provider_factory)
     end
 
     it "raises ConversationError after exhausting retries" do
       test_prompt = TestPrompt.new(responses: {ask: "I want to improve provider fallback", yes?: true})
-      agent = described_class.new(project_dir, prompt: test_prompt, verbose: false)
+      agent = described_class.new(
+        project_dir,
+        prompt: test_prompt,
+        verbose: false,
+        config_manager: single_provider_config_manager,
+        provider_manager: single_provider_manager
+      )
 
       expect { agent.select_workflow }.to raise_error(
         Aidp::Workflows::GuidedAgent::ConversationError,
@@ -1008,7 +1089,13 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
     it "displays warning messages when provider fails" do
       test_prompt = TestPrompt.new(responses: {ask: "I want to improve provider fallback", yes?: true})
-      agent = described_class.new(project_dir, prompt: test_prompt, verbose: false)
+      agent = described_class.new(
+        project_dir,
+        prompt: test_prompt,
+        verbose: false,
+        config_manager: single_provider_config_manager,
+        provider_manager: single_provider_manager
+      )
 
       # Capture display messages
       displayed_messages = []
@@ -1027,31 +1114,59 @@ end
 RSpec.describe Aidp::Workflows::GuidedAgent do
   let(:project_dir) { Dir.mktmpdir("guided_agent_spec") }
 
-  before do
-    # Create docs directory in temp location
-    FileUtils.mkdir_p(File.join(project_dir, "docs"))
-    # Configuration with two providers so fallback is possible
-    allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({
+  let(:resource_exhaustion_config) do
+    {
       harness: {enabled: true, default_provider: "cursor", fallback_providers: ["claude"]},
       providers: {
         cursor: {type: "api", api_key: "x", models: ["cursor-default"]},
         claude: {type: "api", api_key: "y", models: ["claude-3-5-sonnet-20241022"]}
       }
-    })
+    }
+  end
 
-    # First provider (cursor) fails once with resource exhaustion
-    call_counter = 0
-    allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|
-      call_counter += 1
-      if call_counter == 1
-        raise "ConnectError: [resource_exhausted] Error"
-      else
-        '{"complete": true, "questions": [], "reasoning": "done"}'
+  let(:resource_exhaustion_config_manager) do
+    instance_double(Aidp::Harness::ConfigManager, config: resource_exhaustion_config)
+  end
+
+  let(:exhausting_cursor_provider) do
+    instance_double(Aidp::Providers::Cursor).tap do |provider|
+      call_counter = 0
+      allow(provider).to receive(:send_message) do |prompt:, session: nil|
+        call_counter += 1
+        if call_counter == 1
+          raise "ConnectError: [resource_exhausted] Error"
+        else
+          '{"complete": true, "questions": [], "reasoning": "done"}'
+        end
       end
     end
+  end
 
-    # Fallback provider succeeds immediately
-    allow_any_instance_of(Aidp::Providers::Anthropic).to receive(:send_message).and_return('{"complete": true, "questions": [], "reasoning": "done"}')
+  let(:recovery_claude_provider) do
+    instance_double(Aidp::Providers::Anthropic).tap do |provider|
+      allow(provider).to receive(:send_message).and_return('{"complete": true, "questions": [], "reasoning": "done"}')
+    end
+  end
+
+  let(:resource_exhaustion_provider_manager) do
+    instance_double(Aidp::Harness::ProviderManager).tap do |manager|
+      allow(manager).to receive(:current_provider).and_return("cursor", "claude")
+      allow(manager).to receive(:configured_providers).and_return(["cursor", "claude"])
+      allow(manager).to receive(:switch_provider_for_error).and_return("claude")
+    end
+  end
+
+  let(:resource_exhaustion_provider_factory) do
+    instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
+      allow(factory).to receive(:create_provider).with("cursor").and_return(exhausting_cursor_provider)
+      allow(factory).to receive(:create_provider).with("claude").and_return(recovery_claude_provider)
+    end
+  end
+
+  before do
+    # Create docs directory in temp location
+    FileUtils.mkdir_p(File.join(project_dir, "docs"))
+    allow(Aidp::Harness::ProviderFactory).to receive(:new).with(resource_exhaustion_config_manager).and_return(resource_exhaustion_provider_factory)
   end
 
   after do
@@ -1061,7 +1176,13 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
   it "switches from cursor to claude after resource exhaustion and completes planning" do
     test_prompt = TestPrompt.new(responses: {ask: "answer", yes?: true})
-    agent = described_class.new(project_dir, prompt: test_prompt, verbose: false)
+    agent = described_class.new(
+      project_dir,
+      prompt: test_prompt,
+      verbose: false,
+      config_manager: resource_exhaustion_config_manager,
+      provider_manager: resource_exhaustion_provider_manager
+    )
     workflow = nil
     expect { workflow = agent.select_workflow }.not_to raise_error
     expect(workflow[:mode]).to eq(:execute)
@@ -1071,21 +1192,45 @@ end
 RSpec.describe Aidp::Workflows::GuidedAgent do
   let(:project_dir) { Dir.mktmpdir("guided_agent_retry_spec") }
 
-  before do
-    # Create docs directory in temp location
-    FileUtils.mkdir_p(File.join(project_dir, "docs"))
-    # Configuration with only one provider (no fallback possible)
-    allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:config).and_return({
+  let(:retry_failure_config) do
+    {
       harness: {enabled: true, default_provider: "cursor"},
       providers: {
         cursor: {type: "api", api_key: "x", models: ["cursor-default"]}
       }
-    })
+    }
+  end
 
-    # Provider always fails with resource exhaustion
-    allow_any_instance_of(Aidp::Providers::Cursor).to receive(:send_message) do |instance, prompt:, session: nil|
-      raise "ConnectError: [resource_exhausted] Error"
+  let(:retry_failure_config_manager) do
+    instance_double(Aidp::Harness::ConfigManager, config: retry_failure_config)
+  end
+
+  let(:always_failing_cursor_provider) do
+    instance_double(Aidp::Providers::Cursor).tap do |provider|
+      allow(provider).to receive(:send_message) do |prompt:, session: nil|
+        raise "ConnectError: [resource_exhausted] Error"
+      end
     end
+  end
+
+  let(:retry_failure_provider_manager) do
+    instance_double(Aidp::Harness::ProviderManager).tap do |manager|
+      allow(manager).to receive(:current_provider).and_return("cursor")
+      allow(manager).to receive(:configured_providers).and_return(["cursor"])
+      allow(manager).to receive(:switch_provider_for_error).and_return("cursor")
+    end
+  end
+
+  let(:retry_failure_provider_factory) do
+    instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
+      allow(factory).to receive(:create_provider).with("cursor").and_return(always_failing_cursor_provider)
+    end
+  end
+
+  before do
+    # Create docs directory in temp location
+    FileUtils.mkdir_p(File.join(project_dir, "docs"))
+    allow(Aidp::Harness::ProviderFactory).to receive(:new).with(retry_failure_config_manager).and_return(retry_failure_provider_factory)
   end
 
   after do
@@ -1095,7 +1240,13 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
   it "raises ConversationError after exhausting retries when only one provider configured" do
     test_prompt = TestPrompt.new(responses: {ask: "answer", yes?: true})
-    agent = described_class.new(project_dir, prompt: test_prompt, verbose: false)
+    agent = described_class.new(
+      project_dir,
+      prompt: test_prompt,
+      verbose: false,
+      config_manager: retry_failure_config_manager,
+      provider_manager: retry_failure_provider_manager
+    )
 
     expect { agent.select_workflow }.to raise_error(
       Aidp::Workflows::GuidedAgent::ConversationError,
@@ -1105,7 +1256,13 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
   it "does not log provider switch messages when no fallback available" do
     test_prompt = TestPrompt.new(responses: {ask: "answer", yes?: true})
-    agent = described_class.new(project_dir, prompt: test_prompt, verbose: false)
+    agent = described_class.new(
+      project_dir,
+      prompt: test_prompt,
+      verbose: false,
+      config_manager: retry_failure_config_manager,
+      provider_manager: retry_failure_provider_manager
+    )
 
     # Capture display messages to verify no "Switched to provider" appears
     displayed_messages = []
