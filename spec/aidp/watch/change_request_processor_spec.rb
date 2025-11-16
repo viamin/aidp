@@ -419,7 +419,11 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
       end
 
       it "handles config errors gracefully" do
-        allow_any_instance_of(Aidp::Harness::ConfigManager).to receive(:default_provider).and_raise(StandardError)
+        # Mock ConfigManager.new to return a failing config manager
+        failing_config_manager = instance_double(Aidp::Harness::ConfigManager)
+        allow(failing_config_manager).to receive(:default_provider).and_raise(StandardError)
+        allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(failing_config_manager)
+
         result = processor.send(:detect_default_provider)
         expect(result).to eq("anthropic")
       end
