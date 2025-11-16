@@ -76,24 +76,9 @@ RSpec.describe Aidp::CLI do
   # These were testing instance methods that mocked internal AIDP classes (Runner)
   # Coverage: spec/aidp/cli/harness_command_spec.rb
 
-  describe "config command" do
-    let(:wizard_instance) { instance_double(Aidp::Setup::Wizard, run: true) }
-
-    it "shows usage when --interactive missing" do
-      allow(TTY::Prompt).to receive(:new).and_return(test_prompt)
-      described_class.run(["config"])
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("Usage: aidp config --interactive") }).to be true
-    end
-
-    it "invokes wizard in interactive dry-run mode" do
-      allow(Aidp::CLI).to receive(:create_prompt).and_return(test_prompt)
-      expect(Aidp::Setup::Wizard).to receive(:new)
-        .with(Dir.pwd, prompt: test_prompt, dry_run: true)
-        .and_return(wizard_instance)
-
-      described_class.run(["config", "--interactive", "--dry-run"])
-    end
-  end
+  # Config command tests moved to spec/aidp/cli/config_command_spec.rb
+  # These were testing run_config_command that mocked internal AIDP classes (CLI, Setup::Wizard)
+  # Coverage: spec/aidp/cli/config_command_spec.rb
 
   describe ".run (class method)" do
     it "can be called as a class method without raising errors" do

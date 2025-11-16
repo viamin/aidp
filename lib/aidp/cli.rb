@@ -883,33 +883,10 @@ module Aidp
       end
 
       def run_config_command(args)
-        interactive = false
-        dry_run = false
-
-        until args.empty?
-          token = args.shift
-          case token
-          when "--interactive"
-            interactive = true
-          when "--dry-run"
-            dry_run = true
-          when "-h", "--help"
-            display_config_usage
-            return
-          else
-            display_message("Unknown option: #{token}", type: :error)
-            display_config_usage
-            return
-          end
-        end
-
-        unless interactive
-          display_config_usage
-          return
-        end
-
-        wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: create_prompt, dry_run: dry_run)
-        wizard.run
+        # Delegate to ConfigCommand
+        require_relative "cli/config_command"
+        command = ConfigCommand.new(prompt: create_prompt)
+        command.run(args)
       end
 
       def run_devcontainer_command(args)
@@ -1664,10 +1641,6 @@ module Aidp
             tui.stop_display_loop
           end
         end
-      end
-
-      def display_config_usage
-        display_message("Usage: aidp config --interactive [--dry-run]", type: :info)
       end
 
       def run_settings_command(args)
