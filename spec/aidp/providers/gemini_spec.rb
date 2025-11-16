@@ -76,7 +76,6 @@ RSpec.describe Aidp::Providers::Gemini do
 
         gemini.send_message(prompt: sample_prompt)
       end
-
     end
 
     context "when gemini command fails" do

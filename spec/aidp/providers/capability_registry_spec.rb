@@ -35,8 +35,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
           reasoning_tiers: ["mini", "standard"],
           context_window: 200_000,
           supports_json_mode: true,
-          supports_vision: true,
-          supports_json_mode: true
+          supports_vision: true
         },
         mcp: true,
         dangerous: false
