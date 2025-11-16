@@ -72,83 +72,9 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  describe "harness status command" do
-    let(:mock_harness_runner) { double("harness_runner") }
-    let(:mock_state_manager) { double("state_manager") }
-
-    before do
-      allow(Aidp::Harness::Runner).to receive(:new).and_return(mock_harness_runner)
-      allow(mock_harness_runner).to receive(:detailed_status).and_return({
-        harness: {
-          state: "running",
-          current_step: "test_step",
-          current_provider: "cursor",
-          duration: 120,
-          user_input_count: 2,
-          progress: {
-            completed_steps: 3,
-            total_steps: 5,
-            next_step: "next_step"
-          }
-        },
-        configuration: {
-          default_provider: "cursor",
-          fallback_providers: ["claude", "gemini"],
-          max_retries: 2
-        },
-        provider_manager: {
-          current_provider: "cursor",
-          available_providers: ["cursor", "claude"],
-          rate_limited_providers: [],
-          total_switches: 0
-        }
-      })
-    end
-
-    it "displays harness status for both modes" do
-      cli.harness_status
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("🔧 Harness Status") }).to be true
-    end
-
-    it "displays harness status for specific mode" do
-      cli.harness_status
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("📋 Analyze Mode:") }).to be true
-    end
-  end
-
-  describe "harness reset command" do
-    let(:mock_harness_runner) { double("harness_runner") }
-    let(:mock_state_manager) { double("state_manager") }
-
-    before do
-      allow(Aidp::Harness::Runner).to receive(:new).and_return(mock_harness_runner)
-      allow(mock_harness_runner).to receive(:instance_variable_get).with(:@state_manager).and_return(mock_state_manager)
-      allow(mock_state_manager).to receive(:reset_all)
-    end
-
-    it "resets harness state for analyze mode" do
-      allow(cli).to receive(:options).and_return({mode: "analyze"})
-      expect(mock_state_manager).to receive(:reset_all)
-
-      cli.harness_reset
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("✅ Reset harness state for analyze mode") }).to be true
-    end
-
-    it "resets harness state for execute mode" do
-      allow(cli).to receive(:options).and_return({mode: "execute"})
-      expect(mock_state_manager).to receive(:reset_all)
-
-      cli.harness_reset
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("✅ Reset harness state for execute mode") }).to be true
-    end
-
-    it "shows error for invalid mode" do
-      allow(cli).to receive(:options).and_return({mode: "invalid"})
-
-      cli.harness_reset
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("❌ Invalid mode. Use 'analyze' or 'execute'") }).to be true
-    end
-  end
+  # Harness command tests moved to spec/aidp/cli/harness_command_spec.rb
+  # These were testing instance methods that mocked internal AIDP classes (Runner)
+  # Coverage: spec/aidp/cli/harness_command_spec.rb
 
   describe "config command" do
     let(:wizard_instance) { instance_double(Aidp::Setup::Wizard, run: true) }

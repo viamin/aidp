@@ -25,31 +25,6 @@ module Aidp
       @prompt = prompt
     end
 
-    # Instance version of harness status (used by specs; non-interactive)
-    def harness_status
-      modes = %i[analyze execute]
-      display_message("🔧 Harness Status", type: :highlight)
-      modes.each do |mode|
-        status = fetch_harness_status(mode)
-        print_harness_mode_status(mode, status)
-      end
-    end
-
-    # Instance version of harness reset (used by specs)
-    def harness_reset
-      # Use accessor so specs that stub #options work
-      mode = (options[:mode] || "analyze").to_s
-      unless %w[analyze execute].include?(mode)
-        display_message("❌ Invalid mode. Use 'analyze' or 'execute'", type: :error)
-        return
-      end
-
-      # Build a runner to access state manager; keep light for spec
-      runner = Aidp::Harness::Runner.new(Dir.pwd, mode.to_sym, {})
-      state_manager = runner.instance_variable_get(:@state_manager)
-      state_manager.reset_all if state_manager.respond_to?(:reset_all)
-      display_message("✅ Reset harness state for #{mode} mode", type: :success)
-    end
 
     # Instance version of analyze command (used by specs)
     def analyze(project_dir, step = nil, options = {})
@@ -121,28 +96,6 @@ module Aidp
       end
     end
 
-    def fetch_harness_status(mode)
-      runner = Aidp::Harness::Runner.new(Dir.pwd, mode, {})
-      if runner.respond_to?(:detailed_status)
-        runner.detailed_status
-      else
-        {harness: {state: "unknown"}}
-      end
-    rescue => e
-      log_rescue(e, component: "cli", action: "fetch_harness_status", fallback: {harness: {state: "error"}}, mode: mode)
-      {harness: {state: "error", error: e.message}}
-    end
-
-    def print_harness_mode_status(mode, status)
-      harness = status[:harness] || {}
-      display_message("\n📋 #{mode.to_s.capitalize} Mode:", type: :info)
-      display_message("   State: #{harness[:state]}", type: :info)
-      if harness[:progress]
-        prog = harness[:progress]
-        display_message("   Progress: #{prog[:completed_steps]}/#{prog[:total_steps]}", type: :success)
-        display_message("   Current Step: #{harness[:current_step]}", type: :info) if harness[:current_step]
-      end
-    end
 
     class << self
       extend Aidp::MessageDisplay::ClassMethods
@@ -440,17 +393,21 @@ module Aidp
 
       def run_harness_command(args)
         sub = args.shift
-        case sub
-        when "status"
-          display_message("Harness Status", type: :info)
-          display_message("Mode: (unknown)", type: :info)
-          display_message("State: idle", type: :info)
-        when "reset"
-          mode = extract_mode_option(args)
-          display_message("Harness state reset for mode: #{mode || "default"}", type: :info)
+
+        # Delegate to HarnessCommand
+        require_relative "cli/harness_command"
+
+        options = {}
+        if args.include?("--mode")
+          args.delete("--mode")
+          options[:mode] = args.shift
         else
-          display_message("Usage: aidp harness <status|reset> [--mode MODE]", type: :info)
+          mode = extract_mode_option(args)
+          options[:mode] = mode if mode
         end
+
+        command = HarnessCommand.new(prompt: create_prompt)
+        command.run(args, subcommand: sub, options: options)
       end
 
       def run_execute_command(args, mode: :execute)
