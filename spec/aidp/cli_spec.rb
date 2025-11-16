@@ -901,7 +901,7 @@ RSpec.describe Aidp::CLI do
       info_hash = {
         last_checked: Time.now.iso8601,
         cli_available: false,
-        capabilities: {code_editing: true, test_generation: false, streaming: true}
+        capabilities: {code_editing: true, test_generation: false, supports_json_mode: true}
       }
       info_double = instance_double(Aidp::Harness::ProviderInfo)
       allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(info_double)
@@ -909,7 +909,7 @@ RSpec.describe Aidp::CLI do
 
       described_class.send(:run_providers_info_command, ["gemini"])
       expect(described_class).to have_received(:display_message).with(/Code Editing/, type: :success)
-      expect(described_class).to have_received(:display_message).with(/Streaming/, type: :success)
+      expect(described_class).to have_received(:display_message).with(/Supports Json Mode/, type: :success)
     end
 
     it "displays rich provider info including truncation of flags" do

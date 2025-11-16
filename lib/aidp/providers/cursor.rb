@@ -110,12 +110,6 @@ module Aidp
         debug_provider("cursor", "Starting execution", {timeout: timeout_seconds})
         debug_log("📝 Sending prompt to cursor-agent (length: #{prompt.length})", level: :info)
 
-        # Check if streaming mode is enabled
-        streaming_enabled = ENV["AIDP_STREAMING"] == "1" || ENV["DEBUG"] == "1"
-        if streaming_enabled
-          display_message("📺 Display streaming enabled - output buffering reduced (cursor-agent does not support true streaming)", type: :info)
-        end
-
         # Set up activity monitoring
         setup_activity_monitoring("cursor-agent", method(:activity_callback))
         record_activity("Starting cursor-agent execution")
@@ -141,7 +135,7 @@ module Aidp
           # Use debug_execute_command for better debugging
           # Use -p mode (designed for non-interactive/script use)
           # No fallback to interactive modes - they would hang AIDP's automation workflow
-          result = debug_execute_command("cursor-agent", args: ["-p"], input: prompt, timeout: timeout_seconds, streaming: streaming_enabled)
+          result = debug_execute_command("cursor-agent", args: ["-p"], input: prompt, timeout: timeout_seconds)
 
           # Log the results
           debug_command("cursor-agent", args: ["-p"], input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)

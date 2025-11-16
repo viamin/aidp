@@ -177,8 +177,7 @@ def capabilities
     supports_json_mode: false,
     supports_tool_use: false,
     supports_vision: false,
-    supports_file_upload: false,
-    streaming: false
+    supports_file_upload: false
   }
 end
 ```
@@ -193,8 +192,7 @@ def capabilities
     supports_json_mode: true,
     supports_tool_use: true,
     supports_vision: false,
-    supports_file_upload: true,
-    streaming: true
+    supports_file_upload: true
   }
 end
 ```
@@ -407,8 +405,7 @@ module Aidp
           supports_json_mode: true,
           supports_tool_use: false,
           supports_vision: false,
-          supports_file_upload: false,
-          streaming: false
+          supports_file_upload: false
         }
       end
 

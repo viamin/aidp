@@ -36,7 +36,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
           context_window: 200_000,
           supports_json_mode: true,
           supports_vision: true,
-          streaming: true
+          supports_json_mode: true
         },
         mcp: true,
         dangerous: false
@@ -70,7 +70,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
     end
 
     it "registers multiple providers" do
-      provider2 = create_mock_provider("openai", {streaming: true})
+      provider2 = create_mock_provider("openai", {supports_json_mode: true})
 
       registry.register(provider)
       registry.register(provider2)
@@ -80,7 +80,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
   end
 
   describe "#unregister" do
-    let(:provider) { create_mock_provider("test_provider", {streaming: true}) }
+    let(:provider) { create_mock_provider("test_provider", {supports_json_mode: true}) }
 
     before do
       registry.register(provider)
@@ -96,7 +96,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
 
   describe "#capabilities_for" do
     let(:provider) do
-      create_mock_provider("test", {context_window: 100_000, streaming: true})
+      create_mock_provider("test", {context_window: 100_000, supports_json_mode: true})
     end
 
     before do
@@ -108,7 +108,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
 
       expect(caps).to be_a(Hash)
       expect(caps[:context_window]).to eq(100_000)
-      expect(caps[:streaming]).to be true
+      expect(caps[:supports_json_mode]).to be true
     end
 
     it "returns nil for unregistered provider" do
@@ -168,7 +168,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
     end
 
     it "returns false for unregistered provider" do
-      expect(registry.has_capability?("unknown", :streaming)).to be false
+      expect(registry.has_capability?("unknown", :supports_json_mode)).to be false
     end
 
     it "returns false for non-existent capability" do
@@ -184,7 +184,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
           reasoning_tiers: ["mini", "standard", "thinking"],
           context_window: 200_000,
           supports_vision: true,
-          streaming: true
+          supports_json_mode: true
         }
       )
 
@@ -194,7 +194,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
           reasoning_tiers: ["mini", "standard"],
           context_window: 128_000,
           supports_vision: false,
-          streaming: true
+          supports_json_mode: true
         }
       )
 
@@ -204,7 +204,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
           reasoning_tiers: ["mini", "standard", "thinking"],
           context_window: 1_000_000,
           supports_vision: true,
-          streaming: true
+          supports_json_mode: true
         }
       )
 
@@ -247,7 +247,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
       results = registry.find_providers(
         supports_vision: true,
         min_context_window: 150_000,
-        streaming: true
+        supports_json_mode: true
       )
 
       expect(results).to match_array(["anthropic", "gemini"])
@@ -289,7 +289,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
     let(:provider) do
       provider = create_mock_provider(
         "test",
-        {context_window: 100_000, streaming: true},
+        {context_window: 100_000, supports_json_mode: true},
         mcp: true,
         dangerous: true
       )
@@ -321,7 +321,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
     end
 
     it "includes multiple providers" do
-      provider2 = create_mock_provider("provider2", {streaming: false})
+      provider2 = create_mock_provider("provider2", {supports_json_mode: false})
       registry.register(provider2)
 
       info = registry.provider_info
@@ -335,7 +335,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
       create_mock_provider(
         "provider1",
         {
-          streaming: true,
+          supports_json_mode: true,
           supports_vision: true,
           context_window: 100_000
         }
@@ -346,7 +346,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
       create_mock_provider(
         "provider2",
         {
-          streaming: true,
+          supports_json_mode: true,
           supports_vision: false,
           context_window: 200_000
         }
@@ -361,7 +361,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
     it "identifies common capabilities" do
       report = registry.compatibility_report("provider1", "provider2")
 
-      expect(report[:common_capabilities]).to include(streaming: true)
+      expect(report[:common_capabilities]).to include(supports_json_mode: true)
     end
 
     it "identifies differences" do
@@ -395,7 +395,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
       provider1 = create_mock_provider(
         "provider1",
         {
-          streaming: true,
+          supports_json_mode: true,
           supports_vision: true,
           context_window: 100_000,
           reasoning_tiers: ["mini"]
@@ -405,7 +405,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
       provider2 = create_mock_provider(
         "provider2",
         {
-          streaming: true,
+          supports_json_mode: true,
           supports_vision: false,
           context_window: 0,
           reasoning_tiers: []
@@ -419,13 +419,13 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
     it "counts total providers for each capability" do
       stats = registry.capability_statistics
 
-      expect(stats[:streaming][:total_providers]).to eq(2)
+      expect(stats[:supports_json_mode][:total_providers]).to eq(2)
     end
 
     it "counts supporting providers correctly for boolean true" do
       stats = registry.capability_statistics
 
-      expect(stats[:streaming][:supporting_providers]).to eq(2)
+      expect(stats[:supports_json_mode][:supporting_providers]).to eq(2)
       expect(stats[:supports_vision][:supporting_providers]).to eq(1)
     end
 
@@ -444,7 +444,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
     it "lists providers supporting each capability" do
       stats = registry.capability_statistics
 
-      expect(stats[:streaming][:providers]).to match_array(["provider1", "provider2"])
+      expect(stats[:supports_json_mode][:providers]).to match_array(["provider1", "provider2"])
       expect(stats[:supports_vision][:providers]).to eq(["provider1"])
     end
 
@@ -458,7 +458,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
   end
 
   describe "#clear" do
-    let(:provider) { create_mock_provider("test", {streaming: true}) }
+    let(:provider) { create_mock_provider("test", {supports_json_mode: true}) }
 
     before do
       registry.register(provider)
@@ -493,7 +493,7 @@ RSpec.describe Aidp::Providers::CapabilityRegistry do
         :supports_tool_use,
         :supports_vision,
         :supports_file_upload,
-        :streaming,
+        :supports_json_mode,
         :supports_mcp,
         :max_tokens,
         :supports_dangerous_mode

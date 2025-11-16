@@ -107,7 +107,7 @@ RSpec.describe Aidp::Providers::Codex do
       it "executes codex with exec mode" do
         provider.send_message(prompt: prompt)
         expect(provider).to have_received(:debug_execute_command)
-          .with("codex", args: ["exec", prompt], timeout: 300, streaming: false)
+          .with("codex", args: ["exec", prompt], timeout: 300)
       end
 
       it "returns the output when successful" do
@@ -159,7 +159,7 @@ RSpec.describe Aidp::Providers::Codex do
         it "includes session parameter in command" do
           provider.send_message(prompt: prompt, session: "test-session")
           expect(provider).to have_received(:debug_execute_command)
-            .with("codex", args: ["exec", prompt, "--session", "test-session"], timeout: 300, streaming: false)
+            .with("codex", args: ["exec", prompt, "--session", "test-session"], timeout: 300)
         end
       end
     end
@@ -192,7 +192,7 @@ RSpec.describe Aidp::Providers::Codex do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("codex", args: ["exec", prompt, "--session", "test-session", "--model", "gpt-4"], timeout: 300, streaming: false)
+        .with("codex", args: ["exec", prompt, "--session", "test-session", "--model", "gpt-4"], timeout: 300)
     end
 
     it "includes ask_for_approval flag when specified" do
@@ -201,7 +201,7 @@ RSpec.describe Aidp::Providers::Codex do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("codex", args: ["exec", prompt, "--ask-for-approval"], timeout: 300, streaming: false)
+        .with("codex", args: ["exec", prompt, "--ask-for-approval"], timeout: 300)
     end
 
     it "combines multiple options" do
@@ -214,7 +214,7 @@ RSpec.describe Aidp::Providers::Codex do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("codex", args: ["exec", prompt, "--session", "test-session", "--model", "gpt-4", "--ask-for-approval"], timeout: 300, streaming: false)
+        .with("codex", args: ["exec", prompt, "--session", "test-session", "--model", "gpt-4", "--ask-for-approval"], timeout: 300)
     end
   end
 
