@@ -1,7 +1,7 @@
 {
   "total_files": 194,
-  "files_with_violations": 75,
-  "files_clean": 108,
+  "files_with_violations": 74,
+  "files_clean": 109,
   "files_need_review": 11,
   "violations_by_file": [
     {
@@ -2484,17 +2484,9 @@
       "file": "spec/aidp/daemon/runner_spec.rb",
       "violations": [
         {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Daemon::ProcessManager",
-          "line_num": 56,
-          "line": "allow(Aidp::Daemon::ProcessManager).to receive(:new).and_return(process_manager)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Daemon::ProcessManager"
-        },
-        {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Aidp",
-          "line_num": 57,
+          "line_num": 56,
           "line": "allow(Aidp).to receive(:logger).and_return(logger)",
           "pattern": "allow().to receive",
           "target": "Aidp"
@@ -2502,7 +2494,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Process",
-          "line_num": 111,
+          "line_num": 110,
           "line": "allow(Process).to receive(:daemon)",
           "pattern": "allow().to receive",
           "target": "Process"
@@ -2510,7 +2502,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Process",
-          "line_num": 113,
+          "line_num": 112,
           "line": "allow(Process).to receive(:detach)",
           "pattern": "allow().to receive",
           "target": "Process"
@@ -2518,7 +2510,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Concurrency::Wait",
-          "line_num": 114,
+          "line_num": 113,
           "line": "allow(Aidp::Concurrency::Wait).to receive(:until).and_return(true)",
           "pattern": "allow().to receive",
           "target": "Aidp::Concurrency::Wait"
@@ -2526,7 +2518,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Process",
-          "line_num": 126,
+          "line_num": 125,
           "line": "allow(Process).to receive(:daemon)",
           "pattern": "allow().to receive",
           "target": "Process"
@@ -2534,7 +2526,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Process",
-          "line_num": 128,
+          "line_num": 127,
           "line": "allow(Process).to receive(:detach)",
           "pattern": "allow().to receive",
           "target": "Process"
@@ -2542,7 +2534,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Concurrency::Wait",
-          "line_num": 129,
+          "line_num": 128,
           "line": "allow(Aidp::Concurrency::Wait).to receive(:until).and_raise(Aidp::Concurrency::TimeoutError)",
           "pattern": "allow().to receive",
           "target": "Aidp::Concurrency::Wait"
@@ -2550,7 +2542,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Signal",
-          "line_num": 163,
+          "line_num": 162,
           "line": "allow(Signal).to receive(:trap).and_return(true)",
           "pattern": "allow().to receive",
           "target": "Signal"
@@ -2558,14 +2550,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 164,
+          "line_num": 163,
           "line": "runner.instance_variable_set(:@running, true)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Signal",
-          "line_num": 166,
+          "line_num": 165,
           "line": "expect(Signal).to receive(:trap).with(\"TERM\").and_yield",
           "pattern": "expect().to receive",
           "target": "Signal"
@@ -2573,7 +2565,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Signal",
-          "line_num": 167,
+          "line_num": 166,
           "line": "expect(Signal).to receive(:trap).with(\"INT\").and_yield",
           "pattern": "expect().to receive",
           "target": "Signal"
@@ -2581,14 +2573,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 170,
+          "line_num": 169,
           "line": "expect(runner.instance_variable_get(:@running)).to be false",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Client",
-          "line_num": 180,
+          "line_num": 179,
           "line": "client = instance_double(\"Client\", gets: nil, close: nil)",
           "pattern": "instance_double",
           "target": "Client"
@@ -2596,7 +2588,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): UNIXServer",
-          "line_num": 181,
+          "line_num": 180,
           "line": "allow(UNIXServer).to receive(:new).and_return(server)",
           "pattern": "allow().to receive",
           "target": "UNIXServer"
@@ -2604,14 +2596,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 183,
+          "line_num": 182,
           "line": "runner.instance_variable_set(:@running, false)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Thread",
-          "line_num": 186,
+          "line_num": 185,
           "line": "allow(Thread).to receive(:new).and_yield",
           "pattern": "allow().to receive",
           "target": "Thread"
@@ -2619,14 +2611,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 189,
+          "line_num": 188,
           "line": "runner.instance_variable_set(:@running, true)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): UNIXServer",
-          "line_num": 197,
+          "line_num": 196,
           "line": "allow(UNIXServer).to receive(:new).and_raise(StandardError, \"boom\")",
           "pattern": "allow().to receive",
           "target": "UNIXServer"
@@ -2634,35 +2626,35 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 208,
+          "line_num": 207,
           "line": "runner.instance_variable_set(:@watch_runner, double(\"WatchRunner\"))",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 215,
+          "line_num": 214,
           "line": "runner.instance_variable_set(:@running, true)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 217,
+          "line_num": 216,
           "line": "expect(runner.instance_variable_get(:@running)).to be false",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 229,
+          "line_num": 228,
           "line": "runner.instance_variable_set(:@watch_runner, double(\"Watch\"))",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Client",
-          "line_num": 244,
+          "line_num": 243,
           "line": "client = instance_double(\"Client\", gets: \"status\\n\", close: nil)",
           "pattern": "instance_double",
           "target": "Client"
@@ -2670,7 +2662,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): WorkLoopRunner",
-          "line_num": 260,
+          "line_num": 259,
           "line": "work_loop_runner = instance_double(\"WorkLoopRunner\", cancel: nil)",
           "pattern": "instance_double",
           "target": "WorkLoopRunner"
@@ -2678,7 +2670,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): UNIXServer",
-          "line_num": 261,
+          "line_num": 260,
           "line": "ipc_server = instance_double(\"UNIXServer\", close: nil)",
           "pattern": "instance_double",
           "target": "UNIXServer"
@@ -2686,35 +2678,35 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 262,
+          "line_num": 261,
           "line": "runner.instance_variable_set(:@work_loop_runner, work_loop_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 263,
+          "line_num": 262,
           "line": "runner.instance_variable_set(:@ipc_server, ipc_server)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 279,
+          "line_num": 278,
           "line": "runner.instance_variable_set(:@running, false)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 281,
+          "line_num": 280,
           "line": "runner.instance_variable_set(:@running, true)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Watch::Runner",
-          "line_num": 291,
+          "line_num": 290,
           "line": "allow(Aidp::Watch::Runner).to receive(:new).and_return(watch_runner)",
           "pattern": "allow().to receive",
           "target": "Aidp::Watch::Runner"
@@ -2722,42 +2714,42 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 297,
+          "line_num": 296,
           "line": "runner.instance_variable_set(:@running, false)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 300,
+          "line_num": 299,
           "line": "runner.instance_variable_set(:@running, false)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 302,
+          "line_num": 301,
           "line": "runner.instance_variable_set(:@running, true)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 312,
+          "line_num": 311,
           "line": "runner.instance_variable_set(:@running, false)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 317,
+          "line_num": 316,
           "line": "runner.instance_variable_set(:@running, false)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 319,
+          "line_num": 318,
           "line": "runner.instance_variable_set(:@running, true)",
           "pattern": "instance_variable manipulation"
         }
@@ -3285,27 +3277,6 @@
           "line": "allow(async_runner.state).to receive(:paused?).and_return(false)",
           "pattern": "allow().to receive",
           "target": "async_runner.state"
-        }
-      ]
-    },
-    {
-      "file": "spec/aidp/execute/prompt_manager_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::PromptOptimization::Optimizer",
-          "line_num": 200,
-          "line": "allow(Aidp::PromptOptimization::Optimizer).to receive(:new).and_return(mock_optimizer)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::PromptOptimization::Optimizer"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::PromptOptimization::Optimizer",
-          "line_num": 247,
-          "line": "allow(Aidp::PromptOptimization::Optimizer).to receive(:new).and_return(failing_optimizer)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::PromptOptimization::Optimizer"
         }
       ]
     },
@@ -4096,16 +4067,8 @@
       "violations": [
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Workflows::Selector",
-          "line_num": 12,
-          "line": "allow(Aidp::Workflows::Selector).to receive(:new).and_return(workflow_selector)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Workflows::Selector"
-        },
-        {
-          "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 181,
+          "line_num": 177,
           "line": "user_input = selector.instance_variable_get(:@user_input)",
           "pattern": "instance_variable manipulation"
         }
