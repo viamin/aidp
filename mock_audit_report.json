@@ -1,7 +1,7 @@
 {
   "total_files": 194,
-  "files_with_violations": 77,
-  "files_clean": 106,
+  "files_with_violations": 75,
+  "files_clean": 108,
   "files_need_review": 11,
   "violations_by_file": [
     {
@@ -433,86 +433,12 @@
       ]
     },
     {
-      "file": "spec/aidp/cli/first_run_wizard_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Setup::Wizard",
-          "line_num": 39,
-          "line": "expect(Aidp::Setup::Wizard).to receive(:new)",
-          "pattern": "expect().to receive",
-          "target": "Aidp::Setup::Wizard"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Setup::Wizard",
-          "line_num": 52,
-          "line": "expect(Aidp::Setup::Wizard).to receive(:new)",
-          "pattern": "expect().to receive",
-          "target": "Aidp::Setup::Wizard"
-        }
-      ]
-    },
-    {
-      "file": "spec/aidp/cli/mcp_dashboard_spec.rb",
-      "violations": [
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::Configuration",
-          "line_num": 23,
-          "line": "allow(Aidp::Harness::Configuration).to receive(:new).and_return(mock_config)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::Configuration"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderInfo",
-          "line_num": 44,
-          "line": "allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ProviderInfo"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderInfo",
-          "line_num": 102,
-          "line": "allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ProviderInfo"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ProviderInfo",
-          "line_num": 126,
-          "line": "allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ProviderInfo"
-        }
-      ]
-    },
-    {
       "file": "spec/aidp/cli/models_command_spec.rb",
       "violations": [
         {
           "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ModelRegistry",
-          "line_num": 17,
-          "line": "allow(Aidp::Harness::ModelRegistry).to receive(:new).and_return(mock_registry)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ModelRegistry"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Harness::ModelDiscoveryService",
-          "line_num": 18,
-          "line": "allow(Aidp::Harness::ModelDiscoveryService).to receive(:new).and_return(mock_discovery)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Harness::ModelDiscoveryService"
-        },
-        {
-          "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Config",
-          "line_num": 222,
+          "line_num": 220,
           "line": "allow(Aidp::Config).to receive(:config_exists?).with(temp_dir).and_return(true)",
           "pattern": "allow().to receive",
           "target": "Aidp::Config"
@@ -520,7 +446,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 225,
+          "line_num": 223,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "class_double",
           "target": "Aidp::Providers::Anthropic"
@@ -528,7 +454,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 225,
+          "line_num": 223,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "double",
           "target": "Aidp::Providers::Anthropic"
@@ -536,15 +462,15 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Config",
+          "line_num": 259,
+          "line": "allow(Aidp::Config).to receive(:config_exists?).with(temp_dir).and_return(true)",
+          "pattern": "allow().to receive",
+          "target": "Aidp::Config"
+        },
+        {
+          "type": "violation",
+          "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
           "line_num": 261,
-          "line": "allow(Aidp::Config).to receive(:config_exists?).with(temp_dir).and_return(true)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Config"
-        },
-        {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 263,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "class_double",
           "target": "Aidp::Providers::Anthropic"
@@ -552,7 +478,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 263,
+          "line_num": 261,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "double",
           "target": "Aidp::Providers::Anthropic"
@@ -560,7 +486,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Config",
-          "line_num": 282,
+          "line_num": 280,
           "line": "allow(Aidp::Config).to receive(:config_exists?).with(temp_dir).and_return(false)",
           "pattern": "allow().to receive",
           "target": "Aidp::Config"
@@ -568,7 +494,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Config",
-          "line_num": 295,
+          "line_num": 293,
           "line": "allow(Aidp::Config).to receive(:config_exists?).and_raise(StandardError.new(\"Validation error\"))",
           "pattern": "allow().to receive",
           "target": "Aidp::Config"
@@ -576,7 +502,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 367,
+          "line_num": 365,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "class_double",
           "target": "Aidp::Providers::Anthropic"
@@ -584,7 +510,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 367,
+          "line_num": 365,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "double",
           "target": "Aidp::Providers::Anthropic"
@@ -592,7 +518,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 380,
+          "line_num": 378,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "class_double",
           "target": "Aidp::Providers::Anthropic"
@@ -600,7 +526,7 @@
         {
           "type": "violation",
           "reason": "Mocking internal AIDP class: Aidp::Providers::Anthropic",
-          "line_num": 380,
+          "line_num": 378,
           "line": "provider_class = class_double(\"Aidp::Providers::Anthropic\")",
           "pattern": "double",
           "target": "Aidp::Providers::Anthropic"
