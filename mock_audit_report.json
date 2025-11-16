@@ -2850,17 +2850,9 @@
       "file": "spec/aidp/execute/interactive_repl_spec.rb",
       "violations": [
         {
-          "type": "violation",
-          "reason": "Mocking internal AIDP class: Aidp::Execute::AsyncWorkLoopRunner",
-          "line_num": 34,
-          "line": "allow(Aidp::Execute::AsyncWorkLoopRunner).to receive(:new).and_return(async_runner)",
-          "pattern": "allow().to receive",
-          "target": "Aidp::Execute::AsyncWorkLoopRunner"
-        },
-        {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: async_runner.state",
-          "line_num": 36,
+          "line_num": 40,
           "line": "allow(async_runner.state).to receive(:request_guard_update)",
           "pattern": "allow().to receive",
           "target": "async_runner.state"
@@ -2868,7 +2860,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: async_runner.state",
-          "line_num": 37,
+          "line_num": 41,
           "line": "allow(async_runner.state).to receive(:request_config_reload)",
           "pattern": "allow().to receive",
           "target": "async_runner.state"
@@ -2876,21 +2868,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 54,
+          "line_num": 58,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 71,
+          "line_num": 75,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: repl.instance_variable_get(:@repl_macros)",
-          "line_num": 73,
+          "line_num": 77,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/pause\").and_return(macro_result)",
           "pattern": "allow().to receive",
           "target": "repl.instance_variable_get(:@repl_macros)"
@@ -2898,21 +2890,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 73,
+          "line_num": 77,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/pause\").and_return(macro_result)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 80,
+          "line_num": 84,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: repl.instance_variable_get(:@repl_macros)",
-          "line_num": 82,
+          "line_num": 86,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/resume\").and_return(macro_result)",
           "pattern": "allow().to receive",
           "target": "repl.instance_variable_get(:@repl_macros)"
@@ -2920,21 +2912,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 82,
+          "line_num": 86,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/resume\").and_return(macro_result)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 89,
+          "line_num": 93,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: repl.instance_variable_get(:@repl_macros)",
-          "line_num": 91,
+          "line_num": 95,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/cancel\").and_return(macro_result)",
           "pattern": "allow().to receive",
           "target": "repl.instance_variable_get(:@repl_macros)"
@@ -2942,21 +2934,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 91,
+          "line_num": 95,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/cancel\").and_return(macro_result)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 98,
+          "line_num": 102,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: repl.instance_variable_get(:@repl_macros)",
-          "line_num": 100,
+          "line_num": 104,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/inject Do it\").and_return(macro_result)",
           "pattern": "allow().to receive",
           "target": "repl.instance_variable_get(:@repl_macros)"
@@ -2964,21 +2956,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 100,
+          "line_num": 104,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/inject Do it\").and_return(macro_result)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 106,
+          "line_num": 110,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: repl.instance_variable_get(:@repl_macros)",
-          "line_num": 108,
+          "line_num": 112,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/update guard max_tokens=1000\").and_return(macro_result)",
           "pattern": "allow().to receive",
           "target": "repl.instance_variable_get(:@repl_macros)"
@@ -2986,21 +2978,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 108,
+          "line_num": 112,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/update guard max_tokens=1000\").and_return(macro_result)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 115,
+          "line_num": 119,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: repl.instance_variable_get(:@repl_macros)",
-          "line_num": 117,
+          "line_num": 121,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/reload config\").and_return(macro_result)",
           "pattern": "allow().to receive",
           "target": "repl.instance_variable_get(:@repl_macros)"
@@ -3008,21 +3000,21 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 117,
+          "line_num": 121,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with(\"/reload config\").and_return(macro_result)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 146,
+          "line_num": 150,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: repl.instance_variable_get(:@repl_macros)",
-          "line_num": 148,
+          "line_num": 152,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).and_return(macro_result)",
           "pattern": "allow().to receive",
           "target": "repl.instance_variable_get(:@repl_macros)"
@@ -3030,42 +3022,42 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 148,
+          "line_num": 152,
           "line": "allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).and_return(macro_result)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 158,
+          "line_num": 162,
           "line": "expect(repl.instance_variable_get(:@prompt)).to eq(prompt)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 163,
+          "line_num": 167,
           "line": "expect(repl.instance_variable_get(:@prompt)).to eq(prompt)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 168,
+          "line_num": 172,
           "line": "expect(repl.instance_variable_get(:@repl_macros)).to be_a(Aidp::Execute::ReplMacros)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 206,
+          "line_num": 210,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: async_runner.state",
-          "line_num": 208,
+          "line_num": 212,
           "line": "allow(async_runner.state).to receive(:paused?).and_return(false)",
           "pattern": "allow().to receive",
           "target": "async_runner.state"
@@ -3073,14 +3065,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 217,
+          "line_num": 221,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: async_runner.state",
-          "line_num": 219,
+          "line_num": 223,
           "line": "allow(async_runner.state).to receive(:paused?).and_return(true)",
           "pattern": "allow().to receive",
           "target": "async_runner.state"
@@ -3088,35 +3080,35 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 230,
+          "line_num": 234,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 236,
+          "line_num": 240,
           "line": "expect(repl.instance_variable_get(:@running)).to be false",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 241,
+          "line_num": 245,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 251,
+          "line_num": 255,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Reline",
-          "line_num": 272,
+          "line_num": 276,
           "line": "allow(Reline).to receive(:readline).and_return(nil)",
           "pattern": "allow().to receive",
           "target": "Reline"
@@ -3124,7 +3116,7 @@
         {
           "type": "needs_review",
           "reason": "Mocking unknown class (might be internal): Reline",
-          "line_num": 280,
+          "line_num": 284,
           "line": "allow(Reline).to receive(:readline).and_raise(StandardError.new(\"Test error\"))",
           "pattern": "allow().to receive",
           "target": "Reline"
@@ -3132,77 +3124,77 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 297,
+          "line_num": 301,
           "line": "expect(repl.instance_variable_get(:@completion_setup_needed)).to be false",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 304,
+          "line_num": 308,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 312,
+          "line_num": 316,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 320,
+          "line_num": 324,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 347,
+          "line_num": 351,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 350,
+          "line_num": 354,
           "line": "thread = repl.instance_variable_get(:@output_display_thread)",
-          "pattern": "instance_variable manipulation"
-        },
-        {
-          "type": "violation",
-          "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 360,
-          "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
           "line_num": 364,
+          "line": "repl.instance_variable_set(:@async_runner, async_runner)",
+          "pattern": "instance_variable manipulation"
+        },
+        {
+          "type": "violation",
+          "reason": "Direct instance variable manipulation (code smell)",
+          "line_num": 368,
           "line": "thread = repl.instance_variable_get(:@output_display_thread)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 370,
+          "line_num": 374,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 380,
+          "line_num": 384,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: async_runner.state",
-          "line_num": 382,
+          "line_num": 386,
           "line": "allow(async_runner.state).to receive(:paused?).and_return(false)",
           "pattern": "allow().to receive",
           "target": "async_runner.state"
@@ -3210,14 +3202,14 @@
         {
           "type": "violation",
           "reason": "Direct instance variable manipulation (code smell)",
-          "line_num": 390,
+          "line_num": 394,
           "line": "repl.instance_variable_set(:@async_runner, async_runner)",
           "pattern": "instance_variable manipulation"
         },
         {
           "type": "needs_review",
           "reason": "Mocking method call or complex expression: async_runner.state",
-          "line_num": 392,
+          "line_num": 396,
           "line": "allow(async_runner.state).to receive(:paused?).and_return(false)",
           "pattern": "allow().to receive",
           "target": "async_runner.state"
