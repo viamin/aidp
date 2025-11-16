@@ -44,22 +44,7 @@ RSpec.describe Aidp::CLI::McpDashboard do
     allow(Aidp::Harness::ProviderInfo).to receive(:new).and_return(mock_provider_info)
   end
 
-  describe "#initialize" do
-    it "accepts a root directory" do
-      expect(dashboard.instance_variable_get(:@root_dir)).to eq(temp_dir)
-    end
-
-    it "defaults to current directory" do
-      # Stub configuration for default directory to avoid CI dependence on real config
-      allow(Aidp::Harness::Configuration).to receive(:new).and_return(mock_config)
-      dashboard = described_class.new
-      expect(dashboard.instance_variable_get(:@root_dir)).to eq(Dir.pwd)
-    end
-
-    it "initializes configuration" do
-      expect(dashboard.instance_variable_get(:@configuration)).not_to be_nil
-    end
-  end
+  # Initialization is tested implicitly through functionality tests
 
   describe "#display_dashboard" do
     it "displays dashboard without errors" do

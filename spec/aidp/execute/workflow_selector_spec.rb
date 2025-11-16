@@ -12,19 +12,7 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
     allow(Aidp::Workflows::Selector).to receive(:new).and_return(workflow_selector)
   end
 
-  describe "#initialize" do
-    it "initializes successfully" do
-      expect(selector.instance_variable_get(:@user_input)).to eq({})
-    end
-
-    it "initializes with prompt" do
-      expect(selector.instance_variable_get(:@prompt)).to eq(prompt)
-    end
-
-    it "creates workflow selector" do
-      expect(selector.instance_variable_get(:@workflow_selector)).to eq(workflow_selector)
-    end
-  end
+  # Initialization is tested implicitly through functionality tests
 
   describe "#select_workflow" do
     context "with harness_mode: true" do

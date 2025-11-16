@@ -12,10 +12,13 @@ RSpec.describe Aidp::CLI::JobsCommand do
   let(:file_manager) { double("FileManager") }
   let(:background_runner) { double("BackgroundRunner") }
   let(:jobs_command) do
-    described_class.new(input: input, output: output, prompt: test_prompt).tap do |cmd|
-      cmd.instance_variable_set(:@file_manager, file_manager)
-      cmd.instance_variable_set(:@background_runner, background_runner)
-    end
+    described_class.new(
+      input: input,
+      output: output,
+      prompt: test_prompt,
+      file_manager: file_manager,
+      background_runner: background_runner
+    )
   end
 
   after do
