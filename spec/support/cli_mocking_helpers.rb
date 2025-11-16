@@ -31,10 +31,6 @@ module CliMockingHelpers
       next_step: "00_PRD"
     })
 
-    # Mock other methods that might be called
-    target.to receive(:harness_status).and_return(nil)
-    target.to receive(:harness_reset).and_return(nil)
-
     # Return the mock instance for further customization
     cli_instance || mock_cli
   end

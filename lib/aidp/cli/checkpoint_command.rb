@@ -108,12 +108,12 @@ module Aidp
         display_message("Code Quality: #{metrics[:code_quality]}%", type: :info)
         display_message("PRD Task Progress: #{metrics[:prd_task_progress]}%", type: :info)
 
-        if metrics[:tests_passing]
+        if metrics.key?(:tests_passing)
           status = metrics[:tests_passing] ? "✓ Passing" : "✗ Failing"
           display_message("Tests: #{status}", type: :info)
         end
 
-        if metrics[:linters_passing]
+        if metrics.key?(:linters_passing)
           status = metrics[:linters_passing] ? "✓ Passing" : "✗ Failing"
           display_message("Linters: #{status}", type: :info)
         end
