@@ -6,7 +6,28 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
   let(:tmp_dir) { Dir.mktmpdir }
   let(:state_store) { Aidp::Watch::StateStore.new(project_dir: tmp_dir, repository: "owner/repo") }
   let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient) }
-  let(:processor) { described_class.new(repository_client: repository_client, state_store: state_store, project_dir: tmp_dir) }
+
+  # Create test double reviewers with default behavior
+  let(:senior_dev_reviewer) do
+    instance_double(Aidp::Watch::Reviewers::SeniorDevReviewer).tap do |reviewer|
+      allow(reviewer).to receive(:review).and_return({persona: "Senior Developer", findings: []})
+    end
+  end
+
+  let(:security_reviewer) do
+    instance_double(Aidp::Watch::Reviewers::SecurityReviewer).tap do |reviewer|
+      allow(reviewer).to receive(:review).and_return({persona: "Security Specialist", findings: []})
+    end
+  end
+
+  let(:performance_reviewer) do
+    instance_double(Aidp::Watch::Reviewers::PerformanceReviewer).tap do |reviewer|
+      allow(reviewer).to receive(:review).and_return({persona: "Performance Analyst", findings: []})
+    end
+  end
+
+  let(:reviewers) { [senior_dev_reviewer, security_reviewer, performance_reviewer] }
+  let(:processor) { described_class.new(repository_client: repository_client, state_store: state_store, project_dir: tmp_dir, reviewers: reviewers) }
   let(:pr) do
     {
       number: 123,
@@ -44,16 +65,7 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
 
-      # Mock reviewer responses
-      allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(
-        {persona: "Senior Developer", findings: []}
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(
-        {persona: "Security Specialist", findings: []}
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(
-        {persona: "Performance Analyst", findings: []}
-      )
+      # Reviewer test doubles already configured with default responses via let blocks
 
       expect(repository_client).to receive(:post_comment).with(123, /AIDP Code Review/)
 
@@ -69,16 +81,7 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       allow(repository_client).to receive(:fetch_pull_request_diff).with(123).and_return(diff)
       allow(repository_client).to receive(:post_comment)
 
-      # Mock reviewer responses
-      allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(
-        {persona: "Senior Developer", findings: []}
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(
-        {persona: "Security Specialist", findings: []}
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(
-        {persona: "Performance Analyst", findings: []}
-      )
+      # Reviewer test doubles already configured with default responses via let blocks
 
       expect(repository_client).to receive(:remove_labels).with(123, "aidp-review")
 
@@ -100,8 +103,8 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       allow(repository_client).to receive(:fetch_pull_request_diff).with(123).and_return(diff)
       allow(repository_client).to receive(:remove_labels)
 
-      # Mock findings with different severities
-      allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(
+      # Override senior dev reviewer to return findings with different severities
+      allow(senior_dev_reviewer).to receive(:review).and_return(
         {
           persona: "Senior Developer",
           findings: [
@@ -109,12 +112,6 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
             {"severity" => "minor", "category" => "Code Style", "message" => "Improve naming"}
           ]
         }
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(
-        {persona: "Security Specialist", findings: []}
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(
-        {persona: "Performance Analyst", findings: []}
       )
 
       expect(repository_client).to receive(:post_comment) do |_number, body|
@@ -134,16 +131,7 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:remove_labels)
 
-      # Mock reviewer responses
-      allow_any_instance_of(Aidp::Watch::Reviewers::SeniorDevReviewer).to receive(:review).and_return(
-        {persona: "Senior Developer", findings: []}
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::SecurityReviewer).to receive(:review).and_return(
-        {persona: "Security Specialist", findings: []}
-      )
-      allow_any_instance_of(Aidp::Watch::Reviewers::PerformanceReviewer).to receive(:review).and_return(
-        {persona: "Performance Analyst", findings: []}
-      )
+      # Reviewer test doubles already configured with default responses via let blocks
 
       processor.process(pr)
 
