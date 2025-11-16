@@ -58,8 +58,8 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
 
   let(:system_test_provider_factory) do
     instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
-      allow(factory).to receive(:create_provider).with("cursor").and_return(golden_path_cursor_provider)
-      allow(factory).to receive(:create_provider).with("claude").and_return(golden_path_claude_provider)
+      allow(factory).to receive(:create_provider).with("cursor", prompt: anything).and_return(golden_path_cursor_provider)
+      allow(factory).to receive(:create_provider).with("claude", prompt: anything).and_return(golden_path_claude_provider)
     end
   end
 
@@ -186,8 +186,8 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
     end
 
     recovery_provider_factory = instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
-      allow(factory).to receive(:create_provider).with("cursor").and_return(failing_then_recovering_cursor)
-      allow(factory).to receive(:create_provider).with("claude").and_return(successful_claude)
+      allow(factory).to receive(:create_provider).with("cursor", prompt: anything).and_return(failing_then_recovering_cursor)
+      allow(factory).to receive(:create_provider).with("claude", prompt: anything).and_return(successful_claude)
     end
 
     allow(Aidp::Harness::ProviderFactory).to receive(:new).with(system_test_config_manager).and_return(recovery_provider_factory)

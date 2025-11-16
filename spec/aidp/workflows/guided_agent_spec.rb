@@ -944,8 +944,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
     let(:mock_provider_factory) do
       instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
-        allow(factory).to receive(:create_provider).with("cursor").and_return(cursor_provider)
-        allow(factory).to receive(:create_provider).with("claude").and_return(claude_provider)
+        allow(factory).to receive(:create_provider).with("cursor", prompt: anything).and_return(cursor_provider)
+        allow(factory).to receive(:create_provider).with("claude", prompt: anything).and_return(claude_provider)
       end
     end
 
@@ -1001,8 +1001,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       end
 
       tracking_provider_factory = instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
-        allow(factory).to receive(:create_provider).with("cursor").and_return(tracking_cursor_provider)
-        allow(factory).to receive(:create_provider).with("claude").and_return(tracking_claude_provider)
+        allow(factory).to receive(:create_provider).with("cursor", prompt: anything).and_return(tracking_cursor_provider)
+        allow(factory).to receive(:create_provider).with("claude", prompt: anything).and_return(tracking_claude_provider)
       end
 
       allow(Aidp::Harness::ProviderFactory).to receive(:new).with(mock_config_manager).and_return(tracking_provider_factory)
@@ -1063,7 +1063,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
     let(:single_provider_factory) do
       instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
-        allow(factory).to receive(:create_provider).with("cursor").and_return(failing_cursor_provider)
+        allow(factory).to receive(:create_provider).with("cursor", prompt: anything).and_return(failing_cursor_provider)
       end
     end
 
@@ -1158,8 +1158,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
   let(:resource_exhaustion_provider_factory) do
     instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
-      allow(factory).to receive(:create_provider).with("cursor").and_return(exhausting_cursor_provider)
-      allow(factory).to receive(:create_provider).with("claude").and_return(recovery_claude_provider)
+      allow(factory).to receive(:create_provider).with("cursor", prompt: anything).and_return(exhausting_cursor_provider)
+      allow(factory).to receive(:create_provider).with("claude", prompt: anything).and_return(recovery_claude_provider)
     end
   end
 
@@ -1223,7 +1223,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
   let(:retry_failure_provider_factory) do
     instance_double(Aidp::Harness::ProviderFactory).tap do |factory|
-      allow(factory).to receive(:create_provider).with("cursor").and_return(always_failing_cursor_provider)
+      allow(factory).to receive(:create_provider).with("cursor", prompt: anything).and_return(always_failing_cursor_provider)
     end
   end
 
