@@ -936,7 +936,12 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
     let(:mock_provider_manager) do
       instance_double(Aidp::Harness::ProviderManager).tap do |manager|
-        allow(manager).to receive(:current_provider).and_return("cursor", "claude")
+        # current_provider is called multiple times:
+        # 1. In validate_provider_configuration!
+        # 2. In call_provider_for_analysis (first attempt with cursor)
+        # 3. After switch_provider_for_error
+        # 4. In call_provider_for_analysis (second attempt with claude)
+        allow(manager).to receive(:current_provider).and_return("cursor", "cursor", "claude", "claude")
         allow(manager).to receive(:configured_providers).and_return(["cursor", "claude"])
         allow(manager).to receive(:switch_provider_for_error).and_return("claude")
       end
