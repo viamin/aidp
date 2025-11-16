@@ -20,6 +20,7 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 ### Files Fixed: 22 Spec Files + 3 Production Files
 
 **Spec files (22):**
+
 1. ✅ `guided_agent_spec.rb` (12 allow_any_instance_of + other violations)
 2. ✅ `guided_workflow_golden_path_spec.rb` (4 allow_any_instance_of)
 3. ✅ `review_processor_spec.rb` (12 allow_any_instance_of)
@@ -44,6 +45,7 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 22. ✅ `cli_spec.rb` (various violations - partial)
 
 **Production files enhanced with DI (3):**
+
 1. ✅ `lib/aidp/workflows/guided_agent.rb` - Added `config_manager` and `provider_manager` parameters
 2. ✅ `lib/aidp/watch/review_processor.rb` - Added `reviewers` parameter
 3. ✅ `lib/aidp/cli/jobs_command.rb` - Added `file_manager` and `background_runner` parameters
@@ -78,6 +80,7 @@ end
 ### 3. Created Audit Infrastructure
 
 **Tools created:**
+
 - `scripts/audit_mocks.rb` - Comprehensive audit script (can be run anytime)
 - `mock_audit_report.json` - Detailed violation report
 - `docs/MOCK_AUDIT_STATUS.md` - Status document with fix patterns
@@ -212,7 +215,7 @@ end
 
 ## 📝 All Commits (17 total)
 
-```
+```text
 2378c5e Fix mock violations in guided_agent and system specs (12 mock parameter fixes)
 fab7af3 Update documentation with recent provider spec fixes
 d3075bf Fix instance_variable violations in base provider spec
@@ -236,7 +239,9 @@ fcd1772 WIP: Fix mock usage violations - Part 1
 While all **critical violations are fixed**, there are ~1,115 lower-priority violations remaining:
 
 ### Medium Priority (653 violations)
+
 **Internal class mocking** - Files mocking `Aidp::` classes with `allow().to receive`:
+
 - `cli_spec.rb` (200 violations)
 - `enhanced_runner_spec.rb` (111 violations)
 - `harness/runner_spec.rb` (70 violations)
@@ -246,7 +251,9 @@ While all **critical violations are fixed**, there are ~1,115 lower-priority vio
 **Recommended approach**: Continue adding dependency injection to production classes.
 
 ### Lower Priority (575 violations)
+
 **Instance variable manipulation** - Mostly in test setup:
+
 - `enhanced_runner_spec.rb` (101 violations)
 - `harness/runner_spec.rb` (70 violations)
 - Various other specs
@@ -257,6 +264,7 @@ While all **critical violations are fixed**, there are ~1,115 lower-priority vio
 ## 📚 Documentation
 
 **For contributors:**
+
 - See `docs/MOCK_AUDIT_STATUS.md` for complete status and fix patterns
 - See `docs/LLM_STYLE_GUIDE.md` lines 87-120 for testing principles
 - Run `ruby scripts/audit_mocks.rb` to check for violations
@@ -283,6 +291,7 @@ While all **critical violations are fixed**, there are ~1,115 lower-priority vio
 **Issue #295 high-priority work is COMPLETE!**
 
 All critical `allow_any_instance_of` anti-patterns have been eliminated. The codebase now has:
+
 - ✅ Zero allow_any_instance_of violations
 - ✅ Established dependency injection patterns
 - ✅ Comprehensive audit tooling

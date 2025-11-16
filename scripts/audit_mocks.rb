@@ -93,7 +93,7 @@ class MockAuditor
       end
 
       # Check for stubbing instance variables (code smell)
-      if line =~ /instance_variable_set|instance_variable_get/
+      if /instance_variable_set|instance_variable_get/.match?(line)
         violations_in_file << {
           type: "violation",
           reason: "Direct instance variable manipulation (code smell)",
@@ -157,7 +157,7 @@ class MockAuditor
     end
 
     # Check if it's a local variable (these might be doubles, which could be OK)
-    if target =~ /^[a-z_]/
+    if /^[a-z_]/.match?(target)
       # Could be a method call or local variable - needs context
       # If it's a simple variable name, it's likely a double which is OK
       return nil if target =~ /^[a-z_]+$/ && !target.include?(".")
@@ -181,12 +181,12 @@ class MockAuditor
     end
 
     # Check for Ruby standard library (generally OK to mock)
-    if target =~ /^(String|Array|Hash|Integer|Float|Symbol|Regexp|Range|Struct|OpenStruct|Set|Matrix|Vector)($|::)/
+    if /^(String|Array|Hash|Integer|Float|Symbol|Regexp|Range|Struct|OpenStruct|Set|Matrix|Vector)($|::)/.match?(target)
       return nil # Ruby stdlib is OK
     end
 
     # Unknown class - might be internal
-    if target =~ /^[A-Z]/
+    if /^[A-Z]/.match?(target)
       return {
         type: "needs_review",
         reason: "Mocking unknown class (might be internal): #{target}",

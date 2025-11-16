@@ -55,7 +55,7 @@ The comprehensive audit found widespread violation of the LLM_STYLE_GUIDE princi
 
 ### Additional Work
 
-3. **guided_agent.rb** - Added dependency injection for `config_manager` and `provider_manager`
+1. **guided_agent.rb** - Added dependency injection for `config_manager` and `provider_manager`
 
 ## Fix Patterns Demonstrated
 
@@ -142,9 +142,10 @@ let(:agent) { described_class.new(..., config_manager: mock_config_manager) }
 
 ## Completed Work
 
-### ✅ High Priority: All 31 `allow_any_instance_of` violations FIXED!
+### ✅ High Priority: All 31 `allow_any_instance_of` violations FIXED
 
 **Files fixed:**
+
 1. ✅ `spec/aidp/workflows/guided_agent_spec.rb` (12 violations) - Added DI to GuidedAgent
 2. ✅ `spec/system/guided_workflow_golden_path_spec.rb` (4 violations) - Used DI in system tests
 3. ✅ `spec/aidp/watch/review_processor_spec.rb` (12 violations) - Added reviewers DI to ReviewProcessor
@@ -152,6 +153,7 @@ let(:agent) { described_class.new(..., config_manager: mock_config_manager) }
 5. ✅ `spec/aidp/init/runner_spec.rb` (2 violations) - Scoped system() mocking to runner instance
 
 **Production files enhanced with DI:**
+
 1. `lib/aidp/workflows/guided_agent.rb` - Added config_manager and provider_manager parameters
 2. `lib/aidp/watch/review_processor.rb` - Added reviewers parameter
 3. `lib/aidp/cli/jobs_command.rb` - Added file_manager and background_runner parameters
@@ -163,12 +165,14 @@ let(:agent) { described_class.new(..., config_manager: mock_config_manager) }
 **Internal class mocking** - Files mocking `Aidp::` classes with `allow().to receive`:
 
 Major files to address:
+
 - `cli_spec.rb` (massive, 200 violations)
 - `enhanced_runner_spec.rb` (111 violations)
 - `harness/runner_spec.rb` (70 violations)
 - Provider specs (anthropic, gemini, etc.) - These mock `Aidp::Util`, `described_class`
 
 **Recommended approach**:
+
 1. Add dependency injection to production classes
 2. Replace `allow(Aidp::SomeClass).to receive(...)` with proper test doubles
 3. For external dependencies like `Aidp::Util.which`, add abstraction layer
@@ -178,12 +182,14 @@ Major files to address:
 **`instance_variable` manipulation** - Mostly in test setup:
 
 Files with many violations:
+
 - `enhanced_runner_spec.rb` (101 violations)
 - `harness/runner_spec.rb` (70 violations)
 - `status_display_spec.rb` (58 violations)
 - `wizard_spec.rb` (45 violations)
 
 **Recommended approach**:
+
 1. Remove simple initialization tests (as demonstrated)
 2. For setup code using `instance_variable_set`, refactor to use public methods or DI
 3. For state verification using `instance_variable_get`, add readers or test public behavior
@@ -199,12 +205,14 @@ ruby scripts/audit_mocks.rb
 ```
 
 Generates:
+
 - Console report with detailed violations
 - `mock_audit_report.json` with full details
 
 ### Allowed Mocks
 
 The audit script recognizes these as legitimate external dependencies:
+
 - TTY::* (user input/output)
 - Net::HTTP, Faraday, etc. (network)
 - File, Dir, FileUtils (filesystem when testing file handling)
@@ -243,7 +251,7 @@ The audit script recognizes these as legitimate external dependencies:
 
 ## References
 
-- **Issue**: https://github.com/viamin/aidp/issues/295
+- **Issue**: <https://github.com/viamin/aidp/issues/295>
 - **Style Guide**: `docs/LLM_STYLE_GUIDE.md` (lines 87-120 for testing rules)
 - **Audit Report**: `mock_audit_report.json`
 - **Branch**: `claude/implement-issue-295-012hefuYSYi4xYRtqGkZJJXJ`
