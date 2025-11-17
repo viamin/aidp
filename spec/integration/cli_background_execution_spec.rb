@@ -118,4 +118,52 @@ RSpec.describe "CLI Background Execution Integration", type: :integration do
       expect(Aidp::CLI).to have_received(:display_message).with(/Starting analyze mode in background/, type: :info)
     end
   end
+
+  describe "execute --no-harness" do
+    it "displays available steps instead of running harness" do
+      Aidp::CLI.send(:run_execute_command, ["--no-harness"], mode: :execute)
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Available execute steps/, type: :info)
+    end
+  end
+
+  describe "analyze --no-harness" do
+    it "displays available steps instead of running harness" do
+      Aidp::CLI.send(:run_execute_command, ["--no-harness"], mode: :analyze)
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Available analyze steps/, type: :info)
+    end
+  end
+
+  describe "execute with specific step" do
+    it "announces running specific step" do
+      Aidp::CLI.send(:run_execute_command, ["00_PRD_TEST"], mode: :execute)
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Running execute step '00_PRD_TEST'/, type: :highlight)
+    end
+  end
+
+  describe "analyze with specific step" do
+    it "announces running specific step" do
+      Aidp::CLI.send(:run_execute_command, ["00_ANALYSIS_TEST"], mode: :analyze)
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Running analyze step '00_ANALYSIS_TEST'/, type: :highlight)
+    end
+  end
+
+  describe "execute --reset" do
+    it "displays reset message" do
+      Aidp::CLI.send(:run_execute_command, ["--reset"], mode: :execute)
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Reset execute mode progress/, type: :info)
+    end
+  end
+
+  describe "analyze --reset" do
+    it "displays reset message" do
+      Aidp::CLI.send(:run_execute_command, ["--reset"], mode: :analyze)
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Reset analyze mode progress/, type: :info)
+    end
+  end
 end

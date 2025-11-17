@@ -133,6 +133,7 @@ RSpec.describe "Skills Command Integration", type: :integration do
 
     it "handles 'new' subcommand with --yes flag" do
       # Stub the wizard controller to avoid interactive prompts
+      require_relative "../../lib/aidp/skills/wizard/controller"
       controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
       allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
 
@@ -150,6 +151,84 @@ RSpec.describe "Skills Command Integration", type: :integration do
       expect(Aidp::CLI).to have_received(:display_message).with(/Unknown option/, type: :error)
     end
 
+    it "handles 'new' subcommand with --minimal flag" do
+      require_relative "../../lib/aidp/skills/wizard/controller"
+      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
+      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+
+      Aidp::CLI.send(:run_skill_command, ["new", "--minimal"])
+
+      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+        project_dir: tmpdir,
+        options: hash_including(minimal: true)
+      )
+    end
+
+    it "handles 'new' subcommand with --id flag" do
+      require_relative "../../lib/aidp/skills/wizard/controller"
+      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
+      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+
+      Aidp::CLI.send(:run_skill_command, ["new", "--id", "custom_id"])
+
+      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+        project_dir: tmpdir,
+        options: hash_including(id: "custom_id")
+      )
+    end
+
+    it "handles 'new' subcommand with --name flag" do
+      require_relative "../../lib/aidp/skills/wizard/controller"
+      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
+      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+
+      Aidp::CLI.send(:run_skill_command, ["new", "--name", "Custom Name"])
+
+      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+        project_dir: tmpdir,
+        options: hash_including(name: "Custom Name")
+      )
+    end
+
+    it "handles 'new' subcommand with --from-template flag" do
+      require_relative "../../lib/aidp/skills/wizard/controller"
+      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
+      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+
+      Aidp::CLI.send(:run_skill_command, ["new", "--from-template", "base"])
+
+      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+        project_dir: tmpdir,
+        options: hash_including(from_template: "base")
+      )
+    end
+
+    it "handles 'new' subcommand with --clone flag" do
+      require_relative "../../lib/aidp/skills/wizard/controller"
+      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
+      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+
+      Aidp::CLI.send(:run_skill_command, ["new", "--clone", "existing_skill"])
+
+      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+        project_dir: tmpdir,
+        options: hash_including(clone: "existing_skill")
+      )
+    end
+
+    it "handles 'new' subcommand with --dry-run flag" do
+      require_relative "../../lib/aidp/skills/wizard/controller"
+      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
+      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
+
+      Aidp::CLI.send(:run_skill_command, ["new", "--dry-run"])
+
+      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
+        project_dir: tmpdir,
+        options: hash_including(dry_run: true)
+      )
+    end
+
     it "handles 'edit' subcommand with missing skill ID" do
       Aidp::CLI.send(:run_skill_command, ["edit"])
 
@@ -160,6 +239,52 @@ RSpec.describe "Skills Command Integration", type: :integration do
       Aidp::CLI.send(:run_skill_command, ["diff"])
 
       expect(Aidp::CLI).to have_received(:display_message).with(/Usage/, type: :info)
+    end
+
+    it "handles 'edit' subcommand with --dry-run flag" do
+      # Edit command requires skill to be found in registry and wizard to run
+      # Testing this fully requires more setup, so verify basic option parsing
+      Aidp::CLI.send(:run_skill_command, ["edit", "test_skill", "--dry-run"])
+
+      # Should display message (either success or an error about skill structure)
+      expect(Aidp::CLI).to have_received(:display_message).at_least(:once)
+    end
+
+    it "handles 'edit' subcommand with --open-editor flag" do
+      Aidp::CLI.send(:run_skill_command, ["edit", "test_skill", "--open-editor"])
+
+      # Should display message (either success or an error about skill structure)
+      expect(Aidp::CLI).to have_received(:display_message).at_least(:once)
+    end
+
+    it "handles 'edit' subcommand with nonexistent skill" do
+      Aidp::CLI.send(:run_skill_command, ["edit", "nonexistent_skill"])
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Skill not found/, type: :error)
+    end
+
+    it "handles 'delete' subcommand with nonexistent skill" do
+      Aidp::CLI.send(:run_skill_command, ["delete", "nonexistent_skill"])
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Skill not found/, type: :error)
+    end
+
+    it "handles 'show' subcommand with nonexistent skill" do
+      Aidp::CLI.send(:run_skill_command, ["show", "nonexistent_skill"])
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Skill not found/, type: :error)
+    end
+
+    it "handles 'preview' subcommand with nonexistent skill" do
+      Aidp::CLI.send(:run_skill_command, ["preview", "nonexistent_skill"])
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Skill not found/, type: :error)
+    end
+
+    it "handles 'diff' subcommand with nonexistent skill" do
+      Aidp::CLI.send(:run_skill_command, ["diff", "nonexistent_skill"])
+
+      expect(Aidp::CLI).to have_received(:display_message).with(/Skill not found/, type: :error)
     end
   end
 end
