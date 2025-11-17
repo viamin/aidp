@@ -44,6 +44,207 @@ RSpec.describe Aidp::CLI do
       # Test that display_message is available as a class method
       expect { described_class.display_message("Test message") }.not_to raise_error
     end
+
+    describe "logging setup" do
+      let(:test_project_dir) { temp_dir }
+
+      before do
+        # Change to temp directory for tests
+        @original_pwd = Dir.pwd
+        Dir.chdir(test_project_dir)
+        FileUtils.mkdir_p(File.join(test_project_dir, ".aidp"))
+
+        # Stub all the TUI components to avoid interactive flow
+        allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
+
+        tui_double = double("EnhancedTUI", start_display_loop: nil, stop_display_loop: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+        allow(workflow_selector_double).to receive(:select_workflow).and_return({mode: :execute, steps: []})
+
+        runner_double = double("EnhancedRunner", run: {status: "completed"})
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(runner_double)
+      end
+
+      after do
+        Dir.chdir(@original_pwd)
+      end
+
+      it "sets up logging from aidp.yml config when file exists" do
+        config_path = File.join(test_project_dir, ".aidp", "aidp.yml")
+        File.write(config_path, {"logging" => {"level" => "debug"}}.to_yaml)
+
+        expect(Aidp).to receive(:setup_logger).with(test_project_dir, {"level" => "debug"})
+        allow(Aidp.logger).to receive(:info)
+
+        # Pass empty args (no subcommand) to trigger main flow
+        described_class.run([])
+      end
+
+      it "handles missing aidp.yml gracefully" do
+        # No config file exists
+        expect(Aidp).to receive(:setup_logger).with(test_project_dir, {})
+        allow(Aidp.logger).to receive(:info)
+
+        described_class.run([])
+      end
+
+      it "handles logging setup errors and falls back to default config" do
+        config_path = File.join(test_project_dir, ".aidp", "aidp.yml")
+        File.write(config_path, "invalid: yaml: content:")
+
+        # YAML parse error happens before setup_logger is called
+        # So it only gets called once in the rescue block with empty config
+        expect(Aidp).to receive(:setup_logger).once.with(test_project_dir, {})
+        allow(Aidp.logger).to receive(:warn)
+        allow(described_class).to receive(:log_rescue)
+
+        described_class.run([])
+      end
+    end
+
+    describe "--setup-config flag" do
+      let(:test_project_dir) { temp_dir }
+
+      before do
+        @original_pwd = Dir.pwd
+        Dir.chdir(test_project_dir)
+        FileUtils.mkdir_p(File.join(test_project_dir, ".aidp"))
+
+        # Stub dependencies to avoid interactive flow
+        allow(Aidp).to receive(:setup_logger)
+        allow(Aidp.logger).to receive(:info)
+        allow(Aidp.logger).to receive(:warn)
+      end
+
+      after do
+        Dir.chdir(@original_pwd)
+      end
+
+      it "runs first run wizard when --setup-config flag is provided" do
+        # Stub wizard to return success
+        allow(Aidp::CLI::FirstRunWizard).to receive(:setup_config).and_return(true)
+
+        # Stub TUI components to avoid hanging
+        tui_double = double("EnhancedTUI", start_display_loop: nil, stop_display_loop: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+        allow(workflow_selector_double).to receive(:select_workflow).and_return({mode: :execute, steps: []})
+
+        runner_double = double("EnhancedRunner", run: {status: "completed"})
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(runner_double)
+
+        expect(Aidp::CLI::FirstRunWizard).to receive(:setup_config)
+
+        described_class.run(["--setup-config"])
+      end
+
+      it "returns 1 when setup wizard is cancelled" do
+        # Stub wizard to return false (cancelled)
+        allow(Aidp::CLI::FirstRunWizard).to receive(:setup_config).and_return(false)
+
+        result = described_class.run(["--setup-config"])
+
+        expect(result).to eq(1)
+      end
+
+      it "ensures config exists before starting TUI when flag not provided" do
+        # Stub ensure_config to return success
+        allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
+
+        # Stub TUI components
+        tui_double = double("EnhancedTUI", start_display_loop: nil, stop_display_loop: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+        allow(workflow_selector_double).to receive(:select_workflow).and_return({mode: :execute, steps: []})
+
+        runner_double = double("EnhancedRunner", run: {status: "completed"})
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(runner_double)
+
+        expect(Aidp::CLI::FirstRunWizard).to receive(:ensure_config)
+
+        described_class.run([])
+      end
+
+      it "returns 1 when ensure_config fails" do
+        # Stub ensure_config to return false
+        allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(false)
+
+        result = described_class.run([])
+
+        expect(result).to eq(1)
+      end
+    end
+
+    describe "error handling" do
+      let(:test_project_dir) { temp_dir }
+
+      before do
+        @original_pwd = Dir.pwd
+        Dir.chdir(test_project_dir)
+        FileUtils.mkdir_p(File.join(test_project_dir, ".aidp"))
+
+        # Stub dependencies
+        allow(Aidp).to receive(:setup_logger)
+        allow(Aidp.logger).to receive(:info)
+        allow(Aidp.logger).to receive(:warn)
+        allow(Aidp::CLI::FirstRunWizard).to receive(:ensure_config).and_return(true)
+      end
+
+      after do
+        Dir.chdir(@original_pwd)
+      end
+
+      it "handles Interrupt (Ctrl+C) and returns 1" do
+        tui_double = double("EnhancedTUI", start_display_loop: nil, stop_display_loop: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+        allow(workflow_selector_double).to receive(:select_workflow).and_raise(Interrupt)
+
+        result = described_class.run([])
+
+        expect(result).to eq(1)
+      end
+
+      it "handles general errors and returns 1" do
+        tui_double = double("EnhancedTUI", start_display_loop: nil, stop_display_loop: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+        allow(workflow_selector_double).to receive(:select_workflow).and_raise(StandardError.new("test error"))
+
+        # Stub log_rescue to avoid actual logging
+        allow(described_class).to receive(:log_rescue)
+
+        result = described_class.run([])
+
+        expect(result).to eq(1)
+      end
+
+      it "stops TUI display loop in ensure block even when error occurs" do
+        tui_double = double("EnhancedTUI", start_display_loop: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+        allow(workflow_selector_double).to receive(:select_workflow).and_raise(StandardError.new("test error"))
+
+        allow(described_class).to receive(:log_rescue)
+
+        expect(tui_double).to receive(:stop_display_loop)
+
+        described_class.run([])
+      end
+    end
   end
 
   describe ".subcommand?" do
