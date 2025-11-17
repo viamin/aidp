@@ -5,13 +5,13 @@ require_relative "../support/test_prompt"
 
 RSpec.describe "JobsCommand Integration", type: :integration do
   let(:test_prompt) { TestPrompt.new }
-  let(:jobs_command) { Aidp::CLI::JobsCommand.new(prompt: test_prompt) }
+  let(:background_runner) { instance_double(Aidp::Jobs::BackgroundRunner) }
+  # Use dependency injection instead of global mocking
+  let(:jobs_command) { Aidp::CLI::JobsCommand.new(prompt: test_prompt, background_runner: background_runner) }
 
   describe "#run" do
     it "displays background jobs using TTY::Prompt instead of puts" do
       # Mock empty jobs to test the display functionality
-      background_runner = instance_double(Aidp::Jobs::BackgroundRunner)
-      allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(background_runner)
       allow(background_runner).to receive(:list_jobs).and_return([])
 
       jobs_command.run
@@ -24,8 +24,6 @@ RSpec.describe "JobsCommand Integration", type: :integration do
 
     it "uses display_message instead of puts for output" do
       # Mock empty jobs
-      background_runner = instance_double(Aidp::Jobs::BackgroundRunner)
-      allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(background_runner)
       allow(background_runner).to receive(:list_jobs).and_return([])
 
       jobs_command.run
