@@ -166,7 +166,10 @@ RSpec.describe Aidp::Analyze::ErrorHandler do
       it "retries when context is retryable" do
         timeout_error = Net::TimeoutError.new("timeout")
         call_count = 0
-        operation = -> { call_count += 1; "success" }
+        operation = -> {
+          call_count += 1
+          "success"
+        }
         context = {retryable: true, operation: operation}
 
         result = error_handler.send(:handle_timeout_error, timeout_error, context)
