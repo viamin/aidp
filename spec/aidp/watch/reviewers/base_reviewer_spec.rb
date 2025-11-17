@@ -272,7 +272,7 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
 
       expect(Aidp::ProviderManager).to have_received(:get_provider).with(
         String,
-        use_harness: false
+        
       )
     end
 
@@ -283,7 +283,7 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
 
       expect(Aidp::ProviderManager).to have_received(:get_provider).with(
         "openai",
-        use_harness: false
+        
       )
     end
 

@@ -125,7 +125,7 @@ RSpec.describe Aidp::Watch::Reviewers::SeniorDevReviewer do
 
       expect(Aidp::ProviderManager).to have_received(:get_provider).with(
         String,
-        use_harness: false
+        
       )
     end
 

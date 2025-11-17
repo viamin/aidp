@@ -43,16 +43,6 @@ module Aidp
           setup_signal_handlers
         end
 
-        # Simple display initialization - no background threads
-        def start_display_loop
-          # Display loop is now just a no-op for compatibility
-        end
-
-        def stop_display_loop
-          # Simple cleanup - no background threads to stop
-          restore_screen
-        end
-
         # Input methods using TTY::Prompt only - no background threads
         def get_user_input(prompt = "💬 You: ")
           @prompt.ask(prompt)
@@ -292,12 +282,12 @@ module Aidp
 
         def setup_signal_handlers
           Signal.trap("INT") do
-            stop_display_loop
+            restore_screen
             exit(1)
           end
 
           Signal.trap("TERM") do
-            stop_display_loop
+            restore_screen
             exit(0)
           end
         end

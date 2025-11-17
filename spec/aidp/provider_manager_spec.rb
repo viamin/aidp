@@ -10,38 +10,38 @@ RSpec.describe Aidp::ProviderManager do
 
   describe ".get_provider" do
     it "returns a provider instance" do
-      provider = described_class.get_provider("cursor", use_harness: false)
+      provider = described_class.get_provider("cursor", )
       expect(provider).to be_a(Aidp::Providers::Cursor)
     end
 
     it "supports anthropic provider" do
-      provider = described_class.get_provider("anthropic", use_harness: false)
+      provider = described_class.get_provider("anthropic", )
       expect(provider).to be_a(Aidp::Providers::Anthropic)
     end
 
     it "supports claude alias" do
-      provider = described_class.get_provider("claude", use_harness: false)
+      provider = described_class.get_provider("claude", )
       expect(provider).to be_a(Aidp::Providers::Anthropic)
     end
 
     it "supports gemini provider" do
-      provider = described_class.get_provider("gemini", use_harness: false)
+      provider = described_class.get_provider("gemini", )
       expect(provider).to be_a(Aidp::Providers::Gemini)
     end
 
     it "supports github_copilot provider" do
-      provider = described_class.get_provider("github_copilot", use_harness: false)
+      provider = described_class.get_provider("github_copilot", )
       expect(provider).to be_a(Aidp::Providers::GithubCopilot)
     end
 
     it "supports codex provider" do
-      provider = described_class.get_provider("codex", use_harness: false)
+      provider = described_class.get_provider("codex", )
       expect(provider).to be_a(Aidp::Providers::Codex)
     end
 
     it "accepts custom prompt" do
       prompt = double("prompt")
-      provider = described_class.get_provider("cursor", prompt: prompt, use_harness: false)
+      provider = described_class.get_provider("cursor", prompt: prompt, )
       expect(provider).to be_a(Aidp::Providers::Cursor)
     end
 
@@ -57,7 +57,7 @@ RSpec.describe Aidp::ProviderManager do
     end
 
     it "falls back to legacy when harness disabled" do
-      provider = described_class.get_provider("cursor", use_harness: false)
+      provider = described_class.get_provider("cursor", )
       expect(provider).to be_a(Aidp::Providers::Cursor)
     end
   end
@@ -65,20 +65,20 @@ RSpec.describe Aidp::ProviderManager do
   describe ".load_from_config" do
     it "loads provider from config hash" do
       config = {"provider" => "anthropic"}
-      provider = described_class.load_from_config(config, use_harness: false)
+      provider = described_class.load_from_config(config, )
       expect(provider).to be_a(Aidp::Providers::Anthropic)
     end
 
     it "defaults to cursor when no provider specified" do
       config = {}
-      provider = described_class.load_from_config(config, use_harness: false)
+      provider = described_class.load_from_config(config, )
       expect(provider).to be_a(Aidp::Providers::Cursor)
     end
 
     it "passes options through" do
       config = {"provider" => "cursor"}
       prompt = double("prompt")
-      provider = described_class.load_from_config(config, prompt: prompt, use_harness: false)
+      provider = described_class.load_from_config(config, prompt: prompt, )
       expect(provider).to be_a(Aidp::Providers::Cursor)
     end
   end

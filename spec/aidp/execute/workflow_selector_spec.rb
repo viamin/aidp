@@ -26,7 +26,7 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
       end
     end
 
-    context "with use_new_selector: true (default)" do
+    context "with interactive mode (default)" do
       it "uses new workflow selector" do
         allow(selector).to receive(:collect_project_info)
         allow(workflow_selector).to receive(:select_workflow).and_return({
@@ -35,7 +35,7 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
           workflow: {}
         })
 
-        config = selector.select_workflow(use_new_selector: true, mode: :execute)
+        config = selector.select_workflow(mode: :execute)
 
         expect(workflow_selector).to have_received(:select_workflow).with(:execute)
         expect(config[:workflow_type]).to eq(:exploration)
@@ -50,30 +50,9 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
           workflow: {}
         })
 
-        selector.select_workflow(use_new_selector: true)
+        selector.select_workflow
 
         expect(workflow_selector).to have_received(:select_workflow).with(:execute)
-      end
-    end
-
-    context "with legacy workflow selector (use_new_selector: false)" do
-      before do
-        # Mock all interactive methods to avoid actual user interaction
-        allow(selector).to receive(:collect_project_info)
-        allow(selector).to receive(:choose_workflow_type).and_return(:exploration)
-        allow(selector).to receive(:generate_workflow_steps).and_return(["00_PRD", "IMPLEMENTATION"])
-        allow(selector).to receive(:display_message)
-      end
-
-      it "calls interactive workflow selection methods" do
-        config = selector.select_workflow(use_new_selector: false)
-
-        expect(selector).to have_received(:collect_project_info)
-        expect(selector).to have_received(:choose_workflow_type)
-        expect(selector).to have_received(:generate_workflow_steps).with(:exploration)
-
-        expect(config[:workflow_type]).to eq(:exploration)
-        expect(config[:steps]).to eq(["00_PRD", "IMPLEMENTATION"])
       end
     end
   end

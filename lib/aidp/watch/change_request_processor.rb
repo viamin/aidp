@@ -143,7 +143,7 @@ module Aidp
 
       def analyze_change_requests(pr_data:, comments:, diff:)
         provider_name = @provider_name || detect_default_provider
-        provider = Aidp::ProviderManager.get_provider(provider_name, use_harness: false)
+        provider = Aidp::ProviderManager.get_provider(provider_name, )
 
         user_prompt = build_analysis_prompt(pr_data: pr_data, comments: comments, diff: diff)
         full_prompt = "#{change_request_system_prompt}\n\n#{user_prompt}"

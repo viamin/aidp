@@ -7,15 +7,10 @@ module Aidp
   class ProviderManager
     class << self
       def get_provider(provider_type, options = {})
-        # Use harness factory if available
-        if options[:use_harness] != false
-          factory = get_harness_factory
-          return factory.create_provider(provider_type, options) if factory
-        end
+        factory = get_harness_factory
+        raise "Harness factory not available" unless factory
 
-        # Fallback to legacy method
-        prompt = options[:prompt] || TTY::Prompt.new
-        create_legacy_provider(provider_type, prompt: prompt)
+        factory.create_provider(provider_type, options)
       end
 
       def load_from_config(config = {}, options = {})
@@ -130,25 +125,6 @@ module Aidp
       # Reload configuration
       def reload_config
         @harness_factory&.reload_config
-      end
-
-      private
-
-      def create_legacy_provider(provider_type, prompt: TTY::Prompt.new)
-        case provider_type
-        when "cursor"
-          Aidp::Providers::Cursor.new(prompt: prompt)
-        when "anthropic", "claude"
-          Aidp::Providers::Anthropic.new(prompt: prompt)
-        when "gemini"
-          Aidp::Providers::Gemini.new(prompt: prompt)
-        when "kilocode"
-          Aidp::Providers::Kilocode.new(prompt: prompt)
-        when "github_copilot"
-          Aidp::Providers::GithubCopilot.new(prompt: prompt)
-        when "codex"
-          Aidp::Providers::Codex.new(prompt: prompt)
-        end
       end
     end
   end

@@ -43,7 +43,7 @@ module Aidp
         def provider
           @provider ||= begin
             provider_name = @provider_name || detect_default_provider
-            Aidp::ProviderManager.get_provider(provider_name, use_harness: false)
+            Aidp::ProviderManager.get_provider(provider_name, )
           end
         end
 
