@@ -9,7 +9,8 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
   let(:config) do
     instance_double(Aidp::Harness::Configuration,
       default_tier: "mini",
-      max_tier: "max")
+      max_tier: "max",
+      default_provider: "anthropic")
   end
 
   let(:provider_factory) { instance_double(Aidp::Harness::ProviderFactory) }
