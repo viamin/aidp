@@ -80,7 +80,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout release PR branch
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           ref: ${{ needs.release-please.outputs.pr-head-branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -200,7 +200,7 @@ jobs:
 
     steps:
       # Set up
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           persist-credentials: false
       - name: Set up Ruby
