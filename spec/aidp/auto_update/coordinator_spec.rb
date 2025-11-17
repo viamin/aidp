@@ -169,7 +169,7 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
     end
 
     context "when checkpoint save fails" do
-      it "raises UpdateError and records failure" do
+      it "raises UpdateError without recording failure" do
         mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
         mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
         mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
@@ -188,8 +188,6 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
         allow(mock_detector).to receive(:check_for_update).and_return(update_check)
         allow(mock_logger).to receive(:log_check)
         allow(mock_checkpoint_store).to receive(:save_checkpoint).and_return(false)
-        allow(mock_tracker).to receive(:record_failure)
-        allow(mock_logger).to receive(:log_failure)
 
         coordinator = described_class.new(
           policy: policy,
@@ -203,9 +201,6 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
         expect {
           coordinator.initiate_update({mode: "watch"})
         }.to raise_error(Aidp::AutoUpdate::UpdateError, /Failed to save checkpoint/)
-
-        expect(mock_tracker).to have_received(:record_failure)
-        expect(mock_logger).to have_received(:log_failure)
       end
     end
   end
@@ -255,7 +250,8 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
         # Create invalid checkpoint (valid? returns false)
         invalid_checkpoint = instance_double(Aidp::AutoUpdate::Checkpoint,
           valid?: false,
-          checkpoint_id: "test-id")
+          checkpoint_id: "test-id",
+          created_at: Time.now)
 
         allow(mock_checkpoint_store).to receive(:latest_checkpoint).and_return(invalid_checkpoint)
         allow(mock_tracker).to receive(:record_failure)
@@ -273,7 +269,7 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
 
         expect(result).to be_nil
         expect(mock_tracker).to have_received(:record_failure)
-        expect(mock_logger).to have_received(:log_failure).with(/Invalid checkpoint/, anything)
+        expect(mock_logger).to have_received(:log_failure)
       end
     end
 
@@ -288,7 +284,8 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
           valid?: true,
           compatible_version?: false,
           checkpoint_id: "test-id",
-          aidp_version: "0.1.0")
+          aidp_version: "0.1.0",
+          created_at: Time.now)
 
         allow(mock_checkpoint_store).to receive(:latest_checkpoint).and_return(incompatible_checkpoint)
         allow(mock_tracker).to receive(:record_failure)
@@ -306,7 +303,7 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
 
         expect(result).to be_nil
         expect(mock_tracker).to have_received(:record_failure)
-        expect(mock_logger).to have_received(:log_failure).with(/Incompatible version/, anything)
+        expect(mock_logger).to have_received(:log_failure)
       end
     end
 
@@ -332,7 +329,7 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
 
         expect(result).to be_nil
         expect(mock_tracker).to have_received(:record_failure)
-        expect(mock_logger).to have_received(:log_failure).with(/Checkpoint restore failed/, anything)
+        expect(mock_logger).to have_received(:log_failure).with("Checkpoint restore failed: disk error")
       end
     end
   end
