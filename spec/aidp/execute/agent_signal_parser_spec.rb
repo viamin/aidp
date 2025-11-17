@@ -100,4 +100,91 @@ RSpec.describe Aidp::Execute::AgentSignalParser do
       expect(result).to eq([])
     end
   end
+
+  describe ".parse_task_status_updates" do
+    it "parses simple status update to done" do
+      output = "Update task: task_123_abc status: done"
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result.size).to eq(1)
+      expect(result[0][:task_id]).to eq("task_123_abc")
+      expect(result[0][:status]).to eq(:done)
+      expect(result[0][:reason]).to be_nil
+    end
+
+    it "parses status update to in_progress" do
+      output = "Update task: task_456_def status: in_progress"
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result.size).to eq(1)
+      expect(result[0][:task_id]).to eq("task_456_def")
+      expect(result[0][:status]).to eq(:in_progress)
+    end
+
+    it "parses status update to pending" do
+      output = "Update task: task_789_ghi status: pending"
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result[0][:status]).to eq(:pending)
+    end
+
+    it "parses abandoned status with reason" do
+      output = 'Update task: task_abc_123 status: abandoned reason: "Requirements changed"'
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result.size).to eq(1)
+      expect(result[0][:task_id]).to eq("task_abc_123")
+      expect(result[0][:status]).to eq(:abandoned)
+      expect(result[0][:reason]).to eq("Requirements changed")
+    end
+
+    it "parses multiple status updates" do
+      output = <<~TEXT
+        I've updated the task statuses:
+        Update task: task_111 status: done
+        Update task: task_222 status: in_progress
+        Update task: task_333 status: abandoned reason: "No longer needed"
+        All tasks are now up to date.
+      TEXT
+
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result.size).to eq(3)
+      expect(result[0][:task_id]).to eq("task_111")
+      expect(result[0][:status]).to eq(:done)
+      expect(result[1][:task_id]).to eq("task_222")
+      expect(result[1][:status]).to eq(:in_progress)
+      expect(result[2][:task_id]).to eq("task_333")
+      expect(result[2][:status]).to eq(:abandoned)
+      expect(result[2][:reason]).to eq("No longer needed")
+    end
+
+    it "handles case-insensitive matching" do
+      output = 'UPDATE TASK: task_xyz STATUS: DONE'
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result.size).to eq(1)
+      expect(result[0][:task_id]).to eq("task_xyz")
+      expect(result[0][:status]).to eq(:done)
+    end
+
+    it "returns empty array when no updates found" do
+      output = "No task updates here"
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result).to eq([])
+    end
+
+    it "returns empty array for nil output" do
+      result = described_class.parse_task_status_updates(nil)
+      expect(result).to eq([])
+    end
+
+    it "ignores updates with invalid status values" do
+      output = "Update task: task_123 status: invalid_status"
+      result = described_class.parse_task_status_updates(output)
+
+      expect(result).to eq([])
+    end
+  end
 end

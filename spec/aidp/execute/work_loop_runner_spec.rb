@@ -19,6 +19,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       test_output_mode: :full,
       lint_output_mode: :full,
       guards_config: {enabled: false},
+      task_completion_required?: true,
       work_loop_units_config: {
         deterministic: [],
         defaults: {initial_unit: :agentic}
