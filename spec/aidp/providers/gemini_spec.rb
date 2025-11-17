@@ -36,7 +36,7 @@ RSpec.describe Aidp::Providers::Gemini do
     let(:mock_result) { double("result", out: "Hello, World!", err: "", exit_status: 0) }
 
     before do
-      allow(described_class).to receive(:available?).and_return(true)
+      allow(Aidp::Util).to receive(:which).with("gemini").and_return("/usr/local/bin/gemini")
       allow(gemini).to receive(:debug_execute_command).and_return(mock_result)
       allow(gemini).to receive(:debug_provider)
       allow(gemini).to receive(:debug_log)
@@ -102,7 +102,7 @@ RSpec.describe Aidp::Providers::Gemini do
 
     context "when gemini is not available" do
       before do
-        allow(described_class).to receive(:available?).and_return(false)
+        allow(Aidp::Util).to receive(:which).with("gemini").and_return(nil)
       end
 
       it "raises an error" do

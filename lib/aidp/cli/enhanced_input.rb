@@ -21,6 +21,8 @@ module Aidp
       # - Ctrl-T: Transpose characters
       # - And many more Emacs-style bindings
 
+      attr_reader :use_reline, :show_hints
+
       def initialize(prompt: nil, input: nil, output: nil, use_reline: true)
         @use_reline = use_reline
         @input = input || $stdin

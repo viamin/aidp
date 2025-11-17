@@ -20,13 +20,6 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     FileUtils.rm_rf(project_dir) if Dir.exist?(project_dir)
   end
 
-  describe "initialization" do
-    it "creates provider config successfully" do
-      expect(provider_config).to be_a(described_class)
-      expect(provider_config.instance_variable_get(:@provider_name)).to eq("cursor")
-    end
-  end
-
   describe "configuration access" do
     let(:valid_config) do
       {

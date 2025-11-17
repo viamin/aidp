@@ -7,15 +7,6 @@ require "stringio"
 describe Aidp::CLI::TerminalIO do
   let(:output) { StringIO.new }
 
-  describe "#initialize and dependencies" do
-    it "defaults to global stdin/stdout when not provided" do
-      io = described_class.new
-      # Can't easily assert the exact objects (test environment may wrap), but ensure methods exist
-      expect(io.instance_variable_get(:@input)).to respond_to(:gets)
-      expect(io.instance_variable_get(:@output)).to respond_to(:write)
-    end
-  end
-
   describe "#ready?" do
     it "returns true for a StringIO" do
       io = described_class.new(input: StringIO.new("hi"), output: output)

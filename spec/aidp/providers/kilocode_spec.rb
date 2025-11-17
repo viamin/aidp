@@ -133,6 +133,8 @@ RSpec.describe Aidp::Providers::Kilocode do
 
   describe "#send_message" do
     before do
+      # Mock external CLI availability check - default to available
+      allow(Aidp::Util).to receive(:which).with("kilocode").and_return("/usr/local/bin/kilocode")
       allow(provider).to receive(:display_message)
       allow(provider).to receive(:debug_provider)
       allow(provider).to receive(:debug_log)
@@ -162,7 +164,7 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "raises error when kilocode is not available" do
-      allow(described_class).to receive(:available?).and_return(false)
+      allow(Aidp::Util).to receive(:which).with("kilocode").and_return(nil)
 
       expect {
         provider.send_message(prompt: "test prompt")
@@ -170,7 +172,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "uses KILOCODE_MODEL env variable when set" do
-      allow(described_class).to receive(:available?).and_return(true)
       ENV["KILOCODE_MODEL"] = "test-model"
 
       result = double("Result", exit_status: 0, out: "output", err: "")
@@ -187,7 +188,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "does not include model flag when KILOCODE_MODEL not set" do
-      allow(described_class).to receive(:available?).and_return(true)
       ENV.delete("KILOCODE_MODEL")
 
       result = double("Result", exit_status: 0, out: "output", err: "")
@@ -202,7 +202,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "includes workspace flag when in git directory and KILOCODE_WORKSPACE is set" do
-      allow(described_class).to receive(:available?).and_return(true)
       allow(Dir).to receive(:exist?).with(".git").and_return(true)
       ENV["KILOCODE_WORKSPACE"] = "/path/to/workspace"
 
@@ -220,7 +219,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "passes KILOCODE_TOKEN environment variable" do
-      allow(described_class).to receive(:available?).and_return(true)
       ENV["KILOCODE_TOKEN"] = "test-token-123"
 
       result = double("Result", exit_status: 0, out: "output", err: "")
@@ -237,7 +235,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "handles successful execution" do
-      allow(described_class).to receive(:available?).and_return(true)
       result = double("Result", exit_status: 0, out: "success output", err: "")
       allow(provider).to receive(:debug_execute_command).and_return(result)
 
@@ -248,7 +245,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "handles failed execution" do
-      allow(described_class).to receive(:available?).and_return(true)
       result = double("Result", exit_status: 1, out: "", err: "error output")
       allow(provider).to receive(:debug_execute_command).and_return(result)
 
@@ -259,7 +255,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "warns about large prompts" do
-      allow(described_class).to receive(:available?).and_return(true)
       large_prompt = "a" * 3001
 
       result = double("Result", exit_status: 0, out: "output", err: "")
@@ -274,8 +269,6 @@ RSpec.describe Aidp::Providers::Kilocode do
     end
 
     it "passes prompt as input to kilocode command" do
-      allow(described_class).to receive(:available?).and_return(true)
-
       result = double("Result", exit_status: 0, out: "output", err: "")
       allow(provider).to receive(:debug_execute_command).and_return(result)
 

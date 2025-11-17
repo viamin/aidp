@@ -10,9 +10,10 @@ module Aidp
     class McpDashboard
       include Aidp::MessageDisplay
 
-      def initialize(root_dir = nil)
+      def initialize(root_dir = nil, configuration: nil, provider_info_class: Aidp::Harness::ProviderInfo)
         @root_dir = root_dir || Dir.pwd
-        @configuration = Aidp::Harness::Configuration.new(@root_dir)
+        @configuration = configuration || Aidp::Harness::Configuration.new(@root_dir)
+        @provider_info_class = provider_info_class
       end
 
       # Display MCP dashboard showing all servers across all providers
@@ -101,7 +102,7 @@ module Aidp
         provider_servers = {} # provider_name => [server_info]
 
         providers.each do |provider|
-          provider_info = Aidp::Harness::ProviderInfo.new(provider, @root_dir)
+          provider_info = @provider_info_class.new(provider, @root_dir)
           info = provider_info.info
 
           next unless info[:mcp_support]

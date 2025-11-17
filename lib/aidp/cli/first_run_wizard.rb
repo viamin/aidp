@@ -10,10 +10,10 @@ module Aidp
     class FirstRunWizard
       include Aidp::MessageDisplay
 
-      def self.ensure_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new)
+      def self.ensure_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new, wizard_class: Aidp::Setup::Wizard)
         return true if Aidp::Config.config_exists?(project_dir)
 
-        wizard = new(project_dir, prompt: prompt)
+        wizard = new(project_dir, prompt: prompt, wizard_class: wizard_class)
 
         if non_interactive
           wizard.create_minimal_config
@@ -24,22 +24,23 @@ module Aidp
         end
       end
 
-      def self.setup_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new)
+      def self.setup_config(project_dir, non_interactive: false, prompt: TTY::Prompt.new, wizard_class: Aidp::Setup::Wizard)
         if non_interactive
-          new(project_dir, prompt: prompt).send(:display_message, "Configuration setup skipped in non-interactive environment", type: :info)
+          new(project_dir, prompt: prompt, wizard_class: wizard_class).send(:display_message, "Configuration setup skipped in non-interactive environment", type: :info)
           return true
         end
 
-        new(project_dir, prompt: prompt).run
+        new(project_dir, prompt: prompt, wizard_class: wizard_class).run
       end
 
-      def initialize(project_dir, prompt: TTY::Prompt.new)
+      def initialize(project_dir, prompt: TTY::Prompt.new, wizard_class: Aidp::Setup::Wizard)
         @project_dir = project_dir
         @prompt = prompt
+        @wizard_class = wizard_class
       end
 
       def run
-        wizard = Aidp::Setup::Wizard.new(@project_dir, prompt: @prompt)
+        wizard = @wizard_class.new(@project_dir, prompt: @prompt)
         wizard.run
       end
 

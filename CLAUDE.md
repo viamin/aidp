@@ -31,7 +31,7 @@ AIDP is a portable CLI that automates AI development workflows from idea to impl
 
 ## Documentation Structure
 
-```
+```text
 ├── README.md                          # Main project documentation
 ├── CLAUDE.md                          # This file - AI assistant guide
 ├── docs/
@@ -89,6 +89,7 @@ Every code generation must adhere to the rules in [`docs/LLM_STYLE_GUIDE.md`](do
 ### 5. Zero Framework Cognition (ZFC)
 
 **FORBIDDEN** (use `AIDecisionEngine.decide(...)` instead):
+
 - Regex for semantic analysis
 - Scoring formulas
 - Heuristic thresholds
@@ -105,6 +106,7 @@ Aidp.log_debug("component_name", "action_verb", key: value, id: id)
 ```
 
 Log at:
+
 - Method entries
 - State changes
 - External calls

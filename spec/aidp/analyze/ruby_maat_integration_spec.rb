@@ -10,12 +10,6 @@ RSpec.describe Aidp::Analyze::RubyMaatIntegration do
 
   after { FileUtils.rm_rf(project_dir) }
 
-  describe "initialization" do
-    it "accepts a prompt parameter for dependency injection" do
-      expect(integration.instance_variable_get(:@prompt)).to eq(test_prompt)
-    end
-  end
-
   describe "#generate_git_log" do
     it "raises when not a git repository" do
       expect { integration.generate_git_log }.to raise_error(/Not a Git repository/)

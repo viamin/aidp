@@ -19,7 +19,7 @@ module Aidp
 
       class ConversationError < StandardError; end
 
-      def initialize(project_dir, prompt: nil, use_enhanced_input: true, verbose: false)
+      def initialize(project_dir, prompt: nil, use_enhanced_input: true, verbose: false, config_manager: nil, provider_manager: nil)
         @project_dir = project_dir
 
         # Use EnhancedInput with Reline for full readline-style key bindings
@@ -29,8 +29,8 @@ module Aidp
           prompt || TTY::Prompt.new
         end
 
-        @config_manager = Aidp::Harness::ConfigManager.new(project_dir)
-        @provider_manager = Aidp::Harness::ProviderManager.new(@config_manager, prompt: @prompt)
+        @config_manager = config_manager || Aidp::Harness::ConfigManager.new(project_dir)
+        @provider_manager = provider_manager || Aidp::Harness::ProviderManager.new(@config_manager, prompt: @prompt)
         @conversation_history = []
         @user_input = {}
         @verbose = verbose

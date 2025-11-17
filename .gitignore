@@ -29,6 +29,7 @@ coverage/*
 
 # devcontainer caches
 vendor/bundle/*
+.bundle/
 .vscode/
 
 # provider artifacts and credentials (should never be in repo)

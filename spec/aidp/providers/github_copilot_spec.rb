@@ -39,7 +39,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
   describe "#available?" do
     context "when copilot is available" do
       before do
-        allow(described_class).to receive(:available?).and_return(true)
+        allow(Aidp::Util).to receive(:which).with("copilot").and_return("/usr/local/bin/copilot")
         successful_result = double("result", exit_status: 0)
         allow(Aidp::Util).to receive(:execute_command)
           .with("copilot", ["--version"], timeout: 10)
@@ -53,7 +53,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
 
     context "when copilot is not available" do
       before do
-        allow(described_class).to receive(:available?).and_return(false)
+        allow(Aidp::Util).to receive(:which).with("copilot").and_return(nil)
       end
 
       it "returns false" do
@@ -68,7 +68,8 @@ RSpec.describe Aidp::Providers::GithubCopilot do
     let(:failed_result) { double("result", exit_status: 1, out: "", err: "Error output") }
 
     before do
-      allow(described_class).to receive(:available?).and_return(true)
+      # Mock external CLI availability check - default to available
+      allow(Aidp::Util).to receive(:which).with("copilot").and_return("/usr/local/bin/copilot")
       allow(provider).to receive(:debug_provider)
       allow(provider).to receive(:debug_log)
       allow(provider).to receive(:debug_command)
@@ -85,7 +86,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
 
     context "when copilot is not available" do
       before do
-        allow(described_class).to receive(:available?).and_return(false)
+        allow(Aidp::Util).to receive(:which).with("copilot").and_return(nil)
       end
 
       it "raises an error" do
@@ -218,7 +219,6 @@ RSpec.describe Aidp::Providers::GithubCopilot do
   describe "timeout calculation" do
     before do
       allow(provider).to receive(:puts) # Suppress output
-      allow(described_class).to receive(:available?).and_return(true) # Stub availability
     end
 
     context "when AIDP_QUICK_MODE is set" do
@@ -263,10 +263,6 @@ RSpec.describe Aidp::Providers::GithubCopilot do
   end
 
   describe "adaptive timeout calculation" do
-    before do
-      allow(described_class).to receive(:available?).and_return(true) # Stub availability
-    end
-
     it "returns appropriate timeouts for different step types" do
       test_cases = {
         "REPOSITORY_ANALYSIS" => 180,
@@ -336,7 +332,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
     describe "#available?" do
       context "when class method returns false" do
         before do
-          allow(described_class).to receive(:available?).and_return(false)
+          allow(Aidp::Util).to receive(:which).with("copilot").and_return(nil)
         end
 
         it "returns false" do
@@ -346,7 +342,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
 
       context "when version check fails" do
         before do
-          allow(described_class).to receive(:available?).and_return(true)
+          allow(Aidp::Util).to receive(:which).with("copilot").and_return("/usr/local/bin/copilot")
           allow(Aidp::Util).to receive(:execute_command).and_raise(StandardError.new("Command failed"))
         end
 
@@ -357,7 +353,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
 
       context "when all checks pass" do
         before do
-          allow(described_class).to receive(:available?).and_return(true)
+          allow(Aidp::Util).to receive(:which).with("copilot").and_return("/usr/local/bin/copilot")
           successful_result = double("result", exit_status: 0)
           allow(Aidp::Util).to receive(:execute_command)
             .with("copilot", ["--version"], timeout: 10)

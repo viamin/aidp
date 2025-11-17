@@ -19,16 +19,6 @@ RSpec.describe Aidp::Analyze::KBInspector do
     FileUtils.rm_rf(temp_dir)
   end
 
-  describe "#initialize" do
-    it "sets up the inspector with correct KB directory" do
-      expect(inspector.instance_variable_get(:@kb_dir)).to eq(kb_dir)
-    end
-
-    it "loads KB data" do
-      expect(inspector.instance_variable_get(:@data)).to be_a(Hash)
-    end
-  end
-
   describe "#show" do
     before do
       # Create sample KB files
@@ -202,9 +192,11 @@ RSpec.describe Aidp::Analyze::KBInspector do
     end
 
     it "handles empty seams data" do
-      # Clear seams data
-      inspector.instance_variable_set(:@data, {seams: []})
-      expect { inspector.send(:show_seams, "summary") }.not_to raise_error
+      # Create a new inspector with empty KB to test empty state
+      empty_kb_dir = File.join(temp_dir, "empty_kb")
+      FileUtils.mkdir_p(empty_kb_dir)
+      empty_inspector = described_class.new(empty_kb_dir, prompt: test_prompt)
+      expect { empty_inspector.send(:show_seams, "summary") }.not_to raise_error
     end
   end
 
@@ -226,9 +218,11 @@ RSpec.describe Aidp::Analyze::KBInspector do
     end
 
     it "handles empty hotspots data" do
-      # Clear hotspots data
-      inspector.instance_variable_set(:@data, {hotspots: []})
-      expect { inspector.send(:show_hotspots, "summary") }.not_to raise_error
+      # Create a new inspector with empty KB to test empty state
+      empty_kb_dir = File.join(temp_dir, "empty_kb")
+      FileUtils.mkdir_p(empty_kb_dir)
+      empty_inspector = described_class.new(empty_kb_dir, prompt: test_prompt)
+      expect { empty_inspector.send(:show_hotspots, "summary") }.not_to raise_error
     end
   end
 

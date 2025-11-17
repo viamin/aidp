@@ -48,27 +48,31 @@ module Aidp
         @selected_steps = options[:selected_steps] || []
         @workflow_type = options[:workflow_type] || :default
 
-        # Initialize enhanced TUI components
-        @tui = UI::EnhancedTUI.new
-        @workflow_selector = UI::EnhancedWorkflowSelector.new(@tui)
-        @job_monitor = UI::JobMonitor.new
-        @workflow_controller = UI::WorkflowController.new
-        @progress_display = UI::ProgressDisplay.new
-        @status_widget = UI::StatusWidget.new
+        # Initialize enhanced TUI components (with dependency injection)
+        @tui = options[:tui] || UI::EnhancedTUI.new
+        @workflow_selector = options[:workflow_selector] || UI::EnhancedWorkflowSelector.new(@tui)
+        @job_monitor = options[:job_monitor] || UI::JobMonitor.new
+        @workflow_controller = options[:workflow_controller] || UI::WorkflowController.new
+        @progress_display = options[:progress_display] || UI::ProgressDisplay.new
+        @status_widget = options[:status_widget] || UI::StatusWidget.new
 
-        # Initialize other components
-        @configuration = Configuration.new(project_dir)
-        @state_manager = StateManager.new(project_dir, @mode)
-        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
+        # Initialize other components (with dependency injection)
+        @configuration = options[:configuration] || Configuration.new(project_dir)
+        @state_manager = options[:state_manager] || StateManager.new(project_dir, @mode)
+        @provider_manager = options[:provider_manager] || ProviderManager.new(@configuration, prompt: @prompt)
 
         # Use ZFC-enabled condition detector
         # ZfcConditionDetector will create its own ProviderFactory if needed
         # Falls back to legacy pattern matching when ZFC is disabled
-        require_relative "zfc_condition_detector"
-        @condition_detector = ZfcConditionDetector.new(@configuration)
+        if options[:condition_detector]
+          @condition_detector = options[:condition_detector]
+        else
+          require_relative "zfc_condition_detector"
+          @condition_detector = ZfcConditionDetector.new(@configuration)
+        end
 
-        @error_handler = ErrorHandler.new(@provider_manager, @configuration)
-        @completion_checker = CompletionChecker.new(@project_dir, @workflow_type)
+        @error_handler = options[:error_handler] || ErrorHandler.new(@provider_manager, @configuration)
+        @completion_checker = options[:completion_checker] || CompletionChecker.new(@project_dir, @workflow_type)
       end
 
       # Get current provider (delegate to provider manager)

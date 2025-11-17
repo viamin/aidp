@@ -17,131 +17,8 @@ module Aidp
     include Aidp::MessageDisplay
     include Aidp::RescueLogging
 
-    # Simple options holder for instance methods (used in specs)
-    attr_accessor :options
-
     def initialize(prompt: TTY::Prompt.new)
-      @options = {}
       @prompt = prompt
-    end
-
-    # Instance version of harness status (used by specs; non-interactive)
-    def harness_status
-      modes = %i[analyze execute]
-      display_message("🔧 Harness Status", type: :highlight)
-      modes.each do |mode|
-        status = fetch_harness_status(mode)
-        print_harness_mode_status(mode, status)
-      end
-    end
-
-    # Instance version of harness reset (used by specs)
-    def harness_reset
-      # Use accessor so specs that stub #options work
-      mode = (options[:mode] || "analyze").to_s
-      unless %w[analyze execute].include?(mode)
-        display_message("❌ Invalid mode. Use 'analyze' or 'execute'", type: :error)
-        return
-      end
-
-      # Build a runner to access state manager; keep light for spec
-      runner = Aidp::Harness::Runner.new(Dir.pwd, mode.to_sym, {})
-      state_manager = runner.instance_variable_get(:@state_manager)
-      state_manager.reset_all if state_manager.respond_to?(:reset_all)
-      display_message("✅ Reset harness state for #{mode} mode", type: :success)
-    end
-
-    # Instance version of analyze command (used by specs)
-    def analyze(project_dir, step = nil, options = {})
-      # Simple implementation for spec compatibility
-      # Different statuses based on whether a step is provided
-      status = if options[:expect_error] == true
-        "error"
-      elsif step.nil?
-        "success" # Initial call without step
-      else
-        "completed" # Subsequent calls with specific step
-      end
-
-      {
-        status: status,
-        provider: "cursor",
-        message: step ? "Step executed successfully" : "Analysis completed",
-        output: "Analysis results",
-        next_step: step ? nil : "01_REPOSITORY_ANALYSIS"
-      }
-    end
-
-    # Instance version of execute command (used by specs)
-    def execute(project_dir, step = nil, options = {})
-      # Simple implementation for spec compatibility
-      # Some specs expect "success", others expect "completed" - check context
-      status = (options[:expect_error] == true) ? "error" : "success"
-      {
-        status: status,
-        provider: "cursor",
-        message: "Execution completed",
-        output: "Execution results",
-        next_step: step ? nil : "00_PRD"
-      }
-    end
-
-    private
-
-    # Format durations (duplicated logic kept simple for spec expectations)
-    def format_duration(seconds)
-      return "0s" if seconds.nil? || seconds <= 0
-      h = (seconds / 3600).to_i
-      m = ((seconds % 3600) / 60).to_i
-      s = (seconds % 60).to_i
-      parts = []
-      parts << "#{h}h" if h.positive?
-      parts << "#{m}m" if m.positive?
-      parts << "#{s}s" if s.positive? || parts.empty?
-      parts.join(" ")
-    end
-
-    # Instance variant of display_harness_result (specs call via send)
-    def display_harness_result(result)
-      case result[:status]
-      when "completed"
-        display_message("\n✅ Harness completed successfully!", type: :success)
-        display_message("   All steps finished automatically", type: :success)
-      when "stopped"
-        display_message("\n⏹️  Harness stopped by user", type: :info)
-        display_message("   Execution terminated manually", type: :info)
-      when "error"
-        # Harness already outputs its own error message
-        # Intentionally no output here to satisfy spec expecting empty string
-        nil
-      else
-        display_message("\n🔄 Harness finished", type: :success)
-        display_message("   Status: #{result[:status]}", type: :info)
-        display_message("   Message: #{result[:message]}", type: :info) if result[:message]
-      end
-    end
-
-    def fetch_harness_status(mode)
-      runner = Aidp::Harness::Runner.new(Dir.pwd, mode, {})
-      if runner.respond_to?(:detailed_status)
-        runner.detailed_status
-      else
-        {harness: {state: "unknown"}}
-      end
-    rescue => e
-      log_rescue(e, component: "cli", action: "fetch_harness_status", fallback: {harness: {state: "error"}}, mode: mode)
-      {harness: {state: "error", error: e.message}}
-    end
-
-    def print_harness_mode_status(mode, status)
-      harness = status[:harness] || {}
-      display_message("\n📋 #{mode.to_s.capitalize} Mode:", type: :info)
-      display_message("   State: #{harness[:state]}", type: :info)
-      if harness[:progress]
-        prog = harness[:progress]
-        display_message("   Progress: #{prog[:completed_steps]}/#{prog[:total_steps]}", type: :success)
-        display_message("   Current Step: #{harness[:current_step]}", type: :info) if harness[:current_step]
-      end
     end
 
     class << self
@@ -440,17 +317,21 @@ module Aidp
 
       def run_harness_command(args)
         sub = args.shift
-        case sub
-        when "status"
-          display_message("Harness Status", type: :info)
-          display_message("Mode: (unknown)", type: :info)
-          display_message("State: idle", type: :info)
-        when "reset"
-          mode = extract_mode_option(args)
-          display_message("Harness state reset for mode: #{mode || "default"}", type: :info)
+
+        # Delegate to HarnessCommand
+        require_relative "cli/harness_command"
+
+        options = {}
+        if args.include?("--mode")
+          args.delete("--mode")
+          options[:mode] = args.shift
         else
-          display_message("Usage: aidp harness <status|reset> [--mode MODE]", type: :info)
+          mode = extract_mode_option(args)
+          options[:mode] = mode if mode
         end
+
+        command = HarnessCommand.new(prompt: create_prompt)
+        command.run(args, subcommand: sub, options: options)
       end
 
       def run_execute_command(args, mode: :execute)
@@ -536,138 +417,10 @@ module Aidp
       end
 
       def run_checkpoint_command(args)
-        require_relative "execute/checkpoint"
-        require_relative "execute/checkpoint_display"
-
-        sub = args.shift || "summary"
-        checkpoint = Aidp::Execute::Checkpoint.new(Dir.pwd)
-        display = Aidp::Execute::CheckpointDisplay.new
-
-        case sub
-        when "show"
-          latest = checkpoint.latest_checkpoint
-          if latest
-            display.display_checkpoint(latest, show_details: true)
-          else
-            display_message("No checkpoint data found.", type: :info)
-          end
-
-        when "summary"
-          watch = args.include?("--watch")
-          interval = extract_interval_option(args) || 5
-
-          if watch
-            watch_checkpoint_summary(checkpoint, display, interval)
-          else
-            summary = checkpoint.progress_summary
-            if summary
-              display.display_progress_summary(summary)
-            else
-              display_message("No checkpoint data found.", type: :info)
-            end
-          end
-
-        when "history"
-          limit = args.shift || "10"
-          history = checkpoint.checkpoint_history(limit: limit.to_i)
-          if history.any?
-            display.display_checkpoint_history(history, limit: limit.to_i)
-          else
-            display_message("No checkpoint history found.", type: :info)
-          end
-
-        when "metrics"
-          latest = checkpoint.latest_checkpoint
-          unless latest
-            display_message("No checkpoint data found.", type: :info)
-            return
-          end
-
-          display_message("", type: :info)
-          display_message("📊 Detailed Metrics", type: :info)
-          display_message("=" * 60, type: :muted)
-
-          metrics = latest[:metrics]
-          display_message("Lines of Code: #{metrics[:lines_of_code]}", type: :info)
-          display_message("File Count: #{metrics[:file_count]}", type: :info)
-          display_message("Test Coverage: #{metrics[:test_coverage]}%", type: :info)
-          display_message("Code Quality: #{metrics[:code_quality]}%", type: :info)
-          display_message("PRD Task Progress: #{metrics[:prd_task_progress]}%", type: :info)
-
-          if metrics[:tests_passing]
-            status = metrics[:tests_passing] ? "✓ Passing" : "✗ Failing"
-            display_message("Tests: #{status}", type: :info)
-          end
-
-          if metrics[:linters_passing]
-            status = metrics[:linters_passing] ? "✓ Passing" : "✗ Failing"
-            display_message("Linters: #{status}", type: :info)
-          end
-
-          display_message("=" * 60, type: :muted)
-          display_message("", type: :info)
-
-        when "clear"
-          force = args.include?("--force")
-          unless force
-            prompt = create_prompt
-            confirm = prompt.yes?("Are you sure you want to clear all checkpoint data?")
-            return unless confirm
-          end
-
-          checkpoint.clear
-          display_message("✓ Checkpoint data cleared.", type: :success)
-
-        else
-          display_message("Usage: aidp checkpoint <show|summary|history|metrics|clear>", type: :info)
-          display_message("  show              - Show the latest checkpoint data", type: :info)
-          display_message("  summary [--watch] - Show progress summary with trends", type: :info)
-          display_message("  history [N]       - Show last N checkpoints", type: :info)
-          display_message("  metrics           - Show detailed metrics", type: :info)
-          display_message("  clear [--force]   - Clear all checkpoint data", type: :info)
-        end
-      end
-
-      def watch_checkpoint_summary(checkpoint, display, interval)
-        display_message("Watching checkpoint summary (refresh: #{interval}s, Ctrl+C to exit)...", type: :info)
-        display_message("", type: :info)
-
-        begin
-          loop do
-            # Clear screen
-            print "\e[2J\e[H"
-
-            summary = checkpoint.progress_summary
-            if summary
-              display.display_progress_summary(summary)
-
-              # Show last update time
-              if summary[:current] && summary[:current][:timestamp]
-                last_update = Time.parse(summary[:current][:timestamp])
-                age = Time.now - last_update
-                display_message("", type: :info)
-                display_message("Last update: #{format_time_ago_simple(age)} | Refreshing in #{interval}s...", type: :muted)
-              end
-            else
-              display_message("No checkpoint data found. Waiting for data...", type: :info)
-            end
-
-            sleep interval
-          end
-        rescue Interrupt
-          display_message("\nStopped watching checkpoint summary", type: :info)
-        end
-      end
-
-      def extract_interval_option(args)
-        args.each_with_index do |arg, i|
-          if arg == "--interval" && args[i + 1]
-            return args[i + 1].to_i
-          elsif arg.start_with?("--interval=")
-            return arg.split("=")[1].to_i
-          end
-        end
-        nil
+        # Delegate to CheckpointCommand
+        require_relative "cli/checkpoint_command"
+        command = CheckpointCommand.new(prompt: create_prompt)
+        command.run(args)
       end
 
       def format_time_ago_simple(seconds)
@@ -686,11 +439,15 @@ module Aidp
         case subcommand
         when "info"
           args.shift # Remove 'info'
-          run_providers_info_command(args)
+          require_relative "cli/providers_command"
+          command = ProvidersCommand.new(prompt: create_prompt)
+          command.run(args, subcommand: "info")
           return
         when "refresh"
           args.shift # Remove 'refresh'
-          run_providers_refresh_command(args)
+          require_relative "cli/providers_command"
+          command = ProvidersCommand.new(prompt: create_prompt)
+          command.run(args, subcommand: "refresh")
           return
         end
 
@@ -773,164 +530,6 @@ module Aidp
       rescue => e
         Aidp.logger.warn("cli", "Failed to display provider health", error_class: e.class.name, error_message: e.message)
         display_message("Failed to display provider health: #{e.message}", type: :error)
-      end
-
-      def run_providers_info_command(args)
-        require_relative "harness/provider_info"
-
-        provider_name = args.shift
-
-        # If no provider specified, show models catalog table
-        unless provider_name
-          run_providers_models_catalog
-          return
-        end
-
-        force_refresh = args.include?("--refresh")
-
-        display_message("Provider Information: #{provider_name}", type: :highlight)
-        display_message("=" * 60, type: :muted)
-
-        provider_info = Aidp::Harness::ProviderInfo.new(provider_name, Dir.pwd)
-        info = provider_info.info(force_refresh: force_refresh)
-
-        if info.nil?
-          display_message("No information available for provider: #{provider_name}", type: :error)
-          return
-        end
-
-        # Display basic info
-        display_message("Last Checked: #{info[:last_checked]}", type: :info)
-        display_message("CLI Available: #{info[:cli_available] ? "Yes" : "No"}", type: info[:cli_available] ? :success : :error)
-
-        # Display authentication
-        if info[:auth_method]
-          display_message("\nAuthentication Method: #{info[:auth_method]}", type: :info)
-        end
-
-        # Display MCP support
-        display_message("\nMCP Support: #{info[:mcp_support] ? "Yes" : "No"}", type: info[:mcp_support] ? :success : :info)
-
-        # Display MCP servers if available
-        if info[:mcp_servers]&.any?
-          display_message("\nMCP Servers: (#{info[:mcp_servers].size} configured)", type: :highlight)
-          info[:mcp_servers].each do |server|
-            status_symbol = server[:enabled] ? "✓" : "○"
-            display_message("  #{status_symbol} #{server[:name]} (#{server[:status]})", type: server[:enabled] ? :success : :muted)
-            display_message("    #{server[:description]}", type: :muted) if server[:description]
-          end
-        elsif info[:mcp_support]
-          display_message("\nMCP Servers: None configured", type: :muted)
-        end
-
-        # Display permission modes
-        if info[:permission_modes]&.any?
-          display_message("\nPermission Modes:", type: :highlight)
-          info[:permission_modes].each do |mode|
-            display_message("  - #{mode}", type: :info)
-          end
-        end
-
-        # Display capabilities
-        if info[:capabilities]&.any?
-          display_message("\nCapabilities:", type: :highlight)
-          info[:capabilities].each do |cap, value|
-            next unless value
-
-            display_message("  ✓ #{cap.to_s.split("_").map(&:capitalize).join(" ")}", type: :success)
-          end
-        end
-
-        # Display notable flags
-        if info[:flags]&.any?
-          display_message("\nNotable Flags: (#{info[:flags].size} total)", type: :highlight)
-          # Show first 10 flags
-          info[:flags].take(10).each do |name, flag_info|
-            display_message("  #{flag_info[:flag]}", type: :info)
-            display_message("    #{flag_info[:description][0..80]}...", type: :muted) if flag_info[:description]
-          end
-
-          if info[:flags].size > 10
-            display_message("\n  ... and #{info[:flags].size - 10} more flags", type: :muted)
-            display_message("  Run '#{get_binary_name(provider_name)} --help' for full details", type: :muted)
-          end
-        end
-
-        display_message("\n" + "=" * 60, type: :muted)
-        display_message("Tip: Use --refresh to update this information", type: :muted)
-      end
-
-      def run_providers_models_catalog
-        require_relative "harness/capability_registry"
-        require "tty-table"
-
-        display_message("Models Catalog - Thinking Depth Tiers", type: :highlight)
-        display_message("=" * 80, type: :muted)
-
-        registry = Aidp::Harness::CapabilityRegistry.new
-        unless registry.load_catalog
-          display_message("No models catalog found. Create .aidp/models_catalog.yml first.", type: :error)
-          return
-        end
-
-        rows = []
-        registry.provider_names.sort.each do |provider|
-          models = registry.models_for_provider(provider)
-          models.each do |model_name, model_data|
-            tier = model_data["tier"] || "-"
-            context = model_data["context_window"] ? "#{model_data["context_window"] / 1000}k" : "-"
-            tools = model_data["supports_tools"] ? "yes" : "no"
-            cost_input = model_data["cost_per_mtok_input"]
-            cost = cost_input ? "$#{cost_input}/MTok" : "-"
-
-            rows << [provider, model_name, tier, context, tools, cost]
-          end
-        end
-
-        if rows.empty?
-          display_message("No models found in catalog", type: :info)
-          return
-        end
-
-        header = ["Provider", "Model", "Tier", "Context", "Tools", "Cost"]
-        table = TTY::Table.new(header, rows)
-        display_message(table.render(:basic), type: :info)
-
-        display_message("\n" + "=" * 80, type: :muted)
-        display_message("Use '/thinking show' in REPL to see current tier configuration", type: :muted)
-      end
-
-      def run_providers_refresh_command(args)
-        require_relative "harness/provider_info"
-        require "tty-spinner"
-
-        provider_name = args.shift
-        config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
-        providers_to_refresh = if provider_name
-          [provider_name]
-        else
-          config_manager.provider_names
-        end
-
-        display_message("Refreshing provider information...", type: :info)
-        display_message("", type: :info)
-
-        providers_to_refresh.each do |prov|
-          spinner = TTY::Spinner.new("[:spinner] #{prov}...", format: :dots)
-          spinner.auto_spin
-
-          provider_info = Aidp::Harness::ProviderInfo.new(prov, Dir.pwd)
-          info = provider_info.gather_info
-
-          if info[:cli_available]
-            spinner.success("(available)")
-          else
-            spinner.error("(unavailable)")
-          end
-        end
-
-        display_message("\n✓ Provider information refreshed", type: :success)
-        display_message("Use 'aidp providers info <name>' to view details", type: :muted)
       end
 
       def run_mcp_command(args)
@@ -1080,33 +679,10 @@ module Aidp
       end
 
       def run_config_command(args)
-        interactive = false
-        dry_run = false
-
-        until args.empty?
-          token = args.shift
-          case token
-          when "--interactive"
-            interactive = true
-          when "--dry-run"
-            dry_run = true
-          when "-h", "--help"
-            display_config_usage
-            return
-          else
-            display_message("Unknown option: #{token}", type: :error)
-            display_config_usage
-            return
-          end
-        end
-
-        unless interactive
-          display_config_usage
-          return
-        end
-
-        wizard = Aidp::Setup::Wizard.new(Dir.pwd, prompt: create_prompt, dry_run: dry_run)
-        wizard.run
+        # Delegate to ConfigCommand
+        require_relative "cli/config_command"
+        command = ConfigCommand.new(prompt: create_prompt)
+        command.run(args)
       end
 
       def run_devcontainer_command(args)
@@ -1861,10 +1437,6 @@ module Aidp
             tui.stop_display_loop
           end
         end
-      end
-
-      def display_config_usage
-        display_message("Usage: aidp config --interactive [--dry-run]", type: :info)
       end
 
       def run_settings_command(args)

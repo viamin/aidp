@@ -61,6 +61,26 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
         expect(result).to eq(update_check)
         expect(mock_logger).to have_received(:log_check).with(update_check)
       end
+
+      it "returns failed check when version detection fails" do
+        mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+
+        allow(mock_detector).to receive(:check_for_update).and_raise(StandardError, "network error")
+        allow(mock_logger).to receive(:log_check)
+
+        coordinator = described_class.new(
+          policy: policy,
+          version_detector: mock_detector,
+          update_logger: mock_logger,
+          project_dir: project_dir
+        )
+
+        result = coordinator.check_for_update
+
+        expect(result).to be_a(Aidp::AutoUpdate::UpdateCheck)
+        expect(result.update_available).to be false
+      end
     end
   end
 
@@ -79,18 +99,23 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
     context "when too many failures" do
       it "raises UpdateLoopError" do
         mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
         allow(mock_tracker).to receive(:too_many_failures?).and_return(true)
         allow(mock_tracker).to receive(:failure_count).and_return(3)
+        allow(mock_logger).to receive(:log_restart_loop)
 
         coordinator = described_class.new(
           policy: policy,
           failure_tracker: mock_tracker,
+          update_logger: mock_logger,
           project_dir: project_dir
         )
 
         expect {
           coordinator.initiate_update({mode: "watch"})
         }.to raise_error(Aidp::AutoUpdate::UpdateLoopError, /Too many consecutive/)
+
+        expect(mock_logger).to have_received(:log_restart_loop).with(3)
       end
     end
 
@@ -106,6 +131,76 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
         expect {
           coordinator.initiate_update({mode: "watch"})
         }.to raise_error(Aidp::AutoUpdate::UpdateError, /No supervisor/)
+      end
+    end
+
+    context "when no update available" do
+      it "returns without exiting" do
+        mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+        mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+
+        update_check = Aidp::AutoUpdate::UpdateCheck.new(
+          current_version: "0.24.0",
+          available_version: "0.24.0",
+          update_available: false,
+          update_allowed: false,
+          policy_reason: "no update available",
+          checked_at: Time.now
+        )
+
+        allow(mock_tracker).to receive(:too_many_failures?).and_return(false)
+        allow(mock_detector).to receive(:check_for_update).and_return(update_check)
+        allow(mock_logger).to receive(:log_check)
+
+        coordinator = described_class.new(
+          policy: policy,
+          version_detector: mock_detector,
+          update_logger: mock_logger,
+          failure_tracker: mock_tracker,
+          project_dir: project_dir
+        )
+
+        # Should not exit, just return
+        expect {
+          coordinator.initiate_update({mode: "watch"})
+        }.not_to raise_error
+      end
+    end
+
+    context "when checkpoint save fails" do
+      it "raises UpdateError without recording failure" do
+        mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+        mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+        mock_checkpoint_store = instance_double(Aidp::AutoUpdate::CheckpointStore)
+
+        update_check = Aidp::AutoUpdate::UpdateCheck.new(
+          current_version: "0.24.0",
+          available_version: "0.25.0",
+          update_available: true,
+          update_allowed: true,
+          policy_reason: "minor update allowed",
+          checked_at: Time.now
+        )
+
+        allow(mock_tracker).to receive(:too_many_failures?).and_return(false)
+        allow(mock_detector).to receive(:check_for_update).and_return(update_check)
+        allow(mock_logger).to receive(:log_check)
+        allow(mock_checkpoint_store).to receive(:save_checkpoint).and_return(false)
+
+        coordinator = described_class.new(
+          policy: policy,
+          version_detector: mock_detector,
+          update_logger: mock_logger,
+          failure_tracker: mock_tracker,
+          checkpoint_store: mock_checkpoint_store,
+          project_dir: project_dir
+        )
+
+        expect {
+          coordinator.initiate_update({mode: "watch"})
+        }.to raise_error(Aidp::AutoUpdate::UpdateError, /Failed to save checkpoint/)
       end
     end
   end
@@ -143,6 +238,98 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
         expect(result).to be_a(Aidp::AutoUpdate::Checkpoint)
         expect(result.mode).to eq("watch")
         expect(File.exist?(checkpoint_path)).to be false # Should be deleted after restore
+      end
+    end
+
+    context "when checkpoint has invalid checksum" do
+      it "returns nil and records failure" do
+        mock_checkpoint_store = instance_double(Aidp::AutoUpdate::CheckpointStore)
+        mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+
+        # Create invalid checkpoint (valid? returns false)
+        invalid_checkpoint = instance_double(Aidp::AutoUpdate::Checkpoint,
+          valid?: false,
+          checkpoint_id: "test-id",
+          created_at: Time.now)
+
+        allow(mock_checkpoint_store).to receive(:latest_checkpoint).and_return(invalid_checkpoint)
+        allow(mock_tracker).to receive(:record_failure)
+        allow(mock_logger).to receive(:log_failure)
+
+        coordinator = described_class.new(
+          policy: policy,
+          checkpoint_store: mock_checkpoint_store,
+          failure_tracker: mock_tracker,
+          update_logger: mock_logger,
+          project_dir: project_dir
+        )
+
+        result = coordinator.restore_from_checkpoint
+
+        expect(result).to be_nil
+        expect(mock_tracker).to have_received(:record_failure)
+        expect(mock_logger).to have_received(:log_failure)
+      end
+    end
+
+    context "when checkpoint version is incompatible" do
+      it "returns nil and records failure" do
+        mock_checkpoint_store = instance_double(Aidp::AutoUpdate::CheckpointStore)
+        mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+
+        # Create checkpoint with incompatible version
+        incompatible_checkpoint = instance_double(Aidp::AutoUpdate::Checkpoint,
+          valid?: true,
+          compatible_version?: false,
+          checkpoint_id: "test-id",
+          aidp_version: "0.1.0",
+          created_at: Time.now)
+
+        allow(mock_checkpoint_store).to receive(:latest_checkpoint).and_return(incompatible_checkpoint)
+        allow(mock_tracker).to receive(:record_failure)
+        allow(mock_logger).to receive(:log_failure)
+
+        coordinator = described_class.new(
+          policy: policy,
+          checkpoint_store: mock_checkpoint_store,
+          failure_tracker: mock_tracker,
+          update_logger: mock_logger,
+          project_dir: project_dir
+        )
+
+        result = coordinator.restore_from_checkpoint
+
+        expect(result).to be_nil
+        expect(mock_tracker).to have_received(:record_failure)
+        expect(mock_logger).to have_received(:log_failure)
+      end
+    end
+
+    context "when restore fails with exception" do
+      it "returns nil and records failure" do
+        mock_checkpoint_store = instance_double(Aidp::AutoUpdate::CheckpointStore)
+        mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+
+        allow(mock_checkpoint_store).to receive(:latest_checkpoint).and_raise(StandardError, "disk error")
+        allow(mock_tracker).to receive(:record_failure)
+        allow(mock_logger).to receive(:log_failure)
+
+        coordinator = described_class.new(
+          policy: policy,
+          checkpoint_store: mock_checkpoint_store,
+          failure_tracker: mock_tracker,
+          update_logger: mock_logger,
+          project_dir: project_dir
+        )
+
+        result = coordinator.restore_from_checkpoint
+
+        expect(result).to be_nil
+        expect(mock_tracker).to have_received(:record_failure)
+        expect(mock_logger).to have_received(:log_failure).with("Checkpoint restore failed: disk error")
       end
     end
   end

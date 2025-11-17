@@ -19,22 +19,6 @@ RSpec.describe Aidp::Analyze::TreeSitterScan do
     FileUtils.rm_rf(temp_dir)
   end
 
-  describe "#initialize" do
-    it "sets up the scanner with correct parameters" do
-      expect(scanner.instance_variable_get(:@root)).to eq(temp_dir)
-      expect(scanner.instance_variable_get(:@kb_dir)).to eq(kb_dir)
-      expect(scanner.instance_variable_get(:@langs)).to eq(%w[ruby])
-    end
-
-    it "initializes data structures" do
-      expect(scanner.instance_variable_get(:@symbols)).to eq([])
-      expect(scanner.instance_variable_get(:@imports)).to eq([])
-      expect(scanner.instance_variable_get(:@calls)).to eq([])
-      expect(scanner.instance_variable_get(:@metrics)).to eq([])
-      expect(scanner.instance_variable_get(:@seams)).to eq([])
-    end
-  end
-
   describe "#discover_files" do
     before do
       # Create test Ruby files

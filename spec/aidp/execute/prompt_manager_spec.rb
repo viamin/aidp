@@ -196,17 +196,13 @@ RSpec.describe Aidp::Execute::PromptManager do
       )
     end
 
-    before do
-      allow(Aidp::PromptOptimization::Optimizer).to receive(:new).and_return(mock_optimizer)
-    end
-
     it "initializes optimizer when enabled" do
-      pm = described_class.new(temp_dir, config: config)
+      pm = described_class.new(temp_dir, config: config, optimizer: mock_optimizer)
       expect(pm.optimization_enabled?).to be true
     end
 
     it "writes optimized prompt and sets stats" do
-      pm = described_class.new(temp_dir, config: config)
+      pm = described_class.new(temp_dir, config: config, optimizer: mock_optimizer)
       used = pm.write_optimized({task_type: :feature, description: "Add login"})
       expect(used).to be true
       expect(pm.last_optimization_stats).to eq(mock_stats)
@@ -215,7 +211,7 @@ RSpec.describe Aidp::Execute::PromptManager do
     end
 
     it "archives immediately when step_name is in task_context" do
-      pm = described_class.new(temp_dir, config: config)
+      pm = described_class.new(temp_dir, config: config, optimizer: mock_optimizer)
       step_name = "optimized_step"
 
       used = pm.write_optimized({
@@ -233,7 +229,7 @@ RSpec.describe Aidp::Execute::PromptManager do
     end
 
     it "builds optimization report" do
-      pm = described_class.new(temp_dir, config: config)
+      pm = described_class.new(temp_dir, config: config, optimizer: mock_optimizer)
       pm.write_optimized({task_type: :feature, description: "Add login"})
       report = pm.optimization_report
       expect(report).to include("Prompt Optimization Report")
@@ -244,8 +240,7 @@ RSpec.describe Aidp::Execute::PromptManager do
     it "falls back when optimization raises" do
       failing_optimizer = double
       allow(failing_optimizer).to receive(:optimize_prompt).and_raise(StandardError.new("boom"))
-      allow(Aidp::PromptOptimization::Optimizer).to receive(:new).and_return(failing_optimizer)
-      pm = described_class.new(temp_dir, config: config)
+      pm = described_class.new(temp_dir, config: config, optimizer: failing_optimizer)
       used = pm.write_optimized({task_type: :bugfix, description: "Fix crash"})
       expect(used).to be false
       expect(pm.last_optimization_stats).to be_nil

@@ -348,7 +348,7 @@ RSpec.describe Aidp::Init::Runner do
 
     before do
       # Mock system calls to avoid actual command execution
-      allow_any_instance_of(Object).to receive(:system).and_return(true)
+      allow(runner).to receive(:system).and_return(true)
     end
 
     it "validates detected tools exist in PATH" do
@@ -358,7 +358,7 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "warns when detected tool is not in PATH" do
-      allow_any_instance_of(Object).to receive(:system).and_return(false)
+      allow(runner).to receive(:system).and_return(false)
       allow(analyzer).to receive(:analyze).and_return(analysis_with_detections)
 
       expect { runner.run }.not_to raise_error

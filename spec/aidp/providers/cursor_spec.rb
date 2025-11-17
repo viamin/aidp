@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../../lib/aidp/harness/model_registry"
 
 RSpec.describe Aidp::Providers::Cursor do
   let(:provider) { described_class.new }
 
   before do
-    allow(described_class).to receive(:available?).and_return(true)
     allow(Aidp::Util).to receive(:which).with("cursor-agent").and_return("/usr/local/bin/cursor-agent")
   end
 
@@ -18,7 +18,6 @@ RSpec.describe Aidp::Providers::Cursor do
 
     it "returns false when cursor-agent CLI is not available" do
       allow(Aidp::Util).to receive(:which).with("cursor-agent").and_return(nil)
-      allow(described_class).to receive(:available?).and_return(false)
       expect(described_class.available?).to be false
     end
   end
@@ -239,6 +238,182 @@ RSpec.describe Aidp::Providers::Cursor do
         servers = provider.__send__(:parse_mcp_servers_output, output)
         expect(servers.size).to eq(1)
       end
+    end
+  end
+
+  describe ".model_family" do
+    it "normalizes cursor model names with dots to hyphens" do
+      expect(described_class.model_family("claude-3.5-sonnet")).to eq("claude-3-5-sonnet")
+    end
+
+    it "preserves model names without version dots" do
+      expect(described_class.model_family("claude-opus")).to eq("claude-opus")
+    end
+
+    it "handles multiple version numbers" do
+      expect(described_class.model_family("gpt-4.0-turbo")).to eq("gpt-4-0-turbo")
+    end
+  end
+
+  describe ".provider_model_name" do
+    it "converts family names with hyphens to cursor format with dots" do
+      expect(described_class.provider_model_name("claude-3-5-sonnet")).to eq("claude-3.5-sonnet")
+    end
+
+    it "preserves model names without digit-digit patterns" do
+      # "gpt-4-turbo" has no digit-hyphen-digit pattern, so it stays unchanged
+      expect(described_class.provider_model_name("gpt-4-turbo")).to eq("gpt-4-turbo")
+    end
+
+    it "preserves model names without version numbers" do
+      expect(described_class.provider_model_name("claude-opus")).to eq("claude-opus")
+    end
+  end
+
+  describe ".supports_model_family?" do
+    it "returns true for claude models" do
+      expect(described_class.supports_model_family?("claude-3-5-sonnet")).to be true
+    end
+
+    it "returns true for gpt models" do
+      expect(described_class.supports_model_family?("gpt-4-turbo")).to be true
+    end
+
+    it "returns true for cursor models" do
+      expect(described_class.supports_model_family?("cursor-small")).to be true
+    end
+
+    it "returns false for other models" do
+      expect(described_class.supports_model_family?("gemini-pro")).to be false
+    end
+
+    it "returns false for empty string" do
+      expect(described_class.supports_model_family?("")).to be false
+    end
+  end
+
+  describe ".discover_models" do
+    context "when cursor-agent is not available" do
+      it "returns empty array" do
+        allow(Aidp::Util).to receive(:which).with("cursor-agent").and_return(nil)
+        expect(described_class.discover_models).to eq([])
+      end
+    end
+
+    context "when cursor-agent is available" do
+      before do
+        allow(Aidp::Util).to receive(:which).with("cursor-agent").and_return("/usr/local/bin/cursor-agent")
+        allow(Aidp).to receive(:log_info)
+      end
+
+      it "returns models from registry that cursor supports" do
+        # Mock the registry
+        registry = instance_double(Aidp::Harness::ModelRegistry)
+        allow(Aidp::Harness::ModelRegistry).to receive(:new).and_return(registry)
+        allow(registry).to receive(:all_families).and_return(["claude-3-5-sonnet", "gpt-4-turbo", "gemini-pro"])
+        allow(registry).to receive(:get_model_info).with("claude-3-5-sonnet").and_return({
+          "tier" => "standard",
+          "capabilities" => ["chat", "vision"],
+          "context_window" => 200000
+        })
+        allow(registry).to receive(:get_model_info).with("gpt-4-turbo").and_return({
+          "tier" => "standard",
+          "capabilities" => ["chat"],
+          "context_window" => 128000
+        })
+        allow(registry).to receive(:get_model_info).with("gemini-pro").and_return(nil)
+
+        models = described_class.discover_models
+        expect(models.size).to eq(2) # claude and gpt, not gemini
+        expect(models[0][:name]).to eq("claude-3.5-sonnet") # Converted to cursor format
+        expect(models[0][:family]).to eq("claude-3-5-sonnet")
+        expect(models[0][:provider]).to eq("cursor")
+      end
+    end
+  end
+
+  describe "#send_message" do
+    let(:prompt_text) { "Test prompt" }
+
+    before do
+      allow(provider).to receive(:display_message)
+      allow(provider).to receive(:debug_log)
+    end
+
+    context "when cursor-agent succeeds" do
+      let(:success_result) { double("result", exit_status: 0, out: "AI response text", err: "") }
+
+      before do
+        allow(provider).to receive(:debug_execute_command).and_return(success_result)
+      end
+
+      it "returns response text" do
+        response = provider.send_message(prompt: prompt_text)
+        expect(response).to eq("AI response text")
+      end
+
+      it "calls cursor-agent with correct arguments" do
+        expect(provider).to receive(:debug_execute_command).with(
+          "cursor-agent",
+          args: ["-p"],
+          input: prompt_text,
+          timeout: anything
+        )
+        provider.send_message(prompt: prompt_text)
+      end
+    end
+
+    context "when cursor-agent fails" do
+      let(:error_result) { double("result", exit_status: 1, out: "", err: "Error message") }
+
+      before do
+        allow(provider).to receive(:debug_execute_command).and_return(error_result)
+      end
+
+      it "raises an error" do
+        expect { provider.send_message(prompt: prompt_text) }.to raise_error(/cursor-agent failed/)
+      end
+    end
+
+    context "when cursor-agent times out" do
+      before do
+        allow(provider).to receive(:debug_execute_command).and_raise(Timeout::Error)
+      end
+
+      it "raises Timeout::Error" do
+        expect { provider.send_message(prompt: prompt_text) }.to raise_error(Timeout::Error)
+      end
+
+      it "cleans up spinner on timeout" do
+        # Just verify it doesn't hang or crash
+        expect { provider.send_message(prompt: prompt_text) }.to raise_error(Timeout::Error)
+      end
+    end
+  end
+
+  describe "#activity_callback" do
+    before do
+      allow(provider).to receive(:display_message)
+    end
+
+    it "displays stuck state" do
+      expect(provider).to receive(:display_message).with(/cursor appears stuck/, type: :warning)
+      provider.send(:activity_callback, :stuck, "no response", "cursor")
+    end
+
+    it "displays completed state" do
+      expect(provider).to receive(:display_message).with(/cursor completed/, type: :success)
+      provider.send(:activity_callback, :completed, "done", "cursor")
+    end
+
+    it "displays failed state" do
+      expect(provider).to receive(:display_message).with(/cursor failed/, type: :error)
+      provider.send(:activity_callback, :failed, "error occurred", "cursor")
+    end
+
+    it "does not display for other states" do
+      expect(provider).not_to receive(:display_message)
+      provider.send(:activity_callback, :thinking, "message", "cursor")
     end
   end
 end

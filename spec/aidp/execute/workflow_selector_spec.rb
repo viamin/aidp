@@ -6,25 +6,7 @@ require_relative "../../../lib/aidp/execute/workflow_selector"
 RSpec.describe Aidp::Execute::WorkflowSelector do
   let(:prompt) { instance_double(TTY::Prompt) }
   let(:workflow_selector) { instance_double(Aidp::Workflows::Selector) }
-  let(:selector) { described_class.new(prompt: prompt) }
-
-  before do
-    allow(Aidp::Workflows::Selector).to receive(:new).and_return(workflow_selector)
-  end
-
-  describe "#initialize" do
-    it "initializes successfully" do
-      expect(selector.instance_variable_get(:@user_input)).to eq({})
-    end
-
-    it "initializes with prompt" do
-      expect(selector.instance_variable_get(:@prompt)).to eq(prompt)
-    end
-
-    it "creates workflow selector" do
-      expect(selector.instance_variable_get(:@workflow_selector)).to eq(workflow_selector)
-    end
-  end
+  let(:selector) { described_class.new(prompt: prompt, workflow_selector: workflow_selector) }
 
   describe "#select_workflow" do
     context "with harness_mode: true" do

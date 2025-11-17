@@ -20,6 +20,12 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp).to receive(:log_info)
     allow(Aidp).to receive(:log_debug)
     allow(Aidp::Watch::RepositoryClient).to receive(:parse_issues_url).and_return(["owner", "repo"])
+    # FIXME: Internal class mocking violations - see docs/TESTING_MOCK_VIOLATIONS_REMEDIATION.md "Hard Violations"
+    # Watch::Runner#initialize creates dependencies internally without DI support
+    # Needs: repository_client, safety_checker, state_store, plan_processor, build_processor as optional params
+    # Risk: Medium - Watch mode is complex, needs careful testing
+    # Estimated effort: 3-4 hours
+    # Additional violations at line: 302
     allow(Aidp::Watch::RepositoryClient).to receive(:new).and_return(repository_client)
     allow(Aidp::Watch::RepositorySafetyChecker).to receive(:new).and_return(safety_checker)
     allow(Aidp::Watch::StateStore).to receive(:new).and_return(state_store)

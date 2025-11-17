@@ -23,7 +23,7 @@ module Aidp
 
       attr_reader :review_label
 
-      def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, verbose: false)
+      def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, verbose: false, reviewers: nil)
         @repository_client = repository_client
         @state_store = state_store
         @provider_name = provider_name
@@ -33,8 +33,8 @@ module Aidp
         # Load label configuration
         @review_label = label_config[:review_trigger] || label_config["review_trigger"] || DEFAULT_REVIEW_LABEL
 
-        # Initialize reviewers
-        @reviewers = [
+        # Initialize reviewers (allow dependency injection for testing)
+        @reviewers = reviewers || [
           Reviewers::SeniorDevReviewer.new(provider_name: provider_name),
           Reviewers::SecurityReviewer.new(provider_name: provider_name),
           Reviewers::PerformanceReviewer.new(provider_name: provider_name)

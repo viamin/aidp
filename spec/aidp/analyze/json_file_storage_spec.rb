@@ -13,15 +13,6 @@ RSpec.describe Aidp::Analyze::JsonFileStorage do
   end
 
   describe "#initialize" do
-    it "initializes with default project directory" do
-      expect(storage.instance_variable_get(:@project_dir)).to eq(temp_dir)
-    end
-
-    it "initializes with custom storage directory" do
-      custom_storage = described_class.new(temp_dir, "custom_storage")
-      expect(custom_storage.instance_variable_get(:@storage_dir)).to eq(File.join(temp_dir, "custom_storage"))
-    end
-
     it "creates storage directory on initialization" do
       storage_dir = File.join(temp_dir, "test_storage")
       described_class.new(temp_dir, "test_storage")

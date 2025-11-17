@@ -14,7 +14,7 @@ module Aidp
     class JobsCommand
       include Aidp::MessageDisplay
 
-      def initialize(input: nil, output: nil, prompt: TTY::Prompt.new)
+      def initialize(input: nil, output: nil, prompt: TTY::Prompt.new, file_manager: nil, background_runner: nil)
         @io = TerminalIO.new(input: input, output: output)
         @prompt = prompt
         @pastel = Pastel.new
@@ -22,8 +22,8 @@ module Aidp
         @view_mode = :list
         @selected_job_id = nil
         @jobs_displayed = false # Track if we've displayed jobs in interactive mode
-        @file_manager = Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
-        @background_runner = Aidp::Jobs::BackgroundRunner.new(Dir.pwd)
+        @file_manager = file_manager || Aidp::Storage::FileManager.new(File.join(Dir.pwd, ".aidp"))
+        @background_runner = background_runner || Aidp::Jobs::BackgroundRunner.new(Dir.pwd)
         @screen_width = 80 # Default screen width
       end
 

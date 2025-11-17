@@ -50,10 +50,9 @@ RSpec.describe Aidp::Daemon::Runner do
     )
   end
   let(:logger) { double("Logger") }
-  let(:runner) { described_class.new(project_dir, config, options) }
+  let(:runner) { described_class.new(project_dir, config, options, process_manager: process_manager) }
 
   before do
-    allow(Aidp::Daemon::ProcessManager).to receive(:new).and_return(process_manager)
     allow(Aidp).to receive(:logger).and_return(logger)
     allow(logger).to receive(:info).and_return("activity")
     allow(logger).to receive(:error)

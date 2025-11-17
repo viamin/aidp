@@ -16,22 +16,6 @@ RSpec.describe Aidp::Analyze::TreeSitterGrammarLoader do
 
   after { FileUtils.rm_rf(temp_dir) }
 
-  describe "#initialize" do
-    it "initializes with project directory" do
-      expect(loader.instance_variable_get(:@project_dir)).to eq(temp_dir)
-    end
-
-    it "sets up grammars directory" do
-      grammars_dir = loader.instance_variable_get(:@grammars_dir)
-      expect(grammars_dir).to eq(File.join(temp_dir, ".aidp", "grammars"))
-    end
-
-    it "initializes loaded grammars hash" do
-      loaded = loader.instance_variable_get(:@loaded_grammars)
-      expect(loaded).to eq({})
-    end
-  end
-
   describe "#load_grammar" do
     it "loads ruby grammar" do
       grammar = loader.load_grammar("ruby")

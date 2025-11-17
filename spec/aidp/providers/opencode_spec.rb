@@ -133,6 +133,8 @@ RSpec.describe Aidp::Providers::Opencode do
 
   describe "#send_message" do
     before do
+      # Mock external CLI availability check - default to available
+      allow(Aidp::Util).to receive(:which).with("opencode").and_return("/usr/local/bin/opencode")
       allow(provider).to receive(:display_message)
       allow(provider).to receive(:debug_provider)
       allow(provider).to receive(:debug_log)
@@ -162,7 +164,7 @@ RSpec.describe Aidp::Providers::Opencode do
     end
 
     it "raises error when opencode is not available" do
-      allow(described_class).to receive(:available?).and_return(false)
+      allow(Aidp::Util).to receive(:which).with("opencode").and_return(nil)
 
       expect {
         provider.send_message(prompt: "test prompt")
@@ -170,7 +172,6 @@ RSpec.describe Aidp::Providers::Opencode do
     end
 
     it "uses OPENCODE_MODEL env variable when set" do
-      allow(described_class).to receive(:available?).and_return(true)
       ENV["OPENCODE_MODEL"] = "test-model"
 
       result = double("Result", exit_status: 0, out: "output", err: "")
@@ -187,7 +188,6 @@ RSpec.describe Aidp::Providers::Opencode do
     end
 
     it "uses default model when OPENCODE_MODEL not set" do
-      allow(described_class).to receive(:available?).and_return(true)
       ENV.delete("OPENCODE_MODEL")
 
       result = double("Result", exit_status: 0, out: "output", err: "")
@@ -202,7 +202,6 @@ RSpec.describe Aidp::Providers::Opencode do
     end
 
     it "handles successful execution" do
-      allow(described_class).to receive(:available?).and_return(true)
       result = double("Result", exit_status: 0, out: "success output", err: "")
       allow(provider).to receive(:debug_execute_command).and_return(result)
 
@@ -213,7 +212,6 @@ RSpec.describe Aidp::Providers::Opencode do
     end
 
     it "handles failed execution" do
-      allow(described_class).to receive(:available?).and_return(true)
       result = double("Result", exit_status: 1, out: "", err: "error output")
       allow(provider).to receive(:debug_execute_command).and_return(result)
 
@@ -224,7 +222,6 @@ RSpec.describe Aidp::Providers::Opencode do
     end
 
     it "warns about large prompts" do
-      allow(described_class).to receive(:available?).and_return(true)
       large_prompt = "a" * 3001
 
       result = double("Result", exit_status: 0, out: "output", err: "")

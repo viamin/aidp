@@ -22,7 +22,12 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
       drain_output: [],
       request_guard_update: nil)
   }
-  let(:options) { {prompt: prompt} }
+  let(:async_runner_class) do
+    class_double(Aidp::Execute::AsyncWorkLoopRunner).tap do |klass|
+      allow(klass).to receive(:new).and_return(async_runner)
+    end
+  end
+  let(:options) { {prompt: prompt, async_runner_class: async_runner_class} }
 
   before do
     allow(prompt).to receive(:say)
@@ -31,7 +36,6 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
     allow(prompt).to receive(:ok)
     allow(prompt).to receive(:yes?).and_return(false)
     allow(prompt).to receive(:select).and_return(:continue)
-    allow(Aidp::Execute::AsyncWorkLoopRunner).to receive(:new).and_return(async_runner)
     # Add stubs for state update methods used by macros
     allow(async_runner.state).to receive(:request_guard_update)
     allow(async_runner.state).to receive(:request_config_reload)
