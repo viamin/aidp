@@ -160,7 +160,7 @@ RSpec.describe Aidp::Execute::AgentSignalParser do
     end
 
     it "handles case-insensitive matching" do
-      output = 'UPDATE TASK: task_xyz STATUS: DONE'
+      output = "UPDATE TASK: task_xyz STATUS: DONE"
       result = described_class.parse_task_status_updates(output)
 
       expect(result.size).to eq(1)

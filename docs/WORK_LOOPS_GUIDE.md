@@ -672,11 +672,11 @@ When task completion is required:
 2. **All tasks must be completed or abandoned** before the work loop can finish
 3. **Abandoned tasks require a reason** for better tracking
 
-####Creating Tasks
+#### Creating Tasks
 
 Agents create tasks using file signals in their output:
 
-```
+```text
 File task: "Implement user authentication" priority: high tags: security,auth
 File task: "Add tests for login flow" priority: medium tags: testing
 File task: "Update API documentation" priority: low tags: docs
@@ -689,13 +689,14 @@ Tags: Comma-separated list for categorization
 
 Agents update task status as work progresses:
 
-```
+```text
 Update task: task_123_abc status: in_progress
 Update task: task_123_abc status: done
 Update task: task_456_def status: abandoned reason: "Requirements changed"
 ```
 
 Valid statuses:
+
 - `pending` - Not started yet (initial state)
 - `in_progress` - Currently working on it
 - `done` - Completed successfully

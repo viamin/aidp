@@ -88,7 +88,10 @@ RSpec.describe "Work Loop Task Completion" do
       best_model_for_tier: ["anthropic", "claude-3-5-sonnet-20241022", {tier: "standard"}],
       provider_names: ["anthropic"])
 
-    registry_class = Class.new { def initialize(*args); end }
+    registry_class = Class.new {
+      def initialize(*args)
+      end
+    }
     stub_const("Aidp::Harness::CapabilityRegistry", registry_class)
     allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
     allow(config_with_tasks_required).to receive(:models_for_tier).and_return([])
@@ -236,7 +239,7 @@ RSpec.describe "Work Loop Task Completion" do
       context "when tasks for different sessions exist" do
         before do
           # Create task for different session
-          other_task = persistent_tasklist.create("Other session task", session: "OTHER_STEP")
+          persistent_tasklist.create("Other session task", session: "OTHER_STEP")
 
           # Create task for current session that's done
           task = persistent_tasklist.create("Current session task", session: "TEST_STEP")
@@ -273,7 +276,7 @@ RSpec.describe "Work Loop Task Completion" do
     it "displays task summary with counts" do
       task1 = persistent_tasklist.create("Task 1", session: "TEST_STEP")
       task2 = persistent_tasklist.create("Task 2", session: "TEST_STEP")
-      task3 = persistent_tasklist.create("Task 3", session: "TEST_STEP")
+      persistent_tasklist.create("Task 3", session: "TEST_STEP")
 
       persistent_tasklist.update_status(task1.id, :done)
       persistent_tasklist.update_status(task2.id, :in_progress)

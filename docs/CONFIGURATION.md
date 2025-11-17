@@ -127,20 +127,23 @@ This feature ensures that work is properly decomposed into trackable tasks, prev
 
 **Task Creation:**
 Agents create tasks using file signals:
-```
+
+```text
 File task: "Implement authentication" priority: high tags: security,auth
 File task: "Add tests" priority: medium tags: testing
 ```
 
 **Task Status Updates:**
 Agents update task status during work:
-```
+
+```text
 Update task: task_123_abc status: in_progress
 Update task: task_123_abc status: done
 Update task: task_456_def status: abandoned reason: "Requirements changed"
 ```
 
 **Valid Statuses:**
+
 - `pending` - Not started (initial state)
 - `in_progress` - Currently being worked on
 - `done` - Completed successfully
@@ -151,6 +154,7 @@ Tasks are stored in `.aidp/tasklist.jsonl` using append-only JSONL format for gi
 
 **Disabling Task Tracking:**
 To disable mandatory task tracking:
+
 ```yaml
 harness:
   work_loop:
