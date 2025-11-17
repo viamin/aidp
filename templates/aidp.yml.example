@@ -239,6 +239,25 @@ providers:
         flags: ["--precise"]
         timeout: 900          # 15 minutes
 
+    # Thinking tier model configuration
+    # Maps thinking depth tiers to specific models for this provider
+    thinking_tiers:
+      mini:
+        models:
+          - cursor-fast       # Fast model for simple tasks
+      standard:
+        models:
+          - cursor-default    # Default model for standard tasks
+      thinking:
+        models:
+          - cursor-precise    # Precise model for complex reasoning
+      pro:
+        models:
+          - cursor-precise    # Use best model for pro tier
+      max:
+        models:
+          - cursor-precise    # Use best model for max tier
+
     # Provider features
     features:
       file_upload: true
@@ -343,6 +362,25 @@ providers:
         max_tokens: 200000
         timeout: 600          # 10 minutes
 
+    # Thinking tier model configuration
+    # Maps thinking depth tiers to specific models for this provider
+    thinking_tiers:
+      mini:
+        models:
+          - claude-3-5-haiku-20241022     # Fastest, cheapest model
+      standard:
+        models:
+          - claude-3-5-sonnet-20241022    # Balanced performance
+      thinking:
+        models:
+          - claude-3-5-sonnet-20241022    # Best balance for complex tasks
+      pro:
+        models:
+          - claude-3-opus-20240229        # Most capable model
+      max:
+        models:
+          - claude-3-opus-20240229        # Maximum capability
+
     # Authentication configuration
     auth:
       api_key_env: "ANTHROPIC_API_KEY"  # Environment variable for API key
@@ -393,6 +431,25 @@ providers:
         flags: []
         max_tokens: 30000
         timeout: 300          # 5 minutes
+
+    # Thinking tier model configuration
+    # Maps thinking depth tiers to specific models for this provider
+    thinking_tiers:
+      mini:
+        models:
+          - gemini-1.5-flash      # Fast model for simple tasks
+      standard:
+        models:
+          - gemini-1.5-pro        # Most capable model
+      thinking:
+        models:
+          - gemini-1.5-pro        # Best model for complex reasoning
+      pro:
+        models:
+          - gemini-1.5-pro        # Use best available
+      max:
+        models:
+          - gemini-1.5-pro        # Use best available
 
     # Authentication configuration
     auth:

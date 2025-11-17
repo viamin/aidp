@@ -205,12 +205,10 @@ RSpec.describe Aidp::CLI::ModelsCommand do
           "providers" => {
             "anthropic" => {
               "type" => "usage_based",
-              "thinking" => {
-                "tiers" => {
-                  "mini" => {"models" => [{"model" => "claude-3-haiku"}]},
-                  "standard" => {"models" => [{"model" => "claude-3-5-sonnet"}]},
-                  "advanced" => {"models" => [{"model" => "claude-3-opus"}]}
-                }
+              "thinking_tiers" => {
+                "mini" => {"models" => ["claude-3-haiku"]},
+                "standard" => {"models" => ["claude-3-5-sonnet"]},
+                "advanced" => {"models" => ["claude-3-opus"]}
               }
             }
           }
@@ -245,11 +243,9 @@ RSpec.describe Aidp::CLI::ModelsCommand do
           "providers" => {
             "anthropic" => {
               "type" => "usage_based",
-              "thinking" => {
-                "tiers" => {
-                  "mini" => {"models" => [{"model" => "claude-3-haiku"}]},
-                  "standard" => {"models" => [{"model" => "claude-3-5-sonnet"}]}
-                }
+              "thinking_tiers" => {
+                "mini" => {"models" => ["claude-3-haiku"]},
+                "standard" => {"models" => ["claude-3-5-sonnet"]}
               }
             }
           }
@@ -306,12 +302,10 @@ RSpec.describe Aidp::CLI::ModelsCommand do
       cfg = instance_double(Aidp::Harness::Configuration)
       allow(cfg).to receive(:configured_providers).and_return(["anthropic"])
       allow(cfg).to receive(:provider_config).with("anthropic").and_return({
-        thinking: {
-          tiers: {
-            mini: {models: [{model: "claude-3-haiku"}]},
-            standard: {models: [{model: "claude-3-5-sonnet"}]},
-            advanced: {models: [{model: "claude-3-opus"}]}
-          }
+        thinking_tiers: {
+          mini: {models: ["claude-3-haiku"]},
+          standard: {models: ["claude-3-5-sonnet"]},
+          advanced: {models: ["claude-3-opus"]}
         }
       })
       cfg
@@ -321,11 +315,9 @@ RSpec.describe Aidp::CLI::ModelsCommand do
       cfg = instance_double(Aidp::Harness::Configuration)
       allow(cfg).to receive(:configured_providers).and_return(["anthropic"])
       allow(cfg).to receive(:provider_config).with("anthropic").and_return({
-        thinking: {
-          tiers: {
-            mini: {models: [{model: "claude-3-haiku"}]},
-            standard: {models: [{model: "claude-3-5-sonnet"}]}
-          }
+        thinking_tiers: {
+          mini: {models: ["claude-3-haiku"]},
+          standard: {models: ["claude-3-5-sonnet"]}
         }
       })
       cfg
@@ -352,10 +344,8 @@ RSpec.describe Aidp::CLI::ModelsCommand do
       cfg = instance_double(Aidp::Harness::Configuration)
       allow(cfg).to receive(:configured_providers).and_return(["anthropic"])
       allow(cfg).to receive(:provider_config).with("anthropic").and_return({
-        thinking: {
-          tiers: {
-            mini: {models: [{model: "claude-3-haiku"}]}
-          }
+        thinking_tiers: {
+          mini: {models: ["claude-3-haiku"]}
         }
       })
       cfg
@@ -448,11 +438,9 @@ RSpec.describe Aidp::CLI::ModelsCommand do
         cfg = instance_double(Aidp::Harness::Configuration)
         allow(cfg).to receive(:configured_providers).and_return(["anthropic"])
         allow(cfg).to receive(:provider_config).with("anthropic").and_return({
-          thinking: {
-            tiers: {
-              mini: {models: [{model: "claude-3-haiku"}]},
-              standard: {models: [{model: "claude-3-5-sonnet"}]}
-            }
+          thinking_tiers: {
+            mini: {models: ["claude-3-haiku"]},
+            standard: {models: ["claude-3-5-sonnet"]}
           }
         })
         cfg

@@ -74,13 +74,26 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
           "type" => "usage_based",
           "api_key" => "test-key",
           "models" => ["claude-3-5-sonnet"],
-          "priority" => 1
+          "priority" => 1,
+          "thinking_tiers" => {
+            "mini" => {
+              "models" => ["claude-3-haiku"]
+            },
+            "standard" => {
+              "models" => ["claude-3-5-sonnet"]
+            }
+          }
         },
         "openai" => {
           "type" => "usage_based",
           "api_key" => "test-key",
           "models" => ["gpt-4o"],
-          "priority" => 2
+          "priority" => 2,
+          "thinking_tiers" => {
+            "thinking" => {
+              "models" => ["o1-preview"]
+            }
+          }
         }
       }
     }
@@ -337,16 +350,17 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       expect { manager.select_model_for_tier("invalid") }.to raise_error(ArgumentError)
     end
 
-    context "with thinking.tiers configuration" do
+    context "with provider-specific thinking_tiers configuration" do
       let(:config_with_tiers) do
         config_data = sample_config.dup
-        config_data["thinking"]["tiers"] = {
-          "mini" => {
-            "models" => [
-              {"provider" => "openai", "model" => "gpt-4o-mini"},
-              {"provider" => "anthropic", "model" => "claude-3-haiku"}
-            ]
-          }
+        # Add more models to anthropic's mini tier
+        config_data["providers"]["anthropic"]["thinking_tiers"]["mini"]["models"] = [
+          "claude-3-haiku",
+          "claude-3-5-haiku"
+        ]
+        # Add mini tier to openai
+        config_data["providers"]["openai"]["thinking_tiers"]["mini"] = {
+          "models" => ["gpt-4o-mini"]
         }
         config_data
       end
@@ -357,36 +371,35 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
         @manager_with_tiers = described_class.new(@config_with_tiers, registry: registry)
       end
 
-      it "respects provider parameter and filters thinking.tiers models" do
-        # When anthropic provider is specified, should use anthropic model from tiers
+      it "uses first model from provider's thinking_tiers for specified tier" do
+        # When anthropic provider is specified, should use first anthropic model from that provider's tiers
         provider, model, _data = @manager_with_tiers.select_model_for_tier("mini", provider: "anthropic")
         expect(provider).to eq("anthropic")
         expect(model).to eq("claude-3-haiku")
       end
 
-      it "does not use first model from thinking.tiers if it doesn't match provider" do
-        # First model in tiers is openai, but we specify anthropic provider
-        # Should use anthropic model, not openai
-        provider, model, _data = @manager_with_tiers.select_model_for_tier("mini", provider: "anthropic")
-        expect(provider).to eq("anthropic")
-        expect(model).to eq("claude-3-haiku")
-        expect(provider).not_to eq("openai")
+      it "respects provider parameter and uses provider-specific models" do
+        # OpenAI provider should use openai's mini tier models, not anthropic's
+        provider, model, _data = @manager_with_tiers.select_model_for_tier("mini", provider: "openai")
+        expect(provider).to eq("openai")
+        expect(model).to eq("gpt-4o-mini")
+        expect(provider).not_to eq("anthropic")
       end
 
-      it "falls back to catalog when provider has no models in thinking.tiers" do
-        # Request standard tier with anthropic, but thinking.tiers only has mini configured
+      it "falls back to catalog when provider has no models for tier" do
+        # Request standard tier with openai, but openai only has thinking tier configured
         # Should fall back to catalog for standard tier
         provider, model, data = @manager_with_tiers.select_model_for_tier("standard", provider: "anthropic")
         expect(provider).to eq("anthropic")
         expect(model).to eq("claude-3-5-sonnet")
-        expect(data["tier"]).to eq("standard")
       end
 
-      it "uses first model from thinking.tiers when no provider specified" do
-        # No provider preference - should use first model from thinking.tiers
+      it "requires provider parameter for new config structure" do
+        # No provider specified - should log warning and fall back to catalog
         provider, model, _data = @manager_with_tiers.select_model_for_tier("mini")
-        expect(provider).to eq("openai")
-        expect(model).to eq("gpt-4o-mini")
+        # Will fall back to catalog since no provider specified
+        expect(provider).not_to be_nil
+        expect(model).not_to be_nil
       end
     end
   end

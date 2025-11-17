@@ -153,42 +153,32 @@ module Aidp
         tier ||= current_tier
         validate_tier!(tier)
 
-        # First, try to get models from user's configuration for this tier
-        configured_models = configuration.models_for_tier(tier)
+        # First, try to get models from user's configuration for this tier and provider
+        if provider
+          configured_models = configuration.models_for_tier(tier, provider)
 
-        if configured_models.any?
-          # If provider specified, filter to only models for that provider
-          if provider
-            provider_models = configured_models.select { |m| m[:provider] == provider }
-
-            if provider_models.any?
-              # Use first model for the specified provider
-              matching_model = provider_models.first
-              Aidp.log_debug("thinking_depth_manager", "Selected model from user config",
-                tier: tier,
-                provider: provider,
-                model: matching_model[:model])
-              return [matching_model[:provider], matching_model[:model], {}]
-            end
-
-            # Provider specified but has no models for this tier in config
-            # Try catalog for the specified provider before switching providers
-            Aidp.log_debug("thinking_depth_manager", "Provider has no configured models for tier, trying catalog",
+          if configured_models.any?
+            # Use first configured model for this provider and tier
+            model_name = configured_models.first
+            Aidp.log_debug("thinking_depth_manager", "Selected model from user config",
               tier: tier,
-              provider: provider)
-
-            # Continue to catalog-based selection below (will try specified provider first)
-          else
-            # No provider specified, use first configured model for this tier
-            first_model = configured_models.first
-            if first_model
-              Aidp.log_info("thinking_depth_manager", "Selected model from user config (no provider preference)",
-                tier: tier,
-                selected_provider: first_model[:provider],
-                model: first_model[:model])
-              return [first_model[:provider], first_model[:model], {}]
-            end
+              provider: provider,
+              model: model_name)
+            return [provider, model_name, {}]
           end
+
+          # Provider specified but has no models for this tier in config
+          # Try catalog for the specified provider before switching providers
+          Aidp.log_debug("thinking_depth_manager", "Provider has no configured models for tier, trying catalog",
+            tier: tier,
+            provider: provider)
+
+          # Continue to catalog-based selection below (will try specified provider first)
+        else
+          # No provider specified - this should not happen in normal flow
+          # Log warning and fall through to catalog-based selection
+          Aidp.log_warn("thinking_depth_manager", "select_model_for_tier called without provider",
+            tier: tier)
         end
 
         # Fall back to catalog-based selection if no models in user config
@@ -398,37 +388,22 @@ module Aidp
         fallback_tiers = generate_fallback_tier_order(requested_tier)
 
         fallback_tiers.each do |fallback_tier|
-          # First, try user's configuration for this fallback tier
-          configured_models = configuration.models_for_tier(fallback_tier)
+          # First, try user's configuration for this fallback tier and provider
+          if provider
+            configured_models = configuration.models_for_tier(fallback_tier, provider)
 
-          if configured_models.any?
-            # Try specified provider first if given
-            if provider
-              matching_model = configured_models.find { |m| m[:provider] == provider }
-              if matching_model
-                Aidp.log_warn("thinking_depth_manager", "Falling back to different tier (from config)",
-                  requested_tier: requested_tier,
-                  fallback_tier: fallback_tier,
-                  provider: provider,
-                  model: matching_model[:model])
-                return [matching_model[:provider], matching_model[:model], {}]
-              end
-            end
-
-            # Try any configured model for this tier
-            first_model = configured_models.first
-            if first_model
-              Aidp.log_warn("thinking_depth_manager", "Falling back to different tier and provider (from config)",
+            if configured_models.any?
+              model_name = configured_models.first
+              Aidp.log_warn("thinking_depth_manager", "Falling back to different tier (from config)",
                 requested_tier: requested_tier,
                 fallback_tier: fallback_tier,
-                requested_provider: provider,
-                fallback_provider: first_model[:provider],
-                model: first_model[:model])
-              return [first_model[:provider], first_model[:model], {}]
+                provider: provider,
+                model: model_name)
+              return [provider, model_name, {}]
             end
           end
 
-          # Fall back to catalog if no models in config
+          # Fall back to catalog if no models in config for the provider
           # Try specified provider first if given
           if provider
             model_name, model_data = @registry.best_model_for_tier(fallback_tier, provider)
@@ -442,19 +417,21 @@ module Aidp
             end
           end
 
-          # Try all available providers in catalog
-          @registry.provider_names.each do |prov_name|
-            next if prov_name == provider # Skip if already tried above
+          # Try all available providers in catalog if switching allowed
+          if configuration.allow_provider_switch_for_tier?
+            @registry.provider_names.each do |prov_name|
+              next if prov_name == provider # Skip if already tried above
 
-            model_name, model_data = @registry.best_model_for_tier(fallback_tier, prov_name)
-            if model_name
-              Aidp.log_warn("thinking_depth_manager", "Falling back to different tier and provider (from catalog)",
-                requested_tier: requested_tier,
-                fallback_tier: fallback_tier,
-                requested_provider: provider,
-                fallback_provider: prov_name,
-                model: model_name)
-              return [prov_name, model_name, model_data]
+              model_name, model_data = @registry.best_model_for_tier(fallback_tier, prov_name)
+              if model_name
+                Aidp.log_warn("thinking_depth_manager", "Falling back to different tier and provider (from catalog)",
+                  requested_tier: requested_tier,
+                  fallback_tier: fallback_tier,
+                  requested_provider: provider,
+                  fallback_provider: prov_name,
+                  model: model_name)
+                return [prov_name, model_name, model_data]
+              end
             end
           end
         end

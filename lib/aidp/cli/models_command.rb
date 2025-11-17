@@ -437,8 +437,8 @@ module Aidp
 
         configured_providers.any? do |provider_name|
           provider_cfg = config.provider_config(provider_name)
-          tier_config = provider_cfg.dig(:thinking, :tiers, tier.to_sym) ||
-            provider_cfg.dig(:thinking, :tiers, tier)
+          tier_config = provider_cfg.dig(:thinking_tiers, tier.to_sym) ||
+            provider_cfg.dig(:thinking_tiers, tier)
 
           tier_config && tier_config[:models] && !tier_config[:models].empty?
         end
@@ -455,8 +455,7 @@ module Aidp
           next unless provider_class
 
           provider_cfg = config.provider_config(provider_name)
-          thinking_cfg = provider_cfg[:thinking] || {}
-          tiers_cfg = thinking_cfg[:tiers] || {}
+          tiers_cfg = provider_cfg[:thinking_tiers] || {}
 
           # Validate models in each tier
           tiers_cfg.each do |tier, tier_config|
@@ -537,8 +536,8 @@ module Aidp
         end
 
         if suggested_model
-          "Add to aidp.yml under providers.#{suggested_model[:provider]}.thinking.tiers.#{tier}.models:\n" \
-          "  - model: #{suggested_model[:family]}"
+          "Add to aidp.yml under providers.#{suggested_model[:provider]}.thinking_tiers.#{tier}.models:\n" \
+          "  - #{suggested_model[:family]}"
         else
           "Configure a model for this tier in aidp.yml"
         end
