@@ -373,6 +373,7 @@ end
 ```
 
 **Required Fix**: Add optional constructor parameters for all dependencies:
+
 ```ruby
 def initialize(project_dir, provider_manager, config, options = {})
   @prompt_manager = options[:prompt_manager] || PromptManager.new(...)
@@ -524,6 +525,7 @@ end
 ### When NOT to Fix
 
 These violations may be **acceptable to keep** if:
+
 - Production code is stable and rarely changes
 - Refactoring would introduce significant risk
 - Integration tests provide adequate coverage
