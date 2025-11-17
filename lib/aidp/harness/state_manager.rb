@@ -103,13 +103,6 @@ module Aidp
         save_state(updated_state)
       end
 
-      # Get current step from state (legacy method - use progress tracker integration instead)
-      def current_step_from_state
-        state = load_state
-        return nil unless state
-        state[:current_step]
-      end
-
       # Set current step
       def set_current_step(step_name)
         update_state(current_step: step_name, last_updated: Time.now)

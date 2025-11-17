@@ -86,24 +86,6 @@ module Aidp
           }
         end
 
-        # Legacy method - kept for backward compatibility if needed
-        def select_execute_workflow_interactive
-          # Step 1: Collect project information
-          collect_project_info_interactive
-
-          # Step 2: Choose workflow type
-          workflow_type = choose_workflow_type_interactive
-
-          # Step 3: Generate workflow steps
-          steps = generate_workflow_steps_interactive(workflow_type)
-
-          {
-            workflow_type: workflow_type,
-            steps: steps,
-            user_input: @user_input
-          }
-        end
-
         def select_analyze_workflow_defaults
           @tui.show_message("🚀 Starting analyze mode with default configuration...", :info)
 

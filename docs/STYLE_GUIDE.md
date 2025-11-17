@@ -2056,6 +2056,209 @@ system("git", "commit", "-m", user_message)  # Safe from injection
 system("git commit -m '#{user_message}'")  # Dangerous!
 ```
 
+## Backward Compatibility Policy (deprecated, legacy, compatibility)
+
+### Pre-Release Software: No Backward Compatibility
+
+**AIDP is pre-release software (v0.x.x) and does NOT maintain backward compatibility.**
+
+This is a deliberate policy choice that enables rapid iteration and clean architecture. As a development tool primarily used by its maintainers and contributors, we prioritize code quality and architectural clarity over API stability.
+
+### Core Principle
+
+**When features are replaced or refactored, remove the old implementation immediately.**
+
+```ruby
+# ❌ BAD: Keeping legacy methods for "compatibility"
+def find_files(search_term)
+  # Legacy method for backward compatibility
+  find_files_advanced(parse_options(search_term))
+end
+
+def find_files_advanced(options)
+  # New implementation
+end
+
+# ✅ GOOD: Just remove the old method
+def find_files(options)
+  # Single, current implementation
+end
+```
+
+### Rationale
+
+1. **Reduced Complexity**: Every legacy method adds cognitive load and maintenance burden
+2. **Clearer Intent**: Single implementation path makes code easier to understand
+3. **Faster Evolution**: No compatibility constraints allow for bold refactoring
+4. **Easier Testing**: Fewer code paths mean simpler, more focused tests
+5. **Better Documentation**: One way to do things is easier to document
+
+### What to Remove Immediately
+
+#### 1. Legacy Method Wrappers
+
+```ruby
+# ❌ Remove these patterns:
+# - "legacy method for compatibility"
+# - "kept for backward compatibility"
+# - "deprecated - use X instead"
+
+def old_method(*args)
+  # For backward compatibility
+  new_method(*args)
+end
+```
+
+**Action**: Delete the wrapper. Update all callers to use the new method directly.
+
+#### 2. Deprecated Features
+
+```ruby
+# ❌ Remove deprecated code paths:
+if use_new_selector
+  new_implementation
+else
+  # Legacy interactive mode for backward compatibility
+  old_implementation
+end
+```
+
+**Action**: Remove the flag and old implementation. Keep only the new code.
+
+#### 3. Legacy Aliases
+
+```ruby
+# ❌ Remove alias methods:
+def max_retries
+  # Alias for backward compatibility with ErrorHandler
+  retry_config[:max_attempts]
+end
+```
+
+**Action**: Remove the alias. Update callers to use the canonical method.
+
+#### 4. No-Op Compatibility Methods
+
+```ruby
+# ❌ Remove no-op stubs:
+def start_display_loop
+  # Display loop is now just a no-op for compatibility
+end
+```
+
+**Action**: Remove the method and all calls to it.
+
+### Migration Strategy for Major Changes
+
+When replacing a widely-used feature:
+
+1. **Implement the new version** completely
+2. **Update all callers** in the same PR/commit
+3. **Remove the old implementation** immediately
+4. **Update tests** to use new implementation
+5. **Update documentation** to reflect new approach
+
+```ruby
+# Example: Replacing a core method
+
+# Step 1: Implement new version
+def find_files(options)
+  # New implementation with richer options
+end
+
+# Step 2 & 3: Remove old method and update callers in same commit
+# Old method deleted, all 15 call sites updated
+
+# Step 4: Update tests
+RSpec.describe "#find_files" do
+  it "finds files with advanced options" do
+    result = finder.find_files(term: "test", extensions: [".rb"])
+    # ...
+  end
+end
+```
+
+### What About External Users?
+
+For the small number of external users (if any) during pre-release:
+
+- **Breaking changes are expected** for v0.x.x releases
+- Users should **pin to specific versions** if stability is needed
+- **Changelog documents** all breaking changes
+- **v1.0.0 release** will establish the first stable API
+
+### Exceptions (ZFC Fallbacks)
+
+**One intentional exception**: Zero Framework Cognition (ZFC) fallbacks to pattern matching.
+
+```ruby
+# ✅ ALLOWED: Graceful degradation for AI features
+if zfc_enabled?
+  ai_decision
+else
+  # Fallback to pattern matching (not "legacy")
+  pattern_based_decision
+end
+```
+
+This is NOT backward compatibility - it's **graceful degradation** for optional AI features. The pattern-matching code is actively maintained, not deprecated.
+
+### Detecting Backward Compatibility Code
+
+Search for these patterns in code reviews:
+
+```bash
+# Red flags in comments:
+grep -ri "backward compat" .
+grep -ri "legacy method" .
+grep -ri "deprecated" .
+grep -ri "kept for compatibility" .
+
+# Red flags in code:
+grep -r "if use_new_" .    # Feature flags for old/new implementations
+grep -r "# TODO.*remove" . # Deferred cleanup
+```
+
+### Code Review Checklist
+
+When reviewing PRs, reject code that:
+
+- [ ] Adds methods marked "legacy" or "for compatibility"
+- [ ] Adds feature flags to toggle between old/new implementations
+- [ ] Adds aliases "for backward compatibility"
+- [ ] Keeps old implementations "just in case"
+- [ ] Adds TODOs about removing deprecated code later
+
+Instead, require:
+
+- [ ] Clean removal of old code
+- [ ] All callers updated in same PR
+- [ ] Tests updated to new implementation
+- [ ] No comments about "legacy" or "deprecated"
+
+### Pre-Release Semantic Versioning
+
+AIDP follows semver for v0.x.x releases:
+
+- `v0.x.Y` - Patch: Bug fixes (may still break things)
+- `v0.X.y` - Minor: New features, refactors (will break things)
+- `v1.0.0` - Major: First stable release (backward compatibility begins)
+
+**Until v1.0.0, every commit can be a breaking change.**
+
+### Summary
+
+- ❌ No backward compatibility code in v0.x.x
+- ❌ No "legacy" or "deprecated" methods
+- ❌ No feature flags for old/new implementations
+- ✅ Clean removal of old code when refactoring
+- ✅ All callers updated in same commit
+- ✅ Single, clear implementation path
+
+**When in doubt: delete the old code.**
+
+---
+
 ## Commit Hygiene
 
 ### Commit Structure

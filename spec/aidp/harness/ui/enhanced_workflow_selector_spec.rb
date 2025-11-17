@@ -184,25 +184,6 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
       end
     end
 
-    describe "#select_execute_workflow_interactive" do
-      before do
-        # Mock all the internal method calls
-        allow(subject).to receive(:collect_project_info_interactive)
-        allow(subject).to receive(:choose_workflow_type_interactive).and_return(:exploration)
-        allow(subject).to receive(:generate_workflow_steps_interactive).with(:exploration).and_return(["00_PRD", "16_IMPLEMENTATION"])
-      end
-
-      it "follows complete interactive workflow selection process" do
-        result = subject.send(:select_execute_workflow_interactive)
-
-        expect(result[:workflow_type]).to eq(:exploration)
-        expect(result[:steps]).to eq(["00_PRD", "16_IMPLEMENTATION"])
-        expect(subject).to have_received(:collect_project_info_interactive)
-        expect(subject).to have_received(:choose_workflow_type_interactive)
-        expect(subject).to have_received(:generate_workflow_steps_interactive).with(:exploration)
-      end
-    end
-
     describe "#collect_project_info_interactive" do
       it "collects all required project information" do
         allow(mock_tui).to receive(:get_user_input).and_return(
@@ -425,48 +406,6 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
   end
 
   describe "integration scenarios" do
-    context "when running full interactive workflow selection" do
-      before do
-        # Set up all mocks for a complete run
-        allow(mock_tui).to receive(:get_user_input).and_return(
-          "Build a web app",  # project_description
-          "Ruby/Rails",       # tech_stack
-          "developers",       # target_users
-          "user adoption"     # success_criteria
-        )
-        allow(mock_tui).to receive(:single_select).and_return(
-          "🏗️ Full Development - Production-ready feature or system"
-        )
-        allow(mock_tui).to receive(:multiselect).and_return([
-          "00_PRD - Product Requirements Document (required)",
-          "02_ARCHITECTURE - System Architecture (optional)",
-          "10_TESTING_STRATEGY - Testing Strategy (required)",
-          "11_STATIC_ANALYSIS - Code Quality Analysis (required)"
-        ])
-      end
-
-      it "completes full workflow selection process" do
-        result = subject.send(:select_execute_workflow_interactive)
-
-        # Verify complete workflow was selected
-        expect(result[:workflow_type]).to eq(:full)
-        expect(result[:steps]).to eq(["00_PRD", "02_ARCHITECTURE", "10_TESTING_STRATEGY", "11_STATIC_ANALYSIS", "16_IMPLEMENTATION"])
-
-        # Verify user input was collected
-        user_input = result[:user_input]
-        expect(user_input[:project_description]).to eq("Build a web app")
-        expect(user_input[:tech_stack]).to eq("Ruby/Rails")
-        expect(user_input[:target_users]).to eq("developers")
-        expect(user_input[:success_criteria]).to eq("user adoption")
-        expect(user_input[:workflow_type]).to include("Full Development")
-
-        # Verify all UI interactions occurred
-        expect(mock_tui).to have_received(:get_user_input).exactly(4).times
-        expect(mock_tui).to have_received(:single_select).once
-        expect(mock_tui).to have_received(:multiselect).once
-      end
-    end
-
     context "when using harness mode with defaults" do
       it "provides immediate workflow without user interaction" do
         result = subject.select_workflow(harness_mode: true, mode: :execute)
