@@ -876,8 +876,8 @@ All configured models are valid for their providers
    Tier: advanced
 
    💡 Suggested fix:
-   Add to aidp.yml under providers.anthropic.thinking.tiers.advanced.models:
-     - model: claude-3-opus
+   Add to aidp.yml under providers.anthropic.thinking_tiers.advanced.models:
+     - claude-3-opus
 
 2. Model 'invalid-model' not supported by provider 'cursor'
    Provider: cursor
@@ -912,11 +912,10 @@ When a tier configuration is missing, AIDP provides smart error messages that:
    Add to aidp.yml:
    providers:
      anthropic:
-       thinking:
-         tiers:
-           standard:
-             models:
-               - model: claude-3-5-sonnet-20241022
+       thinking_tiers:
+         standard:
+           models:
+             - claude-3-5-sonnet-20241022
 ```
 
 ### Model Configuration in aidp.yml
@@ -928,17 +927,16 @@ providers:
   anthropic:
     type: usage_based
     api_key: ${ANTHROPIC_API_KEY}
-    thinking:
-      tiers:
-        mini:
-          models:
-            - model: claude-3-haiku
-        standard:
-          models:
-            - model: claude-3-5-sonnet
-        advanced:
-          models:
-            - model: claude-3-opus
+    thinking_tiers:
+      mini:
+        models:
+          - claude-3-haiku
+      standard:
+        models:
+          - claude-3-5-sonnet
+      advanced:
+        models:
+          - claude-3-opus
 ```
 
 **Tips:**
