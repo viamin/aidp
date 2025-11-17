@@ -143,6 +143,7 @@ This document lists all backward compatibility code, stub methods, and deprecate
 **ZFC Legacy Fallbacks:**
 
 Multiple files include legacy pattern matching fallbacks when ZFC is disabled or fails:
+
 - `lib/aidp/harness/zfc_condition_detector.rb` - Extensive legacy fallback logic
 - `lib/aidp/harness/runner.rb:63` - Falls back to legacy pattern matching
 - `lib/aidp/harness/enhanced_runner.rb:66` - Falls back to legacy pattern matching

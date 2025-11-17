@@ -271,8 +271,7 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
       reviewer_instance.send(:provider)
 
       expect(Aidp::ProviderManager).to have_received(:get_provider).with(
-        String,
-        
+        String
       )
     end
 
@@ -282,8 +281,7 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
       reviewer_instance.send(:provider)
 
       expect(Aidp::ProviderManager).to have_received(:get_provider).with(
-        "openai",
-        
+        "openai"
       )
     end
 

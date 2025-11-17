@@ -115,7 +115,7 @@ module Aidp
 
         Aidp.log_debug("plan_generator", "resolve_provider", provider: provider_name)
 
-        provider = Aidp::ProviderManager.get_provider(provider_name, )
+        provider = Aidp::ProviderManager.get_provider(provider_name)
 
         if provider&.available?
           Aidp.log_debug("plan_generator", "provider_resolved", provider: provider_name, available: true)
