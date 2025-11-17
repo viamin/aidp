@@ -204,9 +204,12 @@ module Aidp
         # Select tier
         selected_tier = tier || template[:default_tier]
 
-        # Get model for tier
+        # Get model for tier, using harness default provider
         thinking_manager = ThinkingDepthManager.new(config)
-        provider_name, model_name, _model_data = thinking_manager.select_model_for_tier(selected_tier)
+        provider_name, model_name, _model_data = thinking_manager.select_model_for_tier(
+          selected_tier,
+          provider: config.default_provider
+        )
 
         Aidp.log_debug("ai_decision_engine", "Making AI decision", {
           decision_type: decision_type,

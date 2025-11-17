@@ -336,6 +336,59 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
     it "validates tier" do
       expect { manager.select_model_for_tier("invalid") }.to raise_error(ArgumentError)
     end
+
+    context "with thinking.tiers configuration" do
+      let(:config_with_tiers) do
+        config_data = sample_config.dup
+        config_data["thinking"]["tiers"] = {
+          "mini" => {
+            "models" => [
+              {"provider" => "openai", "model" => "gpt-4o-mini"},
+              {"provider" => "anthropic", "model" => "claude-3-haiku"}
+            ]
+          }
+        }
+        config_data
+      end
+
+      before do
+        File.write(config_path, YAML.dump(config_with_tiers))
+        @config_with_tiers = Aidp::Harness::Configuration.new(temp_dir)
+        @manager_with_tiers = described_class.new(@config_with_tiers, registry: registry)
+      end
+
+      it "respects provider parameter and filters thinking.tiers models" do
+        # When anthropic provider is specified, should use anthropic model from tiers
+        provider, model, _data = @manager_with_tiers.select_model_for_tier("mini", provider: "anthropic")
+        expect(provider).to eq("anthropic")
+        expect(model).to eq("claude-3-haiku")
+      end
+
+      it "does not use first model from thinking.tiers if it doesn't match provider" do
+        # First model in tiers is openai, but we specify anthropic provider
+        # Should use anthropic model, not openai
+        provider, model, _data = @manager_with_tiers.select_model_for_tier("mini", provider: "anthropic")
+        expect(provider).to eq("anthropic")
+        expect(model).to eq("claude-3-haiku")
+        expect(provider).not_to eq("openai")
+      end
+
+      it "falls back to catalog when provider has no models in thinking.tiers" do
+        # Request standard tier with anthropic, but thinking.tiers only has mini configured
+        # Should fall back to catalog for standard tier
+        provider, model, data = @manager_with_tiers.select_model_for_tier("standard", provider: "anthropic")
+        expect(provider).to eq("anthropic")
+        expect(model).to eq("claude-3-5-sonnet")
+        expect(data["tier"]).to eq("standard")
+      end
+
+      it "uses first model from thinking.tiers when no provider specified" do
+        # No provider preference - should use first model from thinking.tiers
+        provider, model, _data = @manager_with_tiers.select_model_for_tier("mini")
+        expect(provider).to eq("openai")
+        expect(model).to eq("gpt-4o-mini")
+      end
+    end
   end
 
   describe "#tier_for_model" do

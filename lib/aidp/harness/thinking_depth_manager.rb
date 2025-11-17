@@ -157,10 +157,13 @@ module Aidp
         configured_models = configuration.models_for_tier(tier)
 
         if configured_models.any?
-          # If provider specified, try to find model for that provider in config
+          # If provider specified, filter to only models for that provider
           if provider
-            matching_model = configured_models.find { |m| m[:provider] == provider }
-            if matching_model
+            provider_models = configured_models.select { |m| m[:provider] == provider }
+
+            if provider_models.any?
+              # Use first model for the specified provider
+              matching_model = provider_models.first
               Aidp.log_debug("thinking_depth_manager", "Selected model from user config",
                 tier: tier,
                 provider: provider,
@@ -168,24 +171,23 @@ module Aidp
               return [matching_model[:provider], matching_model[:model], {}]
             end
 
-            # If provider doesn't support tier and switching allowed, try other providers in config
-            unless configuration.allow_provider_switch_for_tier?
-              Aidp.log_warn("thinking_depth_manager", "Provider lacks tier in config, switching disabled",
-                tier: tier,
-                provider: provider)
-              return nil
-            end
-          end
-
-          # Try any configured model for this tier (prioritize first in list)
-          first_model = configured_models.first
-          if first_model
-            Aidp.log_info("thinking_depth_manager", "Selected model from user config",
+            # Provider specified but has no models for this tier in config
+            # Try catalog for the specified provider before switching providers
+            Aidp.log_debug("thinking_depth_manager", "Provider has no configured models for tier, trying catalog",
               tier: tier,
-              original_provider: provider,
-              selected_provider: first_model[:provider],
-              model: first_model[:model])
-            return [first_model[:provider], first_model[:model], {}]
+              provider: provider)
+
+            # Continue to catalog-based selection below (will try specified provider first)
+          else
+            # No provider specified, use first configured model for this tier
+            first_model = configured_models.first
+            if first_model
+              Aidp.log_info("thinking_depth_manager", "Selected model from user config (no provider preference)",
+                tier: tier,
+                selected_provider: first_model[:provider],
+                model: first_model[:model])
+              return [first_model[:provider], first_model[:model], {}]
+            end
           end
         end
 
