@@ -36,6 +36,28 @@ module Aidp
         tasks
       end
 
+      # Parse task status update signals from agent output
+      # Returns array of status update hashes with task_id, status, and optional reason
+      # Pattern: Update task: task_id_here status: done|in_progress|pending|abandoned [reason: "reason"]
+      def self.parse_task_status_updates(output)
+        return [] unless output
+
+        updates = []
+        # Pattern matches: Update task: task_123_abc status: done
+        # Or: Update task: task_123_abc status: abandoned reason: "No longer needed"
+        pattern = /Update\s+task:\s*(\S+)\s+status:\s*(done|in_progress|pending|abandoned)(?:\s+reason:\s*"([^"]+)")?/i
+
+        output.to_s.scan(pattern).each do |task_id, status, reason|
+          updates << {
+            task_id: task_id.strip,
+            status: status.downcase.to_sym,
+            reason: reason&.strip
+          }
+        end
+
+        updates
+      end
+
       def self.normalize_token(raw)
         return nil if raw.nil? || raw.empty?
 

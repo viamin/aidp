@@ -166,6 +166,11 @@ module Aidp
         work_loop_config[:max_iterations]
       end
 
+      # Check if task completion is required for work loop completion
+      def task_completion_required?
+        work_loop_config.fetch(:task_completion_required, true)
+      end
+
       # Get test commands
       def test_commands
         normalize_commands(work_loop_config[:test_commands] || [])

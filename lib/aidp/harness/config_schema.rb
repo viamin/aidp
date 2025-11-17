@@ -378,6 +378,7 @@ module Aidp
                 formatter_commands: [],
                 build_commands: [],
                 documentation_commands: [],
+                task_completion_required: true,
                 units: {},
                 guards: {enabled: false},
                 version_control: {tool: "git", behavior: "nothing", conventional_commits: false},
@@ -431,6 +432,13 @@ module Aidp
                   default: []
                   # Items can be strings or {command: string, required: boolean}
                   # Validation handled in Configuration class for flexibility
+                },
+                task_completion_required: {
+                  type: :boolean,
+                  required: false,
+                  default: true
+                  # When true, all tasks for the current session must be completed or
+                  # explicitly abandoned (with user confirmation) before work loop can finish
                 },
                 units: {
                   type: :hash,
