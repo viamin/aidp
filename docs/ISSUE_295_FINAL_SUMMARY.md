@@ -348,6 +348,189 @@ While all **critical violations are fixed**, there are ~1,048 lower-priority vio
 
 **Estimated remaining effort**: 18-25 hours for complete fix of all 1,002 remaining violations.
 
+## 🔧 "Hard" Violations Requiring Production Code Refactoring
+
+The following violations cannot be fixed without refactoring production code to support dependency injection. These are documented with FIXME comments in the spec files.
+
+### High-Impact Files (67 global mocking violations)
+
+**Pattern**: `allow(Aidp::ClassName).to receive(:new).and_return(mock)`
+
+#### 1. `spec/aidp/execute/work_loop_runner_spec.rb` (15 violations)
+
+**Problem**: `WorkLoopRunner#initialize` creates dependencies internally without DI support:
+
+```ruby
+def initialize(project_dir, provider_manager, config, options = {})
+  @prompt_manager = PromptManager.new(project_dir, config: config)  # Hard-coded
+  @test_runner = Aidp::Harness::TestRunner.new(project_dir, config) # Hard-coded
+  @checkpoint = Checkpoint.new(project_dir)                          # Hard-coded
+  @checkpoint_display = CheckpointDisplay.new(prompt: @prompt)       # Hard-coded
+  @guard_policy = GuardPolicy.new(project_dir, config.guards_config)# Hard-coded
+  @deterministic_runner = DeterministicUnits::Runner.new(project_dir) # Hard-coded
+  @unit_scheduler = nil  # Created later internally
+end
+```
+
+**Required Fix**: Add optional constructor parameters for all dependencies:
+```ruby
+def initialize(project_dir, provider_manager, config, options = {})
+  @prompt_manager = options[:prompt_manager] || PromptManager.new(...)
+  @test_runner = options[:test_runner] || Aidp::Harness::TestRunner.new(...)
+  # ... etc
+end
+```
+
+**FIXME Location**: `spec/aidp/execute/work_loop_runner_spec.rb:87, 150-156, 529-532, 699, 758, 936`
+
+**Risk**: High - WorkLoopRunner is core functionality, changes could break workflows
+
+---
+
+#### 2. `spec/aidp/workflows/guided_agent_spec.rb` (6 violations)
+
+**Problem**: `GuidedAgent#call_provider_for_analysis` creates `ProviderFactory` internally:
+
+```ruby
+def call_provider_for_analysis(system_prompt, user_prompt)
+  provider_name = @provider_manager.current_provider
+  provider_factory = Aidp::Harness::ProviderFactory.new(@config_manager)  # Hard-coded
+  provider = provider_factory.create_provider(provider_name, prompt: @prompt)
+  # ...
+end
+```
+
+**Required Fix**: Pass `provider_factory` via dependency injection or extract method for testing
+
+**FIXME Location**: `spec/aidp/workflows/guided_agent_spec.rb:942, 997, 1060, 1158, 1222, 1280`
+
+**Risk**: Medium - Can be worked around by mocking at a different level
+
+---
+
+#### 3. `spec/aidp/setup/wizard_spec.rb` (9 violations)
+
+**Problem**: `Wizard` creates `ModelCache` and `ModelDiscoveryService` internally:
+
+```ruby
+def some_wizard_method
+  cache = Aidp::Harness::ModelCache.new  # Hard-coded
+  discovery = Aidp::Harness::ModelDiscoveryService.new  # Hard-coded
+  # ...
+end
+```
+
+**Required Fix**: Add dependency injection for these services
+
+**FIXME Location**: `spec/aidp/setup/wizard_spec.rb:1187, 1261, 1309, 1317, 1325, 1333, 1342, 1354, 1364`
+
+**Risk**: Low - Setup wizard is not frequently changed
+
+---
+
+#### 4. `spec/aidp/watch/runner_spec.rb` (6 violations)
+
+**Problem**: `Watch::Runner#initialize` creates multiple processors internally:
+
+```ruby
+def initialize(issues_url:, ...)
+  @repository_client = RepositoryClient.new(owner: owner, repo: repo, ...)  # Hard-coded
+  @safety_checker = RepositorySafetyChecker.new(...)  # Hard-coded
+  @state_store = StateStore.new(...)  # Hard-coded
+  @plan_processor = PlanProcessor.new(...)  # Hard-coded
+  @build_processor = BuildProcessor.new(...)  # Hard-coded
+  # ...
+end
+```
+
+**Required Fix**: Add optional constructor parameters for all processors
+
+**FIXME Location**: `spec/aidp/watch/runner_spec.rb:23-27, 302`
+
+**Risk**: Medium - Watch mode is complex, changes need careful testing
+
+---
+
+#### 5. `spec/aidp/watch/build_processor_spec.rb` (6 violations)
+
+**Problem**: Similar to Watch::Runner - creates dependencies internally
+
+**Required Fix**: Add dependency injection support
+
+**FIXME Location**: Various lines in file (see file for details)
+
+**Risk**: Medium
+
+---
+
+#### 6. `spec/aidp/jobs/background_runner_spec.rb` (4 violations)
+
+**Problem**: `BackgroundRunner#start` creates `Harness::Runner` in forked process:
+
+```ruby
+def start(mode, options = {})
+  pid = fork do
+    runner = Aidp::Harness::Runner.new(@project_dir, mode, options)  # Hard-coded in fork
+    runner.run
+  end
+end
+```
+
+**Required Fix**: Add runner_factory parameter or similar DI pattern
+
+**FIXME Location**: `spec/aidp/jobs/background_runner_spec.rb:35, 69, 96, 135`
+
+**Risk**: High - Background jobs are critical, fork makes testing harder
+
+---
+
+#### 7. Other Files (21 violations)
+
+- `spec/aidp/watch/reviewers/base_reviewer_spec.rb` (3)
+- `spec/aidp/watch/plan_generator_spec.rb` (3)
+- `spec/system/guided_workflow_golden_path_spec.rb` (2)
+- `spec/aidp/harness/ui/enhanced_workflow_selector_spec.rb` (2)
+- `spec/system/analyze_mode_workflow_spec.rb` (1)
+- `spec/integration/issue_command_integration_spec.rb` (1)
+- `spec/aidp/watch/change_request_processor_spec.rb` (1)
+- `spec/aidp/harness/zfc_condition_detector_spec.rb` (1)
+- Various others (7)
+
+**Risk**: Low to Medium - mostly smaller components
+
+---
+
+### Summary of "Hard" Violations
+
+| File | Violations | Risk | Estimated Effort |
+|------|------------|------|------------------|
+| work_loop_runner_spec.rb | 15 | High | 4-6 hours |
+| guided_agent_spec.rb | 6 | Medium | 2-3 hours |
+| setup/wizard_spec.rb | 9 | Low | 2-3 hours |
+| watch/runner_spec.rb | 6 | Medium | 3-4 hours |
+| watch/build_processor_spec.rb | 6 | Medium | 2-3 hours |
+| jobs/background_runner_spec.rb | 4 | High | 3-4 hours |
+| Other files | 21 | Low-Med | 4-6 hours |
+| **TOTAL** | **67** | - | **20-29 hours** |
+
+### Recommended Approach
+
+1. **Start with low-risk files** (wizard, smaller components)
+2. **Extract factory methods** where full DI is too invasive
+3. **Use integration tests** as temporary coverage while refactoring
+4. **Tackle high-risk files last** with comprehensive test coverage
+5. **Consider hybrid approach**: Some violations might be acceptable if documented
+
+### When NOT to Fix
+
+These violations may be **acceptable to keep** if:
+- Production code is stable and rarely changes
+- Refactoring would introduce significant risk
+- Integration tests provide adequate coverage
+- The mocking is isolated to setup code
+
+**Decision**: Document with FIXME and revisit when touching that code for other reasons.
+
 ## 🎉 Conclusion
 
 **Issue #295 high-priority work is COMPLETE!**

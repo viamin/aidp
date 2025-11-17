@@ -32,6 +32,12 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       allow(Process).to receive(:daemon)
       allow(Process).to receive(:detach)
       allow(runner).to receive(:sleep) # skip delay
+      # FIXME: Internal class mocking violation - see docs/ISSUE_295_FINAL_SUMMARY.md "Hard Violations"
+      # BackgroundRunner#start creates Harness::Runner in forked process without DI support
+      # Needs: runner_factory parameter or similar DI pattern
+      # Risk: High - Background jobs are critical, fork makes testing harder
+      # Estimated effort: 3-4 hours
+      # Additional violations at lines: 69, 96, 135
       allow(Aidp::Harness::Runner).to receive(:new).and_return(double(run: {status: "completed"}))
       # Prevent STDOUT/STDERR redirection side-effects when simulating fork
       allow($stdout).to receive(:reopen)
