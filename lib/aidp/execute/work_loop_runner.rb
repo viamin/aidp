@@ -1175,30 +1175,28 @@ module Aidp
         # Process task status updates
         status_updates = AgentSignalParser.parse_task_status_updates(agent_result[:output])
         status_updates.each do |update_data|
-          begin
-            task = @persistent_tasklist.update_status(
-              update_data[:task_id],
-              update_data[:status],
-              reason: update_data[:reason]
-            )
+          task = @persistent_tasklist.update_status(
+            update_data[:task_id],
+            update_data[:status],
+            reason: update_data[:reason]
+          )
 
-            status_icon = case update_data[:status]
-            when :done then "✅"
-            when :abandoned then "❌"
-            when :in_progress then "🚧"
-            when :pending then "⏳"
-            else "📋"
-            end
-
-            Aidp.log_info("tasklist", "Updated task status from agent",
-              task_id: task.id,
-              old_status: task.status,
-              new_status: update_data[:status])
-            display_message("#{status_icon} Updated task #{task.id}: #{update_data[:status]}", type: :info)
-          rescue PersistentTasklist::TaskNotFoundError => e
-            Aidp.log_warn("tasklist", "Task not found for status update", task_id: update_data[:task_id])
-            display_message("⚠️  Task not found: #{update_data[:task_id]}", type: :warning)
+          status_icon = case update_data[:status]
+          when :done then "✅"
+          when :abandoned then "❌"
+          when :in_progress then "🚧"
+          when :pending then "⏳"
+          else "📋"
           end
+
+          Aidp.log_info("tasklist", "Updated task status from agent",
+            task_id: task.id,
+            old_status: task.status,
+            new_status: update_data[:status])
+          display_message("#{status_icon} Updated task #{task.id}: #{update_data[:status]}", type: :info)
+        rescue PersistentTasklist::TaskNotFoundError
+          Aidp.log_warn("tasklist", "Task not found for status update", task_id: update_data[:task_id])
+          display_message("⚠️  Task not found: #{update_data[:task_id]}", type: :warning)
         end
       end
 
@@ -1221,7 +1219,7 @@ module Aidp
         pending_tasks = session_tasks.select { |t| t.status == :pending }
         in_progress_tasks = session_tasks.select { |t| t.status == :in_progress }
         abandoned_tasks = session_tasks.select { |t| t.status == :abandoned }
-        done_tasks = session_tasks.select { |t| t.status == :done }
+        session_tasks.select { |t| t.status == :done }
 
         # All tasks must be done or abandoned
         incomplete_tasks = pending_tasks + in_progress_tasks
