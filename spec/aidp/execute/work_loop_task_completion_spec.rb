@@ -205,10 +205,21 @@ RSpec.describe "Work Loop Task Completion" do
       context "when tasks are abandoned without reason" do
         before do
           task = persistent_tasklist.create("Implement feature", session: "TEST_STEP")
-          # Force abandoned without reason (should not happen in practice)
-          task_obj = persistent_tasklist.find(task.id)
-          task_obj.status = :abandoned
-          task_obj.abandoned_reason = nil
+          # Force abandoned without reason by directly writing to file (should not happen in practice)
+          # This simulates a malformed or manually edited tasklist entry
+          File.open(persistent_tasklist.file_path, "a") do |f|
+            f.puts({
+              id: task.id,
+              description: task.description,
+              status: "abandoned",
+              priority: "medium",
+              created_at: task.created_at.iso8601,
+              updated_at: Time.now.iso8601,
+              session: "TEST_STEP",
+              abandoned_at: Time.now.iso8601,
+              abandoned_reason: nil
+            }.to_json)
+          end
         end
 
         it "returns incomplete requiring confirmation" do
