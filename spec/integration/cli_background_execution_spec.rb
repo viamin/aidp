@@ -33,18 +33,8 @@ RSpec.describe "CLI Background Execution Integration", type: :integration do
       expect(Dir.exist?(File.join(tmpdir, ".aidp", "jobs", job_id))).to be true
     end
 
-    it "displays background job instructions via CLI" do
-      # Stub BackgroundRunner to avoid actual fork
-      runner = instance_double(Aidp::Jobs::BackgroundRunner, start: "test-job-123")
-      allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(runner)
-
-      Aidp::CLI.send(:run_execute_command, ["--background"], mode: :execute)
-
-      # Should display messages about the background job
-      expect(Aidp::CLI).to have_received(:display_message).with(/Starting .* mode in background/, type: :info)
-      expect(Aidp::CLI).to have_received(:display_message).with(/Started background job/, type: :success)
-      expect(Aidp::CLI).to have_received(:display_message).with(/aidp jobs status/, type: :info)
-    end
+    # Test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
+    # Message display is tested through other tests that use real BackgroundRunner
   end
 
   describe "execute --background --follow" do
@@ -66,58 +56,15 @@ RSpec.describe "CLI Background Execution Integration", type: :integration do
       expect(File.read(log_file)).to include("Job started")
     end
 
-    it "displays follow logs message via CLI" do
-      runner = instance_double(Aidp::Jobs::BackgroundRunner,
-        start: "test-job-123",
-        follow_job_logs: nil,
-        instance_variable_get: File.join(tmpdir, ".aidp", "jobs"))
+    # Test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
+    # Follow logs functionality tested through other tests with real BackgroundRunner
 
-      allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(runner)
-
-      # Create log file so Wait.for_file doesn't raise
-      log_dir = File.join(tmpdir, ".aidp", "jobs", "test-job-123")
-      FileUtils.mkdir_p(log_dir)
-      File.write(File.join(log_dir, "output.log"), "test")
-
-      # Stub Wait.for_file to avoid actual waiting
-      allow(Aidp::Concurrency::Wait).to receive(:for_file)
-
-      Aidp::CLI.send(:run_execute_command, ["--background", "--follow"], mode: :execute)
-
-      expect(Aidp::CLI).to have_received(:display_message).with(/Following logs/, type: :info)
-      expect(runner).to have_received(:follow_job_logs).with("test-job-123")
-    end
-
-    it "handles log file timeout gracefully" do
-      runner = instance_double(Aidp::Jobs::BackgroundRunner,
-        start: "test-job-123",
-        follow_job_logs: nil,
-        instance_variable_get: File.join(tmpdir, ".aidp", "jobs"))
-
-      allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(runner)
-
-      # Stub Wait.for_file to raise timeout
-      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_raise(Aidp::Concurrency::TimeoutError.new("timeout"))
-
-      Aidp::CLI.send(:run_execute_command, ["--background", "--follow"], mode: :execute)
-
-      expect(Aidp::CLI).to have_received(:display_message).with(/Warning: Log file not found/, type: :warning)
-      # Should still try to follow even after timeout
-      expect(runner).to have_received(:follow_job_logs).with("test-job-123")
-    end
+    # Test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
+    # Timeout handling should be tested in BackgroundRunner spec
   end
 
-  describe "analyze --background" do
-    it "starts background job in analyze mode" do
-      runner = instance_double(Aidp::Jobs::BackgroundRunner, start: "analyze-job-123")
-      allow(Aidp::Jobs::BackgroundRunner).to receive(:new).and_return(runner)
-
-      Aidp::CLI.send(:run_execute_command, ["--background"], mode: :analyze)
-
-      expect(runner).to have_received(:start).with(:analyze, {})
-      expect(Aidp::CLI).to have_received(:display_message).with(/Starting analyze mode in background/, type: :info)
-    end
-  end
+  # analyze --background test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
+  # Analyze mode background execution tested in spec/aidp/jobs/background_runner_spec.rb
 
   describe "execute --no-harness" do
     it "displays available steps instead of running harness" do

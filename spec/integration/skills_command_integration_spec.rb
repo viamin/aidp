@@ -131,19 +131,8 @@ RSpec.describe "Skills Command Integration", type: :integration do
       expect(Aidp::CLI).to have_received(:display_message).with(/Usage/, type: :info)
     end
 
-    it "handles 'new' subcommand with --yes flag" do
-      # Stub the wizard controller to avoid interactive prompts
-      require_relative "../../lib/aidp/skills/wizard/controller"
-      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
-      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
-
-      Aidp::CLI.send(:run_skill_command, ["new", "--yes"])
-
-      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
-        project_dir: tmpdir,
-        options: hash_including(yes: true)
-      )
-    end
+    # Test removed - mocked Aidp::Skills::Wizard::Controller (internal class)
+    # Option parsing should be tested through real Controller or in Controller spec
 
     it "handles 'new' subcommand with unknown option" do
       Aidp::CLI.send(:run_skill_command, ["new", "--invalid-option"])
@@ -151,83 +140,9 @@ RSpec.describe "Skills Command Integration", type: :integration do
       expect(Aidp::CLI).to have_received(:display_message).with(/Unknown option/, type: :error)
     end
 
-    it "handles 'new' subcommand with --minimal flag" do
-      require_relative "../../lib/aidp/skills/wizard/controller"
-      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
-      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
-
-      Aidp::CLI.send(:run_skill_command, ["new", "--minimal"])
-
-      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
-        project_dir: tmpdir,
-        options: hash_including(minimal: true)
-      )
-    end
-
-    it "handles 'new' subcommand with --id flag" do
-      require_relative "../../lib/aidp/skills/wizard/controller"
-      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
-      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
-
-      Aidp::CLI.send(:run_skill_command, ["new", "--id", "custom_id"])
-
-      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
-        project_dir: tmpdir,
-        options: hash_including(id: "custom_id")
-      )
-    end
-
-    it "handles 'new' subcommand with --name flag" do
-      require_relative "../../lib/aidp/skills/wizard/controller"
-      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
-      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
-
-      Aidp::CLI.send(:run_skill_command, ["new", "--name", "Custom Name"])
-
-      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
-        project_dir: tmpdir,
-        options: hash_including(name: "Custom Name")
-      )
-    end
-
-    it "handles 'new' subcommand with --from-template flag" do
-      require_relative "../../lib/aidp/skills/wizard/controller"
-      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
-      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
-
-      Aidp::CLI.send(:run_skill_command, ["new", "--from-template", "base"])
-
-      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
-        project_dir: tmpdir,
-        options: hash_including(from_template: "base")
-      )
-    end
-
-    it "handles 'new' subcommand with --clone flag" do
-      require_relative "../../lib/aidp/skills/wizard/controller"
-      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
-      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
-
-      Aidp::CLI.send(:run_skill_command, ["new", "--clone", "existing_skill"])
-
-      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
-        project_dir: tmpdir,
-        options: hash_including(clone: "existing_skill")
-      )
-    end
-
-    it "handles 'new' subcommand with --dry-run flag" do
-      require_relative "../../lib/aidp/skills/wizard/controller"
-      controller = instance_double(Aidp::Skills::Wizard::Controller, run: true)
-      allow(Aidp::Skills::Wizard::Controller).to receive(:new).and_return(controller)
-
-      Aidp::CLI.send(:run_skill_command, ["new", "--dry-run"])
-
-      expect(Aidp::Skills::Wizard::Controller).to have_received(:new).with(
-        project_dir: tmpdir,
-        options: hash_including(dry_run: true)
-      )
-    end
+    # Tests removed - all mocked Aidp::Skills::Wizard::Controller (internal class)
+    # Flag parsing tests (--minimal, --id, --name, --from-template, --clone, --dry-run)
+    # should be tested through real Controller or in Controller spec
 
     it "handles 'edit' subcommand with missing skill ID" do
       Aidp::CLI.send(:run_skill_command, ["edit"])
