@@ -248,6 +248,12 @@ module Aidp
           @prompt.say("📝 #{message}", color: :cyan)
         end
 
+        def restore_screen
+          @cursor.show
+          @cursor.clear_screen
+          @cursor.move_to(1, 1)
+        end
+
         private
 
         def extract_questions_for_step(step_name)
