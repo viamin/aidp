@@ -230,8 +230,8 @@ RSpec.describe Aidp::CLI do
         expect(result).to eq(1)
       end
 
-      it "stops TUI display loop in ensure block even when error occurs" do
-        tui_double = double("EnhancedTUI", start_display_loop: nil)
+      it "restores screen in ensure block even when error occurs" do
+        tui_double = double("EnhancedTUI", restore_screen: nil)
         allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
 
         workflow_selector_double = double("EnhancedWorkflowSelector")
@@ -240,7 +240,7 @@ RSpec.describe Aidp::CLI do
 
         allow(described_class).to receive(:log_rescue)
 
-        expect(tui_double).to receive(:stop_display_loop)
+        expect(tui_double).to receive(:restore_screen)
 
         described_class.run([])
       end

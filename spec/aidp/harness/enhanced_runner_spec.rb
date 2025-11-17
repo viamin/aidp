@@ -238,9 +238,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       expect(result).to eq({status: "completed", message: "Completed"})
     end
 
-    it "starts and stops TUI display loop properly" do
-      expect(mock_tui).to receive(:start_display_loop).once
-      expect(mock_tui).to receive(:stop_display_loop).once
+    it "restores screen during cleanup" do
+      expect(mock_tui).to receive(:restore_screen).once
 
       instance.run
     end
@@ -296,7 +295,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
       expect(instance).to receive(:save_state)
       expect(instance).to receive(:cleanup)
-      expect(mock_tui).to receive(:stop_display_loop)
+      expect(mock_tui).to receive(:restore_screen)
 
       instance.run
     end

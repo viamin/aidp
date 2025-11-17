@@ -181,7 +181,7 @@ RSpec.describe Aidp::ProviderManager do
 
   describe ".provider_configured?" do
     it "checks if provider is configured via factory" do
-      allow(mock_factory).to receive(:get_configured_providers).with({}).and_return(["cursor", "anthropic"])
+      allow(mock_factory).to receive(:configured_providers).with({}).and_return(["cursor", "anthropic"])
 
       expect(described_class.provider_configured?("cursor")).to be true
       expect(described_class.provider_configured?("gemini")).to be false
@@ -196,7 +196,7 @@ RSpec.describe Aidp::ProviderManager do
 
   describe ".provider_enabled?" do
     it "checks if provider is enabled via factory" do
-      allow(mock_factory).to receive(:get_enabled_providers).with({}).and_return(["cursor"])
+      allow(mock_factory).to receive(:enabled_providers).with({}).and_return(["cursor"])
 
       expect(described_class.provider_enabled?("cursor")).to be true
       expect(described_class.provider_enabled?("anthropic")).to be false

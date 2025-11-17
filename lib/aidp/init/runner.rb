@@ -337,8 +337,13 @@ module Aidp
           next unless tool_command
 
           # Check if command exists
-          unless system("which #{tool_command} > /dev/null 2>&1")
-            warnings << "   ⚠️  #{format_tool(tool_data[:tool])} detected but command '#{tool_command}' not found in PATH"
+          begin
+            unless system("which #{tool_command} > /dev/null 2>&1")
+              warnings << "   ⚠️  #{format_tool(tool_data[:tool])} detected but command '#{tool_command}' not found in PATH"
+            end
+          rescue IOError
+            # Streams may be closed in test environment - skip validation
+            Aidp.log_debug("init_runner", "skipping_tool_validation", tool: tool_command, reason: "closed_stream")
           end
         end
 

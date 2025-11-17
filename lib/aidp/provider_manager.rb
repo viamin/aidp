@@ -57,7 +57,7 @@ module Aidp
         factory = get_harness_factory
         return [] unless factory
 
-        enabled_names = factory.get_enabled_providers(options)
+        enabled_names = factory.enabled_providers(options)
         factory.create_providers(enabled_names, options)
       end
 
@@ -66,7 +66,7 @@ module Aidp
         factory = get_harness_factory
         return false unless factory
 
-        factory.get_configured_providers(options).include?(provider_name.to_s)
+        factory.configured_providers(options).include?(provider_name.to_s)
       end
 
       # Check if provider is enabled
@@ -74,7 +74,7 @@ module Aidp
         factory = get_harness_factory
         return false unless factory
 
-        factory.get_enabled_providers(options).include?(provider_name.to_s)
+        factory.enabled_providers(options).include?(provider_name.to_s)
       end
 
       # Get provider capabilities
@@ -82,7 +82,7 @@ module Aidp
         factory = get_harness_factory
         return [] unless factory
 
-        factory.get_provider_capabilities(provider_name, options)
+        factory.provider_capabilities(provider_name, options)
       end
 
       # Check if provider supports feature
@@ -98,7 +98,7 @@ module Aidp
         factory = get_harness_factory
         return [] unless factory
 
-        factory.get_provider_models(provider_name, options)
+        factory.provider_models(provider_name, options)
       end
 
       # Validate provider configuration
