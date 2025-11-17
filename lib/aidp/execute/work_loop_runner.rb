@@ -1306,7 +1306,7 @@ module Aidp
         task_requirement << ""
 
         # Append to PROMPT.md
-        current_prompt = @prompt_manager.read
+        current_prompt = @prompt_manager.read || ""
         updated_prompt = current_prompt + "\n\n---\n\n" + task_requirement.join("\n")
         @prompt_manager.write(updated_prompt, step_name: @step_name)
 
