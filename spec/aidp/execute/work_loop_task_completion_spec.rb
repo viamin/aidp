@@ -3,10 +3,15 @@
 require "spec_helper"
 require "aidp/execute/work_loop_runner"
 require "aidp/execute/persistent_tasklist"
+require "tmpdir"
 
 RSpec.describe "Work Loop Task Completion" do
-  let(:project_dir) { "/tmp/test_project_task_completion" }
+  let(:project_dir) { Dir.mktmpdir("work_loop_task_completion_spec") }
   let(:provider_manager) { instance_double("ProviderManager", current_provider: "anthropic") }
+
+  after do
+    FileUtils.rm_rf(project_dir) if project_dir && Dir.exist?(project_dir)
+  end
 
   let(:config_with_tasks_required) do
     instance_double(
@@ -62,57 +67,8 @@ RSpec.describe "Work Loop Task Completion" do
   end
 
   before do
-    allow(Dir).to receive(:exist?).and_return(true)
-    allow(Dir).to receive(:chdir).and_yield
-
-    # Mock in-memory file system for PersistentTasklist
-    @mock_file_contents = {}
-
-    # Mock File.exist? to return true for tasklist after it's "touched"
-    allow(File).to receive(:exist?) do |path|
-      if path.to_s.include?("tasklist.jsonl")
-        @mock_file_contents.key?(path.to_s)
-      else
-        false
-      end
-    end
-
-    allow(File).to receive(:read).and_return("")
-    allow(FileUtils).to receive(:mkdir_p)
-    allow(FileUtils).to receive(:touch) do |path|
-      # Simulate file creation
-      @mock_file_contents[path.to_s] = "" if path.to_s.include?("tasklist.jsonl")
-    end
-
-    allow(File).to receive(:open) do |path, mode = "r", *args, &block|
-      path_str = path.to_s
-      if path_str.include?("tasklist.jsonl") && mode.to_s.include?("a")
-        # Append mode for tasklist
-        @mock_file_contents[path_str] ||= ""
-        file = StringIO.new(@mock_file_contents[path_str])
-        file.seek(0, IO::SEEK_END) # Move to end for append
-
-        if block_given?
-          result = block.call(file)
-          @mock_file_contents[path_str] = file.string
-          result
-        else
-          file
-        end
-      else
-        # For other files, return empty StringIO
-        StringIO.new("")
-      end
-    end
-
-    allow(File).to receive(:readlines) do |path, *args|
-      path_str = path.to_s
-      if path_str.include?("tasklist.jsonl")
-        (@mock_file_contents[path_str] || "").lines
-      else
-        []
-      end
-    end
+    # Use real directory changes for tests
+    allow(Dir).to receive(:chdir).and_call_original
 
     # Mock logger
     mock_logger = instance_double("Aidp::Logger")
