@@ -64,12 +64,58 @@ RSpec.describe "Work Loop Task Completion" do
   before do
     allow(Dir).to receive(:exist?).and_return(true)
     allow(Dir).to receive(:chdir).and_yield
-    allow(File).to receive(:exist?).and_return(false)
+
+    # Mock in-memory file system for PersistentTasklist
+    @mock_file_contents = {}
+
+    # Mock File.exist? to return true for tasklist after it's "touched"
+    allow(File).to receive(:exist?).and_wrap_original do |original_method, path|
+      if path.to_s.include?("tasklist.jsonl")
+        @mock_file_contents.key?(path.to_s) || @mock_file_contents.key?(path)
+      else
+        false
+      end
+    end
+
     allow(File).to receive(:read).and_return("")
     allow(FileUtils).to receive(:mkdir_p)
-    allow(FileUtils).to receive(:touch)
-    allow(File).to receive(:open).and_yield(StringIO.new)
-    allow(File).to receive(:readlines).and_return([])
+    allow(FileUtils).to receive(:touch) do |path|
+      # Simulate file creation
+      @mock_file_contents[path.to_s] = "" if path.to_s.include?("tasklist.jsonl")
+    end
+
+    allow(File).to receive(:open).and_wrap_original do |original_method, path, mode = "r", *args, &block|
+      path_str = path.to_s
+      if path_str.include?("tasklist.jsonl")
+        # Handle append mode for tasklist
+        if mode.include?("a")
+          @mock_file_contents[path_str] ||= ""
+          file = StringIO.new(@mock_file_contents[path_str])
+          file.seek(0, IO::SEEK_END) # Move to end for append
+
+          if block_given?
+            block.call(file)
+            @mock_file_contents[path_str] = file.string
+          else
+            file
+          end
+        else
+          # Read mode
+          original_method.call(path, mode, *args, &block)
+        end
+      else
+        original_method.call(path, mode, *args, &block)
+      end
+    end
+
+    allow(File).to receive(:readlines).and_wrap_original do |original_method, path, *args|
+      path_str = path.to_s
+      if path_str.include?("tasklist.jsonl")
+        (@mock_file_contents[path_str] || "").lines
+      else
+        original_method.call(path, *args)
+      end
+    end
 
     # Mock logger
     mock_logger = instance_double("Aidp::Logger")

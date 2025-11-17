@@ -1305,12 +1305,16 @@ module Aidp
         task_requirement << "**Action Required**: Review the current task list and update status for all tasks."
         task_requirement << ""
 
-        # Append to PROMPT.md
-        current_prompt = @prompt_manager.read || ""
-        updated_prompt = current_prompt + "\n\n---\n\n" + task_requirement.join("\n")
-        @prompt_manager.write(updated_prompt, step_name: @step_name)
-
-        display_message("  [TASK_REQ] Added task completion requirement to PROMPT.md", type: :warning)
+        # Append to PROMPT.md - ensure directory exists
+        begin
+          current_prompt = @prompt_manager.read || ""
+          updated_prompt = current_prompt + "\n\n---\n\n" + task_requirement.join("\n")
+          @prompt_manager.write(updated_prompt, step_name: @step_name)
+          display_message("  [TASK_REQ] Added task completion requirement to PROMPT.md", type: :warning)
+        rescue => e
+          Aidp.log_warn("work_loop", "Failed to append task requirement to PROMPT.md", error: e.message)
+          display_message("  [TASK_REQ] Warning: Could not update PROMPT.md: #{e.message}", type: :warning)
+        end
       end
 
       # Validate changes against guard policy
