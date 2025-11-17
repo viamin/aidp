@@ -196,7 +196,6 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       # Mock TUI methods
       allow(mock_tui).to receive(:show_message)
       allow(mock_tui).to receive(:restore_screen)
-      
       allow(mock_tui).to receive(:add_job)
       allow(mock_tui).to receive(:update_job)
       allow(mock_tui).to receive(:remove_job)

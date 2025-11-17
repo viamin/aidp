@@ -280,12 +280,6 @@ module Aidp
           []
         end
 
-        def restore_screen
-          @cursor.show
-          @cursor.clear_screen
-          @cursor.move_to(1, 1)
-        end
-
         def setup_signal_handlers
           Signal.trap("INT") do
             restore_screen
