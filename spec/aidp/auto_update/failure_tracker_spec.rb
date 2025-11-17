@@ -283,18 +283,17 @@ RSpec.describe Aidp::AutoUpdate::FailureTracker do
 
   describe "error handling" do
     it "handles save_state failures gracefully" do
-      # Make state file unwritable
-      state_dir = File.join(project_dir, ".aidp")
-      FileUtils.mkdir_p(state_dir)
-      state_file = File.join(state_dir, "auto_update_failures.json")
-      File.write(state_file, "{}")
-      FileUtils.chmod(0o444, state_file) # Read-only
+      # Initialize tracker first with valid state
+      tracker.record_failure # This ensures @state is properly initialized
+
+      # Now make state file unwritable to trigger save failure
+      FileUtils.chmod(0o444, tracker.state_file) # Read-only
 
       expect(Aidp).to receive(:log_error).with("failure_tracker", "save_state_failed", anything)
-      tracker.record_failure
+      tracker.record_failure # This should fail when trying to save
 
       # Cleanup
-      FileUtils.chmod(0o644, state_file)
+      FileUtils.chmod(0o644, tracker.state_file)
     end
 
     it "handles record_failure errors gracefully" do
