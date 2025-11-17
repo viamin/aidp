@@ -2,6 +2,11 @@
 
 require "spec_helper"
 require "tmpdir"
+require_relative "../../lib/aidp/cli/harness_command"
+require_relative "../../lib/aidp/cli/checkpoint_command"
+require_relative "../../lib/aidp/cli/providers_command"
+require_relative "../../lib/aidp/cli/mcp_dashboard"
+require_relative "../../lib/aidp/skills/wizard/controller"
 
 RSpec.describe "CLI Basic Commands Integration", type: :integration do
   let(:tmpdir) { Dir.mktmpdir }
