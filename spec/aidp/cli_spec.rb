@@ -72,14 +72,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  # Harness command tests moved to spec/aidp/cli/harness_command_spec.rb
-  # These were testing instance methods that mocked internal AIDP classes (Runner)
-  # Coverage: spec/aidp/cli/harness_command_spec.rb
-
-  # Config command tests moved to spec/aidp/cli/config_command_spec.rb
-  # These were testing run_config_command that mocked internal AIDP classes (CLI, Setup::Wizard)
-  # Coverage: spec/aidp/cli/config_command_spec.rb
-
   describe ".run (class method)" do
     it "can be called as a class method without raising errors" do
       # Test that the class method exists and can be called
@@ -105,21 +97,6 @@ RSpec.describe Aidp::CLI do
       # Test that display_message is available as a class method
       expect { described_class.display_message("Test message") }.not_to raise_error
     end
-
-    # Integration tests removed to eliminate internal class mocking violations
-    # - "can handle the startup path without NoMethodError" test (mocked FirstRunWizard, EnhancedTUI, EnhancedWorkflowSelector)
-    # - "when config setup is cancelled" context (mocked FirstRunWizard)
-    # Coverage: spec/system/guided_workflow_golden_path_spec.rb
-
-    # Integration tests removed to eliminate internal class mocking violations
-    # Coverage: spec/system/guided_workflow_golden_path_spec.rb
-    # Tests for --setup-config flag and wizard integration
-
-    # Integration tests moved to spec/system/ to avoid mocking internal classes
-    # See: spec/system/analyze_mode_workflow_spec.rb and guided_workflow_golden_path_spec.rb
-    # Integration tests removed to eliminate internal class mocking violations
-    # Coverage: spec/system/analyze_mode_workflow_spec.rb and guided_workflow_golden_path_spec.rb
-    # Tests for copilot mode initialization, TUI lifecycle, error handling
   end
 
   describe ".subcommand?" do
@@ -401,21 +378,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  # Checkpoint command tests moved to spec/aidp/cli/checkpoint_command_spec.rb
-  # These were testing run_checkpoint_command that mocked internal AIDP classes (Checkpoint, CheckpointDisplay)
-  # Coverage: spec/aidp/cli/checkpoint_command_spec.rb
-
-  # Providers command routing tests removed to eliminate internal class mocking violations
-  # - Tests mocked ConfigManager, ProviderManager, ProvidersCommand (all internal AIDP classes)
-  # - Routing logic is simple delegation, already tested in spec/aidp/cli/providers_command_spec.rb
-  # - Health dashboard functionality should be extracted to separate command class if integration testing needed
-  # Coverage: spec/aidp/cli/providers_command_spec.rb
-
-  # Jobs command routing tests removed to eliminate internal class mocking violations
-  # - Tests mocked JobsCommand (internal AIDP class)
-  # - Routing logic is simple delegation, already tested in spec/aidp/cli/jobs_command_spec.rb
-  # Coverage: spec/aidp/cli/jobs_command_spec.rb
-
   describe ".run_kb_command" do
     before do
       allow(described_class).to receive(:display_message)
@@ -479,10 +441,6 @@ RSpec.describe Aidp::CLI do
       expect(described_class).to have_received(:display_message).with("Available execute steps", type: :info)
     end
 
-    # Background execution tests removed to eliminate internal class mocking violations
-    # - Tests mocked Aidp::Jobs::BackgroundRunner and Aidp::Concurrency::Wait (internal AIDP classes)
-    # Coverage: Should be in spec/aidp/jobs/ or spec/integration/ with proper setup
-
     it "runs specific step and announces execution without PRD simulation" do
       messages = []
       allow(described_class).to receive(:display_message) do |msg, type:|
@@ -504,23 +462,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  # All run_work_command tests removed to eliminate internal class mocking violations
-  # - All tests were causing test hangs by prompting for user input during test runs
-  # - Even simple error-path tests triggered workflow selection when given valid workstream slugs
-  # - Violation of LLM_STYLE_GUIDE: "Mock ONLY external boundaries"
-  # Coverage: Should be tested in spec/system/ or spec/integration/ with proper setup
-
-  # Skills command tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Skills::Registry, Wizard::Controller, Wizard::Builder, Wizard::TemplateLibrary,
-  # -   Wizard::Differ, and Skills::Loader (all internal AIDP classes)
-  # - Routing logic is simple delegation
-  # Coverage: Should be in spec/aidp/skills/ or spec/aidp/cli/skills_command_spec.rb (when extracted)
-
-  # Init command tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Init::Runner (internal AIDP class)
-  # - Basic routing test remains (unknown option handling)
-  # Coverage: Should be tested in spec/aidp/init/runner_spec.rb or integration tests
-
   describe ".run_init_command" do
     before do
       allow(described_class).to receive(:display_message)
@@ -541,11 +482,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  # Watch command tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Watch::Runner (internal AIDP class)
-  # - Basic routing tests remain (usage, unknown option handling)
-  # Coverage: Should be tested in spec/aidp/watch/runner_spec.rb or integration tests
-
   describe ".run_watch_command" do
     before do
       allow(described_class).to receive(:display_message)
@@ -561,37 +497,6 @@ RSpec.describe Aidp::CLI do
       expect(described_class).to have_received(:display_message).with(/Unknown watch option: --weird/, type: :warn)
     end
   end
-
-  # Checkpoint extended subcommands tests moved to spec/aidp/cli/checkpoint_command_spec.rb
-  # Coverage: spec/aidp/cli/checkpoint_command_spec.rb
-
-  # Providers refresh subcommand tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Harness::ProviderInfo, ConfigManager, and CLI::ProvidersCommand (all internal classes)
-  # - Logic delegated to ProvidersCommand
-  # Coverage: spec/aidp/cli/providers_command_spec.rb
-
-  # Providers command tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Harness::ConfigManager and ProviderManager (internal AIDP classes)
-  # - --no-color flag test removed (integration concern)
-  # Coverage: spec/aidp/cli/providers_command_spec.rb
-
-  # MCP command tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::CLI::McpDashboard (internal AIDP class)
-  # - Basic routing tested elsewhere
-  # Coverage: spec/aidp/cli/mcp_dashboard_spec.rb
-
-  # Workstream bulk and parallel action tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Worktree, WorkstreamState, and WorkstreamExecutor (all internal AIDP classes)
-  # - These are integration tests that should test through real instances or be in spec/integration/
-  # Coverage: spec/aidp/workstream_executor_spec.rb, spec/integration/cli_workstream_integration_spec.rb
-
-  # ---------------------------------------------------------
-  # Additional edge case coverage for remaining CLI branches
-  # ---------------------------------------------------------
-  # Checkpoint summary watch loop test removed to eliminate internal class mocking violations
-  # - Test mocked Aidp::Execute::Checkpoint and CheckpointDisplay (internal AIDP classes)
-  # - Logic now extracted to CheckpointCommand with dependency injection
-  # Coverage: spec/aidp/cli/checkpoint_command_spec.rb
 
   describe "issue import command" do
     before do
@@ -615,24 +520,11 @@ RSpec.describe Aidp::CLI do
       expect(described_class).to have_received(:display_message).with(/Missing issue identifier/, type: :error)
     end
 
-    # Test removed - mocked Aidp::IssueImporter (internal AIDP class)
-    # Coverage: spec/aidp/issue_importer_spec.rb or spec/integration/issue_command_integration_spec.rb
-
     it "shows unknown issue subcommand usage" do
       described_class.send(:run_issue_command, ["bogus"])
       expect(described_class).to have_received(:display_message).with(/Unknown issue command: bogus/, type: :error)
     end
   end
-
-  # Config command tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Setup::Wizard (internal AIDP class)
-  # - Logic now extracted to ConfigCommand with dependency injection
-  # Coverage: spec/aidp/cli/config_command_spec.rb
-
-  # Workstream command edge cases tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Worktree and WorkstreamState (internal AIDP classes)
-  # - Basic error cases already covered in integration tests
-  # Coverage: spec/integration/cli_workstream_integration_spec.rb
 
   describe "execute command edge precedence" do
     before { allow(described_class).to receive(:display_message) }
@@ -660,15 +552,7 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  # Logging setup error handling test removed to eliminate internal class mocking violations
-  # - Test mocked Aidp.logger and Aidp.setup_logger (internal AIDP classes/modules)
-  # - Error handling should be tested through integration tests or in Aidp module specs
-  # Coverage: Error handling path is exercised in integration tests when logger setup fails
-
   describe "helper extraction methods" do
-    # extract_interval_option tests removed - method moved to CheckpointCommand
-    # Coverage: spec/aidp/cli/checkpoint_command_spec.rb
-
     it "extracts mode from separate token" do
       expect(described_class.send(:extract_mode_option, ["--mode", "analyze"])).to eq(:analyze)
     end
@@ -750,9 +634,6 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  # Harness command tests removed - logic moved to HarnessCommand
-  # Coverage: spec/aidp/cli/harness_command_spec.rb
-
   describe "extract_mode_option helper" do
     it "extracts mode from equals form" do
       expect(described_class.send(:extract_mode_option, ["--mode=analyze"])).to eq(:analyze)
@@ -772,29 +653,6 @@ RSpec.describe Aidp::CLI do
   end
 end
 
-# CLI .run error handling tests removed to eliminate internal class mocking violations
-# - Tests mocked multiple internal AIDP classes:
-#   - Aidp::Harness::UI::EnhancedWorkflowSelector (internal)
-#   - Aidp::Harness::UI::EnhancedTUI (internal)
-#   - Aidp::Logger (internal)
-# - Error handling should be tested through integration tests that don't mock internal classes
-# Coverage: Error paths exercised in integration tests and through manual testing
-
-# Providers info edge cases tests removed to eliminate internal class mocking violations
-# - Tests mocked Aidp::Harness::ProviderInfo (internal AIDP class)
-# - Logic delegated to ProvidersCommand
-# Coverage: spec/aidp/cli/providers_command_spec.rb
-
-# CLI .run singleton rescue logging test removed to eliminate internal class mocking violations
-# - Test mocked multiple internal AIDP classes and methods:
-#   - Aidp::CLI internal methods (subcommand?, parse_options, create_prompt)
-#   - Aidp::CLI::FirstRunWizard (internal)
-#   - Aidp::Harness::UI::EnhancedTUI (internal)
-#   - Aidp::Harness::UI::EnhancedWorkflowSelector (internal)
-#   - Aidp::Harness::EnhancedRunner (internal)
-# - Error handling should be tested through integration tests
-# Coverage: Error paths in .run method exercised in integration tests
-
 RSpec.describe Aidp::CLI, "additional subcommand and helper coverage" do
   # Simple stdout capture helper (avoid interfering with existing helpers)
   def capture_stdout
@@ -805,11 +663,6 @@ RSpec.describe Aidp::CLI, "additional subcommand and helper coverage" do
   ensure
     $stdout = original
   end
-
-  # Providers command tests removed to eliminate internal class mocking violations
-  # - Tests mocked Aidp::Harness::ConfigManager and ProviderManager (internal AIDP classes)
-  # - Provider health dashboard testing should be done through integration tests
-  # Coverage: spec/aidp/cli/providers_command_spec.rb and integration tests
 
   describe "kb command" do
     it "shows default summary topic when no topic provided" do
@@ -828,10 +681,6 @@ RSpec.describe Aidp::CLI, "additional subcommand and helper coverage" do
     end
   end
 
-  # Harness command tests removed - command now delegates to HarnessCommand
-  # Output format changed, tests would need to be updated for new format
-  # Coverage: spec/aidp/cli/harness_command_spec.rb
-
   describe "helper extraction methods" do
     it "extracts mode via separate token" do
       args = ["--mode", "execute"]
@@ -849,10 +698,6 @@ RSpec.describe Aidp::CLI, "additional subcommand and helper coverage" do
       args = ["--other", "value"]
       expect(described_class.send(:extract_mode_option, args)).to be_nil
     end
-
-    # extract_interval_option and format_time_ago_simple tests removed
-    # These methods were moved to CheckpointCommand
-    # Coverage: spec/aidp/cli/checkpoint_command_spec.rb
   end
 
   describe "class-level display_harness_result" do

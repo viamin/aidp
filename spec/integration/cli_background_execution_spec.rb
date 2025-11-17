@@ -32,9 +32,6 @@ RSpec.describe "CLI Background Execution Integration", type: :integration do
       expect(job_id).to match(/^\d{8}_\d{6}_[a-f0-9]{8}$/)
       expect(Dir.exist?(File.join(tmpdir, ".aidp", "jobs", job_id))).to be true
     end
-
-    # Test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
-    # Message display is tested through other tests that use real BackgroundRunner
   end
 
   describe "execute --background --follow" do
@@ -55,16 +52,7 @@ RSpec.describe "CLI Background Execution Integration", type: :integration do
       expect(File.exist?(log_file)).to be true
       expect(File.read(log_file)).to include("Job started")
     end
-
-    # Test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
-    # Follow logs functionality tested through other tests with real BackgroundRunner
-
-    # Test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
-    # Timeout handling should be tested in BackgroundRunner spec
   end
-
-  # analyze --background test removed - mocked Aidp::Jobs::BackgroundRunner (internal class)
-  # Analyze mode background execution tested in spec/aidp/jobs/background_runner_spec.rb
 
   describe "execute --no-harness" do
     it "displays available steps instead of running harness" do

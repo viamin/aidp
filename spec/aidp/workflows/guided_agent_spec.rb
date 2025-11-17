@@ -58,9 +58,6 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       expect(agent.instance_variable_get(:@conversation_history)).to eq([])
       expect(agent.instance_variable_get(:@user_input)).to eq({})
     end
-
-    # Test removed - would require global mocking of Aidp::CLI::EnhancedInput
-    # This behavior is better tested through integration tests
   end
 
   describe "#select_workflow" do

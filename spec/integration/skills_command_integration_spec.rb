@@ -131,18 +131,11 @@ RSpec.describe "Skills Command Integration", type: :integration do
       expect(Aidp::CLI).to have_received(:display_message).with(/Usage/, type: :info)
     end
 
-    # Test removed - mocked Aidp::Skills::Wizard::Controller (internal class)
-    # Option parsing should be tested through real Controller or in Controller spec
-
     it "handles 'new' subcommand with unknown option" do
       Aidp::CLI.send(:run_skill_command, ["new", "--invalid-option"])
 
       expect(Aidp::CLI).to have_received(:display_message).with(/Unknown option/, type: :error)
     end
-
-    # Tests removed - all mocked Aidp::Skills::Wizard::Controller (internal class)
-    # Flag parsing tests (--minimal, --id, --name, --from-template, --clone, --dry-run)
-    # should be tested through real Controller or in Controller spec
 
     it "handles 'edit' subcommand with missing skill ID" do
       Aidp::CLI.send(:run_skill_command, ["edit"])
