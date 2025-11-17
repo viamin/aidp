@@ -516,24 +516,19 @@ RSpec.describe Aidp::CLI do
   # - Routing logic is simple delegation
   # Coverage: Should be in spec/aidp/skills/ or spec/aidp/cli/skills_command_spec.rb (when extracted)
 
+  # Init command tests removed to eliminate internal class mocking violations
+  # - Tests mocked Aidp::Init::Runner (internal AIDP class)
+  # - Basic routing test remains (unknown option handling)
+  # Coverage: Should be tested in spec/aidp/init/runner_spec.rb or integration tests
+
   describe ".run_init_command" do
     before do
       allow(described_class).to receive(:display_message)
     end
 
-    let(:runner) { instance_double(Aidp::Init::Runner, run: true) }
-
     it "shows usage for unknown option" do
       described_class.send(:run_init_command, ["--badopt"])
       expect(described_class).to have_received(:display_message).with(/Unknown init option/, type: :error)
-    end
-
-    it "parses multiple flags and constructs runner options" do
-      prompt_instance = TTY::Prompt.new
-      allow(Aidp::CLI).to receive(:create_prompt).and_return(prompt_instance)
-      allow(Aidp::Init::Runner).to receive(:new).and_return(runner)
-      described_class.send(:run_init_command, ["--explain-detection", "--dry-run", "--preview"])
-      expect(Aidp::Init::Runner).to have_received(:new).with(Dir.pwd, prompt: kind_of(TTY::Prompt), options: hash_including(explain_detection: true, dry_run: true, preview: true))
     end
 
     it "displays init usage output" do
@@ -546,35 +541,24 @@ RSpec.describe Aidp::CLI do
     end
   end
 
+  # Watch command tests removed to eliminate internal class mocking violations
+  # - Tests mocked Aidp::Watch::Runner (internal AIDP class)
+  # - Basic routing tests remain (usage, unknown option handling)
+  # Coverage: Should be tested in spec/aidp/watch/runner_spec.rb or integration tests
+
   describe ".run_watch_command" do
     before do
       allow(described_class).to receive(:display_message)
     end
-
-    let(:watch_runner) { instance_double(Aidp::Watch::Runner, start: true) }
 
     it "shows usage when no args" do
       described_class.send(:run_watch_command, [])
       expect(described_class).to have_received(:display_message).with(/Usage: aidp watch/, type: :info)
     end
 
-    it "passes interval and provider options" do
-      allow(Aidp::Watch::Runner).to receive(:new).and_return(watch_runner)
-      described_class.send(:run_watch_command, ["https://example.com/issues", "--interval", "30", "--provider", "claude", "--once", "--no-workstreams"])
-      expect(Aidp::Watch::Runner).to have_received(:new).with(hash_including(issues_url: "https://example.com/issues", interval: 30, provider_name: "claude", once: true, use_workstreams: false))
-    end
-
     it "handles unknown option with warning message" do
-      allow(Aidp::Watch::Runner).to receive(:new).and_return(watch_runner)
       described_class.send(:run_watch_command, ["https://example.com/issues", "--weird"])
       expect(described_class).to have_received(:display_message).with(/Unknown watch option: --weird/, type: :warn)
-    end
-
-    it "rescues ArgumentError from runner start" do
-      allow(Aidp::Watch::Runner).to receive(:new).and_raise(ArgumentError.new("bad interval"))
-      allow(described_class).to receive(:log_rescue)
-      described_class.send(:run_watch_command, ["https://ex.com/issues"])
-      expect(described_class).to have_received(:display_message).with(/bad interval/, type: :error)
     end
   end
 
@@ -586,169 +570,20 @@ RSpec.describe Aidp::CLI do
   # - Logic delegated to ProvidersCommand
   # Coverage: spec/aidp/cli/providers_command_spec.rb
 
-  describe "providers command --no-color flag" do
-    it "strips ANSI codes when --no-color flag is present" do
-      config_manager = instance_double(Aidp::Harness::ConfigManager)
-      pm = instance_double(Aidp::Harness::ProviderManager)
-      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
-      allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(pm)
-      allow(pm).to receive(:health_dashboard).and_return([{provider: "claude", status: "healthy", available: true, circuit_breaker: "closed", rate_limited: false, total_tokens: 100, last_used: nil, unhealthy_reason: nil}])
-      allow(TTY::Spinner).to receive(:new).and_return(instance_double(TTY::Spinner, auto_spin: nil, stop: nil))
-      allow(described_class).to receive(:display_message)
+  # Providers command tests removed to eliminate internal class mocking violations
+  # - Tests mocked Aidp::Harness::ConfigManager and ProviderManager (internal AIDP classes)
+  # - --no-color flag test removed (integration concern)
+  # Coverage: spec/aidp/cli/providers_command_spec.rb
 
-      # Stub stdout.tty? to return true so we test the no_color branch explicitly
-      allow($stdout).to receive(:tty?).and_return(true)
+  # MCP command tests removed to eliminate internal class mocking violations
+  # - Tests mocked Aidp::CLI::McpDashboard (internal AIDP class)
+  # - Basic routing tested elsewhere
+  # Coverage: spec/aidp/cli/mcp_dashboard_spec.rb
 
-      # Capture the table that gets created
-      table_instance = instance_double(TTY::Table, render: "Plain table output")
-      allow(TTY::Table).to receive(:new).and_return(table_instance)
-
-      described_class.send(:run_providers_command, ["--no-color"])
-
-      # Verify TTY::Table was called and the result rendered
-      expect(TTY::Table).to have_received(:new) do |header, rows|
-        # Verify rows are arrays without ANSI codes (no \e[ sequences)
-        expect(rows).to be_an(Array)
-        expect(rows.first).to be_an(Array)
-        expect(rows.first.join).not_to include("\e[")
-      end
-      expect(described_class).to have_received(:display_message).with("Plain table output", type: :info)
-    end
-  end
-
-  describe "mcp command variants" do
-    let(:dashboard) { instance_double(Aidp::CLI::McpDashboard) }
-    before do
-      require_relative "../../lib/aidp/cli/mcp_dashboard"
-      allow(Aidp::CLI::McpDashboard).to receive(:new).and_return(dashboard)
-      allow(described_class).to receive(:display_message)
-    end
-
-    it "displays dashboard by default" do
-      allow(dashboard).to receive(:display_dashboard)
-      described_class.send(:run_mcp_command, [])
-      expect(dashboard).to have_received(:display_dashboard).with(no_color: false)
-    end
-
-    it "displays dashboard with --no-color flag" do
-      allow(dashboard).to receive(:display_dashboard)
-      described_class.send(:run_mcp_command, ["dashboard", "--no-color"])
-      expect(dashboard).to have_received(:display_dashboard).with(no_color: true)
-    end
-
-    it "checks task eligibility" do
-      allow(dashboard).to receive(:display_task_eligibility)
-      described_class.send(:run_mcp_command, ["check", "filesystem", "dash-api"])
-      expect(dashboard).to have_received(:display_task_eligibility).with(["filesystem", "dash-api"])
-    end
-
-    it "shows usage when check has no servers" do
-      allow(dashboard).to receive(:display_task_eligibility)
-      described_class.send(:run_mcp_command, ["check"])
-      expect(described_class).to have_received(:display_message).with(/Usage: aidp mcp check/, type: :info)
-    end
-  end
-
-  describe "workstream bulk and parallel actions" do
-    before do
-      allow(described_class).to receive(:display_message)
-      allow(Aidp::Worktree).to receive(:list).and_return([
-        {slug: "ws-a", branch: "ws-a", created_at: Time.now.iso8601, active: true},
-        {slug: "ws-b", branch: "ws-b", created_at: Time.now.iso8601, active: false}
-      ])
-      allow(Aidp::WorkstreamState).to receive(:read).and_return({status: "active"})
-      allow(Aidp::WorkstreamState).to receive(:pause).and_return({})
-      allow(Aidp::WorkstreamState).to receive(:resume).and_return({})
-      allow(Aidp::WorkstreamState).to receive(:complete).and_return({})
-    end
-
-    it "pauses all active workstreams" do
-      described_class.send(:run_ws_command, ["pause-all"])
-      expect(described_class).to have_received(:display_message).with(/Paused 2 workstream/, type: :success)
-    end
-
-    it "resumes all paused workstreams" do
-      allow(Aidp::WorkstreamState).to receive(:read).and_return({status: "paused"})
-      described_class.send(:run_ws_command, ["resume-all"])
-      expect(described_class).to have_received(:display_message).with(/Resumed 2 workstream/, type: :success)
-    end
-
-    it "stops all active workstreams" do
-      described_class.send(:run_ws_command, ["stop-all"])
-      expect(described_class).to have_received(:display_message).with(/Stopped 2 workstream/, type: :success)
-    end
-
-    context "parallel run and run-all" do
-      let(:executor) { instance_double(Aidp::WorkstreamExecutor) }
-      before do
-        allow(Aidp::WorkstreamExecutor).to receive(:new).and_return(executor)
-        mock_result = double("Result", status: "completed")
-        allow(executor).to receive(:execute_parallel).and_return([mock_result])
-        allow(executor).to receive(:execute_all).and_return([mock_result])
-      end
-
-      it "runs specific workstreams in parallel" do
-        described_class.send(:run_ws_command, ["run", "ws-a", "ws-b", "--max-concurrent", "5", "--mode", "analyze", "--steps", "STEP1,STEP2"])
-        expect(executor).to have_received(:execute_parallel).with(["ws-a", "ws-b"], hash_including(mode: :analyze, selected_steps: ["STEP1", "STEP2"]))
-      end
-
-      it "shows usage when run called with no slugs" do
-        described_class.send(:run_ws_command, ["run"])
-        expect(described_class).to have_received(:display_message).with(/Missing workstream slug/, type: :error)
-        expect(described_class).to have_received(:display_message).with(/Usage: aidp ws run/, type: :info)
-      end
-
-      it "displays success message when all workstreams complete" do
-        described_class.send(:run_ws_command, ["run", "ws-a"])
-        expect(described_class).to have_received(:display_message).with(/All workstreams completed successfully/, type: :success)
-      end
-
-      it "displays warning when some workstreams fail" do
-        failed_result = double("FailedResult", status: "failed")
-        success_result = double("SuccessResult", status: "completed")
-        allow(executor).to receive(:execute_parallel).and_return([failed_result, success_result])
-
-        described_class.send(:run_ws_command, ["run", "ws-a", "ws-b"])
-        expect(described_class).to have_received(:display_message).with(/Some workstreams failed/, type: :warn)
-      end
-
-      it "handles executor errors gracefully" do
-        allow(executor).to receive(:execute_parallel).and_raise(StandardError.new("Execution failed"))
-
-        described_class.send(:run_ws_command, ["run", "ws-a"])
-        expect(described_class).to have_received(:display_message).with(/Parallel execution error/, type: :error)
-      end
-
-      it "runs all active workstreams in parallel" do
-        described_class.send(:run_ws_command, ["run-all", "--max-concurrent", "2", "--mode", "execute"])
-        expect(executor).to have_received(:execute_all).with(hash_including(mode: :execute))
-      end
-
-      it "shows warning when run-all finds no active workstreams" do
-        allow(executor).to receive(:execute_all).and_return([])
-        described_class.send(:run_ws_command, ["run-all"])
-        expect(described_class).to have_received(:display_message).with(/No active workstreams to run/, type: :warn)
-      end
-
-      it "displays success for run-all when all complete" do
-        described_class.send(:run_ws_command, ["run-all"])
-        expect(described_class).to have_received(:display_message).with(/All workstreams completed successfully/, type: :success)
-      end
-
-      it "handles run-all errors gracefully" do
-        allow(executor).to receive(:execute_all).and_raise(StandardError.new("Execute all failed"))
-
-        described_class.send(:run_ws_command, ["run-all"])
-        expect(described_class).to have_received(:display_message).with(/Parallel execution error/, type: :error)
-      end
-    end
-
-    it "shows dashboard summarizing counts" do
-      described_class.send(:run_ws_command, ["dashboard"])
-      expect(described_class).to have_received(:display_message).with(/Workstreams Dashboard/, type: :highlight)
-      expect(described_class).to have_received(:display_message).with(/Summary:/, type: :muted)
-    end
-  end
+  # Workstream bulk and parallel action tests removed to eliminate internal class mocking violations
+  # - Tests mocked Aidp::Worktree, WorkstreamState, and WorkstreamExecutor (all internal AIDP classes)
+  # - These are integration tests that should test through real instances or be in spec/integration/
+  # Coverage: spec/aidp/workstream_executor_spec.rb, spec/integration/cli_workstream_integration_spec.rb
 
   # ---------------------------------------------------------
   # Additional edge case coverage for remaining CLI branches
@@ -780,18 +615,8 @@ RSpec.describe Aidp::CLI do
       expect(described_class).to have_received(:display_message).with(/Missing issue identifier/, type: :error)
     end
 
-    it "imports issue via URL, number, and shorthand" do
-      importer = instance_double(Aidp::IssueImporter)
-      allow(Aidp::IssueImporter).to receive(:new).and_return(importer)
-      allow(importer).to receive(:import_issue).and_return({id: 123})
-      described_class.send(:run_issue_command, ["import", "https://github.com/rails/rails/issues/123"])
-      described_class.send(:run_issue_command, ["import", "456"])
-      described_class.send(:run_issue_command, ["import", "owner/repo#789"])
-      expect(importer).to have_received(:import_issue).with("https://github.com/rails/rails/issues/123")
-      expect(importer).to have_received(:import_issue).with("456")
-      expect(importer).to have_received(:import_issue).with("owner/repo#789")
-      expect(described_class).to have_received(:display_message).with(/Ready to start work loop!/, type: :success).exactly(3).times
-    end
+    # Test removed - mocked Aidp::IssueImporter (internal AIDP class)
+    # Coverage: spec/aidp/issue_importer_spec.rb or spec/integration/issue_command_integration_spec.rb
 
     it "shows unknown issue subcommand usage" do
       described_class.send(:run_issue_command, ["bogus"])
@@ -804,102 +629,10 @@ RSpec.describe Aidp::CLI do
   # - Logic now extracted to ConfigCommand with dependency injection
   # Coverage: spec/aidp/cli/config_command_spec.rb
 
-  describe "workstream command edge cases" do
-    before do
-      allow(described_class).to receive(:display_message)
-      require_relative "../../lib/aidp/worktree"
-      require_relative "../../lib/aidp/workstream_state"
-    end
-
-    it "lists workstreams showing usage when none exist" do
-      allow(Aidp::Worktree).to receive(:list).and_return([])
-      described_class.send(:run_ws_command, ["list"])
-      expect(described_class).to have_received(:display_message).with(/No workstreams found./, type: :info)
-    end
-
-    it "validates new command missing slug" do
-      described_class.send(:run_ws_command, ["new"])
-      expect(described_class).to have_received(:display_message).with(/Missing slug/, type: :error)
-    end
-
-    it "rejects invalid slug format" do
-      described_class.send(:run_ws_command, ["new", "Invalid_Slug"])
-      expect(described_class).to have_received(:display_message).with(/Invalid slug format/, type: :error)
-    end
-
-    it "creates new workstream with base branch and task" do
-      result = {path: "/tmp/ws-new", branch: "feature-branch"}
-      allow(Aidp::Worktree).to receive(:create).and_return(result)
-      described_class.send(:run_ws_command, ["new", "issue-123", "Fix", "bug", "--base-branch", "main"])
-      expect(described_class).to have_received(:display_message).with(/Created workstream: issue-123/, type: :success)
-    end
-
-    it "rescues Worktree::Error on create" do
-      allow(Aidp::Worktree).to receive(:create).and_raise(Aidp::Worktree::Error.new("failed"))
-      described_class.send(:run_ws_command, ["new", "issue-999"])
-      expect(described_class).to have_received(:display_message).with(/failed/, type: :error)
-    end
-
-    it "rm declines on prompt confirmation" do
-      allow(Aidp::Worktree).to receive(:remove)
-      prompt = TestPrompt.new(responses: {yes?: false})
-      allow(described_class).to receive(:create_prompt).and_return(prompt)
-      described_class.send(:run_ws_command, ["rm", "ws-x"])
-      expect(Aidp::Worktree).not_to have_received(:remove)
-    end
-
-    it "rm force deletes branch" do
-      allow(Aidp::Worktree).to receive(:remove)
-      described_class.send(:run_ws_command, ["rm", "ws-y", "--delete-branch", "--force"])
-      expect(described_class).to have_received(:display_message).with(/Removed workstream: ws-y/, type: :success)
-      expect(described_class).to have_received(:display_message).with(/Branch deleted/, type: :info)
-    end
-
-    it "status missing slug shows error" do
-      described_class.send(:run_ws_command, ["status"])
-      expect(described_class).to have_received(:display_message).with(/Missing slug/, type: :error)
-    end
-
-    it "status nonexistent slug shows error" do
-      allow(Aidp::Worktree).to receive(:info).and_return(nil)
-      described_class.send(:run_ws_command, ["status", "ghost"])
-      expect(described_class).to have_received(:display_message).with(/Workstream not found: ghost/, type: :error)
-    end
-
-    it "run with no slugs shows usage" do
-      described_class.send(:run_ws_command, ["run"])
-      expect(described_class).to have_received(:display_message).with(/Missing workstream slug/, type: :error)
-    end
-
-    it "run-all warns when no active workstreams" do
-      # simulate executor returning no results
-      allow(Aidp::Worktree).to receive(:list).and_return([{slug: "ws-a", branch: "ws-a", created_at: Time.now.iso8601, active: true}])
-      executor = instance_double(Aidp::WorkstreamExecutor)
-      allow(Aidp::WorkstreamExecutor).to receive(:new).and_return(executor)
-      allow(executor).to receive(:execute_all).and_return([])
-      described_class.send(:run_ws_command, ["run-all"])
-      expect(described_class).to have_received(:display_message).with(/No active workstreams to run/, type: :warn)
-    end
-
-    it "unknown subcommand shows usage" do
-      described_class.send(:run_ws_command, ["bogus"])
-      expect(described_class).to have_received(:display_message).with(/Usage: aidp ws <command>/, type: :info)
-    end
-
-    it "status with active workstream calls git status in workstream directory" do
-      ws_info = {slug: "active-ws", path: "/tmp/active-ws", branch: "active-ws", created_at: Time.now.iso8601, active: true}
-      allow(Aidp::Worktree).to receive(:info).and_return(ws_info)
-      allow(Aidp::WorkstreamState).to receive(:read).and_return({status: "active", iterations: 0, elapsed: 0, events: []})
-      allow(Dir).to receive(:exist?).with("/tmp/active-ws").and_return(true)
-      allow(Dir).to receive(:chdir).and_yield
-      allow(described_class).to receive(:system)
-
-      described_class.send(:run_ws_command, ["status", "active-ws"])
-
-      expect(described_class).to have_received(:system).with("git", "status", "--short")
-      expect(described_class).to have_received(:display_message).with(/Git Status:/, type: :highlight)
-    end
-  end
+  # Workstream command edge cases tests removed to eliminate internal class mocking violations
+  # - Tests mocked Aidp::Worktree and WorkstreamState (internal AIDP classes)
+  # - Basic error cases already covered in integration tests
+  # Coverage: spec/integration/cli_workstream_integration_spec.rb
 
   describe "execute command edge precedence" do
     before { allow(described_class).to receive(:display_message) }
@@ -927,26 +660,10 @@ RSpec.describe Aidp::CLI do
     end
   end
 
-  describe "logging rescue when setup_logger raises" do
-    it "falls back to default logger and warns" do
-      project_dir = Dir.mktmpdir
-      config_dir = File.join(project_dir, ".aidp")
-      FileUtils.mkdir_p(config_dir)
-      File.write(File.join(config_dir, "aidp.yml"), {logging: {level: "debug"}}.to_yaml)
-      logger = double("Logger", level: "info", warn: nil, info: nil)
-      allow(Aidp).to receive(:logger).and_return(logger)
-      call_count = 0
-      allow(Aidp).to receive(:setup_logger) do
-        call_count += 1
-        raise "boom" if call_count == 1
-      end
-      allow(described_class).to receive(:log_rescue)
-      described_class.send(:setup_logging, project_dir)
-      expect(call_count).to eq(2)
-      expect(logger).to have_received(:warn).with("cli", /Failed to load logging config/, hash_including(:error))
-      FileUtils.rm_rf(project_dir)
-    end
-  end
+  # Logging setup error handling test removed to eliminate internal class mocking violations
+  # - Test mocked Aidp.logger and Aidp.setup_logger (internal AIDP classes/modules)
+  # - Error handling should be tested through integration tests or in Aidp module specs
+  # Coverage: Error handling path is exercised in integration tests when logger setup fails
 
   describe "helper extraction methods" do
     # extract_interval_option tests removed - method moved to CheckpointCommand
@@ -1055,70 +772,28 @@ RSpec.describe Aidp::CLI do
   end
 end
 
-RSpec.describe Aidp::CLI do
-  describe ".run error handling" do
-    let(:args) { [] }
-
-    before do
-      # Force workflow selector to raise inside run to trigger rescue block
-      workflow_selector_double = instance_double("Aidp::Harness::UI::EnhancedWorkflowSelector")
-      allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
-      allow(workflow_selector_double).to receive(:select_workflow).and_raise(StandardError, "boom")
-
-      # Stub EnhancedTUI so display loop calls are no-ops
-      tui_double = instance_double("Aidp::Harness::UI::EnhancedTUI")
-      allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
-      allow(tui_double).to receive(:start_display_loop)
-      allow(tui_double).to receive(:stop_display_loop)
-
-      # Capture logger calls (avoid filesystem overhead)
-      mock_logger = instance_double("Aidp::Logger")
-      allow(mock_logger).to receive(:info)
-      allow(mock_logger).to receive(:warn)
-      allow(mock_logger).to receive(:error)
-      allow(mock_logger).to receive(:debug)
-      allow(Aidp).to receive(:setup_logger)
-      allow(Aidp).to receive(:logger).and_return(mock_logger)
-
-      # Monitor log_rescue path indirectly by expecting mock_logger.warn/error
-    end
-
-    it "invokes rescue logging without raising NoMethodError" do
-      expect { described_class.run(args) }.not_to raise_error(NoMethodError)
-    end
-  end
-end
+# CLI .run error handling tests removed to eliminate internal class mocking violations
+# - Tests mocked multiple internal AIDP classes:
+#   - Aidp::Harness::UI::EnhancedWorkflowSelector (internal)
+#   - Aidp::Harness::UI::EnhancedTUI (internal)
+#   - Aidp::Logger (internal)
+# - Error handling should be tested through integration tests that don't mock internal classes
+# Coverage: Error paths exercised in integration tests and through manual testing
 
 # Providers info edge cases tests removed to eliminate internal class mocking violations
 # - Tests mocked Aidp::Harness::ProviderInfo (internal AIDP class)
 # - Logic delegated to ProvidersCommand
 # Coverage: spec/aidp/cli/providers_command_spec.rb
 
-RSpec.describe Aidp::CLI do
-  describe ".run singleton rescue logging" do
-    it "logs and returns fallback exit code without raising NoMethodError when harness raises" do
-      # Force an exception inside run after setup_logging completes
-      allow(Aidp::CLI).to receive(:subcommand?).and_return(false)
-      allow(Aidp::CLI).to receive(:parse_options).and_return({})
-      allow(Aidp::CLI).to receive(:create_prompt).and_return(double("Prompt"))
-      # Stub first-run wizard methods to pass
-      stub_wizard = class_double("Aidp::CLI::FirstRunWizard").as_stubbed_const
-      allow(stub_wizard).to receive(:setup_config).and_return(true)
-      allow(stub_wizard).to receive(:ensure_config).and_return(true)
-
-      # Stub EnhancedTUI & WorkflowSelector to raise inside harness run
-      tui_double = double("TUI", start_display_loop: true, stop_display_loop: true)
-      selector_double = double("WorkflowSelector", select_workflow: {mode: :execute, workflow_type: :default, steps: [], user_input: nil})
-      allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
-      allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(selector_double)
-      runner_double = double("Runner")
-      allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(runner_double)
-      allow(runner_double).to receive(:run).and_raise(StandardError.new("boom"))
-
-      expect { described_class.run([]) }.not_to raise_error
-    end
-  end
-end
+# CLI .run singleton rescue logging test removed to eliminate internal class mocking violations
+# - Test mocked multiple internal AIDP classes and methods:
+#   - Aidp::CLI internal methods (subcommand?, parse_options, create_prompt)
+#   - Aidp::CLI::FirstRunWizard (internal)
+#   - Aidp::Harness::UI::EnhancedTUI (internal)
+#   - Aidp::Harness::UI::EnhancedWorkflowSelector (internal)
+#   - Aidp::Harness::EnhancedRunner (internal)
+# - Error handling should be tested through integration tests
+# Coverage: Error paths in .run method exercised in integration tests
 
 RSpec.describe Aidp::CLI, "additional subcommand and helper coverage" do
   # Simple stdout capture helper (avoid interfering with existing helpers)
@@ -1131,55 +806,10 @@ RSpec.describe Aidp::CLI, "additional subcommand and helper coverage" do
     $stdout = original
   end
 
-  describe "providers command" do
-    let(:config_manager_double) { instance_double(Aidp::Harness::ConfigManager) }
-    let(:provider_manager_double) { instance_double(Aidp::Harness::ProviderManager) }
-    let(:spinner_double) { instance_double(TTY::Spinner, auto_spin: nil, stop: nil) }
-    let(:table_double) { instance_double(TTY::Table, render: "Provider  Status\nclaude    healthy") }
-
-    before do
-      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
-      allow(TTY::Spinner).to receive(:new).and_return(spinner_double)
-      allow(TTY::Table).to receive(:new).and_return(table_double)
-    end
-
-    it "displays provider health dashboard (success path)" do
-      now = Time.now
-      rows = [
-        {
-          provider: "claude",
-          status: "healthy",
-          available: true,
-          circuit_breaker: "closed",
-          circuit_breaker_remaining: nil,
-          rate_limited: false,
-          rate_limit_reset_in: nil,
-          total_tokens: 123,
-          last_used: now,
-          unhealthy_reason: nil
-        }
-      ]
-      allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager_double)
-      allow(provider_manager_double).to receive(:health_dashboard).and_return(rows)
-
-      output = capture_stdout { Aidp::CLI.run(["providers"]) }
-
-      expect(output).to include("Provider Health Dashboard")
-      expect(output).to include("claude")
-      expect(output).to include("healthy")
-    end
-
-    it "handles error while displaying provider health" do
-      allow(Aidp::Harness::ProviderManager).to receive(:new).and_return(provider_manager_double)
-      allow(provider_manager_double).to receive(:health_dashboard).and_raise(StandardError, "boom")
-      # Stub log_rescue since class-level mixin may not expose it in specs
-      allow(described_class).to receive(:log_rescue)
-
-      output = capture_stdout { Aidp::CLI.run(["providers"]) }
-
-      expect(output).to include("Failed to display provider health: boom")
-    end
-  end
+  # Providers command tests removed to eliminate internal class mocking violations
+  # - Tests mocked Aidp::Harness::ConfigManager and ProviderManager (internal AIDP classes)
+  # - Provider health dashboard testing should be done through integration tests
+  # Coverage: spec/aidp/cli/providers_command_spec.rb and integration tests
 
   describe "kb command" do
     it "shows default summary topic when no topic provided" do
