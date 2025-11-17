@@ -31,11 +31,20 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       "api_key" => "test-key",
       "models" => ["claude-3-5-sonnet-20241022"]
     })
+    # ProviderConfig.config also needs harness_config
+    allow(config_manager).to receive(:harness_config).and_return({
+      "enabled" => true,
+      "default_provider" => "claude"
+    })
 
     # Setup provider_manager and provider_factory stubs (passed via dependency injection)
     allow(provider_factory).to receive(:create_provider).and_return(provider)
     allow(provider_manager).to receive(:current_provider).and_return("claude")
     allow(provider_manager).to receive(:configured_providers).and_return(["claude"])
+
+    # Mock ProviderFactory.new to return our mocked provider_factory
+    # This is needed because call_provider_for_analysis creates a new ProviderFactory instance
+    allow(Aidp::Harness::ProviderFactory).to receive(:new).with(config_manager).and_return(provider_factory)
 
     # Mock display_message calls (uses prompt.say)
     allow(prompt).to receive(:say)
@@ -279,7 +288,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     context "with verbose flag enabled" do
-      let(:verbose_agent) { described_class.new(project_dir, prompt: prompt, verbose: true) }
+      let(:verbose_agent) { described_class.new(project_dir, prompt: prompt, verbose: true, config_manager: config_manager, provider_manager: provider_manager) }
       let(:plan_json) { {complete: false, questions: ["What tech stack?"], reasoning: "Need tech details"}.to_json }
       let(:complete_plan_json) { {complete: true, questions: [], reasoning: "Plan complete"}.to_json }
       let(:steps_json) { {steps: ["00_PRD", "16_IMPLEMENTATION"], reasoning: "Minimal steps"}.to_json }
@@ -299,7 +308,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     context "with DEBUG=1 but no verbose flag" do
-      let(:debug_agent) { described_class.new(project_dir, prompt: prompt, verbose: false) }
+      let(:debug_agent) { described_class.new(project_dir, prompt: prompt, verbose: false, config_manager: config_manager, provider_manager: provider_manager) }
       let(:plan_json) { {complete: true, questions: [], reasoning: "Plan complete"}.to_json }
       let(:steps_json) { {steps: ["00_PRD", "16_IMPLEMENTATION"], reasoning: "Minimal steps"}.to_json }
 
