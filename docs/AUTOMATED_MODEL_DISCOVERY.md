@@ -308,12 +308,12 @@ ModelDiscoveryService.providers_supporting("claude-3-5-sonnet")
 
 ```ruby
 # When user configures with specific version:
-thinking_depth:
-  tiers:
-    standard:
-      models:
-        - provider: anthropic
-          model: claude-3-5-sonnet-20241022
+providers:
+  anthropic:
+    thinking_tiers:
+      standard:
+        models:
+          - claude-3-5-sonnet-20241022
 
 # System resolves:
 # 1. Anthropic adapter: "claude-3-5-sonnet-20241022" → "claude-3-5-sonnet" (family)
@@ -714,12 +714,12 @@ Required tier: mini
 
 To fix this, add a model to your aidp.yml:
 
-thinking_depth:
-  tiers:
-    mini:
-      models:
-        - provider: anthropic
-          model: <model-name>
+providers:
+  anthropic:
+    thinking_tiers:
+      mini:
+        models:
+          - <model-name>
 
 💡 Discovered models available for tier 'mini':
   - claude-3-5-haiku-20241022 (fast, cost-effective)
@@ -759,20 +759,18 @@ Add these to aidp.yml? [Y/n]: y
 
 Generated configuration:
 
-thinking_depth:
-  tiers:
-    mini:
-      models:
-        - provider: anthropic
-          model: claude-3-5-haiku-20241022
-    standard:
-      models:
-        - provider: anthropic
-          model: claude-3-5-sonnet-20241022
-    advanced:
-      models:
-        - provider: anthropic
-          model: claude-3-opus-20240229
+providers:
+  anthropic:
+    thinking_tiers:
+      mini:
+        models:
+          - claude-3-5-haiku-20241022
+      standard:
+        models:
+          - claude-3-5-sonnet-20241022
+      advanced:
+        models:
+          - claude-3-opus-20240229
 
 ✓ Configuration updated successfully!
 ```

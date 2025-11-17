@@ -13,7 +13,8 @@ RSpec.describe Aidp::Harness::ZfcConditionDetector do
       zfc_decision_cache_ttl: nil,
       zfc_decision_confidence_threshold: 0.7,
       zfc_ab_testing_enabled?: false,
-      zfc_ab_testing_config: {enabled: false, sample_rate: 0.1, log_comparisons: true})
+      zfc_ab_testing_config: {enabled: false, sample_rate: 0.1, log_comparisons: true},
+      default_provider: "anthropic")
   end
 
   let(:provider_factory) { instance_double(Aidp::Harness::ProviderFactory) }

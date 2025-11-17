@@ -308,8 +308,12 @@ module Aidp
         end
 
         # Check if user wants to use automated discovery
-        existing_tiers = get([:thinking, :tiers])
-        if existing_tiers && !existing_tiers.empty?
+        has_existing_tiers = all_providers.any? do |provider|
+          existing_tiers = get([:providers, provider.to_sym, :thinking_tiers])
+          existing_tiers && !existing_tiers.empty?
+        end
+
+        if has_existing_tiers
           prompt.say("📝 Found existing tier configuration")
           unless prompt.yes?("Would you like to update it with discovered models?", default: false)
             return
@@ -332,16 +336,19 @@ module Aidp
         # Display discovered models
         display_discovered_models(discovered_models)
 
-        # Generate tier configuration
-        tier_config = generate_tier_configuration(discovered_models, primary_provider)
+        # Generate tier configuration (now provider-specific)
+        tier_configs = generate_provider_tier_configurations(discovered_models)
 
         # Show preview
         prompt.say("\n📋 Proposed tier configuration:")
-        display_tier_preview(tier_config)
+        display_provider_tier_preview(tier_configs)
 
         # Confirm and save
         if prompt.yes?("\nSave this tier configuration?", default: true)
-          set([:thinking, :tiers], tier_config)
+          # Write to provider-specific paths
+          tier_configs.each do |provider, provider_tiers|
+            set([:providers, provider.to_sym, :thinking_tiers], provider_tiers)
+          end
           prompt.ok("✅ Thinking tiers configured successfully")
         else
           prompt.say("💡 Skipped tier configuration. You can run 'aidp models discover' later")
@@ -474,38 +481,30 @@ module Aidp
         end
       end
 
-      def generate_tier_configuration(discovered_models, primary_provider)
-        tier_config = {}
+      def generate_provider_tier_configurations(discovered_models)
+        provider_configs = {}
 
-        # Configure the three most common tiers: mini, standard, and pro
-        DEFAULT_AUTOCONFIG_TIERS.each do |tier|
-          tier_models = []
+        # Organize by provider first, then by tier
+        discovered_models.each do |provider, models|
+          provider_tiers = {}
 
-          # Collect primary provider models first (if available)
-          primary_models = find_models_for_tier(discovered_models[primary_provider], tier)
-          tier_models.concat(primary_models) if primary_models&.any?
+          # Configure the three most common tiers: mini, standard, and pro
+          DEFAULT_AUTOCONFIG_TIERS.each do |tier|
+            tier_models = find_models_for_tier(models, tier)
 
-          # Add models from other providers
-          discovered_models.each do |provider, models|
-            next if provider == primary_provider
-            provider_models = find_models_for_tier(models, tier)
-            tier_models.concat(provider_models) if provider_models&.any?
-          end
-
-          # Add to config if we found any models for this tier
-          if tier_models.any?
-            tier_config[tier.to_sym] = {
-              models: tier_models.map { |m|
-                {
-                  provider: m[:provider],
-                  model: m[:name]
-                }
+            # Add to config if we found any models for this tier
+            if tier_models.any?
+              provider_tiers[tier.to_sym] = {
+                models: tier_models.map { |m| m[:name] }
               }
-            }
+            end
           end
+
+          # Only add provider if it has at least one tier configured
+          provider_configs[provider] = provider_tiers if provider_tiers.any?
         end
 
-        tier_config
+        provider_configs
       end
 
       def find_model_for_tier(models, target_tier)
@@ -520,16 +519,19 @@ module Aidp
         models.select { |m| m[:tier] == target_tier }
       end
 
-      def display_tier_preview(tier_config)
-        return if tier_config.empty?
+      def display_provider_tier_preview(provider_configs)
+        return if provider_configs.empty?
 
-        tier_config.each do |tier, config|
-          models = config[:models] || []
-          prompt.say("  #{tier}:")
-          models.each do |model_entry|
-            prompt.say("    - provider: #{model_entry[:provider]}")
-            prompt.say("      model: #{model_entry[:model]}")
+        provider_configs.each do |provider, provider_tiers|
+          prompt.say("  #{provider}:")
+          provider_tiers.each do |tier, tier_config|
+            models = tier_config[:models] || []
+            prompt.say("    #{tier}:")
+            models.each do |model_name|
+              prompt.say("      - #{model_name}")
+            end
           end
+          prompt.say("") # Blank line between providers
         end
       end
 

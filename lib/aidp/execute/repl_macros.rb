@@ -1777,8 +1777,8 @@ module Aidp
         lines << "Legend: → current, ↑ max allowed"
         lines << ""
 
-        # Show current model selection
-        current_model = manager.select_model_for_tier
+        # Show current model selection (using harness default provider)
+        current_model = manager.select_model_for_tier(provider: config.default_provider)
         if current_model
           provider, model_name, model_data = current_model
           lines << "Current Model: #{provider}/#{model_name}"

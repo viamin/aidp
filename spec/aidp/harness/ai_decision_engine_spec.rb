@@ -9,7 +9,8 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
   let(:config) do
     instance_double(Aidp::Harness::Configuration,
       default_tier: "mini",
-      max_tier: "max")
+      max_tier: "max",
+      default_provider: "anthropic")
   end
 
   let(:provider_factory) { instance_double(Aidp::Harness::ProviderFactory) }
@@ -66,13 +67,13 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
       end
 
       it "uses mini tier by default" do
-        expect(thinking_manager).to receive(:select_model_for_tier).with("mini")
+        expect(thinking_manager).to receive(:select_model_for_tier).with("mini", provider: "anthropic")
 
         engine.decide(:condition_detection, context: context)
       end
 
       it "allows tier override" do
-        expect(thinking_manager).to receive(:select_model_for_tier).with("thinking")
+        expect(thinking_manager).to receive(:select_model_for_tier).with("thinking", provider: "anthropic")
 
         engine.decide(:condition_detection, context: context, tier: "thinking")
       end

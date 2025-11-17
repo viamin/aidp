@@ -432,34 +432,37 @@ module Aidp
         thinking_overrides[key] || thinking_overrides[key.to_sym]
       end
 
-      # Get tiers configuration from user's config
-      def thinking_tiers_config
-        thinking_config[:tiers] || {}
+      # Get thinking tiers configuration for a specific provider
+      # @param provider_name [String] The provider name
+      # @return [Hash] The thinking tiers configuration for the provider
+      def provider_thinking_tiers(provider_name)
+        provider_cfg = provider_config(provider_name)
+        provider_cfg[:thinking_tiers] || provider_cfg["thinking_tiers"] || {}
       end
 
-      # Get models configured for a specific tier
-      # Returns array of {provider:, model:} hashes
-      def models_for_tier(tier)
-        tier_config = thinking_tiers_config[tier] || thinking_tiers_config[tier.to_sym]
+      # Get models configured for a specific tier and provider
+      # @param tier [String, Symbol] The tier name (mini, standard, thinking, pro, max)
+      # @param provider_name [String] The provider name (required)
+      # @return [Array<String>] Array of model names for the tier
+      def models_for_tier(tier, provider_name)
+        return [] unless provider_name
+
+        tier_config = provider_thinking_tiers(provider_name)[tier] ||
+          provider_thinking_tiers(provider_name)[tier.to_sym]
         return [] unless tier_config
 
         models = tier_config[:models] || tier_config["models"]
         return [] unless models
 
-        # Normalize to array of hashes with symbol keys
-        Array(models).map do |model_entry|
-          if model_entry.is_a?(Hash)
-            {
-              provider: (model_entry[:provider] || model_entry["provider"]).to_s,
-              model: (model_entry[:model] || model_entry["model"]).to_s
-            }
-          end
-        end.compact
+        # Return simple array of model name strings
+        Array(models).map(&:to_s).compact
       end
 
-      # Get all configured tiers
-      def configured_tiers
-        thinking_tiers_config.keys.map(&:to_s)
+      # Get all configured tiers for a provider
+      # @param provider_name [String] The provider name
+      # @return [Array<String>] Array of tier names
+      def configured_tiers(provider_name)
+        provider_thinking_tiers(provider_name).keys.map(&:to_s)
       end
 
       # Get fallback configuration
