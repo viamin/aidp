@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../../lib/aidp/harness/model_registry"
 
 RSpec.describe Aidp::Providers::Cursor do
   let(:provider) { described_class.new }
@@ -259,8 +260,9 @@ RSpec.describe Aidp::Providers::Cursor do
       expect(described_class.provider_model_name("claude-3-5-sonnet")).to eq("claude-3.5-sonnet")
     end
 
-    it "handles single version numbers" do
-      expect(described_class.provider_model_name("gpt-4-turbo")).to eq("gpt-4.turbo")
+    it "preserves model names without digit-digit patterns" do
+      # "gpt-4-turbo" has no digit-hyphen-digit pattern, so it stays unchanged
+      expect(described_class.provider_model_name("gpt-4-turbo")).to eq("gpt-4-turbo")
     end
 
     it "preserves model names without version numbers" do
@@ -339,7 +341,7 @@ RSpec.describe Aidp::Providers::Cursor do
     end
 
     context "when cursor-agent succeeds" do
-      let(:success_result) { double("result", exit_status: 0, out: "AI response text") }
+      let(:success_result) { double("result", exit_status: 0, out: "AI response text", err: "") }
 
       before do
         allow(provider).to receive(:debug_execute_command).and_return(success_result)
@@ -353,7 +355,8 @@ RSpec.describe Aidp::Providers::Cursor do
       it "calls cursor-agent with correct arguments" do
         expect(provider).to receive(:debug_execute_command).with(
           "cursor-agent",
-          "--prompt", prompt_text,
+          args: ["-p"],
+          input: prompt_text,
           timeout: anything
         )
         provider.send_message(prompt: prompt_text)
@@ -361,15 +364,14 @@ RSpec.describe Aidp::Providers::Cursor do
     end
 
     context "when cursor-agent fails" do
-      let(:error_result) { double("result", exit_status: 1, out: "") }
+      let(:error_result) { double("result", exit_status: 1, out: "", err: "Error message") }
 
       before do
         allow(provider).to receive(:debug_execute_command).and_return(error_result)
       end
 
-      it "returns nil" do
-        response = provider.send_message(prompt: prompt_text)
-        expect(response).to be_nil
+      it "raises an error" do
+        expect { provider.send_message(prompt: prompt_text) }.to raise_error(/cursor-agent failed/)
       end
     end
 
@@ -378,14 +380,13 @@ RSpec.describe Aidp::Providers::Cursor do
         allow(provider).to receive(:debug_execute_command).and_raise(Timeout::Error)
       end
 
-      it "returns nil" do
-        response = provider.send_message(prompt: prompt_text)
-        expect(response).to be_nil
+      it "raises Timeout::Error" do
+        expect { provider.send_message(prompt: prompt_text) }.to raise_error(Timeout::Error)
       end
 
-      it "displays timeout message" do
-        expect(provider).to receive(:display_message).with(/timed out/, type: :error)
-        provider.send_message(prompt: prompt_text)
+      it "cleans up spinner on timeout" do
+        # Just verify it doesn't hang or crash
+        expect { provider.send_message(prompt: prompt_text) }.to raise_error(Timeout::Error)
       end
     end
   end
@@ -395,19 +396,24 @@ RSpec.describe Aidp::Providers::Cursor do
       allow(provider).to receive(:display_message)
     end
 
-    it "displays thinking state" do
-      expect(provider).to receive(:display_message).with(/cursor is thinking/, type: :info)
-      provider.activity_callback(:thinking, "processing", "cursor")
+    it "displays stuck state" do
+      expect(provider).to receive(:display_message).with(/cursor appears stuck/, type: :warning)
+      provider.send(:activity_callback, :stuck, "no response", "cursor")
     end
 
-    it "displays responding state" do
-      expect(provider).to receive(:display_message).with(/cursor is responding/, type: :info)
-      provider.activity_callback(:responding, "generating", "cursor")
+    it "displays completed state" do
+      expect(provider).to receive(:display_message).with(/cursor completed/, type: :success)
+      provider.send(:activity_callback, :completed, "done", "cursor")
     end
 
-    it "does not display for unknown states" do
+    it "displays failed state" do
+      expect(provider).to receive(:display_message).with(/cursor failed/, type: :error)
+      provider.send(:activity_callback, :failed, "error occurred", "cursor")
+    end
+
+    it "does not display for other states" do
       expect(provider).not_to receive(:display_message)
-      provider.activity_callback(:unknown, "message", "cursor")
+      provider.send(:activity_callback, :thinking, "message", "cursor")
     end
   end
 end

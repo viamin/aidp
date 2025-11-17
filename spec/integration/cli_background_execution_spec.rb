@@ -26,6 +26,9 @@ RSpec.describe "CLI Background Execution Integration", type: :integration do
       allow(Process).to receive(:fork).and_return(12345)
       allow(Process).to receive(:detach)
 
+      # Skip the 5-second wait for PID file by raising timeout immediately
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_raise(Aidp::Concurrency::TimeoutError)
+
       job_id = runner.start(:execute, {})
 
       # Job ID format is timestamp-based, e.g., "20251116_223631_af6b94a9"
@@ -40,6 +43,9 @@ RSpec.describe "CLI Background Execution Integration", type: :integration do
 
       allow(Process).to receive(:fork).and_return(12345)
       allow(Process).to receive(:detach)
+
+      # Skip the 5-second wait for PID file by raising timeout immediately
+      allow(Aidp::Concurrency::Wait).to receive(:for_file).and_raise(Aidp::Concurrency::TimeoutError)
 
       job_id = runner.start(:execute, {})
       log_file = File.join(tmpdir, ".aidp", "jobs", job_id, "output.log")
