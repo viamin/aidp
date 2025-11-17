@@ -84,7 +84,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     stub_const("Aidp::Harness::CapabilityRegistry", registry_class)
 
     # Mock the new method to return our mock_registry
-    # FIXME: Internal class mocking violation - see docs/ISSUE_295_FINAL_SUMMARY.md "Hard Violations"
+    # FIXME: Internal class mocking violation - see docs/TESTING_MOCK_VIOLATIONS_REMEDIATION.md "Hard Violations"
     # WorkLoopRunner needs dependency injection for CapabilityRegistry
     # Risk: High - core functionality
     # Estimated effort: 4-6 hours for full DI refactoring

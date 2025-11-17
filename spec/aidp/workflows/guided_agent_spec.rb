@@ -44,7 +44,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
     # Mock ProviderFactory.new to return our mocked provider_factory
     # This is needed because call_provider_for_analysis creates a new ProviderFactory instance
-    # FIXME: Internal class mocking violation - see docs/ISSUE_295_FINAL_SUMMARY.md "Hard Violations"
+    # FIXME: Internal class mocking violation - see docs/TESTING_MOCK_VIOLATIONS_REMEDIATION.md "Hard Violations"
     # GuidedAgent#call_provider_for_analysis needs ProviderFactory via DI or extract method
     # Risk: Medium - can work around by mocking at different level
     # Estimated effort: 2-3 hours
