@@ -130,29 +130,37 @@ See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern ex
 
 Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:965-1021`
 
-## 8. Concurrency & Threads
+## 8. Test Coverage Patterns
 
-- Join or stop threads in `ensure` / cleanup. `STYLE_GUIDE:1319-1354`
-- Avoid global mutable state without synchronization. `STYLE_GUIDE:1319-1354`
-- Keep intervals & sleeps configurable for tests. `STYLE_GUIDE:1319-1354`
+- Target 85%+ coverage for business logic; accept lower for untestable code (forked processes, exec calls). `STYLE_GUIDE:1335-1600`
+- **Time-based tests**: Stub `Time.now` instead of `sleep` (avoid flaky tests). `STYLE_GUIDE:1442-1503`
+- **Private methods**: Test with `send(:method)` when complex logic needs coverage. `STYLE_GUIDE:1392-1414`
+- **Forked processes**: Test orchestration/metadata, not child internals; accept lower coverage. `STYLE_GUIDE:1504-1565`
+- **String encoding**: Explicitly convert to UTF-8 before regex/string operations. `STYLE_GUIDE:1566-1600`
 
-## 9. Performance
+## 9. Concurrency & Threads
+
+- Join or stop threads in `ensure` / cleanup. `STYLE_GUIDE:1689-1724`
+- Avoid global mutable state without synchronization. `STYLE_GUIDE:1689-1724`
+- Keep intervals & sleeps configurable for tests. `STYLE_GUIDE:1689-1724`
+
+## 10. Performance
 
 - Avoid O(n^2) over large codebases (batch I/O, stream where possible). `STYLE_GUIDE:1355-1381`
 - Cache repeated expensive parsing (e.g., tree-sitter results) via existing cache utilities. `STYLE_GUIDE:1355-1381`
 
-## 10. Progress / Status Output
+## 11. Progress / Status Output
 
 - UI rendering logic separated from business logic. `STYLE_GUIDE:636-964`
 - Inject I/O (stdout/prompt) for testability. `STYLE_GUIDE:747-870`
 
-## 11. Security & Safety
+## 12. Security & Safety
 
 - Never execute untrusted code. `STYLE_GUIDE:1382-1421`
 - Validate file paths; avoid shell interpolation without sanitization. `STYLE_GUIDE:1382-1421`
 - Don't leak secrets into logs. `STYLE_GUIDE:272-283,1382-1421`
 
-## 12. Implementation Do / Don't
+## 13. Implementation Do / Don't
 
 `STYLE_GUIDE:18-50,108-117,1262-1318`
 
@@ -162,7 +170,7 @@ Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:965-1
 | Use keyword args | Pass long ordered arg lists |
 | Explicit error classes | Generic RuntimeError |
 
-## 13. Quick Review Checklist
+## 14. Quick Review Checklist
 
 `STYLE_GUIDE:603-635,1458-1468`
 
@@ -172,11 +180,11 @@ Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:965-1
 - [ ] TTY components used
 - [ ] StandardRB clean
 
-## 14. Error Class Pattern
+## 15. Error Class Pattern
 
 Use custom exception classes. `STYLE_GUIDE:1277-1318,1534-1548`
 
-## 15. Anti‑Patterns (Reject in PRs)
+## 16. Anti‑Patterns (Reject in PRs)
 
 `STYLE_GUIDE:393-402,2029-2050`
 
@@ -187,26 +195,26 @@ Use custom exception classes. `STYLE_GUIDE:1277-1318,1534-1548`
 - Silent exceptions
 - Mock methods in production code
 
-## 16. Ruby Version Management
+## 17. Ruby Version Management
 
 - **ALWAYS use mise** for Ruby version management in this project `STYLE_GUIDE:284-337`
 - Commands running Ruby or Bundler MUST use `mise exec` to ensure correct versions `STYLE_GUIDE:290-304`
 - Examples: `mise exec -- ruby script.rb`, `mise exec -- bundle install`, `mise exec -- bundle exec rspec`
 - Never use system Ruby directly - always go through mise `STYLE_GUIDE:284-337`
 
-## 17. Commit Hygiene
+## 18. Commit Hygiene
 
 - One logical change per commit (or tightly coupled set) `STYLE_GUIDE:1422-1448`
 - Include rationale when refactoring behavior `STYLE_GUIDE:1422-1448`
 - Reference issue IDs for non-trivial changes `STYLE_GUIDE:1422-1448`
 
-## 18. Task Filing
+## 19. Task Filing
 
 **Signal**: `File task: "description" priority: high tags: tag1,tag2` `STYLE_GUIDE:1802-1900`
 
 File discovered sub-tasks, tech debt, or future work. Tasks persist in `.aidp/tasklist.jsonl`. See [STYLE_GUIDE.md](STYLE_GUIDE.md#persistent-tasklist-cross-session-task-tracking) for details. `STYLE_GUIDE:1802-1900`
 
-## 19. Prompt Optimization
+## 20. Prompt Optimization
 
 AIDP uses intelligent fragment selection - you may not see this entire guide in your prompts. The AI selects only relevant sections based on your current task. Use `/prompt explain` to see what was selected. See `STYLE_GUIDE.md` for details on writing fragment-friendly documentation. `STYLE_GUIDE:1469-1490`
 

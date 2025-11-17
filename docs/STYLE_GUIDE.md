@@ -1332,6 +1332,273 @@ end
 
 For comprehensive testing of TUI applications, see the [Testing with tmux](#testing-with-tmux) section in Testing Guidelines.
 
+## Test Coverage Philosophy
+
+### Coverage Goals
+
+**Target 85-100% line coverage for business logic**, but accept pragmatic limits based on code architecture:
+
+- **Business logic**: 85-100% (core classes, service objects, domain logic)
+- **External boundaries**: Test interface, not internals
+- **Forked child processes**: Accept lower coverage (often untestable)
+- **Exec calls**: Test orchestration, not subprocess internals
+
+### What NOT to Test
+
+**Inherently untestable code** (accept coverage gaps):
+
+- Code inside forked child processes (runs in different process)
+- Code after `exec()` calls (replaces current process)
+- External library internals (trust the library tests)
+
+**Example** ([background_runner.rb:45-77](lib/aidp/jobs/background_runner.rb#L45-L77)):
+
+```ruby
+pid = fork do
+  Process.daemon(true)       # Runs in child process
+  $stdout.reopen(log_file)   # Untestable from parent
+
+  # All code here runs in child - can't test from parent process
+  runner = Harness::Runner.new(@project_dir, mode)
+  result = runner.run
+  mark_job_completed(job_id, result)
+end
+```
+
+**What to test instead**: Orchestration and metadata
+
+```ruby
+it "creates job metadata file" do
+  job_id = runner.start(:exploration)
+
+  metadata_file = File.join(jobs_dir, job_id, "metadata.yml")
+  expect(File.exist?(metadata_file)).to be true
+
+  metadata = YAML.safe_load_file(metadata_file)
+  expect(metadata[:mode]).to eq(:exploration)
+  expect(metadata[:status]).to eq("running")
+end
+```
+
+### What TO Test
+
+**Core application logic** (aim for 100%):
+
+- All public API paths
+- Error handling (rescue blocks, failure modes)
+- Edge cases (nil inputs, empty arrays, boundary values)
+- Complex private methods with multiple branches
+
+### Testing Private Methods
+
+**When to test private methods**: Complex logic with multiple branches that need coverage.
+
+**How**: Use `send(:method_name)` to access private methods.
+
+**Example** ([completion_checker_spec.rb:73-82](spec/aidp/harness/completion_checker_spec.rb#L73-L82)):
+
+```ruby
+describe "#detect_test_commands (Ruby)" do
+  it "returns rspec command when Gemfile includes rspec" do
+    File.write(File.join(project_dir, "Gemfile"), "gem 'rspec'")
+    FileUtils.mkdir_p(File.join(project_dir, "spec"))
+    checker = described_class.new(project_dir)
+
+    # Access private method with send()
+    commands = checker.send(:detect_test_commands)
+    expect(commands).to include("bundle exec rspec")
+  end
+end
+```
+
+**Still mock only external boundaries** (File, Process, YAML) - not internal application code.
+
+### Coverage Analysis Workflow
+
+#### 1. Read the implementation file
+
+Understand what the code does before writing tests.
+
+#### 2. Check existing test coverage
+
+```bash
+COVERAGE=1 mise exec -- bundle exec rspec spec/path/to/file_spec.rb
+open coverage/index.html  # View detailed report
+```
+
+#### 3. Categorize uncovered lines
+
+- **Testable**: Business logic, error paths, edge cases
+- **Untestable**: Forked processes, exec calls, external library internals
+
+#### 4. Write tests for testable gaps
+
+Focus on missing paths, error handling, edge cases.
+
+#### 5. Accept untestable gaps
+
+Document why certain lines can't be tested (e.g., "lines 45-77 run in forked child process").
+
+## Time and Concurrency Testing
+
+### Avoid Sleep-Based Tests
+
+**ANTI-PATTERN**: Tests that use `sleep` to wait for time-based behavior are flaky and slow.
+
+```ruby
+# ❌ BAD: Flaky and slow
+it "sorts by most recent" do
+  item1 = create_item(name: "first")
+  sleep 0.1  # Flaky - timing-dependent
+  item2 = create_item(name: "second")
+
+  items = repository.list_by_recency
+  expect(items.first).to eq(item2)
+end
+```
+
+**PATTERN**: Stub `Time.now` for deterministic, fast tests.
+
+```ruby
+# ✅ GOOD: Fast and reliable
+it "sorts by most recent" do
+  time1 = Time.parse("2025-01-01 10:00:00")
+  time2 = Time.parse("2025-01-01 10:05:00")
+
+  allow(Time).to receive(:now).and_return(time1)
+  item1 = create_item(name: "first")
+
+  allow(Time).to receive(:now).and_return(time2)
+  item2 = create_item(name: "second")
+
+  items = repository.list_by_recency
+  expect(items.first).to eq(item2)  # Always passes - no timing dependency
+end
+```
+
+### Process Loop Testing
+
+**PATTERN**: Count exact number of calls in retry/wait loops.
+
+```ruby
+# Code: Wait for process to terminate with 10-second timeout
+10.times do
+  sleep 0.5
+  break unless process_running?(pid)
+end
+
+# Test: Count exact calls needed
+it "waits up to 10 seconds for process to terminate" do
+  # Initial check + 10 loop iterations + final check = 12 total
+  running_checks = [true] * 12 + [false]
+  allow(runner).to receive(:process_running?).and_return(*running_checks)
+
+  runner.stop_job(job_id)
+
+  expect(runner).to have_received(:process_running?).exactly(12).times
+end
+```
+
+**Why this works**: Precise call counting ensures loop logic is correct without timing dependencies.
+
+## Forked Process Testing Patterns
+
+### Test Orchestration, Not Child Process Code
+
+**ANTI-PATTERN**: Trying to test code inside forked child processes.
+
+```ruby
+# ❌ BAD: Can't test child process internals from parent
+it "logs to output file in child process" do
+  runner.start(:exploration)
+
+  # This won't work - logs happen in child process
+  expect(File.read(log_file)).to include("Starting exploration")
+end
+```
+
+**PATTERN**: Test orchestration and side effects visible to parent.
+
+```ruby
+# ✅ GOOD: Test parent process orchestration
+it "creates log file for background job" do
+  job_id = runner.start(:exploration)
+
+  # Wait for daemon to initialize
+  sleep 0.1
+
+  log_file = File.join(jobs_dir, job_id, "output.log")
+  expect(File.exist?(log_file)).to be true
+end
+```
+
+### Stub Fork and Process Boundaries
+
+**PATTERN**: Stub forking and I/O redirection to test orchestration logic.
+
+```ruby
+it "forks and detaches daemon process" do
+  allow(Process).to receive(:fork).and_yield.and_return(12345)
+  allow(Process).to receive(:daemon)
+  allow(Process).to receive(:detach)
+  allow($stdout).to receive(:reopen)
+  allow($stderr).to receive(:reopen)
+
+  job_id = runner.start(:exploration)
+
+  expect(Process).to have_received(:fork)
+  expect(Process).to have_received(:detach).with(12345)
+end
+```
+
+### Accept Lower Coverage for Child Process Code
+
+**Example**: [background_runner.rb](lib/aidp/jobs/background_runner.rb) achieves 86.62% coverage with 19 lines untestable inside the forked child block.
+
+**Document the gap**:
+
+```ruby
+# spec/aidp/jobs/background_runner_spec.rb
+# Note: Lines 45-77 run in forked child process and cannot be tested from parent.
+# We test orchestration (job metadata, PID files) instead of child internals.
+```
+
+## String Encoding Edge Cases
+
+### Always Handle Encoding Explicitly
+
+**PATTERN**: Convert to UTF-8 before string operations that expect specific encoding.
+
+```ruby
+# ✅ GOOD: Explicit encoding handling
+def extract_placeholders(text)
+  return [] if text.nil? || text.empty?
+
+  # Ensure UTF-8 encoding before regex operations
+  text = text.encode("UTF-8", invalid: :replace, undef: :replace)
+    unless text.encoding == Encoding::UTF_8
+
+  text.scan(/\{\{(\w+)\}\}/).flatten
+end
+```
+
+**Why**: String operations like regex can fail or produce unexpected results with non-UTF-8 encodings.
+
+**Test both UTF-8 and non-UTF-8 inputs**:
+
+```ruby
+it "handles UTF-8 content" do
+  result = composer.send(:extract_placeholders, "{{emoji}} 🎉")
+  expect(result).to eq(["emoji"])
+end
+
+it "converts non-UTF-8 text to UTF-8" do
+  text = "{{test}}".encode("ASCII-8BIT")
+  result = composer.send(:extract_placeholders, text)
+  expect(result).to eq(["test"])
+end
+```
+
 ## Pending Specs Policy
 
 ### Philosophy
