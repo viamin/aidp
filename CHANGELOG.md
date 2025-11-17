@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.27.0](https://github.com/viamin/aidp/compare/aidp/v0.26.0...aidp/v0.27.0) (2025-11-17)
+
+
+### Features
+
+* Add comprehensive tests and user documentation (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([341b957](https://github.com/viamin/aidp/commit/341b957fa565c5539575286fcfcc2f18edc52cce))
+* Configuration Enhancements and plan Automated Model Discovery ([4d89207](https://github.com/viamin/aidp/commit/4d89207f5e006a2306d916ed4c61dbac7d7ce6ab))
+* Configuration Enhancements and plan Automated Model Discovery ([#287](https://github.com/viamin/aidp/issues/287)) ([c668161](https://github.com/viamin/aidp/commit/c6681611887064a551bf9ed9a22fac8f14b4b672))
+* Implement aidp models validate command (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([32b892b](https://github.com/viamin/aidp/commit/32b892bb41ca4d2c482237e2a26d1c07948daeca))
+* Implement dynamic provider discovery for model providers ([fb740ae](https://github.com/viamin/aidp/commit/fb740ae132f3e66f3edfd301d362cefec7ee42dd))
+* Implement Phase 1 of Automated Model Discovery (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([7a35711](https://github.com/viamin/aidp/commit/7a35711779e53ed83c44fae983091a43888007bc))
+* Implement Phase 2 of Automated Model Discovery (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([8edaa3f](https://github.com/viamin/aidp/commit/8edaa3f41b1d745acdc04db6148a4d83ae927158))
+* Implement Phase 4 - Config Wizard Integration (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([8bab3e5](https://github.com/viamin/aidp/commit/8bab3e505885f0fbcffd5adfe1a6a8977e8d42df))
+* Implement Phase 5 - Auto-Discovery on Provider Configuration (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([b083f20](https://github.com/viamin/aidp/commit/b083f208a0efabb86970c0f15d993959cb10d19b))
+
+
+### Bug Fixes
+
+* Add global thread cleanup to prevent CI timeout ([bcb2dda](https://github.com/viamin/aidp/commit/bcb2ddaa20b9a36b084311fff68a2f25191c0c50))
+* Add missing require statement in models_command_spec ([c4252d4](https://github.com/viamin/aidp/commit/c4252d4a3bdaa76830bdea65c7a5b8f4d2e8a285))
+* Add permission fix command and refactor display message calls in ThinkingDepthManager ([fecafcd](https://github.com/viamin/aidp/commit/fecafcdb005eb093ef4e435ab6422eafb10d2e09))
+* Add robust error handling for cache directory permissions ([f827f33](https://github.com/viamin/aidp/commit/f827f331d5bf0a6a41ddbd62a4d39e0243c40174))
+* Add tier fallback mechanism to prevent build failures when tier has no models ([f1165ef](https://github.com/viamin/aidp/commit/f1165eff88865b63ead062e39d1d606147e21769))
+* Also persist devcontainer management preference and fix linter ([a5d2e97](https://github.com/viamin/aidp/commit/a5d2e973464bae0538e7a091a4bba0cbc158e6d8))
+* Correct private class method declaration in Anthropic provider ([92de09f](https://github.com/viamin/aidp/commit/92de09fff304da2192fc677d30b079bd6e30128b))
+* Enhance wizard configuration by normalizing thinking tiers and adding support for new tier models ([d0f63bc](https://github.com/viamin/aidp/commit/d0f63bce726d0d53cdd5c72bf930365646411823))
+* Fix send_message visibility and implement Phase 6 - Enhanced Error Messages (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([f1e10ff](https://github.com/viamin/aidp/commit/f1e10ff7ab0358d7f88dc94bb41a6ff8a9cac2d7))
+* Implement proper provider fallback chain for watch mode planning ([1b17650](https://github.com/viamin/aidp/commit/1b17650d48fd6ea9ca9e1896f1c0f22907c3ab52))
+* Implement proper provider fallback chain for watch mode planning ([#305](https://github.com/viamin/aidp/issues/305)) ([6718f5e](https://github.com/viamin/aidp/commit/6718f5e39af2374ba5d261e2ce77e0501a219426))
+* Kill background discovery threads to prevent test timeouts ([8578b0b](https://github.com/viamin/aidp/commit/8578b0b3be5eecdaf00eb4b95803eede228b5d81))
+* Lower branch coverage requirement to 65% ([904439f](https://github.com/viamin/aidp/commit/904439f12f03588ec401cf63fb28f954eda320b9))
+* Read tier models from user configuration instead of only catalog ([f8f06eb](https://github.com/viamin/aidp/commit/f8f06eb5cae1ded9bf6d83d98f9ce838054709ad))
+* Refactor model handling in configuration and thinking depth manager to prevent nil returns ([eb66eb6](https://github.com/viamin/aidp/commit/eb66eb6023d91ffde8733dd2fb6fa20a2409e050))
+* Remove duplicate key in capability registry spec and clean up gemini spec ([d855c07](https://github.com/viamin/aidp/commit/d855c07b3037ec0b13da6a0a1a323fd13f09b08b))
+* Replace strict coverage ratchet with 84% minimum threshold ([b36df15](https://github.com/viamin/aidp/commit/b36df15acea4dad468ef12ae6e5cb5a12c40c355))
+* Resolve 6 failing specs across test suite ([5f20917](https://github.com/viamin/aidp/commit/5f20917253306ad3955c46f1df4c98ca83c009c5))
+* Resolve standardrb linting issues in ModelCache ([e23b0ae](https://github.com/viamin/aidp/commit/e23b0aeebb2794e13e263021aa8e0d46a7e59a27))
+* Save NFR configuration preference to prevent repeated prompts ([#300](https://github.com/viamin/aidp/issues/300)) ([d7dd21c](https://github.com/viamin/aidp/commit/d7dd21c219dc69d07acc9ad2c027ed004b9eacea))
+* Save NFR configuration preference to prevent repeated prompts ([#300](https://github.com/viamin/aidp/issues/300)) ([#302](https://github.com/viamin/aidp/issues/302)) ([867a676](https://github.com/viamin/aidp/commit/867a6765350642e26ae611961eec3163051d66f8))
+* Simplify error handling and improve messaging in various modules ([8f5d3d7](https://github.com/viamin/aidp/commit/8f5d3d7d720e88f7c9404d56590efd41a1930a7c))
+* Symbolize cached model keys for consistency ([453c4af](https://github.com/viamin/aidp/commit/453c4afa6c11384b8b4162817bf4380a64d46946))
+* Update documentation formatting for code blocks and improve clarity in CLI user guide ([9adb61f](https://github.com/viamin/aidp/commit/9adb61f39aec0152e90feab9ac5a1bac29b27696))
+* Use real temp directory in ModelCache default path spec ([943bdaa](https://github.com/viamin/aidp/commit/943bdaa49bdf789c58ad08d0d8e3e590f6b54804))
+
+
+### Improvements
+
+* Improve model configuration validation and add SimpleConfiguration class ([6383c79](https://github.com/viamin/aidp/commit/6383c798ddb6fb36186b76aba049be667c59a057))
+* Move model discovery into provider classes (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([b175db0](https://github.com/viamin/aidp/commit/b175db07c7f8915cb7e035db5d10819324e122b2))
+* Remove coverage baseline ratchet system ([7f15278](https://github.com/viamin/aidp/commit/7f15278ff328fedb7e00348e9967a16f13c80ac3))
+* remove unnecessary blank line in CLI spec ([658d9da](https://github.com/viamin/aidp/commit/658d9da61f0a8fed5c2794e3c673109b6dbb5a3d))
+* remove unnecessary blank lines in CLI class for improved readability ([c90a0bc](https://github.com/viamin/aidp/commit/c90a0bca81b627391e7c30f59a50f7a7a0f7be65))
+* remove unused methods and CLI mocking helpers from tests ([2d6d923](https://github.com/viamin/aidp/commit/2d6d9232e3e7bfcd6174482b30ced9ccd1a30677))
+* Simplify model discovery and timeout calculation across providers ([322382c](https://github.com/viamin/aidp/commit/322382c584c1e8bb94c367c3d2f25db093939364))
+
+
+### Documentation
+
+* add CLAUDE.md guide for AI assistants ([#267](https://github.com/viamin/aidp/issues/267)) ([c33df5a](https://github.com/viamin/aidp/commit/c33df5a48b769fffe0774feef21ed1252ef10ad9))
+* add optional constructor parameters for dependencies in ISSUE 295 summary ([8f877e7](https://github.com/viamin/aidp/commit/8f877e7a1137e7b5e67a624d2a967d5d9990369d))
+* Mark ModelCache testing as completed in Phase 8 ([65a44fc](https://github.com/viamin/aidp/commit/65a44fc35673c51d4e370c4f86e0417545958fed))
+* Update AUTOMATED_MODEL_DISCOVERY with architectural refactoring (Issue [#288](https://github.com/viamin/aidp/issues/288)) ([e40d37a](https://github.com/viamin/aidp/commit/e40d37a733666314e91b4b6d406d2c63225af37d))
+* update CLAUDE.md and MOCK_AUDIT_STATUS.md for clarity and formatting improvements; enhance audit_mocks.rb for regex checks ([ab68077](https://github.com/viamin/aidp/commit/ab68077d174ade7b127b5f25d2ca24128eb15b09))
+* update style guide with test coverage patterns and guidelines ([e94b6fe](https://github.com/viamin/aidp/commit/e94b6fe834b4368d46fadbfe43cd2dd99bdca5c4))
+
 ## [0.26.0](https://github.com/viamin/aidp/compare/aidp/v0.25.0...aidp/v0.26.0) (2025-11-14)
 
 
