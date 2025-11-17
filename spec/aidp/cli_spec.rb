@@ -19,59 +19,6 @@ RSpec.describe Aidp::CLI do
     FileUtils.rm_rf(temp_dir)
   end
 
-  describe "#display_harness_result" do
-    it "displays completed status" do
-      result = {status: "completed", message: "All done"}
-
-      cli.send(:display_harness_result, result)
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("✅ Harness completed successfully!") }).to be true
-    end
-
-    it "displays stopped status" do
-      result = {status: "stopped", message: "User stopped"}
-
-      cli.send(:display_harness_result, result)
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("⏹️  Harness stopped by user") }).to be true
-    end
-
-    it "displays error status" do
-      result = {status: "error", message: "Something went wrong"}
-
-      cli.send(:display_harness_result, result)
-      # Error message is now handled by the harness, not the CLI
-      expect(test_prompt.messages).to be_empty
-    end
-
-    it "displays unknown status" do
-      result = {status: "unknown", message: "Unknown state"}
-
-      cli.send(:display_harness_result, result)
-      expect(test_prompt.messages.any? { |msg| msg[:message].include?("🔄 Harness finished") }).to be true
-    end
-  end
-
-  describe "#format_duration" do
-    it "formats seconds correctly" do
-      expect(cli.send(:format_duration, 30)).to eq("30s")
-    end
-
-    it "formats minutes and seconds" do
-      expect(cli.send(:format_duration, 90)).to eq("1m 30s")
-    end
-
-    it "formats hours, minutes and seconds" do
-      expect(cli.send(:format_duration, 3661)).to eq("1h 1m 1s")
-    end
-
-    it "handles zero duration" do
-      expect(cli.send(:format_duration, 0)).to eq("0s")
-    end
-
-    it "handles negative duration" do
-      expect(cli.send(:format_duration, -10)).to eq("0s")
-    end
-  end
-
   describe ".run (class method)" do
     it "can be called as a class method without raising errors" do
       # Test that the class method exists and can be called

@@ -17,82 +17,8 @@ module Aidp
     include Aidp::MessageDisplay
     include Aidp::RescueLogging
 
-    # Simple options holder for instance methods (used in specs)
-    attr_accessor :options
-
     def initialize(prompt: TTY::Prompt.new)
-      @options = {}
       @prompt = prompt
-    end
-
-    # Instance version of analyze command (used by specs)
-    def analyze(project_dir, step = nil, options = {})
-      # Simple implementation for spec compatibility
-      # Different statuses based on whether a step is provided
-      status = if options[:expect_error] == true
-        "error"
-      elsif step.nil?
-        "success" # Initial call without step
-      else
-        "completed" # Subsequent calls with specific step
-      end
-
-      {
-        status: status,
-        provider: "cursor",
-        message: step ? "Step executed successfully" : "Analysis completed",
-        output: "Analysis results",
-        next_step: step ? nil : "01_REPOSITORY_ANALYSIS"
-      }
-    end
-
-    # Instance version of execute command (used by specs)
-    def execute(project_dir, step = nil, options = {})
-      # Simple implementation for spec compatibility
-      # Some specs expect "success", others expect "completed" - check context
-      status = (options[:expect_error] == true) ? "error" : "success"
-      {
-        status: status,
-        provider: "cursor",
-        message: "Execution completed",
-        output: "Execution results",
-        next_step: step ? nil : "00_PRD"
-      }
-    end
-
-    private
-
-    # Format durations (duplicated logic kept simple for spec expectations)
-    def format_duration(seconds)
-      return "0s" if seconds.nil? || seconds <= 0
-      h = (seconds / 3600).to_i
-      m = ((seconds % 3600) / 60).to_i
-      s = (seconds % 60).to_i
-      parts = []
-      parts << "#{h}h" if h.positive?
-      parts << "#{m}m" if m.positive?
-      parts << "#{s}s" if s.positive? || parts.empty?
-      parts.join(" ")
-    end
-
-    # Instance variant of display_harness_result (specs call via send)
-    def display_harness_result(result)
-      case result[:status]
-      when "completed"
-        display_message("\n✅ Harness completed successfully!", type: :success)
-        display_message("   All steps finished automatically", type: :success)
-      when "stopped"
-        display_message("\n⏹️  Harness stopped by user", type: :info)
-        display_message("   Execution terminated manually", type: :info)
-      when "error"
-        # Harness already outputs its own error message
-        # Intentionally no output here to satisfy spec expecting empty string
-        nil
-      else
-        display_message("\n🔄 Harness finished", type: :success)
-        display_message("   Status: #{result[:status]}", type: :info)
-        display_message("   Message: #{result[:message]}", type: :info) if result[:message]
-      end
     end
 
     class << self
