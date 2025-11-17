@@ -801,6 +801,11 @@ module Aidp
           parts << "- `File task: \"Add tests for login flow\" priority: medium tags: testing`"
           parts << "- `File task: \"Update documentation\" priority: low tags: docs`"
           parts << ""
+          parts << "Task status update examples:"
+          parts << "- `Update task: task_123_abc status: in_progress`"
+          parts << "- `Update task: task_456_def status: done`"
+          parts << "- `Update task: task_789_ghi status: abandoned reason: \"Requirements changed\"`"
+          parts << ""
         end
 
         parts << "## Completion Criteria"

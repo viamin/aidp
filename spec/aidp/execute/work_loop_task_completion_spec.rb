@@ -69,9 +69,9 @@ RSpec.describe "Work Loop Task Completion" do
     @mock_file_contents = {}
 
     # Mock File.exist? to return true for tasklist after it's "touched"
-    allow(File).to receive(:exist?).and_wrap_original do |original_method, path|
+    allow(File).to receive(:exist?) do |path|
       if path.to_s.include?("tasklist.jsonl")
-        @mock_file_contents.key?(path.to_s) || @mock_file_contents.key?(path)
+        @mock_file_contents.key?(path.to_s)
       else
         false
       end
@@ -84,36 +84,33 @@ RSpec.describe "Work Loop Task Completion" do
       @mock_file_contents[path.to_s] = "" if path.to_s.include?("tasklist.jsonl")
     end
 
-    allow(File).to receive(:open).and_wrap_original do |original_method, path, mode = "r", *args, &block|
+    allow(File).to receive(:open) do |path, mode = "r", *args, &block|
       path_str = path.to_s
-      if path_str.include?("tasklist.jsonl")
-        # Handle append mode for tasklist
-        if mode.include?("a")
-          @mock_file_contents[path_str] ||= ""
-          file = StringIO.new(@mock_file_contents[path_str])
-          file.seek(0, IO::SEEK_END) # Move to end for append
+      if path_str.include?("tasklist.jsonl") && mode.to_s.include?("a")
+        # Append mode for tasklist
+        @mock_file_contents[path_str] ||= ""
+        file = StringIO.new(@mock_file_contents[path_str])
+        file.seek(0, IO::SEEK_END) # Move to end for append
 
-          if block_given?
-            block.call(file)
-            @mock_file_contents[path_str] = file.string
-          else
-            file
-          end
+        if block_given?
+          result = block.call(file)
+          @mock_file_contents[path_str] = file.string
+          result
         else
-          # Read mode
-          original_method.call(path, mode, *args, &block)
+          file
         end
       else
-        original_method.call(path, mode, *args, &block)
+        # For other files, return empty StringIO
+        StringIO.new("")
       end
     end
 
-    allow(File).to receive(:readlines).and_wrap_original do |original_method, path, *args|
+    allow(File).to receive(:readlines) do |path, *args|
       path_str = path.to_s
       if path_str.include?("tasklist.jsonl")
         (@mock_file_contents[path_str] || "").lines
       else
-        original_method.call(path, *args)
+        []
       end
     end
 
