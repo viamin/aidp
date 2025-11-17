@@ -106,9 +106,6 @@ module Aidp
         @tui.show_message("🚀 Starting #{@mode.to_s.capitalize} Mode", :info)
 
         begin
-          # Start TUI display loop
-          @tui.start_display_loop
-
           # Load existing state if resuming
           # Temporarily disabled to test
           # load_state if @state_manager.has_state?
@@ -174,7 +171,7 @@ module Aidp
         ensure
           # Save state before exiting
           save_state
-          @tui.stop_display_loop
+          @tui.restore_screen
           cleanup
         end
 

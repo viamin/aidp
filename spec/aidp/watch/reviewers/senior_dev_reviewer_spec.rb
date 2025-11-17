@@ -124,8 +124,7 @@ RSpec.describe Aidp::Watch::Reviewers::SeniorDevReviewer do
       reviewer.review(pr_data: pr_data, files: files, diff: diff)
 
       expect(Aidp::ProviderManager).to have_received(:get_provider).with(
-        String,
-        use_harness: false
+        String
       )
     end
 

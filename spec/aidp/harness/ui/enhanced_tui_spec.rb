@@ -53,8 +53,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
   describe "display loop control" do
     it "has simple display methods" do
       # Simple display methods without background threads
-      expect { tui.start_display_loop }.not_to raise_error
-      expect { tui.stop_display_loop }.not_to raise_error
+      expect { tui.restore_screen }.not_to raise_error
     end
   end
 

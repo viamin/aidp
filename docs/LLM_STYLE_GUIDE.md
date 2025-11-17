@@ -11,6 +11,7 @@
 - No introducing TODO without issue reference. `STYLE_GUIDE:1422-1448`
 - When removing code, delete it cleanly without explanatory comments. `STYLE_GUIDE:1422-1448`
 - **CRITICAL: Use `Aidp.log_debug()` extensively** to instrument important code paths (see Section 4). `STYLE_GUIDE:125-283`
+- **NO backward compatibility code**: AIDP is pre-release (v0.x.x) - remove deprecated features immediately. `STYLE_GUIDE:2051-2090`
 
 ### Sandi Metz Guidelines
 
@@ -186,7 +187,7 @@ Use custom exception classes. `STYLE_GUIDE:1277-1318,1534-1548`
 
 ## 16. Anti‑Patterns (Reject in PRs)
 
-`STYLE_GUIDE:393-402,2029-2050`
+`STYLE_GUIDE:393-402,2029-2090`
 
 - Pending regressions
 - Custom ANSI/cursor code
@@ -194,6 +195,8 @@ Use custom exception classes. `STYLE_GUIDE:1277-1318,1534-1548`
 - Hidden sleeps/timeouts
 - Silent exceptions
 - Mock methods in production code
+- Backward compatibility wrappers or "legacy" methods
+- Deprecated features without immediate removal plan
 
 ## 17. Ruby Version Management
 

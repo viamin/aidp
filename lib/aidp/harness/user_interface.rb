@@ -425,48 +425,6 @@ module Aidp
         display_message("\n🚀 Continuing execution...", type: :success)
       end
 
-      # Display question information (legacy method for compatibility)
-      def display_question_info(question_type, expected_input, options, default_value, required)
-        info_parts = []
-
-        # Question type
-        type_emojis = {
-          "text" => "📝",
-          "choice" => "🔘",
-          "confirmation" => "✅",
-          "file" => "📁",
-          "number" => "🔢",
-          "email" => "📧",
-          "url" => "🔗"
-        }
-        type_emoji = type_emojis[question_type] || "❓"
-        info_parts << "#{type_emoji} #{question_type.capitalize}"
-
-        # Expected input type
-        if expected_input != "text"
-          info_parts << "Expected: #{expected_input}"
-        end
-
-        # Options
-        if options && !options.empty?
-          info_parts << "Options: #{options.join(", ")}"
-        end
-
-        # Default value
-        if default_value
-          info_parts << "Default: #{default_value}"
-        end
-
-        # Required status
-        info_parts << if required
-          "Required: Yes"
-        else
-          "Required: No"
-        end
-
-        display_message("   #{info_parts.join(" | ")}", type: :info)
-      end
-
       # Get response for a specific question with enhanced validation
       def question_response(question_data, _question_number)
         question_type = question_data[:type] || "text"
@@ -1576,12 +1534,6 @@ module Aidp
         end
       end
 
-      # Find files matching search term (legacy method for compatibility)
-      def find_files(search_term)
-        search_options = parse_file_search_options(search_term)
-        find_files_advanced(search_options)
-      end
-
       # Display advanced file selection menu
       def display_advanced_file_menu(files, search_options)
         display_message("\n📁 Available files:", type: :info)
@@ -1657,11 +1609,6 @@ module Aidp
         else
           ext.empty? ? "File" : ext[1..].upcase
         end
-      end
-
-      # Display file selection menu (legacy method for compatibility)
-      def display_file_menu(files)
-        display_advanced_file_menu(files, {term: "", extensions: [], directories: []})
       end
 
       # Get advanced file selection from user
@@ -1761,11 +1708,6 @@ module Aidp
 
         display_message("\nPress Enter to continue...", type: :info)
         @prompt.keypress("Press any key to continue...")
-      end
-
-      # Get file selection from user (legacy method for compatibility)
-      def file_selection(max_files)
-        advanced_file_selection(max_files, {term: "", extensions: [], directories: []})
       end
 
       # Get confirmation from user

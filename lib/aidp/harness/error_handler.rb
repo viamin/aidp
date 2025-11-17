@@ -81,7 +81,7 @@ module Aidp
             error_type: error_info[:error_type],
             reason: "Retry not applicable or exhausted"
           })
-          if [:authentication, :permission_denied].include?(error_info[:error_type].to_sym)
+          if error_info[:error_type].to_sym == :auth_expired
             # Mark provider unhealthy to avoid immediate re-selection
             begin
               if @provider_manager.respond_to?(:mark_provider_auth_failure)
@@ -399,43 +399,6 @@ module Aidp
             jitter: false
           },
 
-          # Legacy aliases for backward compatibility
-          network_error: {
-            name: "network_error",
-            enabled: true,
-            max_retries: 3,
-            backoff_strategy: :exponential,
-            base_delay: 1.0,
-            max_delay: 30.0,
-            jitter: true
-          },
-          server_error: {
-            name: "server_error",
-            enabled: true,
-            max_retries: 2,
-            backoff_strategy: :linear,
-            base_delay: 2.0,
-            max_delay: 10.0,
-            jitter: true
-          },
-          timeout: {
-            name: "timeout",
-            enabled: true,
-            max_retries: 2,
-            backoff_strategy: :exponential,
-            base_delay: 1.0,
-            max_delay: 15.0,
-            jitter: true
-          },
-          rate_limit: {
-            name: "rate_limit",
-            enabled: false,
-            max_retries: 0,
-            backoff_strategy: :none,
-            base_delay: 0.0,
-            max_delay: 0.0,
-            jitter: false
-          },
           authentication: {
             name: "authentication",
             enabled: false,
@@ -722,40 +685,6 @@ module Aidp
               action: :escalate,
               reason: "Permanent error, requires manual intervention",
               priority: :critical
-            }
-          # Legacy error type mappings for backward compatibility
-          when :timeout
-            {
-              action: :switch_model,
-              reason: "Timeout error, trying faster model",
-              priority: :medium
-            }
-          when :network_error
-            {
-              action: :switch_provider,
-              reason: "Network error, switching provider",
-              priority: :medium
-            }
-          when :server_error
-            {
-              action: :switch_provider,
-              reason: "Server error, switching provider",
-              priority: :medium
-            }
-          when :authentication, :permission_denied
-            # Try to switch to another provider. If no providers available, this will
-            # be detected in attempt_recovery and we'll crash (crash-early principle)
-            {
-              action: :switch_provider,
-              reason: "Authentication/permission issue – switching provider to continue",
-              priority: :critical,
-              crash_if_no_fallback: true
-            }
-          when :rate_limit
-            {
-              action: :switch_provider,
-              reason: "Rate limit reached, switching provider",
-              priority: :high
             }
           else
             {

@@ -152,7 +152,7 @@ module Aidp
 
       def analyze_failures_with_ai(pr_data:, failures:)
         provider_name = @provider_name || detect_default_provider
-        provider = Aidp::ProviderManager.get_provider(provider_name, use_harness: false)
+        provider = Aidp::ProviderManager.get_provider(provider_name)
 
         user_prompt = build_ci_analysis_prompt(pr_data: pr_data, failures: failures)
         full_prompt = "#{ci_fix_system_prompt}\n\n#{user_prompt}"

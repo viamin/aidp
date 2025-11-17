@@ -17,16 +17,13 @@ module Aidp
       end
 
       # Main entry point for interactive workflow selection
-      def select_workflow(harness_mode: false, use_new_selector: true, mode: nil)
+      def select_workflow(harness_mode: false, mode: nil)
         if harness_mode
           # In harness mode, use default values to avoid blocking
           select_workflow_with_defaults
-        elsif use_new_selector
+        else
           # Use new unified workflow selector (default as of Issue #79)
           select_workflow_with_new_selector(mode)
-        else
-          # Legacy interactive mode for backward compatibility
-          select_workflow_interactive
         end
       end
 
@@ -45,26 +42,6 @@ module Aidp
           steps: result[:steps],
           user_input: @user_input,
           workflow: result[:workflow]
-        }
-      end
-
-      def select_workflow_interactive
-        display_message("\n🚀 Welcome to AI Dev Pipeline!", type: :highlight)
-        display_message("Let's set up your development workflow.\n\n")
-
-        # Step 1: Collect project information
-        collect_project_info
-
-        # Step 2: Choose workflow type
-        workflow_type = choose_workflow_type
-
-        # Step 3: Generate workflow steps
-        steps = generate_workflow_steps(workflow_type)
-
-        {
-          workflow_type: workflow_type,
-          steps: steps,
-          user_input: @user_input
         }
       end
 

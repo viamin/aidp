@@ -85,9 +85,6 @@ module Aidp
         tui = Aidp::Harness::UI::EnhancedTUI.new
         workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui, project_dir: Dir.pwd)
 
-        # Start TUI display loop
-        tui.start_display_loop
-
         begin
           # Copilot is now the default mode - no menu selection
           # The guided workflow selector will internally choose appropriate mode
@@ -120,7 +117,7 @@ module Aidp
           display_message("\n❌ Error: #{e.message}", type: :error)
           1
         ensure
-          tui.stop_display_loop
+          tui.restore_screen
         end
       end
 
@@ -1411,9 +1408,6 @@ module Aidp
           tui = Aidp::Harness::UI::EnhancedTUI.new
           workflow_selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui, project_dir: Dir.pwd)
 
-          # Start TUI display loop
-          tui.start_display_loop
-
           begin
             # Get workflow configuration
             workflow_config = workflow_selector.select_workflow(harness_mode: false, mode: mode)
@@ -1434,7 +1428,7 @@ module Aidp
           rescue Interrupt
             display_message("\n\n⏹️  Interrupted by user", type: :warning)
           ensure
-            tui.stop_display_loop
+            tui.restore_screen
           end
         end
       end

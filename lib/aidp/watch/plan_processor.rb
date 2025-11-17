@@ -33,12 +33,6 @@ module Aidp
         @build_label = label_config[:build_trigger] || label_config["build_trigger"] || DEFAULT_BUILD_LABEL
       end
 
-      # For backward compatibility
-      def self.plan_label_from_config(config)
-        labels = config[:labels] || config["labels"] || {}
-        labels[:plan_trigger] || labels["plan_trigger"] || DEFAULT_PLAN_LABEL
-      end
-
       def process(issue)
         number = issue[:number]
         existing_plan = @state_store.plan_data(number)

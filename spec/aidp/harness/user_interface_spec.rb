@@ -410,31 +410,5 @@ RSpec.describe Aidp::Harness::UserInterface do
         expect(test_prompt.messages.any? { |msg| msg[:message].include?("Agent Output:") }).to be true
       end
     end
-
-    describe "#display_question_info" do
-      it "displays question information for text questions" do
-        ui.display_question_info("text", "text", nil, nil, true)
-        expect(test_prompt.messages.any? { |msg| msg[:message].match(/📝 Text/) }).to be true
-        ui.display_question_info("text", "text", nil, nil, true)
-        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Required: Yes/) }).to be true
-      end
-
-      it "displays question information for choice questions" do
-        options = ["Option A", "Option B"]
-        ui.display_question_info("choice", "text", options, "Option A", true)
-        expect(test_prompt.messages.any? { |msg| msg[:message].match(/🔘 Choice/) }).to be true
-        ui.display_question_info("choice", "text", options, "Option A", true)
-        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Options: Option A, Option B/) }).to be true
-        ui.display_question_info("choice", "text", options, "Option A", true)
-        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Default: Option A/) }).to be true
-      end
-
-      it "displays question information for email questions" do
-        ui.display_question_info("email", "email", nil, nil, true)
-        expect(test_prompt.messages.any? { |msg| msg[:message].match(/📧 Email/) }).to be true
-        ui.display_question_info("email", "email", nil, nil, true)
-        expect(test_prompt.messages.any? { |msg| msg[:message].match(/Expected: email/) }).to be true
-      end
-    end
   end
 end
