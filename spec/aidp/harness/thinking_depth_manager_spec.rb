@@ -389,7 +389,7 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       it "falls back to catalog when provider has no models for tier" do
         # Request standard tier with openai, but openai only has thinking tier configured
         # Should fall back to catalog for standard tier
-        provider, model, data = @manager_with_tiers.select_model_for_tier("standard", provider: "anthropic")
+        provider, model, _ = @manager_with_tiers.select_model_for_tier("standard", provider: "anthropic")
         expect(provider).to eq("anthropic")
         expect(model).to eq("claude-3-5-sonnet")
       end
