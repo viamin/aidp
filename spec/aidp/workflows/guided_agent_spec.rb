@@ -24,6 +24,14 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     DOC
     File.write(File.join(project_dir, "docs", "AIDP_CAPABILITIES.md"), capabilities_content)
 
+    # Setup config_manager stubs (passed via dependency injection)
+    # ProviderFactory calls config_manager.provider_config to check if provider is configured
+    allow(config_manager).to receive(:provider_config).and_return({
+      "type" => "api",
+      "api_key" => "test-key",
+      "models" => ["claude-3-5-sonnet-20241022"]
+    })
+
     # Setup provider_manager and provider_factory stubs (passed via dependency injection)
     allow(provider_factory).to receive(:create_provider).and_return(provider)
     allow(provider_manager).to receive(:current_provider).and_return("claude")
@@ -51,14 +59,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       expect(agent.instance_variable_get(:@user_input)).to eq({})
     end
 
-    it "uses EnhancedInput when prompt is nil and use_enhanced_input is true" do
-      # Test removed - globally mocked Aidp::CLI::EnhancedInput and Aidp::Harness::ProviderManager
-      # This behavior is tested through integration tests
-      # To properly test, would need to either:
-      # 1. Test with real EnhancedInput (integration test)
-      # 2. Add prompt as dependency injection parameter (would require refactoring)
-      pending "Needs proper dependency injection or integration test"
-    end
+    # Test removed - would require global mocking of Aidp::CLI::EnhancedInput
+    # This behavior is better tested through integration tests
   end
 
   describe "#select_workflow" do
