@@ -31,12 +31,11 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       strategies = error_handler.instance_variable_get(:@retry_strategies)
 
       expect(strategies).to include(
-        :network_error,
-        :server_error,
-        :timeout,
-        :rate_limit,
-        :authentication,
-        :permission_denied,
+        :transient,
+        :rate_limited,
+        :auth_expired,
+        :quota_exceeded,
+        :permanent,
         :default
       )
     end
@@ -64,7 +63,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       error = StandardError.new("Rate limit exceeded")
       allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
         error: error,
-        error_type: :rate_limit,
+        error_type: :rate_limited,
         provider: "claude",
         model: "model1",
         timestamp: Time.now,
@@ -82,7 +81,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       error = StandardError.new("Authentication failed")
       allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
         error: error,
-        error_type: :authentication,
+        error_type: :auth_expired,
         provider: "claude",
         model: "model1",
         timestamp: Time.now,
@@ -103,7 +102,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       error = StandardError.new("Authentication failed")
       allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
         error: error,
-        error_type: :authentication,
+        error_type: :auth_expired,
         provider: "claude",
         model: "model1",
         timestamp: Time.now,
@@ -140,9 +139,9 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
   describe "retry strategies" do
     it "gets retry strategy for error type" do
-      strategy = error_handler.retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:transient)
 
-      expect(strategy[:name]).to eq("network_error")
+      expect(strategy[:name]).to eq("transient")
       expect(strategy[:enabled]).to be true
       expect(strategy[:max_retries]).to eq(3)
     end
@@ -156,12 +155,12 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "determines if error should be retried" do
       error_info = {
-        error_type: :network_error,
+        error_type: :transient,
         provider: "claude",
         model: "model1"
       }
 
-      strategy = error_handler.retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:transient)
       should_retry = error_handler.send(:should_retry?, error_info, strategy)
 
       expect(should_retry).to be true
@@ -169,12 +168,12 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "does not retry rate limit errors" do
       error_info = {
-        error_type: :rate_limit,
+        error_type: :rate_limited,
         provider: "claude",
         model: "model1"
       }
 
-      strategy = error_handler.retry_strategy(:rate_limit)
+      strategy = error_handler.retry_strategy(:rate_limited)
       should_retry = error_handler.send(:should_retry?, error_info, strategy)
 
       expect(should_retry).to be false
@@ -182,12 +181,12 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "does not retry authentication errors" do
       error_info = {
-        error_type: :authentication,
+        error_type: :auth_expired,
         provider: "claude",
         model: "model1"
       }
 
-      strategy = error_handler.retry_strategy(:authentication)
+      strategy = error_handler.retry_strategy(:auth_expired)
       should_retry = error_handler.send(:should_retry?, error_info, strategy)
 
       expect(should_retry).to be false
@@ -198,7 +197,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     let(:error_info) do
       {
         error: StandardError.new("Test error"),
-        error_type: :network_error,
+        error_type: :transient,
         provider: "claude",
         model: "model1",
         timestamp: Time.now,
@@ -208,19 +207,19 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     end
 
     it "executes retry with backoff delay" do
-      strategy = error_handler.retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:transient)
 
       result = error_handler.execute_retry(error_info, strategy, {})
 
       expect(result).to include(:success, :action, :retry_count, :delay, :strategy)
       expect(result[:retry_count]).to eq(1)
-      expect(result[:strategy]).to eq("network_error")
+      expect(result[:strategy]).to eq("transient")
     end
 
     # Retry count tracking test removed - complex integration test
 
     it "exhausts retries after max attempts" do
-      strategy = error_handler.retry_strategy(:network_error)
+      strategy = error_handler.retry_strategy(:transient)
 
       # Execute retry more than max_retries
       4.times { error_handler.execute_retry(error_info, strategy, {}) }
@@ -236,7 +235,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     let(:error_info) do
       {
         error: StandardError.new("Rate limit exceeded"),
-        error_type: :rate_limit,
+        error_type: :rate_limited,
         provider: "claude",
         model: "model1",
         timestamp: Time.now,
@@ -254,7 +253,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     end
 
     it "attempts model switch for timeout errors" do
-      timeout_error_info = error_info.merge(error_type: :timeout)
+      timeout_error_info = error_info.merge(error_type: :transient)
 
       result = error_handler.attempt_recovery(timeout_error_info, {})
 
@@ -265,7 +264,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "switches providers for authentication errors when fallback available" do
       auth_error_info = error_info.merge(
-        error_type: :authentication,
+        error_type: :auth_expired,
         error: StandardError.new("Authentication failed")
       )
 
@@ -281,7 +280,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "crashes when authentication fails and no fallback providers available" do
       auth_error_info = error_info.merge(
-        error_type: :authentication,
+        error_type: :auth_expired,
         error: StandardError.new("Authentication failed")
       )
 
@@ -304,7 +303,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "handles model switch failure" do
       allow(provider_manager).to receive(:switch_model_for_error).and_return(nil)
-      timeout_error_info = error_info.merge(error_type: :timeout)
+      timeout_error_info = error_info.merge(error_type: :transient)
 
       result = error_handler.attempt_recovery(timeout_error_info, {})
 
@@ -425,7 +424,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
       let(:planner) { described_class::RecoveryPlanner.new }
 
       it "plans provider switch for rate limit errors" do
-        error_info = {error_type: :rate_limit, provider: "claude", model: "model1"}
+        error_info = {error_type: :rate_limited, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
@@ -433,41 +432,23 @@ RSpec.describe Aidp::Harness::ErrorHandler do
         expect(plan[:reason]).to include("Rate limit")
       end
 
-      it "plans model switch for timeout errors" do
-        error_info = {error_type: :timeout, provider: "claude", model: "model1"}
+      it "plans model switch for transient errors" do
+        error_info = {error_type: :transient, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
         expect(plan[:action]).to eq(:switch_model)
-        expect(plan[:reason]).to include("Timeout")
+        expect(plan[:reason]).to include("Transient")
       end
 
       it "plans provider switch for authentication errors with crash-if-no-fallback flag" do
-        error_info = {error_type: :authentication, provider: "claude", model: "model1"}
+        error_info = {error_type: :auth_expired, provider: "claude", model: "model1"}
 
         plan = planner.create_recovery_plan(error_info, {})
 
         expect(plan[:action]).to eq(:switch_provider)
         expect(plan[:crash_if_no_fallback]).to be true
         expect(plan[:reason]).to include("Authentication")
-      end
-
-      it "plans provider switch for network errors" do
-        error_info = {error_type: :network_error, provider: "claude", model: "model1"}
-
-        plan = planner.create_recovery_plan(error_info, {})
-
-        expect(plan[:action]).to eq(:switch_provider)
-        expect(plan[:reason]).to include("Network error")
-      end
-
-      it "plans provider switch for server errors" do
-        error_info = {error_type: :server_error, provider: "claude", model: "model1"}
-
-        plan = planner.create_recovery_plan(error_info, {})
-
-        expect(plan[:action]).to eq(:switch_provider)
-        expect(plan[:reason]).to include("Server error")
       end
 
       it "plans provider switch for unknown errors" do
@@ -501,7 +482,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
       error_info = {
         error: StandardError.new("Rate limit exceeded"),
-        error_type: :rate_limit,
+        error_type: :rate_limited,
         provider: "claude",
         model: "model1",
         timestamp: Time.now,
