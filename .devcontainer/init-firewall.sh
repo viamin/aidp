@@ -1,8 +1,12 @@
 #!/bin/bash
 # Firewall initialization script for AIDP devcontainer
 # Implements strict network access control with allowlisted domains
+# Configuration is read from .aidp/firewall-allowlist.yml
 
 set -euo pipefail
+
+# Path to firewall configuration YAML
+FIREWALL_CONFIG="${FIREWALL_CONFIG:-/workspaces/aidp/.aidp/firewall-allowlist.yml}"
 
 # If running without NET_ADMIN (capabilities missing), exit gracefully
 if ! command -v iptables >/dev/null 2>&1 || ! command -v ipset >/dev/null 2>&1; then
@@ -11,6 +15,20 @@ if ! command -v iptables >/dev/null 2>&1 || ! command -v ipset >/dev/null 2>&1; 
 fi
 
 echo "🔒 Initializing firewall for AIDP development container..."
+
+# Check if yq is available for YAML parsing
+if ! command -v yq >/dev/null 2>&1; then
+    echo "⚠️  yq not available. Install yq for YAML parsing or use fallback mode." >&2
+    USE_FALLBACK=true
+else
+    USE_FALLBACK=false
+fi
+
+# Check if YAML config exists
+if [ ! -f "$FIREWALL_CONFIG" ]; then
+    echo "⚠️  Firewall config not found at $FIREWALL_CONFIG. Using defaults." >&2
+    USE_FALLBACK=true
+fi
 
 # Flush existing iptables rules, but preserve Docker's DNS configuration
 iptables -F INPUT || true
@@ -77,6 +95,100 @@ add_domain() {
     fi
 }
 
+# Read and parse YAML configuration
+if [ "$USE_FALLBACK" = false ]; then
+    echo "📄 Reading firewall configuration from $FIREWALL_CONFIG..."
+
+    # Add static IP ranges
+    echo "📋 Adding static IP ranges..."
+    mapfile -t STATIC_IPS < <(yq eval '.static_ip_ranges[].cidr' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for range in "${STATIC_IPS[@]}"; do
+        [ -n "$range" ] && [ "$range" != "null" ] && add_ip_range "$range"
+    done
+
+    # Add Azure IP ranges
+    echo "📋 Adding Azure IP ranges..."
+    mapfile -t AZURE_IPS < <(yq eval '.azure_ip_ranges[].cidr' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for range in "${AZURE_IPS[@]}"; do
+        [ -n "$range" ] && [ "$range" != "null" ] && add_ip_range "$range"
+    done
+
+    # Add core domains
+    echo "🌐 Adding core infrastructure domains..."
+
+    # Ruby domains
+    mapfile -t RUBY_DOMAINS < <(yq eval '.core_domains.ruby[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for domain in "${RUBY_DOMAINS[@]}"; do
+        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+    done
+
+    # JavaScript domains
+    mapfile -t JS_DOMAINS < <(yq eval '.core_domains.javascript[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for domain in "${JS_DOMAINS[@]}"; do
+        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+    done
+
+    # GitHub domains
+    mapfile -t GITHUB_DOMAINS < <(yq eval '.core_domains.github[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for domain in "${GITHUB_DOMAINS[@]}"; do
+        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+    done
+
+    # CDN domains
+    mapfile -t CDN_DOMAINS < <(yq eval '.core_domains.cdn[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for domain in "${CDN_DOMAINS[@]}"; do
+        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+    done
+
+    # VS Code domains
+    mapfile -t VSCODE_DOMAINS < <(yq eval '.core_domains.vscode[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for domain in "${VSCODE_DOMAINS[@]}"; do
+        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+    done
+
+    # Telemetry domains (optional)
+    mapfile -t TELEMETRY_DOMAINS < <(yq eval '.core_domains.telemetry[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for domain in "${TELEMETRY_DOMAINS[@]}"; do
+        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+    done
+
+    # Add provider-specific domains
+    echo "🤖 Adding AI provider domains..."
+
+    # Get all provider names
+    mapfile -t PROVIDERS < <(yq eval '.provider_domains | keys | .[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+
+    for provider in "${PROVIDERS[@]}"; do
+        [ -n "$provider" ] && [ "$provider" != "null" ] || continue
+        echo "  Adding domains for $provider..."
+        mapfile -t PROVIDER_DOMAINS < <(yq eval ".provider_domains.$provider[]" "$FIREWALL_CONFIG" 2>/dev/null || true)
+        for domain in "${PROVIDER_DOMAINS[@]}"; do
+            [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+        done
+    done
+else
+    echo "⚠️  Using fallback configuration (YAML not available)" >&2
+
+    # Fallback: Add essential static ranges
+    echo "📋 Adding essential static IP ranges..."
+    add_ip_range "140.82.112.0/20"    # GitHub main infrastructure
+    add_ip_range "127.0.0.0/8"        # Localhost
+
+    # Fallback: Add essential Azure ranges
+    echo "📋 Adding essential Azure IP ranges..."
+    add_ip_range "20.189.0.0/16"      # Azure WestUS2
+    add_ip_range "104.208.0.0/16"     # Azure EastUS
+    add_ip_range "52.168.0.0/16"      # Azure EastUS2
+
+    # Fallback: Add essential domains
+    echo "🌐 Adding essential domains..."
+    add_domain "rubygems.org"
+    add_domain "api.rubygems.org"
+    add_domain "github.com"
+    add_domain "api.github.com"
+fi
+
+# Always fetch GitHub IP ranges dynamically
 echo "📋 Fetching GitHub IP ranges..."
 GITHUB_META_JSON=$(curl -fsS --max-time 5 https://api.github.com/meta || true)
 if [ -n "${GITHUB_META_JSON}" ]; then
@@ -98,113 +210,6 @@ else
     echo "  ⚠️  Failed to fetch GitHub meta API; continuing without GitHub ranges" >&2
 fi
 
-echo "📋 Adding GitHub infrastructure IP ranges..."
-# GitHub's main infrastructure (github.com, api.github.com, and Copilot endpoints)
-add_ip_range "140.82.112.0/20"    # GitHub main infrastructure (covers 140.82.112.0 - 140.82.127.255)
-
-echo "📋 Adding Azure IP ranges for GitHub Copilot and VS Code services..."
-# These are common Azure regions used by GitHub Copilot and VS Code
-# Using broader /16 ranges to handle dynamic IP allocation across Azure regions
-# This is necessary because GitHub Copilot uses many IPs within these ranges
-add_ip_range "20.189.0.0/16"      # Azure WestUS2 (broader range)
-add_ip_range "104.208.0.0/16"     # Azure EastUS (broader range)
-add_ip_range "52.168.0.0/16"      # Azure EastUS2 (broader range - covers .112 and .117)
-add_ip_range "40.79.0.0/16"       # Azure WestUS (broader range)
-add_ip_range "13.89.0.0/16"       # Azure EastUS (broader range)
-add_ip_range "13.69.0.0/16"       # Azure (broader range - covers .239)
-add_ip_range "13.66.0.0/16"       # Azure WestUS2 (VS Code sync service)
-add_ip_range "20.42.0.0/16"       # Azure WestEurope (broader range - covers .65 and .73)
-add_ip_range "20.50.0.0/16"       # Azure (broader range - covers .80)
-
-echo "🌐 Adding essential service domains..."
-
-# Ruby/Gem repositories
-add_domain "rubygems.org"
-add_domain "api.rubygems.org"
-add_domain "index.rubygems.org"
-
-# AI Provider APIs (Anthropic / OpenAI / Google Gemini / OpenRouter)
-add_domain "api.anthropic.com"              # Anthropic primary API
-add_domain "claude.ai"                      # Anthropic web (auth flows / websocket)
-add_domain "console.anthropic.com"          # Anthropic console (token management)
-
-add_domain "api.openai.com"                 # OpenAI primary API
-add_domain "auth.openai.com"                # OpenAI OAuth
-add_domain "openai.com"                     # OpenAI site (redirects during auth)
-add_domain "chat.openai.com"                # Chat UI (session/token refresh)
-add_domain "chatgpt.com"                    # Legacy / redirect host
-add_domain "cdn.openai.com"                 # Static assets used in auth/UI
-add_domain "oaiusercontent.com"             # File / image assets (optional but common)
-
-add_domain "generativelanguage.googleapis.com"  # Google AI (Gemini) API
-add_domain "oauth2.googleapis.com"          # Google OAuth token endpoint
-add_domain "accounts.google.com"            # Google account login
-add_domain "www.googleapis.com"             # Discovery / ancillary APIs
-add_domain "kilocode.ai"                    # Kilocode CLI auth / signup
-add_domain "api.kilocode.ai"                # Kilocode API endpoint for runs
-
-# Package managers and registries
-add_domain "registry.npmjs.org"
-add_domain "registry.yarnpkg.com"
-
-# GitHub / Copilot related
-add_domain "github.com"                     # Main site (auth flows)
-add_domain "api.github.com"                 # API (explicit for clarity)
-add_domain "raw.githubusercontent.com"      # Raw file fetches
-add_domain "objects.githubusercontent.com"  # Asset storage
-add_domain "gist.githubusercontent.com"     # Gists (tool usage)
-add_domain "cloud.githubusercontent.com"    # Cloud auth/token endpoints
-add_domain "copilot-proxy.githubusercontent.com" # Copilot proxy service
-
-# GitHub Copilot backend services (Azure)
-add_domain "api.githubcopilot.com"          # Copilot API
-add_domain "copilot-telemetry.githubusercontent.com" # Copilot telemetry
-add_domain "default.exp-tas.com"            # Experimentation service
-add_domain "copilot-completions.githubusercontent.com" # Completions service
-
-# GitHub Copilot subscription-based endpoints (required for commit messages and CLI)
-# Note: These use wildcard subdomains - we'll resolve what we can
-add_domain "business.githubcopilot.com"     # Copilot Business plan endpoint
-add_domain "enterprise.githubcopilot.com"   # Copilot Enterprise plan endpoint
-add_domain "individual.githubcopilot.com"   # Copilot Individual plan endpoint
-
-# Cursor AI
-add_domain "cursor.com"                     # Install script host
-add_domain "www.cursor.com"                 # Redirect host
-add_domain "downloads.cursor.com"           # Package downloads
-add_domain "api.cursor.sh"
-add_domain "cursor.sh"
-add_domain "app.cursor.sh"
-add_domain "www.cursor.sh"
-
-# OpenCode AI
-add_domain "api.opencode.ai"
-add_domain "auth.opencode.ai"
-
-# OpenRouter
-add_domain "openrouter.ai"
-
-# General CDNs occasionally used during auth / assets
-add_domain "cdn.jsdelivr.net"
-
-# VS Code services
-add_domain "update.code.visualstudio.com"
-add_domain "marketplace.visualstudio.com"
-add_domain "vscode.blob.core.windows.net"
-add_domain "vscode.download.prss.microsoft.com"
-add_domain "az764295.vo.msecnd.net"
-add_domain "gallerycdn.vsassets.io"           # VS Code extension gallery CDN
-add_domain "vscode.gallerycdn.vsassets.io"    # VS Code gallery CDN (subdomain)
-add_domain "gallery.vsassets.io"              # VS Code extension gallery assets
-add_domain "vscode-sync.trafficmanager.net"   # VS Code Settings Sync
-add_domain "vscode.dev"                       # VS Code web/auth
-add_domain "go.microsoft.com"                 # Microsoft link forwarding
-add_domain "download.visualstudio.microsoft.com" # VS extension dependencies
-
-# Microsoft telemetry (optional, comment out if not desired)
-add_domain "dc.services.visualstudio.com"
-add_domain "vortex.data.microsoft.com"
-
 # Detect host network for local access
 echo "🏠 Detecting host network..."
 HOST_NETWORK=$(ip route 2>/dev/null | grep default | awk '{print $3}' | head -n1 || true)
@@ -213,9 +218,6 @@ if [ -n "$HOST_NETWORK" ]; then
     echo "  Adding host network: $HOST_CIDR"
     add_ip_range "$HOST_CIDR"
 fi
-
-# Allow localhost
-add_ip_range "127.0.0.0/8"
 
 echo "🛡️  Configuring iptables rules..."
 
@@ -263,9 +265,6 @@ fi
 # Allow all traffic on Docker bridge network (for docker-in-docker)
 iptables -A INPUT -i docker0 -j ACCEPT 2>/dev/null || true
 iptables -A OUTPUT -o docker0 -j ACCEPT 2>/dev/null || true
-
-# Log dropped packets (optional, for debugging)
-# iptables -A OUTPUT -j LOG --log-prefix "DROPPED: " --log-level 4
 
 echo "✅ Firewall initialized successfully!"
 

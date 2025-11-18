@@ -46,6 +46,22 @@ module Aidp
         family_name.match?(/^(claude|gpt|cursor)-/)
       end
 
+      # Get firewall requirements for Cursor provider
+      def self.firewall_requirements
+        {
+          domains: [
+            "cursor.com",
+            "www.cursor.com",
+            "downloads.cursor.com",
+            "api.cursor.sh",
+            "cursor.sh",
+            "app.cursor.sh",
+            "www.cursor.sh"
+          ],
+          ip_ranges: []
+        }
+      end
+
       # Discover available models from Cursor
       #
       # Note: Cursor doesn't have a public model listing API

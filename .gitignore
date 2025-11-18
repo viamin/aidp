@@ -17,6 +17,8 @@ code_maat_analysis_report.md
 .aidp-analyze-tools.yml
 .aidp-progress.yml
 .aidp/
+# Exception: firewall configuration should be version controlled
+!.aidp/firewall-allowlist.yml
 
 # Aidp workstreams
 .worktrees/

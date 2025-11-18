@@ -14,6 +14,23 @@ module Aidp
         !!Aidp::Util.which("copilot")
       end
 
+      # Get firewall requirements for GitHub Copilot provider
+      def self.firewall_requirements
+        {
+          domains: [
+            "copilot-proxy.githubusercontent.com",
+            "api.githubcopilot.com",
+            "copilot-telemetry.githubusercontent.com",
+            "default.exp-tas.com",
+            "copilot-completions.githubusercontent.com",
+            "business.githubcopilot.com",
+            "enterprise.githubcopilot.com",
+            "individual.githubcopilot.com"
+          ],
+          ip_ranges: []
+        }
+      end
+
       def name
         "github_copilot"
       end

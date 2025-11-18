@@ -37,6 +37,17 @@ module Aidp
         discover_models_from_registry(MODEL_PATTERN, "kilocode")
       end
 
+      # Get firewall requirements for Kilocode provider
+      def self.firewall_requirements
+        {
+          domains: [
+            "kilocode.ai",
+            "api.kilocode.ai"
+          ],
+          ip_ranges: []
+        }
+      end
+
       def name
         "kilocode"
       end

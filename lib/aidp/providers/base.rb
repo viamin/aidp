@@ -360,6 +360,23 @@ module Aidp
         []
       end
 
+      # Get firewall requirements for this provider
+      #
+      # Returns domains and IP ranges that need to be accessible for this provider
+      # to function properly. Used by devcontainer firewall configuration.
+      #
+      # @return [Hash] Firewall requirements with :domains and :ip_ranges keys
+      #   - domains: Array of domain strings
+      #   - ip_ranges: Array of CIDR strings
+      #
+      # Override in subclasses to provide provider-specific requirements
+      def self.firewall_requirements
+        {
+          domains: [],
+          ip_ranges: []
+        }
+      end
+
       protected
 
       # Log message to job if in background mode

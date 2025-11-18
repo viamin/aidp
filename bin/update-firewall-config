@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Update firewall configuration with provider requirements
+#
+# Usage:
+#   bin/update-firewall-config              # Update the config
+#   bin/update-firewall-config --dry-run    # Show what would change
+#   bin/update-firewall-config --report     # Generate summary report
+
+require_relative "../lib/aidp"
+require_relative "../lib/aidp/firewall/provider_requirements_collector"
+
+def main
+  dry_run = ARGV.include?("--dry-run")
+  report_only = ARGV.include?("--report")
+
+  collector = Aidp::Firewall::ProviderRequirementsCollector.new
+
+  if report_only
+    puts collector.generate_report
+    exit 0
+  end
+
+  if collector.update_yaml_config(dry_run: dry_run)
+    puts "✅ Firewall configuration updated successfully"
+    exit 0
+  else
+    puts "❌ Failed to update firewall configuration"
+    exit 1
+  end
+end
+
+main if __FILE__ == $PROGRAM_NAME

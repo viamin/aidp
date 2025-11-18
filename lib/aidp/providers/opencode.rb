@@ -37,6 +37,17 @@ module Aidp
         discover_models_from_registry(MODEL_PATTERN, "opencode")
       end
 
+      # Get firewall requirements for OpenCode provider
+      def self.firewall_requirements
+        {
+          domains: [
+            "api.opencode.ai",
+            "auth.opencode.ai"
+          ],
+          ip_ranges: []
+        }
+      end
+
       def name
         "opencode"
       end
