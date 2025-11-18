@@ -314,6 +314,66 @@ module Aidp
           ]
         },
 
+        agile_mvp: {
+          name: "Agile MVP Planning",
+          description: "Plan MVP with user testing and marketing",
+          icon: "🚀",
+          details: [
+            "MVP scope definition (must-have vs nice-to-have)",
+            "User testing plan with surveys and interviews",
+            "Marketing materials and messaging",
+            "Timeline with Gantt chart",
+            "Persona assignments"
+          ],
+          steps: [
+            "00_PRD",
+            "23_MVP_SCOPE",
+            "24_USER_TEST_PLAN",
+            "25_MARKETING_REPORT",
+            "19_GANTT_CHART",
+            "20_PERSONA_ASSIGNMENT",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
+        agile_iteration: {
+          name: "Agile Iteration Planning",
+          description: "Plan next iteration based on user feedback",
+          icon: "🔄",
+          details: [
+            "Ingest user feedback data (CSV/JSON/markdown)",
+            "AI-powered feedback analysis",
+            "Next iteration plan with tasks",
+            "Timeline with Gantt chart",
+            "Persona assignments"
+          ],
+          steps: [
+            "26_INGEST_FEEDBACK",
+            "27_ANALYZE_FEEDBACK",
+            "28_ITERATION_PLAN",
+            "19_GANTT_CHART",
+            "20_PERSONA_ASSIGNMENT",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
+        agile_legacy_research: {
+          name: "Legacy Product Research",
+          description: "Plan user research for existing codebase",
+          icon: "🔍",
+          details: [
+            "Codebase analysis to identify features",
+            "User research plan generation",
+            "User testing plan with priorities",
+            "Improvement recommendations"
+          ],
+          steps: [
+            "29_LEGACY_RESEARCH_PLAN",
+            "24_USER_TEST_PLAN",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
         custom: {
           name: "Custom Workflow",
           description: "Choose specific planning and implementation steps",
