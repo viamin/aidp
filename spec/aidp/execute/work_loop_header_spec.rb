@@ -9,6 +9,7 @@ RSpec.describe "Work Loop Header Prepending" do
   let(:config) do
     double("Config",
       guards_config: {},
+      task_completion_required?: true,
       # Thinking depth configuration
       default_tier: "standard",
       max_tier: "pro",

@@ -662,6 +662,94 @@ STATUS: COMPLETE
 
 AIDP looks for this marker (case-insensitive) to know the agent considers the work done.
 
+### Task Tracking Requirements
+
+**As of version 0.16.0**, work loops can enforce mandatory task tracking to ensure work is properly decomposed and tracked. This is controlled by the `harness.work_loop.task_completion_required` configuration option (default: `true`).
+
+When task completion is required:
+
+1. **At least one task must be created** for each work loop session
+2. **All tasks must be completed or abandoned** before the work loop can finish
+3. **Abandoned tasks require a reason** for better tracking
+
+#### Creating Tasks
+
+Agents create tasks using file signals in their output:
+
+```text
+File task: "Implement user authentication" priority: high tags: security,auth
+File task: "Add tests for login flow" priority: medium tags: testing
+File task: "Update API documentation" priority: low tags: docs
+```
+
+Priority levels: `high`, `medium` (default), `low`
+Tags: Comma-separated list for categorization
+
+#### Updating Task Status
+
+Agents update task status as work progresses:
+
+```text
+Update task: task_123_abc status: in_progress
+Update task: task_123_abc status: done
+Update task: task_456_def status: abandoned reason: "Requirements changed"
+```
+
+Valid statuses:
+
+- `pending` - Not started yet (initial state)
+- `in_progress` - Currently working on it
+- `done` - Completed successfully
+- `abandoned` - Not doing this (requires reason)
+
+#### When to Abandon Tasks
+
+**Important**: Tasks in the list exist due to careful planning and requirements analysis. Agents should have a **strong bias against abandoning tasks** based on complexity or scope concerns.
+
+**Valid reasons to abandon:**
+- Requirements changed (external decision)
+- Duplicate work (already implemented elsewhere)
+- External blockers (dependency unavailable, API deprecated)
+- Task made obsolete by other changes
+
+**Invalid reasons to abandon:**
+- Task seems too complex
+- Task has large scope
+- Uncertainty about implementation approach
+- Lack of immediate clarity on details
+
+**When in doubt**: Mark the task as `in_progress` and implement it. If you encounter actual blockers during implementation, document them and only then consider abandonment with a specific reason.
+
+#### Task Completion Flow
+
+```mermaid
+flowchart TD
+  Start[Work loop starts] --> Check{Tasks exist?}
+  Check -->|No| Block1[❌ Block completion:<br/>Create at least one task]
+  Check -->|Yes| StatusCheck{All tasks done<br/>or abandoned?}
+  StatusCheck -->|No| Block2[❌ Block completion:<br/>Complete or abandon<br/>remaining tasks]
+  StatusCheck -->|Yes| ReasonCheck{Abandoned tasks<br/>have reasons?}
+  ReasonCheck -->|No| Block3[❌ Block completion:<br/>Provide abandonment<br/>reasons]
+  ReasonCheck -->|Yes| Allow[✅ Allow completion]
+  Block1 --> Start
+  Block2 --> StatusCheck
+  Block3 --> ReasonCheck
+```
+
+#### Disabling Task Tracking
+
+To disable mandatory task tracking, set in `aidp.yml`:
+
+```yaml
+harness:
+  work_loop:
+    task_completion_required: false
+```
+
+#### Task Storage
+
+Tasks are stored in `.aidp/tasklist.jsonl` using append-only JSONL format for git-friendly tracking across sessions. You can view all tasks using `aidp tasks list`.
+
 ## Example Workflow
 
 ### Iteration 1

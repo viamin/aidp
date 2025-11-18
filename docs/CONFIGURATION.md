@@ -103,6 +103,7 @@ work_loop:
     tool: git
     behavior: commit
     conventional_commits: true
+  task_completion_required: true  # Enforce mandatory task tracking (default: true)
   interactive_testing:
     enabled: true
     app_type: web
@@ -113,6 +114,54 @@ work_loop:
           run: "npx playwright test"
           specs_dir: ".aidp/tests/web"
 ```
+
+### Task Completion Tracking
+
+The `task_completion_required` option (default: `true`) enforces mandatory task tracking for work loops. When enabled:
+
+- **At least one task must be created** for each work loop session
+- **All tasks must be completed or abandoned** before the work loop can finish
+- **Abandoned tasks require a reason** for better accountability
+
+This feature ensures that work is properly decomposed into trackable tasks, preventing scope creep and maintaining clear records of what was accomplished or abandoned.
+
+**Task Creation:**
+Agents create tasks using file signals:
+
+```text
+File task: "Implement authentication" priority: high tags: security,auth
+File task: "Add tests" priority: medium tags: testing
+```
+
+**Task Status Updates:**
+Agents update task status during work:
+
+```text
+Update task: task_123_abc status: in_progress
+Update task: task_123_abc status: done
+Update task: task_456_def status: abandoned reason: "Requirements changed"
+```
+
+**Valid Statuses:**
+
+- `pending` - Not started (initial state)
+- `in_progress` - Currently being worked on
+- `done` - Completed successfully
+- `abandoned` - Not doing this (requires reason)
+
+**Task Storage:**
+Tasks are stored in `.aidp/tasklist.jsonl` using append-only JSONL format for git-friendly tracking across sessions.
+
+**Disabling Task Tracking:**
+To disable mandatory task tracking:
+
+```yaml
+harness:
+  work_loop:
+    task_completion_required: false
+```
+
+See [WORK_LOOPS_GUIDE.md](WORK_LOOPS_GUIDE.md#task-tracking-requirements) for detailed workflow examples.
 
 ### Work Loop Templates
 

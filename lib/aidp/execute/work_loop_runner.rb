@@ -242,23 +242,39 @@ module Aidp
             build_results[:success] &&
             doc_results[:success]
 
+          # Check task completion status
+          task_completion_result = check_task_completion
+
           if all_checks_pass
             transition_to(:pass)
 
             if agent_marked_complete?(agent_result)
-              transition_to(:done)
-              record_final_checkpoint(all_results)
-              display_message("✅ Step #{@step_name} completed after #{@iteration_count} iterations", type: :success)
-              display_state_summary
-              archive_and_cleanup
+              # Check if tasks are complete
+              if task_completion_result[:complete]
+                transition_to(:done)
+                record_final_checkpoint(all_results)
+                display_task_summary
+                display_message("✅ Step #{@step_name} completed after #{@iteration_count} iterations", type: :success)
+                display_state_summary
+                archive_and_cleanup
 
-              return build_agentic_payload(
-                agent_result: agent_result,
-                response: build_success_result(agent_result),
-                summary: agent_result[:output],
-                completed: true,
-                terminate: true
-              )
+                return build_agentic_payload(
+                  agent_result: agent_result,
+                  response: build_success_result(agent_result),
+                  summary: agent_result[:output],
+                  completed: true,
+                  terminate: true
+                )
+              else
+                # All checks passed but tasks not complete
+                display_message("  All checks passed but tasks not complete", type: :warning)
+                display_message("  #{task_completion_result[:message]}", type: :warning)
+                display_task_summary
+                transition_to(:next_patch)
+
+                # Append task completion requirement to PROMPT.md
+                append_task_requirement_to_prompt(task_completion_result[:message])
+              end
             else
               display_message("  All checks passed but work not marked complete", type: :info)
               transition_to(:next_patch)
@@ -769,6 +785,34 @@ module Aidp
         parts << "- After you finish, tests and linters will run automatically"
         parts << "- If tests/linters fail, you'll see the errors in the next iteration and can fix them"
         parts << ""
+
+        if @config.task_completion_required?
+          parts << "## Task Tracking (REQUIRED)"
+          parts << "**CRITICAL**: This work loop requires task tracking for completion."
+          parts << ""
+          parts << "You must:"
+          parts << "1. Create at least one task for this session using: `File task: \"description\"`"
+          parts << "2. Track all work items as tasks"
+          parts << "3. Update task status as you progress"
+          parts << "4. All tasks must be DONE or ABANDONED (with reason) before completion"
+          parts << ""
+          parts << "**Important**: Tasks in the list exist due to careful planning and requirements analysis."
+          parts << "Do NOT abandon tasks due to perceived complexity or scope concerns - these factors were"
+          parts << "considered during planning. Only abandon tasks when truly obsolete (requirements changed,"
+          parts << "duplicate work, external blockers). When in doubt, mark in_progress and implement."
+          parts << ""
+          parts << "Task filing examples:"
+          parts << "- `File task: \"Implement user authentication\" priority: high tags: security,auth`"
+          parts << "- `File task: \"Add tests for login flow\" priority: medium tags: testing`"
+          parts << "- `File task: \"Update documentation\" priority: low tags: docs`"
+          parts << ""
+          parts << "Task status update examples:"
+          parts << "- `Update task: task_123_abc status: in_progress`"
+          parts << "- `Update task: task_456_def status: done`"
+          parts << "- `Update task: task_789_ghi status: abandoned reason: \"Requirements changed\"`"
+          parts << ""
+        end
+
         parts << "## Completion Criteria"
         parts << "Mark this step COMPLETE by adding this line to PROMPT.md:"
         parts << "```"
@@ -1119,13 +1163,12 @@ module Aidp
         display_message("")
       end
 
-      # Process agent output for task filing signals
+      # Process agent output for task filing signals and task status updates
       def process_task_filing(agent_result)
         return unless agent_result && agent_result[:output]
 
+        # Process new task filings
         filed_tasks = AgentSignalParser.parse_task_filing(agent_result[:output])
-        return if filed_tasks.empty?
-
         filed_tasks.each do |task_data|
           task = @persistent_tasklist.create(
             task_data[:description],
@@ -1137,6 +1180,150 @@ module Aidp
 
           Aidp.log_info("tasklist", "Filed new task from agent", task_id: task.id, description: task.description)
           display_message("📋 Filed task: #{task.description} (#{task.id})", type: :info)
+        end
+
+        # Process task status updates
+        status_updates = AgentSignalParser.parse_task_status_updates(agent_result[:output])
+        status_updates.each do |update_data|
+          task = @persistent_tasklist.update_status(
+            update_data[:task_id],
+            update_data[:status],
+            reason: update_data[:reason]
+          )
+
+          status_icon = case update_data[:status]
+          when :done then "✅"
+          when :abandoned then "❌"
+          when :in_progress then "🚧"
+          when :pending then "⏳"
+          else "📋"
+          end
+
+          Aidp.log_info("tasklist", "Updated task status from agent",
+            task_id: task.id,
+            old_status: task.status,
+            new_status: update_data[:status])
+          display_message("#{status_icon} Updated task #{task.id}: #{update_data[:status]}", type: :info)
+        rescue PersistentTasklist::TaskNotFoundError
+          Aidp.log_warn("tasklist", "Task not found for status update", task_id: update_data[:task_id])
+          display_message("⚠️  Task not found: #{update_data[:task_id]}", type: :warning)
+        end
+      end
+
+      # Check if tasks are required and all are completed or abandoned
+      # Returns {complete: boolean, message: string}
+      def check_task_completion
+        return {complete: true, message: nil} unless @config.task_completion_required?
+
+        session_tasks = @persistent_tasklist.all.select { |t| t.session == @step_name.to_s }
+
+        # At least one task must exist
+        if session_tasks.empty?
+          return {
+            complete: false,
+            message: "No tasks created for this session. At least one task must be created using the create_tasks template or by filing tasks via 'File task: \"description\"'."
+          }
+        end
+
+        # Count tasks by status
+        pending_tasks = session_tasks.select { |t| t.status == :pending }
+        in_progress_tasks = session_tasks.select { |t| t.status == :in_progress }
+        abandoned_tasks = session_tasks.select { |t| t.status == :abandoned }
+        session_tasks.select { |t| t.status == :done }
+
+        # All tasks must be done or abandoned
+        incomplete_tasks = pending_tasks + in_progress_tasks
+
+        if incomplete_tasks.any?
+          task_list = incomplete_tasks.map { |t| "- #{t.description} (#{t.status})" }.join("\n")
+          return {
+            complete: false,
+            message: "Tasks remain incomplete:\n#{task_list}\n\nComplete all tasks or abandon them with reason before marking work complete."
+          }
+        end
+
+        # If there are abandoned tasks, confirm with user
+        if abandoned_tasks.any? && !all_abandoned_tasks_confirmed?(abandoned_tasks)
+          return {
+            complete: false,
+            message: "Abandoned tasks require user confirmation. Please confirm abandoned tasks."
+          }
+        end
+
+        {complete: true, message: nil}
+      end
+
+      # Check if all abandoned tasks have been confirmed
+      def all_abandoned_tasks_confirmed?(abandoned_tasks)
+        # For now, we'll consider all abandoned tasks as confirmed if they have a reason
+        # In a future enhancement, this could prompt the user for confirmation
+        abandoned_tasks.all? { |t| t.abandoned_reason && !t.abandoned_reason.strip.empty? }
+      end
+
+      # Display task completion summary
+      def display_task_summary
+        return unless @config.task_completion_required?
+
+        session_tasks = @persistent_tasklist.all.select { |t| t.session == @step_name.to_s }
+        return if session_tasks.empty?
+
+        counts = session_tasks.group_by(&:status).transform_values(&:count)
+
+        display_message("\n📋 Task Summary:", type: :info)
+        display_message("  Total: #{session_tasks.size}", type: :info)
+        display_message("  ✅ Done: #{counts[:done] || 0}", type: :success) if counts[:done]
+        display_message("  🚧 In Progress: #{counts[:in_progress] || 0}", type: :warning) if counts[:in_progress]
+        display_message("  ⏳ Pending: #{counts[:pending] || 0}", type: :warning) if counts[:pending]
+        display_message("  ❌ Abandoned: #{counts[:abandoned] || 0}", type: :error) if counts[:abandoned]
+        display_message("")
+      end
+
+      # Append task completion requirement to PROMPT.md
+      def append_task_requirement_to_prompt(message)
+        task_requirement = []
+
+        task_requirement << "## Task Completion Requirement"
+        task_requirement << ""
+        task_requirement << "**CRITICAL**: #{message}"
+        task_requirement << ""
+        task_requirement << "### How to Complete Tasks"
+        task_requirement << ""
+        task_requirement << "Update task status using these signals in your output:"
+        task_requirement << ""
+        task_requirement << "**Creating tasks:**"
+        task_requirement << "```"
+        task_requirement << 'File task: "Implement feature X" priority: high tags: feature,backend'
+        task_requirement << 'File task: "Add tests for feature X" priority: medium tags: testing'
+        task_requirement << "```"
+        task_requirement << ""
+        task_requirement << "**Updating task status:**"
+        task_requirement << "```"
+        task_requirement << "Update task: task_123_abc status: in_progress"
+        task_requirement << "Update task: task_123_abc status: done"
+        task_requirement << 'Update task: task_456_def status: abandoned reason: "Requirements changed"'
+        task_requirement << "```"
+        task_requirement << ""
+        task_requirement << "**Task states:**"
+        task_requirement << "- ⏳ **pending** - Not started yet"
+        task_requirement << "- 🚧 **in_progress** - Currently working on it"
+        task_requirement << "- ✅ **done** - Completed successfully"
+        task_requirement << "- ❌ **abandoned** - Not doing this (requires reason)"
+        task_requirement << ""
+        task_requirement << "**Completion requirement:**"
+        task_requirement << "All tasks for this session must be marked as DONE or ABANDONED (with reason) before the work loop can complete."
+        task_requirement << ""
+        task_requirement << "**Action Required**: Review the current task list and update status for all tasks."
+        task_requirement << ""
+
+        # Append to PROMPT.md - ensure directory exists
+        begin
+          current_prompt = @prompt_manager.read || ""
+          updated_prompt = current_prompt + "\n\n---\n\n" + task_requirement.join("\n")
+          @prompt_manager.write(updated_prompt, step_name: @step_name)
+          display_message("  [TASK_REQ] Added task completion requirement to PROMPT.md", type: :warning)
+        rescue => e
+          Aidp.log_warn("work_loop", "Failed to append task requirement to PROMPT.md", error: e.message)
+          display_message("  [TASK_REQ] Warning: Could not update PROMPT.md: #{e.message}", type: :warning)
         end
       end
 
