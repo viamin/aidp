@@ -87,19 +87,21 @@ module Aidp
           backtrace: e.backtrace&.first(10)
         )
 
-        # Create error result to pass to handle_failure
-        error_result = {
+        # Record failure state internally but DON'T post error to GitHub
+        # (per issue #280 - error messages should never appear on issues)
+        @state_store.record_build_status(
+          issue[:number],
           status: "error",
-          error: e.message,
-          error_class: e.class.name,
-          message: "Exception during harness execution: #{e.message}"
-        }
-
-        # Handle as failure (posts comment, updates state) but DON'T re-raise
-        handle_failure(issue: issue, slug: slug, result: error_result)
+          details: {
+            error: e.message,
+            error_class: e.class.name,
+            workstream: slug,
+            timestamp: Time.now.utc.iso8601
+          }
+        )
 
         # Note: We intentionally DON'T re-raise here to allow watch mode to continue
-        # The error has been logged, recorded, and reported to GitHub
+        # The error has been logged and recorded internally
       end
 
       private

@@ -498,9 +498,9 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       allow(processor).to receive(:ensure_git_repo!)
       allow(processor).to receive(:detect_base_branch).and_return("main")
       allow(processor).to receive(:run_harness).and_raise(StandardError, "Something went wrong")
-      allow(repository_client).to receive(:post_comment) # Mock failure comment posting
+      allow(state_store).to receive(:record_build_status)
 
-      # Allow multiple log_error calls (rescue block + handle_failure)
+      # Expect error to be logged but NOT posted to GitHub (issue #280)
       expect(Aidp).to receive(:log_error).with(
         "build_processor",
         "Implementation failed with exception",
@@ -510,10 +510,10 @@ RSpec.describe Aidp::Watch::BuildProcessor do
           error_class: "StandardError"
         )
       )
-      expect(Aidp).to receive(:log_error).with(
-        "build_processor",
-        "Build failed for issue ##{issue[:number]}",
-        hash_including(status: "error")
+      expect(repository_client).not_to receive(:post_comment)
+      expect(state_store).to receive(:record_build_status).with(
+        issue[:number],
+        hash_including(status: "error", details: hash_including(error: "Something went wrong"))
       )
 
       # Exception should NOT be re-raised (fix-forward pattern)

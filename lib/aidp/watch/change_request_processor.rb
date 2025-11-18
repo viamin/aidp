@@ -109,19 +109,14 @@ module Aidp
         display_message("❌ Change request processing failed: #{e.message}", type: :error)
         Aidp.log_error("change_request_processor", "Change request failed", pr: pr[:number], error: e.message, backtrace: e.backtrace&.first(10))
 
-        # Post error comment
-        error_comment = <<~COMMENT
-          #{COMMENT_HEADER}
-
-          ❌ Automated change request processing failed: #{e.message}
-
-          Please review the requested changes manually or retry by re-adding the `#{@change_request_label}` label.
-        COMMENT
-        begin
-          @repository_client.post_comment(pr[:number], error_comment)
-        rescue
-          nil
-        end
+        # Record failure state internally but DON'T post error to GitHub
+        # (per issue #280 - error messages should never appear on issues)
+        @state_store.record_change_request(pr[:number], {
+          status: "error",
+          error: e.message,
+          error_class: e.class.name,
+          timestamp: Time.now.utc.iso8601
+        })
       end
 
       private

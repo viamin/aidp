@@ -99,11 +99,13 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
       expect(data["status"]).to eq("failed")
     end
 
-    it "posts error comment when analysis fails" do
+    it "logs error internally when analysis fails but does not post to GitHub" do
       allow(repository_client).to receive(:fetch_pull_request).with(456).and_raise(StandardError.new("API error"))
-      allow(repository_client).to receive(:post_comment)
+      allow(state_store).to receive(:record_ci_fix)
 
-      expect(repository_client).to receive(:post_comment).with(456, /Automated CI fix failed/)
+      expect(repository_client).not_to receive(:post_comment)
+      expect(Aidp).to receive(:log_error).with("ci_fix_processor", "CI fix failed", hash_including(pr: 456, error: "API error"))
+      expect(state_store).to receive(:record_ci_fix).with(456, hash_including(status: "error", error: "API error"))
 
       processor.process(pr)
     end

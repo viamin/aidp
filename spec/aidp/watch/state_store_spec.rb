@@ -123,4 +123,34 @@ RSpec.describe Aidp::Watch::StateStore do
       expect(store.change_request_processed?(505)).to be false
     end
   end
+
+  describe "detection comment tracking" do
+    it "tracks posted detection comments" do
+      detection_key = "issue_123_aidp-plan"
+      expect(store.detection_comment_posted?(detection_key)).to be false
+
+      timestamp = Time.now.utc.iso8601
+      store.record_detection_comment(detection_key, timestamp: timestamp)
+
+      expect(store.detection_comment_posted?(detection_key)).to be true
+
+      # Reload to ensure persistence
+      reloaded = described_class.new(project_dir: tmp_dir, repository: repository)
+      expect(reloaded.detection_comment_posted?(detection_key)).to be true
+    end
+
+    it "tracks detection comments for different item types and labels" do
+      issue_key = "issue_100_aidp-plan"
+      pr_key = "pr_200_aidp-review"
+      another_label_key = "issue_100_aidp-build"
+
+      timestamp = Time.now.utc.iso8601
+      store.record_detection_comment(issue_key, timestamp: timestamp)
+      store.record_detection_comment(pr_key, timestamp: timestamp)
+
+      expect(store.detection_comment_posted?(issue_key)).to be true
+      expect(store.detection_comment_posted?(pr_key)).to be true
+      expect(store.detection_comment_posted?(another_label_key)).to be false
+    end
+  end
 end

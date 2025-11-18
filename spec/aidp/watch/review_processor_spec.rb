@@ -84,11 +84,13 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       processor.process(pr)
     end
 
-    it "posts error comment when review fails" do
+    it "logs error internally when review fails but does not post to GitHub" do
       allow(repository_client).to receive(:fetch_pull_request).with(123).and_raise(StandardError.new("API error"))
-      allow(repository_client).to receive(:post_comment)
+      allow(state_store).to receive(:record_review)
 
-      expect(repository_client).to receive(:post_comment).with(123, /Automated review failed/)
+      expect(repository_client).not_to receive(:post_comment)
+      expect(Aidp).to receive(:log_error).with("review_processor", "Review failed", hash_including(pr: 123, error: "API error"))
+      expect(state_store).to receive(:record_review).with(123, hash_including(status: "error", error: "API error"))
 
       processor.process(pr)
     end
