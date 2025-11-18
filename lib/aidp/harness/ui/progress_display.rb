@@ -24,7 +24,11 @@ module Aidp
           super()
           @output = ui_components[:output]
           @progress = ui_components[:progress] || TTY::ProgressBar
-          @pastel = @output ? Pastel.new(output: @output) : Pastel.new
+          @pastel = if @output&.respond_to?(:tty?) && @output.tty?
+            Pastel.new(enabled: true)
+          else
+            Pastel.new(enabled: false)
+          end
           @formatter = ui_components[:formatter] || ProgressFormatter.new
           @display_history = []
           @auto_refresh_enabled = false
