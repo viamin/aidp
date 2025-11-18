@@ -143,58 +143,38 @@ module Aidp
           "gate" => false,
           "simple" => true # Special step for simple, focused tasks
         },
-        # Waterfall planning mode steps
-        "20_WATERFALL_INIT" => {
-          "templates" => ["waterfall/initialize_planning.md"],
-          "description" => "Initialize waterfall planning (ingestion vs generation)",
-          "outs" => [".aidp/docs/.waterfall_mode"],
-          "gate" => true,
-          "interactive" => true
-        },
-        "21_WATERFALL_PRD" => {
-          "skill" => "product_strategist",
-          "templates" => ["planning/create_prd.md"], # Reuse existing PRD template
-          "description" => "Generate or enhance Product Requirements Document",
-          "outs" => [".aidp/docs/PRD.md"],
-          "gate" => false,
-          "interactive" => true
-        },
-        "22_WATERFALL_TECH_DESIGN" => {
-          "skill" => "architect",
-          "templates" => ["planning/design_architecture.md"], # Reuse existing architecture template
-          "description" => "Generate Technical Design Document",
-          "outs" => [".aidp/docs/TECH_DESIGN.md"],
-          "gate" => false
-        },
-        "23_WATERFALL_WBS" => {
-          "templates" => ["waterfall/generate_wbs.md"],
-          "description" => "Generate Work Breakdown Structure",
+        # Generic planning and project management steps (usable in any workflow)
+        "18_WBS" => {
+          "templates" => ["planning/generate_wbs.md"],
+          "description" => "Generate Work Breakdown Structure with phases and tasks",
           "outs" => [".aidp/docs/WBS.md"],
           "gate" => false
         },
-        "24_WATERFALL_GANTT" => {
-          "templates" => ["waterfall/generate_gantt.md"],
-          "description" => "Generate Gantt chart and critical path analysis",
+        "19_GANTT_CHART" => {
+          "templates" => ["planning/generate_gantt.md"],
+          "description" => "Generate Gantt chart with timeline and critical path",
           "outs" => [".aidp/docs/GANTT.md"],
           "gate" => false
         },
-        "25_WATERFALL_TASKS" => {
-          "templates" => ["planning/create_tasks.md"], # Reuse existing task creation template
-          "description" => "Generate detailed task list with dependencies",
-          "outs" => [".aidp/docs/TASK_LIST.md"],
-          "gate" => false
-        },
-        "26_WATERFALL_PERSONAS" => {
-          "templates" => ["waterfall/assign_personas.md"],
-          "description" => "Assign tasks to personas using ZFC",
+        "20_PERSONA_ASSIGNMENT" => {
+          "templates" => ["planning/assign_personas.md"],
+          "description" => "Assign tasks to personas/roles using AI (ZFC)",
           "outs" => [".aidp/docs/persona_map.yml"],
           "gate" => false
         },
-        "27_WATERFALL_PROJECT_PLAN" => {
-          "templates" => ["waterfall/assemble_project_plan.md"],
-          "description" => "Assemble complete project plan with all artifacts",
+        "21_PROJECT_PLAN_ASSEMBLY" => {
+          "templates" => ["planning/assemble_project_plan.md"],
+          "description" => "Assemble complete project plan from all artifacts",
           "outs" => [".aidp/docs/PROJECT_PLAN.md"],
           "gate" => false
+        },
+        # Planning mode initialization (supports ingestion vs generation workflows)
+        "22_PLANNING_MODE_INIT" => {
+          "templates" => ["planning/initialize_planning_mode.md"],
+          "description" => "Initialize planning mode (ingestion of existing docs vs generation from scratch)",
+          "outs" => [".aidp/docs/.planning_mode"],
+          "gate" => true,
+          "interactive" => true
         }
       }.freeze
     end

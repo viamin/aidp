@@ -260,13 +260,13 @@ module Aidp
             "Complete project plan"
           ],
           steps: [
-            "20_WATERFALL_INIT",
-            "21_WATERFALL_PRD",
-            "22_WATERFALL_TECH_DESIGN",
-            "23_WATERFALL_WBS",
-            "24_WATERFALL_GANTT",
-            "25_WATERFALL_TASKS",
-            "26_WATERFALL_PERSONAS",
+            "22_PLANNING_MODE_INIT",
+            "00_PRD",
+            "02_ARCHITECTURE",
+            "18_WBS",
+            "19_GANTT_CHART",
+            "20_PERSONA_ASSIGNMENT",
+            "21_PROJECT_PLAN_ASSEMBLY",
             "16_IMPLEMENTATION"
           ]
         },
@@ -282,10 +282,9 @@ module Aidp
             "Task list with dependencies"
           ],
           steps: [
-            "20_WATERFALL_INIT",
-            "21_WATERFALL_PRD",
-            "23_WATERFALL_WBS",
-            "25_WATERFALL_TASKS",
+            "22_PLANNING_MODE_INIT",
+            "00_PRD",
+            "18_WBS",
             "16_IMPLEMENTATION"
           ]
         },
@@ -303,15 +302,14 @@ module Aidp
             "Persona assignments"
           ],
           steps: [
-            "20_WATERFALL_INIT",
-            "21_WATERFALL_PRD",
-            "22_WATERFALL_TECH_DESIGN",
-            "23_WATERFALL_WBS",
-            "24_WATERFALL_GANTT",
-            "25_WATERFALL_TASKS",
+            "22_PLANNING_MODE_INIT",
+            "00_PRD",
+            "02_ARCHITECTURE",
+            "18_WBS",
+            "19_GANTT_CHART",
             "17_TDD_SPECIFICATION",
-            "26_WATERFALL_PERSONAS",
-            "27_WATERFALL_PROJECT_PLAN",
+            "20_PERSONA_ASSIGNMENT",
+            "21_PROJECT_PLAN_ASSEMBLY",
             "16_IMPLEMENTATION"
           ]
         },
