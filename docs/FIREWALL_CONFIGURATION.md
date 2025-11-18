@@ -45,6 +45,7 @@ The AIDP devcontainer implements strict network access control using an **auto-g
 The YAML file is **auto-generated** from:
 
 **Source (Provider Classes + Collector Constants):**
+
 ```ruby
 # In lib/aidp/providers/anthropic.rb
 def self.firewall_requirements
@@ -67,6 +68,7 @@ STATIC_IP_RANGES = [
 ```
 
 **Generated YAML (`.aidp/firewall-allowlist.yml`):**
+
 ```yaml
 version: 1
 static_ip_ranges:
@@ -118,13 +120,13 @@ def self.firewall_requirements
 end
 ```
 
-2. Regenerate the configuration:
+1. Regenerate the configuration:
 
 ```bash
 bundle exec bin/update-firewall-config
 ```
 
-3. Verify the update:
+1. Verify the update:
 
 ```bash
 bundle exec bin/update-firewall-config --report
@@ -148,7 +150,7 @@ CORE_DOMAINS = {
 }.freeze
 ```
 
-3. Regenerate the YAML:
+1. Regenerate the YAML:
 
 ```bash
 bundle exec ruby bin/update-firewall-config
@@ -168,7 +170,7 @@ STATIC_IP_RANGES = [
 ].freeze
 ```
 
-3. Regenerate the YAML:
+1. Regenerate the YAML:
 
 ```bash
 bundle exec ruby bin/update-firewall-config
@@ -186,7 +188,7 @@ bundle exec ruby bin/update-firewall-config --report
 
 Output example:
 
-```
+```text
 Firewall Provider Requirements Summary
 ==================================================
 
@@ -295,13 +297,13 @@ yq eval '.' .aidp/firewall-allowlist.yml
 bundle exec ruby -e "require './lib/aidp/providers/anthropic'; p Aidp::Providers::Anthropic.firewall_requirements"
 ```
 
-2. Check if YAML contains the domain:
+1. Check if YAML contains the domain:
 
 ```bash
 yq eval '.provider_domains.anthropic' .aidp/firewall-allowlist.yml
 ```
 
-3. Regenerate configuration:
+1. Regenerate configuration:
 
 ```bash
 bundle exec bin/update-firewall-config
@@ -312,6 +314,7 @@ bundle exec bin/update-firewall-config
 ### Why Broad Azure Ranges?
 
 Azure IP ranges use `/16` CIDR blocks because:
+
 - GitHub Copilot and VS Code services use dynamic IP allocation
 - IPs change frequently across Azure regions
 - Narrow ranges would break service connectivity
@@ -337,15 +340,18 @@ sudo /usr/local/bin/init-firewall.sh
 1. **Provider Requirements**: Always define provider requirements in the provider class, not directly in YAML
 2. **Documentation**: Add comments to YAML explaining why broad ranges are needed
 3. **Testing**: Verify firewall after adding domains:
+
    ```bash
    curl -I https://new.domain.com
    ```
+
 4. **Updates**: Regenerate configuration after modifying provider classes
 5. **Version Control**: Commit both provider classes and updated YAML together
 
 ## Integration with Issue #238
 
 This implementation supports both:
+
 - Devcontainer firewall setup (current)
 - Standalone Docker setup firewall (future - issue #238)
 
