@@ -127,6 +127,14 @@ module Aidp
           "gate" => false,
           "implementation" => true # Special step that runs development tasks
         },
+        # Test-Driven Development (TDD) - Optional step for any workflow
+        "17_TDD_SPECIFICATION" => {
+          "templates" => ["implementation/generate_tdd_specs.md"],
+          "description" => "Generate TDD test specifications (write tests first)",
+          "outs" => ["docs/tdd_specifications.md", "spec/**/*_spec.rb"],
+          "gate" => false,
+          "interactive" => false
+        },
         # Simple task execution - for one-off commands and simple fixes
         "99_SIMPLE_TASK" => {
           "templates" => ["implementation/simple_task.md"],
@@ -134,6 +142,39 @@ module Aidp
           "outs" => [],
           "gate" => false,
           "simple" => true # Special step for simple, focused tasks
+        },
+        # Generic planning and project management steps (usable in any workflow)
+        "18_WBS" => {
+          "templates" => ["planning/generate_wbs.md"],
+          "description" => "Generate Work Breakdown Structure with phases and tasks",
+          "outs" => [".aidp/docs/WBS.md"],
+          "gate" => false
+        },
+        "19_GANTT_CHART" => {
+          "templates" => ["planning/generate_gantt.md"],
+          "description" => "Generate Gantt chart with timeline and critical path",
+          "outs" => [".aidp/docs/GANTT.md"],
+          "gate" => false
+        },
+        "20_PERSONA_ASSIGNMENT" => {
+          "templates" => ["planning/assign_personas.md"],
+          "description" => "Assign tasks to personas/roles using AI (ZFC)",
+          "outs" => [".aidp/docs/persona_map.yml"],
+          "gate" => false
+        },
+        "21_PROJECT_PLAN_ASSEMBLY" => {
+          "templates" => ["planning/assemble_project_plan.md"],
+          "description" => "Assemble complete project plan from all artifacts",
+          "outs" => [".aidp/docs/PROJECT_PLAN.md"],
+          "gate" => false
+        },
+        # Planning mode initialization (supports ingestion vs generation workflows)
+        "22_PLANNING_MODE_INIT" => {
+          "templates" => ["planning/initialize_planning_mode.md"],
+          "description" => "Initialize planning mode (ingestion of existing docs vs generation from scratch)",
+          "outs" => [".aidp/docs/.planning_mode"],
+          "gate" => true,
+          "interactive" => true
         }
       }.freeze
     end

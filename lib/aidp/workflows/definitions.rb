@@ -165,6 +165,26 @@ module Aidp
           ]
         },
 
+        tdd_feature_development: {
+          name: "TDD Feature Development",
+          description: "Test-driven development with tests written first",
+          icon: "🧪",
+          details: [
+            "Product requirements",
+            "Architecture design",
+            "TDD test specifications (write tests FIRST)",
+            "RED: Tests fail initially",
+            "GREEN: Implement to pass tests",
+            "REFACTOR: Improve with confidence"
+          ],
+          steps: [
+            "00_PRD",
+            "02_ARCHITECTURE",
+            "17_TDD_SPECIFICATION",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
         production_ready: {
           name: "Production-Ready",
           description: "Enterprise-grade with NFRs and compliance",
@@ -223,6 +243,73 @@ module Aidp
             "12_OBSERVABILITY_SLOS",
             "13_DELIVERY_ROLLOUT",
             "14_DOCS_PORTAL",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
+        waterfall_standard: {
+          name: "Waterfall Planning",
+          description: "Structured project planning with WBS and Gantt charts",
+          icon: "📊",
+          details: [
+            "Documentation ingestion or generation",
+            "Work breakdown structure (WBS)",
+            "Gantt chart with critical path",
+            "Task dependencies and milestones",
+            "Persona/agent assignment",
+            "Complete project plan"
+          ],
+          steps: [
+            "22_PLANNING_MODE_INIT",
+            "00_PRD",
+            "02_ARCHITECTURE",
+            "18_WBS",
+            "19_GANTT_CHART",
+            "20_PERSONA_ASSIGNMENT",
+            "21_PROJECT_PLAN_ASSEMBLY",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
+        waterfall_minimal: {
+          name: "Waterfall Planning (Minimal)",
+          description: "Quick waterfall planning without full enterprise features",
+          icon: "📋",
+          details: [
+            "Essential documentation",
+            "Basic work breakdown",
+            "Simple Gantt chart",
+            "Task list with dependencies"
+          ],
+          steps: [
+            "22_PLANNING_MODE_INIT",
+            "00_PRD",
+            "18_WBS",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
+        waterfall_tdd: {
+          name: "Waterfall Planning with TDD",
+          description: "Waterfall planning with test-driven development",
+          icon: "📊🧪",
+          details: [
+            "Complete waterfall planning",
+            "Work breakdown structure",
+            "Gantt chart with critical path",
+            "TDD test specifications (write tests first)",
+            "Test-driven implementation",
+            "Persona assignments"
+          ],
+          steps: [
+            "22_PLANNING_MODE_INIT",
+            "00_PRD",
+            "02_ARCHITECTURE",
+            "18_WBS",
+            "19_GANTT_CHART",
+            "17_TDD_SPECIFICATION",
+            "20_PERSONA_ASSIGNMENT",
+            "21_PROJECT_PLAN_ASSEMBLY",
             "16_IMPLEMENTATION"
           ]
         },

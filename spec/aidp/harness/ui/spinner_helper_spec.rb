@@ -3,6 +3,7 @@
 require "spec_helper"
 
 RSpec.describe Aidp::Harness::UI::SpinnerHelper do
+  let(:pastel_double) { double("Pastel") }
   let(:helper) { described_class.new }
   let(:spinner_double) {
     double("Spinner",
@@ -15,6 +16,10 @@ RSpec.describe Aidp::Harness::UI::SpinnerHelper do
   }
 
   before do
+    # Mock Pastel to avoid TTY stream access in CI
+    allow(Pastel).to receive(:new).and_return(pastel_double)
+    allow(pastel_double).to receive(:green) { |text| text }
+    allow(pastel_double).to receive(:red) { |text| text }
     allow(TTY::Spinner).to receive(:new).and_return(spinner_double)
   end
 

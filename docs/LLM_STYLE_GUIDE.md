@@ -41,6 +41,8 @@ See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern ex
 - One responsibility per file when practical. `STYLE_GUIDE:29-43`
 - **Ruby Method Naming**: Avoid `get_*`/`set_*` prefixes - use `name`/`name=` instead. `STYLE_GUIDE:108-117`
 - **Requires**: Prefer `require_relative` over `require` for local files. `STYLE_GUIDE:99-107`
+- **Feature Organization**: Organize by PURPOSE (parsers/, generators/, mappers/), NOT by workflow (waterfall/, agile/). Workflows are process containers that sequence generic steps. `STYLE_GUIDE:57-115`
+- **Template/Skill Separation**: Templates define WHAT (language-agnostic), skills define HOW (language-specific). Extract all framework code from templates into skills. Delegate explicitly. `STYLE_GUIDE:117-208`
 
 ## 4. Parameters & Data
 

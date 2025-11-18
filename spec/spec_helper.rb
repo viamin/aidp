@@ -85,6 +85,38 @@ RSpec.configure do |config|
         original_say(message, **options)
       end
     end
+
+    # Mock Pastel to avoid TTY stream access issues in CI
+    # Pastel.new tries to detect color support which accesses TTY streams
+    # In CI these streams may be closed, causing IOError
+    require "pastel"
+    original_pastel_new = Pastel.method(:new)
+    Pastel.define_singleton_method(:new) do |*args, **kwargs|
+      pastel = original_pastel_new.call(*args, **kwargs)
+      # Override the methods to be safe in test environments
+      pastel.define_singleton_method(:enabled?) { false } if pastel.respond_to?(:enabled?)
+      pastel
+    rescue IOError
+      # If we get IOError from stream access, return a simple pass-through Pastel
+      Class.new do
+        def green(text) = text.to_s
+        def red(text) = text.to_s
+        def yellow(text) = text.to_s
+        def blue(text) = text.to_s
+        def magenta(text) = text.to_s
+        def cyan(text) = text.to_s
+        def white(text) = text.to_s
+        def black(text) = text.to_s
+        def bold(text) = text.to_s
+        def dim(text) = text.to_s
+        def italic(text) = text.to_s
+        def underline(text) = text.to_s
+        def inverse(text) = text.to_s
+        def on(color) = self
+        def method_missing(method, *args) = args.first.to_s
+        def respond_to_missing?(*) = true
+      end.new
+    end
   end
 
   # Clean up loggers after each test to prevent closed stream warnings
