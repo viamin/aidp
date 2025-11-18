@@ -165,6 +165,26 @@ module Aidp
           ]
         },
 
+        tdd_feature_development: {
+          name: "TDD Feature Development",
+          description: "Test-driven development with tests written first",
+          icon: "🧪",
+          details: [
+            "Product requirements",
+            "Architecture design",
+            "TDD test specifications (write tests FIRST)",
+            "RED: Tests fail initially",
+            "GREEN: Implement to pass tests",
+            "REFACTOR: Improve with confidence"
+          ],
+          steps: [
+            "00_PRD",
+            "02_ARCHITECTURE",
+            "17_TDD_SPECIFICATION",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
         production_ready: {
           name: "Production-Ready",
           description: "Enterprise-grade with NFRs and compliance",
@@ -266,6 +286,32 @@ module Aidp
             "21_WATERFALL_PRD",
             "23_WATERFALL_WBS",
             "25_WATERFALL_TASKS",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
+        waterfall_tdd: {
+          name: "Waterfall Planning with TDD",
+          description: "Waterfall planning with test-driven development",
+          icon: "📊🧪",
+          details: [
+            "Complete waterfall planning",
+            "Work breakdown structure",
+            "Gantt chart with critical path",
+            "TDD test specifications (write tests first)",
+            "Test-driven implementation",
+            "Persona assignments"
+          ],
+          steps: [
+            "20_WATERFALL_INIT",
+            "21_WATERFALL_PRD",
+            "22_WATERFALL_TECH_DESIGN",
+            "23_WATERFALL_WBS",
+            "24_WATERFALL_GANTT",
+            "25_WATERFALL_TASKS",
+            "17_TDD_SPECIFICATION",
+            "26_WATERFALL_PERSONAS",
+            "27_WATERFALL_PROJECT_PLAN",
             "16_IMPLEMENTATION"
           ]
         },

@@ -127,6 +127,14 @@ module Aidp
           "gate" => false,
           "implementation" => true # Special step that runs development tasks
         },
+        # Test-Driven Development (TDD) - Optional step for any workflow
+        "17_TDD_SPECIFICATION" => {
+          "templates" => ["implementation/generate_tdd_specs.md"],
+          "description" => "Generate TDD test specifications (write tests first)",
+          "outs" => ["docs/tdd_specifications.md", "spec/**/*_spec.rb"],
+          "gate" => false,
+          "interactive" => false
+        },
         # Simple task execution - for one-off commands and simple fixes
         "99_SIMPLE_TASK" => {
           "templates" => ["implementation/simple_task.md"],

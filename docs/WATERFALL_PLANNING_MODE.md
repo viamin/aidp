@@ -189,6 +189,27 @@ Faster planning with essential artifacts only:
 4. **Tasks** - Task list
 5. **Implementation** - Begin development
 
+### Waterfall with TDD Workflow
+
+Waterfall planning combined with Test-Driven Development:
+
+1. **Initialize** - Choose ingestion or generation mode
+2. **PRD** - Product requirements
+3. **Tech Design** - System architecture
+4. **WBS** - Work breakdown structure
+5. **Gantt** - Timeline with critical path
+6. **Tasks** - Detailed task list
+7. **TDD Specifications** - Write test specs FIRST (RED phase)
+8. **Personas** - AI-powered task assignments
+9. **Project Plan** - Final integration document
+10. **Implementation** - Implement to pass tests (GREEN phase), then refactor
+
+**TDD Benefits:**
+- Tests written before code (specification by example)
+- Better design (forces you to think about interfaces)
+- Confidence in refactoring (tests protect you)
+- Living documentation (tests show how code should work)
+
 ## Key Features
 
 ### Intelligent Persona Assignment
@@ -259,6 +280,73 @@ waterfall:
   persona_assignment:
     method: "zfc_automatic"  # Zero Framework Cognition
     allow_parallel: true     # Multiple personas can work simultaneously
+```
+
+## Test-Driven Development (TDD)
+
+The TDD step is available in any workflow, not just waterfall. Use it when you want to follow the **RED-GREEN-REFACTOR** cycle.
+
+### What TDD Generates
+
+**docs/tdd_specifications.md:**
+- Comprehensive test specifications
+- Test implementation order
+- Test data and fixtures
+- Coverage goals
+
+**Skeleton test files:**
+- Unit test templates
+- Integration test templates
+- Acceptance test templates
+- Ready to run (they'll fail initially - that's the RED phase!)
+
+### TDD Workflow
+
+1. **RED**: Write tests that specify desired behavior (they fail)
+2. **GREEN**: Write minimal code to make tests pass
+3. **REFACTOR**: Improve code design while keeping tests green
+
+### When to Use TDD
+
+**Great for:**
+- Complex business logic
+- APIs and interfaces
+- Critical functionality
+- Code you'll need to maintain long-term
+
+**Skip for:**
+- Quick prototypes
+- Exploratory code
+- Simple CRUD operations
+- UI layouts
+
+### TDD Best Practices
+
+- **Test behavior, not implementation** - Don't test internal methods
+- **One assertion per test** - Each test verifies one thing
+- **Mock external dependencies** - Don't hit real APIs, databases, file systems
+- **Keep tests fast** - < 1 second per test is ideal
+- **Make tests deterministic** - Same input = same result, every time
+
+### Non-Waterfall TDD Workflows
+
+TDD isn't limited to waterfall. Use these workflows:
+
+**TDD Feature Development:**
+```bash
+aidp  # Select: Execute Mode → TDD Feature Development
+```
+
+This workflow:
+1. Creates PRD
+2. Designs architecture
+3. **Generates TDD specifications**
+4. Implements features (with tests driving design)
+
+**Custom with TDD:**
+```bash
+aidp  # Select: Execute Mode → Custom Workflow
+# Then select: 17_TDD_SPECIFICATION in your custom steps
 ```
 
 ## Tips & Best Practices
