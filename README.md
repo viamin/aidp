@@ -135,6 +135,40 @@ AIDP implements **work loops** - an iterative execution pattern where AI agents 
 
 See [Work Loops Guide](docs/WORK_LOOPS_GUIDE.md) for details.
 
+### Waterfall Planning Mode
+
+Create comprehensive project plans with work breakdown structures, Gantt charts, and automated task assignments:
+
+```bash
+# Start planning workflow
+aidp execute
+# Select "Waterfall Planning"
+
+# Choose your path:
+# - Ingest existing documentation (PRDs, design docs)
+# - Generate from scratch through AI dialogue
+```
+
+**Generated Artifacts** (in `.aidp/docs/`):
+
+- **PRD.md** - Product requirements document
+- **TECH_DESIGN.md** - Technical architecture and design
+- **WBS.md** - Work breakdown structure with phases and tasks
+- **GANTT.md** - Mermaid Gantt chart with critical path analysis
+- **persona_map.yml** - AI-powered task-to-persona assignments
+- **PROJECT_PLAN.md** - Complete integrated project plan
+
+**Key Features:**
+
+- **Documentation Ingestion** - Import and enhance existing project docs
+- **AI-Guided Planning** - Generate complete plans through dialogue
+- **Critical Path Analysis** - Identify project bottlenecks
+- **Zero Framework Cognition** - AI-powered persona assignment (no heuristics)
+- **Mermaid Visualizations** - Gantt charts renderable on GitHub/GitLab
+- **TDD Integration** - Optional test-driven development workflow
+
+See [Waterfall Planning Mode Guide](docs/WATERFALL_PLANNING_MODE.md) for complete documentation.
+
 ### Job Management
 
 Monitor and control background jobs:
