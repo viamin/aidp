@@ -64,6 +64,18 @@ module Aidp
         end
       end
 
+      # Get firewall requirements for Anthropic provider
+      def self.firewall_requirements
+        {
+          domains: [
+            "api.anthropic.com",
+            "claude.ai",
+            "console.anthropic.com"
+          ],
+          ip_ranges: []
+        }
+      end
+
       class << self
         private
 

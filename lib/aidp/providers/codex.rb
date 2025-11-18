@@ -39,6 +39,23 @@ module Aidp
         discover_models_from_registry(MODEL_PATTERN, "codex")
       end
 
+      # Get firewall requirements for Codex provider
+      # Codex uses OpenAI APIs
+      def self.firewall_requirements
+        {
+          domains: [
+            "api.openai.com",
+            "auth.openai.com",
+            "openai.com",
+            "chat.openai.com",
+            "chatgpt.com",
+            "cdn.openai.com",
+            "oaiusercontent.com"
+          ],
+          ip_ranges: []
+        }
+      end
+
       def name
         "codex"
       end

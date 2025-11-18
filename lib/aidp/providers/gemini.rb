@@ -55,6 +55,19 @@ module Aidp
         discover_models_from_registry(MODEL_PATTERN, "gemini")
       end
 
+      # Get firewall requirements for Gemini provider
+      def self.firewall_requirements
+        {
+          domains: [
+            "generativelanguage.googleapis.com",
+            "oauth2.googleapis.com",
+            "accounts.google.com",
+            "www.googleapis.com"
+          ],
+          ip_ranges: []
+        }
+      end
+
       def name
         "gemini"
       end

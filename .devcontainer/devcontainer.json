@@ -63,7 +63,9 @@
     "opencode": "npm i -g opencode-ai@latest",
     "kilocode": "npm i -g @kilocode/cli",
     // Configure LLM tools for auto-approve mode (devcontainer only)
-    "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh"
+    "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh",
+    // Generate firewall configuration from provider requirements
+    "generate-firewall-config": "bundle exec ruby bin/update-firewall-config"
   },
   // Post-start command - initialize firewall, then ensure bundle
   "postStartCommand": {
