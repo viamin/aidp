@@ -9,9 +9,10 @@ module Aidp
       # Maps tasks to personas using Zero Framework Cognition (ZFC)
       # NO heuristics, NO regex, NO keyword matching - pure AI decision making
       class PersonaMapper
-        def initialize(ai_decision_engine:, config: nil)
+        def initialize(ai_decision_engine:, config: nil, mode: :waterfall)
           @ai_decision_engine = ai_decision_engine
-          @config = config || Aidp::Config.waterfall_config
+          @config = config
+          @mode = mode
         end
 
         # Assign personas to tasks using ZFC
@@ -113,6 +114,17 @@ module Aidp
         end
 
         def default_personas
+          case @mode
+          when :agile
+            agile_personas
+          when :waterfall
+            waterfall_personas
+          else
+            waterfall_personas # Default to waterfall
+          end
+        end
+
+        def waterfall_personas
           [
             "product_strategist",
             "architect",
@@ -120,6 +132,19 @@ module Aidp
             "qa_engineer",
             "devops_engineer",
             "tech_writer"
+          ]
+        end
+
+        def agile_personas
+          [
+            "product_manager",
+            "ux_researcher",
+            "architect",
+            "senior_developer",
+            "qa_engineer",
+            "devops_engineer",
+            "tech_writer",
+            "marketing_strategist"
           ]
         end
 

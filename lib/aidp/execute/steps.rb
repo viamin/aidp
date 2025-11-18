@@ -175,6 +175,58 @@ module Aidp
           "outs" => [".aidp/docs/.planning_mode"],
           "gate" => true,
           "interactive" => true
+        },
+        # Agile planning steps
+        "23_MVP_SCOPE" => {
+          "skill" => "product_manager",
+          "templates" => ["planning/agile/generate_mvp_scope.md"],
+          "description" => "Define MVP scope with must-have and nice-to-have features",
+          "outs" => [".aidp/docs/MVP_SCOPE.md"],
+          "gate" => false,
+          "interactive" => true
+        },
+        "24_USER_TEST_PLAN" => {
+          "skill" => "ux_researcher",
+          "templates" => ["planning/agile/generate_user_test_plan.md"],
+          "description" => "Generate user testing plan with recruitment and survey templates",
+          "outs" => [".aidp/docs/USER_TEST_PLAN.md"],
+          "gate" => false
+        },
+        "25_MARKETING_REPORT" => {
+          "skill" => "marketing_strategist",
+          "templates" => ["planning/agile/generate_marketing_report.md"],
+          "description" => "Generate marketing report with key messages and differentiators",
+          "outs" => [".aidp/docs/MARKETING_REPORT.md"],
+          "gate" => false
+        },
+        "26_INGEST_FEEDBACK" => {
+          "skill" => "ux_researcher",
+          "templates" => ["planning/agile/ingest_feedback.md"],
+          "description" => "Ingest user feedback data (CSV, JSON, markdown)",
+          "outs" => [".aidp/docs/feedback_data.json"],
+          "gate" => false,
+          "interactive" => true
+        },
+        "27_ANALYZE_FEEDBACK" => {
+          "skill" => "ux_researcher",
+          "templates" => ["planning/agile/analyze_feedback.md"],
+          "description" => "Analyze user feedback with AI-powered insights",
+          "outs" => [".aidp/docs/USER_FEEDBACK_ANALYSIS.md"],
+          "gate" => false
+        },
+        "28_ITERATION_PLAN" => {
+          "skill" => "product_manager",
+          "templates" => ["planning/agile/generate_iteration_plan.md"],
+          "description" => "Generate next iteration plan based on feedback",
+          "outs" => [".aidp/docs/NEXT_ITERATION_PLAN.md"],
+          "gate" => false
+        },
+        "29_LEGACY_RESEARCH_PLAN" => {
+          "skill" => "ux_researcher",
+          "templates" => ["planning/agile/generate_legacy_research_plan.md"],
+          "description" => "Generate user research plan for existing codebase",
+          "outs" => [".aidp/docs/LEGACY_USER_RESEARCH_PLAN.md"],
+          "gate" => false
         }
       }.freeze
     end
