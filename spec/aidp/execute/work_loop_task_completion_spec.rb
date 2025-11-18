@@ -353,4 +353,166 @@ RSpec.describe "Work Loop Task Completion" do
       end
     end
   end
+
+  describe "#process_task_filing" do
+    let(:runner) do
+      Aidp::Execute::WorkLoopRunner.new(
+        project_dir,
+        provider_manager,
+        config_with_tasks_required,
+        prompt: test_prompt,
+        thinking_depth_manager: mock_thinking_depth_manager
+      )
+    end
+
+    let(:persistent_tasklist) { runner.instance_variable_get(:@persistent_tasklist) }
+
+    before do
+      runner.instance_variable_set(:@step_name, "TEST_STEP")
+      runner.instance_variable_set(:@iteration_count, 1)
+    end
+
+    context "with task status updates" do
+      it "updates task status from agent output" do
+        task = persistent_tasklist.create("Implement feature", session: "TEST_STEP")
+
+        agent_output = {
+          output: "Update task: #{task.id} status: in_progress"
+        }
+
+        runner.send(:process_task_filing, agent_output)
+
+        updated_task = persistent_tasklist.find(task.id)
+        expect(updated_task.status).to eq(:in_progress)
+      end
+
+      it "updates multiple tasks from agent output" do
+        task1 = persistent_tasklist.create("Feature A", session: "TEST_STEP")
+        task2 = persistent_tasklist.create("Feature B", session: "TEST_STEP")
+
+        agent_output = {
+          output: <<~TEXT
+            Update task: #{task1.id} status: done
+            Update task: #{task2.id} status: in_progress
+          TEXT
+        }
+
+        runner.send(:process_task_filing, agent_output)
+
+        expect(persistent_tasklist.find(task1.id).status).to eq(:done)
+        expect(persistent_tasklist.find(task2.id).status).to eq(:in_progress)
+      end
+
+      it "handles abandoned status with reason" do
+        task = persistent_tasklist.create("Old feature", session: "TEST_STEP")
+
+        agent_output = {
+          output: "Update task: #{task.id} status: abandoned reason: \"No longer needed\""
+        }
+
+        runner.send(:process_task_filing, agent_output)
+
+        updated_task = persistent_tasklist.find(task.id)
+        expect(updated_task.status).to eq(:abandoned)
+        expect(updated_task.abandoned_reason).to eq("No longer needed")
+      end
+
+      it "ignores updates for non-existent tasks" do
+        agent_output = {
+          output: "Update task: fake_task_id status: done"
+        }
+
+        expect { runner.send(:process_task_filing, agent_output) }.not_to raise_error
+      end
+    end
+
+    context "with both task filing and status updates" do
+      it "creates new tasks and updates existing ones" do
+        existing_task = persistent_tasklist.create("Existing", session: "TEST_STEP")
+
+        agent_output = {
+          output: <<~TEXT
+            File task: "New feature" priority: high
+            Update task: #{existing_task.id} status: done
+          TEXT
+        }
+
+        runner.send(:process_task_filing, agent_output)
+
+        tasks = persistent_tasklist.all.select { |t| t.session == "TEST_STEP" }
+        expect(tasks.size).to eq(2)
+        expect(persistent_tasklist.find(existing_task.id).status).to eq(:done)
+        expect(tasks.any? { |t| t.description == "New feature" }).to be true
+      end
+    end
+  end
+
+  describe "#all_abandoned_tasks_confirmed?" do
+    let(:runner) do
+      Aidp::Execute::WorkLoopRunner.new(
+        project_dir,
+        provider_manager,
+        config_with_tasks_required,
+        prompt: test_prompt,
+        thinking_depth_manager: mock_thinking_depth_manager
+      )
+    end
+
+    let(:persistent_tasklist) { runner.instance_variable_get(:@persistent_tasklist) }
+
+    it "returns true when all abandoned tasks have reasons" do
+      task1 = persistent_tasklist.create("Task 1", session: "TEST_STEP")
+      task2 = persistent_tasklist.create("Task 2", session: "TEST_STEP")
+      persistent_tasklist.update_status(task1.id, :abandoned, reason: "Not needed")
+      persistent_tasklist.update_status(task2.id, :abandoned, reason: "Duplicate")
+
+      abandoned_tasks = [
+        persistent_tasklist.find(task1.id),
+        persistent_tasklist.find(task2.id)
+      ]
+
+      expect(runner.send(:all_abandoned_tasks_confirmed?, abandoned_tasks)).to be true
+    end
+
+    it "returns false when any abandoned task lacks a reason" do
+      task = persistent_tasklist.create("Task", session: "TEST_STEP")
+      # Manually create abandoned task without reason via direct file write
+      File.open(persistent_tasklist.file_path, "a") do |f|
+        f.puts({
+          id: task.id,
+          description: task.description,
+          status: "abandoned",
+          priority: "medium",
+          created_at: task.created_at.iso8601,
+          updated_at: Time.now.iso8601,
+          session: "TEST_STEP",
+          abandoned_at: Time.now.iso8601,
+          abandoned_reason: nil
+        }.to_json)
+      end
+
+      abandoned_tasks = [persistent_tasklist.find(task.id)]
+      expect(runner.send(:all_abandoned_tasks_confirmed?, abandoned_tasks)).to be false
+    end
+
+    it "returns false when abandoned task has empty reason" do
+      task = persistent_tasklist.create("Task", session: "TEST_STEP")
+      File.open(persistent_tasklist.file_path, "a") do |f|
+        f.puts({
+          id: task.id,
+          description: task.description,
+          status: "abandoned",
+          priority: "medium",
+          created_at: task.created_at.iso8601,
+          updated_at: Time.now.iso8601,
+          session: "TEST_STEP",
+          abandoned_at: Time.now.iso8601,
+          abandoned_reason: "   "
+        }.to_json)
+      end
+
+      abandoned_tasks = [persistent_tasklist.find(task.id)]
+      expect(runner.send(:all_abandoned_tasks_confirmed?, abandoned_tasks)).to be false
+    end
+  end
 end

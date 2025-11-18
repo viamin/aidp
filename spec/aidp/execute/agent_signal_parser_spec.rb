@@ -241,7 +241,8 @@ RSpec.describe Aidp::Execute::AgentSignalParser do
         result = described_class.parse_task_filing(output)
 
         # Pattern [^\s]+ stops at space, so only captures "frontend,"
-        expect(result[0][:tags]).to eq(["frontend", ""])
+        # Ruby's split removes trailing empty strings, so we get ["frontend"]
+        expect(result[0][:tags]).to eq(["frontend"])
       end
 
       it "handles descriptions with special characters" do
