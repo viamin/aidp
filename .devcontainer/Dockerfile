@@ -42,6 +42,12 @@ RUN apt-get update && apt-get install -y \
   # Clean up
   && rm -rf /var/lib/apt/lists/*
 
+# Install yq for YAML parsing in firewall script
+ARG YQ_VERSION=4.44.3
+RUN ARCH="$(dpkg --print-architecture)" \
+  && wget "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${ARCH}" -O /usr/local/bin/yq \
+  && chmod +x /usr/local/bin/yq
+
 # Install git-delta for better diffs (handle multi-arch)
 ARG DELTA_VERSION=0.18.2
 RUN ARCH="$(dpkg --print-architecture)" \
