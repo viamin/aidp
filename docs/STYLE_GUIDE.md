@@ -54,6 +54,66 @@ lib/aidp/
 - **Constants**: SCREAMING_SNAKE_CASE (`STATES`, `MAX_RETRIES`)
 - **Files**: snake_case (`user_interface.rb`, `state_manager.rb`)
 
+### Feature Organization by Purpose
+
+**Organize utilities and components by what they DO, not by which workflow uses them.**
+
+Workflows are *process containers* that sequence generic steps. Steps and utilities should be organized by their purpose/function to maximize reusability across different workflows.
+
+**Pattern:**
+
+```text
+lib/aidp/
+├── planning/                # Generic planning utilities (NOT workflow-specific)
+│   ├── parsers/            # Parse existing documentation
+│   │   └── document_parser.rb
+│   ├── generators/         # Generate work structures and visualizations
+│   │   ├── wbs_generator.rb
+│   │   └── gantt_generator.rb
+│   ├── mappers/            # Map tasks to personas/resources
+│   │   └── persona_mapper.rb
+│   └── builders/           # Orchestrate and assemble artifacts
+│       └── project_plan_builder.rb
+└── workflows/              # Workflow definitions (process containers)
+    └── definitions.rb      # Sequences generic steps into workflows
+```
+
+**Anti-pattern:**
+
+```text
+lib/aidp/
+└── workflows/
+    ├── waterfall/          # ❌ Ties utilities to specific workflow
+    │   ├── document_parser.rb
+    │   ├── wbs_generator.rb
+    │   └── gantt_generator.rb
+    └── agile/              # ❌ Forces duplication or awkward cross-references
+        ├── sprint_planner.rb
+        └── wbs_generator.rb  # ❌ Duplicates waterfall version!
+```
+
+**Guidelines:**
+
+1. **Organize by capability**: `parsers/`, `generators/`, `mappers/`, `builders/`, `analyzers/`, etc.
+2. **Name generically**: `WBSGenerator` (not `WaterfallWBSGenerator`), `18_WBS` (not `20_WATERFALL_WBS`)
+3. **Workflows compose steps**: A waterfall workflow sequences `22_PLANNING_MODE_INIT → 00_PRD → 18_WBS → 19_GANTT_CHART → 20_PERSONA_ASSIGNMENT`
+4. **Encourage reuse**: Any workflow can use `18_WBS` or `20_PERSONA_ASSIGNMENT` without "waterfall" baggage
+5. **Module namespaces reflect purpose**: `Aidp::Planning::Generators::WBSGenerator` (not `Aidp::Workflows::Waterfall::WBSGenerator`)
+
+**Benefits:**
+
+- Components are discovered by what they do, not which process they belong to
+- Custom workflows can mix and match without awkward naming
+- Reduces duplication and encourages abstraction
+- Clear separation: utilities are in `lib/aidp/{purpose}/`, workflows are in `lib/aidp/workflows/definitions.rb`
+
+**Example:**
+
+A lightweight agile workflow might use: `00_PRD → 18_WBS → 16_IMPLEMENTATION`
+A comprehensive waterfall workflow might use: `22_PLANNING_MODE_INIT → 00_PRD → 02_ARCHITECTURE → 18_WBS → 19_GANTT_CHART → 20_PERSONA_ASSIGNMENT → 21_PROJECT_PLAN_ASSEMBLY → 16_IMPLEMENTATION`
+
+Both use the same generic planning steps without duplication or workflow-specific naming.
+
 ## Sandi Metz's Rules
 
 Follow these rules to maintain clean, maintainable code. **These are guidelines, not hard limits** - it's okay to break them when appropriate or unavoidable, but always consider if the code could be improved by following them.
