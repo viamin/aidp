@@ -10,49 +10,18 @@ Read `.aidp/docs/WBS.md` - Work breakdown structure with tasks and dependencies
 
 Generate a Gantt chart in Mermaid format showing timeline, dependencies, and critical path.
 
-## Implementation
+## Gantt Chart Components
 
-Use the GanttGenerator class:
-
-```ruby
-require_relative '../../../lib/aidp/planning/generators/gantt_generator'
-require_relative '../../../lib/aidp/planning/generators/wbs_generator'
-require_relative '../../../lib/aidp/planning/parsers/document_parser'
-
-# Load WBS
-parser = Aidp::Planning::Parsers::DocumentParser.new
-prd = parser.parse_file('.aidp/docs/PRD.md')
-wbs_generator = Aidp::Planning::Generators::WBSGenerator.new
-wbs = wbs_generator.generate(prd: prd)
-
-# Generate Gantt chart
-gantt_generator = Aidp::Planning::Generators::GanttGenerator.new
-gantt = gantt_generator.generate(wbs: wbs)
-
-# Write output
-output = ["# Project Gantt Chart", ""]
-output << "Generated: #{Time.now.iso8601}"
-output << ""
-output << "## Timeline Visualization"
-output << ""
-output << "```mermaid"
-output << gantt[:mermaid]
-output << "```"
-output << ""
-output << "## Critical Path"
-output << ""
-output << "The following tasks form the critical path (longest dependency chain):"
-output << ""
-gantt[:critical_path].each_with_index do |task_id, idx|
-  output << "#{idx + 1}. #{task_id}"
-end
-
-File.write('.aidp/docs/GANTT.md', output.join("\n"))
-```
+1. **Timeline** - Task durations and sequencing
+2. **Dependencies** - Task relationships ("after" clauses)
+3. **Critical Path** - Longest sequence of dependent tasks
+4. **Phase Sections** - Group tasks by project phase
 
 ## Critical Path
 
 The critical path represents the longest sequence of dependent tasks. Any delay in critical path tasks delays the entire project.
+
+Critical path tasks should be highlighted in the visualization.
 
 ## Gantt Features
 
@@ -61,6 +30,54 @@ The critical path represents the longest sequence of dependent tasks. Any delay 
 - Critical tasks highlighted
 - Relative durations based on effort estimates
 
+## Duration Calculation
+
+Convert effort estimates to time:
+- Story points → days (e.g., 1 story point = 0.5 days)
+- Minimum duration = 1 day
+- Account for dependencies when calculating start dates
+
+## Implementation
+
+**For Ruby/AIDP projects**, use the `ruby_aidp_planning` skill to:
+
+1. Load WBS using `Aidp::Planning::Parsers::DocumentParser`
+2. Generate Gantt chart using `Aidp::Planning::Generators::GanttGenerator`
+3. Calculate critical path
+4. Format as Mermaid syntax
+5. Write to `.aidp/docs/GANTT.md`
+
+The skill provides the complete Ruby implementation including:
+- WBS parsing and task extraction
+- Duration calculation algorithms
+- Critical path analysis (longest dependency chain)
+- Mermaid format generation
+- File output operations
+
+**For other language implementations**, implement equivalent functionality:
+
+1. Parse WBS to extract tasks and dependencies
+2. Calculate task durations from effort estimates
+3. Build dependency graph
+4. Find critical path (longest path through dependencies)
+5. Generate Mermaid gantt syntax with proper formatting
+6. Highlight critical path tasks
+
+## Mermaid Gantt Syntax
+
+```
+gantt
+    title Project Timeline
+    dateFormat YYYY-MM-DD
+    section Phase Name
+    Task Name :status, task_id, duration
+    Task with dependency :status, task_id, after other_task, duration
+```
+
 ## Output
 
-Write Gantt chart with critical path to `.aidp/docs/GANTT.md`
+Write Gantt chart with critical path to `.aidp/docs/GANTT.md` including:
+- Mermaid visualization (in code block)
+- Critical path task list
+- Timeline metadata
+- Generation timestamp

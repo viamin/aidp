@@ -14,22 +14,13 @@ Generate a hierarchical breakdown of ALL work needed to deliver this project.
 
 ## WBS Structure
 
-Use the WBSGenerator Ruby class to create the structure programmatically:
+A Work Breakdown Structure organizes project work into:
 
-```ruby
-require_relative '../../../lib/aidp/planning/generators/wbs_generator'
-require_relative '../../../lib/aidp/planning/parsers/document_parser'
-
-parser = Aidp::Planning::Parsers::DocumentParser.new
-prd = parser.parse_file('.aidp/docs/PRD.md')
-tech_design = parser.parse_file('.aidp/docs/TECH_DESIGN.md')
-
-generator = Aidp::Planning::Generators::WBSGenerator.new
-wbs = generator.generate(prd: prd, tech_design: tech_design)
-markdown = generator.format_as_markdown(wbs)
-
-File.write('.aidp/docs/WBS.md', markdown)
-```
+1. **Phases** - Major project stages (Requirements, Design, Implementation, Testing, Deployment)
+2. **Tasks** - Specific work items within each phase
+3. **Subtasks** - Detailed breakdown of complex tasks
+4. **Dependencies** - What must complete before this task
+5. **Effort Estimates** - Story points or time estimates
 
 ## Default Phases
 
@@ -56,6 +47,35 @@ For each task, include:
 - Provide realistic effort estimates
 - Consider parallel work streams
 
+## Implementation
+
+**For Ruby/AIDP projects**, use the `ruby_aidp_planning` skill to:
+
+1. Parse PRD and technical design documents using `Aidp::Planning::Parsers::DocumentParser`
+2. Generate WBS structure using `Aidp::Planning::Generators::WBSGenerator`
+3. Format as markdown
+4. Write to `.aidp/docs/WBS.md`
+
+The skill provides the complete Ruby implementation including:
+- Module requires and namespacing
+- Class instantiation
+- Method calls with proper parameters
+- File I/O operations
+
+**For other language implementations**, implement equivalent functionality:
+
+1. Parse input documents to extract requirements and design
+2. Decompose into phases and tasks
+3. Calculate effort estimates
+4. Identify dependencies
+5. Generate hierarchical markdown output
+
 ## Output
 
-Write complete WBS to `.aidp/docs/WBS.md` using the generator.
+Write complete WBS to `.aidp/docs/WBS.md` with:
+- All phases listed
+- Tasks under each phase
+- Subtasks where applicable
+- Dependencies identified
+- Effort estimates included
+- Generated timestamp and metadata

@@ -6,7 +6,7 @@ You are assigning each task to the most appropriate persona using **Zero Framewo
 
 **DO NOT use heuristics, regex, or keyword matching!**
 
-Use the PersonaMapper class which leverages AIDecisionEngine for intelligent persona assignment.
+All task-to-persona assignments must be made using semantic AI decision making, not programmatic rules.
 
 ## Input
 
@@ -22,51 +22,6 @@ Default personas include:
 - **devops_engineer** - Infrastructure, CI/CD, deployment, monitoring
 - **tech_writer** - Documentation, user guides, API documentation
 
-## Implementation
-
-Use the PersonaMapper class:
-
-```ruby
-require_relative '../../../lib/aidp/planning/mappers/persona_mapper'
-require_relative '../../../lib/aidp/planning/generators/gantt_generator'
-require_relative '../../../lib/aidp/planning/generators/wbs_generator'
-require_relative '../../../lib/aidp/planning/parsers/document_parser'
-
-# This is a placeholder - in production, use real AIDecisionEngine
-class MockAIEngine
-  def decide(context:, prompt:, data:, schema:)
-    # Intelligent assignment based on task characteristics
-    # In production, this calls the actual AI provider
-    task_name = data[:task_name].downcase
-
-    return "architect" if task_name.include?("design") || task_name.include?("architecture")
-    return "qa_engineer" if task_name.include?("test")
-    return "devops_engineer" if task_name.include?("deploy") || task_name.include?("infrastructure")
-    return "tech_writer" if task_name.include?("documentation")
-    return "product_strategist" if task_name.include?("requirements")
-
-    "senior_developer"
-  end
-end
-
-# Load tasks
-parser = Aidp::Planning::Parsers::DocumentParser.new
-prd = parser.parse_file('.aidp/docs/PRD.md')
-wbs_generator = Aidp::Planning::Generators::WBSGenerator.new
-wbs = wbs_generator.generate(prd: prd)
-gantt_generator = Aidp::Planning::Generators::GanttGenerator.new
-gantt = gantt_generator.generate(wbs: wbs)
-
-# Assign personas using ZFC
-ai_engine = MockAIEngine.new  # Replace with real AIDecisionEngine in production
-mapper = Aidp::Planning::Mappers::PersonaMapper.new(ai_decision_engine: ai_engine)
-assignments = mapper.assign_personas(gantt[:tasks])
-
-# Generate YAML config
-persona_yaml = mapper.generate_persona_map(assignments)
-File.write('.aidp/docs/persona_map.yml', persona_yaml)
-```
-
 ## Assignment Principles
 
 The AI should consider:
@@ -75,11 +30,52 @@ The AI should consider:
 - **Phase**: Different personas for different phases
 - **Complexity**: Senior developers for complex tasks
 
+## Zero Framework Cognition
+
+**FORBIDDEN**:
+- Regex pattern matching on task names
+- Keyword matching ("test" → qa_engineer)
+- Heuristic rules
+- Scoring formulas
+
+**REQUIRED**:
+- Use AI decision engine for ALL assignments
+- Provide task context to AI (name, description, phase, effort)
+- Let AI make semantic decisions
+- Assignment rationale comes from AI, not code
+
 ## Parallel Execution
 
 Multiple personas can work in parallel - the system handles conflicts automatically.
 
-## Output
+## Implementation
+
+**For Ruby/AIDP projects**, use the `ruby_aidp_planning` skill to:
+
+1. Load tasks from Gantt chart or task list
+2. Use `Aidp::Planning::Mappers::PersonaMapper` with AI decision engine
+3. Call `AIDecisionEngine.decide()` for each task assignment
+4. Generate `persona_map.yml` configuration
+5. Write to `.aidp/docs/persona_map.yml`
+
+The skill provides the complete Ruby implementation including:
+- AI engine integration
+- ZFC-based decision making (NO heuristics!)
+- YAML configuration generation
+- Proper error handling and logging
+
+**For other language implementations**, implement equivalent functionality:
+
+1. Load task list with descriptions, phases, and effort
+2. For each task, invoke AI decision engine with:
+   - Task characteristics (name, description, phase, effort)
+   - Available personas list
+   - Decision prompt asking for best persona match
+3. Store AI's decision (persona assignment)
+4. Generate configuration file mapping tasks to personas
+5. Include assignment rationale from AI
+
+## Output Format
 
 Write assignments to `.aidp/docs/persona_map.yml`:
 
@@ -95,7 +91,7 @@ assignments:
     persona: architect
     task: "Design System Architecture"
     phase: "Design"
-...
+  ...
 ```
 
 ## Remember
@@ -104,3 +100,4 @@ assignments:
 - Assignment rationale comes from AI, not code
 - Every task must be assigned
 - Personas can work in parallel
+- This is a ZFC pattern - meaning goes to AI, structure goes to code

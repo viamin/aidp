@@ -42,8 +42,6 @@ Follow TDD: write tests first, watch them fail, then implement.
 
 #### Feature: [Feature Name]
 
-**File:** `spec/unit/feature_name_spec.rb`
-
 **Test Cases:**
 1. **should handle valid input**
    - Given: Valid input parameters
@@ -54,7 +52,7 @@ Follow TDD: write tests first, watch them fail, then implement.
 2. **should reject invalid input**
    - Given: Invalid parameters
    - When: Feature is invoked
-   - Then: Raises ValidationError
+   - Then: Raises appropriate error
    - Status: ⭕ Not yet written
 
 3. **should handle edge cases**
@@ -67,8 +65,6 @@ Follow TDD: write tests first, watch them fail, then implement.
 
 #### Integration: [Component A + Component B]
 
-**File:** `spec/integration/component_integration_spec.rb`
-
 **Test Cases:**
 1. **should integrate successfully**
    - Given: Both components configured
@@ -79,8 +75,6 @@ Follow TDD: write tests first, watch them fail, then implement.
 ### Acceptance Tests
 
 #### User Story: [As a user, I want to...]
-
-**File:** `spec/acceptance/user_story_spec.rb`
 
 **Test Cases:**
 1. **should complete user workflow**
@@ -106,52 +100,11 @@ Follow TDD: write tests first, watch them fail, then implement.
    - End-to-end workflows
    - Estimated: Z hours
 
-## Test Data
-
-### Fixtures
-
-```ruby
-# spec/fixtures/sample_data.rb
-VALID_INPUT = {
-  field: "value",
-  # ...
-}
-
-INVALID_INPUT = {
-  field: nil,
-  # ...
-}
-```
-
-### Factories
-
-```ruby
-# spec/factories/model_factory.rb
-FactoryBot.define do
-  factory :model do
-    field { "value" }
-  end
-end
-```
-
 ## Coverage Goals
 
 - **Unit Tests:** 90%+ coverage
 - **Integration Tests:** All integration points
 - **Acceptance Tests:** All user stories from PRD
-
-## Test Execution
-
-```bash
-# Run all tests
-bundle exec rspec
-
-# Run specific test file
-bundle exec rspec spec/unit/feature_name_spec.rb
-
-# Run tests with coverage
-COVERAGE=true bundle exec rspec
-```
 
 ## Notes
 
@@ -169,156 +122,83 @@ COVERAGE=true bundle exec rspec
 4. Refactor code (keep tests green - REFACTOR)
 ```
 
-## Actual Test Generation
-
-Based on the requirements, also generate SKELETON test files:
-
-### Example Unit Test Skeleton
-
-```ruby
-# frozen_string_literal: true
-
-require "spec_helper"
-require_relative "../../lib/your_module/feature_name"
-
-RSpec.describe YourModule::FeatureName do
-  describe "#main_method" do
-    context "with valid input" do
-      it "returns expected output" do
-        # GIVEN: Valid input
-        input = valid_test_data
-
-        # WHEN: Method is called
-        result = subject.main_method(input)
-
-        # THEN: Expected output
-        expect(result).to eq(expected_output)
-      end
-    end
-
-    context "with invalid input" do
-      it "raises ValidationError" do
-        # GIVEN: Invalid input
-        input = invalid_test_data
-
-        # WHEN/THEN: Should raise error
-        expect {
-          subject.main_method(input)
-        }.to raise_error(ValidationError)
-      end
-    end
-
-    context "with edge cases" do
-      it "handles nil gracefully" do
-        expect {
-          subject.main_method(nil)
-        }.to raise_error(ArgumentError)
-      end
-
-      it "handles empty input" do
-        result = subject.main_method({})
-        expect(result).to be_nil
-      end
-    end
-  end
-end
-```
-
 ## TDD Best Practices
 
 ### 1. Test One Thing
 
 Each test should verify ONE behavior.
 
-❌ BAD:
-```ruby
-it "processes user and sends email and logs activity" do
-  # Testing 3 things!
-end
-```
-
-✅ GOOD:
-```ruby
-it "processes user data" do
-  # Tests only data processing
-end
-
-it "sends confirmation email" do
-  # Tests only email
-end
-```
+❌ BAD: Testing multiple behaviors in one test
+✅ GOOD: Separate tests for separate behaviors
 
 ### 2. Use Descriptive Names
 
-Test names should describe the behavior:
-
-```ruby
-describe "#calculate_total" do
-  it "sums line item prices" do
-  it "applies discount when coupon is valid" do
-  it "raises error when items array is empty" do
-end
-```
+Test names should describe the behavior being tested, not implementation details.
 
 ### 3. Follow Given-When-Then
 
 Structure tests clearly:
 
-```ruby
-it "calculates total with discount" do
-  # GIVEN: Setup test data
-  items = [create(:item, price: 100)]
-  coupon = create(:coupon, discount: 0.1)
-
-  # WHEN: Execute the behavior
-  total = calculator.calculate_total(items, coupon)
-
-  # THEN: Verify expectations
-  expect(total).to eq(90)
-end
-```
+- **GIVEN**: Setup test data and preconditions
+- **WHEN**: Execute the behavior being tested
+- **THEN**: Verify expected outcomes
 
 ### 4. Mock External Dependencies
 
-Don't hit real APIs, databases, or file systems:
-
-```ruby
-it "fetches user data from API" do
-  # Mock the API client
-  api_client = instance_double(APIClient)
-  allow(api_client).to receive(:fetch_user).and_return(mock_user_data)
-
-  service = UserService.new(api_client: api_client)
-  user = service.get_user(123)
-
-  expect(user.name).to eq("Test User")
-end
-```
+Don't hit real APIs, databases, or file systems in unit tests.
+Use test doubles/mocks for external dependencies.
 
 ### 5. Test Behavior, Not Implementation
 
-❌ BAD:
-```ruby
-it "calls internal helper method" do
-  expect(subject).to receive(:internal_helper)
-  subject.public_method
-end
+❌ BAD: Testing that internal helper methods are called
+✅ GOOD: Testing that public interface returns correct results
+
+## Framework-Specific Implementation
+
+**For language/framework-specific test generation, use the appropriate skill:**
+
+- **Ruby/RSpec**: Use `ruby_rspec_tdd` skill for RSpec-specific test files, fixtures, and syntax
+- **Python/pytest**: Use `python_pytest_tdd` skill for pytest-specific implementation
+- **JavaScript/Jest**: Use `javascript_jest_tdd` skill for Jest-specific implementation
+- **Other frameworks**: Use ZFC skill matching to find appropriate testing skill
+
+## Skill Delegation
+
+After creating the language-agnostic test specification above, delegate to the framework-specific skill to generate:
+
+1. **Skeleton test files** in the framework's directory structure and naming conventions
+2. **Test fixtures** or factories in the framework's format
+3. **Test execution commands** for the specific framework
+4. **Framework-specific examples** and best practices
+
+**Example skill invocation:**
+
+For a Ruby project using RSpec:
+
+```
+Use the `ruby_rspec_tdd` skill to:
+1. Generate skeleton RSpec test files in spec/ directory
+2. Create FactoryBot factories or fixtures as needed
+3. Provide RSpec-specific examples and matchers
+4. Include bundle exec rspec execution commands
 ```
 
-✅ GOOD:
-```ruby
-it "returns formatted output" do
-  result = subject.public_method
-  expect(result).to match(/\d{3}-\d{3}-\d{4}/)
-end
+For a Python project using pytest:
+
+```
+Use the `python_pytest_tdd` skill to:
+1. Generate skeleton pytest test files in tests/ directory
+2. Create pytest fixtures as needed
+3. Provide pytest-specific examples and assertions
+4. Include pytest execution commands
 ```
 
 ## Output Files
 
 Generate:
-1. **`docs/tdd_specifications.md`** - Complete test specifications
-2. **Skeleton test files** in `spec/` directory structure
-3. **Test data fixtures** in `spec/fixtures/`
+1. **`docs/tdd_specifications.md`** - Framework-agnostic test specifications (as shown above)
+2. **Framework-specific test files** - Via appropriate skill delegation
+3. **Test data/fixtures** - Via appropriate skill delegation
 
 ## Remember
 
@@ -326,5 +206,6 @@ Generate:
 - **Watch tests FAIL** - ensure they actually test something
 - **Write minimal code** - just enough to pass tests
 - **Refactor** - improve code with confidence (tests protect you)
+- **Use skills for framework-specific implementation** - keep this template language-agnostic
 
 **TDD gives you confidence, better design, and executable documentation!** 🧪

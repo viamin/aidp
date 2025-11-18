@@ -114,6 +114,99 @@ A comprehensive waterfall workflow might use: `22_PLANNING_MODE_INIT → 00_PRD 
 
 Both use the same generic planning steps without duplication or workflow-specific naming.
 
+### Template/Skill Separation
+
+**Templates define WHAT to do (language-agnostic). Skills define HOW to do it for specific technologies.**
+
+This separation maximizes reusability and maintains clear boundaries between conceptual workflows and implementation details.
+
+**Pattern:**
+
+```text
+templates/
+├── planning/
+│   ├── generate_wbs.md          # Describes WBS structure and requirements
+│   └── generate_gantt.md        # Describes Gantt chart requirements
+├── implementation/
+│   └── generate_tdd_specs.md    # Describes TDD philosophy and test categories
+└── skills/
+    ├── ruby_aidp_planning/      # HOW to use AIDP Ruby API
+    │   └── SKILL.md
+    └── ruby_rspec_tdd/          # HOW to generate RSpec tests
+        └── SKILL.md
+```
+
+**Templates contain:**
+- Problem definition and requirements (WHAT)
+- Best practices and principles (WHY)
+- Input/output specifications
+- Framework-agnostic guidelines
+- Skill delegation instructions
+
+**Skills contain:**
+- Language/framework-specific implementation (HOW)
+- Framework DSL and syntax
+- Library-specific patterns
+- Tool commands and configuration
+- Code examples in the target language
+
+**Anti-pattern:**
+
+```markdown
+# ❌ BAD: Template with embedded Ruby/RSpec code
+# templates/implementation/generate_tdd_specs.md
+
+## Generate Test Files
+
+```ruby
+# spec/unit/feature_spec.rb
+RSpec.describe Feature do
+  it "does something" do
+    expect(subject.method).to eq(value)
+  end
+end
+```
+
+**This embeds Ruby/RSpec into the template!**
+
+**Good pattern:**
+
+```markdown
+# ✅ GOOD: Template delegates to skill
+# templates/implementation/generate_tdd_specs.md
+
+## Generate Test Files
+
+For Ruby/RSpec projects, use the `ruby_rspec_tdd` skill to:
+- Generate skeleton RSpec test files in spec/ directory
+- Create FactoryBot factories or fixtures
+- Provide RSpec-specific matchers and syntax
+```
+
+**Guidelines:**
+
+1. **Templates are conceptual** - Explain the task without implementation details
+2. **Skills are concrete** - Provide language/framework-specific code
+3. **Use ZFC for skill selection** - Let AI choose appropriate skill based on project context
+4. **Delegate explicitly** - Templates should explicitly say "use X skill for Y language"
+5. **Extract all framework code** - If you see language-specific code in a template, extract it to a skill
+
+**Benefits:**
+
+- Templates work across all languages (Python, JavaScript, Go, etc.)
+- Skills can be shared across templates (multiple templates might use `ruby_rspec_tdd`)
+- Easy to add new language support (just add new skills, templates unchanged)
+- Clear separation of concerns (workflow vs. implementation)
+- Encourages reusability and modularity
+
+**Example:**
+
+A TDD template describes Given-When-Then, test categories, and coverage goals (language-agnostic).
+The `ruby_rspec_tdd` skill provides RSpec syntax, `bundle exec rspec` commands, and FactoryBot usage.
+The `python_pytest_tdd` skill provides pytest syntax, `pytest` commands, and pytest fixtures.
+
+The same TDD template works for any language by delegating to the appropriate skill.
+
 ## Sandi Metz's Rules
 
 Follow these rules to maintain clean, maintainable code. **These are guidelines, not hard limits** - it's okay to break them when appropriate or unavoidable, but always consider if the code could be improved by following them.
