@@ -156,6 +156,27 @@ module Aidp
         search_paths: [],
         default_provider_filter: true,
         enable_custom_skills: true
+      },
+      waterfall: {
+        enabled: true,
+        docs_directory: ".aidp/docs",
+        generate_decisions_md: true,
+        gantt_format: "mermaid",
+        wbs_phases: [
+          "Requirements",
+          "Design",
+          "Implementation",
+          "Testing",
+          "Deployment"
+        ],
+        effort_estimation: {
+          method: "llm_relative",
+          units: "story_points"
+        },
+        persona_assignment: {
+          method: "zfc_automatic",
+          allow_parallel: true
+        }
       }
     }.freeze
 
@@ -244,6 +265,15 @@ module Aidp
 
       # Convert string keys to symbols for consistency
       symbolize_keys(skills_section)
+    end
+
+    # Get waterfall configuration
+    def self.waterfall_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      waterfall_section = config[:waterfall] || config["waterfall"] || {}
+
+      # Convert string keys to symbols for consistency
+      symbolize_keys(waterfall_section)
     end
 
     # Check if configuration file exists
@@ -335,6 +365,12 @@ module Aidp
       if config[:thinking] || config["thinking"]
         thinking_section = config[:thinking] || config["thinking"]
         merged[:thinking] = symbolize_keys(thinking_section)
+      end
+
+      # Deep merge waterfall config
+      if config[:waterfall] || config["waterfall"]
+        waterfall_section = config[:waterfall] || config["waterfall"]
+        merged[:waterfall] = merged[:waterfall].merge(symbolize_keys(waterfall_section))
       end
 
       merged

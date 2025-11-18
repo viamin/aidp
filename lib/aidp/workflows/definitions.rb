@@ -227,6 +227,49 @@ module Aidp
           ]
         },
 
+        waterfall_standard: {
+          name: "Waterfall Planning",
+          description: "Structured project planning with WBS and Gantt charts",
+          icon: "📊",
+          details: [
+            "Documentation ingestion or generation",
+            "Work breakdown structure (WBS)",
+            "Gantt chart with critical path",
+            "Task dependencies and milestones",
+            "Persona/agent assignment",
+            "Complete project plan"
+          ],
+          steps: [
+            "20_WATERFALL_INIT",
+            "21_WATERFALL_PRD",
+            "22_WATERFALL_TECH_DESIGN",
+            "23_WATERFALL_WBS",
+            "24_WATERFALL_GANTT",
+            "25_WATERFALL_TASKS",
+            "26_WATERFALL_PERSONAS",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
+        waterfall_minimal: {
+          name: "Waterfall Planning (Minimal)",
+          description: "Quick waterfall planning without full enterprise features",
+          icon: "📋",
+          details: [
+            "Essential documentation",
+            "Basic work breakdown",
+            "Simple Gantt chart",
+            "Task list with dependencies"
+          ],
+          steps: [
+            "20_WATERFALL_INIT",
+            "21_WATERFALL_PRD",
+            "23_WATERFALL_WBS",
+            "25_WATERFALL_TASKS",
+            "16_IMPLEMENTATION"
+          ]
+        },
+
         custom: {
           name: "Custom Workflow",
           description: "Choose specific planning and implementation steps",

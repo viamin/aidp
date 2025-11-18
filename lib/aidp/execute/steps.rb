@@ -134,6 +134,59 @@ module Aidp
           "outs" => [],
           "gate" => false,
           "simple" => true # Special step for simple, focused tasks
+        },
+        # Waterfall planning mode steps
+        "20_WATERFALL_INIT" => {
+          "templates" => ["waterfall/initialize_planning.md"],
+          "description" => "Initialize waterfall planning (ingestion vs generation)",
+          "outs" => [".aidp/docs/.waterfall_mode"],
+          "gate" => true,
+          "interactive" => true
+        },
+        "21_WATERFALL_PRD" => {
+          "skill" => "product_strategist",
+          "templates" => ["waterfall/generate_prd.md"],
+          "description" => "Generate or enhance Product Requirements Document",
+          "outs" => [".aidp/docs/PRD.md"],
+          "gate" => false,
+          "interactive" => true
+        },
+        "22_WATERFALL_TECH_DESIGN" => {
+          "skill" => "architect",
+          "templates" => ["waterfall/generate_tech_design.md"],
+          "description" => "Generate Technical Design Document",
+          "outs" => [".aidp/docs/TECH_DESIGN.md"],
+          "gate" => false
+        },
+        "23_WATERFALL_WBS" => {
+          "templates" => ["waterfall/generate_wbs.md"],
+          "description" => "Generate Work Breakdown Structure",
+          "outs" => [".aidp/docs/WBS.md"],
+          "gate" => false
+        },
+        "24_WATERFALL_GANTT" => {
+          "templates" => ["waterfall/generate_gantt.md"],
+          "description" => "Generate Gantt chart and critical path analysis",
+          "outs" => [".aidp/docs/GANTT.md"],
+          "gate" => false
+        },
+        "25_WATERFALL_TASKS" => {
+          "templates" => ["waterfall/generate_task_list.md"],
+          "description" => "Generate detailed task list with dependencies",
+          "outs" => [".aidp/docs/TASK_LIST.md"],
+          "gate" => false
+        },
+        "26_WATERFALL_PERSONAS" => {
+          "templates" => ["waterfall/assign_personas.md"],
+          "description" => "Assign tasks to personas using ZFC",
+          "outs" => [".aidp/docs/persona_map.yml"],
+          "gate" => false
+        },
+        "27_WATERFALL_PROJECT_PLAN" => {
+          "templates" => ["waterfall/assemble_project_plan.md"],
+          "description" => "Assemble complete project plan with all artifacts",
+          "outs" => [".aidp/docs/PROJECT_PLAN.md"],
+          "gate" => false
         }
       }.freeze
     end
