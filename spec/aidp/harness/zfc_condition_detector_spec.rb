@@ -23,6 +23,14 @@ RSpec.describe Aidp::Harness::ZfcConditionDetector do
   subject(:detector) { described_class.new(config, provider_factory: provider_factory) }
 
   before do
+    allow(config).to receive(:zfc_decision_enabled?).and_return(false)
+    allow(config).to receive(:zfc_decision_tier).and_return("mini")
+    allow(config).to receive(:zfc_decision_cache_ttl).and_return(nil)
+    allow(config).to receive(:zfc_decision_confidence_threshold).and_return(0.7)
+    allow(config).to receive(:zfc_ab_testing_enabled?).and_return(false)
+    allow(config).to receive(:zfc_ab_testing_config).and_return({enabled: false, sample_rate: 0.1, log_comparisons: true})
+    allow(config).to receive(:default_provider).and_return("anthropic")
+
     allow(Aidp::Harness::ThinkingDepthManager).to receive(:new).and_return(
       instance_double(Aidp::Harness::ThinkingDepthManager,
         select_model_for_tier: ["anthropic", "claude-3-haiku-20240307", {}])

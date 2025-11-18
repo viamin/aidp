@@ -20,6 +20,10 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
   subject(:engine) { described_class.new(config, provider_factory: provider_factory) }
 
   before do
+    allow(config).to receive(:default_provider).and_return("anthropic")
+    allow(config).to receive(:default_tier).and_return("mini")
+    allow(config).to receive(:max_tier).and_return("max")
+
     allow(Aidp::Harness::ThinkingDepthManager).to receive(:new)
       .and_return(thinking_manager)
 
