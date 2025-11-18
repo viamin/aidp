@@ -404,13 +404,15 @@ RSpec.describe Aidp::ProviderManager do
 
   describe ".clear_cache" do
     it "calls clear_cache on harness factory when available" do
+      # Set instance variable directly since clear_cache uses @harness_factory&.clear_cache
+      described_class.instance_variable_set(:@harness_factory, mock_factory)
       expect(mock_factory).to receive(:clear_cache)
 
       described_class.clear_cache
     end
 
     it "does not raise error when factory not available" do
-      allow(described_class).to receive(:get_harness_factory).and_return(nil)
+      described_class.instance_variable_set(:@harness_factory, nil)
 
       expect { described_class.clear_cache }.not_to raise_error
     end
@@ -424,13 +426,15 @@ RSpec.describe Aidp::ProviderManager do
 
   describe ".reload_config" do
     it "calls reload_config on harness factory when available" do
+      # Set instance variable directly since reload_config uses @harness_factory&.reload_config
+      described_class.instance_variable_set(:@harness_factory, mock_factory)
       expect(mock_factory).to receive(:reload_config)
 
       described_class.reload_config
     end
 
     it "does not raise error when factory not available" do
-      allow(described_class).to receive(:get_harness_factory).and_return(nil)
+      described_class.instance_variable_set(:@harness_factory, nil)
 
       expect { described_class.reload_config }.not_to raise_error
     end
