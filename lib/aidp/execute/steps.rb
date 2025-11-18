@@ -145,7 +145,7 @@ module Aidp
         },
         "21_WATERFALL_PRD" => {
           "skill" => "product_strategist",
-          "templates" => ["waterfall/generate_prd.md"],
+          "templates" => ["planning/create_prd.md"], # Reuse existing PRD template
           "description" => "Generate or enhance Product Requirements Document",
           "outs" => [".aidp/docs/PRD.md"],
           "gate" => false,
@@ -153,7 +153,7 @@ module Aidp
         },
         "22_WATERFALL_TECH_DESIGN" => {
           "skill" => "architect",
-          "templates" => ["waterfall/generate_tech_design.md"],
+          "templates" => ["planning/design_architecture.md"], # Reuse existing architecture template
           "description" => "Generate Technical Design Document",
           "outs" => [".aidp/docs/TECH_DESIGN.md"],
           "gate" => false
@@ -171,7 +171,7 @@ module Aidp
           "gate" => false
         },
         "25_WATERFALL_TASKS" => {
-          "templates" => ["waterfall/generate_task_list.md"],
+          "templates" => ["planning/create_tasks.md"], # Reuse existing task creation template
           "description" => "Generate detailed task list with dependencies",
           "outs" => [".aidp/docs/TASK_LIST.md"],
           "gate" => false
