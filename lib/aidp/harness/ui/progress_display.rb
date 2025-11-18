@@ -22,14 +22,14 @@ module Aidp
 
         def initialize(ui_components = {})
           super()
+          @output = ui_components[:output]
           @progress = ui_components[:progress] || TTY::ProgressBar
-          @pastel = Pastel.new
+          @pastel = @output ? Pastel.new(output: @output) : Pastel.new
           @formatter = ui_components[:formatter] || ProgressFormatter.new
           @display_history = []
           @auto_refresh_enabled = false
           @refresh_interval = 1.0
           @refresh_thread = nil
-          @output = ui_components[:output]
           @prompt = ui_components[:prompt] || TTY::Prompt.new
           @spinner_class = begin
             ui_components[:spinner] || TTY::Spinner
