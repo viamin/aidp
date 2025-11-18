@@ -90,9 +90,9 @@ RSpec.configure do |config|
     # Pastel.new tries to detect color support which accesses TTY streams
     # In CI these streams may be closed, causing IOError
     require "pastel"
-    @original_pastel_new = Pastel.method(:new)
+    original_pastel_new = Pastel.method(:new)
     Pastel.define_singleton_method(:new) do |*args, **kwargs|
-      pastel = @original_pastel_new.call(*args, **kwargs)
+      pastel = original_pastel_new.call(*args, **kwargs)
       # Override the methods to be safe in test environments
       pastel.define_singleton_method(:enabled?) { false } if pastel.respond_to?(:enabled?)
       pastel
