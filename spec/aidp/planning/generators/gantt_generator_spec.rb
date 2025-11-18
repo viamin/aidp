@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/aidp/workflows/waterfall/gantt_generator"
+require_relative "../../../../lib/aidp/planning/generators/gantt_generator"
 
-RSpec.describe Aidp::Workflows::Waterfall::GanttGenerator do
+RSpec.describe Aidp::Planning::Generators::GanttGenerator do
   let(:generator) { described_class.new }
   let(:sample_wbs) do
     {

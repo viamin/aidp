@@ -3,8 +3,8 @@
 require_relative "../../logger"
 
 module Aidp
-  module Workflows
-    module Waterfall
+  module Planning
+    module Generators
       # Generates Mermaid Gantt charts with critical path analysis
       # Visualizes project timeline, dependencies, and milestones
       class GanttGenerator

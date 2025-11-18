@@ -3,8 +3,8 @@
 require_relative "../../logger"
 
 module Aidp
-  module Workflows
-    module Waterfall
+  module Planning
+    module Generators
       # Generates Work Breakdown Structure (WBS) with phase-based decomposition
       # Breaks down projects into phases, tasks, and subtasks with dependencies
       class WBSGenerator

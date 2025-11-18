@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
 require_relative "../../logger"
-require_relative "document_parser"
-require_relative "wbs_generator"
-require_relative "gantt_generator"
-require_relative "persona_mapper"
+require_relative "../parsers/document_parser"
+require_relative "../generators/wbs_generator"
+require_relative "../generators/gantt_generator"
+require_relative "../mappers/persona_mapper"
 
 module Aidp
-  module Workflows
-    module Waterfall
+  module Planning
+    module Builders
       # Orchestrates generation of complete project plan
-      # Coordinates all waterfall planning components
+      # Coordinates all planning components (parsing, generating, mapping)
       class ProjectPlanBuilder
         def initialize(
           ai_decision_engine:,
@@ -22,10 +22,10 @@ module Aidp
         )
           @ai_decision_engine = ai_decision_engine
           @config = config || Aidp::Config.waterfall_config
-          @document_parser = document_parser || DocumentParser.new(ai_decision_engine: ai_decision_engine)
-          @wbs_generator = wbs_generator || WBSGenerator.new(config: @config)
-          @gantt_generator = gantt_generator || GanttGenerator.new(config: @config)
-          @persona_mapper = persona_mapper || PersonaMapper.new(ai_decision_engine: ai_decision_engine, config: @config)
+          @document_parser = document_parser || Parsers::DocumentParser.new(ai_decision_engine: ai_decision_engine)
+          @wbs_generator = wbs_generator || Generators::WBSGenerator.new(config: @config)
+          @gantt_generator = gantt_generator || Generators::GanttGenerator.new(config: @config)
+          @persona_mapper = persona_mapper || Mappers::PersonaMapper.new(ai_decision_engine: ai_decision_engine, config: @config)
         end
 
         # Build project plan from existing documentation (ingestion path)

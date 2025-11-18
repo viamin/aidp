@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/aidp/workflows/waterfall/project_plan_builder"
+require_relative "../../../../lib/aidp/planning/builders/project_plan_builder"
 
-RSpec.describe Aidp::Workflows::Waterfall::ProjectPlanBuilder do
+RSpec.describe Aidp::Planning::ProjectPlanBuilder do
   let(:mock_ai_engine) { double("AIDecisionEngine") }
   let(:mock_doc_parser) { double("DocumentParser") }
   let(:mock_wbs_generator) { double("WBSGenerator") }

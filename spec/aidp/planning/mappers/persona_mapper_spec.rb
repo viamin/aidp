@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/aidp/workflows/waterfall/persona_mapper"
+require_relative "../../../../lib/aidp/planning/mappers/persona_mapper"
 
-RSpec.describe Aidp::Workflows::Waterfall::PersonaMapper do
+RSpec.describe Aidp::Planning::Mappers::PersonaMapper do
   let(:mock_ai_engine) { double("AIDecisionEngine") }
   let(:mapper) { described_class.new(ai_decision_engine: mock_ai_engine) }
   let(:sample_tasks) do
@@ -144,7 +144,7 @@ RSpec.describe Aidp::Workflows::Waterfall::PersonaMapper do
   describe "Zero Framework Cognition compliance" do
     it "does not use heuristics" do
       # Verify that the PersonaMapper class doesn't contain forbidden patterns
-      source_code = File.read("lib/aidp/workflows/waterfall/persona_mapper.rb")
+      source_code = File.read("lib/aidp/planning/mappers/persona_mapper.rb")
 
       # Should NOT contain regex matching on task names
       expect(source_code).not_to match(/task\[:name\]\.match/)

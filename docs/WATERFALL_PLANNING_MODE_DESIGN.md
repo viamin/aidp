@@ -172,7 +172,7 @@ Add to `lib/aidp/execute/steps.rb`:
 
 **Purpose:** Parse existing documentation to extract structured information
 
-**Location:** `lib/aidp/workflows/waterfall/document_parser.rb`
+**Location:** `lib/aidp/planning/parsers/document_parser.rb`
 
 **Responsibilities:**
 - Read markdown files from user-provided paths
@@ -199,7 +199,7 @@ end
 
 **Purpose:** Generate work breakdown structure with phases and tasks
 
-**Location:** `lib/aidp/workflows/waterfall/wbs_generator.rb`
+**Location:** `lib/aidp/planning/generators/wbs_generator.rb`
 
 **Responsibilities:**
 - Decompose project into phases (Requirements, Design, Implementation, Testing, Deployment)
@@ -222,7 +222,7 @@ end
 
 **Purpose:** Generate Mermaid Gantt charts with critical path
 
-**Location:** `lib/aidp/workflows/waterfall/gantt_generator.rb`
+**Location:** `lib/aidp/planning/generators/gantt_generator.rb`
 
 **Responsibilities:**
 - Create Mermaid gantt syntax
@@ -250,7 +250,7 @@ end
 
 **Purpose:** Map tasks to personas using Zero Framework Cognition
 
-**Location:** `lib/aidp/workflows/waterfall/persona_mapper.rb`
+**Location:** `lib/aidp/planning/mappers/persona_mapper.rb`
 
 **Responsibilities:**
 - Use AIDecisionEngine to determine best persona for each task
@@ -273,7 +273,7 @@ end
 
 **Purpose:** Orchestrate generation of complete project plan
 
-**Location:** `lib/aidp/workflows/waterfall/project_plan_builder.rb`
+**Location:** `lib/aidp/planning/builders/project_plan_builder.rb`
 
 **Responsibilities:**
 - Coordinate all generators
@@ -438,7 +438,7 @@ Only 5 templates are unique to waterfall planning:
 
 ### Phase 2: Core Components
 
-- [x] Create `lib/aidp/workflows/waterfall/` directory
+- [x] Create `lib/aidp/planning/` directory
 - [x] Implement `document_parser.rb` with tests
 - [x] Implement `wbs_generator.rb` with tests
 - [x] Implement `gantt_generator.rb` with tests
@@ -491,11 +491,11 @@ Only 5 templates are unique to waterfall planning:
 ### Unit Tests
 
 Each component has its own spec file:
-- `spec/aidp/workflows/waterfall/document_parser_spec.rb`
-- `spec/aidp/workflows/waterfall/wbs_generator_spec.rb`
-- `spec/aidp/workflows/waterfall/gantt_generator_spec.rb`
-- `spec/aidp/workflows/waterfall/persona_mapper_spec.rb`
-- `spec/aidp/workflows/waterfall/project_plan_builder_spec.rb`
+- `spec/aidp/planning/document_parser_spec.rb`
+- `spec/aidp/planning/wbs_generator_spec.rb`
+- `spec/aidp/planning/gantt_generator_spec.rb`
+- `spec/aidp/planning/persona_mapper_spec.rb`
+- `spec/aidp/planning/project_plan_builder_spec.rb`
 
 **Test Strategy:**
 - Mock AIDecisionEngine calls (external boundary)

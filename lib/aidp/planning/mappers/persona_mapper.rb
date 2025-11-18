@@ -4,8 +4,8 @@ require_relative "../../logger"
 require "yaml"
 
 module Aidp
-  module Workflows
-    module Waterfall
+  module Planning
+    module Mappers
       # Maps tasks to personas using Zero Framework Cognition (ZFC)
       # NO heuristics, NO regex, NO keyword matching - pure AI decision making
       class PersonaMapper

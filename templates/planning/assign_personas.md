@@ -27,10 +27,10 @@ Default personas include:
 Use the PersonaMapper class:
 
 ```ruby
-require_relative '../../../lib/aidp/workflows/waterfall/persona_mapper'
-require_relative '../../../lib/aidp/workflows/waterfall/gantt_generator'
-require_relative '../../../lib/aidp/workflows/waterfall/wbs_generator'
-require_relative '../../../lib/aidp/workflows/waterfall/document_parser'
+require_relative '../../../lib/aidp/planning/mappers/persona_mapper'
+require_relative '../../../lib/aidp/planning/generators/gantt_generator'
+require_relative '../../../lib/aidp/planning/generators/wbs_generator'
+require_relative '../../../lib/aidp/planning/parsers/document_parser'
 
 # This is a placeholder - in production, use real AIDecisionEngine
 class MockAIEngine
@@ -50,16 +50,16 @@ class MockAIEngine
 end
 
 # Load tasks
-parser = Aidp::Workflows::Waterfall::DocumentParser.new
+parser = Aidp::Planning::Parsers::DocumentParser.new
 prd = parser.parse_file('.aidp/docs/PRD.md')
-wbs_generator = Aidp::Workflows::Waterfall::WBSGenerator.new
+wbs_generator = Aidp::Planning::Generators::WBSGenerator.new
 wbs = wbs_generator.generate(prd: prd)
-gantt_generator = Aidp::Workflows::Waterfall::GanttGenerator.new
+gantt_generator = Aidp::Planning::Generators::GanttGenerator.new
 gantt = gantt_generator.generate(wbs: wbs)
 
 # Assign personas using ZFC
 ai_engine = MockAIEngine.new  # Replace with real AIDecisionEngine in production
-mapper = Aidp::Workflows::Waterfall::PersonaMapper.new(ai_decision_engine: ai_engine)
+mapper = Aidp::Planning::Mappers::PersonaMapper.new(ai_decision_engine: ai_engine)
 assignments = mapper.assign_personas(gantt[:tasks])
 
 # Generate YAML config

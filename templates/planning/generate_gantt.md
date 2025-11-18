@@ -15,18 +15,18 @@ Generate a Gantt chart in Mermaid format showing timeline, dependencies, and cri
 Use the GanttGenerator class:
 
 ```ruby
-require_relative '../../../lib/aidp/workflows/waterfall/gantt_generator'
-require_relative '../../../lib/aidp/workflows/waterfall/wbs_generator'
-require_relative '../../../lib/aidp/workflows/waterfall/document_parser'
+require_relative '../../../lib/aidp/planning/generators/gantt_generator'
+require_relative '../../../lib/aidp/planning/generators/wbs_generator'
+require_relative '../../../lib/aidp/planning/parsers/document_parser'
 
 # Load WBS
-parser = Aidp::Workflows::Waterfall::DocumentParser.new
+parser = Aidp::Planning::Parsers::DocumentParser.new
 prd = parser.parse_file('.aidp/docs/PRD.md')
-wbs_generator = Aidp::Workflows::Waterfall::WBSGenerator.new
+wbs_generator = Aidp::Planning::Generators::WBSGenerator.new
 wbs = wbs_generator.generate(prd: prd)
 
 # Generate Gantt chart
-gantt_generator = Aidp::Workflows::Waterfall::GanttGenerator.new
+gantt_generator = Aidp::Planning::Generators::GanttGenerator.new
 gantt = gantt_generator.generate(wbs: wbs)
 
 # Write output

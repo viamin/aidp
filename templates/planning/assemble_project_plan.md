@@ -19,17 +19,17 @@ Use the ProjectPlanBuilder to assemble everything into a comprehensive project p
 ## Implementation
 
 ```ruby
-require_relative '../../../lib/aidp/workflows/waterfall/project_plan_builder'
-require_relative '../../../lib/aidp/workflows/waterfall/document_parser'
+require_relative '../../../lib/aidp/planning/builders/project_plan_builder'
+require_relative '../../../lib/aidp/planning/parsers/document_parser'
 
 # Load all artifacts
-parser = Aidp::Workflows::Waterfall::DocumentParser.new
+parser = Aidp::Planning::Parsers::DocumentParser.new
 prd = parser.parse_file('.aidp/docs/PRD.md')
 tech_design = parser.parse_file('.aidp/docs/TECH_DESIGN.md')
 
 # Build plan (assuming components already generated)
 ai_engine = get_ai_decision_engine  # Get configured AI engine
-builder = Aidp::Workflows::Waterfall::ProjectPlanBuilder.new(
+builder = Aidp::Planning::Builders::ProjectPlanBuilder.new(
   ai_decision_engine: ai_engine
 )
 

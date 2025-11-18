@@ -3,8 +3,8 @@
 require_relative "../../logger"
 
 module Aidp
-  module Workflows
-    module Waterfall
+  module Planning
+    module Parsers
       # Parses existing documentation files to extract structured information
       # Uses Zero Framework Cognition (ZFC) for semantic analysis
       class DocumentParser

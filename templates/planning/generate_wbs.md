@@ -17,14 +17,14 @@ Generate a hierarchical breakdown of ALL work needed to deliver this project.
 Use the WBSGenerator Ruby class to create the structure programmatically:
 
 ```ruby
-require_relative '../../../lib/aidp/workflows/waterfall/wbs_generator'
-require_relative '../../../lib/aidp/workflows/waterfall/document_parser'
+require_relative '../../../lib/aidp/planning/generators/wbs_generator'
+require_relative '../../../lib/aidp/planning/parsers/document_parser'
 
-parser = Aidp::Workflows::Waterfall::DocumentParser.new
+parser = Aidp::Planning::Parsers::DocumentParser.new
 prd = parser.parse_file('.aidp/docs/PRD.md')
 tech_design = parser.parse_file('.aidp/docs/TECH_DESIGN.md')
 
-generator = Aidp::Workflows::Waterfall::WBSGenerator.new
+generator = Aidp::Planning::Generators::WBSGenerator.new
 wbs = generator.generate(prd: prd, tech_design: tech_design)
 markdown = generator.format_as_markdown(wbs)
 

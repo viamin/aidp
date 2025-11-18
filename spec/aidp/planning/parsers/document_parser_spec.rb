@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/aidp/workflows/waterfall/document_parser"
+require_relative "../../../../lib/aidp/planning/parsers/document_parser"
 
-RSpec.describe Aidp::Workflows::Waterfall::DocumentParser do
+RSpec.describe Aidp::Planning::Parsers::DocumentParser do
   let(:parser) { described_class.new }
   let(:mock_ai_engine) { double("AIDecisionEngine") }
   let(:parser_with_ai) { described_class.new(ai_decision_engine: mock_ai_engine) }

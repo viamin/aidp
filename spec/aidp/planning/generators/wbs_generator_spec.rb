@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/aidp/workflows/waterfall/wbs_generator"
+require_relative "../../../../lib/aidp/planning/generators/wbs_generator"
 
-RSpec.describe Aidp::Workflows::Waterfall::WBSGenerator do
+RSpec.describe Aidp::Planning::Generators::WBSGenerator do
   let(:generator) { described_class.new }
   let(:sample_prd) do
     {
