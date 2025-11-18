@@ -408,7 +408,7 @@ module Aidp
         return if @state_store.detection_comment_posted?(detection_key)
 
         timestamp = Time.now.utc.iso8601
-        item_name = item_type == :pr ? "PR" : "issue"
+        item_name = (item_type == :pr) ? "PR" : "issue"
 
         comment_body = "aidp detected `#{label}` at #{timestamp} and is working on it"
 
