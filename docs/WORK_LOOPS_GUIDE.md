@@ -707,12 +707,14 @@ Valid statuses:
 **Important**: Tasks in the list exist due to careful planning and requirements analysis. Agents should have a **strong bias against abandoning tasks** based on complexity or scope concerns.
 
 **Valid reasons to abandon:**
+
 - Requirements changed (external decision)
 - Duplicate work (already implemented elsewhere)
 - External blockers (dependency unavailable, API deprecated)
 - Task made obsolete by other changes
 
 **Invalid reasons to abandon:**
+
 - Task seems too complex
 - Task has large scope
 - Uncertainty about implementation approach

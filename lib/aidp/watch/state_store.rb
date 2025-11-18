@@ -136,6 +136,19 @@ module Aidp
         save!
       end
 
+      # Detection comment tracking methods (issue #280)
+      def detection_comment_posted?(detection_key)
+        detection_comments.key?(detection_key.to_s)
+      end
+
+      def record_detection_comment(detection_key, timestamp:)
+        detection_comments[detection_key.to_s] = {
+          "timestamp" => timestamp,
+          "posted_at" => Time.now.utc.iso8601
+        }
+        save!
+      end
+
       private
 
       def ensure_directory
@@ -167,6 +180,7 @@ module Aidp
           base["reviews"] ||= {}
           base["ci_fixes"] ||= {}
           base["change_requests"] ||= {}
+          base["detection_comments"] ||= {}
           base
         end
       end
@@ -189,6 +203,10 @@ module Aidp
 
       def change_requests
         state["change_requests"]
+      end
+
+      def detection_comments
+        state["detection_comments"]
       end
 
       def stringify_keys(hash)

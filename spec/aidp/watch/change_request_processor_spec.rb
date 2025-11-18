@@ -259,11 +259,13 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
     context "when error occurs" do
       before do
         allow(repository_client).to receive(:fetch_pull_request).and_raise(StandardError.new("API error"))
-        allow(repository_client).to receive(:post_comment)
+        allow(state_store).to receive(:record_change_request)
       end
 
-      it "posts error comment" do
-        expect(repository_client).to receive(:post_comment).with(123, /processing failed/)
+      it "logs error internally but does not post to GitHub" do
+        expect(repository_client).not_to receive(:post_comment)
+        expect(Aidp).to receive(:log_error).with("change_request_processor", "Change request failed", hash_including(pr: 123, error: "API error"))
+        expect(state_store).to receive(:record_change_request).with(123, hash_including(status: "error", error: "API error"))
         processor.process(pr)
       end
     end

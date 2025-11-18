@@ -19,6 +19,7 @@ RSpec.describe Aidp::Watch::Runner do
   before do
     allow(Aidp).to receive(:log_info)
     allow(Aidp).to receive(:log_debug)
+    allow(Aidp).to receive(:log_warn)
     allow(Aidp::Watch::RepositoryClient).to receive(:parse_issues_url).and_return(["owner", "repo"])
     # FIXME: Internal class mocking violations - see docs/TESTING_MOCK_VIOLATIONS_REMEDIATION.md "Hard Violations"
     # Watch::Runner#initialize creates dependencies internally without DI support
@@ -35,6 +36,11 @@ RSpec.describe Aidp::Watch::Runner do
     # By default, allow safety checks to pass
     allow(safety_checker).to receive(:validate_watch_mode_safety!)
     allow(safety_checker).to receive(:should_process_issue?).and_return(true)
+
+    # Stub detection comment tracking methods (issue #280)
+    allow(state_store).to receive(:detection_comment_posted?).and_return(false)
+    allow(state_store).to receive(:record_detection_comment)
+    allow(repository_client).to receive(:post_comment)
   end
 
   describe "#initialize" do
