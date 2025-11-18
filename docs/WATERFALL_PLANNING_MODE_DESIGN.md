@@ -477,9 +477,9 @@ Only 5 generic planning templates were created (usable by any workflow):
 - [x] Check Ruby syntax for all files
 - [x] Refactor to reuse existing templates
 - [x] Update design document with template reuse philosophy
-- [ ] Write remaining unit tests (GanttGenerator, PersonaMapper, ProjectPlanBuilder)
+- [x] Write unit tests (DocumentParser, WBSGenerator, GanttGenerator, PersonaMapper, ProjectPlanBuilder)
 - [ ] Write integration tests for full workflow
-- [ ] Run full test suite
+- [ ] Run full test suite and verify all tests pass
 - [ ] Create user documentation
 
 ### Phase 5: Integration Testing (Steps 20-23)
@@ -489,19 +489,17 @@ Only 5 generic planning templates were created (usable by any workflow):
 - [ ] Test end-to-end workflow with real project
 - [ ] Verify all artifacts are generated correctly
 
-### Phase 6: Quality & Delivery (Steps 24-27)
+### Phase 6: Quality & Delivery
 
 - [ ] Run full test suite and fix failures
 - [ ] Run standardrb linter and fix issues
-- [ ] Update CHANGELOG.md with new feature
 - [ ] Manual testing of complete workflow
 
-### Phase 7: Documentation & Completion (Steps 28-30)
+### Phase 7: Documentation & Completion
 
 - [ ] Add user guide to `docs/WATERFALL_PLANNING_MODE.md`
 - [ ] Update README.md with waterfall mode documentation
-- [ ] Commit all changes with descriptive message
-- [ ] Push to feature branch
+- [ ] Final commit and push
 
 ## Testing Strategy
 
