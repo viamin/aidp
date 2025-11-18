@@ -44,6 +44,16 @@ module Aidp
         # Extract label configuration from safety_config (it's actually the full watch config)
         label_config = safety_config[:labels] || safety_config["labels"] || {}
 
+        # Extract detection comment configuration (issue #280)
+        # Enabled by default, can be disabled in config
+        @post_detection_comments = if safety_config.key?(:post_detection_comments)
+          safety_config[:post_detection_comments]
+        elsif safety_config.key?("post_detection_comments")
+          safety_config["post_detection_comments"]
+        else
+          true # Enabled by default
+        end
+
         @plan_processor = PlanProcessor.new(
           repository_client: @repository_client,
           state_store: @state_store,
@@ -154,6 +164,9 @@ module Aidp
             next
           end
 
+          # Post detection comment (issue #280)
+          post_detection_comment(item_type: :issue, number: detailed[:number], label: plan_label)
+
           Aidp.log_debug("watch_runner", "plan_process", issue: detailed[:number])
           @plan_processor.process(detailed)
         rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
@@ -185,6 +198,9 @@ module Aidp
             next
           end
 
+          # Post detection comment (issue #280)
+          post_detection_comment(item_type: :issue, number: detailed[:number], label: build_label)
+
           Aidp.log_debug("watch_runner", "build_process", issue: detailed[:number])
           @build_processor.process(detailed)
         rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
@@ -209,6 +225,9 @@ module Aidp
             Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
             next
           end
+
+          # Post detection comment (issue #280)
+          post_detection_comment(item_type: :pr, number: detailed[:number], label: review_label)
 
           Aidp.log_debug("watch_runner", "review_process", pr: detailed[:number])
           @review_processor.process(detailed)
@@ -235,6 +254,9 @@ module Aidp
             next
           end
 
+          # Post detection comment (issue #280)
+          post_detection_comment(item_type: :pr, number: detailed[:number], label: ci_fix_label)
+
           Aidp.log_debug("watch_runner", "ci_fix_process", pr: detailed[:number])
           @ci_fix_processor.process(detailed)
         rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
@@ -259,6 +281,9 @@ module Aidp
             Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
             next
           end
+
+          # Post detection comment (issue #280)
+          post_detection_comment(item_type: :pr, number: detailed[:number], label: change_request_label)
 
           Aidp.log_debug("watch_runner", "change_request_process", pr: detailed[:number])
           @change_request_processor.process(detailed)
@@ -369,6 +394,43 @@ module Aidp
       rescue => e
         Aidp.log_debug("watch_runner", "worktree_context_unavailable", error: e.message)
         {}
+      end
+
+      # Post detection comment to GitHub when aidp picks up a labeled item (issue #280)
+      # @param item_type [Symbol] Type of item (:issue or :pr)
+      # @param number [Integer] Issue or PR number
+      # @param label [String] Label that triggered detection
+      def post_detection_comment(item_type:, number:, label:)
+        return unless @post_detection_comments
+
+        # Check if we've already posted a detection comment for this item/label combination
+        detection_key = "#{item_type}_#{number}_#{label}"
+        return if @state_store.detection_comment_posted?(detection_key)
+
+        timestamp = Time.now.utc.iso8601
+        item_name = item_type == :pr ? "PR" : "issue"
+
+        comment_body = "aidp detected `#{label}` at #{timestamp} and is working on it"
+
+        begin
+          @repository_client.post_comment(number, comment_body)
+          @state_store.record_detection_comment(detection_key, timestamp: timestamp)
+
+          Aidp.log_info("watch_runner", "detection_comment_posted",
+            item_type: item_type,
+            number: number,
+            label: label,
+            timestamp: timestamp)
+
+          display_message("💬 Posted detection comment for #{item_name} ##{number}", type: :info) if @verbose
+        rescue => e
+          # Don't fail processing if comment posting fails - just log it
+          Aidp.log_warn("watch_runner", "detection_comment_failed",
+            item_type: item_type,
+            number: number,
+            label: label,
+            error: e.message)
+        end
       end
 
       def pr_has_label?(pr, label)

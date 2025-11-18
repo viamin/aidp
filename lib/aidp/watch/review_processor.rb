@@ -84,19 +84,14 @@ module Aidp
         display_message("❌ Review failed: #{e.message}", type: :error)
         Aidp.log_error("review_processor", "Review failed", pr: number, error: e.message, backtrace: e.backtrace&.first(10))
 
-        # Post error comment
-        error_comment = <<~COMMENT
-          #{COMMENT_HEADER}
-
-          ❌ Automated review failed: #{e.message}
-
-          Please review manually or retry by re-adding the `#{@review_label}` label.
-        COMMENT
-        begin
-          @repository_client.post_comment(number, error_comment)
-        rescue
-          nil
-        end
+        # Record failure state internally but DON'T post error to GitHub
+        # (per issue #280 - error messages should never appear on issues)
+        @state_store.record_review(number, {
+          status: "error",
+          error: e.message,
+          error_class: e.class.name,
+          timestamp: Time.now.utc.iso8601
+        })
       end
 
       private

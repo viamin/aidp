@@ -99,19 +99,14 @@ module Aidp
         display_message("❌ CI fix failed: #{e.message}", type: :error)
         Aidp.log_error("ci_fix_processor", "CI fix failed", pr: pr[:number], error: e.message, backtrace: e.backtrace&.first(10))
 
-        # Post error comment
-        error_comment = <<~COMMENT
-          #{COMMENT_HEADER}
-
-          ❌ Automated CI fix failed: #{e.message}
-
-          Please investigate the CI failures manually or retry by re-adding the `#{@ci_fix_label}` label.
-        COMMENT
-        begin
-          @repository_client.post_comment(pr[:number], error_comment)
-        rescue
-          nil
-        end
+        # Record failure state internally but DON'T post error to GitHub
+        # (per issue #280 - error messages should never appear on issues)
+        @state_store.record_ci_fix(pr[:number], {
+          status: "error",
+          error: e.message,
+          error_class: e.class.name,
+          timestamp: Time.now.utc.iso8601
+        })
       end
 
       private
