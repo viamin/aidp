@@ -294,7 +294,7 @@ module Aidp
 
       def issue_has_label?(issue, label)
         Array(issue[:labels]).any? do |issue_label|
-          name = issue_label.is_a?(Hash) ? issue_label["name"] : issue_label.to_s
+          name = (issue_label.is_a?(Hash) ? issue_label["name"] : issue_label.to_s)
           name.casecmp(label).zero?
         end
       end
@@ -435,7 +435,7 @@ module Aidp
 
       def pr_has_label?(pr, label)
         Array(pr[:labels]).any? do |pr_label|
-          name = pr_label.is_a?(Hash) ? pr_label["name"] : pr_label.to_s
+          name = (pr_label.is_a?(Hash) ? pr_label["name"] : pr_label.to_s)
           name.casecmp(label).zero?
         end
       end
