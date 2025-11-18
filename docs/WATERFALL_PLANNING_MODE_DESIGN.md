@@ -33,14 +33,19 @@ lib/aidp/workflows/
 
 ### New Components
 
+**Note:** Components are organized by PURPOSE (not workflow) to maximize reusability.
+
 ```
-lib/aidp/workflows/
-├── waterfall/
-│   ├── document_parser.rb      # Parse existing documentation
+lib/aidp/planning/              # Generic planning utilities (usable by any workflow)
+├── parsers/
+│   └── document_parser.rb      # Parse existing documentation
+├── generators/
 │   ├── wbs_generator.rb        # Generate work breakdown structure
-│   ├── gantt_generator.rb      # Generate Mermaid Gantt charts
-│   ├── persona_mapper.rb       # Map tasks to personas (ZFC)
-│   └── project_plan_builder.rb # Orchestrate plan generation
+│   └── gantt_generator.rb      # Generate Mermaid Gantt charts
+├── mappers/
+│   └── persona_mapper.rb       # Map tasks to personas (ZFC)
+└── builders/
+    └── project_plan_builder.rb # Orchestrate plan generation
 ```
 
 ### Generated Artifacts
@@ -84,25 +89,26 @@ Add to `EXECUTE_WORKFLOWS` in `lib/aidp/workflows/definitions.rb`:
 
 ```ruby
 waterfall_standard: {
-  name: "Waterfall Planning (Standard)",
-  description: "Complete waterfall-style project planning",
+  name: "Waterfall Planning",
+  description: "Structured project planning with WBS and Gantt charts",
   icon: "📊",
   details: [
     "Documentation ingestion or generation",
-    "Work breakdown structure",
+    "Work breakdown structure (WBS)",
     "Gantt chart with critical path",
-    "Persona assignment",
-    "Task dependencies"
+    "Task dependencies and milestones",
+    "Persona/agent assignment",
+    "Complete project plan"
   ],
   steps: [
-    "20_WATERFALL_INIT",
-    "21_WATERFALL_PRD",
-    "22_WATERFALL_TECH_DESIGN",
-    "23_WATERFALL_WBS",
-    "24_WATERFALL_GANTT",
-    "25_WATERFALL_TASKS",
-    "26_WATERFALL_PERSONAS",
-    "16_IMPLEMENTATION"
+    "22_PLANNING_MODE_INIT",     # Initialize planning mode (ingestion vs generation)
+    "00_PRD",                    # Product requirements (reused)
+    "02_ARCHITECTURE",           # Technical design (reused)
+    "18_WBS",                    # Work breakdown structure (generic step)
+    "19_GANTT_CHART",            # Gantt chart with critical path (generic step)
+    "20_PERSONA_ASSIGNMENT",     # Persona/task mapping (generic step)
+    "21_PROJECT_PLAN_ASSEMBLY",  # Assemble complete plan (generic step)
+    "16_IMPLEMENTATION"          # Implementation (reused)
   ]
 }
 ```
@@ -111,57 +117,51 @@ waterfall_standard: {
 
 Add to `lib/aidp/execute/steps.rb`:
 
+**Note:** Steps are named generically (not workflow-specific) to encourage reuse across any workflow.
+
 ```ruby
-"20_WATERFALL_INIT" => {
-  "templates" => ["waterfall/initialize_planning.md"],
-  "description" => "Initialize waterfall planning (ingestion vs generation)",
-  "outs" => [],
-  "gate" => true,  # User chooses ingestion or generation
+"22_PLANNING_MODE_INIT" => {
+  "templates" => ["planning/initialize_planning_mode.md"],
+  "description" => "Initialize planning mode (ingestion of existing docs vs generation from scratch)",
+  "outs" => [".aidp/docs/.planning_mode"],
+  "gate" => true,  # User chooses ingestion or generation path
   "interactive" => true
 }
 
-"21_WATERFALL_PRD" => {
-  "skill" => "product_strategist",
-  "templates" => ["waterfall/generate_prd.md"],
-  "description" => "Generate or enhance Product Requirements Document",
-  "outs" => [".aidp/docs/PRD.md"],
-  "gate" => false,
-  "interactive" => true
+# Reuse existing steps for PRD and Architecture
+"00_PRD" => {
+  # Already exists - reused from existing planning steps
 }
 
-"22_WATERFALL_TECH_DESIGN" => {
-  "skill" => "architect",
-  "templates" => ["waterfall/generate_tech_design.md"],
-  "description" => "Generate Technical Design Document",
-  "outs" => [".aidp/docs/TECH_DESIGN.md"],
-  "gate" => false
+"02_ARCHITECTURE" => {
+  # Already exists - reused from existing planning steps
 }
 
-"23_WATERFALL_WBS" => {
-  "templates" => ["waterfall/generate_wbs.md"],
-  "description" => "Generate Work Breakdown Structure",
+"18_WBS" => {
+  "templates" => ["planning/generate_wbs.md"],
+  "description" => "Generate Work Breakdown Structure with phases and tasks",
   "outs" => [".aidp/docs/WBS.md"],
   "gate" => false
 }
 
-"24_WATERFALL_GANTT" => {
-  "templates" => ["waterfall/generate_gantt.md"],
-  "description" => "Generate Gantt chart and critical path analysis",
+"19_GANTT_CHART" => {
+  "templates" => ["planning/generate_gantt.md"],
+  "description" => "Generate Gantt chart with timeline and critical path",
   "outs" => [".aidp/docs/GANTT.md"],
   "gate" => false
 }
 
-"25_WATERFALL_TASKS" => {
-  "templates" => ["waterfall/generate_task_list.md"],
-  "description" => "Generate detailed task list with dependencies",
-  "outs" => [".aidp/docs/TASK_LIST.md"],
+"20_PERSONA_ASSIGNMENT" => {
+  "templates" => ["planning/assign_personas.md"],
+  "description" => "Assign tasks to personas/roles using AI (ZFC)",
+  "outs" => [".aidp/docs/persona_map.yml"],
   "gate" => false
 }
 
-"26_WATERFALL_PERSONAS" => {
-  "templates" => ["waterfall/assign_personas.md"],
-  "description" => "Assign tasks to personas using ZFC",
-  "outs" => [".aidp/docs/persona_map.yml"],
+"21_PROJECT_PLAN_ASSEMBLY" => {
+  "templates" => ["planning/assemble_project_plan.md"],
+  "description" => "Assemble complete project plan from all artifacts",
+  "outs" => [".aidp/docs/PROJECT_PLAN.md"],
   "gate" => false
 }
 ```
@@ -343,11 +343,11 @@ These existing templates are already proven and handle content generation:
 - **Step 22 (Tech Design):** `planning/design_architecture.md` - System architecture design
 - **Step 25 (Task List):** `planning/create_tasks.md` - Task list creation
 
-### New Waterfall-Specific Templates
+### Generic Planning Templates
 
-Only 5 templates are unique to waterfall planning:
+Only 5 generic planning templates were created (usable by any workflow):
 
-#### 1. `waterfall/initialize_planning.md` (Step 20)
+#### 1. `planning/initialize_planning_mode.md` (Step 22)
 
 **Purpose:** Mode selection - ingestion vs generation path
 
@@ -355,16 +355,16 @@ Only 5 templates are unique to waterfall planning:
 - Ask user: Do they have existing documentation?
 - If YES: Request paths to PRD, design docs, ADRs, task lists
 - If NO: Start requirements elicitation dialogue
-- Create `.aidp/docs/.waterfall_mode` to track mode selection
+- Create `.aidp/docs/.planning_mode` to track mode selection
 
-**Output:** `.aidp/docs/.waterfall_mode` (yaml file with mode and paths)
+**Output:** `.aidp/docs/.planning_mode` (yaml file with mode and paths)
 
-#### 2. `waterfall/generate_wbs.md` (Step 23)
+#### 2. `planning/generate_wbs.md` (Step 18)
 
 **Purpose:** Work Breakdown Structure generation via WBSGenerator Ruby class
 
 **Actions:**
-- Calls `WBSGenerator.generate(prd:, tech_design:)`
+- Calls `Aidp::Planning::Generators::WBSGenerator.generate(prd:, tech_design:)`
 - Phase-based decomposition (Requirements, Design, Implementation, Testing, Deployment)
 - Task hierarchy with dependencies
 - Parallel work stream identification
@@ -372,12 +372,12 @@ Only 5 templates are unique to waterfall planning:
 
 **Output:** `.aidp/docs/WBS.md`
 
-#### 3. `waterfall/generate_gantt.md` (Step 24)
+#### 3. `planning/generate_gantt.md` (Step 19)
 
 **Purpose:** Gantt chart with critical path via GanttGenerator Ruby class
 
 **Actions:**
-- Calls `GanttGenerator.generate(wbs:, task_list:)`
+- Calls `Aidp::Planning::Generators::GanttGenerator.generate(wbs:, task_list:)`
 - Creates Mermaid gantt syntax
 - Calculates task durations from effort estimates
 - Identifies critical path (longest dependency chain)
@@ -385,26 +385,26 @@ Only 5 templates are unique to waterfall planning:
 
 **Output:** `.aidp/docs/GANTT.md` (includes Mermaid chart and critical path list)
 
-#### 4. `waterfall/assign_personas.md` (Step 26)
+#### 4. `planning/assign_personas.md` (Step 20)
 
 **Purpose:** ZFC-based persona assignment via PersonaMapper Ruby class
 
 **CRITICAL:** Uses **Zero Framework Cognition** - NO heuristics, NO regex, NO keyword matching!
 
 **Actions:**
-- Calls `PersonaMapper.assign_personas(task_list)`
+- Calls `Aidp::Planning::Mappers::PersonaMapper.assign_personas(task_list)`
 - Uses `AIDecisionEngine.decide()` for each task
 - Considers task type, complexity, phase, required skills
 - Generates `persona_map.yml` configuration
 
 **Output:** `.aidp/docs/persona_map.yml`
 
-#### 5. `waterfall/assemble_project_plan.md` (Step 27)
+#### 5. `planning/assemble_project_plan.md` (Step 21)
 
 **Purpose:** Final integration via ProjectPlanBuilder Ruby class
 
 **Actions:**
-- Calls `ProjectPlanBuilder.assemble_project_plan(components)`
+- Calls `Aidp::Planning::Builders::ProjectPlanBuilder.assemble_project_plan(components)`
 - Integrates all artifacts into single document
 - Includes: WBS, Gantt chart, critical path, persona summary, metadata
 - Creates single source of truth for project planning
@@ -415,16 +415,17 @@ Only 5 templates are unique to waterfall planning:
 
 | Step | Template | Type | Purpose |
 |------|----------|------|---------|
-| 20 | `waterfall/initialize_planning.md` | NEW | Mode selection |
-| 21 | `planning/create_prd.md` | REUSED | PRD generation |
-| 22 | `planning/design_architecture.md` | REUSED | Tech design |
-| 23 | `waterfall/generate_wbs.md` | NEW | WBS via Ruby class |
-| 24 | `waterfall/generate_gantt.md` | NEW | Gantt via Ruby class |
-| 25 | `planning/create_tasks.md` | REUSED | Task list |
-| 26 | `waterfall/assign_personas.md` | NEW | Personas via ZFC |
-| 27 | `waterfall/assemble_project_plan.md` | NEW | Final integration |
+| 22 | `planning/initialize_planning_mode.md` | NEW | Mode selection |
+| 00 | `planning/create_prd.md` | REUSED | PRD generation |
+| 02 | `planning/design_architecture.md` | REUSED | Tech design |
+| 18 | `planning/generate_wbs.md` | NEW | WBS via Ruby class |
+| 19 | `planning/generate_gantt.md` | NEW | Gantt via Ruby class |
+| 20 | `planning/assign_personas.md` | NEW | Personas via ZFC |
+| 21 | `planning/assemble_project_plan.md` | NEW | Final integration |
 
-**Total:** 5 new templates, 3 reused templates
+**Total:** 5 new generic planning templates, 3 reused templates
+
+**Note:** All templates are in `templates/planning/` (not workflow-specific) to maximize reusability across any workflow that needs planning capabilities.
 
 ## Implementation Task List
 
@@ -447,8 +448,8 @@ Only 5 templates are unique to waterfall planning:
 
 ### Phase 3: Templates
 
-- [x] Create `templates/waterfall/` directory
-- [x] Create `initialize_planning.md` template
+- [x] Create `templates/planning/` directory (generic planning templates, not workflow-specific)
+- [x] Create `initialize_planning_mode.md` template
 - [x] Create `generate_wbs.md` template
 - [x] Create `generate_gantt.md` template
 - [x] Create `assign_personas.md` template
