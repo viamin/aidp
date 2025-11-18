@@ -39,7 +39,7 @@ You are an expert in **AIDP's Ruby Planning API**. Your role is to implement pla
 
 ## AIDP Planning Module Structure
 
-```
+```text
 lib/aidp/planning/
 ├── parsers/
 │   └── document_parser.rb      # Parse existing documentation
@@ -237,6 +237,7 @@ File.write('.aidp/docs/GANTT.md', output.join("\n"))
 ### Duration Calculation
 
 Converts story points to days:
+
 - 1 story point = 0.5 days
 - Minimum duration = 1 day
 
@@ -299,12 +300,14 @@ File.write('.aidp/docs/persona_map.yml', yaml_config)
 **CRITICAL**: PersonaMapper uses `AIDecisionEngine.decide()` for ALL assignments.
 
 **NEVER use**:
+
 - Regex pattern matching
 - Keyword matching
 - Heuristic rules
 - Scoring formulas
 
 The AI makes semantic decisions based on:
+
 - Task type and complexity
 - Required skills and expertise
 - Project phase

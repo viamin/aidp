@@ -137,6 +137,7 @@ templates/
 ```
 
 **Templates contain:**
+
 - Problem definition and requirements (WHAT)
 - Best practices and principles (WHY)
 - Input/output specifications
@@ -144,6 +145,7 @@ templates/
 - Skill delegation instructions
 
 **Skills contain:**
+
 - Language/framework-specific implementation (HOW)
 - Framework DSL and syntax
 - Library-specific patterns

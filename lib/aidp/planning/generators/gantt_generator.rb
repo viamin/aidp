@@ -158,7 +158,7 @@ module Aidp
         def find_longest_path(current_task, graph, all_tasks, visited)
           return [current_task[:id]] if visited.include?(current_task[:id])
 
-          visited = visited + [current_task[:id]]
+          visited += [current_task[:id]]
           dependent_tasks = graph[current_task[:id]] || []
 
           if dependent_tasks.empty?

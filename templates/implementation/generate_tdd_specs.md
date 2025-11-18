@@ -4,7 +4,7 @@ You are creating **test specifications** following Test-Driven Development (TDD)
 
 ## TDD Philosophy
 
-**RED → GREEN → REFACTOR**
+### RED → GREEN → REFACTOR
 
 1. **RED**: Write failing tests that specify desired behavior
 2. **GREEN**: Write minimal code to make tests pass
@@ -13,6 +13,7 @@ You are creating **test specifications** following Test-Driven Development (TDD)
 ## Context
 
 Read these artifacts to understand requirements:
+
 - `.aidp/docs/PRD.md` - Product requirements (if exists)
 - `.aidp/docs/TECH_DESIGN.md` - Technical design (if exists)
 - `.aidp/docs/TASK_LIST.md` - Task breakdown (if exists)
@@ -175,7 +176,7 @@ After creating the language-agnostic test specification above, delegate to the f
 
 For a Ruby project using RSpec:
 
-```
+```text
 Use the `ruby_rspec_tdd` skill to:
 1. Generate skeleton RSpec test files in spec/ directory
 2. Create FactoryBot factories or fixtures as needed
@@ -185,7 +186,7 @@ Use the `ruby_rspec_tdd` skill to:
 
 For a Python project using pytest:
 
-```
+```text
 Use the `python_pytest_tdd` skill to:
 1. Generate skeleton pytest test files in tests/ directory
 2. Create pytest fixtures as needed
@@ -196,6 +197,7 @@ Use the `python_pytest_tdd` skill to:
 ## Output Files
 
 Generate:
+
 1. **`docs/tdd_specifications.md`** - Framework-agnostic test specifications (as shown above)
 2. **Framework-specific test files** - Via appropriate skill delegation
 3. **Test data/fixtures** - Via appropriate skill delegation

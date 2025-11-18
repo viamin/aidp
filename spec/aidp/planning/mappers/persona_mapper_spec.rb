@@ -184,7 +184,7 @@ RSpec.describe Aidp::Planning::Mappers::PersonaMapper do
     it "uses sensible default persona list" do
       allow(mock_ai_engine).to receive(:decide).and_return("product_strategist")
 
-      result = mapper.assign_personas(sample_tasks)
+      mapper.assign_personas(sample_tasks)
 
       # Should have used default personas
       expect(mock_ai_engine).to have_received(:decide).with(

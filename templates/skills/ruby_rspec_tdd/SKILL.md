@@ -41,7 +41,7 @@ You are an expert in **Test-Driven Development using Ruby and RSpec**. Your role
 
 ### Directory Structure
 
-```
+```text
 spec/
 ├── spec_helper.rb          # RSpec configuration
 ├── unit/                   # Unit tests

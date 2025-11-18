@@ -5,6 +5,7 @@
 Waterfall Planning Mode provides structured, comprehensive project planning with automatic generation of work breakdown structures, Gantt charts, and task assignments.
 
 **When to use Waterfall Mode:**
+
 - You need a complete project plan before starting implementation
 - You want to visualize timelines and dependencies
 - You need to coordinate multiple team members/personas
@@ -41,6 +42,7 @@ Do you have existing documentation? YES
 ```
 
 **What happens:**
+
 1. AIDP parses your existing documents
 2. Identifies gaps and missing information
 3. Asks clarifying questions to fill gaps
@@ -62,6 +64,7 @@ Do you have existing documentation? NO
 ```
 
 **What happens:**
+
 1. AI-guided requirements elicitation
 2. Generation of PRD and technical design
 3. Automatic WBS and Gantt chart creation
@@ -74,6 +77,7 @@ All artifacts are created in `.aidp/docs/`:
 ### 1. PRD.md - Product Requirements Document
 
 Contains:
+
 - Problem statement
 - Goals and success criteria
 - Functional requirements
@@ -84,6 +88,7 @@ Contains:
 ### 2. TECH_DESIGN.md - Technical Design
 
 Contains:
+
 - System architecture
 - Component breakdown
 - Technology stack
@@ -94,6 +99,7 @@ Contains:
 ### 3. WBS.md - Work Breakdown Structure
 
 Contains:
+
 - Phase-based decomposition (Requirements → Design → Implementation → Testing → Deployment)
 - Task hierarchy with subtasks
 - Effort estimates (story points)
@@ -103,12 +109,14 @@ Contains:
 ### 4. GANTT.md - Gantt Chart & Critical Path
 
 Contains:
+
 - Mermaid Gantt chart visualization
 - Task durations and dependencies
 - **Critical path** (longest dependency chain)
 - Timeline estimates
 
 **Example Gantt Chart:**
+
 ```mermaid
 gantt
     title Project Timeline
@@ -124,6 +132,7 @@ gantt
 ### 5. TASK_LIST.md - Detailed Task List
 
 Contains:
+
 - Task IDs (TASK-001, TASK-002, etc.)
 - Task descriptions
 - Effort estimates
@@ -134,11 +143,13 @@ Contains:
 ### 6. persona_map.yml - Task Assignments
 
 Contains:
+
 - Task-to-persona mappings
 - Role-based task distribution
 - Automatic assignment using AI decision engine
 
 **Example:**
+
 ```yaml
 version: "1.0"
 assignments:
@@ -155,6 +166,7 @@ assignments:
 ### 7. PROJECT_PLAN.md - Master Document
 
 Contains:
+
 - Executive summary
 - Complete WBS
 - Gantt chart with critical path
@@ -205,6 +217,7 @@ Waterfall planning combined with Test-Driven Development:
 10. **Implementation** - Implement to pass tests (GREEN phase), then refactor
 
 **TDD Benefits:**
+
 - Tests written before code (specification by example)
 - Better design (forces you to think about interfaces)
 - Confidence in refactoring (tests protect you)
@@ -217,6 +230,7 @@ Waterfall planning combined with Test-Driven Development:
 Uses **Zero Framework Cognition** (ZFC) - AI-powered semantic analysis instead of simple heuristics.
 
 **Available personas:**
+
 - `product_strategist` - Requirements, stakeholder management
 - `architect` - System design, technical decisions
 - `senior_developer` - Implementation, code quality
@@ -231,6 +245,7 @@ The AI analyzes each task's characteristics (type, complexity, phase, required s
 Identifies the **longest sequence of dependent tasks** - any delay in critical path tasks delays the entire project.
 
 Use this to:
+
 - Focus on high-risk tasks first
 - Identify potential bottlenecks
 - Optimize parallel work streams
@@ -239,12 +254,14 @@ Use this to:
 ### Mermaid Visualizations
 
 All charts use [Mermaid](https://mermaid.js.org/) format - viewable in:
+
 - GitHub markdown
 - GitLab markdown
 - VS Code (with Mermaid extension)
 - Most documentation tools
 
 **To view:**
+
 ```bash
 # In VS Code with Mermaid extension
 code .aidp/docs/GANTT.md
@@ -289,12 +306,14 @@ The TDD step is available in any workflow, not just waterfall. Use it when you w
 ### What TDD Generates
 
 **docs/tdd_specifications.md:**
+
 - Comprehensive test specifications
 - Test implementation order
 - Test data and fixtures
 - Coverage goals
 
 **Skeleton test files:**
+
 - Unit test templates
 - Integration test templates
 - Acceptance test templates
@@ -309,12 +328,14 @@ The TDD step is available in any workflow, not just waterfall. Use it when you w
 ### When to Use TDD
 
 **Great for:**
+
 - Complex business logic
 - APIs and interfaces
 - Critical functionality
 - Code you'll need to maintain long-term
 
 **Skip for:**
+
 - Quick prototypes
 - Exploratory code
 - Simple CRUD operations
@@ -333,17 +354,20 @@ The TDD step is available in any workflow, not just waterfall. Use it when you w
 TDD isn't limited to waterfall. Use these workflows:
 
 **TDD Feature Development:**
+
 ```bash
 aidp  # Select: Execute Mode → TDD Feature Development
 ```
 
 This workflow:
+
 1. Creates PRD
 2. Designs architecture
 3. **Generates TDD specifications**
 4. Implements features (with tests driving design)
 
 **Custom with TDD:**
+
 ```bash
 aidp  # Select: Execute Mode → Custom Workflow
 # Then select: 17_TDD_SPECIFICATION in your custom steps
@@ -354,11 +378,13 @@ aidp  # Select: Execute Mode → Custom Workflow
 ### 1. Start with Good Requirements
 
 **Ingestion path:**
+
 - Provide complete PRDs and design docs
 - The better your input, the better the plan
 - AIDP will ask clarifying questions for gaps
 
 **Generation path:**
+
 - Be specific about problems and goals
 - Define clear success criteria
 - Identify constraints early
@@ -407,6 +433,7 @@ Success: 95%+ of users can generate PDFs without issues
 ```
 
 **Generates:**
+
 - Complete PRD with user stories
 - Technical design (PDF library selection, API design)
 - WBS with 15 tasks across 5 phases
@@ -430,6 +457,7 @@ aidp  # Start AIDP
 ```
 
 **Generates:**
+
 - Enhanced PRD with refactoring goals
 - Technical design for new architecture
 - WBS with refactoring phases
@@ -444,6 +472,7 @@ aidp  # Start AIDP
 **Problem:** Ingestion mode can't find your docs
 
 **Solution:**
+
 - Provide absolute paths or paths relative to project root
 - Ensure files are markdown (.md)
 - Check file permissions
@@ -453,6 +482,7 @@ aidp  # Start AIDP
 **Problem:** Critical path doesn't match expectations
 
 **Solution:**
+
 - Review task dependencies in TASK_LIST.md
 - Verify effort estimates in WBS.md
 - Some parallel tasks may not be on critical path (that's good!)
@@ -462,6 +492,7 @@ aidp  # Start AIDP
 **Problem:** Assigned personas don't align with your team structure
 
 **Solution:**
+
 - Edit persona_map.yml manually
 - Customize available personas in configuration
 - Re-run persona assignment step with custom persona list
@@ -471,9 +502,10 @@ aidp  # Start AIDP
 **Problem:** Mermaid visualization not displaying
 
 **Solution:**
+
 - Install Mermaid extension for VS Code
 - View on GitHub (renders natively)
-- Copy to https://mermaid.live for preview
+- Copy to <https://mermaid.live> for preview
 - Check Mermaid syntax is valid
 
 ## Next Steps
@@ -496,9 +528,9 @@ After waterfall planning:
 ## Support
 
 - **Documentation:** [docs/README.md](README.md)
-- **Issues:** https://github.com/viamin/aidp/issues
+- **Issues:** <https://github.com/viamin/aidp/issues>
 - **Design Doc:** [WATERFALL_PLANNING_MODE_DESIGN.md](WATERFALL_PLANNING_MODE_DESIGN.md)
 
 ---
 
-**Waterfall Planning Mode provides the structure and visibility you need for confident project execution. Happy planning! 📊**
+Waterfall Planning Mode provides the structure and visibility you need for confident project execution. Happy planning! 📊

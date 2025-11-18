@@ -15,6 +15,7 @@ Read `.aidp/docs/TASK_LIST.md` - All project tasks
 ## Available Personas
 
 Default personas include:
+
 - **product_strategist** - Product requirements, user research, stakeholder management
 - **architect** - System design, architecture decisions, technology choices
 - **senior_developer** - Implementation, code quality, technical problem solving
@@ -25,6 +26,7 @@ Default personas include:
 ## Assignment Principles
 
 The AI should consider:
+
 - **Task type**: Requirements, design, implementation, testing, deployment
 - **Required expertise**: Product, architecture, development, QA, operations
 - **Phase**: Different personas for different phases
@@ -33,12 +35,14 @@ The AI should consider:
 ## Zero Framework Cognition
 
 **FORBIDDEN**:
+
 - Regex pattern matching on task names
 - Keyword matching ("test" → qa_engineer)
 - Heuristic rules
 - Scoring formulas
 
 **REQUIRED**:
+
 - Use AI decision engine for ALL assignments
 - Provide task context to AI (name, description, phase, effort)
 - Let AI make semantic decisions
@@ -59,6 +63,7 @@ Multiple personas can work in parallel - the system handles conflicts automatica
 5. Write to `.aidp/docs/persona_map.yml`
 
 The skill provides the complete Ruby implementation including:
+
 - AI engine integration
 - ZFC-based decision making (NO heuristics!)
 - YAML configuration generation

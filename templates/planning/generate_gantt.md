@@ -33,6 +33,7 @@ Critical path tasks should be highlighted in the visualization.
 ## Duration Calculation
 
 Convert effort estimates to time:
+
 - Story points → days (e.g., 1 story point = 0.5 days)
 - Minimum duration = 1 day
 - Account for dependencies when calculating start dates
@@ -48,6 +49,7 @@ Convert effort estimates to time:
 5. Write to `.aidp/docs/GANTT.md`
 
 The skill provides the complete Ruby implementation including:
+
 - WBS parsing and task extraction
 - Duration calculation algorithms
 - Critical path analysis (longest dependency chain)
@@ -65,7 +67,7 @@ The skill provides the complete Ruby implementation including:
 
 ## Mermaid Gantt Syntax
 
-```
+```mermaid
 gantt
     title Project Timeline
     dateFormat YYYY-MM-DD
@@ -77,6 +79,7 @@ gantt
 ## Output
 
 Write Gantt chart with critical path to `.aidp/docs/GANTT.md` including:
+
 - Mermaid visualization (in code block)
 - Critical path task list
 - Timeline metadata

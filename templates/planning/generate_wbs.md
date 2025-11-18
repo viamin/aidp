@@ -5,6 +5,7 @@ You are creating a phase-based Work Breakdown Structure.
 ## Input
 
 Read:
+
 - `.aidp/docs/PRD.md` - Requirements
 - `.aidp/docs/TECH_DESIGN.md` - Technical approach
 
@@ -33,6 +34,7 @@ A Work Breakdown Structure organizes project work into:
 ## Task Attributes
 
 For each task, include:
+
 - **Name**: Clear, action-oriented
 - **Description**: What needs to be done
 - **Effort**: Story points or time estimate
@@ -57,6 +59,7 @@ For each task, include:
 4. Write to `.aidp/docs/WBS.md`
 
 The skill provides the complete Ruby implementation including:
+
 - Module requires and namespacing
 - Class instantiation
 - Method calls with proper parameters
@@ -73,6 +76,7 @@ The skill provides the complete Ruby implementation including:
 ## Output
 
 Write complete WBS to `.aidp/docs/WBS.md` with:
+
 - All phases listed
 - Tasks under each phase
 - Subtasks where applicable

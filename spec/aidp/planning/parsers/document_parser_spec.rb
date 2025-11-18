@@ -17,7 +17,10 @@ RSpec.describe Aidp::Planning::Parsers::DocumentParser do
         file
       end
 
-      after { temp_file.close; temp_file.unlink }
+      after {
+        temp_file.close
+        temp_file.unlink
+      }
 
       it "parses file and returns structured data" do
         result = parser.parse_file(temp_file.path)
@@ -54,7 +57,10 @@ RSpec.describe Aidp::Planning::Parsers::DocumentParser do
         file
       end
 
-      after { temp_file.close; temp_file.unlink }
+      after {
+        temp_file.close
+        temp_file.unlink
+      }
 
       it "uses AI engine for document classification" do
         allow(mock_ai_engine).to receive(:decide).and_return("prd")

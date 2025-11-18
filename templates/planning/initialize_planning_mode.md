@@ -38,7 +38,8 @@ timestamp: <ISO8601 timestamp>
 ## Example Dialogue
 
 **For Ingestion:**
-```
+
+```text
 User: I have a PRD and some design notes
 Assistant: Great! Please provide the path to your PRD and design documentation.
           I'll parse them and identify any gaps we need to fill via Q&A.
@@ -50,7 +51,8 @@ Assistant: Great! Please provide the path to your PRD and design documentation.
 ```
 
 **For Generation:**
-```
+
+```text
 User: I'm starting from scratch
 Assistant: Perfect! I'll guide you through creating a comprehensive project plan.
           We'll start with requirements gathering, then move through:

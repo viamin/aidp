@@ -24,7 +24,7 @@ Enable AIDP users to:
 
 Waterfall planning is implemented as a new workflow type in the existing AIDP workflow system:
 
-```
+```text
 lib/aidp/workflows/
 ├── definitions.rb          # Add waterfall workflow definitions
 ├── selector.rb             # Already supports custom workflows
@@ -35,7 +35,7 @@ lib/aidp/workflows/
 
 **Note:** Components are organized by PURPOSE (not workflow) to maximize reusability.
 
-```
+```text
 lib/aidp/planning/              # Generic planning utilities (usable by any workflow)
 ├── parsers/
 │   └── document_parser.rb      # Parse existing documentation
@@ -52,7 +52,7 @@ lib/aidp/planning/              # Generic planning utilities (usable by any work
 
 All artifacts are created in `.aidp/docs/`:
 
-```
+```text
 .aidp/docs/
 ├── PRD.md                  # Product requirements document
 ├── TECH_DESIGN.md          # Technical design document
@@ -175,12 +175,14 @@ Add to `lib/aidp/execute/steps.rb`:
 **Location:** `lib/aidp/planning/parsers/document_parser.rb`
 
 **Responsibilities:**
+
 - Read markdown files from user-provided paths
 - Extract sections (problem statement, goals, constraints, etc.)
 - Detect structure using AI (ZFC pattern)
 - Return structured hash of parsed content
 
 **Key Methods:**
+
 ```ruby
 def parse_file(file_path)
   # Returns: { type: :prd/:design/:adr, sections: {...} }
@@ -202,12 +204,14 @@ end
 **Location:** `lib/aidp/planning/generators/wbs_generator.rb`
 
 **Responsibilities:**
+
 - Decompose project into phases (Requirements, Design, Implementation, Testing, Deployment)
 - Break phases into tasks
 - Identify parallel work streams
 - Generate WBS markdown output
 
 **Key Methods:**
+
 ```ruby
 def generate(prd:, tech_design:)
   # Returns WBS structure
@@ -225,6 +229,7 @@ end
 **Location:** `lib/aidp/planning/generators/gantt_generator.rb`
 
 **Responsibilities:**
+
 - Create Mermaid gantt syntax
 - Calculate effort estimates (via LLM)
 - Identify critical path
@@ -232,6 +237,7 @@ end
 - Generate dependency relationships
 
 **Key Methods:**
+
 ```ruby
 def generate(wbs:, task_list:)
   # Returns Mermaid gantt chart
@@ -253,12 +259,14 @@ end
 **Location:** `lib/aidp/planning/mappers/persona_mapper.rb`
 
 **Responsibilities:**
+
 - Use AIDecisionEngine to determine best persona for each task
 - Consider task type, complexity, and required skills
 - Generate persona_map.yml configuration
 - No regex or heuristics - pure AI decision making
 
 **Key Methods:**
+
 ```ruby
 def assign_personas(task_list)
   # Use AIDecisionEngine.decide() for each task
@@ -276,12 +284,14 @@ end
 **Location:** `lib/aidp/planning/builders/project_plan_builder.rb`
 
 **Responsibilities:**
+
 - Coordinate all generators
 - Assemble PROJECT_PLAN.md with all components
 - Handle both ingestion and generation paths
 - Manage Q&A for missing information
 
 **Key Methods:**
+
 ```ruby
 def build_from_ingestion(docs_path)
   # Parse existing docs and fill gaps
@@ -329,6 +339,7 @@ waterfall: {
 ### Design Philosophy: Waterfall as Process Container
 
 **Key Insight:** Waterfall is a **process container**, not a different planning methodology. The value is in:
+
 1. **Sequencing** - Structured flow through planning steps
 2. **Integration** - Ruby classes that generate WBS, Gantt, personas, and integrate artifacts
 3. **Dual paths** - Ingestion vs generation modes
@@ -352,6 +363,7 @@ Only 5 generic planning templates were created (usable by any workflow):
 **Purpose:** Mode selection - ingestion vs generation path
 
 **Actions:**
+
 - Ask user: Do they have existing documentation?
 - If YES: Request paths to PRD, design docs, ADRs, task lists
 - If NO: Start requirements elicitation dialogue
@@ -364,6 +376,7 @@ Only 5 generic planning templates were created (usable by any workflow):
 **Purpose:** Work Breakdown Structure generation via WBSGenerator Ruby class
 
 **Actions:**
+
 - Calls `Aidp::Planning::Generators::WBSGenerator.generate(prd:, tech_design:)`
 - Phase-based decomposition (Requirements, Design, Implementation, Testing, Deployment)
 - Task hierarchy with dependencies
@@ -377,6 +390,7 @@ Only 5 generic planning templates were created (usable by any workflow):
 **Purpose:** Gantt chart with critical path via GanttGenerator Ruby class
 
 **Actions:**
+
 - Calls `Aidp::Planning::Generators::GanttGenerator.generate(wbs:, task_list:)`
 - Creates Mermaid gantt syntax
 - Calculates task durations from effort estimates
@@ -392,6 +406,7 @@ Only 5 generic planning templates were created (usable by any workflow):
 **CRITICAL:** Uses **Zero Framework Cognition** - NO heuristics, NO regex, NO keyword matching!
 
 **Actions:**
+
 - Calls `Aidp::Planning::Mappers::PersonaMapper.assign_personas(task_list)`
 - Uses `AIDecisionEngine.decide()` for each task
 - Considers task type, complexity, phase, required skills
@@ -404,6 +419,7 @@ Only 5 generic planning templates were created (usable by any workflow):
 **Purpose:** Final integration via ProjectPlanBuilder Ruby class
 
 **Actions:**
+
 - Calls `Aidp::Planning::Builders::ProjectPlanBuilder.assemble_project_plan(components)`
 - Integrates all artifacts into single document
 - Includes: WBS, Gantt chart, critical path, persona summary, metadata
@@ -492,6 +508,7 @@ Only 5 generic planning templates were created (usable by any workflow):
 ### Unit Tests
 
 Each component has its own spec file:
+
 - `spec/aidp/planning/document_parser_spec.rb`
 - `spec/aidp/planning/wbs_generator_spec.rb`
 - `spec/aidp/planning/gantt_generator_spec.rb`
@@ -499,6 +516,7 @@ Each component has its own spec file:
 - `spec/aidp/planning/project_plan_builder_spec.rb`
 
 **Test Strategy:**
+
 - Mock AIDecisionEngine calls (external boundary)
 - Mock file I/O (external boundary)
 - Test public methods only
@@ -511,6 +529,7 @@ Each component has its own spec file:
 - `spec/integration/waterfall_generation_workflow_spec.rb`
 
 **Test Strategy:**
+
 - Use real files in tmp directory
 - Mock only AI provider calls
 - Verify all artifacts are created

@@ -5,6 +5,7 @@ You are creating the master PROJECT_PLAN.md document that integrates all plannin
 ## Input Files
 
 Read all generated artifacts:
+
 - `.aidp/docs/PRD.md` - Product requirements
 - `.aidp/docs/TECH_DESIGN.md` - Technical design
 - `.aidp/docs/WBS.md` - Work breakdown structure
@@ -69,6 +70,7 @@ Generated: <timestamp>
 4. Write to `.aidp/docs/PROJECT_PLAN.md`
 
 The skill provides the complete Ruby implementation including:
+
 - Document parsing and loading
 - Component assembly and integration
 - Markdown formatting
@@ -101,6 +103,7 @@ This serves as the single source of truth for project planning.
 ## Quality Checks
 
 Ensure the assembled plan includes:
+
 - ✅ All phases from WBS
 - ✅ All tasks with dependencies
 - ✅ Gantt chart visualization
