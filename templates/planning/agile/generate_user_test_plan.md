@@ -15,19 +15,24 @@ Create a detailed user testing plan that includes recruitment criteria, testing 
 ## User Testing Plan Components
 
 ### 1. Target Users
+
 Define 2-3 user segments to test:
+
 - Segment characteristics
 - Why this segment is important
 - Recommended sample size per segment
 
 ### 2. Recruitment
+
 - Screener questions to qualify participants
 - Recruitment channels (where to find users)
 - Incentives for participation
 - Timeline for recruitment
 
 ### 3. Testing Stages
+
 Define 3-4 stages (e.g., Alpha, Beta, Launch):
+
 - Objective of each stage
 - Number of participants
 - Duration
@@ -35,25 +40,32 @@ Define 3-4 stages (e.g., Alpha, Beta, Launch):
 - Success criteria
 
 ### 4. Survey Questions
+
 Create comprehensive surveys:
+
 - **Likert Scale** (1-5): 5-7 questions about satisfaction, ease of use, value
 - **Multiple Choice**: 3-5 questions with specific options
 - **Open-Ended**: 3-5 questions for qualitative feedback
 
 ### 5. Interview Script
+
 - Introduction explaining the research
 - 5-7 main questions with follow-ups
 - Closing thanking participants
 
 ### 6. Success Metrics
+
 Quantitative and qualitative metrics:
+
 - Task completion rates
 - User satisfaction scores
 - Feature adoption metrics
 - Qualitative sentiment targets
 
 ### 7. Timeline
+
 Phases with duration estimates:
+
 - Recruitment
 - Testing stages
 - Analysis and reporting
@@ -61,18 +73,21 @@ Phases with duration estimates:
 ## Question Design Principles
 
 **Good Survey Questions:**
+
 - Clear and unambiguous
 - One topic per question
 - Balanced response options
 - Appropriate for quantitative analysis
 
 **Good Interview Questions:**
+
 - Open-ended to encourage discussion
 - Non-leading
 - Focused on specific experiences
 - Include follow-up probes
 
 **Avoid:**
+
 - Double-barreled questions
 - Leading or biased phrasing
 - Jargon or technical terms
@@ -100,6 +115,7 @@ Phases with duration estimates:
 ## AI Analysis Guidelines
 
 Use AI Decision Engine to:
+
 - Generate questions specific to MVP features
 - Tailor recruitment criteria to target users
 - Design appropriate testing stages

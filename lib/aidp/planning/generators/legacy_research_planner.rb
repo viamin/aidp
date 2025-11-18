@@ -193,7 +193,11 @@ module Aidp
               files << path
               # Try to read README for context
               if File.basename(path).match?(/^README/i)
-                readme_content = File.read(path) rescue nil
+                readme_content = begin
+                  File.read(path)
+                rescue
+                  nil
+                end
               end
             end
           end

@@ -39,6 +39,7 @@ Add an **Agile Development Mode** to AIDP that complements existing Waterfall pl
 **File**: `lib/aidp/personas/definitions.rb` (extend existing)
 
 Add three new personas:
+
 - **UX Researcher**: Study design, feedback analysis, user testing
 - **Product Manager**: PRD ownership, MVP scope definition, backlog prioritization
 - **Marketing Strategist**: Launch communications, differentiator summaries, success metrics
@@ -46,6 +47,7 @@ Add three new personas:
 ### 2. New Generators
 
 #### MVPScopeGenerator
+
 **File**: `lib/aidp/planning/generators/mvp_scope_generator.rb`
 
 - Input: PRD document, user input on priorities
@@ -57,6 +59,7 @@ Add three new personas:
 - Uses AI Decision Engine to analyze features and determine MVP viability
 
 #### UserTestPlanGenerator
+
 **File**: `lib/aidp/planning/generators/user_test_plan_generator.rb`
 
 - Input: MVP scope, target users
@@ -69,6 +72,7 @@ Add three new personas:
 - Uses AI to generate contextual questions based on feature set
 
 #### FeedbackAnalyzer
+
 **File**: `lib/aidp/planning/analyzers/feedback_analyzer.rb`
 
 - Input: Feedback data (CSV, JSON, markdown)
@@ -80,6 +84,7 @@ Add three new personas:
 - Uses AI Decision Engine for semantic analysis (NO regex or keyword matching)
 
 #### IterationPlanGenerator
+
 **File**: `lib/aidp/planning/generators/iteration_plan_generator.rb`
 
 - Input: Feedback analysis, current codebase
@@ -91,6 +96,7 @@ Add three new personas:
 - Generates WBS-style task breakdown
 
 #### MarketingReportGenerator
+
 **File**: `lib/aidp/planning/generators/marketing_report_generator.rb`
 
 - Input: Feature set, user feedback, competitive analysis
@@ -102,6 +108,7 @@ Add three new personas:
 - Uses AI to craft compelling narratives from technical features
 
 #### LegacyResearchPlanner
+
 **File**: `lib/aidp/planning/generators/legacy_research_planner.rb`
 
 - Input: Existing codebase (analyzed with tree-sitter)
@@ -115,6 +122,7 @@ Add three new personas:
 ### 3. New Parser
 
 #### FeedbackDataParser
+
 **File**: `lib/aidp/planning/parsers/feedback_data_parser.rb`
 
 - Parses CSV, JSON, markdown feedback files
@@ -125,6 +133,7 @@ Add three new personas:
 ### 4. Orchestration Builder
 
 #### AgilePlanBuilder
+
 **File**: `lib/aidp/planning/builders/agile_plan_builder.rb`
 
 Orchestrates the agile planning workflow:
@@ -178,6 +187,7 @@ end
 **File**: `lib/aidp/execute/steps.rb` (extend existing)
 
 Add new workflow steps:
+
 - `generate_mvp_scope` - Interactive MVP scoping
 - `generate_user_test_plan` - Create testing plan
 - `ingest_feedback` - Prompt-based feedback ingestion
@@ -251,31 +261,31 @@ config.agile = {
 
 ### Phase 2: MVP Planning
 
-5. **Build MVPScopeGenerator** (AI-based scope definition)
-6. **Build UserTestPlanGenerator** (research planning)
-7. **Build MarketingReportGenerator** (marketing materials)
-8. **Create AgilePlanBuilder** (orchestration)
-9. **Define `agile_mvp` workflow**
+1. **Build MVPScopeGenerator** (AI-based scope definition)
+2. **Build UserTestPlanGenerator** (research planning)
+3. **Build MarketingReportGenerator** (marketing materials)
+4. **Create AgilePlanBuilder** (orchestration)
+5. **Define `agile_mvp` workflow**
 
 ### Phase 3: Feedback Loop
 
-10. **Build FeedbackAnalyzer** (AI-powered analysis)
-11. **Build IterationPlanGenerator** (next iteration planning)
-12. **Define `agile_iteration` workflow**
-13. **Add feedback ingestion step** (interactive prompt)
+1. **Build FeedbackAnalyzer** (AI-powered analysis)
+2. **Build IterationPlanGenerator** (next iteration planning)
+3. **Define `agile_iteration` workflow**
+4. **Add feedback ingestion step** (interactive prompt)
 
 ### Phase 4: Legacy Research
 
-14. **Build LegacyResearchPlanner** (codebase analysis)
-15. **Define `agile_legacy_research` workflow**
-16. **Integrate tree-sitter analysis** (reuse existing code)
+1. **Build LegacyResearchPlanner** (codebase analysis)
+2. **Define `agile_legacy_research` workflow**
+3. **Integrate tree-sitter analysis** (reuse existing code)
 
 ### Phase 5: Integration & Testing
 
-17. **Write RSpec tests** (all components, mock external boundaries)
-18. **Integration testing** (expect scripts for TUI flows)
-19. **Documentation updates** (CLI_USER_GUIDE, README)
-20. **Final validation** (all 7 acceptance criteria)
+1. **Write RSpec tests** (all components, mock external boundaries)
+2. **Integration testing** (expect scripts for TUI flows)
+3. **Documentation updates** (CLI_USER_GUIDE, README)
+4. **Final validation** (all 7 acceptance criteria)
 
 ## Acceptance Criteria
 
@@ -333,6 +343,7 @@ Aidp.log_debug("iteration_plan_generator", "creating_tasks", feedback_items: ite
 ### Template Structure
 
 All templates follow existing patterns:
+
 - Markdown with front matter (YAML metadata)
 - Clear sections with consistent formatting
 - Examples and instructions inline
@@ -376,7 +387,8 @@ All templates follow existing patterns:
 ---
 
 **References**:
-- Issue #210: https://github.com/viamin/aidp/issues/210
+
+- Issue #210: <https://github.com/viamin/aidp/issues/210>
 - LLM Style Guide: `docs/LLM_STYLE_GUIDE.md`
 - Existing Waterfall Implementation: `lib/aidp/planning/`
 - Workflow Definitions: `lib/aidp/workflows/definitions.rb`

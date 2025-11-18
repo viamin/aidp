@@ -14,14 +14,17 @@ This document tracks the implementation progress for Agile Development Mode, whi
 ### Phase 1: Foundation (100% Complete)
 
 #### Configuration System
+
 - ✅ Added `Config.agile_config()` method for agile-specific configuration
 - ✅ Extended example config with agile section (mvp_first, feedback_loops, personas, etc.)
 - ✅ Configuration properly namespaced and follows existing patterns
 
 **Files Modified:**
+
 - `lib/aidp/config.rb` (+20 lines)
 
 #### Persona Support
+
 - ✅ Extended PersonaMapper to support mode parameter (:waterfall vs :agile)
 - ✅ Added 3 new agile personas:
   - `product_manager` - PRD ownership, MVP scope, backlog prioritization
@@ -30,9 +33,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ Personas properly integrated with AI Decision Engine for task assignment
 
 **Files Modified:**
+
 - `lib/aidp/planning/mappers/persona_mapper.rb` (+38 lines)
 
 #### Data Parsing
+
 - ✅ Created `FeedbackDataParser` for multi-format feedback ingestion
 - ✅ Supports CSV, JSON, and markdown feedback files
 - ✅ Normalizes data into consistent structure
@@ -40,9 +45,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ Robust error handling with specific error classes
 
 **Files Created:**
+
 - `lib/aidp/planning/parsers/feedback_data_parser.rb` (313 lines)
 
 #### Workflow Steps
+
 - ✅ Added 7 new agile workflow steps to step registry:
   - `23_MVP_SCOPE` - Define MVP with must-have/nice-to-have features
   - `24_USER_TEST_PLAN` - Generate user testing plan
@@ -54,11 +61,13 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ All steps configured with proper skills, templates, and outputs
 
 **Files Modified:**
+
 - `lib/aidp/execute/steps.rb` (+58 lines)
 
 ### Phase 2: Generators & Analyzers (100% Complete)
 
 #### MVPScopeGenerator
+
 - ✅ AI-powered MVP feature scoping
 - ✅ Interactive priority collection from users
 - ✅ Distinguishes must-have vs nice-to-have features
@@ -67,9 +76,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ Uses ZFC pattern - all semantic decisions to AI
 
 **Files Created:**
+
 - `lib/aidp/planning/generators/mvp_scope_generator.rb` (334 lines)
 
 **Key Features:**
+
 - Interactive prompts for user priorities
 - Structured AI schema for consistent output
 - Rationale for each must-have feature
@@ -77,6 +88,7 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - Acceptance criteria definition
 
 #### UserTestPlanGenerator
+
 - ✅ Comprehensive user testing plan generation
 - ✅ Recruitment criteria and screener questions
 - ✅ Multiple testing stages (alpha, beta, launch)
@@ -85,9 +97,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ Success metrics and timeline planning
 
 **Files Created:**
+
 - `lib/aidp/planning/generators/user_test_plan_generator.rb` (403 lines)
 
 **Key Features:**
+
 - Target user segmentation
 - Recruitment channel recommendations
 - Incentive suggestions
@@ -95,6 +109,7 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - Contextual questions based on MVP features
 
 #### MarketingReportGenerator
+
 - ✅ Marketing materials generation from technical features
 - ✅ Value proposition with headline/subheadline/benefits
 - ✅ Key messages with supporting points
@@ -105,9 +120,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ Launch checklist with owners and timelines
 
 **Files Created:**
+
 - `lib/aidp/planning/generators/marketing_report_generator.rb` (365 lines)
 
 **Key Features:**
+
 - Translates technical features to customer value
 - Customer-focused messaging (not jargon)
 - Multi-audience messaging framework
@@ -115,6 +132,7 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - Actionable launch checklist
 
 #### FeedbackAnalyzer
+
 - ✅ AI-powered semantic feedback analysis
 - ✅ Sentiment breakdown and distribution
 - ✅ Key findings with evidence and impact
@@ -125,9 +143,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ Positive highlights to maintain or amplify
 
 **Files Created:**
+
 - `lib/aidp/planning/analyzers/feedback_analyzer.rb` (411 lines)
 
 **Key Features:**
+
 - NO regex or keyword matching (pure AI semantic analysis)
 - Structured schema for consistent insights
 - Evidence-based findings
@@ -135,6 +155,7 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - Effort estimation for recommendations
 
 #### IterationPlanGenerator
+
 - ✅ Next iteration planning based on feedback
 - ✅ Feature improvements with issue/improvement/impact tracking
 - ✅ New feature recommendations with acceptance criteria
@@ -146,9 +167,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - ✅ Timeline with phases and activities
 
 **Files Created:**
+
 - `lib/aidp/planning/generators/iteration_plan_generator.rb` (433 lines)
 
 **Key Features:**
+
 - Categorized improvements (features, bugs, tech debt)
 - Priority-based task ordering
 - Dependency tracking
@@ -156,10 +179,12 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - Risk-aware planning
 
 ### Documentation
+
 - ✅ Comprehensive implementation plan created
 - ✅ Status tracking document (this file)
 
 **Files Created:**
+
 - `docs/planning/AGILE_MODE_IMPLEMENTATION_PLAN.md` (386 lines)
 - `docs/planning/AGILE_MODE_STATUS.md` (this file)
 
@@ -168,6 +193,7 @@ This document tracks the implementation progress for Agile Development Mode, whi
 ### Phase 3: Remaining Generators (~10% of work)
 
 #### LegacyResearchPlanner
+
 - ⏳ **Status**: Not Started
 - **Purpose**: Analyze existing codebases and generate user research plans
 - **Features Needed**:
@@ -179,11 +205,13 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - **Estimated Effort**: 2-3 hours
 
 **File to Create:**
+
 - `lib/aidp/planning/generators/legacy_research_planner.rb` (~350 lines)
 
 ### Phase 4: Orchestration (~15% of work)
 
 #### AgilePlanBuilder
+
 - ⏳ **Status**: Not Started
 - **Purpose**: Orchestrate all agile components in complete workflows
 - **Features Needed**:
@@ -196,9 +224,11 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - **Estimated Effort**: 3-4 hours
 
 **File to Create:**
+
 - `lib/aidp/planning/builders/agile_plan_builder.rb` (~400 lines)
 
 #### Workflow Definitions
+
 - ⏳ **Status**: Not Started
 - **Purpose**: Define complete agile workflows
 - **Workflows to Add**:
@@ -208,6 +238,7 @@ This document tracks the implementation progress for Agile Development Mode, whi
 - **Estimated Effort**: 1-2 hours
 
 **File to Modify:**
+
 - `lib/aidp/workflows/definitions.rb`
 
 ### Phase 5: Templates (~10% of work)
@@ -227,6 +258,7 @@ Need to create markdown templates for each agile step:
 ### Phase 6: Testing (~20% of work)
 
 #### Unit Tests (RSpec)
+
 - ⏳ `spec/aidp/planning/parsers/feedback_data_parser_spec.rb`
 - ⏳ `spec/aidp/planning/generators/mvp_scope_generator_spec.rb`
 - ⏳ `spec/aidp/planning/generators/user_test_plan_generator_spec.rb`
@@ -239,6 +271,7 @@ Need to create markdown templates for each agile step:
 - ⏳ `spec/aidp/config_spec.rb` (update for agile_config)
 
 **Testing Approach:**
+
 - Mock external boundaries (AI calls, file I/O, user input)
 - Dependency injection for all components
 - Use test doubles with same interface as real dependencies
@@ -247,6 +280,7 @@ Need to create markdown templates for each agile step:
 **Estimated Effort**: 4-5 hours
 
 #### Integration Tests
+
 - ⏳ Expect scripts for TUI flows
 - ⏳ End-to-end workflow testing
 
@@ -305,7 +339,8 @@ From issue #210:
 **Files Modified**: 3 files
 **Test Coverage**: 0% (tests not yet written)
 
-### Breakdown by Component:
+### Breakdown by Component
+
 - Configuration: ~20 lines
 - PersonaMapper: ~38 lines
 - FeedbackDataParser: 313 lines
@@ -323,7 +358,8 @@ From issue #210:
 **Time Spent**: ~8-10 hours
 **Remaining**: ~8-10 hours
 
-### Remaining Breakdown:
+### Remaining Breakdown
+
 - LegacyResearchPlanner: 2-3 hours
 - AgilePlanBuilder: 3-4 hours
 - Workflow Definitions: 1-2 hours
@@ -338,6 +374,7 @@ From issue #210:
 ## Architecture Highlights
 
 ### Design Principles Applied ✅
+
 - ✅ Zero Framework Cognition (ZFC) - all semantic decisions to AI
 - ✅ Organized by PURPOSE (parsers/, generators/, analyzers/, mappers/)
 - ✅ Dependency injection throughout
@@ -348,6 +385,7 @@ From issue #210:
 - ✅ Following Sandi Metz guidelines (small classes, small methods)
 
 ### Code Reuse ✅
+
 - ✅ PersonaMapper reused for agile personas
 - ✅ WBSGenerator can be reused for iteration tasks (if needed)
 - ✅ GanttGenerator can be reused for timelines
@@ -375,6 +413,7 @@ To complete this implementation:
 7. **Validate and integrate** (~2-3 hours)
 
 **Recommended Approach:**
+
 - Complete remaining generators and orchestrator first
 - Then add tests (easier to test complete system)
 - Finally update documentation with real examples
@@ -391,4 +430,4 @@ To complete this implementation:
 ---
 
 **Branch**: `claude/issue-210-planning-01CRXeu6NznyZYdpQn3vdAgg`
-**Remote**: https://github.com/viamin/aidp/tree/claude/issue-210-planning-01CRXeu6NznyZYdpQn3vdAgg
+**Remote**: <https://github.com/viamin/aidp/tree/claude/issue-210-planning-01CRXeu6NznyZYdpQn3vdAgg>

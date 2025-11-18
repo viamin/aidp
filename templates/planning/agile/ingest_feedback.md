@@ -17,7 +17,9 @@ Collect user feedback data from CSV, JSON, or markdown files and normalize it in
 ## Supported Formats
 
 ### CSV Format
+
 Expected columns (flexible names):
+
 - `id` or `respondent_id` or `user_id` - Respondent identifier
 - `timestamp` or `date` or `submitted_at` - When submitted
 - `rating` or `score` - Numeric rating (1-5, 1-10, etc.)
@@ -27,9 +29,11 @@ Expected columns (flexible names):
 - `tags` - Comma-separated tags
 
 ### JSON Format
+
 Two structures supported:
 
 **Array of responses:**
+
 ```json
 [
   {
@@ -44,6 +48,7 @@ Two structures supported:
 ```
 
 **Object with responses key:**
+
 ```json
 {
   "survey_name": "MVP Feedback",
@@ -52,7 +57,9 @@ Two structures supported:
 ```
 
 ### Markdown Format
+
 Responses in sections:
+
 ```markdown
 ## Response 1
 **ID:** user123
@@ -64,6 +71,7 @@ Responses in sections:
 ## Normalization
 
 Normalize all formats to consistent structure:
+
 - `respondent_id` - User identifier
 - `timestamp` - Submission time
 - `rating` - Numeric rating (normalized)
@@ -83,6 +91,7 @@ Normalize all formats to consistent structure:
 4. Save normalized data to `.aidp/docs/feedback_data.json`
 
 Example:
+
 ```ruby
 prompt = TTY::Prompt.new
 file_path = prompt.ask("Enter path to feedback data file:", required: true)
@@ -111,6 +120,7 @@ prompt.ok("Feedback data ingested: #{feedback_data[:response_count]} responses")
 ## Validation
 
 Check for:
+
 - File exists and is readable
 - Format is supported (.csv, .json, .md)
 - Required fields present (at minimum: feedback text or rating)
@@ -119,6 +129,7 @@ Check for:
 ## Error Handling
 
 Handle gracefully:
+
 - File not found
 - Invalid format
 - Missing required fields

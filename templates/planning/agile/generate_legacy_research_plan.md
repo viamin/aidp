@@ -25,6 +25,7 @@ Analyze the existing codebase to understand:
 5. **Documentation**: README, docs, comments
 
 Use tree-sitter or static analysis to extract:
+
 - Classes and modules
 - Public APIs and methods
 - User workflows and entry points
@@ -34,14 +35,18 @@ Use tree-sitter or static analysis to extract:
 ## Legacy Research Plan Components
 
 ### 1. Current Feature Audit
+
 List of features identified in codebase:
+
 - Feature name
 - Description (what it does)
 - Entry points (how users access it)
 - Status (active, deprecated, experimental)
 
 ### 2. Research Questions
+
 Key questions to answer about user experience:
+
 - How are users currently using each feature?
 - What pain points exist in current workflows?
 - Which features are most/least valuable?
@@ -49,34 +54,44 @@ Key questions to answer about user experience:
 - What improvements would have biggest impact?
 
 ### 3. Research Methods
+
 Appropriate methods for legacy product:
+
 - **User Interviews**: Understand current usage and pain points
 - **Usage Analytics**: Analyze feature adoption and patterns
 - **Usability Testing**: Observe users with existing features
 - **Surveys**: Collect feedback from broad user base
 
 ### 4. Testing Priorities
+
 Which features/flows to focus on first:
+
 - High-usage features (most critical)
 - Features with known issues
 - Recently changed or updated features
 - Features with low adoption (understand why)
 
 ### 5. User Segments
+
 Different types of users to study:
+
 - Power users vs. casual users
 - Different use cases or workflows
 - Different industries or contexts
 
 ### 6. Improvement Opportunities
+
 Based on codebase analysis:
+
 - Missing features users likely need
 - Workflows that could be streamlined
 - Technical debt affecting user experience
 - Areas for modernization
 
 ### 7. Research Timeline
+
 Phases with duration:
+
 - Codebase analysis completion
 - User recruitment
 - Data collection (interviews, surveys, testing)
@@ -104,6 +119,7 @@ Phases with duration:
 ## Codebase Analysis Approach
 
 For static analysis:
+
 - Parse main entry points and routes
 - Extract public APIs and classes
 - Identify user-facing components
@@ -111,6 +127,7 @@ For static analysis:
 - Review documentation for feature descriptions
 
 For tree-sitter analysis:
+
 - Parse AST to find classes and methods
 - Identify public vs. private interfaces
 - Extract comments and documentation
@@ -120,6 +137,7 @@ For tree-sitter analysis:
 ## AI Analysis Guidelines
 
 Use AI Decision Engine to:
+
 - Generate feature descriptions from code structure
 - Create contextual research questions based on features
 - Prioritize features for testing

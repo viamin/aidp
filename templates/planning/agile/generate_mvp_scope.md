@@ -25,18 +25,21 @@ Define the MVP scope by distinguishing must-have features from nice-to-have feat
 ## MVP Scoping Principles
 
 **MVP Must-Haves:**
+
 - Features that deliver core value proposition
 - Features required to solve the main problem
 - Features necessary for minimal user workflows
 - Features that validate key assumptions
 
 **Nice-to-Have (Deferred):**
+
 - Enhancements that improve but aren't essential
 - Features that can be added based on user feedback
 - Polish and optimization that can wait
 - Features serving edge cases or secondary users
 
 **Out of Scope:**
+
 - Features not aligned with MVP goals
 - Complex features that can wait for validation
 - Features requiring significant unknowns
@@ -67,34 +70,44 @@ Define the MVP scope by distinguishing must-have features from nice-to-have feat
 Write to `.aidp/docs/MVP_SCOPE.md` with:
 
 ### User Priorities
+
 List of priorities collected from user input
 
 ### MVP Features (Must-Have)
+
 For each feature:
+
 - Name and description
 - Rationale for inclusion in MVP
 - Acceptance criteria
 
 ### Deferred Features (Nice-to-Have)
+
 For each feature:
+
 - Name and description
 - Reason for deferral
 
 ### Out of Scope
+
 List of explicitly excluded items
 
 ### Success Criteria
+
 Measurable criteria for MVP success
 
 ### Assumptions
+
 What we're assuming about users, technology, or market
 
 ### Risks
+
 Potential issues and mitigation strategies
 
 ## AI Analysis Guidelines
 
 Use AI Decision Engine to:
+
 - Analyze each feature's importance to core value prop
 - Assess complexity and effort required
 - Consider user impact and business value

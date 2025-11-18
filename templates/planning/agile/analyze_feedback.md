@@ -15,57 +15,75 @@ Perform comprehensive analysis of user feedback to extract insights, identify tr
 ## Analysis Components
 
 ### 1. Executive Summary
+
 High-level overview (2-3 paragraphs):
+
 - Overall sentiment and key themes
 - Most important findings
 - Top recommendations
 
 ### 2. Sentiment Breakdown
+
 Distribution analysis:
+
 - Positive/negative/neutral counts and percentages
 - Sentiment trends over time if timestamps available
 - Sentiment by feature or category
 
 ### 3. Key Findings
+
 3-5 major discoveries, each with:
+
 - Finding title and description
 - Evidence (quotes, data supporting the finding)
 - Impact assessment (high/medium/low)
 
 ### 4. Trends and Patterns
+
 Recurring themes across responses:
+
 - Trend description
 - Frequency (how often mentioned)
 - Implications for product development
 
 ### 5. Insights
+
 Categorized observations:
+
 - **Usability**: Ease of use, interface issues
 - **Features**: What's working, what's missing
 - **Performance**: Speed, reliability concerns
 - **Value**: Perceived value and benefits
 
 ### 6. Feature-Specific Feedback
+
 For each feature mentioned:
+
 - Overall sentiment
 - Positive feedback
 - Negative feedback
 - Suggested improvements
 
 ### 7. Priority Issues
+
 Critical items requiring immediate attention:
+
 - Issue description
 - Priority level (critical/high/medium)
 - Number/percentage of users affected
 - Recommended action
 
 ### 8. Positive Highlights
+
 What users loved:
+
 - Features or aspects that delighted users
 - Strengths to maintain or amplify
 
 ### 9. Recommendations
+
 4-6 actionable recommendations, each with:
+
 - Recommendation title and description
 - Rationale based on feedback
 - Effort estimate (low/medium/high)
@@ -74,21 +92,25 @@ What users loved:
 ## Analysis Principles
 
 **Semantic Analysis:**
+
 - Use AI to understand meaning and context, not just keywords
 - Identify themes across different wording
 - Understand user intent and emotion
 
 **Evidence-Based:**
+
 - Support findings with specific quotes or data
 - Quantify when possible
 - Don't over-generalize from limited data
 
 **Actionable:**
+
 - Translate insights into specific recommendations
 - Prioritize by impact and urgency
 - Make recommendations concrete and implementable
 
 **Objective:**
+
 - Present both positive and negative feedback fairly
 - Avoid bias toward confirming existing beliefs
 - Let data speak for itself
@@ -117,12 +139,14 @@ What users loved:
 Use AI Decision Engine with Zero Framework Cognition:
 
 **NO:**
+
 - Regex pattern matching
 - Keyword counting
 - Scoring formulas
 - Heuristic thresholds
 
 **YES:**
+
 - Semantic understanding of text
 - Context-aware analysis
 - Theme identification across varied wording
