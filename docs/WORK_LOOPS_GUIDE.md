@@ -702,6 +702,24 @@ Valid statuses:
 - `done` - Completed successfully
 - `abandoned` - Not doing this (requires reason)
 
+#### When to Abandon Tasks
+
+**Important**: Tasks in the list exist due to careful planning and requirements analysis. Agents should have a **strong bias against abandoning tasks** based on complexity or scope concerns.
+
+**Valid reasons to abandon:**
+- Requirements changed (external decision)
+- Duplicate work (already implemented elsewhere)
+- External blockers (dependency unavailable, API deprecated)
+- Task made obsolete by other changes
+
+**Invalid reasons to abandon:**
+- Task seems too complex
+- Task has large scope
+- Uncertainty about implementation approach
+- Lack of immediate clarity on details
+
+**When in doubt**: Mark the task as `in_progress` and implement it. If you encounter actual blockers during implementation, document them and only then consider abandonment with a specific reason.
+
 #### Task Completion Flow
 
 ```mermaid

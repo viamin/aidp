@@ -332,6 +332,14 @@ RSpec.describe "Work Loop Task Completion" do
         expect(header).to include("priority: high")
         expect(header).to include("tags:")
       end
+
+      it "includes anti-abandonment guidance" do
+        header = runner.send(:build_work_loop_header, "TEST_STEP", 1)
+
+        expect(header).to include("Do NOT abandon tasks due to perceived complexity or scope concerns")
+        expect(header).to include("careful planning and requirements analysis")
+        expect(header).to include("When in doubt, mark in_progress and implement")
+      end
     end
 
     context "when task_completion_required is false" do
