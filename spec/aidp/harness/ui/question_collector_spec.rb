@@ -4,22 +4,19 @@ require "spec_helper"
 require_relative "../../../../lib/aidp/harness/ui/question_collector"
 
 RSpec.describe Aidp::Harness::UI::QuestionCollector do
-  let(:question_collector) { described_class.new }
+  let(:mock_prompt) { double("TTY::Prompt", ask: "test response") }
+  let(:question_collector) { described_class.new(prompt: mock_prompt) }
   let(:sample_questions) { build_sample_questions }
 
   describe "#collect_questions" do
     context "when valid questions are provided" do
       it "returns a hash of responses" do
-        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "test response"))
-
         result = question_collector.collect_questions(sample_questions)
 
         expect(result).to be_a(Hash)
       end
 
       it "includes responses for all questions" do
-        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "test response"))
-
         result = question_collector.collect_questions(sample_questions)
 
         expect(result.keys).to match_array(["question_1", "question_2"])
@@ -27,11 +24,10 @@ RSpec.describe Aidp::Harness::UI::QuestionCollector do
 
       it "validates required questions" do
         required_questions = build_required_questions
-        allow(TTY::Prompt).to receive(:new).and_return(double(ask: "valid response"))
 
         result = question_collector.collect_questions(required_questions)
 
-        expect(result["question_1"]).to eq("valid response")
+        expect(result["question_1"]).to eq("test response")
       end
     end
 

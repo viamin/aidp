@@ -1068,6 +1068,7 @@ module Aidp
 
         configure_watch_safety
         configure_watch_labels
+        configure_watch_label_creation
       end
 
       def configure_watch_safety
@@ -1148,6 +1149,204 @@ module Aidp
           ci_fix_trigger: ci_fix_trigger,
           change_request_trigger: change_request_trigger
         })
+      end
+
+      def configure_watch_label_creation
+        prompt.say("\n🏷️  GitHub Label Auto-Creation")
+        prompt.say("  Automatically create GitHub labels for watch mode if they don't exist")
+
+        Aidp.log_debug("setup_wizard.label_creation", "start")
+
+        # Ask if user wants to auto-create labels
+        unless prompt.yes?("Auto-create GitHub labels if missing?", default: true)
+          Aidp.log_debug("setup_wizard.label_creation", "user_declined")
+          return
+        end
+
+        # Check if gh CLI is available
+        unless gh_cli_available?
+          prompt.warn("⚠️  GitHub CLI (gh) not found. Install it to enable label auto-creation.")
+          prompt.say("   Visit: https://cli.github.com/")
+          Aidp.log_debug("setup_wizard.label_creation", "gh_not_available")
+          return
+        end
+
+        # Extract repository info
+        repo_info = extract_repo_info
+        unless repo_info
+          prompt.warn("⚠️  Could not determine GitHub repository from git remote.")
+          prompt.say("   Ensure you're in a git repository with a GitHub remote configured.")
+          Aidp.log_debug("setup_wizard.label_creation", "repo_info_failed")
+          return
+        end
+
+        owner, repo = repo_info
+        Aidp.log_debug("setup_wizard.label_creation", "repo_detected", owner: owner, repo: repo)
+        prompt.say("📦 Repository: #{owner}/#{repo}")
+
+        # Fetch existing labels
+        existing_labels = fetch_existing_labels(owner, repo)
+        unless existing_labels
+          prompt.warn("⚠️  Failed to fetch existing labels. Check your GitHub authentication.")
+          Aidp.log_debug("setup_wizard.label_creation", "fetch_labels_failed")
+          return
+        end
+
+        Aidp.log_debug("setup_wizard.label_creation", "existing_labels_fetched", count: existing_labels.size)
+
+        # Get configured label names
+        labels_config = get([:watch, :labels]) || {}
+        required_labels = collect_required_labels(labels_config)
+
+        # Determine which labels need to be created
+        labels_to_create = required_labels.reject { |label| existing_labels.include?(label[:name]) }
+
+        if labels_to_create.empty?
+          prompt.ok("✅ All required labels already exist!")
+          Aidp.log_debug("setup_wizard.label_creation", "all_labels_exist")
+          return
+        end
+
+        # Show labels to be created
+        prompt.say("\n📝 Labels to create:")
+        labels_to_create.each do |label|
+          prompt.say("  • #{label[:name]} (#{label[:color]})")
+        end
+
+        # Confirm creation
+        unless prompt.yes?("Create these labels?", default: true)
+          Aidp.log_debug("setup_wizard.label_creation", "creation_declined")
+          return
+        end
+
+        # Create labels
+        create_labels(owner, repo, labels_to_create)
+      end
+
+      # Check if gh CLI is available
+      def gh_cli_available?
+        require "open3"
+        _stdout, _stderr, status = Open3.capture3("gh", "--version")
+        Aidp.log_debug("setup_wizard.gh_check", "version_check", success: status.success?)
+        status.success?
+      rescue Errno::ENOENT
+        Aidp.log_debug("setup_wizard.gh_check", "not_found")
+        false
+      end
+
+      # Extract repository owner and name from git remote
+      def extract_repo_info
+        require "open3"
+        stdout, stderr, status = Open3.capture3("git", "remote", "get-url", "origin")
+
+        unless status.success?
+          Aidp.log_debug("setup_wizard.repo_extraction", "git_remote_failed", error: stderr)
+          return nil
+        end
+
+        remote_url = stdout.strip
+        Aidp.log_debug("setup_wizard.repo_extraction", "remote_url_found", url: remote_url)
+
+        # Parse GitHub URL (supports both HTTPS and SSH formats)
+        # HTTPS: https://github.com/owner/repo.git
+        # SSH: git@github.com:owner/repo.git
+        if remote_url =~ %r{github\.com[:/]([^/]+)/(.+?)(?:\.git)?$}
+          owner = Regexp.last_match(1)
+          repo = Regexp.last_match(2)
+          Aidp.log_debug("setup_wizard.repo_extraction", "parsed", owner: owner, repo: repo)
+          [owner, repo]
+        else
+          Aidp.log_debug("setup_wizard.repo_extraction", "parse_failed", url: remote_url)
+          nil
+        end
+      rescue => e
+        Aidp.log_error("setup_wizard.repo_extraction", "exception", error: e.message)
+        nil
+      end
+
+      # Fetch existing labels from GitHub
+      def fetch_existing_labels(owner, repo)
+        require "open3"
+        stdout, stderr, status = Open3.capture3("gh", "label", "list", "-R", "#{owner}/#{repo}", "--json", "name", "--jq", ".[].name")
+
+        unless status.success?
+          Aidp.log_error("setup_wizard.fetch_labels", "gh_failed", error: stderr)
+          return nil
+        end
+
+        labels = stdout.strip.split("\n").map(&:strip).reject(&:empty?)
+        Aidp.log_debug("setup_wizard.fetch_labels", "fetched", count: labels.size)
+        labels
+      rescue => e
+        Aidp.log_error("setup_wizard.fetch_labels", "exception", error: e.message)
+        nil
+      end
+
+      # Collect required labels with their default colors
+      def collect_required_labels(labels_config)
+        default_colors = {
+          plan_trigger: "0E8A16",        # Green
+          needs_input: "D93F0B",         # Red
+          ready_to_build: "0075CA",      # Blue
+          build_trigger: "5319E7",       # Purple
+          review_trigger: "FBCA04",      # Yellow
+          ci_fix_trigger: "D93F0B",      # Red
+          change_request_trigger: "F9D0C4"  # Light pink
+        }
+
+        required = []
+        labels_config.each do |key, name|
+          next if name.nil? || name.to_s.strip.empty?
+
+          color = default_colors[key] || "EDEDED"  # Gray fallback
+          required << {name: name, color: color, key: key}
+        end
+
+        Aidp.log_debug("setup_wizard.collect_labels", "collected", count: required.size)
+        required
+      end
+
+      # Create labels on GitHub
+      def create_labels(owner, repo, labels)
+        require "open3"
+
+        created = 0
+        failed = 0
+
+        labels.each do |label|
+          Aidp.log_debug("setup_wizard.create_label", "creating", name: label[:name], color: label[:color])
+
+          _stdout, stderr, status = Open3.capture3(
+            "gh", "label", "create", label[:name],
+            "--color", label[:color],
+            "-R", "#{owner}/#{repo}"
+          )
+
+          if status.success?
+            prompt.ok("  ✅ Created: #{label[:name]}")
+            Aidp.log_info("setup_wizard.create_label", "success", name: label[:name])
+            created += 1
+          else
+            prompt.warn("  ⚠️  Failed to create: #{label[:name]} - #{stderr.strip}")
+            Aidp.log_error("setup_wizard.create_label", "failed", name: label[:name], error: stderr.strip)
+            failed += 1
+          end
+        rescue => e
+          prompt.warn("  ⚠️  Error creating #{label[:name]}: #{e.message}")
+          Aidp.log_error("setup_wizard.create_label", "exception", name: label[:name], error: e.message)
+          failed += 1
+        end
+
+        # Summary
+        prompt.say("")
+        if created > 0
+          prompt.ok("✅ Successfully created #{created} label#{"s" unless created == 1}")
+        end
+        if failed > 0
+          prompt.warn("⚠️  Failed to create #{failed} label#{"s" unless failed == 1}")
+        end
+
+        Aidp.log_info("setup_wizard.create_labels", "complete", created: created, failed: failed)
       end
 
       # -------------------------------------------

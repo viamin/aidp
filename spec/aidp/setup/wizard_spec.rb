@@ -1521,4 +1521,324 @@ RSpec.describe Aidp::Setup::Wizard do
       end
     end
   end
+
+  describe "#configure_watch_label_creation" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    before do
+      # Set up watch labels configuration
+      wizard.send(:set, [:watch, :labels], {
+        plan_trigger: "aidp-plan",
+        needs_input: "aidp-needs-input",
+        ready_to_build: "aidp-ready",
+        build_trigger: "aidp-build",
+        review_trigger: "aidp-review",
+        ci_fix_trigger: "aidp-fix-ci",
+        change_request_trigger: "aidp-request-changes"
+      })
+    end
+
+    context "when user declines label creation" do
+      it "exits early without checking gh CLI" do
+        test_prompt = TestPrompt.new(responses: {yes?: false})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        expect(wizard).not_to receive(:gh_cli_available?)
+        wizard.send(:configure_watch_label_creation)
+      end
+    end
+
+    context "when gh CLI is not available" do
+      it "warns and exits gracefully" do
+        test_prompt = TestPrompt.new(responses: {yes?: true})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        allow(wizard).to receive(:gh_cli_available?).and_return(false)
+        expect(wizard).not_to receive(:extract_repo_info)
+
+        wizard.send(:configure_watch_label_creation)
+      end
+    end
+
+    context "when repository info cannot be extracted" do
+      it "warns and exits gracefully" do
+        test_prompt = TestPrompt.new(responses: {yes?: true})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+
+        allow(wizard).to receive(:gh_cli_available?).and_return(true)
+        allow(wizard).to receive(:extract_repo_info).and_return(nil)
+        expect(wizard).not_to receive(:fetch_existing_labels)
+
+        wizard.send(:configure_watch_label_creation)
+      end
+    end
+
+    context "when fetching existing labels fails" do
+      it "warns and exits gracefully" do
+        test_prompt = TestPrompt.new(responses: {yes?: true})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:set, [:watch, :labels], {plan_trigger: "aidp-plan"})
+
+        allow(wizard).to receive(:gh_cli_available?).and_return(true)
+        allow(wizard).to receive(:extract_repo_info).and_return(["owner", "repo"])
+        allow(wizard).to receive(:fetch_existing_labels).and_return(nil)
+
+        wizard.send(:configure_watch_label_creation)
+      end
+    end
+
+    context "when all labels already exist" do
+      it "displays success message and exits" do
+        test_prompt = TestPrompt.new(responses: {yes?: true})
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:set, [:watch, :labels], {plan_trigger: "aidp-plan"})
+
+        allow(wizard).to receive(:gh_cli_available?).and_return(true)
+        allow(wizard).to receive(:extract_repo_info).and_return(["owner", "repo"])
+        allow(wizard).to receive(:fetch_existing_labels).and_return(["aidp-plan"])
+        expect(wizard).not_to receive(:create_labels)
+
+        wizard.send(:configure_watch_label_creation)
+      end
+    end
+
+    context "when labels need to be created" do
+      it "prompts for confirmation and creates labels" do
+        test_prompt = TestPrompt.new(responses: {
+          yes_map: {
+            "Auto-create GitHub labels if missing?" => true,
+            "Create these labels?" => true
+          }
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:set, [:watch, :labels], {
+          plan_trigger: "aidp-plan",
+          build_trigger: "aidp-build"
+        })
+
+        allow(wizard).to receive(:gh_cli_available?).and_return(true)
+        allow(wizard).to receive(:extract_repo_info).and_return(["owner", "repo"])
+        allow(wizard).to receive(:fetch_existing_labels).and_return(["aidp-plan"])
+
+        expect(wizard).to receive(:create_labels) do |owner, repo, labels|
+          expect(owner).to eq("owner")
+          expect(repo).to eq("repo")
+          expect(labels.size).to eq(1)
+          expect(labels.first[:name]).to eq("aidp-build")
+        end
+
+        wizard.send(:configure_watch_label_creation)
+      end
+    end
+
+    context "when user declines label creation confirmation" do
+      it "exits without creating labels" do
+        test_prompt = TestPrompt.new(responses: {
+          yes_map: {
+            "Auto-create GitHub labels if missing?" => true,
+            "Create these labels?" => false
+          }
+        })
+        wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
+        wizard.send(:set, [:watch, :labels], {plan_trigger: "aidp-plan"})
+
+        allow(wizard).to receive(:gh_cli_available?).and_return(true)
+        allow(wizard).to receive(:extract_repo_info).and_return(["owner", "repo"])
+        allow(wizard).to receive(:fetch_existing_labels).and_return([])
+
+        expect(wizard).not_to receive(:create_labels)
+        wizard.send(:configure_watch_label_creation)
+      end
+    end
+  end
+
+  describe "#gh_cli_available?" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "returns true when gh is available" do
+      allow(Open3).to receive(:capture3).with("gh", "--version").and_return(
+        ["gh version 2.0.0", "", double(success?: true)]
+      )
+      expect(wizard.send(:gh_cli_available?)).to be true
+    end
+
+    it "returns false when gh is not found" do
+      allow(Open3).to receive(:capture3).with("gh", "--version").and_raise(Errno::ENOENT)
+      expect(wizard.send(:gh_cli_available?)).to be false
+    end
+
+    it "returns false when gh command fails" do
+      allow(Open3).to receive(:capture3).with("gh", "--version").and_return(
+        ["", "error", double(success?: false)]
+      )
+      expect(wizard.send(:gh_cli_available?)).to be false
+    end
+  end
+
+  describe "#extract_repo_info" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "extracts owner and repo from HTTPS URL" do
+      allow(Open3).to receive(:capture3).with("git", "remote", "get-url", "origin").and_return(
+        ["https://github.com/viamin/aidp.git\n", "", double(success?: true)]
+      )
+      expect(wizard.send(:extract_repo_info)).to eq(["viamin", "aidp"])
+    end
+
+    it "extracts owner and repo from SSH URL" do
+      allow(Open3).to receive(:capture3).with("git", "remote", "get-url", "origin").and_return(
+        ["git@github.com:viamin/aidp.git\n", "", double(success?: true)]
+      )
+      expect(wizard.send(:extract_repo_info)).to eq(["viamin", "aidp"])
+    end
+
+    it "extracts owner and repo from URL without .git extension" do
+      allow(Open3).to receive(:capture3).with("git", "remote", "get-url", "origin").and_return(
+        ["https://github.com/viamin/aidp\n", "", double(success?: true)]
+      )
+      expect(wizard.send(:extract_repo_info)).to eq(["viamin", "aidp"])
+    end
+
+    it "returns nil when git remote fails" do
+      allow(Open3).to receive(:capture3).with("git", "remote", "get-url", "origin").and_return(
+        ["", "fatal: No such remote 'origin'", double(success?: false)]
+      )
+      expect(wizard.send(:extract_repo_info)).to be_nil
+    end
+
+    it "returns nil when URL is not a GitHub URL" do
+      allow(Open3).to receive(:capture3).with("git", "remote", "get-url", "origin").and_return(
+        ["https://gitlab.com/owner/repo.git\n", "", double(success?: true)]
+      )
+      expect(wizard.send(:extract_repo_info)).to be_nil
+    end
+  end
+
+  describe "#fetch_existing_labels" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "fetches and parses label names" do
+      allow(Open3).to receive(:capture3).with(
+        "gh", "label", "list", "-R", "owner/repo", "--json", "name", "--jq", ".[].name"
+      ).and_return(
+        ["bug\nenhancement\naidp-plan\n", "", double(success?: true)]
+      )
+      expect(wizard.send(:fetch_existing_labels, "owner", "repo")).to eq(["bug", "enhancement", "aidp-plan"])
+    end
+
+    it "returns nil when gh command fails" do
+      allow(Open3).to receive(:capture3).with(
+        "gh", "label", "list", "-R", "owner/repo", "--json", "name", "--jq", ".[].name"
+      ).and_return(
+        ["", "error: authentication required", double(success?: false)]
+      )
+      expect(wizard.send(:fetch_existing_labels, "owner", "repo")).to be_nil
+    end
+
+    it "handles empty label list" do
+      allow(Open3).to receive(:capture3).with(
+        "gh", "label", "list", "-R", "owner/repo", "--json", "name", "--jq", ".[].name"
+      ).and_return(
+        ["", "", double(success?: true)]
+      )
+      expect(wizard.send(:fetch_existing_labels, "owner", "repo")).to eq([])
+    end
+  end
+
+  describe "#collect_required_labels" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "collects labels with default colors" do
+      labels_config = {
+        plan_trigger: "aidp-plan",
+        build_trigger: "aidp-build"
+      }
+      result = wizard.send(:collect_required_labels, labels_config)
+
+      expect(result.size).to eq(2)
+      expect(result[0][:name]).to eq("aidp-plan")
+      expect(result[0][:color]).to eq("0E8A16")
+      expect(result[1][:name]).to eq("aidp-build")
+      expect(result[1][:color]).to eq("5319E7")
+    end
+
+    it "skips nil or empty label names" do
+      labels_config = {
+        plan_trigger: "aidp-plan",
+        build_trigger: nil,
+        review_trigger: ""
+      }
+      result = wizard.send(:collect_required_labels, labels_config)
+
+      expect(result.size).to eq(1)
+      expect(result[0][:name]).to eq("aidp-plan")
+    end
+
+    it "uses fallback color for unknown label types" do
+      labels_config = {
+        custom_label: "custom"
+      }
+      result = wizard.send(:collect_required_labels, labels_config)
+
+      expect(result.size).to eq(1)
+      expect(result[0][:color]).to eq("EDEDED")
+    end
+  end
+
+  describe "#create_labels" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "creates labels successfully" do
+      labels = [
+        {name: "aidp-plan", color: "0E8A16"},
+        {name: "aidp-build", color: "5319E7"}
+      ]
+
+      allow(Open3).to receive(:capture3).and_return(
+        ["", "", double(success?: true)]
+      )
+
+      wizard.send(:create_labels, "owner", "repo", labels)
+
+      expect(Open3).to have_received(:capture3).with(
+        "gh", "label", "create", "aidp-plan", "--color", "0E8A16", "-R", "owner/repo"
+      )
+      expect(Open3).to have_received(:capture3).with(
+        "gh", "label", "create", "aidp-build", "--color", "5319E7", "-R", "owner/repo"
+      )
+    end
+
+    it "handles failures gracefully" do
+      labels = [{name: "aidp-plan", color: "0E8A16"}]
+
+      allow(Open3).to receive(:capture3).and_return(
+        ["", "error: label already exists", double(success?: false)]
+      )
+
+      # Should not raise error
+      expect { wizard.send(:create_labels, "owner", "repo", labels) }.not_to raise_error
+    end
+
+    it "continues creating labels after individual failures" do
+      labels = [
+        {name: "label1", color: "000000"},
+        {name: "label2", color: "111111"}
+      ]
+
+      # First label fails, second succeeds
+      call_count = 0
+      allow(Open3).to receive(:capture3) do
+        call_count += 1
+        if call_count == 1
+          ["", "error", double(success?: false)]
+        else
+          ["", "", double(success?: true)]
+        end
+      end
+
+      wizard.send(:create_labels, "owner", "repo", labels)
+
+      expect(Open3).to have_received(:capture3).twice
+    end
+  end
 end
