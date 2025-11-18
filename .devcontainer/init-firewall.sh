@@ -23,11 +23,24 @@ if ! command -v yq >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check if YAML config exists (required)
+# Check if YAML config exists, generate if missing
 if [ ! -f "$FIREWALL_CONFIG" ]; then
-    echo "❌ ERROR: Firewall config not found at $FIREWALL_CONFIG" >&2
-    echo "   The YAML configuration file is required for firewall initialization." >&2
-    exit 1
+    echo "⚠️  Firewall config not found at $FIREWALL_CONFIG" >&2
+    echo "   Generating configuration from provider requirements..." >&2
+
+    # Try to generate the config using the Ruby utility
+    if command -v bundle >/dev/null 2>&1 && [ -f "/workspaces/aidp/bin/update-firewall-config" ]; then
+        cd /workspaces/aidp && bundle exec ruby bin/update-firewall-config
+        if [ $? -ne 0 ]; then
+            echo "❌ ERROR: Failed to generate firewall configuration" >&2
+            exit 1
+        fi
+        echo "✅ Firewall configuration generated successfully" >&2
+    else
+        echo "❌ ERROR: Cannot generate firewall config - bundle or update-firewall-config not available" >&2
+        echo "   Run 'bundle exec ruby bin/update-firewall-config' manually to generate the configuration" >&2
+        exit 1
+    fi
 fi
 
 # Flush existing iptables rules, but preserve Docker's DNS configuration

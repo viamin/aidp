@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "yaml"
+require "fileutils"
 require_relative "../providers/base"
 require_relative "../providers/anthropic"
 require_relative "../providers/cursor"
@@ -13,9 +14,80 @@ require_relative "../providers/codex"
 module Aidp
   module Firewall
     # Collects firewall requirements from all provider classes
-    # and updates the firewall configuration YAML file
+    # and generates the firewall configuration YAML file
     class ProviderRequirementsCollector
       attr_reader :config_path
+
+      # Core infrastructure domains not tied to specific providers
+      CORE_DOMAINS = {
+        ruby: [
+          "rubygems.org",
+          "api.rubygems.org",
+          "index.rubygems.org"
+        ],
+        javascript: [
+          "registry.npmjs.org",
+          "registry.yarnpkg.com"
+        ],
+        github: [
+          "github.com",
+          "api.github.com",
+          "raw.githubusercontent.com",
+          "objects.githubusercontent.com",
+          "gist.githubusercontent.com",
+          "cloud.githubusercontent.com"
+        ],
+        cdn: [
+          "cdn.jsdelivr.net"
+        ],
+        vscode: [
+          "update.code.visualstudio.com",
+          "marketplace.visualstudio.com",
+          "vscode.blob.core.windows.net",
+          "vscode.download.prss.microsoft.com",
+          "az764295.vo.msecnd.net",
+          "gallerycdn.vsassets.io",
+          "vscode.gallerycdn.vsassets.io",
+          "gallery.vsassets.io",
+          "vscode-sync.trafficmanager.net",
+          "vscode.dev",
+          "go.microsoft.com",
+          "download.visualstudio.microsoft.com"
+        ],
+        telemetry: [
+          "dc.services.visualstudio.com",
+          "vortex.data.microsoft.com"
+        ]
+      }.freeze
+
+      # Static IP ranges (CIDR notation)
+      STATIC_IP_RANGES = [
+        {cidr: "140.82.112.0/20", comment: "GitHub main infrastructure (covers 140.82.112.0 - 140.82.127.255)"},
+        {cidr: "127.0.0.0/8", comment: "Localhost loopback"}
+      ].freeze
+
+      # Azure IP ranges for GitHub Copilot and VS Code services
+      # These use broader /16 ranges to handle dynamic IP allocation across Azure regions
+      AZURE_IP_RANGES = [
+        {cidr: "20.189.0.0/16", comment: "Azure WestUS2 (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {cidr: "104.208.0.0/16", comment: "Azure EastUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {cidr: "52.168.0.0/16", comment: "Azure EastUS2 (GitHub Copilot - covers .112 and .117, broad range)"},
+        {cidr: "40.79.0.0/16", comment: "Azure WestUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {cidr: "13.89.0.0/16", comment: "Azure EastUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {cidr: "13.69.0.0/16", comment: "Azure (covers .239, broad range due to dynamic IP allocation)"},
+        {cidr: "13.66.0.0/16", comment: "Azure WestUS2 (VS Code sync service - broad range)"},
+        {cidr: "20.42.0.0/16", comment: "Azure WestEurope (covers .65 and .73, broad range)"},
+        {cidr: "20.50.0.0/16", comment: "Azure (covers .80, broad range due to dynamic IP allocation)"}
+      ].freeze
+
+      # Dynamic IP sources configuration
+      DYNAMIC_SOURCES = {
+        github_meta_api: {
+          url: "https://api.github.com/meta",
+          fields: ["git"],
+          comment: "GitHub Git protocol IP ranges (dynamically fetched)"
+        }
+      }.freeze
 
       def initialize(config_path: nil)
         @config_path = config_path || default_config_path
@@ -69,49 +141,62 @@ module Aidp
         }
       end
 
-      # Update the YAML configuration file with provider requirements
+      # Generate the complete YAML configuration file
       #
-      # @param dry_run [Boolean] If true, only log what would be updated
-      # @return [Boolean] True if update was successful
-      def update_yaml_config(dry_run: false)
-        Aidp.log_info("firewall_collector", "updating config", path: @config_path, dry_run: dry_run)
+      # Creates a new YAML file with core infrastructure and provider requirements
+      #
+      # @param dry_run [Boolean] If true, only log what would be generated
+      # @return [Boolean] True if generation was successful
+      def generate_yaml_config(dry_run: false)
+        Aidp.log_info("firewall_collector", "generating config", path: @config_path, dry_run: dry_run)
 
-        unless File.exist?(@config_path)
-          Aidp.log_error("firewall_collector", "config file not found", path: @config_path)
-          return false
-        end
+        # Collect provider requirements
+        provider_requirements = collect_requirements
+        deduplicated = deduplicate(provider_requirements)
 
-        # Load existing config
-        config = YAML.load_file(@config_path)
-
-        # Collect and deduplicate requirements
-        requirements = collect_requirements
-        deduplicated = deduplicate(requirements)
-
-        # Update provider_domains section
-        config["provider_domains"] = requirements.transform_values { |reqs| reqs[:domains] }
+        # Build complete configuration
+        config = {
+          "version" => 1,
+          "static_ip_ranges" => STATIC_IP_RANGES,
+          "azure_ip_ranges" => AZURE_IP_RANGES,
+          "core_domains" => CORE_DOMAINS.transform_keys(&:to_s),
+          "provider_domains" => provider_requirements.transform_values { |reqs| reqs[:domains] },
+          "dynamic_sources" => DYNAMIC_SOURCES.transform_keys(&:to_s).transform_values do |v|
+            v.transform_keys(&:to_s)
+          end
+        }
 
         if dry_run
-          Aidp.log_info("firewall_collector", "dry run - would update", domains: deduplicated[:all_domains].size)
-          puts "Would update #{deduplicated[:all_domains].size} unique domains from #{requirements.size} providers"
+          Aidp.log_info("firewall_collector", "dry run - would generate", domains: deduplicated[:all_domains].size)
+          puts "Would generate YAML with:"
+          puts "  - #{STATIC_IP_RANGES.size} static IP ranges"
+          puts "  - #{AZURE_IP_RANGES.size} Azure IP ranges"
+          puts "  - #{CORE_DOMAINS.values.flatten.size} core domains"
+          puts "  - #{deduplicated[:all_domains].size} provider domains from #{provider_requirements.size} providers"
           return true
         end
 
-        # Write updated config
+        # Ensure directory exists
+        FileUtils.mkdir_p(File.dirname(@config_path))
+
+        # Write configuration
         File.write(@config_path, YAML.dump(config))
         Aidp.log_info(
           "firewall_collector",
-          "config updated",
+          "config generated",
           path: @config_path,
-          providers: requirements.size,
-          domains: deduplicated[:all_domains].size
+          providers: provider_requirements.size,
+          total_domains: CORE_DOMAINS.values.flatten.size + deduplicated[:all_domains].size
         )
 
         true
       rescue => e
-        Aidp.log_error("firewall_collector", "update failed", error: e.message)
+        Aidp.log_error("firewall_collector", "generation failed", error: e.message)
         false
       end
+
+      # Alias for backward compatibility
+      alias_method :update_yaml_config, :generate_yaml_config
 
       # Generate a summary report of provider requirements
       #

@@ -88,15 +88,18 @@ If you modify the Dockerfile or devcontainer.json:
 
 ### Firewall Configuration
 
-The container implements strict outbound network filtering using a YAML-based configuration:
+The container implements strict outbound network filtering using an auto-generated YAML configuration:
 
-- **Configuration**: `.aidp/firewall-allowlist.yml` defines allowed domains and IP ranges
+- **Configuration**: `.aidp/firewall-allowlist.yml` is **auto-generated** from provider classes during container setup
+- **Core Infrastructure**: Defined in `lib/aidp/firewall/provider_requirements_collector.rb`
+- **Provider Domains**: Collected from each provider's `firewall_requirements` method
 - **Default Policy**: DROP all traffic
 - **Allowed**: Only explicitly allowlisted domains and IP ranges
 - **DNS**: Unrestricted (port 53)
 - **SSH**: Allowed (port 22)
 - **HTTP/HTTPS**: Only to allowlisted IPs
 - **Dynamic Updates**: GitHub IP ranges are fetched automatically at startup
+- **Generation**: Automatically runs during `postCreateCommand`, or on-demand via `bin/update-firewall-config`
 
 ### Provider Domain Coverage
 
@@ -114,7 +117,7 @@ The allowlist intentionally includes domains needed for authentication and runti
 
 Additional supporting domains: package registries (`rubygems.org`, `registry.npmjs.org`), VS Code services (updates / marketplace), and a general CDN (`cdn.jsdelivr.net`).
 
-Provider-specific firewall requirements are defined in each provider class (`lib/aidp/providers/*.rb`) and automatically collected into the YAML configuration. If a provider introduces new endpoints (e.g., beta subdomains), update the provider's `firewall_requirements` method and regenerate the configuration using `bin/update-firewall-config`.
+Provider-specific firewall requirements are defined in each provider class (`lib/aidp/providers/*.rb`) and automatically collected when the YAML is generated. If a provider introduces new endpoints (e.g., beta subdomains), update the provider's `firewall_requirements` method and regenerate the configuration using `bundle exec ruby bin/update-firewall-config`.
 
 ### Enabling Blocked Domain Logging
 
@@ -184,12 +187,16 @@ Each line will include source IP, destination IP, and port. Example:
   Then regenerate the configuration:
 
   ```bash
-  bundle exec bin/update-firewall-config
+  bundle exec ruby bin/update-firewall-config
   ```
 
-3. **For core infrastructure domains**: Add directly to `.aidp/firewall-allowlist.yml` under the appropriate section (e.g., `core_domains.ruby`, `core_domains.vscode`, etc.)
+3. **For core infrastructure domains**: Update the constants in `lib/aidp/firewall/provider_requirements_collector.rb` (e.g., `CORE_DOMAINS`, `STATIC_IP_RANGES`, `AZURE_IP_RANGES`), then regenerate:
 
-4. Re-run the firewall script or rebuild the container:
+  ```bash
+  bundle exec ruby bin/update-firewall-config
+  ```
+
+4. Re-run the firewall script (or it will auto-regenerate on next container start):
 
   ```bash
   sudo /usr/local/bin/init-firewall.sh
@@ -261,14 +268,17 @@ Keep scope narrow; remove after diagnosing.
 
 ### Allowlisted Domains
 
-The firewall allowlist is defined in `.aidp/firewall-allowlist.yml` with the following categories:
+The firewall allowlist is **auto-generated** in `.aidp/firewall-allowlist.yml` from:
 
-- **Static IP Ranges**: Core infrastructure IP ranges (GitHub, localhost)
-- **Azure IP Ranges**: Broad ranges for GitHub Copilot and VS Code services
-- **Core Domains**: Package managers (RubyGems, npm), GitHub infrastructure, VS Code services, CDNs
-- **Provider Domains**: AI provider APIs (automatically populated from provider classes)
+- **Core Infrastructure** (defined in `ProviderRequirementsCollector`):
+  - Static IP Ranges: GitHub, localhost
+  - Azure IP Ranges: Broad ranges for GitHub Copilot and VS Code services
+  - Core Domains: Package managers (RubyGems, npm), GitHub infrastructure, VS Code services, CDNs
 
-See "Provider Domain Coverage" above for the current provider list. `.aidp/firewall-allowlist.yml` is the source of truth.
+- **Provider Domains** (automatically collected from provider classes):
+  - AI provider APIs from each provider's `firewall_requirements` method
+
+See "Provider Domain Coverage" above for the current provider list. The **source of truth** is the provider classes and `ProviderRequirementsCollector`, not the generated YAML.
 
 ### Adding New Domains
 
@@ -276,19 +286,20 @@ To add a new domain to the allowlist:
 
 **Option 1: Provider-Specific Domain**
 1. Update the provider class's `firewall_requirements` method in `lib/aidp/providers/<provider>.rb`
-2. Run `bundle exec bin/update-firewall-config` to regenerate the YAML
-3. Rebuild the container or re-run the firewall script
+2. Run `bundle exec ruby bin/update-firewall-config` to regenerate the YAML
+3. Restart the container or re-run the firewall script
 
 **Option 2: Core Infrastructure Domain**
-1. Edit `.aidp/firewall-allowlist.yml`
-2. Add the domain under the appropriate `core_domains` category (e.g., `ruby`, `vscode`, etc.)
-3. Rebuild the container or re-run the firewall script
+1. Edit `lib/aidp/firewall/provider_requirements_collector.rb`
+2. Add to the appropriate constant (`CORE_DOMAINS`, `STATIC_IP_RANGES`, or `AZURE_IP_RANGES`)
+3. Run `bundle exec ruby bin/update-firewall-config` to regenerate the YAML
+4. Restart the container or re-run the firewall script
 
 **Option 3: New Category**
-1. Edit `.aidp/firewall-allowlist.yml`
-2. Add a new category under `core_domains` or `provider_domains`
-3. Update `init-firewall.sh` to read the new category (if needed)
-4. Rebuild the container
+1. Edit `lib/aidp/firewall/provider_requirements_collector.rb`
+2. Add a new category to `CORE_DOMAINS` constant
+3. No changes to `init-firewall.sh` needed (it reads all categories dynamically)
+4. Run `bundle exec ruby bin/update-firewall-config` and restart
 
 ## Customization
 

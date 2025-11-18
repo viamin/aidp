@@ -4,55 +4,79 @@ This document explains how the AIDP devcontainer firewall configuration works an
 
 ## Overview
 
-The AIDP devcontainer implements strict network access control using a YAML-based configuration file that defines allowed domains and IP ranges. This approach:
+The AIDP devcontainer implements strict network access control using an **auto-generated YAML configuration file** that is built from provider requirements. This approach:
 
-- Provides centralized configuration management
-- Enables provider classes to declare their firewall requirements
+- **Provider classes declare their firewall requirements** via `firewall_requirements` class method
+- **Core infrastructure** is defined as constants in `ProviderRequirementsCollector`
+- **YAML is auto-generated** during container setup, not manually maintained
+- **Single source of truth**: Provider classes and collector constants, not the YAML file
 - Supports automatic collection and deduplication of requirements
-- Allows fallback mode when YAML parsing is unavailable
 
 ## Architecture
 
 ### Components
 
-1. **YAML Configuration** (`.aidp/firewall-allowlist.yml`)
-   - Single source of truth for firewall rules
-   - Defines static IP ranges, Azure ranges, core domains, and provider domains
-   - Used by `init-firewall.sh` at container startup
-
-2. **Provider Requirements** (`lib/aidp/providers/*.rb`)
-   - Each provider class defines its firewall requirements via `firewall_requirements` class method
+1. **Provider Requirements** (`lib/aidp/providers/*.rb`)
+   - **Source of truth** for provider-specific firewall requirements
+   - Each provider class defines its requirements via `firewall_requirements` class method
    - Returns hash with `:domains` and `:ip_ranges` keys
 
-3. **Requirements Collector** (`lib/aidp/firewall/provider_requirements_collector.rb`)
+2. **Requirements Collector** (`lib/aidp/firewall/provider_requirements_collector.rb`)
+   - **Source of truth** for core infrastructure requirements (constants)
+   - Defines `CORE_DOMAINS`, `STATIC_IP_RANGES`, `AZURE_IP_RANGES`
    - Collects requirements from all provider classes
-   - Deduplicates and merges requirements
-   - Updates YAML configuration file
+   - Deduplicates and merges all requirements
+   - **Generates** the YAML configuration file
+
+3. **YAML Configuration** (`.aidp/firewall-allowlist.yml`)
+   - **Auto-generated build artifact**, not source code
+   - Generated during `postCreateCommand` or on-demand via `bin/update-firewall-config`
+   - Used by `init-firewall.sh` at container startup
+   - **Not committed to git** (in `.aidp/` which is gitignored)
 
 4. **Firewall Script** (`.devcontainer/init-firewall.sh`)
    - Reads YAML configuration using `yq`
+   - Auto-generates YAML if missing (failsafe)
    - Resolves domains to IPs at runtime
    - Configures iptables and ipset
-   - Falls back to essential domains if YAML unavailable
 
 ## Configuration File Structure
 
+The YAML file is **auto-generated** from:
+
+**Source (Provider Classes + Collector Constants):**
+```ruby
+# In lib/aidp/providers/anthropic.rb
+def self.firewall_requirements
+  {
+    domains: ["api.anthropic.com", "claude.ai"],
+    ip_ranges: []
+  }
+end
+
+# In lib/aidp/firewall/provider_requirements_collector.rb
+CORE_DOMAINS = {
+  ruby: ["rubygems.org", "api.rubygems.org"],
+  github: ["github.com", "api.github.com"]
+}.freeze
+
+STATIC_IP_RANGES = [
+  {cidr: "140.82.112.0/20", comment: "GitHub infrastructure"},
+  {cidr: "127.0.0.0/8", comment: "Localhost"}
+].freeze
+```
+
+**Generated YAML (`.aidp/firewall-allowlist.yml`):**
 ```yaml
 version: 1
-
-# Static IP ranges (always allowed)
 static_ip_ranges:
   - cidr: "140.82.112.0/20"
     comment: "GitHub main infrastructure"
   - cidr: "127.0.0.0/8"
     comment: "Localhost"
-
-# Azure IP ranges (for GitHub Copilot and VS Code)
 azure_ip_ranges:
   - cidr: "20.189.0.0/16"
     comment: "Azure WestUS2 (broad range due to dynamic IP allocation)"
-
-# Core infrastructure domains
 core_domains:
   ruby:
     - "rubygems.org"
@@ -60,16 +84,10 @@ core_domains:
   github:
     - "github.com"
     - "api.github.com"
-  # ... other categories
-
-# Provider-specific domains (auto-generated)
 provider_domains:
   anthropic:
     - "api.anthropic.com"
     - "claude.ai"
-  # ... other providers
-
-# Dynamic IP sources
 dynamic_sources:
   github_meta_api:
     url: "https://api.github.com/meta"
@@ -116,29 +134,44 @@ bundle exec bin/update-firewall-config --report
 
 For domains not tied to a specific provider (package managers, CDNs, etc.):
 
-1. Edit `.aidp/firewall-allowlist.yml`
-2. Add domains under the appropriate category:
+1. Edit `lib/aidp/firewall/provider_requirements_collector.rb`
+2. Add domains to the `CORE_DOMAINS` constant:
 
-```yaml
-core_domains:
-  package_managers:
-    - "existing.domain.com"
-    - "new.domain.com"  # Add here
+```ruby
+CORE_DOMAINS = {
+  ruby: [
+    "rubygems.org",
+    "api.rubygems.org",
+    "new.ruby-domain.com"  # Add here
+  ],
+  # ... other categories
+}.freeze
 ```
 
-3. No regeneration needed for core domains
+3. Regenerate the YAML:
+
+```bash
+bundle exec ruby bin/update-firewall-config
+```
 
 ### Option 3: Static IP Ranges
 
 For IP ranges that should always be allowed:
 
-1. Edit `.aidp/firewall-allowlist.yml`
-2. Add to `static_ip_ranges` or `azure_ip_ranges`:
+1. Edit `lib/aidp/firewall/provider_requirements_collector.rb`
+2. Add to `STATIC_IP_RANGES` or `AZURE_IP_RANGES`:
 
-```yaml
-static_ip_ranges:
-  - cidr: "10.0.0.0/8"
-    comment: "Private network range"
+```ruby
+STATIC_IP_RANGES = [
+  {cidr: "140.82.112.0/20", comment: "GitHub infrastructure"},
+  {cidr: "10.0.0.0/8", comment: "Private network range"}  # Add here
+].freeze
+```
+
+3. Regenerate the YAML:
+
+```bash
+bundle exec ruby bin/update-firewall-config
 ```
 
 ## Managing Provider Requirements
@@ -148,7 +181,7 @@ static_ip_ranges:
 Generate a report of all provider firewall requirements:
 
 ```bash
-bundle exec bin/update-firewall-config --report
+bundle exec ruby bin/update-firewall-config --report
 ```
 
 Output example:
@@ -183,16 +216,16 @@ Cursor:
 ...
 ```
 
-### Updating Configuration
+### Regenerating Configuration
 
-After modifying provider requirements, update the YAML:
+After modifying provider requirements or collector constants, regenerate the YAML:
 
 ```bash
-# Dry run (show what would change)
-bundle exec bin/update-firewall-config --dry-run
+# Dry run (show what would be generated)
+bundle exec ruby bin/update-firewall-config --dry-run
 
-# Actually update the file
-bundle exec bin/update-firewall-config
+# Actually generate the file
+bundle exec ruby bin/update-firewall-config
 ```
 
 ## Firewall Script Operation
