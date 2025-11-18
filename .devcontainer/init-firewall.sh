@@ -16,18 +16,18 @@ fi
 
 echo "🔒 Initializing firewall for AIDP development container..."
 
-# Check if yq is available for YAML parsing
+# Check if yq is available for YAML parsing (required)
 if ! command -v yq >/dev/null 2>&1; then
-    echo "⚠️  yq not available. Install yq for YAML parsing or use fallback mode." >&2
-    USE_FALLBACK=true
-else
-    USE_FALLBACK=false
+    echo "❌ ERROR: yq not available. YAML parsing is required for firewall configuration." >&2
+    echo "   Install yq or rebuild the devcontainer to include yq." >&2
+    exit 1
 fi
 
-# Check if YAML config exists
+# Check if YAML config exists (required)
 if [ ! -f "$FIREWALL_CONFIG" ]; then
-    echo "⚠️  Firewall config not found at $FIREWALL_CONFIG. Using defaults." >&2
-    USE_FALLBACK=true
+    echo "❌ ERROR: Firewall config not found at $FIREWALL_CONFIG" >&2
+    echo "   The YAML configuration file is required for firewall initialization." >&2
+    exit 1
 fi
 
 # Flush existing iptables rules, but preserve Docker's DNS configuration
@@ -96,97 +96,75 @@ add_domain() {
 }
 
 # Read and parse YAML configuration
-if [ "$USE_FALLBACK" = false ]; then
-    echo "📄 Reading firewall configuration from $FIREWALL_CONFIG..."
+echo "📄 Reading firewall configuration from $FIREWALL_CONFIG..."
 
-    # Add static IP ranges
-    echo "📋 Adding static IP ranges..."
-    mapfile -t STATIC_IPS < <(yq eval '.static_ip_ranges[].cidr' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for range in "${STATIC_IPS[@]}"; do
-        [ -n "$range" ] && [ "$range" != "null" ] && add_ip_range "$range"
-    done
+# Add static IP ranges
+echo "📋 Adding static IP ranges..."
+mapfile -t STATIC_IPS < <(yq eval '.static_ip_ranges[].cidr' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for range in "${STATIC_IPS[@]}"; do
+    [ -n "$range" ] && [ "$range" != "null" ] && add_ip_range "$range"
+done
 
-    # Add Azure IP ranges
-    echo "📋 Adding Azure IP ranges..."
-    mapfile -t AZURE_IPS < <(yq eval '.azure_ip_ranges[].cidr' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for range in "${AZURE_IPS[@]}"; do
-        [ -n "$range" ] && [ "$range" != "null" ] && add_ip_range "$range"
-    done
+# Add Azure IP ranges
+echo "📋 Adding Azure IP ranges..."
+mapfile -t AZURE_IPS < <(yq eval '.azure_ip_ranges[].cidr' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for range in "${AZURE_IPS[@]}"; do
+    [ -n "$range" ] && [ "$range" != "null" ] && add_ip_range "$range"
+done
 
-    # Add core domains
-    echo "🌐 Adding core infrastructure domains..."
+# Add core domains
+echo "🌐 Adding core infrastructure domains..."
 
-    # Ruby domains
-    mapfile -t RUBY_DOMAINS < <(yq eval '.core_domains.ruby[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for domain in "${RUBY_DOMAINS[@]}"; do
+# Ruby domains
+mapfile -t RUBY_DOMAINS < <(yq eval '.core_domains.ruby[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for domain in "${RUBY_DOMAINS[@]}"; do
+    [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+done
+
+# JavaScript domains
+mapfile -t JS_DOMAINS < <(yq eval '.core_domains.javascript[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for domain in "${JS_DOMAINS[@]}"; do
+    [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+done
+
+# GitHub domains
+mapfile -t GITHUB_DOMAINS < <(yq eval '.core_domains.github[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for domain in "${GITHUB_DOMAINS[@]}"; do
+    [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+done
+
+# CDN domains
+mapfile -t CDN_DOMAINS < <(yq eval '.core_domains.cdn[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for domain in "${CDN_DOMAINS[@]}"; do
+    [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+done
+
+# VS Code domains
+mapfile -t VSCODE_DOMAINS < <(yq eval '.core_domains.vscode[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for domain in "${VSCODE_DOMAINS[@]}"; do
+    [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+done
+
+# Telemetry domains (optional)
+mapfile -t TELEMETRY_DOMAINS < <(yq eval '.core_domains.telemetry[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+for domain in "${TELEMETRY_DOMAINS[@]}"; do
+    [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
+done
+
+# Add provider-specific domains
+echo "🤖 Adding AI provider domains..."
+
+# Get all provider names
+mapfile -t PROVIDERS < <(yq eval '.provider_domains | keys | .[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
+
+for provider in "${PROVIDERS[@]}"; do
+    [ -n "$provider" ] && [ "$provider" != "null" ] || continue
+    echo "  Adding domains for $provider..."
+    mapfile -t PROVIDER_DOMAINS < <(yq eval ".provider_domains.$provider[]" "$FIREWALL_CONFIG" 2>/dev/null || true)
+    for domain in "${PROVIDER_DOMAINS[@]}"; do
         [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
     done
-
-    # JavaScript domains
-    mapfile -t JS_DOMAINS < <(yq eval '.core_domains.javascript[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for domain in "${JS_DOMAINS[@]}"; do
-        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
-    done
-
-    # GitHub domains
-    mapfile -t GITHUB_DOMAINS < <(yq eval '.core_domains.github[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for domain in "${GITHUB_DOMAINS[@]}"; do
-        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
-    done
-
-    # CDN domains
-    mapfile -t CDN_DOMAINS < <(yq eval '.core_domains.cdn[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for domain in "${CDN_DOMAINS[@]}"; do
-        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
-    done
-
-    # VS Code domains
-    mapfile -t VSCODE_DOMAINS < <(yq eval '.core_domains.vscode[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for domain in "${VSCODE_DOMAINS[@]}"; do
-        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
-    done
-
-    # Telemetry domains (optional)
-    mapfile -t TELEMETRY_DOMAINS < <(yq eval '.core_domains.telemetry[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
-    for domain in "${TELEMETRY_DOMAINS[@]}"; do
-        [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
-    done
-
-    # Add provider-specific domains
-    echo "🤖 Adding AI provider domains..."
-
-    # Get all provider names
-    mapfile -t PROVIDERS < <(yq eval '.provider_domains | keys | .[]' "$FIREWALL_CONFIG" 2>/dev/null || true)
-
-    for provider in "${PROVIDERS[@]}"; do
-        [ -n "$provider" ] && [ "$provider" != "null" ] || continue
-        echo "  Adding domains for $provider..."
-        mapfile -t PROVIDER_DOMAINS < <(yq eval ".provider_domains.$provider[]" "$FIREWALL_CONFIG" 2>/dev/null || true)
-        for domain in "${PROVIDER_DOMAINS[@]}"; do
-            [ -n "$domain" ] && [ "$domain" != "null" ] && add_domain "$domain"
-        done
-    done
-else
-    echo "⚠️  Using fallback configuration (YAML not available)" >&2
-
-    # Fallback: Add essential static ranges
-    echo "📋 Adding essential static IP ranges..."
-    add_ip_range "140.82.112.0/20"    # GitHub main infrastructure
-    add_ip_range "127.0.0.0/8"        # Localhost
-
-    # Fallback: Add essential Azure ranges
-    echo "📋 Adding essential Azure IP ranges..."
-    add_ip_range "20.189.0.0/16"      # Azure WestUS2
-    add_ip_range "104.208.0.0/16"     # Azure EastUS
-    add_ip_range "52.168.0.0/16"      # Azure EastUS2
-
-    # Fallback: Add essential domains
-    echo "🌐 Adding essential domains..."
-    add_domain "rubygems.org"
-    add_domain "api.rubygems.org"
-    add_domain "github.com"
-    add_domain "api.github.com"
-fi
+done
 
 # Always fetch GitHub IP ranges dynamically
 echo "📋 Fetching GitHub IP ranges..."
