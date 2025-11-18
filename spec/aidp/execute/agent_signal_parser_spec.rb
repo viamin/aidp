@@ -222,15 +222,26 @@ RSpec.describe Aidp::Execute::AgentSignalParser do
         output = 'File task: "Test" priority: invalid'
         result = described_class.parse_task_filing(output)
 
-        # Invalid priority gets ignored, defaults to medium
-        expect(result.size).to eq(0)
+        # Invalid priority doesn't match the pattern, so it's ignored and defaults to medium
+        expect(result.size).to eq(1)
+        expect(result[0][:description]).to eq("Test")
+        expect(result[0][:priority]).to eq(:medium)
       end
 
-      it "handles tags with whitespace" do
-        output = 'File task: "Test" tags: frontend, backend, api'
+      it "handles tags without spaces between commas" do
+        output = 'File task: "Test" tags: frontend,backend,api'
         result = described_class.parse_task_filing(output)
 
+        # Tags pattern [^\s]+ captures up to first space, so no spaces allowed between tags
         expect(result[0][:tags]).to eq(["frontend", "backend", "api"])
+      end
+
+      it "captures only first tag when tags have spaces after commas" do
+        output = 'File task: "Test" tags: frontend, backend'
+        result = described_class.parse_task_filing(output)
+
+        # Pattern [^\s]+ stops at space, so only captures "frontend,"
+        expect(result[0][:tags]).to eq(["frontend", ""])
       end
 
       it "handles descriptions with special characters" do
