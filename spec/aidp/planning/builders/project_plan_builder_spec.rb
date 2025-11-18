@@ -3,7 +3,7 @@
 require "spec_helper"
 require_relative "../../../../lib/aidp/planning/builders/project_plan_builder"
 
-RSpec.describe Aidp::Planning::ProjectPlanBuilder do
+RSpec.describe Aidp::Planning::Builders::ProjectPlanBuilder do
   let(:mock_ai_engine) { double("AIDecisionEngine") }
   let(:mock_doc_parser) { double("DocumentParser") }
   let(:mock_wbs_generator) { double("WBSGenerator") }
