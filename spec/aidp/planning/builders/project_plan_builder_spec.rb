@@ -261,6 +261,8 @@ RSpec.describe Aidp::Planning::Builders::ProjectPlanBuilder do
       custom_wbs = {phases: [], metadata: {}}
       allow(mock_wbs_generator).to receive(:generate).and_return(custom_wbs)
       allow(mock_wbs_generator).to receive(:format_as_markdown).and_return("")
+      allow(mock_gantt_generator).to receive(:generate).and_return(sample_gantt)
+      allow(mock_persona_mapper).to receive(:assign_personas).and_return(sample_persona_assignments)
 
       builder.build_from_scratch({problem: "test"})
 

@@ -37,7 +37,7 @@ RSpec.describe Aidp::Planning::Mappers::PersonaMapper do
     it "passes task details to AI engine" do
       mapper.assign_personas(sample_tasks)
 
-      expect(mock_ai_engine).to have_received(:decide).with(
+      expect(mock_ai_engine).to have_received(:decide).at_least(:once).with(
         hash_including(
           context: "persona assignment",
           data: hash_including(:task_name, :available_personas)
@@ -82,7 +82,7 @@ RSpec.describe Aidp::Planning::Mappers::PersonaMapper do
       it "uses provided persona list" do
         mapper.assign_personas(sample_tasks, available_personas: custom_personas)
 
-        expect(mock_ai_engine).to have_received(:decide).with(
+        expect(mock_ai_engine).to have_received(:decide).at_least(:once).with(
           hash_including(
             data: hash_including(available_personas: custom_personas)
           )
@@ -144,7 +144,7 @@ RSpec.describe Aidp::Planning::Mappers::PersonaMapper do
   describe "Zero Framework Cognition compliance" do
     it "does not use heuristics" do
       # Verify that the PersonaMapper class doesn't contain forbidden patterns
-      source_code = File.read("lib/aidp/planning/mappers/persona_mapper.rb")
+      source_code = File.read(File.expand_path("../../../../lib/aidp/planning/mappers/persona_mapper.rb", __dir__))
 
       # Should NOT contain regex matching on task names
       expect(source_code).not_to match(/task\[:name\]\.match/)
@@ -187,7 +187,7 @@ RSpec.describe Aidp::Planning::Mappers::PersonaMapper do
       mapper.assign_personas(sample_tasks)
 
       # Should have used default personas
-      expect(mock_ai_engine).to have_received(:decide).with(
+      expect(mock_ai_engine).to have_received(:decide).at_least(:once).with(
         hash_including(
           data: hash_including(
             available_personas: array_including(
