@@ -169,6 +169,58 @@ aidp execute
 
 See [Waterfall Planning Mode Guide](docs/WATERFALL_PLANNING_MODE.md) for complete documentation.
 
+### Agile Development Mode
+
+Build products iteratively with user feedback loops, MVP scoping, and data-driven iteration planning:
+
+```bash
+# Start planning workflow
+aidp execute
+# Select "Agile MVP Planning", "Agile Iteration Planning", or "Legacy Product Research"
+```
+
+**Three Agile Workflows:**
+
+#### 1. MVP Planning
+Define minimum viable product scope, create user testing plans, and generate marketing materials:
+
+- **Input**: Product Requirements Document (PRD)
+- **Outputs**: MVP scope, user testing plan, marketing report
+- **Use case**: Launching a new product with user validation
+
+#### 2. Iteration Planning
+Analyze user feedback and plan next development iteration:
+
+- **Input**: User feedback data (CSV/JSON/markdown)
+- **Outputs**: Feedback analysis, iteration plan with prioritized tasks
+- **Use case**: Improving product based on real user data
+
+#### 3. Legacy Research
+Analyze existing codebase and create user research plan:
+
+- **Input**: Codebase path and language
+- **Outputs**: Research plan, feature audit, testing strategy
+- **Use case**: Understanding user needs for existing product
+
+**Generated Artifacts** (in `.aidp/docs/`):
+
+- **MVP_SCOPE.md** - Must-have vs nice-to-have feature breakdown
+- **USER_TEST_PLAN.md** - Comprehensive user testing strategy
+- **MARKETING_REPORT.md** - Value propositions and messaging
+- **USER_FEEDBACK_ANALYSIS.md** - AI-powered semantic feedback analysis
+- **NEXT_ITERATION_PLAN.md** - Prioritized tasks for next iteration
+- **LEGACY_USER_RESEARCH_PLAN.md** - Research strategy for existing product
+
+**Key Features:**
+
+- **Zero Framework Cognition** - AI-powered semantic analysis (no heuristics)
+- **Multi-Format Support** - Ingest feedback from CSV, JSON, or markdown
+- **Iterative Loops** - Continuous improvement based on user data
+- **Marketing Focus** - Translate features into customer value
+- **Three New Personas** - Product Manager, UX Researcher, Marketing Strategist
+
+See [Agile Development Mode Guide](docs/AGILE_MODE_GUIDE.md) for complete documentation.
+
 ### Job Management
 
 Monitor and control background jobs:
