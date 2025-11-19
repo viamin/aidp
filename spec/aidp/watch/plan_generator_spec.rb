@@ -327,5 +327,4 @@ RSpec.describe Aidp::Watch::PlanGenerator do
       expect(result).to be_nil
     end
   end
-
 end

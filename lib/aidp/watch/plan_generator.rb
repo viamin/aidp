@@ -219,7 +219,6 @@ module Aidp
         json_match = text.match(/\{.*\}/m)
         json_match ? json_match[0] : nil
       end
-
     end
   end
 end
