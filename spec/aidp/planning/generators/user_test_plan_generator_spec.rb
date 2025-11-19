@@ -144,7 +144,7 @@ RSpec.describe Aidp::Planning::Generators::UserTestPlanGenerator do
       expect(result[:metadata][:generated_at]).to be_a(String)
       expect(result[:metadata][:mvp_feature_count]).to eq(2)
       expect(result[:metadata][:testing_stage_count]).to eq(1)
-      expect(result[:metadata][:survey_question_count]).to eq(2)
+      expect(result[:metadata][:survey_question_count]).to eq(3) # likert, multiple_choice, open_ended
     end
 
     it "passes MVP features to AI for contextual questions" do
