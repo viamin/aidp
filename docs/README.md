@@ -46,6 +46,7 @@ New to AIDP? Start here:
 |----------|-------------|
 | [Thinking Depth](THINKING_DEPTH.md) | Dynamic model tier selection |
 | [Workstreams](WORKSTREAMS.md) | Parallel workflow execution |
+| [GitHub Projects](GITHUB_PROJECTS.md) | GitHub Projects V2 integration for large projects |
 | [Prompt Optimization](PROMPT_OPTIMIZATION.md) | Context management |
 | [Persistent Tasklist](PERSISTENT_TASKLIST.md) | Cross-session task tracking |
 | [Streaming Guide](STREAMING_GUIDE.md) | Real-time output streaming |
@@ -68,6 +69,7 @@ New to AIDP? Start here:
 |----------|-------------|
 | [AIDP Capabilities](AIDP_CAPABILITIES.md) | System capabilities overview |
 | [Implementation Guide](ImplementationGuide.md) | Development guidelines |
+| [GitHub Projects Implementation](GITHUB_PROJECTS_IMPLEMENTATION.md) | Projects V2 implementation plan |
 | [Concurrency Patterns](CONCURRENCY_PATTERNS.md) | Thread safety patterns |
 | [Safety Guards](SAFETY_GUARDS.md) | Safety mechanisms |
 | [Work Loop Alignment PRD](WORK_LOOP_ALIGNMENT_PRD.md) | Work loop design |
