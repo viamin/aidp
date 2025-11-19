@@ -120,6 +120,47 @@ module Aidp
         gh_available? ? fetch_pr_comments_via_gh(number) : fetch_pr_comments_via_api(number)
       end
 
+      # GitHub Projects V2 operations
+      def fetch_project(project_id)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        fetch_project_via_gh(project_id)
+      end
+
+      def list_project_items(project_id)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        list_project_items_via_gh(project_id)
+      end
+
+      def link_issue_to_project(project_id, issue_number)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        link_issue_to_project_via_gh(project_id, issue_number)
+      end
+
+      def update_project_item_field(item_id, field_id, value)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        update_project_item_field_via_gh(item_id, field_id, value)
+      end
+
+      def fetch_project_fields(project_id)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        fetch_project_fields_via_gh(project_id)
+      end
+
+      def create_project_field(project_id, name, field_type, options: nil)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        create_project_field_via_gh(project_id, name, field_type, options: options)
+      end
+
+      def create_issue(title:, body:, labels: [], assignees: [])
+        raise "GitHub CLI not available - cannot create issue" unless gh_available?
+        create_issue_via_gh(title: title, body: body, labels: labels, assignees: assignees)
+      end
+
+      def merge_pull_request(number, merge_method: "squash")
+        raise "GitHub CLI not available - cannot merge PR" unless gh_available?
+        merge_pull_request_via_gh(number, merge_method: merge_method)
+      end
+
       private
 
       def list_issues_via_gh(labels:, state:)
@@ -763,6 +804,480 @@ module Aidp
           created_at: raw["created_at"],
           updated_at: raw["updated_at"]
         }
+      end
+
+      # GitHub Projects V2 API implementations
+      def fetch_project_via_gh(project_id)
+        Aidp.log_debug("repository_client", "fetch_project", project_id: project_id)
+
+        query = <<~GRAPHQL
+          query($projectId: ID!) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                id
+                title
+                number
+                url
+                fields(first: 100) {
+                  nodes {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                      dataType
+                    }
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                      dataType
+                      options {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, projectId: project_id)
+        project_data = result.dig("data", "node")
+
+        unless project_data
+          Aidp.log_warn("repository_client", "Project not found", project_id: project_id)
+          raise "Project not found: #{project_id}"
+        end
+
+        normalize_project(project_data)
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to fetch project", project_id: project_id, error: e.message)
+        raise
+      end
+
+      def list_project_items_via_gh(project_id)
+        Aidp.log_debug("repository_client", "list_project_items", project_id: project_id)
+
+        query = <<~GRAPHQL
+          query($projectId: ID!, $cursor: String) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                items(first: 100, after: $cursor) {
+                  pageInfo {
+                    hasNextPage
+                    endCursor
+                  }
+                  nodes {
+                    id
+                    type
+                    content {
+                      ... on Issue {
+                        number
+                        title
+                        state
+                        url
+                      }
+                      ... on PullRequest {
+                        number
+                        title
+                        state
+                        url
+                      }
+                    }
+                    fieldValues(first: 100) {
+                      nodes {
+                        ... on ProjectV2ItemFieldTextValue {
+                          text
+                          field {
+                            ... on ProjectV2Field {
+                              id
+                              name
+                            }
+                          }
+                        }
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          field {
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        all_items = []
+        cursor = nil
+        has_next_page = true
+
+        while has_next_page
+          variables = {projectId: project_id}
+          variables[:cursor] = cursor if cursor
+
+          result = execute_graphql_query(query, **variables)
+          items_data = result.dig("data", "node", "items")
+
+          break unless items_data
+
+          items = items_data["nodes"] || []
+          all_items.concat(items.map { |item| normalize_project_item(item) })
+
+          page_info = items_data["pageInfo"]
+          has_next_page = page_info["hasNextPage"]
+          cursor = page_info["endCursor"]
+        end
+
+        Aidp.log_debug("repository_client", "list_project_items_complete", project_id: project_id, count: all_items.size)
+        all_items
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to list project items", project_id: project_id, error: e.message)
+        raise
+      end
+
+      def link_issue_to_project_via_gh(project_id, issue_number)
+        Aidp.log_debug("repository_client", "link_issue_to_project", project_id: project_id, issue_number: issue_number)
+
+        # First, get the issue's node ID
+        issue_query = <<~GRAPHQL
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $number) {
+                id
+              }
+            }
+          }
+        GRAPHQL
+
+        issue_result = execute_graphql_query(issue_query, owner: owner, repo: repo, number: issue_number)
+        issue_id = issue_result.dig("data", "repository", "issue", "id")
+
+        unless issue_id
+          raise "Issue ##{issue_number} not found in #{full_repo}"
+        end
+
+        # Now add the issue to the project
+        mutation = <<~GRAPHQL
+          mutation($projectId: ID!, $contentId: ID!) {
+            addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+              item {
+                id
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(mutation, projectId: project_id, contentId: issue_id)
+        item_id = result.dig("data", "addProjectV2ItemById", "item", "id")
+
+        Aidp.log_debug("repository_client", "link_issue_to_project_complete", project_id: project_id, issue_number: issue_number, item_id: item_id)
+        item_id
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to link issue to project", project_id: project_id, issue_number: issue_number, error: e.message)
+        raise
+      end
+
+      def update_project_item_field_via_gh(item_id, field_id, value)
+        Aidp.log_debug("repository_client", "update_project_item_field", item_id: item_id, field_id: field_id, value: value)
+
+        # Determine the mutation based on value type
+        mutation = if value.is_a?(Hash) && value[:option_id]
+          # Single select field
+          <<~GRAPHQL
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: {singleSelectOptionId: $optionId}
+              }) {
+                projectV2Item {
+                  id
+                }
+              }
+            }
+          GRAPHQL
+        else
+          # Text field
+          <<~GRAPHQL
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $text: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: {text: $text}
+              }) {
+                projectV2Item {
+                  id
+                }
+              }
+            }
+          GRAPHQL
+        end
+
+        # Note: We need the project ID for the mutation
+        # For now, we'll require it to be passed in the value hash
+        project_id = value.is_a?(Hash) ? value[:project_id] : nil
+        raise "project_id required in value hash" unless project_id
+
+        variables = {
+          projectId: project_id,
+          itemId: item_id,
+          fieldId: field_id
+        }
+
+        if value.is_a?(Hash) && value[:option_id]
+          variables[:optionId] = value[:option_id]
+        else
+          variables[:text] = value.to_s
+        end
+
+        result = execute_graphql_query(mutation, **variables)
+        success = result.dig("data", "updateProjectV2ItemFieldValue", "projectV2Item", "id")
+
+        Aidp.log_debug("repository_client", "update_project_item_field_complete", item_id: item_id, field_id: field_id, success: !success.nil?)
+        success
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to update project item field", item_id: item_id, field_id: field_id, error: e.message)
+        raise
+      end
+
+      def fetch_project_fields_via_gh(project_id)
+        Aidp.log_debug("repository_client", "fetch_project_fields", project_id: project_id)
+
+        query = <<~GRAPHQL
+          query($projectId: ID!) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                fields(first: 100) {
+                  nodes {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                      dataType
+                    }
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                      dataType
+                      options {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, projectId: project_id)
+        fields_data = result.dig("data", "node", "fields", "nodes") || []
+
+        fields = fields_data.map { |field| normalize_project_field(field) }
+        Aidp.log_debug("repository_client", "fetch_project_fields_complete", project_id: project_id, count: fields.size)
+        fields
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to fetch project fields", project_id: project_id, error: e.message)
+        raise
+      end
+
+      def create_project_field_via_gh(project_id, name, field_type, options: nil)
+        Aidp.log_debug("repository_client", "create_project_field", project_id: project_id, name: name, field_type: field_type)
+
+        mutation = if field_type == "SINGLE_SELECT" && options
+          <<~GRAPHQL
+            mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+              createProjectV2Field(input: {
+                projectId: $projectId
+                dataType: $dataType
+                name: $name
+                singleSelectOptions: $options
+              }) {
+                projectV2Field {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                    dataType
+                    options {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          GRAPHQL
+        else
+          <<~GRAPHQL
+            mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+              createProjectV2Field(input: {
+                projectId: $projectId
+                dataType: $dataType
+                name: $name
+              }) {
+                projectV2Field {
+                  ... on ProjectV2Field {
+                    id
+                    name
+                    dataType
+                  }
+                }
+              }
+            }
+          GRAPHQL
+        end
+
+        variables = {projectId: project_id, name: name, dataType: field_type}
+        variables[:options] = options if options
+
+        result = execute_graphql_query(mutation, **variables)
+        field_data = result.dig("data", "createProjectV2Field", "projectV2Field")
+
+        unless field_data
+          Aidp.log_warn("repository_client", "Failed to create project field", project_id: project_id, name: name)
+          raise "Failed to create project field: #{name}"
+        end
+
+        field = normalize_project_field(field_data)
+        Aidp.log_debug("repository_client", "create_project_field_complete", project_id: project_id, field_id: field[:id])
+        field
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to create project field", project_id: project_id, name: name, error: e.message)
+        raise
+      end
+
+      def create_issue_via_gh(title:, body:, labels: [], assignees: [])
+        Aidp.log_debug("repository_client", "create_issue", title: title, label_count: labels.size, assignee_count: assignees.size)
+
+        cmd = ["gh", "issue", "create", "--repo", full_repo, "--title", title, "--body", body]
+        labels.each { |label| cmd += ["--label", label] }
+        assignees.each { |assignee| cmd += ["--assignee", assignee] }
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to create issue via gh: #{stderr.strip}" unless status.success?
+
+        # Parse the issue URL to get the number
+        issue_url = stdout.strip
+        issue_number = issue_url.split("/").last.to_i
+
+        Aidp.log_debug("repository_client", "create_issue_complete", issue_number: issue_number, url: issue_url)
+        {number: issue_number, url: issue_url}
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to create issue", title: title, error: e.message)
+        raise
+      end
+
+      def merge_pull_request_via_gh(number, merge_method: "squash")
+        Aidp.log_debug("repository_client", "merge_pull_request", number: number, merge_method: merge_method)
+
+        cmd = ["gh", "pr", "merge", number.to_s, "--repo", full_repo]
+        case merge_method
+        when "merge"
+          cmd << "--merge"
+        when "squash"
+          cmd << "--squash"
+        when "rebase"
+          cmd << "--rebase"
+        else
+          raise "Unknown merge method: #{merge_method}"
+        end
+
+        # Add auto-delete branch flag
+        cmd << "--delete-branch"
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to merge PR via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug("repository_client", "merge_pull_request_complete", number: number)
+        stdout.strip
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to merge PR", number: number, error: e.message)
+        raise
+      end
+
+      def execute_graphql_query(query, **variables)
+        cmd = ["gh", "api", "graphql", "-f", "query=#{query}"]
+        variables.each do |key, value|
+          flag = value.is_a?(Integer) ? "-F" : "-f"
+          cmd += [flag, "#{key}=#{value}"]
+        end
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        unless status.success?
+          Aidp.log_warn("repository_client", "GraphQL query failed", error: stderr.strip)
+          raise "GraphQL query failed: #{stderr.strip}"
+        end
+
+        JSON.parse(stdout)
+      rescue JSON::ParserError => e
+        Aidp.log_error("repository_client", "Failed to parse GraphQL response", error: e.message)
+        raise "Failed to parse GraphQL response: #{e.message}"
+      end
+
+      def normalize_project(raw)
+        {
+          id: raw["id"],
+          title: raw["title"],
+          number: raw["number"],
+          url: raw["url"],
+          fields: Array(raw.dig("fields", "nodes")).map { |field| normalize_project_field(field) }
+        }
+      end
+
+      def normalize_project_field(raw)
+        field = {
+          id: raw["id"],
+          name: raw["name"],
+          data_type: raw["dataType"]
+        }
+
+        # Add options for single select fields
+        if raw["options"]
+          field[:options] = raw["options"].map { |opt| {id: opt["id"], name: opt["name"]} }
+        end
+
+        field
+      end
+
+      def normalize_project_item(raw)
+        item = {
+          id: raw["id"],
+          type: raw["type"]
+        }
+
+        # Add content (issue or PR)
+        if raw["content"]
+          content = raw["content"]
+          item[:content] = {
+            number: content["number"],
+            title: content["title"],
+            state: content["state"],
+            url: content["url"]
+          }
+        end
+
+        # Add field values
+        if raw["fieldValues"]
+          field_values = {}
+          Array(raw.dig("fieldValues", "nodes")).each do |fv|
+            next unless fv["field"]
+
+            field_name = fv.dig("field", "name")
+            field_value = fv["text"] || fv["name"]
+            field_values[field_name] = field_value
+          end
+          item[:field_values] = field_values
+        end
+
+        item
       end
     end
   end
