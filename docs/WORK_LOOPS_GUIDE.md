@@ -666,11 +666,22 @@ AIDP looks for this marker (case-insensitive) to know the agent considers the wo
 
 **As of version 0.16.0**, work loops can enforce mandatory task tracking to ensure work is properly decomposed and tracked. This is controlled by the `harness.work_loop.task_completion_required` configuration option (default: `true`).
 
+**Important**: Tasks are **project-scoped**, not session-scoped. This means:
+
+- Tasks created during planning phases can be completed during build phases
+- Tasks created in any work loop session remain active until completed or abandoned
+- The system checks for incomplete tasks across the entire project, not just the current step
+
 When task completion is required:
 
-1. **At least one task must be created** for each work loop session
-2. **All tasks must be completed or abandoned** before the work loop can finish
+1. **At least one task must exist in the project** (can be created in any session)
+2. **All project tasks must be completed or abandoned** before any work loop can finish
 3. **Abandoned tasks require a reason** for better tracking
+
+This design supports the typical workflow:
+
+- **Planning phase**: Create tasks (e.g., using `aidp-plan` label or planning steps)
+- **Build phase**: Complete those tasks (e.g., using `aidp-build` label or implementation steps)
 
 #### Creating Tasks
 

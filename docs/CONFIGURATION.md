@@ -119,9 +119,15 @@ work_loop:
 
 The `task_completion_required` option (default: `true`) enforces mandatory task tracking for work loops. When enabled:
 
-- **At least one task must be created** for each work loop session
-- **All tasks must be completed or abandoned** before the work loop can finish
+- **At least one task must exist in the project** (can be created in any session)
+- **All project tasks must be completed or abandoned** before any work loop can finish
 - **Abandoned tasks require a reason** for better accountability
+
+**Important**: Tasks are **project-scoped**, not session-scoped. This means:
+
+- Tasks created during planning phases (e.g., with `aidp-plan` label) persist and must be completed during build phases (e.g., with `aidp-build` label)
+- Tasks from any work loop session remain active until completed or abandoned
+- The system checks for incomplete tasks across the entire project
 
 This feature ensures that work is properly decomposed into trackable tasks, preventing scope creep and maintaining clear records of what was accomplished or abandoned.
 
