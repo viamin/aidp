@@ -37,7 +37,7 @@ Agile Development Mode transforms AIDP from a traditional waterfall planning too
 
 ## When to Use Agile Mode
 
-### Use Agile Mode When:
+### Use Agile Mode When
 
 ✅ Building a new product and want to validate with users early
 ✅ Starting with an MVP and planning iterative releases
@@ -46,7 +46,7 @@ Agile Development Mode transforms AIDP from a traditional waterfall planning too
 ✅ Want to translate technical features into marketing materials
 ✅ Planning research for a legacy codebase
 
-### Use Waterfall Mode When:
+### Use Waterfall Mode When
 
 ❌ Building well-defined features with known requirements
 ❌ Working on internal tools without user feedback loops
@@ -73,6 +73,7 @@ Agile Mode provides three distinct workflows:
 **Purpose**: Define a minimum viable product from a PRD, create user testing plan, and generate marketing materials.
 
 **When to use**:
+
 - Starting a new product
 - Launching an MVP
 - Need to prioritize features
@@ -80,6 +81,7 @@ Agile Mode provides three distinct workflows:
 **Input**: Product Requirements Document (PRD)
 
 **Outputs**:
+
 - MVP Scope (must-have vs nice-to-have features)
 - User Testing Plan (surveys, interviews, metrics)
 - Marketing Report (value propositions, messaging, launch checklist)
@@ -91,15 +93,18 @@ Agile Mode provides three distinct workflows:
 **Purpose**: Analyze user feedback and plan the next development iteration.
 
 **When to use**:
+
 - Received user feedback from MVP
 - Planning next release
 - Need to prioritize improvements
 
 **Input**:
+
 - User Feedback Data (CSV/JSON/markdown)
 - Current MVP Scope (optional)
 
 **Outputs**:
+
 - Feedback Analysis (insights, trends, recommendations)
 - Iteration Plan (improvements, new features, bug fixes, tasks)
 
@@ -110,16 +115,19 @@ Agile Mode provides three distinct workflows:
 **Purpose**: Analyze an existing codebase and create a user research plan.
 
 **When to use**:
+
 - Understanding usage of existing product
 - Planning modernization efforts
 - Identifying pain points in mature product
 
 **Input**:
+
 - Codebase path
 - Programming language
 - Known user segments (optional)
 
 **Outputs**:
+
 - Legacy Research Plan (feature audit, research questions, testing priorities)
 - User Testing Plan (recruitment, methodology, timeline)
 
@@ -203,12 +211,14 @@ aidp execute
 
 Provide a Product Requirements Document describing your product vision:
 
-**Option A: Use Existing PRD**
+##### Option A: Use Existing PRD
+
 ```bash
 Path to PRD: docs/prd.md
 ```
 
-**Option B: Generate PRD Interactively**
+##### Option B: Generate PRD Interactively
+
 ```bash
 # AIDP will ask questions:
 # - What problem does this solve?
@@ -293,6 +303,7 @@ All outputs are written to `.aidp/docs/`:
 Provide user feedback in one of these formats:
 
 **CSV Format**:
+
 ```csv
 id,timestamp,rating,feedback,feature,sentiment
 user123,2025-01-15,4,"Great dashboard!",dashboard,positive
@@ -300,6 +311,7 @@ user456,2025-01-15,2,"Login is confusing",authentication,negative
 ```
 
 **JSON Format**:
+
 ```json
 [
   {
@@ -314,6 +326,7 @@ user456,2025-01-15,2,"Login is confusing",authentication,negative
 ```
 
 **Markdown Format**:
+
 ```markdown
 ## Response 1
 **ID:** user123
@@ -635,6 +648,7 @@ High-level overview (2-3 paragraphs)
 ### MVP Planning
 
 ✅ **Do**:
+
 - Involve stakeholders in priority collection
 - Be ruthless about MVP scope (less is more)
 - Use real user quotes in PRD if available
@@ -642,6 +656,7 @@ High-level overview (2-3 paragraphs)
 - Test with actual users during alpha/beta
 
 ❌ **Don't**:
+
 - Include every feature in MVP (defeats purpose)
 - Skip user testing plan (feedback is critical)
 - Ignore marketing materials (go-to-market matters)
@@ -651,6 +666,7 @@ High-level overview (2-3 paragraphs)
 ### Iteration Planning
 
 ✅ **Do**:
+
 - Collect feedback systematically (surveys, interviews)
 - Include both positive and negative feedback
 - Review analysis for surprises (AI finds patterns humans miss)
@@ -659,6 +675,7 @@ High-level overview (2-3 paragraphs)
 - Track success metrics after iteration
 
 ❌ **Don't**:
+
 - Cherry-pick feedback (include all responses)
 - Ignore positive feedback (know what to preserve)
 - Over-generalize from limited data
@@ -669,6 +686,7 @@ High-level overview (2-3 paragraphs)
 ### Legacy Research
 
 ✅ **Do**:
+
 - Run on complete codebase (not partial)
 - Review generated feature list for accuracy
 - Involve long-time users in research
@@ -676,6 +694,7 @@ High-level overview (2-3 paragraphs)
 - Use research to guide modernization
 
 ❌ **Don't**:
+
 - Skip codebase analysis (generates better questions)
 - Ignore low-adoption features (understand why)
 - Plan research without budget/resources
@@ -691,6 +710,7 @@ High-level overview (2-3 paragraphs)
 **Workflow**: MVP Planning
 
 **Input**:
+
 ```markdown
 # PRD: Analytics Dashboard
 
@@ -710,6 +730,7 @@ Real-time analytics dashboard with key metrics.
 ```
 
 **User Priorities**:
+
 - User activity: 5/5 (Critical)
 - Usage metrics: 5/5 (Critical)
 - Custom reports: 4/5 (Important)
@@ -720,16 +741,19 @@ Real-time analytics dashboard with key metrics.
 **Generated MVP Scope**:
 
 **Must-Have**:
+
 1. User activity tracking
 2. Core usage metrics (DAU, MAU, retention)
 3. Basic reporting interface
 
 **Deferred**:
+
 1. Custom report builder
 2. Email digests
 3. Export functionality
 
 **Out of Scope**:
+
 1. API access (v2.0)
 2. Advanced analytics (ML predictions)
 
@@ -742,6 +766,7 @@ Real-time analytics dashboard with key metrics.
 **Workflow**: Iteration Planning
 
 **Feedback Data** (CSV):
+
 ```csv
 id,timestamp,rating,feedback,feature,sentiment
 u1,2025-01-15,5,"Love the UI!",interface,positive
@@ -754,27 +779,32 @@ u4,2025-01-15,1,"Can't find settings",navigation,negative
 **AI Analysis Findings**:
 
 **Key Finding 1**: Stability issues (High Impact)
+
 - 35% of users mentioned crashes
 - Most common on Android 13
 - Usually during photo upload
 
 **Key Finding 2**: Navigation confusion (High Impact)
+
 - 28% couldn't find settings
 - Onboarding needed
 - Menu structure unclear
 
 **Key Finding 3**: Performance praised (Positive)
+
 - 60% mentioned speed positively
 - Differentiator vs. competitors
 
 **Iteration Plan**:
 
 **Improvements**:
+
 1. Fix Android 13 crash during photo upload (Priority: Critical, Effort: Medium)
 2. Add onboarding tutorial (Priority: High, Effort: High)
 3. Redesign settings navigation (Priority: High, Effort: Medium)
 
 **Tasks**:
+
 1. Debug photo upload on Android 13 (3 days)
 2. Create onboarding flow mockups (2 days)
 3. User test navigation with 10 users (1 week)
@@ -789,6 +819,7 @@ u4,2025-01-15,1,"Can't find settings",navigation,negative
 **Workflow**: Legacy Research
 
 **Input**:
+
 - Codebase: `/path/to/crm`
 - Language: Ruby on Rails
 - Known users: Sales reps, account managers, executives
@@ -853,6 +884,7 @@ u4,2025-01-15,1,"Can't find settings",navigation,negative
 **Symptom**: Workflow fails with "Template not found for step..."
 
 **Solution**:
+
 ```bash
 # Verify templates exist
 ls templates/planning/agile/
@@ -878,6 +910,7 @@ gem install aidp
 **Solutions**:
 
 1. **Check file format**:
+
    ```bash
    # For CSV: must have header row
    head -n 2 feedback.csv
@@ -894,6 +927,7 @@ gem install aidp
    - Recommended: id, timestamp, rating, feedback
 
 3. **Check encoding**:
+
    ```bash
    file feedback.csv
    # Should be: UTF-8 Unicode text
@@ -927,12 +961,14 @@ gem install aidp
 **Solutions**:
 
 1. **Check codebase path**:
+
    ```bash
    ls -la /path/to/codebase
    # Should show project structure
    ```
 
 2. **Specify language explicitly**:
+
    ```bash
    # If auto-detection fails
    Language: Ruby
@@ -1008,7 +1044,7 @@ cat .aidp/logs/aidp.log
 ## Feedback
 
 Have suggestions for improving Agile Mode? File an issue at:
-https://github.com/viamin/aidp/issues
+<https://github.com/viamin/aidp/issues>
 
 ---
 

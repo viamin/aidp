@@ -182,6 +182,7 @@ aidp execute
 **Three Agile Workflows:**
 
 #### 1. MVP Planning
+
 Define minimum viable product scope, create user testing plans, and generate marketing materials:
 
 - **Input**: Product Requirements Document (PRD)
@@ -189,6 +190,7 @@ Define minimum viable product scope, create user testing plans, and generate mar
 - **Use case**: Launching a new product with user validation
 
 #### 2. Iteration Planning
+
 Analyze user feedback and plan next development iteration:
 
 - **Input**: User feedback data (CSV/JSON/markdown)
@@ -196,6 +198,7 @@ Analyze user feedback and plan next development iteration:
 - **Use case**: Improving product based on real user data
 
 #### 3. Legacy Research
+
 Analyze existing codebase and create user research plan:
 
 - **Input**: Codebase path and language

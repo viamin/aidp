@@ -1083,6 +1083,7 @@ AIDP provides three agile workflows for iterative product development with user 
 Define minimum viable product scope, create user testing plans, and generate marketing materials.
 
 **When to use:**
+
 - Launching a new product
 - Need to prioritize features for MVP
 - Want user validation early
@@ -1128,6 +1129,7 @@ Priority (1-5): 3
 Analyze user feedback and plan next development iteration.
 
 **When to use:**
+
 - Received user feedback from MVP/beta
 - Planning next release
 - Need to prioritize improvements
@@ -1162,6 +1164,7 @@ MVP path: .aidp/docs/MVP_SCOPE.md
 **Feedback data formats:**
 
 **CSV example:**
+
 ```csv
 id,timestamp,rating,feedback,feature,sentiment
 user123,2025-01-15,4,"Great dashboard!",dashboard,positive
@@ -1169,6 +1172,7 @@ user456,2025-01-15,2,"Login confusing",auth,negative
 ```
 
 **JSON example:**
+
 ```json
 [
   {
@@ -1192,6 +1196,7 @@ user456,2025-01-15,2,"Login confusing",auth,negative
 Analyze existing codebase and create user research plan.
 
 **When to use:**
+
 - Understanding usage of existing product
 - Planning modernization efforts
 - Identifying pain points in mature product
@@ -1230,12 +1235,14 @@ Known user segments: Sales reps, Managers (optional)
 **MVP Planning:**
 
 ✅ Do:
+
 - Be ruthless about MVP scope (less is more)
 - Involve stakeholders in prioritization
 - Use real user quotes in PRD
 - Review marketing materials with sales/marketing
 
 ❌ Don't:
+
 - Include every feature in MVP
 - Skip user testing plan
 - Set unrealistic timelines
@@ -1244,12 +1251,14 @@ Known user segments: Sales reps, Managers (optional)
 **Iteration Planning:**
 
 ✅ Do:
+
 - Collect feedback systematically
 - Include both positive and negative
 - Set measurable iteration goals
 - Track success metrics
 
 ❌ Don't:
+
 - Cherry-pick feedback
 - Over-generalize from limited data
 - Add too many features in one iteration
@@ -1258,12 +1267,14 @@ Known user segments: Sales reps, Managers (optional)
 **Legacy Research:**
 
 ✅ Do:
+
 - Run on complete codebase
 - Review feature list for accuracy
 - Involve long-time users
 - Focus on high-usage features
 
 ❌ Don't:
+
 - Skip codebase analysis
 - Ignore low-adoption features
 - Plan research without resources
