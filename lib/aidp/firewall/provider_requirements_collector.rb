@@ -62,22 +62,22 @@ module Aidp
 
       # Static IP ranges (CIDR notation)
       STATIC_IP_RANGES = [
-        {cidr: "140.82.112.0/20", comment: "GitHub main infrastructure (covers 140.82.112.0 - 140.82.127.255)"},
-        {cidr: "127.0.0.0/8", comment: "Localhost loopback"}
+        {"cidr" => "140.82.112.0/20", "comment" => "GitHub main infrastructure (covers 140.82.112.0 - 140.82.127.255)"},
+        {"cidr" => "127.0.0.0/8", "comment" => "Localhost loopback"}
       ].freeze
 
       # Azure IP ranges for GitHub Copilot and VS Code services
       # These use broader /16 ranges to handle dynamic IP allocation across Azure regions
       AZURE_IP_RANGES = [
-        {cidr: "20.189.0.0/16", comment: "Azure WestUS2 (GitHub Copilot - broad range due to dynamic IP allocation)"},
-        {cidr: "104.208.0.0/16", comment: "Azure EastUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
-        {cidr: "52.168.0.0/16", comment: "Azure EastUS2 (GitHub Copilot - covers .112 and .117, broad range)"},
-        {cidr: "40.79.0.0/16", comment: "Azure WestUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
-        {cidr: "13.89.0.0/16", comment: "Azure EastUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
-        {cidr: "13.69.0.0/16", comment: "Azure (covers .239, broad range due to dynamic IP allocation)"},
-        {cidr: "13.66.0.0/16", comment: "Azure WestUS2 (VS Code sync service - broad range)"},
-        {cidr: "20.42.0.0/16", comment: "Azure WestEurope (covers .65 and .73, broad range)"},
-        {cidr: "20.50.0.0/16", comment: "Azure (covers .80, broad range due to dynamic IP allocation)"}
+        {"cidr" => "20.189.0.0/16", "comment" => "Azure WestUS2 (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {"cidr" => "104.208.0.0/16", "comment" => "Azure EastUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {"cidr" => "52.168.0.0/16", "comment" => "Azure EastUS2 (GitHub Copilot - covers .112 and .117, broad range)"},
+        {"cidr" => "40.79.0.0/16", "comment" => "Azure WestUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {"cidr" => "13.89.0.0/16", "comment" => "Azure EastUS (GitHub Copilot - broad range due to dynamic IP allocation)"},
+        {"cidr" => "13.69.0.0/16", "comment" => "Azure (covers .239, broad range due to dynamic IP allocation)"},
+        {"cidr" => "13.66.0.0/16", "comment" => "Azure WestUS2 (VS Code sync service - broad range)"},
+        {"cidr" => "20.42.0.0/16", "comment" => "Azure WestEurope (covers .65 and .73, broad range)"},
+        {"cidr" => "20.50.0.0/16", "comment" => "Azure (covers .80, broad range due to dynamic IP allocation)"}
       ].freeze
 
       # Dynamic IP sources configuration
