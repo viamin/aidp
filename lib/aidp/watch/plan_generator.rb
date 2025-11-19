@@ -69,14 +69,14 @@ module Aidp
           end
         end
 
-        # All providers exhausted, fall back to heuristic
-        Aidp.log_warn("plan_generator", "all_providers_exhausted", attempted: @providers_attempted, falling_back: "heuristic")
-        display_message("⚠️  All providers unavailable or failed. Falling back to heuristic plan.", type: :warn)
-        heuristic_plan(issue)
+        # All providers exhausted - silently fail without heuristic fallback
+        Aidp.log_warn("plan_generator", "all_providers_exhausted", attempted: @providers_attempted, result: "failed")
+        display_message("⚠️  All providers unavailable or failed. Unable to generate plan.", type: :warn)
+        nil
       rescue => e
         Aidp.log_error("plan_generator", "generation_failed_unexpectedly", error: e.message, backtrace: e.backtrace&.first(3))
-        display_message("⚠️  Plan generation failed unexpectedly (#{e.message}). Using heuristic.", type: :warn)
-        heuristic_plan(issue)
+        display_message("⚠️  Plan generation failed unexpectedly (#{e.message}).", type: :warn)
+        nil
       end
 
       private
@@ -218,42 +218,6 @@ module Aidp
 
         json_match = text.match(/\{.*\}/m)
         json_match ? json_match[0] : nil
-      end
-
-      def heuristic_plan(issue)
-        body = issue[:body].to_s
-        bullet_tasks = body.lines
-          .map(&:strip)
-          .select { |line| line.start_with?("-", "*") }
-          .map { |line| line.sub(/\A[-*]\s*/, "") }
-          .uniq
-          .first(5)
-
-        paragraphs = body.split(/\n{2,}/).map(&:strip).reject(&:empty?)
-        summary = paragraphs.first(2).join(" ")
-        summary = summary.empty? ? "Implement the requested changes described in the issue." : summary
-
-        tasks = if bullet_tasks.empty?
-          [
-            "Review the repository context and identify impacted components.",
-            "Implement the necessary code changes and add tests.",
-            "Document the changes and ensure lint/test pipelines succeed."
-          ]
-        else
-          bullet_tasks
-        end
-
-        questions = [
-          "Are there constraints (framework versions, performance budgets) we must respect?",
-          "Are there existing tests or acceptance criteria we should extend?",
-          "Is there additional context (design docs, related issues) we should review?"
-        ]
-
-        {
-          summary: summary,
-          tasks: tasks,
-          questions: questions
-        }
       end
     end
   end

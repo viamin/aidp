@@ -45,6 +45,13 @@ module Aidp
 
         plan_data = @plan_generator.generate(issue)
 
+        # If plan generation failed (all providers unavailable), silently skip
+        unless plan_data
+          Aidp.log_warn("plan_processor", "plan_generation_failed", issue: number, reason: "no plan data returned")
+          display_message("⚠️  Unable to generate plan for issue ##{number} - all providers failed", type: :warn)
+          return
+        end
+
         # Fetch the user who added the most recent label
         label_actor = @repository_client.most_recent_label_actor(number)
 

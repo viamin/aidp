@@ -75,17 +75,15 @@ RSpec.describe Aidp::Watch::PlanGenerator do
         allow(plan_generator).to receive(:display_message)
       end
 
-      it "falls back to heuristic plan" do
+      it "returns nil when all providers fail" do
         result = plan_generator.generate(sample_issue)
 
-        expect(result[:summary]).to include("implement user authentication")
-        expect(result[:tasks]).to include("Add login form")
-        expect(result[:questions]).not_to be_empty
+        expect(result).to be_nil
       end
 
       it "displays warning message" do
         expect(plan_generator).to receive(:display_message).with(
-          /All providers unavailable.*heuristic/,
+          /All providers unavailable.*Unable to generate plan/,
           type: :warn
         )
 
@@ -103,17 +101,15 @@ RSpec.describe Aidp::Watch::PlanGenerator do
         allow(plan_generator).to receive(:display_message)
       end
 
-      it "falls back to heuristic plan" do
+      it "returns nil when provider fails" do
         result = plan_generator.generate(sample_issue)
 
-        expect(result[:summary]).to be_a(String)
-        expect(result[:tasks]).to be_an(Array)
-        expect(result[:questions]).to be_an(Array)
+        expect(result).to be_nil
       end
 
       it "displays error message" do
         expect(plan_generator).to receive(:display_message).with(
-          /All providers unavailable.*heuristic/,
+          /All providers unavailable.*Unable to generate plan/,
           type: :warn
         )
 
@@ -155,13 +151,12 @@ RSpec.describe Aidp::Watch::PlanGenerator do
         expect(result[:summary]).to eq("Test summary")
       end
 
-      it "falls back to heuristic when all providers fail" do
+      it "returns nil when all providers fail" do
         allow(plan_generator).to receive(:resolve_provider).and_return(nil)
 
         result = plan_generator.generate(sample_issue)
 
-        expect(result[:summary]).to include("implement user authentication")
-        expect(result[:tasks]).to include("Add login form")
+        expect(result).to be_nil
       end
     end
   end
@@ -330,63 +325,6 @@ RSpec.describe Aidp::Watch::PlanGenerator do
       result = plan_generator.send(:extract_json_payload, text)
 
       expect(result).to be_nil
-    end
-  end
-
-  describe "#heuristic_plan" do
-    it "extracts bullet points as tasks" do
-      result = plan_generator.send(:heuristic_plan, sample_issue)
-
-      expect(result[:tasks]).to include("Add login form")
-      expect(result[:tasks]).to include("Implement password validation")
-      expect(result[:tasks]).to include("Add user sessions")
-    end
-
-    it "uses first paragraphs as summary" do
-      result = plan_generator.send(:heuristic_plan, sample_issue)
-
-      expect(result[:summary]).to include("implement user authentication")
-    end
-
-    it "provides default tasks when no bullets" do
-      issue_without_bullets = {
-        title: "Fix bug",
-        body: "There is a bug that needs fixing.",
-        comments: []
-      }
-
-      result = plan_generator.send(:heuristic_plan, issue_without_bullets)
-
-      expect(result[:tasks]).to include("Review the repository context and identify impacted components.")
-      expect(result[:tasks]).to include("Implement the necessary code changes and add tests.")
-    end
-
-    it "provides default summary when body is empty" do
-      empty_issue = {title: "Empty", body: "", comments: []}
-
-      result = plan_generator.send(:heuristic_plan, empty_issue)
-
-      expect(result[:summary]).to eq("Implement the requested changes described in the issue.")
-    end
-
-    it "includes standard clarifying questions" do
-      result = plan_generator.send(:heuristic_plan, sample_issue)
-
-      expect(result[:questions]).to include(/constraints/)
-      expect(result[:questions]).to include(/existing tests/)
-      expect(result[:questions]).to include(/additional context/)
-    end
-
-    it "limits bullet tasks to 5" do
-      many_bullets_issue = {
-        title: "Many tasks",
-        body: (1..10).map { |i| "- Task #{i}" }.join("\n"),
-        comments: []
-      }
-
-      result = plan_generator.send(:heuristic_plan, many_bullets_issue)
-
-      expect(result[:tasks].length).to eq(5)
     end
   end
 end

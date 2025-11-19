@@ -44,6 +44,20 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     expect(data["questions"]).to include("Any performance constraints?")
   end
 
+  it "skips processing when plan generation fails" do
+    failed_plan_generator = instance_double(Aidp::Watch::PlanGenerator, generate: nil)
+    failed_processor = described_class.new(repository_client: repository_client, state_store: state_store, plan_generator: failed_plan_generator)
+
+    # Should not post comment or update labels when plan_data is nil
+    expect(repository_client).not_to receive(:post_comment)
+    expect(repository_client).not_to receive(:replace_labels)
+
+    failed_processor.process(issue)
+
+    # State should not be updated
+    expect(state_store.plan_data(42)).to be_nil
+  end
+
   it "updates existing plan when re-planning" do
     # First plan
     state_store.record_plan(42, summary: "Initial plan", tasks: ["Task 1"], questions: [], comment_body: "body1", comment_id: "comment-123")
