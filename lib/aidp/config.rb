@@ -276,6 +276,15 @@ module Aidp
       symbolize_keys(waterfall_section)
     end
 
+    # Get agile configuration
+    def self.agile_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      agile_section = config[:agile] || config["agile"] || {}
+
+      # Convert string keys to symbols for consistency
+      symbolize_keys(agile_section)
+    end
+
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
       ConfigPaths.config_exists?(project_dir)
@@ -310,6 +319,15 @@ module Aidp
             max_tokens: 50_000,
             default_flags: []
           }
+        },
+        agile: {
+          mvp_first: true,
+          feedback_loops: true,
+          auto_iteration: false,
+          research_enabled: true,
+          marketing_enabled: true,
+          legacy_analysis: true,
+          personas: ["product_manager", "ux_researcher", "architect", "senior_developer", "qa_engineer", "devops_engineer", "tech_writer", "marketing_strategist"]
         }
       }
 

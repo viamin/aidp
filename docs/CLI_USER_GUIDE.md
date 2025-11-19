@@ -1072,6 +1072,220 @@ which claude  # Should return path if installed
 cat ~/.aidp/logs/aidp.log | grep discovery
 ```
 
+## Agile Development Mode
+
+AIDP provides three agile workflows for iterative product development with user feedback loops.
+
+### Available Agile Workflows
+
+#### 1. Agile MVP Planning
+
+Define minimum viable product scope, create user testing plans, and generate marketing materials.
+
+**When to use:**
+
+- Launching a new product
+- Need to prioritize features for MVP
+- Want user validation early
+
+**Workflow:**
+
+```bash
+# Start execute mode
+$ aidp execute
+
+# Select "Agile MVP Planning"
+
+# Provide PRD:
+# Option A: Path to existing PRD file
+PRD path: docs/prd.md
+
+# Option B: Generate interactively (AIDP will ask questions)
+
+# Prioritize features (1-5 scale):
+Feature: User authentication
+Priority (1-5): 5
+
+Feature: Dashboard
+Priority (1-5): 5
+
+Feature: Custom reports
+Priority (1-5): 3
+
+# AIDP generates:
+# - .aidp/docs/MVP_SCOPE.md (must-have vs nice-to-have)
+# - .aidp/docs/USER_TEST_PLAN.md (testing strategy)
+# - .aidp/docs/MARKETING_REPORT.md (value propositions)
+```
+
+**Generated artifacts:**
+
+- **MVP_SCOPE.md** - Feature breakdown with must-have, deferred, and out-of-scope
+- **USER_TEST_PLAN.md** - Testing stages, surveys, interviews, metrics
+- **MARKETING_REPORT.md** - Value propositions, messaging, launch checklist
+
+#### 2. Agile Iteration Planning
+
+Analyze user feedback and plan next development iteration.
+
+**When to use:**
+
+- Received user feedback from MVP/beta
+- Planning next release
+- Need to prioritize improvements
+
+**Workflow:**
+
+```bash
+# Prepare feedback data in one of these formats:
+# - CSV: id,timestamp,rating,feedback,feature,sentiment
+# - JSON: Array of feedback objects
+# - Markdown: ## Response sections
+
+# Start execute mode
+$ aidp execute
+
+# Select "Agile Iteration Planning"
+
+# Provide feedback file:
+Feedback path: feedback.csv
+
+# Optional: Provide current MVP scope for context
+MVP path: .aidp/docs/MVP_SCOPE.md
+
+# AIDP analyzes feedback using AI semantic analysis
+# No regex, no heuristics - pure AI understanding
+
+# AIDP generates:
+# - .aidp/docs/USER_FEEDBACK_ANALYSIS.md (insights, trends)
+# - .aidp/docs/NEXT_ITERATION_PLAN.md (prioritized tasks)
+```
+
+**Feedback data formats:**
+
+**CSV example:**
+
+```csv
+id,timestamp,rating,feedback,feature,sentiment
+user123,2025-01-15,4,"Great dashboard!",dashboard,positive
+user456,2025-01-15,2,"Login confusing",auth,negative
+```
+
+**JSON example:**
+
+```json
+[
+  {
+    "id": "user123",
+    "timestamp": "2025-01-15",
+    "rating": 4,
+    "feedback": "Great dashboard!",
+    "feature": "dashboard",
+    "sentiment": "positive"
+  }
+]
+```
+
+**Generated artifacts:**
+
+- **USER_FEEDBACK_ANALYSIS.md** - Sentiment breakdown, findings, trends, recommendations
+- **NEXT_ITERATION_PLAN.md** - Goals, improvements, new features, tasks, timeline
+
+#### 3. Legacy Product Research
+
+Analyze existing codebase and create user research plan.
+
+**When to use:**
+
+- Understanding usage of existing product
+- Planning modernization efforts
+- Identifying pain points in mature product
+
+**Workflow:**
+
+```bash
+# Start execute mode
+$ aidp execute
+
+# Select "Legacy Product Research"
+
+# Provide codebase info:
+Codebase path: /path/to/codebase
+Language: Ruby (or leave blank for auto-detect)
+Known user segments: Sales reps, Managers (optional)
+
+# AIDP analyzes codebase:
+# - Feature inventory (what exists)
+# - User-facing components
+# - Integration points
+# - Configuration options
+
+# AIDP generates:
+# - .aidp/docs/LEGACY_USER_RESEARCH_PLAN.md (research strategy)
+# - .aidp/docs/USER_TEST_PLAN.md (testing methodology)
+```
+
+**Generated artifacts:**
+
+- **LEGACY_USER_RESEARCH_PLAN.md** - Feature audit, research questions, priorities, timeline
+- **USER_TEST_PLAN.md** - Recruitment, methodology, interview guides
+
+### Agile Workflow Tips
+
+**MVP Planning:**
+
+✅ Do:
+
+- Be ruthless about MVP scope (less is more)
+- Involve stakeholders in prioritization
+- Use real user quotes in PRD
+- Review marketing materials with sales/marketing
+
+❌ Don't:
+
+- Include every feature in MVP
+- Skip user testing plan
+- Set unrealistic timelines
+- Forget success criteria
+
+**Iteration Planning:**
+
+✅ Do:
+
+- Collect feedback systematically
+- Include both positive and negative
+- Set measurable iteration goals
+- Track success metrics
+
+❌ Don't:
+
+- Cherry-pick feedback
+- Over-generalize from limited data
+- Add too many features in one iteration
+- Skip technical debt
+
+**Legacy Research:**
+
+✅ Do:
+
+- Run on complete codebase
+- Review feature list for accuracy
+- Involve long-time users
+- Focus on high-usage features
+
+❌ Don't:
+
+- Skip codebase analysis
+- Ignore low-adoption features
+- Plan research without resources
+- Rush recruitment
+
+### Complete Guide
+
+For detailed documentation including examples, troubleshooting, and best practices, see:
+
+**[Agile Development Mode Guide](AGILE_MODE_GUIDE.md)**
+
 ## Workflow Examples
 
 ### Example 1: Interactive Feature Development
