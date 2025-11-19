@@ -285,6 +285,15 @@ module Aidp
       symbolize_keys(agile_section)
     end
 
+    # Get tool metadata configuration
+    def self.tool_metadata_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      tool_metadata_section = config[:tool_metadata] || config["tool_metadata"] || {}
+
+      # Convert string keys to symbols for consistency
+      symbolize_keys(tool_metadata_section)
+    end
+
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
       ConfigPaths.config_exists?(project_dir)
