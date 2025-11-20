@@ -73,6 +73,28 @@ fi
 # OpenCode uses environment variable (already set in containerEnv)
 echo "✓ OpenCode configured via OPENCODE_PERMISSION environment variable"
 
+# Create Aider wrapper that runs in non-interactive mode
+echo "Creating Aider wrapper..."
+cat << 'EOF' | sudo tee "$WRAPPER_DIR/aider" > /dev/null
+#!/bin/bash
+# Aider wrapper for devcontainer - non-interactive mode
+# Aider uses --yes flag for non-interactive operation
+# Check common installation locations
+if [ -f "$HOME/.local/bin/aider" ]; then
+  exec "$HOME/.local/bin/aider" "$@"
+elif [ -f "/usr/local/bin/aider" ]; then
+  exec /usr/local/bin/aider "$@"
+else
+  exec aider "$@"
+fi
+EOF
+sudo chmod +x "$WRAPPER_DIR/aider"
+
+# Link to /usr/local/bin if not already present
+if [ ! -f "/usr/local/bin/aider" ]; then
+  sudo ln -sf "$WRAPPER_DIR/aider" /usr/local/bin/aider
+fi
+
 echo ""
 echo "✓ LLM CLI tools configured for devcontainer!"
 echo ""
@@ -81,6 +103,7 @@ echo "  - Codex: Auto-approve mode (approval_policy=never, sandbox=danger-full-a
 echo "  - Claude: Dangerous mode (--dangerously-skip-permissions)"
 echo "  - Gemini CLI: Auto-accept mode (autoAccept=true)"
 echo "  - OpenCode: Allow all (OPENCODE_PERMISSION=allow)"
+echo "  - Aider: Non-interactive mode (auto-approval)"
 echo ""
 echo "⚠️  WARNING: These tools will auto-approve all operations inside this container."
 echo "    This is safe because of the devcontainer's firewall and isolation."

@@ -9,6 +9,7 @@ require_relative "../providers/opencode"
 require_relative "../providers/kilocode"
 require_relative "../providers/github_copilot"
 require_relative "../providers/codex"
+require_relative "../providers/aider"
 
 module Aidp
   module Harness
@@ -22,7 +23,8 @@ module Aidp
         "opencode" => Aidp::Providers::Opencode,
         "kilocode" => Aidp::Providers::Kilocode,
         "github_copilot" => Aidp::Providers::GithubCopilot,
-        "codex" => Aidp::Providers::Codex
+        "codex" => Aidp::Providers::Codex,
+        "aider" => Aidp::Providers::Aider
       }.freeze
 
       def initialize(config_manager = nil)
