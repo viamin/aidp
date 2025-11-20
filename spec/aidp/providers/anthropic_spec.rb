@@ -156,6 +156,95 @@ RSpec.describe Aidp::Providers::Anthropic do
       end
     end
 
+    context "when rate limit is reached" do
+      let(:rate_limit_result) { double("result", exit_status: 1, out: "Session limit reached ∙ resets 4am", err: "") }
+      let(:harness_context) { double("harness_context") }
+      let(:provider_manager) { double("provider_manager") }
+
+      before do
+        allow(provider).to receive(:debug_execute_command).and_return(rate_limit_result)
+        allow(harness_context).to receive(:provider_manager).and_return(provider_manager)
+        allow(provider_manager).to receive(:mark_rate_limited)
+        provider.set_harness_context(harness_context)
+      end
+
+      it "raises rate limit error" do
+        expect {
+          provider.send_message(prompt: prompt)
+        }.to raise_error(/Rate limit reached/)
+      end
+
+      it "logs rate limit detection" do
+        expect(Aidp).to receive(:log_debug).with("anthropic_provider", "rate_limit_detected", anything).at_least(:once)
+        allow(Aidp).to receive(:log_debug) # Allow other log_debug calls
+
+        expect {
+          provider.send_message(prompt: prompt)
+        }.to raise_error(/Rate limit reached/)
+      end
+
+      it "notifies provider manager about rate limit" do
+        expect(provider_manager).to receive(:mark_rate_limited).with("anthropic", kind_of(Time))
+
+        expect {
+          provider.send_message(prompt: prompt)
+        }.to raise_error(/Rate limit reached/)
+      end
+
+      it "extracts reset time from message" do
+        # With "resets 4am" message, should calculate next 4am
+        now = Time.new(2025, 1, 20, 14, 0, 0) # 2pm today
+        allow(Time).to receive(:now).and_return(now)
+
+        expected_reset = Time.new(2025, 1, 21, 4, 0, 0) # 4am tomorrow
+
+        expect(provider_manager).to receive(:mark_rate_limited).with("anthropic", expected_reset)
+
+        expect {
+          provider.send_message(prompt: prompt)
+        }.to raise_error(/Rate limit reached/)
+      end
+
+      context "when reset time is in the future today" do
+        let(:rate_limit_result) { double("result", exit_status: 1, out: "Session limit reached ∙ resets 11:30pm", err: "") }
+
+        it "extracts reset time for today" do
+          now = Time.new(2025, 1, 20, 10, 0, 0) # 10am today
+          allow(Time).to receive(:now).and_return(now)
+
+          expected_reset = Time.new(2025, 1, 20, 23, 30, 0) # 11:30pm today
+
+          expect(provider_manager).to receive(:mark_rate_limited).with("anthropic", expected_reset)
+
+          expect {
+            provider.send_message(prompt: prompt)
+          }.to raise_error(/Rate limit reached/)
+        end
+      end
+
+      context "when message is in stderr" do
+        let(:rate_limit_result) { double("result", exit_status: 1, out: "", err: "Session limit reached ∙ resets 4am") }
+
+        it "detects rate limit from stderr" do
+          expect {
+            provider.send_message(prompt: prompt)
+          }.to raise_error(/Rate limit reached/)
+        end
+      end
+
+      context "when harness context is not available" do
+        before do
+          provider.instance_variable_set(:@harness_context, nil)
+        end
+
+        it "still raises rate limit error without notifying" do
+          expect {
+            provider.send_message(prompt: prompt)
+          }.to raise_error(/Rate limit reached/)
+        end
+      end
+    end
+
     context "when claude CLI is not available" do
       before do
         allow(described_class).to receive(:available?).and_return(false)
