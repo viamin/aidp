@@ -134,12 +134,11 @@ RSpec.describe "Work Loop Task Completion" do
       end
 
       context "when no tasks exist" do
-        it "returns incomplete with appropriate message" do
+        it "returns complete (allows work without tasks)" do
           result = runner.send(:check_task_completion)
 
-          expect(result[:complete]).to be false
-          expect(result[:message]).to include("No tasks created")
-          expect(result[:message]).to include("At least one task must be created")
+          expect(result[:complete]).to be true
+          expect(result[:message]).to be_nil
         end
       end
 

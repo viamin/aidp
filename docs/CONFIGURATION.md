@@ -119,8 +119,8 @@ work_loop:
 
 The `task_completion_required` option (default: `true`) enforces mandatory task tracking for work loops. When enabled:
 
-- **At least one task must exist in the project** (can be created in any session)
-- **All project tasks must be completed or abandoned** before any work loop can finish
+- **If no tasks exist**: Work can complete without tasks (supports workflows without planning phase)
+- **If tasks exist**: All project tasks must be completed or abandoned before work loop can finish
 - **Abandoned tasks require a reason** for better accountability
 
 **Important**: Tasks are **project-scoped**, not session-scoped. This means:

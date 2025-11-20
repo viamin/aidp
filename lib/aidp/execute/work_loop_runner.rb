@@ -1224,12 +1224,10 @@ module Aidp
 
         all_tasks = @persistent_tasklist.all
 
-        # At least one task must exist in the project
+        # If no tasks exist yet, allow completion - agent can work without tasks initially
+        # This supports workflows where no planning phase created tasks
         if all_tasks.empty?
-          return {
-            complete: false,
-            message: "No tasks created for this project. At least one task must be created using the create_tasks template or by filing tasks via 'File task: \"description\"'."
-          }
+          return {complete: true, message: nil}
         end
 
         # Count tasks by status
@@ -1238,7 +1236,7 @@ module Aidp
         abandoned_tasks = all_tasks.select { |t| t.status == :abandoned }
         all_tasks.select { |t| t.status == :done }
 
-        # All tasks must be done or abandoned
+        # If tasks exist, all must be done or abandoned before completion
         incomplete_tasks = pending_tasks + in_progress_tasks
 
         if incomplete_tasks.any?
