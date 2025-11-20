@@ -674,14 +674,14 @@ AIDP looks for this marker (case-insensitive) to know the agent considers the wo
 
 When task completion is required:
 
-1. **At least one task must exist in the project** (can be created in any session)
-2. **All project tasks must be completed or abandoned** before any work loop can finish
+1. **If no tasks exist**: Work can complete without tasks (supports workflows without planning phase)
+2. **If tasks exist**: All project tasks must be completed or abandoned before work loop can finish
 3. **Abandoned tasks require a reason** for better tracking
 
-This design supports the typical workflow:
+This design supports multiple workflows:
 
-- **Planning phase**: Create tasks (e.g., using `aidp-plan` label or planning steps)
-- **Build phase**: Complete those tasks (e.g., using `aidp-build` label or implementation steps)
+- **Build-only workflow**: Agent works freely without tasks (optional task creation)
+- **Plan-then-build workflow**: Tasks created in planning phase must be completed in build phase
 
 #### Creating Tasks
 
