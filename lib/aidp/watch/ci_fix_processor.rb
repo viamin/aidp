@@ -41,9 +41,12 @@ module Aidp
       def process(pr)
         number = pr[:number]
 
+        Aidp.log_debug("ci_fix_processor", "process_started", pr_number: number, pr_title: pr[:title])
+
         # Check if already processed successfully
         if @state_store.ci_fix_completed?(number)
           display_message("ℹ️  CI fix for PR ##{number} already completed. Skipping.", type: :muted)
+          Aidp.log_debug("ci_fix_processor", "already_completed", pr_number: number)
           return
         end
 
@@ -53,9 +56,16 @@ module Aidp
         pr_data = @repository_client.fetch_pull_request(number)
         ci_status = @repository_client.fetch_ci_status(number)
 
+        Aidp.log_debug("ci_fix_processor", "ci_status_fetched",
+          pr_number: number,
+          ci_state: ci_status[:state],
+          check_count: ci_status[:checks]&.length || 0,
+          checks: ci_status[:checks]&.map { |c| {name: c[:name], status: c[:status], conclusion: c[:conclusion]} })
+
         # Check if there are failures
         if ci_status[:state] == "success"
           display_message("✅ CI is passing for PR ##{number}. No fixes needed.", type: :success)
+          Aidp.log_debug("ci_fix_processor", "ci_passing", pr_number: number)
           post_success_comment(pr_data)
           @state_store.record_ci_fix(number, {status: "no_failures", timestamp: Time.now.utc.iso8601})
           begin
@@ -68,14 +78,25 @@ module Aidp
 
         if ci_status[:state] == "pending"
           display_message("⏳ CI is still running for PR ##{number}. Skipping for now.", type: :muted)
+          Aidp.log_debug("ci_fix_processor", "ci_pending", pr_number: number)
           return
         end
 
         # Get failed checks
         failed_checks = ci_status[:checks].select { |check| check[:conclusion] == "failure" }
 
+        Aidp.log_debug("ci_fix_processor", "failed_checks_filtered",
+          pr_number: number,
+          total_checks: ci_status[:checks]&.length || 0,
+          failed_count: failed_checks.length,
+          failed_checks: failed_checks.map { |c| c[:name] })
+
         if failed_checks.empty?
           display_message("⚠️  No specific failed checks found for PR ##{number}.", type: :warn)
+          Aidp.log_debug("ci_fix_processor", "no_failed_checks",
+            pr_number: number,
+            ci_state: ci_status[:state],
+            all_checks: ci_status[:checks]&.map { |c| {name: c[:name], conclusion: c[:conclusion]} })
           return
         end
 

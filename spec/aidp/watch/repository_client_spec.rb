@@ -1622,6 +1622,38 @@ RSpec.describe Aidp::Watch::RepositoryClient do
         result = client.send(:normalize_ci_status, check_runs, head_sha)
         expect(result[:state]).to eq("unknown")
       end
+
+      it "returns unknown for empty checks array" do
+        check_runs = []
+
+        result = client.send(:normalize_ci_status, check_runs, head_sha)
+        expect(result[:state]).to eq("unknown")
+        expect(result[:checks]).to be_empty
+      end
+
+      it "returns failure when one check fails even with multiple successful checks" do
+        check_runs = [
+          {"name" => "test1", "status" => "completed", "conclusion" => "success", "details_url" => "url", "output" => {}},
+          {"name" => "test2", "status" => "completed", "conclusion" => "success", "details_url" => "url", "output" => {}},
+          {"name" => "Continuous Integration / lint / lint", "status" => "completed", "conclusion" => "failure", "details_url" => "url", "output" => {"summary" => "Linting failed"}}
+        ]
+
+        result = client.send(:normalize_ci_status, check_runs, head_sha)
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(3)
+      end
+
+      it "logs debug information when determining CI status" do
+        check_runs = [
+          {"name" => "test1", "status" => "completed", "conclusion" => "failure", "details_url" => "url", "output" => {}}
+        ]
+
+        expect(Aidp).to receive(:log_debug).with("repository_client", "normalize_ci_status", hash_including(check_count: 1))
+        expect(Aidp).to receive(:log_debug).with("repository_client", "ci_status_failure", hash_including(failing_count: 1))
+        expect(Aidp).to receive(:log_debug).with("repository_client", "ci_status_determined", hash_including(state: "failure"))
+
+        client.send(:normalize_ci_status, check_runs, head_sha)
+      end
     end
   end
 

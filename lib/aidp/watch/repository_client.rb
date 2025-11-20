@@ -671,16 +671,41 @@ module Aidp
           }
         end
 
+        Aidp.log_debug("repository_client", "normalize_ci_status",
+          check_count: checks.length,
+          checks: checks.map { |c| {name: c[:name], status: c[:status], conclusion: c[:conclusion]} })
+
         # Determine overall state
-        state = if checks.any? { |c| c[:conclusion] == "failure" }
+        # CRITICAL: Empty check list should be "unknown", not "success"
+        # This guard must come FIRST to prevent vacuous truth from [].all? { condition }
+        state = if checks.empty?
+          Aidp.log_debug("repository_client", "ci_status_empty", message: "No checks found")
+          "unknown"
+        elsif checks.any? { |c| c[:conclusion] == "failure" }
+          failing_checks = checks.select { |c| c[:conclusion] == "failure" }
+          Aidp.log_debug("repository_client", "ci_status_failure",
+            failing_count: failing_checks.length,
+            failing_checks: failing_checks.map { |c| c[:name] })
           "failure"
         elsif checks.any? { |c| c[:status] != "completed" }
+          pending_checks = checks.select { |c| c[:status] != "completed" }
+          Aidp.log_debug("repository_client", "ci_status_pending",
+            pending_count: pending_checks.length,
+            pending_checks: pending_checks.map { |c| {name: c[:name], status: c[:status]} })
           "pending"
         elsif checks.all? { |c| c[:conclusion] == "success" }
+          Aidp.log_debug("repository_client", "ci_status_success",
+            success_count: checks.length)
           "success"
         else
+          non_success_checks = checks.reject { |c| c[:conclusion] == "success" }
+          Aidp.log_debug("repository_client", "ci_status_unknown",
+            non_success_count: non_success_checks.length,
+            non_success_checks: non_success_checks.map { |c| {name: c[:name], conclusion: c[:conclusion]} })
           "unknown"
         end
+
+        Aidp.log_debug("repository_client", "ci_status_determined", sha: head_sha, state: state)
 
         {
           sha: head_sha,
