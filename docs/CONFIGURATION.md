@@ -76,6 +76,7 @@ Aider is a versatile coding assistant that supports multiple models through Open
 5. **Firewall**: The devcontainer firewall automatically allows access to:
    - `aider.chat` (for updates)
    - `openrouter.ai` and `api.openrouter.ai` (for API access)
+   - `pypi.org` (for version checking)
 
 ## Work Loop
 

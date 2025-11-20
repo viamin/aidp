@@ -41,13 +41,15 @@ module Aidp
       end
 
       # Get firewall requirements for Aider provider
-      # Aider uses aider.chat for updates and openrouter.ai for API access
+      # Aider uses aider.chat for updates, openrouter.ai for API access,
+      # and pypi.org for version checking
       def self.firewall_requirements
         {
           domains: [
             "aider.chat",
             "openrouter.ai",
-            "api.openrouter.ai"
+            "api.openrouter.ai",
+            "pypi.org"
           ],
           ip_ranges: []
         }

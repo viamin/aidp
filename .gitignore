@@ -42,3 +42,4 @@ vendor/bundle/*
 
 # Local custom CA certificates (never commit internal certs)
 .devcontainer/custom-ca/
+.aider*
