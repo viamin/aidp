@@ -795,6 +795,7 @@ module Aidp
           parts << "2. Track all work items as tasks"
           parts << "3. Update task status as you progress"
           parts << "4. All tasks must be DONE or ABANDONED (with reason) before completion"
+          parts << "5. **IMPORTANT**: When you write STATUS: COMPLETE, also mark all your tasks as done!"
           parts << ""
           parts << "**Important**: Tasks in the list exist due to careful planning and requirements analysis."
           parts << "Do NOT abandon tasks due to perceived complexity or scope concerns - these factors were"
@@ -814,9 +815,13 @@ module Aidp
         end
 
         parts << "## Completion Criteria"
-        parts << "Mark this step COMPLETE by adding this line to PROMPT.md:"
+        parts << "Mark this step COMPLETE by adding these lines to PROMPT.md:"
         parts << "```"
         parts << "STATUS: COMPLETE"
+        if @config.task_completion_required?
+          parts << ""
+          parts << "Update task: task_xxx_yyy status: done  # Mark ALL your tasks as done"
+        end
         parts << "```"
         parts << ""
         parts.join("\n")
