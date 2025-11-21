@@ -476,14 +476,19 @@ module Aidp
         cmd = ["gh", "api", "repos/#{full_repo}/commits/#{head_sha}/check-runs", "--jq", "."]
         stdout, _stderr, status = Open3.capture3(*cmd)
 
-        if status.success?
+        check_runs = if status.success?
           data = JSON.parse(stdout)
-          check_runs = data["check_runs"] || []
-          normalize_ci_status(check_runs, head_sha)
+          data["check_runs"] || []
         else
-          # Fallback to status checks
-          {sha: head_sha, state: "unknown", checks: []}
+          Aidp.log_warn("repository_client", "Failed to fetch check runs", sha: head_sha)
+          []
         end
+
+        # Also fetch commit statuses (for OAuth apps, webhooks, etc.)
+        commit_statuses = fetch_commit_statuses_via_gh(head_sha)
+
+        # Combine and normalize both check runs and commit statuses
+        normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
       rescue => e
         Aidp.log_warn("repository_client", "Failed to fetch CI status", error: e.message)
         {sha: nil, state: "unknown", checks: []}
@@ -501,13 +506,19 @@ module Aidp
           http.request(request)
         end
 
-        if response.code == "200"
+        check_runs = if response.code == "200"
           data = JSON.parse(response.body)
-          check_runs = data["check_runs"] || []
-          normalize_ci_status(check_runs, head_sha)
+          data["check_runs"] || []
         else
-          {sha: head_sha, state: "unknown", checks: []}
+          Aidp.log_warn("repository_client", "Failed to fetch check runs via API", sha: head_sha, code: response.code)
+          []
         end
+
+        # Also fetch commit statuses (for OAuth apps, webhooks, etc.)
+        commit_statuses = fetch_commit_statuses_via_api(head_sha)
+
+        # Combine and normalize both check runs and commit statuses
+        normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
       rescue => e
         Aidp.log_warn("repository_client", "Failed to fetch CI status", error: e.message)
         {sha: nil, state: "unknown", checks: []}
@@ -658,6 +669,85 @@ module Aidp
           changes: raw["changes"],
           patch: raw["patch"]
         }
+      end
+
+      def fetch_commit_statuses_via_gh(head_sha)
+        cmd = ["gh", "api", "repos/#{full_repo}/commits/#{head_sha}/status", "--jq", "."]
+        stdout, _stderr, status = Open3.capture3(*cmd)
+
+        if status.success?
+          data = JSON.parse(stdout)
+          data["statuses"] || []
+        else
+          Aidp.log_debug("repository_client", "No commit statuses found", sha: head_sha)
+          []
+        end
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to fetch commit statuses", error: e.message, sha: head_sha)
+        []
+      end
+
+      def fetch_commit_statuses_via_api(head_sha)
+        uri = URI("https://api.github.com/repos/#{full_repo}/commits/#{head_sha}/status")
+        request = Net::HTTP::Get.new(uri)
+        request["Accept"] = "application/vnd.github.v3+json"
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          data["statuses"] || []
+        else
+          Aidp.log_debug("repository_client", "No commit statuses found via API", sha: head_sha, code: response.code)
+          []
+        end
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to fetch commit statuses via API", error: e.message, sha: head_sha)
+        []
+      end
+
+      def normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
+        # Convert commit statuses to same format as check runs for unified processing
+        # normalize_ci_status expects string keys, so we use string keys here
+        checks_from_statuses = commit_statuses.map do |status|
+          {
+            "name" => status["context"],
+            "status" => (status["state"] == "pending") ? "in_progress" : "completed",
+            "conclusion" => normalize_commit_status_to_conclusion(status["state"]),
+            "details_url" => status["target_url"],
+            "output" => status["description"] ? {"summary" => status["description"]} : nil
+          }
+        end
+
+        # Combine check runs and converted commit statuses
+        # check_runs should already have string keys from API/CLI responses
+        all_checks = check_runs + checks_from_statuses
+
+        Aidp.log_debug("repository_client", "combined_ci_checks",
+          check_run_count: check_runs.length,
+          commit_status_count: commit_statuses.length,
+          total_checks: all_checks.length)
+
+        # Use existing normalize logic
+        normalize_ci_status(all_checks, head_sha)
+      end
+
+      def normalize_commit_status_to_conclusion(state)
+        # Map commit status states to check run conclusions
+        # Commit status states: error, failure, pending, success
+        # Check run conclusions: success, failure, neutral, cancelled, timed_out, action_required, skipped, stale
+        case state
+        when "success"
+          "success"
+        when "failure"
+          "failure"
+        when "error"
+          "failure" # Treat error as failure for consistency
+        when "pending", nil
+          nil # pending means not completed yet
+        end
       end
 
       def normalize_ci_status(check_runs, head_sha)

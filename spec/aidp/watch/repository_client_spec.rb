@@ -1498,9 +1498,12 @@ RSpec.describe Aidp::Watch::RepositoryClient do
             }
           ]
         })
+        commit_status_response = JSON.dump({"statuses" => []})
 
         allow(client).to receive(:fetch_pull_request_via_gh).and_return(pr_data)
-        allow(Open3).to receive(:capture3).and_return([check_runs_response, "", double(success?: true)])
+        # Mock both check-runs and commit status API calls
+        allow(Open3).to receive(:capture3).with("gh", "api", "repos/#{owner}/#{repo}/commits/#{head_sha}/check-runs", "--jq", ".").and_return([check_runs_response, "", double(success?: true)])
+        allow(Open3).to receive(:capture3).with("gh", "api", "repos/#{owner}/#{repo}/commits/#{head_sha}/status", "--jq", ".").and_return([commit_status_response, "", double(success?: true)])
 
         result = client.send(:fetch_ci_status_via_gh, pr_number)
         expect(result[:sha]).to eq(head_sha)
@@ -1542,16 +1545,19 @@ RSpec.describe Aidp::Watch::RepositoryClient do
             }
           ]
         })
+        commit_status_response = JSON.dump({"statuses" => []})
 
         http = instance_double(Net::HTTP)
         request = instance_double(Net::HTTP::Get)
-        response = double(code: "200", body: check_runs_response)
+        check_runs_api_response = double(code: "200", body: check_runs_response)
+        commit_status_api_response = double(code: "200", body: commit_status_response)
 
         allow(client).to receive(:fetch_pull_request_via_api).and_return(pr_data)
         allow(Net::HTTP::Get).to receive(:new).and_return(request)
         allow(request).to receive(:[]=)
         allow(Net::HTTP).to receive(:start).and_yield(http)
-        allow(http).to receive(:request).and_return(response)
+        # First call for check-runs, second call for commit status
+        allow(http).to receive(:request).and_return(check_runs_api_response, commit_status_api_response)
 
         result = client.send(:fetch_ci_status_via_api, pr_number)
         expect(result[:sha]).to eq(head_sha)
@@ -1653,6 +1659,116 @@ RSpec.describe Aidp::Watch::RepositoryClient do
         expect(Aidp).to receive(:log_debug).with("repository_client", "ci_status_determined", hash_including(state: "failure"))
 
         client.send(:normalize_ci_status, check_runs, head_sha)
+      end
+    end
+
+    describe "#normalize_ci_status_combined" do
+      it "combines check runs and commit statuses correctly" do
+        check_runs = [
+          {"name" => "RSpec", "status" => "completed", "conclusion" => "success", "details_url" => "url1", "output" => {}}
+        ]
+        commit_statuses = [
+          {"context" => "Travis CI", "state" => "success", "target_url" => "url2", "description" => "Build passed"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("success")
+        expect(result[:checks].length).to eq(2)
+        expect(result[:checks][0][:name]).to eq("RSpec")
+        expect(result[:checks][1][:name]).to eq("Travis CI")
+      end
+
+      it "detects failure from commit status (issue #327)" do
+        check_runs = [
+          {"name" => "GitHub Actions", "status" => "completed", "conclusion" => "success", "details_url" => "url1", "output" => {}}
+        ]
+        commit_statuses = [
+          {"context" => "Continuous Integration / lint / lint", "state" => "failure", "target_url" => "url2", "description" => "Linting failed"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(2)
+        failing_check = result[:checks].find { |c| c[:conclusion] == "failure" }
+        expect(failing_check[:name]).to eq("Continuous Integration / lint / lint")
+      end
+
+      it "detects failure from commit status error state" do
+        check_runs = []
+        commit_statuses = [
+          {"context" => "CI Build", "state" => "error", "target_url" => "url1", "description" => "Build error"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(1)
+        expect(result[:checks][0][:conclusion]).to eq("failure")
+      end
+
+      it "handles pending commit statuses" do
+        check_runs = []
+        commit_statuses = [
+          {"context" => "CircleCI", "state" => "pending", "target_url" => "url1", "description" => "Pending"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("pending")
+        expect(result[:checks][0][:status]).to eq("in_progress")
+        expect(result[:checks][0][:conclusion]).to be_nil
+      end
+
+      it "handles empty commit statuses" do
+        check_runs = [
+          {"name" => "test", "status" => "completed", "conclusion" => "success", "details_url" => "url", "output" => {}}
+        ]
+        commit_statuses = []
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("success")
+        expect(result[:checks].length).to eq(1)
+      end
+
+      it "prioritizes failure over success when combining both types" do
+        check_runs = [
+          {"name" => "Unit Tests", "status" => "completed", "conclusion" => "success", "details_url" => "url1", "output" => {}},
+          {"name" => "Integration Tests", "status" => "completed", "conclusion" => "success", "details_url" => "url2", "output" => {}}
+        ]
+        commit_statuses = [
+          {"context" => "Security Scan", "state" => "success", "target_url" => "url3", "description" => "No vulnerabilities"},
+          {"context" => "Lint Check", "state" => "failure", "target_url" => "url4", "description" => "Style violations"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(4)
+      end
+    end
+
+    describe "#normalize_commit_status_to_conclusion" do
+      it "maps success to success" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "success")).to eq("success")
+      end
+
+      it "maps failure to failure" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "failure")).to eq("failure")
+      end
+
+      it "maps error to failure" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "error")).to eq("failure")
+      end
+
+      it "maps pending to nil" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "pending")).to be_nil
+      end
+
+      it "maps unknown states to nil" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "unknown")).to be_nil
       end
     end
   end
