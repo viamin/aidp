@@ -68,6 +68,7 @@ RSpec.describe Aidp::Providers::Aider do
       expect(requirements[:domains]).to include("aider.chat")
       expect(requirements[:domains]).to include("openrouter.ai")
       expect(requirements[:domains]).to include("api.openrouter.ai")
+      expect(requirements[:domains]).to include("pypi.org")
     end
 
     it "returns empty IP ranges" do
