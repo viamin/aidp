@@ -187,7 +187,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "new_file.txt", "action" => "create", "content" => "Hello World"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.exist?(File.join(tmp_dir, "new_file.txt"))).to be true
       expect(File.read(File.join(tmp_dir, "new_file.txt"))).to eq("Hello World")
@@ -201,7 +201,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "existing.txt", "action" => "edit", "content" => "New content"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.read(file_path)).to eq("New content")
     end
@@ -214,7 +214,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "to_delete.txt", "action" => "delete"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.exist?(file_path)).to be false
     end
@@ -224,7 +224,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "test.txt", "action" => "unknown", "content" => "Content"}
       ]
 
-      expect { processor.send(:apply_fixes, fixes) }.not_to raise_error
+      expect { processor.send(:apply_fixes, fixes, working_dir: tmp_dir) }.not_to raise_error
     end
 
     it "creates nested directories" do
@@ -232,7 +232,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "nested/dir/file.txt", "action" => "create", "content" => "Content"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.exist?(File.join(tmp_dir, "nested/dir/file.txt"))).to be true
     end
