@@ -36,6 +36,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     allow(processor).to receive(:write_prompt)
     allow(processor).to receive(:stage_and_commit).and_return(true)
     allow(repository_client).to receive(:most_recent_label_actor).and_return(nil)
+    allow(repository_client).to receive(:gh_available?).and_return(true)
   end
 
   after do
@@ -737,6 +738,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       # Mock PR creation failure
       allow(repository_client).to receive(:create_pull_request).and_raise(RuntimeError, "Failed to create PR via gh: branch not found")
       allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
 
       # Fix-forward: Exceptions should be handled gracefully, NOT re-raised
       # The error will be logged and a failure comment posted

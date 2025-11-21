@@ -251,8 +251,42 @@ module Aidp
         cmd += ["--draft"] if draft
         cmd += ["--assignee", assignee] if assignee
 
+        Aidp.log_debug(
+          "repository_client",
+          "executing_gh_pr_create",
+          repo: full_repo,
+          head: head,
+          base: base,
+          draft: draft,
+          assignee: assignee,
+          command: cmd.join(" ")
+        )
+
         stdout, stderr, status = Open3.capture3(*cmd)
-        raise "Failed to create PR via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug(
+          "repository_client",
+          "gh_pr_create_result",
+          repo: full_repo,
+          success: status.success?,
+          exit_code: status.exitstatus,
+          stdout_preview: stdout[0, 200],
+          stderr: stderr
+        )
+
+        unless status.success?
+          Aidp.log_error(
+            "repository_client",
+            "gh_pr_create_failed",
+            repo: full_repo,
+            head: head,
+            base: base,
+            exit_code: status.exitstatus,
+            stderr: stderr,
+            stdout: stdout
+          )
+          raise "Failed to create PR via gh: #{stderr.strip}"
+        end
 
         stdout.strip
       end

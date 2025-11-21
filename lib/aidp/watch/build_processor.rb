@@ -773,6 +773,17 @@ module Aidp
           fallback_to_author: label_actor.nil?
         )
 
+        Aidp.log_debug(
+          "build_processor",
+          "attempting_pr_creation",
+          issue: issue[:number],
+          branch_name: branch_name,
+          base_branch: base_branch,
+          draft: draft,
+          assignee: assignee,
+          gh_available: @repository_client.gh_available?
+        )
+
         output = @repository_client.create_pull_request(
           title: title,
           body: body,
@@ -794,6 +805,19 @@ module Aidp
           assignee: assignee
         )
         pr_url
+      rescue => e
+        Aidp.log_error(
+          "build_processor",
+          "pr_creation_failed",
+          issue: issue[:number],
+          branch_name: branch_name,
+          base_branch: base_branch,
+          error: e.message,
+          error_class: e.class.name,
+          gh_available: @repository_client.gh_available?
+        )
+        display_message("⚠️  Failed to create pull request: #{e.message}", type: :warn)
+        nil
       end
 
       def gather_test_summary(working_dir: @project_dir)

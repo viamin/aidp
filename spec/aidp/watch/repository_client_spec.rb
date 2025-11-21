@@ -222,7 +222,7 @@ RSpec.describe Aidp::Watch::RepositoryClient do
 
   describe "#create_pull_request_via_gh" do
     let(:gh_available) { true }
-    let(:status) { instance_double(Process::Status, success?: true) }
+    let(:status) { instance_double(Process::Status, success?: true, exitstatus: 0) }
 
     it "uses supported flags only for gh pr create" do
       expect(Open3).to receive(:capture3).with(
