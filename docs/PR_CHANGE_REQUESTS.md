@@ -58,7 +58,7 @@ watch:
 ### Configuration Options
 
 | Option | Type | Default | Description |
-|--------|------|---------|-------------|
+| -------- | ------ | --------- | ------------- |
 | `enabled` | boolean | `true` | Enable/disable the feature |
 | `allow_multi_file_edits` | boolean | `true` | Allow changes across multiple files |
 | `run_tests_before_push` | boolean | `true` | Run tests/linters before pushing |

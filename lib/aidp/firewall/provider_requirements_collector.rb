@@ -10,6 +10,7 @@ require_relative "../providers/gemini"
 require_relative "../providers/kilocode"
 require_relative "../providers/opencode"
 require_relative "../providers/codex"
+require_relative "../providers/aider"
 
 module Aidp
   module Firewall
@@ -241,7 +242,8 @@ module Aidp
           Aidp::Providers::Gemini,
           Aidp::Providers::Kilocode,
           Aidp::Providers::Opencode,
-          Aidp::Providers::Codex
+          Aidp::Providers::Codex,
+          Aidp::Providers::Aider
         ]
       end
 

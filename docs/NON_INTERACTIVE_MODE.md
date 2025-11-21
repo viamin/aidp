@@ -21,7 +21,7 @@ This feature implements [GitHub Issue #104](https://github.com/viamin/aidp/issue
 AIDP can operate in three distinct modes:
 
 | Mode | Description | Terminal Required | User Interaction |
-|------|-------------|-------------------|------------------|
+| ------ | ------------- | ------------------- | ------------------ |
 | **Interactive** | Full REPL with real-time control | Yes | High - via REPL commands |
 | **Background** | Autonomous daemon process | No | Minimal - via GitHub |
 | **Attached** | REPL attached to background daemon | Yes | High - with daemon visibility |
@@ -247,7 +247,7 @@ Logs automatically rotate:
 ### Event Types
 
 | Event Type | Description |
-|------------|-------------|
+| ------------ | ------------- |
 | `daemon_lifecycle` | Daemon start/stop events |
 | `work_loop_iteration` | Work loop progress |
 | `watch_mode` | Watch mode polling cycles |
@@ -380,7 +380,7 @@ $ tail -f watch.log
 While daemon runs in background:
 
 | GitHub Action | Daemon Response |
-|---------------|-----------------|
+| --------------- | ----------------- |
 | Add `aidp-plan` label | Generate and post plan |
 | Add `aidp-build` label | Start implementation |
 | Comment with questions | Incorporate into plan |
@@ -535,7 +535,7 @@ status\n
 ### Supported Commands
 
 | Command | Response | Description |
-|---------|----------|-------------|
+| --------- | ---------- | ------------- |
 | `status` | JSON status | Get daemon status |
 | `stop` | `{"status": "stopping"}` | Stop daemon |
 | `attach` | Activity summary | Prepare for attach |

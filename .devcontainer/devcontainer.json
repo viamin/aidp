@@ -62,6 +62,7 @@
     "github-copilot-cli": "npm install -g @github/copilot",
     "opencode": "npm i -g opencode-ai@latest",
     "kilocode": "npm i -g @kilocode/cli",
+    "aider": "curl -fsSL https://aider.chat/install.sh | bash",
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh",
     // Generate firewall configuration from provider requirements
@@ -164,7 +165,9 @@
     // LLM CLI Authentication - Codex CLI (OpenAI)
     "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached",
     // LLM CLI Authentication - Kilocode
-    "source=${localEnv:HOME}/.kilocode,target=/home/vscode/.kilocode,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.kilocode,target=/home/vscode/.kilocode,type=bind,consistency=cached",
+    // LLM CLI Authentication - Aider
+    "source=${localEnv:HOME}/.aider,target=/home/vscode/.aider,type=bind,consistency=cached"
   ]
   // Optional: uncomment to keep container running
   // "overrideCommand": true

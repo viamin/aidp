@@ -14,7 +14,7 @@ All of these work in **copilot mode** with the `EnhancedInput` class:
 ### Cursor Movement
 
 | Key Combination | Action |
-|----------------|--------|
+| ---------------- | -------- |
 | `Ctrl-A` | Move cursor to beginning of line ✅ |
 | `Ctrl-E` | Move cursor to end of line ✅ |
 | `Left Arrow` | Move cursor left one character ✅ |
@@ -27,7 +27,7 @@ All of these work in **copilot mode** with the `EnhancedInput` class:
 ### Text Editing
 
 | Key Combination | Action |
-|----------------|--------|
+| ---------------- | -------- |
 | `Ctrl-W` | Delete word backward (before cursor) ✅ |
 | `Ctrl-K` | Kill text from cursor to end of line ✅ |
 | `Ctrl-U` | Kill entire line ✅ |
@@ -40,7 +40,7 @@ All of these work in **copilot mode** with the `EnhancedInput` class:
 ### Navigation & History
 
 | Key Combination | Action |
-|----------------|--------|
+| ---------------- | -------- |
 | `Up Arrow` | Previous history item ✅ |
 | `Down Arrow` | Next history item ✅ |
 | `Ctrl-R` | Reverse history search ✅ |
@@ -48,7 +48,7 @@ All of these work in **copilot mode** with the `EnhancedInput` class:
 ### Other
 
 | Key Combination | Action |
-|----------------|--------|
+| ---------------- | -------- |
 | `Ctrl-C` | Cancel/Interrupt input ✅ |
 | `Ctrl-D` | End of input (when line is empty) ✅ |
 | `Tab` | Auto-completion (context-dependent) ✅ |

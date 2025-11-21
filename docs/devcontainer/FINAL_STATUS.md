@@ -26,7 +26,7 @@ Successfully implemented the **core infrastructure** and **CLI commands** for de
 ### Code Modules (6 files, 2,103 lines)
 
 | Module | Lines | Tests | Status |
-|--------|-------|-------|--------|
+| -------- | ------- | ------- | -------- |
 | DevcontainerParser | 252 | 36 ✅ | Complete |
 | DevcontainerGenerator | 429 | 46 ✅ | Complete |
 | PortManager | 287 | 39 ✅ | Complete |
@@ -540,7 +540,7 @@ $ bundle exec standardrb lib/aidp/setup/devcontainer/ lib/aidp/cli/devcontainer_
 ## 📈 Metrics
 
 | Metric | Value |
-|--------|-------|
+| -------- | ------- |
 | Lines of Code | 1,624 |
 | Test Coverage | 189 tests |
 | Success Rate | 100% |

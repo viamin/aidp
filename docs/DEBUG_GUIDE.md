@@ -329,10 +329,10 @@ AIDP_VERBOSE=1 aidp       # Env-based equivalent of --verbose (helpful in script
 Behavior matrix:
 
 | Flag combination | Console output (planning) | Logged (debug) | Notes |
-|------------------|---------------------------|----------------|-------|
-| (none)           | No                        | No             | Minimal, user sees only synthesized questions |
+| ------------------ | --------------------------- | ---------------- | ------- |
+| (none) | No | No | Minimal, user sees only synthesized questions |
 | `--verbose` or `AIDP_VERBOSE=1` | Yes | No (unless DEBUG=1) | High transparency for interactive sessions |
-| `DEBUG=1`        | No                        | Yes            | Keeps terminal clean but preserves artifacts |
+| `DEBUG=1` | No | Yes | Keeps terminal clean but preserves artifacts |
 | `--verbose` + `DEBUG=1` | Yes | Yes | Full traceability |
 
 What is surfaced:

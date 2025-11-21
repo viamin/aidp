@@ -9,7 +9,7 @@ Successfully completed **high-priority** mock usage audit and fixes for AIDP tes
 ### Violations Eliminated
 
 | Category | Original | Fixed | Remaining | % Complete |
-|----------|----------|-------|-----------|------------|
+| ---------- | ---------- | ------- | ----------- | ------------ |
 | **`allow_any_instance_of`** | **31** | **31** | **0** | **100%** ✅ |
 | Internal class mocking | 662 | 117 | 545 | 17.7% |
 | Instance variable manipulation | 577 | 2 | 575 | 0.3% |
@@ -504,7 +504,7 @@ end
 ### Summary of "Hard" Violations
 
 | File | Violations | Risk | Estimated Effort |
-|------|------------|------|------------------|
+| ------ | ------------ | ------ | ------------------ |
 | work_loop_runner_spec.rb | 15 | High | 4-6 hours |
 | guided_agent_spec.rb | 6 | Medium | 2-3 hours |
 | setup/wizard_spec.rb | 9 | Low | 2-3 hours |

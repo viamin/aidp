@@ -89,7 +89,7 @@ Reviews are posted as PR comments with severity-categorized findings:
 ### Summary
 
 | Severity | Count |
-|----------|-------|
+| ---------- | ------- |
 | 🔴 High Priority | 1 |
 | 🟠 Major | 2 |
 | 🟡 Minor | 3 |

@@ -84,7 +84,7 @@ end
 **Mapping Rules**:
 
 | Wizard Selection | Devcontainer Feature/Setting |
-|------------------|------------------------------|
+| ------------------ | ------------------------------ |
 | Provider: Any | `ghcr.io/devcontainers/features/github-cli:1` |
 | Test: RSpec | `ghcr.io/devcontainers/features/ruby:1` |
 | Test: Jest/Playwright | `ghcr.io/devcontainers/features/node:1` |
@@ -150,7 +150,7 @@ merged_config = generator.generate(wizard_config, existing_config)
 **Standard Port Assignments**:
 
 | Service/Tool | Port | Label | Auto-open? |
-|--------------|------|-------|------------|
+| -------------- | ------ | ------- | ------------ |
 | Web app | 3000 | "Application" | Yes |
 | Remote terminal | 7681 | "Remote Terminal (ttyd)" | No |
 | Playwright debug | 9222 | "Playwright Debug" | No |
@@ -238,7 +238,7 @@ backup_manager.cleanup_old_backups(10)
 ### Per-Module Breakdown
 
 | Module | Tests | Status |
-|--------|-------|--------|
+| -------- | ------- | -------- |
 | DevcontainerParser | 36 | ✅ All passing |
 | DevcontainerGenerator | 46 | ✅ All passing |
 | PortManager | 39 | ✅ All passing |

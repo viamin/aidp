@@ -1614,7 +1614,7 @@ end
 ## Pattern-to-Use-Case Matrix
 
 | Use Case | Primary Pattern | Supporting Patterns | Rationale |
-|----------|----------------|---------------------|-----------|
+| ---------- | ---------------- | --------------------- | ----------- |
 | Filter test output | Strategy | Factory, Service Object | Different strategies per framework |
 | Compose filtering into TestRunner | Composition | Dependency Injection | Loose coupling, testable |
 | Build optimized commands | Builder | Template Method | Fluent interface for command construction |

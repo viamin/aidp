@@ -14,6 +14,7 @@ The devcontainer uses a **dual-layer approach**:
 The devcontainer is configured to persist LLM CLI credentials using bind mounts from your host:
 
 ### 1. Host Directory Mounts (Preferred)
+
 These mounts share your host machine's credentials with the container, so you only need to authenticate once on your host:
 
 - **`~/.claude`** → Container: `/home/vscode/.claude`
@@ -40,6 +41,11 @@ These mounts share your host machine's credentials with the container, so you on
   - **Files shared**: `~/.codex/config.toml`, `~/.codex/credentials.json`
   - **Benefit**: Authenticate once on host, works in all containers
 
+- **`~/.aider`** → Container: `/home/vscode/.aider`
+  - **Provider**: Aider
+  - **Files shared**: `~/.aider/.aider.conf.yml`, `~/.aider/.aider.env`
+  - **Benefit**: Authenticate once on host, works in all containers
+
 ## Dangerous Mode Configuration (Container-Only)
 
 ⚠️ **IMPORTANT**: The devcontainer runs LLM CLI tools in **dangerous/auto-approve mode** for unattended operation. This is safe because of the devcontainer's firewall and isolation, but these settings are **NOT applied to your host machine**.
@@ -49,7 +55,9 @@ These mounts share your host machine's credentials with the container, so you on
 Three layers enable auto-approve mode inside the container only:
 
 #### 1. Environment Variables ([devcontainer.json](devcontainer.json#L30-L39))
+
 Set in `containerEnv` - these only exist inside the container:
+
 ```json
 "CODEX_APPROVAL_POLICY": "never",
 "CODEX_SANDBOX_MODE": "danger-full-access",
@@ -57,6 +65,7 @@ Set in `containerEnv` - these only exist inside the container:
 ```
 
 #### 2. Binary Wrappers ([configure-llm-tools.sh](configure-llm-tools.sh))
+
 The `postCreateCommand` script creates wrapper scripts at `/usr/local/bin/devcontainer-llm-wrappers/` that intercept CLI commands:
 
 - **Codex**: Adds `-a never -s danger-full-access` flags
@@ -65,7 +74,9 @@ The `postCreateCommand` script creates wrapper scripts at `/usr/local/bin/devcon
 - **OpenCode**: Uses `OPENCODE_PERMISSION` environment variable
 
 #### 3. VSCode Extension Settings ([devcontainer.json](devcontainer.json#L118-L121))
+
 Applied only inside the devcontainer:
+
 ```json
 "claude-code.dangerouslySkipPermissions": true,
 "claude-code.useTerminal": false
@@ -88,10 +99,12 @@ Applied only inside the devcontainer:
 | **Cursor** | `cursor-agent` | `~/.cursor/` | Host mount | Via Cursor app | N/A |
 | **Codex** | `codex` | `~/.codex/` | Host mount | `codex login` | CLI flags via wrapper |
 | **OpenCode** | `opencode` | `~/.config/opencode/` | Host mount | `opencode auth` | Env var `OPENCODE_PERMISSION` |
+| **Aider** | `aider` | `~/.aider/` | Host mount | `aider --openrouter-api-key <key>` | Wrapper (non-interactive) |
 
 ## First-Time Setup
 
 ### On Your Host Machine (Recommended)
+
 Authenticate with CLI tools on your host before starting the devcontainer:
 
 ```bash
@@ -131,6 +144,9 @@ codex --version
 
 # OpenCode (if using)
 opencode --version
+
+# Aider (if using)
+aider --version
 ```
 
 ## Troubleshooting
@@ -140,17 +156,20 @@ opencode --version
 This shouldn't happen with dangerous mode enabled. If it does:
 
 1. Check that wrapper scripts exist:
+
    ```bash
    ls -la /usr/local/bin/devcontainer-llm-wrappers/
    ```
 
 2. Verify wrappers are being used:
+
    ```bash
    which codex  # Should show /usr/local/bin/codex
    which claude # Should show /usr/local/bin/claude
    ```
 
 3. Re-run configuration script:
+
    ```bash
    /workspaces/aidp/.devcontainer/configure-llm-tools.sh
    ```
@@ -158,6 +177,7 @@ This shouldn't happen with dangerous mode enabled. If it does:
 ### "Authentication required" after rebuild
 
 Check that the host mount is working:
+
 ```bash
 ls -la ~/.claude/.credentials.json
 ls -la ~/.config/gemini
@@ -168,14 +188,18 @@ ls -la ~/.codex
 If missing, authenticate on your host machine first.
 
 ### "Permission denied" errors
+
 The container runs as user `vscode`. Ensure mounted directories have appropriate permissions:
+
 ```bash
 # On host
 chmod -R u+rwX ~/.claude ~/.config/gemini ~/.cursor
 ```
 
 ### Mount doesn't exist on host
+
 If `~/.claude` or `~/.cursor` doesn't exist on your host and you get mount errors, you can either:
+
 1. Create the directory on host: `mkdir -p ~/.claude ~/.cursor`
 2. Remove unused mounts from [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json) if you don't use those tools
 
@@ -199,6 +223,7 @@ export AIDP_GITHUB_COPILOT_TIMEOUT=600
 ## MCP Server Configuration
 
 ### Cursor MCP Servers
+
 MCP servers are configured in `~/.cursor/mcp.json` and shared via mount:
 
 ```json
@@ -216,7 +241,9 @@ MCP servers are configured in `~/.cursor/mcp.json` and shared via mount:
 ```
 
 ### Claude MCP Servers
+
 Claude MCP servers are managed via the Claude CLI:
+
 ```bash
 claude mcp list
 claude mcp add <server-name>

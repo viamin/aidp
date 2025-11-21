@@ -78,7 +78,7 @@ auto_update:
 ### Update Policies
 
 | Policy | Allows | Example |
-|--------|--------|---------|
+| -------- | -------- | --------- |
 | `off` | No updates | Always stay on current version |
 | `exact` | Exact version only | 1.2.3 → 1.2.3 (no updates) |
 | `patch` | Patch updates | 1.2.3 → 1.2.4 ✓, 1.2.3 → 1.3.0 ✗ |

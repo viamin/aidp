@@ -45,13 +45,13 @@ follows:
 
 ```text
 +-------------------------------+        +-----------------------------+
-|  aidp-plan label added        |        |  aidp-build label added     |
-|                               |        |                             |
-| 1. Fetch issue + comments     |        | 1. Verify plan exists       |
-| 2. Generate Implementation    |        | 2. Create aidp/issue-*      |
-|    Contract proposal          |        |    branch                   |
-| 3. Post plan + questions      | -----> | 3. Run fix-forward loop     |
-| 4. Await answers              |        | 4. Commit + create PR       |
+| aidp-plan label added | aidp-build label added |
+|  |
+| 1. Fetch issue + comments | 1. Verify plan exists |
+| 2. Generate Implementation | 2. Create aidp/issue-* |
+| Contract proposal | branch |
+| 3. Post plan + questions | -----> | 3. Run fix-forward loop |
+| 4. Await answers | 4. Commit + create PR |
 +-------------------------------+        | 5. Comment success/failure  |
                                          +-----------------------------+
 ```

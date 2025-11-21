@@ -268,7 +268,7 @@ AIDP uses a **fix-forward** model during implementation. When tests fail, it con
 ### State Descriptions
 
 | State | Description |
-|-------|-------------|
+| ------- | ------------- |
 | **READY** | Starting a new iteration, ready to apply changes |
 | **APPLY_PATCH** | Agent reads PROMPT.md and applies changes to code |
 | **TEST** | Running automated tests and linters |
@@ -397,7 +397,7 @@ aidp execute
 ### Prerequisites
 
 | Method | Requirement | Access |
-|--------|-------------|---------|
+| -------- | ------------- | --------- |
 | **GitHub CLI** | `gh auth login` completed | Private & public repos |
 | **Public API** | No authentication needed | Public repos only |
 
@@ -555,7 +555,7 @@ harness:
 ### Configuration Options
 
 | Option | Type | Default | Description |
-|--------|------|---------|-------------|
+| -------- | ------ | --------- | ------------- |
 | `enabled` | boolean | `true` | Enable/disable work loops |
 | `max_iterations` | integer | `50` | Safety limit for iterations |
 | `test_commands` | array | `[]` | Commands to run tests (all required by default) |
@@ -1054,7 +1054,7 @@ test_commands:
 ### Files Created
 
 | File/Directory | Purpose |
-|---------------|---------|
+| --------------- | --------- |
 | `PROMPT.md` | Active work prompt (deleted after completion) |
 | `.aidp/prompt_archive/` | Archived prompts with timestamps |
 | `docs/LLM_STYLE_GUIDE.md` | Project-specific style guide |
@@ -1120,7 +1120,7 @@ harness:
 Work loops can run in different modes depending on your needs:
 
 | Mode | Description | Use Case |
-|------|-------------|----------|
+| ------ | ------------- | ---------- |
 | **Interactive** | Full REPL with live control | Active development, debugging |
 | **Background** | Autonomous daemon process | Long-running tasks, CI/CD |
 | **Attached** | REPL attached to background daemon | Monitor/control running daemon |
@@ -1718,7 +1718,7 @@ Each backlog entry includes:
 ### Entry Types
 
 | Type | Description |
-|------|-------------|
+| ------ | ------------- |
 | `style_violation` | Code doesn't follow LLM_STYLE_GUIDE |
 | `refactor_opportunity` | Code could be improved |
 | `technical_debt` | Known issues needing attention |
