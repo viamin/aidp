@@ -147,7 +147,7 @@ The harness transforms AIDP from a step-by-step tool into an intelligent develop
 The harness progresses through several states during execution:
 
 | State | Description | What You Can Do |
-|-------|-------------|-----------------|
+| ------- | ------------- | ----------------- |
 | 🚀 **Running** | Actively executing steps | Monitor progress, pause, or stop |
 | ⏸️ **Paused for Input** | Waiting for your response to questions | Answer questions to continue |
 | ⏳ **Rate Limited** | Waiting for provider cooldown | Wait for automatic resume or switch providers |
@@ -241,7 +241,7 @@ providers:
 The harness implements different retry strategies based on error type:
 
 | Error Type | Strategy | Retries | Behavior |
-|------------|----------|---------|----------|
+| ------------ | ---------- | --------- | ---------- |
 | **Rate Limit** | Immediate switch | 0 | Switch to fallback provider immediately |
 | **Network Error** | Linear backoff | 3 | Retry with 1s, 2s, 3s delays |
 | **Server Error** | Exponential backoff | 5 | Retry with 2s, 4s, 8s, 16s, 32s delays |

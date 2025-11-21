@@ -158,10 +158,10 @@ RSpec.describe Aidp::Providers::Aider do
         allow(Thread).to receive(:new).and_return(thread_mock)
       end
 
-      it "executes aider with --yes and --message flags" do
+      it "executes aider with --yes-always and --message flags" do
         provider.send_message(prompt: prompt)
         expect(provider).to have_received(:debug_execute_command)
-          .with("aider", args: ["--yes", "--message", prompt, "--no-auto-commits"], timeout: 300)
+          .with("aider", args: ["--yes-always", "--message", prompt, "--no-auto-commits"], timeout: 300)
       end
 
       it "returns the output when successful" do
@@ -213,7 +213,7 @@ RSpec.describe Aidp::Providers::Aider do
         it "includes restore-chat-history flag in command" do
           provider.send_message(prompt: prompt, session: "test-session")
           expect(provider).to have_received(:debug_execute_command)
-            .with("aider", args: ["--yes", "--message", prompt, "--no-auto-commits", "--restore-chat-history"], timeout: 300)
+            .with("aider", args: ["--yes-always", "--message", prompt, "--no-auto-commits", "--restore-chat-history"], timeout: 300)
         end
       end
     end
@@ -246,7 +246,7 @@ RSpec.describe Aidp::Providers::Aider do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("aider", args: ["--yes", "--message", prompt, "--no-auto-commits", "--restore-chat-history", "--model", "gpt-4"], timeout: 300)
+        .with("aider", args: ["--yes-always", "--message", prompt, "--no-auto-commits", "--restore-chat-history", "--model", "gpt-4"], timeout: 300)
     end
 
     it "includes auto-commits flag when specified" do
@@ -255,14 +255,14 @@ RSpec.describe Aidp::Providers::Aider do
       provider.send_with_options(prompt: prompt, **options)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("aider", args: ["--yes", "--message", prompt, "--auto-commits"], timeout: 300)
+        .with("aider", args: ["--yes-always", "--message", prompt, "--auto-commits"], timeout: 300)
     end
 
     it "disables auto-commits by default" do
       provider.send_with_options(prompt: prompt)
 
       expect(provider).to have_received(:debug_execute_command)
-        .with("aider", args: ["--yes", "--message", prompt, "--no-auto-commits"], timeout: 300)
+        .with("aider", args: ["--yes-always", "--message", prompt, "--no-auto-commits"], timeout: 300)
     end
   end
 
@@ -330,7 +330,7 @@ RSpec.describe Aidp::Providers::Aider do
       it "uses the environment timeout value" do
         provider.send_message(prompt: prompt)
         expect(provider).to have_received(:debug_execute_command)
-          .with("aider", args: ["--yes", "--message", prompt, "--no-auto-commits"], timeout: 600)
+          .with("aider", args: ["--yes-always", "--message", prompt, "--no-auto-commits"], timeout: 600)
       end
     end
   end

@@ -131,7 +131,7 @@ guards:
 Guards support glob patterns for file matching:
 
 | Pattern | Description | Example |
-|---------|-------------|---------|
+| --------- | ------------- | --------- |
 | `*` | Match any characters except `/` | `*.rb` matches `file.rb` |
 | `**` | Match any characters including `/` | `lib/**/*.rb` matches `lib/foo/bar.rb` |
 | `?` | Match single character | `file?.rb` matches `file1.rb` |

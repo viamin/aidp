@@ -107,8 +107,9 @@ module Aidp
         end
 
         begin
-          # Use non-interactive mode with --yes flag and --message
-          args = ["--yes", "--message", prompt]
+          # Use non-interactive mode with --yes-always flag and --message
+          # --yes-always is equivalent to Claude's --dangerously-skip-permissions
+          args = ["--yes-always", "--message", prompt]
 
           # Disable aider's auto-commits by default - let AIDP handle commits
           # based on work_loop.version_control.behavior configuration
@@ -121,7 +122,7 @@ module Aidp
 
           # In devcontainer, aider should run in non-interactive mode
           if in_devcontainer_or_codespace?
-            debug_log("🔓 Running aider in non-interactive mode (devcontainer)", level: :info)
+            debug_log("🔓 Running aider in non-interactive mode with --yes-always (devcontainer)", level: :info)
           end
 
           # Use debug_execute_command for better debugging
@@ -153,7 +154,7 @@ module Aidp
 
       # Enhanced send method with additional options
       def send_with_options(prompt:, session: nil, model: nil, auto_commits: false)
-        args = ["--yes", "--message", prompt]
+        args = ["--yes-always", "--message", prompt]
 
         # Disable auto-commits by default (let AIDP handle commits)
         # unless explicitly enabled via auto_commits parameter

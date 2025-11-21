@@ -69,7 +69,7 @@ Aider is a versatile coding assistant that supports multiple models through Open
    aider --model <your-model> --openrouter-api-key <your-key>
    ```
 
-3. **Usage**: Set `name: aider` in your provider configuration. AIDP will use Aider in non-interactive mode with the `--yes` flag for automated operation.
+3. **Usage**: Set `name: aider` in your provider configuration. AIDP will use Aider in non-interactive mode with the `--yes-always` flag (equivalent to Claude's `--dangerously-skip-permissions`) for automated operation.
 
 4. **Git Commits**: By default, AIDP disables Aider's automatic commits (`--no-auto-commits`) and instead respects AIDP's `work_loop.version_control.behavior` configuration. This ensures consistent commit behavior across all providers. If you need Aider to handle its own commits, you can enable this in provider-specific options.
 
@@ -316,7 +316,7 @@ Configure how AIDP interacts with your version control system during work loops.
 #### Behavior by Mode
 
 | Mode | VCS Behavior |
-|------|--------------|
+| ------ | -------------- |
 | **Copilot** | Uses configured `behavior` setting |
 | **Watch** | Always commits changes (ignores `behavior`) |
 | **Daemon** | Always commits changes (ignores `behavior`) |
@@ -608,7 +608,7 @@ auto_update:
 ### Update Policies
 
 | Policy | Description | Example |
-|--------|-------------|---------|
+| -------- | ------------- | --------- |
 | `off` | No automatic updates | Always stay on current version |
 | `exact` | Only exact version matches | 1.2.3 → 1.2.3 (no updates) |
 | `patch` | Allow patch updates | 1.2.3 → 1.2.4 ✓, 1.2.3 → 1.3.0 ✗ |
