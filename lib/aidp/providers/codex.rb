@@ -56,6 +56,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for Codex
+      def self.instruction_file_path
+        ".codex/instructions.md"
+      end
+
       def name
         "codex"
       end

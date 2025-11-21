@@ -76,6 +76,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for Claude
+      def self.instruction_file_path
+        "CLAUDE.md"
+      end
+
       class << self
         private
 

@@ -68,6 +68,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for Gemini
+      def self.instruction_file_path
+        ".gemini/instructions.md"
+      end
+
       def name
         "gemini"
       end
