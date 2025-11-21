@@ -439,7 +439,7 @@ Before committing your changes:
 ## 📊 Progress Tracking
 
 | Phase | Status | Time Est. | Files Changed |
-|-------|--------|-----------|---------------|
+| ------- | -------- | ----------- | --------------- |
 | 1. Core Modules | ✅ Complete | - | 4 modules |
 | 2. CLI Commands | ✅ Complete | - | 1 module |
 | 3a. Wire CLI | ⏳ Pending | 30 min | 1 file |

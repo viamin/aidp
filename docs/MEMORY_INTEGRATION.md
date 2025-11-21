@@ -59,7 +59,7 @@ Remaining: 6,800 tokens (43%)
 ### Value Proposition Comparison
 
 | Feature | Context Cost | Unique Value | Better Alternative |
-|---------|-------------|--------------|-------------------|
+| --------- | ------------- | -------------- | ------------------- |
 | Memory Bank | +1,650 tokens (18%) | Cross-session rationale | Style guide sections (0 tokens) |
 | Beads | +450 tokens (3%) | Multi-session task tracking | Persistent tasklist (0 tokens) |
 | Persistent Tasklist | 0 tokens | Cross-session persistence | N/A - This IS the solution |

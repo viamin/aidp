@@ -632,7 +632,7 @@ These violations allow bugs to slip through because:
 Track progress by counting occurrences:
 
 | Metric | Previous | Current | Target |
-|--------|----------|---------|--------|
+| -------- | ---------- | --------- | -------- |
 | Files with `allow_any_instance_of` | 35+ | 0 ✅ | 0 |
 | Files with `defined?(RSpec)` in lib/ | 2 | 0 ✅ | 0 |
 | Files testing private methods (`send`/`__send__`) | 15+ | 15+ | 0 |
@@ -649,7 +649,7 @@ Track progress by counting occurrences:
 All 20 production occurrences of `defined?(RSpec)` (and any implicit test gating) were eliminated. Behavior previously toggled by test-environment detection is now controlled via explicit, constructor-injected flags:
 
 | Flag | Introduced In | Purpose | Replaces Prior Test Check |
-|------|---------------|---------|---------------------------|
+| ------ | --------------- | --------- | --------------------------- |
 | `skip_persistence:` | `analyze/progress.rb`, `execute/progress.rb`, `harness/state_manager.rb` | Disable load/save side effects during selected runs (tests, dry runs) | `defined?(RSpec)` conditional around YAML/state file I/O |
 | `async_updates:` | `harness/status_display.rb` | Opt into threaded status rendering vs. synchronous fallback | Test-only thread suppression logic using `defined?(RSpec)` |
 | `async_control:` | `harness/user_interface.rb` | Control interface loop threading; allows deterministic test execution | Headless/test detection branch |

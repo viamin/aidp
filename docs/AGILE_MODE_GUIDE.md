@@ -56,7 +56,7 @@ Agile Development Mode transforms AIDP from a traditional waterfall planning too
 ### Comparison: Agile vs Waterfall
 
 | Aspect | Agile Mode | Waterfall Mode |
-|--------|-----------|---------------|
+| ------ | ---------- | -------------- |
 | **Planning Approach** | Iterative, user-centered | Comprehensive, up-front |
 | **Scope Definition** | MVP with deferred features | Complete feature set |
 | **User Involvement** | Built-in feedback loops | Documentation review only |
@@ -521,8 +521,8 @@ AIDP generates testing methodology:
 
 ## Messaging Framework
 | Persona | Pain Point | Solution | Value |
-|---------|-----------|----------|-------|
-| ...     | ...       | ...      | ...   |
+| --------- | ----------- | ---------- | ------- |
+| ... | ... | ... | ... |
 
 ## Launch Checklist
 - [ ] Website copy updated
@@ -542,10 +542,10 @@ High-level overview (2-3 paragraphs)
 
 ## Sentiment Breakdown
 | Sentiment | Count | Percentage |
-|-----------|-------|------------|
-| Positive  | 42    | 60%        |
-| Neutral   | 15    | 21%        |
-| Negative  | 13    | 19%        |
+| ----------- | ------- | ------------ |
+| Positive | 42 | 60% |
+| Neutral | 15 | 21% |
+| Negative | 13 | 19% |
 
 ## Key Findings
 

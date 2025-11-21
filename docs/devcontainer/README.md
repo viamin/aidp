@@ -136,7 +136,7 @@ bundle exec standardrb lib/aidp/setup/devcontainer/ lib/aidp/cli/devcontainer_co
 ## 📈 Metrics
 
 | Metric | Value |
-|--------|-------|
+| -------- | ------- |
 | Lines of Code | 1,624 |
 | Test Coverage | 189 tests, 100% passing |
 | Documentation | 3,000+ lines |

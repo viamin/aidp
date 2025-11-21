@@ -1153,7 +1153,7 @@ end
 ## Pattern-to-Use-Case Matrix
 
 | Pattern | Use Case | Implementation |
-|---------|----------|----------------|
+| --------- | ---------- | ---------------- |
 | **Repository** | Checkpoint persistence | `CheckpointStore` |
 | **Strategy** | Semver policy selection | `UpdatePolicy` + `VersionDetector` |
 | **Facade** | Update orchestration | `AutoUpdate::Coordinator` |

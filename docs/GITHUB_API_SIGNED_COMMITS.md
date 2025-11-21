@@ -138,7 +138,7 @@ mutation($input: CreateCommitOnBranchInput!) {
 ### Input Parameters
 
 | Field | Type | Description |
-|-------|------|-------------|
+| ------- | ------ | ------------- |
 | `branch.repositoryNameWithOwner` | String | Full repo name (owner/repo) |
 | `branch.branchName` | String | Branch to commit to |
 | `message.headline` | String | Commit message (first line) |
@@ -206,7 +206,7 @@ permissions:
 ## Comparison: git vs GitHub API
 
 | Feature | `git commit` | GitHub GraphQL API |
-|---------|--------------|-------------------|
+| --------- | -------------- | ------------------- |
 | **Signature** | ❌ Unsigned | ✅ Auto-signed by GitHub |
 | **Multi-file** | ✅ Yes | ✅ Yes |
 | **Setup** | Simple | Slightly more complex |

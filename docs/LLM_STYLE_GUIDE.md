@@ -76,7 +76,7 @@ See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern ex
 ### TTY Component Quick Reference
 
 | Use Case | Component | Example |
-|----------|-----------|---------|
+| ---------- | ----------- | --------- |
 | Single selection | `prompt.select` | Mode selection, file picking |
 | Multi-selection | `prompt.multi_select` | Template selection, feature flags |
 | Text input | `prompt.ask` | Project name, API keys |
@@ -125,7 +125,7 @@ See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern ex
 ### Pending Specs Policy (Strict)
 
 | Case | Allowed? | Notes |
-|------|----------|-------|
+| ------ | ---------- | ------- |
 | Regression (was green) | ❌ | Fix or remove feature |
 | Planned future work | ✅ | Must include reason + issue ref |
 | Spike / prototype | ✅ | Temporary; track issue |
@@ -168,7 +168,7 @@ Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:965-1
 `STYLE_GUIDE:18-50,108-117,1262-1318`
 
 | Do | Don't |
-|----|-------|
+| ---- | ------- |
 | Extract small PORO service objects | Add conditionals in core loops |
 | Use keyword args | Pass long ordered arg lists |
 | Explicit error classes | Generic RuntimeError |

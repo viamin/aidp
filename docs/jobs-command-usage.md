@@ -24,7 +24,7 @@ This starts an interactive job monitoring session that displays:
 The jobs view shows a table with the following columns:
 
 | Column | Description |
-|--------|-------------|
+| -------- | ------------- |
 | ID | Unique job identifier |
 | Job | AI provider job type (ProviderExecutionJob, etc.) |
 | Queue | Job queue name (default: "default") |

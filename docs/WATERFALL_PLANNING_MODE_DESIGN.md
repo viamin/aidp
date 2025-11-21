@@ -67,7 +67,7 @@ All artifacts are created in `.aidp/docs/`:
 Based on issue discussion (viamin comments 2025-11-12):
 
 | Decision Area | Resolution |
-|---------------|------------|
+| --------------- | ------------ |
 | **Parsing Libraries** | Text/markdown only - no special libraries needed |
 | **Requirements Elicitation** | Use existing Q&A harness for dialogue |
 | **Gantt Format** | Mermaid format for charts |
@@ -430,7 +430,7 @@ Only 5 generic planning templates were created (usable by any workflow):
 ### Template Summary
 
 | Step | Template | Type | Purpose |
-|------|----------|------|---------|
+| ------ | ---------- | ------ | --------- |
 | 22 | `planning/initialize_planning_mode.md` | NEW | Mode selection |
 | 00 | `planning/create_prd.md` | REUSED | PRD generation |
 | 02 | `planning/design_architecture.md` | REUSED | Tech design |

@@ -171,7 +171,7 @@ When you need to understand a specific area:
 ### Key Documentation Files
 
 | Topic | File |
-|-------|------|
+| ----- | ---- |
 | CLI Commands | `docs/CLI_USER_GUIDE.md` |
 | Work Loops | `docs/WORK_LOOPS_GUIDE.md` |
 | Configuration | `docs/CONFIGURATION.md` |
