@@ -396,6 +396,19 @@ module Aidp
         }
       end
 
+      # Get the instruction file path for this provider
+      #
+      # Returns the relative path where this provider's agent instruction file
+      # should be created. This file provides project context and coding guidelines
+      # to AI agents when they're invoked through this provider.
+      #
+      # @return [String, nil] Relative path to instruction file, or nil if provider doesn't use instruction files
+      #
+      # Override in subclasses to specify provider-specific instruction file paths
+      def self.instruction_file_path
+        nil
+      end
+
       protected
 
       # Log message to job if in background mode

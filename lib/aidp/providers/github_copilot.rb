@@ -31,6 +31,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for GitHub Copilot
+      def self.instruction_file_path
+        ".github/copilot-instructions.md"
+      end
+
       def name
         "github_copilot"
       end

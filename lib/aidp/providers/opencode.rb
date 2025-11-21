@@ -48,6 +48,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for OpenCode
+      def self.instruction_file_path
+        ".opencode/instructions.md"
+      end
+
       def name
         "opencode"
       end

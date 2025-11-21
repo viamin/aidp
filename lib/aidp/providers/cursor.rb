@@ -68,6 +68,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for Cursor
+      def self.instruction_file_path
+        ".cursorrules"
+      end
+
       # Discover available models from Cursor
       #
       # Note: Cursor doesn't have a public model listing API

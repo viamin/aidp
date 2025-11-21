@@ -101,10 +101,20 @@ For initial project setup and documentation:
 aidp init
 
 # Creates:
-# - LLM_STYLE_GUIDE.md
-# - PROJECT_ANALYSIS.md
-# - CODE_QUALITY_PLAN.md
+# - docs/LLM_STYLE_GUIDE.md          # Primary reference for AI agents
+# - docs/PROJECT_ANALYSIS.md          # Repository structure and analysis
+# - docs/CODE_QUALITY_PLAN.md         # Quality improvement roadmap
+# - CLAUDE.md                          # Claude AI instructions
+# - .cursorrules                       # Cursor AI instructions
+# - .github/copilot-instructions.md    # GitHub Copilot instructions
+# - .gemini/instructions.md            # Google Gemini instructions
+# - .kilocode/instructions.md          # Kilocode instructions
+# - .aider/instructions.md             # Aider instructions
+# - .codex/instructions.md             # Codex instructions
+# - .opencode/instructions.md          # OpenCode instructions
 ```
+
+**Provider Instruction Files**: The `aidp init` command automatically generates provider-specific instruction files that direct AI agents to your project's `docs/LLM_STYLE_GUIDE.md` and provide project context. Each provider reads from its preferred location (e.g., Claude reads `CLAUDE.md`, Cursor reads `.cursorrules`, GitHub Copilot reads `.github/copilot-instructions.md`).
 
 **Note**: To run full analysis or development workflows, use Copilot mode (`aidp`) and select your desired workflow. The harness will automatically execute all steps and handle error recovery.
 

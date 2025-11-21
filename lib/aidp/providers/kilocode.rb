@@ -48,6 +48,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for Kilocode
+      def self.instruction_file_path
+        ".kilocode/instructions.md"
+      end
+
       def name
         "kilocode"
       end

@@ -55,6 +55,11 @@ module Aidp
         }
       end
 
+      # Get instruction file path for Aider
+      def self.instruction_file_path
+        ".aider/instructions.md"
+      end
+
       def name
         "aider"
       end

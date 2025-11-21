@@ -47,6 +47,40 @@ AIDP supports multiple LLM providers:
 - **aider**: Aider CLI (supports multiple models via OpenRouter)
 - **custom**: Custom provider implementations
 
+### Provider Instruction Files
+
+When you run `aidp init`, AIDP automatically generates provider-specific instruction files that direct AI agents to your project's coding guidelines and provide project context. These files ensure consistent behavior across different AI providers.
+
+#### Generated Files
+
+Each provider reads instructions from its preferred location:
+
+| Provider | Instruction File Path | Description |
+|----------|----------------------|-------------|
+| Claude (Anthropic) | `CLAUDE.md` | Primary Claude AI instructions |
+| Cursor | `.cursorrules` | Cursor IDE configuration |
+| GitHub Copilot | `.github/copilot-instructions.md` | GitHub Copilot workspace instructions |
+| Google Gemini | `.gemini/instructions.md` | Gemini AI instructions |
+| Kilocode | `.kilocode/instructions.md` | Kilocode instructions |
+| Aider | `.aider/instructions.md` | Aider CLI instructions |
+| Codex | `.codex/instructions.md` | Codex CLI instructions |
+| OpenCode | `.opencode/instructions.md` | OpenCode instructions |
+
+#### Content Structure
+
+All provider instruction files follow the same structure:
+
+1. **Primary Reference**: Directs agents to `docs/LLM_STYLE_GUIDE.md` as the authoritative source
+2. **Project Context**: Includes project name, languages, frameworks, and key documentation paths
+3. **Working Guidelines**: Quick reference for code style, testing, and common commands
+4. **Documentation Links**: Points to README, PROJECT_ANALYSIS, and CODE_QUALITY_PLAN
+
+#### Customization
+
+You can customize these files for provider-specific needs while maintaining the core reference to `docs/LLM_STYLE_GUIDE.md`. The files are generated once during `aidp init` and won't be overwritten on subsequent runs.
+
+**Best Practice**: Keep `docs/LLM_STYLE_GUIDE.md` as the single source of truth and use provider instruction files only for provider-specific configuration or navigation hints.
+
 #### Aider Provider
 
 Aider is a versatile coding assistant that supports multiple models through OpenRouter. To use Aider:

@@ -13,12 +13,13 @@ module Aidp
     class Runner
       include Aidp::MessageDisplay
 
-      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new, analyzer: nil, doc_generator: nil, devcontainer_generator: nil, options: {})
+      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new, analyzer: nil, doc_generator: nil, devcontainer_generator: nil, provider_instruction_generator: nil, options: {})
         @project_dir = project_dir
         @prompt = prompt
         @analyzer = analyzer || ProjectAnalyzer.new(project_dir)
         @doc_generator = doc_generator || DocGenerator.new(project_dir)
         @devcontainer_generator = devcontainer_generator || DevcontainerGenerator.new(project_dir)
+        @provider_instruction_generator = provider_instruction_generator || ProviderInstructionGenerator.new(project_dir)
         @options = options
       end
 
@@ -72,6 +73,14 @@ module Aidp
 
         display_message("\n📄 Generated documentation:", type: :info)
         generated_files.each { |file| display_message("  - #{file}", type: :success) }
+
+        # Generate provider instruction files
+        provider_files = @provider_instruction_generator.generate(analysis: analysis, preferences: preferences)
+        if provider_files.any?
+          generated_files.concat(provider_files)
+          display_message("\n🤖 Generated AI provider instructions:", type: :info)
+          provider_files.each { |file| display_message("  - #{file}", type: :success) }
+        end
 
         # Optionally generate devcontainer
         if @options[:with_devcontainer] || should_generate_devcontainer?(preferences)
