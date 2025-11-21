@@ -141,6 +141,25 @@ module Aidp
         !info(slug: slug, project_dir: project_dir).nil?
       end
 
+      # Find a worktree by branch name
+      #
+      # @param branch [String] Branch name to search for
+      # @param project_dir [String] Project root directory
+      # @return [Hash, nil] Worktree info or nil if not found
+      def find_by_branch(branch:, project_dir: Dir.pwd)
+        registry = load_registry(project_dir)
+        slug, data = registry.find { |_slug, info| info["branch"] == branch }
+        return nil unless data
+
+        {
+          slug: slug,
+          path: data["path"],
+          branch: data["branch"],
+          created_at: data["created_at"],
+          active: Dir.exist?(data["path"])
+        }
+      end
+
       private
 
       # Ensure we're in a git repository
