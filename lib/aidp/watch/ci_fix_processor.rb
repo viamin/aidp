@@ -11,6 +11,8 @@ require_relative "../harness/config_manager"
 require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
 require_relative "../harness/state_manager"
+require_relative "../worktree"
+require_relative "ci_log_extractor"
 
 module Aidp
   module Watch
@@ -133,13 +135,23 @@ module Aidp
       private
 
       def analyze_and_fix(pr_data:, ci_status:, failed_checks:)
-        # Fetch logs for failed checks (if available)
+        # Extract concise failure information to reduce token usage
+        provider = detect_default_provider
+        provider_manager = Aidp::ProviderManager.get_provider(provider)
+        log_extractor = CiLogExtractor.new(provider_manager: provider_manager)
+
         failure_details = failed_checks.map do |check|
+          Aidp.log_debug("ci_fix_processor", "extracting_logs", check_name: check[:name])
+          extracted = log_extractor.extract_failure_info(
+            check: check,
+            check_run_url: check[:details_url]
+          )
+
           {
             name: check[:name],
-            conclusion: check[:conclusion],
-            output: check[:output],
-            details_url: check[:details_url]
+            summary: extracted[:summary],
+            details: extracted[:details],
+            extraction_method: extracted[:extraction_method]
           }
         end
 
@@ -147,14 +159,14 @@ module Aidp
         analysis = analyze_failures_with_ai(pr_data: pr_data, failures: failure_details)
 
         if analysis[:can_fix]
-          # Checkout the PR branch and apply fixes
-          checkout_pr_branch(pr_data)
+          # Setup worktree for the PR branch
+          working_dir = setup_pr_worktree(pr_data)
 
           # Apply the proposed fixes
-          apply_fixes(analysis[:fixes])
+          apply_fixes(analysis[:fixes], working_dir: working_dir)
 
           # Commit and push
-          if commit_and_push(pr_data, analysis)
+          if commit_and_push(pr_data, analysis, working_dir: working_dir)
             {success: true, analysis: analysis, commit_created: true}
           else
             {success: false, analysis: analysis, reason: "No changes to commit"}
@@ -238,10 +250,18 @@ module Aidp
           #{pr_data[:body]}
 
           **Failed Checks:**
-          #{failures.map { |f| "- #{f[:name]}: #{f[:conclusion]}\n  Output: #{f[:output].inspect}" }.join("\n")}
+          #{failures.map { |f| format_failure_for_prompt(f) }.join("\n\n")}
 
           Please analyze these failures and propose fixes if possible.
         PROMPT
+      end
+
+      def format_failure_for_prompt(failure)
+        output = "**Check: #{failure[:name]}**\n"
+        output += "Summary: #{failure[:summary]}\n" if failure[:summary]
+        output += "\nDetails:\n```\n#{failure[:details]}\n```" if failure[:details]
+        output += "\n(Logs extracted using: #{failure[:extraction_method]})" if failure[:extraction_method]
+        output
       end
 
       def detect_default_provider
@@ -277,26 +297,54 @@ module Aidp
         end
       end
 
-      def checkout_pr_branch(pr_data)
+      def setup_pr_worktree(pr_data)
         head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
 
-        Dir.chdir(@project_dir) do
-          # Fetch latest
-          run_git(%w[fetch origin])
+        # Check if a worktree already exists for this branch
+        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
 
-          # Checkout the PR branch
-          run_git(["checkout", head_ref])
+        if existing && existing[:active]
+          display_message("🔄 Reusing existing worktree for branch: #{head_ref}", type: :info)
+          Aidp.log_debug("ci_fix_processor", "worktree_reused", pr_number: pr_number, branch: head_ref, path: existing[:path])
 
-          # Pull latest changes
-          run_git(%w[pull --ff-only], allow_failure: true)
+          # Pull latest changes in the worktree
+          Dir.chdir(existing[:path]) do
+            run_git(%w[fetch origin], allow_failure: true)
+            run_git(["checkout", head_ref])
+            run_git(%w[pull --ff-only], allow_failure: true)
+          end
+
+          return existing[:path]
         end
 
-        display_message("🌿 Checked out branch: #{head_ref}", type: :info)
+        # Create a new worktree for this PR
+        slug = "pr-#{pr_number}-ci-fix"
+        display_message("🌿 Creating worktree for PR ##{pr_number}: #{head_ref}", type: :info)
+
+        # Fetch the branch first
+        Dir.chdir(@project_dir) do
+          run_git(%w[fetch origin])
+        end
+
+        # Create worktree
+        result = Aidp::Worktree.create(
+          slug: slug,
+          project_dir: @project_dir,
+          branch: head_ref,
+          base_branch: nil # Branch already exists, no base needed
+        )
+
+        worktree_path = result[:path]
+        Aidp.log_debug("ci_fix_processor", "worktree_created", pr_number: pr_number, branch: head_ref, path: worktree_path)
+        display_message("✅ Worktree created at #{worktree_path}", type: :success)
+
+        worktree_path
       end
 
-      def apply_fixes(fixes)
+      def apply_fixes(fixes, working_dir:)
         fixes.each do |fix|
-          file_path = File.join(@project_dir, fix["file"])
+          file_path = File.join(working_dir, fix["file"])
 
           case fix["action"]
           when "create", "edit"
@@ -312,8 +360,8 @@ module Aidp
         end
       end
 
-      def commit_and_push(pr_data, analysis)
-        Dir.chdir(@project_dir) do
+      def commit_and_push(pr_data, analysis, working_dir:)
+        Dir.chdir(working_dir) do
           # Check if there are changes
           status_output = run_git(%w[status --porcelain])
           if status_output.strip.empty?
