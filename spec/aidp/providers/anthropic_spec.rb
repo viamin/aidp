@@ -164,6 +164,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       before do
         allow(provider).to receive(:debug_execute_command).and_return(rate_limit_result)
         allow(harness_context).to receive(:provider_manager).and_return(provider_manager)
+        allow(harness_context).to receive(:config).and_return(nil)
         allow(provider_manager).to receive(:mark_rate_limited)
         provider.set_harness_context(harness_context)
       end
