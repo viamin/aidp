@@ -10,6 +10,7 @@ require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../worktree"
 require_relative "../execute/progress"
+require_relative "github_state_extractor"
 
 module Aidp
   module Watch
@@ -27,6 +28,7 @@ module Aidp
       def initialize(repository_client:, state_store:, project_dir: Dir.pwd, use_workstreams: true, verbose: false, label_config: {})
         @repository_client = repository_client
         @state_store = state_store
+        @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
         @project_dir = project_dir
         @use_workstreams = use_workstreams
         @verbose = verbose
@@ -40,7 +42,7 @@ module Aidp
         number = issue[:number]
         display_message("🛠️  Starting implementation for issue ##{number}", type: :info)
 
-        plan_data = ensure_plan_data(number)
+        plan_data = ensure_plan_data(issue)
         return unless plan_data
 
         slug = workstream_slug_for(issue)
@@ -106,10 +108,15 @@ module Aidp
 
       private
 
-      def ensure_plan_data(number)
-        data = @state_store.plan_data(number)
+      def ensure_plan_data(issue)
+        # First try to extract from the issue that was passed in (already has comments)
+        data = @state_extractor.extract_plan_data(issue)
+
+        # Fallback to local state store if needed (for backward compatibility)
+        data ||= @state_store.plan_data(issue[:number])
+
         unless data
-          display_message("⚠️  No recorded plan for issue ##{number}. Skipping build trigger.", type: :warn)
+          display_message("⚠️  No recorded plan for issue ##{issue[:number]}. Skipping build trigger.", type: :warn)
         end
         data
       end

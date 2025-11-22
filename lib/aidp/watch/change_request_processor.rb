@@ -12,6 +12,7 @@ require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../harness/test_runner"
+require_relative "github_state_extractor"
 
 module Aidp
   module Watch
@@ -32,6 +33,7 @@ module Aidp
       def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, change_request_config: {}, safety_config: {}, verbose: false)
         @repository_client = repository_client
         @state_store = state_store
+        @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
         @provider_name = provider_name
         @project_dir = project_dir
         @verbose = verbose

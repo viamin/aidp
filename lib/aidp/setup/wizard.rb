@@ -1291,7 +1291,8 @@ module Aidp
           build_trigger: "5319E7",       # Purple
           review_trigger: "FBCA04",      # Yellow
           ci_fix_trigger: "D93F0B",      # Red
-          change_request_trigger: "F9D0C4"  # Light pink
+          change_request_trigger: "F9D0C4",  # Light pink
+          in_progress: "1D76DB"          # Dark blue (internal coordination)
         }
 
         required = []
@@ -1301,6 +1302,14 @@ module Aidp
           color = default_colors[key] || "EDEDED"  # Gray fallback
           required << {name: name, color: color, key: key}
         end
+
+        # Always include the internal in-progress label for coordination
+        required << {
+          name: "aidp-in-progress",
+          color: default_colors[:in_progress],
+          key: :in_progress,
+          internal: true
+        }
 
         Aidp.log_debug("setup_wizard.collect_labels", "collected", count: required.size)
         required

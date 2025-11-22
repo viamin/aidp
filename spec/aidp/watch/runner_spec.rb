@@ -211,11 +211,12 @@ RSpec.describe Aidp::Watch::Runner do
     it "fetches and processes build issues" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
       issue = {number: 2, labels: [{"name" => "aidp-build"}]}
-      detailed_issue = {number: 2, body: "build details", author: "alice"}
+      detailed_issue = {number: 2, body: "build details", author: "alice", comments: []}
 
       allow(repository_client).to receive(:list_issues).and_return([issue])
-      allow(state_store).to receive(:build_status).with(2).and_return({"status" => "pending"})
       allow(repository_client).to receive(:fetch_issue).with(2).and_return(detailed_issue)
+      allow(repository_client).to receive(:add_labels).with(2, "aidp-in-progress")
+      allow(repository_client).to receive(:remove_labels).with(2, "aidp-in-progress")
       allow(build_processor).to receive(:process)
 
       runner.send(:process_build_triggers)
@@ -226,9 +227,18 @@ RSpec.describe Aidp::Watch::Runner do
     it "skips completed build issues" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
       issue = {number: 2, labels: [{"name" => "aidp-build"}]}
+      # Add completion comment to indicate it's already done
+      detailed_issue = {
+        number: 2,
+        body: "build details",
+        author: "alice",
+        comments: [
+          {"body" => "✅ Implementation complete for #2", "author" => "aidp-bot", "createdAt" => Time.now.utc.iso8601}
+        ]
+      }
 
       allow(repository_client).to receive(:list_issues).and_return([issue])
-      allow(state_store).to receive(:build_status).with(2).and_return({"status" => "completed"})
+      allow(repository_client).to receive(:fetch_issue).with(2).and_return(detailed_issue)
       allow(build_processor).to receive(:process)
 
       runner.send(:process_build_triggers)
@@ -239,11 +249,12 @@ RSpec.describe Aidp::Watch::Runner do
     it "skips issues with unauthorized authors" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
       issue = {number: 2, labels: [{"name" => "aidp-build"}]}
-      detailed_issue = {number: 2, body: "build details", author: "untrusted"}
+      detailed_issue = {number: 2, body: "build details", author: "untrusted", comments: []}
 
       allow(repository_client).to receive(:list_issues).and_return([issue])
-      allow(state_store).to receive(:build_status).with(2).and_return({"status" => "pending"})
       allow(repository_client).to receive(:fetch_issue).with(2).and_return(detailed_issue)
+      allow(repository_client).to receive(:add_labels).with(2, "aidp-in-progress")
+      allow(repository_client).to receive(:remove_labels).with(2, "aidp-in-progress")
       allow(safety_checker).to receive(:should_process_issue?).with(detailed_issue, enforce: false).and_return(false)
       allow(build_processor).to receive(:process)
 
@@ -255,11 +266,12 @@ RSpec.describe Aidp::Watch::Runner do
     it "logs build polling and processing" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
       issue = {number: 2, labels: [{"name" => "aidp-build"}]}
-      detailed_issue = {number: 2, body: "build details", author: "alice"}
+      detailed_issue = {number: 2, body: "build details", author: "alice", comments: []}
 
       allow(repository_client).to receive(:list_issues).and_return([issue])
-      allow(state_store).to receive(:build_status).with(2).and_return({"status" => "pending"})
       allow(repository_client).to receive(:fetch_issue).with(2).and_return(detailed_issue)
+      allow(repository_client).to receive(:add_labels).with(2, "aidp-in-progress")
+      allow(repository_client).to receive(:remove_labels).with(2, "aidp-in-progress")
       allow(build_processor).to receive(:process)
 
       runner.send(:process_build_triggers)
