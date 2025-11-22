@@ -1,8 +1,16 @@
-# Implementation Guide: Intelligent Test/Linter Output Filtering (Issue #265)
+# Implementation Guide: GitHub Projects Integration (Issue #292)
 
 ## Overview
 
-This guide provides architectural patterns, design decisions, and implementation strategies for reducing token consumption in work loop iterations through intelligent test and linter output filtering. The implementation follows SOLID principles, Domain-Driven Design (DDD), composition-first patterns, and maintains compatibility with AIDP's existing architecture.
+This guide provides architectural patterns, design decisions, and implementation strategies for integrating GitHub Projects into AIDP's planning and watch modes. The implementation enables hierarchical issue management with automated sub-issue creation, blocking relationships, custom metadata, and PR workflow orchestration.
+
+**Core Capabilities:**
+- Create GitHub Projects from WBS/Gantt planning artifacts
+- Generate sub-issues with blocking relationships matching critical path dependencies
+- Apply custom metadata for skills and persona assignments
+- Implement hierarchical PR workflow (parent PR ← sub-issue PRs)
+- Auto-merge sub-issue PRs when CI passes
+- Extend watch mode to handle aidp-auto labeled sub-issues
 
 ## Table of Contents
 
@@ -11,10 +19,11 @@ This guide provides architectural patterns, design decisions, and implementation
 3. [Design Patterns](#design-patterns)
 4. [Implementation Contract](#implementation-contract)
 5. [Component Design](#component-design)
-6. [Testing Strategy](#testing-strategy)
-7. [Pattern-to-Use-Case Matrix](#pattern-to-use-case-matrix)
-8. [Error Handling Strategy](#error-handling-strategy)
-9. [Configuration Schema](#configuration-schema)
+6. [GitHub GraphQL Integration](#github-graphql-integration)
+7. [Testing Strategy](#testing-strategy)
+8. [Pattern-to-Use-Case Matrix](#pattern-to-use-case-matrix)
+9. [Error Handling Strategy](#error-handling-strategy)
+10. [Configuration Schema](#configuration-schema)
 
 ---
 
@@ -26,8 +35,8 @@ This guide provides architectural patterns, design decisions, and implementation
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                         │
 │  ┌──────────────────┐           ┌──────────────────┐        │
-│  │ WorkLoopRunner   │           │ Wizard           │        │
-│  │ (Orchestration)  │           │ (Configuration)  │        │
+│  │ WaterfallRunner  │           │ WatchRunner      │        │
+│  │ (Planning Mode)  │           │ (Execution)      │        │
 │  └──────────────────┘           └──────────────────┘        │
 └─────────────────────────────────────────────────────────────┘
                            │
@@ -35,24 +44,36 @@ This guide provides architectural patterns, design decisions, and implementation
 ┌─────────────────────────────────────────────────────────────┐
 │                      Domain Layer                            │
 │  ┌────────────────────────────────────────────┐             │
-│  │  TestRunner (ENHANCED)                     │             │
-│  │  - Executes tests with filtering           │             │
-│  │  - Formats output based on mode            │             │
-│  │  - Detects framework-specific options      │             │
+│  │  ProjectOrchestrator (NEW)                 │             │
+│  │  - Coordinates project creation workflow   │             │
+│  │  - Manages parent issue and sub-issues     │             │
+│  │  - Orchestrates PR hierarchy               │             │
 │  └────────────────────────────────────────────┘             │
 │                                                               │
 │  ┌────────────────────────────────────────────┐             │
-│  │  OutputFilter (NEW)                        │             │
-│  │  - Filters test/lint output by mode        │             │
-│  │  - Parses framework-specific formats       │             │
-│  │  - Extracts failure-only content           │             │
+│  │  SubIssueManager (NEW)                     │             │
+│  │  - Creates sub-issues from WBS tasks       │             │
+│  │  - Maps dependencies to blocking relations │             │
+│  │  - Applies aidp-auto labels                │             │
 │  └────────────────────────────────────────────┘             │
 │                                                               │
 │  ┌────────────────────────────────────────────┐             │
-│  │  ToolingDetector (ENHANCED)                │             │
-│  │  - Detects test framework capabilities     │             │
-│  │  - Suggests optimized commands             │             │
-│  │  - Provides filtering recommendations      │             │
+│  │  HierarchicalPRWorkflow (NEW)              │             │
+│  │  - Manages parent PR creation              │             │
+│  │  - Creates sub-issue PRs targeting parent  │             │
+│  │  - Handles auto-merge logic                │             │
+│  └────────────────────────────────────────────┘             │
+│                                                               │
+│  ┌────────────────────────────────────────────┐             │
+│  │  PlanGenerator (ENHANCED)                  │             │
+│  │  - Generates implementation plan           │             │
+│  │  - Triggers project creation when enabled  │             │
+│  └────────────────────────────────────────────┘             │
+│                                                               │
+│  ┌────────────────────────────────────────────┐             │
+│  │  BuildProcessor (ENHANCED)                 │             │
+│  │  - Checks for unblocked sub-issues         │             │
+│  │  - Auto-merges sub-issue PRs when complete │             │
 │  └────────────────────────────────────────────┘             │
 └─────────────────────────────────────────────────────────────┘
                            │
@@ -60,19 +81,25 @@ This guide provides architectural patterns, design decisions, and implementation
 ┌─────────────────────────────────────────────────────────────┐
 │                   Infrastructure Layer                       │
 │  ┌──────────────────┐           ┌──────────────────┐        │
-│  │ Configuration    │           │ Shell Execution  │        │
-│  │ (aidp.yml)       │           │ (Open3)          │        │
+│  │ GitHubProjects   │           │ RepositoryClient │        │
+│  │ Client (NEW)     │           │ (ENHANCED)       │        │
+│  └──────────────────┘           └──────────────────┘        │
+│  ┌──────────────────┐           ┌──────────────────┐        │
+│  │ Configuration    │           │ StateStore       │        │
+│  │ (aidp.yml)       │           │ (Persistence)    │        │
 │  └──────────────────┘           └──────────────────┘        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Architectural Decisions
 
-1. **Composition Over Inheritance**: OutputFilter is composed into TestRunner, not inherited
-2. **Single Responsibility**: Each class has one clear purpose
-3. **Dependency Injection**: All dependencies injected for testability
-4. **Strategy Pattern**: Different filtering strategies for different output modes
-5. **Zero Framework Cognition**: Use mini-tier AI for framework detection when uncertain
+1. **Composition Over Inheritance**: GitHubProjectsClient composed into SubIssueManager
+2. **Single Responsibility**: Each service has one clear purpose
+3. **Dependency Injection**: All GitHub clients and dependencies injected for testability
+4. **Service Object Pattern**: Stateless services for project/PR orchestration
+5. **GraphQL First**: Use GitHub GraphQL API for Projects v2 operations
+6. **Idempotency**: All operations support retries and partial completion
+7. **Zero Framework Cognition**: Use AI for persona-to-task mapping decisions
 
 ---
 
@@ -80,100 +107,392 @@ This guide provides architectural patterns, design decisions, and implementation
 
 ### Core Entities
 
-#### TestResult (Value Object - Existing, Enhanced)
+#### GitHubProject (Value Object - NEW)
 
 ```ruby
-# Represents the result of running tests
+# Represents a GitHub Project v2 instance
 {
-  success: Boolean,         # All tests passed
-  output: String,          # Formatted output (FILTERED in iterations > 1)
-  failures: Array<Hash>,   # Detailed failure information
-  command: String,         # Command that was executed
-  exit_code: Integer,      # Exit status
-  mode: Symbol             # :full or :quick
+  id: String,                    # GraphQL node ID
+  number: Integer,               # Project number
+  title: String,                 # Project title
+  url: String,                   # Project URL
+  parent_issue_number: Integer,  # Associated parent issue
+  created_at: Time,              # Creation timestamp
+  metadata: Hash                 # Custom field values
 }
 ```
 
-#### OutputFilterConfig (Value Object - NEW)
+#### SubIssue (Value Object - NEW)
 
 ```ruby
-# Configuration for output filtering behavior
+# Represents a sub-issue created from WBS task
 {
-  mode: Symbol,              # :full, :failures_only, :minimal
-  include_context: Boolean,  # Include surrounding lines for failures
-  context_lines: Integer,    # Number of context lines (default: 3)
-  max_lines: Integer,        # Maximum lines in output (default: 500)
-  framework: Symbol          # :rspec, :minitest, :jest, :pytest, etc.
+  number: Integer,              # Issue number
+  title: String,                # Issue title
+  body: String,                 # Issue description
+  labels: Array<String>,        # Labels including "aidp-auto"
+  parent_issue: Integer,        # Parent issue number
+  project_id: String,           # GraphQL project node ID
+  task_id: String,              # Original WBS task ID
+  dependencies: Array<Integer>, # Blocking issue numbers
+  persona: String,              # Assigned persona/role
+  skills: Array<String>,        # Required skills
+  effort: Integer,              # Story points
+  acceptance_criteria: Array<String>
 }
 ```
 
-#### TestCommand (Value Object - NEW)
+#### PRHierarchy (Value Object - NEW)
 
 ```ruby
-# Represents a configured test command with its options
+# Represents hierarchical PR structure
 {
-  command: String,          # Base command (e.g., "bundle exec rspec")
-  framework: Symbol,        # Detected framework
-  supports_filtering: Boolean,  # Framework has built-in filtering
-  filter_flags: Array<String>,  # Framework-specific filter flags
-  output_format: Symbol     # :verbose, :normal, :quiet, :minimal
+  parent_pr: {
+    number: Integer,
+    head: String,               # Branch name
+    base: String,               # Target branch (usually main)
+    draft: Boolean,
+    issue_number: Integer       # Parent issue
+  },
+  sub_prs: Array<{
+    number: Integer,
+    head: String,               # Sub-issue branch
+    base: String,               # Parent branch
+    issue_number: Integer,      # Sub-issue number
+    auto_merge: Boolean,        # Auto-merge enabled
+    ci_status: Symbol           # :pending, :success, :failure
+  }>
+}
+```
+
+#### ProjectConfig (Value Object - NEW)
+
+```ruby
+# Configuration for GitHub Projects integration
+{
+  enabled: Boolean,                  # Feature flag
+  auto_create: Boolean,              # Auto-create on planning
+  custom_fields: Hash,               # Field name => field type
+  default_metadata: Hash,            # Default field values
+  auto_merge_sub_prs: Boolean,       # Enable auto-merge
+  require_ci_pass: Boolean,          # Require CI before merge
+  sub_issue_label: String            # Label for auto-pickup (default: "aidp-auto")
 }
 ```
 
 ### Domain Services
 
-#### OutputFilter (NEW)
+#### GitHubProjectsClient (NEW)
 
-**Responsibility**: Filter and format test/linter output based on configured mode
+**Responsibility**: Low-level GitHub Projects v2 API operations
 
-**Design Pattern**: Strategy Pattern + Service Object
+**Design Pattern**: Adapter Pattern + Repository Pattern
 
 **Contract**:
 
 ```ruby
-class Aidp::Harness::OutputFilter
-  # @param config [OutputFilterConfig] Filtering configuration
-  def initialize(config)
-    # Preconditions:
-    # - config must be a valid OutputFilterConfig
-    # - config.mode must be one of [:full, :failures_only, :minimal]
+module Aidp
+  module Watch
+    # GitHub Projects v2 client using GraphQL API
+    # Wraps project creation, sub-issue management, and custom field operations
+    class GitHubProjectsClient
+      # @param repository_client [RepositoryClient] Authenticated GitHub client
+      def initialize(repository_client:)
+        # Preconditions:
+        # - repository_client must be authenticated
+        # - repository_client must have gh CLI available for GraphQL
 
-    # Postconditions:
-    # - Initializes with valid configuration
-    # - Ready to filter output
+        # Postconditions:
+        # - Client ready for Projects v2 operations
+        # - GraphQL queries cached for performance
+      end
+
+      # Create a new GitHub Project v2
+      # @param owner [String] Repository owner
+      # @param repo [String] Repository name
+      # @param title [String] Project title
+      # @param description [String] Project description
+      # @return [Hash] Project data with GraphQL node ID
+      def create_project(owner:, repo:, title:, description: nil)
+        # Preconditions:
+        # - owner and repo must be valid
+        # - title must not be empty
+        # - User must have project creation permissions
+
+        # Postconditions:
+        # - Project created in repository
+        # - Returns project ID and URL
+        # - Idempotent: returns existing project if title matches
+      end
+
+      # Add custom field to project
+      # @param project_id [String] GraphQL node ID
+      # @param field_name [String] Field name
+      # @param field_type [Symbol] :text, :number, :single_select, :iteration
+      # @param options [Hash] Field-specific options
+      # @return [Hash] Field configuration
+      def add_custom_field(project_id:, field_name:, field_type:, options: {})
+        # Preconditions:
+        # - project_id must be valid GraphQL node ID
+        # - field_type must be supported
+
+        # Postconditions:
+        # - Custom field added to project
+        # - Returns field ID for future updates
+      end
+
+      # Create sub-issue linked to parent
+      # @param parent_issue [Integer] Parent issue number
+      # @param title [String] Sub-issue title
+      # @param body [String] Sub-issue body
+      # @param labels [Array<String>] Labels to apply
+      # @return [Hash] Created issue data
+      def create_sub_issue(parent_issue:, title:, body:, labels: [])
+        # Preconditions:
+        # - parent_issue must exist
+        # - title must not be empty
+
+        # Postconditions:
+        # - Sub-issue created with "aidp-auto" label
+        # - Linked to parent via issue reference
+        # - Added to project if parent is in project
+      end
+
+      # Set blocking relationship between issues
+      # @param blocked_issue [Integer] Issue being blocked
+      # @param blocking_issues [Array<Integer>] Issues that must complete first
+      # @return [Boolean] Success status
+      def set_blocking_relationships(blocked_issue:, blocking_issues:)
+        # Preconditions:
+        # - All issue numbers must exist
+        # - No circular dependencies
+
+        # Postconditions:
+        # - Blocking relationships established in project
+        # - Graph validation performed
+        # - Errors raised on circular dependencies
+      end
+
+      # Update project item custom fields
+      # @param project_id [String] GraphQL project ID
+      # @param item_id [String] Project item ID
+      # @param field_values [Hash] Field name => value
+      # @return [Boolean] Success status
+      def update_item_fields(project_id:, item_id:, field_values:)
+        # Preconditions:
+        # - project_id and item_id valid
+        # - field_values keys match existing fields
+
+        # Postconditions:
+        # - Custom field values updated
+        # - Validation errors raised for invalid values
+      end
+
+      private
+
+      # Execute GraphQL mutation
+      def execute_graphql_mutation(query, variables)
+        # Uses gh CLI for GraphQL execution
+      end
+
+      # Execute GraphQL query
+      def execute_graphql_query(query, variables)
+        # Uses gh CLI for GraphQL execution
+      end
+    end
   end
+end
+```
 
-  # Filter output based on configuration
-  # @param output [String] Raw test/linter output
-  # @param framework [Symbol] Test framework identifier
-  # @return [String] Filtered output
-  def filter(output, framework: :unknown)
-    # Preconditions:
-    # - output must be a string (may be empty)
-    # - framework should be recognized or :unknown
+#### SubIssueManager (NEW)
 
-    # Postconditions:
-    # - Returns filtered string
-    # - Output respects max_lines limit
-    # - Preserves critical failure information
+**Responsibility**: Orchestrate sub-issue creation from WBS/Gantt data
+
+**Design Pattern**: Service Object + Facade Pattern
+
+**Contract**:
+
+```ruby
+module Aidp
+  module Watch
+    # Manages sub-issue lifecycle: creation, dependency mapping, labeling
+    class SubIssueManager
+      # @param projects_client [GitHubProjectsClient] Projects API client
+      # @param repository_client [RepositoryClient] General GitHub client
+      def initialize(projects_client:, repository_client:)
+        # Preconditions:
+        # - Both clients must be initialized
+
+        # Postconditions:
+        # - Manager ready to create sub-issues
+      end
+
+      # Create sub-issues from WBS and Gantt chart
+      # @param parent_issue [Integer] Parent issue number
+      # @param wbs_data [Hash] WBS structure
+      # @param gantt_data [Hash] Gantt chart with dependencies
+      # @param persona_map [Hash] Task-to-persona mappings
+      # @return [Array<Hash>] Created sub-issues with metadata
+      def create_from_wbs(parent_issue:, wbs_data:, gantt_data:, persona_map: {})
+        # Preconditions:
+        # - parent_issue must exist
+        # - wbs_data and gantt_data must be valid structures
+        # - persona_map optional but recommended
+
+        # Postconditions:
+        # - Sub-issue created for each WBS task
+        # - Dependencies mapped to blocking relationships
+        # - aidp-auto label applied to all sub-issues
+        # - Persona metadata set on project items
+        # - Returns array of created issues
+      end
+
+      # Map Gantt dependencies to GitHub blocking relationships
+      # @param gantt_tasks [Array<Hash>] Tasks with dependencies
+      # @param created_issues [Hash] Map of task_id => issue_number
+      # @return [Hash] Dependency graph
+      def map_dependencies_to_blocks(gantt_tasks:, created_issues:)
+        # Preconditions:
+        # - gantt_tasks contains dependency information
+        # - created_issues maps all task IDs to issue numbers
+
+        # Postconditions:
+        # - Returns graph of blocking relationships
+        # - Validates no circular dependencies
+        # - Ready for application via GitHubProjectsClient
+      end
+
+      # Check if sub-issue is unblocked and ready for execution
+      # @param issue_number [Integer] Sub-issue to check
+      # @return [Boolean] True if unblocked
+      def unblocked?(issue_number)
+        # Preconditions:
+        # - issue_number must be a sub-issue
+
+        # Postconditions:
+        # - Returns true if all blocking issues are closed
+        # - Returns false if any blockers open
+        # - Handles missing/deleted blockers gracefully
+      end
+
+      private
+
+      def build_sub_issue_body(task, persona, acceptance_criteria)
+        # Generate markdown body with task details
+      end
+
+      def extract_skills_from_persona(persona, persona_map)
+        # Extract skill requirements from persona definition
+      end
+    end
   end
+end
+```
 
-  private
+#### HierarchicalPRWorkflow (NEW)
 
-  # Extract failure information from RSpec output
-  def extract_rspec_failures(output)
-  end
+**Responsibility**: Manage parent/sub-issue PR creation and auto-merge
 
-  # Extract failure information from Minitest output
-  def extract_minitest_failures(output)
-  end
+**Design Pattern**: Service Object + State Machine
 
-  # Extract failure information from Jest output
-  def extract_jest_failures(output)
-  end
+**Contract**:
 
-  # Generic failure extraction for unknown frameworks
-  def extract_generic_failures(output)
+```ruby
+module Aidp
+  module Watch
+    # Orchestrates hierarchical PR workflow for parent and sub-issues
+    class HierarchicalPRWorkflow
+      # @param repository_client [RepositoryClient] GitHub client
+      # @param state_store [StateStore] Persistence layer
+      def initialize(repository_client:, state_store:)
+        # Preconditions:
+        # - repository_client authenticated
+        # - state_store initialized
+
+        # Postconditions:
+        # - Workflow manager ready
+      end
+
+      # Create parent PR for issue
+      # @param parent_issue [Integer] Parent issue number
+      # @param branch [String] Parent feature branch
+      # @param base [String] Target branch (default: main)
+      # @param draft [Boolean] Create as draft
+      # @return [Hash] PR data
+      def create_parent_pr(parent_issue:, branch:, base: "main", draft: true)
+        # Preconditions:
+        # - parent_issue exists
+        # - branch exists in repository
+        # - No existing PR from branch to base
+
+        # Postconditions:
+        # - Draft PR created targeting base
+        # - PR linked to parent issue
+        # - State stored for sub-PR creation
+        # - Returns PR number and URL
+      end
+
+      # Create sub-issue PR targeting parent branch
+      # @param sub_issue [Integer] Sub-issue number
+      # @param branch [String] Sub-issue branch
+      # @param parent_branch [String] Parent branch to target
+      # @param auto_merge [Boolean] Enable auto-merge
+      # @return [Hash] PR data
+      def create_sub_pr(sub_issue:, branch:, parent_branch:, auto_merge: true)
+        # Preconditions:
+        # - sub_issue exists with aidp-auto label
+        # - branch exists in repository
+        # - parent_branch exists
+        # - Parent PR exists targeting parent_branch
+
+        # Postconditions:
+        # - PR created targeting parent branch
+        # - Auto-merge enabled if requested
+        # - PR linked to sub-issue
+        # - State stored for merge tracking
+      end
+
+      # Check and execute auto-merge for sub-PR if conditions met
+      # @param pr_number [Integer] PR to check
+      # @return [Symbol] :merged, :waiting, :failed
+      def try_auto_merge(pr_number)
+        # Preconditions:
+        # - pr_number is a sub-issue PR
+        # - PR has auto-merge enabled
+
+        # Postconditions:
+        # - Merges if CI passed and reviewable
+        # - Returns :merged if successful
+        # - Returns :waiting if CI pending
+        # - Returns :failed if CI failed
+        # - Removes aidp-auto label on merge
+      end
+
+      # Finalize parent PR when all sub-PRs merged
+      # @param parent_pr [Integer] Parent PR number
+      # @return [Boolean] True if finalized
+      def finalize_parent_pr(parent_pr)
+        # Preconditions:
+        # - parent_pr exists
+        # - All sub-PRs merged
+
+        # Postconditions:
+        # - Updates PR description with summary
+        # - Marks PR as ready for review
+        # - Posts completion comment
+        # - Returns true if successful
+      end
+
+      private
+
+      def all_sub_prs_merged?(parent_pr)
+        # Check if all sub-PRs are merged
+      end
+
+      def generate_implementation_summary(parent_pr)
+        # Generate summary of completed work
+      end
+    end
   end
 end
 ```
@@ -182,176 +501,150 @@ end
 
 ## Design Patterns
 
-### 1. Strategy Pattern (NEW)
+### 1. Adapter Pattern (NEW)
 
-**Purpose**: Different filtering strategies for different output modes and frameworks
+**Purpose**: Adapt GitHub GraphQL API to AIDP's domain model
 
-**Application**: `OutputFilter` uses strategies for each framework
+**Application**: `GitHubProjectsClient` adapts GraphQL Projects v2 API
 
 **Benefits**:
-
-- Easy to add new framework support
-- Clear separation of filtering logic
-- Testable in isolation
+- Isolates GraphQL complexity
+- Makes testing easier (mock adapter, not API)
+- Can swap implementations (REST fallback)
 
 **Implementation**:
 
 ```ruby
-class Aidp::Harness::OutputFilter
-  STRATEGIES = {
-    rspec: RSpecFilterStrategy,
-    minitest: MinitestFilterStrategy,
-    jest: JestFilterStrategy,
-    pytest: PytestFilterStrategy,
-    generic: GenericFilterStrategy
-  }.freeze
+class GitHubProjectsClient
+  # GraphQL mutation templates
+  CREATE_PROJECT_MUTATION = <<~GRAPHQL
+    mutation($owner: String!, $repo: String!, $title: String!) {
+      createProjectV2(input: {
+        ownerId: $owner
+        repositoryId: $repo
+        title: $title
+      }) {
+        projectV2 {
+          id
+          number
+          url
+        }
+      }
+    }
+  GRAPHQL
 
-  def filter(output, framework: :unknown)
-    strategy = STRATEGIES[framework] || STRATEGIES[:generic]
-    strategy.new(@config).filter(output)
+  def create_project(owner:, repo:, title:, description: nil)
+    variables = {owner: owner, repo: repo, title: title}
+    result = execute_graphql_mutation(CREATE_PROJECT_MUTATION, variables)
+
+    # Adapt GraphQL response to domain model
+    {
+      id: result.dig("data", "createProjectV2", "projectV2", "id"),
+      number: result.dig("data", "createProjectV2", "projectV2", "number"),
+      url: result.dig("data", "createProjectV2", "projectV2", "url")
+    }
   end
 end
 ```
 
-### 2. Service Object Pattern (Existing, Enhanced)
+### 2. Facade Pattern (NEW)
 
-**Purpose**: Encapsulate test execution and output processing logic
+**Purpose**: Simplify complex GitHub Projects workflow behind simple interface
 
-**Application**: `TestRunner` service
+**Application**: `SubIssueManager` facades multi-step sub-issue creation
 
 **Benefits**:
+- Hides GraphQL complexity
+- Provides high-level operations
+- Easier to test and maintain
 
+### 3. Service Object Pattern (Enhanced)
+
+**Purpose**: Encapsulate business logic in stateless services
+
+**Application**: All orchestrators and managers
+
+**Benefits**:
 - Single Responsibility Principle
-- Reusable across work loops
+- Reusable across modes (planning, watch)
 - Easily testable
 
-### 3. Composition Pattern (Enhanced)
+### 4. Composition Pattern (Enhanced)
 
 **Purpose**: Compose complex behavior from simple components
 
-**Application**: TestRunner composes OutputFilter
+**Application**: Managers compose clients
+
+```ruby
+class SubIssueManager
+  def initialize(projects_client:, repository_client:)
+    @projects_client = projects_client
+    @repository_client = repository_client
+  end
+
+  def create_from_wbs(parent_issue:, wbs_data:, gantt_data:, persona_map: {})
+    # Use composed clients
+    project = @projects_client.create_project(...)
+    wbs_data[:phases].each do |phase|
+      phase[:tasks].each do |task|
+        issue = @repository_client.create_issue(...)
+        @projects_client.add_to_project(project[:id], issue[:number])
+      end
+    end
+  end
+end
+```
+
+### 5. State Machine Pattern (NEW)
+
+**Purpose**: Track PR workflow states and transitions
+
+**Application**: `HierarchicalPRWorkflow` state management
+
+**States**:
+- `parent_pr_created`: Parent PR exists, waiting for sub-PRs
+- `sub_pr_pending`: Sub-PR created, CI running
+- `sub_pr_ready`: CI passed, ready to merge
+- `sub_pr_merged`: Merged into parent
+- `parent_pr_ready`: All sub-PRs merged, ready for review
+
+**Implementation**:
+
+```ruby
+class HierarchicalPRWorkflow
+  STATES = {
+    parent_pr_created: :parent_pr_created,
+    sub_pr_pending: :sub_pr_pending,
+    sub_pr_ready: :sub_pr_ready,
+    sub_pr_merged: :sub_pr_merged,
+    parent_pr_ready: :parent_pr_ready
+  }.freeze
+
+  def try_auto_merge(pr_number)
+    current_state = @state_store.get_pr_state(pr_number)
+
+    case current_state
+    when :sub_pr_pending
+      check_ci_and_transition(pr_number)
+    when :sub_pr_ready
+      execute_merge(pr_number)
+    else
+      :waiting
+    end
+  end
+end
+```
+
+### 6. Repository Pattern (Enhanced)
+
+**Purpose**: Abstract data persistence and retrieval
+
+**Application**: `StateStore` for PR state, project mappings
 
 **Benefits**:
-
-- Loose coupling
-- Easy to swap implementations
-- Clear dependencies
-
-```ruby
-class TestRunner
-  def initialize(project_dir, config, output_filter: nil)
-    @project_dir = project_dir
-    @config = config
-    @output_filter = output_filter || build_default_filter
-  end
-
-  private
-
-  def build_default_filter
-    filter_config = OutputFilterConfig.new(
-      mode: @config.test_output_mode || :full,
-      include_context: true,
-      context_lines: 3,
-      max_lines: 500,
-      framework: detect_framework
-    )
-    OutputFilter.new(filter_config)
-  end
-end
-```
-
-### 4. Template Method Pattern (Enhanced)
-
-**Purpose**: Define skeleton of test execution with filtering
-
-**Application**: Test execution pipeline in TestRunner
-
-**Current Structure**:
-
-```ruby
-def run_tests
-  test_commands = resolved_test_commands
-  return {success: true, output: "", failures: []} if test_commands.empty?
-
-  results = test_commands.map { |cmd| execute_command(cmd, "test") }
-  aggregate_results(results, "Tests")
-end
-
-private
-
-def aggregate_results(results, category)
-  failures = results.reject { |r| r[:success] }
-  success = failures.empty?
-
-  output = if success
-    "#{category}: All passed"
-  else
-    format_failures(failures, category)  # ENHANCED: Now uses OutputFilter
-  end
-
-  {
-    success: success,
-    output: output,
-    failures: failures
-  }
-end
-```
-
-### 5. Builder Pattern (NEW)
-
-**Purpose**: Construct optimized test commands with filtering options
-
-**Application**: Command construction in ToolingDetector
-
-**Benefits**:
-
-- Fluent interface for command building
-- Encapsulates framework-specific logic
-- Easy to test command construction
-
-```ruby
-class TestCommandBuilder
-  def initialize(framework, base_command)
-    @framework = framework
-    @base_command = base_command
-    @flags = []
-  end
-
-  def with_failures_only
-    case @framework
-    when :rspec
-      @flags << "--only-failures"
-    when :jest
-      @flags << "--onlyFailures"
-    when :pytest
-      @flags << "--lf"  # last-failed
-    end
-    self
-  end
-
-  def with_quiet_output
-    case @framework
-    when :rspec
-      @flags << "--format progress"
-    when :jest
-      @flags << "--silent"
-    when :pytest
-      @flags << "-q"
-    end
-    self
-  end
-
-  def build
-    "#{@base_command} #{@flags.join(" ")}".strip
-  end
-end
-```
-
-### 6. Factory Pattern (NEW)
-
-**Purpose**: Create appropriate filter strategies for different frameworks
-
-**Application**: Strategy selection in OutputFilter
+- Consistent data access interface
+- Testable (in-memory vs. file-based)
+- Hides persistence details
 
 ---
 
@@ -359,108 +652,68 @@ end
 
 ### Design by Contract Principles
 
-All public methods must specify:
+All public methods specify:
 
-1. **Preconditions**: What must be true before the method executes
-2. **Postconditions**: What will be true after the method executes
-3. **Invariants**: What remains true throughout the object's lifetime
+1. **Preconditions**: What must be true before execution
+2. **Postconditions**: What will be true after execution
+3. **Invariants**: What remains true throughout lifecycle
+4. **Idempotency**: Operations can be safely retried
 
 ### Example Contracts
 
-#### OutputFilter#filter
+#### GitHubProjectsClient#create_sub_issue
 
 ```ruby
-# Filter test/linter output based on configuration
+# Create sub-issue linked to parent issue
 #
-# @param output [String] Raw output from test/linter command
-# @param framework [Symbol] Framework identifier (:rspec, :jest, etc.)
-# @return [String] Filtered output
+# @param parent_issue [Integer] Parent issue number
+# @param title [String] Sub-issue title
+# @param body [String] Sub-issue body
+# @param labels [Array<String>] Labels including "aidp-auto"
+# @return [Hash] Created issue data
 #
 # Preconditions:
-#   - output must be a string (may be empty)
-#   - framework must be a symbol
-#   - self must be initialized with valid config
+#   - parent_issue must exist in repository
+#   - title must not be empty
+#   - User must have issue creation permissions
+#   - labels must include "aidp-auto"
 #
 # Postconditions:
-#   - Returns a string (never nil)
-#   - Output length <= config.max_lines (unless in :full mode)
-#   - Failure information is preserved
-#   - Success messages may be abbreviated
+#   - Sub-issue created with all provided labels
+#   - Issue body includes reference to parent: "Parent: #123"
+#   - Issue added to same project as parent (if parent in project)
+#   - Returns issue number, URL, and project item ID
+#
+# Idempotency:
+#   - If issue with identical title exists under parent, returns existing
+#   - Safe to retry on network failures
 #
 # Invariants:
-#   - @config remains unchanged
-#   - No side effects on input
-def filter(output, framework: :unknown)
-  Aidp.log_debug("output_filter", "filtering_output",
-    framework: framework,
-    mode: @config.mode,
-    input_lines: output.lines.count)
+#   - Total issue count increases by 1 (or 0 if idempotent match)
+#   - Parent issue remains unchanged
+#   - @repository_client and @projects_client remain valid
+def create_sub_issue(parent_issue:, title:, body:, labels: [])
+  Aidp.log_debug("github_projects_client", "create_sub_issue",
+    parent: parent_issue,
+    title: title,
+    labels: labels.join(","))
 
-  # Implementation
+  # Validate preconditions
+  raise ArgumentError, "title cannot be empty" if title.nil? || title.strip.empty?
+  raise ArgumentError, "must include aidp-auto label" unless labels.include?("aidp-auto")
 
-  Aidp.log_debug("output_filter", "filtered_output",
-    output_lines: result.lines.count,
-    reduction_percent: reduction_percentage(output, result))
+  # Idempotency check
+  existing = find_existing_sub_issue(parent_issue, title)
+  return existing if existing
+
+  # Implementation...
+
+  Aidp.log_info("github_projects_client", "sub_issue_created",
+    parent: parent_issue,
+    number: result[:number],
+    project_item: result[:project_item_id])
 
   result
-end
-```
-
-#### TestRunner#format_failures
-
-```ruby
-# Format failure output with optional filtering
-#
-# @param failures [Array<Hash>] Array of failure results
-# @param category [String] Category name (e.g., "Tests", "Linters")
-# @param mode [Symbol] Output mode (:full, :failures_only, :minimal)
-# @return [String] Formatted failure output
-#
-# Preconditions:
-#   - failures must be an array of hashes
-#   - each failure must have :command, :exit_code, :stdout, :stderr
-#   - category must be a string
-#   - mode must be one of [:full, :failures_only, :minimal]
-#
-# Postconditions:
-#   - Returns formatted string with failure information
-#   - Output is filtered based on mode
-#   - Includes command, exit code, and relevant output
-#   - In :failures_only mode, omits passing test details
-#
-# Side Effects:
-#   - Logs filtering activity via Aidp.log_debug
-def format_failures(failures, category, mode: :full)
-  # Implementation
-end
-```
-
-#### ToolingDetector.rspec
-
-```ruby
-# Detect RSpec configuration and suggest optimized commands
-#
-# @return [TestCommand] RSpec command configuration
-#
-# Preconditions:
-#   - Called within a Ruby project context
-#   - Gemfile exists and contains rspec gem
-#
-# Postconditions:
-#   - Returns TestCommand with framework-specific optimizations
-#   - Suggests --only-failures for subsequent runs
-#   - Recommends appropriate output format
-#
-# Example:
-#   {
-#     command: "bundle exec rspec",
-#     framework: :rspec,
-#     supports_filtering: true,
-#     filter_flags: ["--only-failures", "--format progress"],
-#     output_format: :normal
-#   }
-def self.rspec(root = Dir.pwd)
-  # Implementation
 end
 ```
 
@@ -468,732 +721,646 @@ end
 
 ## Component Design
 
-### 1. OutputFilter (NEW)
+### 1. GitHubProjectsClient (NEW)
 
 #### File Location
 
-`lib/aidp/harness/output_filter.rb`
+`lib/aidp/watch/github_projects_client.rb`
 
 #### Class Structure
 
 ```ruby
 # frozen_string_literal: true
 
+require "json"
+require_relative "../logger"
+
 module Aidp
-  module Harness
-    # Filters test and linter output to reduce token consumption
-    # Uses framework-specific strategies to extract relevant information
-    class OutputFilter
-      # Output modes
-      MODES = {
-        full: :full,                   # No filtering (default for first run)
-        failures_only: :failures_only, # Only failure information
-        minimal: :minimal              # Minimal failure info + summary
-      }.freeze
+  module Watch
+    # GitHub Projects v2 client using GraphQL API
+    # Handles project creation, sub-issues, custom fields, blocking relationships
+    class GitHubProjectsClient
+      # GraphQL mutation for creating project
+      CREATE_PROJECT_MUTATION = <<~GRAPHQL
+        mutation CreateProjectV2($ownerId: ID!, $title: String!, $repositoryId: ID) {
+          createProjectV2(input: {
+            ownerId: $ownerId
+            title: $title
+            repositoryId: $repositoryId
+          }) {
+            projectV2 {
+              id
+              number
+              url
+              title
+            }
+          }
+        }
+      GRAPHQL
 
-      # @param config [Hash] Configuration options
-      # @option config [Symbol] :mode Output mode (:full, :failures_only, :minimal)
-      # @option config [Boolean] :include_context Include surrounding lines
-      # @option config [Integer] :context_lines Number of context lines
-      # @option config [Integer] :max_lines Maximum output lines
-      def initialize(config = {})
-        @mode = config[:mode] || :full
-        @include_context = config.fetch(:include_context, true)
-        @context_lines = config.fetch(:context_lines, 3)
-        @max_lines = config.fetch(:max_lines, 500)
+      # GraphQL mutation for adding issue to project
+      ADD_ITEM_MUTATION = <<~GRAPHQL
+        mutation AddProjectV2Item($projectId: ID!, $contentId: ID!) {
+          addProjectV2ItemById(input: {
+            projectId: $projectId
+            contentId: $contentId
+          }) {
+            item {
+              id
+            }
+          }
+        }
+      GRAPHQL
 
-        validate_mode!
+      # GraphQL mutation for custom field creation
+      CREATE_FIELD_MUTATION = <<~GRAPHQL
+        mutation CreateProjectV2Field($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+          createProjectV2Field(input: {
+            projectId: $projectId
+            name: $name
+            dataType: $dataType
+          }) {
+            projectV2Field {
+              __typename
+              id
+              name
+            }
+          }
+        }
+      GRAPHQL
 
-        Aidp.log_debug("output_filter", "initialized",
-          mode: @mode,
-          include_context: @include_context,
-          max_lines: @max_lines)
-      end
+      def initialize(repository_client:)
+        @repository_client = repository_client
 
-      # Filter output based on framework and mode
-      # @param output [String] Raw output
-      # @param framework [Symbol] Framework identifier
-      # @return [String] Filtered output
-      def filter(output, framework: :unknown)
-        return output if @mode == :full
-        return "" if output.nil? || output.empty?
-
-        Aidp.log_debug("output_filter", "filtering_start",
-          framework: framework,
-          input_lines: output.lines.count)
-
-        strategy = strategy_for_framework(framework)
-        filtered = strategy.filter(output, self)
-
-        truncated = truncate_if_needed(filtered)
-
-        Aidp.log_debug("output_filter", "filtering_complete",
-          output_lines: truncated.lines.count,
-          reduction: reduction_stats(output, truncated))
-
-        truncated
-      end
-
-      # Accessors for strategy use
-      attr_reader :mode, :include_context, :context_lines, :max_lines
-
-      private
-
-      def validate_mode!
-        unless MODES.key?(@mode)
-          raise ArgumentError, "Invalid mode: #{@mode}. Must be one of #{MODES.keys}"
+        unless @repository_client.gh_available?
+          raise ArgumentError, "GitHub CLI required for Projects v2 GraphQL operations"
         end
+
+        Aidp.log_debug("github_projects_client", "initialized",
+          owner: @repository_client.owner,
+          repo: @repository_client.repo)
       end
 
-      def strategy_for_framework(framework)
-        case framework
-        when :rspec
-          RSpecFilterStrategy.new
-        when :minitest
-          MinitestFilterStrategy.new
-        when :jest
-          JestFilterStrategy.new
-        when :pytest
-          PytestFilterStrategy.new
-        else
-          GenericFilterStrategy.new
-        end
-      end
+      # Create GitHub Project v2
+      def create_project(title:, description: nil)
+        Aidp.log_debug("github_projects_client", "create_project", title: title)
 
-      def truncate_if_needed(output)
-        lines = output.lines
-        return output if lines.count <= @max_lines
+        # Get repository and owner IDs
+        owner_id = fetch_owner_id
+        repo_id = fetch_repository_id
 
-        truncated = lines.first(@max_lines).join
-        truncated + "\n\n[Output truncated - #{lines.count - @max_lines} more lines omitted]"
-      end
+        variables = {
+          ownerId: owner_id,
+          title: title,
+          repositoryId: repo_id
+        }
 
-      def reduction_stats(input, output)
-        input_size = input.bytesize
-        output_size = output.bytesize
-        reduction = ((input_size - output_size).to_f / input_size * 100).round(1)
+        result = execute_graphql_mutation(CREATE_PROJECT_MUTATION, variables)
+        project_data = result.dig("data", "createProjectV2", "projectV2")
+
+        Aidp.log_info("github_projects_client", "project_created",
+          id: project_data["id"],
+          number: project_data["number"],
+          url: project_data["url"])
 
         {
-          input_bytes: input_size,
-          output_bytes: output_size,
-          reduction_percent: reduction
+          id: project_data["id"],
+          number: project_data["number"],
+          url: project_data["url"],
+          title: project_data["title"]
+        }
+      rescue => e
+        Aidp.log_error("github_projects_client", "create_project_failed",
+          error: e.message,
+          title: title)
+        raise
+      end
+
+      # Add issue to project
+      def add_issue_to_project(project_id:, issue_number:)
+        Aidp.log_debug("github_projects_client", "add_issue_to_project",
+          project_id: project_id,
+          issue_number: issue_number)
+
+        # Get issue node ID
+        issue_id = fetch_issue_node_id(issue_number)
+
+        variables = {
+          projectId: project_id,
+          contentId: issue_id
+        }
+
+        result = execute_graphql_mutation(ADD_ITEM_MUTATION, variables)
+        item_id = result.dig("data", "addProjectV2ItemById", "item", "id")
+
+        Aidp.log_info("github_projects_client", "issue_added_to_project",
+          issue_number: issue_number,
+          item_id: item_id)
+
+        {item_id: item_id}
+      rescue => e
+        Aidp.log_error("github_projects_client", "add_issue_failed",
+          error: e.message,
+          issue_number: issue_number)
+        raise
+      end
+
+      # Create custom field on project
+      def create_custom_field(project_id:, field_name:, field_type: "TEXT")
+        Aidp.log_debug("github_projects_client", "create_custom_field",
+          project_id: project_id,
+          field_name: field_name,
+          field_type: field_type)
+
+        variables = {
+          projectId: project_id,
+          name: field_name,
+          dataType: field_type
+        }
+
+        result = execute_graphql_mutation(CREATE_FIELD_MUTATION, variables)
+        field_data = result.dig("data", "createProjectV2Field", "projectV2Field")
+
+        Aidp.log_info("github_projects_client", "custom_field_created",
+          field_id: field_data["id"],
+          field_name: field_data["name"])
+
+        {
+          id: field_data["id"],
+          name: field_data["name"]
+        }
+      rescue => e
+        Aidp.log_error("github_projects_client", "create_field_failed",
+          error: e.message,
+          field_name: field_name)
+        raise
+      end
+
+      # Update custom field value for project item
+      def update_item_field(project_id:, item_id:, field_id:, value:)
+        Aidp.log_debug("github_projects_client", "update_item_field",
+          item_id: item_id,
+          field_id: field_id)
+
+        mutation = <<~GRAPHQL
+          mutation UpdateProjectV2ItemField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+            updateProjectV2ItemFieldValue(input: {
+              projectId: $projectId
+              itemId: $itemId
+              fieldId: $fieldId
+              value: {text: $value}
+            }) {
+              projectV2Item {
+                id
+              }
+            }
+          }
+        GRAPHQL
+
+        variables = {
+          projectId: project_id,
+          itemId: item_id,
+          fieldId: field_id,
+          value: value.to_s
+        }
+
+        execute_graphql_mutation(mutation, variables)
+
+        Aidp.log_info("github_projects_client", "field_updated",
+          item_id: item_id)
+      rescue => e
+        Aidp.log_error("github_projects_client", "update_field_failed",
+          error: e.message,
+          item_id: item_id)
+        raise
+      end
+
+      private
+
+      def execute_graphql_mutation(query, variables)
+        # Use gh CLI to execute GraphQL
+        query_json = {query: query, variables: variables}.to_json
+        stdout, stderr, status = Open3.capture3(
+          "gh", "api", "graphql",
+          "-f", "query=#{query}",
+          *variables.flat_map { |k, v| ["-F", "#{k}=#{v}"] }
+        )
+
+        unless status.success?
+          raise "GraphQL mutation failed: #{stderr}"
+        end
+
+        JSON.parse(stdout)
+      rescue => e
+        Aidp.log_error("github_projects_client", "graphql_mutation_failed",
+          error: e.message)
+        raise
+      end
+
+      def fetch_owner_id
+        # GraphQL query to get owner node ID
+        query = <<~GRAPHQL
+          query GetOwner($owner: String!) {
+            repositoryOwner(login: $owner) {
+              id
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, {owner: @repository_client.owner})
+        result.dig("data", "repositoryOwner", "id")
+      end
+
+      def fetch_repository_id
+        # GraphQL query to get repository node ID
+        query = <<~GRAPHQL
+          query GetRepository($owner: String!, $repo: String!) {
+            repository(owner: $owner, name: $repo) {
+              id
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, {
+          owner: @repository_client.owner,
+          repo: @repository_client.repo
+        })
+        result.dig("data", "repository", "id")
+      end
+
+      def fetch_issue_node_id(issue_number)
+        # Use RepositoryClient to fetch issue, extract node_id
+        issue = @repository_client.fetch_issue(issue_number)
+        issue[:node_id]
+      end
+
+      def execute_graphql_query(query, variables)
+        stdout, stderr, status = Open3.capture3(
+          "gh", "api", "graphql",
+          "-f", "query=#{query}",
+          *variables.flat_map { |k, v| ["-F", "#{k}=#{v}"] }
+        )
+
+        unless status.success?
+          raise "GraphQL query failed: #{stderr}"
+        end
+
+        JSON.parse(stdout)
+      end
+    end
+  end
+end
+```
+
+### 2. SubIssueManager (NEW)
+
+#### File Location
+
+`lib/aidp/watch/sub_issue_manager.rb`
+
+#### Class Structure
+
+```ruby
+# frozen_string_literal: true
+
+require_relative "github_projects_client"
+require_relative "../logger"
+
+module Aidp
+  module Watch
+    # Manages sub-issue creation from WBS/Gantt planning artifacts
+    # Maps dependencies to GitHub blocking relationships
+    class SubIssueManager
+      DEFAULT_LABEL = "aidp-auto"
+
+      def initialize(projects_client:, repository_client:, config: {})
+        @projects_client = projects_client
+        @repository_client = repository_client
+        @config = config
+
+        Aidp.log_debug("sub_issue_manager", "initialized",
+          auto_label: auto_label)
+      end
+
+      # Create sub-issues from WBS and Gantt data
+      def create_from_wbs(parent_issue:, wbs_data:, gantt_data:, persona_map: {}, project_id: nil)
+        Aidp.log_debug("sub_issue_manager", "create_from_wbs",
+          parent: parent_issue,
+          task_count: count_tasks(wbs_data))
+
+        created_issues = {}
+        task_to_issue = {}
+
+        # First pass: create all sub-issues
+        wbs_data[:phases].each do |phase|
+          phase[:tasks].each do |task|
+            issue = create_sub_issue_for_task(
+              parent_issue: parent_issue,
+              task: task,
+              phase: phase[:name],
+              persona_map: persona_map
+            )
+
+            created_issues[task[:id]] = issue
+            task_to_issue[task[:id]] = issue[:number]
+
+            # Add to project if provided
+            if project_id
+              @projects_client.add_issue_to_project(
+                project_id: project_id,
+                issue_number: issue[:number]
+              )
+            end
+          end
+        end
+
+        # Second pass: set blocking relationships from Gantt dependencies
+        if gantt_data && gantt_data[:tasks]
+          apply_blocking_relationships(gantt_data[:tasks], task_to_issue)
+        end
+
+        Aidp.log_info("sub_issue_manager", "sub_issues_created",
+          parent: parent_issue,
+          count: created_issues.size)
+
+        created_issues.values
+      end
+
+      # Check if sub-issue is unblocked
+      def unblocked?(issue_number)
+        Aidp.log_debug("sub_issue_manager", "check_unblocked",
+          issue: issue_number)
+
+        # Fetch issue to check for blocking references
+        issue = @repository_client.fetch_issue(issue_number)
+
+        # Parse body for "Blocked by: #123, #456" pattern
+        blocking_issues = extract_blocking_issues(issue[:body])
+
+        if blocking_issues.empty?
+          Aidp.log_debug("sub_issue_manager", "no_blockers", issue: issue_number)
+          return true
+        end
+
+        # Check if all blocking issues are closed
+        all_closed = blocking_issues.all? do |blocker_number|
+          blocker = @repository_client.fetch_issue(blocker_number)
+          blocker[:state] == "closed"
+        rescue => e
+          Aidp.log_warn("sub_issue_manager", "blocker_check_failed",
+            issue: issue_number,
+            blocker: blocker_number,
+            error: e.message)
+          false # Conservative: treat errors as still blocking
+        end
+
+        Aidp.log_debug("sub_issue_manager", "unblocked_check",
+          issue: issue_number,
+          blockers: blocking_issues,
+          all_closed: all_closed)
+
+        all_closed
+      end
+
+      private
+
+      def auto_label
+        @config.fetch(:sub_issue_label, DEFAULT_LABEL)
+      end
+
+      def create_sub_issue_for_task(parent_issue:, task:, phase:, persona_map:)
+        Aidp.log_debug("sub_issue_manager", "create_task_issue",
+          task_id: task[:id],
+          task_name: task[:name])
+
+        persona = persona_map[task[:id]]
+        skills = extract_skills_for_task(task, persona_map)
+
+        body = build_issue_body(
+          task: task,
+          parent_issue: parent_issue,
+          phase: phase,
+          persona: persona,
+          skills: skills
+        )
+
+        # Create issue via repository client
+        result = @repository_client.create_issue(
+          title: task[:name],
+          body: body,
+          labels: [auto_label, phase.downcase.tr(" ", "-")]
+        )
+
+        Aidp.log_info("sub_issue_manager", "task_issue_created",
+          task_id: task[:id],
+          issue_number: result[:number])
+
+        {
+          number: result[:number],
+          title: task[:name],
+          task_id: task[:id],
+          persona: persona,
+          skills: skills
         }
       end
-    end
-  end
-end
-```
 
-#### Filter Strategy Base
-
-```ruby
-module Aidp
-  module Harness
-    # Base class for framework-specific filtering strategies
-    class FilterStrategy
-      # @param output [String] Raw output
-      # @param filter [OutputFilter] Filter instance for config access
-      # @return [String] Filtered output
-      def filter(output, filter_instance)
-        raise NotImplementedError, "Subclasses must implement #filter"
-      end
-
-      protected
-
-      # Extract lines around a match (for context)
-      def extract_with_context(lines, index, context_lines)
-        start_idx = [0, index - context_lines].max
-        end_idx = [lines.length - 1, index + context_lines].min
-
-        lines[start_idx..end_idx]
-      end
-
-      # Find failure markers in output
-      def find_failure_markers(output)
-        # Common failure patterns across frameworks
-        patterns = [
-          /FAILED/i,
-          /ERROR/i,
-          /FAIL:/i,
-          /failures?:/i,
-          /\d+\) /,  # Numbered failures
-          /^  \d+\)/  # Indented numbered failures
-        ]
-
-        lines = output.lines
-        markers = []
-
-        lines.each_with_index do |line, index|
-          if patterns.any? { |pattern| line.match?(pattern) }
-            markers << index
-          end
-        end
-
-        markers
-      end
-    end
-  end
-end
-```
-
-#### RSpec Filter Strategy
-
-```ruby
-module Aidp
-  module Harness
-    # RSpec-specific output filtering
-    class RSpecFilterStrategy < FilterStrategy
-      def filter(output, filter_instance)
-        case filter_instance.mode
-        when :failures_only
-          extract_failures_only(output, filter_instance)
-        when :minimal
-          extract_minimal(output, filter_instance)
-        else
-          output
-        end
-      end
-
-      private
-
-      def extract_failures_only(output, filter_instance)
-        lines = output.lines
+      def build_issue_body(task:, parent_issue:, phase:, persona:, skills:)
         parts = []
+        parts << "**Parent Issue:** ##{parent_issue}"
+        parts << ""
+        parts << "**Phase:** #{phase}"
+        parts << ""
 
-        # Extract summary line
-        if summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) }
-          parts << "RSpec Summary:"
-          parts << summary
+        if task[:description]
+          parts << "## Description"
+          parts << task[:description]
           parts << ""
         end
 
-        # Extract failed examples
-        in_failure = false
-        failure_lines = []
-
-        lines.each_with_index do |line, index|
-          # Start of failure section
-          if line.match?(/^Failures:/)
-            in_failure = true
-            failure_lines << line
-            next
-          end
-
-          # End of failure section (start of pending/seed info)
-          if in_failure && (line.match?(/^Finished in/) || line.match?(/^Pending:/))
-            in_failure = false
-            break
-          end
-
-          failure_lines << line if in_failure
-        end
-
-        if failure_lines.any?
-          parts << failure_lines.join
-        end
-
-        parts.join("\n")
-      end
-
-      def extract_minimal(output, filter_instance)
-        lines = output.lines
-        parts = []
-
-        # Extract only summary and failure locations
-        if summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) }
-          parts << summary
-        end
-
-        # Extract failure locations (file:line references)
-        failure_locations = lines.select { |l| l.match?(/# \.\/\S+:\d+/) }
-        if failure_locations.any?
+        if persona
+          parts << "**Assigned Persona:** #{persona}"
           parts << ""
-          parts << "Failed examples:"
-          parts.concat(failure_locations.map(&:strip))
         end
 
-        parts.join("\n")
-      end
-    end
-  end
-end
-```
-
-#### Generic Filter Strategy
-
-```ruby
-module Aidp
-  module Harness
-    # Generic filtering for unknown frameworks
-    class GenericFilterStrategy < FilterStrategy
-      def filter(output, filter_instance)
-        case filter_instance.mode
-        when :failures_only
-          extract_failure_lines(output, filter_instance)
-        when :minimal
-          extract_summary(output, filter_instance)
-        else
-          output
+        if skills && skills.any?
+          parts << "**Required Skills:** #{skills.join(", ")}"
+          parts << ""
         end
-      end
 
-      private
-
-      def extract_failure_lines(output, filter_instance)
-        lines = output.lines
-        failure_indices = find_failure_markers(output)
-
-        return output if failure_indices.empty?
-
-        # Extract failures with context
-        relevant_lines = Set.new
-        failure_indices.each do |index|
-          if filter_instance.include_context
-            range = extract_with_context(lines, index, filter_instance.context_lines)
-            range.each { |line_idx| relevant_lines.add(line_idx) }
-          else
-            relevant_lines.add(index)
+        if task[:acceptance_criteria] && task[:acceptance_criteria].any?
+          parts << "## Acceptance Criteria"
+          task[:acceptance_criteria].each do |criterion|
+            parts << "- [ ] #{criterion}"
           end
+          parts << ""
         end
 
-        selected = relevant_lines.to_a.sort.map { |idx| lines[idx] }
-        selected.join
-      end
-
-      def extract_summary(output, filter_instance)
-        lines = output.lines
-
-        # Take first line, last line, and any lines with numbers/statistics
-        parts = []
-        parts << lines.first if lines.first
-
-        summary_lines = lines.select do |line|
-          line.match?(/\d+/) || line.match?(/summary|total|passed|failed/i)
+        if task[:effort]
+          parts << "**Effort Estimate:** #{task[:effort]}"
+          parts << ""
         end
 
-        parts.concat(summary_lines.uniq)
-        parts << lines.last if lines.last && !parts.include?(lines.last)
+        parts << "---"
+        parts << "*This sub-issue was automatically created by AIDP from the project WBS.*"
 
         parts.join("\n")
       end
+
+      def apply_blocking_relationships(gantt_tasks, task_to_issue)
+        Aidp.log_debug("sub_issue_manager", "apply_blocking_relationships",
+          task_count: gantt_tasks.size)
+
+        gantt_tasks.each do |gantt_task|
+          next if gantt_task[:dependencies].empty?
+
+          blocked_issue = task_to_issue[gantt_task[:id]]
+          next unless blocked_issue
+
+          blocking_issue_numbers = gantt_task[:dependencies].map do |dep_task_id|
+            task_to_issue[dep_task_id]
+          end.compact
+
+          next if blocking_issue_numbers.empty?
+
+          # Update blocked issue body with blocking references
+          add_blocking_references(blocked_issue, blocking_issue_numbers)
+        end
+      end
+
+      def add_blocking_references(issue_number, blocking_issues)
+        Aidp.log_debug("sub_issue_manager", "add_blocking_refs",
+          issue: issue_number,
+          blockers: blocking_issues)
+
+        issue = @repository_client.fetch_issue(issue_number)
+
+        blocking_line = "**Blocked by:** #{blocking_issues.map { |n| "##{n}" }.join(", ")}"
+        updated_body = "#{blocking_line}\n\n#{issue[:body]}"
+
+        @repository_client.update_issue(
+          number: issue_number,
+          body: updated_body
+        )
+
+        Aidp.log_info("sub_issue_manager", "blocking_refs_added",
+          issue: issue_number,
+          blocker_count: blocking_issues.size)
+      end
+
+      def extract_blocking_issues(body)
+        return [] unless body
+
+        # Match "Blocked by: #123, #456"
+        match = body.match(/\*\*Blocked by:\*\*\s*((?:#\d+,?\s*)+)/)
+        return [] unless match
+
+        match[1].scan(/#(\d+)/).flatten.map(&:to_i)
+      end
+
+      def extract_skills_for_task(task, persona_map)
+        # Placeholder: could parse from task description or persona definition
+        []
+      end
+
+      def count_tasks(wbs_data)
+        wbs_data[:phases].sum { |phase| phase[:tasks].size }
+      end
     end
   end
-end
-```
-
-### 2. TestRunner Enhancements
-
-#### Updated format_failures Method
-
-```ruby
-def format_failures(failures, category, mode: :full)
-  output = ["#{category} Failures:", ""]
-
-  failures.each do |failure|
-    output << "Command: #{failure[:command]}"
-    output << "Exit Code: #{failure[:exit_code]}"
-    output << "--- Output ---"
-
-    # Apply filtering based on mode and framework
-    filtered_stdout = filter_output(failure[:stdout], mode, detect_framework_from_command(failure[:command]))
-    filtered_stderr = filter_output(failure[:stderr], mode, :unknown)
-
-    output << filtered_stdout unless filtered_stdout.strip.empty?
-    output << filtered_stderr unless filtered_stderr.strip.empty?
-    output << ""
-  end
-
-  output.join("\n")
-end
-
-private
-
-def filter_output(raw_output, mode, framework)
-  return raw_output if mode == :full || raw_output.nil? || raw_output.empty?
-
-  filter_config = {
-    mode: mode,
-    include_context: true,
-    context_lines: 3,
-    max_lines: 500
-  }
-
-  filter = OutputFilter.new(filter_config)
-  filter.filter(raw_output, framework: framework)
-rescue => e
-  Aidp.log_warn("test_runner", "filter_failed",
-    error: e.message,
-    framework: framework)
-  raw_output  # Fallback to unfiltered on error
-end
-
-def detect_framework_from_command(command)
-  case command
-  when /rspec/
-    :rspec
-  when /minitest/
-    :minitest
-  when /jest/
-    :jest
-  when /pytest/
-    :pytest
-  else
-    :unknown
-  end
-end
-```
-
-#### Add Output Mode Support
-
-```ruby
-def run_tests
-  test_commands = resolved_test_commands
-  return {success: true, output: "", failures: []} if test_commands.empty?
-
-  # Use appropriate mode based on iteration count (if available)
-  mode = determine_output_mode
-
-  results = test_commands.map { |cmd| execute_command(cmd, "test") }
-  aggregate_results(results, "Tests", mode: mode)
-end
-
-private
-
-def determine_output_mode
-  # First iteration: full output
-  # Subsequent iterations: failures only
-  if @config.respond_to?(:test_output_mode)
-    @config.test_output_mode
-  elsif defined?(@iteration_count) && @iteration_count && @iteration_count > 1
-    :failures_only
-  else
-    :full
-  end
-end
-```
-
-### 3. ToolingDetector Enhancements
-
-#### Enhanced RSpec Detection
-
-```ruby
-def rspec
-  return nil unless rspec?
-
-  base_command = bundle_prefix("rspec")
-
-  # Check if RSpec supports --only-failures (requires rspec-core >= 3.3)
-  supports_only_failures = check_rspec_version_support
-
-  filter_flags = []
-  filter_flags << "--only-failures" if supports_only_failures
-  filter_flags << "--format progress"  # Quieter than default
-
-  {
-    command: base_command,
-    framework: :rspec,
-    supports_filtering: supports_only_failures,
-    filter_flags: filter_flags,
-    output_format: :normal,
-    suggested_full_command: "#{base_command} && #{base_command} --only-failures"
-  }
-end
-
-private
-
-def check_rspec_version_support
-  # Check Gemfile.lock for rspec-core version
-  lockfile = File.join(@root, "Gemfile.lock")
-  return false unless File.exist?(lockfile)
-
-  content = File.read(lockfile)
-  if match = content.match(/rspec-core \((\d+\.\d+)/)
-    version = Gem::Version.new(match[1])
-    version >= Gem::Version.new("3.3")
-  else
-    false
-  end
-rescue
-  false
-end
-```
-
-#### Add Framework Detection Suggestions
-
-```ruby
-def detect_with_suggestions
-  result = detect
-
-  # Add optimization suggestions for each detected command
-  enhanced_result = result.dup
-  enhanced_result[:test_commands] = result[:test_commands].map do |cmd|
-    enhance_command_with_suggestions(cmd)
-  end
-
-  enhanced_result
-end
-
-private
-
-def enhance_command_with_suggestions(command)
-  framework = detect_framework(command)
-
-  case framework
-  when :rspec
-    suggest_rspec_optimizations(command)
-  when :jest
-    suggest_jest_optimizations(command)
-  when :pytest
-    suggest_pytest_optimizations(command)
-  else
-    {command: command, framework: :unknown, suggestions: []}
-  end
-end
-
-def suggest_rspec_optimizations(command)
-  {
-    command: command,
-    framework: :rspec,
-    suggestions: [
-      "Consider using --only-failures for subsequent runs",
-      "Use --format progress for quieter output",
-      "Add --fail-fast to stop on first failure"
-    ],
-    optimized_command: "#{command} --format progress",
-    retry_command: "#{command} --only-failures"
-  }
-end
-```
-
-### 4. WorkLoopRunner Integration
-
-#### Update prepare_next_iteration
-
-```ruby
-def prepare_next_iteration(test_results, lint_results, diagnostic = nil)
-  failures = []
-
-  failures << "## Fix-Forward Iteration #{@iteration_count}"
-  failures << ""
-
-  # Re-inject LLM_STYLE_GUIDE at regular intervals
-  if should_reinject_style_guide?
-    failures << reinject_style_guide_reminder
-    failures << ""
-  end
-
-  if diagnostic
-    failures << "### Diagnostic Summary"
-    diagnostic[:failures].each do |failure_info|
-      failures << "- #{failure_info[:type].capitalize}: #{failure_info[:count]} failures"
-    end
-    failures << ""
-  end
-
-  # NEW: Apply output filtering for failures
-  unless test_results[:success]
-    failures << "### Test Failures"
-    # test_results[:output] is already filtered by TestRunner
-    failures << test_results[:output]
-    failures << ""
-  end
-
-  unless lint_results[:success]
-    failures << "### Linter Failures"
-    # lint_results[:output] is already filtered by TestRunner
-    failures << lint_results[:output]
-    failures << ""
-  end
-
-  strategy = build_failure_strategy(test_results, lint_results)
-  failures.concat(strategy) unless strategy.empty?
-
-  failures << "**Fix-forward instructions**: Do not rollback changes. Build on what exists and fix the failures above."
-  failures << ""
-
-  return if test_results[:success] && lint_results[:success]
-
-  # Append filtered failures to PROMPT.md
-  current_prompt = @prompt_manager.read
-  updated_prompt = current_prompt + "\n\n---\n\n" + failures.join("\n")
-  @prompt_manager.write(updated_prompt, step_name: @step_name)
-
-  display_message("  [NEXT_PATCH] Added filtered failure reports to PROMPT.md", type: :warning)
-  display_message("  [TOKEN OPTIMIZATION] Output filtered to reduce token consumption", type: :info)
-end
-```
-
-### 5. Wizard Configuration
-
-#### Add Test/Lint Output Configuration
-
-```ruby
-def configure_test_commands
-  existing = get([:work_loop, :test]) || {}
-
-  unit = ask_with_default("Unit test command", existing[:unit] || detect_unit_test_command)
-  integration = ask_with_default("Integration test command", existing[:integration])
-  e2e = ask_with_default("End-to-end test command", existing[:e2e])
-
-  timeout = ask_with_default("Test timeout (seconds)", (existing[:timeout_seconds] || 1800).to_s) { |value| value.to_i }
-
-  # NEW: Ask about output filtering
-  output_mode_choices = [
-    ["Full output (verbose)", :full],
-    ["Failures only (recommended for work loops)", :failures_only],
-    ["Minimal (summary only)", :minimal]
-  ]
-  output_mode_default = existing[:output_mode] || :failures_only
-  output_mode_default_label = output_mode_choices.find { |label, value| value == output_mode_default }&.first
-
-  output_mode = prompt.select("Test output mode for work loop iterations:", default: output_mode_default_label) do |menu|
-    output_mode_choices.each { |label, value| menu.choice label, value }
-  end
-
-  # NEW: Ask about quick mode (changed files only)
-  enable_quick_mode = prompt.yes?(
-    "Enable 'quick test' mode (run only tests for changed files)?",
-    default: existing.fetch(:enable_quick_mode, false)
-  )
-
-  set([:work_loop, :test], {
-    unit: unit,
-    integration: integration,
-    e2e: e2e,
-    timeout_seconds: timeout,
-    output_mode: output_mode,
-    enable_quick_mode: enable_quick_mode
-  }.compact)
-
-  validate_command(unit)
-  validate_command(integration)
-  validate_command(e2e)
-
-  # Display token optimization tip
-  if output_mode == :failures_only || output_mode == :minimal
-    prompt.say("\n💡 Token Optimization Enabled:")
-    prompt.say("  Work loop iterations will use filtered output to reduce token consumption.")
-    prompt.say("  First iteration uses full output; subsequent iterations show failures only.")
-  end
-end
-
-def configure_linting
-  existing = get([:work_loop, :lint]) || {}
-
-  lint_cmd = ask_with_default("Lint command", existing[:command] || detect_lint_command)
-  format_cmd = ask_with_default("Format command", existing[:format] || detect_format_command)
-  autofix = prompt.yes?("Run formatter automatically?", default: existing.fetch(:autofix, false))
-
-  # NEW: Linter output mode
-  output_mode_choices = [
-    ["Full output", :full],
-    ["Errors only", :failures_only],
-    ["Summary only", :minimal]
-  ]
-  output_mode_default = existing[:output_mode] || :failures_only
-  output_mode_default_label = output_mode_choices.find { |label, value| value == output_mode_default }&.first
-
-  output_mode = prompt.select("Linter output mode:", default: output_mode_default_label) do |menu|
-    output_mode_choices.each { |label, value| menu.choice label, value }
-  end
-
-  set([:work_loop, :lint], {
-    command: lint_cmd,
-    format: format_cmd,
-    autofix: autofix,
-    output_mode: output_mode
-  })
-
-  validate_command(lint_cmd)
-  validate_command(format_cmd)
 end
 ```
 
 ---
 
-## Configuration Schema
+## GitHub GraphQL Integration
 
-### Extended YAML Schema
+### Projects v2 API Operations
 
-```yaml
-work_loop:
-  test:
-    unit: "bundle exec rspec"
-    integration: "bundle exec rspec spec/integration"
-    e2e: null
-    timeout_seconds: 1800
+GitHub Projects v2 uses GraphQL exclusively. Key operations:
 
-    # NEW: Output filtering configuration
-    output_mode: failures_only  # :full, :failures_only, :minimal
-    max_output_lines: 500       # Maximum lines in filtered output
-    include_context: true        # Include context around failures
-    context_lines: 3            # Number of context lines
+#### 1. Create Project
 
-    # NEW: Quick mode (changed files only)
-    enable_quick_mode: false
-    quick_mode_command: "bundle exec rspec --only-failures"
-
-    # NEW: Framework-specific options
-    framework_options:
-      rspec:
-        format: progress          # :progress, :documentation, :json
-        fail_fast: false          # Stop on first failure
-        only_failures: true       # Run only previously failed specs
-      jest:
-        silent: true              # Suppress verbose output
-        only_failures: true       # --onlyFailures flag
-      pytest:
-        verbosity: quiet          # :quiet, :normal, :verbose
-        last_failed: true         # --lf flag
-
-  lint:
-    command: "bundle exec standardrb"
-    format: "bundle exec standardrb --fix"
-    autofix: false
-
-    # NEW: Linter output filtering
-    output_mode: failures_only    # :full, :failures_only, :minimal
-    max_output_lines: 300         # Linters typically have shorter output
+```graphql
+mutation CreateProjectV2($ownerId: ID!, $title: String!) {
+  createProjectV2(input: {
+    ownerId: $ownerId
+    title: $title
+  }) {
+    projectV2 {
+      id
+      number
+      url
+    }
+  }
+}
 ```
 
-### Configuration Accessor Methods
+#### 2. Add Issue to Project
 
-Add to `Configuration` class:
+```graphql
+mutation AddProjectV2Item($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: {
+    projectId: $projectId
+    contentId: $contentId
+  }) {
+    item {
+      id
+    }
+  }
+}
+```
+
+#### 3. Create Custom Field
+
+```graphql
+mutation CreateProjectV2Field($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+  createProjectV2Field(input: {
+    projectId: $projectId
+    name: $name
+    dataType: $dataType
+  }) {
+    projectV2Field {
+      id
+      name
+    }
+  }
+}
+```
+
+#### 4. Update Field Value
+
+```graphql
+mutation UpdateProjectV2ItemField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId
+    itemId: $itemId
+    fieldId: $fieldId
+    value: {text: $value}
+  }) {
+    projectV2Item {
+      id
+    }
+  }
+}
+```
+
+### Execution via gh CLI
+
+All GraphQL operations use `gh api graphql`:
 
 ```ruby
-# Get test output mode
-def test_output_mode
-  work_loop_config.dig(:test, :output_mode) || :full
-end
+def execute_graphql_mutation(query, variables)
+  stdout, stderr, status = Open3.capture3(
+    "gh", "api", "graphql",
+    "-f", "query=#{query}",
+    *variables.flat_map { |k, v| ["-F", "#{k}=#{v}"] }
+  )
 
-# Get max output lines for tests
-def test_max_output_lines
-  work_loop_config.dig(:test, :max_output_lines) || 500
-end
+  unless status.success?
+    raise "GraphQL mutation failed: #{stderr}"
+  end
 
-# Check if quick mode is enabled
-def test_quick_mode_enabled?
-  work_loop_config.dig(:test, :enable_quick_mode) == true
-end
-
-# Get quick mode command
-def test_quick_mode_command
-  work_loop_config.dig(:test, :quick_mode_command)
-end
-
-# Get framework-specific options
-def test_framework_options(framework)
-  work_loop_config.dig(:test, :framework_options, framework.to_sym) || {}
-end
-
-# Get lint output mode
-def lint_output_mode
-  work_loop_config.dig(:lint, :output_mode) || :full
-end
-
-# Get max output lines for linters
-def lint_max_output_lines
-  work_loop_config.dig(:lint, :max_output_lines) || 300
+  JSON.parse(stdout)
 end
 ```
 
@@ -1203,329 +1370,212 @@ end
 
 ### Unit Tests
 
-#### OutputFilter Specs
+#### GitHubProjectsClient Specs
 
-**File**: `spec/aidp/harness/output_filter_spec.rb`
+**File**: `spec/aidp/watch/github_projects_client_spec.rb`
 
 ```ruby
-RSpec.describe Aidp::Harness::OutputFilter do
-  describe "#initialize" do
-    it "accepts valid configuration" do
-      config = {
-        mode: :failures_only,
-        include_context: true,
-        context_lines: 5,
-        max_lines: 100
+RSpec.describe Aidp::Watch::GitHubProjectsClient do
+  let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient, gh_available?: true, owner: "viamin", repo: "aidp") }
+  let(:client) { described_class.new(repository_client: repository_client) }
+
+  describe "#create_project" do
+    it "creates project via GraphQL mutation" do
+      expect(client).to receive(:execute_graphql_mutation).and_return({
+        "data" => {
+          "createProjectV2" => {
+            "projectV2" => {
+              "id" => "PVT_abc123",
+              "number" => 1,
+              "url" => "https://github.com/orgs/viamin/projects/1",
+              "title" => "Test Project"
+            }
+          }
+        }
+      })
+
+      result = client.create_project(title: "Test Project")
+
+      expect(result[:id]).to eq("PVT_abc123")
+      expect(result[:number]).to eq(1)
+      expect(result[:url]).to eq("https://github.com/orgs/viamin/projects/1")
+    end
+
+    it "raises error when gh CLI unavailable" do
+      allow(repository_client).to receive(:gh_available?).and_return(false)
+
+      expect {
+        described_class.new(repository_client: repository_client)
+      }.to raise_error(ArgumentError, /GitHub CLI required/)
+    end
+  end
+
+  describe "#add_issue_to_project" do
+    it "adds issue to project and returns item ID" do
+      allow(client).to receive(:fetch_issue_node_id).and_return("I_issue123")
+      expect(client).to receive(:execute_graphql_mutation).and_return({
+        "data" => {
+          "addProjectV2ItemById" => {
+            "item" => {"id" => "PVTI_item456"}
+          }
+        }
+      })
+
+      result = client.add_issue_to_project(project_id: "PVT_abc", issue_number: 123)
+
+      expect(result[:item_id]).to eq("PVTI_item456")
+    end
+  end
+
+  describe "#create_custom_field" do
+    it "creates text custom field" do
+      expect(client).to receive(:execute_graphql_mutation).and_return({
+        "data" => {
+          "createProjectV2Field" => {
+            "projectV2Field" => {
+              "id" => "PVTF_field789",
+              "name" => "Persona"
+            }
+          }
+        }
+      })
+
+      result = client.create_custom_field(
+        project_id: "PVT_abc",
+        field_name: "Persona",
+        field_type: "TEXT"
+      )
+
+      expect(result[:id]).to eq("PVTF_field789")
+      expect(result[:name]).to eq("Persona")
+    end
+  end
+end
+```
+
+#### SubIssueManager Specs
+
+**File**: `spec/aidp/watch/sub_issue_manager_spec.rb`
+
+```ruby
+RSpec.describe Aidp::Watch::SubIssueManager do
+  let(:projects_client) { instance_double(Aidp::Watch::GitHubProjectsClient) }
+  let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient) }
+  let(:manager) { described_class.new(projects_client: projects_client, repository_client: repository_client) }
+
+  describe "#create_from_wbs" do
+    let(:wbs_data) do
+      {
+        phases: [
+          {
+            name: "Implementation",
+            tasks: [
+              {
+                id: "task1",
+                name: "Build authentication",
+                description: "Implement user auth",
+                effort: "5 story points",
+                acceptance_criteria: ["Users can log in", "Sessions persist"]
+              }
+            ]
+          }
+        ]
+      }
+    end
+
+    let(:gantt_data) do
+      {
+        tasks: [
+          {id: "task1", dependencies: []}
+        ]
+      }
+    end
+
+    it "creates sub-issues for all WBS tasks" do
+      expect(repository_client).to receive(:create_issue).with(
+        title: "Build authentication",
+        body: include("Parent Issue: #100"),
+        labels: ["aidp-auto", "implementation"]
+      ).and_return({number: 101, title: "Build authentication"})
+
+      results = manager.create_from_wbs(
+        parent_issue: 100,
+        wbs_data: wbs_data,
+        gantt_data: gantt_data
+      )
+
+      expect(results.size).to eq(1)
+      expect(results.first[:number]).to eq(101)
+    end
+
+    it "applies blocking relationships from Gantt dependencies" do
+      wbs_with_deps = {
+        phases: [
+          {
+            name: "Implementation",
+            tasks: [
+              {id: "task1", name: "Task 1"},
+              {id: "task2", name: "Task 2"}
+            ]
+          }
+        ]
       }
 
-      expect { described_class.new(config) }.not_to raise_error
-    end
-
-    it "raises error for invalid mode" do
-      config = {mode: :invalid_mode}
-
-      expect { described_class.new(config) }.to raise_error(ArgumentError, /Invalid mode/)
-    end
-
-    it "uses default values when not specified" do
-      filter = described_class.new
-
-      expect(filter.mode).to eq(:full)
-      expect(filter.max_lines).to eq(500)
-    end
-  end
-
-  describe "#filter" do
-    let(:filter) { described_class.new(mode: :failures_only, max_lines: 100) }
-
-    context "with RSpec output" do
-      let(:rspec_output) do
-        <<~OUTPUT
-          .....F...F.
-
-          Failures:
-
-          1) User validates email format
-             Failure/Error: expect(user.valid?).to be_truthy
-
-               expected: truthy value
-                    got: false
-
-             # ./spec/models/user_spec.rb:45:in `block (3 levels) in <top (required)>'
-
-          2) User requires password
-             Failure/Error: expect(user.errors[:password]).to be_empty
-
-               expected: []
-                    got: ["can't be blank"]
-
-             # ./spec/models/user_spec.rb:67:in `block (3 levels) in <top (required)>'
-
-          Finished in 2.34 seconds
-          100 examples, 2 failures
-        OUTPUT
-      end
-
-      it "extracts only failure information" do
-        result = filter.filter(rspec_output, framework: :rspec)
-
-        expect(result).to include("Failures:")
-        expect(result).to include("1) User validates email format")
-        expect(result).to include("2) User requires password")
-        expect(result).to include("100 examples, 2 failures")
-        expect(result).not_to include("Finished in 2.34 seconds")
-      end
-
-      it "reduces output size significantly" do
-        result = filter.filter(rspec_output, framework: :rspec)
-
-        expect(result.bytesize).to be < rspec_output.bytesize
-      end
-    end
-
-    context "with full mode" do
-      let(:full_filter) { described_class.new(mode: :full) }
-
-      it "returns output unchanged" do
-        output = "Some test output\nwith multiple lines"
-        result = full_filter.filter(output, framework: :rspec)
-
-        expect(result).to eq(output)
-      end
-    end
-
-    context "with minimal mode" do
-      let(:minimal_filter) { described_class.new(mode: :minimal) }
-
-      it "returns only summary information" do
-        rspec_output = <<~OUTPUT
-          ..F..
-
-          Failures:
-          (lots of failure details)
-
-          100 examples, 1 failure
-          # ./spec/models/user_spec.rb:45
-        OUTPUT
-
-        result = minimal_filter.filter(rspec_output, framework: :rspec)
-
-        expect(result).to include("100 examples, 1 failure")
-        expect(result).to include("./spec/models/user_spec.rb:45")
-        expect(result).not_to include("lots of failure details")
-      end
-    end
-
-    context "when output exceeds max_lines" do
-      let(:filter) { described_class.new(mode: :failures_only, max_lines: 5) }
-
-      it "truncates output" do
-        long_output = (1..100).map { |i| "Line #{i}\n" }.join
-        result = filter.filter(long_output, framework: :unknown)
-
-        expect(result.lines.count).to be <= 6  # 5 lines + truncation message
-        expect(result).to include("[Output truncated")
-      end
-    end
-  end
-end
-```
-
-#### RSpecFilterStrategy Specs
-
-**File**: `spec/aidp/harness/rspec_filter_strategy_spec.rb`
-
-```ruby
-RSpec.describe Aidp::Harness::RSpecFilterStrategy do
-  let(:filter_instance) { instance_double(Aidp::Harness::OutputFilter, mode: :failures_only) }
-  let(:strategy) { described_class.new }
-
-  describe "#filter" do
-    context "with failures_only mode" do
-      let(:rspec_output) do
-        <<~OUTPUT
-          Randomized with seed 12345
-
-          ........F......F....
-
-          Failures:
-
-          1) UserService#create_user with valid params creates a user
-             Failure/Error: expect(user).to be_persisted
-
-               expected #<User id: nil> to be persisted
-
-             # ./spec/services/user_service_spec.rb:23:in `block (4 levels) in <top (required)>'
-
-          2) UserService#create_user with invalid params returns error
-             Failure/Error: expect(result[:errors]).to be_present
-
-               expected `nil.present?` to be truthy, got false
-
-             # ./spec/services/user_service_spec.rb:45:in `block (4 levels) in <top (required)>'
-
-          Finished in 3.14 seconds (files took 2.7 seconds to load)
-          20 examples, 2 failures
-
-          Failed examples:
-
-          rspec ./spec/services/user_service_spec.rb:20 # UserService#create_user with valid params creates a user
-          rspec ./spec/services/user_service_spec.rb:42 # UserService#create_user with invalid params returns error
-
-          Randomized with seed 12345
-        OUTPUT
-      end
-
-      it "extracts failures section" do
-        result = strategy.filter(rspec_output, filter_instance)
-
-        expect(result).to include("RSpec Summary:")
-        expect(result).to include("20 examples, 2 failures")
-        expect(result).to include("Failures:")
-        expect(result).to include("1) UserService#create_user")
-        expect(result).to include("2) UserService#create_user")
-      end
-
-      it "omits timing and seed information" do
-        result = strategy.filter(rspec_output, filter_instance)
-
-        expect(result).not_to include("Finished in 3.14 seconds")
-        expect(result).not_to include("Randomized with seed")
-      end
-
-      it "includes failure details and locations" do
-        result = strategy.filter(rspec_output, filter_instance)
-
-        expect(result).to include("Failure/Error:")
-        expect(result).to include("./spec/services/user_service_spec.rb:23")
-      end
-    end
-
-    context "with minimal mode" do
-      let(:minimal_instance) { instance_double(Aidp::Harness::OutputFilter, mode: :minimal) }
-
-      it "returns only summary and locations" do
-        rspec_output = <<~OUTPUT
-          ..F..
-
-          Failures:
-          (detailed failure output)
-
-          5 examples, 1 failure
-
-          Failed examples:
-          rspec ./spec/models/user_spec.rb:45
-        OUTPUT
-
-        result = strategy.filter(rspec_output, minimal_instance)
-
-        expect(result).to include("5 examples, 1 failure")
-        expect(result).to include("./spec/models/user_spec.rb:45")
-        expect(result).not_to include("detailed failure output")
-      end
-    end
-
-    context "with all passing tests" do
-      let(:passing_output) do
-        <<~OUTPUT
-          ....................
-
-          Finished in 1.23 seconds
-          20 examples, 0 failures
-        OUTPUT
-      end
-
-      it "returns summary only" do
-        result = strategy.filter(passing_output, filter_instance)
-
-        expect(result).to include("20 examples, 0 failures")
-        expect(result.lines.count).to be < 5
-      end
-    end
-  end
-end
-```
-
-#### TestRunner Integration Specs
-
-**File**: `spec/aidp/harness/test_runner_spec.rb` (additions)
-
-```ruby
-RSpec.describe Aidp::Harness::TestRunner do
-  describe "#format_failures with output filtering" do
-    let(:project_dir) { "/tmp/test_project" }
-    let(:config) { double("config", test_output_mode: :failures_only, lint_output_mode: :failures_only) }
-    let(:runner) { described_class.new(project_dir, config) }
-
-    let(:failures) do
-      [
-        {
-          command: "bundle exec rspec",
-          exit_code: 1,
-          stdout: long_rspec_output,
-          stderr: ""
-        }
-      ]
-    end
-
-    let(:long_rspec_output) do
-      # Simulate 1000 lines of RSpec output
-      (["."] * 500).join + "\n\n" +
-      "Failures:\n\n" +
-      (1..50).map { |i| "#{i}) Failure details line #{i}\n" }.join +
-      "\n100 examples, 50 failures\n"
-    end
-
-    it "filters output in failures_only mode" do
-      result = runner.send(:format_failures, failures, "Tests", mode: :failures_only)
-
-      # Filtered output should be much shorter
-      expect(result.lines.count).to be < long_rspec_output.lines.count
-
-      # Should still contain failure information
-      expect(result).to include("Failures:")
-      expect(result).to include("100 examples, 50 failures")
-    end
-
-    it "respects max_lines limit" do
-      allow(config).to receive(:test_max_output_lines).and_return(10)
-
-      result = runner.send(:format_failures, failures, "Tests", mode: :failures_only)
-
-      # Should not exceed configured limit (plus some overhead for headers)
-      expect(result.lines.count).to be <= 20
-    end
-
-    it "falls back to full output if filtering fails" do
-      # Simulate filter error
-      allow_any_instance_of(Aidp::Harness::OutputFilter).to receive(:filter).and_raise("Filter error")
-
-      result = runner.send(:format_failures, failures, "Tests", mode: :failures_only)
-
-      # Should include full output as fallback
-      expect(result).to include(long_rspec_output)
+      gantt_with_deps = {
+        tasks: [
+          {id: "task1", dependencies: []},
+          {id: "task2", dependencies: ["task1"]}
+        ]
+      }
+
+      allow(repository_client).to receive(:create_issue).and_return(
+        {number: 101},
+        {number: 102}
+      )
+
+      # Expect task2 issue body to include blocking reference
+      expect(manager).to receive(:add_blocking_references).with(102, [101])
+
+      manager.create_from_wbs(
+        parent_issue: 100,
+        wbs_data: wbs_with_deps,
+        gantt_data: gantt_with_deps
+      )
     end
   end
 
-  describe "#determine_output_mode" do
-    let(:project_dir) { "/tmp/test_project" }
+  describe "#unblocked?" do
+    it "returns true when no blocking issues" do
+      allow(repository_client).to receive(:fetch_issue).and_return({
+        number: 101,
+        body: "No blockers"
+      })
 
-    context "with explicit configuration" do
-      let(:config) { double("config", test_output_mode: :minimal, respond_to?: ->(m) { m == :test_output_mode }) }
-      let(:runner) { described_class.new(project_dir, config) }
-
-      it "uses configured mode" do
-        expect(runner.send(:determine_output_mode)).to eq(:minimal)
-      end
+      expect(manager.unblocked?(101)).to be true
     end
 
-    context "without explicit configuration" do
-      let(:config) { double("config", respond_to?: ->(_) { false }) }
-      let(:runner) { described_class.new(project_dir, config) }
+    it "returns false when blocking issues are open" do
+      allow(repository_client).to receive(:fetch_issue).with(102).and_return({
+        number: 102,
+        body: "**Blocked by:** #100, #101"
+      })
 
-      it "defaults to full mode" do
-        expect(runner.send(:determine_output_mode)).to eq(:full)
-      end
+      allow(repository_client).to receive(:fetch_issue).with(100).and_return({state: "closed"})
+      allow(repository_client).to receive(:fetch_issue).with(101).and_return({state: "open"})
+
+      expect(manager.unblocked?(102)).to be false
+    end
+
+    it "returns true when all blocking issues closed" do
+      allow(repository_client).to receive(:fetch_issue).with(102).and_return({
+        number: 102,
+        body: "**Blocked by:** #100, #101"
+      })
+
+      allow(repository_client).to receive(:fetch_issue).with(100).and_return({state: "closed"})
+      allow(repository_client).to receive(:fetch_issue).with(101).and_return({state: "closed"})
+
+      expect(manager.unblocked?(102)).to be true
     end
   end
 end
@@ -1533,78 +1583,81 @@ end
 
 ### Integration Tests
 
-#### Work Loop Integration Spec
+#### End-to-End GitHub Projects Workflow
 
-**File**: `spec/integration/work_loop_output_filtering_spec.rb`
+**File**: `spec/integration/github_projects_workflow_spec.rb`
 
 ```ruby
-RSpec.describe "Work Loop Output Filtering", type: :integration do
-  let(:temp_dir) { Dir.mktmpdir }
-  let(:config_path) { File.join(temp_dir, ".aidp", "aidp.yml") }
+RSpec.describe "GitHub Projects Workflow", type: :integration do
+  # This test requires:
+  # - GitHub CLI authenticated
+  # - Test repository access
+  # - Environment variable: AIDP_TEST_REPO=owner/repo
 
-  before do
-    # Set up minimal test project
-    FileUtils.mkdir_p(File.join(temp_dir, ".aidp"))
-    FileUtils.mkdir_p(File.join(temp_dir, "spec"))
+  let(:test_repo) { ENV.fetch("AIDP_TEST_REPO") }
+  let(:owner) { test_repo.split("/").first }
+  let(:repo_name) { test_repo.split("/").last }
 
-    # Create config with output filtering
-    config = {
-      "work_loop" => {
-        "test" => {
-          "unit" => "bundle exec rspec",
-          "output_mode" => "failures_only",
-          "max_output_lines" => 100
+  before(:each) do
+    skip "Set AIDP_TEST_REPO for integration tests" unless ENV["AIDP_TEST_REPO"]
+  end
+
+  it "creates project, sub-issues, and applies blocking relationships" do
+    repository_client = Aidp::Watch::RepositoryClient.new(owner: owner, repo: repo_name)
+    projects_client = Aidp::Watch::GitHubProjectsClient.new(repository_client: repository_client)
+    manager = Aidp::Watch::SubIssueManager.new(
+      projects_client: projects_client,
+      repository_client: repository_client
+    )
+
+    # Create parent issue
+    parent = repository_client.create_issue(
+      title: "[Integration Test] Parent Issue",
+      body: "Testing GitHub Projects integration"
+    )
+
+    # Create project
+    project = projects_client.create_project(
+      title: "Integration Test Project #{Time.now.to_i}"
+    )
+
+    # Create sub-issues from mock WBS
+    wbs_data = {
+      phases: [
+        {
+          name: "Testing",
+          tasks: [
+            {id: "test1", name: "First task"},
+            {id: "test2", name: "Second task"}
+          ]
         }
-      }
+      ]
     }
-    File.write(config_path, YAML.dump(config))
 
-    # Create failing spec
-    spec_file = File.join(temp_dir, "spec", "example_spec.rb")
-    File.write(spec_file, <<~RUBY)
-      RSpec.describe "Example" do
-        it "fails" do
-          expect(1).to eq(2)
-        end
+    gantt_data = {
+      tasks: [
+        {id: "test1", dependencies: []},
+        {id: "test2", dependencies: ["test1"]}
+      ]
+    }
 
-        it "passes" do
-          expect(1).to eq(1)
-        end
-      end
-    RUBY
-  end
+    sub_issues = manager.create_from_wbs(
+      parent_issue: parent[:number],
+      wbs_data: wbs_data,
+      gantt_data: gantt_data,
+      project_id: project[:id]
+    )
 
-  after do
-    FileUtils.rm_rf(temp_dir)
-  end
+    # Verify sub-issues created
+    expect(sub_issues.size).to eq(2)
 
-  it "applies output filtering in work loop iterations" do
-    # Simulate work loop execution
-    config = Aidp::Harness::Configuration.new(temp_dir)
-    runner = Aidp::Harness::TestRunner.new(temp_dir, config)
+    # Verify second issue has blocking reference
+    second_issue = repository_client.fetch_issue(sub_issues[1][:number])
+    expect(second_issue[:body]).to include("Blocked by: ##{sub_issues[0][:number]}")
 
-    result = runner.run_tests
-
-    # Should have failures
-    expect(result[:success]).to be false
-    expect(result[:failures]).not_to be_empty
-
-    # Output should be filtered
-    output = result[:output]
-    expect(output).to include("Failures:")
-    expect(output.lines.count).to be < 50  # Much less than full RSpec output
-  end
-
-  it "includes failure details in filtered output" do
-    config = Aidp::Harness::Configuration.new(temp_dir)
-    runner = Aidp::Harness::TestRunner.new(temp_dir, config)
-
-    result = runner.run_tests
-    output = result[:output]
-
-    # Should include actionable failure information
-    expect(output).to include("expect(1).to eq(2)")
-    expect(output).to match(/spec\/example_spec\.rb:\d+/)
+    # Cleanup
+    repository_client.close_issue(parent[:number])
+    sub_issues.each { |issue| repository_client.close_issue(issue[:number]) }
   end
 end
 ```
@@ -1615,14 +1668,13 @@ end
 
 | Use Case | Primary Pattern | Supporting Patterns | Rationale |
 | ---------- | ---------------- | --------------------- | ----------- |
-| Filter test output | Strategy | Factory, Service Object | Different strategies per framework |
-| Compose filtering into TestRunner | Composition | Dependency Injection | Loose coupling, testable |
-| Build optimized commands | Builder | Template Method | Fluent interface for command construction |
-| Detect framework capabilities | Service Object | Strategy | Single responsibility, reusable |
-| Configure output filtering | Configuration | Repository | Centralized config management |
-| Handle filtering errors | Error Handling | Null Object | Graceful degradation, observability |
-| Extract failure information | Template Method | Strategy | Reuse structure, customize per framework |
-| Truncate long output | Decorator | - | Add behavior without modifying original |
+| GitHub GraphQL API | Adapter | Repository | Isolate GraphQL complexity |
+| Sub-issue creation | Service Object | Facade, Composition | Single responsibility, testable |
+| PR workflow | State Machine | Service Object | Track PR states and transitions |
+| Dependency mapping | Graph Algorithm | - | Model task dependencies |
+| Custom field management | Repository | - | Abstract persistence |
+| Idempotent operations | Retry + Memoization | - | Handle network failures |
+| Integration testing | Test Double | Dependency Injection | Mock external GitHub API |
 
 ---
 
@@ -1632,72 +1684,149 @@ end
 
 #### Fail Fast (Raise Errors)
 
-- Invalid configuration (unknown mode, negative limits)
-- Programming errors (nil checks, type mismatches)
-- Invalid framework identifiers in strategy selection
+- Invalid configuration (feature disabled, missing permissions)
+- Programming errors (nil checks, missing required fields)
+- GraphQL schema mismatches
+- Circular dependency detection
 
 #### Graceful Degradation (Log and Continue)
 
-- Filtering failures (return unfiltered output)
-- Framework detection failures (use generic strategy)
-- Command execution failures (already handled by TestRunner)
+- Network failures (retry with exponential backoff)
+- GitHub rate limiting (wait and retry)
+- Missing optional metadata (use defaults)
+- Project already exists (return existing)
 
 ### Error Handling Implementation
 
 ```ruby
-def filter(output, framework: :unknown)
+def create_sub_issue(parent_issue:, title:, body:, labels: [])
   # Validate preconditions - fail fast
-  raise ArgumentError, "output must be a string" unless output.is_a?(String)
+  raise ArgumentError, "title cannot be empty" if title.nil? || title.strip.empty?
+  raise ArgumentError, "parent_issue must exist" unless parent_issue.positive?
 
-  return output if @mode == :full
-  return "" if output.empty?
+  # Idempotency check - graceful
+  existing = find_existing_sub_issue(parent_issue, title)
+  return existing if existing
 
   begin
-    strategy = strategy_for_framework(framework)
-    filtered = strategy.filter(output, self)
-    truncate_if_needed(filtered)
-  rescue StandardError => e
-    # External failure - graceful degradation
-    Aidp.log_error("output_filter", "filtering_failed",
-      framework: framework,
-      mode: @mode,
+    # External operation - retry on transient failures
+    with_retry(max_retries: 3, initial_delay: 1.0) do
+      create_issue_via_api(title: title, body: body, labels: labels)
+    end
+  rescue Aidp::Watch::RateLimitError => e
+    # Specific error handling
+    Aidp.log_warn("sub_issue_manager", "rate_limited",
+      retry_after: e.retry_after,
+      parent: parent_issue)
+    sleep(e.retry_after)
+    retry
+  rescue => e
+    # Log and re-raise unexpected errors
+    Aidp.log_error("sub_issue_manager", "create_failed",
       error: e.message,
-      error_class: e.class.name)
-
-    # Return original output as fallback
-    output
+      parent: parent_issue,
+      title: title)
+    raise
   end
 end
 ```
 
-### Logging Strategy
+---
 
-**Use `Aidp.log_*` extensively**:
+## Configuration Schema
+
+### Extended YAML Schema
+
+```yaml
+github_projects:
+  # Enable GitHub Projects integration
+  enabled: true
+
+  # Auto-create project during planning
+  auto_create_on_planning: true
+
+  # Sub-issue configuration
+  sub_issues:
+    # Label applied to all sub-issues for auto-pickup
+    label: "aidp-auto"
+
+    # Include persona assignments in issue body
+    include_persona: true
+
+    # Include skill requirements in issue body
+    include_skills: true
+
+  # Custom fields to create on project
+  custom_fields:
+    persona:
+      type: "TEXT"
+      default: "unassigned"
+
+    skills:
+      type: "TEXT"
+      default: ""
+
+    effort:
+      type: "NUMBER"
+      default: 0
+
+  # PR workflow configuration
+  pr_workflow:
+    # Create hierarchical PRs (sub-PRs target parent branch)
+    enabled: true
+
+    # Auto-merge sub-PRs when CI passes
+    auto_merge_sub_prs: true
+
+    # Require CI to pass before auto-merge
+    require_ci_pass: true
+
+    # Create parent PR as draft
+    parent_pr_draft: true
+
+  # Blocking relationships
+  blocking:
+    # Map Gantt dependencies to blocking relationships
+    enabled: true
+
+    # Update issue bodies with blocking references
+    add_blocking_comments: true
+```
+
+### Configuration Accessor Methods
+
+Add to `Configuration` class:
 
 ```ruby
-# Method entry
-Aidp.log_debug("output_filter", "filtering_start",
-  framework: framework,
-  mode: mode,
-  input_lines: output.lines.count)
+# Check if GitHub Projects integration enabled
+def github_projects_enabled?
+  config.dig(:github_projects, :enabled) == true
+end
 
-# Success with metrics
-Aidp.log_info("output_filter", "filtering_complete",
-  framework: framework,
-  output_lines: result.lines.count,
-  reduction_percent: reduction,
-  duration_ms: duration)
+# Get sub-issue label
+def github_projects_sub_issue_label
+  config.dig(:github_projects, :sub_issues, :label) || "aidp-auto"
+end
 
-# Graceful degradation
-Aidp.log_warn("output_filter", "unknown_framework",
-  framework: framework,
-  fallback: "generic strategy")
+# Check if auto-create on planning
+def github_projects_auto_create?
+  config.dig(:github_projects, :auto_create_on_planning) == true
+end
 
-# Error conditions
-Aidp.log_error("output_filter", "strategy_failed",
-  framework: framework,
-  error: e.message,
-  using_fallback: true)
+# Get custom field definitions
+def github_projects_custom_fields
+  config.dig(:github_projects, :custom_fields) || {}
+end
+
+# Check if PR workflow enabled
+def github_projects_pr_workflow_enabled?
+  config.dig(:github_projects, :pr_workflow, :enabled) == true
+end
+
+# Check if auto-merge enabled
+def github_projects_auto_merge?
+  config.dig(:github_projects, :pr_workflow, :auto_merge_sub_prs) == true
+end
 ```
 
 ---
@@ -1706,14 +1835,14 @@ Aidp.log_error("output_filter", "strategy_failed",
 
 This implementation guide provides:
 
-1. **Architectural Foundation**: Hexagonal architecture with clear layers and boundaries
-2. **Design Patterns**: Strategy, Composition, Builder, Service Object, Template Method
-3. **Contracts**: Preconditions, postconditions, and invariants for all public methods
-4. **Component Design**: Detailed implementation for OutputFilter, TestRunner, ToolingDetector, and Wizard
-5. **Testing Strategy**: Comprehensive unit and integration test specifications
-6. **Error Handling**: Fail-fast for bugs, graceful degradation for external failures
-7. **Configuration Schema**: Extended YAML configuration with sensible defaults
-8. **Observability**: Extensive logging and metrics recommendations
+1. **Architectural Foundation**: Hexagonal architecture with clear layers
+2. **Design Patterns**: Adapter, Facade, Service Object, State Machine, Repository
+3. **Contracts**: Preconditions, postconditions, invariants, and idempotency guarantees
+4. **Component Design**: Detailed implementations for GitHubProjectsClient, SubIssueManager, HierarchicalPRWorkflow
+5. **GraphQL Integration**: Projects v2 API operations with gh CLI execution
+6. **Testing Strategy**: Comprehensive unit and integration test specifications
+7. **Error Handling**: Fail-fast for bugs, graceful degradation for external failures
+8. **Configuration Schema**: Extended YAML with feature flags and customization
 
 The implementation follows AIDP's engineering principles:
 
@@ -1723,5 +1852,7 @@ The implementation follows AIDP's engineering principles:
 - **Design by Contract**: Explicit preconditions, postconditions, and invariants
 - **Instrumentation**: Extensive logging with `Aidp.log_debug/info/warn/error`
 - **Testability**: Dependency injection, clear interfaces, comprehensive specs
+- **Idempotency**: All GitHub operations support safe retries
+- **Zero Framework Cognition**: Use AI for semantic decisions (persona mapping)
 
 This guide enables implementation with confidence, clarity, and adherence to AIDP's standards.
