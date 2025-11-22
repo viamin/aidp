@@ -1,8 +1,8 @@
-# Implementation Guide: Intelligent Test/Linter Output Filtering (Issue #265)
+# Implementation Guide: Metadata-Driven Skill/Persona/Template Discovery (Issue #270)
 
 ## Overview
 
-This guide provides architectural patterns, design decisions, and implementation strategies for reducing token consumption in work loop iterations through intelligent test and linter output filtering. The implementation follows SOLID principles, Domain-Driven Design (DDD), composition-first patterns, and maintains compatibility with AIDP's existing architecture.
+This guide provides architectural patterns, design decisions, and implementation strategies for the metadata-driven tool discovery system in AIDP. The implementation enables intelligent selection of skills, personas, and templates based on YAML frontmatter metadata, improving prompt generation and tool selection for AI agents.
 
 ## Table of Contents
 
@@ -26,8 +26,8 @@ This guide provides architectural patterns, design decisions, and implementation
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                         │
 │  ┌──────────────────┐           ┌──────────────────┐        │
-│  │ WorkLoopRunner   │           │ Wizard           │        │
-│  │ (Orchestration)  │           │ (Configuration)  │        │
+│  │ CLI Commands     │           │ Prompt Builder   │        │
+│  │ (tools lint/info)│           │ (Tool Selection) │        │
 │  └──────────────────┘           └──────────────────┘        │
 └─────────────────────────────────────────────────────────────┘
                            │
@@ -35,24 +35,46 @@ This guide provides architectural patterns, design decisions, and implementation
 ┌─────────────────────────────────────────────────────────────┐
 │                      Domain Layer                            │
 │  ┌────────────────────────────────────────────┐             │
-│  │  TestRunner (ENHANCED)                     │             │
-│  │  - Executes tests with filtering           │             │
-│  │  - Formats output based on mode            │             │
-│  │  - Detects framework-specific options      │             │
+│  │  ToolMetadata (Value Object)               │             │
+│  │  - type, id, title, summary, version       │             │
+│  │  - applies_to, work_unit_types, priority   │             │
+│  │  - capabilities, dependencies              │             │
 │  └────────────────────────────────────────────┘             │
 │                                                               │
 │  ┌────────────────────────────────────────────┐             │
-│  │  OutputFilter (NEW)                        │             │
-│  │  - Filters test/lint output by mode        │             │
-│  │  - Parses framework-specific formats       │             │
-│  │  - Extracts failure-only content           │             │
+│  │  Parser (Service)                          │             │
+│  │  - Extracts YAML frontmatter               │             │
+│  │  - Normalizes legacy formats               │             │
+│  │  - Computes file hashes                    │             │
 │  └────────────────────────────────────────────┘             │
 │                                                               │
 │  ┌────────────────────────────────────────────┐             │
-│  │  ToolingDetector (ENHANCED)                │             │
-│  │  - Detects test framework capabilities     │             │
-│  │  - Suggests optimized commands             │             │
-│  │  - Provides filtering recommendations      │             │
+│  │  Validator (Service)                       │             │
+│  │  - Required field validation               │             │
+│  │  - Duplicate ID detection                  │             │
+│  │  - Dependency resolution checks            │             │
+│  └────────────────────────────────────────────┘             │
+│                                                               │
+│  ┌────────────────────────────────────────────┐             │
+│  │  Compiler (Service)                        │             │
+│  │  - Aggregates metadata                     │             │
+│  │  - Builds indexes (by type, tag, WUT)      │             │
+│  │  - Generates dependency graph              │             │
+│  │  - Outputs tool_directory.json             │             │
+│  └────────────────────────────────────────────┘             │
+│                                                               │
+│  ┌────────────────────────────────────────────┐             │
+│  │  Query (Service)                           │             │
+│  │  - Filters tools by criteria               │             │
+│  │  - Ranks by priority                       │             │
+│  │  - Resolves dependencies                   │             │
+│  └────────────────────────────────────────────┘             │
+│                                                               │
+│  ┌────────────────────────────────────────────┐             │
+│  │  Cache (Service)                           │             │
+│  │  - Loads compiled directory                │             │
+│  │  - Detects file changes                    │             │
+│  │  - Invalidates on TTL/change               │             │
 │  └────────────────────────────────────────────┘             │
 └─────────────────────────────────────────────────────────────┘
                            │
@@ -60,19 +82,21 @@ This guide provides architectural patterns, design decisions, and implementation
 ┌─────────────────────────────────────────────────────────────┐
 │                   Infrastructure Layer                       │
 │  ┌──────────────────┐           ┌──────────────────┐        │
-│  │ Configuration    │           │ Shell Execution  │        │
-│  │ (aidp.yml)       │           │ (Open3)          │        │
+│  │ Filesystem       │           │ JSON Serializer  │        │
+│  │ (File I/O)       │           │ (tool_directory) │        │
 │  └──────────────────┘           └──────────────────┘        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Architectural Decisions
 
-1. **Composition Over Inheritance**: OutputFilter is composed into TestRunner, not inherited
-2. **Single Responsibility**: Each class has one clear purpose
-3. **Dependency Injection**: All dependencies injected for testability
-4. **Strategy Pattern**: Different filtering strategies for different output modes
-5. **Zero Framework Cognition**: Use mini-tier AI for framework detection when uncertain
+1. **Composition Over Inheritance**: All services are independent, composed together via dependency injection
+2. **Single Responsibility**: Each class has one clear purpose (parse, validate, compile, query, cache)
+3. **Dependency Injection**: All dependencies injected for testability and flexibility
+4. **Value Objects**: ToolMetadata is immutable after creation with validation
+5. **Service Objects**: Stateless services for parsing, validation, compilation, querying
+6. **Repository Pattern**: Cache acts as repository for compiled tool directory
+7. **Strategy Pattern**: Different validation and normalization strategies per tool type
 
 ---
 
@@ -80,278 +104,391 @@ This guide provides architectural patterns, design decisions, and implementation
 
 ### Core Entities
 
-#### TestResult (Value Object - Existing, Enhanced)
+#### ToolMetadata (Value Object)
+
+Represents metadata for a skill, persona, or template. Immutable after creation.
 
 ```ruby
-# Represents the result of running tests
+# Represents the metadata of a tool (skill, persona, or template)
 {
-  success: Boolean,         # All tests passed
-  output: String,          # Formatted output (FILTERED in iterations > 1)
-  failures: Array<Hash>,   # Detailed failure information
-  command: String,         # Command that was executed
-  exit_code: Integer,      # Exit status
-  mode: Symbol             # :full or :quick
+  type: String,              # "skill", "persona", or "template"
+  id: String,                # Unique identifier (lowercase_alphanumeric_underscore)
+  title: String,             # Human-readable title
+  summary: String,           # Brief one-line summary
+  version: String,           # Semantic version (X.Y.Z)
+  applies_to: Array<String>, # Tags indicating applicability (e.g., ["ruby", "testing"])
+  work_unit_types: Array<String>, # Work unit types supported (e.g., ["implementation"])
+  priority: Integer,         # Priority for ranking (1-10, default 5)
+  capabilities: Array<String>, # Capabilities provided
+  dependencies: Array<String>, # IDs of required tools
+  experimental: Boolean,     # Experimental flag
+  content: String,           # Tool content (markdown)
+  source_path: String,       # Path to source .md file
+  file_hash: String          # SHA256 hash of source file
 }
 ```
 
-#### OutputFilterConfig (Value Object - NEW)
+#### ValidationResult (Value Object)
+
+Result of validating a tool's metadata.
 
 ```ruby
-# Configuration for output filtering behavior
-{
-  mode: Symbol,              # :full, :failures_only, :minimal
-  include_context: Boolean,  # Include surrounding lines for failures
-  context_lines: Integer,    # Number of context lines (default: 3)
-  max_lines: Integer,        # Maximum lines in output (default: 500)
-  framework: Symbol          # :rspec, :minitest, :jest, :pytest, etc.
-}
-```
-
-#### TestCommand (Value Object - NEW)
-
-```ruby
-# Represents a configured test command with its options
-{
-  command: String,          # Base command (e.g., "bundle exec rspec")
-  framework: Symbol,        # Detected framework
-  supports_filtering: Boolean,  # Framework has built-in filtering
-  filter_flags: Array<String>,  # Framework-specific filter flags
-  output_format: Symbol     # :verbose, :normal, :quiet, :minimal
-}
+ValidationResult = Struct.new(
+  :tool_id,      # String - Tool ID
+  :file_path,    # String - Source file path
+  :valid,        # Boolean - Validation passed
+  :errors,       # Array<String> - Validation errors
+  :warnings,     # Array<String> - Validation warnings
+  keyword_init: true
+)
 ```
 
 ### Domain Services
 
-#### OutputFilter (NEW)
+#### Parser
 
-**Responsibility**: Filter and format test/linter output based on configured mode
+**Responsibility**: Extract and parse YAML frontmatter from markdown files
 
-**Design Pattern**: Strategy Pattern + Service Object
+**Pattern**: Service Object
 
 **Contract**:
 
 ```ruby
-class Aidp::Harness::OutputFilter
-  # @param config [OutputFilterConfig] Filtering configuration
-  def initialize(config)
-    # Preconditions:
-    # - config must be a valid OutputFilterConfig
-    # - config.mode must be one of [:full, :failures_only, :minimal]
+# Parse metadata from a file
+# @param file_path [String] Path to .md file
+# @param type [String, nil] Tool type or nil to auto-detect
+# @return [ToolMetadata] Parsed metadata
+# @raise [Aidp::Errors::ValidationError] if format is invalid
+#
+# Preconditions:
+#   - file_path must exist and be readable
+#   - File must have YAML frontmatter (--- delimited)
+#
+# Postconditions:
+#   - Returns valid ToolMetadata instance
+#   - File hash computed via SHA256
+#   - Legacy formats normalized to new schema
+def self.parse_file(file_path, type: nil)
+```
 
-    # Postconditions:
-    # - Initializes with valid configuration
-    # - Ready to filter output
-  end
+#### Validator
 
-  # Filter output based on configuration
-  # @param output [String] Raw test/linter output
-  # @param framework [Symbol] Test framework identifier
-  # @return [String] Filtered output
-  def filter(output, framework: :unknown)
-    # Preconditions:
-    # - output must be a string (may be empty)
-    # - framework should be recognized or :unknown
+**Responsibility**: Validate tool metadata and detect issues
 
-    # Postconditions:
-    # - Returns filtered string
-    # - Output respects max_lines limit
-    # - Preserves critical failure information
-  end
+**Pattern**: Service Object + Visitor Pattern
 
-  private
+**Contract**:
 
-  # Extract failure information from RSpec output
-  def extract_rspec_failures(output)
-  end
+```ruby
+# Validate all tools
+# @param tools [Array<ToolMetadata>] Tools to validate
+# @return [Array<ValidationResult>] Validation results
+#
+# Preconditions:
+#   - tools must be an array of ToolMetadata instances
+#
+# Postconditions:
+#   - Returns ValidationResult for each tool
+#   - Detects duplicate IDs across tools
+#   - Validates dependencies are satisfied
+#   - Logs validation errors and warnings
+def validate_all
+```
 
-  # Extract failure information from Minitest output
-  def extract_minitest_failures(output)
-  end
+#### Compiler
 
-  # Extract failure information from Jest output
-  def extract_jest_failures(output)
-  end
+**Responsibility**: Compile tool directory with indexes and dependency graph
 
-  # Generic failure extraction for unknown frameworks
-  def extract_generic_failures(output)
-  end
-end
+**Pattern**: Service Object + Builder Pattern
+
+**Contract**:
+
+```ruby
+# Compile tool directory
+# @param output_path [String] Path to output JSON file
+# @return [Hash] Compiled directory structure
+#
+# Preconditions:
+#   - directories must be configured
+#   - directories must be readable
+#
+# Postconditions:
+#   - Scans all directories for .md files
+#   - Validates all tools
+#   - Builds indexes (by_type, by_tag, by_work_unit_type)
+#   - Builds dependency graph
+#   - Writes JSON to output_path
+#   - Returns compiled directory structure
+def compile(output_path:)
+```
+
+#### Query
+
+**Responsibility**: Query and filter tools from compiled directory
+
+**Pattern**: Repository Pattern + Query Object
+
+**Contract**:
+
+```ruby
+# Filter tools by multiple criteria
+# @param type [String, nil] Tool type filter
+# @param tags [Array<String>, nil] Tag filter (any matching tag)
+# @param work_unit_type [String, nil] Work unit type filter
+# @param experimental [Boolean, nil] Experimental filter
+# @return [Array<Hash>] Filtered tools
+#
+# Preconditions:
+#   - directory must be loaded from cache
+#
+# Postconditions:
+#   - Returns tools matching ALL criteria (AND logic)
+#   - Empty array if no matches
+#   - Tools are ranked by priority (highest first)
+def filter(type:, tags:, work_unit_type:, experimental:)
+```
+
+#### Cache
+
+**Responsibility**: Manage cached tool directory with automatic invalidation
+
+**Pattern**: Repository Pattern + Cache Invalidation
+
+**Contract**:
+
+```ruby
+# Load tool directory from cache or regenerate
+# @return [Hash] Tool directory structure
+#
+# Preconditions:
+#   - cache_path configured
+#   - directories configured
+#
+# Postconditions:
+#   - Returns cached directory if valid (not expired, files unchanged)
+#   - Regenerates directory if cache invalid
+#   - Saves file hashes for change detection
+#   - Logs cache hits/misses
+def load
 ```
 
 ---
 
 ## Design Patterns
 
-### 1. Strategy Pattern (NEW)
+### 1. Value Object Pattern
 
-**Purpose**: Different filtering strategies for different output modes and frameworks
+**Purpose**: Immutable data structures with built-in validation
 
-**Application**: `OutputFilter` uses strategies for each framework
+**Application**: `ToolMetadata`
 
 **Benefits**:
-
-- Easy to add new framework support
-- Clear separation of filtering logic
-- Testable in isolation
+- Prevents invalid state
+- Self-validating
+- Immutable after creation
+- Easy to test
 
 **Implementation**:
 
 ```ruby
-class Aidp::Harness::OutputFilter
-  STRATEGIES = {
-    rspec: RSpecFilterStrategy,
-    minitest: MinitestFilterStrategy,
-    jest: JestFilterStrategy,
-    pytest: PytestFilterStrategy,
-    generic: GenericFilterStrategy
-  }.freeze
+class ToolMetadata
+  attr_reader :type, :id, :title, :summary, :version, ...
 
-  def filter(output, framework: :unknown)
-    strategy = STRATEGIES[framework] || STRATEGIES[:generic]
-    strategy.new(@config).filter(output)
-  end
-end
-```
-
-### 2. Service Object Pattern (Existing, Enhanced)
-
-**Purpose**: Encapsulate test execution and output processing logic
-
-**Application**: `TestRunner` service
-
-**Benefits**:
-
-- Single Responsibility Principle
-- Reusable across work loops
-- Easily testable
-
-### 3. Composition Pattern (Enhanced)
-
-**Purpose**: Compose complex behavior from simple components
-
-**Application**: TestRunner composes OutputFilter
-
-**Benefits**:
-
-- Loose coupling
-- Easy to swap implementations
-- Clear dependencies
-
-```ruby
-class TestRunner
-  def initialize(project_dir, config, output_filter: nil)
-    @project_dir = project_dir
-    @config = config
-    @output_filter = output_filter || build_default_filter
+  def initialize(type:, id:, title:, summary:, version:, ...)
+    @type = type
+    @id = id
+    # ...
+    validate!  # Validate on construction
   end
 
   private
 
-  def build_default_filter
-    filter_config = OutputFilterConfig.new(
-      mode: @config.test_output_mode || :full,
-      include_context: true,
-      context_lines: 3,
-      max_lines: 500,
-      framework: detect_framework
-    )
-    OutputFilter.new(filter_config)
+  def validate!
+    validate_required_fields!
+    validate_types!
+    validate_formats!
+    validate_ranges!
   end
 end
 ```
 
-### 4. Template Method Pattern (Enhanced)
+### 2. Service Object Pattern
 
-**Purpose**: Define skeleton of test execution with filtering
+**Purpose**: Encapsulate complex operations as stateless services
 
-**Application**: Test execution pipeline in TestRunner
-
-**Current Structure**:
-
-```ruby
-def run_tests
-  test_commands = resolved_test_commands
-  return {success: true, output: "", failures: []} if test_commands.empty?
-
-  results = test_commands.map { |cmd| execute_command(cmd, "test") }
-  aggregate_results(results, "Tests")
-end
-
-private
-
-def aggregate_results(results, category)
-  failures = results.reject { |r| r[:success] }
-  success = failures.empty?
-
-  output = if success
-    "#{category}: All passed"
-  else
-    format_failures(failures, category)  # ENHANCED: Now uses OutputFilter
-  end
-
-  {
-    success: success,
-    output: output,
-    failures: failures
-  }
-end
-```
-
-### 5. Builder Pattern (NEW)
-
-**Purpose**: Construct optimized test commands with filtering options
-
-**Application**: Command construction in ToolingDetector
+**Application**: `Parser`, `Validator`, `Compiler`, `Scanner`
 
 **Benefits**:
+- Single Responsibility Principle
+- Reusable across application
+- Easy to test
+- Clear dependencies
 
-- Fluent interface for command building
-- Encapsulates framework-specific logic
-- Easy to test command construction
+**Implementation**:
 
 ```ruby
-class TestCommandBuilder
-  def initialize(framework, base_command)
-    @framework = framework
-    @base_command = base_command
-    @flags = []
-  end
-
-  def with_failures_only
-    case @framework
-    when :rspec
-      @flags << "--only-failures"
-    when :jest
-      @flags << "--onlyFailures"
-    when :pytest
-      @flags << "--lf"  # last-failed
-    end
-    self
-  end
-
-  def with_quiet_output
-    case @framework
-    when :rspec
-      @flags << "--format progress"
-    when :jest
-      @flags << "--silent"
-    when :pytest
-      @flags << "-q"
-    end
-    self
-  end
-
-  def build
-    "#{@base_command} #{@flags.join(" ")}".strip
+class Parser
+  def self.parse_file(file_path, type: nil)
+    # Stateless operation
+    # No instance state required
   end
 end
 ```
 
-### 6. Factory Pattern (NEW)
+### 3. Repository Pattern
 
-**Purpose**: Create appropriate filter strategies for different frameworks
+**Purpose**: Abstract data access and caching logic
 
-**Application**: Strategy selection in OutputFilter
+**Application**: `Cache`
+
+**Benefits**:
+- Single source of truth for tool directory
+- Encapsulates cache invalidation logic
+- Testable with mock repositories
+- Clear interface for clients
+
+**Implementation**:
+
+```ruby
+class Cache
+  def load
+    cache_valid? ? load_from_cache : regenerate
+  end
+
+  def reload
+    regenerate  # Force reload
+  end
+
+  private
+
+  def cache_valid?
+    !cache_expired? && !files_changed?
+  end
+end
+```
+
+### 4. Query Object Pattern
+
+**Purpose**: Encapsulate complex query logic
+
+**Application**: `Query`
+
+**Benefits**:
+- Fluent interface for filtering
+- Composable queries
+- Testable in isolation
+- Clear intent
+
+**Implementation**:
+
+```ruby
+class Query
+  def filter(type: nil, tags: nil, work_unit_type: nil, experimental: nil)
+    tools = directory["tools"]
+    tools = tools.select { |t| t["type"] == type } if type
+    tools = filter_by_tags(tools, tags) if tags
+    tools = filter_by_work_unit_type(tools, work_unit_type) if work_unit_type
+    tools = tools.select { |t| t["experimental"] == experimental } unless experimental.nil?
+    tools
+  end
+
+  def rank_by_priority(tools)
+    tools.sort_by { |t| -(t["priority"] || DEFAULT_PRIORITY) }
+  end
+end
+```
+
+### 5. Builder Pattern
+
+**Purpose**: Construct complex objects step by step
+
+**Application**: Compiler index building
+
+**Benefits**:
+- Separates construction from representation
+- Supports incremental building
+- Clear construction process
+
+**Implementation**:
+
+```ruby
+class Compiler
+  def build_indexes
+    @indexes = {
+      by_id: {},
+      by_type: {},
+      by_tag: {},
+      by_work_unit_type: {}
+    }
+
+    @tools.each do |tool|
+      add_to_id_index(tool)
+      add_to_type_index(tool)
+      add_to_tag_index(tool)
+      add_to_work_unit_type_index(tool)
+    end
+  end
+end
+```
+
+### 6. Strategy Pattern
+
+**Purpose**: Different normalization strategies for legacy formats
+
+**Application**: Metadata normalization in Parser
+
+**Benefits**:
+- Easy to add new legacy format support
+- Clear separation of concerns
+- Testable strategies
+
+**Implementation**:
+
+```ruby
+class Parser
+  def self.normalize_metadata(metadata, type:)
+    # Strategy: detect and normalize legacy formats
+    normalized = {}
+    normalized["title"] = metadata["title"] || metadata["name"]  # Legacy "name"
+    normalized["summary"] = metadata["summary"] || metadata["description"]  # Legacy
+    normalized["applies_to"] = extract_applies_to(metadata)  # Combine keywords, tags
+    normalized
+  end
+end
+```
+
+### 7. Dependency Graph Pattern
+
+**Purpose**: Model and resolve tool dependencies
+
+**Application**: Dependency resolution in Compiler and Query
+
+**Benefits**:
+- Topological sort for dependency order
+- Cycle detection
+- Transitive dependency resolution
+
+**Implementation**:
+
+```ruby
+def build_dependency_graph
+  @dependency_graph = {}
+
+  @tools.each do |tool|
+    @dependency_graph[tool.id] = {
+      dependencies: tool.dependencies,
+      dependents: []
+    }
+  end
+
+  # Build reverse edges (dependents)
+  @tools.each do |tool|
+    tool.dependencies.each do |dep_id|
+      @dependency_graph[dep_id][:dependents] << tool.id if @dependency_graph[dep_id]
+    end
+  end
+end
+```
 
 ---
 
@@ -359,7 +496,7 @@ end
 
 ### Design by Contract Principles
 
-All public methods must specify:
+All public methods specify:
 
 1. **Preconditions**: What must be true before the method executes
 2. **Postconditions**: What will be true after the method executes
@@ -367,100 +504,213 @@ All public methods must specify:
 
 ### Example Contracts
 
-#### OutputFilter#filter
+#### Parser#parse_file
 
 ```ruby
-# Filter test/linter output based on configuration
+# Parse metadata from a file
 #
-# @param output [String] Raw output from test/linter command
-# @param framework [Symbol] Framework identifier (:rspec, :jest, etc.)
-# @return [String] Filtered output
+# @param file_path [String] Path to .md file
+# @param type [String, nil] Tool type or nil to auto-detect
+# @return [ToolMetadata] Parsed metadata
 #
 # Preconditions:
-#   - output must be a string (may be empty)
-#   - framework must be a symbol
-#   - self must be initialized with valid config
+#   - file_path must exist and be readable
+#   - File must start with YAML frontmatter (---)
+#   - YAML frontmatter must be valid
+#   - Required fields must be present (type, id, title, summary, version)
 #
 # Postconditions:
-#   - Returns a string (never nil)
-#   - Output length <= config.max_lines (unless in :full mode)
-#   - Failure information is preserved
-#   - Success messages may be abbreviated
+#   - Returns valid ToolMetadata instance
+#   - file_hash computed via SHA256
+#   - Legacy formats normalized to new schema
+#   - Content extracted (without frontmatter)
 #
 # Invariants:
-#   - @config remains unchanged
-#   - No side effects on input
-def filter(output, framework: :unknown)
-  Aidp.log_debug("output_filter", "filtering_output",
-    framework: framework,
-    mode: @config.mode,
-    input_lines: output.lines.count)
+#   - Parser has no state (class methods only)
+#   - Original file is not modified
+def self.parse_file(file_path, type: nil)
+  Aidp.log_debug("metadata", "Parsing file", file: file_path, type: type)
 
-  # Implementation
+  unless File.exist?(file_path)
+    raise Aidp::Errors::ValidationError, "File not found: #{file_path}"
+  end
 
-  Aidp.log_debug("output_filter", "filtered_output",
-    output_lines: result.lines.count,
-    reduction_percent: reduction_percentage(output, result))
+  content = File.read(file_path, encoding: "UTF-8")
+  file_hash = compute_file_hash(content)
+  type ||= detect_type(file_path)
 
-  result
+  parse_string(content, source_path: file_path, file_hash: file_hash, type: type)
 end
 ```
 
-#### TestRunner#format_failures
+#### Validator#validate_all
 
 ```ruby
-# Format failure output with optional filtering
+# Validate all tools
 #
-# @param failures [Array<Hash>] Array of failure results
-# @param category [String] Category name (e.g., "Tests", "Linters")
-# @param mode [Symbol] Output mode (:full, :failures_only, :minimal)
-# @return [String] Formatted failure output
+# @return [Array<ValidationResult>] Validation results for each tool
 #
 # Preconditions:
-#   - failures must be an array of hashes
-#   - each failure must have :command, :exit_code, :stdout, :stderr
-#   - category must be a string
-#   - mode must be one of [:full, :failures_only, :minimal]
+#   - @tools must be initialized (may be empty)
+#   - Each tool in @tools must be a ToolMetadata instance
 #
 # Postconditions:
-#   - Returns formatted string with failure information
-#   - Output is filtered based on mode
-#   - Includes command, exit code, and relevant output
-#   - In :failures_only mode, omits passing test details
+#   - Returns ValidationResult for each tool
+#   - Validates required fields for each tool
+#   - Detects duplicate IDs across all tools
+#   - Validates dependencies are satisfied
+#   - Logs validation summary (total, valid, invalid count)
 #
 # Side Effects:
-#   - Logs filtering activity via Aidp.log_debug
-def format_failures(failures, category, mode: :full)
-  # Implementation
+#   - Logs validation errors and warnings
+def validate_all
+  Aidp.log_debug("metadata", "Validating all tools", count: @tools.size)
+
+  results = @tools.map { |tool| validate_tool(tool) }
+
+  # Cross-tool validations
+  validate_duplicate_ids(results)
+  validate_dependencies(results)
+
+  Aidp.log_info(
+    "metadata",
+    "Validation complete",
+    total: results.size,
+    valid: results.count(&:valid),
+    invalid: results.count { |r| !r.valid }
+  )
+
+  results
 end
 ```
 
-#### ToolingDetector.rspec
+#### Compiler#compile
 
 ```ruby
-# Detect RSpec configuration and suggest optimized commands
+# Compile tool directory
 #
-# @return [TestCommand] RSpec command configuration
+# @param output_path [String] Path to output JSON file
+# @return [Hash] Compiled directory structure
 #
 # Preconditions:
-#   - Called within a Ruby project context
-#   - Gemfile exists and contains rspec gem
+#   - @directories must be configured (may be empty)
+#   - Directories must be readable
+#   - output_path parent directory must exist or be creatable
 #
 # Postconditions:
-#   - Returns TestCommand with framework-specific optimizations
-#   - Suggests --only-failures for subsequent runs
-#   - Recommends appropriate output format
+#   - Scans all configured directories for .md files
+#   - Parses all tools found
+#   - Validates all tools
+#   - Builds indexes (by_type, by_tag, by_work_unit_type)
+#   - Builds dependency graph
+#   - Writes JSON to output_path
+#   - Returns compiled directory structure
+#   - In strict mode: raises if validation errors found
+#   - In non-strict mode: excludes invalid tools, logs warnings
 #
-# Example:
-#   {
-#     command: "bundle exec rspec",
-#     framework: :rspec,
-#     supports_filtering: true,
-#     filter_flags: ["--only-failures", "--format progress"],
-#     output_format: :normal
-#   }
-def self.rspec(root = Dir.pwd)
-  # Implementation
+# Side Effects:
+#   - Creates output directory if needed
+#   - Writes tool_directory.json
+#   - Logs compilation progress and summary
+def compile(output_path:)
+  Aidp.log_info("metadata", "Compiling tool directory",
+    directories: @directories, output: output_path)
+
+  scanner = Scanner.new(@directories)
+  @tools = scanner.scan_all
+
+  validator = Validator.new(@tools)
+  validation_results = validator.validate_all
+
+  handle_validation_results(validation_results)
+
+  build_indexes
+  build_dependency_graph
+
+  directory = create_directory_structure
+  write_directory(directory, output_path)
+
+  Aidp.log_info("metadata", "Compilation complete",
+    tools: @tools.size, output: output_path)
+
+  directory
+end
+```
+
+#### Query#filter
+
+```ruby
+# Filter tools by multiple criteria
+#
+# @param type [String, nil] Tool type filter
+# @param tags [Array<String>, nil] Tag filter
+# @param work_unit_type [String, nil] Work unit type filter
+# @param experimental [Boolean, nil] Experimental filter
+# @return [Array<Hash>] Filtered tools
+#
+# Preconditions:
+#   - directory must be loaded (via #load or explicit load)
+#   - directory must have "tools" key
+#
+# Postconditions:
+#   - Returns tools matching ALL criteria (AND logic)
+#   - Empty array if no matches
+#   - Tags are case-insensitive
+#   - Work unit types are case-insensitive
+#   - Returns tool hashes (not ToolMetadata objects)
+#
+# Invariants:
+#   - Original directory is not modified
+#   - Results are a subset of directory["tools"]
+def filter(type: nil, tags: nil, work_unit_type: nil, experimental: nil)
+  Aidp.log_debug("metadata", "Filtering tools",
+    type: type, tags: tags, work_unit_type: work_unit_type, experimental: experimental)
+
+  tools = directory["tools"]
+  tools = tools.select { |t| t["type"] == type } if type
+  tools = filter_by_tags(tools, tags) if tags && !tags.empty?
+  tools = filter_by_work_unit_type(tools, work_unit_type) if work_unit_type
+  tools = tools.select { |t| t["experimental"] == experimental } unless experimental.nil?
+
+  Aidp.log_debug("metadata", "Filtered tools", count: tools.size)
+
+  tools
+end
+```
+
+#### Cache#load
+
+```ruby
+# Load tool directory from cache or regenerate
+#
+# @return [Hash] Tool directory structure
+#
+# Preconditions:
+#   - @cache_path configured
+#   - @directories configured
+#   - Directories must be readable
+#
+# Postconditions:
+#   - Returns cached directory if valid (not expired, files unchanged)
+#   - Regenerates directory if cache invalid
+#   - Saves file hashes for change detection
+#   - Logs cache hits/misses
+#
+# Side Effects:
+#   - May regenerate cache (scan, parse, validate, compile)
+#   - May write tool_directory.json
+#   - May write file_hashes.json
+#   - Logs cache status
+def load
+  Aidp.log_debug("metadata", "Loading cache", path: @cache_path)
+
+  if cache_valid?
+    Aidp.log_debug("metadata", "Using cached directory")
+    load_from_cache
+  else
+    Aidp.log_info("metadata", "Cache invalid, regenerating")
+    regenerate
+  end
 end
 ```
 
@@ -468,733 +718,125 @@ end
 
 ## Component Design
 
-### 1. OutputFilter (NEW)
+### Directory Structure
 
-#### File Location
-
-`lib/aidp/harness/output_filter.rb`
-
-#### Class Structure
-
-```ruby
-# frozen_string_literal: true
-
-module Aidp
-  module Harness
-    # Filters test and linter output to reduce token consumption
-    # Uses framework-specific strategies to extract relevant information
-    class OutputFilter
-      # Output modes
-      MODES = {
-        full: :full,                   # No filtering (default for first run)
-        failures_only: :failures_only, # Only failure information
-        minimal: :minimal              # Minimal failure info + summary
-      }.freeze
-
-      # @param config [Hash] Configuration options
-      # @option config [Symbol] :mode Output mode (:full, :failures_only, :minimal)
-      # @option config [Boolean] :include_context Include surrounding lines
-      # @option config [Integer] :context_lines Number of context lines
-      # @option config [Integer] :max_lines Maximum output lines
-      def initialize(config = {})
-        @mode = config[:mode] || :full
-        @include_context = config.fetch(:include_context, true)
-        @context_lines = config.fetch(:context_lines, 3)
-        @max_lines = config.fetch(:max_lines, 500)
-
-        validate_mode!
-
-        Aidp.log_debug("output_filter", "initialized",
-          mode: @mode,
-          include_context: @include_context,
-          max_lines: @max_lines)
-      end
-
-      # Filter output based on framework and mode
-      # @param output [String] Raw output
-      # @param framework [Symbol] Framework identifier
-      # @return [String] Filtered output
-      def filter(output, framework: :unknown)
-        return output if @mode == :full
-        return "" if output.nil? || output.empty?
-
-        Aidp.log_debug("output_filter", "filtering_start",
-          framework: framework,
-          input_lines: output.lines.count)
-
-        strategy = strategy_for_framework(framework)
-        filtered = strategy.filter(output, self)
-
-        truncated = truncate_if_needed(filtered)
-
-        Aidp.log_debug("output_filter", "filtering_complete",
-          output_lines: truncated.lines.count,
-          reduction: reduction_stats(output, truncated))
-
-        truncated
-      end
-
-      # Accessors for strategy use
-      attr_reader :mode, :include_context, :context_lines, :max_lines
-
-      private
-
-      def validate_mode!
-        unless MODES.key?(@mode)
-          raise ArgumentError, "Invalid mode: #{@mode}. Must be one of #{MODES.keys}"
-        end
-      end
-
-      def strategy_for_framework(framework)
-        case framework
-        when :rspec
-          RSpecFilterStrategy.new
-        when :minitest
-          MinitestFilterStrategy.new
-        when :jest
-          JestFilterStrategy.new
-        when :pytest
-          PytestFilterStrategy.new
-        else
-          GenericFilterStrategy.new
-        end
-      end
-
-      def truncate_if_needed(output)
-        lines = output.lines
-        return output if lines.count <= @max_lines
-
-        truncated = lines.first(@max_lines).join
-        truncated + "\n\n[Output truncated - #{lines.count - @max_lines} more lines omitted]"
-      end
-
-      def reduction_stats(input, output)
-        input_size = input.bytesize
-        output_size = output.bytesize
-        reduction = ((input_size - output_size).to_f / input_size * 100).round(1)
-
-        {
-          input_bytes: input_size,
-          output_bytes: output_size,
-          reduction_percent: reduction
-        }
-      end
-    end
-  end
-end
+```
+lib/aidp/metadata/
+├── tool_metadata.rb    # Value object for tool metadata
+├── parser.rb           # Parse YAML frontmatter
+├── validator.rb        # Validate metadata
+├── scanner.rb          # Scan directories for .md files
+├── compiler.rb         # Compile tool directory with indexes
+├── query.rb            # Query interface for tool selection
+└── cache.rb            # Cache management with invalidation
 ```
 
-#### Filter Strategy Base
+### Component Dependencies
 
-```ruby
-module Aidp
-  module Harness
-    # Base class for framework-specific filtering strategies
-    class FilterStrategy
-      # @param output [String] Raw output
-      # @param filter [OutputFilter] Filter instance for config access
-      # @return [String] Filtered output
-      def filter(output, filter_instance)
-        raise NotImplementedError, "Subclasses must implement #filter"
-      end
-
-      protected
-
-      # Extract lines around a match (for context)
-      def extract_with_context(lines, index, context_lines)
-        start_idx = [0, index - context_lines].max
-        end_idx = [lines.length - 1, index + context_lines].min
-
-        lines[start_idx..end_idx]
-      end
-
-      # Find failure markers in output
-      def find_failure_markers(output)
-        # Common failure patterns across frameworks
-        patterns = [
-          /FAILED/i,
-          /ERROR/i,
-          /FAIL:/i,
-          /failures?:/i,
-          /\d+\) /,  # Numbered failures
-          /^  \d+\)/  # Indented numbered failures
-        ]
-
-        lines = output.lines
-        markers = []
-
-        lines.each_with_index do |line, index|
-          if patterns.any? { |pattern| line.match?(pattern) }
-            markers << index
-          end
-        end
-
-        markers
-      end
-    end
-  end
-end
+```
+Cache → Compiler → Scanner → Parser → ToolMetadata
+  ↓        ↓
+Query    Validator
 ```
 
-#### RSpec Filter Strategy
-
-```ruby
-module Aidp
-  module Harness
-    # RSpec-specific output filtering
-    class RSpecFilterStrategy < FilterStrategy
-      def filter(output, filter_instance)
-        case filter_instance.mode
-        when :failures_only
-          extract_failures_only(output, filter_instance)
-        when :minimal
-          extract_minimal(output, filter_instance)
-        else
-          output
-        end
-      end
-
-      private
-
-      def extract_failures_only(output, filter_instance)
-        lines = output.lines
-        parts = []
-
-        # Extract summary line
-        if summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) }
-          parts << "RSpec Summary:"
-          parts << summary
-          parts << ""
-        end
-
-        # Extract failed examples
-        in_failure = false
-        failure_lines = []
-
-        lines.each_with_index do |line, index|
-          # Start of failure section
-          if line.match?(/^Failures:/)
-            in_failure = true
-            failure_lines << line
-            next
-          end
-
-          # End of failure section (start of pending/seed info)
-          if in_failure && (line.match?(/^Finished in/) || line.match?(/^Pending:/))
-            in_failure = false
-            break
-          end
-
-          failure_lines << line if in_failure
-        end
-
-        if failure_lines.any?
-          parts << failure_lines.join
-        end
-
-        parts.join("\n")
-      end
-
-      def extract_minimal(output, filter_instance)
-        lines = output.lines
-        parts = []
-
-        # Extract only summary and failure locations
-        if summary = lines.find { |l| l.match?(/^\d+ examples?, \d+ failures?/) }
-          parts << summary
-        end
-
-        # Extract failure locations (file:line references)
-        failure_locations = lines.select { |l| l.match?(/# \.\/\S+:\d+/) }
-        if failure_locations.any?
-          parts << ""
-          parts << "Failed examples:"
-          parts.concat(failure_locations.map(&:strip))
-        end
-
-        parts.join("\n")
-      end
-    end
-  end
-end
-```
-
-#### Generic Filter Strategy
-
-```ruby
-module Aidp
-  module Harness
-    # Generic filtering for unknown frameworks
-    class GenericFilterStrategy < FilterStrategy
-      def filter(output, filter_instance)
-        case filter_instance.mode
-        when :failures_only
-          extract_failure_lines(output, filter_instance)
-        when :minimal
-          extract_summary(output, filter_instance)
-        else
-          output
-        end
-      end
-
-      private
-
-      def extract_failure_lines(output, filter_instance)
-        lines = output.lines
-        failure_indices = find_failure_markers(output)
-
-        return output if failure_indices.empty?
-
-        # Extract failures with context
-        relevant_lines = Set.new
-        failure_indices.each do |index|
-          if filter_instance.include_context
-            range = extract_with_context(lines, index, filter_instance.context_lines)
-            range.each { |line_idx| relevant_lines.add(line_idx) }
-          else
-            relevant_lines.add(index)
-          end
-        end
-
-        selected = relevant_lines.to_a.sort.map { |idx| lines[idx] }
-        selected.join
-      end
-
-      def extract_summary(output, filter_instance)
-        lines = output.lines
-
-        # Take first line, last line, and any lines with numbers/statistics
-        parts = []
-        parts << lines.first if lines.first
-
-        summary_lines = lines.select do |line|
-          line.match?(/\d+/) || line.match?(/summary|total|passed|failed/i)
-        end
-
-        parts.concat(summary_lines.uniq)
-        parts << lines.last if lines.last && !parts.include?(lines.last)
-
-        parts.join("\n")
-      end
-    end
-  end
-end
-```
-
-### 2. TestRunner Enhancements
-
-#### Updated format_failures Method
-
-```ruby
-def format_failures(failures, category, mode: :full)
-  output = ["#{category} Failures:", ""]
-
-  failures.each do |failure|
-    output << "Command: #{failure[:command]}"
-    output << "Exit Code: #{failure[:exit_code]}"
-    output << "--- Output ---"
-
-    # Apply filtering based on mode and framework
-    filtered_stdout = filter_output(failure[:stdout], mode, detect_framework_from_command(failure[:command]))
-    filtered_stderr = filter_output(failure[:stderr], mode, :unknown)
-
-    output << filtered_stdout unless filtered_stdout.strip.empty?
-    output << filtered_stderr unless filtered_stderr.strip.empty?
-    output << ""
-  end
-
-  output.join("\n")
-end
-
-private
-
-def filter_output(raw_output, mode, framework)
-  return raw_output if mode == :full || raw_output.nil? || raw_output.empty?
-
-  filter_config = {
-    mode: mode,
-    include_context: true,
-    context_lines: 3,
-    max_lines: 500
-  }
-
-  filter = OutputFilter.new(filter_config)
-  filter.filter(raw_output, framework: framework)
-rescue => e
-  Aidp.log_warn("test_runner", "filter_failed",
-    error: e.message,
-    framework: framework)
-  raw_output  # Fallback to unfiltered on error
-end
-
-def detect_framework_from_command(command)
-  case command
-  when /rspec/
-    :rspec
-  when /minitest/
-    :minitest
-  when /jest/
-    :jest
-  when /pytest/
-    :pytest
-  else
-    :unknown
-  end
-end
-```
-
-#### Add Output Mode Support
-
-```ruby
-def run_tests
-  test_commands = resolved_test_commands
-  return {success: true, output: "", failures: []} if test_commands.empty?
-
-  # Use appropriate mode based on iteration count (if available)
-  mode = determine_output_mode
-
-  results = test_commands.map { |cmd| execute_command(cmd, "test") }
-  aggregate_results(results, "Tests", mode: mode)
-end
-
-private
-
-def determine_output_mode
-  # First iteration: full output
-  # Subsequent iterations: failures only
-  if @config.respond_to?(:test_output_mode)
-    @config.test_output_mode
-  elsif defined?(@iteration_count) && @iteration_count && @iteration_count > 1
-    :failures_only
-  else
-    :full
-  end
-end
-```
-
-### 3. ToolingDetector Enhancements
-
-#### Enhanced RSpec Detection
-
-```ruby
-def rspec
-  return nil unless rspec?
-
-  base_command = bundle_prefix("rspec")
-
-  # Check if RSpec supports --only-failures (requires rspec-core >= 3.3)
-  supports_only_failures = check_rspec_version_support
-
-  filter_flags = []
-  filter_flags << "--only-failures" if supports_only_failures
-  filter_flags << "--format progress"  # Quieter than default
-
-  {
-    command: base_command,
-    framework: :rspec,
-    supports_filtering: supports_only_failures,
-    filter_flags: filter_flags,
-    output_format: :normal,
-    suggested_full_command: "#{base_command} && #{base_command} --only-failures"
-  }
-end
-
-private
-
-def check_rspec_version_support
-  # Check Gemfile.lock for rspec-core version
-  lockfile = File.join(@root, "Gemfile.lock")
-  return false unless File.exist?(lockfile)
-
-  content = File.read(lockfile)
-  if match = content.match(/rspec-core \((\d+\.\d+)/)
-    version = Gem::Version.new(match[1])
-    version >= Gem::Version.new("3.3")
-  else
-    false
-  end
-rescue
-  false
-end
-```
-
-#### Add Framework Detection Suggestions
-
-```ruby
-def detect_with_suggestions
-  result = detect
-
-  # Add optimization suggestions for each detected command
-  enhanced_result = result.dup
-  enhanced_result[:test_commands] = result[:test_commands].map do |cmd|
-    enhance_command_with_suggestions(cmd)
-  end
-
-  enhanced_result
-end
-
-private
-
-def enhance_command_with_suggestions(command)
-  framework = detect_framework(command)
-
-  case framework
-  when :rspec
-    suggest_rspec_optimizations(command)
-  when :jest
-    suggest_jest_optimizations(command)
-  when :pytest
-    suggest_pytest_optimizations(command)
-  else
-    {command: command, framework: :unknown, suggestions: []}
-  end
-end
-
-def suggest_rspec_optimizations(command)
-  {
-    command: command,
-    framework: :rspec,
-    suggestions: [
-      "Consider using --only-failures for subsequent runs",
-      "Use --format progress for quieter output",
-      "Add --fail-fast to stop on first failure"
-    ],
-    optimized_command: "#{command} --format progress",
-    retry_command: "#{command} --only-failures"
-  }
-end
-```
-
-### 4. WorkLoopRunner Integration
-
-#### Update prepare_next_iteration
-
-```ruby
-def prepare_next_iteration(test_results, lint_results, diagnostic = nil)
-  failures = []
-
-  failures << "## Fix-Forward Iteration #{@iteration_count}"
-  failures << ""
-
-  # Re-inject LLM_STYLE_GUIDE at regular intervals
-  if should_reinject_style_guide?
-    failures << reinject_style_guide_reminder
-    failures << ""
-  end
-
-  if diagnostic
-    failures << "### Diagnostic Summary"
-    diagnostic[:failures].each do |failure_info|
-      failures << "- #{failure_info[:type].capitalize}: #{failure_info[:count]} failures"
-    end
-    failures << ""
-  end
-
-  # NEW: Apply output filtering for failures
-  unless test_results[:success]
-    failures << "### Test Failures"
-    # test_results[:output] is already filtered by TestRunner
-    failures << test_results[:output]
-    failures << ""
-  end
-
-  unless lint_results[:success]
-    failures << "### Linter Failures"
-    # lint_results[:output] is already filtered by TestRunner
-    failures << lint_results[:output]
-    failures << ""
-  end
-
-  strategy = build_failure_strategy(test_results, lint_results)
-  failures.concat(strategy) unless strategy.empty?
-
-  failures << "**Fix-forward instructions**: Do not rollback changes. Build on what exists and fix the failures above."
-  failures << ""
-
-  return if test_results[:success] && lint_results[:success]
-
-  # Append filtered failures to PROMPT.md
-  current_prompt = @prompt_manager.read
-  updated_prompt = current_prompt + "\n\n---\n\n" + failures.join("\n")
-  @prompt_manager.write(updated_prompt, step_name: @step_name)
-
-  display_message("  [NEXT_PATCH] Added filtered failure reports to PROMPT.md", type: :warning)
-  display_message("  [TOKEN OPTIMIZATION] Output filtered to reduce token consumption", type: :info)
-end
-```
-
-### 5. Wizard Configuration
-
-#### Add Test/Lint Output Configuration
-
-```ruby
-def configure_test_commands
-  existing = get([:work_loop, :test]) || {}
-
-  unit = ask_with_default("Unit test command", existing[:unit] || detect_unit_test_command)
-  integration = ask_with_default("Integration test command", existing[:integration])
-  e2e = ask_with_default("End-to-end test command", existing[:e2e])
-
-  timeout = ask_with_default("Test timeout (seconds)", (existing[:timeout_seconds] || 1800).to_s) { |value| value.to_i }
-
-  # NEW: Ask about output filtering
-  output_mode_choices = [
-    ["Full output (verbose)", :full],
-    ["Failures only (recommended for work loops)", :failures_only],
-    ["Minimal (summary only)", :minimal]
-  ]
-  output_mode_default = existing[:output_mode] || :failures_only
-  output_mode_default_label = output_mode_choices.find { |label, value| value == output_mode_default }&.first
-
-  output_mode = prompt.select("Test output mode for work loop iterations:", default: output_mode_default_label) do |menu|
-    output_mode_choices.each { |label, value| menu.choice label, value }
-  end
-
-  # NEW: Ask about quick mode (changed files only)
-  enable_quick_mode = prompt.yes?(
-    "Enable 'quick test' mode (run only tests for changed files)?",
-    default: existing.fetch(:enable_quick_mode, false)
-  )
-
-  set([:work_loop, :test], {
-    unit: unit,
-    integration: integration,
-    e2e: e2e,
-    timeout_seconds: timeout,
-    output_mode: output_mode,
-    enable_quick_mode: enable_quick_mode
-  }.compact)
-
-  validate_command(unit)
-  validate_command(integration)
-  validate_command(e2e)
-
-  # Display token optimization tip
-  if output_mode == :failures_only || output_mode == :minimal
-    prompt.say("\n💡 Token Optimization Enabled:")
-    prompt.say("  Work loop iterations will use filtered output to reduce token consumption.")
-    prompt.say("  First iteration uses full output; subsequent iterations show failures only.")
-  end
-end
-
-def configure_linting
-  existing = get([:work_loop, :lint]) || {}
-
-  lint_cmd = ask_with_default("Lint command", existing[:command] || detect_lint_command)
-  format_cmd = ask_with_default("Format command", existing[:format] || detect_format_command)
-  autofix = prompt.yes?("Run formatter automatically?", default: existing.fetch(:autofix, false))
-
-  # NEW: Linter output mode
-  output_mode_choices = [
-    ["Full output", :full],
-    ["Errors only", :failures_only],
-    ["Summary only", :minimal]
-  ]
-  output_mode_default = existing[:output_mode] || :failures_only
-  output_mode_default_label = output_mode_choices.find { |label, value| value == output_mode_default }&.first
-
-  output_mode = prompt.select("Linter output mode:", default: output_mode_default_label) do |menu|
-    output_mode_choices.each { |label, value| menu.choice label, value }
-  end
-
-  set([:work_loop, :lint], {
-    command: lint_cmd,
-    format: format_cmd,
-    autofix: autofix,
-    output_mode: output_mode
-  })
-
-  validate_command(lint_cmd)
-  validate_command(format_cmd)
-end
-```
-
+**Dependency Flow**:
+1. `Cache` depends on `Compiler` for regeneration
+2. `Compiler` depends on `Scanner` and `Validator`
+3. `Scanner` depends on `Parser`
+4. `Parser` depends on `ToolMetadata`
+5. `Validator` depends on `ToolMetadata`
+6. `Query` depends on `Cache` for directory access
+
+### File Format Example
+
+#### Skill with Metadata
+
+```markdown
+---
+type: skill
+id: ruby_rspec_tdd
+title: Ruby RSpec TDD Implementer
+summary: Expert in Test-Driven Development with RSpec
+version: 1.0.0
+applies_to:
+  - ruby
+  - testing
+  - rspec
+work_unit_types:
+  - implementation
+  - testing
+priority: 8
+capabilities:
+  - Test-first development
+  - RSpec best practices
+  - Mock and stub patterns
+dependencies: []
+experimental: false
 ---
 
-## Configuration Schema
+# Ruby RSpec TDD Skill
 
-### Extended YAML Schema
+You are an expert in Test-Driven Development using RSpec...
 
-```yaml
-work_loop:
-  test:
-    unit: "bundle exec rspec"
-    integration: "bundle exec rspec spec/integration"
-    e2e: null
-    timeout_seconds: 1800
-
-    # NEW: Output filtering configuration
-    output_mode: failures_only  # :full, :failures_only, :minimal
-    max_output_lines: 500       # Maximum lines in filtered output
-    include_context: true        # Include context around failures
-    context_lines: 3            # Number of context lines
-
-    # NEW: Quick mode (changed files only)
-    enable_quick_mode: false
-    quick_mode_command: "bundle exec rspec --only-failures"
-
-    # NEW: Framework-specific options
-    framework_options:
-      rspec:
-        format: progress          # :progress, :documentation, :json
-        fail_fast: false          # Stop on first failure
-        only_failures: true       # Run only previously failed specs
-      jest:
-        silent: true              # Suppress verbose output
-        only_failures: true       # --onlyFailures flag
-      pytest:
-        verbosity: quiet          # :quiet, :normal, :verbose
-        last_failed: true         # --lf flag
-
-  lint:
-    command: "bundle exec standardrb"
-    format: "bundle exec standardrb --fix"
-    autofix: false
-
-    # NEW: Linter output filtering
-    output_mode: failures_only    # :full, :failures_only, :minimal
-    max_output_lines: 300         # Linters typically have shorter output
+[Skill content continues...]
 ```
 
-### Configuration Accessor Methods
+### Compiled Directory Structure
 
-Add to `Configuration` class:
-
-```ruby
-# Get test output mode
-def test_output_mode
-  work_loop_config.dig(:test, :output_mode) || :full
-end
-
-# Get max output lines for tests
-def test_max_output_lines
-  work_loop_config.dig(:test, :max_output_lines) || 500
-end
-
-# Check if quick mode is enabled
-def test_quick_mode_enabled?
-  work_loop_config.dig(:test, :enable_quick_mode) == true
-end
-
-# Get quick mode command
-def test_quick_mode_command
-  work_loop_config.dig(:test, :quick_mode_command)
-end
-
-# Get framework-specific options
-def test_framework_options(framework)
-  work_loop_config.dig(:test, :framework_options, framework.to_sym) || {}
-end
-
-# Get lint output mode
-def lint_output_mode
-  work_loop_config.dig(:lint, :output_mode) || :full
-end
-
-# Get max output lines for linters
-def lint_max_output_lines
-  work_loop_config.dig(:lint, :max_output_lines) || 300
-end
+```json
+{
+  "version": "1.0.0",
+  "compiled_at": "2025-11-22T12:00:00Z",
+  "tools": [
+    {
+      "type": "skill",
+      "id": "ruby_rspec_tdd",
+      "title": "Ruby RSpec TDD Implementer",
+      "summary": "Expert in Test-Driven Development with RSpec",
+      "version": "1.0.0",
+      "applies_to": ["ruby", "testing", "rspec"],
+      "work_unit_types": ["implementation", "testing"],
+      "priority": 8,
+      "capabilities": ["Test-first development", "RSpec best practices"],
+      "dependencies": [],
+      "experimental": false,
+      "source_path": "/path/to/SKILL.md",
+      "file_hash": "abc123..."
+    }
+  ],
+  "indexes": {
+    "by_type": {
+      "skill": ["ruby_rspec_tdd"],
+      "persona": [],
+      "template": []
+    },
+    "by_tag": {
+      "ruby": ["ruby_rspec_tdd"],
+      "testing": ["ruby_rspec_tdd"],
+      "rspec": ["ruby_rspec_tdd"]
+    },
+    "by_work_unit_type": {
+      "implementation": ["ruby_rspec_tdd"],
+      "testing": ["ruby_rspec_tdd"]
+    }
+  },
+  "dependency_graph": {
+    "ruby_rspec_tdd": {
+      "dependencies": [],
+      "dependents": []
+    }
+  },
+  "statistics": {
+    "total_tools": 1,
+    "by_type": {
+      "skill": 1,
+      "persona": 0,
+      "template": 0
+    },
+    "total_tags": 3,
+    "total_work_unit_types": 2
+  }
+}
 ```
 
 ---
@@ -1203,408 +845,684 @@ end
 
 ### Unit Tests
 
-#### OutputFilter Specs
+#### ToolMetadata Validation
 
-**File**: `spec/aidp/harness/output_filter_spec.rb`
+**File**: `spec/aidp/metadata/tool_metadata_spec.rb`
 
 ```ruby
-RSpec.describe Aidp::Harness::OutputFilter do
+RSpec.describe Aidp::Metadata::ToolMetadata do
   describe "#initialize" do
-    it "accepts valid configuration" do
-      config = {
-        mode: :failures_only,
-        include_context: true,
-        context_lines: 5,
-        max_lines: 100
+    let(:valid_params) do
+      {
+        type: "skill",
+        id: "test_skill",
+        title: "Test Skill",
+        summary: "A test skill",
+        version: "1.0.0",
+        content: "Test content",
+        source_path: "/path/to/test.md",
+        file_hash: "a" * 64
       }
-
-      expect { described_class.new(config) }.not_to raise_error
     end
 
-    it "raises error for invalid mode" do
-      config = {mode: :invalid_mode}
-
-      expect { described_class.new(config) }.to raise_error(ArgumentError, /Invalid mode/)
+    it "creates valid metadata" do
+      expect { described_class.new(valid_params) }.not_to raise_error
     end
 
-    it "uses default values when not specified" do
-      filter = described_class.new
+    it "validates required fields" do
+      expect { described_class.new(valid_params.except(:id)) }
+        .to raise_error(Aidp::Errors::ValidationError, /id is required/)
+    end
 
-      expect(filter.mode).to eq(:full)
-      expect(filter.max_lines).to eq(500)
+    it "validates type enum" do
+      params = valid_params.merge(type: "invalid")
+      expect { described_class.new(params) }
+        .to raise_error(Aidp::Errors::ValidationError, /must be one of/)
+    end
+
+    it "validates version format" do
+      params = valid_params.merge(version: "invalid")
+      expect { described_class.new(params) }
+        .to raise_error(Aidp::Errors::ValidationError, /must be in format X.Y.Z/)
+    end
+
+    it "validates id format" do
+      params = valid_params.merge(id: "Invalid-ID")
+      expect { described_class.new(params) }
+        .to raise_error(Aidp::Errors::ValidationError, /lowercase alphanumeric/)
+    end
+
+    it "validates priority range" do
+      params = valid_params.merge(priority: 20)
+      expect { described_class.new(params) }
+        .to raise_error(Aidp::Errors::ValidationError, /between 1 and 10/)
+    end
+
+    it "validates file_hash format" do
+      params = valid_params.merge(file_hash: "invalid")
+      expect { described_class.new(params) }
+        .to raise_error(Aidp::Errors::ValidationError, /valid SHA256/)
     end
   end
 
-  describe "#filter" do
-    let(:filter) { described_class.new(mode: :failures_only, max_lines: 100) }
-
-    context "with RSpec output" do
-      let(:rspec_output) do
-        <<~OUTPUT
-          .....F...F.
-
-          Failures:
-
-          1) User validates email format
-             Failure/Error: expect(user.valid?).to be_truthy
-
-               expected: truthy value
-                    got: false
-
-             # ./spec/models/user_spec.rb:45:in `block (3 levels) in <top (required)>'
-
-          2) User requires password
-             Failure/Error: expect(user.errors[:password]).to be_empty
-
-               expected: []
-                    got: ["can't be blank"]
-
-             # ./spec/models/user_spec.rb:67:in `block (3 levels) in <top (required)>'
-
-          Finished in 2.34 seconds
-          100 examples, 2 failures
-        OUTPUT
-      end
-
-      it "extracts only failure information" do
-        result = filter.filter(rspec_output, framework: :rspec)
-
-        expect(result).to include("Failures:")
-        expect(result).to include("1) User validates email format")
-        expect(result).to include("2) User requires password")
-        expect(result).to include("100 examples, 2 failures")
-        expect(result).not_to include("Finished in 2.34 seconds")
-      end
-
-      it "reduces output size significantly" do
-        result = filter.filter(rspec_output, framework: :rspec)
-
-        expect(result.bytesize).to be < rspec_output.bytesize
-      end
+  describe "#applies_to?" do
+    let(:metadata) do
+      described_class.new(
+        type: "skill",
+        id: "test",
+        title: "Test",
+        summary: "Test",
+        version: "1.0.0",
+        applies_to: ["ruby", "testing"],
+        content: "Test",
+        source_path: "/test.md",
+        file_hash: "a" * 64
+      )
     end
 
-    context "with full mode" do
-      let(:full_filter) { described_class.new(mode: :full) }
-
-      it "returns output unchanged" do
-        output = "Some test output\nwith multiple lines"
-        result = full_filter.filter(output, framework: :rspec)
-
-        expect(result).to eq(output)
-      end
+    it "matches when tag is in applies_to" do
+      expect(metadata.applies_to?(["ruby"])).to be true
     end
 
-    context "with minimal mode" do
-      let(:minimal_filter) { described_class.new(mode: :minimal) }
-
-      it "returns only summary information" do
-        rspec_output = <<~OUTPUT
-          ..F..
-
-          Failures:
-          (lots of failure details)
-
-          100 examples, 1 failure
-          # ./spec/models/user_spec.rb:45
-        OUTPUT
-
-        result = minimal_filter.filter(rspec_output, framework: :rspec)
-
-        expect(result).to include("100 examples, 1 failure")
-        expect(result).to include("./spec/models/user_spec.rb:45")
-        expect(result).not_to include("lots of failure details")
-      end
+    it "is case-insensitive" do
+      expect(metadata.applies_to?(["RUBY"])).to be true
     end
 
-    context "when output exceeds max_lines" do
-      let(:filter) { described_class.new(mode: :failures_only, max_lines: 5) }
+    it "does not match when no tags match" do
+      expect(metadata.applies_to?(["python"])).to be false
+    end
 
-      it "truncates output" do
-        long_output = (1..100).map { |i| "Line #{i}\n" }.join
-        result = filter.filter(long_output, framework: :unknown)
-
-        expect(result.lines.count).to be <= 6  # 5 lines + truncation message
-        expect(result).to include("[Output truncated")
-      end
+    it "matches when empty applies_to" do
+      metadata = described_class.new(
+        type: "skill", id: "test", title: "Test", summary: "Test",
+        version: "1.0.0", applies_to: [], content: "Test",
+        source_path: "/test.md", file_hash: "a" * 64
+      )
+      expect(metadata.applies_to?(["anything"])).to be true
     end
   end
 end
 ```
 
-#### RSpecFilterStrategy Specs
+#### Parser Tests
 
-**File**: `spec/aidp/harness/rspec_filter_strategy_spec.rb`
+**File**: `spec/aidp/metadata/parser_spec.rb`
 
 ```ruby
-RSpec.describe Aidp::Harness::RSpecFilterStrategy do
-  let(:filter_instance) { instance_double(Aidp::Harness::OutputFilter, mode: :failures_only) }
-  let(:strategy) { described_class.new }
+RSpec.describe Aidp::Metadata::Parser do
+  describe ".parse_file" do
+    let(:temp_file) { Tempfile.new(["test", ".md"]) }
 
-  describe "#filter" do
-    context "with failures_only mode" do
-      let(:rspec_output) do
-        <<~OUTPUT
-          Randomized with seed 12345
+    after { temp_file.unlink }
 
-          ........F......F....
+    it "parses valid YAML frontmatter" do
+      content = <<~MD
+        ---
+        type: skill
+        id: test_skill
+        title: Test Skill
+        summary: A test skill
+        version: 1.0.0
+        ---
+        # Skill Content
 
-          Failures:
+        This is the skill content.
+      MD
 
-          1) UserService#create_user with valid params creates a user
-             Failure/Error: expect(user).to be_persisted
+      temp_file.write(content)
+      temp_file.rewind
 
-               expected #<User id: nil> to be persisted
+      metadata = described_class.parse_file(temp_file.path, type: "skill")
 
-             # ./spec/services/user_service_spec.rb:23:in `block (4 levels) in <top (required)>'
-
-          2) UserService#create_user with invalid params returns error
-             Failure/Error: expect(result[:errors]).to be_present
-
-               expected `nil.present?` to be truthy, got false
-
-             # ./spec/services/user_service_spec.rb:45:in `block (4 levels) in <top (required)>'
-
-          Finished in 3.14 seconds (files took 2.7 seconds to load)
-          20 examples, 2 failures
-
-          Failed examples:
-
-          rspec ./spec/services/user_service_spec.rb:20 # UserService#create_user with valid params creates a user
-          rspec ./spec/services/user_service_spec.rb:42 # UserService#create_user with invalid params returns error
-
-          Randomized with seed 12345
-        OUTPUT
-      end
-
-      it "extracts failures section" do
-        result = strategy.filter(rspec_output, filter_instance)
-
-        expect(result).to include("RSpec Summary:")
-        expect(result).to include("20 examples, 2 failures")
-        expect(result).to include("Failures:")
-        expect(result).to include("1) UserService#create_user")
-        expect(result).to include("2) UserService#create_user")
-      end
-
-      it "omits timing and seed information" do
-        result = strategy.filter(rspec_output, filter_instance)
-
-        expect(result).not_to include("Finished in 3.14 seconds")
-        expect(result).not_to include("Randomized with seed")
-      end
-
-      it "includes failure details and locations" do
-        result = strategy.filter(rspec_output, filter_instance)
-
-        expect(result).to include("Failure/Error:")
-        expect(result).to include("./spec/services/user_service_spec.rb:23")
-      end
+      expect(metadata.id).to eq("test_skill")
+      expect(metadata.title).to eq("Test Skill")
+      expect(metadata.content).to include("Skill Content")
+      expect(metadata.file_hash).to match(/^[a-f0-9]{64}$/)
     end
 
-    context "with minimal mode" do
-      let(:minimal_instance) { instance_double(Aidp::Harness::OutputFilter, mode: :minimal) }
+    it "raises error for missing frontmatter" do
+      temp_file.write("# No frontmatter\n\nJust content")
+      temp_file.rewind
 
-      it "returns only summary and locations" do
-        rspec_output = <<~OUTPUT
-          ..F..
-
-          Failures:
-          (detailed failure output)
-
-          5 examples, 1 failure
-
-          Failed examples:
-          rspec ./spec/models/user_spec.rb:45
-        OUTPUT
-
-        result = strategy.filter(rspec_output, minimal_instance)
-
-        expect(result).to include("5 examples, 1 failure")
-        expect(result).to include("./spec/models/user_spec.rb:45")
-        expect(result).not_to include("detailed failure output")
-      end
+      expect { described_class.parse_file(temp_file.path) }
+        .to raise_error(Aidp::Errors::ValidationError, /missing YAML frontmatter/)
     end
 
-    context "with all passing tests" do
-      let(:passing_output) do
-        <<~OUTPUT
-          ....................
+    it "raises error for invalid YAML" do
+      content = <<~MD
+        ---
+        invalid: yaml: syntax: error
+        ---
+        Content
+      MD
 
-          Finished in 1.23 seconds
-          20 examples, 0 failures
-        OUTPUT
-      end
+      temp_file.write(content)
+      temp_file.rewind
 
-      it "returns summary only" do
-        result = strategy.filter(passing_output, filter_instance)
+      expect { described_class.parse_file(temp_file.path) }
+        .to raise_error(Aidp::Errors::ValidationError, /Invalid YAML/)
+    end
 
-        expect(result).to include("20 examples, 0 failures")
-        expect(result.lines.count).to be < 5
-      end
+    it "normalizes legacy field names" do
+      content = <<~MD
+        ---
+        type: skill
+        id: test
+        name: Legacy Name
+        description: Legacy description
+        version: 1.0.0
+        ---
+        Content
+      MD
+
+      temp_file.write(content)
+      temp_file.rewind
+
+      metadata = described_class.parse_file(temp_file.path)
+
+      expect(metadata.title).to eq("Legacy Name")
+      expect(metadata.summary).to eq("Legacy description")
+    end
+  end
+
+  describe ".compute_file_hash" do
+    it "computes SHA256 hash" do
+      content = "Test content"
+      hash = described_class.compute_file_hash(content)
+
+      expect(hash).to match(/^[a-f0-9]{64}$/)
+      expect(hash).to eq(Digest::SHA256.hexdigest(content))
     end
   end
 end
 ```
 
-#### TestRunner Integration Specs
+#### Validator Tests
 
-**File**: `spec/aidp/harness/test_runner_spec.rb` (additions)
+**File**: `spec/aidp/metadata/validator_spec.rb`
 
 ```ruby
-RSpec.describe Aidp::Harness::TestRunner do
-  describe "#format_failures with output filtering" do
-    let(:project_dir) { "/tmp/test_project" }
-    let(:config) { double("config", test_output_mode: :failures_only, lint_output_mode: :failures_only) }
-    let(:runner) { described_class.new(project_dir, config) }
-
-    let(:failures) do
-      [
-        {
-          command: "bundle exec rspec",
-          exit_code: 1,
-          stdout: long_rspec_output,
-          stderr: ""
-        }
-      ]
-    end
-
-    let(:long_rspec_output) do
-      # Simulate 1000 lines of RSpec output
-      (["."] * 500).join + "\n\n" +
-      "Failures:\n\n" +
-      (1..50).map { |i| "#{i}) Failure details line #{i}\n" }.join +
-      "\n100 examples, 50 failures\n"
-    end
-
-    it "filters output in failures_only mode" do
-      result = runner.send(:format_failures, failures, "Tests", mode: :failures_only)
-
-      # Filtered output should be much shorter
-      expect(result.lines.count).to be < long_rspec_output.lines.count
-
-      # Should still contain failure information
-      expect(result).to include("Failures:")
-      expect(result).to include("100 examples, 50 failures")
-    end
-
-    it "respects max_lines limit" do
-      allow(config).to receive(:test_max_output_lines).and_return(10)
-
-      result = runner.send(:format_failures, failures, "Tests", mode: :failures_only)
-
-      # Should not exceed configured limit (plus some overhead for headers)
-      expect(result.lines.count).to be <= 20
-    end
-
-    it "falls back to full output if filtering fails" do
-      # Simulate filter error
-      allow_any_instance_of(Aidp::Harness::OutputFilter).to receive(:filter).and_raise("Filter error")
-
-      result = runner.send(:format_failures, failures, "Tests", mode: :failures_only)
-
-      # Should include full output as fallback
-      expect(result).to include(long_rspec_output)
-    end
+RSpec.describe Aidp::Metadata::Validator do
+  let(:valid_tool) do
+    Aidp::Metadata::ToolMetadata.new(
+      type: "skill",
+      id: "test_skill",
+      title: "Test Skill",
+      summary: "Test",
+      version: "1.0.0",
+      content: "Content",
+      source_path: "/test.md",
+      file_hash: "a" * 64
+    )
   end
 
-  describe "#determine_output_mode" do
-    let(:project_dir) { "/tmp/test_project" }
+  describe "#validate_all" do
+    it "validates all tools" do
+      validator = described_class.new([valid_tool])
+      results = validator.validate_all
 
-    context "with explicit configuration" do
-      let(:config) { double("config", test_output_mode: :minimal, respond_to?: ->(m) { m == :test_output_mode }) }
-      let(:runner) { described_class.new(project_dir, config) }
-
-      it "uses configured mode" do
-        expect(runner.send(:determine_output_mode)).to eq(:minimal)
-      end
+      expect(results.size).to eq(1)
+      expect(results.first.valid).to be true
+      expect(results.first.errors).to be_empty
     end
 
-    context "without explicit configuration" do
-      let(:config) { double("config", respond_to?: ->(_) { false }) }
-      let(:runner) { described_class.new(project_dir, config) }
+    it "detects duplicate IDs" do
+      tool1 = valid_tool
+      tool2 = Aidp::Metadata::ToolMetadata.new(
+        type: "skill", id: "test_skill", title: "Duplicate",
+        summary: "Dup", version: "1.0.0", content: "C",
+        source_path: "/dup.md", file_hash: "b" * 64
+      )
 
-      it "defaults to full mode" do
-        expect(runner.send(:determine_output_mode)).to eq(:full)
-      end
+      validator = described_class.new([tool1, tool2])
+      results = validator.validate_all
+
+      expect(results.all?(&:valid)).to be false
+      expect(results.first.errors).to include(/Duplicate ID/)
+    end
+
+    it "detects missing dependencies" do
+      tool = Aidp::Metadata::ToolMetadata.new(
+        type: "skill", id: "dependent", title: "Dependent",
+        summary: "Dep", version: "1.0.0", dependencies: ["missing_dep"],
+        content: "C", source_path: "/dep.md", file_hash: "c" * 64
+      )
+
+      validator = described_class.new([tool])
+      results = validator.validate_all
+
+      expect(results.first.valid).to be false
+      expect(results.first.errors).to include(/Missing dependency/)
+    end
+
+    it "warns about empty applies_to and work_unit_types" do
+      tool = Aidp::Metadata::ToolMetadata.new(
+        type: "skill", id: "empty_tags", title: "Empty",
+        summary: "E", version: "1.0.0", applies_to: [],
+        work_unit_types: [], content: "C",
+        source_path: "/empty.md", file_hash: "d" * 64
+      )
+
+      validator = described_class.new([tool])
+      results = validator.validate_all
+
+      expect(results.first.valid).to be true
+      expect(results.first.warnings).to include(/not be discoverable/)
     end
   end
 end
 ```
 
-### Integration Tests
+#### Compiler Tests
 
-#### Work Loop Integration Spec
-
-**File**: `spec/integration/work_loop_output_filtering_spec.rb`
+**File**: `spec/aidp/metadata/compiler_spec.rb`
 
 ```ruby
-RSpec.describe "Work Loop Output Filtering", type: :integration do
+RSpec.describe Aidp::Metadata::Compiler do
   let(:temp_dir) { Dir.mktmpdir }
-  let(:config_path) { File.join(temp_dir, ".aidp", "aidp.yml") }
+  let(:output_path) { File.join(temp_dir, "tool_directory.json") }
+
+  after { FileUtils.rm_rf(temp_dir) }
+
+  it "compiles tool directory" do
+    # Create test skill file
+    skills_dir = File.join(temp_dir, "skills")
+    FileUtils.mkdir_p(skills_dir)
+
+    skill_path = File.join(skills_dir, "test_skill.md")
+    File.write(skill_path, <<~MD)
+      ---
+      type: skill
+      id: test_skill
+      title: Test Skill
+      summary: A test skill
+      version: 1.0.0
+      applies_to: [ruby]
+      work_unit_types: [implementation]
+      priority: 5
+      ---
+      # Skill Content
+    MD
+
+    compiler = described_class.new(directories: [skills_dir])
+    directory = compiler.compile(output_path: output_path)
+
+    expect(File.exist?(output_path)).to be true
+    expect(directory["tools"].size).to eq(1)
+    expect(directory["indexes"]["by_tag"]["ruby"]).to eq(["test_skill"])
+    expect(directory["statistics"]["total_tools"]).to eq(1)
+  end
+
+  it "builds dependency graph" do
+    skills_dir = File.join(temp_dir, "skills")
+    FileUtils.mkdir_p(skills_dir)
+
+    # Base skill
+    File.write(File.join(skills_dir, "base.md"), <<~MD)
+      ---
+      type: skill
+      id: base_skill
+      title: Base Skill
+      summary: Base
+      version: 1.0.0
+      ---
+      Base
+    MD
+
+    # Dependent skill
+    File.write(File.join(skills_dir, "dependent.md"), <<~MD)
+      ---
+      type: skill
+      id: dependent_skill
+      title: Dependent Skill
+      summary: Dependent
+      version: 1.0.0
+      dependencies: [base_skill]
+      ---
+      Dependent
+    MD
+
+    compiler = described_class.new(directories: [skills_dir])
+    directory = compiler.compile(output_path: output_path)
+
+    expect(directory["dependency_graph"]["base_skill"]["dependents"])
+      .to eq(["dependent_skill"])
+    expect(directory["dependency_graph"]["dependent_skill"]["dependencies"])
+      .to eq(["base_skill"])
+  end
+
+  it "handles validation errors in strict mode" do
+    skills_dir = File.join(temp_dir, "skills")
+    FileUtils.mkdir_p(skills_dir)
+
+    # Invalid skill (missing version)
+    File.write(File.join(skills_dir, "invalid.md"), <<~MD)
+      ---
+      type: skill
+      id: invalid
+      title: Invalid
+      summary: Invalid
+      ---
+      Invalid
+    MD
+
+    compiler = described_class.new(directories: [skills_dir], strict: true)
+
+    expect { compiler.compile(output_path: output_path) }
+      .to raise_error(Aidp::Errors::ValidationError)
+  end
+
+  it "excludes invalid tools in non-strict mode" do
+    skills_dir = File.join(temp_dir, "skills")
+    FileUtils.mkdir_p(skills_dir)
+
+    # Valid skill
+    File.write(File.join(skills_dir, "valid.md"), <<~MD)
+      ---
+      type: skill
+      id: valid
+      title: Valid
+      summary: Valid
+      version: 1.0.0
+      ---
+      Valid
+    MD
+
+    # Invalid skill
+    File.write(File.join(skills_dir, "invalid.md"), <<~MD)
+      ---
+      type: skill
+      id: invalid
+      title: Invalid
+      summary: Invalid
+      ---
+      Invalid
+    MD
+
+    compiler = described_class.new(directories: [skills_dir], strict: false)
+    directory = compiler.compile(output_path: output_path)
+
+    # Only valid tool should be included
+    expect(directory["tools"].size).to eq(1)
+    expect(directory["tools"].first["id"]).to eq("valid")
+  end
+end
+```
+
+#### Query Tests
+
+**File**: `spec/aidp/metadata/query_spec.rb`
+
+```ruby
+RSpec.describe Aidp::Metadata::Query do
+  let(:cache) { instance_double(Aidp::Metadata::Cache) }
+  let(:query) { described_class.new(cache: cache) }
+
+  let(:directory) do
+    {
+      "tools" => [
+        {
+          "type" => "skill",
+          "id" => "ruby_skill",
+          "title" => "Ruby Skill",
+          "applies_to" => ["ruby", "testing"],
+          "work_unit_types" => ["implementation"],
+          "priority" => 8,
+          "experimental" => false
+        },
+        {
+          "type" => "skill",
+          "id" => "python_skill",
+          "title" => "Python Skill",
+          "applies_to" => ["python"],
+          "work_unit_types" => ["implementation"],
+          "priority" => 5,
+          "experimental" => true
+        },
+        {
+          "type" => "template",
+          "id" => "test_template",
+          "title" => "Test Template",
+          "applies_to" => ["testing"],
+          "work_unit_types" => ["testing"],
+          "priority" => 6,
+          "experimental" => false
+        }
+      ],
+      "indexes" => {
+        "by_type" => {
+          "skill" => ["ruby_skill", "python_skill"],
+          "template" => ["test_template"]
+        },
+        "by_tag" => {
+          "ruby" => ["ruby_skill"],
+          "python" => ["python_skill"],
+          "testing" => ["ruby_skill", "test_template"]
+        },
+        "by_work_unit_type" => {
+          "implementation" => ["ruby_skill", "python_skill"],
+          "testing" => ["test_template"]
+        }
+      },
+      "dependency_graph" => {}
+    }
+  end
 
   before do
-    # Set up minimal test project
-    FileUtils.mkdir_p(File.join(temp_dir, ".aidp"))
-    FileUtils.mkdir_p(File.join(temp_dir, "spec"))
-
-    # Create config with output filtering
-    config = {
-      "work_loop" => {
-        "test" => {
-          "unit" => "bundle exec rspec",
-          "output_mode" => "failures_only",
-          "max_output_lines" => 100
-        }
-      }
-    }
-    File.write(config_path, YAML.dump(config))
-
-    # Create failing spec
-    spec_file = File.join(temp_dir, "spec", "example_spec.rb")
-    File.write(spec_file, <<~RUBY)
-      RSpec.describe "Example" do
-        it "fails" do
-          expect(1).to eq(2)
-        end
-
-        it "passes" do
-          expect(1).to eq(1)
-        end
-      end
-    RUBY
+    allow(cache).to receive(:load).and_return(directory)
   end
 
-  after do
-    FileUtils.rm_rf(temp_dir)
+  describe "#find_by_id" do
+    it "finds tool by ID" do
+      tool = query.find_by_id("ruby_skill")
+      expect(tool["id"]).to eq("ruby_skill")
+    end
+
+    it "returns nil for unknown ID" do
+      tool = query.find_by_id("unknown")
+      expect(tool).to be_nil
+    end
   end
 
-  it "applies output filtering in work loop iterations" do
-    # Simulate work loop execution
-    config = Aidp::Harness::Configuration.new(temp_dir)
-    runner = Aidp::Harness::TestRunner.new(temp_dir, config)
+  describe "#find_by_type" do
+    it "finds all skills" do
+      tools = query.find_by_type("skill")
+      expect(tools.size).to eq(2)
+      expect(tools.map { |t| t["id"] }).to contain_exactly("ruby_skill", "python_skill")
+    end
 
-    result = runner.run_tests
-
-    # Should have failures
-    expect(result[:success]).to be false
-    expect(result[:failures]).not_to be_empty
-
-    # Output should be filtered
-    output = result[:output]
-    expect(output).to include("Failures:")
-    expect(output.lines.count).to be < 50  # Much less than full RSpec output
+    it "finds all templates" do
+      tools = query.find_by_type("template")
+      expect(tools.size).to eq(1)
+      expect(tools.first["id"]).to eq("test_template")
+    end
   end
 
-  it "includes failure details in filtered output" do
-    config = Aidp::Harness::Configuration.new(temp_dir)
-    runner = Aidp::Harness::TestRunner.new(temp_dir, config)
+  describe "#find_by_tags" do
+    it "finds tools with any matching tag" do
+      tools = query.find_by_tags(["ruby"])
+      expect(tools.map { |t| t["id"] }).to eq(["ruby_skill"])
+    end
 
-    result = runner.run_tests
-    output = result[:output]
+    it "finds tools with multiple tags (OR)" do
+      tools = query.find_by_tags(["ruby", "python"])
+      expect(tools.size).to eq(2)
+    end
 
-    # Should include actionable failure information
-    expect(output).to include("expect(1).to eq(2)")
-    expect(output).to match(/spec\/example_spec\.rb:\d+/)
+    it "is case-insensitive" do
+      tools = query.find_by_tags(["RUBY"])
+      expect(tools.size).to eq(1)
+    end
+
+    it "supports match_all mode (AND)" do
+      tools = query.find_by_tags(["ruby", "testing"], match_all: true)
+      expect(tools.map { |t| t["id"] }).to eq(["ruby_skill"])
+    end
+  end
+
+  describe "#filter" do
+    it "filters by type" do
+      tools = query.filter(type: "skill")
+      expect(tools.size).to eq(2)
+    end
+
+    it "filters by tags" do
+      tools = query.filter(tags: ["ruby"])
+      expect(tools.size).to eq(1)
+    end
+
+    it "filters by work_unit_type" do
+      tools = query.filter(work_unit_type: "implementation")
+      expect(tools.size).to eq(2)
+    end
+
+    it "filters by experimental flag" do
+      tools = query.filter(experimental: false)
+      expect(tools.size).to eq(2)
+    end
+
+    it "combines filters (AND logic)" do
+      tools = query.filter(
+        type: "skill",
+        tags: ["testing"],
+        experimental: false
+      )
+      expect(tools.size).to eq(1)
+      expect(tools.first["id"]).to eq("ruby_skill")
+    end
+  end
+
+  describe "#rank_by_priority" do
+    it "ranks tools by priority (highest first)" do
+      tools = directory["tools"]
+      ranked = query.rank_by_priority(tools)
+
+      expect(ranked.map { |t| t["id"] }).to eq([
+        "ruby_skill",    # priority 8
+        "test_template", # priority 6
+        "python_skill"   # priority 5
+      ])
+    end
+  end
+end
+```
+
+#### Cache Tests
+
+**File**: `spec/aidp/metadata/cache_spec.rb`
+
+```ruby
+RSpec.describe Aidp::Metadata::Cache do
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:cache_path) { File.join(temp_dir, "tool_directory.json") }
+  let(:skills_dir) { File.join(temp_dir, "skills") }
+
+  before do
+    FileUtils.mkdir_p(skills_dir)
+
+    # Create test skill
+    File.write(File.join(skills_dir, "test.md"), <<~MD)
+      ---
+      type: skill
+      id: test
+      title: Test
+      summary: Test
+      version: 1.0.0
+      ---
+      Content
+    MD
+  end
+
+  after { FileUtils.rm_rf(temp_dir) }
+
+  describe "#load" do
+    let(:cache) do
+      described_class.new(
+        cache_path: cache_path,
+        directories: [skills_dir],
+        ttl: 3600
+      )
+    end
+
+    it "regenerates cache on first load" do
+      directory = cache.load
+
+      expect(File.exist?(cache_path)).to be true
+      expect(directory["tools"].size).to eq(1)
+    end
+
+    it "uses cache on second load" do
+      cache.load  # First load (regenerate)
+
+      # Mock compiler to verify it's not called
+      allow(Aidp::Metadata::Compiler).to receive(:new).and_call_original
+
+      cache_instance = described_class.new(
+        cache_path: cache_path,
+        directories: [skills_dir],
+        ttl: 3600
+      )
+      directory = cache_instance.load
+
+      # Should load from cache, not compile
+      expect(Aidp::Metadata::Compiler).not_to have_received(:new)
+      expect(directory["tools"].size).to eq(1)
+    end
+
+    it "regenerates when file changes" do
+      cache.load  # First load
+
+      # Modify file
+      sleep 0.1  # Ensure mtime changes
+      File.write(File.join(skills_dir, "test.md"), <<~MD)
+        ---
+        type: skill
+        id: test
+        title: Test Modified
+        summary: Test
+        version: 1.0.0
+        ---
+        Modified
+      MD
+
+      directory = cache.load
+
+      # Should regenerate due to file change
+      tool = directory["tools"].find { |t| t["id"] == "test" }
+      expect(tool["title"]).to eq("Test Modified")
+    end
+
+    it "regenerates when cache expires" do
+      cache_with_short_ttl = described_class.new(
+        cache_path: cache_path,
+        directories: [skills_dir],
+        ttl: 1  # 1 second TTL
+      )
+
+      cache_with_short_ttl.load
+
+      sleep 2  # Wait for TTL to expire
+
+      # Mock to verify regeneration
+      expect(Aidp::Metadata::Compiler).to receive(:new).and_call_original
+
+      cache_with_short_ttl.load
+    end
+  end
+
+  describe "#reload" do
+    it "forces regeneration" do
+      cache = described_class.new(
+        cache_path: cache_path,
+        directories: [skills_dir]
+      )
+
+      cache.load  # First load
+
+      # Force reload
+      expect(Aidp::Metadata::Compiler).to receive(:new).and_call_original
+      cache.reload
+    end
   end
 end
 ```
@@ -1615,58 +1533,82 @@ end
 
 | Use Case | Primary Pattern | Supporting Patterns | Rationale |
 |----------|----------------|---------------------|-----------|
-| Filter test output | Strategy | Factory, Service Object | Different strategies per framework |
-| Compose filtering into TestRunner | Composition | Dependency Injection | Loose coupling, testable |
-| Build optimized commands | Builder | Template Method | Fluent interface for command construction |
-| Detect framework capabilities | Service Object | Strategy | Single responsibility, reusable |
-| Configure output filtering | Configuration | Repository | Centralized config management |
-| Handle filtering errors | Error Handling | Null Object | Graceful degradation, observability |
-| Extract failure information | Template Method | Strategy | Reuse structure, customize per framework |
-| Truncate long output | Decorator | - | Add behavior without modifying original |
+| Immutable metadata | Value Object | - | Prevent invalid state, self-validating |
+| Parse YAML frontmatter | Service Object | Strategy (normalization) | Stateless operation, reusable |
+| Validate metadata | Service Object | Visitor (validation rules) | Single responsibility, composable |
+| Scan directories | Service Object | Iterator | Reusable file discovery |
+| Compile tool directory | Service Object | Builder (indexes), Repository | Complex aggregation, multiple outputs |
+| Query tools | Query Object | Repository | Encapsulate query logic, composable filters |
+| Cache management | Repository | Cache Invalidation | Abstract data access, automatic updates |
+| Dependency resolution | Graph Algorithm | Topological Sort | Detect cycles, order dependencies |
+| Index building | Builder | Hash Maps | Incremental construction, multiple indexes |
+| Legacy format support | Strategy | Adapter | Different normalization per format |
 
 ---
 
 ## Error Handling Strategy
 
-### Principle: Fail Fast for Bugs, Graceful Degradation for External Issues
+### Principle: Fail Fast for Bugs, Graceful Degradation for Data Issues
 
 #### Fail Fast (Raise Errors)
 
-- Invalid configuration (unknown mode, negative limits)
-- Programming errors (nil checks, type mismatches)
-- Invalid framework identifiers in strategy selection
+- Invalid configuration (missing cache_path, directories)
+- File not found when explicitly specified
+- Corrupt cache files (invalid JSON)
+- Circular dependencies
+- Invalid YAML frontmatter syntax
+- **Strict mode**: Any validation errors
 
 #### Graceful Degradation (Log and Continue)
 
-- Filtering failures (return unfiltered output)
-- Framework detection failures (use generic strategy)
-- Command execution failures (already handled by TestRunner)
+- Individual file parse failures (skip file, log warning)
+- Missing optional fields (use defaults)
+- Unknown legacy fields (ignore)
+- **Non-strict mode**: Validation errors (exclude tool, log error)
 
 ### Error Handling Implementation
 
 ```ruby
-def filter(output, framework: :unknown)
-  # Validate preconditions - fail fast
-  raise ArgumentError, "output must be a string" unless output.is_a?(String)
+# Fail fast: Invalid configuration
+def initialize(cache_path:, directories:, **opts)
+  raise ArgumentError, "cache_path is required" if cache_path.nil?
+  raise ArgumentError, "directories must be an array" unless directories.is_a?(Array)
+end
 
-  return output if @mode == :full
-  return "" if output.empty?
-
-  begin
-    strategy = strategy_for_framework(framework)
-    filtered = strategy.filter(output, self)
-    truncate_if_needed(filtered)
-  rescue StandardError => e
-    # External failure - graceful degradation
-    Aidp.log_error("output_filter", "filtering_failed",
-      framework: framework,
-      mode: @mode,
-      error: e.message,
-      error_class: e.class.name)
-
-    # Return original output as fallback
-    output
+# Graceful degradation: Individual file failures
+def scan_directory(directory, type: nil)
+  md_files.each do |file_path|
+    begin
+      tool = Parser.parse_file(file_path, type: type)
+      tools << tool
+    rescue Aidp::Errors::ValidationError => e
+      Aidp.log_warn("metadata", "Failed to parse file",
+        file: file_path, error: e.message)
+      # Continue with next file
+    end
   end
+end
+
+# Fail fast: Circular dependencies
+def resolve_recursive(tool_id, graph, resolved, seen)
+  if seen.include?(tool_id)
+    raise Aidp::Errors::ValidationError, "Circular dependency detected: #{tool_id}"
+  end
+  # ...
+end
+
+# Strict mode: Fail on validation errors
+def handle_validation_results(results)
+  invalid_results = results.reject(&:valid)
+
+  if invalid_results.any? && @strict
+    raise Aidp::Errors::ValidationError,
+      "#{invalid_results.size} tool(s) failed validation (strict mode enabled)"
+  end
+
+  # Non-strict: Exclude invalid tools, log warnings
+  invalid_ids = invalid_results.map(&:tool_id)
+  @tools.reject! { |tool| invalid_ids.include?(tool.id) }
 end
 ```
 
@@ -1676,28 +1618,128 @@ end
 
 ```ruby
 # Method entry
-Aidp.log_debug("output_filter", "filtering_start",
-  framework: framework,
-  mode: mode,
-  input_lines: output.lines.count)
+Aidp.log_debug("metadata", "Parsing file", file: file_path, type: type)
 
 # Success with metrics
-Aidp.log_info("output_filter", "filtering_complete",
-  framework: framework,
-  output_lines: result.lines.count,
-  reduction_percent: reduction,
-  duration_ms: duration)
+Aidp.log_info("metadata", "Scan complete",
+  directories: @directories.size,
+  tools_found: all_tools.size)
 
-# Graceful degradation
-Aidp.log_warn("output_filter", "unknown_framework",
-  framework: framework,
-  fallback: "generic strategy")
+# Warnings (non-fatal)
+Aidp.log_warn("metadata", "Failed to parse file",
+  file: file_path,
+  error: e.message)
 
-# Error conditions
-Aidp.log_error("output_filter", "strategy_failed",
-  framework: framework,
-  error: e.message,
-  using_fallback: true)
+# Errors (failures)
+Aidp.log_error("metadata", "Tool validation failed",
+  tool_id: result.tool_id,
+  file: result.file_path,
+  errors: result.errors)
+```
+
+---
+
+## Configuration Schema
+
+### Extended YAML Schema
+
+```yaml
+metadata:
+  # Enable/disable metadata-driven tool selection
+  enabled: true
+
+  # Directories to scan for tools
+  directories:
+    - .aidp/skills
+    - .aidp/personas
+    - .aidp/templates
+    - ~/.aidp/global_skills  # Global tools
+
+  # Cache configuration
+  cache:
+    path: .aidp/cache/tool_directory.json
+    ttl: 86400  # 24 hours
+    hashes_path: .aidp/cache/tool_directory.json.hashes
+
+  # Validation mode
+  strict: false  # Exclude invalid tools instead of failing
+
+  # Default filters for tool selection
+  defaults:
+    experimental: false  # Exclude experimental tools by default
+    min_priority: 3      # Minimum priority threshold
+```
+
+### Configuration Accessor Methods
+
+Add to `Configuration` class:
+
+```ruby
+# Get metadata configuration
+def metadata_config
+  get_nested([:metadata]) || default_metadata_config
+end
+
+# Check if metadata system is enabled
+def metadata_enabled?
+  metadata_config[:enabled] != false  # Enabled by default
+end
+
+# Get metadata directories
+def metadata_directories
+  metadata_config[:directories] || default_metadata_directories
+end
+
+# Get metadata cache path
+def metadata_cache_path
+  metadata_config.dig(:cache, :path) || ".aidp/cache/tool_directory.json"
+end
+
+# Get metadata cache TTL
+def metadata_cache_ttl
+  metadata_config.dig(:cache, :ttl) || 86400  # 24 hours
+end
+
+# Check strict validation mode
+def metadata_strict?
+  metadata_config[:strict] == true
+end
+
+# Get default experimental filter
+def metadata_default_experimental
+  metadata_config.dig(:defaults, :experimental)
+end
+
+# Get minimum priority filter
+def metadata_min_priority
+  metadata_config.dig(:defaults, :min_priority) || 1
+end
+
+private
+
+def default_metadata_config
+  {
+    enabled: true,
+    directories: default_metadata_directories,
+    cache: {
+      path: ".aidp/cache/tool_directory.json",
+      ttl: 86400
+    },
+    strict: false,
+    defaults: {
+      experimental: false,
+      min_priority: 3
+    }
+  }
+end
+
+def default_metadata_directories
+  [
+    ".aidp/skills",
+    ".aidp/personas",
+    ".aidp/templates"
+  ]
+end
 ```
 
 ---
@@ -1707,11 +1749,11 @@ Aidp.log_error("output_filter", "strategy_failed",
 This implementation guide provides:
 
 1. **Architectural Foundation**: Hexagonal architecture with clear layers and boundaries
-2. **Design Patterns**: Strategy, Composition, Builder, Service Object, Template Method
+2. **Design Patterns**: Value Object, Service Object, Repository, Query Object, Builder, Strategy, Graph Algorithms
 3. **Contracts**: Preconditions, postconditions, and invariants for all public methods
-4. **Component Design**: Detailed implementation for OutputFilter, TestRunner, ToolingDetector, and Wizard
-5. **Testing Strategy**: Comprehensive unit and integration test specifications
-6. **Error Handling**: Fail-fast for bugs, graceful degradation for external failures
+4. **Component Design**: Detailed implementation for ToolMetadata, Parser, Validator, Scanner, Compiler, Query, Cache
+5. **Testing Strategy**: Comprehensive unit test specifications for all components
+6. **Error Handling**: Fail-fast for bugs, graceful degradation for data issues
 7. **Configuration Schema**: Extended YAML configuration with sensible defaults
 8. **Observability**: Extensive logging and metrics recommendations
 
@@ -1723,5 +1765,7 @@ The implementation follows AIDP's engineering principles:
 - **Design by Contract**: Explicit preconditions, postconditions, and invariants
 - **Instrumentation**: Extensive logging with `Aidp.log_debug/info/warn/error`
 - **Testability**: Dependency injection, clear interfaces, comprehensive specs
+- **Immutability**: Value objects prevent invalid state
+- **Cache Invalidation**: Automatic regeneration on file changes or TTL expiration
 
 This guide enables implementation with confidence, clarity, and adherence to AIDP's standards.
