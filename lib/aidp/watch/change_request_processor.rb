@@ -12,6 +12,7 @@ require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../harness/test_runner"
+require_relative "../worktree"
 require_relative "github_state_extractor"
 
 module Aidp
@@ -276,7 +277,29 @@ module Aidp
 
       def checkout_pr_branch(pr_data)
         head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
 
+        # Check if a worktree already exists for this branch
+        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
+
+        if existing && existing[:active]
+          display_message("🔄 Using existing worktree for branch: #{head_ref}", type: :info)
+          Aidp.log_debug("change_request_processor", "worktree_reused", pr_number: pr_number, branch: head_ref, path: existing[:path])
+
+          # Update @project_dir to point to the worktree
+          @project_dir = existing[:path]
+
+          # Pull latest changes in the worktree
+          Dir.chdir(@project_dir) do
+            run_git(%w[fetch origin], allow_failure: true)
+            run_git(["checkout", head_ref])
+            run_git(%w[pull --ff-only], allow_failure: true)
+          end
+
+          return
+        end
+
+        # Otherwise, use the main worktree
         Dir.chdir(@project_dir) do
           # Fetch latest
           run_git(%w[fetch origin])
