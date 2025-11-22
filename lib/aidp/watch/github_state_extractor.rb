@@ -141,8 +141,8 @@ module Aidp
         content = body[(start_idx + start_marker.length)...end_idx]
 
         # Remove markdown heading if present (e.g., "## Heading\n" or "### Heading\n")
-        # Use a more specific pattern to avoid ReDoS: match hash marks, then spaces, then everything up to newline
-        content.sub(/^###? +.*\n/, "").strip
+        # Strip lines starting with ## or ### to avoid ReDoS
+        content.lines.reject { |line| line.start_with?("##", "###") }.join.strip
       end
 
       def extract_tasks(body)
