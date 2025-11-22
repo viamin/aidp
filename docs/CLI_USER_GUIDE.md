@@ -8,6 +8,7 @@ Complete guide to using the AI Dev Pipeline command-line interface.
 - [Copilot Mode](#copilot-mode)
 - [Harness Mode](#harness-mode)
 - [Background Jobs](#background-jobs)
+- [Workstream Management](#workstream-management)
 - [Progress Checkpoints](#progress-checkpoints)
 - [System Management](#system-management)
 - [Model Management](#model-management)
@@ -406,6 +407,171 @@ $ aidp jobs stop 20251005_235912_a1b2c3d4
 
 # Job sends SIGTERM, waits 5 seconds, then SIGKILL if needed
 # Job metadata updated to show "stopped" status
+```
+
+## Workstream Management
+
+AIDP supports parallel workstreams using git worktrees, allowing you to work on multiple tasks concurrently without conflicts.
+
+### Creating Workstreams
+
+```bash
+# Create a new workstream
+$ aidp ws new issue-123 Fix authentication bug
+✓ Created workstream: issue-123
+  Path: /project/.worktrees/issue-123
+  Branch: aidp/issue-123
+  Task: Fix authentication bug
+
+Switch to this workstream:
+  cd /project/.worktrees/issue-123
+
+# Create from a specific branch
+$ aidp ws new feature-x --base-branch develop Add new feature
+```
+
+### Listing Workstreams
+
+```bash
+$ aidp ws list
+
+Workstreams
+================================================================================
+   Slug         Branch              Created              Status    Iter  Task
+✓  issue-123    aidp/issue-123      2024-01-15 10:30    active    5     Fix authentication bug
+✓  feature-x    aidp/feature-x      2024-01-15 11:00    active    2     Add new feature
+✗  old-work     aidp/old-work       2024-01-10 09:00    inactive  10    Old task
+```
+
+### Workstream Status
+
+```bash
+$ aidp ws status issue-123
+
+Workstream: issue-123
+============================================================
+Path: /project/.worktrees/issue-123
+Branch: aidp/issue-123
+Created: 2024-01-15 10:30:00
+Status: Active
+Iterations: 5
+Elapsed: 3600s
+Task: Fix authentication bug
+
+Git Status:
+ M src/auth/login.rb
+ M spec/auth/login_spec.rb
+```
+
+### Cleaning Up Workstreams
+
+Interactively clean up workstreams with comprehensive status display:
+
+```bash
+$ aidp ws cleanup
+
+Found 3 workstream(s)
+
+============================================================
+Workstream: issue-123
+============================================================
+Branch: aidp/issue-123
+Created: 2024-01-15T10:30:00Z
+Status: completed
+Iterations: 8
+Task: Fix authentication bug
+
+Git Status:
+  Uncommitted changes: No
+  Upstream: exists
+  Unpushed commits: No
+  Behind upstream: No
+  Last commit: 2024-01-15 14:30:00
+
+What would you like to do?
+  1. Keep (skip)
+  2. Delete worktree only
+  3. Delete worktree and local branch
+  4. Delete worktree, local branch, and remote branch
+```
+
+**The cleanup command provides:**
+
+- Comprehensive status for each workstream
+- Git state information (uncommitted changes, unpushed commits)
+- Upstream sync status
+- Interactive deletion with safety confirmations
+- Warning prompts for workstreams with uncommitted/unpushed work
+
+### Managing Workstream State
+
+```bash
+# Pause a workstream
+$ aidp ws pause issue-123
+⏸️  Paused workstream: issue-123
+
+# Resume a paused workstream
+$ aidp ws resume issue-123
+▶️  Resumed workstream: issue-123
+
+# Mark as completed
+$ aidp ws complete issue-123
+✅ Completed workstream: issue-123
+
+# Remove a workstream
+$ aidp ws rm issue-123
+Remove workstream 'issue-123'? (y/N): y
+✓ Removed workstream: issue-123
+
+# Remove with branch deletion
+$ aidp ws rm issue-123 --delete-branch --force
+✓ Removed workstream: issue-123
+  Branch deleted
+```
+
+### Workstream Dashboard
+
+```bash
+$ aidp ws dashboard
+
+Workstreams Dashboard
+========================================================================================================================
+   Slug         Status      Iter  Elapsed  Task                           Recent Event
+▶️  issue-123    active      5     3600s    Fix authentication bug         iteration (14:30)
+⏸️  feature-x    paused      2     1800s    Add new feature                paused (11:00)
+✅ old-work     completed   10    7200s    Old task                       completed (09:00)
+
+Summary: active: 1, paused: 1, completed: 1
+```
+
+### Batch Operations
+
+```bash
+# Pause all active workstreams
+$ aidp ws pause-all
+⏸️  Paused 2 workstream(s)
+
+# Resume all paused workstreams
+$ aidp ws resume-all
+▶️  Resumed 2 workstream(s)
+
+# Stop (complete) all active workstreams
+$ aidp ws stop-all
+⏹️  Stopped 2 workstream(s)
+```
+
+### Running Workflows in Workstreams
+
+```bash
+# Execute workflow in a specific workstream
+$ aidp work --workstream issue-123
+🚀 Starting execute mode in workstream: issue-123
+  Path: /project/.worktrees/issue-123
+  Branch: aidp/issue-123
+
+# Background execution
+$ aidp work --workstream issue-123 --background
+✓ Started background job: 20240115_143000_abc123
 ```
 
 ## Progress Checkpoints
