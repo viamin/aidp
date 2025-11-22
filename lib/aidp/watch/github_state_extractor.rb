@@ -117,7 +117,7 @@ module Aidp
       def has_label?(item, label_name)
         Array(item[:labels]).any? do |label|
           name = label.is_a?(Hash) ? label["name"] : label.to_s
-          name.casecmp(label_name).zero?
+          name.casecmp?(label_name)
         end
       end
 
