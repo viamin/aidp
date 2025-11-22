@@ -150,7 +150,12 @@ module Aidp
 
       def process_plan_triggers
         plan_label = @plan_processor.plan_label
-        issues = @repository_client.list_issues(labels: [plan_label], state: "open")
+        begin
+          issues = @repository_client.list_issues(labels: [plan_label], state: "open")
+        rescue => e
+          Aidp.log_error("watch_runner", "plan_poll_failed", label: plan_label, error: e.message)
+          return # Skip this cycle, continue watch loop
+        end
         Aidp.log_debug("watch_runner", "plan_poll", label: plan_label, total: issues.size)
         issues.each do |issue|
           unless issue_has_label?(issue, plan_label)
@@ -158,7 +163,12 @@ module Aidp
             next
           end
 
-          detailed = @repository_client.fetch_issue(issue[:number])
+          begin
+            detailed = @repository_client.fetch_issue(issue[:number])
+          rescue => e
+            Aidp.log_error("watch_runner", "fetch_issue_failed", issue: issue[:number], error: e.message)
+            next # Skip this issue, continue with others
+          end
 
           # Check if already in progress by another instance
           if @state_extractor.in_progress?(detailed)
@@ -186,7 +196,12 @@ module Aidp
 
       def process_build_triggers
         build_label = @build_processor.build_label
-        issues = @repository_client.list_issues(labels: [build_label], state: "open")
+        begin
+          issues = @repository_client.list_issues(labels: [build_label], state: "open")
+        rescue => e
+          Aidp.log_error("watch_runner", "build_poll_failed", label: build_label, error: e.message)
+          return # Skip this cycle, continue watch loop
+        end
         Aidp.log_debug("watch_runner", "build_poll", label: build_label, total: issues.size)
         issues.each do |issue|
           detailed = nil
@@ -198,7 +213,12 @@ module Aidp
               next
             end
 
-            detailed = @repository_client.fetch_issue(issue[:number])
+            begin
+              detailed = @repository_client.fetch_issue(issue[:number])
+            rescue => e
+              Aidp.log_error("watch_runner", "fetch_issue_failed", issue: issue[:number], error: e.message)
+              next # Skip this issue, continue with others
+            end
 
             # Check if already completed (via GitHub comments)
             if @state_extractor.build_completed?(detailed)
@@ -246,7 +266,12 @@ module Aidp
 
       def process_review_triggers
         review_label = @review_processor.review_label
-        prs = @repository_client.list_pull_requests(labels: [review_label], state: "open")
+        begin
+          prs = @repository_client.list_pull_requests(labels: [review_label], state: "open")
+        rescue => e
+          Aidp.log_error("watch_runner", "review_poll_failed", label: review_label, error: e.message)
+          return # Skip this cycle, continue watch loop
+        end
         Aidp.log_debug("watch_runner", "review_poll", label: review_label, total: prs.size)
         prs.each do |pr|
           unless pr_has_label?(pr, review_label)
@@ -254,7 +279,12 @@ module Aidp
             next
           end
 
-          detailed = @repository_client.fetch_pull_request(pr[:number])
+          begin
+            detailed = @repository_client.fetch_pull_request(pr[:number])
+          rescue => e
+            Aidp.log_error("watch_runner", "fetch_pr_failed", pr: pr[:number], error: e.message)
+            next # Skip this PR, continue with others
+          end
 
           # Check if already in progress by another instance
           if @state_extractor.in_progress?(detailed)

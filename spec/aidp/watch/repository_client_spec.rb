@@ -1932,6 +1932,61 @@ RSpec.describe Aidp::Watch::RepositoryClient do
           client.send(:fetch_issue_via_gh, issue_number)
         }.to raise_error(/GitHub CLI error/)
       end
+
+      it "retries on network errors with exponential backoff" do
+        # First two attempts fail with network error, third succeeds
+        network_error_response = ["", "* Request to https://api.github.com/graphql\n* unexpected EOF", double(success?: false)]
+        success_response = [JSON.dump({
+          "number" => issue_number,
+          "title" => "Test issue",
+          "body" => "Issue description",
+          "author" => {"login" => "user1"},
+          "comments" => [],
+          "labels" => [{"name" => "bug"}],
+          "state" => "open",
+          "assignees" => [],
+          "url" => "https://github.com/testowner/testrepo/issues/123",
+          "updatedAt" => "2023-01-01T00:00:00Z"
+        }), "", double(success?: true)]
+
+        allow(Open3).to receive(:capture3)
+          .and_return(network_error_response, network_error_response, success_response)
+
+        # Mock sleep to avoid actual delays in tests
+        allow_any_instance_of(Object).to receive(:sleep)
+
+        result = client.send(:fetch_issue_via_gh, issue_number)
+
+        expect(result).to include(:number, :title)
+        expect(Open3).to have_received(:capture3).exactly(3).times
+      end
+
+      it "raises after exhausting retries on network errors" do
+        network_error_response = ["", "* Request to https://api.github.com/graphql\n* unexpected EOF", double(success?: false)]
+
+        allow(Open3).to receive(:capture3).and_return(network_error_response)
+        allow_any_instance_of(Object).to receive(:sleep)
+
+        expect {
+          client.send(:fetch_issue_via_gh, issue_number)
+        }.to raise_error(RuntimeError, /GitHub CLI error/)
+
+        # Should try initial + 3 retries = 4 times
+        expect(Open3).to have_received(:capture3).exactly(4).times
+      end
+
+      it "does not retry on non-network errors" do
+        auth_error_response = ["", "authentication required", double(success?: false)]
+
+        allow(Open3).to receive(:capture3).and_return(auth_error_response)
+
+        expect {
+          client.send(:fetch_issue_via_gh, issue_number)
+        }.to raise_error(/GitHub CLI error/)
+
+        # Should only try once (no retries for non-network errors)
+        expect(Open3).to have_received(:capture3).once
+      end
     end
 
     describe "#fetch_issue_via_api" do

@@ -458,6 +458,22 @@ module Aidp
           nil
         end
 
+        # Record build status BEFORE posting completion comment
+        @state_store.record_build_status(
+          issue[:number],
+          status: "completed",
+          details: {branch: branch_name, workstream: slug, pr_url: pr_url}
+        )
+
+        # Remove build label BEFORE posting completion comment
+        begin
+          @repository_client.remove_labels(issue[:number], @build_label)
+          display_message("🏷️  Removed '#{@build_label}' label after completion", type: :info)
+        rescue => e
+          display_message("⚠️  Failed to remove build label: #{e.message}", type: :warn)
+          # Don't fail the process if label removal fails
+        end
+
         # Fetch the user who added the most recent label
         label_actor = @repository_client.most_recent_label_actor(issue[:number])
 
@@ -465,6 +481,7 @@ module Aidp
         pr_line = pr_url ? "\n- Pull Request: #{pr_url}" : ""
         actor_tag = label_actor ? "cc @#{label_actor}\n\n" : ""
 
+        # Post completion comment LAST - after all other operations complete successfully
         comment = <<~COMMENT
           ✅ Implementation complete for ##{issue[:number]}.
 
@@ -475,21 +492,7 @@ module Aidp
         COMMENT
 
         @repository_client.post_comment(issue[:number], comment)
-        @state_store.record_build_status(
-          issue[:number],
-          status: "completed",
-          details: {branch: branch_name, workstream: slug, pr_url: pr_url}
-        )
         display_message("🎉 Posted completion comment for issue ##{issue[:number]}", type: :success)
-
-        # Remove build label after successful completion
-        begin
-          @repository_client.remove_labels(issue[:number], @build_label)
-          display_message("🏷️  Removed '#{@build_label}' label after completion", type: :info)
-        rescue => e
-          display_message("⚠️  Failed to remove build label: #{e.message}", type: :warn)
-          # Don't fail the process if label removal fails
-        end
 
         # Keep workstream for review - don't auto-cleanup on success
         if @use_workstreams

@@ -122,6 +122,42 @@ module Aidp
 
       private
 
+      # Retry a GitHub CLI operation with exponential backoff
+      # Rescues network-related RuntimeErrors from gh CLI
+      def with_gh_retry(operation_name, max_retries: 3, initial_delay: 1.0)
+        retries = 0
+        begin
+          yield
+        rescue RuntimeError => e
+          # Only retry on network-related errors from gh CLI
+          if e.message.include?("unexpected EOF") ||
+              e.message.include?("connection") ||
+              e.message.include?("timeout") ||
+              e.message.include?("Request to https://api.github.com")
+            retries += 1
+            if retries <= max_retries
+              delay = initial_delay * (2**(retries - 1))
+              Aidp.log_warn("repository_client", "gh_retry",
+                operation: operation_name,
+                attempt: retries,
+                max_retries: max_retries,
+                delay: delay,
+                error: e.message.lines.first&.strip)
+              sleep(delay)
+              retry
+            else
+              Aidp.log_error("repository_client", "gh_retry_exhausted",
+                operation: operation_name,
+                error: e.message)
+              raise
+            end
+          else
+            # Non-network errors should not be retried
+            raise
+          end
+        end
+      end
+
       def list_issues_via_gh(labels:, state:)
         json_fields = %w[number title labels updatedAt state url assignees]
         cmd = ["gh", "issue", "list", "--repo", full_repo, "--state", state, "--json", json_fields.join(",")]
@@ -156,14 +192,16 @@ module Aidp
       end
 
       def fetch_issue_via_gh(number)
-        fields = %w[number title body comments labels state assignees url updatedAt author]
-        cmd = ["gh", "issue", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
+        with_gh_retry("fetch_issue") do
+          fields = %w[number title body comments labels state assignees url updatedAt author]
+          cmd = ["gh", "issue", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
 
-        stdout, stderr, status = Open3.capture3(*cmd)
-        raise "GitHub CLI error: #{stderr.strip}" unless status.success?
+          stdout, stderr, status = Open3.capture3(*cmd)
+          raise "GitHub CLI error: #{stderr.strip}" unless status.success?
 
-        data = JSON.parse(stdout)
-        normalize_issue_detail(data)
+          data = JSON.parse(stdout)
+          normalize_issue_detail(data)
+        end
       rescue JSON::ParserError => e
         raise "Failed to parse GitHub CLI issue response: #{e.message}"
       end
