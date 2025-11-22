@@ -98,8 +98,13 @@ module Aidp
         return false unless pr[:comments]
 
         pr[:comments].any? do |comment|
-          comment["body"]&.match?(/✅[^\n]*CI fixes applied/i) ||
-            comment["body"]&.match?(/✅[^\n]*CI check[^\n]*passed/i)
+          body = comment["body"]
+          next false unless body
+
+          body.include?("✅") && (
+            body.match?(/CI fixes applied/i) ||
+            body.match?(/CI check.*?passed/i)
+          )
         end
       end
 
@@ -108,7 +113,10 @@ module Aidp
         return false unless pr[:comments]
 
         pr[:comments].any? do |comment|
-          comment["body"]&.match?(/✅[^\n]*Change requests? (?:addressed|applied|complete)/i)
+          body = comment["body"]
+          next false unless body
+
+          body.include?("✅") && body.match?(/Change requests? (?:addressed|applied|complete)/i)
         end
       end
 
