@@ -12,7 +12,7 @@ module Aidp
       COMPLETION_PATTERN = /✅ Implementation complete for #(\d+)/i
 
       # Pattern for detecting detection comments
-      DETECTION_PATTERN = /aidp detected `([^`]+)` at (.+) and is working on it/i
+      DETECTION_PATTERN = /aidp detected `([^`]+)` at ([^\n]+) and is working on it/i
 
       # Pattern for detecting plan proposal comments
       PLAN_PROPOSAL_PATTERN = /<!-- PLAN_SUMMARY_START -->/i
@@ -98,8 +98,8 @@ module Aidp
         return false unless pr[:comments]
 
         pr[:comments].any? do |comment|
-          comment["body"]&.match?(/✅.*CI fixes applied/i) ||
-            comment["body"]&.match?(/✅.*CI check.*passed/i)
+          comment["body"]&.match?(/✅[^\n]*CI fixes applied/i) ||
+            comment["body"]&.match?(/✅[^\n]*CI check[^\n]*passed/i)
         end
       end
 
@@ -108,7 +108,7 @@ module Aidp
         return false unless pr[:comments]
 
         pr[:comments].any? do |comment|
-          comment["body"]&.match?(/✅.*Change requests? (?:addressed|applied|complete)/i)
+          comment["body"]&.match?(/✅[^\n]*Change requests? (?:addressed|applied|complete)/i)
         end
       end
 
@@ -133,7 +133,7 @@ module Aidp
         content = body[(start_idx + start_marker.length)...end_idx]
 
         # Remove markdown heading if present
-        content.sub(/^###?\s+.*\n/, "").strip
+        content.sub(/^###?\s+[^\n]*\n/, "").strip
       end
 
       def extract_tasks(body)
@@ -141,7 +141,7 @@ module Aidp
         return [] unless tasks_section
 
         # Extract markdown list items
-        tasks_section.scan(/^-\s+(.+)$/).flatten
+        tasks_section.scan(/^-\s+([^\n]+)$/).flatten
       end
 
       def extract_questions(body)
@@ -149,7 +149,7 @@ module Aidp
         return [] unless questions_section
 
         # Extract numbered list items
-        questions_section.scan(/^\d+\.\s+(.+)$/).flatten
+        questions_section.scan(/^\d+\.\s+([^\n]+)$/).flatten
       end
     end
   end
