@@ -1028,5 +1028,90 @@ RSpec.describe Aidp::Watch::BuildProcessor do
           working_dir: tmp_dir)
       end
     end
+
+    describe "PR creation failure handling" do
+      it "logs error and continues gracefully when PR creation fails" do
+        # Arrange: Set up a scenario where PR creation will fail
+        allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+        allow(processor).to receive(:stage_and_commit).and_return(true)
+        allow(repository_client).to receive(:most_recent_label_actor).and_return("test_user")
+
+        # Allow all standard log calls
+        allow(Aidp).to receive(:log_debug)
+        allow(Aidp).to receive(:log_info)
+        allow(Aidp).to receive(:log_error)
+
+        # Simulate PR creation failure
+        allow(repository_client).to receive(:create_pull_request).and_raise(StandardError, "GitHub API rate limit exceeded")
+
+        # Expect specific error to be logged
+        expect(Aidp).to receive(:log_error).with(
+          "build_processor",
+          "pr_creation_failed",
+          hash_including(
+            issue: issue[:number],
+            error: "GitHub API rate limit exceeded",
+            error_class: "StandardError"
+          )
+        ).at_least(:once)
+
+        # Expect graceful continuation log
+        expect(Aidp).to receive(:log_info).with(
+          "build_processor",
+          "continuing_after_pr_failure",
+          hash_including(
+            issue: issue[:number],
+            message: "Implementation complete but PR creation failed"
+          )
+        ).at_least(:once)
+
+        # Still expect success comment to be posted (without PR URL)
+        expect(repository_client).to receive(:post_comment).with(
+          issue[:number],
+          include("Implementation complete")
+        )
+        expect(repository_client).to receive(:remove_labels).with(issue[:number], "aidp-build")
+
+        # Act & Assert: Should not raise error
+        expect { processor.process(issue) }.not_to raise_error
+
+        # Verify build status shows completion (even though PR failed)
+        status = state_store.build_status(issue[:number])
+        expect(status["status"]).to eq("completed")
+        expect(status["pr_url"]).to be_nil
+      end
+
+      it "logs error when gh CLI is not available" do
+        # Arrange
+        allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
+        allow(processor).to receive(:stage_and_commit).and_return(true)
+        allow(repository_client).to receive(:most_recent_label_actor).and_return("test_user")
+        allow(repository_client).to receive(:gh_available?).and_return(false)
+
+        # Allow all standard log calls
+        allow(Aidp).to receive(:log_debug)
+        allow(Aidp).to receive(:log_info)
+        allow(Aidp).to receive(:log_error)
+
+        # Simulate gh CLI unavailable error
+        allow(repository_client).to receive(:create_pull_request).and_raise(StandardError, "GitHub CLI (gh) is not available - cannot create PR")
+
+        # Expect error to be logged with gh_available status
+        expect(Aidp).to receive(:log_error).with(
+          "build_processor",
+          "pr_creation_failed",
+          hash_including(
+            issue: issue[:number],
+            gh_available: false
+          )
+        ).at_least(:once)
+
+        expect(repository_client).to receive(:post_comment)
+        expect(repository_client).to receive(:remove_labels)
+
+        # Should not crash
+        expect { processor.process(issue) }.not_to raise_error
+      end
+    end
   end
 end

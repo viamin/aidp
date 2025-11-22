@@ -163,6 +163,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
         expect(processor).not_to receive(:create_pull_request)
         allow(repository_client).to receive(:post_comment)
         allow(repository_client).to receive(:remove_labels)
+        allow(repository_client).to receive(:gh_available?).and_return(true)
 
         processor.send(:handle_success,
           issue: issue,
@@ -179,6 +180,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
           expect(comment).not_to include("Pull Request:")
         end
         allow(repository_client).to receive(:remove_labels)
+        allow(repository_client).to receive(:gh_available?).and_return(true)
 
         processor.send(:handle_success,
           issue: issue,
