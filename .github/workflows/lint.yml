@@ -35,8 +35,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install markdownlint-cli2
-        run: npm install -g markdownlint-cli2
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
 
       - name: Run markdownlint
-        run: markdownlint-cli2 "**/*.md"
+        run: markdownlint "**/*.md"
