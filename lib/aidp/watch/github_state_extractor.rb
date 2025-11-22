@@ -103,7 +103,7 @@ module Aidp
 
           body.include?("✅") && (
             body.match?(/CI fixes applied/i) ||
-            body.match?(/CI check.*?passed/i)
+            (body.match?(/CI check/i) && body.match?(/passed/i))
           )
         end
       end
@@ -140,24 +140,25 @@ module Aidp
 
         content = body[(start_idx + start_marker.length)...end_idx]
 
-        # Remove markdown heading if present
-        content.sub(/^###?\s+[^\n]*\n/, "").strip
+        # Remove markdown heading if present (e.g., "## Heading\n" or "### Heading\n")
+        # Use a more specific pattern to avoid ReDoS: match hash marks, then spaces, then everything up to newline
+        content.sub(/^###? +.*\n/, "").strip
       end
 
       def extract_tasks(body)
         tasks_section = extract_section(body, "PLAN_TASKS")
         return [] unless tasks_section
 
-        # Extract markdown list items
-        tasks_section.scan(/^-\s+([^\n]+)$/).flatten
+        # Extract markdown list items (- followed by space and content)
+        tasks_section.scan(/^- (.+)$/).flatten
       end
 
       def extract_questions(body)
         questions_section = extract_section(body, "CLARIFYING_QUESTIONS")
         return [] unless questions_section
 
-        # Extract numbered list items
-        questions_section.scan(/^\d+\.\s+([^\n]+)$/).flatten
+        # Extract numbered list items (number, dot, space, content)
+        questions_section.scan(/^\d+\. (.+)$/).flatten
       end
     end
   end
