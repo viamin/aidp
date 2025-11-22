@@ -37,6 +37,18 @@ RSpec.describe Aidp::Providers::Anthropic do
     end
   end
 
+  describe "#configure" do
+    it "sets the model when provided in config" do
+      provider.configure(model: "claude-3-5-haiku")
+      expect(provider.model).to eq("claude-3-5-haiku")
+    end
+
+    it "does not set model when not provided" do
+      provider.configure({})
+      expect(provider.model).to be_nil
+    end
+  end
+
   describe "#send" do
     let(:prompt) { "Test prompt" }
     let(:successful_result) { double("result", exit_status: 0, out: "Test response", err: "") }
@@ -80,6 +92,27 @@ RSpec.describe Aidp::Providers::Anthropic do
     it "returns the output directly" do
       result = provider.send_message(prompt: prompt)
       expect(result).to eq("Test response")
+    end
+
+    context "when model is configured" do
+      before do
+        provider.configure(model: "claude-3-5-haiku")
+      end
+
+      it "includes the model in command arguments" do
+        provider.send_message(prompt: prompt)
+
+        # In devcontainer, expect --dangerously-skip-permissions flag
+        expected_args = ["--print", "--output-format=text", "--model", "claude-3-5-haiku"]
+        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
+
+        expect(provider).to have_received(:debug_execute_command).with(
+          "claude",
+          args: expected_args,
+          input: prompt,
+          timeout: 1
+        )
+      end
     end
 
     context "when harness config requests full permissions" do
