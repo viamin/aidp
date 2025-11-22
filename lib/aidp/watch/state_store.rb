@@ -149,6 +149,64 @@ module Aidp
         save!
       end
 
+      # Project tracking methods
+      def project_item_id(issue_number)
+        projects[issue_number.to_s]&.dig("item_id")
+      end
+
+      def record_project_item_id(issue_number, item_id)
+        projects[issue_number.to_s] ||= {}
+        projects[issue_number.to_s]["item_id"] = item_id
+        projects[issue_number.to_s]["synced_at"] = Time.now.utc.iso8601
+        save!
+      end
+
+      def project_sync_data(issue_number)
+        projects[issue_number.to_s] || {}
+      end
+
+      def record_project_sync(issue_number, data)
+        projects[issue_number.to_s] ||= {}
+        projects[issue_number.to_s].merge!(stringify_keys(data))
+        projects[issue_number.to_s]["synced_at"] = Time.now.utc.iso8601
+        save!
+      end
+
+      # Sub-issue tracking methods
+      def sub_issues(parent_number)
+        hierarchies[parent_number.to_s]&.dig("sub_issues") || []
+      end
+
+      def parent_issue(sub_issue_number)
+        hierarchies[sub_issue_number.to_s]&.dig("parent")
+      end
+
+      def record_sub_issues(parent_number, sub_issue_numbers)
+        hierarchies[parent_number.to_s] ||= {}
+        hierarchies[parent_number.to_s]["sub_issues"] = Array(sub_issue_numbers)
+        hierarchies[parent_number.to_s]["created_at"] = Time.now.utc.iso8601
+
+        # Also record reverse mapping
+        sub_issue_numbers.each do |sub_number|
+          hierarchies[sub_number.to_s] ||= {}
+          hierarchies[sub_number.to_s]["parent"] = parent_number
+        end
+
+        save!
+      end
+
+      def blocking_status(issue_number)
+        # Check if this issue is blocked by any open sub-issues
+        sub_issue_numbers = sub_issues(issue_number)
+        return {blocked: false, blockers: []} if sub_issue_numbers.empty?
+
+        {
+          blocked: true,
+          blockers: sub_issue_numbers,
+          blocker_count: sub_issue_numbers.size
+        }
+      end
+
       private
 
       def ensure_directory
@@ -181,6 +239,8 @@ module Aidp
           base["ci_fixes"] ||= {}
           base["change_requests"] ||= {}
           base["detection_comments"] ||= {}
+          base["projects"] ||= {}
+          base["hierarchies"] ||= {}
           base
         end
       end
@@ -207,6 +267,14 @@ module Aidp
 
       def detection_comments
         state["detection_comments"]
+      end
+
+      def projects
+        state["projects"]
+      end
+
+      def hierarchies
+        state["hierarchies"]
       end
 
       def stringify_keys(hash)
