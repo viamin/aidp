@@ -1725,3 +1725,926 @@ The implementation follows AIDP's engineering principles:
 - **Testability**: Dependency injection, clear interfaces, comprehensive specs
 
 This guide enables implementation with confidence, clarity, and adherence to AIDP's standards.
+
+---
+
+# Implementation Guide: aidp-auto Label Feature (Issue #294)
+
+## Overview
+
+This guide provides implementation patterns and architectural guidance for the `aidp-auto` label feature, which enables fully autonomous issue resolution in watch mode. The implementation follows SOLID principles, Domain-Driven Design (DDD), composition-first patterns, and maintains compatibility with AIDP's existing watch mode architecture.
+
+## Table of Contents
+
+1. [Feature Contract](#feature-contract)
+2. [Architectural Principles](#architectural-principles)
+3. [Design Patterns](#design-patterns-auto)
+4. [Component Specifications](#component-specifications-auto)
+5. [Testing Strategy](#testing-strategy-auto)
+6. [Error Handling](#error-handling-auto)
+7. [Configuration](#configuration-auto)
+8. [Documentation Updates](#documentation-updates)
+9. [Migration Path](#migration-path)
+10. [Pattern-to-Use-Case Matrix](#pattern-to-use-case-matrix-auto)
+
+---
+
+## Feature Contract
+
+The `aidp-auto` label implements end-to-end autonomous workflow:
+
+1. **On Issues**: Behaves like `aidp-build` but creates draft PR and transfers label to PR
+2. **On PRs**: Combines `aidp-review` and `aidp-fix-ci` in iterative loop until completion
+3. **Completion**: Removes label, marks PR ready for review, requests review from original labeler
+
+---
+
+## Architectural Principles
+
+### SOLID Principles
+
+#### Single Responsibility Principle (SRP)
+- **AutoProcessor**: Handles `aidp-auto` on issues only
+- **AutoPRProcessor**: Handles `aidp-auto` on PRs only
+- **AutoCompletionDetector**: Determines when autonomous processing is complete
+- Each processor focuses on one trigger type and delegates to existing components
+
+#### Open/Closed Principle (OCP)
+- Extend `BuildProcessor` via parameters (not inheritance) for draft PR support
+- Add new processor classes without modifying existing ones
+- Use composition to combine review and CI fix behaviors
+
+#### Liskov Substitution Principle (LSP)
+- All processors implement consistent `process(item)` interface
+- AutoProcessor and AutoPRProcessor are interchangeable with existing processors
+- State store methods follow consistent naming and return value conventions
+
+#### Interface Segregation Principle (ISP)
+- Keep processor interfaces minimal (`process(item)` only)
+- Separate completion detection from processing logic
+- Don't force processors to depend on methods they don't use
+
+#### Dependency Inversion Principle (DIP)
+- Depend on `RepositoryClient` abstraction, not GitHub API details
+- Inject `StateStore` dependency via constructor
+- Use dependency injection for all external collaborators
+
+### Domain-Driven Design (DDD)
+
+#### Bounded Contexts
+- **Watch Context**: Issue/PR monitoring and trigger processing
+- **Build Context**: Implementation execution via harness
+- **Review Context**: Code quality analysis
+- **CI Context**: Continuous integration failure resolution
+
+#### Ubiquitous Language
+- **Trigger**: Label added to issue/PR that initiates processing
+- **Processor**: Component that handles a specific trigger type
+- **Completion Criteria**: Conditions that must be met to finish autonomous processing
+- **Draft PR**: Pull request not ready for human review
+- **Ready for Review**: PR state when autonomous processing completes successfully
+
+#### Aggregates
+- **PR Aggregate Root**: Combines review status, CI status, change requests, completion state
+- **Issue Aggregate Root**: Combines plan data, build status, label state
+
+#### Domain Events
+- `AutoProcessingStarted`: When `aidp-auto` label added to issue
+- `DraftPRCreated`: When autonomous build creates draft PR
+- `LabelTransferred`: When label moved from issue to PR
+- `ReviewCompleted`: When code review finishes
+- `CIFixed`: When CI failures resolved
+- `AutoProcessingCompleted`: When all completion criteria met
+
+### Hexagonal Architecture (Ports & Adapters)
+
+#### Core Domain (Business Logic)
+- `AutoProcessor`: Issue processing orchestration
+- `AutoPRProcessor`: PR processing orchestration loop
+- `AutoCompletionDetector`: Completion criteria evaluation
+
+#### Ports (Interfaces)
+- `RepositoryClient`: GitHub operations abstraction
+- `StateStore`: Persistence abstraction
+- `ProviderManager`: AI provider abstraction
+
+#### Adapters (Implementations)
+- `RepositoryClient`: Dual-mode GitHub adapter (gh CLI + REST API)
+- `StateStore`: YAML file storage adapter
+- Processors: Command handlers for label triggers
+
+---
+
+## Design Patterns {#design-patterns-auto}
+
+### Pattern Matrix
+
+| Pattern | Use Case | Component | Rationale |
+|---------|----------|-----------|-----------|
+| **Strategy** | AI provider selection | ProviderManager | Switch between Claude, GPT, etc. without changing processor logic |
+| **Template Method** | Processor lifecycle | BaseProcessor (implicit) | All processors follow same pattern: fetch data → process → update state → post results |
+| **Decorator** | BuildProcessor enhancement | auto_mode parameter | Add draft PR behavior without modifying core build logic |
+| **Facade** | GitHub API complexity | RepositoryClient | Hide dual-mode (CLI + REST) implementation behind simple interface |
+| **State** | PR processing loop | AutoPRProcessor | Track review/CI states, transition between fix attempts |
+| **Observer** | Label changes | WatchRunner polling | Detect label additions and trigger appropriate processors |
+| **Command** | Trigger processing | Processor.process(item) | Encapsulate processing request as command object |
+| **Repository** | State persistence | StateStore | Abstract data storage implementation |
+| **Null Object** | Optional reviewers | Default reviewer list | Avoid nil checks by providing sensible defaults |
+| **Factory Method** | Processor creation | WatchRunner processor instantiation | Create appropriate processor based on label type |
+
+### Composition Over Inheritance
+
+**Don't Do This:**
+```ruby
+class AutoProcessor < BuildProcessor  # ❌ Inheritance creates tight coupling
+  def process(issue)
+    super(issue)  # Hard to control build behavior
+    # Now try to add label to PR... how?
+  end
+end
+```
+
+**Do This Instead:**
+```ruby
+class AutoProcessor
+  def initialize(build_processor:, repository_client:, state_store:)
+    @build_processor = build_processor  # ✅ Composition via dependency injection
+    @repository_client = repository_client
+    @state_store = state_store
+  end
+
+  def process(issue)
+    # Delegate to build processor with auto_mode enabled
+    result = @build_processor.process(issue, auto_mode: true)
+
+    # Handle auto-specific logic
+    if result[:pr_url]
+      transfer_label_to_pr(issue, result[:pr_number])
+    end
+  end
+end
+```
+
+### Design by Contract
+
+Apply preconditions, postconditions, and invariants to public methods:
+
+```ruby
+module Aidp
+  module Watch
+    class AutoPRProcessor
+      # Processes aidp-auto label on pull requests by iteratively
+      # running review and CI fix until completion criteria met.
+      #
+      # Preconditions:
+      #   - pr must be a valid PR hash with :number key
+      #   - pr[:number] must be a positive integer
+      #   - repository_client must be initialized and authenticated
+      #   - state_store must be writable
+      #
+      # Postconditions:
+      #   - If successful: PR marked ready for review, label removed, reviewer requested
+      #   - If incomplete: State updated with current progress, label remains
+      #   - Errors logged but not raised (fail-forward pattern)
+      #
+      # Invariants:
+      #   - State store always reflects current processing status
+      #   - Label transfer is atomic (never exists on both issue and PR)
+      #   - Maximum iteration limit prevents infinite loops
+      def process(pr)
+        raise ArgumentError, "PR must have :number key" unless pr.is_a?(Hash) && pr.key?(:number)
+        raise ArgumentError, "PR number must be positive" unless pr[:number].to_i > 0
+
+        # Implementation...
+      end
+    end
+  end
+end
+```
+
+---
+
+## Component Specifications {#component-specifications-auto}
+
+### 1. AutoProcessor (Issue Handler)
+
+**File**: `lib/aidp/watch/auto_processor.rb`
+
+**Responsibility**: Handle `aidp-auto` label on issues
+
+**Dependencies**:
+- `BuildProcessor`: Delegate implementation work
+- `RepositoryClient`: GitHub operations
+- `StateStore`: Track processing state
+
+**Algorithm**:
+```
+1. Validate issue has aidp-auto label
+2. Check if already processed (via state store)
+3. Delegate to BuildProcessor with auto_mode: true
+4. If build succeeds and PR created:
+   a. Add aidp-auto label to PR
+   b. Remove aidp-auto label from issue
+   c. Record label transfer in state
+5. If build needs clarification:
+   a. Keep label on issue
+   b. Add needs-input label
+6. If build fails:
+   a. Record failure state
+   b. Keep label on issue for retry
+```
+
+**Interface**:
+```ruby
+def initialize(
+  repository_client:,
+  state_store:,
+  build_processor:,
+  label_config: {},
+  verbose: false
+)
+
+def process(issue)
+  # Returns: Hash with :status, :pr_number (if created), :message
+end
+```
+
+**Logging Points**:
+- Entry: `Aidp.log_debug("auto_processor", "process_started", issue_number:, issue_title:)`
+- Build delegation: `Aidp.log_debug("auto_processor", "delegating_to_build", issue_number:, auto_mode: true)`
+- PR created: `Aidp.log_info("auto_processor", "pr_created", issue_number:, pr_number:, pr_url:)`
+- Label transfer: `Aidp.log_debug("auto_processor", "transferring_label", from: "issue", to: "pr", issue_number:, pr_number:)`
+- Success: `Aidp.log_info("auto_processor", "completed", issue_number:, pr_number:)`
+- Error: `Aidp.log_error("auto_processor", "failed", issue_number:, error:)`
+
+**State Tracking**:
+```yaml
+auto_issues:
+  "123":
+    status: "transferred_to_pr"
+    pr_number: 456
+    pr_url: "https://github.com/..."
+    transferred_at: "2024-11-22T10:00:00Z"
+    original_labeler: "username"
+```
+
+### 2. BuildProcessor Enhancement
+
+**File**: `lib/aidp/watch/build_processor.rb` (modify existing)
+
+**Changes Required**:
+1. Add `auto_mode` parameter to `process()` method
+2. Add `draft` parameter to `create_pull_request()` call when `auto_mode: true`
+3. Add `auto_label` to created PR when `auto_mode: true`
+4. Return PR number and URL in result hash
+
+**Signature Change**:
+```ruby
+def process(issue, auto_mode: false)
+  # Existing logic...
+
+  if auto_mode
+    pr = create_pull_request(
+      title: pr_title,
+      body: pr_body,
+      head: branch_name,
+      base: base_branch,
+      issue_number: issue[:number],
+      draft: true  # ✅ Create as draft for auto mode
+    )
+
+    # Return PR details for AutoProcessor
+    return {
+      status: "completed",
+      pr_number: pr[:number],
+      pr_url: pr[:html_url],
+      branch: branch_name
+    }
+  end
+
+  # Existing non-auto logic...
+end
+```
+
+**Backward Compatibility**:
+- Default `auto_mode: false` preserves existing behavior
+- No changes to existing callers (WatchRunner.process_build_triggers)
+- AutoProcessor passes `auto_mode: true` explicitly
+
+### 3. AutoPRProcessor (PR Handler)
+
+**File**: `lib/aidp/watch/auto_pr_processor.rb`
+
+**Responsibility**: Orchestrate review + CI fix loop until completion
+
+**Dependencies**:
+- `ReviewProcessor`: Perform code review
+- `CiFixProcessor`: Fix CI failures
+- `AutoCompletionDetector`: Determine when done
+- `RepositoryClient`: GitHub operations
+- `StateStore`: Track loop iterations
+
+**State Machine**:
+```
+[Start] → [Review] → [CI Check] → [Completion Check]
+                ↑                        ↓ not done
+                └────────────────────────┘
+                         ↓ done
+                  [Mark Ready & Complete]
+```
+
+**Algorithm**:
+```
+1. Load or initialize iteration state
+2. While not complete and iterations < MAX_ITERATIONS:
+   a. Run review (if not done this iteration)
+   b. Wait for CI to complete (poll with backoff)
+   c. If CI failing: run CI fix processor
+   d. Check completion criteria:
+      - CI passing
+      - No unresolved review comments
+      - No pending change requests
+   e. If complete: break loop
+   f. Increment iteration counter
+3. If complete:
+   a. Mark PR ready for review
+   b. Request review from original labeler
+   c. Remove aidp-auto label
+   d. Post completion comment
+4. If max iterations reached:
+   a. Post status comment (not error per #280)
+   b. Keep label for manual intervention
+```
+
+**Interface**:
+```ruby
+def initialize(
+  repository_client:,
+  state_store:,
+  review_processor:,
+  ci_fix_processor:,
+  completion_detector:,
+  label_config: {},
+  max_iterations: 10,
+  verbose: false
+)
+
+def process(pr)
+  # Returns: Hash with :status, :iterations, :completion_criteria
+end
+```
+
+**Logging Points**:
+- Entry: `Aidp.log_debug("auto_pr_processor", "process_started", pr_number:, pr_title:)`
+- Iteration start: `Aidp.log_debug("auto_pr_processor", "iteration_started", pr_number:, iteration:)`
+- Review triggered: `Aidp.log_debug("auto_pr_processor", "running_review", pr_number:, iteration:)`
+- CI status: `Aidp.log_debug("auto_pr_processor", "ci_status_checked", pr_number:, state:, iteration:)`
+- CI fix triggered: `Aidp.log_debug("auto_pr_processor", "running_ci_fix", pr_number:, iteration:)`
+- Completion check: `Aidp.log_debug("auto_pr_processor", "checking_completion", pr_number:, criteria:)`
+- Complete: `Aidp.log_info("auto_pr_processor", "completed", pr_number:, iterations:, criteria_met:)`
+- Max iterations: `Aidp.log_warn("auto_pr_processor", "max_iterations_reached", pr_number:, iterations:)`
+
+**State Tracking**:
+```yaml
+auto_prs:
+  "456":
+    status: "processing"  # or "completed", "max_iterations"
+    current_iteration: 3
+    review_done: true
+    ci_status: "passing"
+    completion_criteria:
+      ci_passing: true
+      no_unresolved_comments: true
+      no_pending_changes: true
+    started_at: "2024-11-22T10:00:00Z"
+    updated_at: "2024-11-22T10:15:00Z"
+    original_labeler: "username"
+```
+
+### 4. AutoCompletionDetector
+
+**File**: `lib/aidp/watch/auto_completion_detector.rb`
+
+**Responsibility**: Evaluate completion criteria for autonomous processing
+
+**Dependencies**:
+- `RepositoryClient`: Fetch CI status, comments, reviews
+- `GitHubStateExtractor`: Parse existing comments for resolution status
+
+**Completion Criteria**:
+1. **CI Passing**: All required checks green
+2. **No Unresolved Review Comments**: All review threads resolved or addressed
+3. **No Pending Change Requests**: All requested changes implemented
+
+**Interface**:
+```ruby
+def initialize(repository_client:, state_extractor: nil)
+  @repository_client = repository_client
+  @state_extractor = state_extractor || GitHubStateExtractor.new(repository_client: repository_client)
+end
+
+def complete?(pr_number)
+  # Returns: Boolean
+end
+
+def completion_status(pr_number)
+  # Returns: Hash with detailed status
+  # {
+  #   complete: true/false,
+  #   criteria: {
+  #     ci_passing: true/false,
+  #     no_unresolved_comments: true/false,
+  #     no_pending_changes: true/false
+  #   },
+  #   details: {
+  #     ci_state: "success",
+  #     unresolved_comment_count: 0,
+  #     pending_change_request_count: 0
+  #   }
+  # }
+end
+```
+
+**Algorithm**:
+```
+1. Fetch CI status via repository_client.fetch_ci_status(pr_number)
+2. Check if state == "success"
+3. Fetch PR reviews via repository_client (GraphQL: reviews with state "CHANGES_REQUESTED")
+4. Count pending change requests
+5. Fetch review comments (optional: check for unresolved threads)
+6. Return criteria hash
+```
+
+**Logging**:
+- Entry: `Aidp.log_debug("auto_completion_detector", "checking_completion", pr_number:)`
+- CI check: `Aidp.log_debug("auto_completion_detector", "ci_checked", pr_number:, state:)`
+- Reviews check: `Aidp.log_debug("auto_completion_detector", "reviews_checked", pr_number:, pending_changes:)`
+- Result: `Aidp.log_debug("auto_completion_detector", "completion_evaluated", pr_number:, complete:, criteria:)`
+
+### 5. WatchRunner Integration
+
+**File**: `lib/aidp/watch/runner.rb` (modify existing)
+
+**Changes Required**:
+1. Add `process_auto_issue_triggers` method
+2. Add `process_auto_pr_triggers` method
+3. Call both methods in `process_cycle`
+4. Initialize AutoProcessor and AutoPRProcessor
+5. Add auto label to label configuration
+
+**Processing Order**:
+```
+process_cycle:
+  1. process_plan_triggers          # Plan generation
+  2. process_auto_issue_triggers    # ✅ NEW: Auto on issues
+  3. process_build_triggers         # Manual builds
+  4. process_auto_pr_triggers       # ✅ NEW: Auto on PRs (review + CI loop)
+  5. process_review_triggers        # Manual reviews
+  6. process_ci_fix_triggers        # Manual CI fixes
+  7. process_change_request_triggers # Manual change requests
+```
+
+**Rationale for Order**:
+- Auto issue triggers after plan (issue may have plan generated first)
+- Auto issue triggers before manual build (auto is superset of build)
+- Auto PR triggers before manual review/CI (to avoid conflicts)
+
+**New Methods**:
+```ruby
+def process_auto_issue_triggers
+  auto_label = @label_config[:auto_trigger] || "aidp-auto"
+  issues = @repository_client.list_issues(labels: [auto_label], state: "open")
+
+  issues.each do |issue|
+    next unless authorized?(@repository_client.most_recent_label_actor(issue[:number]))
+    next if detection_comment_already_posted?("issue_#{issue[:number]}_#{auto_label}")
+
+    post_detection_comment(issue[:number], auto_label)
+    @repository_client.add_labels(issue[:number], @in_progress_label)
+
+    begin
+      @auto_processor.process(issue)
+    ensure
+      @repository_client.remove_labels(issue[:number], @in_progress_label) rescue nil
+    end
+  end
+end
+
+def process_auto_pr_triggers
+  auto_label = @label_config[:auto_trigger] || "aidp-auto"
+  prs = @repository_client.list_pull_requests(labels: [auto_label], state: "open")
+
+  prs.each do |pr|
+    next unless authorized?(@repository_client.most_recent_label_actor(pr[:number]))
+    next if detection_comment_already_posted?("pr_#{pr[:number]}_#{auto_label}")
+
+    post_detection_comment(pr[:number], auto_label)
+    @repository_client.add_labels(pr[:number], @in_progress_label)
+
+    begin
+      @auto_pr_processor.process(pr)
+    ensure
+      @repository_client.remove_labels(pr[:number], @in_progress_label) rescue nil
+    end
+  end
+end
+```
+
+### 6. RepositoryClient Extensions
+
+**File**: `lib/aidp/watch/repository_client.rb` (modify existing)
+
+**New Methods Required**:
+
+#### mark_pr_ready_for_review
+```ruby
+# Marks a draft PR as ready for review
+#
+# Preconditions:
+#   - pr_number must be a valid PR number
+#   - PR must be in draft state
+#
+# Postconditions:
+#   - PR draft status set to false
+#   - PR visible in review queue
+def mark_pr_ready_for_review(pr_number)
+  Aidp.log_debug("repository_client", "marking_pr_ready", pr_number: pr_number)
+
+  # GraphQL mutation required (not available in REST v3)
+  mutation = <<~GRAPHQL
+    mutation {
+      markPullRequestReadyForReview(input: {pullRequestId: "#{pr_node_id(pr_number)}"}) {
+        pullRequest {
+          isDraft
+        }
+      }
+    }
+  GRAPHQL
+
+  execute_graphql(mutation)
+  Aidp.log_info("repository_client", "pr_marked_ready", pr_number: pr_number)
+end
+
+private
+
+def pr_node_id(pr_number)
+  # GraphQL requires node ID, not number
+  # Fetch via REST API first
+  pr_data = fetch_pull_request(pr_number)
+  pr_data[:node_id]
+end
+```
+
+#### add_reviewers
+```ruby
+# Requests review from specified users
+#
+# Preconditions:
+#   - pr_number must be a valid PR number
+#   - reviewers must be array of valid GitHub usernames
+#   - Reviewers must have repository access
+#
+# Postconditions:
+#   - Review requests created for each reviewer
+#   - Reviewers notified via GitHub
+def add_reviewers(pr_number, reviewers)
+  raise ArgumentError, "reviewers must be an Array" unless reviewers.is_a?(Array)
+  return if reviewers.empty?
+
+  Aidp.log_debug("repository_client", "requesting_reviewers",
+    pr_number: pr_number,
+    reviewers: reviewers)
+
+  # Try gh CLI first
+  reviewers_str = reviewers.join(",")
+  result = run_gh_command(
+    "pr", "edit", pr_number.to_s,
+    "--add-reviewer", reviewers_str
+  )
+
+  if result[:success]
+    Aidp.log_info("repository_client", "reviewers_requested",
+      pr_number: pr_number,
+      reviewers: reviewers)
+  else
+    # Fallback to REST API
+    rest_add_reviewers(pr_number, reviewers)
+  end
+end
+
+private
+
+def rest_add_reviewers(pr_number, reviewers)
+  endpoint = "/repos/#{@owner}/#{@repo}/pulls/#{pr_number}/requested_reviewers"
+  body = {reviewers: reviewers}.to_json
+
+  response = http_post(endpoint, body)
+
+  Aidp.log_info("repository_client", "reviewers_requested",
+    pr_number: pr_number,
+    reviewers: reviewers,
+    method: "rest_api")
+end
+```
+
+### 7. StateStore Extensions
+
+**File**: `lib/aidp/watch/state_store.rb` (modify existing)
+
+**New Methods Required**:
+
+```ruby
+# Auto issue processing state
+def auto_issue_processed?(issue_number)
+  data = auto_issue_data(issue_number)
+  data && data["status"] == "transferred_to_pr"
+end
+
+def auto_issue_data(issue_number)
+  state.dig("auto_issues", issue_number.to_s)
+end
+
+def record_auto_issue(issue_number, data)
+  state["auto_issues"] ||= {}
+  state["auto_issues"][issue_number.to_s] = data.transform_keys(&:to_s)
+  save_state
+end
+
+# Auto PR processing state
+def auto_pr_data(pr_number)
+  state.dig("auto_prs", pr_number.to_s)
+end
+
+def auto_pr_completed?(pr_number)
+  data = auto_pr_data(pr_number)
+  data && data["status"] == "completed"
+end
+
+def record_auto_pr(pr_number, data)
+  state["auto_prs"] ||= {}
+  state["auto_prs"][pr_number.to_s] = data.transform_keys(&:to_s)
+  save_state
+end
+
+def increment_auto_pr_iteration(pr_number)
+  state["auto_prs"] ||= {}
+  state["auto_prs"][pr_number.to_s] ||= {"current_iteration" => 0}
+  state["auto_prs"][pr_number.to_s]["current_iteration"] += 1
+  state["auto_prs"][pr_number.to_s]["updated_at"] = Time.now.utc.iso8601
+  save_state
+  state["auto_prs"][pr_number.to_s]["current_iteration"]
+end
+```
+
+---
+
+## Testing Strategy {#testing-strategy-auto}
+
+### Unit Tests
+
+#### AutoProcessor Spec
+**File**: `spec/aidp/watch/auto_processor_spec.rb`
+
+```ruby
+RSpec.describe Aidp::Watch::AutoProcessor do
+  let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient) }
+  let(:state_store) { instance_double(Aidp::Watch::StateStore) }
+  let(:build_processor) { instance_double(Aidp::Watch::BuildProcessor) }
+
+  subject(:processor) do
+    described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      build_processor: build_processor
+    )
+  end
+
+  describe "#process" do
+    let(:issue) { {number: 123, title: "Test issue"} }
+
+    context "when build succeeds and creates PR" do
+      before do
+        allow(state_store).to receive(:auto_issue_processed?).and_return(false)
+        allow(build_processor).to receive(:process).and_return({
+          status: "completed",
+          pr_number: 456,
+          pr_url: "https://github.com/owner/repo/pull/456"
+        })
+      end
+
+      it "transfers label to PR" do
+        expect(repository_client).to receive(:add_labels).with(456, "aidp-auto")
+        expect(repository_client).to receive(:remove_labels).with(123, "aidp-auto")
+        processor.process(issue)
+      end
+
+      it "records transfer in state" do
+        allow(repository_client).to receive(:add_labels)
+        allow(repository_client).to receive(:remove_labels)
+
+        expect(state_store).to receive(:record_auto_issue).with(123, hash_including(
+          status: "transferred_to_pr",
+          pr_number: 456
+        ))
+
+        processor.process(issue)
+      end
+    end
+
+    context "when already processed" do
+      before do
+        allow(state_store).to receive(:auto_issue_processed?).and_return(true)
+      end
+
+      it "skips processing" do
+        expect(build_processor).not_to receive(:process)
+        processor.process(issue)
+      end
+    end
+  end
+end
+```
+
+### Integration Tests
+
+Test the full flow from issue to completed PR using test doubles for GitHub API.
+
+**File**: `spec/integration/watch/auto_workflow_spec.rb`
+
+```ruby
+RSpec.describe "Auto workflow integration" do
+  it "processes issue through to ready PR" do
+    # Setup mocked GitHub client
+    # Create issue with aidp-auto label
+    # Verify BuildProcessor called with auto_mode: true
+    # Verify draft PR created
+    # Verify label transferred
+    # Verify review runs
+    # Verify CI fix runs
+    # Verify completion detection
+    # Verify PR marked ready
+  end
+end
+```
+
+---
+
+## Error Handling {#error-handling-auto}
+
+### Fail-Forward Pattern (Issue #280)
+
+**Never post errors to GitHub issues/PRs**. Instead:
+
+1. **Log errors** with `Aidp.log_error()`
+2. **Record error state** in StateStore
+3. **Don't re-raise** (let watch loop continue)
+4. **Keep label** on item for retry on next cycle
+
+### Retry Strategy
+
+- **Transient errors** (network, rate limits): Retry with exponential backoff in RepositoryClient
+- **Processing errors**: Don't retry automatically; keep label for next cycle
+- **Max iterations**: Hard limit to prevent infinite loops in AutoPRProcessor
+
+### Idempotency
+
+All processors must be idempotent:
+
+- Check state before processing: `if already_processed? then skip`
+- Use atomic label operations: `replace_labels(old:, new:)` not `remove` + `add`
+- Record timestamps to detect stale processing
+
+---
+
+## Configuration {#configuration-auto}
+
+### Label Configuration
+
+Add to `lib/aidp/config_manager.rb` or setup wizard:
+
+```ruby
+DEFAULT_LABEL_CONFIG = {
+  plan_trigger: "aidp-plan",
+  build_trigger: "aidp-build",
+  review_trigger: "aidp-review",
+  ci_fix_trigger: "aidp-fix-ci",
+  change_request_trigger: "aidp-request-changes",
+  auto_trigger: "aidp-auto",        # ✅ NEW
+  needs_input: "aidp-needs-input",
+  ready_to_build: "aidp-ready",
+  in_progress: "aidp-in-progress"
+}
+```
+
+### Setup Wizard Updates
+
+Add `aidp-auto` to label creation in setup wizard with description:
+> "Fully autonomous issue resolution: builds implementation, creates draft PR, runs review and CI fixes, then marks ready when complete."
+
+---
+
+## Documentation Updates
+
+### Files to Update
+
+1. **docs/WATCH_MODE.md**: Add aidp-auto section explaining behavior
+2. **docs/CLI_USER_GUIDE.md**: Update watch command documentation
+3. **docs/LABELS.md** (if exists): Add aidp-auto label reference
+4. **README.md**: Mention autonomous workflow capability
+
+### Example Documentation Section
+
+```markdown
+## aidp-auto Label
+
+The `aidp-auto` label enables fully autonomous issue resolution:
+
+### On Issues
+- Behaves like `aidp-build` but creates a **draft PR**
+- Automatically transfers the label to the created PR
+- Original issue label is removed
+
+### On Pull Requests
+- Runs code review (like `aidp-review`)
+- Monitors CI status continuously
+- Fixes CI failures automatically (like `aidp-fix-ci`)
+- Loops until completion criteria met:
+  - ✅ CI passing
+  - ✅ No unresolved review comments
+  - ✅ No pending change requests
+
+### Completion
+When all criteria met:
+1. PR marked ready for review
+2. Review requested from user who added label
+3. `aidp-auto` label removed
+4. Completion comment posted
+
+### Safety
+- Maximum 10 iterations to prevent infinite loops
+- All actions logged for audit trail
+- Errors recorded but don't block watch loop
+- Manual intervention possible at any stage
+```
+
+---
+
+## Migration Path
+
+### Phase 1: Core Components (Week 1)
+1. Create AutoCompletionDetector
+2. Extend BuildProcessor with auto_mode
+3. Extend RepositoryClient with new methods
+4. Add tests for new components
+
+### Phase 2: Processors (Week 1-2)
+1. Create AutoProcessor
+2. Create AutoPRProcessor
+3. Add comprehensive tests
+4. Integrate with WatchRunner
+
+### Phase 3: State & Config (Week 2)
+1. Extend StateStore
+2. Update label configuration
+3. Update setup wizard
+
+### Phase 4: Documentation & Polish (Week 2-3)
+1. Update all documentation
+2. Add integration tests
+3. Manual QA testing
+4. Performance profiling
+
+---
+
+## Pattern-to-Use-Case Matrix {#pattern-to-use-case-matrix-auto}
+
+| Use Case | Recommended Pattern | Alternative | Why Recommended |
+|----------|-------------------|-------------|-----------------|
+| Adding new processor | Command + Facade | Inheritance | Composition allows reuse of RepositoryClient/StateStore |
+| Extending BuildProcessor | Decorator (via params) | Subclassing | Preserves existing behavior, minimal changes |
+| Completion criteria | Strategy | Hard-coded logic | Different criteria may be needed per repo/team |
+| State persistence | Repository | Direct file I/O | Abstract storage allows testing, future DB migration |
+| PR state transitions | State Machine | Conditional logic | Clear states, transitions, easier to reason about |
+| GitHub API calls | Facade | Direct REST/GraphQL | Hide complexity, enable dual-mode CLI+API |
+| Error handling | Fail-forward | Exceptions | Watch loop continues, manual intervention possible |
+| Label transfers | Atomic operations | Separate calls | Prevent race conditions, ensure consistency |
+| Review loop | Template Method | Ad-hoc | Consistent flow, easy to add pre/post hooks |
+| Processor creation | Factory Method | Direct instantiation | WatchRunner doesn't know concrete types |
+
+---
+
+## References
+
+- **SOLID Principles**: Martin, Robert C. _Agile Software Development, Principles, Patterns, and Practices_
+- **DDD**: Evans, Eric. _Domain-Driven Design: Tackling Complexity in the Heart of Software_
+- **Hexagonal Architecture**: Cockburn, Alistair. _Hexagonal Architecture_
+- **GoF Patterns**: Gamma et al. _Design Patterns: Elements of Reusable Object-Oriented Software_
+- **Design by Contract**: Meyer, Bertrand. _Object-Oriented Software Construction_
+- **AIDP Style Guide**: `docs/LLM_STYLE_GUIDE.md`, `docs/STYLE_GUIDE.md`
+
+---
+
+**Implementation Guide for Issue #294**
+**Document Version**: 1.0
+**Last Updated**: 2024-11-22
+**Author**: AI Implementation Agent
