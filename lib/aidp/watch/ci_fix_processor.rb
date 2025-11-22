@@ -12,6 +12,7 @@ require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../worktree"
+require_relative "github_state_extractor"
 require_relative "ci_log_extractor"
 
 module Aidp
@@ -32,6 +33,7 @@ module Aidp
       def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, verbose: false)
         @repository_client = repository_client
         @state_store = state_store
+        @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
         @provider_name = provider_name
         @project_dir = project_dir
         @verbose = verbose
@@ -45,8 +47,8 @@ module Aidp
 
         Aidp.log_debug("ci_fix_processor", "process_started", pr_number: number, pr_title: pr[:title])
 
-        # Check if already processed successfully
-        if @state_store.ci_fix_completed?(number)
+        # Check if already processed successfully via GitHub comments
+        if @state_extractor.ci_fix_completed?(pr)
           display_message("ℹ️  CI fix for PR ##{number} already completed. Skipping.", type: :muted)
           Aidp.log_debug("ci_fix_processor", "already_completed", pr_number: number)
           return

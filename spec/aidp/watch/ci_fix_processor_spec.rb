@@ -45,11 +45,16 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
 
   describe "#process" do
     it "skips when CI fix already completed" do
-      state_store.record_ci_fix(456, status: "completed", timestamp: Time.now.utc.iso8601)
+      # Add completion comment to PR to indicate it's already done
+      pr_with_completion = pr.merge(
+        comments: [
+          {"body" => "✅ CI fixes applied successfully", "author" => "aidp-bot", "createdAt" => Time.now.utc.iso8601}
+        ]
+      )
       expect(repository_client).not_to receive(:fetch_pull_request)
       expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "process_started", hash_including(pr_number: 456))
       expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "already_completed", hash_including(pr_number: 456))
-      processor.process(pr)
+      processor.process(pr_with_completion)
     end
 
     it "posts success comment when CI is already passing" do

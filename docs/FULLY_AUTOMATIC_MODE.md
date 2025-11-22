@@ -9,6 +9,7 @@ implementation, and pull request creation without human supervision.
 
 - Git repository checked out locally with write access.
 - GitHub issue labels `aidp-plan` and `aidp-build` defined in the repository.
+  - The setup wizard will automatically create the `aidp-in-progress` internal coordination label
 - GitHub CLI (`gh`) authenticated for the repository (required for private
   projects, commenting, and PR creation).
 - Recommended: existing Aidp configuration (`aidp.yml`) with providers that can
@@ -127,6 +128,39 @@ without losing historical context or confusing the build agent with outdated inf
   repeated failures.
 - Consider running `aidp watch --once` in CI to provide additional safeguards
   before promoting automatic PRs.
+
+## State Management and Multi-Instance Coordination
+
+Aidp uses **GitHub as the single source of truth** for watch mode state, enabling:
+
+- Multiple AIDP instances to coordinate without conflicts
+- Manual intervention by adding/removing labels
+- Human-visible state in the GitHub UI
+- State that survives workspace deletion or branch switches
+
+### Internal `aidp-in-progress` Label
+
+When AIDP begins processing an issue/PR, it automatically adds the `aidp-in-progress` label:
+
+- **Purpose**: Prevents race conditions when multiple AIDP instances are running
+- **Behavior**: Added before processing starts, removed when done (even on errors)
+- **User Action**: Generally should not be manually added - it's for internal coordination
+- **Auto-created**: The setup wizard automatically creates this label
+
+### State Detection from Comments
+
+AIDP determines completion status by analyzing GitHub comments:
+
+- **Build completed**: Looks for "✅ Implementation complete for #N" comments
+- **Review completed**: Looks for "🔍 Review complete" comments  
+- **CI fix completed**: Looks for "✅ CI fixes applied" comments
+- **Plan exists**: Parses plan proposal comments with HTML markers
+
+This means:
+
+- If you re-add a trigger label (e.g., `aidp-build`), work will restart
+- Completion is visible directly in the GitHub UI
+- State is shared across all AIDP instances watching the repository
 
 ## Running in Background
 

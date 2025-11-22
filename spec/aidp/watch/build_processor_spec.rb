@@ -13,7 +13,30 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       body: "Detailed issue body",
       url: "https://example.com/issues/77",
       comments: [
-        {"body" => "Looks good", "author" => "maintainer", "createdAt" => Time.now.utc.iso8601}
+        {"body" => "Looks good", "author" => "maintainer", "createdAt" => Time.now.utc.iso8601},
+        {
+          "body" => <<~PLAN,
+            ## 🤖 AIDP Plan Proposal
+
+            <!-- PLAN_SUMMARY_START -->
+            ### Plan Summary
+            Implement search
+            <!-- PLAN_SUMMARY_END -->
+
+            <!-- PLAN_TASKS_START -->
+            ### Tasks
+            - Add endpoint
+            <!-- PLAN_TASKS_END -->
+
+            <!-- CLARIFYING_QUESTIONS_START -->
+            ### Questions
+            1. Any rate limits?
+            <!-- CLARIFYING_QUESTIONS_END -->
+          PLAN
+          "author" => "aidp-bot",
+          "createdAt" => Time.now.utc.iso8601,
+          "id" => "plan123"
+        }
       ]
     }
   end

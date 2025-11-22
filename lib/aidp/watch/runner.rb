@@ -6,6 +6,7 @@ require_relative "../message_display"
 require_relative "repository_client"
 require_relative "repository_safety_checker"
 require_relative "state_store"
+require_relative "github_state_extractor"
 require_relative "plan_generator"
 require_relative "plan_processor"
 require_relative "build_processor"
@@ -40,6 +41,7 @@ module Aidp
           config: safety_config
         )
         @state_store = StateStore.new(project_dir: project_dir, repository: "#{owner}/#{repo}")
+        @state_extractor = GitHubStateExtractor.new(repository_client: @repository_client)
 
         # Extract label configuration from safety_config (it's actually the full watch config)
         label_config = safety_config[:labels] || safety_config["labels"] || {}
@@ -158,14 +160,22 @@ module Aidp
 
           detailed = @repository_client.fetch_issue(issue[:number])
 
+          # Check if already in progress by another instance
+          if @state_extractor.in_progress?(detailed)
+            Aidp.log_debug("watch_runner", "plan_skip_in_progress", issue: detailed[:number])
+            next
+          end
+
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
             Aidp.log_debug("watch_runner", "plan_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
             next
           end
 
-          # Post detection comment (issue #280)
-          post_detection_comment(item_type: :issue, number: detailed[:number], label: plan_label)
+          # Check if detection comment already posted (deduplication)
+          unless @state_extractor.detection_comment_posted?(detailed, plan_label)
+            post_detection_comment(item_type: :issue, number: detailed[:number], label: plan_label)
+          end
 
           Aidp.log_debug("watch_runner", "plan_process", issue: detailed[:number])
           @plan_processor.process(detailed)
@@ -179,32 +189,58 @@ module Aidp
         issues = @repository_client.list_issues(labels: [build_label], state: "open")
         Aidp.log_debug("watch_runner", "build_poll", label: build_label, total: issues.size)
         issues.each do |issue|
-          unless issue_has_label?(issue, build_label)
-            Aidp.log_debug("watch_runner", "build_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
-            next
+          detailed = nil
+          in_progress_added = false
+
+          begin
+            unless issue_has_label?(issue, build_label)
+              Aidp.log_debug("watch_runner", "build_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
+              next
+            end
+
+            detailed = @repository_client.fetch_issue(issue[:number])
+
+            # Check if already completed (via GitHub comments)
+            if @state_extractor.build_completed?(detailed)
+              Aidp.log_debug("watch_runner", "build_skip_completed", issue: detailed[:number])
+              next
+            end
+
+            # Check if already in progress by another instance
+            if @state_extractor.in_progress?(detailed)
+              Aidp.log_debug("watch_runner", "build_skip_in_progress", issue: detailed[:number])
+              next
+            end
+
+            # Check author authorization before processing
+            unless @safety_checker.should_process_issue?(detailed, enforce: false)
+              Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+              next
+            end
+
+            # Check if detection comment already posted (deduplication)
+            unless @state_extractor.detection_comment_posted?(detailed, build_label)
+              post_detection_comment(item_type: :issue, number: detailed[:number], label: build_label)
+            end
+
+            # Add in-progress label before processing
+            @repository_client.add_labels(detailed[:number], GitHubStateExtractor::IN_PROGRESS_LABEL)
+            in_progress_added = true
+
+            Aidp.log_debug("watch_runner", "build_process", issue: detailed[:number])
+            @build_processor.process(detailed)
+          rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
+            Aidp.log_warn("watch_runner", "unauthorized issue author", issue: issue[:number], error: e.message)
+          ensure
+            # Remove in-progress label when done (only if we added it)
+            if in_progress_added && detailed
+              begin
+                @repository_client.remove_labels(detailed[:number], GitHubStateExtractor::IN_PROGRESS_LABEL)
+              rescue => e
+                Aidp.log_warn("watch_runner", "failed_to_remove_in_progress_label", issue: detailed[:number], error: e.message)
+              end
+            end
           end
-
-          status = @state_store.build_status(issue[:number])
-          if status["status"] == "completed"
-            Aidp.log_debug("watch_runner", "build_skip_completed", issue: issue[:number])
-            next
-          end
-
-          detailed = @repository_client.fetch_issue(issue[:number])
-
-          # Check author authorization before processing
-          unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
-            next
-          end
-
-          # Post detection comment (issue #280)
-          post_detection_comment(item_type: :issue, number: detailed[:number], label: build_label)
-
-          Aidp.log_debug("watch_runner", "build_process", issue: detailed[:number])
-          @build_processor.process(detailed)
-        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-          Aidp.log_warn("watch_runner", "unauthorized issue author", issue: issue[:number], error: e.message)
         end
       end
 
@@ -220,14 +256,22 @@ module Aidp
 
           detailed = @repository_client.fetch_pull_request(pr[:number])
 
+          # Check if already in progress by another instance
+          if @state_extractor.in_progress?(detailed)
+            Aidp.log_debug("watch_runner", "review_skip_in_progress", pr: detailed[:number])
+            next
+          end
+
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
             Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
             next
           end
 
-          # Post detection comment (issue #280)
-          post_detection_comment(item_type: :pr, number: detailed[:number], label: review_label)
+          # Check if detection comment already posted (deduplication)
+          unless @state_extractor.detection_comment_posted?(detailed, review_label)
+            post_detection_comment(item_type: :pr, number: detailed[:number], label: review_label)
+          end
 
           Aidp.log_debug("watch_runner", "review_process", pr: detailed[:number])
           @review_processor.process(detailed)
@@ -248,14 +292,22 @@ module Aidp
 
           detailed = @repository_client.fetch_pull_request(pr[:number])
 
+          # Check if already in progress by another instance
+          if @state_extractor.in_progress?(detailed)
+            Aidp.log_debug("watch_runner", "ci_fix_skip_in_progress", pr: detailed[:number])
+            next
+          end
+
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
             Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
             next
           end
 
-          # Post detection comment (issue #280)
-          post_detection_comment(item_type: :pr, number: detailed[:number], label: ci_fix_label)
+          # Check if detection comment already posted (deduplication)
+          unless @state_extractor.detection_comment_posted?(detailed, ci_fix_label)
+            post_detection_comment(item_type: :pr, number: detailed[:number], label: ci_fix_label)
+          end
 
           Aidp.log_debug("watch_runner", "ci_fix_process", pr: detailed[:number])
           @ci_fix_processor.process(detailed)
@@ -276,14 +328,22 @@ module Aidp
 
           detailed = @repository_client.fetch_pull_request(pr[:number])
 
+          # Check if already in progress by another instance
+          if @state_extractor.in_progress?(detailed)
+            Aidp.log_debug("watch_runner", "change_request_skip_in_progress", pr: detailed[:number])
+            next
+          end
+
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
             Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
             next
           end
 
-          # Post detection comment (issue #280)
-          post_detection_comment(item_type: :pr, number: detailed[:number], label: change_request_label)
+          # Check if detection comment already posted (deduplication)
+          unless @state_extractor.detection_comment_posted?(detailed, change_request_label)
+            post_detection_comment(item_type: :pr, number: detailed[:number], label: change_request_label)
+          end
 
           Aidp.log_debug("watch_runner", "change_request_process", pr: detailed[:number])
           @change_request_processor.process(detailed)

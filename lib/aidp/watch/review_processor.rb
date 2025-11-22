@@ -5,6 +5,7 @@ require "json"
 require "time"
 
 require_relative "../message_display"
+require_relative "github_state_extractor"
 require_relative "reviewers/senior_dev_reviewer"
 require_relative "reviewers/security_reviewer"
 require_relative "reviewers/performance_reviewer"
@@ -26,6 +27,7 @@ module Aidp
       def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, verbose: false, reviewers: nil)
         @repository_client = repository_client
         @state_store = state_store
+        @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
         @provider_name = provider_name
         @project_dir = project_dir
         @verbose = verbose
@@ -44,7 +46,8 @@ module Aidp
       def process(pr)
         number = pr[:number]
 
-        if @state_store.review_processed?(number)
+        # Check if review already completed via GitHub comments
+        if @state_extractor.review_completed?(pr)
           display_message("ℹ️  Review for PR ##{number} already posted. Skipping.", type: :muted)
           return
         end

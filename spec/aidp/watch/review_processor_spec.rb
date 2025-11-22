@@ -53,9 +53,14 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
 
   describe "#process" do
     it "skips when review already processed" do
-      state_store.record_review(123, timestamp: Time.now.utc.iso8601, reviewers: [], total_findings: 0)
+      # Add review completion comment to PR
+      pr_with_review = pr.merge(
+        comments: [
+          {"body" => "🔍 Review complete for this PR", "author" => "aidp-bot", "createdAt" => Time.now.utc.iso8601}
+        ]
+      )
       expect(repository_client).not_to receive(:fetch_pull_request)
-      processor.process(pr)
+      processor.process(pr_with_review)
     end
 
     it "fetches PR data and runs reviews" do
