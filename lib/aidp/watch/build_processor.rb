@@ -451,6 +451,15 @@ module Aidp
         vcs_config = config_dig(:work_loop, :version_control) || {}
         auto_create_pr = config_value(vcs_config, :auto_create_pr, true)
 
+        Aidp.log_debug(
+          "build_processor",
+          "evaluating_pr_creation",
+          issue: issue[:number],
+          changes_committed: changes_committed,
+          auto_create_pr: auto_create_pr,
+          gh_available: @repository_client.gh_available?
+        )
+
         pr_url = if !changes_committed
           Aidp.log_info(
             "build_processor",
@@ -468,10 +477,17 @@ module Aidp
             issue: issue[:number],
             branch: branch_name,
             base_branch: base_branch,
-            working_dir: working_dir
+            working_dir: working_dir,
+            gh_available: @repository_client.gh_available?
           )
           create_pull_request(issue: issue, branch_name: branch_name, base_branch: base_branch, working_dir: working_dir)
         else
+          Aidp.log_info(
+            "build_processor",
+            "skipping_pr_vcs_preference",
+            issue: issue[:number],
+            auto_create_pr: auto_create_pr
+          )
           display_message("ℹ️  Skipping PR creation (disabled in VCS preferences)", type: :muted)
           nil
         end
@@ -898,6 +914,19 @@ module Aidp
           fallback_to_author: label_actor.nil?
         )
 
+        Aidp.log_debug(
+          "build_processor",
+          "attempting_pr_creation",
+          issue: issue[:number],
+          branch_name: branch_name,
+          base_branch: base_branch,
+          draft: draft,
+          assignee: assignee,
+          gh_available: @repository_client.gh_available?,
+          title: title,
+          body_length: body.length
+        )
+
         output = @repository_client.create_pull_request(
           title: title,
           body: body,
@@ -916,9 +945,34 @@ module Aidp
           branch: branch_name,
           base_branch: base_branch,
           pr_url: pr_url,
-          assignee: assignee
+          assignee: assignee,
+          raw_output: output
         )
         pr_url
+      rescue => e
+        Aidp.log_error(
+          "build_processor",
+          "pr_creation_failed",
+          issue: issue[:number],
+          branch_name: branch_name,
+          base_branch: base_branch,
+          error: e.message,
+          error_class: e.class.name,
+          gh_available: @repository_client.gh_available?,
+          backtrace: e.backtrace&.first(10),
+          assignee: assignee,
+          title: title
+        )
+        display_message("⚠️  Failed to create pull request: #{e.message}", type: :warn)
+
+        # Continue gracefully - PR creation failure shouldn't crash the processor
+        Aidp.log_info(
+          "build_processor",
+          "continuing_after_pr_failure",
+          issue: issue[:number],
+          message: "Implementation complete but PR creation failed"
+        )
+        nil
       end
 
       def gather_test_summary(working_dir: @project_dir)
