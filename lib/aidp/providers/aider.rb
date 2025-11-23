@@ -115,6 +115,11 @@ module Aidp
           # based on work_loop.version_control.behavior configuration
           args += ["--no-auto-commits"]
 
+          # Add model if configured
+          if @model && !@model.empty?
+            args += ["--model", @model]
+          end
+
           # Add session support if provided (aider supports chat history)
           if session && !session.empty?
             args += ["--restore-chat-history"]
@@ -169,9 +174,10 @@ module Aidp
           args += ["--restore-chat-history"]
         end
 
-        # Add model selection
-        if model
-          args += ["--model", model]
+        # Add model selection (from parameter or configured model)
+        model_to_use = model || @model
+        if model_to_use
+          args += ["--model", model_to_use]
         end
 
         # Use the enhanced version of send

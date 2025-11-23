@@ -17,6 +17,7 @@ RSpec.describe Aidp::Providers::Base do
       expect(provider.start_time).to be_nil
       expect(provider.step_name).to be_nil
       expect(provider.stuck_timeout).to eq(120)
+      expect(provider.model).to be_nil
     end
 
     it "initializes harness metrics" do
@@ -39,6 +40,24 @@ RSpec.describe Aidp::Providers::Base do
       expect(metrics[:total_cost]).to eq(0.0)
       expect(metrics[:average_response_time]).to eq(0.0)
       expect(metrics[:last_request_time]).to be_nil
+    end
+  end
+
+  describe "#configure" do
+    it "sets the model when provided in config" do
+      provider.configure(model: "test-model-123")
+      expect(provider.model).to eq("test-model-123")
+    end
+
+    it "does not set model when not provided" do
+      provider.configure({})
+      expect(provider.model).to be_nil
+    end
+
+    it "does not override model with nil" do
+      provider.configure(model: "test-model-123")
+      provider.configure({})
+      expect(provider.model).to eq("test-model-123")
     end
   end
 

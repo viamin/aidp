@@ -111,6 +111,11 @@ module Aidp
           # Use non-interactive mode (exec) for automation
           args = ["exec", prompt]
 
+          # Add model if configured
+          if @model && !@model.empty?
+            args += ["--model", @model]
+          end
+
           # Add session support if provided (codex may support session/thread continuation)
           if session && !session.empty?
             args += ["--session", session]
@@ -166,9 +171,10 @@ module Aidp
           args += ["--session", session]
         end
 
-        # Add model selection
-        if model
-          args += ["--model", model]
+        # Add model selection (from parameter or configured model)
+        model_to_use = model || @model
+        if model_to_use
+          args += ["--model", model_to_use]
         end
 
         # Add approval flag - but warn about interactive behavior

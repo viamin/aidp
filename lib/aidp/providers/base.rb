@@ -37,7 +37,7 @@ module Aidp
       TIMEOUT_REFACTORING_RECOMMENDATIONS = 600 # 10 minutes - refactoring
       TIMEOUT_IMPLEMENTATION = 900 # 15 minutes - implementation (write files, run tests, fix issues)
 
-      attr_reader :activity_state, :last_activity_time, :start_time, :step_name
+      attr_reader :activity_state, :last_activity_time, :start_time, :step_name, :model
 
       def initialize(output: nil, prompt: TTY::Prompt.new)
         @activity_state = :idle
@@ -52,6 +52,7 @@ module Aidp
         @harness_context = nil
         @output = output
         @prompt = prompt
+        @model = nil
         @harness_metrics = {
           total_requests: 0,
           successful_requests: 0,
@@ -72,6 +73,12 @@ module Aidp
       # Override in subclasses to provide a better display name
       def display_name
         name
+      end
+
+      # Configure the provider with options
+      # @param config [Hash] Configuration options, may include :model
+      def configure(config)
+        @model = config[:model] if config[:model]
       end
 
       def send_message(prompt:, session: nil)
