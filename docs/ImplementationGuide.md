@@ -92,14 +92,16 @@ This guide provides architectural patterns, design decisions, and implementation
 ### Workflow Comparison
 
 **Before (Diff-Based):**
-```
+
+```text
 Label Applied → Fetch PR Diff → Parse Diff → Apply Changes → Commit → Push
                      ↓
               (Limited to 2000 lines)
 ```
 
 **After (Worktree-Based):**
-```
+
+```text
 Label Applied → Lookup/Create Worktree → Checkout PR Branch → Apply Changes → Test → Commit → Push
                                                 ↓
                                     (No size limitation)
@@ -511,6 +513,7 @@ end
 **Application**: `WorktreeBranchManager` facades `Aidp::Worktree` module
 
 **Benefits**:
+
 - Hides git worktree complexity from change request flow
 - Provides PR-specific abstractions
 - Centralizes worktree lifecycle logic
@@ -538,6 +541,7 @@ context = manager.ensure_worktree_for_pr(pr_data)
 **Application**: `ChangeApplicator` treats each change as a command
 
 **Benefits**:
+
 - Atomic change application (all or none)
 - Easy rollback on failure
 - Audit trail of changes
@@ -585,6 +589,7 @@ end
 **Application**: `PullRequestSynchronizer#sync_changes`
 
 **Benefits**:
+
 - Clear workflow structure
 - Easy to override specific steps
 - Consistent error handling
@@ -624,6 +629,7 @@ end
 **Application**: `ChangeRequestProcessor` selects strategy based on context
 
 **Benefits**:
+
 - Seamless transition between strategies
 - Maintains backward compatibility
 - Clear separation of concerns
@@ -667,6 +673,7 @@ end
 **Application**: `WorktreeBranchManager` adapts `Aidp::Worktree`
 
 **Benefits**:
+
 - Reuses existing worktree infrastructure
 - Adds PR-specific behavior
 - No changes to core Worktree module
@@ -705,6 +712,7 @@ end
 **Application**: All services accept dependencies via constructor
 
 **Benefits**:
+
 - Easy to test with mocks
 - No hidden dependencies
 - Clear dependency graph
@@ -889,16 +897,19 @@ end
 **Location**: `lib/aidp/watch/worktree_branch_manager.rb`
 
 **Dependencies**:
+
 - `Aidp::Worktree` (existing)
 - `RepositoryClient` (for PR data)
 
 **Key Methods**:
+
 - `ensure_worktree_for_pr(pr_data)` - Main entry point
 - `find_worktree_by_branch(branch)` - Lookup existing
 - `create_pr_worktree(pr_data)` - Create new
 - `sync_worktree(worktree_info, branch)` - Update existing
 
 **Implementation Notes**:
+
 - Use `Aidp::Worktree.find_by_branch` for lookup
 - Use `Aidp::Worktree.create` for creation
 - Generate slug format: `"pr-#{number}-#{sanitized_branch}"`
@@ -937,14 +948,17 @@ context = manager.ensure_worktree_for_pr(pr_data)
 **Location**: `lib/aidp/watch/change_applicator.rb`
 
 **Dependencies**:
+
 - `FileUtils` (for file operations)
 
 **Key Methods**:
+
 - `apply_changes(changes)` - Apply all changes atomically
 - `validate_changes(changes)` - Pre-apply validation
 - `apply_change(change)` - Apply single change
 
 **Implementation Notes**:
+
 - Create backups before modifying files
 - Use rollback on any failure
 - Validate paths (no `..`, absolute paths, etc.)
@@ -976,15 +990,18 @@ result = applicator.apply_changes(invalid_changes)
 **Location**: `lib/aidp/watch/pull_request_synchronizer.rb`
 
 **Dependencies**:
+
 - `Open3` (for git commands)
 - `RepositoryClient` (for GitHub API)
 
 **Key Methods**:
+
 - `sync_changes(pr_data:, changes:, commit_prefix:)` - Main entry
 - `has_changes?` - Check for uncommitted changes
 - `build_commit_message(pr_data:, changes:, prefix:)` - Format message
 
 **Implementation Notes**:
+
 - Run git commands in worktree directory
 - Use `Open3.capture3` for git operations
 - Build descriptive commit messages
@@ -1016,6 +1033,7 @@ result = synchronizer.sync_changes(
 **Location**: `lib/aidp/watch/change_request_processor.rb` (existing, enhanced)
 
 **Changes**:
+
 1. Add worktree strategy
 2. Remove max_diff_size check (or make optional for fallback)
 3. Integrate new services
@@ -1468,18 +1486,18 @@ end
 
 ## Pattern-to-Use-Case Matrix
 
-| Use Case | Patterns | Components |
-|----------|----------|------------|
-| **Lookup existing worktree for PR** | Adapter, Facade | WorktreeBranchManager → Aidp::Worktree |
-| **Create worktree for PR branch** | Adapter, Factory | WorktreeBranchManager, Aidp::Worktree |
-| **Apply file changes atomically** | Command, Transaction | ChangeApplicator, FileChangeCommand |
-| **Rollback on failure** | Command, Memento | ChangeApplicator (undo commands) |
-| **Commit and push changes** | Template Method, Strategy | PullRequestSynchronizer |
-| **Select worktree vs diff strategy** | Strategy | ChangeRequestProcessor |
-| **Build commit message** | Builder | PullRequestSynchronizer |
-| **Validate file paths** | Chain of Responsibility | ChangeApplicator validators |
-| **Inject dependencies for testing** | Dependency Injection | All components |
-| **Simplify complex git operations** | Facade | WorktreeBranchManager |
+| Use Case                             | Patterns                      | Components                                  |
+|--------------------------------------|-------------------------------|---------------------------------------------|
+| **Lookup existing worktree for PR**  | Adapter, Facade               | WorktreeBranchManager → Aidp::Worktree      |
+| **Create worktree for PR branch**    | Adapter, Factory              | WorktreeBranchManager, Aidp::Worktree       |
+| **Apply file changes atomically**    | Command, Transaction          | ChangeApplicator, FileChangeCommand         |
+| **Rollback on failure**              | Command, Memento              | ChangeApplicator (undo commands)            |
+| **Commit and push changes**          | Template Method, Strategy     | PullRequestSynchronizer                     |
+| **Select worktree vs diff strategy** | Strategy                      | ChangeRequestProcessor                      |
+| **Build commit message**             | Builder                       | PullRequestSynchronizer                     |
+| **Validate file paths**              | Chain of Responsibility       | ChangeApplicator validators                 |
+| **Inject dependencies for testing**  | Dependency Injection          | All components                              |
+| **Simplify complex git operations**  | Facade                        | WorktreeBranchManager                       |
 
 ---
 
@@ -1628,11 +1646,13 @@ Aidp.log_error("component_name", "operation_failed", error: e.message, backtrace
 **Interface**: `Aidp::Worktree`
 
 **Integration**:
+
 - `WorktreeBranchManager` wraps `Aidp::Worktree` methods
 - No changes required to `Aidp::Worktree`
 - Adds PR-specific behavior via adapter pattern
 
 **Methods Used**:
+
 - `Aidp::Worktree.find_by_branch(branch:, project_dir:)`
 - `Aidp::Worktree.create(slug:, project_dir:, branch:, base_branch:)`
 - `Aidp::Worktree.list(project_dir:)`
@@ -1642,12 +1662,14 @@ Aidp.log_error("component_name", "operation_failed", error: e.message, backtrace
 **Interface**: `Aidp::Watch::ChangeRequestProcessor`
 
 **Integration**:
+
 - Add `@worktree_manager` attribute
 - Modify `#process` to use worktree strategy
 - Keep existing AI analysis flow
 - Keep existing comment posting logic
 
 **Changes**:
+
 ```ruby
 def initialize(**options)
   # ... existing initialization ...
@@ -1673,10 +1695,12 @@ end
 **Interface**: `Aidp::Harness::TestRunner`
 
 **Integration**:
+
 - Run tests in worktree context
 - Pass worktree path to TestRunner
 
 **Usage**:
+
 ```ruby
 def run_tests_in_worktree(worktree_path)
   config_manager = Aidp::Harness::ConfigManager.new(worktree_path)
@@ -1699,10 +1723,12 @@ end
 **Interface**: `Aidp::Watch::StateStore`
 
 **Integration**:
+
 - Store worktree context in change request data
 - Track worktree reuse vs creation
 
 **Enhanced State**:
+
 ```ruby
 @state_store.record_change_request(pr[:number], {
   status: "completed",
@@ -1719,10 +1745,12 @@ end
 **Interface**: `Aidp::Watch::RepositoryClient`
 
 **Integration**:
+
 - No changes required
 - Used for PR data fetching and comment posting
 
 **Methods Used**:
+
 - `fetch_pull_request(number)`
 - `fetch_pr_comments(number)`
 - `post_comment(number, body)`
@@ -1759,6 +1787,7 @@ end
 **Risk**: Creating/modifying unauthorized branches
 
 **Mitigation**:
+
 - Only work with PR branches (head_ref from GitHub API)
 - Verify PR ownership via repository_client
 - Respect author_allowlist configuration
@@ -1768,6 +1797,7 @@ end
 **Risk**: AI-generated content contains malicious code
 
 **Mitigation**:
+
 - Run linters/tests before pushing
 - User reviews changes via PR diff
 - Author allowlist prevents unauthorized requests
@@ -1795,6 +1825,7 @@ end
 **Risk**: Worktrees interfering with each other
 
 **Mitigation**:
+
 - Each worktree in isolated directory
 - Use git worktree mechanism (built-in isolation)
 - Registry tracks active worktrees
@@ -1805,6 +1836,7 @@ end
 **Risk**: Secrets in logs or error messages
 
 **Mitigation**:
+
 - Never log file contents in full
 - Truncate error messages
 - Exclude `.env` files from change operations
@@ -1871,6 +1903,7 @@ end
 **Description**: Automatically remove worktrees after PR merge/close
 
 **Implementation**:
+
 - Watch for PR closed/merged events
 - Call `Aidp::Worktree.remove` for associated worktree
 - Configurable retention period
@@ -1880,6 +1913,7 @@ end
 **Description**: Intelligent worktree reuse based on branch history
 
 **Implementation**:
+
 - Track worktree last used timestamp
 - Prioritize recent worktrees for reuse
 - Clean up stale worktrees
@@ -1889,6 +1923,7 @@ end
 **Description**: Process multiple PRs concurrently in separate worktrees
 
 **Implementation**:
+
 - Thread pool for PR processing
 - One worktree per thread
 - Coordinated state management
@@ -1898,6 +1933,7 @@ end
 **Description**: Apply changes incrementally with checkpoints
 
 **Implementation**:
+
 - Create commit after each logical change group
 - Allow partial success with continuation
 - Better error recovery
@@ -1907,6 +1943,7 @@ end
 **Description**: Detect and handle merge conflicts proactively
 
 **Implementation**:
+
 - Merge base_ref before applying changes
 - Detect conflicts early
 - Provide conflict resolution guidance
@@ -1920,6 +1957,7 @@ end
 **Context**: PR #123 with 5000 lines of changes
 
 **Flow**:
+
 1. User adds `aidp-request-changes` label
 2. `ChangeRequestProcessor#process` called
 3. `WorktreeBranchManager#ensure_worktree_for_pr` called
@@ -1940,6 +1978,7 @@ end
 **Context**: Same PR #123, user adds label again for more changes
 
 **Flow**:
+
 1. User adds `aidp-request-changes` label again
 2. `ChangeRequestProcessor#process` called
 3. `WorktreeBranchManager#ensure_worktree_for_pr` called
@@ -1958,6 +1997,7 @@ end
 **Context**: AI generates invalid file path
 
 **Flow**:
+
 1. Change request processed
 2. `ChangeApplicator#validate_changes` detects path traversal
 3. Validation fails
@@ -1972,6 +2012,7 @@ end
 **Context**: Changes applied but tests fail
 
 **Flow**:
+
 1. Changes applied successfully
 2. Tests run in worktree
 3. Tests fail

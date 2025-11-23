@@ -121,7 +121,7 @@ module Aidp
         },
         # New implementation step for actual development work
         "16_IMPLEMENTATION" => {
-          "templates" => ["implementation/implement_features.md"], # Reuse existing implementation template
+          "templates" => ["implementation/iterative_implementation.md"], # Multi-step feature implementation with task decomposition
           "description" => "Execute Implementation Tasks",
           "outs" => ["implementation_log.md"],
           "gate" => false,
