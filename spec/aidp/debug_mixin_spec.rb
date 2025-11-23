@@ -179,6 +179,24 @@ RSpec.describe Aidp::DebugMixin do
       expect(logger).not_to have_received(:error)
     end
 
+    it "filters out Claude CLI sandbox debug messages" do
+      ENV["DEBUG"] = "1"
+      sandbox_error = "[SandboxDebug] [Sandbox Linux] Seccomp filtering not available (missing binaries for arm64). " \
+                      "Sandbox will run without Unix socket blocking (allowAllUnixSockets mode). " \
+                      "This is less restrictive but still provides filesystem and network isolation.\n"
+      instance.debug_command("claude", error: sandbox_error)
+      expect(logger).not_to have_received(:error)
+    end
+
+    it "filters out sandbox messages but keeps real errors" do
+      ENV["DEBUG"] = "1"
+      mixed_error = "[SandboxDebug] [Sandbox Linux] Seccomp filtering not available\n" \
+                    "Real error: Authentication failed\n"
+      instance.debug_command("claude", error: mixed_error)
+      expect(logger).to have_received(:error).with(anything, /Real error: Authentication failed/)
+      expect(logger).not_to have_received(:error).with(anything, /SandboxDebug/)
+    end
+
     it "logs output in verbose mode" do
       ENV["DEBUG"] = "2"
       instance.debug_command("cmd", output: "command output")
