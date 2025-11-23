@@ -157,6 +157,36 @@ module Aidp
           },
           default_tier: "mini",
           cache_ttl: nil
+        },
+
+        implementation_verification: {
+          prompt_template: "{{prompt}}",  # Custom prompt provided by caller
+          schema: {
+            type: "object",
+            properties: {
+              fully_implemented: {
+                type: "boolean",
+                description: "True if the implementation fully addresses all issue requirements"
+              },
+              reasoning: {
+                type: "string",
+                description: "Detailed explanation of the verification decision"
+              },
+              missing_requirements: {
+                type: "array",
+                items: {type: "string"},
+                description: "List of specific requirements from the issue that are not yet implemented"
+              },
+              additional_work_needed: {
+                type: "array",
+                items: {type: "string"},
+                description: "List of specific tasks needed to complete the implementation"
+              }
+            },
+            required: ["fully_implemented", "reasoning", "missing_requirements", "additional_work_needed"]
+          },
+          default_tier: "mini",
+          cache_ttl: nil
         }
       }.freeze
 

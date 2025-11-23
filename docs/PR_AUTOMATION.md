@@ -35,6 +35,26 @@ On a PR with failing CI:
 
 When you add the `aidp-review` label to a PR, AIDP evaluates the code from three expert perspectives:
 
+### Implementation Verification
+
+If the PR links to an issue (via "Fixes #123" pattern), AIDP performs an **implementation completeness check** as part of the review:
+
+1. **Extracts Requirements**: Parses the linked issue to identify acceptance criteria
+2. **Verifies Implementation**: Compares the PR changes against issue requirements
+3. **Includes in Review**: Adds verification results to the review comment
+
+#### Verification Results
+
+- **Complete**: All requirements met, review proceeds normally
+- **Incomplete**: Review includes specific missing requirements and suggestions
+
+**Note**: Unlike `aidp-build` and `aidp-request-changes`, the `aidp-review` label is **read-only** and does not make code changes. Verification results are informational only.
+
+If incomplete requirements are found, the review comment will suggest:
+
+- Specific missing items to implement
+- Consider applying `aidp-request-changes` label to auto-implement remaining work
+
 ### 1. Senior Developer
 
 **Focus Areas:**

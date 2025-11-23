@@ -278,6 +278,33 @@ module Aidp
       end
 
       def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
+        Aidp.log_debug(
+          "repository_client",
+          "preparing_gh_pr_create",
+          repo: full_repo,
+          head: head,
+          base: base,
+          draft: draft,
+          assignee: assignee,
+          issue_number: issue_number,
+          gh_available: gh_available?,
+          title_length: title.length,
+          body_length: body.length
+        )
+
+        unless gh_available?
+          error_msg = "GitHub CLI (gh) is not available - cannot create PR"
+          Aidp.log_error(
+            "repository_client",
+            "gh_cli_not_available",
+            repo: full_repo,
+            head: head,
+            base: base,
+            message: error_msg
+          )
+          raise error_msg
+        end
+
         cmd = [
           "gh", "pr", "create",
           "--repo", full_repo,
@@ -289,8 +316,56 @@ module Aidp
         cmd += ["--draft"] if draft
         cmd += ["--assignee", assignee] if assignee
 
+        Aidp.log_debug(
+          "repository_client",
+          "executing_gh_pr_create",
+          repo: full_repo,
+          head: head,
+          base: base,
+          draft: draft,
+          assignee: assignee,
+          command: cmd.join(" ")
+        )
+
         stdout, stderr, status = Open3.capture3(*cmd)
-        raise "Failed to create PR via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug(
+          "repository_client",
+          "gh_pr_create_result",
+          repo: full_repo,
+          success: status.success?,
+          exit_code: status.exitstatus,
+          stdout_length: stdout.length,
+          stderr_length: stderr.length,
+          stdout_preview: stdout[0, 200],
+          stderr: stderr
+        )
+
+        unless status.success?
+          Aidp.log_error(
+            "repository_client",
+            "gh_pr_create_failed",
+            repo: full_repo,
+            head: head,
+            base: base,
+            issue_number: issue_number,
+            exit_code: status.exitstatus,
+            stderr: stderr,
+            stdout: stdout,
+            command: cmd.join(" ")
+          )
+          raise "Failed to create PR via gh: #{stderr.strip}"
+        end
+
+        Aidp.log_info(
+          "repository_client",
+          "gh_pr_create_success",
+          repo: full_repo,
+          head: head,
+          base: base,
+          issue_number: issue_number,
+          output_preview: stdout[0, 200]
+        )
 
         stdout.strip
       end

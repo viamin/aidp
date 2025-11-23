@@ -144,6 +144,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     let(:base_branch) { "main" }
     let(:plan_data) { {"summary" => "Implementation complete"} }
     let(:slug) { "issue-123" }
+    let(:verifier) { instance_double(Aidp::Watch::ImplementationVerifier) }
 
     before do
       allow(processor).to receive(:stage_and_commit).and_return(true)
@@ -151,6 +152,16 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
       allow(state_store).to receive(:record_build_status)
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:most_recent_label_actor).and_return(nil)
+
+      # Mock verifier to return verified by default
+      allow(verifier).to receive(:verify).and_return({
+        verified: true,
+        reason: "All requirements met",
+        missing_items: [],
+        additional_work: []
+      })
+      # Inject the mock verifier into the processor
+      processor.instance_variable_set(:@verifier, verifier)
     end
 
     context "when auto_create_pr is disabled" do
@@ -163,6 +174,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
         expect(processor).not_to receive(:create_pull_request)
         allow(repository_client).to receive(:post_comment)
         allow(repository_client).to receive(:remove_labels)
+        allow(repository_client).to receive(:gh_available?).and_return(true)
 
         processor.send(:handle_success,
           issue: issue,
@@ -179,6 +191,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
           expect(comment).not_to include("Pull Request:")
         end
         allow(repository_client).to receive(:remove_labels)
+        allow(repository_client).to receive(:gh_available?).and_return(true)
 
         processor.send(:handle_success,
           issue: issue,
@@ -196,6 +209,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
         processor.instance_variable_set(:@config, nil)
         allow(processor).to receive(:gather_test_summary).and_return("All tests passed")
         allow(processor).to receive(:extract_pr_url).and_return("https://github.com/owner/repo/pull/456")
+        allow(repository_client).to receive(:gh_available?).and_return(true)
       end
 
       it "creates a draft PR" do
@@ -219,6 +233,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
         processor.instance_variable_set(:@config, nil)
         allow(processor).to receive(:gather_test_summary).and_return("All tests passed")
         allow(processor).to receive(:extract_pr_url).and_return("https://github.com/owner/repo/pull/456")
+        allow(repository_client).to receive(:gh_available?).and_return(true)
       end
 
       it "creates a ready (non-draft) PR" do
@@ -245,6 +260,81 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
         allow(processor).to receive(:stage_and_commit).and_return(false)
         allow(repository_client).to receive(:remove_labels)
         expect(processor).not_to receive(:create_pull_request)
+
+        processor.send(:handle_success,
+          issue: issue,
+          slug: slug,
+          branch_name: branch_name,
+          base_branch: base_branch,
+          plan_data: plan_data,
+          working_dir: project_dir)
+      end
+    end
+
+    context "when PR creation fails" do
+      before do
+        create_config({auto_create_pr: true})
+        processor.instance_variable_set(:@config, nil)
+        allow(processor).to receive(:gather_test_summary).and_return("All tests passed")
+        allow(repository_client).to receive(:gh_available?).and_return(true)
+      end
+
+      it "logs the error and continues gracefully without crashing" do
+        allow(repository_client).to receive(:create_pull_request).and_raise(RuntimeError.new("gh CLI error: authentication failed"))
+
+        # Expect error logging
+        expect(Aidp).to receive(:log_error).with(
+          "build_processor",
+          "pr_creation_failed",
+          hash_including(
+            issue: issue[:number],
+            branch_name: branch_name,
+            error: "gh CLI error: authentication failed",
+            gh_available: true
+          )
+        )
+
+        # Create PR should return nil on failure
+        result = processor.send(:create_pull_request,
+          issue: issue,
+          branch_name: branch_name,
+          base_branch: base_branch,
+          working_dir: project_dir)
+
+        expect(result).to be_nil
+      end
+
+      it "posts completion comment without PR URL when PR creation fails" do
+        allow(repository_client).to receive(:create_pull_request).and_raise(RuntimeError.new("gh CLI not available"))
+        allow(processor).to receive(:create_pull_request).and_call_original
+        allow(repository_client).to receive(:remove_labels)
+
+        expect(repository_client).to receive(:post_comment) do |num, comment|
+          expect(num).to eq(123)
+          expect(comment).not_to include("Pull Request:")
+          expect(comment).to include("Branch: `#{branch_name}`")
+        end
+
+        processor.send(:handle_success,
+          issue: issue,
+          slug: slug,
+          branch_name: branch_name,
+          base_branch: base_branch,
+          plan_data: plan_data,
+          working_dir: project_dir)
+      end
+
+      it "records build status as completed even when PR creation fails" do
+        allow(repository_client).to receive(:create_pull_request).and_raise(RuntimeError.new("gh CLI error"))
+        allow(processor).to receive(:create_pull_request).and_call_original
+        allow(repository_client).to receive(:post_comment)
+        allow(repository_client).to receive(:remove_labels)
+
+        expect(state_store).to receive(:record_build_status).with(
+          issue[:number],
+          status: "completed",
+          details: hash_including(branch: branch_name, pr_url: nil)
+        )
 
         processor.send(:handle_success,
           issue: issue,
