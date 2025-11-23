@@ -124,7 +124,10 @@ module Aidp
           "changes_applied" => data[:changes_applied],
           "commits" => data[:commits],
           "reason" => data[:reason],
-          "clarification_count" => data[:clarification_count]
+          "clarification_count" => data[:clarification_count],
+          "verification_reasons" => data[:verification_reasons],
+          "missing_items" => data[:missing_items],
+          "additional_work" => data[:additional_work]
         }.compact
 
         change_requests[pr_number.to_s] = payload

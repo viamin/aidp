@@ -76,9 +76,45 @@ Work loops power the new [Fully Automatic Watch Mode](FULLY_AUTOMATIC_MODE.md), 
 - Continuous issue monitoring and plan drafting
 - Automatic branch creation and seeding of `PROMPT.md`
 - Hands-free execution of the `16_IMPLEMENTATION` step
+- **Implementation verification** before PR creation or label removal
 - Pull request creation plus success/failure reporting back to the issue
 
 If you are enabling autonomous operation, review the safety considerations in the watch mode guide before relying on unattended workflows.
+
+### Implementation Verification
+
+When GitHub workflows include issue links (via "Fixes #123" patterns), AIDP performs automatic **implementation completeness checks** using AI-powered analysis:
+
+#### How Verification Works
+
+1. **Extract Requirements**: Parse the linked issue to identify acceptance criteria and requirements
+2. **Compare Implementation**: Analyze code changes against issue requirements
+3. **Determine Completeness**: Evaluate whether all requirements are fully addressed
+
+#### Verification in Different Workflows
+
+| Workflow Label | Verification Behavior | On Incomplete |
+| ---------------- | ----------------------- | --------------- |
+| `aidp-build` | Before PR creation | Continue work loop, no PR yet |
+| `aidp-review` | Included in review comment | Informational only (read-only) |
+| `aidp-request-changes` | Before pushing changes | Keep label, continue work loop |
+
+#### Incomplete Implementation Handling
+
+When verification finds missing requirements or incomplete work:
+
+- **Changes are preserved** - All work committed locally, never rolled back
+- **Follow-up tasks created** - Missing items become next iteration's focus
+- **Work loop continues** - Label remains (for `aidp-request-changes` and `aidp-build`)
+- **State tracked internally** - Stored in `.aidp/watch/*.yml` without comment spam
+- **Automatic continuation** - Next polling cycle picks up remaining work
+
+This ensures:
+
+- ✅ No incomplete PRs are created
+- ✅ No work is lost during verification
+- ✅ Autonomous workflows complete all requirements
+- ✅ Manual intervention only needed for truly complex cases
 
 ## Pre-Loop Setup
 

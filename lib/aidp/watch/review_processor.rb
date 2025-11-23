@@ -6,6 +6,7 @@ require "time"
 
 require_relative "../message_display"
 require_relative "github_state_extractor"
+require_relative "implementation_verifier"
 require_relative "reviewers/senior_dev_reviewer"
 require_relative "reviewers/security_reviewer"
 require_relative "reviewers/performance_reviewer"
@@ -24,7 +25,7 @@ module Aidp
 
       attr_reader :review_label
 
-      def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, verbose: false, reviewers: nil)
+      def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, verbose: false, reviewers: nil, verifier: nil)
         @repository_client = repository_client
         @state_store = state_store
         @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
@@ -34,6 +35,12 @@ module Aidp
 
         # Load label configuration
         @review_label = label_config[:review_trigger] || label_config["review_trigger"] || DEFAULT_REVIEW_LABEL
+
+        # Initialize verifier (allow dependency injection for testing)
+        @verifier = verifier || ImplementationVerifier.new(
+          repository_client: repository_client,
+          project_dir: project_dir
+        )
 
         # Initialize reviewers (allow dependency injection for testing)
         @reviewers = reviewers || [
@@ -59,6 +66,9 @@ module Aidp
         files = @repository_client.fetch_pull_request_files(number)
         diff = @repository_client.fetch_pull_request_diff(number)
 
+        # Check if PR is linked to an issue - if so, run implementation verification
+        verification_result = check_implementation_completeness(pr_data)
+
         # Run reviews in parallel (conceptually - actual implementation is sequential)
         review_results = run_reviews(pr_data: pr_data, files: files, diff: diff)
 
@@ -66,7 +76,11 @@ module Aidp
         log_review(number, review_results)
 
         # Format and post comment
-        comment_body = format_review_comment(pr: pr_data, review_results: review_results)
+        comment_body = format_review_comment(
+          pr: pr_data,
+          review_results: review_results,
+          verification_result: verification_result
+        )
         @repository_client.post_comment(number, comment_body)
 
         display_message("💬 Posted review comment for PR ##{number}", type: :success)
@@ -121,12 +135,81 @@ module Aidp
         results
       end
 
-      def format_review_comment(pr:, review_results:)
+      def check_implementation_completeness(pr_data)
+        # Extract linked issue from PR description
+        issue_number = @state_extractor.extract_linked_issue(pr_data[:body])
+
+        unless issue_number
+          display_message("  ℹ️  No linked issue found - skipping implementation verification", type: :muted) if @verbose
+          return nil
+        end
+
+        display_message("  🔗 Found linked issue ##{issue_number} - verifying implementation...", type: :info) if @verbose
+
+        begin
+          # Fetch the linked issue
+          issue = @repository_client.fetch_issue(issue_number)
+
+          # Check if a worktree exists for this PR branch
+          working_dir = find_or_use_worktree(pr_data[:head_ref])
+
+          # Run verification
+          result = @verifier.verify(issue: issue, working_dir: working_dir)
+
+          if result[:verified]
+            display_message("  ✅ Implementation verified complete", type: :success) if @verbose
+          else
+            display_message("  ⚠️  Implementation appears incomplete", type: :warn)
+          end
+
+          result
+        rescue => e
+          display_message("  ⚠️  Verification check failed: #{e.message}", type: :warn)
+          Aidp.log_error("review_processor", "Verification failed", issue: issue_number, error: e.message)
+          nil
+        end
+      end
+
+      def find_or_use_worktree(branch)
+        # Check if a worktree already exists for this branch
+        existing = Aidp::Worktree.find_by_branch(branch: branch, project_dir: @project_dir)
+
+        if existing && existing[:active]
+          display_message("  🔄 Using existing worktree for branch: #{branch}", type: :muted) if @verbose
+          return existing[:path]
+        end
+
+        # Otherwise, use the main project directory
+        # (assuming the branch is checked out in the main directory)
+        @project_dir
+      end
+
+      def format_review_comment(pr:, review_results:, verification_result: nil)
         parts = []
         parts << COMMENT_HEADER
         parts << ""
         parts << "Automated multi-persona code review for PR ##{pr[:number]}"
         parts << ""
+
+        # Add verification results if present
+        if verification_result
+          if verification_result[:verified]
+            parts << "### ✅ Implementation Verification"
+            parts << ""
+            parts << "_Implementation successfully verified against linked issue requirements._"
+          else
+            parts << "### ⚠️ Implementation Incomplete"
+            parts << ""
+            parts << "**This PR appears to be incomplete based on the linked issue requirements:**"
+            parts << ""
+            verification_result[:reasons]&.each do |reason|
+              parts << "- #{reason}"
+            end
+            parts << ""
+            parts << "**Suggested Action:** Add the `aidp-request-changes` label if you'd like AIDP to help complete the implementation."
+          end
+          parts << ""
+        end
 
         # Collect all findings by severity
         all_findings = collect_findings_by_severity(review_results)

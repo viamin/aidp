@@ -157,6 +157,34 @@ Questions:
 Please respond to these questions in a comment, then re-apply the label.
 ```
 
+## Implementation Verification
+
+When the PR links to an issue (via "Fixes #123" pattern), AIDP performs an **implementation completeness check** before pushing changes:
+
+1. **Extracts Requirements**: Parses the linked issue to identify acceptance criteria and requirements
+2. **Verifies Implementation**: Uses AI-powered analysis to compare the changes against issue requirements
+3. **Determines Completeness**: Evaluates whether the implementation fully addresses all requirements
+
+### Complete Implementation
+
+If verification passes:
+
+- Changes are committed and pushed
+- Label is removed
+- PR is ready for review
+
+### Incomplete Implementation
+
+If verification finds missing requirements or incomplete work:
+
+- Changes are committed locally (preserving work done)
+- **Label is kept** (work loop continues automatically)
+- Follow-up tasks are created for missing items
+- State is recorded internally (no comment spam)
+- Next iteration addresses remaining requirements
+
+**Note**: The `aidp-request-changes` label remains to signal that work should continue. This ensures the AI agent automatically picks up where it left off without manual intervention.
+
 ## Test Failure Handling
 
 AIDP uses a **fix-forward strategy**:
@@ -206,6 +234,17 @@ When clarification is needed, AIDP:
 2. Adds `aidp-needs-input`
 
 After responding to questions, re-apply `aidp-request-changes` to continue.
+
+### Label Retention for Incomplete Implementation
+
+When the implementation is verified as incomplete (missing requirements or partially done):
+
+1. **Label is kept** - `aidp-request-changes` remains on the PR
+2. Work loop continues automatically in the next polling cycle
+3. No additional comment is posted (state tracked internally)
+4. Follow-up tasks guide the next iteration
+
+This allows for automatic continuation of work without manual intervention.
 
 ## Best Practices
 
