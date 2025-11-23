@@ -11,10 +11,10 @@ module Aidp
     class ImplementationVerifier
       include Aidp::MessageDisplay
 
-      def initialize(repository_client:, project_dir:)
+      def initialize(repository_client:, project_dir:, ai_decision_engine: nil)
         @repository_client = repository_client
         @project_dir = project_dir
-        @ai_decision_engine = Aidp::Harness::AIDecisionEngine.instance
+        @ai_decision_engine = ai_decision_engine || build_default_ai_decision_engine
       end
 
       # Verify implementation against issue requirements
@@ -120,6 +120,21 @@ module Aidp
       end
 
       def perform_zfc_verification(issue_number:, issue_requirements:, implementation_changes:)
+        # Check if AI decision engine is available
+        unless @ai_decision_engine
+          Aidp.log_error(
+            "implementation_verifier",
+            "ai_decision_engine_not_available",
+            issue: issue_number
+          )
+          return {
+            verified: false,
+            reason: "AI decision engine not available for verification",
+            missing_items: ["Unable to verify - AI decision engine initialization failed"],
+            additional_work: []
+          }
+        end
+
         prompt = build_verification_prompt(issue_number, issue_requirements, implementation_changes)
 
         schema = {
@@ -247,6 +262,23 @@ module Aidp
         else
           diff
         end
+      end
+
+      def build_default_ai_decision_engine
+        # Load config and create AI decision engine
+        config_manager = Aidp::Harness::ConfigManager.new(@project_dir)
+        config = config_manager.config || {}
+
+        Aidp::Harness::AIDecisionEngine.new(config)
+      rescue => e
+        Aidp.log_warn(
+          "implementation_verifier",
+          "failed_to_create_ai_decision_engine",
+          error: e.message,
+          project_dir: @project_dir
+        )
+        # Return nil and fail verification gracefully
+        nil
       end
     end
   end
