@@ -113,10 +113,27 @@ without losing historical context or confusing the build agent with outdated inf
    clarifications gathered from the issue thread.
 4. The autonomous work loop executes step `16_IMPLEMENTATION`, applying patches,
    running tests/linters, and iterating until completion.
-5. When successful, Aidp stages changes, commits with a descriptive message, and
+5. **Implementation verification** checks completeness before creating PR:
+   - Extracts requirements from the linked issue
+   - Compares implementation against acceptance criteria
+   - If incomplete: creates follow-up tasks and continues work loop
+   - If complete: proceeds to PR creation
+6. When successful, Aidp stages changes, commits with a descriptive message, and
    creates a pull request via `gh pr create` linking back to the issue.
-6. On failures (test/lint issues, timeouts, or provider errors) Aidp posts a
+7. On failures (test/lint issues, timeouts, or provider errors) Aidp posts a
    summary comment and leaves the branch intact for manual follow-up.
+
+#### Incomplete Implementation Handling
+
+If verification determines the implementation is incomplete:
+
+- Changes are committed locally (preserving work done)
+- Follow-up tasks are created for missing requirements
+- Work loop continues automatically (no PR created yet)
+- State is recorded in `.aidp/watch/*.yml`
+- Next iteration addresses remaining requirements
+
+This ensures that PRs are only created when implementations fully address all issue requirements.
 
 ## Safety Considerations
 

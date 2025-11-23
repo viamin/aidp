@@ -49,9 +49,19 @@ RSpec.describe Aidp::Watch::BuildProcessor do
     }
   end
   let(:processor) { described_class.new(repository_client: repository_client, state_store: state_store, project_dir: tmp_dir, use_workstreams: false) }
+  let(:verifier) { instance_double(Aidp::Watch::ImplementationVerifier) }
 
   before do
     state_store.record_plan(issue[:number], summary: plan_data["summary"], tasks: plan_data["tasks"], questions: plan_data["questions"], comment_body: "comment", comment_hint: plan_data["comment_hint"])
+
+    # Mock the verifier to return verified=true by default (tests can override)
+    allow(Aidp::Watch::ImplementationVerifier).to receive(:new).and_return(verifier)
+    allow(verifier).to receive(:verify).and_return({
+      verified: true,
+      reason: "All requirements met",
+      missing_items: [],
+      additional_work: []
+    })
 
     allow(processor).to receive(:ensure_git_repo!)
     allow(processor).to receive(:detect_base_branch).and_return("main")
