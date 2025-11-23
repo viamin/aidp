@@ -11,6 +11,7 @@ require_relative "../harness/state_manager"
 require_relative "../worktree"
 require_relative "../execute/progress"
 require_relative "github_state_extractor"
+require_relative "implementation_verifier"
 
 module Aidp
   module Watch
@@ -29,6 +30,7 @@ module Aidp
         @repository_client = repository_client
         @state_store = state_store
         @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
+        @verifier = ImplementationVerifier.new(repository_client: repository_client, project_dir: project_dir)
         @project_dir = project_dir
         @use_workstreams = use_workstreams
         @verbose = verbose
@@ -428,6 +430,22 @@ module Aidp
           return
         end
 
+        # Verify implementation completeness before creating PR
+        verification = @verifier.verify(issue: issue, working_dir: working_dir)
+
+        unless verification[:verified]
+          handle_incomplete_implementation(
+            issue: issue,
+            slug: slug,
+            branch_name: branch_name,
+            working_dir: working_dir,
+            verification: verification
+          )
+          return
+        end
+
+        display_message("✅ Implementation verified complete", type: :success)
+
         # Check if PR should be created based on VCS preferences
         # For watch mode, default to creating PRs (set to false to disable)
         vcs_config = config_dig(:work_loop, :version_control) || {}
@@ -633,6 +651,103 @@ module Aidp
           branch: branch_name,
           workstream: slug,
           criteria: metadata
+        )
+      end
+
+      def handle_incomplete_implementation(issue:, slug:, branch_name:, working_dir:, verification:)
+        display_message("⚠️  Implementation incomplete; scheduling additional work.", type: :warn)
+
+        # Create tasks for missing requirements
+        if verification[:additional_work] && !verification[:additional_work].empty?
+          create_follow_up_tasks(working_dir, verification[:additional_work])
+        end
+
+        # Schedule another agentic work unit
+        enqueue_decider_followup(working_dir)
+
+        workstream_note = @use_workstreams ? " The workstream `#{slug}` has been preserved for continued work." : " The branch has been preserved for continued work."
+
+        # Fetch the user who added the most recent label
+        label_actor = @repository_client.most_recent_label_actor(issue[:number])
+        actor_tag = label_actor ? "cc @#{label_actor}\n\n" : ""
+
+        # Post status comment
+        missing_section = if verification[:missing_items] && !verification[:missing_items].empty?
+          "\n### Missing Requirements\n" + verification[:missing_items].map { |item| "- #{item}" }.join("\n")
+        else
+          ""
+        end
+
+        additional_work_section = if verification[:additional_work] && !verification[:additional_work].empty?
+          "\n### Additional Work Needed\n" + verification[:additional_work].map { |item| "- #{item}" }.join("\n")
+        else
+          ""
+        end
+
+        comment = <<~COMMENT
+          🔄 Implementation in progress for ##{issue[:number]}.
+
+          #{actor_tag}The automated implementation has made progress but is not yet complete. Additional work is needed to fully address the issue requirements.
+
+          ### Verification Result
+          #{verification[:reason]}#{missing_section}#{additional_work_section}
+
+          The work loop will continue automatically to complete the remaining tasks.#{workstream_note}
+        COMMENT
+
+        @repository_client.post_comment(issue[:number], comment)
+        display_message("💬 Posted incomplete implementation status for issue ##{issue[:number]}", type: :info)
+
+        @state_store.record_build_status(
+          issue[:number],
+          status: "incomplete",
+          details: {
+            branch: branch_name,
+            workstream: slug,
+            verification: verification
+          }
+        )
+
+        Aidp.log_info(
+          "build_processor",
+          "incomplete_implementation",
+          issue: issue[:number],
+          branch: branch_name,
+          workstream: slug,
+          missing_items: verification[:missing_items],
+          additional_work: verification[:additional_work]
+        )
+      end
+
+      def create_follow_up_tasks(working_dir, additional_work)
+        return if additional_work.nil? || additional_work.empty?
+
+        tasklist_file = File.join(working_dir, ".aidp", "tasklist.jsonl")
+        FileUtils.mkdir_p(File.dirname(tasklist_file))
+
+        require_relative "../execute/persistent_tasklist"
+        tasklist = Aidp::Execute::PersistentTasklist.new(working_dir)
+
+        additional_work.each do |task_description|
+          tasklist.create(
+            description: task_description,
+            priority: :high,
+            tags: ["auto-generated", "verification"]
+          )
+        end
+
+        Aidp.log_info(
+          "build_processor",
+          "created_follow_up_tasks",
+          working_dir: working_dir,
+          task_count: additional_work.length
+        )
+      rescue => e
+        Aidp.log_warn(
+          "build_processor",
+          "failed_to_create_follow_up_tasks",
+          error: e.message,
+          working_dir: working_dir
         )
       end
 
