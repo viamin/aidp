@@ -266,8 +266,7 @@ module Aidp
 
       def build_default_ai_decision_engine
         # Load config and create AI decision engine
-        config_manager = Aidp::Harness::ConfigManager.new(@project_dir)
-        config = config_manager.config || {}
+        config = Aidp::Harness::Configuration.new(@project_dir)
 
         Aidp::Harness::AIDecisionEngine.new(config)
       rescue => e

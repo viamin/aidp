@@ -7,8 +7,8 @@ require "fileutils"
 RSpec.describe Aidp::Watch::ImplementationVerifier do
   let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient) }
   let(:project_dir) { Dir.mktmpdir }
-  let(:verifier) { described_class.new(repository_client: repository_client, project_dir: project_dir) }
   let(:ai_decision_engine) { instance_double(Aidp::Harness::AIDecisionEngine) }
+  let(:verifier) { described_class.new(repository_client: repository_client, project_dir: project_dir, ai_decision_engine: ai_decision_engine) }
 
   let(:issue) do
     {
@@ -42,8 +42,8 @@ RSpec.describe Aidp::Watch::ImplementationVerifier do
       system("git checkout -b feature-auth", out: File::NULL, err: File::NULL)
     end
 
-    # Stub AIDecisionEngine
-    allow(Aidp::Harness::AIDecisionEngine).to receive(:instance).and_return(ai_decision_engine)
+    # Stub AIDecisionEngine - not needed since we pass it in constructor
+    # allow(Aidp::Harness::AIDecisionEngine).to receive(:instance).and_return(ai_decision_engine)
   end
 
   after do

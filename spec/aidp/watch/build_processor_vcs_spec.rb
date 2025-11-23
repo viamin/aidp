@@ -144,6 +144,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     let(:base_branch) { "main" }
     let(:plan_data) { {"summary" => "Implementation complete"} }
     let(:slug) { "issue-123" }
+    let(:verifier) { instance_double(Aidp::Watch::ImplementationVerifier) }
 
     before do
       allow(processor).to receive(:stage_and_commit).and_return(true)
@@ -151,6 +152,16 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
       allow(state_store).to receive(:record_build_status)
       allow(repository_client).to receive(:post_comment)
       allow(repository_client).to receive(:most_recent_label_actor).and_return(nil)
+
+      # Mock verifier to return verified by default
+      allow(verifier).to receive(:verify).and_return({
+        verified: true,
+        reason: "All requirements met",
+        missing_items: [],
+        additional_work: []
+      })
+      # Inject the mock verifier into the processor
+      processor.instance_variable_set(:@verifier, verifier)
     end
 
     context "when auto_create_pr is disabled" do
