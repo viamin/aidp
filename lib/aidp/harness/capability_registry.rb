@@ -87,7 +87,7 @@ module Aidp
         providers_to_search.each do |provider_name|
           matching_models = []
           models_for_provider(provider_name).each do |model_name, model_data|
-            matching_models << model_name if model_data["tier"] == tier
+            matching_models << model_name if model_data["tier"] == tier.to_s
           end
           results[provider_name] = matching_models unless matching_models.empty?
         end
@@ -114,12 +114,12 @@ module Aidp
 
       # Check if a tier is valid
       def valid_tier?(tier)
-        VALID_TIERS.include?(tier)
+        VALID_TIERS.include?(tier.to_s)
       end
 
       # Get tier priority (0 = lowest, 4 = highest)
       def tier_priority(tier)
-        TIER_PRIORITY[tier]
+        TIER_PRIORITY[tier.to_s]
       end
 
       # Compare two tiers (returns -1, 0, 1 like <=>)
@@ -154,7 +154,7 @@ module Aidp
         models = models_for_provider(provider_name)
 
         # Find all models matching tier
-        tier_models = models.select { |_name, data| data["tier"] == tier }
+        tier_models = models.select { |_name, data| data["tier"] == tier.to_s }
         return nil if tier_models.empty?
 
         # Prefer newer models (higher in the list)
