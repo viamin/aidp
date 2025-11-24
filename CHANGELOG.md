@@ -1,5 +1,127 @@
 # Changelog
 
+## [0.28.0](https://github.com/viamin/aidp/compare/aidp/v0.27.0...aidp/v0.28.0) (2025-11-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Configuration structure has been reorganized to make thinking tier model configuration provider-specific.
+
+### Features
+
+* Add Agile Development Mode foundation ([#210](https://github.com/viamin/aidp/issues/210)) ([b5da9bc](https://github.com/viamin/aidp/commit/b5da9bcd6bb7c1d7b99aaba015a30728f3785b9c))
+* Add Agile Development Mode foundation ([#210](https://github.com/viamin/aidp/issues/210)) ([#320](https://github.com/viamin/aidp/issues/320)) ([728afd5](https://github.com/viamin/aidp/commit/728afd5729eeb8a657a1612bcb198138f73208ef))
+* Add agile persona skills and workflow templates ([#210](https://github.com/viamin/aidp/issues/210)) ([26b64d4](https://github.com/viamin/aidp/commit/26b64d4d32ab9f553bbcf9507f21928348135586))
+* Add agile workflow definitions ([#210](https://github.com/viamin/aidp/issues/210)) ([eded613](https://github.com/viamin/aidp/commit/eded6137c1f25fabafff62eb768c4dee69ca0805))
+* Add Aider provider support and configuration for non-interactive mode ([816bc49](https://github.com/viamin/aidp/commit/816bc49d4639ae5871def9e2f68f25ef8d7bde9b)), closes [#331](https://github.com/viamin/aidp/issues/331)
+* Add Aider provider support and configuration for non-interactive mode ([#336](https://github.com/viamin/aidp/issues/336)) ([e7ac936](https://github.com/viamin/aidp/commit/e7ac936328c12a715bfc9f807ce98d6d129daec6))
+* Add core agile generators and analyzers ([#210](https://github.com/viamin/aidp/issues/210)) ([111033d](https://github.com/viamin/aidp/commit/111033d27fcba9dad40d7a356a01237ddb1fb676))
+* Add iterative implementation template for task-based feature development ([c732791](https://github.com/viamin/aidp/commit/c732791835d81c5045cccf04fad0e4cb9c4a3b22))
+* Add LegacyResearchPlanner and AgilePlanBuilder ([#210](https://github.com/viamin/aidp/issues/210)) ([a74dc40](https://github.com/viamin/aidp/commit/a74dc40d1831147ecc04e060eba164dc800af7df))
+* Add model configuration support to providers and update specs ([717c918](https://github.com/viamin/aidp/commit/717c918d63c682ae783737200cfff37c7d6110d2))
+* Add model configuration support to providers and update specs ([#351](https://github.com/viamin/aidp/issues/351)) ([17a4247](https://github.com/viamin/aidp/commit/17a424793d4da5800b4e47acb923cbd8c338f6ea))
+* Add Test-Driven Development (TDD) step and workflows ([5391d29](https://github.com/viamin/aidp/commit/5391d2944d0aa65ce6016cbfed14d26356c1178a))
+* Add worktree management for PR branches in ChangeRequestProcessor ([0915bf6](https://github.com/viamin/aidp/commit/0915bf69b8fbe51501a5512c20b5353118f998dd))
+* Implement automatic implementation verification for PRs linked to issues ([99aa2cf](https://github.com/viamin/aidp/commit/99aa2cf49ced8b25f8d3ea828ee76f5c9fbbd1a6))
+* Implement CI log extraction and worktree management for improved failure analysis ([92b102a](https://github.com/viamin/aidp/commit/92b102abd2df795bf9729f26f0022c7cb9715b3a))
+* Implement GitHub state extraction for AIDP coordination and add internal `aidp-in-progress` label ([90d4106](https://github.com/viamin/aidp/commit/90d4106db6fdfdd46505666a313ad9a08beb5265))
+* Implement GitHub state extraction for AIDP coordination and add… ([#346](https://github.com/viamin/aidp/issues/346)) ([c820859](https://github.com/viamin/aidp/commit/c8208596cd8118f4a953fa1404915848c9ef55a2))
+* Implement retry mechanism for GitHub CLI operations with expone… ([#349](https://github.com/viamin/aidp/issues/349)) ([f9e538b](https://github.com/viamin/aidp/commit/f9e538b5a3f40de65ca861ba9aa412f06f7f1e46))
+* Implement retry mechanism for GitHub CLI operations with exponential backoff and enhance error handling in runner ([9b89b6f](https://github.com/viamin/aidp/commit/9b89b6f26cdf1b92428e3e6f77201d3d785e8371))
+* Implement verification of issue requirements before PR creation ([51febf2](https://github.com/viamin/aidp/commit/51febf2e76c523c984347ae1f4a45f3cc0d35841)), closes [#357](https://github.com/viamin/aidp/issues/357)
+* Implement Waterfall Planning Mode (Issue [#209](https://github.com/viamin/aidp/issues/209)) ([bfa8483](https://github.com/viamin/aidp/commit/bfa848330d11cfcecd86d367d2bcb9ec41bb476a))
+
+
+### Bug Fixes
+
+* Add .keep file to preserve custom CA directory in devcontainer ([ce73b45](https://github.com/viamin/aidp/commit/ce73b459ad2d0caddaca0eac406b6ee711be2e26))
+* Add default_provider stub to AIDecisionEngine spec config mock ([b528a8a](https://github.com/viamin/aidp/commit/b528a8a60255313ea7d493e35957b631f194e28d))
+* Adjust build status recording and label removal order in completion process ([6e2c535](https://github.com/viamin/aidp/commit/6e2c535e4d64cda87d7084b449630a92a06159aa))
+* aidp reporting a PR with failing CI as passing ([#342](https://github.com/viamin/aidp/issues/342)) ([0a6ec1c](https://github.com/viamin/aidp/commit/0a6ec1ca8673313338b2a59e03eaf67129d9b4ed))
+* allow aider to check for updates ([35b4b6d](https://github.com/viamin/aidp/commit/35b4b6d03bbbaa9d7497544957bdde4eee0708ae))
+* allow aider to check for updates ([#339](https://github.com/viamin/aidp/issues/339)) ([9f8d07e](https://github.com/viamin/aidp/commit/9f8d07e5a2eb4ae98d5cd2de385440981dcf98cf))
+* Allow work completion without tasks and update related documentation ([e2d1089](https://github.com/viamin/aidp/commit/e2d10896fd1a74dc5b42f56bd2401e233ec972ec))
+* Allow work completion without tasks and update related documentation ([#335](https://github.com/viamin/aidp/issues/335)) ([7369ea4](https://github.com/viamin/aidp/commit/7369ea4c782a234665f329948f9e1bd669e2efdd))
+* Claude not properly detected as rate-limited ([#341](https://github.com/viamin/aidp/issues/341)) ([ca15860](https://github.com/viamin/aidp/commit/ca15860c66e9e36441dabfba852ccf5c05d70c08))
+* Correct module namespace in ProjectPlanBuilder spec ([83d411f](https://github.com/viamin/aidp/commit/83d411f4806ead489bfcd8b9e6cf6cfcf6832f81))
+* **debug:** Filter out benign sandbox debug messages from Claude CLI ([8342cf1](https://github.com/viamin/aidp/commit/8342cf105a43072204d9ba083f1f3452107a7d41))
+* **debug:** Filter out benign sandbox debug messages from Claude CLI ([#360](https://github.com/viamin/aidp/issues/360)) ([2d493fe](https://github.com/viamin/aidp/commit/2d493febebc00d675644d517c3702ba495119fb9))
+* Enhance completion criteria documentation for task management ([e67c84a](https://github.com/viamin/aidp/commit/e67c84a936351b70d1690f68db9555463b6ccb66))
+* Handle nil config in harness context for rate limit tests ([61e02a7](https://github.com/viamin/aidp/commit/61e02a7f3b8ccb1fcbcecdf2465ce77f07336fb0))
+* Ignore CHANGELOG.md in markdownlint checks ([c916b09](https://github.com/viamin/aidp/commit/c916b09a0383445037014cc603bab20aa38beb92))
+* import GEMINI_API environment variable into devcontainer ([db84064](https://github.com/viamin/aidp/commit/db8406462481759096b7c9ef800d13969dc39c54))
+* import GEMINI_API environment variable into devcontainer ([#361](https://github.com/viamin/aidp/issues/361)) ([31670cb](https://github.com/viamin/aidp/commit/31670cba036b253a3028b1192dc40f269295a209))
+* Improve detection of CI completion and change request comments ([913056c](https://github.com/viamin/aidp/commit/913056c6746ef3dc8b7c579f55c9e1cbe6f426db))
+* Improve plan data extraction by refining markdown heading removal ([7423f5c](https://github.com/viamin/aidp/commit/7423f5c92e4bd44e2bd915c141298eb1b976f587))
+* Pr-349 ([#350](https://github.com/viamin/aidp/issues/350)) ([0434042](https://github.com/viamin/aidp/commit/04340424afa84f96d2c4d7eb42553ecaa19828ac))
+* Prevent TTY stream access errors in CI tests ([c4cb755](https://github.com/viamin/aidp/commit/c4cb7559577c077c931abd8d1a2762352e0d25f5))
+* Refine CI completion detection and improve markdown content extraction ([fe47763](https://github.com/viamin/aidp/commit/fe477637e9d613fa2c422bd8572262ddbd07da27))
+* Remove heuristic fallback in watch mode plan generation ([4796a72](https://github.com/viamin/aidp/commit/4796a722a0478ed36fa7c1c5a6ec283ce6be6772))
+* Remove heuristic fallback in watch mode plan generation ([#322](https://github.com/viamin/aidp/issues/322)) ([42b31c7](https://github.com/viamin/aidp/commit/42b31c7dc439959155ffa4aa3b76e3a9f319dd12))
+* Remove outdated PROMPT.md and document AIDP CI status fix details ([a5084d0](https://github.com/viamin/aidp/commit/a5084d0e8bb980ecc5abca63b0ef37f0390ccad5))
+* Remove PROMPT.md as it is no longer needed for rate limit detection documentation ([9a0b3a5](https://github.com/viamin/aidp/commit/9a0b3a51695081271bf788a62651414e37c09f4c))
+* Remove unnecessary blank lines in plan generator files ([85c42d1](https://github.com/viamin/aidp/commit/85c42d1e02482d31009b5d179e53e111d4929f77))
+* Resolve 5 CI test failures in planning specs ([cc02b22](https://github.com/viamin/aidp/commit/cc02b2233c773cdc976a530147ac6102d7c9864f))
+* resolve CI failures for PR [#351](https://github.com/viamin/aidp/issues/351) ([df1fcb4](https://github.com/viamin/aidp/commit/df1fcb4dbe31ba5ed8d9bd081330cc394f306cfb))
+* Respect harness.default_provider in thinking tier model selection ([40c757d](https://github.com/viamin/aidp/commit/40c757dba9012cd658af82d76bb09fab1de0ea35))
+* **specs:** Enhance ImplementationVerifier with AI decision engine initialization and error handling ([820a042](https://github.com/viamin/aidp/commit/820a042877893d5166e94bc8ebdf39aace1260d1))
+* Standardize quotes for Node.js version in lint.yml ([b07fbde](https://github.com/viamin/aidp/commit/b07fbde2aa3bcda883ffd5032a0442a3e6710a2f))
+* Update benign error filtering to use string matching for improved security ([653a683](https://github.com/viamin/aidp/commit/653a683f27579a53aa4807a0273c9f6fa398830b))
+* update GEMINI_API environment variable to GEMINI_API_KEY in devcontainer ([e655060](https://github.com/viamin/aidp/commit/e655060e1531107e797f32bd5712081a20946929))
+* Update model selection test to ignore unused data variable ([65c92fe](https://github.com/viamin/aidp/commit/65c92fe46104a205f696cdbf95909c3a5ea11aab))
+* Update regex patterns to prevent matching across newlines in detection comments ([36793bf](https://github.com/viamin/aidp/commit/36793bf1fdba61f2223bcf0711b8006922d3ec20))
+* Update setup wizard to use provider-specific thinking_tiers ([fd2fe5a](https://github.com/viamin/aidp/commit/fd2fe5a7dc1200301ce9097780627ab5d8b120f5))
+* Update specs to match provider hierarchy changes ([f253a52](https://github.com/viamin/aidp/commit/f253a526d83baba8a91977544e7eb4b72dbbcfde))
+* Update static and Azure IP ranges to use string keys for consistency ([2cfc42f](https://github.com/viamin/aidp/commit/2cfc42f38a9b99937488091914a3fc38319669c5))
+* Update static and Azure IP ranges to use string keys for consistency ([#321](https://github.com/viamin/aidp/issues/321)) ([bc703bf](https://github.com/viamin/aidp/commit/bc703bf01e7d0f42c73d699541ba172902bc3ec1))
+* Update task completion logic to be project-scoped and enhance documentation ([fec3a51](https://github.com/viamin/aidp/commit/fec3a5157c3425ce294cc14b07d25d9a45a4df52))
+* Update task completion logic to be project-scoped and enhance documentation ([#330](https://github.com/viamin/aidp/issues/330)) ([1e9437a](https://github.com/viamin/aidp/commit/1e9437a92e56ddaebfa81d17f1b4392686dc4721))
+* Use case-insensitive comparison method for label matching ([dc4abbc](https://github.com/viamin/aidp/commit/dc4abbcd77cec7dda19f7ce08137f50f6553360a))
+* Use local variable for Pastel mock closure capture ([0de8fd9](https://github.com/viamin/aidp/commit/0de8fd9a32a08346305a75c78018c4f2c85265f7))
+* Use markdownlint-cli instead of markdownlint-cli2 to match devcontainer ([254020c](https://github.com/viamin/aidp/commit/254020c92524e4d2d1ae374287df24fcbce4b4cc))
+
+
+### Improvements
+
+* Extract language-specific code from templates to skills ([abaa224](https://github.com/viamin/aidp/commit/abaa224eb40c75cbf2885443ea0aa1891caeaa4a))
+* Move planning components from waterfall/ to generic planning/ ([2daa48f](https://github.com/viamin/aidp/commit/2daa48fab070a117e346bd0e4d1597db4670235b))
+* Move thinking.tiers to provider-specific thinking_tiers ([dca669c](https://github.com/viamin/aidp/commit/dca669c2c19d30b679851823ad45dfd4816bb628))
+* Remove outdated markdownlint-cli2 configuration file ([a583aae](https://github.com/viamin/aidp/commit/a583aae19584b2908a3e9ca834097e9242f1db3f))
+* remove trailing commas in method calls ([01b7225](https://github.com/viamin/aidp/commit/01b7225a1d7f4de3067cb2d4812662f23b46b3e4))
+* Rename waterfall steps to generic planning steps ([75b1e75](https://github.com/viamin/aidp/commit/75b1e757aef593cb06e2849173fa01a8b936588c))
+* Reuse existing templates for waterfall mode ([93a5b0e](https://github.com/viamin/aidp/commit/93a5b0e3dacf02d104472479bd96f09946150eee)), closes [#209](https://github.com/viamin/aidp/issues/209)
+* streamline task status update handling and improve markdown formatting in task creation template ([c5ba3f7](https://github.com/viamin/aidp/commit/c5ba3f7693e2aff02169e36ab636dc4e9df905fd))
+
+
+### Maintenance
+
+* release 0.28.0 ([a1f1d6d](https://github.com/viamin/aidp/commit/a1f1d6dffa5ac9753ee5eee94eb7e465d7b3b7a4))
+
+
+### Documentation
+
+* Add Agile Mode implementation status tracking ([#210](https://github.com/viamin/aidp/issues/210)) ([c2a18b4](https://github.com/viamin/aidp/commit/c2a18b457fc0ca99909cf881157757b587f86787))
+* Add comprehensive Agile Mode user documentation ([#210](https://github.com/viamin/aidp/issues/210)) ([032b697](https://github.com/viamin/aidp/commit/032b697c2598755caa98d8dcba7ae9644b2d3ebb))
+* Add comprehensive implementation summary for Agile Mode ([#210](https://github.com/viamin/aidp/issues/210)) ([37c5239](https://github.com/viamin/aidp/commit/37c52398902d9980e0f442a9f3c6109fcb284e46))
+* Add comprehensive user guide for Waterfall Planning Mode ([f45c5f4](https://github.com/viamin/aidp/commit/f45c5f44fa9d95b63c2004fda96b110d2ed982a9)), closes [#209](https://github.com/viamin/aidp/issues/209)
+* Add Waterfall Planning Mode to README ([670e21e](https://github.com/viamin/aidp/commit/670e21ec90f21d44b816aa65df76af34e57a5e7d))
+* Codify feature organization by purpose in style guides ([6ebe238](https://github.com/viamin/aidp/commit/6ebe238c7bd4aae48159be12a90227a3ec21ddc4))
+* fix markdown lint ([dcf2aa1](https://github.com/viamin/aidp/commit/dcf2aa125532dae9cc153e67f6d91b667781c4b9))
+* fix markdown lint ([50dc79d](https://github.com/viamin/aidp/commit/50dc79d73239edf6681de4aedcd689e452cec9c7))
+* fix markdown lint ([1aa4e4f](https://github.com/viamin/aidp/commit/1aa4e4fad9e20b78894f48c56329de51581d2a55))
+* Mark completed tasks in waterfall planning design ([b789eb8](https://github.com/viamin/aidp/commit/b789eb8332473540ca2b39fb3b8dd5a09d2a93c9))
+* Update config examples to match provider-specific thinking_tiers ([8070a64](https://github.com/viamin/aidp/commit/8070a64b81a9964206c8a20b592b21b5ffdfeb6d))
+* Update design doc to reflect generic planning structure ([0b56948](https://github.com/viamin/aidp/commit/0b569489a33a3c561bdae3c2a9b198d34ac10bd8))
+* update documentation in Firewall Configuration and Work Loops Guide for clarity and consistency ([e37acc0](https://github.com/viamin/aidp/commit/e37acc05d23fdef7dc77a61d864fb691963c24d9))
+* update task creation and status update examples for clarity and consistency ([3de9307](https://github.com/viamin/aidp/commit/3de9307c9bc6a504402dd7ce4432f706c06410c0))
+* Update waterfall planning mode task list ([0cb9522](https://github.com/viamin/aidp/commit/0cb9522ba3edacbbcad6bc7b52362f472a452801))
+
+
+### Dependencies
+
+* **deps-dev:** bump ruby-lsp from 0.26.2 to 0.26.3 ([273df50](https://github.com/viamin/aidp/commit/273df50883be6553570e80c1023da26dad8aff68))
+* **deps-dev:** bump ruby-lsp from 0.26.2 to 0.26.3 ([#313](https://github.com/viamin/aidp/issues/313)) ([d04c324](https://github.com/viamin/aidp/commit/d04c324843d0cd17f20b5c7de428c5fd0a86da58))
+
 ## [0.27.0](https://github.com/viamin/aidp/compare/aidp/v0.26.0...aidp/v0.27.0) (2025-11-17)
 
 
