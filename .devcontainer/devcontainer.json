@@ -31,15 +31,22 @@
     },
     "ghcr.io/devcontainers-extra/features/mise:1": {}
   },
+  // containerEnv is set when the container is built
+  // put environment variables that won't change in here
   "containerEnv": {
     "TZ": "${localEnv:TZ:UTC}",
     "AIDP_ENV": "development",
     "BUNDLE_PATH": "/workspaces/aidp/vendor/bundle",
     "AIDP_FIREWALL_LOG": "1",
+    "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers",
     // LLM CLI tools - dangerous/auto-approve mode (container only)
     "CODEX_APPROVAL_POLICY": "never",
-    "CODEX_SANDBOX_MODE": "danger-full-access",
-    "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers"
+    "CODEX_SANDBOX_MODE": "danger-full-access"
+  },
+  // remoteEnv is set when the container is started
+  // put environment variables that may change in here
+  "remoteEnv": {
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [
