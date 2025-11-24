@@ -60,7 +60,7 @@ Agile Development Mode has been successfully implemented for AIDP, adding compre
 ## Code Statistics
 
 | Category | Files | Lines of Code |
-|----------|-------|---------------|
+| ---------- | ------- | --------------- |
 | Generators | 5 | ~2,388 |
 | Analyzers | 1 | ~411 |
 | Parsers | 1 | ~313 |
@@ -179,7 +179,7 @@ From issue #210:
 ## Success Metrics
 
 | Metric | Status |
-|--------|--------|
+| -------- | -------- |
 | All generators implemented | ✅ 6/6 |
 | All parsers implemented | ✅ 1/1 |
 | All analyzers implemented | ✅ 1/1 |

@@ -795,6 +795,7 @@ module Aidp
           parts << "2. Track all work items as tasks"
           parts << "3. Update task status as you progress"
           parts << "4. All tasks must be DONE or ABANDONED (with reason) before completion"
+          parts << "5. **IMPORTANT**: When you write STATUS: COMPLETE, also mark all your tasks as done!"
           parts << ""
           parts << "**Important**: Tasks in the list exist due to careful planning and requirements analysis."
           parts << "Do NOT abandon tasks due to perceived complexity or scope concerns - these factors were"
@@ -814,9 +815,13 @@ module Aidp
         end
 
         parts << "## Completion Criteria"
-        parts << "Mark this step COMPLETE by adding this line to PROMPT.md:"
+        parts << "Mark this step COMPLETE by adding these lines to PROMPT.md:"
         parts << "```"
         parts << "STATUS: COMPLETE"
+        if @config.task_completion_required?
+          parts << ""
+          parts << "Update task: task_xxx_yyy status: done  # Mark ALL your tasks as done"
+        end
         parts << "```"
         parts << ""
         parts.join("\n")
@@ -1212,30 +1217,30 @@ module Aidp
 
       # Check if tasks are required and all are completed or abandoned
       # Returns {complete: boolean, message: string}
+      # Note: Tasks are project-scoped, not session-scoped. This allows tasks created
+      # in planning phases to be completed in build phases.
       def check_task_completion
         return {complete: true, message: nil} unless @config.task_completion_required?
 
-        session_tasks = @persistent_tasklist.all.select { |t| t.session == @step_name.to_s }
+        all_tasks = @persistent_tasklist.all
 
-        # At least one task must exist
-        if session_tasks.empty?
-          return {
-            complete: false,
-            message: "No tasks created for this session. At least one task must be created using the create_tasks template or by filing tasks via 'File task: \"description\"'."
-          }
+        # If no tasks exist yet, allow completion - agent can work without tasks initially
+        # This supports workflows where no planning phase created tasks
+        if all_tasks.empty?
+          return {complete: true, message: nil}
         end
 
         # Count tasks by status
-        pending_tasks = session_tasks.select { |t| t.status == :pending }
-        in_progress_tasks = session_tasks.select { |t| t.status == :in_progress }
-        abandoned_tasks = session_tasks.select { |t| t.status == :abandoned }
-        session_tasks.select { |t| t.status == :done }
+        pending_tasks = all_tasks.select { |t| t.status == :pending }
+        in_progress_tasks = all_tasks.select { |t| t.status == :in_progress }
+        abandoned_tasks = all_tasks.select { |t| t.status == :abandoned }
+        all_tasks.select { |t| t.status == :done }
 
-        # All tasks must be done or abandoned
+        # If tasks exist, all must be done or abandoned before completion
         incomplete_tasks = pending_tasks + in_progress_tasks
 
         if incomplete_tasks.any?
-          task_list = incomplete_tasks.map { |t| "- #{t.description} (#{t.status})" }.join("\n")
+          task_list = incomplete_tasks.map { |t| "- #{t.description} (#{t.status}, session: #{t.session})" }.join("\n")
           return {
             complete: false,
             message: "Tasks remain incomplete:\n#{task_list}\n\nComplete all tasks or abandon them with reason before marking work complete."
@@ -1264,13 +1269,13 @@ module Aidp
       def display_task_summary
         return unless @config.task_completion_required?
 
-        session_tasks = @persistent_tasklist.all.select { |t| t.session == @step_name.to_s }
-        return if session_tasks.empty?
+        all_tasks = @persistent_tasklist.all
+        return if all_tasks.empty?
 
-        counts = session_tasks.group_by(&:status).transform_values(&:count)
+        counts = all_tasks.group_by(&:status).transform_values(&:count)
 
-        display_message("\n📋 Task Summary:", type: :info)
-        display_message("  Total: #{session_tasks.size}", type: :info)
+        display_message("\n📋 Task Summary (Project-wide):", type: :info)
+        display_message("  Total: #{all_tasks.size}", type: :info)
         display_message("  ✅ Done: #{counts[:done] || 0}", type: :success) if counts[:done]
         display_message("  🚧 In Progress: #{counts[:in_progress] || 0}", type: :warning) if counts[:in_progress]
         display_message("  ⏳ Pending: #{counts[:pending] || 0}", type: :warning) if counts[:pending]

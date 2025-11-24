@@ -134,12 +134,11 @@ RSpec.describe "Work Loop Task Completion" do
       end
 
       context "when no tasks exist" do
-        it "returns incomplete with appropriate message" do
+        it "returns complete (allows work without tasks)" do
           result = runner.send(:check_task_completion)
 
-          expect(result[:complete]).to be false
-          expect(result[:message]).to include("No tasks created")
-          expect(result[:message]).to include("At least one task must be created")
+          expect(result[:complete]).to be true
+          expect(result[:message]).to be_nil
         end
       end
 
@@ -248,19 +247,21 @@ RSpec.describe "Work Loop Task Completion" do
 
       context "when tasks for different sessions exist" do
         before do
-          # Create task for different session
-          persistent_tasklist.create("Other session task", session: "OTHER_STEP")
+          # Create task for different session (e.g., from planning)
+          persistent_tasklist.create("Planning task", session: "PLANNING_STEP")
 
           # Create task for current session that's done
           task = persistent_tasklist.create("Current session task", session: "TEST_STEP")
           persistent_tasklist.update_status(task.id, :done)
         end
 
-        it "only checks tasks for current session" do
+        it "checks all project tasks (project-scoped, not session-scoped)" do
           result = runner.send(:check_task_completion)
 
-          expect(result[:complete]).to be true
-          expect(result[:message]).to be_nil
+          # Should be incomplete because planning task is still pending
+          expect(result[:complete]).to be false
+          expect(result[:message]).to include("Tasks remain incomplete")
+          expect(result[:message]).to include("Planning task")
         end
       end
     end
@@ -283,10 +284,11 @@ RSpec.describe "Work Loop Task Completion" do
       runner.instance_variable_set(:@step_name, "TEST_STEP")
     end
 
-    it "displays task summary with counts" do
-      task1 = persistent_tasklist.create("Task 1", session: "TEST_STEP")
+    it "displays task summary with counts for all project tasks" do
+      # Tasks from different sessions (project-wide)
+      task1 = persistent_tasklist.create("Task 1", session: "PLANNING_STEP")
       task2 = persistent_tasklist.create("Task 2", session: "TEST_STEP")
-      persistent_tasklist.create("Task 3", session: "TEST_STEP")
+      persistent_tasklist.create("Task 3", session: "OTHER_STEP")
 
       persistent_tasklist.update_status(task1.id, :done)
       persistent_tasklist.update_status(task2.id, :in_progress)
@@ -295,6 +297,7 @@ RSpec.describe "Work Loop Task Completion" do
       runner.send(:display_task_summary)
 
       # Verify output was displayed (through test_prompt)
+      # Should show all 3 tasks across all sessions
       # In a real scenario, you'd check the actual output
       # For now, we just verify it doesn't error
     end

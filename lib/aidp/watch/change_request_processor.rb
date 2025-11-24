@@ -12,6 +12,9 @@ require_relative "../execute/prompt_manager"
 require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../harness/test_runner"
+require_relative "../worktree"
+require_relative "github_state_extractor"
+require_relative "implementation_verifier"
 
 module Aidp
   module Watch
@@ -32,9 +35,16 @@ module Aidp
       def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, change_request_config: {}, safety_config: {}, verbose: false)
         @repository_client = repository_client
         @state_store = state_store
+        @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
         @provider_name = provider_name
         @project_dir = project_dir
         @verbose = verbose
+
+        # Initialize verifier
+        @verifier = ImplementationVerifier.new(
+          repository_client: repository_client,
+          project_dir: project_dir
+        )
 
         # Load label configuration
         @change_request_label = label_config[:change_request_trigger] || label_config["change_request_trigger"] || DEFAULT_CHANGE_REQUEST_LABEL
@@ -264,6 +274,28 @@ module Aidp
           end
         end
 
+        # Check if PR is linked to an issue - if so, verify implementation completeness
+        issue_number = @state_extractor.extract_linked_issue(pr[:body])
+        if issue_number
+          display_message("🔗 Found linked issue ##{issue_number} - verifying implementation...", type: :info)
+
+          begin
+            issue = @repository_client.fetch_issue(issue_number)
+            verification_result = @verifier.verify(issue: issue, working_dir: @project_dir)
+
+            unless verification_result[:verified]
+              handle_incomplete_implementation(pr: pr, analysis: analysis, verification_result: verification_result)
+              return
+            end
+
+            display_message("✅ Implementation verified complete", type: :success)
+          rescue => e
+            display_message("⚠️  Verification check failed: #{e.message}", type: :warn)
+            Aidp.log_error("change_request_processor", "Verification failed", pr: pr[:number], error: e.message)
+            # Continue with commit/push even if verification fails
+          end
+        end
+
         # Commit and push
         if commit_and_push(pr, analysis)
           handle_success(pr: pr, analysis: analysis)
@@ -274,7 +306,29 @@ module Aidp
 
       def checkout_pr_branch(pr_data)
         head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
 
+        # Check if a worktree already exists for this branch
+        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
+
+        if existing && existing[:active]
+          display_message("🔄 Using existing worktree for branch: #{head_ref}", type: :info)
+          Aidp.log_debug("change_request_processor", "worktree_reused", pr_number: pr_number, branch: head_ref, path: existing[:path])
+
+          # Update @project_dir to point to the worktree
+          @project_dir = existing[:path]
+
+          # Pull latest changes in the worktree
+          Dir.chdir(@project_dir) do
+            run_git(%w[fetch origin], allow_failure: true)
+            run_git(["checkout", head_ref])
+            run_git(%w[pull --ff-only], allow_failure: true)
+          end
+
+          return
+        end
+
+        # Otherwise, use the main worktree
         Dir.chdir(@project_dir) do
           # Fetch latest
           run_git(%w[fetch origin])
@@ -441,6 +495,71 @@ module Aidp
         rescue
           nil
         end
+      end
+
+      def handle_incomplete_implementation(pr:, analysis:, verification_result:)
+        display_message("⚠️  Implementation incomplete; creating follow-up tasks.", type: :warn)
+
+        # Create tasks for missing requirements
+        if verification_result[:additional_work] && !verification_result[:additional_work].empty?
+          create_follow_up_tasks(@project_dir, verification_result[:additional_work])
+        end
+
+        # Record state but do not post a separate comment
+        # (verification details will be included in the next summary comment)
+        @state_store.record_change_request(pr[:number], {
+          status: "incomplete_implementation",
+          timestamp: Time.now.utc.iso8601,
+          verification_reasons: verification_result[:reasons],
+          missing_items: verification_result[:missing_items],
+          additional_work: verification_result[:additional_work]
+        })
+
+        display_message("📝 Recorded incomplete implementation status for PR ##{pr[:number]}", type: :info)
+
+        # Keep the label so the work loop continues (do NOT remove it)
+        Aidp.log_info(
+          "change_request_processor",
+          "incomplete_implementation",
+          pr: pr[:number],
+          missing_items: verification_result[:missing_items],
+          additional_work: verification_result[:additional_work]
+        )
+      end
+
+      def create_follow_up_tasks(working_dir, additional_work)
+        return if additional_work.nil? || additional_work.empty?
+
+        tasklist_file = File.join(working_dir, ".aidp", "tasklist.jsonl")
+        FileUtils.mkdir_p(File.dirname(tasklist_file))
+
+        require_relative "../execute/persistent_tasklist"
+        tasklist = Aidp::Execute::PersistentTasklist.new(working_dir)
+
+        additional_work.each do |task_description|
+          tasklist.create(
+            description: task_description,
+            priority: :high,
+            source: "verification"
+          )
+        end
+
+        display_message("📝 Created #{additional_work.length} follow-up task(s) for continued work", type: :info)
+
+        Aidp.log_info(
+          "change_request_processor",
+          "created_follow_up_tasks",
+          task_count: additional_work.length,
+          working_dir: working_dir
+        )
+      rescue => e
+        display_message("⚠️  Failed to create follow-up tasks: #{e.message}", type: :warn)
+        Aidp.log_error(
+          "change_request_processor",
+          "failed_to_create_follow_up_tasks",
+          error: e.message,
+          backtrace: e.backtrace&.first(5)
+        )
       end
 
       def handle_clarification_needed(pr:, analysis:)

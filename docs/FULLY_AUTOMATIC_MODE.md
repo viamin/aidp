@@ -9,6 +9,7 @@ implementation, and pull request creation without human supervision.
 
 - Git repository checked out locally with write access.
 - GitHub issue labels `aidp-plan` and `aidp-build` defined in the repository.
+  - The setup wizard will automatically create the `aidp-in-progress` internal coordination label
 - GitHub CLI (`gh`) authenticated for the repository (required for private
   projects, commenting, and PR creation).
 - Recommended: existing Aidp configuration (`aidp.yml`) with providers that can
@@ -45,13 +46,13 @@ follows:
 
 ```text
 +-------------------------------+        +-----------------------------+
-|  aidp-plan label added        |        |  aidp-build label added     |
-|                               |        |                             |
-| 1. Fetch issue + comments     |        | 1. Verify plan exists       |
-| 2. Generate Implementation    |        | 2. Create aidp/issue-*      |
-|    Contract proposal          |        |    branch                   |
-| 3. Post plan + questions      | -----> | 3. Run fix-forward loop     |
-| 4. Await answers              |        | 4. Commit + create PR       |
+| aidp-plan label added | aidp-build label added |
+|  |
+| 1. Fetch issue + comments | 1. Verify plan exists |
+| 2. Generate Implementation | 2. Create aidp/issue-* |
+| Contract proposal | branch |
+| 3. Post plan + questions | -----> | 3. Run fix-forward loop |
+| 4. Await answers | 4. Commit + create PR |
 +-------------------------------+        | 5. Comment success/failure  |
                                          +-----------------------------+
 ```
@@ -112,10 +113,27 @@ without losing historical context or confusing the build agent with outdated inf
    clarifications gathered from the issue thread.
 4. The autonomous work loop executes step `16_IMPLEMENTATION`, applying patches,
    running tests/linters, and iterating until completion.
-5. When successful, Aidp stages changes, commits with a descriptive message, and
+5. **Implementation verification** checks completeness before creating PR:
+   - Extracts requirements from the linked issue
+   - Compares implementation against acceptance criteria
+   - If incomplete: creates follow-up tasks and continues work loop
+   - If complete: proceeds to PR creation
+6. When successful, Aidp stages changes, commits with a descriptive message, and
    creates a pull request via `gh pr create` linking back to the issue.
-6. On failures (test/lint issues, timeouts, or provider errors) Aidp posts a
+7. On failures (test/lint issues, timeouts, or provider errors) Aidp posts a
    summary comment and leaves the branch intact for manual follow-up.
+
+#### Incomplete Implementation Handling
+
+If verification determines the implementation is incomplete:
+
+- Changes are committed locally (preserving work done)
+- Follow-up tasks are created for missing requirements
+- Work loop continues automatically (no PR created yet)
+- State is recorded in `.aidp/watch/*.yml`
+- Next iteration addresses remaining requirements
+
+This ensures that PRs are only created when implementations fully address all issue requirements.
 
 ## Safety Considerations
 
@@ -127,6 +145,39 @@ without losing historical context or confusing the build agent with outdated inf
   repeated failures.
 - Consider running `aidp watch --once` in CI to provide additional safeguards
   before promoting automatic PRs.
+
+## State Management and Multi-Instance Coordination
+
+Aidp uses **GitHub as the single source of truth** for watch mode state, enabling:
+
+- Multiple AIDP instances to coordinate without conflicts
+- Manual intervention by adding/removing labels
+- Human-visible state in the GitHub UI
+- State that survives workspace deletion or branch switches
+
+### Internal `aidp-in-progress` Label
+
+When AIDP begins processing an issue/PR, it automatically adds the `aidp-in-progress` label:
+
+- **Purpose**: Prevents race conditions when multiple AIDP instances are running
+- **Behavior**: Added before processing starts, removed when done (even on errors)
+- **User Action**: Generally should not be manually added - it's for internal coordination
+- **Auto-created**: The setup wizard automatically creates this label
+
+### State Detection from Comments
+
+AIDP determines completion status by analyzing GitHub comments:
+
+- **Build completed**: Looks for "✅ Implementation complete for #N" comments
+- **Review completed**: Looks for "🔍 Review complete" comments  
+- **CI fix completed**: Looks for "✅ CI fixes applied" comments
+- **Plan exists**: Parses plan proposal comments with HTML markers
+
+This means:
+
+- If you re-add a trigger label (e.g., `aidp-build`), work will restart
+- Completion is visible directly in the GitHub UI
+- State is shared across all AIDP instances watching the repository
 
 ## Running in Background
 

@@ -398,7 +398,7 @@ These tasks are automatically parsed and added to the persistent tasklist.
 REPL commands support glob patterns for file matching:
 
 | Pattern | Description | Example |
-|---------|-------------|---------|
+| --------- | ------------- | --------- |
 | `*` | Match any characters except `/` | `*.rb` matches `file.rb` |
 | `**` | Match zero or more directories | `lib/**/*.rb` matches `lib/foo/bar.rb` |
 | `?` | Match single character | `file?.rb` matches `file1.rb` |
@@ -645,10 +645,10 @@ harness:
 ## Command Reference Summary
 
 | Command | Arguments | Description |
-|---------|-----------|-------------|
-| `/pin` | `<file\|glob>` | Mark files as read-only |
-| `/unpin` | `<file\|glob>` | Remove read-only protection |
-| `/focus` | `<dir\|glob>` | Restrict scope to pattern |
+| ------- | --------- | ----------- |
+| `/pin` | `<file \| glob>` | Mark files as read-only |
+| `/unpin` | `<file \| glob>` | Remove read-only protection |
+| `/focus` | `<dir \| glob>` | Restrict scope to pattern |
 | `/unfocus` | _(none)_ | Remove all focus restrictions |
 | `/split` | _(none)_ | Enable split mode |
 | `/halt-on` | `<pattern>` | Pause on matching failures |

@@ -703,7 +703,7 @@ AIDecisionEngine.decide(:condition_detection,
 **Tier Selection Guide**:
 
 | Decision Type | Recommended Tier | Reasoning |
-|--------------|-----------------|-----------|
+| -------------- | ----------------- | ----------- |
 | Condition detection | `mini` | Binary/multi-class classification |
 | Error classification | `mini` | Pattern recognition |
 | Completion detection | `mini` | Simple semantic check |
@@ -1407,7 +1407,7 @@ expect "Selected: 2 items"
 ### TTY Component Selection Guide
 
 | Use Case | TTY Component | Example |
-|----------|---------------|---------|
+| ---------- | --------------- | --------- |
 | Single selection | `tty-prompt#select` | Mode selection, file picking |
 | Multi-selection | `tty-prompt#multi_select` | Template selection, feature flags |
 | Text input | `tty-prompt#ask` | Project name, API keys |
@@ -1802,7 +1802,7 @@ It is acceptable to delete a spec ONLY if the covered behavior is intentionally 
 ### Quick Checklist
 
 | Action | Allowed? | Notes |
-|--------|----------|-------|
+| -------- | ---------- | ------- |
 | Mark previously green spec as `pending` | ❌ | Fix or intentionally remove instead |
 | Add new pending spec for planned feature | ✅ | Include reason + reference |
 | Comment out failing spec | ❌ | Never – loses history / intent |
@@ -2764,7 +2764,7 @@ Use this template in `docs/LLM_STYLE_GUIDE.md`:
 ### Comparison to External Memory Systems
 
 | Aspect | Style Guide Sections | External Memory (memory-bank-mcp) |
-|--------|---------------------|-----------------------------------|
+| -------- | --------------------- | ----------------------------------- |
 | Context Cost | 0 tokens (already in budget) | +1,500 tokens (+18% overhead) |
 | Setup | 0 minutes (add to existing file) | 30-60 minutes (Docker + config) |
 | Maintenance | Git workflow (commit/merge) | Separate database, backups |

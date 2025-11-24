@@ -47,7 +47,7 @@ This feature implements [GitHub Issue #103](https://github.com/viamin/aidp/issue
 ### Key Components
 
 | Component | Responsibility |
-|-----------|---------------|
+| ----------- | --------------- |
 | **InteractiveRepl** | Main REPL interface, command handling, user interaction |
 | **AsyncWorkLoopRunner** | Thread management, async execution wrapper |
 | **WorkLoopState** | Thread-safe state container (running/paused/cancelled) |
@@ -1048,7 +1048,7 @@ Do not restart from scratch - build on what exists.
 ### Instruction Types
 
 | Type | Description | Priority |
-|------|-------------|----------|
+| ------ | ------------- | ---------- |
 | `USER_INPUT` | Direct user instructions | Normal |
 | `PLAN_UPDATE` | Plan/contract changes | High |
 | `CONSTRAINT` | New constraints | High |
@@ -1098,7 +1098,7 @@ IDLE → RUNNING ⇄ PAUSED → CANCELLED
 ```
 
 | State | Description | Can Transition To |
-|-------|-------------|-------------------|
+| ------- | ------------- | ------------------- |
 | `IDLE` | Not started | RUNNING |
 | `RUNNING` | Actively executing | PAUSED, CANCELLED, COMPLETED, ERROR |
 | `PAUSED` | Temporarily stopped | RUNNING, CANCELLED |

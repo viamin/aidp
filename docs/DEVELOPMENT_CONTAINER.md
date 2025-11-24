@@ -190,7 +190,7 @@ Backups include metadata about why they were created:
 AIDP uses standard ports for common services:
 
 | Service | Port | Label |
-|---------|------|-------|
+| --------- | ------ | ------- |
 | Web Application | 3000 | Application (default) |
 | Remote Terminal | 7681 | Remote Terminal (ttyd) |
 | Playwright Debug | 9222 | Playwright Debug |

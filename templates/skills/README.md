@@ -67,7 +67,7 @@ You are a **Repository Analyst**, an expert in version control analysis...
 ## Required Frontmatter Fields
 
 | Field | Type | Description |
-|-------|------|-------------|
+| ------- | ------ | ------------- |
 | `id` | String | Unique identifier (lowercase, alphanumeric, underscores only) |
 | `name` | String | Human-readable name |
 | `description` | String | Brief one-line description |
@@ -76,7 +76,7 @@ You are a **Repository Analyst**, an expert in version control analysis...
 ## Optional Frontmatter Fields
 
 | Field | Type | Description |
-|-------|------|-------------|
+| ------- | ------ | ------------- |
 | `expertise` | Array | List of expertise areas |
 | `keywords` | Array | Search/filter keywords |
 | `when_to_use` | Array | Guidance for when to use this skill |

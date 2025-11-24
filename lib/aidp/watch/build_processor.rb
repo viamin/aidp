@@ -10,6 +10,8 @@ require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../worktree"
 require_relative "../execute/progress"
+require_relative "github_state_extractor"
+require_relative "implementation_verifier"
 
 module Aidp
   module Watch
@@ -27,6 +29,8 @@ module Aidp
       def initialize(repository_client:, state_store:, project_dir: Dir.pwd, use_workstreams: true, verbose: false, label_config: {})
         @repository_client = repository_client
         @state_store = state_store
+        @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
+        @verifier = ImplementationVerifier.new(repository_client: repository_client, project_dir: project_dir)
         @project_dir = project_dir
         @use_workstreams = use_workstreams
         @verbose = verbose
@@ -40,7 +44,7 @@ module Aidp
         number = issue[:number]
         display_message("🛠️  Starting implementation for issue ##{number}", type: :info)
 
-        plan_data = ensure_plan_data(number)
+        plan_data = ensure_plan_data(issue)
         return unless plan_data
 
         slug = workstream_slug_for(issue)
@@ -106,10 +110,15 @@ module Aidp
 
       private
 
-      def ensure_plan_data(number)
-        data = @state_store.plan_data(number)
+      def ensure_plan_data(issue)
+        # First try to extract from the issue that was passed in (already has comments)
+        data = @state_extractor.extract_plan_data(issue)
+
+        # Fallback to local state store if needed (for backward compatibility)
+        data ||= @state_store.plan_data(issue[:number])
+
         unless data
-          display_message("⚠️  No recorded plan for issue ##{number}. Skipping build trigger.", type: :warn)
+          display_message("⚠️  No recorded plan for issue ##{issue[:number]}. Skipping build trigger.", type: :warn)
         end
         data
       end
@@ -421,10 +430,35 @@ module Aidp
           return
         end
 
+        # Verify implementation completeness before creating PR
+        verification = @verifier.verify(issue: issue, working_dir: working_dir)
+
+        unless verification[:verified]
+          handle_incomplete_implementation(
+            issue: issue,
+            slug: slug,
+            branch_name: branch_name,
+            working_dir: working_dir,
+            verification: verification
+          )
+          return
+        end
+
+        display_message("✅ Implementation verified complete", type: :success)
+
         # Check if PR should be created based on VCS preferences
         # For watch mode, default to creating PRs (set to false to disable)
         vcs_config = config_dig(:work_loop, :version_control) || {}
         auto_create_pr = config_value(vcs_config, :auto_create_pr, true)
+
+        Aidp.log_debug(
+          "build_processor",
+          "evaluating_pr_creation",
+          issue: issue[:number],
+          changes_committed: changes_committed,
+          auto_create_pr: auto_create_pr,
+          gh_available: @repository_client.gh_available?
+        )
 
         pr_url = if !changes_committed
           Aidp.log_info(
@@ -443,12 +477,35 @@ module Aidp
             issue: issue[:number],
             branch: branch_name,
             base_branch: base_branch,
-            working_dir: working_dir
+            working_dir: working_dir,
+            gh_available: @repository_client.gh_available?
           )
           create_pull_request(issue: issue, branch_name: branch_name, base_branch: base_branch, working_dir: working_dir)
         else
+          Aidp.log_info(
+            "build_processor",
+            "skipping_pr_vcs_preference",
+            issue: issue[:number],
+            auto_create_pr: auto_create_pr
+          )
           display_message("ℹ️  Skipping PR creation (disabled in VCS preferences)", type: :muted)
           nil
+        end
+
+        # Record build status BEFORE posting completion comment
+        @state_store.record_build_status(
+          issue[:number],
+          status: "completed",
+          details: {branch: branch_name, workstream: slug, pr_url: pr_url}
+        )
+
+        # Remove build label BEFORE posting completion comment
+        begin
+          @repository_client.remove_labels(issue[:number], @build_label)
+          display_message("🏷️  Removed '#{@build_label}' label after completion", type: :info)
+        rescue => e
+          display_message("⚠️  Failed to remove build label: #{e.message}", type: :warn)
+          # Don't fail the process if label removal fails
         end
 
         # Fetch the user who added the most recent label
@@ -458,6 +515,7 @@ module Aidp
         pr_line = pr_url ? "\n- Pull Request: #{pr_url}" : ""
         actor_tag = label_actor ? "cc @#{label_actor}\n\n" : ""
 
+        # Post completion comment LAST - after all other operations complete successfully
         comment = <<~COMMENT
           ✅ Implementation complete for ##{issue[:number]}.
 
@@ -468,21 +526,7 @@ module Aidp
         COMMENT
 
         @repository_client.post_comment(issue[:number], comment)
-        @state_store.record_build_status(
-          issue[:number],
-          status: "completed",
-          details: {branch: branch_name, workstream: slug, pr_url: pr_url}
-        )
         display_message("🎉 Posted completion comment for issue ##{issue[:number]}", type: :success)
-
-        # Remove build label after successful completion
-        begin
-          @repository_client.remove_labels(issue[:number], @build_label)
-          display_message("🏷️  Removed '#{@build_label}' label after completion", type: :info)
-        rescue => e
-          display_message("⚠️  Failed to remove build label: #{e.message}", type: :warn)
-          # Don't fail the process if label removal fails
-        end
 
         # Keep workstream for review - don't auto-cleanup on success
         if @use_workstreams
@@ -623,6 +667,103 @@ module Aidp
           branch: branch_name,
           workstream: slug,
           criteria: metadata
+        )
+      end
+
+      def handle_incomplete_implementation(issue:, slug:, branch_name:, working_dir:, verification:)
+        display_message("⚠️  Implementation incomplete; scheduling additional work.", type: :warn)
+
+        # Create tasks for missing requirements
+        if verification[:additional_work] && !verification[:additional_work].empty?
+          create_follow_up_tasks(working_dir, verification[:additional_work])
+        end
+
+        # Schedule another agentic work unit
+        enqueue_decider_followup(working_dir)
+
+        workstream_note = @use_workstreams ? " The workstream `#{slug}` has been preserved for continued work." : " The branch has been preserved for continued work."
+
+        # Fetch the user who added the most recent label
+        label_actor = @repository_client.most_recent_label_actor(issue[:number])
+        actor_tag = label_actor ? "cc @#{label_actor}\n\n" : ""
+
+        # Post status comment
+        missing_section = if verification[:missing_items] && !verification[:missing_items].empty?
+          "\n### Missing Requirements\n" + verification[:missing_items].map { |item| "- #{item}" }.join("\n")
+        else
+          ""
+        end
+
+        additional_work_section = if verification[:additional_work] && !verification[:additional_work].empty?
+          "\n### Additional Work Needed\n" + verification[:additional_work].map { |item| "- #{item}" }.join("\n")
+        else
+          ""
+        end
+
+        comment = <<~COMMENT
+          🔄 Implementation in progress for ##{issue[:number]}.
+
+          #{actor_tag}The automated implementation has made progress but is not yet complete. Additional work is needed to fully address the issue requirements.
+
+          ### Verification Result
+          #{verification[:reason]}#{missing_section}#{additional_work_section}
+
+          The work loop will continue automatically to complete the remaining tasks.#{workstream_note}
+        COMMENT
+
+        @repository_client.post_comment(issue[:number], comment)
+        display_message("💬 Posted incomplete implementation status for issue ##{issue[:number]}", type: :info)
+
+        @state_store.record_build_status(
+          issue[:number],
+          status: "incomplete",
+          details: {
+            branch: branch_name,
+            workstream: slug,
+            verification: verification
+          }
+        )
+
+        Aidp.log_info(
+          "build_processor",
+          "incomplete_implementation",
+          issue: issue[:number],
+          branch: branch_name,
+          workstream: slug,
+          missing_items: verification[:missing_items],
+          additional_work: verification[:additional_work]
+        )
+      end
+
+      def create_follow_up_tasks(working_dir, additional_work)
+        return if additional_work.nil? || additional_work.empty?
+
+        tasklist_file = File.join(working_dir, ".aidp", "tasklist.jsonl")
+        FileUtils.mkdir_p(File.dirname(tasklist_file))
+
+        require_relative "../execute/persistent_tasklist"
+        tasklist = Aidp::Execute::PersistentTasklist.new(working_dir)
+
+        additional_work.each do |task_description|
+          tasklist.create(
+            description: task_description,
+            priority: :high,
+            tags: ["auto-generated", "verification"]
+          )
+        end
+
+        Aidp.log_info(
+          "build_processor",
+          "created_follow_up_tasks",
+          working_dir: working_dir,
+          task_count: additional_work.length
+        )
+      rescue => e
+        Aidp.log_warn(
+          "build_processor",
+          "failed_to_create_follow_up_tasks",
+          error: e.message,
+          working_dir: working_dir
         )
       end
 
@@ -773,6 +914,19 @@ module Aidp
           fallback_to_author: label_actor.nil?
         )
 
+        Aidp.log_debug(
+          "build_processor",
+          "attempting_pr_creation",
+          issue: issue[:number],
+          branch_name: branch_name,
+          base_branch: base_branch,
+          draft: draft,
+          assignee: assignee,
+          gh_available: @repository_client.gh_available?,
+          title: title,
+          body_length: body.length
+        )
+
         output = @repository_client.create_pull_request(
           title: title,
           body: body,
@@ -791,9 +945,34 @@ module Aidp
           branch: branch_name,
           base_branch: base_branch,
           pr_url: pr_url,
-          assignee: assignee
+          assignee: assignee,
+          raw_output: output
         )
         pr_url
+      rescue => e
+        Aidp.log_error(
+          "build_processor",
+          "pr_creation_failed",
+          issue: issue[:number],
+          branch_name: branch_name,
+          base_branch: base_branch,
+          error: e.message,
+          error_class: e.class.name,
+          gh_available: @repository_client.gh_available?,
+          backtrace: e.backtrace&.first(10),
+          assignee: assignee,
+          title: title
+        )
+        display_message("⚠️  Failed to create pull request: #{e.message}", type: :warn)
+
+        # Continue gracefully - PR creation failure shouldn't crash the processor
+        Aidp.log_info(
+          "build_processor",
+          "continuing_after_pr_failure",
+          issue: issue[:number],
+          message: "Implementation complete but PR creation failed"
+        )
+        nil
       end
 
       def gather_test_summary(working_dir: @project_dir)

@@ -15,7 +15,7 @@ New to AIDP? Start here:
 ### Core Features
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [CLI User Guide](CLI_USER_GUIDE.md) | Complete CLI command reference with examples |
 | [Copilot Mode](COPILOT_MODE_FLOW.md) | Interactive AI assistant mode |
 | [Work Loops Guide](WORK_LOOPS_GUIDE.md) | Understanding iterative execution |
@@ -25,7 +25,7 @@ New to AIDP? Start here:
 ### Skills System
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Skills User Guide](SKILLS_USER_GUIDE.md) | Complete skills documentation |
 | [Skills Quickstart](SKILLS_QUICKSTART.md) | Quick 5-minute skills introduction |
 | [Skill Authoring Wizard](SKILL_AUTHORING_WIZARD_DESIGN.md) | Interactive skill creation |
@@ -33,7 +33,7 @@ New to AIDP? Start here:
 ### Modes & Workflows
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Init Mode](INIT_MODE.md) | High-level project analysis |
 | [Fully Automatic Mode](FULLY_AUTOMATIC_MODE.md) | Autonomous execution |
 | [Non-Interactive Mode](NON_INTERACTIVE_MODE.md) | Headless/CI execution |
@@ -43,7 +43,7 @@ New to AIDP? Start here:
 ### Advanced Features
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Thinking Depth](THINKING_DEPTH.md) | Dynamic model tier selection |
 | [Workstreams](WORKSTREAMS.md) | Parallel workflow execution |
 | [GitHub Projects](GITHUB_PROJECTS.md) | GitHub Projects V2 integration for large projects |
@@ -54,7 +54,7 @@ New to AIDP? Start here:
 ## Configuration
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Configuration](CONFIGURATION.md) | Complete configuration reference |
 | [Setup Wizard](SETUP_WIZARD.md) | Interactive setup |
 | [Provider Adapter Guide](PROVIDER_ADAPTER_GUIDE.md) | Adding new AI providers |
@@ -66,7 +66,7 @@ New to AIDP? Start here:
 ### Architecture & Design
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [AIDP Capabilities](AIDP_CAPABILITIES.md) | System capabilities overview |
 | [Implementation Guide](ImplementationGuide.md) | Development guidelines |
 | [GitHub Projects Implementation](GITHUB_PROJECTS_IMPLEMENTATION.md) | Projects V2 implementation plan |
@@ -77,7 +77,7 @@ New to AIDP? Start here:
 ### Code Quality & Style
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Style Guide](STYLE_GUIDE.md) | Comprehensive style guide (73KB) |
 | [LLM Style Guide](LLM_STYLE_GUIDE.md) | AI-optimized style guide |
 | [Tree-sitter Analysis](tree-sitter-analysis.md) | Code analysis with tree-sitter |
@@ -87,7 +87,7 @@ New to AIDP? Start here:
 ### Integration & Tooling
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Development Container](DEVELOPMENT_CONTAINER.md) | Devcontainer integration |
 | [Devcontainer Auto Restart](DEVCONTAINER_AUTO_RESTART.md) | Auto-restart configuration |
 | [PRD: Devcontainer Integration](PRD_DEVCONTAINER_INTEGRATION.md) | Devcontainer requirements |
@@ -99,7 +99,7 @@ New to AIDP? Start here:
 ### Command References
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [CLI User Guide](CLI_USER_GUIDE.md) | All CLI commands |
 | [REPL Reference](REPL_REFERENCE.md) | REPL macro commands |
 | [Interactive REPL](INTERACTIVE_REPL.md) | Work loop REPL commands |
@@ -109,7 +109,7 @@ New to AIDP? Start here:
 ### Migration & Updates
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Migration Guide](MIGRATION_GUIDE.md) | Version migration instructions |
 | [Follow-Up Opportunities](FOLLOW_UP_OPPORTUNITIES.md) | Planned enhancements |
 | [Logging Improvements](LOGGING_IMPROVEMENTS.md) | Logging system changes |
@@ -118,7 +118,7 @@ New to AIDP? Start here:
 ### Troubleshooting
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [CLI User Guide: Troubleshooting](CLI_USER_GUIDE.md#troubleshooting) | Common issues & solutions |
 | [Debug Guide](DEBUG_GUIDE.md) | Debugging AIDP issues |
 | [Job Troubleshooting](job-troubleshooting.md) | Background job issues |
@@ -126,7 +126,7 @@ New to AIDP? Start here:
 ### Specialized Topics
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Ports](PORTS.md) | Port configuration |
 | [Copilot Mode Testing](COPILOT_MODE_TESTING_TODO.md) | Test coverage tracking |
 

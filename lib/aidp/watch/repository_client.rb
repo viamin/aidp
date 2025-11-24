@@ -163,6 +163,42 @@ module Aidp
 
       private
 
+      # Retry a GitHub CLI operation with exponential backoff
+      # Rescues network-related RuntimeErrors from gh CLI
+      def with_gh_retry(operation_name, max_retries: 3, initial_delay: 1.0)
+        retries = 0
+        begin
+          yield
+        rescue RuntimeError => e
+          # Only retry on network-related errors from gh CLI
+          if e.message.include?("unexpected EOF") ||
+              e.message.include?("connection") ||
+              e.message.include?("timeout") ||
+              e.message.include?("Request to https://api.github.com")
+            retries += 1
+            if retries <= max_retries
+              delay = initial_delay * (2**(retries - 1))
+              Aidp.log_warn("repository_client", "gh_retry",
+                operation: operation_name,
+                attempt: retries,
+                max_retries: max_retries,
+                delay: delay,
+                error: e.message.lines.first&.strip)
+              sleep(delay)
+              retry
+            else
+              Aidp.log_error("repository_client", "gh_retry_exhausted",
+                operation: operation_name,
+                error: e.message)
+              raise
+            end
+          else
+            # Non-network errors should not be retried
+            raise
+          end
+        end
+      end
+
       def list_issues_via_gh(labels:, state:)
         json_fields = %w[number title labels updatedAt state url assignees]
         cmd = ["gh", "issue", "list", "--repo", full_repo, "--state", state, "--json", json_fields.join(",")]
@@ -197,14 +233,16 @@ module Aidp
       end
 
       def fetch_issue_via_gh(number)
-        fields = %w[number title body comments labels state assignees url updatedAt author]
-        cmd = ["gh", "issue", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
+        with_gh_retry("fetch_issue") do
+          fields = %w[number title body comments labels state assignees url updatedAt author]
+          cmd = ["gh", "issue", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
 
-        stdout, stderr, status = Open3.capture3(*cmd)
-        raise "GitHub CLI error: #{stderr.strip}" unless status.success?
+          stdout, stderr, status = Open3.capture3(*cmd)
+          raise "GitHub CLI error: #{stderr.strip}" unless status.success?
 
-        data = JSON.parse(stdout)
-        normalize_issue_detail(data)
+          data = JSON.parse(stdout)
+          normalize_issue_detail(data)
+        end
       rescue JSON::ParserError => e
         raise "Failed to parse GitHub CLI issue response: #{e.message}"
       end
@@ -281,6 +319,33 @@ module Aidp
       end
 
       def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
+        Aidp.log_debug(
+          "repository_client",
+          "preparing_gh_pr_create",
+          repo: full_repo,
+          head: head,
+          base: base,
+          draft: draft,
+          assignee: assignee,
+          issue_number: issue_number,
+          gh_available: gh_available?,
+          title_length: title.length,
+          body_length: body.length
+        )
+
+        unless gh_available?
+          error_msg = "GitHub CLI (gh) is not available - cannot create PR"
+          Aidp.log_error(
+            "repository_client",
+            "gh_cli_not_available",
+            repo: full_repo,
+            head: head,
+            base: base,
+            message: error_msg
+          )
+          raise error_msg
+        end
+
         cmd = [
           "gh", "pr", "create",
           "--repo", full_repo,
@@ -292,8 +357,56 @@ module Aidp
         cmd += ["--draft"] if draft
         cmd += ["--assignee", assignee] if assignee
 
+        Aidp.log_debug(
+          "repository_client",
+          "executing_gh_pr_create",
+          repo: full_repo,
+          head: head,
+          base: base,
+          draft: draft,
+          assignee: assignee,
+          command: cmd.join(" ")
+        )
+
         stdout, stderr, status = Open3.capture3(*cmd)
-        raise "Failed to create PR via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug(
+          "repository_client",
+          "gh_pr_create_result",
+          repo: full_repo,
+          success: status.success?,
+          exit_code: status.exitstatus,
+          stdout_length: stdout.length,
+          stderr_length: stderr.length,
+          stdout_preview: stdout[0, 200],
+          stderr: stderr
+        )
+
+        unless status.success?
+          Aidp.log_error(
+            "repository_client",
+            "gh_pr_create_failed",
+            repo: full_repo,
+            head: head,
+            base: base,
+            issue_number: issue_number,
+            exit_code: status.exitstatus,
+            stderr: stderr,
+            stdout: stdout,
+            command: cmd.join(" ")
+          )
+          raise "Failed to create PR via gh: #{stderr.strip}"
+        end
+
+        Aidp.log_info(
+          "repository_client",
+          "gh_pr_create_success",
+          repo: full_repo,
+          head: head,
+          base: base,
+          issue_number: issue_number,
+          output_preview: stdout[0, 200]
+        )
 
         stdout.strip
       end
@@ -517,14 +630,19 @@ module Aidp
         cmd = ["gh", "api", "repos/#{full_repo}/commits/#{head_sha}/check-runs", "--jq", "."]
         stdout, _stderr, status = Open3.capture3(*cmd)
 
-        if status.success?
+        check_runs = if status.success?
           data = JSON.parse(stdout)
-          check_runs = data["check_runs"] || []
-          normalize_ci_status(check_runs, head_sha)
+          data["check_runs"] || []
         else
-          # Fallback to status checks
-          {sha: head_sha, state: "unknown", checks: []}
+          Aidp.log_warn("repository_client", "Failed to fetch check runs", sha: head_sha)
+          []
         end
+
+        # Also fetch commit statuses (for OAuth apps, webhooks, etc.)
+        commit_statuses = fetch_commit_statuses_via_gh(head_sha)
+
+        # Combine and normalize both check runs and commit statuses
+        normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
       rescue => e
         Aidp.log_warn("repository_client", "Failed to fetch CI status", error: e.message)
         {sha: nil, state: "unknown", checks: []}
@@ -542,13 +660,19 @@ module Aidp
           http.request(request)
         end
 
-        if response.code == "200"
+        check_runs = if response.code == "200"
           data = JSON.parse(response.body)
-          check_runs = data["check_runs"] || []
-          normalize_ci_status(check_runs, head_sha)
+          data["check_runs"] || []
         else
-          {sha: head_sha, state: "unknown", checks: []}
+          Aidp.log_warn("repository_client", "Failed to fetch check runs via API", sha: head_sha, code: response.code)
+          []
         end
+
+        # Also fetch commit statuses (for OAuth apps, webhooks, etc.)
+        commit_statuses = fetch_commit_statuses_via_api(head_sha)
+
+        # Combine and normalize both check runs and commit statuses
+        normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
       rescue => e
         Aidp.log_warn("repository_client", "Failed to fetch CI status", error: e.message)
         {sha: nil, state: "unknown", checks: []}
@@ -701,6 +825,85 @@ module Aidp
         }
       end
 
+      def fetch_commit_statuses_via_gh(head_sha)
+        cmd = ["gh", "api", "repos/#{full_repo}/commits/#{head_sha}/status", "--jq", "."]
+        stdout, _stderr, status = Open3.capture3(*cmd)
+
+        if status.success?
+          data = JSON.parse(stdout)
+          data["statuses"] || []
+        else
+          Aidp.log_debug("repository_client", "No commit statuses found", sha: head_sha)
+          []
+        end
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to fetch commit statuses", error: e.message, sha: head_sha)
+        []
+      end
+
+      def fetch_commit_statuses_via_api(head_sha)
+        uri = URI("https://api.github.com/repos/#{full_repo}/commits/#{head_sha}/status")
+        request = Net::HTTP::Get.new(uri)
+        request["Accept"] = "application/vnd.github.v3+json"
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        if response.code == "200"
+          data = JSON.parse(response.body)
+          data["statuses"] || []
+        else
+          Aidp.log_debug("repository_client", "No commit statuses found via API", sha: head_sha, code: response.code)
+          []
+        end
+      rescue => e
+        Aidp.log_warn("repository_client", "Failed to fetch commit statuses via API", error: e.message, sha: head_sha)
+        []
+      end
+
+      def normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
+        # Convert commit statuses to same format as check runs for unified processing
+        # normalize_ci_status expects string keys, so we use string keys here
+        checks_from_statuses = commit_statuses.map do |status|
+          {
+            "name" => status["context"],
+            "status" => (status["state"] == "pending") ? "in_progress" : "completed",
+            "conclusion" => normalize_commit_status_to_conclusion(status["state"]),
+            "details_url" => status["target_url"],
+            "output" => status["description"] ? {"summary" => status["description"]} : nil
+          }
+        end
+
+        # Combine check runs and converted commit statuses
+        # check_runs should already have string keys from API/CLI responses
+        all_checks = check_runs + checks_from_statuses
+
+        Aidp.log_debug("repository_client", "combined_ci_checks",
+          check_run_count: check_runs.length,
+          commit_status_count: commit_statuses.length,
+          total_checks: all_checks.length)
+
+        # Use existing normalize logic
+        normalize_ci_status(all_checks, head_sha)
+      end
+
+      def normalize_commit_status_to_conclusion(state)
+        # Map commit status states to check run conclusions
+        # Commit status states: error, failure, pending, success
+        # Check run conclusions: success, failure, neutral, cancelled, timed_out, action_required, skipped, stale
+        case state
+        when "success"
+          "success"
+        when "failure"
+          "failure"
+        when "error"
+          "failure" # Treat error as failure for consistency
+        when "pending", nil
+          nil # pending means not completed yet
+        end
+      end
+
       def normalize_ci_status(check_runs, head_sha)
         checks = check_runs.map do |run|
           {
@@ -712,16 +915,41 @@ module Aidp
           }
         end
 
+        Aidp.log_debug("repository_client", "normalize_ci_status",
+          check_count: checks.length,
+          checks: checks.map { |c| {name: c[:name], status: c[:status], conclusion: c[:conclusion]} })
+
         # Determine overall state
-        state = if checks.any? { |c| c[:conclusion] == "failure" }
+        # CRITICAL: Empty check list should be "unknown", not "success"
+        # This guard must come FIRST to prevent vacuous truth from [].all? { condition }
+        state = if checks.empty?
+          Aidp.log_debug("repository_client", "ci_status_empty", message: "No checks found")
+          "unknown"
+        elsif checks.any? { |c| c[:conclusion] == "failure" }
+          failing_checks = checks.select { |c| c[:conclusion] == "failure" }
+          Aidp.log_debug("repository_client", "ci_status_failure",
+            failing_count: failing_checks.length,
+            failing_checks: failing_checks.map { |c| c[:name] })
           "failure"
         elsif checks.any? { |c| c[:status] != "completed" }
+          pending_checks = checks.select { |c| c[:status] != "completed" }
+          Aidp.log_debug("repository_client", "ci_status_pending",
+            pending_count: pending_checks.length,
+            pending_checks: pending_checks.map { |c| {name: c[:name], status: c[:status]} })
           "pending"
         elsif checks.all? { |c| c[:conclusion] == "success" }
+          Aidp.log_debug("repository_client", "ci_status_success",
+            success_count: checks.length)
           "success"
         else
+          non_success_checks = checks.reject { |c| c[:conclusion] == "success" }
+          Aidp.log_debug("repository_client", "ci_status_unknown",
+            non_success_count: non_success_checks.length,
+            non_success_checks: non_success_checks.map { |c| {name: c[:name], conclusion: c[:conclusion]} })
           "unknown"
         end
+
+        Aidp.log_debug("repository_client", "ci_status_determined", sha: head_sha, state: state)
 
         {
           sha: head_sha,

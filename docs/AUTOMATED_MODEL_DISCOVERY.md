@@ -638,7 +638,7 @@ providers:
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
-|------|--------|------------|
+| ------ | -------- | ------------ |
 | Provider CLI not installed | High | Graceful fallback to static registry |
 | API changes break discovery | Medium | Version detection + fallback to last known working |
 | Slow API responses | Medium | Timeout protection + background discovery |

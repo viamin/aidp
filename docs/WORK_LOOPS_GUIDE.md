@@ -76,9 +76,45 @@ Work loops power the new [Fully Automatic Watch Mode](FULLY_AUTOMATIC_MODE.md), 
 - Continuous issue monitoring and plan drafting
 - Automatic branch creation and seeding of `PROMPT.md`
 - Hands-free execution of the `16_IMPLEMENTATION` step
+- **Implementation verification** before PR creation or label removal
 - Pull request creation plus success/failure reporting back to the issue
 
 If you are enabling autonomous operation, review the safety considerations in the watch mode guide before relying on unattended workflows.
+
+### Implementation Verification
+
+When GitHub workflows include issue links (via "Fixes #123" patterns), AIDP performs automatic **implementation completeness checks** using AI-powered analysis:
+
+#### How Verification Works
+
+1. **Extract Requirements**: Parse the linked issue to identify acceptance criteria and requirements
+2. **Compare Implementation**: Analyze code changes against issue requirements
+3. **Determine Completeness**: Evaluate whether all requirements are fully addressed
+
+#### Verification in Different Workflows
+
+| Workflow Label | Verification Behavior | On Incomplete |
+| ---------------- | ----------------------- | --------------- |
+| `aidp-build` | Before PR creation | Continue work loop, no PR yet |
+| `aidp-review` | Included in review comment | Informational only (read-only) |
+| `aidp-request-changes` | Before pushing changes | Keep label, continue work loop |
+
+#### Incomplete Implementation Handling
+
+When verification finds missing requirements or incomplete work:
+
+- **Changes are preserved** - All work committed locally, never rolled back
+- **Follow-up tasks created** - Missing items become next iteration's focus
+- **Work loop continues** - Label remains (for `aidp-request-changes` and `aidp-build`)
+- **State tracked internally** - Stored in `.aidp/watch/*.yml` without comment spam
+- **Automatic continuation** - Next polling cycle picks up remaining work
+
+This ensures:
+
+- ✅ No incomplete PRs are created
+- ✅ No work is lost during verification
+- ✅ Autonomous workflows complete all requirements
+- ✅ Manual intervention only needed for truly complex cases
 
 ## Pre-Loop Setup
 
@@ -268,7 +304,7 @@ AIDP uses a **fix-forward** model during implementation. When tests fail, it con
 ### State Descriptions
 
 | State | Description |
-|-------|-------------|
+| ------- | ------------- |
 | **READY** | Starting a new iteration, ready to apply changes |
 | **APPLY_PATCH** | Agent reads PROMPT.md and applies changes to code |
 | **TEST** | Running automated tests and linters |
@@ -397,7 +433,7 @@ aidp execute
 ### Prerequisites
 
 | Method | Requirement | Access |
-|--------|-------------|---------|
+| -------- | ------------- | --------- |
 | **GitHub CLI** | `gh auth login` completed | Private & public repos |
 | **Public API** | No authentication needed | Public repos only |
 
@@ -555,7 +591,7 @@ harness:
 ### Configuration Options
 
 | Option | Type | Default | Description |
-|--------|------|---------|-------------|
+| -------- | ------ | --------- | ------------- |
 | `enabled` | boolean | `true` | Enable/disable work loops |
 | `max_iterations` | integer | `50` | Safety limit for iterations |
 | `test_commands` | array | `[]` | Commands to run tests (all required by default) |
@@ -666,11 +702,22 @@ AIDP looks for this marker (case-insensitive) to know the agent considers the wo
 
 **As of version 0.16.0**, work loops can enforce mandatory task tracking to ensure work is properly decomposed and tracked. This is controlled by the `harness.work_loop.task_completion_required` configuration option (default: `true`).
 
+**Important**: Tasks are **project-scoped**, not session-scoped. This means:
+
+- Tasks created during planning phases can be completed during build phases
+- Tasks created in any work loop session remain active until completed or abandoned
+- The system checks for incomplete tasks across the entire project, not just the current step
+
 When task completion is required:
 
-1. **At least one task must be created** for each work loop session
-2. **All tasks must be completed or abandoned** before the work loop can finish
+1. **If no tasks exist**: Work can complete without tasks (supports workflows without planning phase)
+2. **If tasks exist**: All project tasks must be completed or abandoned before work loop can finish
 3. **Abandoned tasks require a reason** for better tracking
+
+This design supports multiple workflows:
+
+- **Build-only workflow**: Agent works freely without tasks (optional task creation)
+- **Plan-then-build workflow**: Tasks created in planning phase must be completed in build phase
 
 #### Creating Tasks
 
@@ -1043,7 +1090,7 @@ test_commands:
 ### Files Created
 
 | File/Directory | Purpose |
-|---------------|---------|
+| --------------- | --------- |
 | `PROMPT.md` | Active work prompt (deleted after completion) |
 | `.aidp/prompt_archive/` | Archived prompts with timestamps |
 | `docs/LLM_STYLE_GUIDE.md` | Project-specific style guide |
@@ -1109,7 +1156,7 @@ harness:
 Work loops can run in different modes depending on your needs:
 
 | Mode | Description | Use Case |
-|------|-------------|----------|
+| ------ | ------------- | ---------- |
 | **Interactive** | Full REPL with live control | Active development, debugging |
 | **Background** | Autonomous daemon process | Long-running tasks, CI/CD |
 | **Attached** | REPL attached to background daemon | Monitor/control running daemon |
@@ -1707,7 +1754,7 @@ Each backlog entry includes:
 ### Entry Types
 
 | Type | Description |
-|------|-------------|
+| ------ | ------------- |
 | `style_violation` | Code doesn't follow LLM_STYLE_GUIDE |
 | `refactor_opportunity` | Code could be improved |
 | `technical_debt` | Known issues needing attention |

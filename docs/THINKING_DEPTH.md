@@ -7,7 +7,7 @@ Thinking Depth is a feature that allows AIDP to dynamically select AI models bas
 AIDP supports five thinking depth tiers, each corresponding to different model capabilities:
 
 | Tier | Description | Use Cases | Example Models |
-|------|-------------|-----------|----------------|
+| ------ | ------------- | ----------- | ---------------- |
 | **mini** | Fastest, most cost-effective | Simple edits, formatting, documentation | claude-3-haiku, gpt-4o-mini |
 | **standard** | Balanced performance | General development tasks, refactoring | claude-3-5-sonnet, gpt-4o |
 | **thinking** | Advanced reasoning | Complex algorithms, architecture decisions | o1-preview, o1-mini, o3-mini |

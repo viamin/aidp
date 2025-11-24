@@ -16,7 +16,7 @@ The comprehensive audit found widespread violation of the LLM_STYLE_GUIDE princi
 ### Violation Breakdown
 
 | Pattern | Count | Description |
-|---------|-------|-------------|
+| --------- | ------- | ------------- |
 | `allow().to receive` | 662 | Mocking internal AIDP classes |
 | `instance_variable` manipulation | 577 | Direct access to private state |
 | `expect().to receive` | 86 | Testing implementation details |

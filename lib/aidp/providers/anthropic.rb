@@ -277,14 +277,26 @@ module Aidp
           if result.exit_status == 0
             result.out
           else
-            # Detect auth issues in stdout/stderr (Claude sometimes prints JSON with auth error to stdout)
+            # Detect issues in stdout/stderr (Claude sometimes prints to stdout)
             combined = [result.out, result.err].compact.join("\n")
+
+            # Check for rate limit (Session limit reached)
+            if combined.match?(/session limit reached/i)
+              Aidp.log_debug("anthropic_provider", "rate_limit_detected",
+                exit_code: result.exit_status,
+                message: combined)
+              notify_rate_limit(combined)
+              error_message = "Rate limit reached for Claude CLI.\n#{combined}"
+              debug_error(StandardError.new(error_message), {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
+              raise error_message
+            end
+
+            # Check for auth issues
             if combined.downcase.include?("oauth token has expired") || combined.downcase.include?("authentication_error")
               error_message = "Authentication error from Claude CLI: token expired or invalid.\n" \
                               "Run 'claude /login' or refresh credentials.\n" \
                               "Note: Model discovery requires valid authentication."
               debug_error(StandardError.new(error_message), {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
-              # Raise a recognizable error for classifier
               raise error_message
             end
 
@@ -298,6 +310,49 @@ module Aidp
       end
 
       private
+
+      # Notify harness about rate limit detection
+      def notify_rate_limit(message)
+        return unless @harness_context
+
+        # Extract reset time from message (e.g., "resets 4am")
+        reset_time = extract_reset_time_from_message(message)
+
+        # Notify provider manager if available
+        if @harness_context.respond_to?(:provider_manager)
+          provider_manager = @harness_context.provider_manager
+          if provider_manager.respond_to?(:mark_rate_limited)
+            provider_manager.mark_rate_limited("anthropic", reset_time)
+            Aidp.log_debug("anthropic_provider", "notified_provider_manager",
+              reset_time: reset_time)
+          end
+        end
+      rescue => e
+        Aidp.log_debug("anthropic_provider", "notify_rate_limit_failed",
+          error: e.message)
+      end
+
+      # Extract reset time from rate limit message
+      def extract_reset_time_from_message(message)
+        # Handle expressions like "resets 4am" or "reset at 4:30pm"
+        time_of_day_match = message.match(/reset(?:s)?(?:\s+at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i)
+        if time_of_day_match
+          hour = time_of_day_match[1].to_i
+          minute = time_of_day_match[2] ? time_of_day_match[2].to_i : 0
+          meridiem = time_of_day_match[3].downcase
+
+          hour %= 12
+          hour += 12 if meridiem == "pm"
+
+          now = Time.now
+          reset_time = Time.new(now.year, now.month, now.day, hour, minute, 0, now.utc_offset)
+          reset_time += 86_400 if reset_time <= now
+          return reset_time
+        end
+
+        # Default to 1 hour from now if no specific time found
+        Time.now + 3600
+      end
 
       # Check if we should skip permissions based on devcontainer configuration
       # Overrides base class to add logging and Claude-specific config check

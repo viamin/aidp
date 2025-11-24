@@ -19,7 +19,7 @@ Keep `schema_version` intact so future releases can migrate the file.
 ```yaml
 providers:
   llm:
-    name: anthropic          # anthropic|openai|google|azure|custom
+    name: anthropic          # anthropic|openai|google|azure|aider|custom
     model: claude-3-5-sonnet-20241022
     temperature: 0.2
     max_tokens: 4096
@@ -35,6 +35,48 @@ providers:
 
 Secrets such as API keys are never stored here—export them as environment
 variables instead.
+
+### Available Providers
+
+AIDP supports multiple LLM providers:
+
+- **anthropic**: Claude models via Anthropic API or Claude CLI
+- **openai**: GPT models via OpenAI API or Codex CLI
+- **google**: Gemini models via Google API or Gemini CLI
+- **azure**: Azure OpenAI Service
+- **aider**: Aider CLI (supports multiple models via OpenRouter)
+- **custom**: Custom provider implementations
+
+#### Aider Provider
+
+Aider is a versatile coding assistant that supports multiple models through OpenRouter. To use Aider:
+
+1. **Installation**: In the devcontainer, Aider is automatically installed. Outside the devcontainer, install with:
+
+   ```bash
+   curl -fsSL https://aider.chat/install.sh | bash
+   ```
+
+   Or using pipx (recommended for Python-based installation):
+
+   ```bash
+   pipx install aider-chat
+   ```
+
+2. **Configuration**: Aider manages its own configuration (models, API keys, etc.) through its configuration file `~/.aider/`. Configure Aider before using it with AIDP:
+
+   ```bash
+   aider --model <your-model> --openrouter-api-key <your-key>
+   ```
+
+3. **Usage**: Set `name: aider` in your provider configuration. AIDP will use Aider in non-interactive mode with the `--yes-always` flag (equivalent to Claude's `--dangerously-skip-permissions`) for automated operation.
+
+4. **Git Commits**: By default, AIDP disables Aider's automatic commits (`--no-auto-commits`) and instead respects AIDP's `work_loop.version_control.behavior` configuration. This ensures consistent commit behavior across all providers. If you need Aider to handle its own commits, you can enable this in provider-specific options.
+
+5. **Firewall**: The devcontainer firewall automatically allows access to:
+   - `aider.chat` (for updates)
+   - `openrouter.ai` and `api.openrouter.ai` (for API access)
+   - `pypi.org` (for version checking)
 
 ## Work Loop
 
@@ -119,9 +161,15 @@ work_loop:
 
 The `task_completion_required` option (default: `true`) enforces mandatory task tracking for work loops. When enabled:
 
-- **At least one task must be created** for each work loop session
-- **All tasks must be completed or abandoned** before the work loop can finish
+- **If no tasks exist**: Work can complete without tasks (supports workflows without planning phase)
+- **If tasks exist**: All project tasks must be completed or abandoned before work loop can finish
 - **Abandoned tasks require a reason** for better accountability
+
+**Important**: Tasks are **project-scoped**, not session-scoped. This means:
+
+- Tasks created during planning phases (e.g., with `aidp-plan` label) persist and must be completed during build phases (e.g., with `aidp-build` label)
+- Tasks from any work loop session remain active until completed or abandoned
+- The system checks for incomplete tasks across the entire project
 
 This feature ensures that work is properly decomposed into trackable tasks, preventing scope creep and maintaining clear records of what was accomplished or abandoned.
 
@@ -268,7 +316,7 @@ Configure how AIDP interacts with your version control system during work loops.
 #### Behavior by Mode
 
 | Mode | VCS Behavior |
-|------|--------------|
+| ------ | -------------- |
 | **Copilot** | Uses configured `behavior` setting |
 | **Watch** | Always commits changes (ignores `behavior`) |
 | **Daemon** | Always commits changes (ignores `behavior`) |
@@ -560,7 +608,7 @@ auto_update:
 ### Update Policies
 
 | Policy | Description | Example |
-|--------|-------------|---------|
+| -------- | ------------- | --------- |
 | `off` | No automatic updates | Always stay on current version |
 | `exact` | Only exact version matches | 1.2.3 → 1.2.3 (no updates) |
 | `patch` | Allow patch updates | 1.2.3 → 1.2.4 ✓, 1.2.3 → 1.3.0 ✗ |

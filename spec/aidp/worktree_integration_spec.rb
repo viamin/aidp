@@ -86,4 +86,53 @@ RSpec.describe Aidp::Worktree, "integration with real git", :integration do
       FileUtils.rm_rf(non_git_dir)
     end
   end
+
+  describe ".find_by_branch" do
+    it "finds worktree by branch name" do
+      described_class.create(
+        slug: "test-find",
+        project_dir: project_dir,
+        branch: "feature/test-branch"
+      )
+
+      result = described_class.find_by_branch(
+        branch: "feature/test-branch",
+        project_dir: project_dir
+      )
+
+      expect(result).not_to be_nil
+      expect(result[:slug]).to eq("test-find")
+      expect(result[:branch]).to eq("feature/test-branch")
+      expect(result[:active]).to be true
+    end
+
+    it "returns nil when branch not found" do
+      result = described_class.find_by_branch(
+        branch: "nonexistent/branch",
+        project_dir: project_dir
+      )
+
+      expect(result).to be_nil
+    end
+
+    it "returns inactive status when worktree directory is deleted" do
+      described_class.create(
+        slug: "inactive-test",
+        project_dir: project_dir,
+        branch: "test/inactive"
+      )
+
+      # Delete the worktree directory manually
+      worktree_path = File.join(project_dir, ".worktrees", "inactive-test")
+      FileUtils.rm_rf(worktree_path)
+
+      result = described_class.find_by_branch(
+        branch: "test/inactive",
+        project_dir: project_dir
+      )
+
+      expect(result).not_to be_nil
+      expect(result[:active]).to be false
+    end
+  end
 end

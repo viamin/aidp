@@ -222,7 +222,7 @@ RSpec.describe Aidp::Watch::RepositoryClient do
 
   describe "#create_pull_request_via_gh" do
     let(:gh_available) { true }
-    let(:status) { instance_double(Process::Status, success?: true) }
+    let(:status) { instance_double(Process::Status, success?: true, exitstatus: 0) }
 
     it "uses supported flags only for gh pr create" do
       expect(Open3).to receive(:capture3).with(
@@ -1498,9 +1498,12 @@ RSpec.describe Aidp::Watch::RepositoryClient do
             }
           ]
         })
+        commit_status_response = JSON.dump({"statuses" => []})
 
         allow(client).to receive(:fetch_pull_request_via_gh).and_return(pr_data)
-        allow(Open3).to receive(:capture3).and_return([check_runs_response, "", double(success?: true)])
+        # Mock both check-runs and commit status API calls
+        allow(Open3).to receive(:capture3).with("gh", "api", "repos/#{owner}/#{repo}/commits/#{head_sha}/check-runs", "--jq", ".").and_return([check_runs_response, "", double(success?: true)])
+        allow(Open3).to receive(:capture3).with("gh", "api", "repos/#{owner}/#{repo}/commits/#{head_sha}/status", "--jq", ".").and_return([commit_status_response, "", double(success?: true)])
 
         result = client.send(:fetch_ci_status_via_gh, pr_number)
         expect(result[:sha]).to eq(head_sha)
@@ -1542,16 +1545,19 @@ RSpec.describe Aidp::Watch::RepositoryClient do
             }
           ]
         })
+        commit_status_response = JSON.dump({"statuses" => []})
 
         http = instance_double(Net::HTTP)
         request = instance_double(Net::HTTP::Get)
-        response = double(code: "200", body: check_runs_response)
+        check_runs_api_response = double(code: "200", body: check_runs_response)
+        commit_status_api_response = double(code: "200", body: commit_status_response)
 
         allow(client).to receive(:fetch_pull_request_via_api).and_return(pr_data)
         allow(Net::HTTP::Get).to receive(:new).and_return(request)
         allow(request).to receive(:[]=)
         allow(Net::HTTP).to receive(:start).and_yield(http)
-        allow(http).to receive(:request).and_return(response)
+        # First call for check-runs, second call for commit status
+        allow(http).to receive(:request).and_return(check_runs_api_response, commit_status_api_response)
 
         result = client.send(:fetch_ci_status_via_api, pr_number)
         expect(result[:sha]).to eq(head_sha)
@@ -1621,6 +1627,148 @@ RSpec.describe Aidp::Watch::RepositoryClient do
 
         result = client.send(:normalize_ci_status, check_runs, head_sha)
         expect(result[:state]).to eq("unknown")
+      end
+
+      it "returns unknown for empty checks array" do
+        check_runs = []
+
+        result = client.send(:normalize_ci_status, check_runs, head_sha)
+        expect(result[:state]).to eq("unknown")
+        expect(result[:checks]).to be_empty
+      end
+
+      it "returns failure when one check fails even with multiple successful checks" do
+        check_runs = [
+          {"name" => "test1", "status" => "completed", "conclusion" => "success", "details_url" => "url", "output" => {}},
+          {"name" => "test2", "status" => "completed", "conclusion" => "success", "details_url" => "url", "output" => {}},
+          {"name" => "Continuous Integration / lint / lint", "status" => "completed", "conclusion" => "failure", "details_url" => "url", "output" => {"summary" => "Linting failed"}}
+        ]
+
+        result = client.send(:normalize_ci_status, check_runs, head_sha)
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(3)
+      end
+
+      it "logs debug information when determining CI status" do
+        check_runs = [
+          {"name" => "test1", "status" => "completed", "conclusion" => "failure", "details_url" => "url", "output" => {}}
+        ]
+
+        expect(Aidp).to receive(:log_debug).with("repository_client", "normalize_ci_status", hash_including(check_count: 1))
+        expect(Aidp).to receive(:log_debug).with("repository_client", "ci_status_failure", hash_including(failing_count: 1))
+        expect(Aidp).to receive(:log_debug).with("repository_client", "ci_status_determined", hash_including(state: "failure"))
+
+        client.send(:normalize_ci_status, check_runs, head_sha)
+      end
+    end
+
+    describe "#normalize_ci_status_combined" do
+      it "combines check runs and commit statuses correctly" do
+        check_runs = [
+          {"name" => "RSpec", "status" => "completed", "conclusion" => "success", "details_url" => "url1", "output" => {}}
+        ]
+        commit_statuses = [
+          {"context" => "Travis CI", "state" => "success", "target_url" => "url2", "description" => "Build passed"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("success")
+        expect(result[:checks].length).to eq(2)
+        expect(result[:checks][0][:name]).to eq("RSpec")
+        expect(result[:checks][1][:name]).to eq("Travis CI")
+      end
+
+      it "detects failure from commit status (issue #327)" do
+        check_runs = [
+          {"name" => "GitHub Actions", "status" => "completed", "conclusion" => "success", "details_url" => "url1", "output" => {}}
+        ]
+        commit_statuses = [
+          {"context" => "Continuous Integration / lint / lint", "state" => "failure", "target_url" => "url2", "description" => "Linting failed"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(2)
+        failing_check = result[:checks].find { |c| c[:conclusion] == "failure" }
+        expect(failing_check[:name]).to eq("Continuous Integration / lint / lint")
+      end
+
+      it "detects failure from commit status error state" do
+        check_runs = []
+        commit_statuses = [
+          {"context" => "CI Build", "state" => "error", "target_url" => "url1", "description" => "Build error"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(1)
+        expect(result[:checks][0][:conclusion]).to eq("failure")
+      end
+
+      it "handles pending commit statuses" do
+        check_runs = []
+        commit_statuses = [
+          {"context" => "CircleCI", "state" => "pending", "target_url" => "url1", "description" => "Pending"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("pending")
+        expect(result[:checks][0][:status]).to eq("in_progress")
+        expect(result[:checks][0][:conclusion]).to be_nil
+      end
+
+      it "handles empty commit statuses" do
+        check_runs = [
+          {"name" => "test", "status" => "completed", "conclusion" => "success", "details_url" => "url", "output" => {}}
+        ]
+        commit_statuses = []
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("success")
+        expect(result[:checks].length).to eq(1)
+      end
+
+      it "prioritizes failure over success when combining both types" do
+        check_runs = [
+          {"name" => "Unit Tests", "status" => "completed", "conclusion" => "success", "details_url" => "url1", "output" => {}},
+          {"name" => "Integration Tests", "status" => "completed", "conclusion" => "success", "details_url" => "url2", "output" => {}}
+        ]
+        commit_statuses = [
+          {"context" => "Security Scan", "state" => "success", "target_url" => "url3", "description" => "No vulnerabilities"},
+          {"context" => "Lint Check", "state" => "failure", "target_url" => "url4", "description" => "Style violations"}
+        ]
+
+        result = client.send(:normalize_ci_status_combined, check_runs, commit_statuses, head_sha)
+
+        expect(result[:state]).to eq("failure")
+        expect(result[:checks].length).to eq(4)
+      end
+    end
+
+    describe "#normalize_commit_status_to_conclusion" do
+      it "maps success to success" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "success")).to eq("success")
+      end
+
+      it "maps failure to failure" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "failure")).to eq("failure")
+      end
+
+      it "maps error to failure" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "error")).to eq("failure")
+      end
+
+      it "maps pending to nil" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "pending")).to be_nil
+      end
+
+      it "maps unknown states to nil" do
+        expect(client.send(:normalize_commit_status_to_conclusion, "unknown")).to be_nil
       end
     end
   end
@@ -1783,6 +1931,61 @@ RSpec.describe Aidp::Watch::RepositoryClient do
         expect {
           client.send(:fetch_issue_via_gh, issue_number)
         }.to raise_error(/GitHub CLI error/)
+      end
+
+      it "retries on network errors with exponential backoff" do
+        # First two attempts fail with network error, third succeeds
+        network_error_response = ["", "* Request to https://api.github.com/graphql\n* unexpected EOF", double(success?: false)]
+        success_response = [JSON.dump({
+          "number" => issue_number,
+          "title" => "Test issue",
+          "body" => "Issue description",
+          "author" => {"login" => "user1"},
+          "comments" => [],
+          "labels" => [{"name" => "bug"}],
+          "state" => "open",
+          "assignees" => [],
+          "url" => "https://github.com/testowner/testrepo/issues/123",
+          "updatedAt" => "2023-01-01T00:00:00Z"
+        }), "", double(success?: true)]
+
+        allow(Open3).to receive(:capture3)
+          .and_return(network_error_response, network_error_response, success_response)
+
+        # Mock sleep to avoid actual delays in tests
+        allow_any_instance_of(Object).to receive(:sleep)
+
+        result = client.send(:fetch_issue_via_gh, issue_number)
+
+        expect(result).to include(:number, :title)
+        expect(Open3).to have_received(:capture3).exactly(3).times
+      end
+
+      it "raises after exhausting retries on network errors" do
+        network_error_response = ["", "* Request to https://api.github.com/graphql\n* unexpected EOF", double(success?: false)]
+
+        allow(Open3).to receive(:capture3).and_return(network_error_response)
+        allow_any_instance_of(Object).to receive(:sleep)
+
+        expect {
+          client.send(:fetch_issue_via_gh, issue_number)
+        }.to raise_error(RuntimeError, /GitHub CLI error/)
+
+        # Should try initial + 3 retries = 4 times
+        expect(Open3).to have_received(:capture3).exactly(4).times
+      end
+
+      it "does not retry on non-network errors" do
+        auth_error_response = ["", "authentication required", double(success?: false)]
+
+        allow(Open3).to receive(:capture3).and_return(auth_error_response)
+
+        expect {
+          client.send(:fetch_issue_via_gh, issue_number)
+        }.to raise_error(/GitHub CLI error/)
+
+        # Should only try once (no retries for non-network errors)
+        expect(Open3).to have_received(:capture3).once
       end
     end
 

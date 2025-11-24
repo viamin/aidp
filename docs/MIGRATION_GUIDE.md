@@ -21,7 +21,7 @@ The Enhanced TUI is a complete overhaul of the AIDP interface that provides:
 ### New Commands
 
 | Legacy Command | New TUI Command | Description |
-|----------------|-----------------|-------------|
+| ---------------- | ----------------- | ------------- |
 | `aidp execute` | `aidp execute` (enhanced) | Now with rich TUI by default |
 | `aidp analyze` | `aidp analyze` (enhanced) | Now with rich TUI by default |
 | `aidp status` | `aidp status` (enhanced) | Enhanced with TUI formatting |
@@ -32,7 +32,7 @@ The Enhanced TUI is a complete overhaul of the AIDP interface that provides:
 ### New Options
 
 | Option | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `--no-harness` | Use traditional mode (legacy behavior) |
 | `--dashboard` | Show TUI dashboard during execution |
 | `--view <view>` | Specify dashboard view (jobs, metrics, errors) |

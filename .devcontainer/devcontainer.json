@@ -31,15 +31,22 @@
     },
     "ghcr.io/devcontainers-extra/features/mise:1": {}
   },
+  // containerEnv is set when the container is built
+  // put environment variables that won't change in here
   "containerEnv": {
     "TZ": "${localEnv:TZ:UTC}",
     "AIDP_ENV": "development",
     "BUNDLE_PATH": "/workspaces/aidp/vendor/bundle",
     "AIDP_FIREWALL_LOG": "1",
+    "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers",
     // LLM CLI tools - dangerous/auto-approve mode (container only)
     "CODEX_APPROVAL_POLICY": "never",
-    "CODEX_SANDBOX_MODE": "danger-full-access",
-    "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers"
+    "CODEX_SANDBOX_MODE": "danger-full-access"
+  },
+  // remoteEnv is set when the container is started
+  // put environment variables that may change in here
+  "remoteEnv": {
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [
@@ -62,6 +69,7 @@
     "github-copilot-cli": "npm install -g @github/copilot",
     "opencode": "npm i -g opencode-ai@latest",
     "kilocode": "npm i -g @kilocode/cli",
+    "aider": "curl -fsSL https://aider.chat/install.sh | bash",
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh",
     // Generate firewall configuration from provider requirements
@@ -164,7 +172,9 @@
     // LLM CLI Authentication - Codex CLI (OpenAI)
     "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached",
     // LLM CLI Authentication - Kilocode
-    "source=${localEnv:HOME}/.kilocode,target=/home/vscode/.kilocode,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.kilocode,target=/home/vscode/.kilocode,type=bind,consistency=cached",
+    // LLM CLI Authentication - Aider
+    "source=${localEnv:HOME}/.aider,target=/home/vscode/.aider,type=bind,consistency=cached"
   ]
   // Optional: uncomment to keep container running
   // "overrideCommand": true

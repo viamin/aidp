@@ -7,7 +7,7 @@ This document lists all ports used by this project's development environment.
 The following ports are automatically forwarded when running in a devcontainer:
 
 | Port | Service | Description |
-|------|---------|-------------|
+| ------ | --------- | ------------- |
 | 3000 | Web Application | Main application server |
 | 5432 | PostgreSQL | Database server |
 

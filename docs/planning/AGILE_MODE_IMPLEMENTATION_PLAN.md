@@ -352,7 +352,7 @@ All templates follow existing patterns:
 ## Risks & Mitigations
 
 | Risk | Mitigation |
-|------|------------|
+| ------ | ------------ |
 | AI analysis quality varies | Use structured schemas, validate outputs, provide clear examples |
 | Feedback data format diversity | Robust parser with validation, clear error messages |
 | User confusion (waterfall vs agile) | Clear documentation, workflow selection prompts |

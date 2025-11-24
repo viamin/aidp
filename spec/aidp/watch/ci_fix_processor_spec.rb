@@ -45,9 +45,16 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
 
   describe "#process" do
     it "skips when CI fix already completed" do
-      state_store.record_ci_fix(456, status: "completed", timestamp: Time.now.utc.iso8601)
+      # Add completion comment to PR to indicate it's already done
+      pr_with_completion = pr.merge(
+        comments: [
+          {"body" => "✅ CI fixes applied successfully", "author" => "aidp-bot", "createdAt" => Time.now.utc.iso8601}
+        ]
+      )
       expect(repository_client).not_to receive(:fetch_pull_request)
-      processor.process(pr)
+      expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "process_started", hash_including(pr_number: 456))
+      expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "already_completed", hash_including(pr_number: 456))
+      processor.process(pr_with_completion)
     end
 
     it "posts success comment when CI is already passing" do
@@ -56,6 +63,9 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
       allow(repository_client).to receive(:remove_labels)
 
       expect(repository_client).to receive(:post_comment).with(456, /CI is already passing/)
+      expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "process_started", anything)
+      expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "ci_status_fetched", hash_including(ci_state: "success"))
+      expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "ci_passing", hash_including(pr_number: 456))
 
       processor.process(pr)
 
@@ -187,7 +197,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "new_file.txt", "action" => "create", "content" => "Hello World"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.exist?(File.join(tmp_dir, "new_file.txt"))).to be true
       expect(File.read(File.join(tmp_dir, "new_file.txt"))).to eq("Hello World")
@@ -201,7 +211,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "existing.txt", "action" => "edit", "content" => "New content"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.read(file_path)).to eq("New content")
     end
@@ -214,7 +224,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "to_delete.txt", "action" => "delete"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.exist?(file_path)).to be false
     end
@@ -224,7 +234,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "test.txt", "action" => "unknown", "content" => "Content"}
       ]
 
-      expect { processor.send(:apply_fixes, fixes) }.not_to raise_error
+      expect { processor.send(:apply_fixes, fixes, working_dir: tmp_dir) }.not_to raise_error
     end
 
     it "creates nested directories" do
@@ -232,7 +242,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
         {"file" => "nested/dir/file.txt", "action" => "create", "content" => "Content"}
       ]
 
-      processor.send(:apply_fixes, fixes)
+      processor.send(:apply_fixes, fixes, working_dir: tmp_dir)
 
       expect(File.exist?(File.join(tmp_dir, "nested/dir/file.txt"))).to be true
     end
@@ -412,8 +422,49 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
 
       allow(repository_client).to receive(:fetch_pull_request).with(456).and_return(pr)
       allow(repository_client).to receive(:fetch_ci_status).with(456).and_return(ci_status_no_failures)
+      allow(Aidp).to receive(:log_debug)
 
       expect(repository_client).not_to receive(:post_comment)
+
+      processor.process(pr)
+    end
+
+    it "correctly identifies failing CI when lint check fails (issue #327)" do
+      ci_status_lint_failing = {
+        sha: "def456",
+        state: "failure",
+        checks: [
+          {name: "Continuous Integration / lint / lint", status: "completed", conclusion: "failure", output: {"summary" => "Linting errors found"}}
+        ]
+      }
+
+      allow(repository_client).to receive(:fetch_pull_request).with(456).and_return(pr)
+      allow(repository_client).to receive(:fetch_ci_status).with(456).and_return(ci_status_lint_failing)
+      allow(repository_client).to receive(:post_comment)
+      allow(repository_client).to receive(:remove_labels)
+      allow(Aidp).to receive(:log_debug)
+      allow(Aidp).to receive(:log_error)
+
+      # Mock provider response
+      provider = instance_double(Aidp::Providers::Anthropic)
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
+      allow(provider).to receive(:send_message).and_return(
+        JSON.dump({
+          "can_fix" => true,
+          "reason" => "Linting errors can be auto-fixed",
+          "root_causes" => ["Formatting violations"],
+          "fixes" => []
+        })
+      )
+
+      # Should NOT post "CI is passing" comment
+      expect(repository_client).not_to receive(:post_comment).with(456, /CI is already passing/)
+
+      # Should log that it detected the failure
+      expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "ci_status_fetched",
+        hash_including(ci_state: "failure"))
+      expect(Aidp).to receive(:log_debug).with("ci_fix_processor", "failed_checks_filtered",
+        hash_including(failed_count: 1))
 
       processor.process(pr)
     end

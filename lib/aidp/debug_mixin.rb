@@ -78,7 +78,9 @@ module Aidp
       end
 
       if error && !error.empty?
-        debug_logger.error(component_name, "❌ Error output: #{error}")
+        # Filter out benign sandbox debug messages from Claude CLI
+        filtered_error = filter_benign_errors(error)
+        debug_logger.error(component_name, "❌ Error output: #{filtered_error}") unless filtered_error.empty?
       end
 
       if debug_verbose?
@@ -170,6 +172,26 @@ module Aidp
     end
 
     private
+
+    # Filter out benign error messages that don't indicate real failures
+    def filter_benign_errors(error)
+      return "" if error.nil?
+
+      # List of string patterns for benign messages to filter out
+      # Using simple string matching to avoid ReDoS vulnerabilities
+      benign_substrings = [
+        "[SandboxDebug]",
+        "Seccomp filtering not available",
+        "allowAllUnixSockets mode"
+      ]
+
+      lines = error.lines
+      filtered_lines = lines.reject do |line|
+        benign_substrings.any? { |substring| line.include?(substring) }
+      end
+
+      filtered_lines.join
+    end
 
     # Safely derive a component name for logging (memoized).
     # Handles anonymous classes and modules gracefully.

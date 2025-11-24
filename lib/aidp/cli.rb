@@ -188,6 +188,7 @@ module Aidp
           opts.separator "    pause-all                - Pause all active workstreams"
           opts.separator "    resume-all               - Resume all paused workstreams"
           opts.separator "    stop-all                 - Stop all active workstreams"
+          opts.separator "    cleanup                  - Interactive cleanup of workstreams"
           opts.separator "  work                     Execute workflow in workstream context"
           opts.separator "    --workstream <slug>      - Required: workstream to run in"
           opts.separator "    --mode <mode>            - analyze or execute (default: execute)"
@@ -1300,6 +1301,12 @@ module Aidp
           end
           display_message("⏹️  Stopped #{stopped_count} workstream(s)", type: :success)
 
+        when "cleanup"
+          # Interactive cleanup of workstreams
+          require_relative "workstream_cleanup"
+          cleanup = Aidp::WorkstreamCleanup.new(project_dir: Dir.pwd, prompt: create_prompt)
+          cleanup.run
+
         else
           display_message("Usage: aidp ws <command>", type: :info)
           display_message("", type: :info)
@@ -1314,6 +1321,7 @@ module Aidp
           display_message("  pause <slug>              Pause workstream execution", type: :info)
           display_message("  resume <slug>             Resume paused workstream", type: :info)
           display_message("  complete <slug>           Mark workstream as completed", type: :info)
+          display_message("  cleanup                   Interactive cleanup of workstreams", type: :info)
           display_message("", type: :info)
           display_message("Options:", type: :info)
           display_message("  --base-branch <branch>    Branch to create from (for 'new')", type: :info)

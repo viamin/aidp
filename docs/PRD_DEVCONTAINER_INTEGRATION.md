@@ -234,7 +234,7 @@ devcontainer:
 **Mapping Rules:**
 
 | Wizard Selection | Devcontainer Feature/Setting |
-|------------------|------------------------------|
+| ------------------ | ------------------------------ |
 | Provider: Any | Add gh CLI feature |
 | Test: RSpec | Ensure Ruby feature with correct version |
 | Test: Jest/Playwright | Ensure Node feature |
@@ -258,7 +258,7 @@ devcontainer:
 **Port Rules:**
 
 | Service/Tool | Port | Label | Auto-open? |
-|--------------|------|-------|------------|
+| -------------- | ------ | ------- | ------------ |
 | Web app preview | 3000 | "Application" | Yes |
 | Playwright debug | 9222 | "Playwright Debug" | No |
 | Remote terminal | 7681 | "ttyd Terminal" | No |
@@ -552,7 +552,7 @@ aidp devcontainer apply [--dry-run] [--force] [--backup]
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
-|------|--------|------------|
+| ------ | -------- | ------------ |
 | Breaking existing devcontainers | High | Always backup, show diff, require confirmation |
 | ZFC not available yet | Medium | Phase ZFC integration separately; use template-based generation first |
 | Complex merge logic | Medium | Start with simple additive merge; enhance iteratively |

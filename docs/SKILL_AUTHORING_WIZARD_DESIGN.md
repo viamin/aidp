@@ -1788,10 +1788,10 @@ routing:
 
 ## Revision History
 
-| Version | Date       | Author | Changes                          |
-|---------|------------|--------|----------------------------------|
-| 1.0.0   | 2025-10-20 | Design | Initial design document created  |
-| 2.0.0   | 2025-10-21 | Implementation | All 5 phases completed and tested |
+| Version | Date | Author | Changes |
+| --------- | ------------ | -------- | ---------------------------------- |
+| 1.0.0 | 2025-10-20 | Design | Initial design document created |
+| 2.0.0 | 2025-10-21 | Implementation | All 5 phases completed and tested |
 
 ---
 

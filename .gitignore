@@ -41,4 +41,6 @@ vendor/bundle/*
 .config/github-cli/
 
 # Local custom CA certificates (never commit internal certs)
-.devcontainer/custom-ca/
+.devcontainer/custom-ca/*
+!.devcontainer/custom-ca/.keep
+.aider*
