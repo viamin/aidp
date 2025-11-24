@@ -46,7 +46,7 @@
   // remoteEnv is set when the container is started
   // put environment variables that may change in here
   "remoteEnv": {
-    "GEMINI_API": "${localEnv:GEMINI_API}"
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [
