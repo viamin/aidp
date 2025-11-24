@@ -262,6 +262,11 @@ module Aidp
         # Build command arguments
         args = ["--print", "--output-format=text"]
 
+        # Add model if specified
+        if @model && !@model.empty?
+          args << "--model" << @model
+        end
+
         # Check if we should skip permissions (devcontainer support)
         if should_skip_permissions?
           args << "--dangerously-skip-permissions"
