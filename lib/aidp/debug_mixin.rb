@@ -177,15 +177,17 @@ module Aidp
     def filter_benign_errors(error)
       return "" if error.nil?
 
-      # List of patterns for benign messages to filter out
-      benign_patterns = [
-        /\[SandboxDebug\].*Seccomp filtering not available/i,
-        /\[SandboxDebug\].*allowAllUnixSockets mode/i
+      # List of string patterns for benign messages to filter out
+      # Using simple string matching to avoid ReDoS vulnerabilities
+      benign_substrings = [
+        "[SandboxDebug]",
+        "Seccomp filtering not available",
+        "allowAllUnixSockets mode"
       ]
 
       lines = error.lines
       filtered_lines = lines.reject do |line|
-        benign_patterns.any? { |pattern| line.match?(pattern) }
+        benign_substrings.any? { |substring| line.include?(substring) }
       end
 
       filtered_lines.join
