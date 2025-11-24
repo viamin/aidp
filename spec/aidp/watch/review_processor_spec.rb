@@ -6,6 +6,7 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
   let(:tmp_dir) { Dir.mktmpdir }
   let(:state_store) { Aidp::Watch::StateStore.new(project_dir: tmp_dir, repository: "owner/repo") }
   let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient) }
+  let(:verifier) { instance_double(Aidp::Watch::ImplementationVerifier) }
 
   # Create test double reviewers with default behavior
   let(:senior_dev_reviewer) do
@@ -27,7 +28,7 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
   end
 
   let(:reviewers) { [senior_dev_reviewer, security_reviewer, performance_reviewer] }
-  let(:processor) { described_class.new(repository_client: repository_client, state_store: state_store, project_dir: tmp_dir, reviewers: reviewers) }
+  let(:processor) { described_class.new(repository_client: repository_client, state_store: state_store, project_dir: tmp_dir, reviewers: reviewers, verifier: verifier) }
   let(:pr) do
     {
       number: 123,
@@ -39,6 +40,12 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       head_sha: "abc123"
     }
   end
+
+  before do
+    # Mock verifier to return no linked issue by default (skip verification)
+    allow(verifier).to receive(:verify).and_return({verified: true})
+  end
+
   let(:files) do
     [
       {filename: "lib/feature.rb", additions: 50, deletions: 10, changes: 60, patch: "diff content"},

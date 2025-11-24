@@ -120,6 +120,18 @@ module Aidp
         end
       end
 
+      # Extract linked issue number from PR description
+      # Looks for patterns like "Fixes #123", "Closes #456", "Resolves #789"
+      # Returns the issue number as an integer, or nil if not found
+      def extract_linked_issue(pr_body)
+        return nil unless pr_body
+
+        # Match common GitHub issue linking patterns
+        # https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue
+        match = pr_body.match(/(?:Fixes|Closes|Resolves|Close|Fix|Resolve)\s+#(\d+)/i)
+        match ? match[1].to_i : nil
+      end
+
       private
 
       def has_label?(item, label_name)

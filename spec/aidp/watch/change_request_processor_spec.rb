@@ -6,6 +6,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
   let(:tmp_dir) { Dir.mktmpdir }
   let(:state_store) { Aidp::Watch::StateStore.new(project_dir: tmp_dir, repository: "owner/repo") }
   let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient) }
+  let(:verifier) { instance_double(Aidp::Watch::ImplementationVerifier) }
   let(:change_request_config) { {enabled: true, run_tests_before_push: false, max_diff_size: 2000} }
   let(:safety_config) { {author_allowlist: []} }
   let(:processor) do
@@ -16,6 +17,12 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
       change_request_config: change_request_config,
       safety_config: safety_config
     )
+  end
+
+  before do
+    # Mock verifier to return success by default
+    allow(Aidp::Watch::ImplementationVerifier).to receive(:new).and_return(verifier)
+    allow(verifier).to receive(:verify).and_return({verified: true})
   end
 
   let(:pr) do
@@ -156,6 +163,76 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         data = state_store.change_request_data(123)
         expect(data["status"]).to eq("completed")
         expect(data["changes_applied"]).to eq(1)
+      end
+
+      context "when implementation verification fails" do
+        let(:pr_with_issue) do
+          pr.merge(body: "This PR fixes #456")
+        end
+
+        let(:issue) do
+          {
+            number: 456,
+            title: "Add feature X",
+            body: "Please add feature X with tests"
+          }
+        end
+
+        let(:analysis_result) do
+          {
+            can_implement: true,
+            needs_clarification: false,
+            changes: [
+              {
+                "file" => "test.rb",
+                "action" => "edit",
+                "content" => "new content",
+                "description" => "Fixed typo"
+              }
+            ],
+            reason: "Clear request"
+          }
+        end
+
+        before do
+          allow(repository_client).to receive(:fetch_pull_request).and_return(pr_with_issue)
+          allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
+          allow(repository_client).to receive(:fetch_pull_request_diff).and_return(diff)
+          allow(repository_client).to receive(:post_comment)
+          allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
+          allow(processor).to receive(:checkout_pr_branch)
+          allow(processor).to receive(:apply_changes)
+
+          allow(repository_client).to receive(:fetch_issue).with(456).and_return(issue)
+          allow(verifier).to receive(:verify).with(issue: issue, working_dir: tmp_dir).and_return({
+            verified: false,
+            reasons: ["Missing test coverage", "Incomplete implementation of feature X"],
+            missing_items: ["Unit tests", "Integration tests"],
+            additional_work: ["Add unit tests for feature X", "Add integration tests"]
+          })
+        end
+
+        it "records incomplete implementation status and keeps label for continued work" do
+          # Should NOT post a separate comment (details go in next summary)
+          expect(repository_client).not_to receive(:post_comment)
+          expect(repository_client).not_to receive(:remove_labels)
+
+          processor.process(pr_with_issue)
+
+          data = state_store.change_request_data(123)
+          expect(data["status"]).to eq("incomplete_implementation")
+          # StateStore uses YAML which may convert keys
+          missing = data["missing_items"] || data[:missing_items]
+          additional = data["additional_work"] || data[:additional_work]
+          expect(missing).to include("Unit tests")
+          expect(additional).to include("Add unit tests for feature X")
+        end
+
+        it "creates follow-up tasks" do
+          expect(processor).to receive(:create_follow_up_tasks).with(tmp_dir, ["Add unit tests for feature X", "Add integration tests"])
+
+          processor.process(pr_with_issue)
+        end
       end
     end
 
