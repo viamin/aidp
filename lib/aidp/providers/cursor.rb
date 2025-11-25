@@ -56,7 +56,13 @@ module Aidp
             "api.cursor.sh",
             "cursor.sh",
             "app.cursor.sh",
-            "www.cursor.sh"
+            "www.cursor.sh",
+            # Authentication (Auth0)
+            "auth.cursor.sh",
+            "auth0.com",
+            "*.auth0.com",
+            "a0core.net",
+            "*.a0core.net"
           ],
           ip_ranges: []
         }
