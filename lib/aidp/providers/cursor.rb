@@ -117,7 +117,7 @@ module Aidp
         fetch_mcp_servers_cli || fetch_mcp_servers_config
       end
 
-      def send_message(prompt:, session: nil)
+      def send_message(prompt:, session: nil, options: {})
         raise "cursor-agent not available" unless self.class.available?
 
         # Smart timeout calculation

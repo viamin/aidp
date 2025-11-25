@@ -56,7 +56,7 @@ module Aidp
         "OpenCode"
       end
 
-      def send_message(prompt:, session: nil)
+      def send_message(prompt:, session: nil, options: {})
         raise "opencode not available" unless self.class.available?
 
         # Smart timeout calculation

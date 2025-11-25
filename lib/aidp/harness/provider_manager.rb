@@ -1394,8 +1394,9 @@ module Aidp
 
       # Execute a prompt with a specific provider
       def execute_with_provider(provider_type, prompt, options = {})
-        # Extract model from options if provided
+        # Extract model and tier from options if provided
         model_name = options.delete(:model)
+        tier = options[:tier] # Keep tier in options for provider
 
         # Create provider factory instance
         provider_factory = ProviderFactory.new
@@ -1414,10 +1415,11 @@ module Aidp
         Aidp.logger.debug("provider_manager", "Executing with provider",
           provider: provider_type,
           model: model_name,
+          tier: tier,
           prompt_length: prompt.length)
 
-        # Execute the prompt with the provider
-        result = provider.send_message(prompt: prompt, session: nil)
+        # Execute the prompt with the provider (pass options including tier)
+        result = provider.send_message(prompt: prompt, session: nil, options: options)
 
         # Return structured result
         {

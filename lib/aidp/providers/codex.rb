@@ -76,7 +76,7 @@ module Aidp
         end
       end
 
-      def send_message(prompt:, session: nil)
+      def send_message(prompt:, session: nil, options: {})
         raise "codex CLI not available" unless self.class.available?
 
         # Smart timeout calculation (store prompt length for adaptive logic)

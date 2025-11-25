@@ -434,6 +434,55 @@ RSpec.describe Aidp::Providers::Anthropic do
         expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_DEFAULT)
       end
     end
+
+    context "with tier-based timeout multipliers" do
+      it "applies mini tier multiplier (1.0x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "mini"})
+        expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_DEFAULT)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: mini/, type: :info)
+      end
+
+      it "applies standard tier multiplier (1.5x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "standard"})
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 1.5).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: standard/, type: :info)
+      end
+
+      it "applies thinking tier multiplier (2.0x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "thinking"})
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 2.0).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: thinking/, type: :info)
+      end
+
+      it "applies max tier multiplier (3.0x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "max"})
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 3.0).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: max/, type: :info)
+      end
+
+      it "applies tier multiplier to IMPLEMENTATION step timeout" do
+        ENV["AIDP_CURRENT_STEP"] = "IMPLEMENTATION"
+        timeout = provider.__send__(:calculate_timeout, {tier: "standard"})
+        expected = (Aidp::Providers::Base::TIMEOUT_IMPLEMENTATION * 1.5).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/adaptive timeout.*tier: standard/, type: :info)
+      end
+
+      it "ignores tier when quick mode is enabled" do
+        ENV["AIDP_QUICK_MODE"] = "1"
+        timeout = provider.__send__(:calculate_timeout, {tier: "max"})
+        expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_QUICK_MODE)
+      end
+
+      it "ignores tier when provider-specific env var is set" do
+        ENV["AIDP_ANTHROPIC_TIMEOUT"] = "600"
+        timeout = provider.__send__(:calculate_timeout, {tier: "max"})
+        expect(timeout).to eq(600)
+      end
+    end
   end
 
   describe "#adaptive_timeout" do
@@ -441,11 +490,11 @@ RSpec.describe Aidp::Providers::Anthropic do
       ENV.delete("AIDP_CURRENT_STEP")
     end
 
-    it "caches the result" do
+    it "no longer caches the result (tier may change)" do
       ENV["AIDP_CURRENT_STEP"] = "TEST_ANALYSIS"
-      first_call = provider.__send__(:adaptive_timeout)
-      second_call = provider.__send__(:adaptive_timeout)
-      expect(first_call).to eq(second_call)
+      first_call = provider.__send__(:adaptive_timeout, "mini")
+      second_call = provider.__send__(:adaptive_timeout, "max")
+      expect(first_call).not_to eq(second_call)
     end
 
     it "returns nil for unknown step types" do
