@@ -32,7 +32,23 @@ From RubyLLM registry for Anthropic provider:
 
 ## Solution Implemented
 
-### 1. Wizard Now Uses RubyLLM Registry
+### 1. Removed ModelDiscoveryService
+
+The CLI-based `ModelDiscoveryService` class has been **completely removed** from the codebase:
+
+- **Production code**: Deleted `lib/aidp/harness/model_discovery_service.rb` (260 lines)
+- **Test code**: Deleted `spec/aidp/harness/model_discovery_service_spec.rb`
+- **Background discovery**: Removed ~100 lines of background discovery infrastructure from wizard
+- **Models CLI command**: Migrated to use `RubyLLMRegistry` directly
+
+The service was replaced because:
+
+- **Slower**: Required spawning CLI processes vs. in-memory registry lookups
+- **Stale data**: Could return cached information that didn't reflect API reality
+- **Complex**: Background threads, caching layer, CLI dependency management
+- **Redundant**: RubyLLM gem already maintains an authoritative, validated registry
+
+### 2. Wizard Now Uses RubyLLM Registry
 
 The setup wizard (`lib/aidp/setup/wizard.rb`) now pulls model information directly from the RubyLLM registry instead of relying on CLI-based discovery:
 

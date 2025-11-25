@@ -8,9 +8,9 @@ require_relative "../../../lib/aidp/cli/models_command"
 RSpec.describe Aidp::CLI::ModelsCommand do
   let(:test_prompt) { TestPrompt.new(responses: {}) }
   let(:mock_registry) { instance_double(Aidp::Harness::ModelRegistry) }
-  let(:mock_discovery) { instance_double(Aidp::Harness::ModelDiscoveryService) }
+  let(:mock_ruby_llm_registry) { instance_double(Aidp::Harness::RubyLLMRegistry) }
   let(:mock_config) { instance_double(Aidp::Harness::Configuration) }
-  let(:models_command) { described_class.new(prompt: test_prompt, registry: mock_registry, discovery_service: mock_discovery) }
+  let(:models_command) { described_class.new(prompt: test_prompt, registry: mock_registry, ruby_llm_registry: mock_ruby_llm_registry) }
   let(:temp_dir) { Dir.mktmpdir("models_command_test") }
 
   before do
@@ -40,12 +40,6 @@ RSpec.describe Aidp::CLI::ModelsCommand do
       models_command.run(["discover"])
     end
 
-    it "routes to refresh command" do
-      allow(models_command).to receive(:run_refresh_command)
-      expect(models_command).to receive(:run_refresh_command).with([])
-      models_command.run(["refresh"])
-    end
-
     it "routes to validate command" do
       allow(models_command).to receive(:run_validate_command)
       expect(models_command).to receive(:run_validate_command).with([])
@@ -61,29 +55,37 @@ RSpec.describe Aidp::CLI::ModelsCommand do
   end
 
   describe "#run_list_command" do
-    let(:sample_families) { ["claude-3-5-sonnet", "gpt-4o"] }
-    let(:claude_info) do
+    let(:anthropic_models) { ["claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"] }
+    let(:claude_sonnet_info) do
       {
-        "tier" => "standard",
-        "capabilities" => ["vision", "thinking"],
-        "context_window" => 200_000,
-        "speed" => "fast"
+        id: "claude-sonnet-4-5-20250929",
+        tier: :standard,
+        capabilities: ["vision", "thinking"],
+        context_window: 200_000
       }
     end
-    let(:gpt_info) do
+    let(:claude_haiku_info) do
       {
-        "tier" => "mini",
-        "capabilities" => ["vision"],
-        "context_window" => 128_000,
-        "speed" => "fast"
+        id: "claude-haiku-4-5-20251001",
+        tier: :mini,
+        capabilities: ["vision"],
+        context_window: 128_000
       }
     end
 
     before do
-      allow(mock_registry).to receive(:all_families).and_return(sample_families)
-      allow(mock_registry).to receive(:get_model_info).with("claude-3-5-sonnet").and_return(claude_info)
-      allow(mock_registry).to receive(:get_model_info).with("gpt-4o").and_return(gpt_info)
-      allow(models_command).to receive(:find_providers_for_family).and_return(["anthropic"])
+      # Mock ruby_llm_registry.models_for_provider for all known providers
+      %w[anthropic openai google azure bedrock openrouter].each do |provider|
+        if provider == "anthropic"
+          allow(mock_ruby_llm_registry).to receive(:models_for_provider).with(provider).and_return(anthropic_models)
+        else
+          allow(mock_ruby_llm_registry).to receive(:models_for_provider).with(provider).and_return([])
+        end
+      end
+
+      # Mock ruby_llm_registry.get_model_info to return model details
+      allow(mock_ruby_llm_registry).to receive(:get_model_info).with("claude-sonnet-4-5-20250929").and_return(claude_sonnet_info)
+      allow(mock_ruby_llm_registry).to receive(:get_model_info).with("claude-haiku-4-5-20251001").and_return(claude_haiku_info)
     end
 
     it "lists all models successfully" do
@@ -92,9 +94,6 @@ RSpec.describe Aidp::CLI::ModelsCommand do
     end
 
     it "filters models by tier" do
-      allow(models_command).to receive(:find_providers_for_family).with("claude-3-5-sonnet").and_return(["anthropic"])
-      allow(models_command).to receive(:find_providers_for_family).with("gpt-4o").and_return([])
-
       result = models_command.send(:run_list_command, ["--tier=standard"])
       expect(result).to eq(0)
     end
@@ -105,91 +104,25 @@ RSpec.describe Aidp::CLI::ModelsCommand do
     end
 
     it "shows message when no models match criteria" do
-      allow(mock_registry).to receive(:all_families).and_return([])
+      %w[anthropic openai google azure bedrock openrouter].each do |provider|
+        allow(mock_ruby_llm_registry).to receive(:models_for_provider).with(provider).and_return([])
+      end
       expect(models_command).to receive(:display_message).with("No models found matching the specified criteria.", type: :info)
       result = models_command.send(:run_list_command, [])
       expect(result).to eq(0)
     end
 
     it "handles registry errors gracefully" do
-      allow(mock_registry).to receive(:all_families).and_raise(Aidp::Harness::ModelRegistry::RegistryError.new("Test error"))
-      expect(models_command).to receive(:display_message).with("Error loading model registry: Test error", type: :error)
+      allow(mock_ruby_llm_registry).to receive(:models_for_provider).and_raise(StandardError.new("Test error"))
+      expect(models_command).to receive(:display_message).with("Error listing models: Test error", type: :error)
       result = models_command.send(:run_list_command, [])
       expect(result).to eq(1)
     end
 
     it "handles unexpected errors gracefully" do
-      allow(mock_registry).to receive(:all_families).and_raise(StandardError.new("Unexpected error"))
+      allow(mock_ruby_llm_registry).to receive(:models_for_provider).and_raise(StandardError.new("Unexpected error"))
       expect(models_command).to receive(:display_message).with("Error listing models: Unexpected error", type: :error)
       result = models_command.send(:run_list_command, [])
-      expect(result).to eq(1)
-    end
-  end
-
-  describe "#run_discover_command" do
-    let(:discovered_models) do
-      {
-        "anthropic" => [
-          {name: "claude-3-5-sonnet-20241022", family: "claude-3-5-sonnet", tier: "standard"},
-          {name: "claude-3-haiku-20240307", family: "claude-3-haiku", tier: "mini"}
-        ]
-      }
-    end
-
-    before do
-      allow(mock_discovery).to receive(:discover_all_models).and_return(discovered_models)
-    end
-
-    it "discovers models from all providers" do
-      expect(mock_discovery).to receive(:discover_all_models).with(use_cache: false)
-      result = models_command.send(:run_discover_command, [])
-      expect(result).to eq(0)
-    end
-
-    it "discovers models from specific provider" do
-      allow(mock_discovery).to receive(:discover_models).with("anthropic", use_cache: false).and_return(discovered_models["anthropic"])
-      expect(mock_discovery).to receive(:discover_models).with("anthropic", use_cache: false)
-      result = models_command.send(:run_discover_command, ["--provider=anthropic"])
-      expect(result).to eq(0)
-    end
-
-    it "shows warning when no models discovered" do
-      allow(mock_discovery).to receive(:discover_all_models).and_return({})
-      expect(models_command).to receive(:display_message).with(/No models discovered/, type: :warning)
-      result = models_command.send(:run_discover_command, [])
-      expect(result).to eq(1)
-    end
-
-    it "handles discovery errors gracefully" do
-      allow(mock_discovery).to receive(:discover_all_models).and_raise(StandardError.new("Discovery failed"))
-      expect(models_command).to receive(:display_message).with("Error discovering models: Discovery failed", type: :error)
-      result = models_command.send(:run_discover_command, [])
-      expect(result).to eq(1)
-    end
-  end
-
-  describe "#run_refresh_command" do
-    before do
-      allow(mock_discovery).to receive(:refresh_cache)
-      allow(mock_discovery).to receive(:refresh_all_caches)
-    end
-
-    it "refreshes cache for all providers" do
-      expect(mock_discovery).to receive(:refresh_all_caches)
-      result = models_command.send(:run_refresh_command, [])
-      expect(result).to eq(0)
-    end
-
-    it "refreshes cache for specific provider" do
-      expect(mock_discovery).to receive(:refresh_cache).with("anthropic")
-      result = models_command.send(:run_refresh_command, ["--provider=anthropic"])
-      expect(result).to eq(0)
-    end
-
-    it "handles refresh errors gracefully" do
-      allow(mock_discovery).to receive(:refresh_all_caches).and_raise(StandardError.new("Refresh failed"))
-      expect(models_command).to receive(:display_message).with("Error refreshing cache: Refresh failed", type: :error)
-      result = models_command.send(:run_refresh_command, [])
       expect(result).to eq(1)
     end
   end
@@ -404,31 +337,30 @@ RSpec.describe Aidp::CLI::ModelsCommand do
     describe "#build_table_row" do
       let(:model_info) do
         {
-          "tier" => "standard",
-          "capabilities" => ["vision", "thinking"],
-          "context_window" => 200_000,
-          "speed" => "fast"
+          tier: :standard,
+          capabilities: ["vision", "thinking"],
+          context_window: 200_000
         }
       end
 
       it "builds a table row with all fields" do
-        row = models_command.send(:build_table_row, "anthropic", "claude-3-5-sonnet", model_info, "registry")
+        row = models_command.send(:build_table_row, "anthropic", "claude-3-5-sonnet", model_info, "standard")
         expect(row[0]).to eq("anthropic")
         expect(row[1]).to eq("claude-3-5-sonnet")
         expect(row[2]).to eq("standard")
         expect(row[3]).to eq("vision,thinking")
         expect(row[4]).to eq("200K")
-        expect(row[5]).to eq("fast")
+        expect(row[5]).to eq("-") # Speed not available in registry
       end
 
       it "handles nil provider" do
-        row = models_command.send(:build_table_row, nil, "claude-3-5-sonnet", model_info, "registry")
+        row = models_command.send(:build_table_row, nil, "claude-3-5-sonnet", model_info, "standard")
         expect(row[0]).to eq("-")
       end
 
       it "handles empty capabilities" do
-        info = model_info.merge("capabilities" => [])
-        row = models_command.send(:build_table_row, "anthropic", "claude-3-5-sonnet", info, "registry")
+        info = model_info.merge(capabilities: [])
+        row = models_command.send(:build_table_row, "anthropic", "claude-3-5-sonnet", info, "standard")
         expect(row[3]).to eq("-")
       end
     end
