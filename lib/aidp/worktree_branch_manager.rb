@@ -12,7 +12,6 @@ module Aidp
       @project_dir = project_dir
       @logger = logger
       @worktree_registry_path = File.join(project_dir, ".aidp", "worktrees.json")
-      @pr_worktree_registry_path = File.join(project_dir, ".aidp", "pr_worktrees.json")
     end
 
     # Find an existing worktree for a given branch or PR
@@ -21,7 +20,7 @@ module Aidp
 
       raise WorktreeLookupError, "Invalid git repository: #{@project_dir}" unless git_repository?
 
-      # First, check registry first for exact branch match
+      # Check registry first
       worktree_info = read_registry.find { |w| w["branch"] == branch }
 
       if worktree_info
@@ -43,38 +42,6 @@ module Aidp
       raise
     end
 
-    # Find or create a worktree for a PR, with advanced lookup strategies
-    def find_or_create_pr_worktree(pr_number:, head_branch:, base_branch: "main")
-      Aidp.log_debug("worktree_branch_manager", "finding_or_creating_pr_worktree",
-        pr_number: pr_number, head_branch: head_branch, base_branch: base_branch)
-
-      # First, check the PR-specific registry
-      pr_registry = read_pr_registry
-      pr_worktree = pr_registry.find { |w| w["pr_number"] == pr_number }
-
-      # If a valid worktree exists in the registry, return it
-      if pr_worktree
-        worktree_path = pr_worktree["path"]
-        return worktree_path if File.directory?(worktree_path)
-      end
-
-      # Attempt to find worktree by branch name
-      existing_worktree = find_worktree(branch: head_branch)
-      return existing_worktree if existing_worktree
-
-      # If no existing worktree, create a new one
-      worktree_path = create_worktree(branch: head_branch, base_branch: base_branch)
-
-      # Update PR-specific registry
-      update_pr_registry(pr_number, head_branch, worktree_path, base_branch)
-
-      worktree_path
-    rescue => e
-      Aidp.log_error("worktree_branch_manager", "pr_worktree_creation_failed",
-        error: e.message, pr_number: pr_number, head_branch: head_branch)
-      raise
-    end
-
     # Create a new worktree for a branch
     def create_worktree(branch:, base_branch: "main")
       Aidp.log_debug("worktree_branch_manager", "creating_worktree",
@@ -87,15 +54,14 @@ module Aidp
       existing_worktree = find_worktree(branch: branch)
       return existing_worktree if existing_worktree
 
-      # Ensure base branch exists
-      base_ref = (branch == "main") ? "main" : "refs/heads/#{base_branch}"
-      base_exists_cmd = "git show-ref --verify --quiet #{base_ref}"
-
-      system({"GIT_DIR" => File.join(@project_dir, ".git")}, "cd #{@project_dir} && #{base_exists_cmd}")
-
-      # If base branch doesn't exist locally, create it
-      unless $?.success?
-        system({"GIT_DIR" => File.join(@project_dir, ".git")}, "cd #{@project_dir} && git checkout -b #{base_branch}")
+      # Ensure base branch exists (skip fetch for main to avoid remote dependencies)
+      unless base_branch == "main"
+        begin
+          run_git_command("git fetch origin #{base_branch}")
+        rescue => e
+          # If fetch fails (no remote), continue with local branch
+          Aidp.log_debug("worktree_branch_manager", "fetch_failed", base_branch: base_branch, error: e.message)
+        end
       end
 
       # Create worktree directory
@@ -106,13 +72,24 @@ module Aidp
       FileUtils.mkdir_p(File.join(@project_dir, ".worktrees"))
 
       # Create the worktree
-      cmd = "git worktree add -b #{branch} #{worktree_path} #{base_branch}"
-      result = system({"GIT_DIR" => File.join(@project_dir, ".git")}, "cd #{@project_dir} && #{cmd}")
-
-      unless result
-        Aidp.log_error("worktree_branch_manager", "worktree_creation_failed",
-          branch: branch, base_branch: base_branch)
-        raise WorktreeCreationError, "Failed to create worktree for branch #{branch}"
+      begin
+        # Try to create worktree from remote branch if it exists
+        run_git_command("git worktree add -b #{branch} #{worktree_path} origin/#{base_branch}")
+      rescue => e
+        # If remote branch doesn't exist, create from local branch
+        if e.message.include?("invalid reference") || e.message.include?("fatal: 'origin'")
+          begin
+            run_git_command("git worktree add -b #{branch} #{worktree_path} #{base_branch}")
+          rescue => inner_e
+            Aidp.log_error("worktree_branch_manager", "worktree_creation_failed",
+              branch: branch, base_branch: base_branch, error: inner_e.message)
+            raise WorktreeCreationError, "Failed to create worktree for branch #{branch}"
+          end
+        else
+          Aidp.log_error("worktree_branch_manager", "worktree_creation_failed",
+            branch: branch, base_branch: base_branch, error: e.message)
+          raise WorktreeCreationError, "Failed to create worktree for branch #{branch}"
+        end
       end
 
       # Update registry
@@ -156,19 +133,6 @@ module Aidp
       end
     end
 
-    # Read the PR-specific worktree registry
-    def read_pr_registry
-      return [] unless File.exist?(@pr_worktree_registry_path)
-
-      begin
-        JSON.parse(File.read(@pr_worktree_registry_path))
-      rescue JSON::ParserError
-        Aidp.log_warn("worktree_branch_manager", "invalid_pr_registry",
-          path: @pr_worktree_registry_path)
-        []
-      end
-    end
-
     # Update the worktree registry
     def update_registry(branch, path)
       # Ensure .aidp directory exists
@@ -188,29 +152,6 @@ module Aidp
 
       # Write updated registry
       File.write(@worktree_registry_path, JSON.pretty_generate(registry))
-    end
-
-    # Update the PR-specific worktree registry
-    def update_pr_registry(pr_number, head_branch, worktree_path, base_branch)
-      # Ensure .aidp directory exists
-      FileUtils.mkdir_p(File.dirname(@pr_worktree_registry_path))
-
-      registry = read_pr_registry
-
-      # Remove existing entries for the same PR
-      registry.reject! { |w| w["pr_number"] == pr_number }
-
-      # Add new entry
-      registry << {
-        "pr_number" => pr_number,
-        "head_branch" => head_branch,
-        "base_branch" => base_branch,
-        "path" => worktree_path,
-        "created_at" => Time.now.to_i
-      }
-
-      # Write updated registry
-      File.write(@pr_worktree_registry_path, JSON.pretty_generate(registry))
     end
   end
 end
