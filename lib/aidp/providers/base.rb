@@ -40,11 +40,11 @@ module Aidp
       # Tier-based timeout multipliers (applied on top of base timeouts)
       # Higher tiers need more time for deeper reasoning
       TIER_TIMEOUT_MULTIPLIERS = {
-        "mini" => 1.0,      # 5 minutes default
-        "standard" => 1.5,  # 7.5 minutes default
-        "thinking" => 2.0,  # 10 minutes default
-        "pro" => 2.0,       # 10 minutes default
-        "max" => 3.0        # 15 minutes default
+        "mini" => 1.0,      # 5 minutes default (300s base)
+        "standard" => 2.0,  # 10 minutes default (600s base)
+        "thinking" => 6.0,  # 30 minutes default (1800s base)
+        "pro" => 6.0,       # 30 minutes default (1800s base)
+        "max" => 12.0       # 60 minutes default (3600s base)
       }.freeze
 
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name, :model

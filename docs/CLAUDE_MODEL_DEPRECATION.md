@@ -187,10 +187,10 @@ In addition to the registry migration, this work included implementing tier-base
 **Timeout Multipliers:**
 
 - mini: 1.0x (5 minutes base, 15 minutes for IMPLEMENTATION)
-- standard: 1.5x (7.5 minutes base, 22.5 minutes for IMPLEMENTATION)
-- thinking: 2.0x (10 minutes base, 30 minutes for IMPLEMENTATION)
-- pro: 2.0x (10 minutes base, 30 minutes for IMPLEMENTATION)
-- max: 3.0x (15 minutes base, 45 minutes for IMPLEMENTATION)
+- standard: 2.0x (10 minutes base, 30 minutes for IMPLEMENTATION)
+- thinking: 6.0x (30 minutes base, 90 minutes for IMPLEMENTATION)
+- pro: 6.0x (30 minutes base, 90 minutes for IMPLEMENTATION)
+- max: 12.0x (60 minutes base, 3 hours for IMPLEMENTATION)
 
 ### Complete Cleanup
 

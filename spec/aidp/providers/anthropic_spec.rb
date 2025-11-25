@@ -442,23 +442,23 @@ RSpec.describe Aidp::Providers::Anthropic do
         expect(provider).to have_received(:display_message).with(/default timeout.*tier: mini/, type: :info)
       end
 
-      it "applies standard tier multiplier (1.5x) to default timeout" do
+      it "applies standard tier multiplier (2.0x) to default timeout" do
         timeout = provider.__send__(:calculate_timeout, {tier: "standard"})
-        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 1.5).to_i
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 2.0).to_i
         expect(timeout).to eq(expected)
         expect(provider).to have_received(:display_message).with(/default timeout.*tier: standard/, type: :info)
       end
 
-      it "applies thinking tier multiplier (2.0x) to default timeout" do
+      it "applies thinking tier multiplier (6.0x) to default timeout" do
         timeout = provider.__send__(:calculate_timeout, {tier: "thinking"})
-        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 2.0).to_i
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 6.0).to_i
         expect(timeout).to eq(expected)
         expect(provider).to have_received(:display_message).with(/default timeout.*tier: thinking/, type: :info)
       end
 
-      it "applies max tier multiplier (3.0x) to default timeout" do
+      it "applies max tier multiplier (12.0x) to default timeout" do
         timeout = provider.__send__(:calculate_timeout, {tier: "max"})
-        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 3.0).to_i
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 12.0).to_i
         expect(timeout).to eq(expected)
         expect(provider).to have_received(:display_message).with(/default timeout.*tier: max/, type: :info)
       end
@@ -466,7 +466,7 @@ RSpec.describe Aidp::Providers::Anthropic do
       it "applies tier multiplier to IMPLEMENTATION step timeout" do
         ENV["AIDP_CURRENT_STEP"] = "IMPLEMENTATION"
         timeout = provider.__send__(:calculate_timeout, {tier: "standard"})
-        expected = (Aidp::Providers::Base::TIMEOUT_IMPLEMENTATION * 1.5).to_i
+        expected = (Aidp::Providers::Base::TIMEOUT_IMPLEMENTATION * 2.0).to_i
         expect(timeout).to eq(expected)
         expect(provider).to have_received(:display_message).with(/adaptive timeout.*tier: standard/, type: :info)
       end
