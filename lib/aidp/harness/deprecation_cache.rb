@@ -14,7 +14,7 @@ module Aidp
       attr_reader :cache_path
 
       def initialize(cache_path: nil, root_dir: nil)
-        @root_dir = root_dir || Dir.pwd
+        @root_dir = root_dir || safe_root_dir
         @cache_path = cache_path || default_cache_path
         @cache_data = nil
         ensure_cache_directory
@@ -110,6 +110,23 @@ module Aidp
       end
 
       private
+
+      # Get a safe root directory for the cache
+      # Uses Dir.pwd if writable, otherwise falls back to tmpdir
+      def safe_root_dir
+        pwd = Dir.pwd
+        aidp_dir = File.join(pwd, ".aidp")
+
+        # Try to create the directory to test writability
+        begin
+          FileUtils.mkdir_p(aidp_dir) unless File.exist?(aidp_dir)
+          pwd
+        rescue Errno::EACCES, Errno::EROFS, Errno::EPERM
+          # Permission denied or read-only filesystem - use temp directory
+          require "tmpdir"
+          Dir.tmpdir
+        end
+      end
 
       def default_cache_path
         File.join(@root_dir, ".aidp", "deprecated_models.json")
