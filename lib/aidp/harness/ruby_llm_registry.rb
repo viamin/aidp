@@ -65,7 +65,8 @@ module Aidp
         standard: ->(model) { true }
       }.freeze
 
-      def initialize
+      def initialize(deprecation_cache: nil)
+        @deprecation_cache = deprecation_cache
         @models = RubyLLM::Models.instance.instance_variable_get(:@models)
         @index_by_id = @models.to_h { |m| [m.id, m] }
 

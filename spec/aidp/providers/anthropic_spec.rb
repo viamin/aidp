@@ -1,9 +1,22 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
+require "fileutils"
 
 RSpec.describe Aidp::Providers::Anthropic do
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:test_cache) { Aidp::Harness::DeprecationCache.new(root_dir: temp_dir) }
   let(:provider) { described_class.new }
+
+  before do
+    # Stub the class-level deprecation cache to use temp directory in CI
+    allow(described_class).to receive(:deprecation_cache).and_return(test_cache)
+  end
+
+  after do
+    FileUtils.rm_rf(temp_dir) if temp_dir && File.exist?(temp_dir)
+  end
 
   describe "#available?" do
     it "returns true when claude CLI is available" do

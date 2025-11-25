@@ -1,12 +1,18 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
+require "fileutils"
 
 RSpec.describe Aidp::Providers::Anthropic, "deprecation handling" do
-  let(:cache) { described_class.deprecation_cache }
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:cache) { Aidp::Harness::DeprecationCache.new(root_dir: temp_dir) }
 
   # Seed test data before each test
   before do
+    # Stub the class-level cache to use our test cache
+    allow(described_class).to receive(:deprecation_cache).and_return(cache)
+
     cache.clear!
     cache.add_deprecated_model(provider: "anthropic", model_id: "claude-3-7-sonnet-20250219", replacement: "claude-sonnet-4-5-20250929")
     cache.add_deprecated_model(provider: "anthropic", model_id: "claude-3-7-sonnet-latest", replacement: "claude-sonnet-4-5")
@@ -17,6 +23,7 @@ RSpec.describe Aidp::Providers::Anthropic, "deprecation handling" do
 
   after do
     cache.clear!
+    FileUtils.rm_rf(temp_dir) if temp_dir && File.exist?(temp_dir)
   end
 
   describe ".check_model_deprecation" do

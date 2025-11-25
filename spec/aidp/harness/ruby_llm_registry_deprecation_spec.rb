@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
+require "fileutils"
 
 RSpec.describe Aidp::Harness::RubyLLMRegistry, "deprecation handling" do
-  let(:registry) { described_class.new }
-  let(:cache) { registry.deprecation_cache }
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:cache) { Aidp::Harness::DeprecationCache.new(root_dir: temp_dir) }
+  let(:registry) { described_class.new(deprecation_cache: cache) }
 
   # Seed test data before each test
   before do
@@ -19,6 +22,7 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry, "deprecation handling" do
   after do
     # Clean up test cache
     cache.clear!
+    FileUtils.rm_rf(temp_dir) if temp_dir && File.exist?(temp_dir)
   end
 
   describe "#model_deprecated?" do
