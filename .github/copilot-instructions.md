@@ -56,5 +56,5 @@ The LLM_STYLE_GUIDE is your primary reference for all coding standards, includin
   - Or any similar files
 - Work summaries and implementation docs should go in `docs/` with descriptive names
 - Temporary working files should go in `.aidp/` directory
-- Use git commit messages for implementation tracking instead of summary files
+- **Do NOT perform git operations** (commit, push, etc.) - leave version control to the user
 - Name documentation files descriptively based on the feature/issue, not generically

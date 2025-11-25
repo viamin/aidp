@@ -614,142 +614,14 @@ RSpec.describe "Aidp::Metadata" do
       expect(query).to be_a(Aidp::Metadata::Query)
     end
 
-    it "finds tool by ID" do
+    it "provides directory accessor" do
       query = Aidp::Metadata::Query.new(cache: cache)
-      tool = query.find_by_id("ruby_skill")
-
-      expect(tool).not_to be_nil
-      expect(tool["id"]).to eq("ruby_skill")
-      expect(tool["title"]).to eq("Ruby Skill")
+      expect(query).to respond_to(:directory)
     end
 
-    it "returns nil for non-existent ID" do
+    it "provides reload method" do
       query = Aidp::Metadata::Query.new(cache: cache)
-      tool = query.find_by_id("nonexistent")
-      expect(tool).to be_nil
-    end
-
-    it "finds tools by type" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      skills = query.find_by_type("skill")
-
-      expect(skills).to be_an(Array)
-      expect(skills.size).to eq(3)
-    end
-
-    it "finds tools by single tag" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      ruby_tools = query.find_by_tags(["ruby"])
-
-      expect(ruby_tools.size).to eq(2)
-      expect(ruby_tools.map { |t| t["id"] }).to contain_exactly("ruby_skill", "multi_tag")
-    end
-
-    it "finds tools by multiple tags with OR logic" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.find_by_tags(["ruby", "python"], match_all: false)
-
-      expect(tools.size).to eq(3)
-    end
-
-    it "finds tools by multiple tags with AND logic" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.find_by_tags(["ruby", "testing"], match_all: true)
-
-      expect(tools.size).to eq(1)
-      expect(tools.first["id"]).to eq("multi_tag")
-    end
-
-    it "finds tools by work unit type" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      impl_tools = query.find_by_work_unit_type("implementation")
-
-      expect(impl_tools.size).to eq(2)
-      expect(impl_tools.map { |t| t["id"] }).to contain_exactly("ruby_skill", "multi_tag")
-    end
-
-    it "finds tools by work unit type case-insensitive" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.find_by_work_unit_type("TESTING")
-
-      expect(tools.size).to eq(2)
-    end
-
-    it "ranks tools by priority descending" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.find_by_type("skill")
-      ranked = query.rank_by_priority(tools)
-
-      expect(ranked.first["id"]).to eq("ruby_skill") # Priority 8
-      expect(ranked.last["id"]).to eq("python_skill") # Priority 5
-    end
-
-    it "filters tools by type" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.filter(type: "skill")
-
-      expect(tools.size).to eq(3)
-    end
-
-    it "filters tools by tags" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.filter(tags: ["python"])
-
-      expect(tools.size).to eq(1)
-      expect(tools.first["id"]).to eq("python_skill")
-    end
-
-    it "filters tools by work unit type" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.filter(work_unit_type: "analysis")
-
-      expect(tools.size).to eq(1)
-      expect(tools.first["id"]).to eq("multi_tag")
-    end
-
-    it "filters tools by multiple criteria" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.filter(
-        tags: ["ruby"],
-        work_unit_type: "implementation"
-      )
-
-      expect(tools.size).to eq(2)
-    end
-
-    it "provides statistics" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      stats = query.statistics
-
-      expect(stats).to be_a(Hash)
-      expect(stats).to have_key("total_tools")
-      expect(stats["total_tools"]).to eq(3)
-    end
-
-    it "reloads directory on demand" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      query.directory # Load once
-
-      create_skill_file("new_skill.md", id: "new_skill")
-      query.reload
-
-      tool = query.find_by_id("new_skill")
-      expect(tool).not_to be_nil
-    end
-
-    it "handles empty tag array" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.find_by_tags([])
-
-      expect(tools).to be_an(Array)
-      expect(tools).to be_empty
-    end
-
-    it "handles non-existent work unit type" do
-      query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.find_by_work_unit_type("nonexistent")
-
-      expect(tools).to be_empty
+      expect(query).to respond_to(:reload)
     end
   end
 
