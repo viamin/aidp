@@ -11,6 +11,21 @@ module Aidp
       class RegistryError < StandardError; end
       class ModelNotFound < RegistryError; end
 
+      # Map AIDP provider names to RubyLLM provider names
+      # Some AIDP providers use different names than the upstream APIs
+      PROVIDER_NAME_MAPPING = {
+        "codex" => "openai",      # Codex is AIDP's OpenAI adapter
+        "anthropic" => "anthropic",
+        "gemini" => "gemini",     # Gemini provider name matches
+        "aider" => nil,           # Aider aggregates multiple providers
+        "cursor" => nil,          # Cursor has its own models
+        "openai" => "openai",
+        "google" => "gemini",     # Google's API uses gemini provider name
+        "azure" => "bedrock",     # Azure OpenAI uses bedrock in registry
+        "bedrock" => "bedrock",
+        "openrouter" => "openrouter"
+      }.freeze
+
       # Tier classification based on model characteristics
       # These are heuristics since ruby_llm doesn't classify tiers
       TIER_CLASSIFICATION = {
@@ -57,18 +72,21 @@ module Aidp
       # Resolve a model name (family or versioned) to the canonical API model
       #
       # @param model_name [String] Model name (e.g., "claude-3-5-haiku" or "claude-3-5-haiku-20241022")
-      # @param provider [String, nil] Optional provider filter
+      # @param provider [String, nil] Optional AIDP provider filter
       # @return [String, nil] Canonical model ID for API calls, or nil if not found
       def resolve_model(model_name, provider: nil)
+        # Map AIDP provider to registry provider if filtering
+        registry_provider = provider ? PROVIDER_NAME_MAPPING[provider] : nil
+
         # Try exact match first
         model = @index_by_id[model_name]
-        return model.id if model && (provider.nil? || model.provider.to_s == provider)
+        return model.id if model && (registry_provider.nil? || model.provider.to_s == registry_provider)
 
         # Try family mapping
         family_models = @family_index[model_name]
         if family_models
           # Filter by provider if specified
-          family_models = family_models.select { |m| m.provider.to_s == provider } if provider
+          family_models = family_models.select { |m| m.provider.to_s == registry_provider } if registry_provider
 
           # Return the latest version (first non-"latest" model, or the latest one)
           model = family_models.reject { |m| m.id.to_s.include?("-latest") }.first || family_models.first
@@ -76,7 +94,7 @@ module Aidp
         end
 
         # Try fuzzy matching for common patterns
-        fuzzy_match = find_fuzzy_match(model_name, provider)
+        fuzzy_match = find_fuzzy_match(model_name, registry_provider)
         return fuzzy_match.id if fuzzy_match
 
         Aidp.log_warn("ruby_llm_registry", "model not found", model: model_name, provider: provider)
@@ -105,7 +123,7 @@ module Aidp
       # Get all models for a specific tier
       #
       # @param tier [String, Symbol] The tier name (mini, standard, advanced)
-      # @param provider [String, nil] Optional provider filter
+      # @param provider [String, nil] Optional AIDP provider filter
       # @return [Array<String>] List of model IDs for the tier
       def models_for_tier(tier, provider: nil)
         tier_sym = tier.to_sym
@@ -116,8 +134,12 @@ module Aidp
           return []
         end
 
+        # Map AIDP provider to registry provider if filtering
+        registry_provider = provider ? PROVIDER_NAME_MAPPING[provider] : nil
+        return [] if provider && registry_provider.nil?
+
         models = @models.select do |model|
-          (provider.nil? || model.provider.to_s == provider) &&
+          (registry_provider.nil? || model.provider.to_s == registry_provider) &&
             classifier.call(model)
         end
 
@@ -138,10 +160,16 @@ module Aidp
 
       # Get all models for a provider
       #
-      # @param provider [String] The provider name
+      # @param provider [String] The AIDP provider name
       # @return [Array<String>] List of model IDs
       def models_for_provider(provider)
-        @models.select { |m| m.provider.to_s == provider }.map(&:id)
+        # Map AIDP provider name to RubyLLM provider name
+        registry_provider = PROVIDER_NAME_MAPPING[provider]
+
+        # Return empty if provider doesn't map to a registry provider
+        return [] if registry_provider.nil?
+
+        @models.select { |m| m.provider.to_s == registry_provider }.map(&:id)
       end
 
       # Classify a model's tier
