@@ -68,6 +68,19 @@ def discover_models_from_registry(provider, registry)
 end
 ```
 
+**Provider Name Mapping:**
+
+AIDP uses different internal names for some providers than their RubyLLM equivalents:
+
+| AIDP Provider | RubyLLM Provider | Notes |
+| ------------- | ---------------- | ----- |
+| `anthropic` | `anthropic` | Direct match |
+| `codex` | `openai` | Codex is AIDP's OpenAI adapter |
+| `gemini` | `gemini` | Direct match |
+| `google` | `gemini` | Google API uses gemini provider |
+| `aider` | N/A | Aggregates multiple providers |
+| `cursor` | N/A | Has its own model system |
+
 **Benefits:**
 
 - Only valid, currently-supported models appear in generated configs

@@ -188,6 +188,20 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
       expect(models.any? { |id| id.include?("gpt") }).to be true
     end
 
+    it "maps codex provider to openai models" do
+      codex_models = registry.models_for_provider("codex")
+      openai_models = registry.models_for_provider("openai")
+      expect(codex_models).to eq(openai_models)
+      expect(codex_models.any? { |id| id.include?("gpt-4o-mini") }).to be true
+      expect(codex_models.any? { |id| id.include?("gpt-3.5-turbo") }).to be true
+    end
+
+    it "maps gemini provider to google models" do
+      gemini_models = registry.models_for_provider("gemini")
+      expect(gemini_models).not_to be_empty
+      expect(gemini_models.any? { |id| id.include?("gemini") }).to be true
+    end
+
     it "returns empty array for unknown provider" do
       models = registry.models_for_provider("unknown_provider_xyz")
       expect(models).to eq([])
