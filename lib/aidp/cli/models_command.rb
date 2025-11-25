@@ -4,28 +4,28 @@ require "tty-table"
 require "tty-prompt"
 require "tty-spinner"
 require_relative "../harness/model_registry"
-require_relative "../harness/model_discovery_service"
+require_relative "../harness/ruby_llm_registry"
 
 module Aidp
   class CLI
     # Command handler for `aidp models` subcommand group
     #
-    # Provides commands for viewing and discovering AI models:
+    # Provides commands for viewing AI models from the RubyLLM registry:
     #   - list: Show all available models with tier information
-    #   - discover: Discover models from configured providers
-    #   - refresh: Refresh the model cache
+    #   - discover: Discover models from RubyLLM registry for a provider
+    #   - validate: Validate model configuration
     #
     # Usage:
     #   aidp models list [--provider=<name>] [--tier=<tier>]
     #   aidp models discover [--provider=<name>]
-    #   aidp models refresh [--provider=<name>]
+    #   aidp models validate
     class ModelsCommand
       include Aidp::MessageDisplay
 
-      def initialize(prompt: TTY::Prompt.new, registry: nil, discovery_service: nil)
+      def initialize(prompt: TTY::Prompt.new, registry: nil, ruby_llm_registry: nil)
         @prompt = prompt
         @registry = registry
-        @discovery_service = discovery_service
+        @ruby_llm_registry = ruby_llm_registry
       end
 
       # Main entry point for models subcommand
@@ -39,9 +39,6 @@ module Aidp
         when "discover"
           args.shift
           run_discover_command(args)
-        when "refresh"
-          args.shift
-          run_refresh_command(args)
         when "validate"
           args.shift
           run_validate_command(args)
@@ -58,16 +55,15 @@ module Aidp
         @registry ||= Aidp::Harness::ModelRegistry.new
       end
 
-      def discovery_service
-        @discovery_service ||= Aidp::Harness::ModelDiscoveryService.new
+      def ruby_llm_registry
+        @ruby_llm_registry ||= Aidp::Harness::RubyLLMRegistry.new
       end
 
       def display_help
         display_message("\nUsage: aidp models <subcommand> [options]", type: :info)
         display_message("\nSubcommands:", type: :info)
         display_message("  list              List all available models with tier information", type: :info)
-        display_message("  discover          Discover models from configured providers", type: :info)
-        display_message("  refresh           Refresh the model discovery cache", type: :info)
+        display_message("  discover          Discover models from RubyLLM registry for a provider", type: :info)
         display_message("  validate          Validate model configuration for all tiers", type: :info)
         display_message("\nOptions:", type: :info)
         display_message("  --provider=<name> Filter/target specific provider", type: :info)
@@ -76,9 +72,7 @@ module Aidp
         display_message("  aidp models list", type: :info)
         display_message("  aidp models list --tier=mini", type: :info)
         display_message("  aidp models list --provider=anthropic", type: :info)
-        display_message("  aidp models discover", type: :info)
         display_message("  aidp models discover --provider=anthropic", type: :info)
-        display_message("  aidp models refresh", type: :info)
         display_message("  aidp models validate", type: :info)
       end
 
@@ -86,42 +80,35 @@ module Aidp
         options = parse_list_options(args)
 
         begin
-          # Get all model families from registry
-          families = registry.all_families
-
-          # Apply tier filter if specified
-          if options[:tier]
-            families = families.select { |family|
-              info = registry.get_model_info(family)
-              info && info["tier"] == options[:tier]
-            }
+          # Get models from RubyLLM registry
+          all_model_ids = if options[:provider]
+            ruby_llm_registry.models_for_provider(options[:provider])
+          else
+            # Get all models by iterating known providers
+            known_providers = %w[anthropic openai google azure bedrock openrouter]
+            known_providers.flat_map { |p| ruby_llm_registry.models_for_provider(p) }.uniq
           end
 
           # Build table rows
           rows = []
-          families.each do |family|
-            info = registry.get_model_info(family)
+          all_model_ids.each do |model_id|
+            info = ruby_llm_registry.get_model_info(model_id)
             next unless info
 
-            # Get providers that support this family
-            providers = find_providers_for_family(family)
+            # Map advanced -> pro for display consistency
+            display_tier = (info[:tier] == "advanced") ? "pro" : info[:tier]
 
-            # Apply provider filter if specified
-            next if options[:provider] && !providers.include?(options[:provider])
-
-            # Add a row for each provider that supports this family
-            if providers.empty?
-              # No provider support - show as registry-only
-              rows << build_table_row(nil, family, info, "registry")
-            else
-              providers.each do |provider_name|
-                rows << build_table_row(provider_name, family, info, "registry")
-              end
+            # Apply tier filter if specified (handle pro/advanced mapping)
+            if options[:tier]
+              filter_tier = (options[:tier] == "pro") ? "advanced" : options[:tier]
+              next unless info[:tier] == filter_tier
             end
+
+            rows << build_table_row(info[:provider], model_id, info, display_tier)
           end
 
           # Sort rows by tier, then provider, then model name
-          tier_order = {"mini" => 0, "standard" => 1, "advanced" => 2}
+          tier_order = {"mini" => 0, "standard" => 1, "pro" => 2, "advanced" => 2}
           rows.sort_by! { |r| [tier_order[r[2]] || 3, r[0] || "", r[1]] }
 
           # Display table
@@ -156,6 +143,7 @@ module Aidp
 
       def parse_list_options(args)
         options = {}
+        valid_tiers = %w[mini standard pro advanced]
 
         args.each do |arg|
           case arg
@@ -163,8 +151,8 @@ module Aidp
             options[:provider] = Regexp.last_match(1)
           when /^--tier=(.+)$/
             tier = Regexp.last_match(1)
-            unless Aidp::Harness::ModelRegistry::VALID_TIERS.include?(tier)
-              display_message("Invalid tier: #{tier}. Valid tiers: #{Aidp::Harness::ModelRegistry::VALID_TIERS.join(", ")}", type: :error)
+            unless valid_tiers.include?(tier)
+              display_message("Invalid tier: #{tier}. Valid tiers: #{valid_tiers.join(", ")}", type: :error)
               exit 1
             end
             options[:tier] = tier
@@ -177,18 +165,17 @@ module Aidp
         options
       end
 
-      def build_table_row(provider_name, family, info, source)
-        capabilities = (info["capabilities"] || []).join(",")
-        context = format_context_window(info["context_window"])
-        speed = info["speed"] || "unknown"
+      def build_table_row(provider_name, model_id, info, display_tier)
+        capabilities = (info[:capabilities] || []).join(",")
+        context = format_context_window(info[:context_window])
 
         [
           provider_name || "-",
-          family,
-          info["tier"] || "unknown",
+          model_id,
+          display_tier || "unknown",
           capabilities.empty? ? "-" : capabilities,
           context,
-          speed
+          "-" # Speed not available in registry
         ]
       end
 
@@ -213,8 +200,8 @@ module Aidp
 
       def build_footer(count)
         tips = [
-          "💡 Showing #{count} model#{"s" unless count == 1} from the static registry",
-          "💡 Model families are provider-agnostic (e.g., 'claude-3-5-sonnet' works across providers)"
+          "💡 Showing #{count} model#{"s" unless count == 1} from RubyLLM registry",
+          "💡 Registry updated regularly via ruby_llm gem updates"
         ]
         tips.join("\n")
       end
@@ -249,81 +236,56 @@ module Aidp
       def run_discover_command(args)
         options = parse_discover_options(args)
 
+        unless options[:provider]
+          display_message("\n⚠️  Please specify a provider with --provider=<name>", type: :warning)
+          display_message("Example: aidp models discover --provider=anthropic\n", type: :info)
+          return 1
+        end
+
         begin
-          display_message("\n🔍 Discovering models from configured providers...\n", type: :highlight)
+          display_message("\n🔍 Discovering models for #{options[:provider]} from RubyLLM registry...\n", type: :highlight)
 
-          spinner = TTY::Spinner.new("[:spinner] Querying provider APIs...", format: :dots)
-          spinner.auto_spin
+          # Get models from registry
+          model_ids = ruby_llm_registry.models_for_provider(options[:provider])
 
-          # Discover models
-          results = if options[:provider]
-            {options[:provider] => discovery_service.discover_models(options[:provider], use_cache: false)}
-          else
-            discovery_service.discover_all_models(use_cache: false)
-          end
-
-          spinner.success("✓")
-
-          # Display results
-          total_models = 0
-          results.each do |provider, models|
-            next if models.empty?
-
-            total_models += models.size
-            display_message("\n✓ Found #{models.size} models for #{provider}:", type: :success)
-
-            # Group by tier
-            by_tier = models.group_by { |m| m[:tier] }
-            %w[mini standard advanced].each do |tier|
-              tier_models = by_tier[tier] || []
-              next if tier_models.empty?
-
-              display_message("  #{tier.capitalize} tier:", type: :info)
-              tier_models.each do |model|
-                display_message("    - #{model[:name]}", type: :info)
-              end
-            end
-          end
-
-          if total_models == 0
-            display_message("\n⚠️  No models discovered. Ensure provider CLIs are installed and configured.", type: :warning)
+          if model_ids.empty?
+            display_message("\n⚠️  No models found for provider '#{options[:provider]}'.", type: :warning)
+            display_message("Provider may not be supported or name may be incorrect.\n", type: :info)
             return 1
           end
 
-          display_message("\n✅ Discovered #{total_models} total model#{"s" unless total_models == 1}", type: :success)
-          display_message("💾 Models cached for 24 hours\n", type: :info)
+          # Group by tier
+          models_by_tier = Hash.new { |h, k| h[k] = [] }
+          model_ids.each do |model_id|
+            info = ruby_llm_registry.get_model_info(model_id)
+            next unless info
+
+            # Map advanced -> pro for display
+            tier = (info[:tier] == "advanced") ? "pro" : info[:tier]
+            models_by_tier[tier] << model_id
+          end
+
+          # Display results
+          display_message("\n✓ Found #{model_ids.size} models for #{options[:provider]}:", type: :success)
+
+          %w[mini standard pro].each do |tier|
+            tier_models = models_by_tier[tier]
+            next if tier_models.empty?
+
+            display_message("\n  #{tier.capitalize} tier (#{tier_models.size} model#{"s" unless tier_models.size == 1}):", type: :info)
+            tier_models.first(5).each do |model|
+              display_message("    - #{model}", type: :info)
+            end
+            if tier_models.size > 5
+              display_message("    ... and #{tier_models.size - 5} more", type: :info)
+            end
+          end
+
+          display_message("\n💡 Use 'aidp models list --provider=#{options[:provider]}' to see full details\n", type: :info)
           0
         rescue => e
           display_message("Error discovering models: #{e.message}", type: :error)
           Aidp.log_error("models_command", "discovery error", error: e.message, backtrace: e.backtrace.first(5))
-          1
-        end
-      end
-
-      def run_refresh_command(args)
-        options = parse_refresh_options(args)
-
-        begin
-          display_message("\n♻️  Refreshing model cache...\n", type: :highlight)
-
-          spinner = TTY::Spinner.new("[:spinner] Clearing cache and re-discovering...", format: :dots)
-          spinner.auto_spin
-
-          if options[:provider]
-            discovery_service.refresh_cache(options[:provider])
-            spinner.success("✓")
-            display_message("\n✅ Refreshed cache for #{options[:provider]}", type: :success)
-          else
-            discovery_service.refresh_all_caches
-            spinner.success("✓")
-            display_message("\n✅ Refreshed cache for all providers", type: :success)
-          end
-
-          display_message("💡 Run 'aidp models discover' to see the updated models\n", type: :info)
-          0
-        rescue => e
-          display_message("Error refreshing cache: #{e.message}", type: :error)
-          Aidp.log_error("models_command", "refresh error", error: e.message, backtrace: e.backtrace.first(5))
           1
         end
       end
@@ -342,10 +304,6 @@ module Aidp
         end
 
         options
-      end
-
-      def parse_refresh_options(args)
-        parse_discover_options(args)
       end
 
       def run_validate_command(args)
