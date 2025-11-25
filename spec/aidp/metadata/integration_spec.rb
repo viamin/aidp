@@ -258,6 +258,147 @@ RSpec.describe "Aidp::Metadata" do
       expect(tools.size).to eq(1)
       expect(tools.first.id).to eq("real_skill")
     end
+
+    it "finds markdown files recursively" do
+      create_skill_file("top_level.md", id: "top_level")
+      nested = File.join(skills_dir, "level1", "level2")
+      FileUtils.mkdir_p(nested)
+
+      File.write(File.join(nested, "deep.md"), <<~MD)
+        ---
+        id: deep_skill
+        title: Deep Skill
+        summary: A deeply nested skill
+        version: 1.0.0
+        ---
+        Content
+      MD
+
+      scanner = Aidp::Metadata::Scanner.new([skills_dir])
+      files = scanner.send(:find_markdown_files, skills_dir)
+
+      expect(files).to include(File.join(nested, "deep.md"))
+      expect(files.size).to eq(2)
+    end
+
+    it "scans with custom filter" do
+      create_skill_file("ruby_skill.md", id: "ruby_skill")
+      create_skill_file("python_skill.md", id: "python_skill")
+
+      scanner = Aidp::Metadata::Scanner.new([skills_dir])
+      tools = scanner.scan_with_filter(skills_dir) { |path| path.include?("ruby") }
+
+      expect(tools.size).to eq(1)
+      expect(tools.first.id).to eq("ruby_skill")
+    end
+
+    it "detects added files in change scan" do
+      scanner = Aidp::Metadata::Scanner.new([skills_dir])
+
+      # Initial scan with no files
+      changes1 = scanner.scan_changes(skills_dir, {})
+      expect(changes1[:added]).to be_empty
+
+      # Add a file
+      create_skill_file("new_skill.md", id: "new_skill")
+      changes2 = scanner.scan_changes(skills_dir, {})
+
+      expect(changes2[:added].size).to eq(1)
+      expect(changes2[:added].first).to include("new_skill.md")
+    end
+
+    it "detects modified files in change scan" do
+      file_path = create_skill_file("changing.md", id: "changing")
+
+      scanner = Aidp::Metadata::Scanner.new([skills_dir])
+
+      # First scan
+      initial = scanner.scan_changes(skills_dir, {})
+      previous_hashes = {}
+      initial[:added].each do |path|
+        content = File.read(path, encoding: "UTF-8")
+        previous_hashes[path] = Aidp::Metadata::Parser.compute_file_hash(content)
+      end
+
+      # Modify the file
+      sleep 0.01
+      File.write(file_path, File.read(file_path) + "\n# Modified")
+
+      # Second scan
+      changes = scanner.scan_changes(skills_dir, previous_hashes)
+
+      expect(changes[:modified].size).to eq(1)
+      expect(changes[:modified].first).to eq(file_path)
+    end
+
+    it "detects removed files in change scan" do
+      file_path = create_skill_file("removed.md", id: "removed")
+
+      scanner = Aidp::Metadata::Scanner.new([skills_dir])
+
+      # Initial scan
+      content = File.read(file_path, encoding: "UTF-8")
+      hash = Aidp::Metadata::Parser.compute_file_hash(content)
+      previous_hashes = {file_path => hash}
+
+      # Remove file
+      File.delete(file_path)
+
+      # Scan again
+      changes = scanner.scan_changes(skills_dir, previous_hashes)
+
+      expect(changes[:removed].size).to eq(1)
+      expect(changes[:removed].first).to eq(file_path)
+    end
+
+    it "detects unchanged files in change scan" do
+      file_path = create_skill_file("unchanged.md", id: "unchanged")
+
+      scanner = Aidp::Metadata::Scanner.new([skills_dir])
+
+      content = File.read(file_path, encoding: "UTF-8")
+      hash = Aidp::Metadata::Parser.compute_file_hash(content)
+      previous_hashes = {file_path => hash}
+
+      changes = scanner.scan_changes(skills_dir, previous_hashes)
+
+      expect(changes[:unchanged].size).to eq(1)
+      expect(changes[:unchanged].first).to eq(file_path)
+    end
+
+    it "handles parse errors gracefully" do
+      invalid_file = File.join(skills_dir, "invalid.md")
+      File.write(invalid_file, "---\ninvalid: yaml: syntax:\n---\n")
+
+      scanner = Aidp::Metadata::Scanner.new([skills_dir])
+
+      # Should not raise, but log warning
+      expect { scanner.scan_all }.not_to raise_error
+    end
+
+    it "scans multiple directories" do
+      templates_dir = File.join(test_dir, "templates")
+      FileUtils.mkdir_p(templates_dir)
+
+      create_skill_file("skill.md", id: "skill1")
+
+      File.write(File.join(templates_dir, "template.md"), <<~MD)
+        ---
+        id: template1
+        title: Template
+        summary: A template
+        version: 1.0.0
+        type: template
+        ---
+        Content
+      MD
+
+      scanner = Aidp::Metadata::Scanner.new([skills_dir, templates_dir])
+      tools = scanner.scan_all
+
+      expect(tools.size).to eq(2)
+      expect(tools.map(&:type)).to contain_exactly("skill", "template")
+    end
   end
 
   describe "Compiler" do
@@ -458,6 +599,12 @@ RSpec.describe "Aidp::Metadata" do
         applies_to: ["python"],
         work_unit_types: ["testing"],
         extra: {"priority" => 5})
+      create_skill_file("multi_tag.md",
+        id: "multi_tag",
+        title: "Multi Tag Skill",
+        applies_to: ["ruby", "testing"],
+        work_unit_types: ["implementation", "analysis"],
+        extra: {"priority" => 7})
 
       Aidp::Metadata::Cache.new(cache_path: cache_file, directories: [skills_dir])
     end
@@ -467,62 +614,119 @@ RSpec.describe "Aidp::Metadata" do
       expect(query).to be_a(Aidp::Metadata::Query)
     end
 
-    xit "finds tool by ID" do
+    it "finds tool by ID" do
       query = Aidp::Metadata::Query.new(cache: cache)
       tool = query.find_by_id("ruby_skill")
 
       expect(tool).not_to be_nil
       expect(tool["id"]).to eq("ruby_skill")
+      expect(tool["title"]).to eq("Ruby Skill")
     end
 
-    xit "returns nil for non-existent ID" do
+    it "returns nil for non-existent ID" do
       query = Aidp::Metadata::Query.new(cache: cache)
       tool = query.find_by_id("nonexistent")
       expect(tool).to be_nil
     end
 
-    xit "finds tools by type" do
+    it "finds tools by type" do
       query = Aidp::Metadata::Query.new(cache: cache)
       skills = query.find_by_type("skill")
 
       expect(skills).to be_an(Array)
-      expect(skills.size).to eq(2)
+      expect(skills.size).to eq(3)
     end
 
-    xit "finds tools by tags" do
+    it "finds tools by single tag" do
       query = Aidp::Metadata::Query.new(cache: cache)
       ruby_tools = query.find_by_tags(["ruby"])
 
-      expect(ruby_tools.size).to eq(1)
-      expect(ruby_tools.first["id"]).to eq("ruby_skill")
+      expect(ruby_tools.size).to eq(2)
+      expect(ruby_tools.map { |t| t["id"] }).to contain_exactly("ruby_skill", "multi_tag")
     end
 
-    xit "finds tools by work unit type" do
+    it "finds tools by multiple tags with OR logic" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_tags(["ruby", "python"], match_all: false)
+
+      expect(tools.size).to eq(3)
+    end
+
+    it "finds tools by multiple tags with AND logic" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_tags(["ruby", "testing"], match_all: true)
+
+      expect(tools.size).to eq(1)
+      expect(tools.first["id"]).to eq("multi_tag")
+    end
+
+    it "finds tools by work unit type" do
       query = Aidp::Metadata::Query.new(cache: cache)
       impl_tools = query.find_by_work_unit_type("implementation")
 
-      expect(impl_tools.size).to eq(1)
-      expect(impl_tools.first["id"]).to eq("ruby_skill")
+      expect(impl_tools.size).to eq(2)
+      expect(impl_tools.map { |t| t["id"] }).to contain_exactly("ruby_skill", "multi_tag")
     end
 
-    xit "ranks tools by priority" do
+    it "finds tools by work unit type case-insensitive" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_work_unit_type("TESTING")
+
+      expect(tools.size).to eq(2)
+    end
+
+    it "ranks tools by priority descending" do
       query = Aidp::Metadata::Query.new(cache: cache)
       tools = query.find_by_type("skill")
       ranked = query.rank_by_priority(tools)
 
-      expect(ranked.first["id"]).to eq("ruby_skill") # Higher priority
-      expect(ranked.last["id"]).to eq("python_skill")
+      expect(ranked.first["id"]).to eq("ruby_skill") # Priority 8
+      expect(ranked.last["id"]).to eq("python_skill") # Priority 5
     end
 
-    xit "filters tools by multiple criteria" do
+    it "filters tools by type" do
       query = Aidp::Metadata::Query.new(cache: cache)
-      tools = query.filter(tags: ["ruby"], work_unit_types: ["implementation"])
+      tools = query.filter(type: "skill")
+
+      expect(tools.size).to eq(3)
+    end
+
+    it "filters tools by tags" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.filter(tags: ["python"])
 
       expect(tools.size).to eq(1)
-      expect(tools.first["id"]).to eq("ruby_skill")
+      expect(tools.first["id"]).to eq("python_skill")
     end
 
-    xit "reloads directory on demand" do
+    it "filters tools by work unit type" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.filter(work_unit_type: "analysis")
+
+      expect(tools.size).to eq(1)
+      expect(tools.first["id"]).to eq("multi_tag")
+    end
+
+    it "filters tools by multiple criteria" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.filter(
+        tags: ["ruby"],
+        work_unit_type: "implementation"
+      )
+
+      expect(tools.size).to eq(2)
+    end
+
+    it "provides statistics" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      stats = query.statistics
+
+      expect(stats).to be_a(Hash)
+      expect(stats).to have_key("total_tools")
+      expect(stats["total_tools"]).to eq(3)
+    end
+
+    it "reloads directory on demand" do
       query = Aidp::Metadata::Query.new(cache: cache)
       query.directory # Load once
 
@@ -531,6 +735,21 @@ RSpec.describe "Aidp::Metadata" do
 
       tool = query.find_by_id("new_skill")
       expect(tool).not_to be_nil
+    end
+
+    it "handles empty tag array" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_tags([])
+
+      expect(tools).to be_an(Array)
+      expect(tools).to be_empty
+    end
+
+    it "handles non-existent work unit type" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_work_unit_type("nonexistent")
+
+      expect(tools).to be_empty
     end
   end
 
