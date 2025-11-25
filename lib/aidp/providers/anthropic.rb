@@ -9,6 +9,8 @@ module Aidp
     class Anthropic < Base
       include Aidp::DebugMixin
 
+      attr_reader :model
+
       # Model name pattern for Anthropic Claude models
       MODEL_PATTERN = /^claude-[\d.-]+-(?:opus|sonnet|haiku)(?:-\d{8})?$/i
 

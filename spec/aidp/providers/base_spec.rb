@@ -44,9 +44,35 @@ RSpec.describe Aidp::Providers::Base do
   end
 
   describe "#configure" do
-    it "sets the model when provided in config" do
-      provider.configure(model: "test-model-123")
-      expect(provider.model).to eq("test-model-123")
+    let(:mock_registry) { instance_double(Aidp::Harness::RubyLLMRegistry) }
+
+    before do
+      allow(Aidp::Harness::RubyLLMRegistry).to receive(:new).and_return(mock_registry)
+    end
+
+    it "resolves model name using registry when provided" do
+      allow(mock_registry).to receive(:resolve_model).with("gpt-4", provider: "test_provider").and_return("gpt-4-0613")
+
+      provider.configure(model: "gpt-4")
+      expect(provider.model).to eq("gpt-4-0613")
+    end
+
+    it "uses model name as-is when registry returns nil" do
+      allow(mock_registry).to receive(:resolve_model).with("unknown-model", provider: "test_provider").and_return(nil)
+      allow(Aidp).to receive(:log_warn)
+
+      provider.configure(model: "unknown-model")
+      expect(provider.model).to eq("unknown-model")
+      expect(Aidp).to have_received(:log_warn)
+    end
+
+    it "handles registry errors gracefully" do
+      allow(mock_registry).to receive(:resolve_model).and_raise(StandardError, "Registry unavailable")
+      allow(Aidp).to receive(:log_error)
+
+      provider.configure(model: "test-model")
+      expect(provider.model).to eq("test-model")
+      expect(Aidp).to have_received(:log_error)
     end
 
     it "does not set model when not provided" do
@@ -55,6 +81,8 @@ RSpec.describe Aidp::Providers::Base do
     end
 
     it "does not override model with nil" do
+      allow(mock_registry).to receive(:resolve_model).with("test-model-123", provider: "test_provider").and_return("test-model-123")
+
       provider.configure(model: "test-model-123")
       provider.configure({})
       expect(provider.model).to eq("test-model-123")

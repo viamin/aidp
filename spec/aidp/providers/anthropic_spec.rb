@@ -38,7 +38,40 @@ RSpec.describe Aidp::Providers::Anthropic do
   end
 
   describe "#configure" do
-    it "sets the model when provided in config" do
+    let(:mock_registry) { instance_double(Aidp::Harness::RubyLLMRegistry) }
+
+    before do
+      allow(Aidp::Harness::RubyLLMRegistry).to receive(:new).and_return(mock_registry)
+    end
+
+    it "resolves model family to versioned model using registry" do
+      allow(mock_registry).to receive(:resolve_model).with("claude-3-5-haiku", provider: "anthropic").and_return("claude-3-5-haiku-20241022")
+
+      provider.configure(model: "claude-3-5-haiku")
+      expect(provider.model).to eq("claude-3-5-haiku-20241022")
+    end
+
+    it "preserves already versioned model names" do
+      allow(mock_registry).to receive(:resolve_model).with("claude-3-opus-20240229", provider: "anthropic").and_return("claude-3-opus-20240229")
+
+      provider.configure(model: "claude-3-opus-20240229")
+      expect(provider.model).to eq("claude-3-opus-20240229")
+    end
+
+    it "falls back to using model name as-is when registry returns nil" do
+      allow(mock_registry).to receive(:resolve_model).with("unknown-model", provider: "anthropic").and_return(nil)
+      expect(Aidp).to receive(:log_warn).with("anthropic", "Model not found in registry, using as-is", model: "unknown-model")
+
+      provider.configure(model: "unknown-model")
+      expect(provider.model).to eq("unknown-model")
+    end
+
+    it "handles registry errors gracefully" do
+      allow(mock_registry).to receive(:resolve_model).and_raise(StandardError, "Registry error")
+      expect(Aidp).to receive(:log_error).with("anthropic", "Registry lookup failed, using model name as-is",
+        model: "claude-3-5-haiku",
+        error: "Registry error")
+
       provider.configure(model: "claude-3-5-haiku")
       expect(provider.model).to eq("claude-3-5-haiku")
     end
@@ -95,7 +128,11 @@ RSpec.describe Aidp::Providers::Anthropic do
     end
 
     context "when model is configured" do
+      let(:mock_registry) { instance_double(Aidp::Harness::RubyLLMRegistry) }
+
       before do
+        allow(Aidp::Harness::RubyLLMRegistry).to receive(:new).and_return(mock_registry)
+        allow(mock_registry).to receive(:resolve_model).with("claude-3-5-haiku", provider: "anthropic").and_return("claude-3-5-haiku-20241022")
         provider.configure(model: "claude-3-5-haiku")
       end
 
@@ -103,7 +140,7 @@ RSpec.describe Aidp::Providers::Anthropic do
         provider.send_message(prompt: prompt)
 
         # In devcontainer, expect --dangerously-skip-permissions flag
-        expected_args = ["--print", "--output-format=text", "--model", "claude-3-5-haiku"]
+        expected_args = ["--print", "--output-format=text", "--model", "claude-3-5-haiku-20241022"]
         expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
 
         expect(provider).to have_received(:debug_execute_command).with(
