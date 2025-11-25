@@ -72,8 +72,8 @@
     "aider": "curl -fsSL https://aider.chat/install.sh | bash",
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh",
-    // Generate firewall configuration from provider requirements
-    "generate-firewall-config": "bundle exec ruby bin/update-firewall-config"
+    // Install gems and generate firewall config (runs once per build)
+    "bundle-and-firewall": "bundle install --jobs 4 --retry 3 && bundle exec ruby bin/update-firewall-config"
   },
   // Post-start command - initialize firewall, then ensure bundle
   "postStartCommand": {
