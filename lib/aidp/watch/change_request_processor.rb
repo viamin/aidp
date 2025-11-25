@@ -13,6 +13,7 @@ require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../harness/test_runner"
 require_relative "../worktree"
+require_relative "../pr_worktree_manager"
 require_relative "github_state_extractor"
 require_relative "implementation_verifier"
 
@@ -39,6 +40,9 @@ module Aidp
         @provider_name = provider_name
         @project_dir = project_dir
         @verbose = verbose
+
+        # Initialize PR worktree manager
+        @worktree_manager = Aidp::PrWorktreeManager.new(project_dir: project_dir)
 
         # Initialize verifier
         @verifier = ImplementationVerifier.new(
@@ -397,99 +401,44 @@ module Aidp
           base_branch: base_branch
         )
 
-        # Check if a worktree already exists for this branch
-        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
+        # Use the new PrWorktreeManager to find or create a worktree
+        worktree_path = @worktree_manager.find_worktree(pr_number)
 
-        if existing && existing[:active]
-          display_message("🔄 Using existing worktree for branch: #{head_ref}", type: :info)
-          Aidp.log_debug(
-            "change_request_processor", "worktree_reused",
-            pr_number: pr_number,
-            branch: head_ref,
-            path: existing[:path]
-          )
-
-          # Update @project_dir to point to the worktree
-          @project_dir = existing[:path]
-
-          # Pull latest changes in the worktree
-          Dir.chdir(@project_dir) do
-            run_git(%w[fetch origin], allow_failure: true)
-            run_git(["checkout", head_ref])
-            run_git(%w[pull --ff-only], allow_failure: true)
-            Aidp.log_debug(
-              "change_request_processor", "Worktree updated successfully",
-              pr_number: pr_number,
-              branch: head_ref
-            )
-          rescue => e
-            Aidp.log_warn(
-              "change_request_processor", "Failed to update worktree",
-              pr_number: pr_number,
-              branch: head_ref,
-              error: e.message
-            )
-            # Fallback: try to create a new worktree if update fails
-            return create_worktree_for_pr(pr_data)
-          end
-
-          return
+        if worktree_path.nil?
+          # Create a new worktree if none exists
+          worktree_path = @worktree_manager.create_worktree(pr_number, base_branch, head_ref)
         end
 
-        # Create a new worktree for large PRs or when no existing worktree
-        create_worktree_for_pr(pr_data)
-      end
+        # Update @project_dir to point to the worktree
+        @project_dir = worktree_path
 
-      private
+        display_message("🔄 Configured worktree for branch: #{head_ref}", type: :info)
 
-      def create_worktree_for_pr(pr_data)
-        head_ref = pr_data[:head_ref]
-        base_branch = pr_data[:base_ref]
-        pr_number = pr_data[:number]
-
-        Aidp.log_debug(
-          "change_request_processor", "Creating new worktree",
-          pr_number: pr_number,
-          head_branch: head_ref,
-          base_branch: base_branch
-        )
-
-        # Generate a unique slug for the worktree
-        slug = "pr-#{pr_number}-#{head_ref.gsub(/[^a-zA-Z0-9]/, "-")}"
-
-        # Use Worktree module to create a new worktree
-        new_worktree = Aidp::Worktree.create(
-          slug: slug,
-          project_dir: @project_dir,
-          branch: head_ref,
-          base_branch: base_branch
-        )
-
-        # Update project_dir to point to the new worktree
-        @project_dir = new_worktree[:path]
-
-        display_message("🌿 Created new worktree for PR branch: #{head_ref}", type: :info)
-        Aidp.log_debug(
-          "change_request_processor", "Worktree created",
-          pr_number: pr_number,
-          branch: head_ref,
-          worktree_path: new_worktree[:path]
-        )
-
+        # Pull latest changes in the worktree
         Dir.chdir(@project_dir) do
           run_git(%w[fetch origin], allow_failure: true)
           run_git(["checkout", head_ref])
           run_git(%w[pull --ff-only], allow_failure: true)
+
+          Aidp.log_debug(
+            "change_request_processor", "Worktree updated successfully",
+            pr_number: pr_number,
+            branch: head_ref,
+            path: worktree_path
+          )
         rescue => e
           Aidp.log_warn(
-            "change_request_processor", "Failed to configure new worktree",
+            "change_request_processor", "Failed to update worktree",
             pr_number: pr_number,
             branch: head_ref,
             error: e.message
           )
-          display_message("⚠️  Warning: Could not fully configure worktree.", type: :warn)
+          # If update fails, the existing worktree will remain
+          # but the user will be notified of the update issue
         end
       end
+
+      private
 
       def apply_changes(changes)
         changes.each do |change|

@@ -534,14 +534,13 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
       end
 
       describe "#checkout_pr_branch" do
+        let(:worktree_manager) { instance_double(Aidp::PrWorktreeManager) }
+
         before do
           allow(processor).to receive(:run_git)
-          # Mock worktree operations to simulate existing worktree
-          allow(Aidp::Worktree).to receive(:find_by_branch).and_return({
-            active: true,
-            path: "/tmp/existing_worktree"
-          })
-          allow(processor).to receive(:create_worktree_for_pr)
+          # Mock the worktree manager to simulate existing worktree
+          processor.instance_variable_set(:@worktree_manager, worktree_manager)
+          allow(worktree_manager).to receive(:find_worktree).with(123).and_return("/tmp/existing_worktree")
           allow(Dir).to receive(:chdir).with("/tmp/existing_worktree").and_yield
         end
 
@@ -563,9 +562,17 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
           ]
         end
 
+        before do
+          # Mock the registry file operations for PrWorktreeManager
+          registry_path = File.join(tmp_dir, "pr_worktrees.json")
+          allow(File).to receive(:exist?).with(registry_path).and_return(false)
+          allow(FileUtils).to receive(:mkdir_p)
+          allow(File).to receive(:write).with(registry_path, anything)
+        end
+
         it "creates/edits files" do
           expect(File).to receive(:write).with(File.join(tmp_dir, "test.rb"), "new content")
-          allow(File).to receive(:exist?).and_return(true)
+          allow(File).to receive(:exist?).and_call_original
           allow(File).to receive(:delete)
 
           processor.send(:apply_changes, changes)
@@ -573,6 +580,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
         it "deletes files" do
           allow(File).to receive(:write)
+          allow(File).to receive(:exist?).and_call_original
           expect(File).to receive(:exist?).with(File.join(tmp_dir, "delete.rb")).and_return(true)
           expect(File).to receive(:delete).with(File.join(tmp_dir, "delete.rb"))
 

@@ -43,4 +43,4 @@
 
 STATUS: COMPLETE
 
-Update task: task_xxx_yyy status: done
+Update task: task_326_aidp_worktree_management status: done
