@@ -173,10 +173,49 @@ The model naming changed from `claude-3-5-sonnet` to `claude-sonnet-4-5` format.
 
 ## Related Files
 
-- `lib/aidp/setup/wizard.rb` - Updated discovery methods
+### Tier-Based Timeout System
+
+In addition to the registry migration, this work included implementing tier-based timeouts for AI provider requests:
+
+**Changes:**
+
+- `lib/aidp/providers/base.rb` - Added `TIER_TIMEOUT_MULTIPLIERS` and timeout calculation methods
+- All 8 provider implementations - Updated `send_message` signatures to accept `options: {}` parameter
+- `lib/aidp/execute/work_loop_runner.rb` - Passes tier to provider.send_message
+- `lib/aidp/harness/provider_manager.rb` - Extracts and logs tier information
+
+**Timeout Multipliers:**
+
+- mini: 1.0x (5 minutes base, 15 minutes for IMPLEMENTATION)
+- standard: 1.5x (7.5 minutes base, 22.5 minutes for IMPLEMENTATION)
+- thinking: 2.0x (10 minutes base, 30 minutes for IMPLEMENTATION)
+- pro: 2.0x (10 minutes base, 30 minutes for IMPLEMENTATION)
+- max: 3.0x (15 minutes base, 45 minutes for IMPLEMENTATION)
+
+### Complete Cleanup
+
+**Files Modified:**
+
+- `lib/aidp/setup/wizard.rb` - Removed background discovery (100+ lines), added registry-based methods
+- `lib/aidp/cli/models_command.rb` - Migrated from discovery_service to ruby_llm_registry (662→619 lines)
 - `lib/aidp/harness/ruby_llm_registry.rb` - Registry wrapper with tier classification
 - `lib/aidp/harness/thinking_depth_manager.rb` - Tier selection logic
-- `spec/aidp/harness/ruby_llm_registry_spec.rb` - Registry tests
+
+**Files Deleted:**
+
+- `lib/aidp/harness/model_discovery_service.rb` (260 lines)
+- `spec/aidp/harness/model_discovery_service_spec.rb`
+
+**Tests Updated:**
+
+- `spec/aidp/setup/wizard_spec.rb` - Removed obsolete background discovery tests
+- `spec/aidp/cli/models_command_spec.rb` - Updated to mock RubyLLMRegistry instead of ModelDiscoveryService
+- `spec/aidp/providers/anthropic_spec.rb` - Added 8 tests for tier-based timeouts
+
+**Test Results:**
+
+- All 6620 tests passing with 0 failures
+- StandardRB: No style violations
 
 ## See Also
 
