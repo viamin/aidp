@@ -8,7 +8,7 @@ require_relative "../metadata/query"
 require_relative "../metadata/validator"
 
 module Aidp
-  module CLI
+  class CLI
     # CLI commands for managing tool metadata
     #
     # Provides commands for:
@@ -50,13 +50,12 @@ module Aidp
           run_list
         when nil, "help", "--help", "-h"
           show_help
+          0
         else
           @prompt.say("Unknown subcommand: #{subcommand}")
           show_help
-          return 1
+          1
         end
-
-        0
       end
 
       # Show help message

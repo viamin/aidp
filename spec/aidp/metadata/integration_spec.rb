@@ -606,7 +606,9 @@ RSpec.describe "Aidp::Metadata" do
         work_unit_types: ["implementation", "analysis"],
         extra: {"priority" => 7})
 
-      Aidp::Metadata::Cache.new(cache_path: cache_file, directories: [skills_dir])
+      cache_obj = Aidp::Metadata::Cache.new(cache_path: cache_file, directories: [skills_dir])
+      cache_obj.load # Load to compile directory structure
+      cache_obj
     end
 
     it "initializes with cache" do
@@ -616,12 +618,107 @@ RSpec.describe "Aidp::Metadata" do
 
     it "provides directory accessor" do
       query = Aidp::Metadata::Query.new(cache: cache)
-      expect(query).to respond_to(:directory)
+      expect(query.directory).to be_a(Hash)
+      expect(query.directory).to have_key("tools")
     end
 
     it "provides reload method" do
       query = Aidp::Metadata::Query.new(cache: cache)
-      expect(query).to respond_to(:reload)
+      expect { query.reload }.not_to raise_error
+    end
+
+    it "finds tool by ID" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tool = query.find_by_id("ruby_skill")
+
+      expect(tool).not_to be_nil
+      expect(tool["id"]).to eq("ruby_skill")
+      expect(tool["title"]).to eq("Ruby Skill")
+    end
+
+    it "returns nil for non-existent ID" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tool = query.find_by_id("nonexistent")
+
+      expect(tool).to be_nil
+    end
+
+    it "finds tools by type" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_type("skill")
+
+      expect(tools).to be_an(Array)
+      expect(tools.size).to be >= 3
+      expect(tools.all? { |t| t["type"] == "skill" }).to be true
+    end
+
+    it "finds tools by single tag" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_tags(["ruby"])
+
+      expect(tools).to be_an(Array)
+      expect(tools.size).to be >= 2 # ruby_skill and multi_tag
+      tool_ids = tools.map { |t| t["id"] }
+      expect(tool_ids).to include("ruby_skill", "multi_tag")
+    end
+
+    it "finds tools by multiple tags with OR logic" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_tags(["ruby", "python"], match_all: false)
+
+      expect(tools).to be_an(Array)
+      expect(tools.size).to be >= 3 # All three skills
+    end
+
+    it "finds tools by multiple tags with AND logic" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_tags(["ruby", "testing"], match_all: true)
+
+      expect(tools).to be_an(Array)
+      expect(tools.size).to be >= 1 # Only multi_tag has both
+      expect(tools.first["id"]).to eq("multi_tag")
+    end
+
+    it "finds tools by work unit type" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.find_by_work_unit_type("implementation")
+
+      expect(tools).to be_an(Array)
+      expect(tools.size).to be >= 2 # ruby_skill and multi_tag
+      tool_ids = tools.map { |t| t["id"] }
+      expect(tool_ids).to include("ruby_skill", "multi_tag")
+    end
+
+    it "filters tools by multiple criteria" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      tools = query.filter(
+        type: "skill",
+        tags: ["ruby"],
+        work_unit_type: "implementation"
+      )
+
+      expect(tools).to be_an(Array)
+      expect(tools.all? { |t| t["type"] == "skill" }).to be true
+    end
+
+    it "ranks tools by priority" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      all_tools = query.find_by_type("skill")
+      ranked = query.rank_by_priority(all_tools)
+
+      expect(ranked).to be_an(Array)
+      priorities = ranked.map { |t| t["priority"] || 0 }
+      expect(priorities).to eq(priorities.sort.reverse)
+    end
+
+    it "generates statistics" do
+      query = Aidp::Metadata::Query.new(cache: cache)
+      stats = query.statistics
+
+      expect(stats).to be_a(Hash)
+      expect(stats).to have_key("total_tools")
+      expect(stats).to have_key("by_type")
+      expect(stats["total_tools"]).to be >= 3
     end
   end
 
