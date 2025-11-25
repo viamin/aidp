@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.29.0](https://github.com/viamin/aidp/compare/aidp/v0.28.0...aidp/v0.29.0) (2025-11-25)
+
+
+### Features
+
+* enhance RubyLLM model registry with improved model resolution and error handling ([d227005](https://github.com/viamin/aidp/commit/d2270054d99b22765498c1df8ce2654cad8e7096))
+* implement tier-based timeout multipliers and update send_message method across providers ([a4158a3](https://github.com/viamin/aidp/commit/a4158a349632826a3c98e120640a4c9c726be831))
+* implement tier-based timeout multipliers and update send_message method across providers ([#369](https://github.com/viamin/aidp/issues/369)) ([bbb0480](https://github.com/viamin/aidp/commit/bbb04809f7110ca777d4ad1626160a6c0e562c7f))
+* integrate RubyLLM model registry into Anthropic provider configuration ([fe7f2a4](https://github.com/viamin/aidp/commit/fe7f2a4ef00bc1172cc16fa6a2583918adeae3ab)), closes [#334](https://github.com/viamin/aidp/issues/334)
+
+
+### Bug Fixes
+
+* handle tier values as strings and symbols in CapabilityRegistry ([51cf156](https://github.com/viamin/aidp/commit/51cf1568501fd6974e5240394eb2a997f2170ab8))
+* handle tier values as strings and symbols in CapabilityRegistry ([#362](https://github.com/viamin/aidp/issues/362)) ([b0e7d05](https://github.com/viamin/aidp/commit/b0e7d0556d02a3d8895b8c35d847acc8d341323a))
+
+
+### Improvements
+
+* enhance provider name mapping and update related tests ([7df66db](https://github.com/viamin/aidp/commit/7df66db49c5ca550586a882ffd5c23fcc89e28a8))
+* enhance provider name mapping and update related tests ([#370](https://github.com/viamin/aidp/issues/370)) ([8d7ee4e](https://github.com/viamin/aidp/commit/8d7ee4ee402c532299b7137edb8a82f55d560338))
+* model name resolution in providers ([5241fc8](https://github.com/viamin/aidp/commit/5241fc8a1f446cc7f27985118bf78d38d6890456))
+* remove ModelDiscoveryService and streamline wizard to use RubyLLM registry directly ([075e58a](https://github.com/viamin/aidp/commit/075e58ad8926ed6e6e258c37b48ec59c3da1e645))
+* update Copilot instructions for clarity and modern Ruby practices ([d227005](https://github.com/viamin/aidp/commit/d2270054d99b22765498c1df8ce2654cad8e7096))
+* update integration tests for Aidp::Metadata Query methods ([8d0dc44](https://github.com/viamin/aidp/commit/8d0dc44720f9c57b961191ae8f22ed95c17391f7))
+* update model discovery to use RubyLLM registry ([d0f7a54](https://github.com/viamin/aidp/commit/d0f7a544f4e9084eb0593b8c9f2076cdb9366e70))
+* update tier-based timeout multipliers for improved timeout handling ([bca5da1](https://github.com/viamin/aidp/commit/bca5da1554c917e6f79eef2033a99ef66daaa15b))
+* update ToolsCommand for improved error handling and add comprehensive tests ([6fbec96](https://github.com/viamin/aidp/commit/6fbec963fcb213a6ca0e58f9c5f0f5773e7b8f98))
+
+
+### Documentation
+
+* implement tier-based timeout system and migrate to RubyLLM registry ([2520e06](https://github.com/viamin/aidp/commit/2520e063c9ab9fb38416c2f4643eb254af0702cb))
+
 ## [0.28.0](https://github.com/viamin/aidp/compare/aidp/v0.27.0...aidp/v0.28.0) (2025-11-24)
 
 
