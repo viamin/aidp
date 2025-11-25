@@ -252,13 +252,13 @@ module Aidp
         }
       end
 
-      def send_message(prompt:, session: nil)
+      def send_message(prompt:, session: nil, options: {})
         raise "claude CLI not available" unless self.class.available?
 
-        # Smart timeout calculation
-        timeout_seconds = calculate_timeout
+        # Smart timeout calculation with tier awareness
+        timeout_seconds = calculate_timeout(options)
 
-        debug_provider("claude", "Starting execution", {timeout: timeout_seconds})
+        debug_provider("claude", "Starting execution", {timeout: timeout_seconds, tier: options[:tier]})
         debug_log("📝 Sending prompt to claude...", level: :info)
 
         # Build command arguments

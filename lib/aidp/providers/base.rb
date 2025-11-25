@@ -37,6 +37,16 @@ module Aidp
       TIMEOUT_REFACTORING_RECOMMENDATIONS = 600 # 10 minutes - refactoring
       TIMEOUT_IMPLEMENTATION = 900 # 15 minutes - implementation (write files, run tests, fix issues)
 
+      # Tier-based timeout multipliers (applied on top of base timeouts)
+      # Higher tiers need more time for deeper reasoning
+      TIER_TIMEOUT_MULTIPLIERS = {
+        "mini" => 1.0,      # 5 minutes default (300s base)
+        "standard" => 2.0,  # 10 minutes default (600s base)
+        "thinking" => 6.0,  # 30 minutes default (1800s base)
+        "pro" => 6.0,       # 30 minutes default (1800s base)
+        "max" => 12.0       # 60 minutes default (3600s base)
+      }.freeze
+
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name, :model
 
       def initialize(output: nil, prompt: TTY::Prompt.new)
@@ -83,7 +93,7 @@ module Aidp
         end
       end
 
-      def send_message(prompt:, session: nil)
+      def send_message(prompt:, session: nil, options: {})
         raise NotImplementedError, "#{self.class} must implement #send_message"
       end
 
@@ -484,11 +494,12 @@ module Aidp
       # Priority order:
       # 1. Quick mode (for testing)
       # 2. Provider-specific environment variable override
-      # 3. Adaptive timeout based on step type
-      # 4. Default timeout
+      # 3. Adaptive timeout based on step type and thinking tier
+      # 4. Default timeout (with tier multiplier)
       #
       # Override provider_env_var to customize the environment variable name
-      def calculate_timeout
+      # @param options [Hash] Options hash that may include :tier
+      def calculate_timeout(options = {})
         if ENV["AIDP_QUICK_MODE"]
           display_message("⚡ Quick mode enabled - #{TIMEOUT_QUICK_MODE / 60} minute timeout", type: :highlight)
           return TIMEOUT_QUICK_MODE
@@ -497,48 +508,70 @@ module Aidp
         provider_env_var = "AIDP_#{name.upcase}_TIMEOUT"
         return ENV[provider_env_var].to_i if ENV[provider_env_var]
 
-        step_timeout = adaptive_timeout
+        tier = options[:tier]&.to_s
+        step_timeout = adaptive_timeout(tier)
         if step_timeout
-          display_message("🧠 Using adaptive timeout: #{step_timeout} seconds", type: :info)
+          tier_label = tier ? " (tier: #{tier})" : ""
+          display_message("🧠 Using adaptive timeout: #{step_timeout} seconds#{tier_label}", type: :info)
           return step_timeout
         end
 
-        # Default timeout
-        display_message("📋 Using default timeout: #{TIMEOUT_DEFAULT / 60} minutes", type: :info)
-        TIMEOUT_DEFAULT
+        # Default timeout with tier multiplier
+        base_timeout = TIMEOUT_DEFAULT
+        final_timeout = apply_tier_multiplier(base_timeout, tier)
+        tier_label = tier ? " (tier: #{tier})" : ""
+        display_message("📋 Using default timeout: #{final_timeout / 60} minutes#{tier_label}", type: :info)
+        final_timeout
       end
 
-      # Get adaptive timeout based on step type
+      # Get adaptive timeout based on step type and thinking tier
       #
       # This method returns different timeout values based on the type of operation
-      # being performed, as indicated by the AIDP_CURRENT_STEP environment variable.
+      # being performed, as indicated by the AIDP_CURRENT_STEP environment variable,
+      # and applies a multiplier based on the thinking tier (mini/standard/thinking/pro/max).
       # Returns nil for unknown steps to allow calculate_timeout to use the default.
-      def adaptive_timeout
-        @adaptive_timeout ||= begin
-          # Timeout recommendations based on step type patterns
-          step_name = ENV["AIDP_CURRENT_STEP"] || ""
+      #
+      # @param tier [String, nil] The thinking tier (mini, standard, thinking, pro, max)
+      def adaptive_timeout(tier = nil)
+        # Don't cache - tier may change between calls
+        step_name = ENV["AIDP_CURRENT_STEP"] || ""
 
-          case step_name
-          when /REPOSITORY_ANALYSIS/
-            TIMEOUT_REPOSITORY_ANALYSIS
-          when /ARCHITECTURE_ANALYSIS/
-            TIMEOUT_ARCHITECTURE_ANALYSIS
-          when /TEST_ANALYSIS/
-            TIMEOUT_TEST_ANALYSIS
-          when /FUNCTIONALITY_ANALYSIS/
-            TIMEOUT_FUNCTIONALITY_ANALYSIS
-          when /DOCUMENTATION_ANALYSIS/
-            TIMEOUT_DOCUMENTATION_ANALYSIS
-          when /STATIC_ANALYSIS/
-            TIMEOUT_STATIC_ANALYSIS
-          when /REFACTORING_RECOMMENDATIONS/
-            TIMEOUT_REFACTORING_RECOMMENDATIONS
-          when /IMPLEMENTATION/
-            TIMEOUT_IMPLEMENTATION
-          else
-            nil # Return nil for unknown steps
-          end
+        base_timeout = case step_name
+        when /REPOSITORY_ANALYSIS/
+          TIMEOUT_REPOSITORY_ANALYSIS
+        when /ARCHITECTURE_ANALYSIS/
+          TIMEOUT_ARCHITECTURE_ANALYSIS
+        when /TEST_ANALYSIS/
+          TIMEOUT_TEST_ANALYSIS
+        when /FUNCTIONALITY_ANALYSIS/
+          TIMEOUT_FUNCTIONALITY_ANALYSIS
+        when /DOCUMENTATION_ANALYSIS/
+          TIMEOUT_DOCUMENTATION_ANALYSIS
+        when /STATIC_ANALYSIS/
+          TIMEOUT_STATIC_ANALYSIS
+        when /REFACTORING_RECOMMENDATIONS/
+          TIMEOUT_REFACTORING_RECOMMENDATIONS
+        when /IMPLEMENTATION/
+          TIMEOUT_IMPLEMENTATION
+        else
+          nil # Return nil for unknown steps
         end
+
+        return nil unless base_timeout
+
+        apply_tier_multiplier(base_timeout, tier)
+      end
+
+      # Apply tier-based multiplier to a base timeout
+      #
+      # @param base_timeout [Integer] The base timeout in seconds
+      # @param tier [String, nil] The thinking tier (mini, standard, thinking, pro, max)
+      # @return [Integer] The adjusted timeout with tier multiplier applied
+      def apply_tier_multiplier(base_timeout, tier)
+        return base_timeout unless tier
+
+        multiplier = TIER_TIMEOUT_MULTIPLIERS[tier.to_s] || 1.0
+        (base_timeout * multiplier).to_i
       end
 
       # Resolve a model name using the RubyLLM registry

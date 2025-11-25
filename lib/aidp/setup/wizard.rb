@@ -59,9 +59,6 @@ module Aidp
         configure_modes
         configure_devcontainer
 
-        # Finalize any background model discovery
-        finalize_background_discovery
-
         yaml_content = generate_yaml
         display_preview(yaml_content)
         display_diff(yaml_content) if @existing_config.any?
@@ -355,110 +352,14 @@ module Aidp
         end
       end
 
-      # Trigger background model discovery for a provider
-      # Runs asynchronously and caches results without blocking the wizard
-      def trigger_background_discovery(provider_name)
-        return unless provider_available_for_discovery?(provider_name)
-
-        # Store reference to display notification later
-        @discovery_threads ||= []
-
-        thread = Thread.new do
-          discover_and_cache_models(provider_name)
-        rescue => e
-          Aidp.log_debug("setup_wizard", "background discovery failed",
-            provider: provider_name, error: e.message)
-        end
-
-        @discovery_threads << {thread: thread, provider: provider_name}
-      end
-
-      # Check if provider CLI is available for discovery
-      def provider_available_for_discovery?(provider_name)
-        provider_class = get_provider_class(provider_name)
-        return false unless provider_class
-
-        provider_class.respond_to?(:available?) && provider_class.available?
-      rescue => e
-        Aidp.log_debug("setup_wizard", "provider availability check failed",
-          provider: provider_name, error: e.message)
-        false
-      end
-
-      # Perform model discovery and cache results
-      def discover_and_cache_models(provider_name)
-        require_relative "../harness/model_discovery_service"
-
-        service = Aidp::Harness::ModelDiscoveryService.new
-        models = service.discover_models(provider_name, use_cache: false)
-
-        if models.any?
-          Aidp.log_info("setup_wizard", "discovered models in background",
-            provider: provider_name, count: models.size)
-        end
-
-        models
-      rescue => e
-        Aidp.log_debug("setup_wizard", "background discovery failed",
-          provider: provider_name, error: e.message)
-        []
-      end
-
-      # Get provider class for discovery
-      def get_provider_class(provider_name)
-        class_name = "Aidp::Providers::#{provider_name.capitalize}"
-        Object.const_get(class_name)
-      rescue NameError
-        nil
-      end
-
-      # Wait for background discovery to complete and show notifications
-      #
-      # @param timeout [Numeric] Maximum seconds to wait per thread (default: 5)
-      def finalize_background_discovery(timeout: 5)
-        return unless @discovery_threads&.any?
-
-        @discovery_threads.each do |entry|
-          thread = entry[:thread]
-          provider = entry[:provider]
-
-          # Wait up to timeout seconds for discovery to complete
-          thread.join(timeout)
-
-          if thread.alive?
-            Aidp.log_debug("setup_wizard", "discovery timeout, killing thread",
-              provider: provider)
-            # Kill thread to prevent hanging
-            thread.kill
-            thread.join(0.1) # Brief wait for cleanup
-          else
-            # Discovery completed - show notification
-            begin
-              require_relative "../harness/model_cache"
-              cache = Aidp::Harness::ModelCache.new
-              cached_models = cache.get_cached_models(provider)
-
-              if cached_models&.any?
-                prompt.say("  💾 Discovered #{cached_models.size} model#{"s" unless cached_models.size == 1} for #{provider}")
-              end
-            rescue => e
-              Aidp.log_debug("setup_wizard", "failed to check cached models",
-                provider: provider, error: e.message)
-            end
-          end
-        end
-
-        @discovery_threads = []
-      end
-
       def discover_models_for_providers(providers)
-        require_relative "../harness/model_discovery_service"
+        require_relative "../harness/ruby_llm_registry"
 
-        service = Aidp::Harness::ModelDiscoveryService.new
+        registry = Aidp::Harness::RubyLLMRegistry.new
         all_models = {}
 
         providers.each do |provider|
-          models = service.discover_models(provider, use_cache: true)
+          models = discover_models_from_registry(provider, registry)
           all_models[provider] = models if models.any?
         rescue => e
           Aidp.log_debug("setup_wizard", "discovery failed", provider: provider, error: e.message)
@@ -466,6 +367,30 @@ module Aidp
         end
 
         all_models
+      end
+
+      # Discover models for a provider from RubyLLM registry
+      #
+      # @param provider [String] Provider name (e.g., "anthropic")
+      # @param registry [RubyLLMRegistry] Registry instance
+      # @return [Array<Hash>] Models with tier classification
+      def discover_models_from_registry(provider, registry)
+        model_ids = registry.models_for_provider(provider)
+
+        # Convert to model info hashes with tier classification
+        model_ids.map do |model_id|
+          info = registry.get_model_info(model_id)
+          {
+            name: model_id,
+            tier: info[:tier],
+            context_window: info[:context_window],
+            capabilities: info[:capabilities]
+          }
+        end
+      rescue => e
+        Aidp.log_error("setup_wizard", "failed to discover models from registry",
+          provider: provider, error: e.message)
+        []
       end
 
       def display_discovered_models(discovered_models)
@@ -510,13 +435,19 @@ module Aidp
       def find_model_for_tier(models, target_tier)
         return nil unless models
 
-        models.find { |m| m[:tier] == target_tier }
+        # Map pro -> advanced for registry compatibility
+        registry_tier = (target_tier == "pro") ? "advanced" : target_tier
+
+        models.find { |m| m[:tier] == registry_tier }
       end
 
       def find_models_for_tier(models, target_tier)
         return [] unless models
 
-        models.select { |m| m[:tier] == target_tier }
+        # Map pro -> advanced for registry compatibility
+        registry_tier = (target_tier == "pro") ? "advanced" : target_tier
+
+        models.select { |m| m[:tier] == registry_tier }
       end
 
       def display_provider_tier_preview(provider_configs)
@@ -1717,9 +1648,6 @@ module Aidp
         # Enhance messaging with display name when available
         display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
         prompt.say("  • #{action_word.capitalize} provider '#{display_name}' (#{provider_name}) with billing type '#{provider_type}' and model family '#{model_family}'")
-
-        # Trigger background model discovery for newly added/updated provider
-        trigger_background_discovery(provider_name) unless @dry_run
       end
 
       def edit_or_remove_provider(provider_name, primary_provider, fallbacks)
