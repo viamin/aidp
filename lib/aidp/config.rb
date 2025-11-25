@@ -111,11 +111,10 @@ module Aidp
           model_family: "claude",
           max_tokens: 100_000,
           default_flags: ["--dangerously-skip-permissions"],
-          models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
+          models: ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
           model_weights: {
             "claude-3-5-sonnet-20241022" => 3,
-            "claude-3-5-haiku-20241022" => 2,
-            "claude-3-opus-20240229" => 1
+            "claude-3-5-haiku-20241022" => 2
           },
           models_config: {
             "claude-3-5-sonnet-20241022" => {
@@ -127,11 +126,6 @@ module Aidp
               flags: ["--dangerously-skip-permissions"],
               max_tokens: 200_000,
               timeout: 180
-            },
-            "claude-3-opus-20240229" => {
-              flags: ["--dangerously-skip-permissions"],
-              max_tokens: 200_000,
-              timeout: 600
             }
           },
           auth: {

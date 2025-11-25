@@ -408,20 +408,10 @@ module Aidp
             Aidp.log_debug("anthropic_provider", "error_classified",
               exit_code: result.exit_status,
               type: error_classification[:type],
-              confidence: error_classification[:confidence])            # Check for rate limit
-            if error_classification[:is_rate_limit]
-              Aidp.log_debug("anthropic_provider", "rate_limit_detected",
-                exit_code: result.exit_status,
-                confidence: error_classification[:confidence],
-                message: combined)
-              notify_rate_limit(combined)
-              error_message = "Rate limit reached for Claude CLI.\n#{combined}"
-              error = RuntimeError.new(error_message)
-              debug_error(error, {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
-              raise error
-            end
+              confidence: error_classification[:confidence])
 
-            # Check for model deprecation
+            # Check for model deprecation FIRST (before rate limiting)
+            # Even if rate limited, we need to cache the deprecation for next run
             if error_classification[:is_deprecation]
               deprecated_model = @model
               Aidp.log_error("anthropic", "Model deprecation detected",
@@ -448,7 +438,7 @@ module Aidp
                 # Update model and retry
                 @model = replacement
 
-                # Retry with new model
+                # Retry with new model (even if rate limited, we'll hit rate limit with new model)
                 debug_log("🔄 Retrying with upgraded model: #{replacement}", level: :info)
                 return send_message(prompt: prompt, session: session, options: options)
               else
@@ -467,6 +457,19 @@ module Aidp
                 debug_error(error, {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
                 raise error
               end
+            end
+
+            # Check for rate limit (after handling deprecation)
+            if error_classification[:is_rate_limit]
+              Aidp.log_debug("anthropic_provider", "rate_limit_detected",
+                exit_code: result.exit_status,
+                confidence: error_classification[:confidence],
+                message: combined)
+              notify_rate_limit(combined)
+              error_message = "Rate limit reached for Claude CLI.\n#{combined}"
+              error = RuntimeError.new(error_message)
+              debug_error(error, {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
+              raise error
             end
 
             # Check for auth issues

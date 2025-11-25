@@ -1057,7 +1057,7 @@ module Aidp
       def default_thinking_config
         {
           default_tier: "mini",  # Use mini tier by default for cost optimization
-          max_tier: "max",
+          max_tier: "pro",       # Max tier rarely needed; pro is sufficient for most tasks
           allow_provider_switch: true,
           auto_escalate: true,
           escalation_threshold: 2,

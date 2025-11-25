@@ -24,9 +24,9 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
         expect(result).to be_a(String).and(match(/claude-3-5-haiku/))
       end
 
-      it "resolves claude-3-opus to versioned name" do
-        result = registry.resolve_model("claude-3-opus", provider: "anthropic")
-        expect(result).to be_a(String).and(match(/claude-3-opus/))
+      it "resolves claude-opus-4 to versioned name" do
+        result = registry.resolve_model("claude-opus-4", provider: "anthropic")
+        expect(result).to be_a(String).and(match(/claude-opus-4/))
       end
 
       it "returns already versioned model as-is" do
@@ -216,7 +216,7 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
     end
 
     it "classifies opus models as advanced" do
-      model_id = registry.resolve_model("claude-3-opus", provider: "anthropic")
+      model_id = registry.resolve_model("claude-opus-4", provider: "anthropic")
       info = registry.get_model_info(model_id)
       expect(info[:tier]).to eq("advanced")
     end
