@@ -47,3 +47,13 @@
 - File downloads should include integrity verification when possible
 - Avoid executing arbitrary code from parsed sources
 - Sanitize file paths and user inputs
+## File Organization
+- **Do NOT create summary documents at the project root** including:
+  - IMPLEMENTATION_SUMMARY.md
+  - SESSION_SUMMARY.md
+  - PROMPT.md
+  - Or any similar files
+- Work summaries and implementation docs should go in `docs/` with descriptive names
+- Temporary working files should go in `.aidp/` directory
+- Use git commit messages for implementation tracking instead of summary files
+- Name documentation files descriptively based on the feature/issue, not generically

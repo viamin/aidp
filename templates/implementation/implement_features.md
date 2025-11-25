@@ -23,7 +23,10 @@ You are a senior engineer writing **implementation guidance** for domain agents.
 
 ## Output
 
-- `docs/ImplementationGuide.md` with examples and a pattern-to-use-case matrix.
+- `docs/<FEATURE_NAME>_IMPLEMENTATION.md` with examples and a pattern-to-use-case matrix.
+  - Use a descriptive name based on the feature/issue (e.g., `METADATA_TOOL_DISCOVERY.md`, `WORKTREE_PR_CHANGE_REQUESTS.md`)
+  - Do NOT use generic names like `ImplementationGuide.md`, `IMPLEMENTATION_SUMMARY.md`, or `SESSION_SUMMARY.md`
+  - Do NOT create files at the project root
 
 ## Regeneration Policy
 

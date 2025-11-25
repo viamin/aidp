@@ -78,7 +78,9 @@ module Aidp
       # Configure the provider with options
       # @param config [Hash] Configuration options, may include :model
       def configure(config)
-        @model = config[:model] if config[:model]
+        if config[:model]
+          @model = resolve_model_name(config[:model].to_s)
+        end
       end
 
       def send_message(prompt:, session: nil)
@@ -536,6 +538,41 @@ module Aidp
           else
             nil # Return nil for unknown steps
           end
+        end
+      end
+
+      # Resolve a model name using the RubyLLM registry
+      #
+      # Attempts to resolve a model family name (e.g., "claude-3-5-haiku") to a
+      # versioned model name (e.g., "claude-3-5-haiku-20241022") using the RubyLLM
+      # registry. Falls back to using the name as-is if resolution fails.
+      #
+      # @param model_name [String] The model family name or versioned name
+      # @return [String] The resolved model name (versioned if found, original if not)
+      def resolve_model_name(model_name)
+        require_relative "../harness/ruby_llm_registry" unless defined?(Aidp::Harness::RubyLLMRegistry)
+
+        begin
+          registry = Aidp::Harness::RubyLLMRegistry.new
+          resolved = registry.resolve_model(model_name, provider: name)
+
+          if resolved
+            Aidp.log_debug(name, "Resolved model using registry",
+              requested: model_name,
+              resolved: resolved)
+            resolved
+          else
+            # Fall back to using the name as-is
+            Aidp.log_warn(name, "Model not found in registry, using as-is",
+              model: model_name)
+            model_name
+          end
+        rescue => e
+          # If registry fails, fall back to using the name as-is
+          Aidp.log_error(name, "Registry lookup failed, using model name as-is",
+            model: model_name,
+            error: e.message)
+          model_name
         end
       end
 

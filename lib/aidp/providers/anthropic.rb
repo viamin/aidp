@@ -191,38 +191,6 @@ module Aidp
         self.class.available?
       end
 
-      # Override configure to resolve model names using RubyLLM registry
-      # @param config [Hash] Configuration options, may include :model
-      def configure(config)
-        if config[:model]
-          model_name = config[:model].to_s
-
-          # Try to resolve using RubyLLM registry
-          begin
-            registry = Aidp::Harness::RubyLLMRegistry.new
-            resolved = registry.resolve_model(model_name, provider: "anthropic")
-
-            if resolved
-              @model = resolved
-              Aidp.log_debug("anthropic", "Resolved model using registry",
-                requested: model_name,
-                resolved: @model)
-            else
-              # Fall back to using the name as-is
-              @model = model_name
-              Aidp.log_warn("anthropic", "Model not found in registry, using as-is",
-                model: model_name)
-            end
-          rescue => e
-            # If registry fails, fall back to using the name as-is
-            @model = model_name
-            Aidp.log_error("anthropic", "Registry lookup failed, using model name as-is",
-              model: model_name,
-              error: e.message)
-          end
-        end
-      end
-
       # ProviderAdapter interface methods
 
       def capabilities
