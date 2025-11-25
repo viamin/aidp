@@ -16,14 +16,28 @@ module Aidp
       TIER_CLASSIFICATION = {
         # Mini tier: fast, cost-effective models
         mini: ->(model) {
-          model.id.to_s.match?(/haiku|mini|flash|small/i) ||
-            (model.pricing && model.pricing[:input] && model.pricing[:input] < 1.0)
+          return true if model.id.to_s.match?(/haiku|mini|flash|small/i)
+
+          # Check pricing if available
+          if model.pricing
+            pricing_hash = model.pricing.to_h
+            input_cost = pricing_hash.dig(:text_tokens, :standard, :input_per_million)
+            return true if input_cost && input_cost < 1.0
+          end
+          false
         },
 
         # Advanced tier: high-capability, expensive models
         advanced: ->(model) {
-          model.id.to_s.match?(/opus|turbo|pro|preview|o1/i) ||
-            (model.pricing && model.pricing[:input] && model.pricing[:input] > 10.0)
+          return true if model.id.to_s.match?(/opus|turbo|pro|preview|o1/i)
+
+          # Check pricing if available
+          if model.pricing
+            pricing_hash = model.pricing.to_h
+            input_cost = pricing_hash.dig(:text_tokens, :standard, :input_per_million)
+            return true if input_cost && input_cost > 10.0
+          end
+          false
         },
 
         # Standard tier: everything else (default)

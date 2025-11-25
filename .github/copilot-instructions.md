@@ -1,53 +1,54 @@
 # Copilot Instructions for AIDP
 
-## Ruby Version Context
+## 🎯 Most Important: READ THE LLM_STYLE_GUIDE FIRST
+
+**Before making ANY code changes, you MUST read and follow [`docs/LLM_STYLE_GUIDE.md`](../docs/LLM_STYLE_GUIDE.md).**
+
+The LLM_STYLE_GUIDE is your primary reference for all coding standards, including:
+
+- Core engineering principles (small objects, single responsibility, Sandi Metz guidelines)
+- Exception handling and error management (fail fast, specific errors, logging)
+- Logging patterns (CRITICAL: use `Aidp.log_debug()` extensively)
+- TTY/TUI component usage (NEVER use `puts`, use `prompt.say()` instead)
+- Testing contracts and patterns (mock only external boundaries)
+- Naming conventions and code organization
+- Zero Framework Cognition (when to use AI vs. code)
+
+**Every guideline below supplements or provides GitHub Copilot-specific context not covered in LLM_STYLE_GUIDE.md.**
+
+---
+
+## Ruby Version & Modern Syntax
+
 - This project targets **Ruby 3.0+** (modern Ruby versions)
-- Use modern Ruby syntax and features:
+- Use modern Ruby features:
   - Endless ranges: `[1..]` instead of `[1..-1]`
   - Pattern matching where appropriate
-  - Modern hash syntax
+  - Modern hash syntax (symbol: value)
   - Keyword arguments
-- Ruby 2.x compatibility is not required (EOL versions)
+- Ruby 2.x compatibility is **not** required (EOL versions)
 
-## Code Style Preferences
-- **Exception handling philosophy**: Let bugs crash early rather than masking them with rescues
-  - Use `rescue StandardError => e` over bare `rescue => e` when rescue is warranted
-  - Only rescue exceptions when:
-    - Cleaning up external resources (files, network connections, etc.)
-    - Providing graceful degradation for optional features
-    - Converting between error types at API boundaries
-    - Handling expected operational failures (network timeouts, missing files)
-  - **Avoid** rescuing exceptions for:
-    - Programming errors (NoMethodError, ArgumentError, etc.)
-    - Configuration errors that should be fixed
-    - Logic errors that indicate bugs
-- Prefer `File.join` and `File::SEPARATOR` for path operations over string concatenation
-- Extract common patterns into helper methods rather than inline duplication
-- Use double quotes for require statements and strings with interpolation
-- Single quotes for static strings without interpolation
+## Project Architecture
 
-## Architecture Context
-- This is a Ruby gem for AI-assisted development and code analysis
+- Ruby gem for AI-assisted development and code analysis
 - Dependencies declared in gemspec should be assumed available (no `if defined?` checks needed)
 - Tree-sitter is used for AST parsing with graceful fallbacks to regex-based parsing
 - Knowledge base (KB) files are JSON-based outputs for analysis results
 
-## Dependencies
-- All gems in the gemspec are required dependencies
-- Tree-sitter parsers may not be available for all languages (fallbacks needed)
-- Concurrent-ruby is available for parallel processing
-- TTY-table is available for formatted output
+## Key Dependencies
 
-## Performance Considerations
+- **TTY Toolkit** - All terminal UI components (see LLM_STYLE_GUIDE.md for usage)
+- **Concurrent-ruby** - Available for parallel processing
+- **Tree-sitter parsers** - May not be available for all languages (graceful fallbacks required)
+
+## Performance Context
+
 - File processing should use parallel execution where possible
 - Caching is implemented for parsed file results
 - Large codebases are a primary use case
 
-## Security
-- File downloads should include integrity verification when possible
-- Avoid executing arbitrary code from parsed sources
-- Sanitize file paths and user inputs
 ## File Organization
+
 - **Do NOT create summary documents at the project root** including:
   - IMPLEMENTATION_SUMMARY.md
   - SESSION_SUMMARY.md
