@@ -4,7 +4,6 @@ require "json"
 require_relative "base"
 require_relative "../debug_mixin"
 require_relative "../harness/deprecation_cache"
-require_relative "../harness/ai_decision_engine"
 
 module Aidp
   module Providers
@@ -219,74 +218,51 @@ module Aidp
         ["--dangerously-skip-permissions"]
       end
 
-      # Get or create AI decision engine for error classification (ZFC)
-      # Uses mini tier for fast, cheap classification
-      # Falls back to pattern matching if ZFC unavailable
-      def self.ai_classifier
-        @ai_classifier ||= begin
-          require_relative "../harness/ai_decision_engine"
-          config = Aidp::Harness::Configuration.new(Dir.pwd)
-          Aidp::Harness::AIDecisionEngine.new(config)
-        rescue => e
-          Aidp.log_warn("anthropic", "ZFC classifier unavailable, using pattern matching",
-            error: e.message)
-          nil
-        end
-      end
-
-      # Classify error using ZFC (Zero Framework Cognition)
-      # Returns detailed classification with confidence
+      # Classify provider error using string matching
+      #
+      # ZFC EXCEPTION: Cannot use AI to classify provider errors because:
+      # 1. The failing provider IS the AI we'd use for classification (circular dependency)
+      # 2. Provider may be rate-limited, down, or misconfigured
+      # 3. Error classification must work even when AI unavailable
+      #
+      # This is a legitimate exception to ZFC principles per LLM_STYLE_GUIDE:
+      # "Structural safety checks" are allowed in code when AI cannot be used.
       #
       # @param error_message [String] The error message to classify
-      # @param use_zfc [Boolean] Whether to use ZFC (defaults to true if available)
       # @return [Hash] Classification result with :type, :is_deprecation, :is_rate_limit, :confidence
-      def self.classify_error_with_zfc(error_message, use_zfc: true)
-        # Try ZFC first if available and enabled
-        if use_zfc && ai_classifier
-          begin
-            result = ai_classifier.decide(
-              :condition_detection,
-              context: {response: error_message},
-              tier: "mini", # Fast, cheap model for error classification
-              cache_ttl: nil # Don't cache error classifications
-            )
+      def self.classify_provider_error(error_message)
+        msg_lower = error_message.downcase
 
-            # Map AI condition to our internal types
-            return {
-              type: result[:condition],
-              is_rate_limit: result[:condition] == "rate_limit",
-              is_deprecation: error_message.match?(/deprecat|end-of-life/i), # Quick check
-              is_auth_error: result[:condition] == "auth_error",
-              confidence: result[:confidence],
-              reasoning: result[:reasoning],
-              zfc_used: true
-            }
-          rescue => e
-            Aidp.log_debug("anthropic", "ZFC classification failed, falling back to patterns",
-              error: e.message)
-            # Fall through to pattern matching
-          end
+        # Use simple string.include? checks (not regex) to avoid ReDoS vulnerabilities
+        is_rate_limit = msg_lower.include?("rate limit") || msg_lower.include?("session limit")
+        is_deprecation = msg_lower.include?("deprecat") || msg_lower.include?("end-of-life")
+        is_auth_error = msg_lower.include?("auth") && (msg_lower.include?("expired") || msg_lower.include?("invalid"))
+
+        # Determine primary type
+        type = if is_rate_limit
+          "rate_limit"
+        elsif is_deprecation
+          "deprecation"
+        elsif is_auth_error
+          "auth_error"
+        else
+          "other"
         end
 
-        # Fallback: Fast pattern matching (no AI cost, no circular dependency)
-        {
-          type: detect_error_type_with_patterns(error_message),
-          is_rate_limit: error_message.match?(/rate.?limit|session limit/i),
-          is_deprecation: error_message.match?(/deprecat|end-of-life/i),
-          is_auth_error: error_message.match?(/auth|oauth.*expired/i),
-          confidence: 0.85, # Pattern matching confidence
-          reasoning: "Pattern-based classification",
-          zfc_used: false
-        }
-      end
+        Aidp.log_debug("anthropic", "Provider error classification",
+          type: type,
+          is_rate_limit: is_rate_limit,
+          is_deprecation: is_deprecation,
+          is_auth_error: is_auth_error)
 
-      # Detect error type using pattern matching (fallback when ZFC unavailable)
-      def self.detect_error_type_with_patterns(message)
-        return "rate_limit" if message.match?(/rate.?limit|session limit/i)
-        return "auth_error" if message.match?(/auth|oauth.*expired/i)
-        return "timeout" if message.match?(/timeout|timed out/i)
-        return "api_error" if message.match?(/api error|bad request/i)
-        "other"
+        {
+          type: type,
+          is_rate_limit: is_rate_limit,
+          is_deprecation: is_deprecation,
+          is_auth_error: is_auth_error,
+          confidence: 0.85, # Good confidence for clear error messages
+          reasoning: "Pattern-based classification (ZFC exception: circular dependency)"
+        }
       end
 
       # Error patterns for classify_error method (legacy support)
@@ -425,18 +401,14 @@ module Aidp
             # Detect issues in stdout/stderr (Claude sometimes prints to stdout)
             combined = [result.out, result.err].compact.join("\n")
 
-            # Use ZFC for error classification (with pattern matching fallback)
-            # NOTE: We use pattern matching as a fast pre-filter to avoid circular dependencies
-            # (can't use AI provider to classify its own errors), then ZFC for nuanced analysis
-            error_classification = self.class.classify_error_with_zfc(combined, use_zfc: false)
+            # Classify provider error using pattern matching
+            # ZFC EXCEPTION: Cannot use AI to classify provider's own errors (circular dependency)
+            error_classification = self.class.classify_provider_error(combined)
 
             Aidp.log_debug("anthropic_provider", "error_classified",
               exit_code: result.exit_status,
               type: error_classification[:type],
-              confidence: error_classification[:confidence],
-              zfc_used: error_classification[:zfc_used])
-
-            # Check for rate limit
+              confidence: error_classification[:confidence])            # Check for rate limit
             if error_classification[:is_rate_limit]
               Aidp.log_debug("anthropic_provider", "rate_limit_detected",
                 exit_code: result.exit_status,

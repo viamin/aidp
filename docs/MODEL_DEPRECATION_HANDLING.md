@@ -30,31 +30,48 @@ Instead of hardcoding deprecated models, the system **dynamically learns** from 
 3. **Future Prevention**: Subsequent model selection automatically skips cached deprecated models
 4. **No Code Changes**: New deprecations don't require gem updates or code changes
 
-### Zero Framework Cognition (ZFC) Compliance
+### Zero Framework Cognition (ZFC) Exception
 
-**Error Classification Strategy**: The system uses a **pragmatic hybrid approach** for error detection:
+**Why Pattern Matching Is Used Here**: Provider error classification is a **legitimate exception to ZFC principles**:
 
-1. **Pattern Matching for Initial Detection** (fast pre-filter):
-   - Used for initial error detection to avoid circular dependencies
-   - Can't use AI provider to classify its own errors
-   - Fast, no AI cost, works when provider is unavailable
+**The Circular Dependency Problem**:
 
-2. **ZFC for Nuanced Analysis** (when available):
-   - `classify_error_with_zfc()` uses `AIDecisionEngine` with mini tier
-   - Provides confidence scores and reasoning
-   - Can handle edge cases and ambiguous errors
-   - Falls back gracefully to pattern matching if ZFC unavailable
+1. When a provider (e.g., Anthropic) fails with an error, we need to classify that error
+2. ZFC normally delegates semantic analysis to AI via `AIDecisionEngine`
+3. `AIDecisionEngine` uses the **same provider** that's currently failing
+4. **Circular dependency**: Can't use a failing provider to diagnose itself
 
-This approach balances ZFC principles (semantic analysis via AI) with practical constraints (circular dependency, fail-fast requirements). See `LLM_STYLE_GUIDE.md` section on Zero Framework Cognition for details.
+**Why This Exception Is Justified** (per `STYLE_GUIDE.md`):
 
-**Implementation**:
+- ZFC allows "structural safety checks" when AI cannot be used
+- Provider errors must be classified even when AI is unavailable
+- Error messages from providers follow predictable patterns (rate limit, auth, deprecation)
+- Simple string matching is sufficient and has no ReDoS vulnerabilities
+
+**Implementation Strategy**:
 
 ```ruby
-# Anthropic provider uses hybrid approach
-error_classification = self.class.classify_error_with_zfc(combined, use_zfc: false)
-
-# Returns: {type, is_rate_limit, is_deprecation, confidence, reasoning, zfc_used}
+def self.classify_provider_error(error_message)
+  msg_lower = error_message.downcase
+  
+  # Simple string.include? checks (not regex) - safe and effective
+  is_rate_limit = msg_lower.include?("rate limit") || msg_lower.include?("session limit")
+  is_deprecation = msg_lower.include?("deprecat") || msg_lower.include?("end-of-life")
+  is_auth_error = msg_lower.include?("auth") && (msg_lower.include?("expired") || msg_lower.include?("invalid"))
+  
+  # Returns classification without needing AI
+end
 ```
+
+**Key Characteristics**:
+
+- Uses simple `string.include?()` checks, not complex regex
+- No ReDoS vulnerabilities (polynomial regex patterns)
+- Works reliably even when all providers are down
+- Good confidence (0.85) due to predictable error message formats
+- Logs reasoning: "Pattern-based classification (ZFC exception: circular dependency)"
+
+**When ZFC Would Apply**: If we had a **secondary, independent AI provider** specifically for error classification (e.g., a local model), we could use ZFC. But requiring a second provider just for error classification would add unnecessary complexity.
 
 ### Cache Structure
 

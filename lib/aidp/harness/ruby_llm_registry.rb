@@ -103,8 +103,9 @@ module Aidp
 
           # Filter out deprecated models if requested
           if skip_deprecated
-            deprecated_list = DEPRECATED_MODELS[registry_provider] || []
-            family_models = family_models.reject { |m| deprecated_list.include?(m.id.to_s) }
+            family_models = family_models.reject do |m|
+              deprecation_cache.deprecated?(provider: registry_provider, model_id: m.id.to_s)
+            end
           end
 
           # Return the latest version (first non-"latest" model, or the latest one)
@@ -287,8 +288,7 @@ module Aidp
 
           # Skip deprecated if requested
           if skip_deprecated
-            deprecated_list = DEPRECATED_MODELS[provider] || []
-            next false if deprecated_list.include?(m.id.to_s)
+            next false if deprecation_cache.deprecated?(provider: provider, model_id: m.id.to_s)
           end
 
           # Check if model ID contains the search term
