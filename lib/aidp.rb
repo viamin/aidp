@@ -49,6 +49,15 @@ require_relative "aidp/analyze/seams"
 require_relative "aidp/analyze/tree_sitter_scan"
 require_relative "aidp/analyze/kb_inspector"
 
+# Metadata system
+require_relative "aidp/metadata/tool_metadata"
+require_relative "aidp/metadata/validator"
+require_relative "aidp/metadata/parser"
+require_relative "aidp/metadata/scanner"
+require_relative "aidp/metadata/compiler"
+require_relative "aidp/metadata/query"
+require_relative "aidp/metadata/cache"
+
 # Workflows
 require_relative "aidp/workflows/definitions"
 require_relative "aidp/workflows/selector"
