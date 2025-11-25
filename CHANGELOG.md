@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.30.0](https://github.com/viamin/aidp/compare/aidp/v0.29.0...aidp/v0.30.0) (2025-11-25)
+
+
+### Features
+
+* Implement deprecation handling for models in Ruby LLM Registry ([e559720](https://github.com/viamin/aidp/commit/e559720fc30a58320b2dda8f039cdc0a2305dd7b))
+* Implement deprecation handling for models in Ruby LLM Registry ([#371](https://github.com/viamin/aidp/issues/371)) ([f46a9a0](https://github.com/viamin/aidp/commit/f46a9a07b98b4818c4fa1c1552a9af7e6b7fa577))
+
+
+### Bug Fixes
+
+* Ensure writable root directory for deprecation cache initialization ([136741d](https://github.com/viamin/aidp/commit/136741daacc391d2187597604b914721f9de550c))
+
+
+### Improvements
+
+* error classification to use string matching for provider errors, addressing circular dependency issues ([6b01da7](https://github.com/viamin/aidp/commit/6b01da7482e87677e490c174acdc08db18092ab2))
+
 ## [0.29.0](https://github.com/viamin/aidp/compare/aidp/v0.28.0...aidp/v0.29.0) (2025-11-25)
 
 
