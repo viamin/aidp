@@ -39,6 +39,7 @@ vendor/bundle/*
 .opencode/
 .config/gemini/
 .config/github-cli/
+.aider*
 
 # Local custom CA certificates (never commit internal certs)
 .devcontainer/custom-ca/*

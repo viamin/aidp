@@ -72,11 +72,13 @@ experimental: false
 ### `type` (required)
 
 The type of tool. Must be one of:
+
 - `skill` - A skill or expertise area (defines HOW to do something)
 - `persona` - An agent persona (WHO the agent is)
 - `template` - A task template (WHAT to do)
 
 **Example:**
+
 ```yaml
 type: skill
 ```
@@ -86,11 +88,13 @@ type: skill
 Unique identifier for the tool. Used for lookups and dependencies.
 
 **Rules:**
+
 - Must be lowercase
 - Alphanumeric characters and underscores only
 - Must be unique across all tools
 
 **Example:**
+
 ```yaml
 id: ruby_rspec_tdd
 ```
@@ -100,6 +104,7 @@ id: ruby_rspec_tdd
 Human-readable title displayed in tool listings and info.
 
 **Example:**
+
 ```yaml
 title: Ruby RSpec TDD Expert
 ```
@@ -109,6 +114,7 @@ title: Ruby RSpec TDD Expert
 Brief one-line description of what the tool does or provides.
 
 **Example:**
+
 ```yaml
 summary: Expert in Test-Driven Development using Ruby and RSpec framework
 ```
@@ -120,6 +126,7 @@ Semantic version number.
 **Format:** `X.Y.Z` where X, Y, Z are integers
 
 **Example:**
+
 ```yaml
 version: 1.0.0
 ```
@@ -131,6 +138,7 @@ Tags indicating what contexts, technologies, or scenarios this tool applies to.
 Used for filtering and discovery. Tools are matched when ANY tag matches the query.
 
 **Example:**
+
 ```yaml
 applies_to:
   - ruby
@@ -145,6 +153,7 @@ applies_to:
 Types of work units this tool supports.
 
 **Common values:**
+
 - `analysis` - Repository or code analysis
 - `planning` - Planning documents (PRD, architecture, etc.)
 - `implementation` - Code implementation
@@ -154,6 +163,7 @@ Types of work units this tool supports.
 - `review` - Code or design review
 
 **Example:**
+
 ```yaml
 work_unit_types:
   - implementation
@@ -166,6 +176,7 @@ work_unit_types:
 Ranking priority when multiple tools match.
 
 **Range:** 1-10 (default: 5)
+
 - 1-3: Low priority
 - 4-6: Medium priority
 - 7-10: High priority
@@ -173,6 +184,7 @@ Ranking priority when multiple tools match.
 Higher priority tools are preferred when multiple tools match the same criteria.
 
 **Example:**
+
 ```yaml
 priority: 8
 ```
@@ -182,6 +194,7 @@ priority: 8
 Capabilities or features provided by this tool.
 
 **Example:**
+
 ```yaml
 capabilities:
   - test_generation
@@ -197,6 +210,7 @@ IDs of other tools that must be available for this tool to work.
 Dependencies are automatically resolved and loaded in the correct order.
 
 **Example:**
+
 ```yaml
 dependencies:
   - ruby_basics
@@ -212,6 +226,7 @@ Whether this tool is experimental/unstable.
 When `true`, users are warned that the tool may change or have issues.
 
 **Example:**
+
 ```yaml
 experimental: true
 ```
@@ -284,6 +299,7 @@ compatible_providers:         # Informational only
 ```
 
 The parser automatically converts these fields to the new schema:
+
 - `name` → `title`
 - `description` → `summary`
 - `keywords` → `applies_to`
@@ -298,6 +314,7 @@ aidp tools lint
 ```
 
 This checks for:
+
 - Required fields present
 - Correct field types
 - Valid version format
@@ -349,12 +366,14 @@ aidp tools list
 ### Choosing Tags
 
 **Good tags:**
+
 - Technology names: `ruby`, `javascript`, `python`
 - Domain areas: `testing`, `security`, `performance`
 - Methodologies: `tdd`, `bdd`, `agile`
 - Tool names: `rspec`, `jest`, `pytest`
 
 **Avoid:**
+
 - Generic terms: `coding`, `development`, `software`
 - Redundant tags: If ID is `ruby_rspec_tdd`, don't repeat all three in tags
 - Over-tagging: Keep to 3-7 relevant tags
@@ -370,11 +389,13 @@ aidp tools list
 ### Writing Summaries
 
 **Good summaries:**
+
 - "Expert in Test-Driven Development using Ruby and RSpec framework"
 - "Analyzes repository history and generates code metrics using git log"
 - "Creates comprehensive PRDs with user stories and acceptance criteria"
 
 **Avoid:**
+
 - Too vague: "Helps with testing"
 - Too long: Summaries should be one sentence
 - Redundant: Don't repeat the title

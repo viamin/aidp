@@ -8,7 +8,7 @@ The tool directory system provides fast, metadata-driven discovery and selection
 
 ## Architecture
 
-```
+```text
 ┌─────────────────┐
 │ Source Files    │
 │ (.md with YAML) │
@@ -63,11 +63,13 @@ The tool directory system provides fast, metadata-driven discovery and selection
 Recursively scans configured directories for `.md` files.
 
 **Features:**
+
 - Recursive directory traversal
 - File filtering
 - Change detection (compares file hashes)
 
 **Example:**
+
 ```ruby
 scanner = Aidp::Metadata::Scanner.new([".aidp/skills", ".aidp/templates"])
 tools = scanner.scan_all
@@ -78,12 +80,14 @@ tools = scanner.scan_all
 Extracts YAML frontmatter and creates `ToolMetadata` objects.
 
 **Features:**
+
 - YAML frontmatter parsing
 - File hash computation (SHA256)
 - Legacy skill format conversion
 - Type auto-detection
 
 **Example:**
+
 ```ruby
 metadata = Aidp::Metadata::Parser.parse_file("/path/to/skill.md")
 ```
@@ -93,6 +97,7 @@ metadata = Aidp::Metadata::Parser.parse_file("/path/to/skill.md")
 Validates tool metadata and detects issues.
 
 **Checks:**
+
 - Required fields present
 - Field type validation
 - Duplicate ID detection
@@ -100,6 +105,7 @@ Validates tool metadata and detects issues.
 - Version format validation
 
 **Example:**
+
 ```ruby
 validator = Aidp::Metadata::Validator.new(tools)
 results = validator.validate_all
@@ -116,12 +122,14 @@ end
 Compiles tool metadata into a cached directory structure.
 
 **Builds:**
+
 - Tool catalog (all metadata)
 - Indexes by type, tag, work unit type
 - Dependency graph
 - Statistics
 
 **Example:**
+
 ```ruby
 compiler = Aidp::Metadata::Compiler.new(
   directories: [".aidp/skills", ".aidp/templates"],
@@ -135,12 +143,14 @@ directory = compiler.compile(output_path: ".aidp/cache/tool_directory.json")
 Manages cached tool directory with automatic invalidation.
 
 **Features:**
+
 - TTL-based expiration (default: 24 hours)
 - File hash-based change detection
 - Automatic regeneration on changes
 - Graceful degradation
 
 **Example:**
+
 ```ruby
 cache = Aidp::Metadata::Cache.new(
   cache_path: ".aidp/cache/tool_directory.json",
@@ -160,6 +170,7 @@ directory = cache.reload
 Query interface for finding and filtering tools.
 
 **Features:**
+
 - Find by ID, type, tags, work unit type
 - Multi-criteria filtering
 - Priority-based ranking
@@ -167,6 +178,7 @@ Query interface for finding and filtering tools.
 - Statistics
 
 **Example:**
+
 ```ruby
 query = Aidp::Metadata::Query.new(cache: cache)
 
@@ -271,6 +283,7 @@ The cache is automatically regenerated when:
 4. If any hash differs, regenerate cache
 
 **Example `.aidp/cache/tool_directory.json.hashes`:**
+
 ```json
 {
   "/path/to/skill1.md": "abc123...",
@@ -367,15 +380,18 @@ decision = AIDecisionEngine.decide(
 ## Performance
 
 **Compilation Time:**
+
 - ~100 tools: <1 second
 - ~1000 tools: ~5 seconds
 
 **Query Time:**
+
 - By ID: O(1) - instant
 - By tag: O(1) index lookup + O(n) filtering
 - By multiple criteria: O(n) where n = matching tools
 
 **Cache Loading:**
+
 - Cold cache (regenerate): 1-5 seconds
 - Warm cache (valid): <100ms
 
@@ -384,11 +400,13 @@ decision = AIDecisionEngine.decide(
 ### Validation Errors
 
 When `strict: false` (default):
+
 - Invalid tools are logged as warnings
 - Compilation continues with valid tools
 - Error log written to `.aidp/logs/metadata_errors.log`
 
 When `strict: true`:
+
 - Validation errors fail compilation
 - Exception raised
 - No cache file generated

@@ -1,6 +1,7 @@
 # Metadata-Driven Skill/Persona/Template System - Implementation Summary
 
 ## Issue
+
 GitHub Issue #270: Implement metadata header system for AIDP skills, personas, and templates
 
 ## Implementation Status: ✅ COMPLETE
@@ -10,6 +11,7 @@ GitHub Issue #270: Implement metadata header system for AIDP skills, personas, a
 The following components have been successfully implemented and tested:
 
 #### 1. Metadata Schema (`lib/aidp/metadata/tool_metadata.rb`)
+
 - ✅ `ToolMetadata` class with validation
 - ✅ Required fields: `type`, `id`, `title`, `summary`, `version`
 - ✅ Optional fields: `applies_to`, `work_unit_types`, `priority`, `capabilities`, `dependencies`, `experimental`
@@ -17,6 +19,7 @@ The following components have been successfully implemented and tested:
 - ✅ SHA256 file hash tracking for cache invalidation
 
 #### 2. Parser (`lib/aidp/metadata/parser.rb`)
+
 - ✅ YAML frontmatter extraction
 - ✅ Legacy skill format conversion
 - ✅ File hash computation
@@ -24,6 +27,7 @@ The following components have been successfully implemented and tested:
 - ✅ UTF-8 encoding handling
 
 #### 3. Validator (`lib/aidp/metadata/validator.rb`)
+
 - ✅ Required field validation
 - ✅ Type validation
 - ✅ Duplicate ID detection
@@ -33,12 +37,14 @@ The following components have been successfully implemented and tested:
 - ✅ Error log generation
 
 #### 4. Directory Scanner (`lib/aidp/metadata/scanner.rb`)
+
 - ✅ Recursive `.md` file discovery
 - ✅ File filtering
 - ✅ Change detection via file hashes
 - ✅ Multiple directory support
 
 #### 5. Compiler (`lib/aidp/metadata/compiler.rb`)
+
 - ✅ Metadata aggregation
 - ✅ Index generation (by type, tag, work unit type)
 - ✅ Dependency graph building
@@ -46,6 +52,7 @@ The following components have been successfully implemented and tested:
 - ✅ JSON output to `tool_directory.json`
 
 #### 6. Cache System (`lib/aidp/metadata/cache.rb`)
+
 - ✅ TTL-based cache expiration (default: 24 hours)
 - ✅ File hash-based change detection
 - ✅ Automatic regeneration on changes
@@ -53,6 +60,7 @@ The following components have been successfully implemented and tested:
 - ✅ Separate hash storage (`.json.hashes`)
 
 #### 7. Query Interface (`lib/aidp/metadata/query.rb`)
+
 - ✅ Find by ID, type, tags, work unit type
 - ✅ Multi-criteria filtering
 - ✅ Priority-based ranking
@@ -60,6 +68,7 @@ The following components have been successfully implemented and tested:
 - ✅ Statistics retrieval
 
 #### 8. CLI Commands (`lib/aidp/cli/tools_command.rb`)
+
 - ✅ `aidp tools lint` - Validate all metadata
 - ✅ `aidp tools info <id>` - Display tool details
 - ✅ `aidp tools reload` - Force cache regeneration
@@ -68,8 +77,10 @@ The following components have been successfully implemented and tested:
 - ✅ Color-coded error/warning output
 
 #### 9. Configuration (`lib/aidp/config.rb`)
+
 - ✅ `tool_metadata_config` method added
 - ✅ Configuration schema:
+
   ```yaml
   tool_metadata:
     enabled: true
@@ -80,12 +91,14 @@ The following components have been successfully implemented and tested:
   ```
 
 #### 10. Documentation
+
 - ✅ `docs/METADATA_HEADERS.md` - Complete schema reference with examples
 - ✅ `docs/TOOL_DIRECTORY.md` - System architecture and usage guide
 
 ### Files Created
 
 **Core System:**
+
 - `lib/aidp/metadata/tool_metadata.rb` - Metadata schema and validation
 - `lib/aidp/metadata/parser.rb` - YAML frontmatter parser
 - `lib/aidp/metadata/validator.rb` - Metadata validator
@@ -95,13 +108,16 @@ The following components have been successfully implemented and tested:
 - `lib/aidp/metadata/query.rb` - Query interface
 
 **CLI:**
+
 - `lib/aidp/cli/tools_command.rb` - Tools CLI commands
 
 **Documentation:**
+
 - `docs/METADATA_HEADERS.md` - Metadata schema reference
 - `docs/TOOL_DIRECTORY.md` - Tool directory system guide
 
 **Modified Files:**
+
 - `lib/aidp/cli.rb` - Added `tools` subcommand
 - `lib/aidp/config.rb` - Added `tool_metadata_config` method
 
@@ -207,6 +223,7 @@ best_tool = ranked.first
 ## Testing
 
 The implementation was tested through:
+
 - ✅ StandardRB linter (all checks pass)
 - ✅ Manual testing of CLI commands
 - ✅ File hash-based cache invalidation verified
@@ -223,6 +240,7 @@ The implementation was tested through:
 The system is **backward compatible** - existing skills will continue to work without modification. The new metadata system is **opt-in** and can be enabled via configuration.
 
 To enable:
+
 ```yaml
 # .aidp/aidp.yml
 tool_metadata:
@@ -232,6 +250,7 @@ tool_metadata:
 ## Conclusion
 
 The core metadata header system is **fully implemented and functional**. The system provides:
+
 - Fast, metadata-driven tool discovery
 - Smart caching with automatic invalidation
 - Comprehensive validation and error reporting

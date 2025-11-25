@@ -283,6 +283,7 @@ def load
 **Application**: `ToolMetadata`
 
 **Benefits**:
+
 - Prevents invalid state
 - Self-validating
 - Immutable after creation
@@ -319,6 +320,7 @@ end
 **Application**: `Parser`, `Validator`, `Compiler`, `Scanner`
 
 **Benefits**:
+
 - Single Responsibility Principle
 - Reusable across application
 - Easy to test
@@ -342,6 +344,7 @@ end
 **Application**: `Cache`
 
 **Benefits**:
+
 - Single source of truth for tool directory
 - Encapsulates cache invalidation logic
 - Testable with mock repositories
@@ -374,6 +377,7 @@ end
 **Application**: `Query`
 
 **Benefits**:
+
 - Fluent interface for filtering
 - Composable queries
 - Testable in isolation
@@ -405,6 +409,7 @@ end
 **Application**: Compiler index building
 
 **Benefits**:
+
 - Separates construction from representation
 - Supports incremental building
 - Clear construction process
@@ -438,6 +443,7 @@ end
 **Application**: Metadata normalization in Parser
 
 **Benefits**:
+
 - Easy to add new legacy format support
 - Clear separation of concerns
 - Testable strategies
@@ -464,6 +470,7 @@ end
 **Application**: Dependency resolution in Compiler and Query
 
 **Benefits**:
+
 - Topological sort for dependency order
 - Cycle detection
 - Transitive dependency resolution
@@ -720,7 +727,7 @@ end
 
 ### Directory Structure
 
-```
+```text
 lib/aidp/metadata/
 ├── tool_metadata.rb    # Value object for tool metadata
 ├── parser.rb           # Parse YAML frontmatter
@@ -733,13 +740,14 @@ lib/aidp/metadata/
 
 ### Component Dependencies
 
-```
+```text
 Cache → Compiler → Scanner → Parser → ToolMetadata
   ↓        ↓
 Query    Validator
 ```
 
 **Dependency Flow**:
+
 1. `Cache` depends on `Compiler` for regeneration
 2. `Compiler` depends on `Scanner` and `Validator`
 3. `Scanner` depends on `Parser`
@@ -1532,7 +1540,7 @@ end
 ## Pattern-to-Use-Case Matrix
 
 | Use Case | Primary Pattern | Supporting Patterns | Rationale |
-|----------|----------------|---------------------|-----------|
+| -------- | --------------- | ------------------- | --------- |
 | Immutable metadata | Value Object | - | Prevent invalid state, self-validating |
 | Parse YAML frontmatter | Service Object | Strategy (normalization) | Stateless operation, reusable |
 | Validate metadata | Service Object | Visitor (validation rules) | Single responsibility, composable |
