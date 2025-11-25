@@ -160,11 +160,53 @@ module Aidp
           if configured_models.any?
             # Use first configured model for this provider and tier
             model_name = configured_models.first
-            Aidp.log_debug("thinking_depth_manager", "Selected model from user config",
-              tier: tier,
-              provider: provider,
-              model: model_name)
-            return [provider, model_name, {}]
+
+            # Check if model is deprecated and try to upgrade
+            require_relative "ruby_llm_registry" unless defined?(Aidp::Harness::RubyLLMRegistry)
+            llm_registry = Aidp::Harness::RubyLLMRegistry.new
+
+            if llm_registry.model_deprecated?(model_name, provider)
+              Aidp.log_warn("thinking_depth_manager", "Configured model is deprecated",
+                tier: tier,
+                provider: provider,
+                model: model_name)
+
+              # Try to find replacement
+              replacement = llm_registry.find_replacement_model(model_name, provider: provider)
+              if replacement
+                Aidp.log_info("thinking_depth_manager", "Auto-upgrading to non-deprecated model",
+                  tier: tier,
+                  provider: provider,
+                  old_model: model_name,
+                  new_model: replacement)
+                model_name = replacement
+              else
+                # Try next model in config list
+                non_deprecated = configured_models.find { |m| !llm_registry.model_deprecated?(m, provider) }
+                if non_deprecated
+                  Aidp.log_info("thinking_depth_manager", "Using alternate configured model",
+                    tier: tier,
+                    provider: provider,
+                    skipped: model_name,
+                    selected: non_deprecated)
+                  model_name = non_deprecated
+                else
+                  Aidp.log_warn("thinking_depth_manager", "All configured models deprecated, falling back to catalog",
+                    tier: tier,
+                    provider: provider)
+                  # Fall through to catalog selection
+                  model_name = nil
+                end
+              end
+            end
+
+            if model_name
+              Aidp.log_debug("thinking_depth_manager", "Selected model from user config",
+                tier: tier,
+                provider: provider,
+                model: model_name)
+              return [provider, model_name, {}]
+            end
           end
 
           # Provider specified but has no models for this tier in config

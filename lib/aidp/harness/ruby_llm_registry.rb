@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ruby_llm"
+require_relative "deprecation_cache"
 
 module Aidp
   module Harness
@@ -25,6 +26,11 @@ module Aidp
         "bedrock" => "bedrock",
         "openrouter" => "openrouter"
       }.freeze
+
+      # Get deprecation cache instance (lazy loaded)
+      def deprecation_cache
+        @deprecation_cache ||= Aidp::Harness::DeprecationCache.new
+      end
 
       # Tier classification based on model characteristics
       # These are heuristics since ruby_llm doesn't classify tiers
@@ -59,7 +65,8 @@ module Aidp
         standard: ->(model) { true }
       }.freeze
 
-      def initialize
+      def initialize(deprecation_cache: nil)
+        @deprecation_cache = deprecation_cache
         @models = RubyLLM::Models.instance.instance_variable_get(:@models)
         @index_by_id = @models.to_h { |m| [m.id, m] }
 
@@ -73,10 +80,17 @@ module Aidp
       #
       # @param model_name [String] Model name (e.g., "claude-3-5-haiku" or "claude-3-5-haiku-20241022")
       # @param provider [String, nil] Optional AIDP provider filter
+      # @param skip_deprecated [Boolean] Skip deprecated models (default: true)
       # @return [String, nil] Canonical model ID for API calls, or nil if not found
-      def resolve_model(model_name, provider: nil)
+      def resolve_model(model_name, provider: nil, skip_deprecated: true)
         # Map AIDP provider to registry provider if filtering
         registry_provider = provider ? PROVIDER_NAME_MAPPING[provider] : nil
+
+        # Check if model is deprecated
+        if skip_deprecated && model_deprecated?(model_name, registry_provider)
+          Aidp.log_warn("ruby_llm_registry", "skipping deprecated model", model: model_name, provider: provider)
+          return nil
+        end
 
         # Try exact match first
         model = @index_by_id[model_name]
@@ -88,13 +102,20 @@ module Aidp
           # Filter by provider if specified
           family_models = family_models.select { |m| m.provider.to_s == registry_provider } if registry_provider
 
+          # Filter out deprecated models if requested
+          if skip_deprecated
+            family_models = family_models.reject do |m|
+              deprecation_cache.deprecated?(provider: registry_provider, model_id: m.id.to_s)
+            end
+          end
+
           # Return the latest version (first non-"latest" model, or the latest one)
           model = family_models.reject { |m| m.id.to_s.include?("-latest") }.first || family_models.first
           return model.id if model
         end
 
         # Try fuzzy matching for common patterns
-        fuzzy_match = find_fuzzy_match(model_name, registry_provider)
+        fuzzy_match = find_fuzzy_match(model_name, registry_provider, skip_deprecated: skip_deprecated)
         return fuzzy_match.id if fuzzy_match
 
         Aidp.log_warn("ruby_llm_registry", "model not found", model: model_name, provider: provider)
@@ -124,8 +145,9 @@ module Aidp
       #
       # @param tier [String, Symbol] The tier name (mini, standard, advanced)
       # @param provider [String, nil] Optional AIDP provider filter
+      # @param skip_deprecated [Boolean] Skip deprecated models (default: true)
       # @return [Array<String>] List of model IDs for the tier
-      def models_for_tier(tier, provider: nil)
+      def models_for_tier(tier, provider: nil, skip_deprecated: true)
         tier_sym = tier.to_sym
         classifier = TIER_CLASSIFICATION[tier_sym]
 
@@ -150,6 +172,11 @@ module Aidp
           models.reject! do |m|
             TIER_CLASSIFICATION[:mini].call(m) || TIER_CLASSIFICATION[:advanced].call(m)
           end
+        end
+
+        # Filter out deprecated models if requested
+        if skip_deprecated
+          models.reject! { |m| deprecation_cache.deprecated?(provider: registry_provider, model_id: m.id.to_s) }
         end
 
         model_ids = models.map(&:id).uniq
@@ -191,6 +218,51 @@ module Aidp
         Aidp.log_info("ruby_llm_registry", "refreshed", models: @models.size)
       end
 
+      # Check if a model is deprecated
+      # @param model_id [String] The model ID to check
+      # @param provider [String, nil] The provider name (registry format)
+      # @return [Boolean] True if model is deprecated
+      def model_deprecated?(model_id, provider = nil)
+        return false unless provider
+
+        deprecation_cache.deprecated?(provider: provider, model_id: model_id.to_s)
+      end
+
+      # Find replacement for a deprecated model
+      # Returns the latest non-deprecated model in the same family/tier
+      # @param deprecated_model [String] The deprecated model ID
+      # @param provider [String, nil] The provider name (AIDP format)
+      # @return [String, nil] Replacement model ID or nil
+      def find_replacement_model(deprecated_model, provider: nil)
+        registry_provider = provider ? PROVIDER_NAME_MAPPING[provider] : nil
+        return nil unless registry_provider
+
+        # Determine tier of deprecated model
+        deprecated_info = @index_by_id[deprecated_model]
+        return nil unless deprecated_info
+
+        tier = classify_tier(deprecated_info)
+
+        # Get all non-deprecated models for this tier and provider
+        candidates = models_for_tier(tier, provider: provider, skip_deprecated: true)
+
+        # Prefer models in the same family (e.g., both "sonnet")
+        family_keyword = extract_family_keyword(deprecated_model)
+        same_family = candidates.select { |m| m.to_s.include?(family_keyword) } if family_keyword
+
+        # Return first match from same family, or first candidate overall
+        replacement = same_family&.first || candidates.first
+
+        if replacement
+          Aidp.log_info("ruby_llm_registry", "found replacement",
+            deprecated: deprecated_model,
+            replacement: replacement,
+            tier: tier)
+        end
+
+        replacement
+      end
+
       private
 
       # Build an index mapping family names to model objects
@@ -208,12 +280,17 @@ module Aidp
       end
 
       # Find a model by fuzzy matching
-      def find_fuzzy_match(model_name, provider)
+      def find_fuzzy_match(model_name, provider, skip_deprecated: true)
         # Normalize the search term
         normalized = model_name.downcase.gsub(/[^a-z0-9]/, "")
 
         candidates = @models.select do |m|
           next false if provider && m.provider.to_s != provider
+
+          # Skip deprecated if requested
+          if skip_deprecated
+            next false if deprecation_cache.deprecated?(provider: provider, model_id: m.id.to_s)
+          end
 
           # Check if model ID contains the search term
           m.id.to_s.downcase.gsub(/[^a-z0-9]/, "").include?(normalized) ||
@@ -222,6 +299,17 @@ module Aidp
 
         # Prefer shorter matches (more specific)
         candidates.min_by { |m| m.id.to_s.length }
+      end
+
+      # Extract family keyword from model ID (e.g., "sonnet", "haiku", "opus")
+      def extract_family_keyword(model_id)
+        case model_id.to_s
+        when /sonnet/i then "sonnet"
+        when /haiku/i then "haiku"
+        when /opus/i then "opus"
+        when /gpt-4/i then "gpt-4"
+        when /gpt-3/i then "gpt-3"
+        end
       end
 
       # Extract capabilities from model info
