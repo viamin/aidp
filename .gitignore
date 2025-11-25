@@ -21,6 +21,9 @@ code_maat_analysis_report.md
 # Aidp workstreams
 .worktrees/
 
+# Work loop artifacts
+PROMPT.md
+
 # Temporary files
 *.tmp
 *.log
