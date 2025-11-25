@@ -111,7 +111,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
     context "when diff too large" do
       let(:large_diff) { "diff\n" * 3000 }
-      let(:change_request_config) { {enabled: true, run_tests_before_push: false, max_diff_size: 2000, allow_large_pr_worktree_bypass: false} }
+      let(:change_request_config) { {enabled: true, run_tests_before_push: false, max_diff_size: 2000, large_pr_strategy: "manual"} }
 
       before do
         allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
@@ -119,56 +119,12 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
       end
 
-      it "posts diff too large comment" do
+      it "posts diff too large comment and stops processing" do
         expect(repository_client).to receive(:post_comment).with(123, /diff is too large/)
         expect(repository_client).to receive(:remove_labels).with(123, "aidp-request-changes")
+        # Should not try to analyze changes since it stops after large PR detection
+        expect_any_instance_of(described_class).not_to receive(:analyze_change_requests)
         processor.process(pr)
-      end
-
-      context "with worktree bypass enabled" do
-        let(:change_request_config) do
-          {
-            enabled: true,
-            max_diff_size: 2000,
-            allow_large_pr_worktree_bypass: true
-          }
-        end
-
-        let(:analysis_result) do
-          {
-            can_implement: true,
-            needs_clarification: false,
-            changes: [
-              {
-                "file" => "test.rb",
-                "action" => "edit",
-                "content" => "new content",
-                "description" => "Fixed implementation"
-              }
-            ],
-            reason: "Large PR with worktree bypass"
-          }
-        end
-
-        before do
-          allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
-          allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
-          allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
-          allow(processor).to receive(:checkout_pr_branch)
-          allow(processor).to receive(:apply_changes)
-          allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
-          allow(processor).to receive(:commit_and_push).and_return(true)
-          allow(repository_client).to receive(:post_comment)
-          allow(repository_client).to receive(:remove_labels)
-        end
-
-        it "processes large PR using worktree bypass" do
-          expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
-          expect(processor).to receive(:checkout_pr_branch).with(pr)
-          expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
-
-          processor.process(pr)
-        end
       end
     end
 
@@ -280,62 +236,6 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
           processor.process(pr_with_issue)
         end
-      end
-    end
-
-    context "when PR is linked to an existing issue worktree" do
-      let(:analysis_result) do
-        {
-          can_implement: true,
-          needs_clarification: false,
-          changes: [
-            {
-              "file" => "test.rb",
-              "action" => "edit",
-              "content" => "new content",
-              "description" => "Fixed typo"
-            }
-          ],
-          reason: "Clear request"
-        }
-      end
-
-      let(:worktree_path) { File.join(tmp_dir, "worktrees", "issue-294-slug") }
-      let(:issue) do
-        {
-          number: 294,
-          title: "Issue 294",
-          body: "Details"
-        }
-      end
-
-      before do
-        FileUtils.mkdir_p(worktree_path)
-
-        state_store.record_build_status(294, status: "completed", details: {branch: "aidp/issue-294", workstream: "issue-294-slug"})
-
-        allow(repository_client).to receive(:fetch_pull_request).and_return(pr.merge(body: "Fixes #294"))
-        allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
-        allow(repository_client).to receive(:fetch_pull_request_diff).and_return(diff)
-        allow(repository_client).to receive(:post_comment)
-        allow(repository_client).to receive(:remove_labels)
-
-        allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
-        allow(processor).to receive(:apply_changes)
-        allow(processor).to receive(:commit_and_push).and_return(true)
-        allow(processor).to receive(:run_git).and_return("")
-
-        allow(Aidp::Worktree).to receive(:find_by_branch).and_return(nil)
-        allow(Aidp::Worktree).to receive(:info).with(slug: "issue-294-slug", project_dir: tmp_dir).and_return({slug: "issue-294-slug", path: worktree_path, branch: "aidp/issue-294", active: true})
-        allow(Aidp::Worktree).to receive(:create)
-        allow(repository_client).to receive(:fetch_issue).with(294).and_return(issue)
-      end
-
-      it "reuses the issue worktree instead of switching the main workspace" do
-        processor.process(pr.merge(body: "Fixes #294"))
-
-        expect(processor.instance_variable_get(:@project_dir)).to eq(worktree_path)
-        expect(Aidp::Worktree).not_to have_received(:create)
       end
     end
 
@@ -635,8 +535,14 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
       describe "#checkout_pr_branch" do
         before do
-          allow(processor).to receive(:resolve_worktree_for_pr).and_return(tmp_dir)
           allow(processor).to receive(:run_git)
+          # Mock worktree operations to simulate existing worktree
+          allow(Aidp::Worktree).to receive(:find_by_branch).and_return({
+            active: true,
+            path: "/tmp/existing_worktree"
+          })
+          allow(processor).to receive(:create_worktree_for_pr)
+          allow(Dir).to receive(:chdir).with("/tmp/existing_worktree").and_yield
         end
 
         it "checks out PR branch" do
@@ -722,126 +628,6 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         it "posts diff size error" do
           expect(repository_client).to receive(:post_comment).with(123, /diff is too large/)
           processor.send(:post_diff_too_large_comment, pr, 3000)
-        end
-      end
-    end
-
-    context "large PR change request handling" do
-      let(:large_diff) { "diff\n" * 3000 }
-      let(:analysis_result) do
-        {
-          can_implement: true,
-          needs_clarification: false,
-          changes: [
-            {
-              "file" => "test.rb",
-              "action" => "edit",
-              "content" => "new content",
-              "description" => "Implemented large PR changes"
-            }
-          ],
-          reason: "Large PR with comprehensive changes"
-        }
-      end
-
-      before do
-        allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
-        allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
-        allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
-        allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
-        allow(processor).to receive(:checkout_pr_branch)
-        allow(processor).to receive(:apply_changes)
-        allow(processor).to receive(:commit_and_push).and_return(true)
-        allow(repository_client).to receive(:post_comment)
-        allow(repository_client).to receive(:remove_labels)
-      end
-
-      context "when worktree bypass is disabled" do
-        let(:change_request_config) do
-          {
-            enabled: true,
-            max_diff_size: 2000,
-            allow_large_pr_worktree_bypass: false
-          }
-        end
-
-        it "prevents processing and posts a large diff comment" do
-          expect(repository_client).to receive(:post_comment).with(123, /diff is too large/)
-          expect(repository_client).to receive(:remove_labels).with(123, "aidp-request-changes")
-          expect(processor).not_to receive(:checkout_pr_branch)
-
-          processor.process(pr)
-        end
-      end
-
-      context "when worktree bypass is dynamically configured" do
-        context "when configuration allows bypass" do
-          let(:change_request_config) do
-            {
-              enabled: true,
-              max_diff_size: 2000,
-              allow_large_pr_worktree_bypass: true
-            }
-          end
-
-          it "allows processing despite large diff" do
-            expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
-            expect(processor).to receive(:checkout_pr_branch).with(pr)
-            expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
-
-            processor.process(pr)
-          end
-        end
-
-        context "when configuration allows bypass by default" do
-          let(:change_request_config) do
-            {
-              enabled: true,
-              max_diff_size: 2000
-            }
-          end
-
-          it "allows processing with default bypass" do
-            expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
-            expect(processor).to receive(:checkout_pr_branch).with(pr)
-            expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
-
-            processor.process(pr)
-          end
-        end
-      end
-
-      context "logging for large PRs" do
-        let(:change_request_config) do
-          {
-            enabled: true,
-            max_diff_size: 2000,
-            allow_large_pr_worktree_bypass: true
-          }
-        end
-
-        it "logs detailed information about large PR handling" do
-          # Private repo comments logging
-          expect(Aidp).to receive(:log_debug)
-            .with("change_request_processor", "filtering_authorized_comments",
-              total_comments: comments.length,
-              allowlist_count: 0,
-              is_private_repo: true)
-
-          # Private repo comments allowed logging
-          expect(Aidp).to receive(:log_debug)
-            .with("change_request_processor", "private_repo_comments_allowed",
-              comments_allowed: comments.length)
-
-          # Additional log debug expectation for PR diff size
-          expect(Aidp).to receive(:log_debug)
-            .with("change_request_processor", "PR diff size",
-              number: 123,
-              size: large_diff.lines.count,
-              max_allowed: 2000,
-              worktree_bypass: true)
-
-          processor.process(pr)
         end
       end
     end

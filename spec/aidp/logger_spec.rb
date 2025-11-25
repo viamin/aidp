@@ -20,14 +20,32 @@ RSpec.describe Aidp::Logger do
   end
 
   around do |example|
-    original = ENV["AIDP_LOG_FILE"]
+    original_log_file = ENV["AIDP_LOG_FILE"]
+    original_debug = ENV["DEBUG"]
+    original_aidp_debug = ENV["AIDP_DEBUG"]
+
     ENV.delete("AIDP_LOG_FILE")
+    ENV.delete("DEBUG")
+    ENV.delete("AIDP_DEBUG")
+
     example.run
   ensure
-    if original
-      ENV["AIDP_LOG_FILE"] = original
+    if original_log_file
+      ENV["AIDP_LOG_FILE"] = original_log_file
     else
       ENV.delete("AIDP_LOG_FILE")
+    end
+
+    if original_debug
+      ENV["DEBUG"] = original_debug
+    else
+      ENV.delete("DEBUG")
+    end
+
+    if original_aidp_debug
+      ENV["AIDP_DEBUG"] = original_aidp_debug
+    else
+      ENV.delete("AIDP_DEBUG")
     end
   end
 
