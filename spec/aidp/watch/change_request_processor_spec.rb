@@ -301,6 +301,13 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
       end
 
       let(:worktree_path) { File.join(tmp_dir, "worktrees", "issue-294-slug") }
+      let(:issue) do
+        {
+          number: 294,
+          title: "Issue 294",
+          body: "Details"
+        }
+      end
 
       before do
         FileUtils.mkdir_p(worktree_path)
@@ -321,6 +328,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         allow(Aidp::Worktree).to receive(:find_by_branch).and_return(nil)
         allow(Aidp::Worktree).to receive(:info).with(slug: "issue-294-slug", project_dir: tmp_dir).and_return({slug: "issue-294-slug", path: worktree_path, branch: "aidp/issue-294", active: true})
         allow(Aidp::Worktree).to receive(:create)
+        allow(repository_client).to receive(:fetch_issue).with(294).and_return(issue)
       end
 
       it "reuses the issue worktree instead of switching the main workspace" do
