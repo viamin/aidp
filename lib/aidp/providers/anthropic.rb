@@ -3,14 +3,22 @@
 require "json"
 require_relative "base"
 require_relative "../debug_mixin"
+require_relative "../harness/deprecation_cache"
 
 module Aidp
   module Providers
     class Anthropic < Base
       include Aidp::DebugMixin
 
+      attr_reader :model
+
       # Model name pattern for Anthropic Claude models
       MODEL_PATTERN = /^claude-[\d.-]+-(?:opus|sonnet|haiku)(?:-\d{8})?$/i
+
+      # Get deprecation cache instance (lazy loaded)
+      def self.deprecation_cache
+        @deprecation_cache ||= Aidp::Harness::DeprecationCache.new
+      end
 
       def self.available?
         !!Aidp::Util.which("claude")
@@ -210,6 +218,56 @@ module Aidp
         ["--dangerously-skip-permissions"]
       end
 
+      # Classify provider error using string matching
+      #
+      # ZFC EXCEPTION: Cannot use AI to classify provider errors because:
+      # 1. The failing provider IS the AI we'd use for classification (circular dependency)
+      # 2. Provider may be rate-limited, down, or misconfigured
+      # 3. Error classification must work even when AI unavailable
+      #
+      # This is a legitimate exception to ZFC principles per LLM_STYLE_GUIDE:
+      # "Structural safety checks" are allowed in code when AI cannot be used.
+      #
+      # @param error_message [String] The error message to classify
+      # @return [Hash] Classification result with :type, :is_deprecation, :is_rate_limit, :confidence
+      def self.classify_provider_error(error_message)
+        msg_lower = error_message.downcase
+
+        # Use simple string.include? checks (not regex) to avoid ReDoS vulnerabilities
+        is_rate_limit = msg_lower.include?("rate limit") || msg_lower.include?("session limit")
+        is_deprecation = msg_lower.include?("deprecat") || msg_lower.include?("end-of-life")
+        is_auth_error = msg_lower.include?("auth") && (msg_lower.include?("expired") || msg_lower.include?("invalid"))
+
+        # Determine primary type
+        type = if is_rate_limit
+          "rate_limit"
+        elsif is_deprecation
+          "deprecation"
+        elsif is_auth_error
+          "auth_error"
+        else
+          "other"
+        end
+
+        Aidp.log_debug("anthropic", "Provider error classification",
+          type: type,
+          is_rate_limit: is_rate_limit,
+          is_deprecation: is_deprecation,
+          is_auth_error: is_auth_error)
+
+        {
+          type: type,
+          is_rate_limit: is_rate_limit,
+          is_deprecation: is_deprecation,
+          is_auth_error: is_auth_error,
+          confidence: 0.85, # Good confidence for clear error messages
+          reasoning: "Pattern-based classification (ZFC exception: circular dependency)"
+        }
+      end
+
+      # Error patterns for classify_error method (legacy support)
+      # NOTE: ZFC-based classification preferred - see classify_error_with_zfc
+      # These patterns serve as fallback when ZFC is unavailable
       def error_patterns
         {
           rate_limited: [
@@ -245,22 +303,85 @@ module Aidp
             /not.*found/i,
             /404/,
             /bad.*request/i,
-            /400/
+            /400/,
+            /model.*deprecated/i,
+            /end-of-life/i
           ]
         }
       end
 
-      def send_message(prompt:, session: nil)
+      # Check if a model is deprecated and return replacement
+      # @param model_name [String] The model name to check
+      # @return [String, nil] Replacement model name if deprecated, nil otherwise
+      def self.check_model_deprecation(model_name)
+        deprecation_cache.replacement_for(provider: "anthropic", model_id: model_name)
+      end
+
+      # Find replacement model for deprecated one using RubyLLM registry
+      # @param deprecated_model [String] The deprecated model name
+      # @param provider_name [String] Provider name for registry lookup
+      # @return [String, nil] Latest model in the same family, or configured replacement
+      def self.find_replacement_model(deprecated_model, provider_name: "anthropic")
+        # First check the deprecation cache for explicit replacement
+        replacement = deprecation_cache.replacement_for(provider: provider_name, model_id: deprecated_model)
+        return replacement if replacement
+
+        # Try to find latest model in same family using registry
+        require_relative "../harness/ruby_llm_registry" unless defined?(Aidp::Harness::RubyLLMRegistry)
+
+        begin
+          registry = Aidp::Harness::RubyLLMRegistry.new
+
+          # Search for non-deprecated models in the same family
+          # Prefer models without "latest" suffix, sorted by ID (newer dates first)
+          models = registry.models_for_provider(provider_name)
+          candidates = models.select { |m| m.include?("sonnet") && !deprecation_cache.deprecated?(provider: provider_name, model_id: m) }
+
+          # Prioritize: versioned models over -latest, newer versions first
+          versioned = candidates.reject { |m| m.end_with?("-latest") }.sort.reverse
+          latest_models = candidates.select { |m| m.end_with?("-latest") }
+
+          replacement = versioned.first || latest_models.first
+
+          if replacement
+            Aidp.log_info("anthropic", "Found replacement model",
+              deprecated: deprecated_model,
+              replacement: replacement)
+          end
+
+          replacement
+        rescue => e
+          Aidp.log_error("anthropic", "Failed to find replacement model",
+            deprecated: deprecated_model,
+            error: e.message)
+          nil
+        end
+      end
+
+      def send_message(prompt:, session: nil, options: {})
         raise "claude CLI not available" unless self.class.available?
 
-        # Smart timeout calculation
-        timeout_seconds = calculate_timeout
+        # Check if current model is deprecated and warn
+        if @model && (replacement = self.class.check_model_deprecation(@model))
+          Aidp.log_warn("anthropic", "Using deprecated model",
+            current: @model,
+            replacement: replacement)
+          debug_log("⚠️  Model #{@model} is deprecated. Consider upgrading to #{replacement}", level: :warn)
+        end
 
-        debug_provider("claude", "Starting execution", {timeout: timeout_seconds})
+        # Smart timeout calculation with tier awareness
+        timeout_seconds = calculate_timeout(options)
+
+        debug_provider("claude", "Starting execution", {timeout: timeout_seconds, tier: options[:tier]})
         debug_log("📝 Sending prompt to claude...", level: :info)
 
         # Build command arguments
         args = ["--print", "--output-format=text"]
+
+        # Add model if specified
+        if @model && !@model.empty?
+          args << "--model" << @model
+        end
 
         # Check if we should skip permissions (devcontainer support)
         if should_skip_permissions?
@@ -280,15 +401,75 @@ module Aidp
             # Detect issues in stdout/stderr (Claude sometimes prints to stdout)
             combined = [result.out, result.err].compact.join("\n")
 
-            # Check for rate limit (Session limit reached)
-            if combined.match?(/session limit reached/i)
+            # Classify provider error using pattern matching
+            # ZFC EXCEPTION: Cannot use AI to classify provider's own errors (circular dependency)
+            error_classification = self.class.classify_provider_error(combined)
+
+            Aidp.log_debug("anthropic_provider", "error_classified",
+              exit_code: result.exit_status,
+              type: error_classification[:type],
+              confidence: error_classification[:confidence])
+
+            # Check for model deprecation FIRST (before rate limiting)
+            # Even if rate limited, we need to cache the deprecation for next run
+            if error_classification[:is_deprecation]
+              deprecated_model = @model
+              Aidp.log_error("anthropic", "Model deprecation detected",
+                model: deprecated_model,
+                message: combined)
+
+              # Try to find replacement
+              replacement = deprecated_model ? self.class.find_replacement_model(deprecated_model) : nil
+
+              # Record deprecation in cache for future runs
+              if replacement
+                self.class.deprecation_cache.add_deprecated_model(
+                  provider: "anthropic",
+                  model_id: deprecated_model,
+                  replacement: replacement,
+                  reason: combined.lines.first&.strip || "Model deprecated"
+                )
+
+                Aidp.log_info("anthropic", "Auto-upgrading to non-deprecated model",
+                  old_model: deprecated_model,
+                  new_model: replacement)
+                debug_log("🔄 Upgrading from deprecated model #{deprecated_model} to #{replacement}", level: :info)
+
+                # Update model and retry
+                @model = replacement
+
+                # Retry with new model (even if rate limited, we'll hit rate limit with new model)
+                debug_log("🔄 Retrying with upgraded model: #{replacement}", level: :info)
+                return send_message(prompt: prompt, session: session, options: options)
+              else
+                # Record deprecation even without replacement
+                if deprecated_model
+                  self.class.deprecation_cache.add_deprecated_model(
+                    provider: "anthropic",
+                    model_id: deprecated_model,
+                    replacement: nil,
+                    reason: combined.lines.first&.strip || "Model deprecated"
+                  )
+                end
+
+                error_message = "Model '#{deprecated_model}' is deprecated and no replacement found.\n#{combined}"
+                error = RuntimeError.new(error_message)
+                debug_error(error, {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
+                raise error
+              end
+            end
+
+            # Check for rate limit (after handling deprecation)
+            if error_classification[:is_rate_limit]
               Aidp.log_debug("anthropic_provider", "rate_limit_detected",
                 exit_code: result.exit_status,
+                confidence: error_classification[:confidence],
                 message: combined)
               notify_rate_limit(combined)
               error_message = "Rate limit reached for Claude CLI.\n#{combined}"
-              debug_error(StandardError.new(error_message), {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
-              raise error_message
+              error = RuntimeError.new(error_message)
+              debug_error(error, {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
+              raise error
             end
 
             # Check for auth issues
@@ -296,12 +477,15 @@ module Aidp
               error_message = "Authentication error from Claude CLI: token expired or invalid.\n" \
                               "Run 'claude /login' or refresh credentials.\n" \
                               "Note: Model discovery requires valid authentication."
-              debug_error(StandardError.new(error_message), {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
-              raise error_message
+              error = RuntimeError.new(error_message)
+              debug_error(error, {exit_code: result.exit_status, stdout: result.out, stderr: result.err})
+              raise error
             end
 
-            debug_error(StandardError.new("claude failed"), {exit_code: result.exit_status, stderr: result.err})
-            raise "claude failed with exit code #{result.exit_status}: #{result.err}"
+            error_message = "claude failed with exit code #{result.exit_status}: #{result.err}"
+            error = RuntimeError.new(error_message)
+            debug_error(error, {exit_code: result.exit_status, stderr: result.err})
+            raise error
           end
         rescue => e
           debug_error(e, {provider: "claude", prompt_length: prompt.length})

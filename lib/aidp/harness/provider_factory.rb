@@ -242,8 +242,15 @@ module Aidp
 
       def configure_provider(provider_instance, provider_config, options)
         # Set basic configuration
+        config_hash = provider_config.config(options).dup
+
+        # Add model to config if specified in options
+        if options[:model]
+          config_hash[:model] = options[:model]
+        end
+
         if provider_instance.respond_to?(:configure)
-          provider_instance.configure(provider_config.config(options))
+          provider_instance.configure(config_hash)
         end
 
         # Set harness context if available

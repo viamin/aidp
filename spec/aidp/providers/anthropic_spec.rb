@@ -1,9 +1,22 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "tmpdir"
+require "fileutils"
 
 RSpec.describe Aidp::Providers::Anthropic do
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:test_cache) { Aidp::Harness::DeprecationCache.new(root_dir: temp_dir) }
   let(:provider) { described_class.new }
+
+  before do
+    # Stub the class-level deprecation cache to use temp directory in CI
+    allow(described_class).to receive(:deprecation_cache).and_return(test_cache)
+  end
+
+  after do
+    FileUtils.rm_rf(temp_dir) if temp_dir && File.exist?(temp_dir)
+  end
 
   describe "#available?" do
     it "returns true when claude CLI is available" do
@@ -34,6 +47,51 @@ RSpec.describe Aidp::Providers::Anthropic do
   describe "#supports_mcp?" do
     it "returns true" do
       expect(provider.supports_mcp?).to be true
+    end
+  end
+
+  describe "#configure" do
+    let(:mock_registry) { instance_double(Aidp::Harness::RubyLLMRegistry) }
+
+    before do
+      allow(Aidp::Harness::RubyLLMRegistry).to receive(:new).and_return(mock_registry)
+    end
+
+    it "resolves model family to versioned model using registry" do
+      allow(mock_registry).to receive(:resolve_model).with("claude-3-5-haiku", provider: "anthropic").and_return("claude-3-5-haiku-20241022")
+
+      provider.configure(model: "claude-3-5-haiku")
+      expect(provider.model).to eq("claude-3-5-haiku-20241022")
+    end
+
+    it "preserves already versioned model names" do
+      allow(mock_registry).to receive(:resolve_model).with("claude-3-opus-20240229", provider: "anthropic").and_return("claude-3-opus-20240229")
+
+      provider.configure(model: "claude-3-opus-20240229")
+      expect(provider.model).to eq("claude-3-opus-20240229")
+    end
+
+    it "falls back to using model name as-is when registry returns nil" do
+      allow(mock_registry).to receive(:resolve_model).with("unknown-model", provider: "anthropic").and_return(nil)
+      expect(Aidp).to receive(:log_warn).with("anthropic", "Model not found in registry, using as-is", model: "unknown-model")
+
+      provider.configure(model: "unknown-model")
+      expect(provider.model).to eq("unknown-model")
+    end
+
+    it "handles registry errors gracefully" do
+      allow(mock_registry).to receive(:resolve_model).and_raise(StandardError, "Registry error")
+      expect(Aidp).to receive(:log_error).with("anthropic", "Registry lookup failed, using model name as-is",
+        model: "claude-3-5-haiku",
+        error: "Registry error")
+
+      provider.configure(model: "claude-3-5-haiku")
+      expect(provider.model).to eq("claude-3-5-haiku")
+    end
+
+    it "does not set model when not provided" do
+      provider.configure({})
+      expect(provider.model).to be_nil
     end
   end
 
@@ -80,6 +138,31 @@ RSpec.describe Aidp::Providers::Anthropic do
     it "returns the output directly" do
       result = provider.send_message(prompt: prompt)
       expect(result).to eq("Test response")
+    end
+
+    context "when model is configured" do
+      let(:mock_registry) { instance_double(Aidp::Harness::RubyLLMRegistry) }
+
+      before do
+        allow(Aidp::Harness::RubyLLMRegistry).to receive(:new).and_return(mock_registry)
+        allow(mock_registry).to receive(:resolve_model).with("claude-3-5-haiku", provider: "anthropic").and_return("claude-3-5-haiku-20241022")
+        provider.configure(model: "claude-3-5-haiku")
+      end
+
+      it "includes the model in command arguments" do
+        provider.send_message(prompt: prompt)
+
+        # In devcontainer, expect --dangerously-skip-permissions flag
+        expected_args = ["--print", "--output-format=text", "--model", "claude-3-5-haiku-20241022"]
+        expected_args << "--dangerously-skip-permissions" if ENV["REMOTE_CONTAINERS"] == "true" || ENV["CODESPACES"] == "true"
+
+        expect(provider).to have_received(:debug_execute_command).with(
+          "claude",
+          args: expected_args,
+          input: prompt,
+          timeout: 1
+        )
+      end
     end
 
     context "when harness config requests full permissions" do
@@ -364,6 +447,55 @@ RSpec.describe Aidp::Providers::Anthropic do
         expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_DEFAULT)
       end
     end
+
+    context "with tier-based timeout multipliers" do
+      it "applies mini tier multiplier (1.0x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "mini"})
+        expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_DEFAULT)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: mini/, type: :info)
+      end
+
+      it "applies standard tier multiplier (2.0x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "standard"})
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 2.0).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: standard/, type: :info)
+      end
+
+      it "applies thinking tier multiplier (6.0x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "thinking"})
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 6.0).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: thinking/, type: :info)
+      end
+
+      it "applies max tier multiplier (12.0x) to default timeout" do
+        timeout = provider.__send__(:calculate_timeout, {tier: "max"})
+        expected = (Aidp::Providers::Base::TIMEOUT_DEFAULT * 12.0).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/default timeout.*tier: max/, type: :info)
+      end
+
+      it "applies tier multiplier to IMPLEMENTATION step timeout" do
+        ENV["AIDP_CURRENT_STEP"] = "IMPLEMENTATION"
+        timeout = provider.__send__(:calculate_timeout, {tier: "standard"})
+        expected = (Aidp::Providers::Base::TIMEOUT_IMPLEMENTATION * 2.0).to_i
+        expect(timeout).to eq(expected)
+        expect(provider).to have_received(:display_message).with(/adaptive timeout.*tier: standard/, type: :info)
+      end
+
+      it "ignores tier when quick mode is enabled" do
+        ENV["AIDP_QUICK_MODE"] = "1"
+        timeout = provider.__send__(:calculate_timeout, {tier: "max"})
+        expect(timeout).to eq(Aidp::Providers::Base::TIMEOUT_QUICK_MODE)
+      end
+
+      it "ignores tier when provider-specific env var is set" do
+        ENV["AIDP_ANTHROPIC_TIMEOUT"] = "600"
+        timeout = provider.__send__(:calculate_timeout, {tier: "max"})
+        expect(timeout).to eq(600)
+      end
+    end
   end
 
   describe "#adaptive_timeout" do
@@ -371,11 +503,11 @@ RSpec.describe Aidp::Providers::Anthropic do
       ENV.delete("AIDP_CURRENT_STEP")
     end
 
-    it "caches the result" do
+    it "no longer caches the result (tier may change)" do
       ENV["AIDP_CURRENT_STEP"] = "TEST_ANALYSIS"
-      first_call = provider.__send__(:adaptive_timeout)
-      second_call = provider.__send__(:adaptive_timeout)
-      expect(first_call).to eq(second_call)
+      first_call = provider.__send__(:adaptive_timeout, "mini")
+      second_call = provider.__send__(:adaptive_timeout, "max")
+      expect(first_call).not_to eq(second_call)
     end
 
     it "returns nil for unknown step types" do

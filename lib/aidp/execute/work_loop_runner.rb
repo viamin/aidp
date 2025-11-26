@@ -308,7 +308,8 @@ module Aidp
             iteration: @iteration_count,
             project_dir: @project_dir,
             mode: :decide_whats_next,
-            model: model_name
+            model: model_name,
+            tier: @thinking_depth_manager.current_tier
           }
         )
 
@@ -340,7 +341,8 @@ module Aidp
             iteration: @iteration_count,
             project_dir: @project_dir,
             mode: :diagnose_failures,
-            model: model_name
+            model: model_name,
+            tier: @thinking_depth_manager.current_tier
           }
         )
 
@@ -761,7 +763,8 @@ module Aidp
               step_name: @step_name,
               iteration: @iteration_count,
               project_dir: @project_dir,
-              model: model_name
+              model: model_name,
+              tier: @thinking_depth_manager.current_tier
             }
           )
         end

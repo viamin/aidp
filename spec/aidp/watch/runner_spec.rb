@@ -14,6 +14,12 @@ RSpec.describe Aidp::Watch::Runner do
   let(:state_store) { instance_double(Aidp::Watch::StateStore) }
   let(:plan_processor) { instance_double(Aidp::Watch::PlanProcessor, plan_label: "aidp-plan") }
   let(:build_processor) { instance_double(Aidp::Watch::BuildProcessor, build_label: "aidp-build") }
+  let(:auto_processor) { instance_double(Aidp::Watch::AutoProcessor, auto_label: "aidp-auto") }
+  let(:auto_pr_processor) { instance_double(Aidp::Watch::AutoPrProcessor, auto_label: "aidp-auto") }
+  let(:review_processor) { instance_double(Aidp::Watch::ReviewProcessor, review_label: "aidp-review") }
+  let(:ci_fix_processor) { instance_double(Aidp::Watch::CiFixProcessor, ci_fix_label: "aidp-fix-ci") }
+  let(:change_request_processor) { instance_double(Aidp::Watch::ChangeRequestProcessor, change_request_label: "aidp-request-changes") }
+  let(:state_extractor) { instance_double(Aidp::Watch::GitHubStateExtractor) }
   let(:safety_checker) { instance_double(Aidp::Watch::RepositorySafetyChecker) }
 
   before do
@@ -33,6 +39,12 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp::Watch::StateStore).to receive(:new).and_return(state_store)
     allow(Aidp::Watch::PlanProcessor).to receive(:new).and_return(plan_processor)
     allow(Aidp::Watch::BuildProcessor).to receive(:new).and_return(build_processor)
+    allow(Aidp::Watch::AutoProcessor).to receive(:new).and_return(auto_processor)
+    allow(Aidp::Watch::AutoPrProcessor).to receive(:new).and_return(auto_pr_processor)
+    allow(Aidp::Watch::ReviewProcessor).to receive(:new).and_return(review_processor)
+    allow(Aidp::Watch::CiFixProcessor).to receive(:new).and_return(ci_fix_processor)
+    allow(Aidp::Watch::ChangeRequestProcessor).to receive(:new).and_return(change_request_processor)
+    allow(Aidp::Watch::GitHubStateExtractor).to receive(:new).and_return(state_extractor)
 
     # By default, allow safety checks to pass
     allow(safety_checker).to receive(:validate_watch_mode_safety!)
@@ -42,6 +54,11 @@ RSpec.describe Aidp::Watch::Runner do
     allow(state_store).to receive(:detection_comment_posted?).and_return(false)
     allow(state_store).to receive(:record_detection_comment)
     allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:add_labels)
+    allow(repository_client).to receive(:remove_labels)
+    allow(state_extractor).to receive(:detection_comment_posted?).and_return(true)
+    allow(state_extractor).to receive(:in_progress?).and_return(false)
+    allow(state_extractor).to receive(:build_completed?).and_return(false)
   end
 
   describe "#initialize" do
@@ -134,7 +151,9 @@ RSpec.describe Aidp::Watch::Runner do
   describe "#process_cycle" do
     it "processes plan and build triggers" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      allow(runner).to receive(:process_auto_issue_triggers)
       allow(runner).to receive(:process_plan_triggers)
+      allow(runner).to receive(:process_auto_pr_triggers)
       allow(runner).to receive(:process_build_triggers)
       allow(runner).to receive(:process_review_triggers)
       allow(runner).to receive(:process_ci_fix_triggers)
@@ -142,11 +161,65 @@ RSpec.describe Aidp::Watch::Runner do
 
       runner.send(:process_cycle)
 
+      expect(runner).to have_received(:process_auto_issue_triggers)
       expect(runner).to have_received(:process_plan_triggers)
+      expect(runner).to have_received(:process_auto_pr_triggers)
       expect(runner).to have_received(:process_build_triggers)
       expect(runner).to have_received(:process_review_triggers)
       expect(runner).to have_received(:process_ci_fix_triggers)
       expect(runner).to have_received(:process_change_request_triggers)
+    end
+  end
+
+  describe "#process_auto_issue_triggers" do
+    let(:runner) { described_class.new(issues_url: issues_url, once: true, prompt: prompt) }
+    let(:issue) { {number: 1, labels: [{"name" => "aidp-auto"}]} }
+    let(:detailed_issue) { issue.merge(author: "alice") }
+
+    before do
+      allow(repository_client).to receive(:list_issues).and_return([issue])
+      allow(repository_client).to receive(:fetch_issue).with(1).and_return(detailed_issue)
+      allow(auto_processor).to receive(:process)
+    end
+
+    it "processes auto issues when authorized and not in progress" do
+      runner.send(:process_auto_issue_triggers)
+
+      expect(auto_processor).to have_received(:process).with(detailed_issue)
+    end
+
+    it "skips unauthorized authors" do
+      allow(safety_checker).to receive(:should_process_issue?).and_return(false)
+
+      runner.send(:process_auto_issue_triggers)
+
+      expect(auto_processor).not_to have_received(:process)
+    end
+  end
+
+  describe "#process_auto_pr_triggers" do
+    let(:runner) { described_class.new(issues_url: issues_url, once: true, prompt: prompt) }
+    let(:pr) { {number: 2, labels: [{"name" => "aidp-auto"}]} }
+    let(:detailed_pr) { pr.merge(author: "bob") }
+
+    before do
+      allow(repository_client).to receive(:list_pull_requests).and_return([pr])
+      allow(repository_client).to receive(:fetch_pull_request).with(2).and_return(detailed_pr)
+      allow(auto_pr_processor).to receive(:process)
+    end
+
+    it "processes auto PRs when authorized and not in progress" do
+      runner.send(:process_auto_pr_triggers)
+
+      expect(auto_pr_processor).to have_received(:process).with(detailed_pr)
+    end
+
+    it "skips unauthorized authors" do
+      allow(safety_checker).to receive(:should_process_issue?).and_return(false)
+
+      runner.send(:process_auto_pr_triggers)
+
+      expect(auto_pr_processor).not_to have_received(:process)
     end
   end
 
@@ -241,6 +314,7 @@ RSpec.describe Aidp::Watch::Runner do
       allow(repository_client).to receive(:list_issues).and_return([issue])
       allow(repository_client).to receive(:fetch_issue).with(2).and_return(detailed_issue)
       allow(build_processor).to receive(:process)
+      allow(state_extractor).to receive(:build_completed?).with(detailed_issue).and_return(true)
 
       runner.send(:process_build_triggers)
 

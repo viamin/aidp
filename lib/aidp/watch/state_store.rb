@@ -65,6 +65,43 @@ module Aidp
         save!
       end
 
+      # Retrieve workstream metadata for a given issue
+      # @return [Hash, nil] {issue_number:, branch:, workstream:, pr_url:, status:}
+      def workstream_for_issue(issue_number)
+        data = build_status(issue_number)
+        return nil if data.nil? || data.empty?
+
+        {
+          issue_number: issue_number.to_i,
+          branch: data["branch"],
+          workstream: data["workstream"],
+          pr_url: data["pr_url"],
+          status: data["status"]
+        }
+      end
+
+      # Find the build/workstream metadata associated with a PR URL
+      # This is used to map change-request PRs back to their originating issues/worktrees.
+      # @return [Hash, nil] {issue_number:, branch:, workstream:, pr_url:, status:}
+      def find_build_by_pr(pr_number)
+        builds.each do |issue_number, data|
+          pr_url = data["pr_url"]
+          next unless pr_url
+
+          if pr_url.match?(%r{/pull/#{pr_number}\b})
+            return {
+              issue_number: issue_number.to_i,
+              branch: data["branch"],
+              workstream: data["workstream"],
+              pr_url: pr_url,
+              status: data["status"]
+            }
+          end
+        end
+
+        nil
+      end
+
       # Review tracking methods
       def review_processed?(pr_number)
         reviews.key?(pr_number.to_s)

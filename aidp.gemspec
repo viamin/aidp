@@ -35,4 +35,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "pastel", "~> 0.8"
   s.add_runtime_dependency "ruby_tree_sitter", "~> 2.0"
   s.add_runtime_dependency "tty-command", "~> 0.10"
+  s.add_runtime_dependency "ruby_llm", "~> 1.9"
 end

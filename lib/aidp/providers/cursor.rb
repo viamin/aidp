@@ -56,7 +56,13 @@ module Aidp
             "api.cursor.sh",
             "cursor.sh",
             "app.cursor.sh",
-            "www.cursor.sh"
+            "www.cursor.sh",
+            # Authentication (Auth0)
+            "auth.cursor.sh",
+            "auth0.com",
+            "*.auth0.com",
+            "a0core.net",
+            "*.a0core.net"
           ],
           ip_ranges: []
         }
@@ -117,7 +123,7 @@ module Aidp
         fetch_mcp_servers_cli || fetch_mcp_servers_config
       end
 
-      def send_message(prompt:, session: nil)
+      def send_message(prompt:, session: nil, options: {})
         raise "cursor-agent not available" unless self.class.available?
 
         # Smart timeout calculation

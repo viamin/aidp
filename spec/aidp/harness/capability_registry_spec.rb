@@ -246,6 +246,12 @@ RSpec.describe Aidp::Harness::CapabilityRegistry do
       end
     end
 
+    it "returns true for valid tiers as symbols" do
+      %i[mini standard thinking pro max].each do |tier|
+        expect(registry.valid_tier?(tier)).to be true
+      end
+    end
+
     it "returns false for invalid tiers" do
       expect(registry.valid_tier?("invalid")).to be false
       expect(registry.valid_tier?(nil)).to be false
@@ -262,6 +268,14 @@ RSpec.describe Aidp::Harness::CapabilityRegistry do
       expect(registry.tier_priority("thinking")).to eq(2)
       expect(registry.tier_priority("pro")).to eq(3)
       expect(registry.tier_priority("max")).to eq(4)
+    end
+
+    it "returns priority for each tier as symbols" do
+      expect(registry.tier_priority(:mini)).to eq(0)
+      expect(registry.tier_priority(:standard)).to eq(1)
+      expect(registry.tier_priority(:thinking)).to eq(2)
+      expect(registry.tier_priority(:pro)).to eq(3)
+      expect(registry.tier_priority(:max)).to eq(4)
     end
 
     it "returns nil for invalid tier" do

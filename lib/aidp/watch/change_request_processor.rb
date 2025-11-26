@@ -57,7 +57,8 @@ module Aidp
           run_tests_before_push: true,
           commit_message_prefix: "aidp: pr-change",
           require_comment_reference: true,
-          max_diff_size: 2000
+          max_diff_size: 2000,
+          allow_large_pr_worktree_bypass: true # Default to always using worktree for large PRs
         }.merge(symbolize_keys(change_request_config))
 
         # Load safety configuration
@@ -95,15 +96,22 @@ module Aidp
           return
         end
 
-        # Fetch diff to check size
+        # If max_diff_size is set, attempt to fetch and check diff
+        # But bypass restriction for worktree-based workflows
         diff = @repository_client.fetch_pull_request_diff(number)
         diff_size = diff.lines.count
 
-        if diff_size > @config[:max_diff_size]
+        # Check if we want to use the worktree bypass
+        use_worktree_bypass = @config[:allow_large_pr_worktree_bypass] || @config[:allow_large_pr_worktree_bypass].nil?
+
+        if diff_size > @config[:max_diff_size] && !use_worktree_bypass
           display_message("⚠️  PR ##{number} diff too large (#{diff_size} lines > #{@config[:max_diff_size]}). Skipping.", type: :warn)
           post_diff_too_large_comment(pr, diff_size)
           return
         end
+
+        # Log the diff size for observability
+        Aidp.log_debug("change_request_processor", "PR diff size", number: number, size: diff_size, max_allowed: @config[:max_diff_size], worktree_bypass: use_worktree_bypass)
 
         # Analyze change requests
         analysis_result = analyze_change_requests(pr_data: pr_data, comments: authorized_comments, diff: diff)
@@ -308,40 +316,105 @@ module Aidp
         head_ref = pr_data[:head_ref]
         pr_number = pr_data[:number]
 
-        # Check if a worktree already exists for this branch
+        worktree_path = resolve_worktree_for_pr(pr_data)
+
+        Dir.chdir(worktree_path) do
+          run_git(%w[fetch origin], allow_failure: true)
+          run_git(["checkout", head_ref])
+          run_git(%w[pull --ff-only], allow_failure: true)
+        end
+
+        @project_dir = worktree_path
+
+        Aidp.log_debug("change_request_processor", "Checked out PR branch", branch: head_ref, worktree: worktree_path)
+        display_message("🌿 Using worktree for PR ##{pr_number}: #{head_ref}", type: :info)
+      end
+
+      def resolve_worktree_for_pr(pr_data)
+        head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
+
         existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
 
         if existing && existing[:active]
           display_message("🔄 Using existing worktree for branch: #{head_ref}", type: :info)
           Aidp.log_debug("change_request_processor", "worktree_reused", pr_number: pr_number, branch: head_ref, path: existing[:path])
+          return existing[:path]
+        end
 
-          # Update @project_dir to point to the worktree
-          @project_dir = existing[:path]
+        issue_worktree = find_issue_worktree_for_pr(pr_data)
+        return issue_worktree if issue_worktree
 
-          # Pull latest changes in the worktree
-          Dir.chdir(@project_dir) do
-            run_git(%w[fetch origin], allow_failure: true)
-            run_git(["checkout", head_ref])
-            run_git(%w[pull --ff-only], allow_failure: true)
+        create_worktree_for_pr(pr_data)
+      end
+
+      def find_issue_worktree_for_pr(pr_data)
+        pr_number = pr_data[:number]
+        linked_issue_numbers = extract_issue_numbers_from_pr(pr_data)
+
+        build_match = @state_store.find_build_by_pr(pr_number)
+        linked_issue_numbers << build_match[:issue_number] if build_match
+        linked_issue_numbers = linked_issue_numbers.compact.uniq
+
+        linked_issue_numbers.each do |issue_number|
+          workstream = @state_store.workstream_for_issue(issue_number)
+          next unless workstream
+
+          slug = workstream[:workstream]
+          branch = workstream[:branch]
+
+          if slug
+            info = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
+            if info && info[:active]
+              Aidp.log_debug("change_request_processor", "issue_worktree_reused", pr_number: pr_number, issue_number: issue_number, branch: branch, path: info[:path])
+              display_message("🔄 Reusing worktree #{slug} for issue ##{issue_number} (PR ##{pr_number})", type: :info)
+              return info[:path]
+            end
           end
 
-          return
+          if branch
+            existing = Aidp::Worktree.find_by_branch(branch: branch, project_dir: @project_dir)
+            if existing && existing[:active]
+              Aidp.log_debug("change_request_processor", "issue_branch_worktree_reused", pr_number: pr_number, issue_number: issue_number, branch: branch, path: existing[:path])
+              display_message("🔄 Reusing branch worktree for issue ##{issue_number}: #{branch}", type: :info)
+              return existing[:path]
+            end
+          end
         end
 
-        # Otherwise, use the main worktree
+        nil
+      end
+
+      def extract_issue_numbers_from_pr(pr_data)
+        body = pr_data[:body].to_s
+        issue_matches = body.scan(/(?:Fixes|Resolves|Closes)\s+#(\d+)/i).flatten
+
+        issue_matches.map { |num| num.to_i }.uniq
+      end
+
+      def create_worktree_for_pr(pr_data)
+        head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
+        slug = "pr-#{pr_number}-change-requests"
+
+        display_message("🌿 Creating worktree for PR ##{pr_number}: #{head_ref}", type: :info)
+
         Dir.chdir(@project_dir) do
-          # Fetch latest
-          run_git(%w[fetch origin])
-
-          # Checkout the PR branch
-          run_git(["checkout", head_ref])
-
-          # Pull latest changes
-          run_git(%w[pull --ff-only], allow_failure: true)
+          run_git(%w[fetch origin], allow_failure: true)
         end
 
-        Aidp.log_debug("change_request_processor", "Checked out PR branch", branch: head_ref)
-        display_message("🌿 Checked out branch: #{head_ref}", type: :info)
+        result = Aidp::Worktree.create(
+          slug: slug,
+          project_dir: @project_dir,
+          branch: head_ref,
+          base_branch: pr_data[:base_ref]
+        )
+
+        worktree_path = result[:path]
+        Aidp.log_debug("change_request_processor", "worktree_created", pr_number: pr_number, branch: head_ref, path: worktree_path)
+        display_message("✅ Worktree created at #{worktree_path}", type: :success)
+
+        worktree_path
       end
 
       def apply_changes(changes)
@@ -704,15 +777,20 @@ module Aidp
         comment = <<~COMMENT
           #{COMMENT_HEADER}
 
-          ⚠️  PR diff is too large for automated change requests.
+          ⚠️  PR diff is too large for default change requests.
 
           **Current size:** #{diff_size} lines
           **Maximum allowed:** #{@config[:max_diff_size]} lines
 
-          For large PRs, please consider:
-          1. Breaking the PR into smaller chunks
-          2. Implementing changes manually
-          3. Increasing `max_diff_size` in your `aidp.yml` configuration if appropriate
+          For large PRs, you have several options:
+          1. Enable worktree-based large PR handling:
+             Set `allow_large_pr_worktree_bypass: true` in your `aidp.yml`
+          2. Break the PR into smaller chunks
+          3. Implement changes manually
+          4. Increase `max_diff_size` in your configuration
+
+          The worktree bypass allows processing large PRs by working directly in the branch
+          instead of using diff-based changes.
         COMMENT
 
         begin

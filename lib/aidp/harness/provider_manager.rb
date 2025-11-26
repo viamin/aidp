@@ -1396,6 +1396,7 @@ module Aidp
       def execute_with_provider(provider_type, prompt, options = {})
         # Extract model from options if provided
         model_name = options.delete(:model)
+        retry_on_rate_limit = options.delete(:retry_on_rate_limit) != false # Default true
 
         # Create provider factory instance
         provider_factory = ProviderFactory.new
@@ -1434,6 +1435,38 @@ module Aidp
         }
       rescue => e
         log_rescue(e, component: "provider_manager", action: "execute_with_provider", fallback: "error_result", provider: provider_type, model: model_name, prompt_length: prompt.length)
+
+        # Detect rate limit / quota errors and attempt fallback
+        error_message = e.message.to_s.downcase
+        is_rate_limit = error_message.include?("rate limit") ||
+          error_message.include?("quota") ||
+          error_message.include?("limit reached") ||
+          error_message.include?("resource exhausted") ||
+          error_message.include?("too many requests")
+
+        if is_rate_limit && retry_on_rate_limit
+          Aidp.logger.warn("provider_manager", "Rate limit detected, attempting fallback",
+            provider: provider_type,
+            model: model_name,
+            error: e.message)
+
+          # Attempt to switch to fallback provider
+          fallback_provider = switch_provider_for_error("rate_limit", {
+            original_provider: provider_type,
+            model: model_name,
+            error_message: e.message
+          })
+
+          if fallback_provider && fallback_provider != provider_type
+            Aidp.logger.info("provider_manager", "Retrying with fallback provider",
+              original: provider_type,
+              fallback: fallback_provider)
+
+            # Retry with fallback provider (disable retry to prevent infinite loop)
+            return execute_with_provider(fallback_provider, prompt, options.merge(retry_on_rate_limit: false))
+          end
+        end
+
         # Return error result
         {
           status: "error",

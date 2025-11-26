@@ -91,6 +91,8 @@ RSpec.describe Aidp::Harness::ProviderConfig do
     end
 
     before do
+      # Ensure directory exists before writing config
+      FileUtils.mkdir_p(File.dirname(config_file))
       # Write the configuration file for the tests
       File.write(config_file, YAML.dump(valid_config))
     end

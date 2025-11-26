@@ -46,6 +46,7 @@
   // remoteEnv is set when the container is started
   // put environment variables that may change in here
   "remoteEnv": {
+    "AIDER_NO_BROWSER": "1",
     "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -72,8 +73,8 @@
     "aider": "curl -fsSL https://aider.chat/install.sh | bash",
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh",
-    // Generate firewall configuration from provider requirements
-    "generate-firewall-config": "bundle exec ruby bin/update-firewall-config"
+    // Install gems and generate firewall config (runs once per build)
+    "bundle-and-firewall": "bundle install --jobs 4 --retry 3 && bundle exec ruby bin/update-firewall-config"
   },
   // Post-start command - initialize firewall, then ensure bundle
   "postStartCommand": {
