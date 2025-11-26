@@ -87,6 +87,38 @@ RSpec.describe Aidp::Watch::StateStore do
     end
   end
 
+  describe "build/workstream lookup" do
+    it "returns workstream details for an issue" do
+      store.record_build_status(301, status: "completed", details: {branch: "aidp/issue-301", workstream: "issue-301-slug", pr_url: "https://github.com/test/repo/pull/400"})
+
+      result = store.workstream_for_issue(301)
+
+      expect(result[:issue_number]).to eq(301)
+      expect(result[:branch]).to eq("aidp/issue-301")
+      expect(result[:workstream]).to eq("issue-301-slug")
+      expect(result[:pr_url]).to include("/pull/400")
+      expect(result[:status]).to eq("completed")
+    end
+
+    it "finds build metadata by PR number" do
+      store.record_build_status(302, status: "completed", details: {branch: "aidp/issue-302", workstream: "issue-302-slug", pr_url: "https://github.com/test/repo/pull/401"})
+
+      result = store.find_build_by_pr(401)
+
+      expect(result[:issue_number]).to eq(302)
+      expect(result[:branch]).to eq("aidp/issue-302")
+      expect(result[:workstream]).to eq("issue-302-slug")
+      expect(result[:pr_url]).to include("/pull/401")
+      expect(result[:status]).to eq("completed")
+    end
+
+    it "returns nil when PR is unknown" do
+      store.record_build_status(303, status: "completed", details: {branch: "aidp/issue-303", workstream: "issue-303-slug", pr_url: "https://github.com/test/repo/pull/402"})
+
+      expect(store.find_build_by_pr(999)).to be_nil
+    end
+  end
+
   describe "change request tracking" do
     it "tracks change request processing" do
       expect(store.change_request_processed?(303)).to be false

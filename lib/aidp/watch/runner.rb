@@ -14,6 +14,8 @@ require_relative "../auto_update"
 require_relative "review_processor"
 require_relative "ci_fix_processor"
 require_relative "change_request_processor"
+require_relative "auto_processor"
+require_relative "auto_pr_processor"
 
 module Aidp
   module Watch
@@ -70,6 +72,13 @@ module Aidp
           verbose: verbose,
           label_config: label_config
         )
+        @auto_processor = AutoProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          build_processor: @build_processor,
+          label_config: label_config,
+          verbose: verbose
+        )
 
         # Initialize auto-update coordinator
         @auto_update_coordinator = Aidp::AutoUpdate.coordinator(project_dir: project_dir)
@@ -87,6 +96,14 @@ module Aidp
           state_store: @state_store,
           provider_name: provider_name,
           project_dir: project_dir,
+          label_config: label_config,
+          verbose: verbose
+        )
+        @auto_pr_processor = AutoPrProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          review_processor: @review_processor,
+          ci_fix_processor: @ci_fix_processor,
           label_config: label_config,
           verbose: verbose
         )
@@ -142,9 +159,11 @@ module Aidp
       def process_cycle
         process_plan_triggers
         process_build_triggers
+        process_auto_issue_triggers
         check_for_updates_if_due
         process_review_triggers
         process_ci_fix_triggers
+        process_auto_pr_triggers
         process_change_request_triggers
       end
 
@@ -264,6 +283,54 @@ module Aidp
         end
       end
 
+      def process_auto_issue_triggers
+        auto_label = @auto_processor.auto_label
+        begin
+          issues = @repository_client.list_issues(labels: [auto_label], state: "open")
+        rescue => e
+          Aidp.log_error("watch_runner", "auto_issue_poll_failed", label: auto_label, error: e.message)
+          return
+        end
+
+        Aidp.log_debug("watch_runner", "auto_issue_poll", label: auto_label, total: issues.size)
+
+        issues.each do |issue|
+          unless issue_has_label?(issue, auto_label)
+            Aidp.log_debug("watch_runner", "auto_issue_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
+            next
+          end
+
+          begin
+            detailed = @repository_client.fetch_issue(issue[:number])
+          rescue => e
+            Aidp.log_error("watch_runner", "auto_issue_fetch_failed", issue: issue[:number], error: e.message)
+            next
+          end
+
+          # Check if already in progress by another instance
+          if @state_extractor.in_progress?(detailed)
+            Aidp.log_debug("watch_runner", "auto_issue_skip_in_progress", issue: detailed[:number])
+            next
+          end
+
+          # Check author authorization before processing
+          unless @safety_checker.should_process_issue?(detailed, enforce: false)
+            Aidp.log_debug("watch_runner", "auto_issue_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+            next
+          end
+
+          # Check if detection comment already posted (deduplication)
+          unless @state_extractor.detection_comment_posted?(detailed, auto_label)
+            post_detection_comment(item_type: :issue, number: detailed[:number], label: auto_label)
+          end
+
+          Aidp.log_debug("watch_runner", "auto_issue_process", issue: detailed[:number])
+          @auto_processor.process(detailed)
+        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
+          Aidp.log_warn("watch_runner", "unauthorized_issue_author_auto", issue: issue[:number], error: e.message)
+        end
+      end
+
       def process_review_triggers
         review_label = @review_processor.review_label
         begin
@@ -307,6 +374,43 @@ module Aidp
           @review_processor.process(detailed)
         rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
           Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
+        end
+      end
+
+      def process_auto_pr_triggers
+        auto_label = @auto_pr_processor.auto_label
+        prs = @repository_client.list_pull_requests(labels: [auto_label], state: "open")
+        Aidp.log_debug("watch_runner", "auto_pr_poll", label: auto_label, total: prs.size)
+
+        prs.each do |pr|
+          unless pr_has_label?(pr, auto_label)
+            Aidp.log_debug("watch_runner", "auto_pr_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
+            next
+          end
+
+          detailed = @repository_client.fetch_pull_request(pr[:number])
+
+          # Check if already in progress by another instance
+          if @state_extractor.in_progress?(detailed)
+            Aidp.log_debug("watch_runner", "auto_pr_skip_in_progress", pr: detailed[:number])
+            next
+          end
+
+          # Check author authorization before processing
+          unless @safety_checker.should_process_issue?(detailed, enforce: false)
+            Aidp.log_debug("watch_runner", "auto_pr_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            next
+          end
+
+          # Check if detection comment already posted (deduplication)
+          unless @state_extractor.detection_comment_posted?(detailed, auto_label)
+            post_detection_comment(item_type: :pr, number: detailed[:number], label: auto_label)
+          end
+
+          Aidp.log_debug("watch_runner", "auto_pr_process", pr: detailed[:number])
+          @auto_pr_processor.process(detailed)
+        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
+          Aidp.log_warn("watch_runner", "unauthorized_pr_author_auto", pr: pr[:number], error: e.message)
         end
       end
 
