@@ -3,6 +3,7 @@
 require "yaml"
 require "fileutils"
 require_relative "../rescue_logging"
+require_relative "../util"
 
 module Aidp
   module Harness
@@ -14,9 +15,10 @@ module Aidp
       attr_reader :project_dir, :metrics_file, :rate_limit_file
 
       def initialize(project_dir)
-        @project_dir = project_dir
-        @metrics_file = File.join(project_dir, ".aidp", "provider_metrics.yml")
-        @rate_limit_file = File.join(project_dir, ".aidp", "provider_rate_limits.yml")
+        # Store metrics at the repository root so different worktrees/modes share state
+        @project_dir = Aidp::Util.find_project_root(project_dir)
+        @metrics_file = File.join(@project_dir, ".aidp", "provider_metrics.yml")
+        @rate_limit_file = File.join(@project_dir, ".aidp", "provider_rate_limits.yml")
         ensure_directory
       end
 
