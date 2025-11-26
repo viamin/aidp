@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.32.0](https://github.com/viamin/aidp/compare/aidp/v0.31.0...aidp/v0.32.0) (2025-11-26)
+
+
+### Features
+
+* Add model denylist functionality to ProviderManager and corresponding tests ([05ca180](https://github.com/viamin/aidp/commit/05ca180b212e53aa9e960db50dbd756427c48b05))
+* Add work context helpers to improve situational awareness in work loops ([b0525ab](https://github.com/viamin/aidp/commit/b0525abf42d0dafdf7eaee4cd7fba9246179eb27))
+* Implement PrWorktreeManager for managing pull request worktrees and enhance utility functions ([2e90882](https://github.com/viamin/aidp/commit/2e908822a53e6e555901f8436e78708e4e63ec7f))
+
 ## [0.31.0](https://github.com/viamin/aidp/compare/aidp/v0.30.0...aidp/v0.31.0) (2025-11-26)
 
 
