@@ -15,55 +15,91 @@ module Aidp
       @worktree_registry_path = File.join(project_dir, ".aidp", "worktrees.json")
     end
 
-    # Find an existing worktree for a given branch or PR
-    def find_worktree(branch:)
-      Aidp.log_debug("worktree_branch_manager", "finding_worktree", branch: branch)
+    # Find an existing worktree for a given branch or PR number
+    def find_worktree(branch: nil, pr_number: nil)
+      Aidp.log_debug("worktree_branch_manager", "finding_worktree",
+        branch: branch, pr_number: pr_number)
 
       raise WorktreeLookupError, "Invalid git repository: #{@project_dir}" unless git_repository?
 
-      # Check registry first
-      worktree_info = read_registry.find { |w| w["branch"] == branch }
+      # If PR number is provided, try to get the branch first
+      branch ||= get_pr_branch(pr_number) if pr_number
+
+      # Validate branch input
+      raise WorktreeLookupError, "Branch or PR number must be provided" if branch.nil?
+
+      # 1. Check registry first
+      registry = read_registry
+      worktree_info = registry.find { |w| w["branch"] == branch }
 
       if worktree_info
         worktree_path = worktree_info["path"]
         return worktree_path if File.directory?(worktree_path)
       end
 
-      # Fallback: Use git worktree list to find the worktree
-      worktree_list_output = run_git_command("git worktree list")
-      worktree_list_output.split("\n").each do |line|
-        path, branch_info = line.split(" ", 2)
-        return path if branch_info&.include?(branch)
+      # 2. Fallback: Use git worktree list to find the worktree
+      begin
+        worktree_list_output = run_git_command("git worktree list")
+        worktree_list_output.split("\n").each do |line|
+          path, branch_info = line.split(" ", 2)
+          return path if branch_info&.include?(branch)
+        end
+      rescue => e
+        Aidp.log_warn("worktree_branch_manager", "git_worktree_list_fallback_failed",
+          error: e.message)
+      end
+
+      # 3. Try to get PR branch by number
+      if pr_number && branch.nil?
+        begin
+          branch = get_pr_branch(pr_number)
+          Aidp.log_debug("worktree_branch_manager", "extracted_pr_branch",
+            pr_number: pr_number, branch: branch)
+        rescue => e
+          Aidp.log_warn("worktree_branch_manager", "pr_branch_extraction_failed",
+            pr_number: pr_number, error: e.message)
+        end
       end
 
       nil
     rescue => e
       Aidp.log_error("worktree_branch_manager", "worktree_lookup_failed",
-        error: e.message, branch: branch)
+        error: e.message, branch: branch, pr_number: pr_number)
       raise
     end
 
-    # Create a new worktree for a branch
-    def create_worktree(branch:, base_branch: "main")
+    # Create a new worktree for a branch, with advanced PR-aware handling
+    def create_worktree(
+      branch: nil,
+      pr_number: nil,
+      base_branch: "main",
+      force_recreate: false
+    )
+      # Normalize inputs
+      branch ||= get_pr_branch(pr_number) if pr_number
+
       Aidp.log_debug("worktree_branch_manager", "creating_worktree",
-        branch: branch, base_branch: base_branch)
+        branch: branch, base_branch: base_branch, pr_number: pr_number)
 
       # Validate branch name to prevent path traversal
       validate_branch_name!(branch)
 
-      # Check if worktree already exists
+      # Check if worktree already exists and force is not set
       existing_worktree = find_worktree(branch: branch)
-      return existing_worktree if existing_worktree
+      return existing_worktree if existing_worktree && !force_recreate
 
-      # Ensure base branch exists (skip fetch for main to avoid remote dependencies)
-      unless base_branch == "main"
+      # Remove existing worktree if force_recreate is true
+      if existing_worktree && force_recreate
         begin
-          run_git_command("git fetch origin #{base_branch}")
+          run_git_command("git worktree remove #{existing_worktree}")
         rescue => e
-          # If fetch fails (no remote), continue with local branch
-          Aidp.log_debug("worktree_branch_manager", "fetch_failed", base_branch: base_branch, error: e.message)
+          Aidp.log_warn("worktree_branch_manager", "worktree_removal_failed",
+            branch: branch, error: e.message)
         end
       end
+
+      # Fetch latest changes and determine best base branch
+      resolved_base_branch = resolve_base_branch(branch, base_branch, pr_number)
 
       # Create worktree directory
       worktree_name = branch.tr("/", "_")
@@ -72,31 +108,71 @@ module Aidp
       # Ensure .worktrees directory exists
       FileUtils.mkdir_p(File.join(@project_dir, ".worktrees"))
 
-      # Create the worktree
+      # Create the worktree with comprehensive error handling
       begin
-        # Try to create worktree from remote branch if it exists
-        run_git_command("git worktree add -b #{branch} #{worktree_path} origin/#{base_branch}")
-      rescue => e
-        # If remote branch doesn't exist, create from local branch
-        if e.message.include?("invalid reference") || e.message.include?("fatal: 'origin'")
+        # Prioritize strategies for worktree creation
+        strategies = [
+          -> { run_git_command("git worktree add -b #{branch} #{worktree_path} origin/#{resolved_base_branch}") },
+          -> { run_git_command("git worktree add -b #{branch} #{worktree_path} #{resolved_base_branch}") },
+          -> {
+            # Last resort: create branch explicitly
+            run_git_command("git branch #{branch} #{resolved_base_branch}")
+            run_git_command("git worktree add #{worktree_path} #{branch}")
+          }
+        ]
+
+        strategies.each do |strategy|
           begin
-            run_git_command("git worktree add -b #{branch} #{worktree_path} #{base_branch}")
-          rescue => inner_e
-            Aidp.log_error("worktree_branch_manager", "worktree_creation_failed",
-              branch: branch, base_branch: base_branch, error: inner_e.message)
-            raise WorktreeCreationError, "Failed to create worktree for branch #{branch}"
+            strategy.call
+            break
+          rescue => e
+            Aidp.log_debug("worktree_branch_manager", "worktree_creation_strategy_failed",
+              error: e.message)
           end
-        else
-          Aidp.log_error("worktree_branch_manager", "worktree_creation_failed",
-            branch: branch, base_branch: base_branch, error: e.message)
-          raise WorktreeCreationError, "Failed to create worktree for branch #{branch}"
         end
+
+        # Final validation
+        raise WorktreeCreationError, "Failed to create worktree" unless File.directory?(worktree_path)
+      rescue => e
+        Aidp.log_error("worktree_branch_manager", "worktree_creation_failed",
+          branch: branch, base_branch: resolved_base_branch,
+          pr_number: pr_number, error: e.message)
+        raise WorktreeCreationError, "Failed to create worktree for branch #{branch}: #{e.message}"
       end
 
       # Update registry
       update_registry(branch, worktree_path)
 
+      Aidp.log_debug("worktree_branch_manager", "worktree_created",
+        branch: branch, path: worktree_path)
+
       worktree_path
+    end
+
+    # Resolve the best base branch for a given branch or PR
+    def resolve_base_branch(branch, default_base_branch, pr_number = nil)
+      # If PR number is provided, try to get base branch from GitHub
+      if pr_number
+        begin
+          pr_info_output = run_git_command("gh pr view #{pr_number} --json baseRefName")
+          pr_base_branch = JSON.parse(pr_info_output)["baseRefName"]
+          return pr_base_branch if pr_base_branch && !pr_base_branch.empty?
+        rescue => e
+          Aidp.log_warn("worktree_branch_manager", "pr_base_branch_extraction_failed",
+            pr_number: pr_number, error: e.message)
+        end
+      end
+
+      # Try to fetch origin branches
+      begin
+        run_git_command("git fetch origin #{default_base_branch}")
+      rescue => e
+        Aidp.log_debug("worktree_branch_manager", "base_branch_fetch_failed",
+          base_branch: default_base_branch, error: e.message)
+      end
+
+      # Return fallback base branch
+      default_base_branch
     end
 
     private
@@ -151,7 +227,6 @@ module Aidp
         "created_at" => Time.now.to_i
       }
 
-      # Write updated registry
       File.write(@worktree_registry_path, JSON.pretty_generate(registry))
     end
 
