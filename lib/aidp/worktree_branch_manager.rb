@@ -6,6 +6,7 @@ module Aidp
   class WorktreeBranchManager
     class WorktreeCreationError < StandardError; end
     class WorktreeLookupError < StandardError; end
+    class PullRequestBranchExtractionError < StandardError; end
 
     # Initialize with a project directory and optional logger
     def initialize(project_dir:, logger: Aidp.logger)
@@ -152,6 +153,27 @@ module Aidp
 
       # Write updated registry
       File.write(@worktree_registry_path, JSON.pretty_generate(registry))
+    end
+
+    # Extract the PR branch from a GitHub Pull Request number
+    public def get_pr_branch(pr_number)
+      Aidp.log_debug("worktree_branch_manager", "extracting_pr_branch", pr_number: pr_number)
+
+      # Fetch pull request information from GitHub
+      begin
+        pr_info_output = run_git_command("gh pr view #{pr_number} --json headRefName")
+        pr_branch = JSON.parse(pr_info_output)["headRefName"]
+
+        if pr_branch.nil? || pr_branch.empty?
+          raise PullRequestBranchExtractionError, "Could not extract branch for PR #{pr_number}"
+        end
+
+        pr_branch
+      rescue => e
+        Aidp.log_error("worktree_branch_manager", "pr_branch_extraction_failed",
+          pr_number: pr_number, error: e.message)
+        raise PullRequestBranchExtractionError, "Failed to extract branch for PR #{pr_number}: #{e.message}"
+      end
     end
   end
 end

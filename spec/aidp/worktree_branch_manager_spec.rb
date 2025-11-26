@@ -197,4 +197,36 @@ RSpec.describe Aidp::WorktreeBranchManager do
       expect(Aidp).to have_received(:log_warn)
     end
   end
+
+  describe "#get_pr_branch" do
+    it "fetches the branch name for a GitHub PR" do
+      # Simulate running a git command for GitHub PR retrieval
+      expect(manager).to receive(:run_git_command).with("gh pr view 123 --json headRefName") {
+        '{"headRefName": "feature/test-pr-branch"}'
+      }
+
+      result = manager.get_pr_branch(123)
+      expect(result).to eq("feature/test-pr-branch")
+    end
+
+    it "raises PullRequestBranchExtractionError for invalid PR" do
+      expect(manager).to receive(:run_git_command).with("gh pr view 404 --json headRefName") {
+        raise StandardError, "PR not found"
+      }
+
+      expect {
+        manager.get_pr_branch(404)
+      }.to raise_error(Aidp::WorktreeBranchManager::PullRequestBranchExtractionError)
+    end
+
+    it "raises PullRequestBranchExtractionError for empty branch name" do
+      expect(manager).to receive(:run_git_command).with("gh pr view 999 --json headRefName") {
+        "{}"
+      }
+
+      expect {
+        manager.get_pr_branch(999)
+      }.to raise_error(Aidp::WorktreeBranchManager::PullRequestBranchExtractionError)
+    end
+  end
 end

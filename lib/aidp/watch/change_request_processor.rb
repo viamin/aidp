@@ -14,6 +14,7 @@ require_relative "../harness/state_manager"
 require_relative "../harness/test_runner"
 require_relative "../worktree"
 require_relative "../pr_worktree_manager"
+require_relative "../worktree_branch_manager"
 require_relative "github_state_extractor"
 require_relative "implementation_verifier"
 
@@ -390,15 +391,19 @@ module Aidp
       end
 
       def checkout_pr_branch(pr_data)
-        head_ref = pr_data[:head_ref]
         pr_number = pr_data[:number]
         base_branch = pr_data[:base_ref]
+
+        # Get the precise branch name from GitHub
+        branch_manager = Aidp::WorktreeBranchManager.new(project_dir: @project_dir)
+        head_ref = branch_manager.get_pr_branch(pr_number)
 
         Aidp.log_debug(
           "change_request_processor", "Starting branch checkout process",
           pr_number: pr_number,
           head_branch: head_ref,
-          base_branch: base_branch
+          base_branch: base_branch,
+          project_dir: @project_dir
         )
 
         # Use the new PrWorktreeManager to find or create a worktree
@@ -406,7 +411,31 @@ module Aidp
 
         if worktree_path.nil?
           # Create a new worktree if none exists
-          worktree_path = @worktree_manager.create_worktree(pr_number, base_branch, head_ref)
+          begin
+            worktree_path = @worktree_manager.create_worktree(pr_number, base_branch, head_ref)
+            Aidp.log_info(
+              "change_request_processor", "Created new worktree",
+              pr_number: pr_number,
+              worktree_path: worktree_path,
+              base_branch: base_branch,
+              head_ref: head_ref
+            )
+          rescue => creation_error
+            Aidp.log_error(
+              "change_request_processor", "Failed to create worktree",
+              pr_number: pr_number,
+              error: creation_error.message,
+              base_branch: base_branch,
+              head_ref: head_ref
+            )
+            raise
+          end
+        else
+          Aidp.log_debug(
+            "change_request_processor", "Found existing worktree",
+            pr_number: pr_number,
+            worktree_path: worktree_path
+          )
         end
 
         # Update @project_dir to point to the worktree
@@ -416,22 +445,65 @@ module Aidp
 
         # Pull latest changes in the worktree
         Dir.chdir(@project_dir) do
-          run_git(%w[fetch origin], allow_failure: true)
-          run_git(["checkout", head_ref])
-          run_git(%w[pull --ff-only], allow_failure: true)
+          # More robust git operations with enhanced logging
+          begin
+            fetch_base_result = run_git(["fetch", "origin", base_branch], allow_failure: true)
+            Aidp.log_debug(
+              "change_request_processor", "Fetched base branch",
+              branch: base_branch,
+              fetch_output: fetch_base_result.strip
+            )
+          rescue => fetch_base_error
+            Aidp.log_warn(
+              "change_request_processor", "Failed to fetch base branch",
+              branch: base_branch,
+              error: fetch_base_error.message
+            )
+          end
 
+          begin
+            fetch_head_result = run_git(["fetch", "origin", head_ref], allow_failure: true)
+            Aidp.log_debug(
+              "change_request_processor", "Fetched head branch",
+              branch: head_ref,
+              fetch_output: fetch_head_result.strip
+            )
+          rescue => fetch_head_error
+            Aidp.log_warn(
+              "change_request_processor", "Failed to fetch head branch",
+              branch: head_ref,
+              error: fetch_head_error.message
+            )
+          end
+
+          # Checkout and pull with more detailed logging
+          checkout_result = run_git(["checkout", head_ref])
           Aidp.log_debug(
+            "change_request_processor", "Checked out branch",
+            branch: head_ref,
+            checkout_output: checkout_result.strip
+          )
+
+          pull_result = run_git(["pull", "--ff-only", "origin", head_ref], allow_failure: true)
+          Aidp.log_debug(
+            "change_request_processor", "Pulled branch changes",
+            branch: head_ref,
+            pull_output: pull_result.strip
+          )
+
+          Aidp.log_info(
             "change_request_processor", "Worktree updated successfully",
             pr_number: pr_number,
             branch: head_ref,
             path: worktree_path
           )
         rescue => e
-          Aidp.log_warn(
+          Aidp.log_error(
             "change_request_processor", "Failed to update worktree",
             pr_number: pr_number,
             branch: head_ref,
-            error: e.message
+            error: e.message,
+            backtrace: e.backtrace.first(5)
           )
           # If update fails, the existing worktree will remain
           # but the user will be notified of the update issue

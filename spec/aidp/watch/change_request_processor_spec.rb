@@ -535,21 +535,96 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
       describe "#checkout_pr_branch" do
         let(:worktree_manager) { instance_double(Aidp::PrWorktreeManager) }
+        let(:branch_manager) { instance_double(Aidp::WorktreeBranchManager) }
 
         before do
+          allow(Aidp::WorktreeBranchManager).to receive(:new).and_return(branch_manager)
+          allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
+
+          # Stub Dir.chdir to avoid actual directory changing
+          allow(Dir).to receive(:chdir) do |path, &block|
+            block&.call
+          end
+
           allow(processor).to receive(:run_git)
           # Mock the worktree manager to simulate existing worktree
           processor.instance_variable_set(:@worktree_manager, worktree_manager)
-          allow(worktree_manager).to receive(:find_worktree).with(123).and_return("/tmp/existing_worktree")
-          allow(Dir).to receive(:chdir).with("/tmp/existing_worktree").and_yield
         end
 
-        it "checks out PR branch" do
-          expect(processor).to receive(:run_git).with(%w[fetch origin], allow_failure: true)
-          expect(processor).to receive(:run_git).with(["checkout", "feature-branch"])
-          expect(processor).to receive(:run_git).with(%w[pull --ff-only], allow_failure: true)
+        context "when worktree exists" do
+          before do
+            allow(worktree_manager).to receive(:find_worktree).with(123).and_return("/tmp/existing_worktree")
+          end
 
-          processor.send(:checkout_pr_branch, pr)
+          it "checks out PR branch" do
+            # Simulate git operations with specific output expectations
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "main"], allow_failure: true)
+              .and_return("Fetched main\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Fetched feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["checkout", "feature-branch"])
+              .and_return("Checked out feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["pull", "--ff-only", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Pulled origin/feature-branch\n")
+              .ordered
+
+            processor.send(:checkout_pr_branch, pr)
+
+            # Verify project_dir is updated
+            expect(processor.instance_variable_get(:@project_dir)).to eq("/tmp/existing_worktree")
+          end
+        end
+
+        context "when no existing worktree" do
+          before do
+            allow(worktree_manager).to receive(:find_worktree).with(123).and_return(nil)
+            allow(worktree_manager).to receive(:create_worktree)
+              .with(123, "main", "feature-branch")
+              .and_return("/tmp/new_worktree")
+          end
+
+          it "creates and checks out new worktree" do
+            # Create worktree before checking out
+            expect(worktree_manager).to receive(:create_worktree)
+              .with(123, "main", "feature-branch")
+              .and_return("/tmp/new_worktree")
+
+            # Simulate git operations with specific output expectations
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "main"], allow_failure: true)
+              .and_return("Fetched main\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Fetched feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["checkout", "feature-branch"])
+              .and_return("Checked out feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["pull", "--ff-only", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Pulled origin/feature-branch\n")
+              .ordered
+
+            processor.send(:checkout_pr_branch, pr)
+
+            # Verify project_dir is updated
+            expect(processor.instance_variable_get(:@project_dir)).to eq("/tmp/new_worktree")
+          end
         end
       end
 
