@@ -50,6 +50,7 @@ module Aidp
         return @saved if skip_wizard?
 
         configure_providers
+        configure_harness_settings
         configure_thinking_tiers
         configure_work_loop
         configure_branching
@@ -285,6 +286,24 @@ module Aidp
         show_provider_summary(provider_choice, cleaned_fallbacks) unless provider_choice == "custom"
       end
 
+      # -------------------------------------------
+      # Harness settings (retries, limits, etc.)
+      # -------------------------------------------
+      def configure_harness_settings
+        prompt.say("\n⚙️  Harness Configuration")
+        prompt.say("  Advanced settings for provider behavior")
+        existing = get([:harness]) || {}
+
+        return unless prompt.yes?("Configure advanced harness settings?", default: false)
+
+        max_retries = ask_with_default(
+          "Maximum retry attempts for failed LLM calls",
+          (existing[:max_retries] || 2).to_s
+        ) { |value| value.to_i }
+
+        set([:harness, :max_retries], max_retries)
+      end
+
       # Removed MCP configuration step (MCP now expected to be provider-specific if used)
 
       # -------------------------------------------
@@ -473,6 +492,7 @@ module Aidp
         prompt.say("\n⚙️  Work loop configuration")
         prompt.say("-" * 40)
 
+        configure_work_loop_limits
         configure_test_commands
         configure_linting
         configure_watch_patterns
@@ -480,6 +500,19 @@ module Aidp
         configure_coverage
         configure_interactive_testing
         configure_vcs_behavior
+      end
+
+      def configure_work_loop_limits
+        existing = get([:work_loop]) || {}
+
+        return unless prompt.yes?("Configure work loop limits?", default: false)
+
+        max_iterations = ask_with_default(
+          "Maximum work loop iterations",
+          (existing[:max_iterations] || 50).to_s
+        ) { |value| value.to_i }
+
+        set([:work_loop, :max_iterations], max_iterations)
       end
 
       def configure_test_commands
@@ -999,6 +1032,7 @@ module Aidp
 
         configure_watch_safety
         configure_watch_labels
+        configure_watch_change_requests
         configure_watch_label_creation
       end
 
@@ -1066,6 +1100,11 @@ module Aidp
           existing[:ci_fix_trigger] || "aidp-fix-ci"
         )
 
+        auto_trigger = ask_with_default(
+          "Label to trigger fully autonomous build+review+CI",
+          existing[:auto_trigger] || "aidp-auto"
+        )
+
         change_request_trigger = ask_with_default(
           "Label to trigger PR change implementation",
           existing[:change_request_trigger] || "aidp-request-changes"
@@ -1078,8 +1117,33 @@ module Aidp
           build_trigger: build_trigger,
           review_trigger: review_trigger,
           ci_fix_trigger: ci_fix_trigger,
+          auto_trigger: auto_trigger,
           change_request_trigger: change_request_trigger
         })
+      end
+
+      def configure_watch_change_requests
+        prompt.say("\n📝 PR Change Request Configuration")
+        prompt.say("  Configure how AIDP handles automated PR change requests")
+        existing = get([:watch, :change_requests]) || {}
+
+        max_diff_size = ask_with_default(
+          "Maximum PR diff size (lines) for change requests",
+          (existing[:max_diff_size] || 5000).to_s
+        ) { |value| value.to_i }
+
+        post_comments = prompt.yes?(
+          "Post detection comments when work is detected?",
+          default: existing.fetch(:post_detection_comments, true)
+        )
+
+        set([:watch, :change_requests], {
+          max_diff_size: max_diff_size
+        })
+
+        set([:watch], {
+          post_detection_comments: post_comments
+        }.merge(get([:watch]) || {}))
       end
 
       def configure_watch_label_creation
@@ -1222,6 +1286,7 @@ module Aidp
           build_trigger: "5319E7",       # Purple
           review_trigger: "FBCA04",      # Yellow
           ci_fix_trigger: "D93F0B",      # Red
+          auto_trigger: "0C8BD6",        # Blue (distinct from build)
           change_request_trigger: "F9D0C4",  # Light pink
           in_progress: "1D76DB"          # Dark blue (internal coordination)
         }
