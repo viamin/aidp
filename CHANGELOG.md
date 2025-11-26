@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.31.0](https://github.com/viamin/aidp/compare/aidp/v0.30.0...aidp/v0.31.0) (2025-11-26)
+
+
+### Features
+
+* Add additional authentication domains to firewall requirements ([38bb912](https://github.com/viamin/aidp/commit/38bb9128a516c56590245f085cf28f70921fdbcc))
+* Implement AutoPrProcessor and AutoProcessor for autonomous PR and issue handling ([b0fcdf1](https://github.com/viamin/aidp/commit/b0fcdf15c5c474652f7a843d376eca255baf4537))
+
+
+### Bug Fixes
+
+* Add AIDER_NO_BROWSER environment variable to remoteEnv ([51c211a](https://github.com/viamin/aidp/commit/51c211a040301c1817305d6012f6dfb627b444dc))
+
+
+### Improvements
+
+* Update model configurations and improve error handling in providers ([ccc6426](https://github.com/viamin/aidp/commit/ccc64261b6ced3a137ac856615c113b45813bfbd))
+* Update post-create command to install gems and generate firewall config ([d302924](https://github.com/viamin/aidp/commit/d302924bb04d579090f2f50bd91f964af4e4c1cf))
+
 ## [0.30.0](https://github.com/viamin/aidp/compare/aidp/v0.29.0...aidp/v0.30.0) (2025-11-25)
 
 
