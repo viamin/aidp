@@ -7,6 +7,7 @@ require_relative "guard_policy"
 require_relative "work_loop_unit_scheduler"
 require_relative "deterministic_unit"
 require_relative "agent_signal_parser"
+require_relative "steps"
 require_relative "../harness/test_runner"
 require_relative "../errors"
 
@@ -81,6 +82,7 @@ module Aidp
 
         display_message("🔄 Starting hybrid work loop for step: #{step_name}", type: :info)
         display_message("  Flow: Deterministic ↔ Agentic with fix-forward core", type: :info)
+        display_work_context(step_name, context)
 
         display_guard_policy_status
         display_pending_tasks
@@ -1284,6 +1286,74 @@ module Aidp
         display_message("  ⏳ Pending: #{counts[:pending] || 0}", type: :warning) if counts[:pending]
         display_message("  ❌ Abandoned: #{counts[:abandoned] || 0}", type: :error) if counts[:abandoned]
         display_message("")
+      end
+
+      # Show watch-mode context (issue/PR, step position) to improve situational awareness
+      def display_work_context(step_name, context)
+        parts = work_context_parts(step_name, context)
+        return if parts.empty?
+
+        Aidp.log_debug("work_loop", "work_context", step: step_name, parts: parts)
+        display_message("  📡 Context: #{parts.join(" | ")}", type: :info)
+      end
+
+      def work_context_parts(step_name, context)
+        ctx = (@options || {}).merge(context || {})
+        parts = []
+
+        if (step_label = step_position_label(step_name, ctx))
+          parts << step_label
+        end
+
+        if (issue_label = issue_context_label(ctx))
+          parts << issue_label
+        end
+
+        if (pr_label = pr_context_label(ctx))
+          parts << pr_label
+        end
+
+        parts << "Watch mode" if ctx[:workflow_type].to_s == "watch_mode"
+
+        parts.compact
+      end
+
+      def step_position_label(step_name, context)
+        steps = Array(context[:selected_steps]).map(&:to_s)
+        steps = Aidp::Execute::Steps::SPEC.keys if steps.empty?
+        steps = [step_name] if steps.empty?
+        steps << step_name unless steps.include?(step_name)
+
+        index = steps.index(step_name)
+        return nil unless index
+
+        "Step #{index + 1}/#{steps.size} (#{step_name})"
+      end
+
+      def issue_context_label(context)
+        issue_number = context[:issue_number] ||
+          context.dig(:issue, :number) ||
+          extract_number_from_url(context[:issue_url] || context.dig(:issue, :url) || context.dig(:user_input, "Issue URL"), /issues\/(\d+)/)
+
+        return nil unless issue_number
+
+        "Issue ##{issue_number}"
+      end
+
+      def pr_context_label(context)
+        pr_number = context[:pr_number] ||
+          context.dig(:pull_request, :number) ||
+          extract_number_from_url(context[:pr_url] || context.dig(:pull_request, :url) || context.dig(:user_input, "PR URL") || context.dig(:user_input, "Pull Request URL"), /pull\/(\d+)/)
+
+        return nil unless pr_number
+
+        "PR ##{pr_number}"
+      end
+
+      def extract_number_from_url(url, pattern)
+        return nil unless url
+        match = url.to_s.match(pattern)
+        match && match[1]
       end
 
       # Append task completion requirement to PROMPT.md

@@ -1294,6 +1294,33 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     end
   end
 
+  describe "work context helpers" do
+    it "includes issue and watch mode context" do
+      context = {
+        workflow_type: :watch_mode,
+        selected_steps: ["16_IMPLEMENTATION"],
+        user_input: {"Issue URL" => "https://github.com/org/repo/issues/326"}
+      }
+
+      parts = runner.send(:work_context_parts, "16_IMPLEMENTATION", context)
+
+      expect(parts).to include("Step 1/1 (16_IMPLEMENTATION)")
+      expect(parts).to include("Issue #326")
+      expect(parts).to include("Watch mode")
+    end
+
+    it "extracts PR context from a URL" do
+      context = {
+        selected_steps: ["16_IMPLEMENTATION"],
+        user_input: {"PR URL" => "https://github.com/org/repo/pull/45"}
+      }
+
+      parts = runner.send(:work_context_parts, "16_IMPLEMENTATION", context)
+
+      expect(parts).to include("PR #45")
+    end
+  end
+
   describe "#build_diagnose_prompt" do
     let(:template_path) { File.join(project_dir, "templates", "work_loop", "diagnose_failures.md") }
 
