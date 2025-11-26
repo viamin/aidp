@@ -12,6 +12,7 @@ module Aidp
       @project_dir = project_dir
       @logger = logger
       @worktree_registry_path = File.join(project_dir, ".aidp", "worktrees.json")
+      @pr_worktree_registry_path = File.join(project_dir, ".aidp", "pr_worktrees.json")
     end
 
     # Find an existing worktree for a given branch or PR
@@ -20,7 +21,7 @@ module Aidp
 
       raise WorktreeLookupError, "Invalid git repository: #{@project_dir}" unless git_repository?
 
-      # Check registry first
+      # First, check registry first for exact branch match
       worktree_info = read_registry.find { |w| w["branch"] == branch }
 
       if worktree_info
@@ -39,6 +40,38 @@ module Aidp
     rescue => e
       Aidp.log_error("worktree_branch_manager", "worktree_lookup_failed",
         error: e.message, branch: branch)
+      raise
+    end
+
+    # Find or create a worktree for a PR, with advanced lookup strategies
+    def find_or_create_pr_worktree(pr_number:, head_branch:, base_branch: "main")
+      Aidp.log_debug("worktree_branch_manager", "finding_or_creating_pr_worktree",
+        pr_number: pr_number, head_branch: head_branch, base_branch: base_branch)
+
+      # First, check the PR-specific registry
+      pr_registry = read_pr_registry
+      pr_worktree = pr_registry.find { |w| w["pr_number"] == pr_number }
+
+      # If a valid worktree exists in the registry, return it
+      if pr_worktree
+        worktree_path = pr_worktree["path"]
+        return worktree_path if File.directory?(worktree_path)
+      end
+
+      # Attempt to find worktree by branch name
+      existing_worktree = find_worktree(branch: head_branch)
+      return existing_worktree if existing_worktree
+
+      # If no existing worktree, create a new one
+      worktree_path = create_worktree(branch: head_branch, base_branch: base_branch)
+
+      # Update PR-specific registry
+      update_pr_registry(pr_number, head_branch, worktree_path, base_branch)
+
+      worktree_path
+    rescue => e
+      Aidp.log_error("worktree_branch_manager", "pr_worktree_creation_failed",
+        error: e.message, pr_number: pr_number, head_branch: head_branch)
       raise
     end
 
@@ -123,6 +156,19 @@ module Aidp
       end
     end
 
+    # Read the PR-specific worktree registry
+    def read_pr_registry
+      return [] unless File.exist?(@pr_worktree_registry_path)
+
+      begin
+        JSON.parse(File.read(@pr_worktree_registry_path))
+      rescue JSON::ParserError
+        Aidp.log_warn("worktree_branch_manager", "invalid_pr_registry",
+          path: @pr_worktree_registry_path)
+        []
+      end
+    end
+
     # Update the worktree registry
     def update_registry(branch, path)
       # Ensure .aidp directory exists
@@ -142,6 +188,29 @@ module Aidp
 
       # Write updated registry
       File.write(@worktree_registry_path, JSON.pretty_generate(registry))
+    end
+
+    # Update the PR-specific worktree registry
+    def update_pr_registry(pr_number, head_branch, worktree_path, base_branch)
+      # Ensure .aidp directory exists
+      FileUtils.mkdir_p(File.dirname(@pr_worktree_registry_path))
+
+      registry = read_pr_registry
+
+      # Remove existing entries for the same PR
+      registry.reject! { |w| w["pr_number"] == pr_number }
+
+      # Add new entry
+      registry << {
+        "pr_number" => pr_number,
+        "head_branch" => head_branch,
+        "base_branch" => base_branch,
+        "path" => worktree_path,
+        "created_at" => Time.now.to_i
+      }
+
+      # Write updated registry
+      File.write(@pr_worktree_registry_path, JSON.pretty_generate(registry))
     end
   end
 end

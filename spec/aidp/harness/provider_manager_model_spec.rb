@@ -195,6 +195,36 @@ RSpec.describe Aidp::Harness::ProviderManager do
     end
   end
 
+  describe "unsupported models" do
+    it "deny lists a model and excludes it from availability" do
+      error = StandardError.new("model not supported")
+
+      manager.deny_model("claude", "claude-3-5-sonnet-20241022", error: error)
+
+      expect(manager.model_denied?("claude", "claude-3-5-sonnet-20241022")).to be true
+      expect(manager.available_models("claude")).not_to include("claude-3-5-sonnet-20241022")
+    end
+
+    it "deny lists models that fail with unsupported model errors during execution" do
+      allow(configuration).to receive(:configured_providers).and_return(["codex"])
+      allow(configuration).to receive(:default_provider).and_return("codex")
+      allow(configuration).to receive(:provider_models).with("codex").and_return(["babbage-002", "gpt-4o"])
+
+      custom_manager = described_class.new(configuration)
+      fake_provider = double("Provider")
+      allow(fake_provider).to receive(:send_message).and_raise(StandardError.new("The 'babbage-002' model is not supported when using Codex"))
+      fake_factory = instance_double(Aidp::Harness::ProviderFactory)
+      allow(fake_factory).to receive(:create_provider).and_return(fake_provider)
+      allow(Aidp::Harness::ProviderFactory).to receive(:new).and_return(fake_factory)
+
+      result = custom_manager.execute_with_provider("codex", "test prompt", model: "babbage-002")
+
+      expect(result[:status]).to eq("error")
+      expect(custom_manager.available_models("codex")).not_to include("babbage-002")
+      expect(custom_manager.available_models("codex")).to include("gpt-4o")
+    end
+  end
+
   describe "model health management" do
     describe "#is_model_healthy?" do
       it "returns true for healthy model" do

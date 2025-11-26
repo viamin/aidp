@@ -38,6 +38,7 @@ module Aidp
         @model_fallback_chains = {}
         @model_switching_enabled = true
         @model_weights = {}
+        @model_denylist = Hash.new { |h, k| h[k] = [] }
         @unavailable_cache = {}
         @binary_check_cache = {}
         @binary_check_ttl = 300 # seconds
@@ -387,8 +388,28 @@ module Aidp
         # Check if model is configured for provider
         return false unless model_configured?(provider_name, model_name)
 
+        # Skip models that were explicitly denied (e.g., unsupported by provider)
+        return false if model_denied?(provider_name, model_name)
+
         # Check if model is not rate limited
         !is_model_rate_limited?(provider_name, model_name)
+      end
+
+      # Check if a model has been denylisted for a provider
+      def model_denied?(provider_name, model_name)
+        @model_denylist[provider_name]&.include?(model_name)
+      end
+
+      # Add a model to the denylist for a provider (e.g., unsupported model errors)
+      def deny_model(provider_name, model_name, error: nil)
+        return if provider_name.nil? || model_name.nil?
+        return if model_denied?(provider_name, model_name)
+
+        @model_denylist[provider_name] << model_name
+        Aidp.log_debug("provider_manager", "model_denylisted",
+          provider: provider_name,
+          model: model_name,
+          error: error&.message)
       end
 
       # Check if model is configured for provider
@@ -1279,6 +1300,7 @@ module Aidp
         @model_health.clear
         @model_metrics.clear
         @model_fallback_chains.clear
+        @model_denylist.clear
         @model_rate_limit_info&.clear
         @model_history&.clear
         initialize_fallback_chains
@@ -1436,6 +1458,10 @@ module Aidp
       rescue => e
         log_rescue(e, component: "provider_manager", action: "execute_with_provider", fallback: "error_result", provider: provider_type, model: model_name, prompt_length: prompt.length)
 
+        if unsupported_model_error?(e, model_name)
+          deny_model(provider_type, model_name, error: e)
+        end
+
         # Detect rate limit / quota errors and attempt fallback
         error_message = e.message.to_s.downcase
         is_rate_limit = error_message.include?("rate limit") ||
@@ -1581,6 +1607,18 @@ module Aidp
           nil => 0
         }
         ((order[a] || 0) >= (order[b] || 0)) ? a : b
+      end
+
+      # Detect unsupported/invalid model errors to avoid reusing the model
+      def unsupported_model_error?(error, model_name)
+        return false if model_name.nil?
+
+        message = error&.message.to_s.downcase
+        return false if message.empty?
+
+        (message.include?("unsupported") && message.include?("model")) ||
+          (message.include?("model") && message.include?("not supported")) ||
+          message.include?("invalid model")
       end
 
       public
