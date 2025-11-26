@@ -134,7 +134,9 @@ RSpec.describe Aidp::Watch::Runner do
   describe "#process_cycle" do
     it "processes plan and build triggers" do
       runner = described_class.new(issues_url: issues_url, once: true, prompt: prompt)
+      allow(runner).to receive(:process_auto_issue_triggers)
       allow(runner).to receive(:process_plan_triggers)
+      allow(runner).to receive(:process_auto_pr_triggers)
       allow(runner).to receive(:process_build_triggers)
       allow(runner).to receive(:process_review_triggers)
       allow(runner).to receive(:process_ci_fix_triggers)
@@ -142,7 +144,9 @@ RSpec.describe Aidp::Watch::Runner do
 
       runner.send(:process_cycle)
 
+      expect(runner).to have_received(:process_auto_issue_triggers)
       expect(runner).to have_received(:process_plan_triggers)
+      expect(runner).to have_received(:process_auto_pr_triggers)
       expect(runner).to have_received(:process_build_triggers)
       expect(runner).to have_received(:process_review_triggers)
       expect(runner).to have_received(:process_ci_fix_triggers)
