@@ -1240,6 +1240,11 @@ module Aidp
             total_tokens: m[:total_tokens] || 0,
             last_used: m[:last_used]
           }
+
+          # Set reason if currently rate limited (for display in Reason column)
+          if rl && reset_in && reset_in > 0
+            row[:unhealthy_reason] ||= "rate_limited"
+          end
           # Incorporate CLI check outcome into reason/availability if failing
           unless cli_ok_prefetch
             row[:available] = false

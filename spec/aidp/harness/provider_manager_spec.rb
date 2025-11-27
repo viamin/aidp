@@ -1307,6 +1307,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         expect(anthropic_row[:rate_limited]).to be true
         expect(anthropic_row[:rate_limit_reset_in]).to be > 1700
         expect(anthropic_row[:rate_limit_reset_in]).to be <= 1800
+        expect(anthropic_row[:unhealthy_reason]).to eq("rate_limited")
       end
 
       # Note: CLI failure test skipped - too complex to mock without
