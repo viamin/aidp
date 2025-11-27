@@ -6,6 +6,9 @@ require_relative "../../lib/aidp/worktree_branch_manager"
 RSpec.describe Aidp::WorktreeBranchManager do
   let(:temp_project_dir) { Dir.mktmpdir }
   let(:manager) { Aidp::WorktreeBranchManager.new(project_dir: temp_project_dir) }
+  let(:pr_number) { 42 }
+  let(:head_branch) { "pr-#{pr_number}-feature" }
+  let(:base_branch) { "main" }
 
   before do
     # Initialize a temporary git repository
@@ -24,116 +27,82 @@ RSpec.describe Aidp::WorktreeBranchManager do
     FileUtils.rm_rf(temp_project_dir)
   end
 
-  describe "#find_worktree" do
-    context "when no worktree exists" do
-      it "returns nil if no worktree exists for the branch" do
-        result = manager.find_worktree(branch: "feature/test-branch")
-        expect(result).to be_nil
-      end
-    end
+  describe "#find_or_create_pr_worktree" do
+    context "when no existing worktree" do
+      it "creates a new worktree" do
+        result = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch)
 
-    context "when a worktree exists" do
-      before do
-        # Create a worktree
-        Dir.chdir(temp_project_dir) do
-          system("git worktree add -b feature/test-branch .worktrees/test-branch")
-        end
-      end
-
-      it "returns the worktree path when a worktree for the branch exists" do
-        result = manager.find_worktree(branch: "feature/test-branch")
-        expect(result).to match(%r{/\.worktrees/test-branch$})
-        expect(File.directory?(result)).to be true
-      end
-    end
-  end
-
-  describe "#create_worktree" do
-    context "when creating a new worktree" do
-      it "creates a worktree for the specified branch" do
-        result = manager.create_worktree(branch: "feature/new-branch")
-
-        # Check that the worktree was created
-        expect(result).to match(%r{/\.worktrees/feature_new-branch$})
+        expect(result).to match(%r{/\.worktrees/#{head_branch}-pr-#{pr_number}$})
         expect(File.directory?(result)).to be true
 
-        # Verify git information
+        # Verify git branch is correct (should be the unique PR branch)
         Dir.chdir(result) do
           branch_name = `git rev-parse --abbrev-ref HEAD`.strip
-          expect(branch_name).to eq("feature/new-branch")
+          expect(branch_name).to eq("#{head_branch}-pr-#{pr_number}")
         end
       end
 
-      it "does not create duplicate worktrees for the same branch" do
-        first_result = manager.create_worktree(branch: "feature/duplicate-branch")
-        second_result = manager.create_worktree(branch: "feature/duplicate-branch")
+      it "creates worktree with specified base branch" do
+        custom_base_branch = "development"
 
-        expect(first_result).to eq(second_result)
-      end
-
-      it "ensures .worktrees directory exists" do
-        manager.create_worktree(branch: "feature/new-branch")
-        worktrees_dir = File.join(temp_project_dir, ".worktrees")
-        expect(File.directory?(worktrees_dir)).to be true
-      end
-    end
-
-    context "when specifying a base branch" do
-      before do
-        # Temporarily adjust git command to use current process
-        allow(manager).to receive(:system) do |*args|
-          system(*args)
-        end
-
-        # Create a feature branch from main
+        # First create the base branch
         Dir.chdir(temp_project_dir) do
+<<<<<<< HEAD
           system("git", "checkout", "-b", "feature/base-test", out: File::NULL, err: File::NULL)
           system("touch", "feature_base.txt")
           system("git", "add", "feature_base.txt", out: File::NULL, err: File::NULL)
           system("git", "commit", "-m", "Test base branch", out: File::NULL, err: File::NULL)
+=======
+          system("git checkout -b #{custom_base_branch}")
+          system("touch BASE_README.md")
+          system("git add BASE_README.md")
+          system("git commit -m 'Base branch commit'")
+          system("git checkout main")
+>>>>>>> 46f05ac (Fix git status command typo in change request processor)
         end
-      end
 
-      it "creates a worktree based on the specified base branch" do
-        result = manager.create_worktree(
-          branch: "feature/new-from-base",
-          base_branch: "feature/base-test"
-        )
+        result = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch, base_branch: custom_base_branch)
 
-        # Check that the worktree was created
-        expect(result).to match(%r{/\.worktrees/feature_new-from-base$})
+        expect(result).to match(%r{/\.worktrees/#{head_branch}-pr-#{pr_number}$})
         expect(File.directory?(result)).to be true
 
-        # Verify git information
+        # Verify base branch contents are present
         Dir.chdir(result) do
+          expect(File.exist?("BASE_README.md")).to be true
           branch_name = `git rev-parse --abbrev-ref HEAD`.strip
-          expect(branch_name).to eq("feature/new-from-base")
-
-          # Check base branch contents
-          files = Dir.glob("*")
-          expect(files).to include("feature_base.txt")
+          expect(branch_name).to eq("#{head_branch}-pr-#{pr_number}")
         end
       end
     end
-  end
 
-  describe "error handling" do
-    it "raises WorktreeLookupError for invalid git repository" do
-      invalid_dir = "/non_existent_dir"
-      invalid_manager = Aidp::WorktreeBranchManager.new(project_dir: invalid_dir)
+    context "when existing worktree" do
+      before do
+        # Create a worktree first
+        @first_worktree = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch)
+      end
 
-      expect {
-        invalid_manager.find_worktree(branch: "test")
-      }.to raise_error(Aidp::WorktreeBranchManager::WorktreeLookupError)
+      it "returns existing worktree path" do
+        second_worktree = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch)
+
+        expect(second_worktree).to eq(@first_worktree)
+      end
+
+      it "creates new worktree for different PR with same branch name" do
+        different_pr_number = 99
+        different_worktree = manager.find_or_create_pr_worktree(pr_number: different_pr_number, head_branch: head_branch)
+
+        expect(different_worktree).not_to eq(@first_worktree)
+      end
     end
 
-    it "raises WorktreeCreationError for invalid branch names" do
-      expect {
-        manager.create_worktree(branch: "../invalid/branch")
-      }.to raise_error(Aidp::WorktreeBranchManager::WorktreeCreationError)
-    end
-  end
+    context "error cases" do
+      it "raises error for invalid branch name" do
+        expect {
+          manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: "../invalid/branch")
+        }.to raise_error(Aidp::WorktreeBranchManager::WorktreeCreationError)
+      end
 
+<<<<<<< HEAD
   describe "registry operations" do
     let(:registry_path) { File.join(temp_project_dir, ".aidp", "worktrees.json") }
     let(:pr_registry_path) { File.join(temp_project_dir, ".aidp", "pr_worktrees.json") }
@@ -157,15 +126,23 @@ RSpec.describe Aidp::WorktreeBranchManager do
       expect(registry_entry).not_to be_nil
       expect(registry_entry["path"]).to match(%r{/\.worktrees/feature_registry-test$})
       expect(registry_entry["created_at"]).to be_a(Integer)
+=======
+      it "raises error when no PR number is provided" do
+        expect {
+          manager.find_or_create_pr_worktree(head_branch: head_branch)
+        }.to raise_error(ArgumentError)
+      end
+>>>>>>> 46f05ac (Fix git status command typo in change request processor)
     end
 
-    it "updates registry when creating multiple worktrees" do
-      manager.create_worktree(branch: "feature/first-branch")
-      manager.create_worktree(branch: "feature/second-branch")
+    context "PR-specific registry" do
+      it "updates PR-specific registry during worktree creation" do
+        worktree_path = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch)
 
-      registry_data = JSON.parse(File.read(registry_path))
-      expect(registry_data.length).to eq(2)
+        pr_registry_path = File.join(temp_project_dir, ".aidp", "pr_worktrees.json")
+        expect(File.exist?(pr_registry_path)).to be true
 
+<<<<<<< HEAD
       branch_names = registry_data.map { |w| w["branch"] }
       expect(branch_names).to include("feature/first-branch", "feature/second-branch")
     end
@@ -197,36 +174,33 @@ RSpec.describe Aidp::WorktreeBranchManager do
       expect(Aidp).to have_received(:log_warn)
     end
   end
+=======
+        pr_registry_content = JSON.parse(File.read(pr_registry_path))
+        pr_entry = pr_registry_content.find { |entry| entry["pr_number"] == pr_number }
+>>>>>>> 46f05ac (Fix git status command typo in change request processor)
 
-  describe "#get_pr_branch" do
-    it "fetches the branch name for a GitHub PR" do
-      # Simulate running a git command for GitHub PR retrieval
-      expect(manager).to receive(:run_git_command).with("gh pr view 123 --json headRefName") {
-        '{"headRefName": "feature/test-pr-branch"}'
-      }
-
-      result = manager.get_pr_branch(123)
-      expect(result).to eq("feature/test-pr-branch")
+        expect(pr_entry).not_to be_nil
+        expect(pr_entry["path"]).to eq(worktree_path)
+        expect(pr_entry["head_branch"]).to eq(head_branch)
+        expect(pr_entry["base_branch"]).to eq("main")
+        expect(pr_entry["created_at"]).to be_a(Integer)
+      end
     end
 
-    it "raises PullRequestBranchExtractionError for invalid PR" do
-      expect(manager).to receive(:run_git_command).with("gh pr view 404 --json headRefName") {
-        raise StandardError, "PR not found"
-      }
+    context "logging" do
+      before do
+        allow(Aidp).to receive(:log_debug)
+      end
 
-      expect {
-        manager.get_pr_branch(404)
-      }.to raise_error(Aidp::WorktreeBranchManager::PullRequestBranchExtractionError)
-    end
+      it "logs worktree creation and lookup" do
+        manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch)
 
-    it "raises PullRequestBranchExtractionError for empty branch name" do
-      expect(manager).to receive(:run_git_command).with("gh pr view 999 --json headRefName") {
-        "{}"
-      }
-
-      expect {
-        manager.get_pr_branch(999)
-      }.to raise_error(Aidp::WorktreeBranchManager::PullRequestBranchExtractionError)
+        expect(Aidp).to have_received(:log_debug)
+          .with("worktree_branch_manager", "finding_or_creating_pr_worktree",
+            pr_number: pr_number,
+            head_branch: head_branch,
+            base_branch: "main")
+      end
     end
   end
 end
