@@ -47,6 +47,18 @@ module Aidp
         run_command_category(:documentation, "Documentation")
       end
 
+      # Preview the commands that will run for each category so callers can log intent
+      # Returns a hash of category => array of normalized command entries
+      def planned_commands
+        {
+          tests: resolved_commands(:test),
+          lints: resolved_commands(:lint),
+          formatters: resolved_commands(:formatter),
+          builds: resolved_commands(:build),
+          docs: resolved_commands(:documentation)
+        }
+      end
+
       private
 
       # Run commands for a specific category (test, lint, formatter, build, documentation)

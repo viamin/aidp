@@ -161,9 +161,14 @@ module Aidp
 
           transition_to(:apply_patch)
 
+          # Preview provider/model selection and queued checks for this iteration
+          preview_provider, preview_model, _model_data = select_model_for_current_tier
+          prompt_length = @prompt_manager.read&.length || 0
+          display_iteration_overview(preview_provider, preview_model, prompt_length)
+
           # Wrap agent call in exception handling for true fix-forward
           begin
-            agent_result = apply_patch
+            agent_result = apply_patch(preview_provider, preview_model)
           rescue Aidp::Errors::ConfigurationError
             # Configuration errors should crash immediately (crash-early principle)
             # Re-raise without catching
@@ -499,8 +504,8 @@ module Aidp
       end
 
       # Apply patch - send PROMPT.md to agent
-      def apply_patch
-        send_to_agent
+      def apply_patch(selected_provider = nil, selected_model = nil)
+        send_to_agent(selected_provider: selected_provider, selected_model: selected_model)
       end
 
       # Check if agent marked work complete
@@ -729,7 +734,7 @@ module Aidp
         parts.join("\n")
       end
 
-      def send_to_agent
+      def send_to_agent(selected_provider: nil, selected_model: nil)
         prompt_content = @prompt_manager.read
         return {status: "error", message: "PROMPT.md not found"} unless prompt_content
 
@@ -737,7 +742,9 @@ module Aidp
         full_prompt = build_work_loop_header(@step_name, @iteration_count) + "\n\n" + prompt_content
 
         # Select model based on thinking depth tier
-        provider_name, model_name, _model_data = select_model_for_current_tier
+        provider_name = selected_provider
+        model_name = selected_model
+        provider_name, model_name, _model_data = select_model_for_current_tier if provider_name.nil? || model_name.nil?
 
         if provider_name.nil? || model_name.nil?
           Aidp.logger.error("work_loop", "Failed to select model for tier",
@@ -770,6 +777,46 @@ module Aidp
             }
           )
         end
+      end
+
+      def display_iteration_overview(provider_name, model_name, prompt_length)
+        tier = @thinking_depth_manager.current_tier
+        checks = summarize_checks(@test_runner.planned_commands) if @test_runner.respond_to?(:planned_commands)
+
+        display_message("    • Step: #{@step_name} | Tier: #{tier} | Model: #{provider_name}/#{model_name}", type: :info)
+        display_message("    • Prompt size: #{prompt_length} chars | State: #{STATES[@current_state]}", type: :info)
+        display_message("    • Upcoming checks: #{checks}", type: :info) if checks && !checks.empty?
+      end
+
+      def summarize_checks(planned)
+        labels = {
+          tests: "tests",
+          lints: "linters",
+          formatters: "formatters",
+          builds: "builds",
+          docs: "docs"
+        }
+
+        summaries = planned.map do |category, commands|
+          count = Array(commands).size
+          next if count.zero?
+
+          label = labels[category] || category.to_s
+          cmd_names = Array(commands).map do |cmd|
+            cmd.is_a?(Hash) ? cmd[:command] : cmd
+          end
+
+          if cmd_names.size <= 2
+            "#{label} (#{cmd_names.join(", ")})"
+          else
+            "#{label} (#{cmd_names.first(2).join(", ")} +#{cmd_names.size - 2} more)"
+          end
+        end.compact
+
+        summaries.join(" | ")
+      rescue => e
+        Aidp.log_warn("work_loop", "summarize_checks_failed", error: e.message)
+        nil
       end
 
       def build_work_loop_header(step_name, iteration)
