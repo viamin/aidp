@@ -26,13 +26,50 @@ module Aidp
         Focus on concrete engineering tasks. Ensure questions are actionable.
       PROMPT
 
-      def initialize(provider_name: nil, verbose: false)
+      HIERARCHICAL_PROVIDER_PROMPT = <<~PROMPT
+        You are AIDP's planning specialist for large projects. Read the GitHub issue and existing comments.
+        This is a LARGE project that should be broken down into independent sub-issues.
+
+        Analyze the requirements and break them into logical sub-tasks that can be worked on independently.
+        For each sub-task, identify:
+        1. What should be built (clear, focused scope)
+        2. What skills are required (e.g., "GraphQL API", "React Components", "Database Schema")
+        3. What personas should work on it (e.g., "Backend Engineer", "Frontend Developer")
+        4. What dependencies exist (which other sub-tasks must complete first)
+
+        Respond in JSON with the following shape (no extra text, no code fences):
+        {
+          "plan_summary": "one paragraph summary of the overall project",
+          "should_create_sub_issues": true,
+          "sub_issues": [
+            {
+              "title": "Brief title for the sub-issue",
+              "description": "Detailed description of what needs to be built",
+              "tasks": ["Specific task 1", "Specific task 2"],
+              "skills": ["Skill 1", "Skill 2"],
+              "personas": ["Persona 1"],
+              "dependencies": ["Reference to other sub-issue by title if needed"]
+            }
+          ],
+          "clarifying_questions": ["question 1", "question 2"]
+        }
+
+        Guidelines:
+        - Each sub-issue should be independently testable and deliverable
+        - Sub-issues should be sized for 1-3 days of work
+        - Include 3-8 sub-issues for a large project
+        - Be specific about skills needed (avoid generic terms)
+        - Only create sub-issues if the project truly warrants it (complexity, multiple components, etc.)
+      PROMPT
+
+      def initialize(provider_name: nil, verbose: false, hierarchical: false)
         @provider_name = provider_name
         @verbose = verbose
+        @hierarchical = hierarchical
         @providers_attempted = []
       end
 
-      def generate(issue)
+      def generate(issue, hierarchical: @hierarchical)
         Aidp.log_debug("plan_generator", "generate.start", provider: @provider_name, issue: issue[:number])
 
         # Try providers in fallback chain order
@@ -52,8 +89,8 @@ module Aidp
           end
 
           begin
-            Aidp.log_info("plan_generator", "generate_with_provider", provider: provider_name, issue: issue[:number])
-            result = generate_with_provider(provider, issue, provider_name)
+            Aidp.log_info("plan_generator", "generate_with_provider", provider: provider_name, issue: issue[:number], hierarchical: hierarchical)
+            result = generate_with_provider(provider, issue, provider_name, hierarchical: hierarchical)
             if result
               Aidp.log_info("plan_generator", "generation_success", provider: provider_name, issue: issue[:number])
               return result
@@ -137,10 +174,10 @@ module Aidp
         "cursor"
       end
 
-      def generate_with_provider(provider, issue, provider_name = "unknown")
-        payload = build_prompt(issue)
+      def generate_with_provider(provider, issue, provider_name = "unknown", hierarchical: false)
+        payload = build_prompt(issue, hierarchical: hierarchical)
 
-        Aidp.log_debug("plan_generator", "sending_to_provider", provider: provider_name, prompt_length: payload.length)
+        Aidp.log_debug("plan_generator", "sending_to_provider", provider: provider_name, prompt_length: payload.length, hierarchical: hierarchical)
 
         if @verbose
           display_message("\n--- Plan Generation Prompt ---", type: :muted)
@@ -158,10 +195,10 @@ module Aidp
           display_message("--- End Response ---\n", type: :muted)
         end
 
-        parsed = parse_structured_response(response)
+        parsed = parse_structured_response(response, hierarchical: hierarchical)
 
         if parsed
-          Aidp.log_debug("plan_generator", "response_parsed", provider: provider_name, has_summary: !parsed[:summary].to_s.empty?, tasks_count: parsed[:tasks]&.size || 0)
+          Aidp.log_debug("plan_generator", "response_parsed", provider: provider_name, has_summary: !parsed[:summary].to_s.empty?, tasks_count: parsed[:tasks]&.size || 0, sub_issues_count: parsed[:sub_issues]&.size || 0)
           return parsed
         end
 
@@ -170,7 +207,7 @@ module Aidp
         nil
       end
 
-      def build_prompt(issue)
+      def build_prompt(issue, hierarchical: false)
         comments_text = issue[:comments]
           .sort_by { |comment| comment["createdAt"].to_s }
           .map do |comment|
@@ -180,8 +217,10 @@ module Aidp
           end
           .join("\n\n")
 
+        prompt_template = hierarchical ? HIERARCHICAL_PROVIDER_PROMPT : PROVIDER_PROMPT
+
         <<~PROMPT
-          #{PROVIDER_PROMPT}
+          #{prompt_template}
 
           Issue Title: #{issue[:title]}
           Issue URL: #{issue[:url]}
@@ -194,17 +233,35 @@ module Aidp
         PROMPT
       end
 
-      def parse_structured_response(response)
+      def parse_structured_response(response, hierarchical: false)
         text = response.to_s.strip
         candidate = extract_json_payload(text)
         return nil unless candidate
 
         data = JSON.parse(candidate)
-        {
+
+        result = {
           summary: data["plan_summary"].to_s.strip,
           tasks: Array(data["plan_tasks"]).map(&:to_s),
           questions: Array(data["clarifying_questions"]).map(&:to_s)
         }
+
+        # Add hierarchical planning data if present
+        if hierarchical || data["should_create_sub_issues"]
+          result[:should_create_sub_issues] = data["should_create_sub_issues"] || false
+          result[:sub_issues] = Array(data["sub_issues"]).map do |sub|
+            {
+              title: sub["title"].to_s,
+              description: sub["description"].to_s,
+              tasks: Array(sub["tasks"]).map(&:to_s),
+              skills: Array(sub["skills"]).map(&:to_s),
+              personas: Array(sub["personas"]).map(&:to_s),
+              dependencies: Array(sub["dependencies"]).map(&:to_s)
+            }
+          end
+        end
+
+        result
       rescue JSON::ParserError
         nil
       end
