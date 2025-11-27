@@ -40,6 +40,12 @@ module Aidp
         @project_dir = project_dir
         @verbose = verbose
 
+        # Log initialization details
+        Aidp.log_debug("change_request_processor", "initializing",
+          provider_name: provider_name,
+          project_dir: project_dir,
+          verbose: verbose)
+
         # Initialize verifier
         @verifier = ImplementationVerifier.new(
           repository_client: repository_client,
@@ -49,6 +55,11 @@ module Aidp
         # Load label configuration
         @change_request_label = label_config[:change_request_trigger] || label_config["change_request_trigger"] || DEFAULT_CHANGE_REQUEST_LABEL
         @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || DEFAULT_NEEDS_INPUT_LABEL
+
+        # Log label details
+        Aidp.log_debug("change_request_processor", "label_configuration",
+          change_request_label: @change_request_label,
+          needs_input_label: @needs_input_label)
 
         # Load change request configuration
         @config = {
@@ -61,9 +72,18 @@ module Aidp
           allow_large_pr_worktree_bypass: true # Default to always using worktree for large PRs
         }.merge(symbolize_keys(change_request_config))
 
+        # Log configuration details
+        Aidp.log_debug("change_request_processor", "change_request_config",
+          config: @config.transform_values { |v| v.is_a?(Proc) ? "Proc" : v })
+
         # Load safety configuration
         @safety_config = safety_config
         @author_allowlist = Array(@safety_config[:author_allowlist] || @safety_config["author_allowlist"])
+
+        # Log safety configuration
+        Aidp.log_debug("change_request_processor", "safety_configuration",
+          author_allowlist: @author_allowlist,
+          allowlist_count: @author_allowlist.length)
       end
 
       def process(pr)
@@ -142,15 +162,29 @@ module Aidp
       def filter_authorized_comments(comments, pr_data)
         # If allowlist is empty (for private repos), consider PR author and all commenters
         # For public repos, enforce allowlist
+        Aidp.log_debug("change_request_processor", "filtering_authorized_comments",
+          total_comments: comments.length,
+          allowlist_count: @author_allowlist.length,
+          is_private_repo: @author_allowlist.empty?)
+
         if @author_allowlist.empty?
           # Private repo: trust all comments from PR participants
+          Aidp.log_debug("change_request_processor", "private_repo_comments_allowed",
+            comments_allowed: comments.length)
           comments
         else
           # Public repo: only allow comments from allowlisted users
-          comments.select do |comment|
+          authorized_comments = comments.select do |comment|
             author = comment[:author]
             @author_allowlist.include?(author)
           end
+
+          Aidp.log_debug("change_request_processor", "public_repo_comment_filtering",
+            total_comments: comments.length,
+            authorized_comments: authorized_comments.length,
+            allowed_authors: authorized_comments.map { |c| c[:author] })
+
+          authorized_comments
         end
       end
 
@@ -395,13 +429,82 @@ module Aidp
       def create_worktree_for_pr(pr_data)
         head_ref = pr_data[:head_ref]
         pr_number = pr_data[:number]
-        slug = "pr-#{pr_number}-change-requests"
 
-        display_message("🌿 Creating worktree for PR ##{pr_number}: #{head_ref}", type: :info)
+        # Configure slug and worktree strategy
+        slug = pr_data.fetch(:worktree_slug, "pr-#{pr_number}-change-requests")
+        strategy = @config.fetch(:worktree_strategy, "auto")
 
+        display_message("🌿 Preparing worktree for PR ##{pr_number}: #{head_ref} (Strategy: #{strategy})", type: :info)
+
+        # Pre-create setup: fetch latest refs
         Dir.chdir(@project_dir) do
           run_git(%w[fetch origin], allow_failure: true)
         end
+
+        # Worktree creation strategy
+        worktree_path =
+          case strategy
+          when "always_create"
+            create_fresh_worktree(pr_data, slug)
+          when "reuse_only"
+            find_existing_worktree(pr_data, slug)
+          else # 'auto' or default
+            find_existing_worktree(pr_data, slug) || create_fresh_worktree(pr_data, slug)
+          end
+
+        Aidp.log_debug(
+          "change_request_processor",
+          "worktree_resolved",
+          pr_number: pr_number,
+          branch: head_ref,
+          path: worktree_path,
+          strategy: strategy
+        )
+
+        display_message("✅ Worktree available at #{worktree_path}", type: :success)
+        worktree_path
+      rescue => e
+        Aidp.log_error(
+          "change_request_processor",
+          "worktree_creation_failed",
+          pr_number: pr_number,
+          error: e.message,
+          backtrace: e.backtrace&.first(5)
+        )
+        display_message("❌ Failed to create worktree: #{e.message}", type: :error)
+        raise
+      end
+
+      private
+
+      def find_existing_worktree(pr_data, slug)
+        head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
+
+        # First check for existing worktree by branch
+        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
+        return existing[:path] if existing && existing[:active]
+
+        # If no branch-specific worktree, look for PR-specific worktree
+        pr_worktrees = Aidp::Worktree.list(project_dir: @project_dir)
+        pr_specific_worktree = pr_worktrees.find do |w|
+          w[:slug]&.include?("pr-#{pr_number}")
+        end
+
+        pr_specific_worktree ? pr_specific_worktree[:path] : nil
+      end
+
+      def create_fresh_worktree(pr_data, slug)
+        head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
+
+        Aidp.log_debug(
+          "change_request_processor",
+          "creating_new_worktree",
+          pr_number: pr_number,
+          branch: head_ref,
+          slug: slug
+        )
 
         result = Aidp::Worktree.create(
           slug: slug,
@@ -410,11 +513,7 @@ module Aidp
           base_branch: pr_data[:base_ref]
         )
 
-        worktree_path = result[:path]
-        Aidp.log_debug("change_request_processor", "worktree_created", pr_number: pr_number, branch: head_ref, path: worktree_path)
-        display_message("✅ Worktree created at #{worktree_path}", type: :success)
-
-        worktree_path
+        result[:path]
       end
 
       def apply_changes(changes)
@@ -571,22 +670,42 @@ module Aidp
       end
 
       def handle_incomplete_implementation(pr:, analysis:, verification_result:)
+        Aidp.log_debug("change_request_processor", "start_incomplete_implementation_handling",
+          pr_number: pr[:number],
+          verification_result: {
+            missing_items_count: verification_result[:missing_items]&.length || 0,
+            additional_work_count: verification_result[:additional_work]&.length || 0
+          })
+
         display_message("⚠️  Implementation incomplete; creating follow-up tasks.", type: :warn)
 
         # Create tasks for missing requirements
         if verification_result[:additional_work] && !verification_result[:additional_work].empty?
+          Aidp.log_debug("change_request_processor", "preparing_follow_up_tasks",
+            pr_number: pr[:number],
+            additional_work_tasks_count: verification_result[:additional_work].length)
           create_follow_up_tasks(@project_dir, verification_result[:additional_work])
         end
 
         # Record state but do not post a separate comment
         # (verification details will be included in the next summary comment)
-        @state_store.record_change_request(pr[:number], {
+        state_record = {
           status: "incomplete_implementation",
           timestamp: Time.now.utc.iso8601,
           verification_reasons: verification_result[:reasons],
           missing_items: verification_result[:missing_items],
           additional_work: verification_result[:additional_work]
-        })
+        }
+
+        # Log the details of the state record before storing
+        Aidp.log_debug("change_request_processor", "recording_incomplete_implementation_state",
+          pr_number: pr[:number],
+          status: state_record[:status],
+          verification_reasons_count: state_record[:verification_reasons]&.length || 0,
+          missing_items_count: state_record[:missing_items]&.length || 0,
+          additional_work_count: state_record[:additional_work]&.length || 0)
+
+        @state_store.record_change_request(pr[:number], state_record)
 
         display_message("📝 Recorded incomplete implementation status for PR ##{pr[:number]}", type: :info)
 
@@ -603,36 +722,55 @@ module Aidp
       def create_follow_up_tasks(working_dir, additional_work)
         return if additional_work.nil? || additional_work.empty?
 
+        Aidp.log_debug("change_request_processor", "start_creating_follow_up_tasks",
+          working_dir: working_dir,
+          additional_work_tasks_count: additional_work.length)
+
         tasklist_file = File.join(working_dir, ".aidp", "tasklist.jsonl")
         FileUtils.mkdir_p(File.dirname(tasklist_file))
 
         require_relative "../execute/persistent_tasklist"
         tasklist = Aidp::Execute::PersistentTasklist.new(working_dir)
 
+        tasks_created = []
         additional_work.each do |task_description|
-          tasklist.create(
+          task = tasklist.create(
             description: task_description,
             priority: :high,
             source: "verification"
           )
+          tasks_created << task
         end
 
         display_message("📝 Created #{additional_work.length} follow-up task(s) for continued work", type: :info)
 
+        Aidp.log_debug("change_request_processor", "follow_up_tasks_details",
+          task_count: tasks_created.length,
+          working_dir: working_dir,
+          task_descriptions: tasks_created.map(&:description))
+
         Aidp.log_info(
           "change_request_processor",
           "created_follow_up_tasks",
-          task_count: additional_work.length,
+          task_count: tasks_created.length,
           working_dir: working_dir
         )
+
+        tasks_created
       rescue => e
-        display_message("⚠️  Failed to create follow-up tasks: #{e.message}", type: :warn)
         Aidp.log_error(
           "change_request_processor",
           "failed_to_create_follow_up_tasks",
           error: e.message,
-          backtrace: e.backtrace&.first(5)
+          error_class: e.class.name,
+          backtrace: e.backtrace&.first(5),
+          working_dir: working_dir
         )
+
+        display_message("⚠️  Failed to create follow-up tasks: #{e.message}", type: :warn)
+
+        # Return an empty array to indicate failure
+        []
       end
 
       def handle_clarification_needed(pr:, analysis:)
