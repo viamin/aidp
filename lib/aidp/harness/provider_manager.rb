@@ -1416,9 +1416,43 @@ module Aidp
 
       # Execute a prompt with a specific provider
       def execute_with_provider(provider_type, prompt, options = {})
+        options = options.dup
+
         # Extract model from options if provided
         model_name = options.delete(:model)
-        retry_on_rate_limit = options.delete(:retry_on_rate_limit) != false # Default true
+        retry_on_rate_limit = if options.key?(:retry_on_rate_limit)
+          options.delete(:retry_on_rate_limit) != false
+        else
+          true
+        end
+        retry_on_unsupported = if options.key?(:retry_on_unsupported)
+          options.delete(:retry_on_unsupported) != false
+        else
+          true
+        end
+        tier = options[:tier]
+        base_options = options.dup
+
+        if model_name && model_denied?(provider_type, model_name)
+          alternate_model = select_alternate_model(provider_type, tier: tier, current_model: model_name)
+          if alternate_model
+            Aidp.logger.warn("provider_manager", "Model is denylisted, selecting alternate",
+              provider: provider_type,
+              model: model_name,
+              alternate_model: alternate_model,
+              tier: tier)
+
+            return execute_with_provider(
+              provider_type,
+              prompt,
+              base_options.merge(
+                model: alternate_model,
+                retry_on_rate_limit: retry_on_rate_limit,
+                retry_on_unsupported: false
+              )
+            )
+          end
+        end
 
         # Create provider factory instance
         provider_factory = ProviderFactory.new
@@ -1460,6 +1494,28 @@ module Aidp
 
         if unsupported_model_error?(e, model_name)
           deny_model(provider_type, model_name, error: e)
+
+          if retry_on_unsupported
+            alternate_model = select_alternate_model(provider_type, tier: tier, current_model: model_name)
+
+            if alternate_model
+              Aidp.logger.info("provider_manager", "Retrying with alternate model after unsupported model error",
+                provider: provider_type,
+                original_model: model_name,
+                alternate_model: alternate_model,
+                tier: tier)
+
+              return execute_with_provider(
+                provider_type,
+                prompt,
+                base_options.merge(
+                  model: alternate_model,
+                  retry_on_rate_limit: retry_on_rate_limit,
+                  retry_on_unsupported: false
+                )
+              )
+            end
+          end
         end
 
         # Detect rate limit / quota errors and attempt fallback
@@ -1615,10 +1671,37 @@ module Aidp
 
         message = error&.message.to_s.downcase
         return false if message.empty?
+        return false unless message.include?(model_name.to_s.downcase)
 
         (message.include?("unsupported") && message.include?("model")) ||
           (message.include?("model") && message.include?("not supported")) ||
           message.include?("invalid model")
+      end
+
+      # Select an alternate model for the provider and tier, excluding denylisted/current models
+      def select_alternate_model(provider_name, tier:, current_model: nil)
+        candidates = []
+
+        if tier && @configuration.respond_to?(:models_for_tier)
+          tier_models = Array(@configuration.models_for_tier(tier, provider_name)).map(&:to_s)
+          candidates.concat(tier_models)
+        end
+
+        if candidates.empty? && @configuration.respond_to?(:provider_models)
+          provider_models = Array(@configuration.provider_models(provider_name)).map(&:to_s)
+          candidates.concat(provider_models)
+        end
+
+        candidates = candidates.uniq
+        return nil if candidates.empty?
+
+        excluded = Array(current_model).compact + Array(@model_denylist[provider_name])
+        candidates.reject! { |model| excluded.include?(model) }
+        candidates.first
+      rescue => e
+        log_rescue(e, component: "provider_manager", action: "select_alternate_model", fallback: nil,
+          provider: provider_name, tier: tier, current_model: current_model)
+        nil
       end
 
       public

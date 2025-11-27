@@ -223,6 +223,38 @@ RSpec.describe Aidp::Harness::ProviderManager do
       expect(custom_manager.available_models("codex")).not_to include("babbage-002")
       expect(custom_manager.available_models("codex")).to include("gpt-4o")
     end
+
+    it "retries with an alternate tier model when an unsupported model error occurs" do
+      allow(configuration).to receive(:configured_providers).and_return(["codex"])
+      allow(configuration).to receive(:default_provider).and_return("codex")
+      allow(configuration).to receive(:provider_configured?).and_return(true)
+      allow(configuration).to receive(:provider_models).with("codex").and_return([])
+      allow(configuration).to receive(:models_for_tier).with("pro", "codex")
+        .and_return(["computer-use-preview", "gpt-4o"])
+
+      custom_manager = described_class.new(configuration)
+
+      responses = [
+        StandardError.new("The 'computer-use-preview' model is not supported when using Codex with a ChatGPT account."),
+        "fallback success"
+      ]
+
+      fake_provider = double("Provider")
+      allow(fake_provider).to receive(:send_message) do
+        response = responses.shift
+        raise response if response.is_a?(StandardError)
+        response
+      end
+
+      fake_factory = instance_double(Aidp::Harness::ProviderFactory)
+      allow(fake_factory).to receive(:create_provider).and_return(fake_provider)
+      allow(Aidp::Harness::ProviderFactory).to receive(:new).and_return(fake_factory)
+
+      result = custom_manager.execute_with_provider("codex", "prompt", model: "computer-use-preview", tier: "pro")
+
+      expect(result[:status]).to eq("completed")
+      expect(result[:model]).to eq("gpt-4o")
+    end
   end
 
   describe "model health management" do
