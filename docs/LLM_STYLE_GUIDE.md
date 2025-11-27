@@ -34,6 +34,55 @@
 
 See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern examples. `STYLE_GUIDE:338-635`
 
+## 2a. AI-Generated Determinism (AGD)
+
+**Rule**: Use AI **once at configuration** to generate deterministic code/patterns. No AI at runtime.
+
+**When to use AGD** (vs ZFC):
+
+| Use AGD | Use ZFC |
+|---------|---------|
+| Input format is stable (tool output) | Input varies (natural language) |
+| High-frequency runtime (work loops) | One-off decisions |
+| Patterns can be extracted (regex) | Judgment/nuance required |
+| Configuration happens infrequently | Every evaluation needs fresh AI |
+
+**AGD Pattern**:
+
+```ruby
+# 1. Value object for generated artifact (immutable, serializable)
+class FilterDefinition
+  def initialize(patterns:); @patterns = compile(patterns); freeze; end
+  def matches?(line); @patterns.any? { |p| line.match?(p) }; end
+  def to_h; { patterns: @patterns.map(&:source) }; end
+end
+
+# 2. AI factory (runs ONCE at config time)
+class AIFilterFactory
+  def generate(tool_name:, sample_output:, tier: "mini")
+    response = call_ai(prompt_for(tool_name, sample_output), tier)
+    FilterDefinition.new(**parse(response))
+  end
+end
+
+# 3. Deterministic strategy (runs at runtime, NO AI)
+class GeneratedFilterStrategy
+  def initialize(definition); @definition = definition; end
+  def filter(output)  # Pure pattern matching
+    output.lines.select { |l| @definition.matches?(l) }
+  end
+end
+```
+
+**Checklist**:
+- [ ] Artifact is immutable (freeze after creation)
+- [ ] Artifact serializable to YAML/JSON for config storage
+- [ ] AI uses cheap tier (mini) - only runs once
+- [ ] Validate AI output (regex syntax, required fields)
+- [ ] Provide regeneration path if tool changes
+
+See [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md) for full documentation.
+
 ## 3. Naming & Structure
 
 - Classes: `PascalCase`; methods/files: `snake_case`; constants: `SCREAMING_SNAKE_CASE`. `STYLE_GUIDE:44-50`
