@@ -152,6 +152,15 @@ module Aidp
       def select_model_for_tier(tier = nil, provider: nil)
         tier ||= current_tier
         validate_tier!(tier)
+        provider_has_no_tiers = provider && configuration.configured_tiers(provider).empty?
+        provider_has_catalog_models = provider && !@registry.models_for_provider(provider).empty?
+
+        if provider_has_no_tiers && !provider_has_catalog_models
+          Aidp.log_info("thinking_depth_manager", "No configured tiers for provider, deferring to provider auto model selection",
+            requested_tier: tier,
+            provider: provider)
+          return [provider, nil, {auto_model: true, reason: "provider_has_no_tiers"}]
+        end
 
         # First, try to get models from user's configuration for this tier and provider
         if provider
@@ -269,6 +278,13 @@ module Aidp
           provider: provider)
 
         result = try_fallback_tiers(tier, provider)
+
+        if provider_has_no_tiers && result.nil? && provider
+          Aidp.log_info("thinking_depth_manager", "No configured tiers for provider, deferring to provider auto model selection",
+            requested_tier: tier,
+            provider: provider)
+          return [provider, nil, {auto_model: true, reason: "provider_has_no_tiers"}]
+        end
 
         unless result
           # Enhanced error message with discovery hints

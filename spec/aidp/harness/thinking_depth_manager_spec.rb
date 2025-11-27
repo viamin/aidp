@@ -402,6 +402,31 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
         expect(model).not_to be_nil
       end
     end
+
+    context "when provider has no thinking tiers configured" do
+      let(:config_without_tiers) do
+        config_data = sample_config.dup
+        config_data["providers"]["kilocode"] = {
+          "type" => "usage_based",
+          "model_family" => "auto"
+        }
+        config_data["harness"]["default_provider"] = "kilocode"
+        config_data
+      end
+
+      it "defers to provider auto model selection instead of erroring" do
+        File.write(config_path, YAML.dump(config_without_tiers))
+
+        configuration_without_tiers = Aidp::Harness::Configuration.new(temp_dir)
+        manager_without_tiers = described_class.new(configuration_without_tiers, registry: registry)
+
+        provider, model, data = manager_without_tiers.select_model_for_tier("pro", provider: "kilocode")
+
+        expect(provider).to eq("kilocode")
+        expect(model).to be_nil
+        expect(data[:auto_model]).to be true
+      end
+    end
   end
 
   describe "#tier_for_model" do

@@ -746,7 +746,7 @@ module Aidp
         model_name = selected_model
         provider_name, model_name, _model_data = select_model_for_current_tier if provider_name.nil? || model_name.nil?
 
-        if provider_name.nil? || model_name.nil?
+        if provider_name.nil?
           Aidp.logger.error("work_loop", "Failed to select model for tier",
             tier: @thinking_depth_manager.current_tier,
             step: @step_name,
@@ -757,7 +757,8 @@ module Aidp
         # Log model selection
         tier = @thinking_depth_manager.current_tier
         if @last_tier != tier
-          display_message("  💡 Using tier: #{tier} (#{provider_name}/#{model_name})", type: :info)
+          model_label = model_name || "auto"
+          display_message("  💡 Using tier: #{tier} (#{provider_name}/#{model_label})", type: :info)
           @last_tier = tier
         end
 
@@ -782,8 +783,9 @@ module Aidp
       def display_iteration_overview(provider_name, model_name, prompt_length)
         tier = @thinking_depth_manager.current_tier
         checks = summarize_checks(@test_runner.planned_commands) if @test_runner.respond_to?(:planned_commands)
+        model_label = model_name || "auto"
 
-        display_message("    • Step: #{@step_name} | Tier: #{tier} | Model: #{provider_name}/#{model_name}", type: :info)
+        display_message("    • Step: #{@step_name} | Tier: #{tier} | Model: #{provider_name}/#{model_label}", type: :info)
         display_message("    • Prompt size: #{prompt_length} chars | State: #{STATES[@current_state]}", type: :info)
         display_message("    • Upcoming checks: #{checks}", type: :info) if checks && !checks.empty?
 

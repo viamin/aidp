@@ -5,6 +5,7 @@ PATH
       concurrent-ruby (~> 1.3)
       csv (~> 3.2)
       logger (~> 1.5)
+      ostruct (~> 0.6)
       pastel (~> 0.8)
       ruby_llm (~> 1.9)
       ruby_tree_sitter (~> 2.0)
@@ -80,15 +81,6 @@ GEM
     faraday-retry (2.3.2)
       faraday (~> 2.0)
     ffi (1.17.2-aarch64-linux-gnu)
-    ffi (1.17.2-aarch64-linux-musl)
-    ffi (1.17.2-arm-linux-gnu)
-    ffi (1.17.2-arm-linux-musl)
-    ffi (1.17.2-arm64-darwin)
-    ffi (1.17.2-x86-linux-gnu)
-    ffi (1.17.2-x86-linux-musl)
-    ffi (1.17.2-x86_64-darwin)
-    ffi (1.17.2-x86_64-linux-gnu)
-    ffi (1.17.2-x86_64-linux-musl)
     hashdiff (1.2.1)
     io-console (0.8.1)
     json (2.15.1)
@@ -110,6 +102,7 @@ GEM
     net-http (0.8.0)
       uri (>= 0.11.1)
     oppen (1.0.0)
+    ostruct (0.6.1)
     parallel (1.27.0)
     parser (3.3.9.0)
       ast (~> 2.4.1)
@@ -184,38 +177,6 @@ GEM
       oppen (~> 1.0)
       sorbet-runtime
       zeitwerk
-    ruby_tree_sitter (2.0.0-aarch64-linux-musl)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
-    ruby_tree_sitter (2.0.0-arm-linux-gnu)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
-    ruby_tree_sitter (2.0.0-arm-linux-musl)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
-    ruby_tree_sitter (2.0.0-arm64-darwin)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
-    ruby_tree_sitter (2.0.0-x86-linux-musl)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
-    ruby_tree_sitter (2.0.0-x86_64-darwin)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
-    ruby_tree_sitter (2.0.0-x86_64-linux-gnu)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
-    ruby_tree_sitter (2.0.0-x86_64-linux-musl)
-      oppen (~> 1.0)
-      sorbet-runtime
-      zeitwerk
     simplecov (0.22.0)
       docile (~> 1.1)
       simplecov-html (~> 0.11)
@@ -287,16 +248,6 @@ GEM
 PLATFORMS
   aarch64-linux
   aarch64-linux-gnu
-  aarch64-linux-musl
-  arm-linux-gnu
-  arm-linux-musl
-  arm64-darwin
-  x86-linux-gnu
-  x86-linux-musl
-  x86_64-darwin
-  x86_64-linux
-  x86_64-linux-gnu
-  x86_64-linux-musl
 
 DEPENDENCIES
   aidp!
