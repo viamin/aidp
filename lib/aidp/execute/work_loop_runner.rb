@@ -786,6 +786,67 @@ module Aidp
         display_message("    • Step: #{@step_name} | Tier: #{tier} | Model: #{provider_name}/#{model_name}", type: :info)
         display_message("    • Prompt size: #{prompt_length} chars | State: #{STATES[@current_state]}", type: :info)
         display_message("    • Upcoming checks: #{checks}", type: :info) if checks && !checks.empty?
+
+        # Display output filtering configuration if enabled
+        filtering_info = summarize_output_filtering
+        display_message("    • Output filtering: #{filtering_info}", type: :info) if filtering_info
+      end
+
+      # Summarize output filtering configuration
+      def summarize_output_filtering
+        return nil unless @config.respond_to?(:output_filtering_enabled?) && @config.output_filtering_enabled?
+
+        iteration = @test_runner.respond_to?(:iteration_count) ? @test_runner.iteration_count : 0
+
+        test_mode = if @config.respond_to?(:test_output_mode)
+          @config.test_output_mode
+        elsif iteration > 1
+          :failures_only
+        else
+          :full
+        end
+
+        lint_mode = if @config.respond_to?(:lint_output_mode)
+          @config.lint_output_mode
+        elsif iteration > 1
+          :failures_only
+        else
+          :full
+        end
+
+        if test_mode == :full && lint_mode == :full
+          nil # Don't show message when no filtering is active
+        else
+          "test=#{test_mode}, lint=#{lint_mode}"
+        end
+      rescue
+        nil
+      end
+
+      # Display output filtering statistics after test/lint runs
+      def display_filtering_stats
+        return unless @test_runner.respond_to?(:filter_stats)
+
+        stats = @test_runner.filter_stats
+        return if stats[:total_input_bytes].zero?
+
+        reduction = ((stats[:total_input_bytes] - stats[:total_output_bytes]).to_f / stats[:total_input_bytes] * 100).round(1)
+        return if reduction <= 0
+
+        display_message("    📉 Token optimization: #{reduction}% reduction " \
+                       "(#{format_bytes(stats[:total_input_bytes])} → #{format_bytes(stats[:total_output_bytes])})", type: :info)
+      rescue
+        # Silently ignore errors in stats display
+      end
+
+      def format_bytes(bytes)
+        if bytes >= 1024 * 1024
+          "#{(bytes / 1024.0 / 1024.0).round(1)}MB"
+        elsif bytes >= 1024
+          "#{(bytes / 1024.0).round(1)}KB"
+        else
+          "#{bytes}B"
+        end
       end
 
       def summarize_checks(planned)

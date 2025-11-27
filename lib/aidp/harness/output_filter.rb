@@ -1,9 +1,23 @@
 # frozen_string_literal: true
 
+require_relative "output_filter_config"
+
 module Aidp
   module Harness
     # Filters test and linter output to reduce token consumption
-    # Uses framework-specific strategies to extract relevant information
+    #
+    # Supports two filtering approaches:
+    # 1. AI-generated FilterDefinitions (preferred) - created once during config,
+    #    applied deterministically at runtime for ANY tool
+    # 2. Built-in RSpec strategy (fallback) - for backward compatibility
+    #
+    # @example Using AI-generated filter
+    #   definition = FilterDefinition.from_hash(config[:filter_definitions][:pytest])
+    #   filter = OutputFilter.new(mode: :failures_only, filter_definition: definition)
+    #   filtered = filter.filter(output)
+    #
+    # @see AIFilterFactory for generating filter definitions
+    # @see FilterDefinition for the definition format
     class OutputFilter
       # Output modes
       MODES = {
@@ -12,30 +26,32 @@ module Aidp
         minimal: :minimal              # Minimal failure info + summary
       }.freeze
 
-      # @param config [Hash] Configuration options
+      # @param config [OutputFilterConfig, Hash] Configuration options
       # @option config [Symbol] :mode Output mode (:full, :failures_only, :minimal)
       # @option config [Boolean] :include_context Include surrounding lines
       # @option config [Integer] :context_lines Number of context lines
       # @option config [Integer] :max_lines Maximum output lines
-      def initialize(config = {})
-        @mode = config[:mode] || :full
-        @include_context = config.fetch(:include_context, true)
-        @context_lines = config.fetch(:context_lines, 3)
-        @max_lines = config.fetch(:max_lines, 500)
-
-        validate_mode!
+      # @param filter_definition [FilterDefinition, nil] AI-generated filter patterns
+      def initialize(config = {}, filter_definition: nil)
+        @config = normalize_config(config)
+        @mode = @config.mode
+        @include_context = @config.include_context
+        @context_lines = @config.context_lines
+        @max_lines = @config.max_lines
+        @filter_definition = filter_definition
 
         Aidp.log_debug("output_filter", "initialized",
           mode: @mode,
           include_context: @include_context,
-          max_lines: @max_lines)
+          max_lines: @max_lines,
+          has_definition: !@filter_definition.nil?)
       rescue NameError
         # Logging infrastructure not available in some tests
       end
 
       # Filter output based on framework and mode
       # @param output [String] Raw output
-      # @param framework [Symbol] Framework identifier
+      # @param framework [Symbol] Framework identifier (:rspec, :minitest, :jest, :pytest, :unknown)
       # @return [String] Filtered output
       def filter(output, framework: :unknown)
         return output if @mode == :full
@@ -43,6 +59,7 @@ module Aidp
 
         Aidp.log_debug("output_filter", "filtering_start",
           framework: framework,
+          mode: @mode,
           input_lines: output.lines.count)
 
         strategy = strategy_for_framework(framework)
@@ -51,6 +68,7 @@ module Aidp
         truncated = truncate_if_needed(filtered)
 
         Aidp.log_debug("output_filter", "filtering_complete",
+          framework: framework,
           output_lines: truncated.lines.count,
           reduction: reduction_stats(output, truncated))
 
@@ -80,31 +98,38 @@ module Aidp
       end
 
       # Accessors for strategy use
-      attr_reader :mode, :include_context, :context_lines, :max_lines
+      attr_reader :mode, :include_context, :context_lines, :max_lines, :config, :filter_definition
 
       private
 
-      def validate_mode!
-        unless MODES.key?(@mode)
-          raise ArgumentError, "Invalid mode: #{@mode}. Must be one of #{MODES.keys}"
+      def normalize_config(config)
+        case config
+        when OutputFilterConfig
+          config
+        when Hash
+          OutputFilterConfig.from_hash(config)
+        when nil
+          OutputFilterConfig.new
+        else
+          raise ArgumentError, "Config must be an OutputFilterConfig or Hash, got: #{config.class}"
         end
       end
 
       def strategy_for_framework(framework)
+        # Use AI-generated filter definition if available (preferred)
+        if @filter_definition
+          require_relative "generated_filter_strategy"
+          return GeneratedFilterStrategy.new(@filter_definition)
+        end
+
+        # Fall back to built-in strategies for backward compatibility
         case framework
         when :rspec
           require_relative "rspec_filter_strategy"
           RSpecFilterStrategy.new
-        when :minitest
-          require_relative "generic_filter_strategy"
-          GenericFilterStrategy.new
-        when :jest
-          require_relative "generic_filter_strategy"
-          GenericFilterStrategy.new
-        when :pytest
-          require_relative "generic_filter_strategy"
-          GenericFilterStrategy.new
         else
+          # Use generic strategy for all other frameworks
+          # Users should generate a FilterDefinition for better results
           require_relative "generic_filter_strategy"
           GenericFilterStrategy.new
         end
@@ -123,7 +148,7 @@ module Aidp
       def reduction_stats(input, output)
         input_size = input.bytesize
         output_size = output.bytesize
-        reduction = ((input_size - output_size).to_f / input_size * 100).round(1)
+        reduction = input_size.zero? ? 0 : ((input_size - output_size).to_f / input_size * 100).round(1)
 
         {
           input_bytes: input_size,

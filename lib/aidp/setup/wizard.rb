@@ -6,6 +6,7 @@ require "yaml"
 require "time"
 require "fileutils"
 require "json"
+require "ostruct"
 
 require_relative "../util"
 require_relative "../config/paths"
@@ -15,6 +16,8 @@ require_relative "devcontainer/parser"
 require_relative "devcontainer/generator"
 require_relative "devcontainer/port_manager"
 require_relative "devcontainer/backup_manager"
+require_relative "../harness/ai_filter_factory"
+require_relative "../harness/filter_definition"
 
 module Aidp
   module Setup
@@ -493,6 +496,7 @@ module Aidp
         prompt.say("-" * 40)
 
         configure_work_loop_limits
+        configure_output_filtering
         configure_test_commands
         configure_linting
         configure_watch_patterns
@@ -513,6 +517,216 @@ module Aidp
         ) { |value| value.to_i }
 
         set([:work_loop, :max_iterations], max_iterations)
+      end
+
+      def configure_output_filtering
+        prompt.say("\n🔍 Output filtering configuration")
+        prompt.say("  Reduces token consumption by filtering test/lint output")
+        existing = get([:work_loop, :output_filtering]) || {}
+
+        return unless prompt.yes?("Configure output filtering?", default: false)
+
+        enabled = prompt.yes?(
+          "Enable output filtering?",
+          default: existing.fetch(:enabled, true)
+        )
+
+        unless enabled
+          set([:work_loop, :output_filtering], {enabled: false})
+          return
+        end
+
+        # Test output mode
+        test_mode_choices = [
+          ["Full (no filtering)", "full"],
+          ["Failures only (recommended for iterations)", "failures_only"],
+          ["Minimal (summary + locations only)", "minimal"]
+        ]
+        test_mode_default = existing[:test_mode] || "full"
+        test_mode_default_label = test_mode_choices.find { |label, value| value == test_mode_default }&.first
+
+        test_mode = prompt.select("Test output mode:", default: test_mode_default_label) do |menu|
+          test_mode_choices.each { |label, value| menu.choice label, value }
+        end
+
+        # Lint output mode
+        lint_mode_choices = test_mode_choices
+        lint_mode_default = existing[:lint_mode] || "full"
+        lint_mode_default_label = lint_mode_choices.find { |label, value| value == lint_mode_default }&.first
+
+        lint_mode = prompt.select("Lint output mode:", default: lint_mode_default_label) do |menu|
+          lint_mode_choices.each { |label, value| menu.choice label, value }
+        end
+
+        # Max output lines
+        test_max_lines = ask_with_default(
+          "Maximum test output lines",
+          (existing[:test_max_lines] || 500).to_s
+        ) { |value| value.to_i }
+
+        lint_max_lines = ask_with_default(
+          "Maximum lint output lines",
+          (existing[:lint_max_lines] || 300).to_s
+        ) { |value| value.to_i }
+
+        # Context configuration
+        include_context = prompt.yes?(
+          "Include context lines around failures?",
+          default: existing.fetch(:include_context, true)
+        )
+
+        context_lines = if include_context
+          ask_with_default(
+            "Number of context lines",
+            (existing[:context_lines] || 3).to_s
+          ) { |value| value.to_i }
+        else
+          0
+        end
+
+        set([:work_loop, :output_filtering], {
+          enabled: true,
+          test_mode: test_mode,
+          lint_mode: lint_mode,
+          test_max_lines: test_max_lines,
+          lint_max_lines: lint_max_lines,
+          include_context: include_context,
+          context_lines: context_lines
+        })
+
+        prompt.ok("✅ Output filtering configured")
+
+        # Offer to generate AI-powered filter definitions
+        configure_filter_generation
+      end
+
+      def configure_filter_generation
+        prompt.say("\n🤖 AI-Generated Filter Definitions")
+        prompt.say("  Generate custom filters for your test/lint tools (one-time AI call)")
+
+        return unless prompt.yes?("Generate filter definitions for your tools?", default: false)
+
+        # Collect configured commands
+        commands_to_filter = collect_commands_for_filtering
+        if commands_to_filter.empty?
+          prompt.warn("⚠️  No test or lint commands configured. Configure them first.")
+          return
+        end
+
+        prompt.say("\n📝 Commands detected:")
+        commands_to_filter.each do |cmd|
+          prompt.say("  • #{cmd[:name]}: #{cmd[:command]}")
+        end
+
+        # Check if AI provider is configured
+        primary_provider = get([:harness, :default_provider])
+        unless primary_provider
+          prompt.warn("⚠️  No AI provider configured. Configure providers first.")
+          return
+        end
+
+        # Let user select which commands to generate filters for
+        prompt.say("\n💡 Use ↑/↓ arrows to navigate, SPACE to select/deselect, ENTER to confirm")
+        selected = prompt.multi_select("Select commands to generate filters for:") do |menu|
+          commands_to_filter.each do |cmd|
+            menu.choice "#{cmd[:name]} (#{cmd[:command]})", cmd
+          end
+        end
+
+        return if selected.empty?
+
+        # Generate filter definitions
+        filter_definitions = {}
+        factory = create_filter_factory
+
+        selected.each do |cmd|
+          prompt.say("\n⏳ Generating filter for #{cmd[:name]}...")
+          Aidp.log_info("setup_wizard", "generating_filter_definition",
+            tool_name: cmd[:name], command: cmd[:command])
+
+          begin
+            definition = factory.generate_from_command(
+              tool_command: cmd[:command],
+              project_dir: project_dir,
+              tier: "mini"
+            )
+
+            filter_definitions[cmd[:key]] = definition.to_h
+            prompt.ok("  ✅ Generated filter for #{cmd[:name]}")
+            Aidp.log_info("setup_wizard", "filter_definition_generated",
+              tool_name: cmd[:name],
+              pattern_count: definition.summary_patterns.size)
+          rescue => e
+            prompt.warn("  ⚠️  Failed to generate filter for #{cmd[:name]}: #{e.message}")
+            Aidp.log_error("setup_wizard", "filter_generation_failed",
+              tool_name: cmd[:name], error: e.message)
+          end
+        end
+
+        if filter_definitions.any?
+          set([:work_loop, :output_filtering, :filter_definitions], filter_definitions)
+          prompt.ok("\n✅ Generated #{filter_definitions.size} filter definition(s)")
+          prompt.say("   These filters will be applied deterministically (no AI calls at runtime)")
+        end
+      end
+
+      def collect_commands_for_filtering
+        commands = []
+
+        # Test commands
+        test_config = get([:work_loop, :test]) || {}
+        if test_config[:unit] && !test_config[:unit].start_with?("echo")
+          commands << {
+            key: "unit_test",
+            name: "Unit Tests",
+            command: test_config[:unit],
+            type: :test
+          }
+        end
+        if test_config[:integration] && !test_config[:integration].to_s.empty? && !test_config[:integration].start_with?("echo")
+          commands << {
+            key: "integration_test",
+            name: "Integration Tests",
+            command: test_config[:integration],
+            type: :test
+          }
+        end
+        if test_config[:e2e] && !test_config[:e2e].to_s.empty? && !test_config[:e2e].start_with?("echo")
+          commands << {
+            key: "e2e_test",
+            name: "E2E Tests",
+            command: test_config[:e2e],
+            type: :test
+          }
+        end
+
+        # Lint commands
+        lint_config = get([:work_loop, :lint]) || {}
+        if lint_config[:command] && !lint_config[:command].start_with?("echo")
+          commands << {
+            key: "lint",
+            name: "Linter",
+            command: lint_config[:command],
+            type: :lint
+          }
+        end
+
+        commands
+      end
+
+      def create_filter_factory
+        # Build a minimal configuration for the factory
+        config = build_harness_config_for_factory
+        Aidp::Harness::AIFilterFactory.new(config)
+      end
+
+      def build_harness_config_for_factory
+        # Create a minimal config object that the factory needs
+        OpenStruct.new(
+          default_provider: get([:harness, :default_provider]),
+          providers: get([:providers]) || {},
+          thinking_tiers: get([:thinking, :tiers])
+        )
       end
 
       def configure_test_commands

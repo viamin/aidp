@@ -67,6 +67,7 @@ New to AIDP? Start here:
 | Document | Description |
 | ---------- | ------------- |
 | [AIDP Capabilities](AIDP_CAPABILITIES.md) | System capabilities overview |
+| [AI-Generated Determinism (AGD)](AI_GENERATED_DETERMINISM.md) | Pattern for AI-generated deterministic code |
 | [Worktree PR Change Requests](WORKTREE_PR_CHANGE_REQUESTS.md) | Worktree-based PR change workflow |
 | [Metadata Tool Discovery](METADATA_TOOL_DISCOVERY.md) | Metadata-driven skill/persona/template discovery |
 | [Concurrency Patterns](CONCURRENCY_PATTERNS.md) | Thread safety patterns |

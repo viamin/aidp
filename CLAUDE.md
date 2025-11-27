@@ -97,6 +97,17 @@ Every code generation must adhere to the rules in [`docs/LLM_STYLE_GUIDE.md`](do
 
 Meaning and decisions go to AI. Mechanical and structural tasks go to code.
 
+### 5a. AI-Generated Determinism (AGD)
+
+When AI should run **once during configuration** to generate deterministic code:
+
+- Use for stable input formats (test/lint output)
+- AI generates patterns/rules stored in config
+- Runtime execution is deterministic (no AI calls)
+- Example: `AIFilterFactory` generates `FilterDefinition` during setup
+
+See [`docs/AI_GENERATED_DETERMINISM.md`](docs/AI_GENERATED_DETERMINISM.md) for the full pattern.
+
 ### 6. Logging (CRITICAL)
 
 **Instrument ALL important code paths with `Aidp.log_debug()`**
@@ -178,6 +189,7 @@ When you need to understand a specific area:
 | Devcontainers | `docs/DEVELOPMENT_CONTAINER.md` |
 | Testing | `docs/LLM_STYLE_GUIDE.md` (Section 7) |
 | ZFC Pattern | `docs/LLM_STYLE_GUIDE.md` (Section 2) |
+| AGD Pattern | `docs/AI_GENERATED_DETERMINISM.md` |
 
 ## Anti-Patterns to Avoid
 
