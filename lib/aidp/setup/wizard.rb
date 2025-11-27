@@ -6,6 +6,7 @@ require "yaml"
 require "time"
 require "fileutils"
 require "json"
+require "ostruct"
 
 require_relative "../util"
 require_relative "../config/paths"
