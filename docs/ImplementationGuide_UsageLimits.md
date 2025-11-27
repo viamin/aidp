@@ -26,7 +26,7 @@ This guide provides comprehensive implementation guidance for adding configurabl
 
 ### Hexagonal Architecture Layers
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                      PRESENTATION LAYER                     │
 │  ┌────────────────────────────────────────────────────────┐ │
@@ -95,7 +95,7 @@ This guide provides comprehensive implementation guidance for adding configurabl
 ### Component Responsibilities (Single Responsibility Principle)
 
 | Component | Single Responsibility |
-|-----------|----------------------|
+| --------- | --------------------- |
 | **UsageLimitEnforcer** | Enforce usage limits by checking before API calls |
 | **UsageLimitTracker** | Track and aggregate usage metrics per period |
 | **UsagePeriod** | Represent time periods and handle reset logic |
@@ -111,6 +111,7 @@ This guide provides comprehensive implementation guidance for adding configurabl
 See full domain model with code examples in the appendix of this guide.
 
 **Key Domain Objects:**
+
 - **UsageLimit** (Value Object): Immutable configuration of limits
 - **UsagePeriod** (Value Object): Time period calculations and boundaries
 - **UsageLimitTracker** (Domain Service): Track and query usage metrics
@@ -123,12 +124,13 @@ See full domain model with code examples in the appendix of this guide.
 ### Research Provider Billing APIs
 
 **Conclusion**: Most providers (Anthropic, Gemini, GitHub Copilot, Cursor) don't expose billing APIs. AIDP must track usage client-side by:
+
 1. Parsing response metadata (tokens used per request)
 2. Calculating costs using published pricing tables
 3. Persisting usage data locally
 
 | Provider | Billing API | Available Metrics | Client-Side Tracking |
-|----------|-------------|-------------------|----------------------|
+| -------- | ----------- | ----------------- | -------------------- |
 | Anthropic | No | None | Parse response headers |
 | OpenAI | Yes (`/v1/usage`) | Tokens, cost | Can verify against API |
 | Gemini | Cloud Console | Tokens, requests | Parse response metadata |
@@ -140,7 +142,7 @@ See full domain model with code examples in the appendix of this guide.
 ## Pattern-to-Use-Case Matrix
 
 | Pattern | Use Case | Implementation | Benefit |
-|---------|----------|----------------|---------|
+| ------- | -------- | -------------- | ------- |
 | **Value Object** | UsageLimit, UsagePeriod | Immutable objects with equality based on values | Prevents accidental mutation |
 | **Repository** | ProviderMetrics persistence | Abstract data access layer | Decouple domain from storage |
 | **Service Object** | UsageLimitTracker, UsageLimitEnforcer | Single-purpose services with clear interfaces | Maintain SRP |
@@ -157,16 +159,19 @@ See full domain model with code examples in the appendix of this guide.
 ### UsageLimitEnforcer.check_before_request
 
 **Preconditions**:
+
 - Provider must be configured
 - Tracker must be initialized  
 - Usage limit configuration must be valid
 
 **Postconditions**:
+
 - If limit not exceeded: No exception raised
 - If limit exceeded: UsageLimitExceededError raised with usage summary
 - Logs debug message regardless of outcome
 
 **Invariants**:
+
 - Usage data is never corrupted
 - Period resets are idempotent
 - Cost/token tracking is monotonically increasing within a period
@@ -174,11 +179,13 @@ See full domain model with code examples in the appendix of this guide.
 ### UsageLimitTracker.record_usage
 
 **Preconditions**:
+
 - tokens > 0
 - cost >= 0
 - tier in [:mini, :advanced]
 
 **Postconditions**:
+
 - Total tokens increased by tokens
 - Total cost increased by cost
 - Tier-specific usage increased
@@ -186,6 +193,7 @@ See full domain model with code examples in the appendix of this guide.
 - last_updated timestamp updated
 
 **Invariants**:
+
 - Total tokens >= sum of tier tokens
 - Total cost >= sum of tier costs
 - Period boundaries are consistent
@@ -196,7 +204,7 @@ See full domain model with code examples in the appendix of this guide.
 
 ### 1. Configuration Loading (ConfigManager)
 
-```
+```text
 ConfigManager.load
   ↓
 ConfigSchema.validate (includes usage_limits validation)
@@ -210,7 +218,7 @@ ProviderConfig.usage_limits_config
 
 ### 2. Provider Execution (Provider Base)
 
-```
+```text
 Provider.send_message(prompt, tier)
   ↓
 Provider.before_api_request(tier)
@@ -228,7 +236,7 @@ ProviderMetrics.save_metrics
 
 ### 3. Interactive Configuration (Wizard)
 
-```
+```text
 Wizard.run
   ↓
 Wizard.configure_providers
@@ -249,6 +257,7 @@ ConfigSchema.validate
 **Coverage Target**: 95%+ for domain and service classes
 
 **Key Test Files**:
+
 - `spec/aidp/harness/usage_limit_spec.rb` - Value object validation
 - `spec/aidp/harness/usage_period_spec.rb` - Period calculations and boundaries
 - `spec/aidp/harness/usage_limit_tracker_spec.rb` - Usage tracking and persistence
@@ -256,6 +265,7 @@ ConfigSchema.validate
 - `spec/aidp/harness/provider_config_spec.rb` - Configuration accessors
 
 **Test Categories**:
+
 1. **Value Object Tests**: Immutability, validation, equality
 2. **Period Calculation Tests**: Daily/weekly/monthly boundaries, timezone handling
 3. **Usage Tracking Tests**: Increment counters, persist data, period reset
@@ -263,6 +273,7 @@ ConfigSchema.validate
 5. **Configuration Tests**: Schema validation, defaults, accessor methods
 
 **Edge Cases to Test**:
+
 - Period boundaries (month end, year end, DST transitions)
 - Concurrent access to usage data
 - Corrupted usage data recovery
@@ -272,6 +283,7 @@ ConfigSchema.validate
 ### Integration Tests
 
 **Full Workflow Tests**:
+
 1. Config → Enforcement → Tracking workflow
 2. Provider execution with limits
 3. Period reset across time boundaries
@@ -280,12 +292,14 @@ ConfigSchema.validate
 ### Test Doubles
 
 **Use Dependency Injection**:
+
 ```ruby
 let(:metrics_repo) { instance_double(Aidp::Harness::ProviderMetrics) }
 let(:tracker) { described_class.new(metrics_repo: metrics_repo) }
 ```
 
 **Avoid Mocking Time**:
+
 ```ruby
 # Stub Time.now for deterministic tests
 allow(Time).to receive(:now).and_return(fixed_time)
@@ -300,6 +314,7 @@ allow(Time).to receive(:now).and_return(fixed_time)
 **Goal**: Add usage tracking without affecting existing functionality
 
 **Steps**:
+
 1. Implement domain classes (UsageLimit, UsagePeriod, UsageLimitTracker)
 2. Extend ConfigSchema with usage_limits (default: disabled)
 3. Add ProviderConfig accessor methods
@@ -313,6 +328,7 @@ allow(Time).to receive(:now).and_return(fixed_time)
 **Goal**: Enable enforcement for users who configure it
 
 **Steps**:
+
 1. Implement UsageLimitEnforcer
 2. Add provider hooks (before/after request) - check if enabled
 3. Update Wizard to prompt for usage limits (usage-based providers only)
@@ -325,6 +341,7 @@ allow(Time).to receive(:now).and_return(fixed_time)
 **Goal**: Provide sensible defaults for new users
 
 **Steps**:
+
 1. Update Wizard defaults to suggest limits based on tier
 2. Update documentation with recommended limits
 3. Add usage monitoring CLI commands
@@ -336,11 +353,13 @@ allow(Time).to receive(:now).and_return(fixed_time)
 ## Security and Safety
 
 ### Concerns
+
 1. **Cost Overruns**: Primary concern - prevent unexpected bills
 2. **Data Integrity**: Usage data must be accurate and not corrupted
 3. **Concurrent Access**: Multiple processes may access same usage data
 
 ### Mitigations
+
 1. **File Locking**: Use file locking when persisting usage data
 2. **Atomic Writes**: Write to temporary file, then rename
 3. **Validation**: Validate configuration at load time
@@ -396,6 +415,7 @@ providers:
 This implementation guide provides a complete blueprint for adding usage limits to AIDP's usage-based providers. The architecture follows hexagonal/DDD patterns with clear separation of concerns across presentation, application, domain, and infrastructure layers.
 
 **Key Design Decisions**:
+
 1. **Client-side tracking**: Most providers don't expose billing APIs
 2. **Tier-based limits**: Different limits for mini vs advanced models
 3. **Flexible periods**: Daily, weekly, monthly tracking
