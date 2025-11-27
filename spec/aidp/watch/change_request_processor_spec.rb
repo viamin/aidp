@@ -557,8 +557,8 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
             block&.call
           end
 
-          # Ensure all run_git calls return a string value to avoid nil.strip errors
-          allow(processor).to receive(:run_git).and_return("")
+          # Allow run_git calls to be mocked individually in tests
+          # Removed general stub to avoid conflicts with specific expectations
 
           # Allow repository_client to receive post_comment for error handling
           allow(repository_client).to receive(:post_comment)
@@ -598,6 +598,11 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
             expect(processor).to receive(:run_git)
               .with(["pull", "--ff-only", "origin", "feature-branch"], allow_failure: true)
               .and_return("Pulled origin/feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["rev-parse", "--abbrev-ref", "HEAD"])
+              .and_return("feature-branch\n")
               .ordered
 
             processor.send(:checkout_pr_branch, pr)
@@ -645,6 +650,11 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
             expect(processor).to receive(:run_git)
               .with(["pull", "--ff-only", "origin", "feature-branch"], allow_failure: true)
               .and_return("Pulled origin/feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["rev-parse", "--abbrev-ref", "HEAD"])
+              .and_return("feature-branch\n")
               .ordered
 
             processor.send(:checkout_pr_branch, pr)
@@ -706,6 +716,9 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
           # Setup processor to be in a worktree directory
           processor.instance_variable_set(:@project_dir, "/tmp/.worktrees/pr-123")
 
+          # Clear any existing ordered expectations from previous tests
+          RSpec::Mocks.space.proxy_for(processor).reset
+
           # Mock Dir.chdir to not actually change directories
           allow(Dir).to receive(:chdir) do |path, &block|
             block&.call
@@ -716,7 +729,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         end
 
         it "commits and pushes when changes exist" do
-          allow(processor).to receive(:run_git).with(%w[status --porcelium]).and_return("M test.rb
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb
 ")
           expect(processor).to receive(:run_git).with(%w[add -A]).and_return("")
           expect(processor).to receive(:run_git).with(["commit", "-m", anything]).and_return("Created commit")
@@ -727,14 +740,14 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         end
 
         it "returns false when no changes to commit" do
-          allow(processor).to receive(:run_git).with(%w[status --porcelium]).and_return("")
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("")
 
           result = processor.send(:commit_and_push, pr, analysis)
           expect(result).to be false
         end
 
         it "returns false when commit fails" do
-          allow(processor).to receive(:run_git).with(%w[status --porcelium]).and_return("M test.rb
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb
 ")
           expect(processor).to receive(:run_git).with(%w[add -A]).and_return("")
           expect(processor).to receive(:run_git).with(["commit", "-m", anything]).and_raise(StandardError.new("Commit failed"))
@@ -744,7 +757,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         end
 
         it "returns false when push fails" do
-          allow(processor).to receive(:run_git).with(%w[status --porcelium]).and_return("M test.rb
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb
 ")
           expect(processor).to receive(:run_git).with(%w[add -A]).and_return("")
           expect(processor).to receive(:run_git).with(["commit", "-m", anything]).and_return("Created commit")
@@ -761,7 +774,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         end
 
         it "handles errors outside the git operations" do
-          allow(processor).to receive(:run_git).with(%w[status --porcelium]).and_raise(StandardError.new("Unexpected error"))
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_raise(StandardError.new("Unexpected error"))
 
           result = processor.send(:commit_and_push, pr, analysis)
           expect(result).to be false
@@ -1136,6 +1149,274 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
           processor.process(pr)
         end
+      end
+    end
+
+    # Enhanced worktree functionality tests
+    describe "enhanced worktree change application" do
+      let(:worktree_project_dir) { "/tmp/.worktrees/pr-123-feature-branch" }
+
+      before do
+        # Set up processor to be in a worktree directory
+        processor.instance_variable_set(:@project_dir, worktree_project_dir)
+
+        allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
+        allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
+        allow(repository_client).to receive(:fetch_pull_request_diff).and_return(diff)
+        allow(repository_client).to receive(:post_comment)
+        allow(repository_client).to receive(:remove_labels)
+      end
+
+      it "detects worktree context and applies enhanced logging" do
+        changes = [
+          {
+            "file" => "test.rb",
+            "action" => "create",
+            "content" => "# Test file content\nputs 'hello world'\n",
+            "description" => "Create test file"
+          }
+        ]
+
+        # Mock file operations
+        allow(File).to receive(:exist?).and_return(false, true) # First for directory check, then for file validation
+        allow(File).to receive(:directory?).and_return(true)
+        allow(File).to receive(:readable?).and_return(true)
+        allow(File).to receive(:size).and_return(42)
+        allow(File).to receive(:write).and_return(42)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(FileUtils).to receive(:mkdir_p).and_return(true)
+
+        # Capture debug logs
+        debug_logs = []
+        allow(Aidp).to receive(:log_debug) do |component, action, details|
+          debug_logs << {component: component, action: action, details: details}
+        end
+
+        # Capture info logs
+        info_logs = []
+        allow(Aidp).to receive(:log_info) do |component, action, details|
+          info_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify worktree context detection
+        expect(result[:worktree_context]).to be true
+        expect(result[:successful_changes]).to eq 1
+
+        # Verify enhanced logging
+        debug_log_actions = debug_logs.map { |log| log[:action] }
+        expect(debug_log_actions).to include("Starting change application")
+        expect(debug_log_actions).to include("Preparing to apply change")
+        expect(debug_log_actions).to include("Applied file change")
+
+        # Verify worktree-specific info logging
+        worktree_info_logs = info_logs.select { |log| log[:action] == "Worktree changes applied successfully" }
+        expect(worktree_info_logs).not_to be_empty
+        expect(worktree_info_logs.first[:details][:worktree_path]).to eq worktree_project_dir
+      end
+
+      it "applies security validation for delete operations in worktree" do
+        changes = [
+          {
+            "file" => "../../etc/passwd",
+            "action" => "delete",
+            "description" => "Malicious delete attempt"
+          }
+        ]
+
+        # Mock file system
+        allow(File).to receive(:exist?).with("/tmp/.worktrees/pr-123-feature-branch/../../etc/passwd").and_return(true)
+        allow(File).to receive(:expand_path).and_call_original
+
+        # Capture error logs
+        error_logs = []
+        allow(Aidp).to receive(:log_error) do |component, action, details|
+          error_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify security violation is caught
+        expect(result[:failed_changes]).to eq 1
+        expect(result[:errors].first[:error_type]).to eq "security_violation"
+
+        # Verify security error logging
+        security_errors = error_logs.select { |log| log[:action] == "Security violation during change application" }
+        expect(security_errors).not_to be_empty
+      end
+
+      it "handles directory creation in worktree context" do
+        changes = [
+          {
+            "file" => "deep/nested/structure/new_file.rb",
+            "action" => "create",
+            "content" => "# Nested file content\n",
+            "description" => "Create nested file"
+          }
+        ]
+
+        # Mock file operations
+        directory_creations = []
+
+        # Track directory existence checks
+        allow(File).to receive(:directory?) do |path|
+          !path.include?("deep/nested/structure") # Target directory doesn't exist initially
+        end
+
+        # File existence checks: directory doesn't exist, then file exists and is readable
+        file_checks = 0
+        allow(File).to receive(:exist?) do |path|
+          file_checks += 1
+          case file_checks
+          when 1
+            false # Directory doesn't exist
+          else
+            true # File exists and is readable
+          end
+        end
+
+        allow(File).to receive(:readable?).and_return(true)
+        allow(File).to receive(:size).and_return(25)
+        allow(File).to receive(:write).and_return(25)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(FileUtils).to receive(:mkdir_p) do |path|
+          directory_creations << path
+          true
+        end
+
+        # Capture debug logs
+        debug_logs = []
+        allow(Aidp).to receive(:log_debug) do |component, action, details|
+          debug_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify directory creation
+        expect(directory_creations).not_to be_empty
+        expected_directory = File.join(worktree_project_dir, "deep/nested/structure")
+        expect(directory_creations).to include(expected_directory)
+
+        # Verify logging of directory creation
+        dir_creation_logs = debug_logs.select { |log| log[:action] == "Created directory structure" }
+        expect(dir_creation_logs).not_to be_empty
+        expect(dir_creation_logs.first[:details][:in_worktree]).to be true
+
+        # Verify successful change
+        expect(result[:successful_changes]).to eq 1
+        expect(result[:worktree_context]).to be true
+      end
+
+      it "provides comprehensive change application summary with success rate" do
+        changes = [
+          {
+            "file" => "success1.rb",
+            "action" => "create",
+            "content" => "# Success 1\n",
+            "description" => "Create success file 1"
+          },
+          {
+            "file" => "success2.rb",
+            "action" => "edit",
+            "content" => "# Success 2\n",
+            "description" => "Edit success file 2"
+          },
+          {
+            "file" => "empty.rb",
+            "action" => "create",
+            "content" => nil,
+            "description" => "Empty content - should be skipped"
+          }
+        ]
+
+        # Mock file operations more specifically
+        allow(File).to receive(:exist?).and_return(true)
+
+        allow(File).to receive(:directory?).and_return(true)
+        allow(File).to receive(:readable?).and_return(true)
+        allow(File).to receive(:size).and_return(12)
+        allow(File).to receive(:write).and_return(12)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(File).to receive(:stat).and_return(double(mode: 0o644))
+        allow(FileUtils).to receive(:mkdir_p).and_return(true)
+
+        # Capture info logs
+        info_logs = []
+        allow(Aidp).to receive(:log_info) do |component, action, details|
+          info_logs << {component: component, action: action, details: details}
+        end
+
+        # Capture warn logs
+        warn_logs = []
+        allow(Aidp).to receive(:log_warn) do |component, action, details|
+          warn_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify results (empty content file is skipped)
+        expect(result[:total_changes]).to eq 3
+        expect(result[:successful_changes]).to eq 2
+        expect(result[:skipped_changes]).to eq 1  # Empty content file is skipped
+        expect(result[:failed_changes]).to eq 0
+
+        # Verify comprehensive summary logging
+        summary_logs = info_logs.select { |log| log[:action] == "Change application summary" }
+        expect(summary_logs).not_to be_empty
+
+        summary_details = summary_logs.first[:details]
+        expect(summary_details[:success_rate]).to eq 66.67
+        expect(summary_details[:in_worktree]).to be true
+        expect(summary_details[:working_directory]).to eq worktree_project_dir
+
+        # Verify worktree-specific logging
+        worktree_logs = info_logs.select { |log| log[:action] == "Worktree changes applied successfully" }
+        expect(worktree_logs).not_to be_empty
+        expect(worktree_logs.first[:details][:files_modified]).to eq 2
+      end
+
+      it "handles file validation failures gracefully" do
+        changes = [
+          {
+            "file" => "test.rb",
+            "action" => "create",
+            "content" => "# Test content\n",
+            "description" => "Create test file"
+          }
+        ]
+
+        # Mock file operations to simulate validation failure
+        allow(File).to receive(:exist?).and_return(true) # Directory exists
+        allow(File).to receive(:directory?).and_return(true)
+        allow(File).to receive(:write).and_return(15)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(FileUtils).to receive(:mkdir_p).and_return(true)
+
+        # Simulate validation failure
+        validation_calls = 0
+        allow(File).to receive(:exist?) do |path|
+          validation_calls += 1
+          validation_calls == 1 || !path.include?("test.rb")
+        end
+        allow(File).to receive(:readable?).and_return(false)
+
+        # Capture error logs
+        error_logs = []
+        allow(Aidp).to receive(:log_error) do |component, action, details|
+          error_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify failure handling
+        expect(result[:failed_changes]).to eq 1
+        expect(result[:successful_changes]).to eq 0
+
+        # Verify error logging
+        error_logs_filtered = error_logs.select { |log| log[:action] == "Change application failed" }
+        expect(error_logs_filtered).not_to be_empty
+        expect(error_logs_filtered.first[:details][:worktree_context]).to be true
       end
     end
   end

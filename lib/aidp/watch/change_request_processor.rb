@@ -663,66 +663,101 @@ module Aidp
       private
 
       def apply_changes(changes)
+        # Validate we're in a worktree for enhanced change handling
+        in_worktree = @project_dir.include?(".worktrees")
+
+        Aidp.log_debug("change_request_processor", "Starting change application",
+          total_changes: changes.length,
+          in_worktree: in_worktree,
+          working_dir: @project_dir)
+
         # Track overall change application results
         results = {
           total_changes: changes.length,
           successful_changes: 0,
           failed_changes: 0,
           skipped_changes: 0,
-          errors: []
+          errors: [],
+          worktree_context: in_worktree
         }
 
-        changes.each do |change|
+        # Enhanced change application with worktree context awareness
+        changes.each_with_index do |change, index|
           file_path = change["file"].start_with?(@project_dir) ? change["file"] : File.join(@project_dir, change["file"])
 
           Aidp.log_debug("change_request_processor", "Preparing to apply change",
+            index: index + 1,
+            total: changes.length,
             action: change["action"],
             file: change["file"],
-            content_length: change["content"]&.length || 0)
+            content_length: change["content"]&.length || 0,
+            in_worktree: in_worktree)
 
           begin
             case change["action"]
             when "create", "edit"
-              # Enhanced file change strategy
+              # Enhanced file change strategy with worktree awareness
               unless change["content"]
                 results[:skipped_changes] += 1
                 Aidp.log_warn("change_request_processor", "Skipping change with empty content",
-                  file: change["file"], action: change["action"])
+                  file: change["file"], action: change["action"], in_worktree: in_worktree)
                 next
               end
 
-              # Ensure directory exists
-              FileUtils.mkdir_p(File.dirname(file_path))
+              # Enhanced directory creation with worktree validation
+              target_directory = File.dirname(file_path)
+              unless File.directory?(target_directory)
+                FileUtils.mkdir_p(target_directory)
+                Aidp.log_debug("change_request_processor", "Created directory structure",
+                  directory: target_directory, in_worktree: in_worktree)
+              end
 
               # Preserve file permissions if file already exists
               old_permissions = File.exist?(file_path) ? File.stat(file_path).mode : 0o644
 
-              # Write content
+              # Enhanced content writing with validation
               File.write(file_path, change["content"])
               File.chmod(old_permissions, file_path)
+
+              # Validate file was written correctly
+              unless File.exist?(file_path) && File.readable?(file_path)
+                raise "File creation validation failed"
+              end
 
               display_message("  ✓ #{change["action"]} #{change["file"]}", type: :muted) if @verbose
               Aidp.log_debug("change_request_processor", "Applied file change",
                 action: change["action"],
                 file: change["file"],
                 content_preview: change["content"]&.slice(0, 100),
-                original_source_comments: change["source_comment_urls"])
+                file_size: File.size(file_path),
+                original_source_comments: change["source_comment_urls"],
+                in_worktree: in_worktree)
 
               results[:successful_changes] += 1
 
             when "delete"
-              # Enhanced delete strategy
+              # Enhanced delete strategy with worktree context
               if File.exist?(file_path)
+                # Additional validation for worktree safety
+                if in_worktree
+                  canonical_path = File.expand_path(file_path)
+                  worktree_canonical = File.expand_path(@project_dir)
+                  unless canonical_path.start_with?(worktree_canonical)
+                    raise SecurityError, "Attempted to delete file outside worktree"
+                  end
+                end
+
                 File.delete(file_path)
                 display_message("  ✓ Deleted #{change["file"]}", type: :muted) if @verbose
                 Aidp.log_debug("change_request_processor", "Deleted file",
                   file: change["file"],
-                  original_source_comments: change["source_comment_urls"])
+                  original_source_comments: change["source_comment_urls"],
+                  in_worktree: in_worktree)
                 results[:successful_changes] += 1
               else
                 results[:skipped_changes] += 1
                 Aidp.log_warn("change_request_processor", "File to delete does not exist",
-                  file: change["file"])
+                  file: change["file"], in_worktree: in_worktree)
               end
 
             else
@@ -733,20 +768,39 @@ module Aidp
               results[:errors] << {
                 file: change["file"],
                 action: change["action"],
-                error: error_msg
+                error: error_msg,
+                worktree_context: in_worktree
               }
 
               Aidp.log_warn("change_request_processor", "Unhandled change action",
                 action: change["action"],
-                file: change["file"])
+                file: change["file"],
+                in_worktree: in_worktree)
             end
+          rescue SecurityError => e
+            results[:failed_changes] += 1
+            error_details = {
+              file: change["file"],
+              action: change["action"],
+              error: e.message,
+              error_type: "security_violation",
+              worktree_context: in_worktree
+            }
+
+            results[:errors] << error_details
+
+            Aidp.log_error("change_request_processor", "Security violation during change application",
+              **error_details)
+
+            display_message("  🔒 Security error applying change to #{change["file"]}: #{e.message}", type: :error)
           rescue => e
             results[:failed_changes] += 1
             error_details = {
               file: change["file"],
               action: change["action"],
               error: e.message,
-              backtrace: e.backtrace&.first(3)
+              backtrace: e.backtrace&.first(3),
+              worktree_context: in_worktree
             }
 
             results[:errors] << error_details
@@ -758,15 +812,25 @@ module Aidp
           end
         end
 
-        # Log overall change application results
+        # Enhanced logging of overall change application results
         Aidp.log_info("change_request_processor", "Change application summary",
           total_changes: results[:total_changes],
           successful_changes: results[:successful_changes],
           skipped_changes: results[:skipped_changes],
           failed_changes: results[:failed_changes],
-          errors_count: results[:errors].length)
+          errors_count: results[:errors].length,
+          success_rate: (results[:successful_changes].to_f / results[:total_changes] * 100).round(2),
+          in_worktree: in_worktree,
+          working_directory: @project_dir)
 
-        # Optional: Return results for potential additional handling
+        # Additional worktree-specific logging
+        if in_worktree && results[:successful_changes] > 0
+          Aidp.log_info("change_request_processor", "Worktree changes applied successfully",
+            worktree_path: @project_dir,
+            files_modified: results[:successful_changes])
+        end
+
+        # Return enhanced results for potential additional handling
         results
       end
 
@@ -808,25 +872,21 @@ module Aidp
             return false
           end
 
-          # Detailed change tracking
-          status_result = run_git(%w[status --porcelain])
-          modified_files = status_result.split("\n").map { |l| l.strip.split(" ", 2).last }
-
-          return false if status_result.strip.empty?
-
-          result = false  # Track final result explicitly
-
           begin
-            # Comprehensive staging
+            # Check for changes
+            status_result = run_git(%w[status --porcelain])
+            return false if status_result.strip.empty?
+
+            modified_files = status_result.split("\n").map { |l| l.strip.split(" ", 2).last }
+
+            # Stage all changes
             run_git(%w[add -A])
             Aidp.log_debug("change_request_processor", "Staged changes",
               pr_number: pr_data[:number],
               staged_files: modified_files)
 
-            # Create commit with enhanced details
+            # Create commit
             commit_message = build_commit_message(pr_data, analysis)
-
-            # Detailed commit tracking
             commit_result = run_git(["commit", "-m", commit_message])
             first_line = commit_message.lines.first.strip
             Aidp.log_info(
@@ -838,64 +898,60 @@ module Aidp
             )
             display_message("💾 Created commit: #{first_line}", type: :info)
 
-            # Advanced push mechanism
+            # Push changes
             head_ref = pr_data[:head_ref]
-
-            # Attempt to push changes
-            push_result = run_git(["push", "origin", head_ref], allow_failure: false)
-
-            Aidp.log_info("change_request_processor", "Pushed changes",
-              pr: pr_data[:number],
-              branch: head_ref,
-              push_result: push_result.strip)
-
-            display_message("⬆️  Pushed changes to #{head_ref}", type: :success)
-            result = true
-          rescue => push_error
-            # Push failed, but commit was successful
-            Aidp.log_warn("change_request_processor", "Push failed, but commit was successful",
-              pr_number: pr_data[:number],
-              error: push_error.message)
-
-            # Post a detailed comment about the push failure
-            comment_body = <<~COMMENT
-              #{COMMENT_HEADER}
-
-              ⚠️ Automated changes were committed successfully, but pushing to the branch failed.
-
-              **Error Details:**
-              ```
-              #{push_error.message}
-              ```
-
-              **Suggested Actions:**
-              1. Check branch permissions
-              2. Verify remote repository configuration
-              3. Manually push the changes
-              4. Contact repository administrator
-            COMMENT
-
             begin
-              @repository_client.post_comment(pr_data[:number], comment_body)
-            rescue => comment_error
-              Aidp.log_warn("change_request_processor", "Failed to post push error comment",
+              push_result = run_git(["push", "origin", head_ref], allow_failure: false)
+              Aidp.log_info("change_request_processor", "Pushed changes",
+                pr: pr_data[:number],
+                branch: head_ref,
+                push_result: push_result.strip)
+              display_message("⬆️  Pushed changes to #{head_ref}", type: :success)
+              return true
+            rescue => push_error
+              # Push failed, but commit was successful
+              Aidp.log_warn("change_request_processor", "Push failed, but commit was successful",
                 pr_number: pr_data[:number],
-                error: comment_error.message)
-            end
+                error: push_error.message)
 
-            # result remains false because the push failed
-          rescue => unexpected_error
+              # Post a detailed comment about the push failure
+              comment_body = <<~COMMENT
+                #{COMMENT_HEADER}
+
+                ⚠️ Automated changes were committed successfully, but pushing to the branch failed.
+
+                **Error Details:**
+                ```
+                #{push_error.message}
+                ```
+
+                **Suggested Actions:**
+                1. Check branch permissions
+                2. Verify remote repository configuration
+                3. Manually push the changes
+                4. Contact repository administrator
+              COMMENT
+
+              begin
+                @repository_client.post_comment(pr_data[:number], comment_body)
+              rescue => comment_error
+                Aidp.log_warn("change_request_processor", "Failed to post push error comment",
+                  pr_number: pr_data[:number],
+                  error: comment_error.message)
+              end
+
+              return false
+            end
+          rescue => error
             # Catch any other unexpected errors during the entire process
             Aidp.log_error(
               "change_request_processor", "Unexpected error in commit_and_push",
               pr_number: pr_data[:number],
-              error: unexpected_error.message,
-              backtrace: unexpected_error.backtrace.first(5)
+              error: error.message,
+              backtrace: error.backtrace.first(5)
             )
-            # result remains false
+            return false
           end
-
-          result
         end
       end
 
