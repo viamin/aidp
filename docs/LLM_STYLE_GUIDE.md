@@ -41,7 +41,7 @@ See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern ex
 **When to use AGD** (vs ZFC):
 
 | Use AGD | Use ZFC |
-|---------|---------|
+| ------- | ------- |
 | Input format is stable (tool output) | Input varies (natural language) |
 | High-frequency runtime (work loops) | One-off decisions |
 | Patterns can be extracted (regex) | Judgment/nuance required |
@@ -75,6 +75,7 @@ end
 ```
 
 **Checklist**:
+
 - [ ] Artifact is immutable (freeze after creation)
 - [ ] Artifact serializable to YAML/JSON for config storage
 - [ ] AI uses cheap tier (mini) - only runs once

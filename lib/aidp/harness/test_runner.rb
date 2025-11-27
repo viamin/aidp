@@ -15,7 +15,7 @@ module Aidp
         @project_dir = project_dir
         @config = config
         @iteration_count = 0
-        @filter_stats = { total_input_bytes: 0, total_output_bytes: 0 }
+        @filter_stats = {total_input_bytes: 0, total_output_bytes: 0}
       end
 
       # Run all configured tests
@@ -253,13 +253,13 @@ module Aidp
           return configured_mode if configured_mode
 
           # Default: full on first iteration, failures_only after
-          @iteration_count > 1 ? :failures_only : :full
+          (@iteration_count > 1) ? :failures_only : :full
         when :lint
           configured_mode = lint_output_mode_from_config
           return configured_mode if configured_mode
 
           # Default: full on first iteration, failures_only after
-          @iteration_count > 1 ? :failures_only : :full
+          (@iteration_count > 1) ? :failures_only : :full
         else
           :full
         end

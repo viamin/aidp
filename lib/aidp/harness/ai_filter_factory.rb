@@ -190,7 +190,7 @@ module Aidp
 
         if sample_output && !sample_output.empty?
           # Truncate very long output
-          truncated = sample_output.length > 5000 ? sample_output[0..5000] + "\n...[truncated]" : sample_output
+          truncated = (sample_output.length > 5000) ? sample_output[0..5000] + "\n...[truncated]" : sample_output
           prompt.gsub!("{{sample_output}}", truncated)
         else
           prompt.gsub!("{{sample_output}}", "[No sample output provided - generate common patterns for #{tool_name}]")
@@ -267,7 +267,7 @@ module Aidp
         # Run command and capture output (with timeout)
         require "open3"
 
-        stdout, stderr, status = Open3.capture3(command, chdir: project_dir)
+        stdout, stderr, _ = Open3.capture3(command, chdir: project_dir)
 
         # Combine stdout and stderr for analysis
         output = stdout + stderr

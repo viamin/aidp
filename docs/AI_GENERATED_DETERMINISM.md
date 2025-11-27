@@ -9,7 +9,7 @@ This is distinct from [Zero Framework Cognition (ZFC)](./ZFC_PATTERN.md), which 
 ## The Two AI Patterns
 
 | Aspect | ZFC (Zero Framework Cognition) | AGD (AI-Generated Determinism) |
-|--------|-------------------------------|--------------------------------|
+| ------ | ------------------------------ | ------------------------------ |
 | **When AI runs** | Every time, at runtime | Once, at configuration time |
 | **Runtime cost** | API calls per evaluation | Zero - deterministic execution |
 | **Output** | Decision/classification | Code, patterns, or rules |
@@ -196,11 +196,13 @@ When implementing AGD:
 **Problem**: Filter test/lint output to reduce tokens in work loops.
 
 **AGD Solution**:
+
 - `AIFilterFactory` generates `FilterDefinition` during `aidp setup`
 - Patterns stored in `.aidp/config.yml`
 - `GeneratedFilterStrategy` applies patterns at runtime (no AI)
 
 **Files**:
+
 - `lib/aidp/harness/filter_definition.rb`
 - `lib/aidp/harness/ai_filter_factory.rb`
 - `lib/aidp/harness/generated_filter_strategy.rb`
@@ -210,6 +212,7 @@ When implementing AGD:
 **Problem**: Classify errors from CLI tools when AI agent is unavailable.
 
 **AGD Solution**:
+
 - Generate error classification rules during setup
 - Match error patterns deterministically at runtime
 - Map to recovery strategies without AI calls
@@ -219,6 +222,7 @@ When implementing AGD:
 **Problem**: Generate consistent commit messages matching project style.
 
 **AGD Solution**:
+
 - AI analyzes recent commits during setup
 - Generates templates/patterns for conventional commits
 - Apply templates deterministically during work loops
@@ -227,7 +231,7 @@ When implementing AGD:
 
 Files implementing AGD should follow this pattern:
 
-```
+```text
 lib/aidp/<domain>/
 ├── <artifact>_definition.rb      # The generated artifact (value object)
 ├── ai_<artifact>_factory.rb      # AI-powered generator (runs at config time)
@@ -238,7 +242,7 @@ lib/aidp/<domain>/
 
 AGD and ZFC are complementary:
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                        AI Usage in AIDP                      │
 ├─────────────────────────────────────────────────────────────┤
