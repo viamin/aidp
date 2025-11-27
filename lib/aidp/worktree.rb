@@ -3,7 +3,6 @@
 require "fileutils"
 require "json"
 require "open3"
-require_relative "workstream_state"
 
 module Aidp
   # Manages git worktree operations for parallel workstreams.

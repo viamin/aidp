@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "main_menu"
-
 module Aidp
   module Harness
     module UI

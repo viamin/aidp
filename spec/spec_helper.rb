@@ -23,6 +23,7 @@ require "aidp"
 require "tempfile"
 require "fileutils"
 require "logger"
+require "tty-prompt"
 
 # Monkey-patch Logger::LogDevice to suppress closed stream warnings during tests
 # This prevents "log shifting failed. closed stream" messages during test cleanup

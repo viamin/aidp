@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "skills/skill"
-require_relative "skills/loader"
-require_relative "skills/registry"
-require_relative "skills/composer"
-
 module Aidp
   # Skills subsystem for managing agent personas and capabilities
   #

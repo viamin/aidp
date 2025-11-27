@@ -399,4 +399,216 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
       expect(coordinator).to be_a(described_class)
     end
   end
+
+  describe "#hot_reload_available?" do
+    it "returns true when Zeitwerk loader is set up for reloading" do
+      allow(Aidp::Loader).to receive(:setup?).and_return(true)
+      allow(Aidp::Loader).to receive(:reloading?).and_return(true)
+
+      coordinator = described_class.new(policy: policy, project_dir: project_dir)
+
+      expect(coordinator.hot_reload_available?).to be true
+    end
+
+    it "returns false when Zeitwerk loader is not set up" do
+      allow(Aidp::Loader).to receive(:setup?).and_return(false)
+      allow(Aidp::Loader).to receive(:reloading?).and_return(false)
+
+      coordinator = described_class.new(policy: policy, project_dir: project_dir)
+
+      expect(coordinator.hot_reload_available?).to be false
+    end
+
+    it "returns false when reloading is disabled" do
+      allow(Aidp::Loader).to receive(:setup?).and_return(true)
+      allow(Aidp::Loader).to receive(:reloading?).and_return(false)
+
+      coordinator = described_class.new(policy: policy, project_dir: project_dir)
+
+      expect(coordinator.hot_reload_available?).to be false
+    end
+  end
+
+  describe "#hot_reload_update" do
+    context "when updates are disabled" do
+      it "raises UpdateError" do
+        disabled_policy = Aidp::AutoUpdate::UpdatePolicy.new(enabled: false, policy: "off")
+        coordinator = described_class.new(policy: disabled_policy, project_dir: project_dir)
+
+        expect {
+          coordinator.hot_reload_update
+        }.to raise_error(Aidp::AutoUpdate::UpdateError, /disabled/)
+      end
+    end
+
+    context "when reloading is not available" do
+      it "raises UpdateError" do
+        allow(Aidp::Loader).to receive(:setup?).and_return(false)
+        allow(Aidp::Loader).to receive(:reloading?).and_return(false)
+
+        coordinator = described_class.new(policy: policy, project_dir: project_dir)
+
+        expect {
+          coordinator.hot_reload_update
+        }.to raise_error(Aidp::AutoUpdate::UpdateError, /not available/)
+      end
+    end
+
+    context "when no update is available" do
+      it "returns false without reloading" do
+        allow(Aidp::Loader).to receive(:setup?).and_return(true)
+        allow(Aidp::Loader).to receive(:reloading?).and_return(true)
+
+        mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+
+        no_update_check = Aidp::AutoUpdate::UpdateCheck.new(
+          current_version: "0.24.0",
+          available_version: "0.24.0",
+          update_available: false,
+          update_allowed: false,
+          policy_reason: "no update available",
+          checked_at: Time.now
+        )
+
+        allow(mock_detector).to receive(:check_for_update).and_return(no_update_check)
+        allow(mock_logger).to receive(:log_check)
+
+        coordinator = described_class.new(
+          policy: policy,
+          version_detector: mock_detector,
+          update_logger: mock_logger,
+          project_dir: project_dir
+        )
+
+        result = coordinator.hot_reload_update
+
+        expect(result).to be false
+      end
+    end
+
+    context "when update is available and reload succeeds" do
+      it "performs git pull and reloads classes" do
+        allow(Aidp::Loader).to receive(:setup?).and_return(true)
+        allow(Aidp::Loader).to receive(:reloading?).and_return(true)
+        allow(Aidp::Loader).to receive(:reload!).and_return(true)
+
+        mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+        mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+
+        update_check = Aidp::AutoUpdate::UpdateCheck.new(
+          current_version: "0.24.0",
+          available_version: "0.25.0",
+          update_available: true,
+          update_allowed: true,
+          policy_reason: "minor update allowed",
+          checked_at: Time.now
+        )
+
+        allow(mock_detector).to receive(:check_for_update).and_return(update_check)
+        allow(mock_logger).to receive(:log_check)
+        allow(mock_logger).to receive(:log_success)
+        allow(mock_tracker).to receive(:reset_on_success)
+
+        coordinator = described_class.new(
+          policy: policy,
+          version_detector: mock_detector,
+          update_logger: mock_logger,
+          failure_tracker: mock_tracker,
+          project_dir: project_dir
+        )
+
+        # Mock git pull to succeed
+        allow(coordinator).to receive(:perform_git_pull).and_return(true)
+
+        result = coordinator.hot_reload_update(update_check)
+
+        expect(result).to be true
+        expect(Aidp::Loader).to have_received(:reload!)
+        expect(mock_logger).to have_received(:log_success)
+        expect(mock_tracker).to have_received(:reset_on_success)
+      end
+    end
+
+    context "when git pull fails" do
+      it "raises UpdateError" do
+        allow(Aidp::Loader).to receive(:setup?).and_return(true)
+        allow(Aidp::Loader).to receive(:reloading?).and_return(true)
+
+        mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+
+        update_check = Aidp::AutoUpdate::UpdateCheck.new(
+          current_version: "0.24.0",
+          available_version: "0.25.0",
+          update_available: true,
+          update_allowed: true,
+          policy_reason: "minor update allowed",
+          checked_at: Time.now
+        )
+
+        allow(mock_detector).to receive(:check_for_update).and_return(update_check)
+        allow(mock_logger).to receive(:log_check)
+
+        coordinator = described_class.new(
+          policy: policy,
+          version_detector: mock_detector,
+          update_logger: mock_logger,
+          project_dir: project_dir
+        )
+
+        # Mock git pull to fail
+        allow(coordinator).to receive(:perform_git_pull).and_return(false)
+
+        expect {
+          coordinator.hot_reload_update(update_check)
+        }.to raise_error(Aidp::AutoUpdate::UpdateError, /Git pull failed/)
+      end
+    end
+
+    context "when Zeitwerk reload fails" do
+      it "raises UpdateError and records failure" do
+        allow(Aidp::Loader).to receive(:setup?).and_return(true)
+        allow(Aidp::Loader).to receive(:reloading?).and_return(true)
+        allow(Aidp::Loader).to receive(:reload!).and_return(false)
+
+        mock_detector = instance_double(Aidp::AutoUpdate::VersionDetector)
+        mock_logger = instance_double(Aidp::AutoUpdate::UpdateLogger)
+        mock_tracker = instance_double(Aidp::AutoUpdate::FailureTracker)
+
+        update_check = Aidp::AutoUpdate::UpdateCheck.new(
+          current_version: "0.24.0",
+          available_version: "0.25.0",
+          update_available: true,
+          update_allowed: true,
+          policy_reason: "minor update allowed",
+          checked_at: Time.now
+        )
+
+        allow(mock_detector).to receive(:check_for_update).and_return(update_check)
+        allow(mock_logger).to receive(:log_check)
+        allow(mock_logger).to receive(:log_failure)
+        allow(mock_tracker).to receive(:record_failure)
+
+        coordinator = described_class.new(
+          policy: policy,
+          version_detector: mock_detector,
+          update_logger: mock_logger,
+          failure_tracker: mock_tracker,
+          project_dir: project_dir
+        )
+
+        # Mock git pull to succeed
+        allow(coordinator).to receive(:perform_git_pull).and_return(true)
+
+        expect {
+          coordinator.hot_reload_update(update_check)
+        }.to raise_error(Aidp::AutoUpdate::UpdateError, /Zeitwerk reload failed/)
+
+        expect(mock_tracker).to have_received(:record_failure)
+        expect(mock_logger).to have_received(:log_failure)
+      end
+    end
+  end
 end
