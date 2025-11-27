@@ -725,5 +725,125 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         end
       end
     end
+
+    context "large PR change request handling" do
+      let(:large_diff) { "diff\n" * 3000 }
+      let(:analysis_result) do
+        {
+          can_implement: true,
+          needs_clarification: false,
+          changes: [
+            {
+              "file" => "test.rb",
+              "action" => "edit",
+              "content" => "new content",
+              "description" => "Implemented large PR changes"
+            }
+          ],
+          reason: "Large PR with comprehensive changes"
+        }
+      end
+
+      before do
+        allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
+        allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
+        allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
+        allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
+        allow(processor).to receive(:checkout_pr_branch)
+        allow(processor).to receive(:apply_changes)
+        allow(processor).to receive(:commit_and_push).and_return(true)
+        allow(repository_client).to receive(:post_comment)
+        allow(repository_client).to receive(:remove_labels)
+      end
+
+      context "when worktree bypass is disabled" do
+        let(:change_request_config) do
+          {
+            enabled: true,
+            max_diff_size: 2000,
+            allow_large_pr_worktree_bypass: false
+          }
+        end
+
+        it "prevents processing and posts a large diff comment" do
+          expect(repository_client).to receive(:post_comment).with(123, /diff is too large/)
+          expect(repository_client).to receive(:remove_labels).with(123, "aidp-request-changes")
+          expect(processor).not_to receive(:checkout_pr_branch)
+
+          processor.process(pr)
+        end
+      end
+
+      context "when worktree bypass is dynamically configured" do
+        context "when configuration allows bypass" do
+          let(:change_request_config) do
+            {
+              enabled: true,
+              max_diff_size: 2000,
+              allow_large_pr_worktree_bypass: true
+            }
+          end
+
+          it "allows processing despite large diff" do
+            expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
+            expect(processor).to receive(:checkout_pr_branch).with(pr)
+            expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
+
+            processor.process(pr)
+          end
+        end
+
+        context "when configuration allows bypass by default" do
+          let(:change_request_config) do
+            {
+              enabled: true,
+              max_diff_size: 2000
+            }
+          end
+
+          it "allows processing with default bypass" do
+            expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
+            expect(processor).to receive(:checkout_pr_branch).with(pr)
+            expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
+
+            processor.process(pr)
+          end
+        end
+      end
+
+      context "logging for large PRs" do
+        let(:change_request_config) do
+          {
+            enabled: true,
+            max_diff_size: 2000,
+            allow_large_pr_worktree_bypass: true
+          }
+        end
+
+        it "logs detailed information about large PR handling" do
+          # Private repo comments logging
+          expect(Aidp).to receive(:log_debug)
+            .with("change_request_processor", "filtering_authorized_comments",
+              total_comments: comments.length,
+              allowlist_count: 0,
+              is_private_repo: true)
+
+          # Private repo comments allowed logging
+          expect(Aidp).to receive(:log_debug)
+            .with("change_request_processor", "private_repo_comments_allowed",
+              comments_allowed: comments.length)
+
+          # Additional log debug expectation for PR diff size
+          expect(Aidp).to receive(:log_debug)
+            .with("change_request_processor", "PR diff size",
+              number: 123,
+              size: large_diff.lines.count,
+              max_allowed: 2000,
+              worktree_bypass: true)
+
+          processor.process(pr)
+        end
+      end
+    end
   end
 end
