@@ -44,8 +44,7 @@ module Aidp
         Aidp.log_debug("change_request_processor", "initializing",
           provider_name: provider_name,
           project_dir: project_dir,
-          verbose: verbose
-        )
+          verbose: verbose)
 
         # Initialize verifier
         @verifier = ImplementationVerifier.new(
@@ -60,8 +59,7 @@ module Aidp
         # Log label details
         Aidp.log_debug("change_request_processor", "label_configuration",
           change_request_label: @change_request_label,
-          needs_input_label: @needs_input_label
-        )
+          needs_input_label: @needs_input_label)
 
         # Load change request configuration
         @config = {
@@ -76,8 +74,7 @@ module Aidp
 
         # Log configuration details
         Aidp.log_debug("change_request_processor", "change_request_config",
-          config: @config.transform_values { |v| v.is_a?(Proc) ? "Proc" : v }
-        )
+          config: @config.transform_values { |v| v.is_a?(Proc) ? "Proc" : v })
 
         # Load safety configuration
         @safety_config = safety_config
@@ -86,8 +83,7 @@ module Aidp
         # Log safety configuration
         Aidp.log_debug("change_request_processor", "safety_configuration",
           author_allowlist: @author_allowlist,
-          allowlist_count: @author_allowlist.length
-        )
+          allowlist_count: @author_allowlist.length)
       end
 
       def process(pr)
@@ -169,14 +165,12 @@ module Aidp
         Aidp.log_debug("change_request_processor", "filtering_authorized_comments",
           total_comments: comments.length,
           allowlist_count: @author_allowlist.length,
-          is_private_repo: @author_allowlist.empty?
-        )
+          is_private_repo: @author_allowlist.empty?)
 
         if @author_allowlist.empty?
           # Private repo: trust all comments from PR participants
           Aidp.log_debug("change_request_processor", "private_repo_comments_allowed",
-            comments_allowed: comments.length
-          )
+            comments_allowed: comments.length)
           comments
         else
           # Public repo: only allow comments from allowlisted users
@@ -188,8 +182,7 @@ module Aidp
           Aidp.log_debug("change_request_processor", "public_repo_comment_filtering",
             total_comments: comments.length,
             authorized_comments: authorized_comments.length,
-            allowed_authors: authorized_comments.map { |c| c[:author] }
-          )
+            allowed_authors: authorized_comments.map { |c| c[:author] })
 
           authorized_comments
         end
@@ -682,8 +675,7 @@ module Aidp
           verification_result: {
             missing_items_count: verification_result[:missing_items]&.length || 0,
             additional_work_count: verification_result[:additional_work]&.length || 0
-          }
-        )
+          })
 
         display_message("⚠️  Implementation incomplete; creating follow-up tasks.", type: :warn)
 
@@ -691,8 +683,7 @@ module Aidp
         if verification_result[:additional_work] && !verification_result[:additional_work].empty?
           Aidp.log_debug("change_request_processor", "preparing_follow_up_tasks",
             pr_number: pr[:number],
-            additional_work_tasks_count: verification_result[:additional_work].length
-          )
+            additional_work_tasks_count: verification_result[:additional_work].length)
           create_follow_up_tasks(@project_dir, verification_result[:additional_work])
         end
 
@@ -712,8 +703,7 @@ module Aidp
           status: state_record[:status],
           verification_reasons_count: state_record[:verification_reasons]&.length || 0,
           missing_items_count: state_record[:missing_items]&.length || 0,
-          additional_work_count: state_record[:additional_work]&.length || 0
-        )
+          additional_work_count: state_record[:additional_work]&.length || 0)
 
         @state_store.record_change_request(pr[:number], state_record)
 
@@ -734,8 +724,7 @@ module Aidp
 
         Aidp.log_debug("change_request_processor", "start_creating_follow_up_tasks",
           working_dir: working_dir,
-          additional_work_tasks_count: additional_work.length
-        )
+          additional_work_tasks_count: additional_work.length)
 
         tasklist_file = File.join(working_dir, ".aidp", "tasklist.jsonl")
         FileUtils.mkdir_p(File.dirname(tasklist_file))
@@ -758,8 +747,7 @@ module Aidp
         Aidp.log_debug("change_request_processor", "follow_up_tasks_details",
           task_count: tasks_created.length,
           working_dir: working_dir,
-          task_descriptions: tasks_created.map(&:description)
-        )
+          task_descriptions: tasks_created.map(&:description))
 
         Aidp.log_info(
           "change_request_processor",
