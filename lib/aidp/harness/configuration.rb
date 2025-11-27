@@ -196,24 +196,46 @@ module Aidp
         normalize_commands(work_loop_config[:documentation_commands] || [])
       end
 
+      # Get output filtering configuration
+      def output_filtering_config
+        work_loop_config[:output_filtering] || default_output_filtering_config
+      end
+
+      # Check if output filtering is enabled
+      def output_filtering_enabled?
+        output_filtering_config[:enabled] != false
+      end
+
       # Get test output mode
       def test_output_mode
-        work_loop_config.dig(:test, :output_mode) || :full
+        mode = output_filtering_config[:test_mode]
+        mode ? mode.to_sym : :full
       end
 
       # Get max output lines for tests
       def test_max_output_lines
-        work_loop_config.dig(:test, :max_output_lines) || 500
+        output_filtering_config[:test_max_lines] || 500
       end
 
       # Get lint output mode
       def lint_output_mode
-        work_loop_config.dig(:lint, :output_mode) || :full
+        mode = output_filtering_config[:lint_mode]
+        mode ? mode.to_sym : :full
       end
 
       # Get max output lines for linters
       def lint_max_output_lines
-        work_loop_config.dig(:lint, :max_output_lines) || 300
+        output_filtering_config[:lint_max_lines] || 300
+      end
+
+      # Get include_context setting for output filtering
+      def output_filtering_include_context
+        output_filtering_config.fetch(:include_context, true)
+      end
+
+      # Get context_lines setting for output filtering
+      def output_filtering_context_lines
+        output_filtering_config[:context_lines] || 3
       end
 
       # Get guards configuration
@@ -1051,6 +1073,18 @@ module Aidp
           enabled: false,
           app_type: "web",
           tools: {}
+        }
+      end
+
+      def default_output_filtering_config
+        {
+          enabled: true,
+          test_mode: "full",
+          lint_mode: "full",
+          test_max_lines: 500,
+          lint_max_lines: 300,
+          include_context: true,
+          context_lines: 3
         }
       end
 

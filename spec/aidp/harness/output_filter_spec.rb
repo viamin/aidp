@@ -109,13 +109,13 @@ RSpec.describe Aidp::Harness::OutputFilter do
     end
 
     context "when output exceeds max_lines" do
-      let(:filter) { described_class.new(mode: :failures_only, max_lines: 5) }
+      let(:filter) { described_class.new(mode: :failures_only, max_lines: 10) }
 
       it "truncates output" do
         long_output = (1..100).map { |i| "Line #{i}\n" }.join
         result = filter.filter(long_output, framework: :unknown)
 
-        expect(result.lines.count).to be <= 6  # 5 lines + truncation message
+        expect(result.lines.count).to be <= 11  # 10 lines + truncation message
         expect(result).to include("[Output truncated")
       end
     end

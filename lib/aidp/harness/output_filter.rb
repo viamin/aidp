@@ -1,29 +1,33 @@
 # frozen_string_literal: true
 
+require_relative "output_filter_config"
+
 module Aidp
   module Harness
     # Filters test and linter output to reduce token consumption
     # Uses framework-specific strategies to extract relevant information
     class OutputFilter
-      # Output modes
+      # Output modes (kept for backward compatibility)
       MODES = {
         full: :full,                   # No filtering (default for first run)
         failures_only: :failures_only, # Only failure information
         minimal: :minimal              # Minimal failure info + summary
       }.freeze
 
-      # @param config [Hash] Configuration options
+      # Supported frameworks with dedicated strategies
+      SUPPORTED_FRAMEWORKS = %i[rspec minitest jest pytest].freeze
+
+      # @param config [OutputFilterConfig, Hash] Configuration options
       # @option config [Symbol] :mode Output mode (:full, :failures_only, :minimal)
       # @option config [Boolean] :include_context Include surrounding lines
       # @option config [Integer] :context_lines Number of context lines
       # @option config [Integer] :max_lines Maximum output lines
       def initialize(config = {})
-        @mode = config[:mode] || :full
-        @include_context = config.fetch(:include_context, true)
-        @context_lines = config.fetch(:context_lines, 3)
-        @max_lines = config.fetch(:max_lines, 500)
-
-        validate_mode!
+        @config = normalize_config(config)
+        @mode = @config.mode
+        @include_context = @config.include_context
+        @context_lines = @config.context_lines
+        @max_lines = @config.max_lines
 
         Aidp.log_debug("output_filter", "initialized",
           mode: @mode,
@@ -35,7 +39,7 @@ module Aidp
 
       # Filter output based on framework and mode
       # @param output [String] Raw output
-      # @param framework [Symbol] Framework identifier
+      # @param framework [Symbol] Framework identifier (:rspec, :minitest, :jest, :pytest, :unknown)
       # @return [String] Filtered output
       def filter(output, framework: :unknown)
         return output if @mode == :full
@@ -43,6 +47,7 @@ module Aidp
 
         Aidp.log_debug("output_filter", "filtering_start",
           framework: framework,
+          mode: @mode,
           input_lines: output.lines.count)
 
         strategy = strategy_for_framework(framework)
@@ -51,6 +56,7 @@ module Aidp
         truncated = truncate_if_needed(filtered)
 
         Aidp.log_debug("output_filter", "filtering_complete",
+          framework: framework,
           output_lines: truncated.lines.count,
           reduction: reduction_stats(output, truncated))
 
@@ -80,13 +86,33 @@ module Aidp
       end
 
       # Accessors for strategy use
-      attr_reader :mode, :include_context, :context_lines, :max_lines
+      attr_reader :mode, :include_context, :context_lines, :max_lines, :config
+
+      # Check if this is a supported framework with a dedicated strategy
+      # @param framework [Symbol] Framework identifier
+      # @return [Boolean] True if framework has dedicated strategy
+      def self.supported_framework?(framework)
+        SUPPORTED_FRAMEWORKS.include?(framework)
+      end
+
+      # Get list of supported frameworks
+      # @return [Array<Symbol>] List of supported frameworks
+      def self.supported_frameworks
+        SUPPORTED_FRAMEWORKS
+      end
 
       private
 
-      def validate_mode!
-        unless MODES.key?(@mode)
-          raise ArgumentError, "Invalid mode: #{@mode}. Must be one of #{MODES.keys}"
+      def normalize_config(config)
+        case config
+        when OutputFilterConfig
+          config
+        when Hash
+          OutputFilterConfig.from_hash(config)
+        when nil
+          OutputFilterConfig.new
+        else
+          raise ArgumentError, "Config must be an OutputFilterConfig or Hash, got: #{config.class}"
         end
       end
 
@@ -96,14 +122,14 @@ module Aidp
           require_relative "rspec_filter_strategy"
           RSpecFilterStrategy.new
         when :minitest
-          require_relative "generic_filter_strategy"
-          GenericFilterStrategy.new
+          require_relative "minitest_filter_strategy"
+          MinitestFilterStrategy.new
         when :jest
-          require_relative "generic_filter_strategy"
-          GenericFilterStrategy.new
+          require_relative "jest_filter_strategy"
+          JestFilterStrategy.new
         when :pytest
-          require_relative "generic_filter_strategy"
-          GenericFilterStrategy.new
+          require_relative "pytest_filter_strategy"
+          PytestFilterStrategy.new
         else
           require_relative "generic_filter_strategy"
           GenericFilterStrategy.new
@@ -123,7 +149,7 @@ module Aidp
       def reduction_stats(input, output)
         input_size = input.bytesize
         output_size = output.bytesize
-        reduction = ((input_size - output_size).to_f / input_size * 100).round(1)
+        reduction = input_size.zero? ? 0 : ((input_size - output_size).to_f / input_size * 100).round(1)
 
         {
           input_bytes: input_size,

@@ -107,6 +107,10 @@ require_relative "aidp/harness/runner"
 require_relative "aidp/harness/filter_strategy"
 require_relative "aidp/harness/generic_filter_strategy"
 require_relative "aidp/harness/rspec_filter_strategy"
+require_relative "aidp/harness/minitest_filter_strategy"
+require_relative "aidp/harness/jest_filter_strategy"
+require_relative "aidp/harness/pytest_filter_strategy"
+require_relative "aidp/harness/output_filter_config"
 require_relative "aidp/harness/output_filter"
 
 # UI components

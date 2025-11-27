@@ -383,7 +383,16 @@ module Aidp
                 guards: {enabled: false},
                 version_control: {tool: "git", behavior: "nothing", conventional_commits: false},
                 coverage: {enabled: false},
-                interactive_testing: {enabled: false, app_type: "web"}
+                interactive_testing: {enabled: false, app_type: "web"},
+                output_filtering: {
+                  enabled: true,
+                  test_mode: "full",
+                  lint_mode: "full",
+                  test_max_lines: 500,
+                  lint_max_lines: 300,
+                  include_context: true,
+                  context_lines: 3
+                }
               },
               properties: {
                 enabled: {
@@ -794,6 +803,64 @@ module Aidp
                           }
                         }
                       }
+                    }
+                  }
+                },
+                output_filtering: {
+                  type: :hash,
+                  required: false,
+                  default: {
+                    enabled: true,
+                    test_mode: "full",
+                    lint_mode: "full",
+                    test_max_lines: 500,
+                    lint_max_lines: 300,
+                    include_context: true,
+                    context_lines: 3
+                  },
+                  properties: {
+                    enabled: {
+                      type: :boolean,
+                      required: false,
+                      default: true
+                    },
+                    test_mode: {
+                      type: :string,
+                      required: false,
+                      default: "full",
+                      enum: ["full", "failures_only", "minimal"]
+                    },
+                    lint_mode: {
+                      type: :string,
+                      required: false,
+                      default: "full",
+                      enum: ["full", "failures_only", "minimal"]
+                    },
+                    test_max_lines: {
+                      type: :integer,
+                      required: false,
+                      default: 500,
+                      min: 10,
+                      max: 10000
+                    },
+                    lint_max_lines: {
+                      type: :integer,
+                      required: false,
+                      default: 300,
+                      min: 10,
+                      max: 10000
+                    },
+                    include_context: {
+                      type: :boolean,
+                      required: false,
+                      default: true
+                    },
+                    context_lines: {
+                      type: :integer,
+                      required: false,
+                      default: 3,
+                      min: 0,
+                      max: 20
                     }
                   }
                 }

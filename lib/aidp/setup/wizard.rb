@@ -493,6 +493,7 @@ module Aidp
         prompt.say("-" * 40)
 
         configure_work_loop_limits
+        configure_output_filtering
         configure_test_commands
         configure_linting
         configure_watch_patterns
@@ -513,6 +514,84 @@ module Aidp
         ) { |value| value.to_i }
 
         set([:work_loop, :max_iterations], max_iterations)
+      end
+
+      def configure_output_filtering
+        prompt.say("\n🔍 Output filtering configuration")
+        prompt.say("  Reduces token consumption by filtering test/lint output")
+        existing = get([:work_loop, :output_filtering]) || {}
+
+        return unless prompt.yes?("Configure output filtering?", default: false)
+
+        enabled = prompt.yes?(
+          "Enable output filtering?",
+          default: existing.fetch(:enabled, true)
+        )
+
+        unless enabled
+          set([:work_loop, :output_filtering], {enabled: false})
+          return
+        end
+
+        # Test output mode
+        test_mode_choices = [
+          ["Full (no filtering)", "full"],
+          ["Failures only (recommended for iterations)", "failures_only"],
+          ["Minimal (summary + locations only)", "minimal"]
+        ]
+        test_mode_default = existing[:test_mode] || "full"
+        test_mode_default_label = test_mode_choices.find { |label, value| value == test_mode_default }&.first
+
+        test_mode = prompt.select("Test output mode:", default: test_mode_default_label) do |menu|
+          test_mode_choices.each { |label, value| menu.choice label, value }
+        end
+
+        # Lint output mode
+        lint_mode_choices = test_mode_choices
+        lint_mode_default = existing[:lint_mode] || "full"
+        lint_mode_default_label = lint_mode_choices.find { |label, value| value == lint_mode_default }&.first
+
+        lint_mode = prompt.select("Lint output mode:", default: lint_mode_default_label) do |menu|
+          lint_mode_choices.each { |label, value| menu.choice label, value }
+        end
+
+        # Max output lines
+        test_max_lines = ask_with_default(
+          "Maximum test output lines",
+          (existing[:test_max_lines] || 500).to_s
+        ) { |value| value.to_i }
+
+        lint_max_lines = ask_with_default(
+          "Maximum lint output lines",
+          (existing[:lint_max_lines] || 300).to_s
+        ) { |value| value.to_i }
+
+        # Context configuration
+        include_context = prompt.yes?(
+          "Include context lines around failures?",
+          default: existing.fetch(:include_context, true)
+        )
+
+        context_lines = if include_context
+          ask_with_default(
+            "Number of context lines",
+            (existing[:context_lines] || 3).to_s
+          ) { |value| value.to_i }
+        else
+          0
+        end
+
+        set([:work_loop, :output_filtering], {
+          enabled: true,
+          test_mode: test_mode,
+          lint_mode: lint_mode,
+          test_max_lines: test_max_lines,
+          lint_max_lines: lint_max_lines,
+          include_context: include_context,
+          context_lines: context_lines
+        })
+
+        prompt.ok("✅ Output filtering configured")
       end
 
       def configure_test_commands
