@@ -5,34 +5,46 @@ require_relative "output_filter_config"
 module Aidp
   module Harness
     # Filters test and linter output to reduce token consumption
-    # Uses framework-specific strategies to extract relevant information
+    #
+    # Supports two filtering approaches:
+    # 1. AI-generated FilterDefinitions (preferred) - created once during config,
+    #    applied deterministically at runtime for ANY tool
+    # 2. Built-in RSpec strategy (fallback) - for backward compatibility
+    #
+    # @example Using AI-generated filter
+    #   definition = FilterDefinition.from_hash(config[:filter_definitions][:pytest])
+    #   filter = OutputFilter.new(mode: :failures_only, filter_definition: definition)
+    #   filtered = filter.filter(output)
+    #
+    # @see AIFilterFactory for generating filter definitions
+    # @see FilterDefinition for the definition format
     class OutputFilter
-      # Output modes (kept for backward compatibility)
+      # Output modes
       MODES = {
         full: :full,                   # No filtering (default for first run)
         failures_only: :failures_only, # Only failure information
         minimal: :minimal              # Minimal failure info + summary
       }.freeze
 
-      # Supported frameworks with dedicated strategies
-      SUPPORTED_FRAMEWORKS = %i[rspec minitest jest pytest].freeze
-
       # @param config [OutputFilterConfig, Hash] Configuration options
       # @option config [Symbol] :mode Output mode (:full, :failures_only, :minimal)
       # @option config [Boolean] :include_context Include surrounding lines
       # @option config [Integer] :context_lines Number of context lines
       # @option config [Integer] :max_lines Maximum output lines
-      def initialize(config = {})
+      # @param filter_definition [FilterDefinition, nil] AI-generated filter patterns
+      def initialize(config = {}, filter_definition: nil)
         @config = normalize_config(config)
         @mode = @config.mode
         @include_context = @config.include_context
         @context_lines = @config.context_lines
         @max_lines = @config.max_lines
+        @filter_definition = filter_definition
 
         Aidp.log_debug("output_filter", "initialized",
           mode: @mode,
           include_context: @include_context,
-          max_lines: @max_lines)
+          max_lines: @max_lines,
+          has_definition: !@filter_definition.nil?)
       rescue NameError
         # Logging infrastructure not available in some tests
       end
@@ -86,20 +98,7 @@ module Aidp
       end
 
       # Accessors for strategy use
-      attr_reader :mode, :include_context, :context_lines, :max_lines, :config
-
-      # Check if this is a supported framework with a dedicated strategy
-      # @param framework [Symbol] Framework identifier
-      # @return [Boolean] True if framework has dedicated strategy
-      def self.supported_framework?(framework)
-        SUPPORTED_FRAMEWORKS.include?(framework)
-      end
-
-      # Get list of supported frameworks
-      # @return [Array<Symbol>] List of supported frameworks
-      def self.supported_frameworks
-        SUPPORTED_FRAMEWORKS
-      end
+      attr_reader :mode, :include_context, :context_lines, :max_lines, :config, :filter_definition
 
       private
 
@@ -117,20 +116,20 @@ module Aidp
       end
 
       def strategy_for_framework(framework)
+        # Use AI-generated filter definition if available (preferred)
+        if @filter_definition
+          require_relative "generated_filter_strategy"
+          return GeneratedFilterStrategy.new(@filter_definition)
+        end
+
+        # Fall back to built-in strategies for backward compatibility
         case framework
         when :rspec
           require_relative "rspec_filter_strategy"
           RSpecFilterStrategy.new
-        when :minitest
-          require_relative "minitest_filter_strategy"
-          MinitestFilterStrategy.new
-        when :jest
-          require_relative "jest_filter_strategy"
-          JestFilterStrategy.new
-        when :pytest
-          require_relative "pytest_filter_strategy"
-          PytestFilterStrategy.new
         else
+          # Use generic strategy for all other frameworks
+          # Users should generate a FilterDefinition for better results
           require_relative "generic_filter_strategy"
           GenericFilterStrategy.new
         end
