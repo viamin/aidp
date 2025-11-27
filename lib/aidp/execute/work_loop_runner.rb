@@ -54,6 +54,7 @@ module Aidp
         @checkpoint = Checkpoint.new(project_dir)
         @checkpoint_display = CheckpointDisplay.new(prompt: @prompt)
         @guard_policy = GuardPolicy.new(project_dir, config.guards_config)
+        @work_context = {}
         @persistent_tasklist = PersistentTasklist.new(project_dir)
         @iteration_count = 0
         @step_name = nil
@@ -75,6 +76,7 @@ module Aidp
       # Never rolls back - only moves forward through fixes
       def execute_step(step_name, step_spec, context = {})
         @step_name = step_name
+        @work_context = context
         @iteration_count = 0
         transition_to(:ready)
 
@@ -164,7 +166,13 @@ module Aidp
           # Preview provider/model selection and queued checks for this iteration
           preview_provider, preview_model, _model_data = select_model_for_current_tier
           prompt_length = @prompt_manager.read&.length || 0
-          display_iteration_overview(preview_provider, preview_model, prompt_length)
+          checks_summary = planned_checks_summary
+          display_iteration_overview(preview_provider, preview_model, prompt_length, checks_summary)
+          log_iteration_status("running",
+            provider: preview_provider,
+            model: preview_model,
+            prompt_length: prompt_length,
+            checks: checks_summary)
 
           # Wrap agent call in exception handling for true fix-forward
           begin
@@ -263,6 +271,12 @@ module Aidp
                 display_task_summary
                 display_message("✅ Step #{@step_name} completed after #{@iteration_count} iterations", type: :success)
                 display_state_summary
+                log_iteration_status("completed",
+                  provider: preview_provider,
+                  model: preview_model,
+                  prompt_length: prompt_length,
+                  checks: checks_summary,
+                  task_status: "complete")
                 archive_and_cleanup
 
                 return build_agentic_payload(
@@ -277,6 +291,12 @@ module Aidp
                 display_message("  All checks passed but tasks not complete", type: :warning)
                 display_message("  #{task_completion_result[:message]}", type: :warning)
                 display_task_summary
+                log_iteration_status("checks_passed_tasks_incomplete",
+                  provider: preview_provider,
+                  model: preview_model,
+                  prompt_length: prompt_length,
+                  checks: checks_summary,
+                  task_status: "incomplete")
                 transition_to(:next_patch)
 
                 # Append task completion requirement to PROMPT.md
@@ -284,6 +304,11 @@ module Aidp
               end
             else
               display_message("  All checks passed but work not marked complete", type: :info)
+              log_iteration_status("checks_passed_waiting_agent_completion",
+                provider: preview_provider,
+                model: preview_model,
+                prompt_length: prompt_length,
+                checks: checks_summary)
               transition_to(:next_patch)
             end
           else
@@ -294,6 +319,12 @@ module Aidp
             diagnostic = diagnose_failures(all_results)
 
             transition_to(:next_patch)
+            log_iteration_status("checks_failed",
+              provider: preview_provider,
+              model: preview_model,
+              prompt_length: prompt_length,
+              checks: checks_summary,
+              failures: failure_summary_for_log(all_results))
             prepare_next_iteration(all_results, diagnostic)
           end
         end
@@ -780,9 +811,10 @@ module Aidp
         end
       end
 
-      def display_iteration_overview(provider_name, model_name, prompt_length)
+      def display_iteration_overview(provider_name, model_name, prompt_length, checks_summary = nil)
         tier = @thinking_depth_manager.current_tier
-        checks = summarize_checks(@test_runner.planned_commands) if @test_runner.respond_to?(:planned_commands)
+        checks = checks_summary
+        checks ||= summarize_checks(@test_runner.planned_commands) if @test_runner.respond_to?(:planned_commands)
         model_label = model_name || "auto"
 
         display_message("    • Step: #{@step_name} | Tier: #{tier} | Model: #{provider_name}/#{model_label}", type: :info)
@@ -882,6 +914,55 @@ module Aidp
         nil
       end
 
+      def planned_checks_summary
+        return nil unless @test_runner.respond_to?(:planned_commands)
+
+        summarize_checks(@test_runner.planned_commands)
+      end
+
+      def failure_summary_for_log(all_results)
+        Array(all_results).each_with_object([]) do |(category, results), summary|
+          next if results[:success]
+
+          failures = results[:required_failures] || results[:failures] || []
+          count = failures.size
+          commands = Array(failures).map { |f| f[:command] }.compact
+
+          summary << if commands.any?
+            "#{category}: #{count} (#{commands.first(2).join(", ")})"
+          else
+            "#{category}: #{count}"
+          end
+        end
+      rescue => e
+        Aidp.log_warn("work_loop", "failure_summary_for_log_failed", error: e.message)
+        []
+      end
+
+      def log_iteration_status(status, provider:, model:, prompt_length:, checks: nil, failures: nil, task_status: nil)
+        metadata = {
+          step: @step_name,
+          iteration: @iteration_count,
+          state: STATES[@current_state],
+          tier: @thinking_depth_manager.current_tier,
+          provider: provider,
+          model: model,
+          prompt_length: prompt_length,
+          checks: checks,
+          failures: failures,
+          task_status: task_status
+        }
+
+        metadata.merge!(iteration_context_metadata)
+        metadata.delete_if { |_, value| value.nil? || (value.respond_to?(:empty?) && value.empty?) }
+
+        Aidp.log_info("work_loop_iteration",
+          "Iteration #{@iteration_count} for #{@step_name}: #{status}",
+          **metadata)
+      rescue => e
+        Aidp.log_warn("work_loop", "failed_to_log_iteration_status", error: e.message)
+      end
+
       def build_work_loop_header(step_name, iteration)
         parts = []
         parts << "# Work Loop: #{step_name} (Iteration #{iteration})"
@@ -940,6 +1021,15 @@ module Aidp
         parts << "```"
         parts << ""
         parts.join("\n")
+      end
+
+      def iteration_context_metadata
+        ctx = (@options || {}).merge(@work_context || {})
+        {
+          issue: issue_context_label(ctx),
+          pr: pr_context_label(ctx),
+          step_position: step_position_label(@step_name, ctx)
+        }.compact
       end
 
       def prompt_marked_complete?
