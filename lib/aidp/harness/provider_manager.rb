@@ -1474,7 +1474,7 @@ module Aidp
           prompt_length: prompt.length)
 
         # Execute the prompt with the provider
-        result = provider.send_message(prompt: prompt, session: nil)
+        result = provider.send_message(prompt: prompt, session: nil, options: options)
 
         # Return structured result
         {

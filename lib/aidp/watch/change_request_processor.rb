@@ -395,13 +395,82 @@ module Aidp
       def create_worktree_for_pr(pr_data)
         head_ref = pr_data[:head_ref]
         pr_number = pr_data[:number]
-        slug = "pr-#{pr_number}-change-requests"
 
-        display_message("🌿 Creating worktree for PR ##{pr_number}: #{head_ref}", type: :info)
+        # Configure slug and worktree strategy
+        slug = pr_data.fetch(:worktree_slug, "pr-#{pr_number}-change-requests")
+        strategy = @config.fetch(:worktree_strategy, "auto")
 
+        display_message("🌿 Preparing worktree for PR ##{pr_number}: #{head_ref} (Strategy: #{strategy})", type: :info)
+
+        # Pre-create setup: fetch latest refs
         Dir.chdir(@project_dir) do
           run_git(%w[fetch origin], allow_failure: true)
         end
+
+        # Worktree creation strategy
+        worktree_path =
+          case strategy
+          when "always_create"
+            create_fresh_worktree(pr_data, slug)
+          when "reuse_only"
+            find_existing_worktree(pr_data, slug)
+          else # 'auto' or default
+            find_existing_worktree(pr_data, slug) || create_fresh_worktree(pr_data, slug)
+          end
+
+        Aidp.log_debug(
+          "change_request_processor",
+          "worktree_resolved",
+          pr_number: pr_number,
+          branch: head_ref,
+          path: worktree_path,
+          strategy: strategy
+        )
+
+        display_message("✅ Worktree available at #{worktree_path}", type: :success)
+        worktree_path
+      rescue => e
+        Aidp.log_error(
+          "change_request_processor",
+          "worktree_creation_failed",
+          pr_number: pr_number,
+          error: e.message,
+          backtrace: e.backtrace&.first(5)
+        )
+        display_message("❌ Failed to create worktree: #{e.message}", type: :error)
+        raise
+      end
+
+      private
+
+      def find_existing_worktree(pr_data, slug)
+        head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
+
+        # First check for existing worktree by branch
+        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
+        return existing[:path] if existing && existing[:active]
+
+        # If no branch-specific worktree, look for PR-specific worktree
+        pr_worktrees = Aidp::Worktree.list(project_dir: @project_dir)
+        pr_specific_worktree = pr_worktrees.find do |w|
+          w[:slug]&.include?("pr-#{pr_number}")
+        end
+
+        pr_specific_worktree ? pr_specific_worktree[:path] : nil
+      end
+
+      def create_fresh_worktree(pr_data, slug)
+        head_ref = pr_data[:head_ref]
+        pr_number = pr_data[:number]
+
+        Aidp.log_debug(
+          "change_request_processor",
+          "creating_new_worktree",
+          pr_number: pr_number,
+          branch: head_ref,
+          slug: slug
+        )
 
         result = Aidp::Worktree.create(
           slug: slug,
@@ -410,11 +479,7 @@ module Aidp
           base_branch: pr_data[:base_ref]
         )
 
-        worktree_path = result[:path]
-        Aidp.log_debug("change_request_processor", "worktree_created", pr_number: pr_number, branch: head_ref, path: worktree_path)
-        display_message("✅ Worktree created at #{worktree_path}", type: :success)
-
-        worktree_path
+        result[:path]
       end
 
       def apply_changes(changes)
