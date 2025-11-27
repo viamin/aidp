@@ -9,6 +9,7 @@ Coding standards, architectural patterns, and best practices for the AI Dev Pipe
 - [Ruby Conventions](#ruby-conventions)
 - [Ruby Version Management](#ruby-version-management)
 - [Zero Framework Cognition (ZFC)](#zero-framework-cognition-zfc)
+- [AI-Generated Determinism (AGD)](#ai-generated-determinism-agd)
 - [TTY Toolkit Guidelines](#tty-toolkit-guidelines)
 - [Pending Specs Policy](#pending-specs-policy)
 - [Testing Guidelines](#testing-guidelines)
@@ -793,6 +794,65 @@ When converting legacy code to ZFC:
 - [ZFC Compliance Assessment](ZFC_COMPLIANCE_ASSESSMENT.md) - Detailed analysis of current violations
 - [ZFC Implementation Plan](ZFC_IMPLEMENTATION_PLAN.md) - Migration roadmap
 - [Steve Yegge's ZFC Article](https://steve-yegge.medium.com/zero-framework-cognition-a-way-to-build-resilient-ai-applications-56b090ed3e69) - Original concept
+
+## AI-Generated Determinism (AGD)
+
+**AI-Generated Determinism (AGD)** uses AI **once during configuration** to generate deterministic artifacts (patterns, rules, code) that run **without AI at runtime**. It complements ZFC: AGD front-loads AI, ZFC relies on AI per evaluation.
+
+### When to Use AGD vs. ZFC
+
+| Use AGD | Use ZFC |
+| ------- | ------- |
+| Input format is stable (tool output) | Input varies (natural language) |
+| High-frequency runtime (work loops) | One-off decisions |
+| Patterns can be extracted (regex/markers) | Judgment/nuance required |
+| Configuration happens infrequently | Every evaluation needs fresh AI |
+| Need flexibility from AI but may not have access to a provider | Provider access is expected |
+
+Use ZFC when input semantics change often or when deterministic rules would be brittle. Use AGD when you can extract durable patterns once and need zero AI latency later. AGD is also useful in cases where AI is available at configuration time but may not be available at runtime, such as inspecting error output from an AI provider.
+
+### Implementation Pattern
+
+1. **Define the generated artifact**: Value object for the AI output (immutable, serializable to YAML/JSON).
+2. **AI factory (config time only)**: Generates the artifact via `AIDecisionEngine` or provider call. Validate schema and regex syntax before persisting.
+3. **Deterministic strategy (runtime)**: Applies the artifact with pure code—no AI calls at runtime.
+4. **Regeneration path**: Provide a way to re-run generation when tools or outputs change (e.g., setup wizard prompt).
+
+**Example skeleton**:
+
+```ruby
+# 1. Value object
+class FilterDefinition
+  def initialize(patterns:); @patterns = compile(patterns); freeze; end
+  def matches?(line); @patterns.any? { |p| line.match?(p) }; end
+  def to_h; { patterns: @patterns.map(&:source) }; end
+end
+
+# 2. AI factory (runs ONCE)
+class AIFilterFactory
+  def generate(tool_name:, sample_output:, tier: "mini")
+    response = call_ai(prompt_for(tool_name, sample_output), tier)
+    FilterDefinition.new(**parse(response))
+  end
+end
+
+# 3. Deterministic runtime use
+class GeneratedFilterStrategy
+  def initialize(definition); @definition = definition; end
+  def filter(output); output.lines.select { |l| @definition.matches?(l) }; end
+end
+```
+
+### AGD Checklist
+
+- [ ] Artifact is immutable (freeze after creation)
+- [ ] Artifact serializable for config storage
+- [ ] AI generation runs once
+- [ ] Validate AI output (regex syntax, required fields)
+- [ ] Regeneration path exists when inputs change
+- [ ] Logging captures generation context for debugging
+
+See [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md) for the full pattern and examples in AIDP.
 
 ## TTY Toolkit Guidelines
 

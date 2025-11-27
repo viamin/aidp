@@ -4,24 +4,24 @@
 
 ## 1. Core Engineering Rules
 
-- Small objects, clear roles. Avoid god classes. `STYLE_GUIDE:18-50`
-- Methods: do one thing; extract early. `STYLE_GUIDE:108-117`
-- Prefer composition over inheritance. `STYLE_GUIDE:97-106`
-- No commented‑out or dead code. `STYLE_GUIDE:18-50`
-- No introducing TODO without issue reference. `STYLE_GUIDE:1422-1448`
-- When removing code, delete it cleanly without explanatory comments. `STYLE_GUIDE:1422-1448`
-- **CRITICAL: Use `Aidp.log_debug()` extensively** to instrument important code paths (see Section 4). `STYLE_GUIDE:125-283`
-- **NO backward compatibility code**: AIDP is pre-release (v0.x.x) - remove deprecated features immediately. `STYLE_GUIDE:2051-2090`
+- Small objects, clear roles. Avoid god classes. `STYLE_GUIDE:25-117`
+- Methods: do one thing; extract early. `STYLE_GUIDE:224-229`
+- Prefer composition over inheritance. `STYLE_GUIDE:29-35`
+- No commented‑out or dead code. `STYLE_GUIDE:263-269`
+- No introducing TODO without issue reference. `STYLE_GUIDE:263-269`
+- When removing code, delete it cleanly without explanatory comments. `STYLE_GUIDE:263-269`
+- **CRITICAL: Use `Aidp.log_debug()` extensively** to instrument important code paths (see Section 4). `STYLE_GUIDE:287-430`
+- **NO backward compatibility code**: AIDP is pre-release (v0.x.x) - remove deprecated features immediately. `STYLE_GUIDE:2273-2472`
 
 ### Sandi Metz Guidelines
 
-- Classes ~100 lines; Methods ~5 lines; Max 4 parameters. `STYLE_GUIDE:51-96`
+- Classes ~100 lines; Methods ~5 lines; Max 4 parameters. `STYLE_GUIDE:217-236`
 - **These are guidelines, not hard limits** - exceptions allowed when appropriate (complex algorithms, data structures).
 - Break rules consciously when needed, but consider refactoring first.
 
 ## 2. Zero Framework Cognition (ZFC)
 
-**Rule**: Meaning/decisions → AI. Mechanical/structural → code. `STYLE_GUIDE:338-635`
+**Rule**: Meaning/decisions → AI. Mechanical/structural → code. `STYLE_GUIDE:500-797`
 
 **FORBIDDEN** (use `AIDecisionEngine.decide(...)` instead):
 
@@ -32,84 +32,41 @@
 
 **Always**: Use `mini` tier • Define schemas • Cache • Feature flags • Mock in tests
 
-See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern examples. `STYLE_GUIDE:338-635`
+See [STYLE_GUIDE.md](STYLE_GUIDE.md#zero-framework-cognition-zfc) for pattern examples. `STYLE_GUIDE:500-797`
 
 ## 2a. AI-Generated Determinism (AGD)
 
-**Rule**: Use AI **once at configuration** to generate deterministic code/patterns. No AI at runtime.
-
-**When to use AGD** (vs ZFC):
-
-| Use AGD | Use ZFC |
-| ------- | ------- |
-| Input format is stable (tool output) | Input varies (natural language) |
-| High-frequency runtime (work loops) | One-off decisions |
-| Patterns can be extracted (regex) | Judgment/nuance required |
-| Configuration happens infrequently | Every evaluation needs fresh AI |
-
-**AGD Pattern**:
-
-```ruby
-# 1. Value object for generated artifact (immutable, serializable)
-class FilterDefinition
-  def initialize(patterns:); @patterns = compile(patterns); freeze; end
-  def matches?(line); @patterns.any? { |p| line.match?(p) }; end
-  def to_h; { patterns: @patterns.map(&:source) }; end
-end
-
-# 2. AI factory (runs ONCE at config time)
-class AIFilterFactory
-  def generate(tool_name:, sample_output:, tier: "mini")
-    response = call_ai(prompt_for(tool_name, sample_output), tier)
-    FilterDefinition.new(**parse(response))
-  end
-end
-
-# 3. Deterministic strategy (runs at runtime, NO AI)
-class GeneratedFilterStrategy
-  def initialize(definition); @definition = definition; end
-  def filter(output)  # Pure pattern matching
-    output.lines.select { |l| @definition.matches?(l) }
-  end
-end
-```
-
-**Checklist**:
-
-- [ ] Artifact is immutable (freeze after creation)
-- [ ] Artifact serializable to YAML/JSON for config storage
-- [ ] AI uses cheap tier (mini) - only runs once
-- [ ] Validate AI output (regex syntax, required fields)
-- [ ] Provide regeneration path if tool changes
-
-See [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md) for full documentation.
+- Use AI **once at configuration** to generate deterministic artifacts; runtime code must stay pure (no AI calls). `STYLE_GUIDE:798-855`
+- Choose AGD when tool output is stable and patternable; use ZFC when semantics vary or need judgment. `STYLE_GUIDE:798-855`
+- Keep artifacts immutable/serializable, validate AI output, and provide a regeneration path when tools change. `STYLE_GUIDE:798-855`
+- Full pattern + checklist: `STYLE_GUIDE:798-855` and [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md)
 
 ## 3. Naming & Structure
 
-- Classes: `PascalCase`; methods/files: `snake_case`; constants: `SCREAMING_SNAKE_CASE`. `STYLE_GUIDE:44-50`
-- Keep public APIs intention‑revealing (avoid abbreviations unless ubiquitous). `STYLE_GUIDE:44-50`
-- One responsibility per file when practical. `STYLE_GUIDE:29-43`
-- **Ruby Method Naming**: Avoid `get_*`/`set_*` prefixes - use `name`/`name=` instead. `STYLE_GUIDE:108-117`
-- **Requires**: Prefer `require_relative` over `require` for local files. `STYLE_GUIDE:99-107`
-- **Feature Organization**: Organize by PURPOSE (parsers/, generators/, mappers/), NOT by workflow (waterfall/, agile/). Workflows are process containers that sequence generic steps. `STYLE_GUIDE:57-115`
-- **Template/Skill Separation**: Templates define WHAT (language-agnostic), skills define HOW (language-specific). Extract all framework code from templates into skills. Delegate explicitly. `STYLE_GUIDE:117-208`
+- Classes: `PascalCase`; methods/files: `snake_case`; constants: `SCREAMING_SNAKE_CASE`. `STYLE_GUIDE:51-56`
+- Keep public APIs intention‑revealing (avoid abbreviations unless ubiquitous). `STYLE_GUIDE:51-56`
+- One responsibility per file when practical. `STYLE_GUIDE:25-117`
+- **Ruby Method Naming**: Avoid `get_*`/`set_*` prefixes - use `name`/`name=` instead. `STYLE_GUIDE:272-277`
+- **Requires**: Prefer `require_relative` over `require` for local files. `STYLE_GUIDE:263-266`
+- **Feature Organization**: Organize by PURPOSE (parsers/, generators/, mappers/), NOT by workflow (waterfall/, agile/). Workflows are process containers that sequence generic steps. `STYLE_GUIDE:58-116`
+- **Template/Skill Separation**: Templates define WHAT (language-agnostic), skills define HOW (language-specific). Extract all framework code from templates into skills. Delegate explicitly. `STYLE_GUIDE:118-210`
 
 ## 4. Parameters & Data
 
-- Max ~4 params; use keyword args or an options hash beyond that. `STYLE_GUIDE:69-75`
-- Avoid boolean flag parameters that branch behavior; split methods. `STYLE_GUIDE:108-117`
+- Max ~4 params; use keyword args or an options hash beyond that. `STYLE_GUIDE:231-236`
+- Avoid boolean flag parameters that branch behavior; split methods. `STYLE_GUIDE:274-278`
 
 ## 5. Error Handling & Logging
 
-- Raise specific errors; never silently rescue. `STYLE_GUIDE:118-124,1262-1318`
-- Let internal logic errors surface (fail fast). `STYLE_GUIDE:1262-1318`
-- Only rescue to: wrap external failures, add context, clean up resources. `STYLE_GUIDE:118-124`
-- No `rescue Exception`; prefer `rescue SpecificError`. `STYLE_GUIDE:1262-1318,1534-1548`
-- **Always log rescued errors**: `Aidp.log_error("component", "msg", error: e.message)` `STYLE_GUIDE:125-283`
+- Raise specific errors; never silently rescue. `STYLE_GUIDE:280-286,2113-2168`
+- Let internal logic errors surface (fail fast). `STYLE_GUIDE:2113-2168`
+- Only rescue to: wrap external failures, add context, clean up resources. `STYLE_GUIDE:280-286,2113-2168`
+- No `rescue Exception`; prefer `rescue SpecificError`. `STYLE_GUIDE:2113-2168`
+- **Always log rescued errors**: `Aidp.log_error("component", "msg", error: e.message)` `STYLE_GUIDE:287-430`
 
 ### Logging (CRITICAL)
 
-**Instrument all important code paths with `Aidp.log_debug()`** `STYLE_GUIDE:125-283`
+**Instrument all important code paths with `Aidp.log_debug()`** `STYLE_GUIDE:287-430`
 
 - Use: `Aidp.log_{debug|info|warn|error}("component", "verb", key: val)`
 - **When**: Method entries, state changes, external calls, decisions
@@ -119,9 +76,9 @@ See [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md) for full document
 
 ## 6. TTY / TUI
 
-- Always use TTY Toolkit components (prompt, progressbar, spinner, table). `STYLE_GUIDE:636-964`
-- Never re‑implement progress bars, selectors, or tables. `STYLE_GUIDE:636-964`
-- **Never use `puts`, `print`, or `$stdout.puts`** - use `prompt.say()` instead. `STYLE_GUIDE:681-746`
+- Always use TTY Toolkit components (prompt, progressbar, spinner, table). `STYLE_GUIDE:856-1105`
+- Never re‑implement progress bars, selectors, or tables. `STYLE_GUIDE:856-1105`
+- **Never use `puts`, `print`, or `$stdout.puts`** - use `prompt.say()` instead. `STYLE_GUIDE:936-972`
 
 ### TTY Component Quick Reference
 
@@ -135,31 +92,31 @@ See [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md) for full document
 | Spinner | `TTY::Spinner` | Loading states |
 | Tables | `TTY::Table` | Results display, status reports |
 
-*Full component reference: `STYLE_GUIDE:636-964`*
+*Full component reference: `STYLE_GUIDE:856-1105`*
 
 ## 7. Testing Contracts
 
-- Test public behavior; don't mock private methods. `STYLE_GUIDE:1022-1261`
-- Mock ONLY external boundaries (network, filesystem, user input, APIs). `STYLE_GUIDE:1022-1261`
-- Keep failing regressions visible — do **not** mark pending. `STYLE_GUIDE:965-1021`
-- **NEVER put mock methods in production code** - use dependency injection. `STYLE_GUIDE:1022-1261`
-- **Test Descriptions**: Clear, behavior-focused titles. `STYLE_GUIDE:1022-1261`
-- One spec file per class; use `context` blocks for variations. `STYLE_GUIDE:1022-1261`
+- Test public behavior; don't mock private methods. `STYLE_GUIDE:1873-2112`
+- Mock ONLY external boundaries (network, filesystem, user input, APIs). `STYLE_GUIDE:1873-2112`
+- Keep failing regressions visible — do **not** mark pending. `STYLE_GUIDE:1816-1870`
+- **NEVER put mock methods in production code** - use dependency injection. `STYLE_GUIDE:1873-2112`
+- **Test Descriptions**: Clear, behavior-focused titles. `STYLE_GUIDE:1873-2112`
+- One spec file per class; use `context` blocks for variations. `STYLE_GUIDE:1873-2112`
 
 ### Interactive & External Service Testing
 
-- **Use constructor dependency injection**: `def initialize(prompt: TTY::Prompt.new)` `STYLE_GUIDE:747-870`
+- **Use constructor dependency injection**: `def initialize(prompt: TTY::Prompt.new)` `STYLE_GUIDE:1930-2012`
 - Create test doubles with same interface as real dependencies
 - Use shared test utilities (e.g., `TestPrompt` in `spec/support/`)
 
 ### Integration Testing with expect Scripts
 
-- **Use expect scripts** for TUI flows (AI agents can't test interactively). `STYLE_GUIDE:871-964`
+- **Use expect scripts** for TUI flows (AI agents can't test interactively). `STYLE_GUIDE:1173-1234`
 - Pattern: `spawn`, `expect "text"`, `send "\r"`, `expect eof`
 
 ### Testing with tmux
 
-- **Use tmux for TUI testing**: Capture and verify terminal output programmatically. `STYLE_GUIDE:982-1150`
+- **Use tmux for TUI testing**: Capture and verify terminal output programmatically. `STYLE_GUIDE:1203-1295`
 - **Batch send-keys commands**: Reduce overhead by combining multiple commands with backslash continuation.
 - **Long-running processes**: Use tmux sessions for servers/daemons to enable easy interaction and cleanup.
 - **Pattern**: `tmux new-session -d -s name`, `tmux send-keys -t name "cmd" Enter`, `tmux capture-pane -t name -p`
@@ -167,10 +124,10 @@ See [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md) for full document
 
 ### Testing Rules (Sandi Metz)
 
-- **Test incoming queries**: Assert what they return. `STYLE_GUIDE:1022-1261`
-- **Test incoming commands**: Assert direct public side effects. `STYLE_GUIDE:1022-1261`
-- **Don't test**: Private methods, outgoing queries, implementation details. `STYLE_GUIDE:1022-1261`
-- **Mock strategy**: Command messages → mock; Query messages → stub. `STYLE_GUIDE:1022-1261`
+- **Test incoming queries**: Assert what they return. `STYLE_GUIDE:1873-2112`
+- **Test incoming commands**: Assert direct public side effects. `STYLE_GUIDE:1873-2112`
+- **Don't test**: Private methods, outgoing queries, implementation details. `STYLE_GUIDE:1873-2112`
+- **Mock strategy**: Command messages → mock; Query messages → stub. `STYLE_GUIDE:1873-2112`
 
 ### Pending Specs Policy (Strict)
 
@@ -181,41 +138,41 @@ See [AI_GENERATED_DETERMINISM.md](AI_GENERATED_DETERMINISM.md) for full document
 | Spike / prototype | ✅ | Temporary; track issue |
 | Flaky external dependency | ⚠️ | Issue + retry/backoff plan |
 
-Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:965-1021`
+Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:1816-1870`
 
 ## 8. Test Coverage Patterns
 
-- Target 85%+ coverage for business logic; accept lower for untestable code (forked processes, exec calls). `STYLE_GUIDE:1335-1600`
-- **Time-based tests**: Stub `Time.now` instead of `sleep` (avoid flaky tests). `STYLE_GUIDE:1442-1503`
-- **Private methods**: Test with `send(:method)` when complex logic needs coverage. `STYLE_GUIDE:1392-1414`
-- **Forked processes**: Test orchestration/metadata, not child internals; accept lower coverage. `STYLE_GUIDE:1504-1565`
-- **String encoding**: Explicitly convert to UTF-8 before regex/string operations. `STYLE_GUIDE:1566-1600`
+- Target 85%+ coverage for business logic; accept lower for untestable code (forked processes, exec calls). `STYLE_GUIDE:1550-1800`
+- **Time-based tests**: Stub `Time.now` instead of `sleep` (avoid flaky tests). `STYLE_GUIDE:1656-1690`
+- **Private methods**: Test with `send(:method)` when complex logic needs coverage. `STYLE_GUIDE:1606-1629`
+- **Forked processes**: Test orchestration/metadata, not child internals; accept lower coverage. `STYLE_GUIDE:1718-1778`
+- **String encoding**: Explicitly convert to UTF-8 before regex/string operations. `STYLE_GUIDE:1780-1813`
 
 ## 9. Concurrency & Threads
 
-- Join or stop threads in `ensure` / cleanup. `STYLE_GUIDE:1689-1724`
-- Avoid global mutable state without synchronization. `STYLE_GUIDE:1689-1724`
-- Keep intervals & sleeps configurable for tests. `STYLE_GUIDE:1689-1724`
+- Join or stop threads in `ensure` / cleanup. `STYLE_GUIDE:2170-2185`
+- Avoid global mutable state without synchronization. `STYLE_GUIDE:2170-2185`
+- Keep intervals & sleeps configurable for tests. `STYLE_GUIDE:2170-2185`
 
 ## 10. Performance
 
-- Avoid O(n^2) over large codebases (batch I/O, stream where possible). `STYLE_GUIDE:1355-1381`
-- Cache repeated expensive parsing (e.g., tree-sitter results) via existing cache utilities. `STYLE_GUIDE:1355-1381`
+- Avoid O(n^2) over large codebases (batch I/O, stream where possible). `STYLE_GUIDE:2206-2232`
+- Cache repeated expensive parsing (e.g., tree-sitter results) via existing cache utilities. `STYLE_GUIDE:2206-2232`
 
 ## 11. Progress / Status Output
 
-- UI rendering logic separated from business logic. `STYLE_GUIDE:636-964`
-- Inject I/O (stdout/prompt) for testability. `STYLE_GUIDE:747-870`
+- UI rendering logic separated from business logic. `STYLE_GUIDE:856-1105`
+- Inject I/O (stdout/prompt) for testability. `STYLE_GUIDE:1930-2012`
 
 ## 12. Security & Safety
 
-- Never execute untrusted code. `STYLE_GUIDE:1382-1421`
-- Validate file paths; avoid shell interpolation without sanitization. `STYLE_GUIDE:1382-1421`
-- Don't leak secrets into logs. `STYLE_GUIDE:272-283,1382-1421`
+- Never execute untrusted code. `STYLE_GUIDE:2233-2272`
+- Validate file paths; avoid shell interpolation without sanitization. `STYLE_GUIDE:2233-2272`
+- Don't leak secrets into logs. `STYLE_GUIDE:324-339,2233-2272`
 
 ## 13. Implementation Do / Don't
 
-`STYLE_GUIDE:18-50,108-117,1262-1318`
+`STYLE_GUIDE:25-117,224-229,2113-2168`
 
 | Do | Don't |
 | ---- | ------- |
@@ -225,7 +182,7 @@ Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:965-1
 
 ## 14. Quick Review Checklist
 
-`STYLE_GUIDE:603-635,1458-1468`
+`STYLE_GUIDE:25-117,856-1105,1873-2168`
 
 - [ ] Single responsibility kept
 - [ ] Tests updated / added
@@ -235,11 +192,11 @@ Every `pending` MUST have: short reason + tracking reference. `STYLE_GUIDE:965-1
 
 ## 15. Error Class Pattern
 
-Use custom exception classes. `STYLE_GUIDE:1277-1318,1534-1548`
+Use custom exception classes. `STYLE_GUIDE:2130-2140`
 
 ## 16. Anti‑Patterns (Reject in PRs)
 
-`STYLE_GUIDE:393-402,2029-2090`
+`STYLE_GUIDE:25-117,1816-1870,2233-2472`
 
 - Pending regressions
 - Custom ANSI/cursor code
@@ -252,26 +209,26 @@ Use custom exception classes. `STYLE_GUIDE:1277-1318,1534-1548`
 
 ## 17. Ruby Version Management
 
-- **ALWAYS use mise** for Ruby version management in this project `STYLE_GUIDE:284-337`
-- Commands running Ruby or Bundler MUST use `mise exec` to ensure correct versions `STYLE_GUIDE:290-304`
+- **ALWAYS use mise** for Ruby version management in this project `STYLE_GUIDE:446-498`
+- Commands running Ruby or Bundler MUST use `mise exec` to ensure correct versions `STYLE_GUIDE:454-486`
 - Examples: `mise exec -- ruby script.rb`, `mise exec -- bundle install`, `mise exec -- bundle exec rspec`
-- Never use system Ruby directly - always go through mise `STYLE_GUIDE:284-337`
+- Never use system Ruby directly - always go through mise `STYLE_GUIDE:446-498`
 
 ## 18. Commit Hygiene
 
-- One logical change per commit (or tightly coupled set) `STYLE_GUIDE:1422-1448`
-- Include rationale when refactoring behavior `STYLE_GUIDE:1422-1448`
-- Reference issue IDs for non-trivial changes `STYLE_GUIDE:1422-1448`
+- One logical change per commit (or tightly coupled set) `STYLE_GUIDE:2476-2482`
+- Include rationale when refactoring behavior `STYLE_GUIDE:2476-2482`
+- Reference issue IDs for non-trivial changes `STYLE_GUIDE:2476-2482`
 
 ## 19. Task Filing
 
-**Signal**: `File task: "description" priority: high tags: tag1,tag2` `STYLE_GUIDE:1802-1900`
+**Signal**: `File task: "description" priority: high tags: tag1,tag2` `STYLE_GUIDE:2856-2890`
 
-File discovered sub-tasks, tech debt, or future work. Tasks persist in `.aidp/tasklist.jsonl`. See [STYLE_GUIDE.md](STYLE_GUIDE.md#persistent-tasklist-cross-session-task-tracking) for details. `STYLE_GUIDE:1802-1900`
+File discovered sub-tasks, tech debt, or future work. Tasks persist in `.aidp/tasklist.jsonl`. See [STYLE_GUIDE.md](STYLE_GUIDE.md#persistent-tasklist-cross-session-task-tracking) for details. `STYLE_GUIDE:2856-2890`
 
 ## 20. Prompt Optimization
 
-AIDP uses intelligent fragment selection - you may not see this entire guide in your prompts. The AI selects only relevant sections based on your current task. Use `/prompt explain` to see what was selected. See `STYLE_GUIDE.md` for details on writing fragment-friendly documentation. `STYLE_GUIDE:1469-1490`
+AIDP uses intelligent fragment selection - you may not see this entire guide in your prompts. The AI selects only relevant sections based on your current task. Use `/prompt explain` to see what was selected. See `STYLE_GUIDE.md` for details on writing fragment-friendly documentation. `STYLE_GUIDE:2523-2854`
 
 ---
 **Use this cheat sheet for generation; consult `STYLE_GUIDE.md` when context or rationale is needed.**
