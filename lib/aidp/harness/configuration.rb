@@ -238,6 +238,28 @@ module Aidp
         output_filtering_config[:context_lines] || 3
       end
 
+      # Get all filter definitions from config
+      # @return [Hash] Map of tool keys to filter definition hashes
+      def filter_definitions
+        output_filtering_config[:filter_definitions] || {}
+      end
+
+      # Get filter definition for a specific tool/category
+      # @param key [String, Symbol] Tool key (e.g., "unit_test", "lint")
+      # @return [FilterDefinition, nil] Loaded filter definition or nil
+      def filter_definition_for(key)
+        definitions = filter_definitions
+        definition_hash = definitions[key.to_s] || definitions[key.to_sym]
+        return nil unless definition_hash
+
+        require_relative "filter_definition"
+        FilterDefinition.from_hash(definition_hash)
+      rescue => e
+        Aidp.log_warn("configuration", "failed_to_load_filter_definition",
+          key: key, error: e.message)
+        nil
+      end
+
       # Get guards configuration
       def guards_config
         work_loop_config[:guards] || default_guards_config

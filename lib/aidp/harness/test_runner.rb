@@ -199,10 +199,13 @@ module Aidp
         # Build filter config from configuration or defaults
         filter_config = build_filter_config(mode, category)
 
+        # Load AI-generated filter definition if available (AGD pattern)
+        filter_definition = load_filter_definition_for(category)
+
         # Track input size for stats
         @filter_stats[:total_input_bytes] += raw_output.bytesize
 
-        filter = OutputFilter.new(filter_config)
+        filter = OutputFilter.new(filter_config, filter_definition: filter_definition)
         filtered = filter.filter(raw_output, framework: framework)
 
         # Track output size for stats
@@ -212,7 +215,8 @@ module Aidp
           framework: framework,
           mode: mode,
           input_size: raw_output.bytesize,
-          output_size: filtered.bytesize)
+          output_size: filtered.bytesize,
+          has_custom_definition: !filter_definition.nil?)
 
         filtered
       rescue NameError
@@ -227,6 +231,22 @@ module Aidp
           # Logging not available
         end
         raw_output  # Fallback to unfiltered on error
+      end
+
+      # Load AI-generated filter definition for a category
+      # @param category [Symbol] :test or :lint
+      # @return [FilterDefinition, nil]
+      def load_filter_definition_for(category)
+        return nil unless @config.respond_to?(:filter_definition_for)
+
+        # Map category to definition key (matches setup wizard keys)
+        definition_key = case category
+        when :test then "unit_test"
+        when :lint then "lint"
+        else category.to_s
+        end
+
+        @config.filter_definition_for(definition_key)
       end
 
       def build_filter_config(mode, category)
