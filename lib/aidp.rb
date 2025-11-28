@@ -7,6 +7,7 @@ require_relative "aidp/core_ext/class_attribute"
 require_relative "aidp/version"
 require_relative "aidp/config"
 require_relative "aidp/util"
+require_relative "aidp/errors"
 require_relative "aidp/rescue_logging"
 require_relative "aidp/message_display"
 require_relative "aidp/concurrency"
@@ -64,13 +65,19 @@ require_relative "aidp/workflows/selector"
 
 # Execute mode
 require_relative "aidp/execute/steps"
-require_relative "aidp/execute/runner"
 require_relative "aidp/execute/progress"
 require_relative "aidp/execute/checkpoint"
 require_relative "aidp/execute/checkpoint_display"
 require_relative "aidp/execute/work_loop_state"
 require_relative "aidp/execute/instruction_queue"
 require_relative "aidp/execute/persistent_tasklist"
+require_relative "aidp/execute/prompt_manager"
+require_relative "aidp/execute/guard_policy"
+require_relative "aidp/execute/work_loop_unit_scheduler"
+require_relative "aidp/execute/deterministic_unit"
+require_relative "aidp/execute/agent_signal_parser"
+require_relative "aidp/execute/work_loop_runner"
+require_relative "aidp/execute/runner"
 require_relative "aidp/execute/async_work_loop_runner"
 require_relative "aidp/execute/interactive_repl"
 
@@ -85,6 +92,9 @@ require_relative "aidp/daemon/runner"
 require_relative "aidp/worktree"
 require_relative "aidp/workstream_state"
 require_relative "aidp/workstream_executor"
+
+# Tooling detection
+require_relative "aidp/tooling_detector"
 
 # Harness mode
 require_relative "aidp/harness/configuration"
@@ -112,6 +122,7 @@ require_relative "aidp/harness/generated_filter_strategy"
 require_relative "aidp/harness/ai_filter_factory"
 require_relative "aidp/harness/output_filter_config"
 require_relative "aidp/harness/output_filter"
+require_relative "aidp/harness/test_runner"
 
 # UI components
 require_relative "aidp/harness/ui/spinner_helper"
