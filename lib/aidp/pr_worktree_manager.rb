@@ -4,7 +4,7 @@ require "shellwords"
 
 module Aidp
   # Manages worktrees specifically for Pull Request branches
-  class PrWorktreeManager
+  class PRWorktreeManager
     def initialize(base_repo_path: nil, project_dir: nil, worktree_registry_path: nil)
       @base_repo_path = base_repo_path || project_dir || Dir.pwd
       @project_dir = project_dir
