@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "spec_helper"
+
 RSpec.describe Aidp::Harness::RSpecFilterStrategy do
   let(:filter_instance) { instance_double(Aidp::Harness::OutputFilter, mode: :failures_only) }
   let(:strategy) { described_class.new }

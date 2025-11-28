@@ -4,7 +4,7 @@ require "spec_helper"
 require "fileutils"
 require "aidp/analyze/feature_analyzer"
 
-RSpec.describe Aidp::FeatureAnalyzer do
+RSpec.describe Aidp::Analyze::FeatureAnalyzer do
   let(:project_dir) { Dir.mktmpdir }
   let(:analyzer) { described_class.new(project_dir) }
 
