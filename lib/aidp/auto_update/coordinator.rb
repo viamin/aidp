@@ -1,12 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "version_detector"
-require_relative "checkpoint_store"
-require_relative "update_logger"
-require_relative "failure_tracker"
-require_relative "update_policy"
-require_relative "errors"
-
 module Aidp
   module AutoUpdate
     # Facade for orchestrating the complete auto-update workflow
@@ -188,7 +181,104 @@ module Aidp
         }
       end
 
+      # Perform hot code reload without restarting the process
+      #
+      # This method performs a git pull and then uses Zeitwerk to reload
+      # all Ruby classes. Unlike initiate_update (which exits with code 75),
+      # this method keeps the process running.
+      #
+      # @param update_check [UpdateCheck] Update check result
+      # @return [Boolean] Whether reload was successful
+      # @raise [UpdateError] If updates are disabled or reload fails
+      def hot_reload_update(update_check = nil)
+        raise UpdateError, "Updates disabled by configuration" unless @policy.enabled
+
+        # Verify Zeitwerk loader is set up for reloading
+        unless Aidp::Loader.setup? && Aidp::Loader.reloading?
+          Aidp.log_warn("auto_update_coordinator", "hot_reload_not_available",
+            reason: "Zeitwerk loader not configured for reloading")
+          raise UpdateError, "Hot reloading not available. Loader must be configured with enable_reloading: true"
+        end
+
+        update_check ||= check_for_update
+        return false unless update_check.should_update?
+
+        from_version = update_check.current_version
+        to_version = update_check.available_version
+
+        Aidp.log_info("auto_update_coordinator", "hot_reload_starting",
+          from_version: from_version,
+          to_version: to_version)
+
+        # Perform git pull
+        unless perform_git_pull
+          raise UpdateError, "Git pull failed"
+        end
+
+        # Reload all classes using Zeitwerk
+        unless Aidp::Loader.reload!
+          @failure_tracker.record_failure
+          @update_logger.log_failure("Zeitwerk reload failed")
+          raise UpdateError, "Zeitwerk reload failed"
+        end
+
+        # Log success
+        @update_logger.log_success(
+          from_version: from_version,
+          to_version: to_version
+        )
+        @failure_tracker.reset_on_success
+
+        Aidp.log_info("auto_update_coordinator", "hot_reload_complete",
+          from_version: from_version,
+          to_version: to_version)
+
+        true
+      rescue UpdateError
+        raise
+      rescue => e
+        @failure_tracker.record_failure
+        @update_logger.log_failure("Hot reload failed: #{e.message}")
+        Aidp.log_error("auto_update_coordinator", "hot_reload_failed",
+          error: e.message)
+        raise UpdateError, "Hot reload failed: #{e.message}"
+      end
+
+      # Check if hot reloading is available
+      # @return [Boolean]
+      def hot_reload_available?
+        Aidp::Loader.setup? && Aidp::Loader.reloading?
+      end
+
       private
+
+      # Perform git pull to fetch latest code
+      # @return [Boolean] Whether pull was successful
+      def perform_git_pull
+        require "open3"
+
+        Aidp.log_debug("auto_update_coordinator", "git_pull_starting",
+          project_dir: @project_dir)
+
+        Dir.chdir(@project_dir) do
+          stdout, stderr, status = Open3.capture3("git", "pull", "--ff-only")
+
+          if status.success?
+            Aidp.log_info("auto_update_coordinator", "git_pull_success",
+              output: stdout.strip)
+            true
+          else
+            Aidp.log_error("auto_update_coordinator", "git_pull_failed",
+              stderr: stderr.strip,
+              exit_code: status.exitstatus)
+            false
+          end
+        end
+      rescue => e
+        Aidp.log_error("auto_update_coordinator", "git_pull_error",
+          error: e.message)
+        false
+      end
 
       def build_checkpoint(current_state, target_version)
         Checkpoint.new(

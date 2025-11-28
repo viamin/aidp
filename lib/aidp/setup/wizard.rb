@@ -8,17 +8,6 @@ require "fileutils"
 require "json"
 require "ostruct"
 
-require_relative "../util"
-require_relative "../config/paths"
-require_relative "../harness/capability_registry"
-require_relative "provider_registry"
-require_relative "devcontainer/parser"
-require_relative "devcontainer/generator"
-require_relative "devcontainer/port_manager"
-require_relative "devcontainer/backup_manager"
-require_relative "../harness/ai_filter_factory"
-require_relative "../harness/filter_definition"
-
 module Aidp
   module Setup
     # Interactive setup wizard for configuring AIDP.

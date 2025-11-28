@@ -2,21 +2,6 @@
 
 require "tty-prompt"
 
-require_relative "../message_display"
-require_relative "repository_client"
-require_relative "repository_safety_checker"
-require_relative "state_store"
-require_relative "github_state_extractor"
-require_relative "plan_generator"
-require_relative "plan_processor"
-require_relative "build_processor"
-require_relative "../auto_update"
-require_relative "review_processor"
-require_relative "ci_fix_processor"
-require_relative "change_request_processor"
-require_relative "auto_processor"
-require_relative "auto_pr_processor"
-
 module Aidp
   module Watch
     # Coordinates the watch mode loop: monitors issues, handles plan/build
@@ -522,14 +507,21 @@ module Aidp
         return unless @auto_update_coordinator.policy.enabled
         return unless time_for_update_check?
 
+        @last_update_check = Time.now
         update_check = @auto_update_coordinator.check_for_update
 
         if update_check.should_update?
           display_message("🔄 Update available: #{update_check.current_version} → #{update_check.available_version}", type: :highlight)
-          display_message("   Saving checkpoint and initiating update...", type: :muted)
 
-          initiate_update(update_check)
-          # Never returns - exits with code 75
+          # Prefer hot reloading if available (Zeitwerk enabled with reloading)
+          if @auto_update_coordinator.hot_reload_available?
+            perform_hot_reload(update_check)
+          else
+            # Fall back to checkpoint + exit approach
+            display_message("   Saving checkpoint and initiating update...", type: :muted)
+            initiate_update(update_check)
+            # Never returns - exits with code 75
+          end
         end
       rescue Aidp::AutoUpdate::UpdateLoopError => e
         # Restart loop detected - disable auto-update
@@ -538,6 +530,25 @@ module Aidp
       rescue Aidp::AutoUpdate::UpdateError => e
         # Non-fatal update error - log and continue
         Aidp.log_error("watch_runner", "update_check_failed", error: e.message)
+      end
+
+      # Perform hot code reload without restarting
+      # @param update_check [Aidp::AutoUpdate::UpdateCheck] Update check result
+      def perform_hot_reload(update_check)
+        display_message("   Performing hot code reload (no restart needed)...", type: :muted)
+
+        if @auto_update_coordinator.hot_reload_update(update_check)
+          display_message("✨ Hot reload complete! Now running #{Aidp::VERSION}", type: :success)
+          Aidp.log_info("watch_runner", "hot_reload_success",
+            version: Aidp::VERSION)
+        else
+          display_message("⚠️  Hot reload skipped (no update needed)", type: :muted)
+        end
+      rescue Aidp::AutoUpdate::UpdateError => e
+        display_message("⚠️  Hot reload failed: #{e.message}", type: :warning)
+        display_message("   Falling back to checkpoint + restart...", type: :muted)
+        # Fall back to cold restart
+        initiate_update(update_check)
       end
 
       # Determine if it's time to check for updates

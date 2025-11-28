@@ -3,7 +3,8 @@
 require "fileutils"
 
 module Aidp
-  class FeatureAnalyzer
+  module Analyze
+    class FeatureAnalyzer
     def initialize(project_dir = Dir.pwd)
       @project_dir = project_dir
     end
@@ -392,6 +393,7 @@ module Aidp
     rescue
       # Fallback to filename if extraction fails
       File.basename(file, ".*").capitalize
+    end
     end
   end
 end

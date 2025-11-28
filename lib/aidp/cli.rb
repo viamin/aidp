@@ -8,6 +8,7 @@ require_relative "harness/ui/enhanced_tui"
 require_relative "harness/ui/enhanced_workflow_selector"
 require_relative "harness/enhanced_runner"
 require_relative "cli/first_run_wizard"
+require_relative "cli/issue_importer"
 require_relative "rescue_logging"
 require_relative "concurrency"
 
@@ -669,7 +670,7 @@ module Aidp
             return
           end
 
-          importer = IssueImporter.new
+          importer = Aidp::IssueImporter.new
           issue_data = importer.import_issue(identifier)
 
           if issue_data

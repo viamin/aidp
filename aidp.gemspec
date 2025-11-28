@@ -28,6 +28,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "ruby_llm", "~> 1.9"
   s.add_runtime_dependency "ruby_tree_sitter", "~> 2.0"
   s.add_runtime_dependency "thor", "~> 1.3"
+  s.add_runtime_dependency "zeitwerk", "~> 2.7"
   s.add_runtime_dependency "tty-box", "~> 0.7"
   s.add_runtime_dependency "tty-command", "~> 0.10"
   s.add_runtime_dependency "tty-cursor", "~> 0.7"

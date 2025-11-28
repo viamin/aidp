@@ -3,7 +3,7 @@ require "aidp/pr_worktree_manager"
 require "fileutils"
 require "tmpdir"
 
-RSpec.describe Aidp::PrWorktreeManager do
+RSpec.describe Aidp::PRWorktreeManager do
   let(:temp_repo_path) { Dir.mktmpdir }
   let(:pr_number) { 42 }
   let(:base_branch) { "main" }
@@ -22,7 +22,7 @@ RSpec.describe Aidp::PrWorktreeManager do
     end
 
     # Set the base repository path to the temporary repo with isolated project directory
-    @pr_worktree_manager = Aidp::PrWorktreeManager.new(
+    @pr_worktree_manager = Aidp::PRWorktreeManager.new(
       base_repo_path: temp_repo_path,
       project_dir: temp_repo_path
     )
@@ -252,7 +252,7 @@ RSpec.describe Aidp::PrWorktreeManager do
       let(:invalid_repo_path) { Dir.mktmpdir }
 
       it "raises an error" do
-        invalid_pr_worktree_manager = Aidp::PrWorktreeManager.new(
+        invalid_pr_worktree_manager = Aidp::PRWorktreeManager.new(
           base_repo_path: invalid_repo_path,
           project_dir: invalid_repo_path
         )
@@ -277,7 +277,7 @@ RSpec.describe Aidp::PrWorktreeManager do
       end
 
       it "handles non-writable registry gracefully" do
-        read_only_pr_worktree_manager = Aidp::PrWorktreeManager.new(
+        read_only_pr_worktree_manager = Aidp::PRWorktreeManager.new(
           base_repo_path: temp_repo_path,
           project_dir: read_only_dir
         )
@@ -311,7 +311,7 @@ RSpec.describe Aidp::PrWorktreeManager do
       it "handles corrupt registry gracefully" do
         allow(Aidp).to receive(:log_warn)
 
-        corrupt_pr_worktree_manager = Aidp::PrWorktreeManager.new(
+        corrupt_pr_worktree_manager = Aidp::PRWorktreeManager.new(
           base_repo_path: temp_repo_path,
           project_dir: temp_repo_path,
           worktree_registry_path: corrupt_registry_path

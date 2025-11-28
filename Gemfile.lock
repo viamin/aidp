@@ -19,6 +19,7 @@ PATH
       tty-screen (~> 0.8)
       tty-spinner (~> 0.9)
       tty-table (~> 0.12)
+      zeitwerk (~> 2.7)
 
 GEM
   remote: https://rubygems.org/

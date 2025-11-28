@@ -1,130 +1,30 @@
 # frozen_string_literal: true
 
-# Core extensions
-require_relative "aidp/core_ext/class_attribute"
+# Bootstrap: Load essential files before Zeitwerk
+# These files must be loaded first and are excluded from autoloading:
+# - version.rb: Needed for version checks during load
+# - core_ext: Ruby core extensions that need to be available globally
+# - logger.rb: Logging infrastructure used throughout loading
 
-# Shared modules
 require_relative "aidp/version"
-require_relative "aidp/config"
-require_relative "aidp/util"
-require_relative "aidp/errors"
-require_relative "aidp/rescue_logging"
-require_relative "aidp/message_display"
-require_relative "aidp/concurrency"
-require_relative "aidp/setup/wizard"
-require_relative "aidp/init"
-require_relative "aidp/watch"
-require_relative "aidp/cli"
-
-# Jobs and background execution
-require_relative "aidp/jobs/background_runner"
-
-# CLI commands
-require_relative "aidp/cli/jobs_command"
-
-# Providers
-require_relative "aidp/providers/base"
-require_relative "aidp/providers/cursor"
-require_relative "aidp/providers/anthropic"
-require_relative "aidp/providers/gemini"
-require_relative "aidp/providers/kilocode"
-# Supervised providers removed - using direct execution model
-require_relative "aidp/provider_manager"
-
-# Simple file-based storage
-require_relative "aidp/storage/json_storage"
-require_relative "aidp/storage/csv_storage"
-require_relative "aidp/storage/file_manager"
-
-# Analyze mode (simplified - file-based storage only)
-require_relative "aidp/analyze/json_file_storage"
-require_relative "aidp/analyze/error_handler"
-require_relative "aidp/analyze/ruby_maat_integration"
-require_relative "aidp/analyze/runner"
-require_relative "aidp/analyze/steps"
-require_relative "aidp/analyze/progress"
-
-# Tree-sitter analysis
-require_relative "aidp/analyze/tree_sitter_grammar_loader"
-require_relative "aidp/analyze/seams"
-require_relative "aidp/analyze/tree_sitter_scan"
-require_relative "aidp/analyze/kb_inspector"
-
-# Metadata system
-require_relative "aidp/metadata/tool_metadata"
-require_relative "aidp/metadata/validator"
-require_relative "aidp/metadata/parser"
-require_relative "aidp/metadata/scanner"
-require_relative "aidp/metadata/compiler"
-require_relative "aidp/metadata/query"
-require_relative "aidp/metadata/cache"
-
-# Workflows
-require_relative "aidp/workflows/definitions"
-require_relative "aidp/workflows/selector"
-
-# Execute mode
-require_relative "aidp/execute/steps"
-require_relative "aidp/execute/progress"
-require_relative "aidp/execute/checkpoint"
-require_relative "aidp/execute/checkpoint_display"
-require_relative "aidp/execute/work_loop_state"
-require_relative "aidp/execute/instruction_queue"
-require_relative "aidp/execute/persistent_tasklist"
-require_relative "aidp/execute/prompt_manager"
-require_relative "aidp/execute/guard_policy"
-require_relative "aidp/execute/work_loop_unit_scheduler"
-require_relative "aidp/execute/deterministic_unit"
-require_relative "aidp/execute/agent_signal_parser"
-require_relative "aidp/execute/work_loop_runner"
-require_relative "aidp/execute/runner"
-require_relative "aidp/execute/async_work_loop_runner"
-require_relative "aidp/execute/interactive_repl"
-
-# Logging
+require_relative "aidp/core_ext/class_attribute"
 require_relative "aidp/logger"
 
-# Daemon mode
-require_relative "aidp/daemon/process_manager"
-require_relative "aidp/daemon/runner"
+# Now set up Zeitwerk autoloader for the rest of the codebase
+require_relative "aidp/loader"
 
-# Workstream/worktree management
-require_relative "aidp/worktree"
-require_relative "aidp/workstream_state"
-require_relative "aidp/workstream_executor"
+# Configure Zeitwerk based on environment
+# In watch mode or development, enable reloading for hot code updates
+# In production, disable reloading and eager load for performance
+reloading_enabled = ENV["AIDP_ENABLE_RELOADING"] == "1" ||
+  ENV["AIDP_WATCH_MODE"] == "1"
 
-# Tooling detection
-require_relative "aidp/tooling_detector"
+Aidp::Loader.setup(
+  enable_reloading: reloading_enabled,
+  eager_load: !reloading_enabled && ENV["AIDP_EAGER_LOAD"] == "1"
+)
 
-# Harness mode
-require_relative "aidp/harness/configuration"
-require_relative "aidp/harness/config_schema"
-require_relative "aidp/harness/config_validator"
-require_relative "aidp/harness/config_loader"
-require_relative "aidp/harness/config_manager"
-require_relative "aidp/harness/ruby_llm_registry"
-require_relative "aidp/harness/model_registry"
-require_relative "aidp/harness/condition_detector"
-require_relative "aidp/harness/user_interface"
-require_relative "aidp/harness/simple_user_interface"
-require_relative "aidp/harness/provider_manager"
-require_relative "aidp/harness/provider_config"
-require_relative "aidp/harness/provider_factory"
-require_relative "aidp/harness/state_manager"
-require_relative "aidp/harness/error_handler"
-require_relative "aidp/harness/status_display"
-require_relative "aidp/harness/runner"
-require_relative "aidp/harness/filter_strategy"
-require_relative "aidp/harness/generic_filter_strategy"
-require_relative "aidp/harness/rspec_filter_strategy"
-require_relative "aidp/harness/filter_definition"
-require_relative "aidp/harness/generated_filter_strategy"
-require_relative "aidp/harness/ai_filter_factory"
-require_relative "aidp/harness/output_filter_config"
-require_relative "aidp/harness/output_filter"
-require_relative "aidp/harness/test_runner"
-
-# UI components
-require_relative "aidp/harness/ui/spinner_helper"
-
-# CLI commands
+# Manually require files that contain multiple constants (not autoloadable by Zeitwerk)
+require_relative "aidp/errors"
+require_relative "aidp/auto_update/errors"
+require_relative "aidp/harness/state/errors"

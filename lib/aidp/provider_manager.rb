@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
-require_relative "harness/provider_factory"
 
 module Aidp
   class ProviderManager
@@ -20,12 +19,7 @@ module Aidp
 
       # Get harness factory instance
       def get_harness_factory
-        @harness_factory ||= begin
-          require_relative "harness/config_manager"
-          Aidp::Harness::ProviderFactory.new
-        rescue LoadError
-          nil
-        end
+        @harness_factory ||= Aidp::Harness::ProviderFactory.new
       end
 
       # Create provider using harness configuration

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "yaml"
-require_relative "config/paths"
 
 module Aidp
   # Configuration management for both execute and analyze modes
