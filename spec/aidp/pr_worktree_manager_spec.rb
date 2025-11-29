@@ -364,7 +364,7 @@ RSpec.describe Aidp::PRWorktreeManager do
 
         expect(changes).to include(
           files: ["README.md", "CONTRIBUTING.md"],
-          operations: [],
+          operations: [:modify, :create],
           comments: []
         )
       end

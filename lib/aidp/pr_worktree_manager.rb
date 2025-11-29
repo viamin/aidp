@@ -258,7 +258,7 @@ module Aidp
 
       # Advanced change detection patterns
       file_patterns = [
-        /(?:modify|update|add|delete)\s+file:\s*([^\n]+)/i,
+        /(modify|update|add|delete)\s+file:\s*([^\n]+)/i,
         /\[(\w+)\]\s*([^\n]+)/,           # GitHub-style change indicators
         /(?:Action:\s*(\w+))\s*File:\s*([^\n]+)/i
       ]
