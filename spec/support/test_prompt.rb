@@ -235,6 +235,28 @@ class TestPrompt
     /⚠️  Watch mode safety checks BYPASSED/,
     /⏭️  Skipping issue.*not authorized/,
 
+    # PR change request processor messages
+    /⚠️  PR #\d+ diff too large/,
+    /🔨 Implementing requested changes for PR #\d+/,
+    /🧪 Running tests and linters/,
+    /❌ Posted test failure comment for PR #\d+/,
+    /⚠️  Unknown action:/,
+    /ℹ️  No changes to commit after applying/,
+    /🌿 Using worktree for PR #\d+:/,
+    /🔗 Found linked issue #\d+ - verifying implementation/,
+    /⚠️  Implementation incomplete; creating follow-up tasks/,
+    /⚠️  Failed to create follow-up tasks:/,
+    /📝 Recorded incomplete implementation status for PR #\d+/,
+    /⚠️  Posted cannot-implement comment for PR #\d+/,
+    /ℹ️  Posted no-changes comment for PR #\d+/,
+    /⚠️  Max clarification rounds.*reached for PR #\d+/,
+    /❌ Change request processing failed:/,
+    /ℹ️  No authorized comments found for PR #\d+/,
+    /🔄 Reusing worktree .* for issue #\d+ \(PR #\d+\)/,
+    /✅ Implementation verified complete/,
+    /ℹ️  PR change requests are disabled in configuration/,
+    /🤔 Posted clarification request for PR #\d+/,
+
     # Configuration messages
     /Failed to load configuration file/,
 
