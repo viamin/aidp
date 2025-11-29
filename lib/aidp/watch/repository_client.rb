@@ -120,6 +120,47 @@ module Aidp
         gh_available? ? fetch_pr_comments_via_gh(number) : fetch_pr_comments_via_api(number)
       end
 
+      # Create or update a categorized comment (e.g., under a header) on an issue.
+      # If a comment with the category header exists, either append to it or
+      # replace it while archiving the previous content inline.
+      def consolidate_category_comment(issue_number, category_header, content, append: false)
+        existing_comment = find_comment(issue_number, category_header)
+
+        if existing_comment.nil?
+          Aidp.log_debug("repository_client", "creating_category_comment",
+            issue: issue_number,
+            header: category_header)
+          return post_comment(issue_number, "#{category_header}\n\n#{content}")
+        end
+
+        existing_body = existing_comment[:body] || existing_comment["body"] || ""
+        content_without_header = existing_body.sub(/\A#{Regexp.escape(category_header)}\s*/, "").strip
+
+        new_body =
+          if append
+            Aidp.log_debug("repository_client", "appending_category_comment",
+              issue: issue_number,
+              header: category_header)
+            segments = [category_header, content_without_header, content].reject(&:empty?)
+            segments.join("\n\n")
+          else
+            Aidp.log_debug("repository_client", "replacing_category_comment",
+              issue: issue_number,
+              header: category_header)
+            timestamp = Time.now.utc.iso8601
+            archive_marker = "<!-- ARCHIVED_PLAN_START #{timestamp} ARCHIVED_PLAN_END -->"
+            [category_header, content, archive_marker, content_without_header].join("\n\n")
+          end
+
+        update_comment(existing_comment[:id] || existing_comment["id"], new_body)
+      rescue => e
+        Aidp.log_error("repository_client", "consolidate_category_comment_failed",
+          issue: issue_number,
+          header: category_header,
+          error: e.message)
+        raise "GitHub error: #{e.message}"
+      end
+
       private
 
       # Retry a GitHub CLI operation with exponential backoff
