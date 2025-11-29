@@ -27,10 +27,10 @@ class TestPrompt
   end
 
   def select(title, items = nil, **options, &block)
-    if block_given?
+    if block
       # Handle block-style select (like TTY::Prompt)
       menu = MockMenu.new
-      block.call(menu)
+      yield(menu)
       @selections << {title: title, items: menu.choices, options: options, block: true}
       # Priority: explicit map, then sequence array, then single value, else first menu choice
       if @responses[:select_map]
@@ -46,9 +46,8 @@ class TestPrompt
           return val.is_a?(Array) ? val.shift : val
         end
       end
-      if @responses[:select].is_a?(Array)
-        return @responses[:select].shift
-      end
+      return @responses[:select].shift if @responses[:select].is_a?(Array)
+
       @responses[:select] || menu.choices.first[:value]
     else
       @selections << {title: title, items: items, options: options}
@@ -63,9 +62,8 @@ class TestPrompt
           return val.is_a?(Array) ? val.shift : val
         end
       end
-      if @responses[:select].is_a?(Array)
-        return @responses[:select].shift
-      end
+      return @responses[:select].shift if @responses[:select].is_a?(Array)
+
       @responses[:select] || (items.is_a?(Hash) ? items.values.first : items.first)
     end
   end
@@ -82,9 +80,8 @@ class TestPrompt
       mapped = @responses[:multi_select_map][title]
       return mapped.is_a?(Array) ? mapped : Array(mapped)
     end
-    if @responses[:multi_select].is_a?(Array)
-      return @responses[:multi_select]
-    end
+    return @responses[:multi_select] if @responses[:multi_select].is_a?(Array)
+
     @responses[:multi_select] || []
   end
 
@@ -113,7 +110,7 @@ class TestPrompt
       question_mock.define_singleton_method(:validate) do |pattern, message|
         # Skip validation for test purposes
       end
-      block.call(question_mock)
+      yield(question_mock)
     end
 
     response
@@ -125,9 +122,8 @@ class TestPrompt
       val = @responses[:yes_map][message]
       return val.is_a?(Array) ? val.shift : val
     end
-    if @responses[:yes?].is_a?(Array)
-      return @responses[:yes?].shift
-    end
+    return @responses[:yes?].shift if @responses[:yes?].is_a?(Array)
+
     @responses.key?(:yes?) ? @responses[:yes?] : true
   end
 
@@ -137,9 +133,8 @@ class TestPrompt
       val = @responses[:no_map][message]
       return val.is_a?(Array) ? val.shift : val
     end
-    if @responses[:no?].is_a?(Array)
-      return @responses[:no?].shift
-    end
+    return @responses[:no?].shift if @responses[:no?].is_a?(Array)
+
     @responses.key?(:no?) ? @responses[:no?] : false
   end
 
@@ -257,12 +252,48 @@ class TestPrompt
     /ℹ️  PR change requests are disabled in configuration/,
     /🤔 Posted clarification request for PR #\d+/,
 
+    # Auto processor messages
+    /🤖 Starting autonomous build for issue #\d+/,
+    %r{🤖 Running autonomous review/CI loop for PR #\d+},
+    /🏷️  Added '.*' to PR #\d+/,
+    /🏷️  Removed '.*' from (issue|PR) #\d+/,
+
+    # Provider and circuit breaker messages
+    /Context: \{provider:/,
+    /All providers are rate limited, unhealthy, or circuit breaker open/,
+
+    # Git worktree messages
+    /HEAD is now at/,
+    /Preparing worktree/,
+    %r{\?\? \.aidp/}, # Untracked .aidp directory in git status
+
+    # Harness execution messages
+    /⏹️  Harness (stopped|STOPPED)/,
+    /Execution terminated (manually|by user)/,
+    /🕒 Deterministic wait:/,
+    /✅ Deterministic unit .* finished with status/,
+    /❌ Deterministic unit .* failed:/,
+
+    # Implementation verification messages
+    /🔍 Verifying implementation completeness/,
+    /🔍 Reviewing PR #\d+/,
+    /ℹ️  Review for PR #\d+ already posted/,
+    /❌ Review failed:/,
+
+    # Error and cancellation messages
+    /⚠️  Failed to create pull request:/,
+    /Error: test error/,
+    /Wizard cancelled/,
+
     # Configuration messages
     /Failed to load configuration file/,
 
     # Formatting
-    /────+/,  # Separator lines
-    /====+/   # Separator lines
+    /^────+$/,  # Separator lines (full line)
+    /────+/,    # Separator lines (anywhere in message)
+    /^====+$/,  # Separator lines (full line)
+    /====+/,    # Separator lines (anywhere in message)
+    /^\s*$/     # Empty or whitespace-only lines
   ].freeze
 
   def say(message, **options)

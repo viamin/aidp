@@ -112,7 +112,7 @@ RSpec.describe Aidp::Setup::Wizard do
       wizard = described_class.new(tmp_dir, prompt: prompt_with_auto_update, dry_run: false)
       wizard.run
 
-      config = YAML.safe_load(File.read(Aidp::ConfigPaths.config_file(tmp_dir)), symbolize_names: true)
+      config = YAML.safe_load_file(Aidp::ConfigPaths.config_file(tmp_dir), symbolize_names: true)
       auto_update = config[:auto_update]
 
       expect(auto_update[:enabled]).to be true
