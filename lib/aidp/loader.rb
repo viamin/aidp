@@ -149,6 +149,7 @@ module Aidp
           "kb_inspector" => "KBInspector",
           "ui_state" => "UIState",
           "ui_error" => "UIError",
+          "rspec_filter_strategy" => "RSpecFilterStrategy",
 
           # TTY-related
           "tui" => "TUI",
