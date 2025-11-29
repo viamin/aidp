@@ -48,4 +48,60 @@ RSpec.describe Aidp::Watch::RepositoryClient do
       )
     end
   end
+
+  describe "CI status normalization" do
+    let(:client) { described_class.new(owner: owner, repo: repo, gh_available: true) }
+
+    before do
+      allow(Aidp).to receive(:log_debug)
+    end
+
+    it "returns unknown when no checks exist" do
+      status = client.send(:normalize_ci_status, [], "sha123")
+      expect(status[:state]).to eq("unknown")
+      expect(status[:checks]).to be_empty
+    end
+
+    it "returns failure when any check failed" do
+      checks = [
+        {"name" => "lint", "status" => "completed", "conclusion" => "failure"},
+        {"name" => "test", "status" => "completed", "conclusion" => "success"}
+      ]
+      status = client.send(:normalize_ci_status, checks, "sha123")
+      expect(status[:state]).to eq("failure")
+    end
+
+    it "returns pending when incomplete checks exist" do
+      checks = [
+        {"name" => "lint", "status" => "in_progress", "conclusion" => nil}
+      ]
+      status = client.send(:normalize_ci_status, checks, "sha123")
+      expect(status[:state]).to eq("pending")
+    end
+
+    it "returns success when all checks succeeded" do
+      checks = [
+        {"name" => "lint", "status" => "completed", "conclusion" => "success"},
+        {"name" => "test", "status" => "completed", "conclusion" => "success"}
+      ]
+      status = client.send(:normalize_ci_status, checks, "sha123")
+      expect(status[:state]).to eq("success")
+    end
+
+    it "returns unknown when checks completed without success or failure" do
+      checks = [
+        {"name" => "lint", "status" => "completed", "conclusion" => "neutral"}
+      ]
+      status = client.send(:normalize_ci_status, checks, "sha123")
+      expect(status[:state]).to eq("unknown")
+    end
+
+    it "normalizes commit status states to conclusions" do
+      expect(client.send(:normalize_commit_status_to_conclusion, "success")).to eq("success")
+      expect(client.send(:normalize_commit_status_to_conclusion, "failure")).to eq("failure")
+      expect(client.send(:normalize_commit_status_to_conclusion, "error")).to eq("failure")
+      expect(client.send(:normalize_commit_status_to_conclusion, "pending")).to be_nil
+      expect(client.send(:normalize_commit_status_to_conclusion, nil)).to be_nil
+    end
+  end
 end

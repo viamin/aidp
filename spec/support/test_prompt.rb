@@ -166,6 +166,8 @@ class TestPrompt
     /🟢 Circuit breaker reset/,
     /❌ No providers available/,
     /❌ No models available/,
+    /All providers are rate limited, unhealthy, or circuit breaker open/,
+    /All models are rate limited, unhealthy, or circuit breaker open/,
     /📊 Execution Summary/,
 
     # Workstream execution messages
@@ -259,13 +261,16 @@ class TestPrompt
     /🏷️  Removed '.*' from (issue|PR) #\d+/,
 
     # Provider and circuit breaker messages
-    /Context: \{provider:/,
+    /Context: \{[^}]*}/,
     /All providers are rate limited, unhealthy, or circuit breaker open/,
 
     # Git worktree messages
     /HEAD is now at/,
     /Preparing worktree/,
     %r{\?\? \.aidp/}, # Untracked .aidp directory in git status
+    /fatal: not a git repository/,
+    /fatal: pathspec .* did not match any files/,
+    /fatal: could not create leading directories/,
 
     # Harness execution messages
     /⏹️  Harness (stopped|STOPPED)/,
@@ -282,11 +287,137 @@ class TestPrompt
 
     # Error and cancellation messages
     /⚠️  Failed to create pull request:/,
+    /⚠️  Failed to remove CI fix label:/,
     /Error: test error/,
     /Wizard cancelled/,
+    /Configuration setup cancelled/,
+    /Configuration required\. Aborting startup/,
+    /Warning: .*was considered valid by email validation/,
 
     # Configuration messages
     /Failed to load configuration file/,
+    /Failed to load provider info for/,
+    /mapping values are not allowed in this context/,
+    /did not find expected key while parsing/,
+
+    # CI Fix processor messages
+    /🔧 Analyzing CI failures for PR #\d+/,
+    /Found \d+ failed check\(s\):/,
+    /✅ CI is passing for PR #\d+/,
+    /⏳ CI is still running for PR #\d+/,
+    /⚠️  No specific failed checks found for PR #\d+/,
+    /ℹ️  CI fix for PR #\d+ already completed/,
+    /❌ CI fix failed:/,
+    /🌿 Creating worktree for PR #\d+/,
+    /⚠️  Posted failure comment for PR #\d+/,
+
+    # Plan generation messages
+    /🔄 Re-planning for issue #\d+/,
+    /⚠️  Unable to generate plan for issue #\d+/,
+
+    # Workflow status messages
+    /⚠ Workflow paused:/,
+    /✓ Workflow (completed|resumed):/,
+    /✗ Workflow stopped:/,
+    /⚠ Workflow cancelled:/,
+    /⏸️  Harness PAUSED/,
+    /Press 'r' to resume, 's' to stop/,
+    /▶️  Harness RESUMED/,
+    /Continuing execution/,
+
+    # Execution step messages
+    /🚀 Running execution step/,
+    /✅ Execution step completed/,
+    /🚀 Starting parallel execution of \d+ workstreams/,
+    /Total: \d+.*Completed: \d+.*Failed: \d+/,
+    /Total Duration:/,
+    /⚠️  No active workstreams found/,
+
+    # File operation messages
+    /✓ create /,
+    /✓ edit /,
+    /✓ Deleted /,
+
+    # Progress and metrics messages
+    /Iteration.*Time.*LOC.*Coverage/,
+    /Iter: \d+.*LOC:.*Cov:.*Qual:.*PRD:/,
+    /📈 Progress Summary/,
+    /Step: /,
+    /Iteration: \d+/,
+    /Current Metrics:/,
+    /Lines of Code:/,
+    /Test Coverage:/,
+    /Code Quality:/,
+    /PRD Task Progress:/,
+    /File Count:/,
+    /Trends:/,
+    /Overall Status:/,
+    /Quality Score:/,
+    /↑ \+\d+/,
+    /↓ -\d+/,
+    /✓ Healthy/,
+    /⚠ Warning/,
+
+    # Interactive prompts
+    /🤖 Agent needs your feedback:/,
+    /📊 Overview:/,
+    /Total questions:/,
+    /Required:/,
+    /Optional:/,
+    /Question types:/,
+    /Estimated time:/,
+    /📝 Questions to answer:/,
+    /✅ Question Completion Summary/,
+    /📊 Statistics:/,
+    /Answered:/,
+    /Skipped:/,
+    /Completion rate:/,
+    /📝 Response Summary:/,
+    /🚀 Continuing execution/,
+
+    # Completion criteria messages
+    /⚠️  All steps completed but some completion criteria not met:/,
+    %r{❌ \d+/\d+ criteria failed:},
+    /⚠️  Non-interactive mode: cannot override/,
+    /Missing (artifacts|tests|coverage)/,
+
+    # Knowledge Base messages
+    /📊 Knowledge Base Summary/,
+    /📁 KB Directory:/,
+    /📄 Files analyzed:/,
+    /🏗️  Symbols:/,
+    /📦 Imports:/,
+    /🔗 Calls:/,
+    /📏 Metrics:/,
+    /🔧 Seams:/,
+    /🔥 Hotspots:/,
+    /🧪 Tests:/,
+    /🔄 Cycles:/,
+    /🔧 Seam Types:/,
+    /🔥 Top \d+ Hotspots:/,
+    /\d+\. .*\(score: \d+\)/,
+
+    # Usage and version messages
+    /Usage: aidp config/,
+    /Options:/,
+    /--interactive/,
+    /--dry-run/,
+    /-h, --help/,
+    /Examples:/,
+    /aidp config --interactive/,
+    /Aidp version/,
+    /Test message/,
+    /⏹️  Interrupted by user/,
+    /Unknown command:/,
+    /AI Dev Pipeline Status/,
+    /----------------------/,
+    /Analyze Mode:/,
+    /Execute Mode:/,
+    /Use 'aidp analyze' or 'aidp execute'/,
+
+    # Table messages
+    /The table size exceeds the currently set width/,
+    /Defaulting to vertical orientation/,
 
     # Formatting
     /^────+$/,  # Separator lines (full line)
@@ -304,21 +435,25 @@ class TestPrompt
     # Don't print to stdout if it matches suppression patterns
     return @responses[:say] if SUPPRESS_PATTERNS.any? { |pattern| message_str.match?(pattern) }
 
+    puts message_str
     @responses[:say]
   end
 
   def warn(message, **options)
     @messages << {message: message, options: options, type: :warn}
+    puts message
     @responses[:warn]
   end
 
   def error(message, **options)
     @messages << {message: message, options: options, type: :error}
+    puts message
     @responses[:error]
   end
 
   def ok(message, **options)
     @messages << {message: message, options: options, type: :ok}
+    puts message
     @responses[:ok]
   end
 
