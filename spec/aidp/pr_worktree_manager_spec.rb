@@ -12,13 +12,12 @@ RSpec.describe Aidp::PRWorktreeManager do
   before do
     # Setup a dummy git repository
     Dir.chdir(temp_repo_path) do
-      system("git init")
-      system('git config user.name "Test User"')
-      system('git config user.email "test@example.com"')
-      system("git checkout -b main")
-      system("touch README.md")
-      system("git add README.md")
-      system('git commit -m "Initial commit"')
+      system("git", "init", "-b", "main", out: File::NULL, err: File::NULL)
+      system("git", "config", "user.name", "Test User", out: File::NULL, err: File::NULL)
+      system("git", "config", "user.email", "test@example.com", out: File::NULL, err: File::NULL)
+      system("touch", "README.md")
+      system("git", "add", "README.md", out: File::NULL, err: File::NULL)
+      system("git", "commit", "-m", "Initial commit", out: File::NULL, err: File::NULL)
     end
 
     # Set the base repository path to the temporary repo with isolated project directory
@@ -81,11 +80,11 @@ RSpec.describe Aidp::PRWorktreeManager do
       before do
         # Add a second branch for testing
         Dir.chdir(temp_repo_path) do
-          system("git checkout -b another-base")
-          system("touch ANOTHER_README.md")
-          system("git add ANOTHER_README.md")
-          system('git commit -m "Create another base"')
-          system("git checkout main")
+          system("git", "checkout", "-b", "another-base", out: File::NULL, err: File::NULL)
+          system("touch", "ANOTHER_README.md")
+          system("git", "add", "ANOTHER_README.md", out: File::NULL, err: File::NULL)
+          system("git", "commit", "-m", "Create another base", out: File::NULL, err: File::NULL)
+          system("git", "checkout", "main", out: File::NULL, err: File::NULL)
         end
 
         @first_worktree = @pr_worktree_manager.create_worktree(pr_number, base_branch, head_branch)

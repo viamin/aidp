@@ -47,7 +47,9 @@
   // put environment variables that may change in here
   "remoteEnv": {
     "AIDER_NO_BROWSER": "1",
-    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}",
+    "AIDP_ENABLE_RELOADING": "1",
+    "AIDP_WATCH_MODE": "1"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [
@@ -136,6 +138,7 @@
             "path": "/bin/bash"
           }
         },
+        "terminal.integrated.scrollback": 10000,
         // Remote ports
         "remote.autoForwardPorts": true,
         "remote.portsAttributes": {

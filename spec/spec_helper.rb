@@ -56,6 +56,11 @@ end
 # Load test support files
 Dir[File.expand_path("support/**/*.rb", __dir__)].sort.each { |f| require f }
 
+# When collecting coverage, load all library files so SimpleCov includes every line
+if ENV["COVERAGE"] == "1" || ENV["SIMPLECOV"] == "1" || ENV["CI"]
+  Dir[File.expand_path("../lib/**/*.rb", __dir__)].sort.each { |file| require file }
+end
+
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
   # Disable in CI to avoid permission issues with read-only file systems

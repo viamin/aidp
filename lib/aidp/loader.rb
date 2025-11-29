@@ -162,6 +162,7 @@ module Aidp
           "ruby_llm_registry" => "RubyLLMRegistry",
           "rubygems_api_adapter" => "RubyGemsAPIAdapter",
           "submenu" => "SubMenu",
+          "terminal_io" => "TerminalIO",
 
           # Module folders
           "ui" => "UI"
@@ -174,6 +175,8 @@ module Aidp
         loader.ignore(File.expand_path("version.rb", __dir__))
         loader.ignore(File.expand_path("core_ext", __dir__))
         loader.ignore(File.expand_path("logger.rb", __dir__))
+        loader.ignore(File.expand_path("cli/issue_importer.rb", __dir__))
+        loader.ignore(File.expand_path("config/paths.rb", __dir__))
 
         # Ignore the loader itself
         loader.ignore(__FILE__)

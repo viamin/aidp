@@ -10,13 +10,12 @@ RSpec.describe Aidp::WorktreeBranchManager do
   before do
     # Initialize a temporary git repository
     Dir.chdir(temp_project_dir) do
-      system("git init")
-      system("git config user.email 'test@example.com'")
-      system("git config user.name 'Test User'")
-      system("git checkout -b main")
-      system("touch README.md")
-      system("git add README.md")
-      system("git commit -m 'Initial commit'")
+      system("git", "init", "-b", "main", out: File::NULL, err: File::NULL)
+      system("git", "config", "user.email", "test@example.com", out: File::NULL, err: File::NULL)
+      system("git", "config", "user.name", "Test User", out: File::NULL, err: File::NULL)
+      system("touch", "README.md")
+      system("git", "add", "README.md", out: File::NULL, err: File::NULL)
+      system("git", "commit", "-m", "Initial commit", out: File::NULL, err: File::NULL)
     end
   end
 
@@ -88,10 +87,10 @@ RSpec.describe Aidp::WorktreeBranchManager do
 
         # Create a feature branch from main
         Dir.chdir(temp_project_dir) do
-          system("git checkout -b feature/base-test")
-          system("touch feature_base.txt")
-          system("git add feature_base.txt")
-          system("git commit -m 'Test base branch'")
+          system("git", "checkout", "-b", "feature/base-test", out: File::NULL, err: File::NULL)
+          system("touch", "feature_base.txt")
+          system("git", "add", "feature_base.txt", out: File::NULL, err: File::NULL)
+          system("git", "commit", "-m", "Test base branch", out: File::NULL, err: File::NULL)
         end
       end
 

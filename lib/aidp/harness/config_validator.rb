@@ -2,7 +2,7 @@
 
 require "yaml"
 require_relative "config_schema"
-require_relative "../config/paths"
+require_relative "../config_paths"
 
 module Aidp
   module Harness
