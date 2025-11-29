@@ -816,10 +816,12 @@ module Aidp
         checks = checks_summary
         checks ||= summarize_checks(@test_runner.planned_commands) if @test_runner.respond_to?(:planned_commands)
         model_label = model_name || "auto"
+        context_labels = iteration_context_labels
 
         display_message("    • Step: #{@step_name} | Tier: #{tier} | Model: #{provider_name}/#{model_label}", type: :info)
         display_message("    • Prompt size: #{prompt_length} chars | State: #{STATES[@current_state]}", type: :info)
         display_message("    • Upcoming checks: #{checks}", type: :info) if checks && !checks.empty?
+        display_message("    • Context: #{context_labels.join(" | ")}", type: :info) if context_labels.any?
 
         # Display output filtering configuration if enabled
         filtering_info = summarize_output_filtering
@@ -940,6 +942,7 @@ module Aidp
       end
 
       def log_iteration_status(status, provider:, model:, prompt_length:, checks: nil, failures: nil, task_status: nil)
+        context_labels = iteration_context_labels
         metadata = {
           step: @step_name,
           iteration: @iteration_count,
@@ -956,8 +959,11 @@ module Aidp
         metadata.merge!(iteration_context_metadata)
         metadata.delete_if { |_, value| value.nil? || (value.respond_to?(:empty?) && value.empty?) }
 
+        message = "Iteration #{@iteration_count} for #{@step_name}: #{status}"
+        message += " | #{context_labels.join(" | ")}" if context_labels.any?
+
         Aidp.log_info("work_loop_iteration",
-          "Iteration #{@iteration_count} for #{@step_name}: #{status}",
+          message,
           **metadata)
       rescue => e
         Aidp.log_warn("work_loop", "failed_to_log_iteration_status", error: e.message)
@@ -1030,6 +1036,15 @@ module Aidp
           pr: pr_context_label(ctx),
           step_position: step_position_label(@step_name, ctx)
         }.compact
+      end
+
+      def iteration_context_labels
+        meta = iteration_context_metadata
+        labels = []
+        labels << meta[:issue] if meta[:issue]
+        labels << meta[:pr] if meta[:pr]
+        labels << meta[:step_position] if meta[:step_position]
+        labels
       end
 
       def prompt_marked_complete?
