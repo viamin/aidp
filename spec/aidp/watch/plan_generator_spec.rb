@@ -45,6 +45,7 @@ RSpec.describe Aidp::Watch::PlanGenerator do
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(bad_provider, provider)
 
       generator = described_class.new(provider_name: "cursor")
+      allow(generator).to receive(:build_provider_fallback_chain).and_return(%w[cursor backup])
       plan = generator.generate(issue)
 
       expect(plan[:summary]).to eq("s")
@@ -57,6 +58,7 @@ RSpec.describe Aidp::Watch::PlanGenerator do
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(error_provider, provider)
 
       generator = described_class.new(provider_name: "cursor")
+      allow(generator).to receive(:build_provider_fallback_chain).and_return(%w[cursor backup])
       plan = generator.generate(issue)
 
       expect(plan[:summary]).to eq("s")
