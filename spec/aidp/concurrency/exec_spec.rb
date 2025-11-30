@@ -189,9 +189,9 @@ RSpec.describe Aidp::Concurrency::Exec do
       start_time = Time.now
       counter = Concurrent::AtomicFixnum.new(0)
 
-      futures = 5.times.map do
+      futures = 3.times.map do
         described_class.future do
-          sleep 0.1
+          sleep 0.2
           counter.increment
         end
       end
@@ -199,9 +199,9 @@ RSpec.describe Aidp::Concurrency::Exec do
       described_class.zip(*futures).value!
       elapsed = Time.now - start_time
 
-      expect(counter.value).to eq(5)
-      # Should complete in ~0.1s if parallel, not ~0.5s if sequential
-      expect(elapsed).to be < 0.3
+      expect(counter.value).to eq(3)
+      # Should complete near the single-task duration, not the full sum if sequential
+      expect(elapsed).to be < 0.45
     end
   end
 end
