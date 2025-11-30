@@ -26,17 +26,33 @@ RSpec.describe Aidp::Loader do
   describe ".reload!" do
     context "when loader is not set up for reloading" do
       it "returns false and logs warning" do
-        # Can't easily test this without resetting the loader
-        # which would break other tests
-        skip "Cannot test without resetting loader"
+        original_loader = described_class.loader
+        original_reloading = described_class.reloading?
+
+        described_class.instance_variable_set(:@loader, nil)
+        described_class.instance_variable_set(:@reloading_enabled, false)
+
+        expect(described_class.reload!).to be false
+      ensure
+        described_class.instance_variable_set(:@loader, original_loader)
+        described_class.instance_variable_set(:@reloading_enabled, original_reloading)
       end
     end
 
     context "when reloading is enabled" do
       it "reloads successfully" do
-        skip "Requires reloading to be enabled" unless described_class.reloading?
+        original_loader = described_class.loader
+        original_reloading = described_class.reloading?
+
+        test_loader = instance_double(Zeitwerk::Loader, reload: true)
+        described_class.instance_variable_set(:@loader, test_loader)
+        described_class.instance_variable_set(:@reloading_enabled, true)
 
         expect(described_class.reload!).to be true
+        expect(test_loader).to have_received(:reload)
+      ensure
+        described_class.instance_variable_set(:@loader, original_loader)
+        described_class.instance_variable_set(:@reloading_enabled, original_reloading)
       end
     end
   end

@@ -84,6 +84,10 @@ module Aidp
           warnings << "Tool content is very short (#{tool.content.length} characters)"
         end
 
+        unless valid_version_format?(tool.version)
+          warnings << "Version '#{tool.version}' is not in semver format (MAJOR.MINOR.PATCH)"
+        end
+
         ValidationResult.new(
           tool_id: tool.id,
           file_path: tool.source_path,
@@ -154,6 +158,12 @@ module Aidp
       def validate_deprecated_patterns(tool, warnings)
         # Check for legacy field usage (this would be expanded based on actual deprecations)
         # For now, this is a placeholder for future deprecation warnings
+      end
+
+      def valid_version_format?(version)
+        version.to_s.match?(/\A\d+\.\d+\.\d+\z/)
+      rescue
+        false
       end
 
       # Write validation errors to log file

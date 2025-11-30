@@ -146,19 +146,19 @@ module Aidp
       # @return [Hash] Metadata as hash (for JSON)
       def to_h
         {
-          type: type,
-          id: id,
-          title: title,
-          summary: summary,
-          version: version,
-          applies_to: applies_to,
-          work_unit_types: work_unit_types,
-          priority: priority,
-          capabilities: capabilities,
-          dependencies: dependencies,
-          experimental: experimental,
-          source_path: source_path,
-          file_hash: file_hash
+          "type" => type,
+          "id" => id,
+          "title" => title,
+          "summary" => summary,
+          "version" => version,
+          "applies_to" => applies_to,
+          "work_unit_types" => work_unit_types,
+          "priority" => priority,
+          "capabilities" => capabilities,
+          "dependencies" => dependencies,
+          "experimental" => experimental,
+          "source_path" => source_path,
+          "file_hash" => file_hash
         }
       end
 

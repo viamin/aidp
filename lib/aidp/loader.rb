@@ -118,7 +118,11 @@ module Aidp
       # @return [void]
       def reset!
         if @loader
-          @loader.unload if @reloading_enabled
+          begin
+            @loader.unload if @reloading_enabled
+          rescue Zeitwerk::SetupRequired
+            # If loader was never set up, skip unload
+          end
           @loader.unregister
         end
         @loader = nil

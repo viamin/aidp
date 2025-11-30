@@ -17,9 +17,13 @@ module Aidp
       # Initialize scanner with directory paths
       #
       # @param directories [Array<String>] Directories to scan
-      def initialize(directories = [])
+      def initialize(directories = [], strict: false)
         @directories = Array(directories)
+        @strict = strict
+        @parse_errors = []
       end
+
+      attr_reader :parse_errors
 
       # Scan all configured directories
       #
@@ -27,6 +31,7 @@ module Aidp
       def scan_all
         Aidp.log_debug("metadata", "Scanning directories", directories: @directories)
 
+        @parse_errors = []
         all_tools = []
         @directories.each do |dir|
           tools = scan_directory(dir)
@@ -69,6 +74,8 @@ module Aidp
             file: file_path,
             error: e.message
           )
+          @parse_errors << {file: file_path, error: e.message}
+          raise if @strict
         end
 
         Aidp.log_debug(

@@ -64,7 +64,7 @@ module Aidp
         Aidp.log_debug("metadata", "Finding by tags", tags: tags, match_all: match_all)
 
         tags = Array(tags).map(&:downcase)
-        indexes = directory["indexes"]["by_tag"]
+        indexes = directory["indexes"]["by_tags"] || {}
 
         if match_all
           # Find tools that have ALL specified tags
