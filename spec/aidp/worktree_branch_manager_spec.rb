@@ -136,6 +136,11 @@ RSpec.describe Aidp::WorktreeBranchManager do
 
   describe "registry operations" do
     let(:registry_path) { File.join(temp_project_dir, ".aidp", "worktrees.json") }
+    let(:pr_registry_path) { File.join(temp_project_dir, ".aidp", "pr_worktrees.json") }
+
+    before do
+      allow(Aidp).to receive(:log_warn)
+    end
 
     it "creates a registry file when creating a worktree" do
       manager.create_worktree(branch: "feature/registry-test")
@@ -163,6 +168,33 @@ RSpec.describe Aidp::WorktreeBranchManager do
 
       branch_names = registry_data.map { |w| w["branch"] }
       expect(branch_names).to include("feature/first-branch", "feature/second-branch")
+    end
+
+    it "falls back gracefully on invalid registry JSON" do
+      FileUtils.mkdir_p(File.dirname(registry_path))
+      File.write(registry_path, "{not_json")
+
+      expect(manager.send(:read_registry)).to eq([])
+      expect(Aidp).to have_received(:log_warn)
+    end
+
+    it "reads pr registry entry and returns existing worktree" do
+      FileUtils.mkdir_p(File.join(temp_project_dir, ".worktrees"))
+      existing_path = File.join(temp_project_dir, ".worktrees", "pr_123")
+      FileUtils.mkdir_p(existing_path)
+      FileUtils.mkdir_p(File.dirname(pr_registry_path))
+      File.write(pr_registry_path, JSON.dump([{"pr_number" => 123, "path" => existing_path}]))
+
+      result = manager.find_or_create_pr_worktree(pr_number: 123, head_branch: "feature/pr-123")
+      expect(result).to eq(existing_path)
+    end
+
+    it "handles invalid pr registry JSON" do
+      FileUtils.mkdir_p(File.dirname(pr_registry_path))
+      File.write(pr_registry_path, "{oops")
+
+      expect(manager.send(:read_pr_registry)).to eq([])
+      expect(Aidp).to have_received(:log_warn)
     end
   end
 

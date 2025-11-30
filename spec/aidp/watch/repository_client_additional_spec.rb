@@ -71,6 +71,7 @@ RSpec.describe Aidp::Watch::RepositoryClient do
 
     before do
       allow(Aidp).to receive(:log_debug)
+      allow(Aidp).to receive(:log_warn)
     end
 
     it "returns unknown when no checks exist" do
@@ -314,6 +315,148 @@ RSpec.describe Aidp::Watch::RepositoryClient do
       )
 
       client.send(:post_review_comment_via_gh, 12, "body", commit_id: "abc", path: "lib/file.rb", line: 10)
+    end
+  end
+
+  describe "utility helpers and fallbacks" do
+    let(:client) { described_class.new(owner: owner, repo: repo, gh_available: true) }
+
+    before do
+      allow(Aidp).to receive(:log_warn)
+      allow(Aidp).to receive(:log_debug)
+      allow(Aidp).to receive(:log_error)
+      allow(client).to receive(:sleep)
+    end
+
+    it "parses issues urls and raises on invalid format" do
+      expect(described_class.parse_issues_url("https://github.com/a/b")).to eq(%w[a b])
+      expect(described_class.parse_issues_url("a/b")).to eq(%w[a b])
+      expect { described_class.parse_issues_url("bad://url") }.to raise_error(ArgumentError)
+    end
+
+    it "retries gh operations on transient errors" do
+      attempts = 0
+      result = client.send(:with_gh_retry, "op", max_retries: 2, initial_delay: 0.1) do
+        attempts += 1
+        raise "connection reset" if attempts < 3
+        "ok"
+      end
+
+      expect(result).to eq("ok")
+      expect(attempts).to eq(3)
+      expect(client).to have_received(:sleep).with(0.1)
+      expect(client).to have_received(:sleep).with(0.2)
+    end
+
+    it "fails gh retry after exhaustion" do
+      expect do
+        client.send(:with_gh_retry, "op") { raise "unexpected EOF" }
+      end.to raise_error(RuntimeError)
+    end
+
+    it "lists pull requests via gh and api" do
+      gh_list = [{number: 1, title: "PR", labels: [{name: "bug"}], updatedAt: "t", state: "open", url: "u", headRefName: "h", baseRefName: "b"}].to_json
+      gh_status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).and_return([gh_list, "", gh_status])
+      pr_client = described_class.new(owner: owner, repo: repo, gh_available: true)
+      expect(pr_client.list_pull_requests(labels: [], state: "open").first[:head_ref]).to eq("h")
+
+      api_pr = [{number: 2, title: "API PR", labels: [{name: "api"}], updated_at: "t2", state: "closed", html_url: "u2", head: {ref: "h2"}, base: {ref: "b2"}}].to_json
+      api_response = instance_double(Net::HTTPResponse, code: "200", body: api_pr)
+      allow(Net::HTTP).to receive(:get_response).and_return(api_response)
+      api_client = described_class.new(owner: owner, repo: repo, gh_available: false)
+      expect(api_client.list_pull_requests(labels: [], state: "open").first[:head_ref]).to eq("h2")
+    end
+
+    it "fetches pull request details via gh" do
+      pr_body = {number: 1, title: "PR", body: "body", labels: ["bug"], state: "open", url: "u", headRefName: "h", baseRefName: "b", commits: [{oid: "sha"}], mergeable: true}.to_json
+      status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).and_return([pr_body, "", status])
+
+      detail = client.send(:fetch_pull_request_via_gh, 1)
+      expect(detail[:head_sha]).to eq("sha")
+      expect(detail[:mergeable]).to eq(true)
+    end
+
+    it "raises when fetch_pull_request_via_api fails" do
+      api_response = instance_double(Net::HTTPResponse, code: "500", body: "{}")
+      allow(Net::HTTP).to receive(:get_response).and_return(api_response)
+      api_client = described_class.new(owner: owner, repo: repo, gh_available: false)
+
+      expect { api_client.send(:fetch_pull_request_via_api, 5) }.to raise_error(/GitHub API error/)
+    end
+
+    it "fetches pull request diff via api and raises on failure" do
+      success_response = instance_double(Net::HTTPResponse, code: "200", body: "diff")
+      allow(Net::HTTP).to receive(:start).and_return(success_response)
+      api_client = described_class.new(owner: owner, repo: repo, gh_available: false)
+
+      expect(api_client.send(:fetch_pull_request_diff_via_api, 10)).to eq("diff")
+
+      fail_response = instance_double(Net::HTTPResponse, code: "404", body: "")
+      allow(Net::HTTP).to receive(:start).and_return(fail_response)
+      expect { api_client.send(:fetch_pull_request_diff_via_api, 10) }.to raise_error(/diff failed/)
+    end
+
+    it "fetches pull request files via gh and api" do
+      files_json = [{filename: "a.rb", status: "modified", additions: 1, deletions: 0, changes: 1, patch: "diff"}].to_json
+      status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).and_return([files_json, "", status])
+      expect(client.send(:fetch_pull_request_files_via_gh, 3).first[:filename]).to eq("a.rb")
+
+      api_response = instance_double(Net::HTTPResponse, code: "200", body: files_json)
+      allow(Net::HTTP).to receive(:get_response).and_return(api_response)
+      api_client = described_class.new(owner: owner, repo: repo, gh_available: false)
+      expect(api_client.send(:fetch_pull_request_files_via_api, 3).first[:filename]).to eq("a.rb")
+    end
+
+    it "posts review comment via api for general comment" do
+      response = instance_double(Net::HTTPResponse, code: "201", body: "ok")
+      allow(Net::HTTP).to receive(:start).and_return(response)
+      api_client = described_class.new(owner: owner, repo: repo, gh_available: false)
+
+      expect(api_client.send(:post_review_comment_via_api, 9, "body")).to eq("ok")
+    end
+
+    it "raises when inline review comment fails" do
+      response = instance_double(Net::HTTPResponse, code: "500", body: "err")
+      allow(Net::HTTP).to receive(:start).and_return(response)
+      api_client = described_class.new(owner: owner, repo: repo, gh_available: false)
+
+      expect {
+        api_client.send(:post_review_comment_via_api, 9, "body", commit_id: "sha", path: "file.rb", line: 2)
+      }.to raise_error(/review comment failed/)
+    end
+
+    it "fetches pr comments via api and handles failures" do
+      ok_response = instance_double(Net::HTTPResponse, code: "200", body: [{id: 1, body: "b", user: {login: "me"}, created_at: "t", updated_at: "t"}].to_json)
+      allow(Net::HTTP).to receive(:get_response).and_return(ok_response)
+      expect(client.send(:fetch_pr_comments_via_api, 11).first[:id]).to eq(1)
+
+      bad_response = instance_double(Net::HTTPResponse, code: "500", body: "{}")
+      allow(Net::HTTP).to receive(:get_response).and_return(bad_response)
+      expect(client.send(:fetch_pr_comments_via_api, 11)).to eq([])
+    end
+
+    it "returns most recent label actor via gh" do
+      graphql_response = {
+        data: {
+          repository: {
+            issue: {
+              timelineItems: {
+                nodes: [
+                  {"createdAt" => "2023-01-01", "actor" => {"login" => "bot"}},
+                  {"createdAt" => "2023-01-02", "actor" => {"login" => "human"}}
+                ]
+              }
+            }
+          }
+        }
+      }.to_json
+      status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).and_return([graphql_response, "", status])
+
+      expect(client.send(:most_recent_label_actor_via_gh, 7)).to eq("human")
     end
   end
 end
