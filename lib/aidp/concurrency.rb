@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 require "concurrent-ruby"
-require_relative "concurrency/wait"
-require_relative "concurrency/backoff"
-require_relative "concurrency/exec"
 
 module Aidp
   # Concurrency utilities for deterministic waiting, retry/backoff, and executor management.

@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "json"
+require "time"
 
 RSpec.describe Aidp::Watch::RepositoryClient do
   let(:owner) { "testowner" }

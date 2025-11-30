@@ -237,5 +237,8 @@ module Aidp
         Kernel.warn(message)
       end
     end
+
+    # Zeitwerk inflection compatibility
+    CSVStorage = CsvStorage
   end
 end

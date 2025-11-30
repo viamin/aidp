@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../setup/devcontainer/parser"
-require_relative "../setup/devcontainer/generator"
-require_relative "../setup/devcontainer/port_manager"
-require_relative "../setup/devcontainer/backup_manager"
-require_relative "../message_display"
 require "json"
 require "yaml"
 

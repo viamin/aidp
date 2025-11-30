@@ -2,16 +2,6 @@
 
 require "timeout"
 require "json"
-require_relative "configuration"
-require_relative "state_manager"
-require_relative "condition_detector"
-require_relative "provider_manager"
-require_relative "simple_user_interface"
-require_relative "error_handler"
-require_relative "status_display"
-require_relative "completion_checker"
-require_relative "../concurrency"
-require_relative "../errors"
 
 module Aidp
   module Harness
@@ -61,7 +51,6 @@ module Aidp
         # Use ZFC-enabled condition detector
         # ZfcConditionDetector will create its own ProviderFactory if needed
         # Falls back to legacy pattern matching when ZFC is disabled
-        require_relative "zfc_condition_detector"
         @condition_detector = ZfcConditionDetector.new(@configuration)
 
         @user_interface = SimpleUserInterface.new

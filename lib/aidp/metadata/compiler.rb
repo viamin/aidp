@@ -39,7 +39,7 @@ module Aidp
         Aidp.log_info("metadata", "Compiling tool directory", directories: @directories, output: output_path)
 
         # Scan all directories
-        scanner = Scanner.new(@directories)
+        scanner = Scanner.new(@directories, strict: @strict)
         @tools = scanner.scan_all
 
         # Validate tools
@@ -47,14 +47,24 @@ module Aidp
         validation_results = validator.validate_all
 
         # Handle validation failures
-        handle_validation_results(validation_results)
+        parse_error_results = scanner.parse_errors.map do |err|
+          Validator::ValidationResult.new(
+            tool_id: "(unknown)",
+            file_path: err[:file],
+            valid: false,
+            errors: [err[:error]],
+            warnings: []
+          )
+        end
+
+        invalid_results = handle_validation_results(validation_results + parse_error_results)
 
         # Build indexes and graphs
         build_indexes
         build_dependency_graph
 
         # Create directory structure
-        directory = create_directory_structure
+        directory = create_directory_structure(invalid_results: invalid_results)
 
         # Write to file
         write_directory(directory, output_path)
@@ -142,22 +152,23 @@ module Aidp
       # Create directory structure for serialization
       #
       # @return [Hash] Directory structure
-      def create_directory_structure
+      def create_directory_structure(invalid_results: [])
         {
-          version: "1.0.0",
-          compiled_at: Time.now.iso8601,
-          tools: @tools.map(&:to_h),
-          indexes: {
-            by_type: @indexes[:by_type].transform_values { |tools| tools.map(&:id) },
-            by_tag: @indexes[:by_tag].transform_values { |tools| tools.map(&:id) },
-            by_work_unit_type: @indexes[:by_work_unit_type].transform_values { |tools| tools.map(&:id) }
+          "version" => "1.0.0",
+          "compiled_at" => Time.now.iso8601,
+          "tools" => @tools.map(&:to_h),
+          "indexes" => {
+            "by_type" => @indexes[:by_type].transform_values { |tools| tools.map(&:id) },
+            "by_tags" => @indexes[:by_tag].transform_values { |tools| tools.map(&:id) },
+            "by_work_unit_type" => @indexes[:by_work_unit_type].transform_values { |tools| tools.map(&:id) }
           },
-          dependency_graph: @dependency_graph,
-          statistics: {
-            total_tools: @tools.size,
-            by_type: @tools.group_by(&:type).transform_values(&:size),
-            total_tags: @indexes[:by_tag].size,
-            total_work_unit_types: @indexes[:by_work_unit_type].size
+          "dependency_graph" => @dependency_graph,
+          "errors" => invalid_results.map { |res| {"tool_id" => res.tool_id, "errors" => res.errors, "warnings" => res.warnings} },
+          "statistics" => {
+            "total_tools" => @tools.size,
+            "by_type" => @tools.group_by(&:type).transform_values(&:size),
+            "total_tags" => @indexes[:by_tag].size,
+            "total_work_unit_types" => @indexes[:by_work_unit_type].size
           }
         }
       end
@@ -223,6 +234,7 @@ module Aidp
             warnings: result.warnings
           )
         end
+        invalid_results
       end
     end
   end

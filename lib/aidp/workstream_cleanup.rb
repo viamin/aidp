@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "worktree"
-require_relative "workstream_state"
 require "open3"
 require "tty-prompt"
 

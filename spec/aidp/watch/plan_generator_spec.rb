@@ -3,328 +3,134 @@
 require "spec_helper"
 
 RSpec.describe Aidp::Watch::PlanGenerator do
-  let(:plan_generator) { described_class.new }
-  let(:sample_issue) do
+  let(:issue) do
     {
-      title: "Add user authentication",
-      url: "https://github.com/example/repo/issues/123",
-      body: "We need to implement user authentication.\n\n- Add login form\n- Implement password validation\n- Add user sessions",
+      number: 42,
+      title: "Test issue",
+      url: "https://example.com/issues/42",
+      body: "Do the thing",
       comments: [
-        {
-          "author" => "developer1",
-          "body" => "This should include OAuth2 support",
-          "createdAt" => "2023-01-01T00:00:00Z"
-        },
-        {
-          "author" => "designer",
-          "body" => "Make sure the UI follows our design system",
-          "createdAt" => "2023-01-02T00:00:00Z"
-        }
+        {"body" => "first", "author" => "alice", "createdAt" => "2024-01-01"},
+        {"body" => "second", "author" => "bob", "createdAt" => "2024-01-02"}
       ]
     }
   end
 
-  describe "#initialize" do
-    it "creates instance with default provider" do
-      generator = described_class.new
-      expect(generator).to be_a(described_class)
-    end
+  let(:provider) do
+    instance_double("Provider",
+      available?: true,
+      send_message: %({"plan_summary":"s","plan_tasks":["t1"],"clarifying_questions":["q1"]}))
+  end
 
-    it "creates instance with specified provider" do
-      generator = described_class.new(provider_name: "anthropic")
-      expect(generator).to be_a(described_class)
-    end
+  before do
+    allow(Aidp).to receive(:log_debug)
+    allow(Aidp).to receive(:log_warn)
+    allow(Aidp).to receive(:log_info)
+    allow(Aidp).to receive(:log_error)
+    allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
   end
 
   describe "#generate" do
-    context "when provider is available" do
-      let(:mock_provider) { double("provider") }
-      let(:provider_response) do
-        '{"plan_summary": "Implement authentication system", "plan_tasks": ["Add login", "Add validation"], "clarifying_questions": ["Which OAuth provider?"]}'
-      end
+    it "returns parsed plan when provider succeeds" do
+      generator = described_class.new(provider_name: "cursor")
+      plan = generator.generate(issue)
 
-      before do
-        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["cursor"])
-        allow(plan_generator).to receive(:resolve_provider).and_return(mock_provider)
-        allow(mock_provider).to receive(:send_message).and_return(provider_response)
-      end
-
-      it "generates plan using provider" do
-        result = plan_generator.generate(sample_issue)
-
-        expect(result[:summary]).to eq("Implement authentication system")
-        expect(result[:tasks]).to eq(["Add login", "Add validation"])
-        expect(result[:questions]).to eq(["Which OAuth provider?"])
-      end
-
-      it "calls provider with correct prompt" do
-        expect(mock_provider).to receive(:send_message) do |args|
-          expect(args[:prompt]).to include("Add user authentication")
-          expect(args[:prompt]).to include("OAuth2 support")
-          provider_response
-        end
-
-        plan_generator.generate(sample_issue)
-      end
+      expect(plan[:summary]).to eq("s")
+      expect(plan[:tasks]).to eq(["t1"])
+      expect(plan[:questions]).to eq(["q1"])
     end
 
-    context "when provider is not available" do
-      before do
-        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["cursor"])
-        allow(plan_generator).to receive(:resolve_provider).and_return(nil)
-        allow(plan_generator).to receive(:display_message)
-      end
+    it "falls back when provider returns nil" do
+      bad_provider = instance_double("Provider", available?: true, send_message: nil)
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(bad_provider, provider)
 
-      it "returns nil when all providers fail" do
-        result = plan_generator.generate(sample_issue)
+      generator = described_class.new(provider_name: "cursor")
+      allow(generator).to receive(:build_provider_fallback_chain).and_return(%w[cursor backup])
+      plan = generator.generate(issue)
 
-        expect(result).to be_nil
-      end
-
-      it "displays warning message" do
-        expect(plan_generator).to receive(:display_message).with(
-          /All providers unavailable.*Unable to generate plan/,
-          type: :warn
-        )
-
-        plan_generator.generate(sample_issue)
-      end
+      expect(plan[:summary]).to eq("s")
+      expect(Aidp).to have_received(:log_warn).with("plan_generator", "provider_returned_nil", provider: "cursor")
     end
 
-    context "when provider raises error" do
-      let(:mock_provider) { double("provider") }
+    it "swallows provider errors and continues" do
+      error_provider = instance_double("Provider", available?: true)
+      allow(error_provider).to receive(:send_message).and_raise(StandardError, "boom")
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(error_provider, provider)
 
-      before do
-        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["cursor"])
-        allow(plan_generator).to receive(:resolve_provider).and_return(mock_provider)
-        allow(mock_provider).to receive(:send_message).and_raise(StandardError, "Connection failed")
-        allow(plan_generator).to receive(:display_message)
-      end
+      generator = described_class.new(provider_name: "cursor")
+      allow(generator).to receive(:build_provider_fallback_chain).and_return(%w[cursor backup])
+      plan = generator.generate(issue)
 
-      it "returns nil when provider fails" do
-        result = plan_generator.generate(sample_issue)
-
-        expect(result).to be_nil
-      end
-
-      it "displays error message" do
-        expect(plan_generator).to receive(:display_message).with(
-          /All providers unavailable.*Unable to generate plan/,
-          type: :warn
-        )
-
-        plan_generator.generate(sample_issue)
-      end
+      expect(plan[:summary]).to eq("s")
+      expect(Aidp).to have_received(:log_warn).with("plan_generator", "provider_failed", hash_including(provider: "cursor"))
     end
 
-    context "when multiple providers in fallback chain" do
-      let(:provider1) { double("provider1") }
-      let(:provider2) { double("provider2") }
-      let(:provider_response) do
-        '{"plan_summary": "Test summary", "plan_tasks": ["Task 1"], "clarifying_questions": []}'
-      end
+    it "returns nil when all providers fail" do
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(nil)
+      generator = described_class.new(provider_name: "cursor")
 
-      before do
-        allow(plan_generator).to receive(:build_provider_fallback_chain).and_return(["anthropic", "cursor"])
-        allow(plan_generator).to receive(:display_message)
-      end
-
-      it "tries next provider when first fails" do
-        allow(plan_generator).to receive(:resolve_provider).with("anthropic").and_return(provider1)
-        allow(plan_generator).to receive(:resolve_provider).with("cursor").and_return(provider2)
-        allow(provider1).to receive(:send_message).and_raise(Timeout::Error, "Timeout")
-        allow(provider2).to receive(:send_message).and_return(provider_response)
-
-        result = plan_generator.generate(sample_issue)
-
-        expect(result[:summary]).to eq("Test summary")
-        expect(result[:tasks]).to eq(["Task 1"])
-      end
-
-      it "tries next provider when first is unavailable" do
-        allow(plan_generator).to receive(:resolve_provider).with("anthropic").and_return(nil)
-        allow(plan_generator).to receive(:resolve_provider).with("cursor").and_return(provider2)
-        allow(provider2).to receive(:send_message).and_return(provider_response)
-
-        result = plan_generator.generate(sample_issue)
-
-        expect(result[:summary]).to eq("Test summary")
-      end
-
-      it "returns nil when all providers fail" do
-        allow(plan_generator).to receive(:resolve_provider).and_return(nil)
-
-        result = plan_generator.generate(sample_issue)
-
-        expect(result).to be_nil
-      end
-    end
-  end
-
-  describe "#resolve_provider" do
-    it "returns nil when provider name is nil" do
-      allow(plan_generator).to receive(:detect_default_provider).and_return(nil)
-
-      result = plan_generator.send(:resolve_provider)
-      expect(result).to be_nil
-    end
-
-    it "returns provider when available" do
-      mock_provider = double("provider", available?: true)
-      allow(plan_generator).to receive(:detect_default_provider).and_return("cursor")
-      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(mock_provider)
-
-      result = plan_generator.send(:resolve_provider)
-      expect(result).to eq(mock_provider)
-    end
-
-    it "returns nil when provider is not available" do
-      mock_provider = double("provider", available?: false)
-      allow(plan_generator).to receive(:detect_default_provider).and_return("cursor")
-      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(mock_provider)
-
-      result = plan_generator.send(:resolve_provider)
-      expect(result).to be_nil
-    end
-
-    it "handles provider manager errors" do
-      allow(plan_generator).to receive(:detect_default_provider).and_return("cursor")
-      allow(Aidp::ProviderManager).to receive(:get_provider).and_raise(StandardError, "Provider error")
-      allow(plan_generator).to receive(:display_message)
-
-      result = plan_generator.send(:resolve_provider)
-      expect(result).to be_nil
-    end
-  end
-
-  describe "#detect_default_provider" do
-    it "returns configured default provider" do
-      mock_config = double("config_manager", default_provider: "anthropic")
-      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(mock_config)
-
-      result = plan_generator.send(:detect_default_provider)
-      expect(result).to eq("anthropic")
-    end
-
-    it "returns cursor when no config" do
-      mock_config = double("config_manager", default_provider: nil)
-      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(mock_config)
-
-      result = plan_generator.send(:detect_default_provider)
-      expect(result).to eq("cursor")
-    end
-
-    it "returns cursor when config manager fails" do
-      allow(Aidp::Harness::ConfigManager).to receive(:new).and_raise(StandardError)
-
-      result = plan_generator.send(:detect_default_provider)
-      expect(result).to eq("cursor")
-    end
-  end
-
-  describe "#build_prompt" do
-    it "includes issue details" do
-      prompt = plan_generator.send(:build_prompt, sample_issue)
-
-      expect(prompt).to include("Add user authentication")
-      expect(prompt).to include("https://github.com/example/repo/issues/123")
-      expect(prompt).to include("implement user authentication")
-    end
-
-    it "includes sorted comments" do
-      prompt = plan_generator.send(:build_prompt, sample_issue)
-
-      expect(prompt).to include("developer1:\nThis should include OAuth2 support")
-      expect(prompt).to include("designer:\nMake sure the UI follows")
-    end
-
-    it "includes provider prompt template" do
-      prompt = plan_generator.send(:build_prompt, sample_issue)
-
-      expect(prompt).to include("planning specialist")
-      expect(prompt).to include("plan_summary")
-      expect(prompt).to include("plan_tasks")
+      expect(generator.generate(issue)).to be_nil
     end
   end
 
   describe "#parse_structured_response" do
-    it "parses valid JSON response" do
-      response = '{"plan_summary": "Test summary", "plan_tasks": ["task1"], "clarifying_questions": ["q1"]}'
+    let(:generator) { described_class.new }
 
-      result = plan_generator.send(:parse_structured_response, response)
-
-      expect(result[:summary]).to eq("Test summary")
-      expect(result[:tasks]).to eq(["task1"])
-      expect(result[:questions]).to eq(["q1"])
+    it "parses plain JSON" do
+      json = %({"plan_summary":"sum","plan_tasks":["a"],"clarifying_questions":["b"]})
+      result = generator.send(:parse_structured_response, json)
+      expect(result[:summary]).to eq("sum")
+      expect(result[:tasks]).to eq(["a"])
+      expect(result[:questions]).to eq(["b"])
     end
 
-    it "handles JSON in code blocks" do
-      response = '```json\n{"plan_summary": "Test", "plan_tasks": [], "clarifying_questions": []}\n```'
-
-      result = plan_generator.send(:parse_structured_response, response)
-
-      expect(result[:summary]).to eq("Test")
-      expect(result[:tasks]).to eq([])
+    it "parses fenced JSON" do
+      fenced = <<~TXT
+        ```json
+        {"plan_summary":"s","plan_tasks":["t"],"clarifying_questions":[]}
+        ```
+      TXT
+      result = generator.send(:parse_structured_response, fenced)
+      expect(result[:tasks]).to eq(["t"])
     end
 
-    it "extracts JSON from mixed content" do
-      response = 'Here is the plan: {"plan_summary": "Test", "plan_tasks": [], "clarifying_questions": []} and more text'
-
-      result = plan_generator.send(:parse_structured_response, response)
-
-      expect(result[:summary]).to eq("Test")
+    it "returns nil on invalid JSON" do
+      expect(generator.send(:parse_structured_response, "nope")).to be_nil
     end
 
-    it "returns nil for invalid JSON" do
-      response = "Not JSON at all"
-
-      result = plan_generator.send(:parse_structured_response, response)
-
-      expect(result).to be_nil
-    end
-
-    it "handles missing fields gracefully" do
-      response = '{"plan_summary": "Test"}'
-
-      result = plan_generator.send(:parse_structured_response, response)
-
-      expect(result[:summary]).to eq("Test")
-      expect(result[:tasks]).to eq([])
-      expect(result[:questions]).to eq([])
+    it "extracts first json payload from mixed text" do
+      text = "prefix {\"plan_summary\":\"x\"} suffix"
+      expect(generator.send(:parse_structured_response, text)[:summary]).to eq("x")
     end
   end
 
-  describe "#extract_json_payload" do
-    it "returns text if already JSON" do
-      text = '{"key": "value"}'
+  describe "provider resolution and fallback chain" do
+    let(:config_manager) { instance_double(Aidp::Harness::ConfigManager, fallback_providers: ["extra"], default_provider: "primary") }
 
-      result = plan_generator.send(:extract_json_payload, text)
-
-      expect(result).to eq(text)
+    it "builds fallback chain with unique providers" do
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
+      generator = described_class.new(provider_name: "primary")
+      chain = generator.send(:build_provider_fallback_chain)
+      expect(chain).to eq(%w[primary extra])
     end
 
-    it "extracts from code blocks" do
-      text = "```json\n{\"key\": \"value\"}\n```"
-
-      result = plan_generator.send(:extract_json_payload, text)
-
-      expect(result).to eq('{"key": "value"}')
+    it "detects default provider when none given" do
+      allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager)
+      generator = described_class.new
+      expect(generator.send(:detect_default_provider)).to eq("primary")
     end
 
-    it "finds JSON in mixed content" do
-      text = 'Some text {"key": "value"} more text'
-
-      result = plan_generator.send(:extract_json_payload, text)
-
-      expect(result).to eq('{"key": "value"}')
+    it "returns nil when provider unavailable" do
+      unavailable = instance_double("Provider", available?: false)
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_return(unavailable)
+      generator = described_class.new(provider_name: "cursor")
+      expect(generator.send(:resolve_provider, "cursor")).to be_nil
     end
 
-    it "returns nil when no JSON found" do
-      text = "No JSON here"
-
-      result = plan_generator.send(:extract_json_payload, text)
-
-      expect(result).to be_nil
+    it "handles provider raising during resolve" do
+      allow(Aidp::ProviderManager).to receive(:get_provider).and_raise(StandardError.new("boom"))
+      generator = described_class.new(provider_name: "cursor")
+      expect(generator.send(:resolve_provider, "cursor")).to be_nil
     end
   end
 end

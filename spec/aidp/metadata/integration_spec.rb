@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "yaml"
 
 RSpec.describe "Aidp::Metadata" do
   let(:test_dir) { Dir.mktmpdir }
@@ -82,7 +83,7 @@ RSpec.describe "Aidp::Metadata" do
       expect(metadata.experimental).to be true
     end
 
-    xit "converts to hash" do
+    it "converts to hash" do
       metadata = Aidp::Metadata::ToolMetadata.new(
         type: "skill",
         id: "test",
@@ -412,7 +413,7 @@ RSpec.describe "Aidp::Metadata" do
       expect(compiler).to be_a(Aidp::Metadata::Compiler)
     end
 
-    xit "compiles tool directory from sources" do
+    it "compiles tool directory from sources" do
       create_skill_file("skill1.md", id: "skill1", applies_to: ["ruby"])
       create_skill_file("skill2.md", id: "skill2", applies_to: ["python"])
 
@@ -424,7 +425,7 @@ RSpec.describe "Aidp::Metadata" do
       expect(directory["tools"].size).to eq(2)
     end
 
-    xit "creates indexes for efficient querying" do
+    it "creates indexes for efficient querying" do
       create_skill_file("skill.md", id: "test_skill", applies_to: ["ruby"])
 
       compiler = Aidp::Metadata::Compiler.new(directories: [skills_dir])
@@ -446,7 +447,7 @@ RSpec.describe "Aidp::Metadata" do
       expect(content).to have_key("tools")
     end
 
-    xit "validates tools in strict mode" do
+    it "validates tools in strict mode" do
       # Create invalid skill
       file = File.join(skills_dir, "invalid.md")
       File.write(file, <<~MD)
@@ -466,7 +467,7 @@ RSpec.describe "Aidp::Metadata" do
       }.to raise_error(Aidp::Errors::ValidationError)
     end
 
-    xit "collects errors in non-strict mode" do
+    it "collects errors in non-strict mode" do
       file = File.join(skills_dir, "invalid.md")
       File.write(file, <<~MD)
         ---
@@ -514,7 +515,7 @@ RSpec.describe "Aidp::Metadata" do
       expect(cache).to be_a(Aidp::Metadata::Cache)
     end
 
-    xit "loads and regenerates cache when invalid" do
+    it "loads and regenerates cache when invalid" do
       create_skill_file("skill.md", id: "cached_skill")
 
       cache = Aidp::Metadata::Cache.new(cache_path: cache_file, directories: [skills_dir])
@@ -808,22 +809,19 @@ RSpec.describe "Aidp::Metadata" do
       expect(results.first.errors).not_to be_empty
     end
 
-    xit "validates version format" do
-      invalid_tool = Aidp::Metadata::ToolMetadata.new(
-        type: "skill",
-        id: "invalid_version",
-        title: "Invalid Version",
-        summary: "Summary",
-        version: "not-a-version",
-        content: "Content",
-        source_path: "test.md",
-        file_hash: valid_hash
-      )
-
-      validator = Aidp::Metadata::Validator.new([invalid_tool])
-      results = validator.validate_all
-
-      expect(results.first.warnings).not_to be_empty
+    it "validates version format" do
+      expect {
+        Aidp::Metadata::ToolMetadata.new(
+          type: "skill",
+          id: "invalid_version",
+          title: "Invalid Version",
+          summary: "Summary",
+          version: "not-a-version",
+          content: "Content",
+          source_path: "test.md",
+          file_hash: valid_hash
+        )
+      }.to raise_error(Aidp::Errors::ValidationError, /format/)
     end
 
     it "produces validation summary" do

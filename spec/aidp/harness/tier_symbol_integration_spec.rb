@@ -3,7 +3,7 @@
 require "spec_helper"
 require "tempfile"
 require "yaml"
-require_relative "../../../lib/aidp/config/paths"
+require_relative "../../../lib/aidp/config_paths"
 require_relative "../../../lib/aidp/harness/thinking_depth_manager"
 require_relative "../../../lib/aidp/harness/capability_registry"
 require_relative "../../../lib/aidp/harness/configuration"

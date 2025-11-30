@@ -86,6 +86,43 @@ RSpec.describe Aidp::Setup::Wizard do
       expect(File).to exist(Aidp::ConfigPaths.config_file(tmp_dir))
     end
 
+    it "captures auto-update configuration when enabled" do
+      prompt_with_auto_update = TestPrompt.new(responses: {
+        ask: "",
+        yes?: false,
+        yes_map: {
+          "Enable auto-update for watch mode?" => true,
+          "Allow prerelease versions?" => true,
+          "Save this configuration?" => true
+        },
+        multi_select: [],
+        select_map: {
+          "Select your primary provider:" => "anthropic",
+          "Billing model for anthropic:" => "usage_based",
+          "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Log level:" => "Info",
+          "Detected git. Use this version control system?" => "git",
+          "Which version control system do you use?" => "git",
+          "In copilot mode, should aidp:" => "Do nothing (manual git operations)",
+          "Auto-update policy:" => "patch",
+          "Update supervisor:" => "supervisord"
+        }
+      })
+
+      wizard = described_class.new(tmp_dir, prompt: prompt_with_auto_update, dry_run: false)
+      wizard.run
+
+      config = YAML.safe_load_file(Aidp::ConfigPaths.config_file(tmp_dir), symbolize_names: true)
+      auto_update = config[:auto_update]
+
+      expect(auto_update[:enabled]).to be true
+      expect(auto_update[:policy]).to eq("patch")
+      expect(auto_update[:allow_prerelease]).to be true
+      expect(auto_update[:supervisor]).to eq("supervisord")
+      expect(auto_update[:check_interval_seconds]).to eq(3600)
+      expect(auto_update[:max_consecutive_failures]).to eq(3)
+    end
+
     it "does not save when user declines" do
       # Ensure config file doesn't exist before test
       config_file = Aidp::ConfigPaths.config_file(tmp_dir)

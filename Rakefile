@@ -2,6 +2,7 @@
 
 require "bundler/gem_tasks"
 require "rspec/core/rake_task"
+require "timeout"
 
 # Shared constants
 COVERAGE_DIR = File.expand_path("coverage", __dir__)
@@ -40,9 +41,24 @@ task default: :spec
 # 4. Add more tests if coverage is below the minimum threshold
 namespace :coverage do
   desc "Run RSpec with coverage (COVERAGE=1)"
-  task :run do
+  # Optional args:
+  #   timeout_seconds: override the default timeout (120s)
+  task :run, [:timeout_seconds] do |_t, args|
     ENV["COVERAGE"] = "1"
-    Rake::Task["spec"].invoke
+    timeout_seconds = (args[:timeout_seconds] || ENV["COVERAGE_TIMEOUT"] || 120).to_i
+    timeout_seconds = 120 if timeout_seconds <= 0
+
+    begin
+      Timeout.timeout(timeout_seconds) do
+        # Allow rerun in the same Rake session if needed
+        Rake::Task["spec"].reenable
+        Rake::Task["spec"].invoke
+      end
+    rescue Timeout::Error
+      warn "coverage:run timed out after #{timeout_seconds} seconds"
+      raise
+    end
+
     puts "\nCoverage report: #{File.join(COVERAGE_DIR, "index.html")}" if File.exist?(File.join(COVERAGE_DIR,
       "index.html"))
   end

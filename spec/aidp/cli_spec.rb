@@ -1224,7 +1224,7 @@ RSpec.describe Aidp::CLI, "workstream commands" do
       expect(output).to include("new <slug>")
       expect(output).to include("rm <slug>")
       expect(output).to include("status <slug>")
-      expect(output).to include("Examples:")
+      expect(output).to include("aidp ws list")
     end
   end
 

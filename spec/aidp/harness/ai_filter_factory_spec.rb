@@ -173,6 +173,10 @@ RSpec.describe Aidp::Harness::AIFilterFactory do
   describe "#generate_from_command" do
     let(:factory) { described_class.new(mock_config, provider_factory: mock_provider_factory) }
 
+    before do
+      allow(factory).to receive(:capture_sample_output).and_return("sample output")
+    end
+
     it "extracts tool name from command" do
       expect(factory).to receive(:generate_filter).with(
         tool_name: "pytest",

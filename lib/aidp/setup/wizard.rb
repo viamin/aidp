@@ -8,17 +8,6 @@ require "fileutils"
 require "json"
 require "ostruct"
 
-require_relative "../util"
-require_relative "../config/paths"
-require_relative "../harness/capability_registry"
-require_relative "provider_registry"
-require_relative "devcontainer/parser"
-require_relative "devcontainer/generator"
-require_relative "devcontainer/port_manager"
-require_relative "devcontainer/backup_manager"
-require_relative "../harness/ai_filter_factory"
-require_relative "../harness/filter_definition"
-
 module Aidp
   module Setup
     # Interactive setup wizard for configuring AIDP.
@@ -60,6 +49,7 @@ module Aidp
         configure_artifacts
         configure_nfrs
         configure_logging
+        configure_auto_update
         configure_modes
         configure_devcontainer
 
@@ -1219,6 +1209,72 @@ module Aidp
           max_size_mb: max_size,
           max_backups: max_backups
         })
+      end
+
+      def configure_auto_update
+        prompt.say("\n♻️  Auto-update configuration")
+        prompt.say("-" * 40)
+
+        existing = get([:auto_update]) || {}
+        enabled = prompt.yes?(
+          "Enable auto-update for watch mode?",
+          default: existing.fetch(:enabled, false)
+        )
+
+        if enabled
+          policy_choices = [
+            ["Off (manual updates)", "off"],
+            ["Patch updates", "patch"],
+            ["Minor updates", "minor"],
+            ["Major updates", "major"],
+            ["Exact version only", "exact"]
+          ]
+          policy_default = existing[:policy] || "minor"
+          policy_default_label = policy_choices.find { |label, value| value == policy_default }&.first
+          policy = prompt.select("Auto-update policy:", default: policy_default_label) do |menu|
+            policy_choices.each { |label, value| menu.choice(label, value) }
+          end
+
+          allow_prerelease = prompt.yes?(
+            "Allow prerelease versions?",
+            default: existing.fetch(:allow_prerelease, false)
+          )
+
+          interval_default = (existing[:check_interval_seconds] || 3600).to_s
+          interval = ask_with_default(
+            "Check interval (seconds, 300-86400)",
+            interval_default
+          ) { |value| value.to_i }
+
+          supervisor_choices = [
+            ["None (manual restart)", "none"],
+            ["supervisord (recommended)", "supervisord"],
+            ["s6", "s6"],
+            ["runit", "runit"]
+          ]
+          supervisor_default = existing[:supervisor] || "none"
+          supervisor_default_label = supervisor_choices.find { |label, value| value == supervisor_default }&.first
+
+          supervisor = prompt.select("Update supervisor:", default: supervisor_default_label) do |menu|
+            supervisor_choices.each { |label, value| menu.choice(label, value) }
+          end
+
+          max_failures = ask_with_default(
+            "Max consecutive update failures before backoff",
+            (existing[:max_consecutive_failures] || 3).to_s
+          ) { |value| value.to_i }
+
+          set([:auto_update], {
+            enabled: true,
+            policy: policy,
+            allow_prerelease: allow_prerelease,
+            check_interval_seconds: interval,
+            supervisor: supervisor,
+            max_consecutive_failures: max_failures
+          })
+        else
+          set([:auto_update], {enabled: false, policy: "off"})
+        end
       end
 
       def configure_modes

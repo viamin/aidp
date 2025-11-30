@@ -3,7 +3,7 @@ require "aidp/pr_worktree_manager"
 require "fileutils"
 require "tmpdir"
 
-RSpec.describe Aidp::PrWorktreeManager do
+RSpec.describe Aidp::PRWorktreeManager do
   let(:temp_repo_path) { Dir.mktmpdir }
   let(:pr_number) { 42 }
   let(:base_branch) { "main" }
@@ -12,17 +12,16 @@ RSpec.describe Aidp::PrWorktreeManager do
   before do
     # Setup a dummy git repository
     Dir.chdir(temp_repo_path) do
-      system("git init")
-      system('git config user.name "Test User"')
-      system('git config user.email "test@example.com"')
-      system("git checkout -b main")
-      system("touch README.md")
-      system("git add README.md")
-      system('git commit -m "Initial commit"')
+      system("git", "init", "-b", "main", out: File::NULL, err: File::NULL)
+      system("git", "config", "user.name", "Test User", out: File::NULL, err: File::NULL)
+      system("git", "config", "user.email", "test@example.com", out: File::NULL, err: File::NULL)
+      system("touch", "README.md")
+      system("git", "add", "README.md", out: File::NULL, err: File::NULL)
+      system("git", "commit", "-m", "Initial commit", out: File::NULL, err: File::NULL)
     end
 
     # Set the base repository path to the temporary repo with isolated project directory
-    @pr_worktree_manager = Aidp::PrWorktreeManager.new(
+    @pr_worktree_manager = Aidp::PRWorktreeManager.new(
       base_repo_path: temp_repo_path,
       project_dir: temp_repo_path
     )
@@ -81,11 +80,11 @@ RSpec.describe Aidp::PrWorktreeManager do
       before do
         # Add a second branch for testing
         Dir.chdir(temp_repo_path) do
-          system("git checkout -b another-base")
-          system("touch ANOTHER_README.md")
-          system("git add ANOTHER_README.md")
-          system('git commit -m "Create another base"')
-          system("git checkout main")
+          system("git", "checkout", "-b", "another-base", out: File::NULL, err: File::NULL)
+          system("touch", "ANOTHER_README.md")
+          system("git", "add", "ANOTHER_README.md", out: File::NULL, err: File::NULL)
+          system("git", "commit", "-m", "Create another base", out: File::NULL, err: File::NULL)
+          system("git", "checkout", "main", out: File::NULL, err: File::NULL)
         end
 
         @first_worktree = @pr_worktree_manager.create_worktree(pr_number, base_branch, head_branch)
@@ -252,7 +251,7 @@ RSpec.describe Aidp::PrWorktreeManager do
       let(:invalid_repo_path) { Dir.mktmpdir }
 
       it "raises an error" do
-        invalid_pr_worktree_manager = Aidp::PrWorktreeManager.new(
+        invalid_pr_worktree_manager = Aidp::PRWorktreeManager.new(
           base_repo_path: invalid_repo_path,
           project_dir: invalid_repo_path
         )
@@ -277,7 +276,7 @@ RSpec.describe Aidp::PrWorktreeManager do
       end
 
       it "handles non-writable registry gracefully" do
-        read_only_pr_worktree_manager = Aidp::PrWorktreeManager.new(
+        read_only_pr_worktree_manager = Aidp::PRWorktreeManager.new(
           base_repo_path: temp_repo_path,
           project_dir: read_only_dir
         )
@@ -311,7 +310,7 @@ RSpec.describe Aidp::PrWorktreeManager do
       it "handles corrupt registry gracefully" do
         allow(Aidp).to receive(:log_warn)
 
-        corrupt_pr_worktree_manager = Aidp::PrWorktreeManager.new(
+        corrupt_pr_worktree_manager = Aidp::PRWorktreeManager.new(
           base_repo_path: temp_repo_path,
           project_dir: temp_repo_path,
           worktree_registry_path: corrupt_registry_path
@@ -364,7 +363,7 @@ RSpec.describe Aidp::PrWorktreeManager do
 
         expect(changes).to include(
           files: ["README.md", "CONTRIBUTING.md"],
-          operations: [],
+          operations: [:modify, :create],
           comments: []
         )
       end

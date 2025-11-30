@@ -2,10 +2,6 @@
 
 require "concurrent-ruby"
 require "time"
-require_relative "worktree"
-require_relative "workstream_state"
-require_relative "harness/runner"
-require_relative "message_display"
 
 module Aidp
   # Executes multiple workstreams in parallel using concurrent-ruby.

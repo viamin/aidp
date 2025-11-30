@@ -53,7 +53,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       next_tier: nil,
       previous_tier: nil,
       best_model_for_tier: ["anthropic", "claude-3-5-sonnet-20241022", {tier: "standard"}],
-      provider_names: ["anthropic"])
+      provider_names: ["anthropic"],
+      models_for_provider: [])
   end
 
   let(:test_prompt) { TestPrompt.new }
@@ -91,6 +92,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     # Estimated effort: 4-6 hours for full DI refactoring
     allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
     allow(config).to receive(:models_for_tier).and_return([])
+    allow(config).to receive(:configured_tiers).and_return([])
   end
 
   describe "Fix-Forward State Machine" do

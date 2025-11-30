@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../config"
-require_relative "../config/paths"
+require_relative "../config_paths"
 
 module Aidp
   module Harness
