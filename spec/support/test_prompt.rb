@@ -9,7 +9,7 @@ class MockMenu
   end
 
   def choice(label, value = nil)
-    @choices << { label: label, value: value || label }
+    @choices << {label: label, value: value || label}
   end
 end
 
@@ -31,7 +31,7 @@ class TestPrompt
       # Handle block-style select (like TTY::Prompt)
       menu = MockMenu.new
       yield(menu)
-      @selections << { title: title, items: menu.choices, options: options, block: true }
+      @selections << {title: title, items: menu.choices, options: options, block: true}
       # Priority: explicit map, then sequence array, then single value, else first menu choice
       if @responses[:select_map]
         # Exact match first
@@ -50,7 +50,7 @@ class TestPrompt
 
       @responses[:select] || menu.choices.first[:value]
     else
-      @selections << { title: title, items: items, options: options }
+      @selections << {title: title, items: items, options: options}
       if @responses[:select_map]
         if @responses[:select_map].key?(title)
           val = @responses[:select_map][title]
@@ -72,9 +72,9 @@ class TestPrompt
     if block_given?
       menu = MockMenu.new
       yield menu
-      @selections << { title: title, items: menu.choices, options: options, multi: true, block: true }
+      @selections << {title: title, items: menu.choices, options: options, multi: true, block: true}
     else
-      @selections << { title: title, items: items, options: options, multi: true }
+      @selections << {title: title, items: items, options: options, multi: true}
     end
     if @responses[:multi_select_map]&.key?(title)
       mapped = @responses[:multi_select_map][title]
@@ -86,14 +86,14 @@ class TestPrompt
   end
 
   def ask(message, **options, &block)
-    @inputs << { message: message, options: options }
+    @inputs << {message: message, options: options}
 
     # Handle multiple responses by cycling through them
     response = if @responses[:ask].is_a?(Array)
-                 @responses[:ask][@inputs.length - 1] || @responses[:ask].last
-               else
-                 @responses[:ask] || ''
-               end
+      @responses[:ask][@inputs.length - 1] || @responses[:ask].last
+    else
+      @responses[:ask] || ""
+    end
 
     # If a block is provided, simulate the conversion logic
     if block
@@ -117,7 +117,7 @@ class TestPrompt
   end
 
   def yes?(message, **options)
-    @inputs << { message: message, options: options, type: :yes }
+    @inputs << {message: message, options: options, type: :yes}
     if @responses[:yes_map]&.key?(message)
       val = @responses[:yes_map][message]
       return val.is_a?(Array) ? val.shift : val
@@ -128,7 +128,7 @@ class TestPrompt
   end
 
   def no?(message, **options)
-    @inputs << { message: message, options: options, type: :no }
+    @inputs << {message: message, options: options, type: :no}
     if @responses[:no_map]&.key?(message)
       val = @responses[:no_map][message]
       return val.is_a?(Array) ? val.shift : val
@@ -481,7 +481,7 @@ class TestPrompt
     message_str = message.to_s
 
     # Suppress noisy messages in test output but still record them
-    @messages << { message: message, options: options, type: :say }
+    @messages << {message: message, options: options, type: :say}
 
     # Don't print to stdout if it matches suppression patterns
     return @responses[:say] if SUPPRESS_PATTERNS.any? { |pattern| message_str.match?(pattern) }
@@ -491,51 +491,51 @@ class TestPrompt
   end
 
   def warn(message, **options)
-    @messages << { message: message, options: options, type: :warn }
+    @messages << {message: message, options: options, type: :warn}
     puts message
     @responses[:warn]
   end
 
   def error(message, **options)
-    @messages << { message: message, options: options, type: :error }
+    @messages << {message: message, options: options, type: :error}
     puts message
     @responses[:error]
   end
 
   def ok(message, **options)
-    @messages << { message: message, options: options, type: :ok }
+    @messages << {message: message, options: options, type: :ok}
     puts message
     @responses[:ok]
   end
 
   def keypress(message, **options)
-    @inputs << { message: message, options: options, type: :keypress }
+    @inputs << {message: message, options: options, type: :keypress}
     @responses[:keypress] || "\n"
   end
 
   # Additional methods that some classes might use
   def mask(message, **options)
-    @inputs << { message: message, options: options, type: :mask }
-    @responses[:mask] || ''
+    @inputs << {message: message, options: options, type: :mask}
+    @responses[:mask] || ""
   end
 
   def confirm(message, **options)
-    @inputs << { message: message, options: options, type: :confirm }
+    @inputs << {message: message, options: options, type: :confirm}
     @responses.key?(:confirm) ? @responses[:confirm] : true
   end
 
   def expand(message, choices, **options)
-    @selections << { message: message, choices: choices, options: options, type: :expand }
+    @selections << {message: message, choices: choices, options: options, type: :expand}
     @responses[:expand] || choices.first[:value]
   end
 
   def slider(message, **options)
-    @inputs << { message: message, options: options, type: :slider }
+    @inputs << {message: message, options: options, type: :slider}
     @responses[:slider] || (options[:default] || 5)
   end
 
   def enum_select(message, choices, **options)
-    @selections << { message: message, choices: choices, options: options, type: :enum_select }
+    @selections << {message: message, choices: choices, options: options, type: :enum_select}
     @responses[:enum_select] || choices.first
   end
 
