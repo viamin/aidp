@@ -170,6 +170,12 @@ module Aidp
           method: "zfc_automatic",
           allow_parallel: true
         }
+      },
+      evaluations: {
+        enabled: true,
+        prompt_after_work_loop: false,
+        capture_full_context: true,
+        directory: ".aidp/evaluations"
       }
     }.freeze
 
@@ -287,6 +293,15 @@ module Aidp
       symbolize_keys(tool_metadata_section)
     end
 
+    # Get evaluations configuration
+    def self.evaluations_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      evaluations_section = config[:evaluations] || config["evaluations"] || {}
+
+      # Convert string keys to symbols for consistency
+      symbolize_keys(evaluations_section)
+    end
+
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
       ConfigPaths.config_exists?(project_dir)
@@ -391,6 +406,12 @@ module Aidp
       if config[:waterfall] || config["waterfall"]
         waterfall_section = config[:waterfall] || config["waterfall"]
         merged[:waterfall] = merged[:waterfall].merge(symbolize_keys(waterfall_section))
+      end
+
+      # Deep merge evaluations config
+      if config[:evaluations] || config["evaluations"]
+        evaluations_section = config[:evaluations] || config["evaluations"]
+        merged[:evaluations] = merged[:evaluations].merge(symbolize_keys(evaluations_section))
       end
 
       merged

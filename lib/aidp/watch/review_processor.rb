@@ -10,6 +10,7 @@ require_relative "implementation_verifier"
 require_relative "reviewers/senior_dev_reviewer"
 require_relative "reviewers/security_reviewer"
 require_relative "reviewers/performance_reviewer"
+require_relative "feedback_collector"
 
 module Aidp
   module Watch
@@ -81,13 +82,16 @@ module Aidp
           review_results: review_results,
           verification_result: verification_result
         )
-        @repository_client.post_comment(number, comment_body)
+        comment_body_with_feedback = FeedbackCollector.append_feedback_prompt(comment_body)
+        result = @repository_client.post_comment(number, comment_body_with_feedback)
+        comment_id = result[:id] if result.is_a?(Hash)
 
         display_message("💬 Posted review comment for PR ##{number}", type: :success)
         @state_store.record_review(number, {
           timestamp: Time.now.utc.iso8601,
           reviewers: review_results.map { |r| r[:persona] },
-          total_findings: review_results.sum { |r| r[:findings].length }
+          total_findings: review_results.sum { |r| r[:findings].length },
+          comment_id: comment_id
         })
 
         # Remove review label after processing

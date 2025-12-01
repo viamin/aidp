@@ -120,6 +120,12 @@ module Aidp
         gh_available? ? fetch_pr_comments_via_gh(number) : fetch_pr_comments_via_api(number)
       end
 
+      # Fetch reactions on a specific comment
+      # Returns array of reactions with user and content (emoji type)
+      def fetch_comment_reactions(comment_id)
+        gh_available? ? fetch_comment_reactions_via_gh(comment_id) : fetch_comment_reactions_via_api(comment_id)
+      end
+
       # Create or update a categorized comment (e.g., under a header) on an issue.
       # If a comment with the category header exists, either append to it or
       # replace it while archiving the previous content inline.
@@ -259,11 +265,20 @@ module Aidp
       end
 
       def post_comment_via_gh(number, body)
-        cmd = ["gh", "issue", "comment", number.to_s, "--repo", full_repo, "--body", body]
-        stdout, stderr, status = Open3.capture3(*cmd)
-        raise "Failed to post comment via gh: #{stderr.strip}" unless status.success?
+        # Use gh api to post comment and get structured response with comment ID
+        with_gh_retry("post_comment") do
+          cmd = ["gh", "api", "repos/#{full_repo}/issues/#{number}/comments",
+            "-X", "POST", "-f", "body=#{body}"]
+          stdout, stderr, status = Open3.capture3(*cmd)
+          raise "Failed to post comment via gh: #{stderr.strip}" unless status.success?
 
-        stdout.strip
+          response = JSON.parse(stdout)
+          {
+            id: response["id"],
+            url: response["html_url"],
+            body: response["body"]
+          }
+        end
       end
 
       def post_comment_via_api(number, body)
@@ -277,7 +292,13 @@ module Aidp
         end
 
         raise "GitHub API comment failed (#{response.code})" unless response.code.start_with?("2")
-        response.body
+
+        data = JSON.parse(response.body)
+        {
+          id: data["id"],
+          url: data["html_url"],
+          body: data["body"]
+        }
       end
 
       def find_comment_via_gh(number, header_text)
@@ -316,6 +337,53 @@ module Aidp
 
         raise "GitHub API update comment failed (#{response.code})" unless response.code.start_with?("2")
         response.body
+      end
+
+      def fetch_comment_reactions_via_gh(comment_id)
+        with_gh_retry("fetch_comment_reactions") do
+          cmd = ["gh", "api", "repos/#{full_repo}/issues/comments/#{comment_id}/reactions"]
+          stdout, stderr, status = Open3.capture3(*cmd)
+          raise "Failed to fetch reactions via gh: #{stderr.strip}" unless status.success?
+
+          reactions = JSON.parse(stdout)
+          reactions.map do |r|
+            {
+              id: r["id"],
+              user: r.dig("user", "login"),
+              content: r["content"],
+              created_at: r["created_at"]
+            }
+          end
+        end
+      rescue => e
+        Aidp.log_error("repository_client", "fetch_reactions_failed", comment_id: comment_id, error: e.message)
+        []
+      end
+
+      def fetch_comment_reactions_via_api(comment_id)
+        uri = URI("https://api.github.com/repos/#{full_repo}/issues/comments/#{comment_id}/reactions")
+        request = Net::HTTP::Get.new(uri)
+        # Reactions API requires special Accept header
+        request["Accept"] = "application/vnd.github+json"
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        return [] unless response.code.start_with?("2")
+
+        reactions = JSON.parse(response.body)
+        reactions.map do |r|
+          {
+            id: r["id"],
+            user: r.dig("user", "login"),
+            content: r["content"],
+            created_at: r["created_at"]
+          }
+        end
+      rescue => e
+        Aidp.log_error("repository_client", "fetch_reactions_api_failed", comment_id: comment_id, error: e.message)
+        []
       end
 
       def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)

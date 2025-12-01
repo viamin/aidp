@@ -299,6 +299,12 @@ module Aidp
             usage: "/tasks <list|show|done|abandon|stats> [args]",
             example: "/tasks list pending",
             handler: method(:cmd_tasks)
+          },
+          "/rate" => {
+            description: "Rate the current output (good/neutral/bad)",
+            usage: "/rate <good|neutral|bad> [comment]",
+            example: "/rate good 'Clean code generated'",
+            handler: method(:cmd_rate)
           }
         }
       end
@@ -2069,6 +2075,97 @@ module Aidp
       rescue => e
         Aidp.log_error("repl_macros", "Tasks command failed", error: e.message)
         {success: false, message: "Error: #{e.message}", action: :none}
+      end
+
+      # Command: /rate <good|neutral|bad> [comment]
+      # Rate the current output with optional comment
+      def cmd_rate(args)
+        rating = args.shift
+        comment = args.join(" ")
+        comment = nil if comment.empty?
+
+        unless rating
+          return {
+            success: false,
+            message: "Usage: /rate <good|neutral|bad> [comment]\n\nExamples:\n  /rate good\n  /rate bad 'Generated code had bugs'\n  /rate neutral 'Acceptable but could be better'",
+            action: :none
+          }
+        end
+
+        # Validate rating
+        unless %w[good neutral bad].include?(rating.downcase)
+          return {
+            success: false,
+            message: "Invalid rating '#{rating}'. Must be: good, neutral, or bad",
+            action: :none
+          }
+        end
+
+        Aidp.log_debug("repl_macros", "rate_command", rating: rating, has_comment: !comment.nil?)
+
+        begin
+          require_relative "../evaluations"
+
+          # Capture context
+          context_capture = Aidp::Evaluations::ContextCapture.new(project_dir: @project_dir)
+          context = context_capture.capture(
+            step_name: @current_step_name,
+            iteration: @current_iteration
+          )
+
+          # Create evaluation record
+          record = Aidp::Evaluations::EvaluationRecord.new(
+            rating: rating.downcase,
+            comment: comment,
+            target_type: "work_loop",
+            context: context
+          )
+
+          # Store evaluation
+          storage = Aidp::Evaluations::EvaluationStorage.new(project_dir: @project_dir)
+          result = storage.store(record)
+
+          if result[:success]
+            rating_display = case rating.downcase
+            when "good" then "good (+)"
+            when "neutral" then "neutral (~)"
+            when "bad" then "bad (-)"
+            else rating
+            end
+
+            msg_lines = ["Evaluation recorded: #{record.id}"]
+            msg_lines << "  Rating: #{rating_display}"
+            msg_lines << "  Comment: #{comment}" if comment
+            msg_lines << ""
+            msg_lines << "View all evaluations: aidp eval list"
+
+            {
+              success: true,
+              message: msg_lines.join("\n"),
+              action: :evaluation_recorded,
+              data: {id: record.id, rating: rating.downcase, comment: comment}
+            }
+          else
+            {
+              success: false,
+              message: "Failed to store evaluation: #{result[:error]}",
+              action: :none
+            }
+          end
+        rescue ArgumentError => e
+          {
+            success: false,
+            message: "Error: #{e.message}",
+            action: :none
+          }
+        rescue => e
+          Aidp.log_error("repl_macros", "rate_command_failed", error: e.message)
+          {
+            success: false,
+            message: "Failed to record evaluation: #{e.message}",
+            action: :none
+          }
+        end
       end
 
       private

@@ -23,6 +23,8 @@ module Aidp
     def self.model_cache_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "model_cache")
     def self.work_loop_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "work_loop")
     def self.logs_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "logs")
+    def self.evaluations_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "evaluations")
+    def self.evaluations_index_file(project_dir = Dir.pwd) = File.join(evaluations_dir(project_dir), "index.json")
 
     def self.config_exists?(project_dir = Dir.pwd)
       File.exist?(config_file(project_dir))
@@ -64,6 +66,12 @@ module Aidp
 
     def self.ensure_json_storage_dir(project_dir = Dir.pwd)
       dir = json_storage_dir(project_dir)
+      FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
+      dir
+    end
+
+    def self.ensure_evaluations_dir(project_dir = Dir.pwd)
+      dir = evaluations_dir(project_dir)
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       dir
     end
