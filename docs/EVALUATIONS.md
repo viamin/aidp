@@ -61,6 +61,34 @@ aidp eval clear
 aidp eval clear --force
 ```
 
+### Watch Mode Evaluations
+
+Rate outputs from watch mode processors (plans, reviews, builds, etc.):
+
+```bash
+# Rate a generated plan
+aidp eval watch plan owner/repo 123 good "Clear and actionable plan"
+
+# Rate a code review
+aidp eval watch review owner/repo 456 bad "Too many false positives"
+
+# Rate a build/implementation
+aidp eval watch build owner/repo 123 neutral "Works but could be cleaner"
+
+# Rate a CI fix
+aidp eval watch ci_fix owner/repo 789 good "Fixed the issue correctly"
+
+# Rate change request handling
+aidp eval watch change_request owner/repo 456 good
+```
+
+**Watch target types:**
+- `plan` - Issue planning outputs
+- `review` - PR review findings
+- `build` - Implementation/PR creation
+- `ci_fix` - CI failure fixes
+- `change_request` - PR change implementations
+
 ### REPL Commands
 
 During an interactive work loop, use the `/rate` command:
@@ -171,6 +199,11 @@ evaluations:
 | work_unit | Single work unit execution |
 | work_loop | Full work loop cycle |
 | step | Specific workflow step |
+| plan | Watch mode: issue plan generation |
+| review | Watch mode: PR review findings |
+| build | Watch mode: implementation/PR creation |
+| ci_fix | Watch mode: CI failure fixes |
+| change_request | Watch mode: PR change implementation |
 
 ## API Usage
 

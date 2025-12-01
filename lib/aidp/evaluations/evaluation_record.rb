@@ -18,7 +18,7 @@ module Aidp
     #   )
     class EvaluationRecord
       VALID_RATINGS = %w[good neutral bad].freeze
-      VALID_TARGET_TYPES = %w[prompt work_unit work_loop step].freeze
+      VALID_TARGET_TYPES = %w[prompt work_unit work_loop step plan review build ci_fix change_request].freeze
 
       attr_reader :id, :rating, :comment, :target_type, :target_id,
         :context, :created_at

@@ -47,6 +47,8 @@ module Aidp
           run_stats_command
         when "add"
           run_add_command(args)
+        when "watch"
+          run_watch_command(args)
         when "clear"
           run_clear_command(args)
         else
@@ -129,6 +131,9 @@ module Aidp
       end
 
       def run_add_command(args)
+        # Check for watch mode options
+        watch_opts = extract_watch_options(args)
+
         rating = args.shift
         comment = args.join(" ").strip
         comment = nil if comment.empty?
@@ -136,18 +141,34 @@ module Aidp
         unless rating
           display_message("Error: Please provide a rating (good, neutral, or bad)", type: :error)
           display_message("Usage: aidp eval add <rating> [comment]", type: :info)
+          display_message("       aidp eval add --watch <type> <repo> <number> <rating> [comment]", type: :info)
           return
         end
 
-        Aidp.log_debug("eval_command", "add", rating: rating, has_comment: !comment.nil?)
+        Aidp.log_debug("eval_command", "add", rating: rating, has_comment: !comment.nil?, watch: watch_opts)
 
         begin
           context_capture = Aidp::Evaluations::ContextCapture.new(project_dir: @project_dir)
-          context = context_capture.capture_minimal
+
+          if watch_opts[:enabled]
+            context = context_capture.capture_watch(
+              repo: watch_opts[:repo],
+              number: watch_opts[:number],
+              processor_type: watch_opts[:type]
+            )
+            target_type = watch_opts[:type]
+            target_id = "#{watch_opts[:repo]}##{watch_opts[:number]}"
+          else
+            context = context_capture.capture_minimal
+            target_type = nil
+            target_id = nil
+          end
 
           record = Aidp::Evaluations::EvaluationRecord.new(
             rating: rating,
             comment: comment,
+            target_type: target_type,
+            target_id: target_id,
             context: context
           )
 
@@ -156,6 +177,60 @@ module Aidp
           if result[:success]
             display_message("Evaluation recorded: #{record.id}", type: :success)
             display_message("  Rating: #{rating_with_emoji(record.rating)}", type: :info)
+            display_message("  Target: #{target_type} (#{target_id})", type: :info) if target_type
+            display_message("  Comment: #{record.comment}", type: :muted) if record.comment
+          else
+            display_message("Failed to store evaluation: #{result[:error]}", type: :error)
+          end
+        rescue ArgumentError => e
+          display_message("Error: #{e.message}", type: :error)
+        end
+      end
+
+      def run_watch_command(args)
+        # aidp eval watch <plan|review|build|ci_fix|change_request> <repo> <number> <rating> [comment]
+        processor_type = args.shift
+        repo = args.shift
+        number = args.shift&.to_i
+        rating = args.shift
+        comment = args.join(" ").strip
+        comment = nil if comment.empty?
+
+        unless processor_type && repo && number && rating
+          display_message("Error: Missing required arguments", type: :error)
+          display_message("Usage: aidp eval watch <type> <repo> <number> <rating> [comment]", type: :info)
+          display_message("", type: :info)
+          display_message("Types: plan, review, build, ci_fix, change_request", type: :info)
+          display_message("Example: aidp eval watch plan owner/repo 123 good \"Clear plan\"", type: :muted)
+          return
+        end
+
+        Aidp.log_debug("eval_command", "watch",
+          processor_type: processor_type, repo: repo, number: number, rating: rating)
+
+        begin
+          context_capture = Aidp::Evaluations::ContextCapture.new(project_dir: @project_dir)
+          context = context_capture.capture_watch(
+            repo: repo,
+            number: number,
+            processor_type: processor_type
+          )
+
+          record = Aidp::Evaluations::EvaluationRecord.new(
+            rating: rating,
+            comment: comment,
+            target_type: processor_type,
+            target_id: "#{repo}##{number}",
+            context: context
+          )
+
+          result = @storage.store(record)
+
+          if result[:success]
+            display_message("Watch evaluation recorded: #{record.id}", type: :success)
+            display_message("  Rating: #{rating_with_emoji(record.rating)}", type: :info)
+            display_message("  Type: #{processor_type}", type: :info)
+            display_message("  Target: #{repo}##{number}", type: :info)
             display_message("  Comment: #{record.comment}", type: :muted) if record.comment
           else
             display_message("Failed to store evaluation: #{result[:error]}", type: :error)
@@ -196,6 +271,26 @@ module Aidp
           when "--type", "-t"
             options[:target_type] = args[i + 1] if args[i + 1]
           end
+        end
+
+        options
+      end
+
+      def extract_watch_options(args)
+        options = {enabled: false, type: nil, repo: nil, number: nil}
+
+        watch_idx = args.index("--watch")
+        return options unless watch_idx
+
+        # Remove --watch and extract following arguments
+        args.delete_at(watch_idx)
+
+        # Expect: --watch <type> <repo> <number>
+        if args[watch_idx] && args[watch_idx + 1] && args[watch_idx + 2]
+          options[:enabled] = true
+          options[:type] = args.delete_at(watch_idx)
+          options[:repo] = args.delete_at(watch_idx)
+          options[:number] = args.delete_at(watch_idx).to_i
         end
 
         options
@@ -284,7 +379,7 @@ module Aidp
       end
 
       def display_usage
-        display_message("Usage: aidp eval <list|view|stats|add|clear>", type: :info)
+        display_message("Usage: aidp eval <list|view|stats|add|watch|clear>", type: :info)
         display_message("", type: :info)
         display_message("Commands:", type: :info)
         display_message("  list [options]           - List recent evaluations", type: :info)
@@ -294,6 +389,9 @@ module Aidp
         display_message("  view <id>                - View evaluation details", type: :info)
         display_message("  stats                    - Show evaluation statistics", type: :info)
         display_message("  add <rating> [comment]   - Add a new evaluation", type: :info)
+        display_message("  watch <type> <repo> <number> <rating> [comment]", type: :info)
+        display_message("                           - Rate a watch mode output", type: :info)
+        display_message("    Types: plan, review, build, ci_fix, change_request", type: :muted)
         display_message("  clear [--force]          - Clear all evaluation data", type: :info)
       end
     end

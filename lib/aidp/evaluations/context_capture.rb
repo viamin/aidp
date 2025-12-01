@@ -62,7 +62,72 @@ module Aidp
         }
       end
 
+      # Capture watch mode context for evaluating watch outputs
+      #
+      # @param repo [String] Repository in owner/repo format
+      # @param number [Integer] Issue or PR number
+      # @param processor_type [String] Type of processor (plan, review, build, ci_fix, change_request)
+      # @return [Hash] Watch mode context
+      def capture_watch(repo:, number:, processor_type:)
+        Aidp.log_debug("context_capture", "capture_watch",
+          repo: repo, number: number, processor_type: processor_type)
+
+        {
+          watch: {
+            repo: repo,
+            number: number,
+            processor_type: processor_type,
+            state: load_watch_state(repo, number, processor_type)
+          },
+          environment: capture_environment_context,
+          timestamp: Time.now.iso8601
+        }
+      end
+
       private
+
+      def load_watch_state(repo, number, processor_type)
+        # Try to load state from the watch state store
+        state_file = find_watch_state_file(repo)
+        return nil unless state_file && File.exist?(state_file)
+
+        require "yaml"
+        state = YAML.safe_load_file(state_file, permitted_classes: [Time, Date, Symbol])
+        return nil unless state
+
+        # Extract relevant state based on processor type
+        case processor_type
+        when "plan"
+          state.dig("issues", number.to_s, "plan") ||
+            state.dig(:issues, number, :plan)
+        when "review"
+          state.dig("pull_requests", number.to_s, "review") ||
+            state.dig(:pull_requests, number, :review)
+        when "build"
+          state.dig("issues", number.to_s, "build") ||
+            state.dig(:issues, number, :build)
+        when "ci_fix"
+          state.dig("pull_requests", number.to_s, "ci_fix") ||
+            state.dig(:pull_requests, number, :ci_fix)
+        when "change_request"
+          state.dig("pull_requests", number.to_s, "change_request") ||
+            state.dig(:pull_requests, number, :change_request)
+        end
+      rescue => e
+        Aidp.log_error("context_capture", "load_watch_state failed", error: e.message)
+        nil
+      end
+
+      def find_watch_state_file(repo)
+        watch_dir = File.join(@project_dir, ".aidp", "watch")
+        return nil unless Dir.exist?(watch_dir)
+
+        # Sanitize repo name the same way StateStore does
+        sanitized = repo.tr("/", "_").gsub(/[^a-zA-Z0-9_-]/, "")
+        state_file = File.join(watch_dir, "#{sanitized}.yml")
+
+        File.exist?(state_file) ? state_file : nil
+      end
 
       def capture_prompt_context(step_name)
         prompt_file = File.join(@project_dir, ".aidp", "PROMPT.md")
