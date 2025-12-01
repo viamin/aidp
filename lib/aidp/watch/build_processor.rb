@@ -12,6 +12,7 @@ require_relative "../worktree"
 require_relative "../execute/progress"
 require_relative "github_state_extractor"
 require_relative "implementation_verifier"
+require_relative "feedback_collector"
 
 module Aidp
   module Watch
@@ -525,7 +526,19 @@ module Aidp
           #{plan_value(plan_data, "summary")}
         COMMENT
 
-        @repository_client.post_comment(issue[:number], comment)
+        comment_with_feedback = FeedbackCollector.append_feedback_prompt(comment)
+        result = @repository_client.post_comment(issue[:number], comment_with_feedback)
+        comment_id = result[:id] if result.is_a?(Hash)
+
+        # Track comment for feedback collection
+        if comment_id
+          @state_store.track_comment_for_feedback(
+            comment_id: comment_id,
+            processor_type: "build",
+            number: issue[:number]
+          )
+        end
+
         display_message("🎉 Posted completion comment for issue ##{issue[:number]}", type: :success)
 
         # Keep workstream for review - don't auto-cleanup on success

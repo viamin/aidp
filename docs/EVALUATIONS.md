@@ -89,6 +89,24 @@ aidp eval watch change_request owner/repo 456 good
 - `ci_fix` - CI failure fixes
 - `change_request` - PR change implementations
 
+### GitHub Reaction Feedback (Watch Mode)
+
+When AIDP posts comments in watch mode (plans, reviews, builds), each comment includes a feedback prompt asking users to react with emojis:
+
+- 👍 (+1) = good rating
+- 👎 (-1) = bad rating
+- 😕 (confused) = neutral rating
+
+AIDP automatically collects these reactions during each polling cycle and converts them to evaluation records. This enables non-interactive feedback collection without requiring access to the command line.
+
+**Additional supported reactions:**
+- ❤️ (heart) = good
+- 🎉 (hooray) = good
+- 🚀 (rocket) = good
+- 👀 (eyes) = neutral
+
+The collected evaluations are stored locally in `.aidp/evaluations/` and can be viewed using the standard `aidp eval list` and `aidp eval stats` commands.
+
 ### REPL Commands
 
 During an interactive work loop, use the `/rate` command:

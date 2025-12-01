@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require_relative "feedback_collector"
 
 module Aidp
   module Watch
@@ -102,6 +103,12 @@ module Aidp
           safety_config: safety_config[:safety] || safety_config["safety"] || {},
           verbose: verbose
         )
+
+        @feedback_collector = FeedbackCollector.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          project_dir: project_dir
+        )
       end
 
       def start
@@ -150,6 +157,7 @@ module Aidp
         process_ci_fix_triggers
         process_auto_pr_triggers
         process_change_request_triggers
+        collect_feedback
       end
 
       def process_plan_triggers
@@ -643,6 +651,21 @@ module Aidp
           name = (pr_label.is_a?(Hash) ? pr_label["name"] : pr_label.to_s)
           name.casecmp(label).zero?
         end
+      end
+
+      # Collect feedback from reactions on tracked comments
+      def collect_feedback
+        new_evaluations = @feedback_collector.collect_feedback
+        return if new_evaluations.empty?
+
+        Aidp.log_info("watch_runner", "feedback_collected",
+          count: new_evaluations.size,
+          evaluations: new_evaluations.map { |e| {id: e[:id], rating: e[:rating]} })
+
+        display_message("📊 Collected #{new_evaluations.size} new feedback evaluation(s)", type: :info) if @verbose
+      rescue => e
+        Aidp.log_error("watch_runner", "feedback_collection_failed", error: e.message)
+        display_message("⚠️  Feedback collection failed: #{e.message}", type: :warn) if @verbose
       end
     end
   end

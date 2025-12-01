@@ -189,6 +189,94 @@ module Aidp
         save!
       end
 
+      # Feedback tracking methods - track comments for reaction-based evaluations
+
+      # Get all tracked comments with their metadata for feedback collection
+      # @return [Array<Hash>] List of comment info hashes
+      def tracked_comments
+        comments = []
+
+        # Collect from plans
+        plans.each do |issue_number, data|
+          next unless data["comment_id"]
+          comments << {
+            comment_id: data["comment_id"],
+            processor_type: "plan",
+            number: issue_number.to_i,
+            posted_at: data["posted_at"]
+          }
+        end
+
+        # Collect from reviews (if they store comment_id)
+        reviews.each do |pr_number, data|
+          next unless data["comment_id"]
+          comments << {
+            comment_id: data["comment_id"],
+            processor_type: "review",
+            number: pr_number.to_i,
+            posted_at: data["timestamp"]
+          }
+        end
+
+        # Collect from builds (if they store comment_id)
+        builds.each do |issue_number, data|
+          next unless data["comment_id"]
+          comments << {
+            comment_id: data["comment_id"],
+            processor_type: "build",
+            number: issue_number.to_i,
+            posted_at: data["updated_at"]
+          }
+        end
+
+        # Collect from feedback_comments (explicitly tracked)
+        feedback_comments.each do |key, data|
+          comments << {
+            comment_id: data["comment_id"],
+            processor_type: data["processor_type"],
+            number: data["number"].to_i,
+            posted_at: data["posted_at"]
+          }
+        end
+
+        comments
+      end
+
+      # Track a comment for feedback collection
+      # @param comment_id [Integer, String] GitHub comment ID
+      # @param processor_type [String] Type of processor (plan, review, build, etc.)
+      # @param number [Integer] Issue or PR number
+      def track_comment_for_feedback(comment_id:, processor_type:, number:)
+        key = "#{processor_type}_#{number}"
+        feedback_comments[key] = {
+          "comment_id" => comment_id.to_s,
+          "processor_type" => processor_type,
+          "number" => number,
+          "posted_at" => Time.now.utc.iso8601
+        }
+        save!
+      end
+
+      # Get IDs of reactions already processed for a comment
+      # @param comment_id [Integer, String] GitHub comment ID
+      # @return [Array<Integer>] List of processed reaction IDs
+      def processed_reaction_ids(comment_id)
+        data = processed_reactions[comment_id.to_s]
+        return [] unless data
+        data["reaction_ids"] || []
+      end
+
+      # Mark a reaction as processed
+      # @param comment_id [Integer, String] GitHub comment ID
+      # @param reaction_id [Integer] GitHub reaction ID
+      def mark_reaction_processed(comment_id, reaction_id)
+        key = comment_id.to_s
+        processed_reactions[key] ||= {"reaction_ids" => [], "last_checked" => nil}
+        processed_reactions[key]["reaction_ids"] << reaction_id unless processed_reactions[key]["reaction_ids"].include?(reaction_id)
+        processed_reactions[key]["last_checked"] = Time.now.utc.iso8601
+        save!
+      end
+
       private
 
       def ensure_directory
@@ -221,6 +309,8 @@ module Aidp
           base["ci_fixes"] ||= {}
           base["change_requests"] ||= {}
           base["detection_comments"] ||= {}
+          base["feedback_comments"] ||= {}
+          base["processed_reactions"] ||= {}
           base
         end
       end
@@ -247,6 +337,14 @@ module Aidp
 
       def detection_comments
         state["detection_comments"]
+      end
+
+      def feedback_comments
+        state["feedback_comments"]
+      end
+
+      def processed_reactions
+        state["processed_reactions"]
       end
 
       def stringify_keys(hash)
