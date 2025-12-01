@@ -10,6 +10,7 @@ require_relative "agent_signal_parser"
 require_relative "steps"
 require_relative "../harness/test_runner"
 require_relative "../errors"
+require_relative "../style_guide/selector"
 
 module Aidp
   module Execute
@@ -69,6 +70,9 @@ module Aidp
         @thinking_depth_manager = options[:thinking_depth_manager] || Aidp::Harness::ThinkingDepthManager.new(config)
         @consecutive_failures = 0
         @last_tier = nil
+
+        # Initialize style guide selector for intelligent section selection
+        @style_guide_selector = options[:style_guide_selector] || Aidp::StyleGuide::Selector.new(project_dir: project_dir)
       end
 
       # Execute a step using fix-forward work loop pattern
@@ -585,7 +589,9 @@ module Aidp
         # Traditional prompt building (fallback or when optimization disabled)
         template_content = load_template(step_spec["templates"]&.first)
         prd_content = load_prd
-        style_guide = load_style_guide
+        # Use provider-aware style guide loading - skips for Claude/Copilot,
+        # selects relevant STYLE_GUIDE sections for other providers
+        style_guide = load_style_guide_for_provider(context)
         user_input = format_user_input(context[:user_input])
         deterministic_outputs = Array(context[:deterministic_outputs])
         previous_summary = context[:previous_agent_summary]
@@ -1153,14 +1159,30 @@ module Aidp
 
       # Check if we should reinject the style guide at this iteration
       def should_reinject_style_guide?
+        # Skip reinjection for providers with instruction files (Claude, GitHub Copilot)
+        current_provider = @provider_manager&.current_provider
+        return false unless @style_guide_selector.provider_needs_style_guide?(current_provider)
+
         # Reinject on intervals (5, 10, 15, etc.) but not on iteration 1
         @iteration_count > 1 && (@iteration_count % STYLE_GUIDE_REMINDER_INTERVAL == 0)
       end
 
       # Create style guide reminder text
       def reinject_style_guide_reminder
-        style_guide = load_style_guide
+        current_provider = @provider_manager&.current_provider
+
+        # Skip for providers with instruction files
+        unless @style_guide_selector.provider_needs_style_guide?(current_provider)
+          Aidp.log_debug("work_loop", "skipping_style_guide_reminder",
+            provider: current_provider,
+            reason: "provider has instruction file")
+          return ""
+        end
+
         template_content = load_current_template
+
+        # Use provider-aware style guide loading with context-based section selection
+        style_guide = load_style_guide_for_provider(@work_context)
 
         reminder = []
         reminder << "### 🔄 Style Guide & Template Reminder (Iteration #{@iteration_count})"
@@ -1168,15 +1190,19 @@ module Aidp
         reminder << "**IMPORTANT**: To prevent drift from project conventions, please review:"
         reminder << ""
 
-        if style_guide
-          reminder << "#### LLM Style Guide"
-          reminder << "```"
-          # Include first 1000 chars of style guide to keep context manageable
-          style_guide_preview = (style_guide.length > 1000) ? style_guide[0...1000] + "\n...(truncated)" : style_guide
+        if style_guide && !style_guide.empty?
+          reminder << "#### Relevant Style Guide Sections"
+          reminder << "```markdown"
+          # Include selected sections (already limited by selector)
+          style_guide_preview = if style_guide.length > 2000
+            style_guide[0...2000] + "\n...(truncated)"
+          else
+            style_guide
+          end
           reminder << style_guide_preview
           reminder << "```"
           reminder << ""
-          display_message("  [STYLE_GUIDE] Re-injecting LLM_STYLE_GUIDE at iteration #{@iteration_count}", type: :info)
+          display_message("  [STYLE_GUIDE] Re-injecting selected STYLE_GUIDE sections at iteration #{@iteration_count}", type: :info)
         end
 
         if template_content
@@ -1264,6 +1290,74 @@ module Aidp
       def load_style_guide
         style_guide_path = File.join(@project_dir, "docs", "LLM_STYLE_GUIDE.md")
         File.exist?(style_guide_path) ? File.read(style_guide_path) : nil
+      end
+
+      # Load style guide content appropriate for the current provider and context
+      # Returns nil for providers with instruction files (Claude, GitHub Copilot)
+      # Returns selected STYLE_GUIDE sections for other providers
+      #
+      # @param context [Hash] Task context for keyword extraction
+      # @return [String, nil] Style guide content or nil if not needed
+      def load_style_guide_for_provider(context = {})
+        current_provider = @provider_manager&.current_provider
+
+        # Skip style guide for providers with their own instruction files
+        unless @style_guide_selector.provider_needs_style_guide?(current_provider)
+          Aidp.log_debug("work_loop", "skipping_style_guide",
+            provider: current_provider,
+            reason: "provider has instruction file")
+          return nil
+        end
+
+        # Extract keywords from context for intelligent section selection
+        keywords = extract_style_guide_keywords(context)
+
+        # Select relevant sections from STYLE_GUIDE.md
+        content = @style_guide_selector.select_sections(
+          keywords: keywords,
+          include_core: true,
+          max_lines: 500 # Limit to keep prompt size manageable
+        )
+
+        return nil if content.nil? || content.empty?
+
+        Aidp.log_debug("work_loop", "style_guide_selected",
+          provider: current_provider,
+          keywords: keywords,
+          content_lines: content.lines.count)
+
+        content
+      end
+
+      # Extract keywords from task context for style guide section selection
+      #
+      # @param context [Hash] Task context
+      # @return [Array<String>] Keywords for section selection
+      def extract_style_guide_keywords(context)
+        keywords = []
+
+        # Extract from step name
+        step_lower = @step_name.to_s.downcase
+        keywords << "testing" if step_lower.include?("test")
+        keywords << "implementation" if step_lower.include?("implement")
+        keywords << "refactor" if step_lower.include?("refactor")
+
+        # Extract from user input
+        user_input = context[:user_input]
+        if user_input.is_a?(Hash)
+          keywords.concat(@style_guide_selector.extract_keywords(user_input.values.join(" ")))
+        elsif user_input.is_a?(String)
+          keywords.concat(@style_guide_selector.extract_keywords(user_input))
+        end
+
+        # Extract from affected files
+        affected_files = context[:affected_files] || []
+        affected_files.each do |file|
+          keywords << "testing" if file.include?("spec") || file.include?("test")
+          keywords << "tty" if file.include?("cli") || file.include?("tui")
+        end
+
+        keywords.uniq
       end
 
       def format_user_input(user_input)
