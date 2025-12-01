@@ -83,6 +83,7 @@ aidp eval watch change_request owner/repo 456 good
 ```
 
 **Watch target types:**
+
 - `plan` - Issue planning outputs
 - `review` - PR review findings
 - `build` - Implementation/PR creation
@@ -100,6 +101,7 @@ When AIDP posts comments in watch mode (plans, reviews, builds), each comment in
 AIDP automatically collects these reactions during each polling cycle and converts them to evaluation records. This enables non-interactive feedback collection without requiring access to the command line.
 
 **Additional supported reactions:**
+
 - ❤️ (heart) = good
 - 🎉 (hooray) = good
 - 🚀 (rocket) = good
@@ -111,7 +113,7 @@ The collected evaluations are stored locally in `.aidp/evaluations/` and can be 
 
 During an interactive work loop, use the `/rate` command:
 
-```
+```text
 /rate good
 /rate bad "The generated code was incorrect"
 /rate neutral "Works but not optimal"
@@ -120,7 +122,7 @@ During an interactive work loop, use the `/rate` command:
 ## Ratings
 
 | Rating | Meaning | Symbol |
-|--------|---------|--------|
+| ------ | ------- | ------ |
 | good | Helpful, correct, high quality | + |
 | neutral | Acceptable, functional but not exceptional | ~ |
 | bad | Incorrect, unhelpful, or dysfunctional | - |
@@ -161,7 +163,7 @@ Each evaluation automatically captures rich context:
 
 Evaluations are stored in `.aidp/evaluations/`:
 
-```
+```text
 .aidp/
   evaluations/
     index.json                    # Quick lookup index
@@ -212,7 +214,7 @@ evaluations:
 ## Target Types
 
 | Type | Description |
-|------|-------------|
+| ---- | ----------- |
 | prompt | Individual prompt evaluation |
 | work_unit | Single work unit execution |
 | work_loop | Full work loop cycle |
