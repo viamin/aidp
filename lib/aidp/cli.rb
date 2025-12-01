@@ -257,7 +257,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work skill settings models tools].include?(args.first)
+        %w[status jobs kb harness providers checkpoint eval mcp issue config init watch ws work skill settings models tools].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -269,6 +269,7 @@ module Aidp
         when "harness" then run_harness_command(args)
         when "providers" then run_providers_command(args)
         when "checkpoint" then run_checkpoint_command(args)
+        when "eval" then run_eval_command(args)
         when "mcp" then run_mcp_command(args)
         when "issue" then run_issue_command(args)
         when "config" then run_config_command(args)
@@ -420,6 +421,13 @@ module Aidp
         # Delegate to CheckpointCommand
         require_relative "cli/checkpoint_command"
         command = CheckpointCommand.new(prompt: create_prompt)
+        command.run(args)
+      end
+
+      def run_eval_command(args)
+        # Delegate to EvalCommand
+        require_relative "cli/eval_command"
+        command = EvalCommand.new(prompt: create_prompt)
         command.run(args)
       end
 
