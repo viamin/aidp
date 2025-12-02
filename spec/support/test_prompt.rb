@@ -315,11 +315,12 @@ class TestPrompt
     /🔄 Re-planning for issue #\d+/,
     /⚠️  Unable to generate plan for issue #\d+/,
 
-    # Workflow status messages
-    /⚠ Workflow paused:/,
-    /✓ Workflow (completed|resumed):/,
-    /✗ Workflow stopped:/,
-    /⚠ Workflow cancelled:/,
+    # Workflow status messages (with various message suffixes)
+    /⚠ Workflow paused: .+/,
+    /✓ Workflow completed: .+/,
+    /✓ Workflow resumed: .+/,
+    /✗ Workflow stopped: .+/,
+    /⚠ Workflow cancelled: .+/,
     /⏸️  Harness PAUSED/,
     /Press 'r' to resume, 's' to stop/,
     /▶️  Harness RESUMED/,
@@ -819,6 +820,67 @@ class TestPrompt
     /⚠️  Duplicate configurations detected/,
     /Consider using different providers/,
 
+    # Setup wizard section headers
+    /💡 You can run 'aidp models discover' later to see available models/,
+    /⚙️  Work loop configuration/,
+    /🔍 Output filtering configuration/,
+    /^\s+Reduces token consumption by filtering test\/lint output$/,
+    /📊 Coverage configuration/,
+    /🎯 Interactive testing configuration/,
+    /🗂️  Version control configuration/,
+    /📋 Commit Behavior \(applies to copilot\/interactive mode only\)/,
+    /^Note: Watch mode and fully automatic daemon mode will always commit changes\.$/,
+    /🌿 Branching strategy/,
+    /📁 Artifact storage/,
+    /📋 Non-functional requirements & preferred libraries/,
+    /📝 Logging configuration/,
+    /♻️  Auto-update configuration/,
+    /🚀 Operational modes/,
+    /🐳 Devcontainer Configuration/,
+
+    # Setup wizard labels and status
+    /^\s+✅ Created: [\w-]+$/,
+    /^\s+⚠️  Failed to create: [\w-]+ - .+$/,
+    /^✅ Successfully created \d+ labels?$/,
+    /^⚠️  Failed to create \d+ labels?$/,
+    /^\s+• [\w-]+ \([A-F0-9]+\)$/,
+    /^✅ All required labels already exist!$/,
+
+    # Setup wizard provider editing
+    /^🔧 Editing provider '[^']+' \(current: .+\)$/,
+    /^Updated '[^']+' → .+$/,
+    /^\s+• \w+ and \w+ have identical billing type \(\w+\) and model family \(\w+\)$/,
+    /^Removed '[^']+' from fallback providers$/,
+
+    # Setup wizard NFR display
+    /^Performance requirements:$/,
+    /^Security requirements:$/,
+    /^Reliability requirements:$/,
+    /^Accessibility requirements:$/,
+    /^Internationalization requirements:$/,
+
+    # Setup wizard devcontainer status
+    /^✓ Found existing devcontainer\.json$/,
+
+    # Setup wizard configuration status
+    /^📄 Configuration preview$/,
+    /^Dry run mode active – configuration was NOT written\.$/,
+    /^✅ Configuration saved to [\w.\/]+$/,
+    /^Configuration not saved$/,
+    /^📝 Found existing configuration at [\w.\/]+$/,
+    /^🔍 Diff with existing configuration:$/,
+    /^🎉 Setup complete!$/,
+    /^Next steps:$/,
+
+    # Configuration diff output
+    /^\+ # .+$/,
+    /^\+ ---$/,
+    /^\+ \w+:/,
+    /^\+\s+\w+:/,
+    /^  \w+:/,
+    /^- \w+:/,
+    /^-\s+\w+:/,
+
     # Multiline input prompts
     /^\w+:$/,
     /\(Enter text; submit empty line to finish/,
@@ -830,7 +892,254 @@ class TestPrompt
 
     # Table orientation warnings
     /The table size exceeds the currently set width/,
-    /Defaulting to vertical orientation/
+    /Defaulting to vertical orientation/,
+
+    # File Selection Help (complete help block)
+    /📖 File Selection Help:/,
+    /^\s+@\s+- Show all files$/,
+    /^\s+@\.rb\s+- Show Ruby files only$/,
+    /^\s+@config\s+- Show files with 'config' in name$/,
+    %r{^\s+@lib/\s+- Show files in lib directory$},
+    /^\s+@spec preview\s+- Show spec files with preview option$/,
+    /^\s+@\.js case\s+- Show JavaScript files \(case sensitive\)$/,
+    /⌨️  Selection Commands:/,
+    /^\s+1-50\s+- Select file by number$/,
+    /^\s+0\s+- Cancel selection$/,
+    /^\s+-1\s+- Refine search$/,
+    /^\s+p\s+- Preview selected file$/,
+    /^\s+h\s+- Show this help$/,
+    /^\s+• Files are sorted by relevance and type$/,
+    /^\s+• Use extension filters for specific file types$/,
+    /^\s+• Use directory filters to limit search scope$/,
+    /^\s+• Preview option shows file content before selection$/,
+
+    # Tree-sitter analysis output
+    /🔍 Starting Tree-sitter static analysis\.\.\./,
+    /📁 Root: /,
+    /🗂️  KB Directory: /,
+    /🌐 Languages: /,
+    /🧵 Threads: \d+/,
+    /📄 Found \d+ files to analyze/,
+    /🔄 Parsing files in parallel\.\.\./,
+    /Installing Tree-sitter grammar for \w+\.\.\./,
+    /Grammar for \w+ marked as available/,
+    /Warning: Tree-sitter parser not found for \w+:/,
+    /Failed to load a parser for \w+/,
+    /From ENV\['TREE_SITTER_PARSERS'\]:/,
+    /From Defaults:/,
+    %r{^\s+/\.vendor/parsers$},
+    %r{^\s+/\.vendor/tree-sitter-parsers$},
+    %r{^\s+/vendor/parsers$},
+    %r{^\s+/vendor/tree-sitter-parsers$},
+    %r{^\s+/parsers$},
+    %r{^\s+/tree-sitter-parsers$},
+    %r{^\s+/$},
+    %r{^\s+/opt/local/lib$},
+    %r{^\s+/opt/lib$},
+    %r{^\s+/usr/local/lib$},
+    %r{^\s+/usr/lib$},
+    /📄 Written \w+\.json \(\d+ entries\)/,
+    /✅ Tree-sitter analysis complete!/,
+    /📊 Generated KB files in /,
+
+    # Graph output (digraph, mermaid, JSON)
+    /^digraph \w+ \{$/,
+    /^\s+rankdir=\w+;$/,
+    /^\s+node \[shape=\w+\];$/,
+    /^\s+"?\w+"? -> "?\w+"? \[label="\w+"\];$/,
+    /^\}$/,
+    /^graph LR$/,
+    /^\s+\w+ --> \w+$/,
+    /^\{$/,
+    /^\s+"nodes": \[$/,
+    /^\s+"edges": \[$/,
+    /^\s+\{$/,
+    /^\s+"id": "[^"]+",?$/,
+    /^\s+"label": "[^"]+",?$/,
+    /^\s+"from": "[^"]+",?$/,
+    /^\s+"to": "[^"]+",?$/,
+    /^\s+\},?$/,
+    /^\s+\],?$/,
+
+    # Knowledge base summary output
+    /🏗️  Symbols Summary$/,
+    /^Module: \d+$/,
+    /^Method: \d+$/,
+    /^Class: \d+$/,
+    /📦 Imports Summary$/,
+    /^Require: \d+$/,
+    /^Require_relative: \d+$/,
+    /🔥 Code Hotspots \(Top \d+\)$/,
+    /^\s+Score: \d+ \(Complexity: \d+, Touches: \d+\)$/,
+
+    # Code signing and environment-manager errors (CI environment)
+    /^error: Debug: Namespace set to "\w+" \(ignored\)$/,
+    /^Debug: Key file set to "[^"]+" \(ignored, using server key\)$/,
+    /^Error: signing failed: Signing failed:/,
+    /signing operation failed: signing server returned status \d+:/,
+    /^\s*Usage:$/,
+    /^\s+environment-manager code-sign \[flags\]$/,
+    /^Flags:$/,
+    /^\s+-h, --help\s+help for code-sign$/,
+    /^fatal: failed to write commit object$/,
+
+    # Devcontainer preview output (features, env)
+    /^\s+\+ ghcr\.io\/devcontainers\/features\//,
+    /^\s+\+ AIDP_\w+=\w+$/,
+
+    # Email validation warnings and errors
+    /^\s+Invalid email format$/,
+    /^\s+• This is a warning$/,
+    /^Warning: [\w.]+@[\w.]+\.[\w.]+ was considered valid by email validation$/,
+
+    # Git worktree additional messages
+    /^No possible source branch, inferring '--orphan'$/,
+    /^Preparing worktree \(new branch '[^']+'\)$/,
+    /^Switched to a new branch '[^']+'$/,
+    /^fatal: invalid reference: \w+$/,
+
+    # Bundler deprecation warnings
+    /^\[DEPRECATED\] The `--path` flag is deprecated/,
+    /bundler invocations, which bundler will no longer do/,
+    /Instead please use `bundle config set/,
+    /and stop using this flag$/,
+
+    # RSpec/RuboCop list items
+    /^\s+- RSpec$/,
+    /^\s+- RuboCop$/,
+    /^\s+- Continuous Integration \/ lint \/ lint$/,
+
+    # Test output artifacts
+    /^test$/,
+    /^\?\? \.aidp\/$/,
+
+    # ANSI escape sequences (terminal control codes that leak)
+    /\e\[2K/,
+    /\e\[1G/,
+    /\[2K/,
+    /\[1G/,
+
+    # Task filing and update messages
+    /❌ Updated task \w+: abandoned/,
+    /✅ Updated task \w+: done/,
+    /🚧 Updated task \w+: in_progress/,
+    /⚠️  Task not found:/,
+    /📋 Filed task: .+ \(\w+\)/,
+    /📋 Task Summary \(Project-wide\):/,
+    /^\s+Total: \d+$/,
+    /^\s+✅ Done: \d+$/,
+    /^\s+🚧 In Progress: \d+$/,
+    /^\s+⏳ Pending: \d+$/,
+
+    # Provider warnings
+    /⚠️  Failed to resolve provider \w+:/,
+    /⚠️  All providers unavailable or failed/,
+    /⚠️  Unable to parse \w+ response/,
+
+    # KB Inspector data display
+    /^\s+io_integration: \d+$/,
+    /🔥 Code Hotspots$/,
+    /^No hotspots data available$/,
+    /^No APIs data available$/,
+    /^No cycles data available$/,
+    /^No seams data available$/,
+    /^Unknown KB type: \w+$/,
+    /^Available types: /,
+    /^Unknown graph type: \w+$/,
+    /^Available types: imports, calls, cycles$/,
+    %r{^\s+[\w/]+\.rb:\d+$},  # File:line references like "test.rb:5"
+
+    # KB parsing warnings
+    /^Warning: Could not parse [^:]+: /,
+
+    # Time estimates
+    /⏱️  Estimated time remaining: [\d.]+ (seconds|minutes)/,
+
+    # File selection hints
+    /^\s+• Use @ to browse and select files$/,
+
+    # Configuration error messages (full line)
+    /^Failed to load configuration file /,
+
+    # GitHub CLI errors
+    /^GitHub CLI list failed:/,
+
+    # Harness status display sections
+    /💬 USER FEEDBACK STATUS/,
+    /^\s+question: \w+$/,
+    /^\s+question_count: \d+$/,
+    /⚡ PERFORMANCE METRICS/,
+    /^\s+Uptime: \w+$/,
+    /^\s+Step Duration: \w+$/,
+    /^\s+Provider Switches: \d+$/,
+    /^\s+Error Rate: [\d.]+%$/,
+    /✅ WORK COMPLETION STATUS/,
+    /^\s+Status: [\w\s]+$/,
+    /^\s+Steps Completed: \d+\/\d+$/,
+    /🚨 ALERTS/,
+    /^\s+🟡 High error rate$/,
+    /🚫 RATE LIMIT STATUS/,
+    /^\s+\w+:\w+: Rate Limited$/,
+    /^\s+Reset Time: [\d:]+$/,
+    /^\s+Retry After: \d+s$/,
+    /^\s+Quota: \d+\/\d+$/,
+    /🔄 RECOVERY STATUS/,
+    /^\s+provider_switch: \w+$/,
+    /^\s+new_provider: \w+$/,
+    /🔌 PROVIDER INFORMATION/,
+    /^\s+Available Providers: .+$/,
+    /^\s+Provider Health:$/,
+    /^\s+\w+: healthy \([\d.]+%\)$/,
+    /🔒 CIRCUIT BREAKER STATUS/,
+    /^\s+🟢 \w+: closed \(failures: \d+\)$/,
+    /^\s+🔴 \w+: open \(failures: \d+\)$/,
+    /📊 BASIC INFORMATION/,
+    /^\s+Duration: \w+$/,
+    /^\s+Provider: \w+$/,
+    /^\s+Model: \w+$/,
+    /^\s+Update Interval: \w+$/,
+    /❌ ERROR INFORMATION/,
+    /^\s+Total Errors: \d+$/,
+    /^\s+By Severity:$/,
+    /^\s+warning: \d+$/,
+    /^\s+error: \d+$/,
+    /^\s+By Provider:$/,
+    /^\s+\w+: \d+$/,
+    /🎫 TOKEN USAGE/,
+    /^\s+\w+:$/,
+    /^\s+\w+: \d+ used$/,
+    /^\s+Remaining: \d+$/,
+    /🔄 Harness Status - Detailed/,
+    /^\s+Errors: \d+ total$/,
+    /🔄 Harness Status$/,
+    /🔄 Test Step \| \w+ \| \w+$/,
+    /🔄 AIDP HARNESS - FULL STATUS REPORT/,
+    /🚫 Rate limit reached/,
+    /^\s+Waiting for reset at [\d:]+$/,
+    /^\s+Remaining: \d+s$/,
+    /^\s+Press Ctrl\+C to cancel$/,
+    /❌ Harness ERROR/,
+    /^\s+Error: .+$/,
+    /^\s+Check logs for details$/,
+    /✅ Harness COMPLETED/,
+    /^\s+All workflows finished successfully!$/,
+    /🚫 Rate limit - waiting\.\.\./,
+    /^\s+Resets in: \d+s$/,
+    /❌ Display Error: /,
+    /^\s+Continuing with status updates\.\.\.$/,
+
+    # Workstream cleanup messages
+    /^Keeping workstream$/,
+    /^\s+Branch deleted$/,
+    /^Deletion cancelled$/,
+    /^No workstreams found\.$/,
+
+    # Note: MCP Server output patterns removed - tests verify that output via capture_output
+    # Note: Workstream status display patterns removed - tests verify that output via capture_output
+
+    # Additional git worktree messages
+    /^Switched to a new branch '[^']+'$/,
+    /^fatal: invalid reference: [\w\/-]+$/
   ].freeze
 
   def say(message, **options)
