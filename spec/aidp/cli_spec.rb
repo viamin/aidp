@@ -245,6 +245,93 @@ RSpec.describe Aidp::CLI do
         described_class.run([])
       end
     end
+
+    describe "--launch-test flag (interactive mode)" do
+      let(:test_project_dir) { temp_dir }
+
+      before do
+        @original_pwd = Dir.pwd
+        Dir.chdir(test_project_dir)
+        FileUtils.mkdir_p(File.join(test_project_dir, ".aidp"))
+
+        # Stub dependencies
+        allow(Aidp).to receive(:setup_logger)
+        allow(Aidp).to receive(:log_debug)
+        allow(Aidp).to receive(:log_info)
+        allow(Aidp.logger).to receive(:info)
+        allow(Aidp.logger).to receive(:warn)
+      end
+
+      after do
+        Dir.chdir(@original_pwd)
+      end
+
+      it "returns 0 when launch test succeeds" do
+        tui_double = double("EnhancedTUI", restore_screen: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+
+        config_manager_double = double("ConfigManager", config: {})
+        allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
+
+        result = described_class.run(["--launch-test"])
+
+        expect(result).to eq(0)
+      end
+
+      it "initializes TUI components during launch test" do
+        tui_double = double("EnhancedTUI", restore_screen: nil)
+        expect(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        expect(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+
+        config_manager_double = double("ConfigManager", config: {})
+        expect(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
+
+        described_class.run(["--launch-test"])
+      end
+
+      it "restores screen after launch test" do
+        tui_double = double("EnhancedTUI")
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+        expect(tui_double).to receive(:restore_screen)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+
+        config_manager_double = double("ConfigManager", config: {})
+        allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
+
+        described_class.run(["--launch-test"])
+      end
+
+      it "returns 1 and logs error when launch test fails" do
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_raise(StandardError.new("TUI initialization failed"))
+        allow(described_class).to receive(:log_rescue)
+
+        result = described_class.run(["--launch-test"])
+
+        expect(result).to eq(1)
+      end
+
+      it "does not start interactive workflow during launch test" do
+        tui_double = double("EnhancedTUI", restore_screen: nil)
+        allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+
+        workflow_selector_double = double("EnhancedWorkflowSelector")
+        allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
+        # Should NOT be called during launch test
+        expect(workflow_selector_double).not_to receive(:select_workflow)
+
+        config_manager_double = double("ConfigManager", config: {})
+        allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
+
+        described_class.run(["--launch-test"])
+      end
+    end
   end
 
   describe ".subcommand?" do
@@ -335,6 +422,11 @@ RSpec.describe Aidp::CLI do
     it "parses setup-config flag" do
       options = described_class.send(:parse_options, ["--setup-config"])
       expect(options[:setup_config]).to be true
+    end
+
+    it "parses launch-test flag (undocumented)" do
+      options = described_class.send(:parse_options, ["--launch-test"])
+      expect(options[:launch_test]).to be true
     end
 
     it "includes parser in options" do

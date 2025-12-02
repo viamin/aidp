@@ -370,6 +370,38 @@ RSpec.describe "CLI Basic Commands Integration", type: :integration do
 
       expect(Aidp::Watch::Runner).to have_received(:new).with(hash_including(provider_name: "claude"))
     end
+
+    describe "--launch-test flag" do
+      before do
+        allow(Aidp).to receive(:log_debug)
+        allow(Aidp).to receive(:log_info)
+      end
+
+      it "returns 0 when launch test succeeds" do
+        result = Aidp::CLI.send(:run_watch_command, ["https://github.com/owner/repo/issues", "--launch-test"])
+
+        expect(result).to eq(0)
+      end
+
+      it "does not start watch runner during launch test" do
+        Aidp::CLI.send(:run_watch_command, ["https://github.com/owner/repo/issues", "--launch-test"])
+
+        expect(Aidp::Watch::Runner).not_to have_received(:new)
+        expect(watch_runner).not_to have_received(:start)
+      end
+
+      it "loads and validates configuration during launch test" do
+        Aidp::CLI.send(:run_watch_command, ["https://github.com/owner/repo/issues", "--launch-test"])
+
+        expect(Aidp::Harness::ConfigManager).to have_received(:new)
+      end
+
+      it "displays success message after launch test" do
+        Aidp::CLI.send(:run_watch_command, ["https://github.com/owner/repo/issues", "--launch-test"])
+
+        expect(Aidp::CLI).to have_received(:display_message).with(/Launch test completed successfully/, type: :success)
+      end
+    end
   end
 
   describe "work command" do
