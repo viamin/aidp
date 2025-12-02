@@ -1291,20 +1291,26 @@ class TestPrompt
   end
 
   def warn(message, **options)
+    message_str = message.to_s
     @messages << {message: message, options: options, type: :warn}
-    puts message
+    return @responses[:warn] if SUPPRESS_PATTERNS.any? { |pattern| message_str.match?(pattern) }
+    puts message_str
     @responses[:warn]
   end
 
   def error(message, **options)
+    message_str = message.to_s
     @messages << {message: message, options: options, type: :error}
-    puts message
+    return @responses[:error] if SUPPRESS_PATTERNS.any? { |pattern| message_str.match?(pattern) }
+    puts message_str
     @responses[:error]
   end
 
   def ok(message, **options)
+    message_str = message.to_s
     @messages << {message: message, options: options, type: :ok}
-    puts message
+    return @responses[:ok] if SUPPRESS_PATTERNS.any? { |pattern| message_str.match?(pattern) }
+    puts message_str
     @responses[:ok]
   end
 
