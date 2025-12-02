@@ -317,11 +317,11 @@ class TestPrompt
 
     # Workflow status messages (with various message suffixes)
     # Note: Using .? after emoji to handle optional variation selectors (️)
-    /[⚠].? Workflow paused: .+/,
-    /[✓].? Workflow completed: .+/,
-    /[✓].? Workflow resumed: .+/,
-    /[✗].? Workflow stopped: .+/,
-    /[⚠].? Workflow cancelled: .+/,
+    /⚠.? Workflow paused: .+/,
+    /✓.? Workflow completed: .+/,
+    /✓.? Workflow resumed: .+/,
+    /✗.? Workflow stopped: .+/,
+    /⚠.? Workflow cancelled: .+/,
     /⏸️  Harness PAUSED/,
     /Press 'r' to resume, 's' to stop/,
     /▶️  Harness RESUMED/,
