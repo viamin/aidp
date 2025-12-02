@@ -316,11 +316,12 @@ class TestPrompt
     /⚠️  Unable to generate plan for issue #\d+/,
 
     # Workflow status messages (with various message suffixes)
-    /⚠ Workflow paused: .+/,
-    /✓ Workflow completed: .+/,
-    /✓ Workflow resumed: .+/,
-    /✗ Workflow stopped: .+/,
-    /⚠ Workflow cancelled: .+/,
+    # Note: Using .? after emoji to handle optional variation selectors (️)
+    /[⚠].? Workflow paused: .+/,
+    /[✓].? Workflow completed: .+/,
+    /[✓].? Workflow resumed: .+/,
+    /[✗].? Workflow stopped: .+/,
+    /[⚠].? Workflow cancelled: .+/,
     /⏸️  Harness PAUSED/,
     /Press 'r' to resume, 's' to stop/,
     /▶️  Harness RESUMED/,
