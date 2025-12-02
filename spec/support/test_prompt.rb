@@ -474,7 +474,363 @@ class TestPrompt
     /^────+$/,  # Separator lines (full line)
     /────+/,    # Separator lines (anywhere in message)
     /^====+$/,  # Separator lines (full line)
-    /====+/     # Separator lines (anywhere in message)
+    /====+/,    # Separator lines (anywhere in message)
+    /^━+$/,     # Box drawing separator lines
+    /━+/,       # Box drawing separator lines (anywhere)
+    /^-{10,}$/, # Dashed separator lines
+
+    # Control interface messages
+    /🎮 Control interface/,
+    /🎮 Harness Control Menu/,
+    /🎮 Control Interface/,
+    /🛑 Control Interface/,
+    /⏸️  HARNESS PAUSED/,
+    /▶️  HARNESS RESUMED/,
+    /🛑 HARNESS STOPPED/,
+    /🚨 EMERGENCY STOP INITIATED/,
+    /Press 'p' \+ Enter to pause/,
+    /Press 'r' \+ Enter to resume/,
+    /Press 's' \+ Enter to stop/,
+    /Press 'h' \+ Enter/,
+    /Press 'q' \+ Enter/,
+    /'r' \+ Enter: Resume/,
+    /'s' \+ Enter: Stop/,
+    /'h' \+ Enter: Show help/,
+    /'q' \+ Enter: Quit/,
+    /⏸️  Pause requested/,
+    /▶️  Resume requested/,
+    /🛑 Stop requested/,
+    /⏸️  Quick pause requested/,
+    /▶️  Quick resume requested/,
+    /🛑 Quick stop requested/,
+    /👋 Exiting control menu/,
+    /Select option \(1-8\)/,
+    /1\. Start Control Interface/,
+    /2\. Stop Control Interface/,
+    /3\. Pause Harness/,
+    /4\. Resume Harness/,
+    /5\. Stop Harness/,
+    /6\. Show Control Status/,
+    /7\. Show Help/,
+    /8\. Exit Menu/,
+    /Execution has been stopped by user/,
+    /Execution has been resumed/,
+    /All execution will be halted immediately/,
+    /This action cannot be undone/,
+    /You can restart the harness from where it left off/,
+    /❌ Invalid option\. Please select 1-8/,
+    /❌ Invalid command\. Type 'h' for help/,
+    /📖 Control Interface Help/,
+    /🎮 Available Commands:/,
+    /'p' or 'pause'/,
+    /'r' or 'resume'/,
+    /'s' or 'stop'/,
+    /'h' or 'help'/,
+    /'q' or 'quit'/,
+    /📋 Control States:/,
+    /Running  - Harness is executing normally/,
+    /Paused   - Harness is paused/,
+    /Stopped  - Harness has been stopped/,
+    /Resumed  - Harness has been resumed/,
+    /💡 Tips:/,
+    /• You can pause\/resume\/stop at any time/,
+    /• The harness will save its state/,
+    /• You can restart from where you left off/,
+    /• Use 'h' for help at any time/,
+    /🎮 Control Interface Status/,
+    /Enabled: (✅|❌)/,
+    /Pause Requested: (⏸️|▶️)/,
+    /Stop Requested: (🛑|▶️)/,
+    /Resume Requested: (▶️|⏸️)/,
+    /Control Thread: (🟢|🔴)/,
+    /🛑 Emergency stop completed/,
+
+    # Devcontainer messages
+    /✅ Devcontainer configuration applied/,
+    /🔍 Dry Run - Changes Preview/,
+    /📄 Devcontainer Changes Preview/,
+    /📦 Available Backups/,
+    /📦 Restoring Backup/,
+    /✅ Backup created:/,
+    /✅ Backup restored/,
+    /No existing devcontainer\.json found/,
+    /Run 'aidp config --interactive'/,
+    /No backups found/,
+    /Features:/,
+    /Ports:/,
+    /Port Attributes:/,
+    /Environment:/,
+    /Other Changes:/,
+    /No changes made \(dry run\)/,
+    /File: .*devcontainer\.json/,
+    /Total: \d+ backups/,
+    /^\s+Created: \d{4}-\d{2}-\d{2}/,  # Indented backup creation timestamps only
+    /^\s+Size: [\d.]+ [KMGB]+/,  # Indented backup size only
+    /Reason: (manual_test|cli_apply)/,
+    /From: devcontainer-/,
+    /To: .*devcontainer\.json/,
+
+    # Timeout and mode messages
+    /🧠 Using adaptive timeout/,
+    /⚡ Quick mode enabled/,
+    /📋 Using default timeout/,
+
+    # Knowledge base inspector messages
+    /🔧 Seams Analysis/,
+    /📌 [A-Z_]+ \(\d+ found\)/,
+    /Generating import graph in/,
+    /Graph written to/,
+    /No seams data available/,
+    /Knowledge Base Data/,
+    /╔.*═.*╗/,    # Box drawing top
+    /║.*║/,        # Box drawing sides
+    /╚.*═.*╝/,    # Box drawing bottom
+    /Row \d+:/,
+    /Type: \w+/,
+    /File: .+\.\w+/,
+    /Line: \d+/,
+    /Symbol:/,
+    /Suggestion:/,
+
+    # User interface feedback collection messages
+    /📝 Quick Feedback Collection/,
+    /✅ Batch feedback collected/,
+    /📋 Question Summary:/,
+    /❓ .+/,        # Question prompts like "❓ What is your name?" or "❓ Choose an option:"
+    /📋 Context:/,
+    /Urgency: (🔴|🟡|🟢)/,
+    /Description: .+/,
+    /Agent Output:/,
+    /Agent needs user information/,
+    /⚙️  User Preferences:/,
+    /📖 Interactive Prompt Help/,
+    /🔤 Input Types:/,
+    /⌨️  Special Commands:/,
+    /📁 File Selection:/,
+    /✅ Validation:/,
+    /  • Text: /,
+    /  • Choice: /,
+    /  • Confirmation: /,
+    /  • File: /,
+    /  • Number: /,
+    /  • Email: /,
+    /  • URL: /,
+    /  • @: Browse and select/,
+    /  • Enter: Use default/,
+    /  • Ctrl\+C: Cancel/,
+    /  • Type @ to browse/,
+    /  • Type @search to filter/,
+    /  • Select by number/,
+    /  • Required fields must be filled/,
+    /  • Input format is validated/,
+    /  • Invalid input shows error/,
+    /  • Use Tab for auto-completion/,
+    /  • Arrow keys for history/,
+    /  • Default values are shown/,
+    /^\d+\. .+$/,   # Numbered list items like "1. What is your name?"
+    /  \d+\. (📝|🔘|✅|📁|🔢|📧|🔗) .+ \((Required|Optional)\)/,  # Question summary items
+
+    # Question display patterns (from display_numbered_question, etc.)
+    /📝 Question \d+ of \d+/,
+    /📋 Question Details:/,
+    /📋 Context Summary:/,
+    /💡 Instructions:/,
+    /⚠️  Required Field:/,
+    /✅ Optional Field:/,
+    /⚡ Quick Answer:/,
+    /📊 Progress: \[.*\] [\d.]+%/,
+    /Status: (🔴|🟢)/,
+    /Expected input:/,
+    /Default:/,
+    /(📝|🔘|✅|📁|🔢|📧|🔗) .+\?/,  # Emoji question types
+    /  • Enter your text response/,
+    /  • Use @ for file selection/,
+    /  • Press Enter when done/,
+    /  • Select from the numbered options/,
+    /  • Enter the number of your choice/,
+    /  • Press Enter to confirm/,
+    /  • Enter 'y' or 'yes'/,
+    /  • Enter 'n' or 'no'/,
+    /  • Press Enter for default/,
+    /  • Enter file path directly/,
+    /  • File must exist and be readable/,
+    /  • Enter a valid number/,
+    /  • Use decimal point for decimals/,
+    /  • Enter a valid email address/,
+    /  • Format: (user@domain\.com|https:\/\/example\.com)/,
+    /  • Enter a valid URL/,
+    /  • This question must be answered/,
+    /  • Cannot be left blank/,
+    /  • This question can be skipped/,
+    /  • Press Enter to leave blank/,
+    /  • Press Enter to use default:/,
+    /\[Skipped\]/,
+    /^  \d+\. .+$/,     # Indented numbered responses like "  1. https://example.com"
+    /🔘 Choose an option/,
+    /📝 Optional comment/,
+    /Available options:/,
+
+    # UI component messages (navigation, menus, status)
+    /📍 Section/,
+    /^Home$/,
+    /Navigation Help/,
+    /Use arrow keys to navigate/,
+    /Press Enter to select/,
+    /Press Escape to go back/,
+    /Invalid selection/,
+    /📋 .*Menu$/,
+    /No options available/,
+    /Analyze Mode/,
+    /Execute Mode/,
+    /Select workflow/,
+    /\d+ completed$/,
+
+    # Status messages
+    /ℹ .+ message$/,
+    /✓ .+ message$/,
+    /⚠ .+ message$/,
+    /✗ .+ message$/,
+    /^Unknown type$/,
+    /ℹ Default message/,
+    /Muted message/,
+    /📝 Please provide feedback/,
+    /Context: .+/,
+    /^Name\?$/,
+    /^Your age$/,
+    /^What is your name\?$/,
+    /^Comments\?$/,
+    /^Pick a color$/,
+    /^Config file$/,
+    /^Do you agree$/,
+    /🤖 Agent needs feedback/,
+
+    # Spinner and progress messages
+    /✅ Done \(\d+.+\)$/,
+    /✅ Completed \([\d.]+s?\)$/,
+    /✅ Completed successfully$/,
+    /✅ Task completed$/,
+    /✅ Task \d+ completed$/,
+    /⏳ Loading/,
+    /⏳ Processing/,
+    /⏳ Task \d+ in progress/,
+    /⚠️ Please check configuration/,
+    /❌ Error occurred/,
+    /❌ Something went wrong/,
+    /❌ Task \d+ failed/,
+    /Connection failed/,
+
+    # MCP and eligibility messages (minimal - some tests verify this output)
+    # Note: Many MCP messages are verified by tests via capture_output, so we don't suppress them
+
+    # Workflow status messages
+    /[✓✗⚠] Workflow (completed|resumed|cancelled|stopped|paused):/,
+    /Current State: (🟢|🔴|🟡)/,
+    /State Name:/,
+    /Available Actions:/,
+    /  (Pause|Resume|Cancel|Stop|Complete): (Yes|No)/,
+
+    # Configuration messages
+    /Created minimal configuration/,
+    /Configuration setup skipped/,
+
+    # Job monitoring messages
+    /✅ Job monitoring (started|stopped)/,
+    /❌ Job monitoring stopped/,
+    /interval: [\d.]+s/,
+    /No progress items to display/,
+    /Progress: \d+% - /,
+    /Status: (Completed|Running)/,
+
+    # Frame summary messages
+    /📊 Frame Summary/,
+    /No frames used/,
+    /Total Frames: \d+/,
+    /Frame Types:/,
+    /  📋 Section: \d+/,
+    /Current Frame Depth:/,
+    /Frames in History: \d+/,
+
+    # Validation error messages
+    /❌ Validation Error:/,
+    /💡 Suggestions:/,
+    /⚠️  Warnings:/,
+    /  • Use format:/,
+    /  • Local part is very long/,
+    /  • Check for typos/,
+    /Warning: .+ was considered valid by email validation/,
+
+    # Help messages for question types
+    /📖 Help for \w+ Question:/,
+    /• Select from the numbered options/,
+    /• Enter the number of your choice/,
+    /• Or type the option text directly/,
+    /• Enter any text response/,
+    /• Use @ for file selection if needed/,
+    /• Press Enter when done/,
+
+    # Input error recovery
+    /🚨 Input Error:/,
+    /🔄 Retrying\.\.\./,
+    /❌ Maximum retries exceeded/,
+
+    # Work loop state machine output
+    /^\s+(APPLY_PATCH|TEST|FAIL|DIAGNOSE|NEXT_PATCH|PASS|DONE|READY): \d+ times?$/,
+    /^\s+• Prompt size: \d+ chars \| State: \w+$/,
+
+    # Devcontainer paths and diff output
+    %r{^\s+/tmp/[^/]+/\.devcontainer/devcontainer\.json$},
+    /^\s+\+ [a-z]+:/,        # Config additions like "+ ghcr.io/..."
+    /^\s+~ \w+:/,            # Config changes like "~ name:"
+    /^\s+→ /,                # Arrow in diffs
+
+    # Additional backup messages
+    /❌ Backup not found:/,
+
+    # GitHub label auto-creation messages
+    /🏷️  GitHub Label Auto-Creation/,
+    /Automatically create GitHub labels for watch mode/,
+    /📦 Repository:/,
+    /📝 Labels to create:/,
+    /  • aidp-\w+ \([A-F0-9]+\)/,
+    /⚠️  Could not determine GitHub repository/,
+    /⚠️  Failed to fetch existing labels/,
+    /⚠️  GitHub CLI \(gh\) not found/,
+    /Ensure you're in a git repository/,
+    /Visit: https:\/\/cli\.github\.com/,
+    /✅ All required labels already exist/,
+    /Check your GitHub authentication/,
+
+    # Setup wizard messages
+    /🧙 AIDP Setup Wizard/,
+    /This wizard will help you configure AIDP/,
+    /Press Enter to keep defaults/,
+    /📦 Provider configuration/,
+    /  • Added provider/,
+    /💡 Use ↑\/↓ arrows to navigate/,
+    /💡 Provider integration:/,
+    /AIDP does not store API keys/,
+    /Only the billing model/,
+    /📋 Provider Configuration Summary/,
+    /⚙️  Harness Configuration/,
+    /Advanced settings for provider behavior/,
+    /🧠 Thinking Tier Configuration/,
+    /🔍 Discovering available models/,
+    /Removed '.+' from fallback providers/,
+    /⚠️  Duplicate configurations detected/,
+    /Consider using different providers/,
+
+    # Multiline input prompts
+    /^\w+:$/,
+    /\(Enter text; submit empty line to finish/,
+    /Type 'clear' alone to remove/,
+
+    # Planning loop warnings
+    /\[WARNING\] Planning loop exceeded/,
+    /Continuing with the plan information gathered/,
+
+    # Table orientation warnings
+    /The table size exceeds the currently set width/,
+    /Defaulting to vertical orientation/
   ].freeze
 
   def say(message, **options)
