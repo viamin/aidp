@@ -1136,7 +1136,40 @@ class TestPrompt
 
     # Additional git worktree messages
     /^Switched to a new branch '[^']+'$/,
-    /^fatal: invalid reference: [\w\/-]+$/
+    /^fatal: invalid reference: [\w\/-]+$/,
+
+    # Model discovery output
+    /^✓ Found \d+ models for \w+:$/,
+    /^\s+Mini tier: \d+ models$/,
+    /^\s+Standard tier: \d+ models$/,
+    /^\s+Advanced tier: \d+ models$/,
+    /^📋 Proposed tier configuration:$/,
+    /^\s+- claude-[\w-]+$/,
+    /^✅ Thinking tiers configured successfully$/,
+    /^✅ Output filtering configured$/,
+    /^⚠️  No models discovered\. Ensure provider CLIs are installed\.$/,
+    /^💡 You can configure tiers manually or run 'aidp models discover' later$/,
+
+    # AI-Generated Filter Definitions
+    /^🤖 AI-Generated Filter Definitions$/,
+    /^\s+Generate custom filters for your test\/lint tools \(one-time AI call\)$/,
+    /^⚠️  No test or lint commands configured\. Configure them first\.$/,
+
+    # Detected stack
+    /^📚 Detected stack: \w+$/,
+
+    # Watch Mode Configuration
+    /^👀 Watch Mode Configuration$/,
+    /^🔒 Watch mode safety settings$/,
+    /^📝 Author allowlist \(GitHub usernames allowed to trigger watch mode\)$/,
+    /^\s+Leave empty to allow all authors \(not recommended for public repos\)$/,
+    /^🏷️  Watch mode label configuration$/,
+    /^\s+Configure GitHub issue and PR labels that trigger watch mode actions$/,
+    /^📝 PR Change Request Configuration$/,
+    /^\s+Configure how AIDP handles automated PR change requests$/,
+
+    # Question prompts (standalone)
+    /^question:$/
   ].freeze
 
   def say(message, **options)
