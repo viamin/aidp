@@ -1251,11 +1251,15 @@ class TestPrompt
     /^\?\? \.aidp\/$/,
 
     # Configuration diff output (lines starting with + for new config)
-    /^\+ \w+:$/,
-    /^\+   \w+: .+$/,
-    /^\+     \w+: .+$/,
-    /^\+     - .+$/,
-    /^\+       - .+$/,
+    # Various indentation levels for YAML config diffs
+    /^\+\s*\w+:.*$/,
+    /^\+\s+- .+$/,
+
+    # Dry run and configuration save messages
+    # Note: en-dash (–) vs hyphen (-) - support both
+    /^Dry run mode active [–-] configuration was NOT written\.$/,
+    /^Configuration not saved$/,
+    /^✅ Configuration saved to .+$/,
 
     # GitHub labels output
     /^✅ All required labels already exist!$/,
