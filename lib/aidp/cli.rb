@@ -68,6 +68,12 @@ module Aidp
           return 0
         end
 
+        # Undocumented: Launch test mode for CI/CD validation
+        # Initializes app components and exits cleanly without running full workflows
+        if options[:launch_test]
+          return run_launch_test(:interactive)
+        end
+
         # Initialize logger from aidp.yml config
         # Priority: ENV variable > aidp.yml > default (info)
         setup_logging(Dir.pwd)
@@ -159,6 +165,67 @@ module Aidp
         Aidp.logger.warn("cli", "Failed to load logging config, using defaults", error: e.message)
       end
 
+      # Quick exit launch test for CI/CD validation
+      # Initializes app components and exits cleanly without running full workflows
+      def run_launch_test(mode)
+        Aidp.log_debug("cli", "launch_test_started", mode: mode)
+        display_message("Aidp version #{Aidp::VERSION}", type: :info)
+
+        # Initialize logging
+        setup_logging(Dir.pwd)
+
+        case mode
+        when :interactive
+          run_interactive_launch_test
+        when :watch
+          run_watch_launch_test
+        else
+          display_message("Unknown launch test mode: #{mode}", type: :error)
+          return 1
+        end
+
+        Aidp.log_info("cli", "launch_test_completed", mode: mode)
+        display_message("Launch test completed successfully", type: :success)
+        0
+      rescue => e
+        log_rescue(e, component: "cli", action: "launch_test", fallback: 1, mode: mode)
+        display_message("Launch test failed: #{e.message}", type: :error)
+        1
+      end
+
+      def run_interactive_launch_test
+        Aidp.log_debug("cli", "interactive_launch_test", step: "init_tui")
+
+        # Initialize TUI components (validates they can be created)
+        tui = Aidp::Harness::UI::EnhancedTUI.new
+        Aidp.log_debug("cli", "interactive_launch_test", step: "tui_created")
+
+        # Initialize workflow selector (validates harness loading)
+        _selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui, project_dir: Dir.pwd)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "workflow_selector_created")
+
+        # Initialize config manager (validates config loading)
+        _config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "config_manager_created")
+
+        display_message("Interactive mode initialization verified", type: :info)
+      ensure
+        tui&.restore_screen
+      end
+
+      def run_watch_launch_test
+        Aidp.log_debug("cli", "watch_launch_test", step: "init_config")
+
+        # Load config to validate configuration parsing
+        config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
+        config = config_manager.config || {}
+        watch_config = config[:watch] || config["watch"] || {}
+
+        Aidp.log_debug("cli", "watch_launch_test", step: "config_loaded", has_watch_config: !watch_config.empty?)
+
+        display_message("Watch mode configuration verified", type: :info)
+      end
+
       def parse_options(args)
         options = {}
 
@@ -230,6 +297,8 @@ module Aidp
           opts.on("--setup-config", "Setup or reconfigure config file") { options[:setup_config] = true }
           opts.on("--verbose", "Show detailed prompts and raw provider responses during guided workflow") { options[:verbose] = true }
           opts.on("--quiet", "Suppress non-critical output (incompatible with --verbose and --interactive)") { options[:quiet] = true }
+          # Undocumented: Quick exit launch test for CI/CD validation
+          opts.on("--launch-test", nil) { options[:launch_test] = true }
 
           opts.separator ""
           opts.separator "Examples:"
@@ -859,6 +928,7 @@ module Aidp
         force = false
         verbose = false
         quiet = false
+        launch_test = false
 
         until args.empty?
           token = args.shift
@@ -878,6 +948,8 @@ module Aidp
             verbose = true
           when "--quiet"
             quiet = true
+          when "--launch-test"
+            launch_test = true
           else
             display_message("⚠️  Unknown watch option: #{token}", type: :warn)
           end
@@ -887,6 +959,12 @@ module Aidp
         if quiet && verbose
           display_message("❌ --quiet and --verbose are mutually exclusive", type: :error)
           return 1
+        end
+
+        # Undocumented: Launch test mode for CI/CD validation
+        # Exits after validating watch mode initialization
+        if launch_test
+          return run_launch_test(:watch)
         end
 
         # Initialize logger for watch mode
