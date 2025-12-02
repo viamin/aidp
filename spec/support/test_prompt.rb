@@ -1199,7 +1199,78 @@ class TestPrompt
     /^Warning: [\w.@-]+ was considered valid by email validation$/,
 
     # Test error output
-    /^\s+Test error$/
+    /^\s+Test error$/,
+
+    # Separator lines (unicode box drawing)
+    /^─+$/,
+
+    # Workflow status messages with emoji
+    /^⚠ Workflow paused: .+$/,
+    /^✓ Workflow resumed: .+$/,
+    /^⚠ Workflow cancelled: .+$/,
+    /^✗ Workflow stopped: .+$/,
+    /^✓ Workflow completed: .+$/,
+
+    # MCP Server Dashboard output
+    /^MCP Server Dashboard$/,
+    /^No MCP servers configured across any providers\.$/,
+    /^Add MCP servers with: .+$/,
+    /^MCP Server \w+$/,
+    /^\w+ [✓✗-]\s+Legend: .+$/,
+    /^No providers with MCP support configured\.$/,
+    /^Task Eligibility Check$/,
+    /^Required MCP Servers: .+$/,
+    /^✗ No providers have all required MCP servers$/,
+    /^\s+Consider configuring MCP servers for at least one provider$/,
+    /^⚠ Eligibility Warnings:$/,
+    /^\s+These providers won't be eligible for tasks requiring this MCP server$/,
+
+    # Workstream status output - only suppress verbose output, not verified test output
+    # Note: /^Workstream: [\w-]+$/ was too broad - tests verify this output (cli_spec.rb:1184)
+    # Note: /^\s+Status: [\w\s]+$/ was too broad - tests verify this output (cli_spec.rb:871)
+    # Note: /^Branch: aidp\/[\w-]+$/ was too broad - tests verify this output (cli_spec.rb:1186)
+    # Note: /^Git Status:$/ was too broad - tests verify this output (cli_spec.rb:1189)
+    /^Created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
+    /^Iterations: \d+$/,
+    /^\s+Uncommitted changes: (?:Yes|No)$/,
+    /^Found \d+ workstream\(s\)$/,
+    /^⚠️  Worktree directory does not exist$/,
+
+    # Steps and status progress output
+    /^\s+Steps completed: \d+\/\d+$/,
+
+    # Git worktree and branch shell output
+    /^Switched to a new branch '.+'$/,
+    /^No possible source branch, inferring '--orphan'$/,
+    /^fatal: invalid reference: .+$/,
+
+    # TTY table warnings
+    /^The table size exceeds the currently set width\.Defaulting to vertical orientation\.$/,
+
+    # Git status shorthand output
+    /^\?\? \.aidp\/$/,
+
+    # Configuration diff output (lines starting with + for new config)
+    /^\+ \w+:$/,
+    /^\+   \w+: .+$/,
+    /^\+     \w+: .+$/,
+    /^\+     - .+$/,
+    /^\+       - .+$/,
+
+    # GitHub labels output
+    /^✅ All required labels already exist!$/,
+    /^⚠️  GitHub CLI \(gh\) not found\. .+$/,
+    /^⚠️  Could not determine GitHub repository from git remote\.$/,
+    /^⚠️  Failed to fetch existing labels\. .+$/,
+    /^\s+✅ Created: [\w-]+$/,
+    /^\s+⚠️  Failed to create: [\w-]+ - .+$/,
+    /^✅ Successfully created \d+ labels?$/,
+    /^⚠️  Failed to create \d+ labels?$/,
+
+    # Provider configuration messages
+    /^Removed '.+' from fallback providers$/,
+    /^⚠️  Duplicate configurations detected:$/,
+    /^Updated '.+' → type=.+$/
   ].freeze
 
   def say(message, **options)
