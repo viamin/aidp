@@ -1072,7 +1072,7 @@ class TestPrompt
     /^\s+Provider Switches: \d+$/,
     /^\s+Error Rate: [\d.]+%$/,
     /✅ WORK COMPLETION STATUS/,
-    /^\s+Status: [\w\s]+$/,
+    # Note: Removed /^\s+Status: [\w\s]+$/ - tests verify harness status output like "Status: custom"
     /^\s+Steps Completed: \d+\/\d+$/,
     /🚨 ALERTS/,
     /^\s+🟡 High error rate$/,
@@ -1127,10 +1127,9 @@ class TestPrompt
     /^\s+Continuing with status updates\.\.\.$/,
 
     # Workstream cleanup messages
+    # Note: Removed /^No workstreams found\.$/ and /^\s+Branch deleted$/ - tests verify this output
     /^Keeping workstream$/,
-    /^\s+Branch deleted$/,
     /^Deletion cancelled$/,
-    /^No workstreams found\.$/,
 
     # Note: MCP Server output patterns removed - tests verify that output via capture_output
     # Note: Workstream status display patterns removed - tests verify that output via capture_output
