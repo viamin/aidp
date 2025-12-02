@@ -1169,7 +1169,37 @@ class TestPrompt
     /^\s+Configure how AIDP handles automated PR change requests$/,
 
     # Question prompts (standalone)
-    /^question:$/
+    /^question:$/,
+
+    # Workflow selection menu output
+    /^Choose a workflow:$/,
+    /^⚙️ Custom Analysis$/,
+    /^⚙️ Custom Step Selection$/,
+    /^🔍 Quick Overview$/,
+    /^🔬 Exploration\/Experiment$/,
+    /^♻️ Legacy Modernization$/,
+    /^🔀 Hybrid Mode - Analyze Then Execute$/,
+    /^Includes:$/,
+    /^\s+• .+$/,
+    /^Available analyze steps:$/,
+    /^Available execute steps:$/,
+    /^You can mix analyze and execute steps for a custom hybrid workflow\.$/,
+    /^⚠️  No steps selected, using default workflow$/,
+
+    # Git worktree shell output (captured from shell commands)
+    /^Preparing worktree \(new branch '[^']+'\)$/,
+    /^HEAD is now at [a-f0-9]+ .+$/,
+
+    # Configuration wizard status output not caught by other patterns
+    /^✓ Cleanup complete$/,
+    /^\s+Upstream: .+$/,
+    /^\s+Last commit: .+$/,
+
+    # Email validation test output
+    /^Warning: [\w.@-]+ was considered valid by email validation$/,
+
+    # Test error output
+    /^\s+Test error$/
   ].freeze
 
   def say(message, **options)
