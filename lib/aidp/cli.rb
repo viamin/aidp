@@ -46,6 +46,18 @@ module Aidp
         options = parse_options(args)
         self.last_options = options
 
+        # Validate incompatible options
+        if options[:quiet] && options[:verbose]
+          display_message("❌ --quiet and --verbose are mutually exclusive", type: :error)
+          return 1
+        end
+
+        # --quiet is incompatible with default interactive mode (no subcommand)
+        if options[:quiet] && !options[:help] && !options[:version]
+          display_message("❌ --quiet is not compatible with interactive mode. Use with 'watch' command instead.", type: :error)
+          return 1
+        end
+
         if options[:help]
           display_message(options[:parser].to_s, type: :info)
           return 0
@@ -217,6 +229,7 @@ module Aidp
           opts.on("-v", "--version", "Show version information") { options[:version] = true }
           opts.on("--setup-config", "Setup or reconfigure config file") { options[:setup_config] = true }
           opts.on("--verbose", "Show detailed prompts and raw provider responses during guided workflow") { options[:verbose] = true }
+          opts.on("--quiet", "Suppress non-critical output (incompatible with --verbose and --interactive)") { options[:quiet] = true }
 
           opts.separator ""
           opts.separator "Examples:"
@@ -834,7 +847,7 @@ module Aidp
 
       def run_watch_command(args)
         if args.empty?
-          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams] [--force] [--verbose]", type: :info)
+          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams] [--force] [--verbose] [--quiet]", type: :info)
           return
         end
 
@@ -845,6 +858,7 @@ module Aidp
         use_workstreams = true # Default to using workstreams
         force = false
         verbose = false
+        quiet = false
 
         until args.empty?
           token = args.shift
@@ -862,9 +876,17 @@ module Aidp
             force = true
           when "--verbose"
             verbose = true
+          when "--quiet"
+            quiet = true
           else
             display_message("⚠️  Unknown watch option: #{token}", type: :warn)
           end
+        end
+
+        # Validate incompatible options
+        if quiet && verbose
+          display_message("❌ --quiet and --verbose are mutually exclusive", type: :error)
+          return 1
         end
 
         # Initialize logger for watch mode
@@ -885,7 +907,8 @@ module Aidp
           prompt: create_prompt,
           safety_config: watch_config,
           force: force,
-          verbose: verbose
+          verbose: verbose,
+          quiet: quiet
         )
         runner.start
       rescue ArgumentError => e
