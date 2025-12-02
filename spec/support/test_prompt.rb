@@ -872,17 +872,14 @@ class TestPrompt
     /^🎉 Setup complete!$/,
     /^Next steps:$/,
 
-    # Configuration diff output
+    # Configuration diff output (specific patterns only, avoid broad matches)
     /^\+ # .+$/,
     /^\+ ---$/,
-    /^\+ \w+:/,
-    /^\+\s+\w+:/,
-    /^  \w+:/,
-    /^- \w+:/,
-    /^-\s+\w+:/,
+    # Note: Removed broad patterns like /^\+ \w+:/, /^  \w+:/, /^- \w+:/ as they
+    # can match legitimate output like "Task: Add new feature"
 
-    # Multiline input prompts
-    /^\w+:$/,
+    # Multiline input prompts (specific labels only)
+    /^(Description|Summary|Notes|Comments):$/,
     /\(Enter text; submit empty line to finish/,
     /Type 'clear' alone to remove/,
 
