@@ -13,6 +13,7 @@ RSpec.describe Aidp::WorktreeBranchManager do
       system("git", "init", "-b", "main", out: File::NULL, err: File::NULL)
       system("git", "config", "user.email", "test@example.com", out: File::NULL, err: File::NULL)
       system("git", "config", "user.name", "Test User", out: File::NULL, err: File::NULL)
+      system("git", "config", "commit.gpgsign", "false", out: File::NULL, err: File::NULL)
       system("touch", "README.md")
       system("git", "add", "README.md", out: File::NULL, err: File::NULL)
       system("git", "commit", "-m", "Initial commit", out: File::NULL, err: File::NULL)

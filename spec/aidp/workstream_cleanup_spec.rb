@@ -20,6 +20,7 @@ RSpec.describe Aidp::WorkstreamCleanup do
       system("git", "init", "--initial-branch=main", out: File::NULL, err: File::NULL)
       system("git", "config", "user.email", "test@example.com", out: File::NULL)
       system("git", "config", "user.name", "Test User", out: File::NULL)
+      system("git", "config", "commit.gpgsign", "false", out: File::NULL)
 
       # Create initial commit
       FileUtils.touch("README.md")

@@ -31,6 +31,7 @@ RSpec.describe Aidp::Watch::ImplementationVerifier do
       system("git init", out: File::NULL, err: File::NULL)
       system("git config user.email 'test@example.com'", out: File::NULL, err: File::NULL)
       system("git config user.name 'Test User'", out: File::NULL, err: File::NULL)
+      system("git config commit.gpgsign false", out: File::NULL, err: File::NULL)
       system("git checkout -b main", out: File::NULL, err: File::NULL)
 
       # Create initial commit

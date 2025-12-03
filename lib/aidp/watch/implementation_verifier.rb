@@ -78,7 +78,10 @@ module Aidp
 
           unless status.success?
             Aidp.log_warn("implementation_verifier", "git_diff_failed", working_dir: working_dir)
-            return "Unable to extract changes: git diff failed"
+            return {
+              diff: "",
+              files_changed: "Unable to extract changes: git diff failed"
+            }
           end
 
           # Get list of changed files with stats
