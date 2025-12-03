@@ -58,6 +58,31 @@ module Aidp
 
         # Fetch PR details
         pr_data = @repository_client.fetch_pull_request(number)
+
+        # Check for merge conflicts first - CI failures may be due to conflicts
+        if pr_data[:mergeable] == false || pr_data[:merge_state_status] == "dirty"
+          display_message("⚠️  PR ##{number} has merge conflicts that must be resolved first.", type: :warn)
+          Aidp.log_warn("ci_fix_processor", "merge_conflicts_detected",
+            pr_number: number,
+            mergeable: pr_data[:mergeable],
+            merge_state_status: pr_data[:merge_state_status])
+
+          post_merge_conflict_comment(pr_data)
+          @state_store.record_ci_fix(number, {
+            status: "merge_conflicts",
+            timestamp: Time.now.utc.iso8601,
+            reason: "PR has merge conflicts that must be resolved before fixing CI"
+          })
+
+          # Remove the label so user knows it was processed
+          begin
+            @repository_client.remove_labels(number, @ci_fix_label)
+          rescue
+            nil
+          end
+          return
+        end
+
         ci_status = @repository_client.fetch_ci_status(number)
 
         Aidp.log_debug("ci_fix_processor", "ci_status_fetched",
@@ -87,13 +112,21 @@ module Aidp
         end
 
         # Get failed checks
+        # Log all checks before filtering to help debug detection issues
+        Aidp.log_debug("ci_fix_processor", "all_checks_before_filtering",
+          pr_number: number,
+          ci_state: ci_status[:state],
+          total_checks: ci_status[:checks]&.length || 0,
+          all_checks_detailed: ci_status[:checks]&.map { |c| {name: c[:name], status: c[:status], conclusion: c[:conclusion]} })
+
         failed_checks = ci_status[:checks].select { |check| check[:conclusion] == "failure" }
 
         Aidp.log_debug("ci_fix_processor", "failed_checks_filtered",
           pr_number: number,
           total_checks: ci_status[:checks]&.length || 0,
           failed_count: failed_checks.length,
-          failed_checks: failed_checks.map { |c| c[:name] })
+          failed_checks: failed_checks.map { |c| c[:name] },
+          non_failure_checks: ci_status[:checks]&.reject { |c| c[:conclusion] == "failure" }&.map { |c| {name: c[:name], conclusion: c[:conclusion]} })
 
         if failed_checks.empty?
           display_message("⚠️  No specific failed checks found for PR ##{number}.", type: :warn)
@@ -479,6 +512,23 @@ module Aidp
           ✅ CI is already passing! No fixes needed.
 
           All checks are green for this PR.
+        COMMENT
+
+        @repository_client.post_comment(pr_data[:number], comment)
+      end
+
+      def post_merge_conflict_comment(pr_data)
+        comment = <<~COMMENT
+          #{COMMENT_HEADER}
+
+          ⚠️  This PR has merge conflicts that must be resolved before automated CI fixes can be applied.
+
+          **Next Steps:**
+          1. Resolve the merge conflicts in this PR
+          2. Push the resolved changes
+          3. Re-add the `#{@ci_fix_label}` label to retry CI fixes
+
+          CI failures may be caused by the conflicts, so resolve those first before attempting automated fixes.
         COMMENT
 
         @repository_client.post_comment(pr_data[:number], comment)

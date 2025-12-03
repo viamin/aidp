@@ -714,7 +714,7 @@ module Aidp
       end
 
       def fetch_pull_request_via_gh(number)
-        fields = %w[number title body labels state url headRefName baseRefName commits author mergeable]
+        fields = %w[number title body labels state url headRefName baseRefName headRefOid commits author mergeable mergeStateStatus]
         cmd = ["gh", "pr", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
 
         stdout, stderr, status = Open3.capture3(*cmd)
@@ -951,8 +951,9 @@ module Aidp
           url: raw["url"],
           head_ref: raw["headRefName"],
           base_ref: raw["baseRefName"],
-          head_sha: raw.dig("commits", 0, "oid") || raw["headRefOid"],
-          mergeable: raw["mergeable"]
+          head_sha: raw["headRefOid"] || raw.dig("commits", 0, "oid"),
+          mergeable: raw["mergeable"],
+          merge_state_status: raw["mergeStateStatus"]&.downcase
         }
       end
 
@@ -968,7 +969,8 @@ module Aidp
           head_ref: raw.dig("head", "ref"),
           base_ref: raw.dig("base", "ref"),
           head_sha: raw.dig("head", "sha"),
-          mergeable: raw["mergeable"]
+          mergeable: raw["mergeable"],
+          merge_state_status: raw["merge_state_status"]&.downcase
         }
       end
 
@@ -1021,6 +1023,13 @@ module Aidp
       end
 
       def normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
+        # Log raw inputs for debugging
+        Aidp.log_debug("repository_client", "normalize_ci_status_combined_raw_inputs",
+          check_run_count: check_runs.length,
+          commit_status_count: commit_statuses.length,
+          check_runs_sample: check_runs.first(3).map { |cr| {name: cr["name"], status: cr["status"], conclusion: cr["conclusion"]} },
+          commit_statuses_sample: commit_statuses.first(3).map { |cs| {context: cs["context"], state: cs["state"]} })
+
         # Convert commit statuses to same format as check runs for unified processing
         # normalize_ci_status expects string keys, so we use string keys here
         checks_from_statuses = commit_statuses.map do |status|
@@ -1040,7 +1049,8 @@ module Aidp
         Aidp.log_debug("repository_client", "combined_ci_checks",
           check_run_count: check_runs.length,
           commit_status_count: commit_statuses.length,
-          total_checks: all_checks.length)
+          total_checks: all_checks.length,
+          combined_checks_sample: all_checks.first(5).map { |c| {name: c["name"], status: c["status"], conclusion: c["conclusion"]} })
 
         # Use existing normalize logic
         normalize_ci_status(all_checks, head_sha)
@@ -1063,6 +1073,12 @@ module Aidp
       end
 
       def normalize_ci_status(check_runs, head_sha)
+        # Log raw input data for debugging
+        Aidp.log_debug("repository_client", "normalize_ci_status_raw_input",
+          sha: head_sha,
+          raw_check_run_count: check_runs.length,
+          raw_checks_detailed: check_runs.map { |r| {name: r["name"], status: r["status"], conclusion: r["conclusion"]} })
+
         checks = check_runs.map do |run|
           {
             name: run["name"],
@@ -1073,7 +1089,7 @@ module Aidp
           }
         end
 
-        Aidp.log_debug("repository_client", "normalize_ci_status",
+        Aidp.log_debug("repository_client", "normalize_ci_status_normalized",
           check_count: checks.length,
           checks: checks.map { |c| {name: c[:name], status: c[:status], conclusion: c[:conclusion]} })
 
