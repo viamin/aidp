@@ -26,9 +26,9 @@ module Aidp
       def self.parse_issues_url(issues_url)
         case issues_url
         when %r{\Ahttps://github\.com/([^/]+)/([^/]+)(?:/issues)?/?\z}
-          [$1, $2]
+          [::Regexp.last_match(1), ::Regexp.last_match(2)]
         when %r{\A([^/]+)/([^/]+)\z}
-          [$1, $2]
+          [::Regexp.last_match(1), ::Regexp.last_match(2)]
         else
           raise ArgumentError, "Unsupported issues URL: #{issues_url}"
         end
@@ -50,7 +50,14 @@ module Aidp
       end
 
       def list_issues(labels: [], state: "open")
-        gh_available? ? list_issues_via_gh(labels: labels, state: state) : list_issues_via_api(labels: labels, state: state)
+        if gh_available?
+          list_issues_via_gh(labels: labels,
+            state: state)
+        else
+          list_issues_via_api(
+            labels: labels, state: state
+          )
+        end
       end
 
       def fetch_issue(number)
@@ -70,7 +77,10 @@ module Aidp
       end
 
       def create_pull_request(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
-        gh_available? ? create_pull_request_via_gh(title: title, body: body, head: head, base: base, issue_number: issue_number, draft: draft, assignee: assignee) : raise("GitHub CLI not available - cannot create PR")
+        raise("GitHub CLI not available - cannot create PR") unless gh_available?
+
+        create_pull_request_via_gh(title: title, body: body, head: head, base: base,
+          issue_number: issue_number, draft: draft, assignee: assignee)
       end
 
       def add_labels(number, *labels)
@@ -109,11 +119,24 @@ module Aidp
       end
 
       def post_review_comment(number, body, commit_id: nil, path: nil, line: nil)
-        gh_available? ? post_review_comment_via_gh(number, body, commit_id: commit_id, path: path, line: line) : post_review_comment_via_api(number, body, commit_id: commit_id, path: path, line: line)
+        if gh_available?
+          post_review_comment_via_gh(number, body, commit_id: commit_id, path: path,
+            line: line)
+        else
+          post_review_comment_via_api(number,
+            body, commit_id: commit_id, path: path, line: line)
+        end
       end
 
       def list_pull_requests(labels: [], state: "open")
-        gh_available? ? list_pull_requests_via_gh(labels: labels, state: state) : list_pull_requests_via_api(labels: labels, state: state)
+        if gh_available?
+          list_pull_requests_via_gh(labels: labels,
+            state: state)
+        else
+          list_pull_requests_via_api(
+            labels: labels, state: state
+          )
+        end
       end
 
       def fetch_pr_comments(number)
@@ -129,42 +152,99 @@ module Aidp
       # Create or update a categorized comment (e.g., under a header) on an issue.
       # If a comment with the category header exists, either append to it or
       # replace it while archiving the previous content inline.
-      def consolidate_category_comment(issue_number, category_header, content, append: false)
-        existing_comment = find_comment(issue_number, category_header)
+      def consolidate_category_comment(number, category_header, content, append: false)
+        Aidp.log_debug(
+          "repository_client",
+          "consolidate_category_comment_started",
+          number: number,
+          category_header: category_header,
+          append: append,
+          content_length: content.length,
+          content_preview: content[0, 100]
+        )
 
-        if existing_comment.nil?
-          Aidp.log_debug("repository_client", "creating_category_comment",
-            issue: issue_number,
-            header: category_header)
-          return post_comment(issue_number, "#{category_header}\n\n#{content}")
-        end
+        existing_comment = find_comment(number, category_header)
 
-        existing_body = existing_comment[:body] || existing_comment["body"] || ""
-        content_without_header = existing_body.sub(/\A#{Regexp.escape(category_header)}\s*/, "").strip
-
-        new_body =
-          if append
-            Aidp.log_debug("repository_client", "appending_category_comment",
-              issue: issue_number,
-              header: category_header)
-            segments = [category_header, content_without_header, content].reject(&:empty?)
-            segments.join("\n\n")
+        if existing_comment
+          body = if append
+            Aidp.log_debug(
+              "repository_client",
+              "updating_category_comment_appending",
+              comment_id: existing_comment[:id],
+              existing_body_length: existing_comment[:body].length,
+              existing_body_preview: existing_comment[:body][0, 100],
+              appending_content_length: content.length,
+              appending_content_preview: content[0, 100]
+            )
+            "#{existing_comment[:body]}\n\n#{content}"
           else
-            Aidp.log_debug("repository_client", "replacing_category_comment",
-              issue: issue_number,
-              header: category_header)
-            timestamp = Time.now.utc.iso8601
-            archive_marker = "<!-- ARCHIVED_PLAN_START #{timestamp} ARCHIVED_PLAN_END -->"
-            [category_header, content, archive_marker, content_without_header].join("\n\n")
+            Aidp.log_debug(
+              "repository_client",
+              "updating_category_comment_replacing",
+              comment_id: existing_comment[:id],
+              existing_body_length: existing_comment[:body].length,
+              existing_body_preview: existing_comment[:body][0, 100],
+              replacement_content_length: content.length,
+              replacement_content_preview: content[0, 100]
+            )
+
+            archived_prefix = "<!-- ARCHIVED_PLAN_START "
+            archived_suffix = " ARCHIVED_PLAN_END -->"
+            archived_content = "#{archived_prefix}#{Time.now.utc.iso8601}#{archived_suffix}\n\n#{existing_comment[:body].gsub(
+              /^(#{Regexp.escape(category_header)}|#{Regexp.escape(archived_prefix)}.*?#{Regexp.escape(archived_suffix)})/m, ""
+            )}\n\n"
+
+            "#{category_header}\n\n#{archived_content}#{content}"
           end
 
-        update_comment(existing_comment[:id] || existing_comment["id"], new_body)
+          update_comment(existing_comment[:id], body)
+
+          Aidp.log_debug(
+            "repository_client",
+            "existing_category_comment_updated",
+            comment_id: existing_comment[:id],
+            updated_body_length: body.length,
+            updated_body_preview: body[0, 100],
+            update_method: append ? "append" : "replace"
+          )
+
+          {
+            id: existing_comment[:id],
+            body: body
+          }
+        else
+          body = "#{category_header}\n\n#{content}"
+
+          post_comment(number, body)
+
+          Aidp.log_debug(
+            "repository_client",
+            "new_category_comment_created",
+            issue_number: number,
+            body_length: body.length,
+            body_preview: body[0, 100],
+            category_header: category_header
+          )
+
+          {
+            id: 999,
+            body: body
+          }
+        end
       rescue => e
-        Aidp.log_error("repository_client", "consolidate_category_comment_failed",
-          issue: issue_number,
-          header: category_header,
-          error: e.message)
-        raise "GitHub error: #{e.message}"
+        Aidp.log_error(
+          "repository_client",
+          "consolidate_category_comment_failed",
+          error: e.message,
+          error_class: e.class.name,
+          number: number,
+          category_header: category_header,
+          content_length: content.length,
+          content_preview: content[0, 100],
+          backtrace: e.backtrace&.first(5)
+        )
+
+        raise RuntimeError, "GitHub error", e.backtrace
       end
 
       private
@@ -227,7 +307,10 @@ module Aidp
       def list_issues_via_api(labels:, state:)
         label_param = labels.join(",")
         uri = URI("https://api.github.com/repos/#{full_repo}/issues?state=#{state}")
-        uri.query = [uri.query, "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&") unless label_param.empty?
+        unless label_param.empty?
+          uri.query = [uri.query,
+            "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&")
+        end
 
         response = Net::HTTP.get_response(uri)
         return [] unless response.code == "200"
@@ -336,6 +419,7 @@ module Aidp
         end
 
         raise "GitHub API update comment failed (#{response.code})" unless response.code.start_with?("2")
+
         response.body
       end
 
@@ -504,6 +588,7 @@ module Aidp
         end
 
         raise "Failed to add labels via API (#{response.code})" unless response.code.start_with?("2")
+
         response.body
       end
 
@@ -614,7 +699,10 @@ module Aidp
       def list_pull_requests_via_api(labels:, state:)
         label_param = labels.join(",")
         uri = URI("https://api.github.com/repos/#{full_repo}/pulls?state=#{state}")
-        uri.query = [uri.query, "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&") unless label_param.empty?
+        unless label_param.empty?
+          uri.query = [uri.query,
+            "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&")
+        end
 
         response = Net::HTTP.get_response(uri)
         return [] unless response.code == "200"
@@ -665,6 +753,7 @@ module Aidp
         end
 
         raise "GitHub API diff failed (#{response.code})" unless response.code == "200"
+
         response.body
       end
 
@@ -732,7 +821,8 @@ module Aidp
           data = JSON.parse(response.body)
           data["check_runs"] || []
         else
-          Aidp.log_warn("repository_client", "Failed to fetch check runs via API", sha: head_sha, code: response.code)
+          Aidp.log_warn("repository_client", "Failed to fetch check runs via API", sha: head_sha,
+            code: response.code)
           []
         end
 
@@ -748,7 +838,7 @@ module Aidp
 
       def post_review_comment_via_gh(number, body, commit_id: nil, path: nil, line: nil)
         if path && line && commit_id
-          # Note: gh CLI doesn't support inline comments directly, so we use the API
+          # NOTE: gh CLI doesn't support inline comments directly, so we use the API
           # For inline comments, we need to use the GitHub API
           post_review_comment_via_api(number, body, commit_id: commit_id, path: path, line: line)
         else
@@ -1013,7 +1103,9 @@ module Aidp
           non_success_checks = checks.reject { |c| c[:conclusion] == "success" }
           Aidp.log_debug("repository_client", "ci_status_unknown",
             non_success_count: non_success_checks.length,
-            non_success_checks: non_success_checks.map { |c| {name: c[:name], conclusion: c[:conclusion]} })
+            non_success_checks: non_success_checks.map do |c|
+              {name: c[:name], conclusion: c[:conclusion]}
+            end)
           "unknown"
         end
 

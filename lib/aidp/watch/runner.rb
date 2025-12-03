@@ -138,6 +138,7 @@ module Aidp
           process_cycle
           Aidp.log_debug("watch_runner", "poll_cycle.complete", once: @once, next_poll_in: @once ? nil : @interval)
           break if @once
+
           Aidp.log_debug("watch_runner", "poll_cycle.sleep", seconds: @interval)
           sleep @interval
         end
@@ -192,7 +193,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "plan_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "plan_skip_unauthorized_author", issue: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -248,7 +250,8 @@ module Aidp
 
             # Check author authorization before processing
             unless @safety_checker.should_process_issue?(detailed, enforce: false)
-              Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+              Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number],
+                author: detailed[:author])
               next
             end
 
@@ -271,7 +274,8 @@ module Aidp
               begin
                 @repository_client.remove_labels(detailed[:number], GitHubStateExtractor::IN_PROGRESS_LABEL)
               rescue => e
-                Aidp.log_warn("watch_runner", "failed_to_remove_in_progress_label", issue: detailed[:number], error: e.message)
+                Aidp.log_warn("watch_runner", "failed_to_remove_in_progress_label", issue: detailed[:number],
+                  error: e.message)
               end
             end
           end
@@ -291,7 +295,8 @@ module Aidp
 
         issues.each do |issue|
           unless issue_has_label?(issue, auto_label)
-            Aidp.log_debug("watch_runner", "auto_issue_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
+            Aidp.log_debug("watch_runner", "auto_issue_skip_label_mismatch", issue: issue[:number],
+              labels: issue[:labels])
             next
           end
 
@@ -310,7 +315,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "auto_issue_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "auto_issue_skip_unauthorized_author", issue: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -356,7 +362,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -393,7 +400,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "auto_pr_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "auto_pr_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -429,7 +437,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -465,7 +474,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -521,7 +531,8 @@ module Aidp
         update_check = @auto_update_coordinator.check_for_update
 
         if update_check.should_update?
-          display_message("🔄 Update available: #{update_check.current_version} → #{update_check.available_version}", type: :highlight)
+          display_message("🔄 Update available: #{update_check.current_version} → #{update_check.available_version}",
+            type: :highlight)
 
           # Prefer hot reloading if available (Zeitwerk enabled with reloading)
           if @auto_update_coordinator.hot_reload_available?

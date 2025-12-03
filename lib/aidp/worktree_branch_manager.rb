@@ -45,8 +45,9 @@ module Aidp
 
     # Find or create a worktree for a PR, with advanced lookup strategies
     def find_or_create_pr_worktree(pr_number:, head_branch:, base_branch: "main")
+      derived_branch = "#{head_branch}-pr-#{pr_number}"
       Aidp.log_debug("worktree_branch_manager", "finding_or_creating_pr_worktree",
-        pr_number: pr_number, head_branch: head_branch, base_branch: base_branch)
+        pr_number: pr_number, head_branch: head_branch, base_branch: base_branch, derived_branch: derived_branch)
 
       # First, check the PR-specific registry
       pr_registry = read_pr_registry
@@ -59,11 +60,11 @@ module Aidp
       end
 
       # Attempt to find worktree by branch name
-      existing_worktree = find_worktree(branch: head_branch)
+      existing_worktree = find_worktree(branch: derived_branch)
       return existing_worktree if existing_worktree
 
       # If no existing worktree, create a new one
-      worktree_path = create_worktree(branch: head_branch, base_branch: base_branch)
+      worktree_path = create_worktree(branch: derived_branch, base_branch: base_branch)
 
       # Update PR-specific registry
       update_pr_registry(pr_number, head_branch, worktree_path, base_branch)
