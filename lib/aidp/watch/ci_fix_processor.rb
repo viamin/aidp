@@ -59,28 +59,38 @@ module Aidp
         # Fetch PR details
         pr_data = @repository_client.fetch_pull_request(number)
 
-        # Check for merge conflicts first - CI failures may be due to conflicts
+        # Check for merge conflicts first - attempt to resolve them
         if pr_data[:mergeable] == false || pr_data[:merge_state_status] == "dirty"
-          display_message("⚠️  PR ##{number} has merge conflicts that must be resolved first.", type: :warn)
-          Aidp.log_warn("ci_fix_processor", "merge_conflicts_detected",
+          display_message("⚠️  PR ##{number} has merge conflicts. Attempting to resolve...", type: :warn)
+          Aidp.log_info("ci_fix_processor", "merge_conflicts_detected_attempting_resolution",
             pr_number: number,
             mergeable: pr_data[:mergeable],
             merge_state_status: pr_data[:merge_state_status])
 
-          post_merge_conflict_comment(pr_data)
-          @state_store.record_ci_fix(number, {
-            status: "merge_conflicts",
-            timestamp: Time.now.utc.iso8601,
-            reason: "PR has merge conflicts that must be resolved before fixing CI"
-          })
+          # Attempt to resolve merge conflicts
+          merge_fix_result = resolve_merge_conflicts(pr_data: pr_data)
 
-          # Remove the label so user knows it was processed
-          begin
-            @repository_client.remove_labels(number, @ci_fix_label)
-          rescue
-            nil
+          if merge_fix_result[:success]
+            display_message("✅ Merge conflicts resolved. Continuing to check CI status...", type: :success)
+            # Re-fetch PR data after merge resolution
+            pr_data = @repository_client.fetch_pull_request(number)
+          else
+            # Failed to resolve conflicts
+            post_merge_conflict_failure_comment(pr_data, merge_fix_result)
+            @state_store.record_ci_fix(number, {
+              status: "merge_conflicts_unresolved",
+              timestamp: Time.now.utc.iso8601,
+              reason: merge_fix_result[:reason] || "Failed to resolve merge conflicts"
+            })
+
+            # Remove the label so user knows it was processed
+            begin
+              @repository_client.remove_labels(number, @ci_fix_label)
+            rescue
+              nil
+            end
+            return
           end
-          return
         end
 
         ci_status = @repository_client.fetch_ci_status(number)
@@ -213,6 +223,84 @@ module Aidp
         {success: false, error: e.message, backtrace: e.backtrace&.first(5)}
       end
 
+      def resolve_merge_conflicts(pr_data:)
+        display_message("🔍 Analyzing merge conflicts...", type: :info)
+
+        # Setup worktree for the PR branch
+        working_dir = setup_pr_worktree(pr_data)
+
+        # Get conflicted files
+        Dir.chdir(working_dir) do
+          # Attempt merge to trigger conflict markers
+          run_git(["fetch", "origin", pr_data[:base_ref]], allow_failure: true)
+          run_git(["merge", "origin/#{pr_data[:base_ref]}"], allow_failure: true)
+
+          # Check for conflicts
+          status_output = run_git(%w[status --porcelain])
+          conflicted_files = status_output.lines
+            .select { |line| line.start_with?("UU ", "AA ", "DD ") || line.include?("both modified") }
+            .map { |line| line.split.last }
+
+          if conflicted_files.empty?
+            Aidp.log_warn("ci_fix_processor", "no_conflict_markers_found",
+              pr_number: pr_data[:number],
+              status_output: status_output)
+            return {success: false, reason: "No conflict markers found in working tree"}
+          end
+
+          display_message("Found #{conflicted_files.length} conflicted file(s):", type: :info)
+          conflicted_files.each { |f| display_message("  - #{f}", type: :muted) }
+
+          # Read conflict content from each file
+          conflicts = conflicted_files.map do |file|
+            if File.exist?(file)
+              content = File.read(file)
+              {
+                file: file,
+                content: content,
+                has_markers: content.include?("<<<<<<<")
+              }
+            else
+              {file: file, content: nil, has_markers: false}
+            end
+          end
+
+          # Use AI to resolve conflicts
+          resolution = analyze_conflicts_with_ai(
+            pr_data: pr_data,
+            conflicts: conflicts
+          )
+
+          if resolution[:can_resolve]
+            # Apply resolutions
+            resolution[:resolutions].each do |res|
+              file_path = File.join(working_dir, res["file"])
+              File.write(file_path, res["resolved_content"])
+              run_git(["add", res["file"]])
+              display_message("  ✓ Resolved #{res["file"]}", type: :muted)
+            end
+
+            # Complete the merge
+            commit_message = build_merge_commit_message(pr_data, resolution)
+            run_git(["commit", "-m", commit_message], allow_failure: true)
+
+            # Push the resolution
+            run_git(["push", "origin", pr_data[:head_ref]])
+
+            display_message("✅ Merge conflicts resolved and pushed", type: :success)
+            {success: true, resolution: resolution, files_resolved: conflicted_files.length}
+          else
+            {success: false, reason: resolution[:reason] || "AI could not resolve conflicts"}
+          end
+        end
+      rescue => e
+        Aidp.log_error("ci_fix_processor", "merge_conflict_resolution_failed",
+          pr_number: pr_data[:number],
+          error: e.message,
+          backtrace: e.backtrace&.first(5))
+        {success: false, error: e.message}
+      end
+
       def analyze_failures_with_ai(pr_data:, failures:)
         provider_name = @provider_name || detect_default_provider
         provider = Aidp::ProviderManager.get_provider(provider_name)
@@ -241,6 +329,109 @@ module Aidp
       rescue => e
         Aidp.log_error("ci_fix_processor", "AI analysis failed", error: e.message)
         {can_fix: false, reason: "AI analysis error: #{e.message}"}
+      end
+
+      def analyze_conflicts_with_ai(pr_data:, conflicts:)
+        provider_name = @provider_name || detect_default_provider
+        provider = Aidp::ProviderManager.get_provider(provider_name)
+
+        user_prompt = build_merge_conflict_prompt(pr_data: pr_data, conflicts: conflicts)
+        full_prompt = "#{merge_conflict_system_prompt}\n\n#{user_prompt}"
+
+        response = provider.send_message(prompt: full_prompt)
+        content = response.to_s.strip
+
+        # Extract JSON from response
+        json_content = extract_json(content)
+
+        # Parse JSON response
+        parsed = JSON.parse(json_content)
+
+        {
+          can_resolve: parsed["can_resolve"],
+          reason: parsed["reason"],
+          strategy: parsed["strategy"],
+          resolutions: parsed["resolutions"] || []
+        }
+      rescue JSON::ParserError => e
+        Aidp.log_error("ci_fix_processor", "Failed to parse merge conflict AI response",
+          error: e.message, content: content)
+        {can_resolve: false, reason: "Failed to parse AI response"}
+      rescue => e
+        Aidp.log_error("ci_fix_processor", "Merge conflict AI analysis failed", error: e.message)
+        {can_resolve: false, reason: "AI analysis error: #{e.message}"}
+      end
+
+      def merge_conflict_system_prompt
+        <<~PROMPT
+          You are an expert at resolving Git merge conflicts. Your task is to analyze conflicted files and produce clean, resolved versions.
+
+          When analyzing merge conflicts:
+          1. Understand the intent of both the current changes (HEAD) and incoming changes (base branch)
+          2. Look for semantic conflicts beyond just text differences
+          3. Prefer to keep both changes when they serve different purposes
+          4. Remove duplicate code or conflicting implementations
+          5. Maintain code style and conventions from the existing codebase
+
+          Respond in JSON format:
+          {
+            "can_resolve": true/false,
+            "reason": "Why you can or cannot resolve these conflicts",
+            "strategy": "Brief description of your resolution strategy",
+            "resolutions": [
+              {
+                "file": "path/to/file",
+                "resolved_content": "Complete file content with conflicts resolved",
+                "description": "What changes were made to resolve the conflict"
+              }
+            ]
+          }
+
+          ONLY set can_resolve to true if you are confident the resolution:
+          - Maintains the intent of both branches
+          - Doesn't introduce bugs or break functionality
+          - Follows the project's coding style
+          - Compiles/parses correctly
+
+          DO NOT attempt to resolve if:
+          - The conflicts involve complex business logic you don't understand
+          - The changes are fundamentally incompatible
+          - The resolution would require significant refactoring
+          - There's insufficient context to make a safe decision
+        PROMPT
+      end
+
+      def build_merge_conflict_prompt(pr_data:, conflicts:)
+        conflict_details = conflicts.map do |c|
+          if c[:content] && c[:has_markers]
+            "File: #{c[:file]}\n```\n#{c[:content]}\n```"
+          else
+            "File: #{c[:file]}\n(No conflict markers found or file doesn't exist)"
+          end
+        end.join("\n\n")
+
+        <<~PROMPT
+          Resolve merge conflicts for PR ##{pr_data[:number]}: #{pr_data[:title]}
+
+          Base branch: #{pr_data[:base_ref]}
+          PR branch: #{pr_data[:head_ref]}
+
+          Conflicted files:
+          #{conflict_details}
+
+          Analyze the conflicts and provide resolved versions of each file.
+        PROMPT
+      end
+
+      def build_merge_commit_message(pr_data, resolution)
+        <<~MESSAGE.strip
+          aidp: resolve merge conflicts for PR ##{pr_data[:number]}
+
+          #{resolution[:strategy] || "Automatically resolved merge conflicts"}
+
+          Files resolved:
+          #{resolution[:resolutions].map { |r| "- #{r["file"]}: #{r["description"]}" }.join("\n")}
+        MESSAGE
       end
 
       def ci_fix_system_prompt
@@ -517,18 +708,24 @@ module Aidp
         @repository_client.post_comment(pr_data[:number], comment)
       end
 
-      def post_merge_conflict_comment(pr_data)
+      def post_merge_conflict_failure_comment(pr_data, merge_fix_result)
+        reason = merge_fix_result[:reason] || merge_fix_result[:error] || "Unknown error"
+
         comment = <<~COMMENT
           #{COMMENT_HEADER}
 
-          ⚠️  This PR has merge conflicts that must be resolved before automated CI fixes can be applied.
+          ⚠️  This PR has merge conflicts that could not be automatically resolved.
+
+          **Reason:** #{reason}
 
           **Next Steps:**
-          1. Resolve the merge conflicts in this PR
-          2. Push the resolved changes
-          3. Re-add the `#{@ci_fix_label}` label to retry CI fixes
+          1. Manually resolve the merge conflicts in this PR
+          2. Run `git merge origin/#{pr_data[:base_ref]}` locally to see conflicts
+          3. Resolve conflicts in each file
+          4. Commit and push the resolved changes
+          5. Re-add the `#{@ci_fix_label}` label to retry automated fixes
 
-          CI failures may be caused by the conflicts, so resolve those first before attempting automated fixes.
+          **Tip:** Use `git status` to see which files have conflicts, and look for conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in those files.
         COMMENT
 
         @repository_client.post_comment(pr_data[:number], comment)
