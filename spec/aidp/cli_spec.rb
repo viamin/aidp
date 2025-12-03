@@ -276,6 +276,14 @@ RSpec.describe Aidp::CLI do
         config_manager_double = double("ConfigManager", config: {})
         allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
 
+        # Mock EnhancedRunner instantiation
+        enhanced_runner_double = double("EnhancedRunner")
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(enhanced_runner_double)
+
+        # Mock Init::Runner instantiation
+        init_runner_double = double("Init::Runner")
+        allow(Aidp::Init::Runner).to receive(:new).and_return(init_runner_double)
+
         result = described_class.run(["--launch-test"])
 
         expect(result).to eq(0)
@@ -283,7 +291,7 @@ RSpec.describe Aidp::CLI do
 
       it "initializes TUI components during launch test" do
         tui_double = double("EnhancedTUI", restore_screen: nil)
-        expect(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
+        expect(Aidp::Harness::UI::EnhancedTUI).to receive(:new).at_least(:once).and_return(tui_double)
 
         workflow_selector_double = double("EnhancedWorkflowSelector")
         expect(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
@@ -291,19 +299,33 @@ RSpec.describe Aidp::CLI do
         config_manager_double = double("ConfigManager", config: {})
         expect(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
 
+        # Mock additional components
+        enhanced_runner_double = double("EnhancedRunner")
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(enhanced_runner_double)
+
+        init_runner_double = double("Init::Runner")
+        allow(Aidp::Init::Runner).to receive(:new).and_return(init_runner_double)
+
         described_class.run(["--launch-test"])
       end
 
       it "restores screen after launch test" do
         tui_double = double("EnhancedTUI")
         allow(Aidp::Harness::UI::EnhancedTUI).to receive(:new).and_return(tui_double)
-        expect(tui_double).to receive(:restore_screen)
+        expect(tui_double).to receive(:restore_screen).at_least(:once)
 
         workflow_selector_double = double("EnhancedWorkflowSelector")
         allow(Aidp::Harness::UI::EnhancedWorkflowSelector).to receive(:new).and_return(workflow_selector_double)
 
         config_manager_double = double("ConfigManager", config: {})
         allow(Aidp::Harness::ConfigManager).to receive(:new).and_return(config_manager_double)
+
+        # Mock additional components
+        enhanced_runner_double = double("EnhancedRunner")
+        allow(Aidp::Harness::EnhancedRunner).to receive(:new).and_return(enhanced_runner_double)
+
+        init_runner_double = double("Init::Runner")
+        allow(Aidp::Init::Runner).to receive(:new).and_return(init_runner_double)
 
         described_class.run(["--launch-test"])
       end

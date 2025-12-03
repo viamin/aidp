@@ -2,6 +2,7 @@
 
 require "optparse"
 require "tty-prompt"
+require "stringio"
 require_relative "harness/runner"
 require_relative "execute/workflow_selector"
 require_relative "harness/ui/enhanced_tui"
@@ -208,6 +209,28 @@ module Aidp
         _config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
         Aidp.log_debug("cli", "interactive_launch_test", step: "config_manager_created")
 
+        # Validate EnhancedRunner can be instantiated (orchestrates workflows)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "validate_enhanced_runner")
+        require_relative "harness/enhanced_runner"
+        _runner = Aidp::Harness::EnhancedRunner.new(Dir.pwd, :execute, {mode: :execute})
+        Aidp.log_debug("cli", "interactive_launch_test", step: "enhanced_runner_created")
+        display_message("Enhanced Runner instantiation verified", type: :info)
+
+        # Validate FirstRunWizard can be loaded (critical for setup)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "validate_first_run_wizard")
+        require_relative "cli/first_run_wizard"
+        # Don't instantiate to avoid triggering actual wizard
+        Aidp.log_debug("cli", "interactive_launch_test", step: "first_run_wizard_loaded")
+        display_message("First Run Wizard loaded", type: :info)
+
+        # Validate Init::Runner can be instantiated (init command)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "validate_init_runner")
+        require_relative "init/runner"
+        mock_prompt = TTY::Prompt.new(input: StringIO.new, output: StringIO.new)
+        _init_runner = Aidp::Init::Runner.new(Dir.pwd, prompt: mock_prompt, options: {dry_run: true})
+        Aidp.log_debug("cli", "interactive_launch_test", step: "init_runner_created")
+        display_message("Init Runner instantiation verified", type: :info)
+
         display_message("Interactive mode initialization verified", type: :info)
       ensure
         tui&.restore_screen
@@ -224,6 +247,34 @@ module Aidp
         Aidp.log_debug("cli", "watch_launch_test", step: "config_loaded", has_watch_config: !watch_config.empty?)
 
         display_message("Watch mode configuration verified", type: :info)
+
+        # Instantiate Runner to validate all dependencies are loadable
+        # Use mock GitHub client to avoid external API calls
+        Aidp.log_debug("cli", "watch_launch_test", step: "validate_runner")
+        mock_gh_client = Class.new do
+          def available?
+            false
+          end
+        end.new
+
+        Aidp::Watch::Runner.new(
+          issues_url: "https://github.com/test/test/issues",
+          interval: 30,
+          once: true,
+          gh_available: mock_gh_client,
+          prompt: TTY::Prompt.new(input: StringIO.new, output: StringIO.new)
+        )
+
+        Aidp.log_debug("cli", "watch_launch_test", step: "runner_instantiated")
+        display_message("Watch mode Runner instantiation verified", type: :info)
+
+        # Validate key Watch mode dependencies are loadable
+        Aidp.log_debug("cli", "watch_launch_test", step: "validate_watch_dependencies")
+        require_relative "watch/plan_generator"
+        require_relative "auto_update"
+        require_relative "worktree"
+        Aidp.log_debug("cli", "watch_launch_test", step: "watch_dependencies_loaded")
+        display_message("Watch mode dependencies loaded", type: :info)
       end
 
       def parse_options(args)

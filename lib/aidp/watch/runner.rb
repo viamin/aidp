@@ -2,6 +2,7 @@
 
 require "tty-prompt"
 require_relative "feedback_collector"
+require_relative "github_state_extractor"
 
 module Aidp
   module Watch

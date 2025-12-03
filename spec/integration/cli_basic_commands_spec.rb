@@ -383,10 +383,10 @@ RSpec.describe "CLI Basic Commands Integration", type: :integration do
         expect(result).to eq(0)
       end
 
-      it "does not start watch runner during launch test" do
+      it "instantiates Runner to validate dependencies but does not start it" do
         Aidp::CLI.send(:run_watch_command, ["https://github.com/owner/repo/issues", "--launch-test"])
 
-        expect(Aidp::Watch::Runner).not_to have_received(:new)
+        expect(Aidp::Watch::Runner).to have_received(:new)
         expect(watch_runner).not_to have_received(:start)
       end
 
