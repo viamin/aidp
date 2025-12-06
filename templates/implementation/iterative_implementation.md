@@ -6,11 +6,54 @@ You are implementing a feature or fix within the AIDP work loop using an iterati
 
 {{task_description}}
 
-## Important Instructions
+## ⚠️ CRITICAL: Task Filing Required
 
-### 1. Break Down the Work
+**You MUST file tasks BEFORE beginning implementation.** The work loop requires at least one task to be created and completed for the work to be considered done.
 
-If this is a multi-step feature, **break it into concrete subtasks** using the persistent tasklist:
+### Why Tasks Are Required
+
+1. **Prevents premature completion** - Tasks ensure all requirements are tracked
+2. **Enables progress tracking** - Each task represents verifiable progress
+3. **Supports iteration** - If tests fail, tasks show what remains
+4. **Audit trail** - Tasks document what was actually implemented
+
+### First Action: File Your Tasks
+
+**IMMEDIATELY** in your first iteration, file tasks for this work:
+
+```text
+File task: "description" priority: high|medium|low tags: tag1,tag2
+```
+
+**Example - If implementing a feature:**
+
+```text
+File task: "Create core implementation for [feature name]" priority: high tags: implementation
+File task: "Add unit tests for [feature name]" priority: high tags: testing
+File task: "Add integration tests if needed" priority: medium tags: testing
+File task: "Update documentation" priority: low tags: docs
+```
+
+**Example - If fixing a bug:**
+
+```text
+File task: "Identify root cause of [bug description]" priority: high tags: investigation
+File task: "Implement fix for [bug description]" priority: high tags: bugfix
+File task: "Add regression test" priority: high tags: testing
+```
+
+### Task Filing Guidelines
+
+- **At least one task is required** - You cannot complete without tasks
+- **Tasks should be specific** - "Implement user auth" not "Do the work"
+- **Include testing tasks** - Every implementation needs tests
+- **Cover the full scope** - Review the requirements and ensure all are covered by tasks
+
+## Implementation Process
+
+### 1. File Tasks First (REQUIRED)
+
+Break down the work into concrete subtasks using the persistent tasklist:
 
 ```text
 File task: "Subtask description here" priority: high|medium|low tags: tag1,tag2
