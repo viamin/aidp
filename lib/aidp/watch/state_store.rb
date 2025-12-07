@@ -277,6 +277,68 @@ module Aidp
         save!
       end
 
+      # Auto PR tracking methods - for aidp-auto label on PRs
+      # Tracks iteration counts to enforce iteration cap
+
+      # Get the current iteration count for an auto PR
+      # @param pr_number [Integer] PR number
+      # @return [Integer] Current iteration count (0 if not tracked)
+      def auto_pr_iteration_count(pr_number)
+        data = auto_prs[pr_number.to_s]
+        return 0 unless data
+        data["iteration"] || 0
+      end
+
+      # Get full auto PR data
+      # @param pr_number [Integer] PR number
+      # @return [Hash, nil] Auto PR tracking data
+      def auto_pr_data(pr_number)
+        auto_prs[pr_number.to_s]
+      end
+
+      # Record an auto PR iteration
+      # @param pr_number [Integer] PR number
+      # @param data [Hash] Additional data to store
+      # @return [Integer] New iteration count
+      def record_auto_pr_iteration(pr_number, data = {})
+        key = pr_number.to_s
+        existing = auto_prs[key] || {}
+        iteration = (existing["iteration"] || 0) + 1
+
+        auto_prs[key] = {
+          "iteration" => iteration,
+          "last_processed_at" => Time.now.utc.iso8601,
+          "status" => data[:status] || "in_progress",
+          "metadata" => stringify_keys(data[:metadata] || {})
+        }.merge(stringify_keys(data.except(:status, :metadata)))
+
+        save!
+        iteration
+      end
+
+      # Mark an auto PR as completed (ready for human review)
+      # @param pr_number [Integer] PR number
+      # @param data [Hash] Additional completion data
+      def complete_auto_pr(pr_number, data = {})
+        key = pr_number.to_s
+        existing = auto_prs[key] || {}
+
+        auto_prs[key] = existing.merge({
+          "status" => "completed",
+          "completed_at" => Time.now.utc.iso8601
+        }).merge(stringify_keys(data))
+
+        save!
+      end
+
+      # Check if an auto PR has reached the iteration cap
+      # @param pr_number [Integer] PR number
+      # @param cap [Integer] Maximum iterations allowed
+      # @return [Boolean] True if cap reached
+      def auto_pr_cap_reached?(pr_number, cap:)
+        auto_pr_iteration_count(pr_number) >= cap
+      end
+
       private
 
       def ensure_directory
@@ -311,6 +373,7 @@ module Aidp
           base["detection_comments"] ||= {}
           base["feedback_comments"] ||= {}
           base["processed_reactions"] ||= {}
+          base["auto_prs"] ||= {}
           base
         end
       end
@@ -345,6 +408,10 @@ module Aidp
 
       def processed_reactions
         state["processed_reactions"]
+      end
+
+      def auto_prs
+        state["auto_prs"]
       end
 
       def stringify_keys(hash)

@@ -12,6 +12,8 @@ Complete guide to using the AI Dev Pipeline command-line interface.
 - [Progress Checkpoints](#progress-checkpoints)
 - [System Management](#system-management)
 - [Model Management](#model-management)
+- [Agile Development Mode](#agile-development-mode)
+- [Watch Mode](#watch-mode)
 - [Workflow Examples](#workflow-examples)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
@@ -1451,6 +1453,89 @@ Known user segments: Sales reps, Managers (optional)
 For detailed documentation including examples, troubleshooting, and best practices, see:
 
 **[Agile Development Mode Guide](AGILE_MODE_GUIDE.md)**
+
+## Watch Mode
+
+Watch Mode enables AIDP to autonomously monitor GitHub repositories for labeled issues and PRs, processing them through automated workflows.
+
+### Starting Watch Mode
+
+```bash
+# Start watch mode for a repository
+aidp watch owner/repo
+
+# Start with verbose logging
+aidp watch owner/repo --verbose
+```
+
+### The aidp-auto Workflow
+
+The `aidp-auto` label provides complete automation from issue to merged PR.
+
+#### On Issues
+
+When you add `aidp-auto` to an issue:
+
+1. **Plan**: Generates implementation plan with tasks
+2. **Build**: Executes autonomous implementation
+3. **PR Creation**: Creates draft PR with changes
+4. **Label Transfer**: Moves `aidp-auto` to the PR
+
+#### On PRs
+
+When a PR has `aidp-auto`:
+
+1. **Review Loop**: Runs automated code review
+2. **CI Fix Loop**: Fixes CI failures
+3. **Iteration Tracking**: Counts iterations (cap: 20)
+4. **Completion**: When ready:
+   - Converts draft to ready for review
+   - Requests label-adder as reviewer
+   - Posts completion comment
+   - Removes `aidp-auto` label
+
+### Available Labels
+
+| Label | Target | Description |
+|-------|--------|-------------|
+| `aidp-plan` | Issue | Generate implementation plan |
+| `aidp-build` | Issue | Execute implementation |
+| `aidp-auto` | Both | End-to-end automation |
+| `aidp-review` | PR | Automated code review |
+| `aidp-fix-ci` | PR | Fix CI failures |
+| `aidp-request-changes` | PR | Implement change requests |
+
+### Completion Criteria
+
+A PR is marked ready for human review when:
+
+- Automated review completed
+- CI passing (success or skipped states)
+- OR iteration cap (20) reached
+
+### Configuration
+
+Configure Watch Mode in `.aidp/aidp.yml`:
+
+```yaml
+watch:
+  labels:
+    auto_trigger: "aidp-auto"
+    plan_trigger: "aidp-plan"
+    build_trigger: "aidp-build"
+    review_trigger: "aidp-review"
+    ci_fix_trigger: "aidp-fix-ci"
+  safety:
+    author_allowlist:
+      - "username1"
+      - "username2"
+```
+
+### Related Documentation
+
+- [WATCH_MODE.md](WATCH_MODE.md) - Complete Watch Mode guide
+- [LABELS.md](LABELS.md) - Full label reference
+- [WATCH_MODE_SAFETY.md](WATCH_MODE_SAFETY.md) - Safety configuration
 
 ## Workflow Examples
 
