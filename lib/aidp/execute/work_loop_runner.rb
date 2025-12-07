@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "prompt_manager"
+require_relative "prompt_evaluator"
 require_relative "checkpoint"
 require_relative "checkpoint_display"
 require_relative "guard_policy"
@@ -73,6 +74,9 @@ module Aidp
 
         # Initialize style guide selector for intelligent section selection
         @style_guide_selector = options[:style_guide_selector] || Aidp::StyleGuide::Selector.new(project_dir: project_dir)
+
+        # FIX for issue #391: Initialize prompt evaluator for iteration threshold assessment
+        @prompt_evaluator = options[:prompt_evaluator] || PromptEvaluator.new(config)
       end
 
       # Execute a step using fix-forward work loop pattern
@@ -263,13 +267,31 @@ module Aidp
 
           # Check task completion status
           task_completion_result = check_task_completion
+          agent_completed = agent_marked_complete?(agent_result)
+
+          # FIX for issue #391: Comprehensive logging at completion decision point
+          Aidp.log_debug("work_loop", "completion_decision_point",
+            iteration: @iteration_count,
+            all_checks_pass: all_checks_pass,
+            agent_marked_complete: agent_completed,
+            task_completion_complete: task_completion_result[:complete],
+            task_completion_reason: task_completion_result[:reason],
+            test_success: test_results[:success],
+            lint_success: lint_results[:success],
+            formatter_success: formatter_results[:success],
+            build_success: build_results[:success],
+            doc_success: doc_results[:success])
 
           if all_checks_pass
             transition_to(:pass)
 
-            if agent_marked_complete?(agent_result)
+            if agent_completed
               # Check if tasks are complete
               if task_completion_result[:complete]
+                Aidp.log_debug("work_loop", "completion_approved",
+                  iteration: @iteration_count,
+                  reason: task_completion_result[:reason])
+
                 transition_to(:done)
                 record_final_checkpoint(all_results)
                 display_task_summary
@@ -280,7 +302,8 @@ module Aidp
                   model: preview_model,
                   prompt_length: prompt_length,
                   checks: checks_summary,
-                  task_status: "complete")
+                  task_status: "complete",
+                  completion_reason: task_completion_result[:reason])
                 archive_and_cleanup
 
                 return build_agentic_payload(
@@ -292,6 +315,11 @@ module Aidp
                 )
               else
                 # All checks passed but tasks not complete
+                Aidp.log_debug("work_loop", "completion_blocked_tasks_incomplete",
+                  iteration: @iteration_count,
+                  reason: task_completion_result[:reason],
+                  message: task_completion_result[:message])
+
                 display_message("  All checks passed but tasks not complete", type: :warning)
                 display_message("  #{task_completion_result[:message]}", type: :warning)
                 display_task_summary
@@ -300,13 +328,17 @@ module Aidp
                   model: preview_model,
                   prompt_length: prompt_length,
                   checks: checks_summary,
-                  task_status: "incomplete")
+                  task_status: "incomplete",
+                  task_completion_reason: task_completion_result[:reason])
                 transition_to(:next_patch)
 
                 # Append task completion requirement to PROMPT.md
                 append_task_requirement_to_prompt(task_completion_result[:message])
               end
             else
+              Aidp.log_debug("work_loop", "completion_blocked_agent_not_complete",
+                iteration: @iteration_count)
+
               display_message("  All checks passed but work not marked complete", type: :info)
               log_iteration_status("checks_passed_waiting_agent_completion",
                 provider: preview_provider,
@@ -331,7 +363,146 @@ module Aidp
               failures: failure_summary_for_log(all_results))
             prepare_next_iteration(all_results, diagnostic)
           end
+
+          # FIX for issue #391: Evaluate prompt effectiveness at iteration thresholds
+          # After 10+ iterations, assess whether the prompt is leading to progress
+          evaluate_prompt_effectiveness(all_results)
         end
+      end
+
+      # Evaluate prompt effectiveness at iteration thresholds
+      # FIX for issue #391: Provides feedback when work loop is stuck
+      # Note: Errors during evaluation are logged but don't fail the work loop
+      def evaluate_prompt_effectiveness(all_results)
+        return unless @prompt_evaluator.should_evaluate?(@iteration_count)
+
+        Aidp.log_debug("work_loop", "evaluating_prompt_effectiveness",
+          iteration: @iteration_count)
+
+        display_message("📊 Evaluating prompt effectiveness (iteration #{@iteration_count})...", type: :info)
+
+        task_summary = build_task_summary_for_evaluation
+        prompt_content = @prompt_manager.read
+
+        evaluation = @prompt_evaluator.evaluate(
+          prompt_content: prompt_content,
+          iteration_count: @iteration_count,
+          task_summary: task_summary,
+          recent_failures: all_results,
+          step_name: @step_name
+        )
+
+        display_prompt_evaluation_results(evaluation)
+
+        # If prompt is deemed ineffective, append suggestions to PROMPT.md
+        unless evaluation[:effective]
+          append_evaluation_feedback_to_prompt(evaluation)
+        end
+
+        Aidp.log_info("work_loop", "prompt_evaluation_complete",
+          iteration: @iteration_count,
+          effective: evaluation[:effective],
+          confidence: evaluation[:confidence])
+      rescue => e
+        # Don't let evaluation errors break the work loop
+        Aidp.log_warn("work_loop", "prompt_evaluation_error",
+          iteration: @iteration_count,
+          error: e.message,
+          error_class: e.class.name)
+        display_message("  ⚠️  Prompt evaluation skipped due to error: #{e.message}", type: :muted)
+      end
+
+      def build_task_summary_for_evaluation
+        all_tasks = @persistent_tasklist.all
+        return {} if all_tasks.empty?
+
+        {
+          total: all_tasks.size,
+          done: all_tasks.count { |t| t.status == :done },
+          in_progress: all_tasks.count { |t| t.status == :in_progress },
+          pending: all_tasks.count { |t| t.status == :pending },
+          abandoned: all_tasks.count { |t| t.status == :abandoned }
+        }
+      end
+
+      def display_prompt_evaluation_results(evaluation)
+        # Skip display if evaluation was skipped
+        if evaluation[:skipped]
+          display_message("  ℹ️  Prompt evaluation skipped: #{evaluation[:skip_reason]}", type: :muted)
+          return
+        end
+
+        if evaluation[:effective]
+          display_message("  ✅ Prompt appears effective, continuing...", type: :success)
+        else
+          display_message("  ⚠️  Prompt may need improvement:", type: :warning)
+
+          if evaluation[:issues]&.any?
+            display_message("  Issues identified:", type: :info)
+            evaluation[:issues].each { |issue| display_message("    - #{issue}", type: :warning) }
+          end
+
+          if evaluation[:suggestions]&.any?
+            display_message("  Suggestions:", type: :info)
+            evaluation[:suggestions].take(3).each { |s| display_message("    - #{s}", type: :info) }
+          end
+
+          if evaluation[:likely_blockers]&.any?
+            display_message("  Likely blockers:", type: :warning)
+            evaluation[:likely_blockers].each { |b| display_message("    - #{b}", type: :error) }
+          end
+        end
+
+        display_message("  Confidence: #{(evaluation[:confidence] * 100).round}%", type: :muted)
+      end
+
+      def append_evaluation_feedback_to_prompt(evaluation)
+        feedback_section = build_evaluation_feedback_section(evaluation)
+
+        @prompt_manager.append(feedback_section)
+
+        Aidp.log_debug("work_loop", "appended_evaluation_feedback",
+          iteration: @iteration_count,
+          feedback_size: feedback_section.length)
+      end
+
+      def build_evaluation_feedback_section(evaluation)
+        parts = []
+        parts << "\n\n## ⚠️ Work Loop Progress Assessment (Iteration #{@iteration_count})"
+        parts << ""
+        parts << "The work loop has been running for #{@iteration_count} iterations without completion."
+        parts << "An automated assessment identified the following:"
+        parts << ""
+
+        if evaluation[:issues]&.any?
+          parts << "### Issues Identified"
+          evaluation[:issues].each { |i| parts << "- #{i}" }
+          parts << ""
+        end
+
+        if evaluation[:suggestions]&.any?
+          parts << "### Suggestions for Progress"
+          evaluation[:suggestions].each { |s| parts << "- #{s}" }
+          parts << ""
+        end
+
+        if evaluation[:recommended_actions]&.any?
+          parts << "### Recommended Actions"
+          evaluation[:recommended_actions].each do |action|
+            parts << "- [#{action[:priority]&.upcase || "MEDIUM"}] #{action[:action]}"
+            parts << "  Rationale: #{action[:rationale]}" if action[:rationale]
+          end
+          parts << ""
+        end
+
+        parts << "### Next Steps"
+        parts << "Please address the above issues and either:"
+        parts << "1. Complete the remaining work and mark STATUS: COMPLETE"
+        parts << "2. File tasks for remaining work and complete them systematically"
+        parts << "3. If blocked, explain the blocker clearly in your response"
+        parts << ""
+
+        parts.join("\n")
       end
 
       def run_decider_agentic_unit(context)
@@ -947,7 +1118,9 @@ module Aidp
         []
       end
 
-      def log_iteration_status(status, provider:, model:, prompt_length:, checks: nil, failures: nil, task_status: nil)
+      # FIX for issue #391: Added completion_reason and task_completion_reason parameters for better logging
+      def log_iteration_status(status, provider:, model:, prompt_length:, checks: nil, failures: nil, task_status: nil,
+        completion_reason: nil, task_completion_reason: nil)
         context_labels = iteration_context_labels
         metadata = {
           step: @step_name,
@@ -959,7 +1132,9 @@ module Aidp
           prompt_length: prompt_length,
           checks: checks,
           failures: failures,
-          task_status: task_status
+          task_status: task_status,
+          completion_reason: completion_reason,
+          task_completion_reason: task_completion_reason
         }
 
         metadata.merge!(iteration_context_metadata)
@@ -975,17 +1150,19 @@ module Aidp
         Aidp.log_warn("work_loop", "failed_to_log_iteration_status", error: e.message)
       end
 
+      # FIX for issue #391: Enhanced work loop header with upfront task filing requirements
       def build_work_loop_header(step_name, iteration)
         parts = []
         parts << "# Work Loop: #{step_name} (Iteration #{iteration})"
         parts << ""
         parts << "## Instructions"
         parts << "You are working in a work loop. Your responsibilities:"
-        parts << "1. Read the task description below to understand what needs to be done"
-        parts << "2. **Write/edit code files** to implement the required changes"
-        parts << "3. Run tests to verify your changes work correctly"
-        parts << "4. Update the task list in PROMPT.md as you complete items"
-        parts << "5. When ALL tasks are complete and tests pass, mark the step COMPLETE"
+        parts << "1. **FIRST**: File tasks for all work items (see Task Filing section below)"
+        parts << "2. Read the task description below to understand what needs to be done"
+        parts << "3. **Write/edit CODE files** to implement the required changes"
+        parts << "4. Run tests to verify your changes work correctly"
+        parts << "5. Update task status as you complete items"
+        parts << "6. When ALL tasks are complete and tests pass, mark the step COMPLETE"
         parts << ""
         parts << "## Important Notes"
         parts << "- You have full file system access - create and edit files as needed"
@@ -993,29 +1170,53 @@ module Aidp
         parts << "- After you finish, tests and linters will run automatically"
         parts << "- If tests/linters fail, you'll see the errors in the next iteration and can fix them"
         parts << ""
+        parts << "## ⚠️  Code Changes Required"
+        parts << "**IMPORTANT**: This implementation requires actual code changes."
+        parts << "- Documentation-only changes will NOT be accepted as complete"
+        parts << "- Configuration-only changes will NOT be accepted as complete"
+        parts << "- You must modify/create code files (.rb, .py, .js, etc.) to implement the feature/fix"
+        parts << "- Tests should accompany code changes"
+        parts << ""
 
         if @config.task_completion_required?
-          parts << "## Task Tracking (REQUIRED)"
-          parts << "**CRITICAL**: This work loop requires task tracking for completion."
+          parts << "## Task Filing (REQUIRED - DO THIS FIRST)"
+          parts << "**CRITICAL**: This work loop requires task tracking. You MUST file tasks before implementation."
           parts << ""
-          parts << "You must:"
-          parts << "1. Create at least one task for this session using: `File task: \"description\"`"
-          parts << "2. Track all work items as tasks"
-          parts << "3. Update task status as you progress"
-          parts << "4. All tasks must be DONE or ABANDONED (with reason) before completion"
-          parts << "5. **IMPORTANT**: When you write STATUS: COMPLETE, also mark all your tasks as done!"
+          parts << "### Step 1: File Tasks Immediately"
+          parts << "In your FIRST iteration, analyze the requirements and file tasks for ALL work:"
           parts << ""
-          parts << "**Important**: Tasks in the list exist due to careful planning and requirements analysis."
-          parts << "Do NOT abandon tasks due to perceived complexity or scope concerns - these factors were"
-          parts << "considered during planning. Only abandon tasks when truly obsolete (requirements changed,"
-          parts << "duplicate work, external blockers). When in doubt, mark in_progress and implement."
+          parts << "```text"
+          parts << "File task: \"Implement [feature/fix description]\" priority: high tags: implementation"
+          parts << "File task: \"Add unit tests for [feature]\" priority: high tags: testing"
+          parts << "File task: \"Add integration tests if needed\" priority: medium tags: testing"
+          parts << "```"
           parts << ""
-          parts << "Task filing examples:"
+          parts << "### Step 2: Work Through Tasks"
+          parts << "- Pick the highest priority pending task"
+          parts << "- Implement it completely"
+          parts << "- Mark it done: `Update task: task_id status: done`"
+          parts << "- Repeat until all tasks are complete"
+          parts << ""
+          parts << "### Step 3: Complete the Work Loop"
+          parts << "Only after ALL tasks are done:"
+          parts << "- Verify tests pass"
+          parts << "- Add STATUS: COMPLETE to PROMPT.md"
+          parts << ""
+          parts << "### Task Rules"
+          parts << "- **At least ONE task must be filed** - completion blocked without tasks"
+          parts << "- **At least ONE task must be DONE** - completion blocked if all abandoned"
+          parts << "- **Substantive work required** - doc-only changes rejected"
+          parts << ""
+          parts << "**Important**: Tasks exist due to careful planning. Do NOT abandon tasks due to"
+          parts << "perceived complexity - these factors were considered during planning. Only abandon"
+          parts << "when truly obsolete (requirements changed, duplicate, external blockers)."
+          parts << ""
+          parts << "### Task Filing Examples"
           parts << "- `File task: \"Implement user authentication\" priority: high tags: security,auth`"
           parts << "- `File task: \"Add tests for login flow\" priority: medium tags: testing`"
           parts << "- `File task: \"Update documentation\" priority: low tags: docs`"
           parts << ""
-          parts << "Task status update examples:"
+          parts << "### Task Status Update Examples"
           parts << "- `Update task: task_123_abc status: in_progress`"
           parts << "- `Update task: task_456_def status: done`"
           parts << "- `Update task: task_789_ghi status: abandoned reason: \"Requirements changed\"`"
@@ -1530,46 +1731,113 @@ module Aidp
       end
 
       # Check if tasks are required and all are completed or abandoned
-      # Returns {complete: boolean, message: string}
+      # Returns {complete: boolean, message: string, reason: string}
       # Note: Tasks are project-scoped, not session-scoped. This allows tasks created
       # in planning phases to be completed in build phases.
+      #
+      # FIX for issue #391: Prevent premature completion when tasks haven't been created
+      # The previous logic allowed completion with empty task list, which enabled
+      # the work loop to complete before actually implementing anything.
       def check_task_completion
-        return {complete: true, message: nil} unless @config.task_completion_required?
+        Aidp.log_debug("work_loop", "check_task_completion_start",
+          task_completion_required: @config.task_completion_required?,
+          iteration: @iteration_count)
+
+        unless @config.task_completion_required?
+          Aidp.log_debug("work_loop", "check_task_completion_skipped",
+            reason: "task_completion_not_required")
+          return {complete: true, message: nil, reason: "task_completion_not_required"}
+        end
 
         all_tasks = @persistent_tasklist.all
 
-        # If no tasks exist yet, allow completion - agent can work without tasks initially
-        # This supports workflows where no planning phase created tasks
+        Aidp.log_debug("work_loop", "check_task_completion_task_count",
+          total_tasks: all_tasks.size,
+          task_ids: all_tasks.map(&:id))
+
+        # FIX for issue #391: Require at least one task when task_completion is enabled
+        # Empty task list now blocks completion to prevent premature PR creation
+        # This ensures the agent has actually created and completed work items
         if all_tasks.empty?
-          return {complete: true, message: nil}
+          Aidp.log_debug("work_loop", "check_task_completion_empty_tasks",
+            reason: "no_tasks_filed",
+            iteration: @iteration_count)
+
+          # After multiple iterations, require tasks - agent should have filed some by now
+          if @iteration_count >= 3
+            return {
+              complete: false,
+              message: "No tasks have been filed yet. You must create at least one task using:\n" \
+                      "  File task: \"description\" priority: high|medium|low tags: tag1,tag2\n\n" \
+                      "Tasks help track progress and ensure complete implementation.",
+              reason: "no_tasks_after_iterations"
+            }
+          end
+
+          # In early iterations, allow progress but don't allow completion
+          return {
+            complete: false,
+            message: "Please file tasks to track your implementation work.",
+            reason: "no_tasks_early_iteration"
+          }
         end
 
         # Count tasks by status
         pending_tasks = all_tasks.select { |t| t.status == :pending }
         in_progress_tasks = all_tasks.select { |t| t.status == :in_progress }
         abandoned_tasks = all_tasks.select { |t| t.status == :abandoned }
-        all_tasks.select { |t| t.status == :done }
+        done_tasks = all_tasks.select { |t| t.status == :done }
+
+        Aidp.log_debug("work_loop", "check_task_completion_status_counts",
+          pending: pending_tasks.size,
+          in_progress: in_progress_tasks.size,
+          abandoned: abandoned_tasks.size,
+          done: done_tasks.size)
 
         # If tasks exist, all must be done or abandoned before completion
         incomplete_tasks = pending_tasks + in_progress_tasks
 
         if incomplete_tasks.any?
           task_list = incomplete_tasks.map { |t| "- #{t.description} (#{t.status}, session: #{t.session})" }.join("\n")
+          Aidp.log_debug("work_loop", "check_task_completion_incomplete",
+            incomplete_count: incomplete_tasks.size,
+            incomplete_ids: incomplete_tasks.map(&:id))
           return {
             complete: false,
-            message: "Tasks remain incomplete:\n#{task_list}\n\nComplete all tasks or abandon them with reason before marking work complete."
+            message: "Tasks remain incomplete:\n#{task_list}\n\nComplete all tasks or abandon them with reason before marking work complete.",
+            reason: "incomplete_tasks"
+          }
+        end
+
+        # FIX for issue #391: Require at least one done task, not just abandoned
+        # This prevents scenarios where all tasks are abandoned without any work
+        if done_tasks.empty? && abandoned_tasks.any?
+          Aidp.log_debug("work_loop", "check_task_completion_all_abandoned",
+            abandoned_count: abandoned_tasks.size)
+          return {
+            complete: false,
+            message: "All tasks have been abandoned with no completed work. " \
+                    "At least one task must be completed, or explain why no implementation is needed.",
+            reason: "all_tasks_abandoned"
           }
         end
 
         # If there are abandoned tasks, confirm with user
         if abandoned_tasks.any? && !all_abandoned_tasks_confirmed?(abandoned_tasks)
+          Aidp.log_debug("work_loop", "check_task_completion_unconfirmed_abandoned",
+            abandoned_count: abandoned_tasks.size)
           return {
             complete: false,
-            message: "Abandoned tasks require user confirmation. Please confirm abandoned tasks."
+            message: "Abandoned tasks require user confirmation. Please confirm abandoned tasks.",
+            reason: "unconfirmed_abandoned_tasks"
           }
         end
 
-        {complete: true, message: nil}
+        Aidp.log_debug("work_loop", "check_task_completion_success",
+          done_count: done_tasks.size,
+          abandoned_count: abandoned_tasks.size)
+
+        {complete: true, message: nil, reason: "all_tasks_complete"}
       end
 
       # Check if all abandoned tasks have been confirmed
