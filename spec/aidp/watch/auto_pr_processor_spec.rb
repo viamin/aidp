@@ -30,6 +30,8 @@ RSpec.describe Aidp::Watch::AutoPrProcessor do
     allow(state_store).to receive(:record_auto_pr_iteration).and_return(1)
     allow(state_store).to receive(:auto_pr_iteration_count).and_return(1)
     allow(state_store).to receive(:complete_auto_pr)
+    # Suppress display_message output during tests to avoid TTY::Prompt stdout interference
+    allow_any_instance_of(described_class).to receive(:display_message)
   end
 
   describe "#process" do
