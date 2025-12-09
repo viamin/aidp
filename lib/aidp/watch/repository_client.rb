@@ -940,7 +940,7 @@ module Aidp
 
       def mark_pr_ready_for_review_via_gh(number)
         cmd = ["gh", "pr", "ready", number.to_s, "--repo", full_repo]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3(*cmd)
 
         unless status.success?
           Aidp.log_warn("repository_client", "mark_pr_ready_failed",
@@ -959,7 +959,7 @@ module Aidp
       def request_reviewers_via_gh(number, reviewers:)
         reviewer_args = reviewers.flat_map { |r| ["--add-reviewer", r] }
         cmd = ["gh", "pr", "edit", number.to_s, "--repo", full_repo] + reviewer_args
-        stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3(*cmd)
 
         unless status.success?
           Aidp.log_warn("repository_client", "request_reviewers_failed",

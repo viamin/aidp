@@ -129,11 +129,8 @@ module Aidp
       end
 
       def convert_draft_to_ready(pr_number)
-        pr_data = @repository_client.fetch_pull_request(pr_number)
-
-        # Check if PR is a draft (gh returns isDraft in the data)
-        # The normalize methods don't include draft status, so we need to check via API
-        # For now, attempt the conversion and let it fail gracefully if already ready
+        # Attempt the conversion and let it fail gracefully if already ready
+        # The gh CLI will return an error if PR is not a draft
         success = @repository_client.mark_pr_ready_for_review(pr_number)
         if success
           display_message("📋 Converted PR ##{pr_number} from draft to ready", type: :info)
