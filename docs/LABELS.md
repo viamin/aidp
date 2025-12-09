@@ -13,6 +13,7 @@ AIDP uses GitHub labels to trigger different automated workflows. When a label i
 **Purpose:** Generate an implementation plan for an issue.
 
 **Behavior:**
+
 1. Analyzes the issue description
 2. Generates a structured plan with:
    - Summary of proposed changes
@@ -25,6 +26,7 @@ AIDP uses GitHub labels to trigger different automated workflows. When a label i
 **Default Label:** `aidp-plan`
 
 **Configuration:**
+
 ```yaml
 watch:
   labels:
@@ -38,9 +40,11 @@ watch:
 **Purpose:** Execute autonomous implementation of a planned issue.
 
 **Prerequisites:**
+
 - Issue should have an AIDP plan comment (from `aidp-plan`)
 
 **Behavior:**
+
 1. Extracts plan data from issue comments
 2. Creates a workstream (git worktree)
 3. Runs the AI work loop for implementation
@@ -52,6 +56,7 @@ watch:
 **Default Label:** `aidp-build`
 
 **Configuration:**
+
 ```yaml
 watch:
   labels:
@@ -65,12 +70,14 @@ watch:
 **Purpose:** End-to-end automation from issue to PR ready for review.
 
 **On Issues:**
+
 1. Runs the planning phase
 2. Runs the build phase
 3. Creates a draft PR
 4. Transfers `aidp-auto` label to the PR
 
 **On PRs:**
+
 1. Runs automated code review
 2. Fixes CI failures
 3. Iterates until:
@@ -85,6 +92,7 @@ watch:
 **Default Label:** `aidp-auto`
 
 **Configuration:**
+
 ```yaml
 watch:
   labels:
@@ -98,17 +106,20 @@ watch:
 **Purpose:** Indicates the issue is waiting for human input.
 
 **When Added:**
+
 - Planning phase has clarifying questions
 - Build phase needs clarification
 - Implementation is incomplete with questions
 
 **When Removed:**
+
 - Manually by user after providing answers
 - Replaced with `aidp-build` to resume
 
 **Default Label:** `aidp-needs-input`
 
 **Configuration:**
+
 ```yaml
 watch:
   labels:
@@ -124,12 +135,14 @@ watch:
 **Purpose:** Perform automated code review on a PR.
 
 **Behavior:**
+
 1. Fetches PR diff and changed files
 2. Runs multi-persona review (senior dev, security, performance)
 3. Posts review findings as a comment
 4. Records review completion in state
 
 **Reviewers:**
+
 - Senior Developer: Architecture, patterns, maintainability
 - Security: Vulnerabilities, input validation, secrets
 - Performance: Efficiency, resource usage
@@ -137,6 +150,7 @@ watch:
 **Default Label:** `aidp-review`
 
 **Configuration:**
+
 ```yaml
 watch:
   labels:
@@ -150,6 +164,7 @@ watch:
 **Purpose:** Automatically fix CI failures on a PR.
 
 **Behavior:**
+
 1. Fetches CI logs and failure details
 2. Analyzes root causes
 3. Applies fixes
@@ -159,6 +174,7 @@ watch:
 **Default Label:** `aidp-fix-ci`
 
 **Configuration:**
+
 ```yaml
 watch:
   labels:
@@ -172,6 +188,7 @@ watch:
 **Purpose:** Implement change requests from PR reviews.
 
 **Behavior:**
+
 1. Extracts requested changes from review comments
 2. Applies changes to the codebase
 3. Commits and pushes
@@ -181,6 +198,7 @@ watch:
 **Default Label:** `aidp-request-changes`
 
 **Configuration:**
+
 ```yaml
 watch:
   labels:
@@ -196,6 +214,7 @@ watch:
 **Purpose:** Prevents concurrent processing by multiple instances.
 
 **Behavior:**
+
 - Added when processing begins
 - Removed when processing completes
 - Other instances skip items with this label
@@ -229,7 +248,7 @@ watch:
 
 ### Issue Flow
 
-```
+```text
 aidp-plan → aidp-needs-input (if questions)
           → aidp-build (if no questions)
 
@@ -241,7 +260,7 @@ aidp-auto → aidp-auto (transferred to created PR)
 
 ### PR Flow
 
-```
+```text
 aidp-review → (removed on completion)
 
 aidp-fix-ci → (removed when CI passes)

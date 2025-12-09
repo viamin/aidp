@@ -26,7 +26,7 @@ aidp watch viamin/aidp --verbose
 ### Issue Labels
 
 | Label | Description | Processor |
-|-------|-------------|-----------|
+| ----- | ----------- | --------- |
 | `aidp-plan` | Generate an implementation plan | PlanProcessor |
 | `aidp-build` | Execute autonomous implementation | BuildProcessor |
 | `aidp-auto` | Plan + Build combined workflow | AutoProcessor |
@@ -35,7 +35,7 @@ aidp watch viamin/aidp --verbose
 ### PR Labels
 
 | Label | Description | Processor |
-|-------|-------------|-----------|
+| ----- | ----------- | --------- |
 | `aidp-review` | Perform automated code review | ReviewProcessor |
 | `aidp-fix-ci` | Fix CI failures | CiFixProcessor |
 | `aidp-auto` | Review + CI Fix loop until ready | AutoPrProcessor |
@@ -155,7 +155,7 @@ Prevents concurrent processing of the same item by multiple instances:
 
 Posts detection comments to prevent duplicate processing:
 
-```
+```markdown
 ## 🔍 aidp: Processing Detected
 
 AIDP has detected the `aidp-build` label on this issue...
@@ -197,7 +197,7 @@ work_loop:
 Watch Mode collects feedback via GitHub reactions:
 
 | Reaction | Meaning |
-|----------|---------|
+| -------- | ------- |
 | 👍 | Positive feedback |
 | 👎 | Negative feedback |
 | 🎉 | Exceptional work |
@@ -210,17 +210,20 @@ Reactions are tracked in state and can be used for evaluation.
 ### Common Issues
 
 **Issue not being processed:**
+
 1. Check if the label exactly matches configuration
 2. Verify author is in allowlist (if configured)
 3. Check for `aidp-in-progress` label blocking processing
 4. Review `.aidp/watch/*.yml` for state conflicts
 
 **CI status not detected:**
+
 - AIDP checks both GitHub Check Runs and Commit Statuses
 - Both `success` and `skipped` states count as passing
 - Unknown CI state will not trigger completion
 
 **PR stuck in auto loop:**
+
 - Check iteration count in state file
 - Review CI logs for persistent failures
 - Consider manually removing `aidp-auto` label

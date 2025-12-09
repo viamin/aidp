@@ -1497,7 +1497,7 @@ When a PR has `aidp-auto`:
 ### Available Labels
 
 | Label | Target | Description |
-|-------|--------|-------------|
+| ----- | ------ | ----------- |
 | `aidp-plan` | Issue | Generate implementation plan |
 | `aidp-build` | Issue | Execute implementation |
 | `aidp-auto` | Both | End-to-end automation |
