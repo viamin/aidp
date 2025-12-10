@@ -143,6 +143,31 @@ module Aidp
         gh_available? ? fetch_pr_comments_via_gh(number) : fetch_pr_comments_via_api(number)
       end
 
+      # Convert a draft PR to ready for review
+      # @param number [Integer] PR number
+      # @return [Boolean] True if successful
+      def mark_pr_ready_for_review(number)
+        raise("GitHub CLI not available - cannot mark PR ready") unless gh_available?
+        mark_pr_ready_for_review_via_gh(number)
+      end
+
+      # Request reviewers for a PR
+      # @param number [Integer] PR number
+      # @param reviewers [Array<String>] GitHub usernames to request as reviewers
+      # @return [Boolean] True if successful
+      def request_reviewers(number, reviewers:)
+        return true if reviewers.nil? || reviewers.empty?
+        raise("GitHub CLI not available - cannot request reviewers") unless gh_available?
+        request_reviewers_via_gh(number, reviewers: reviewers)
+      end
+
+      # Get the actor who most recently added a label to a PR
+      # @param number [Integer] PR number
+      # @return [String, nil] GitHub username or nil
+      def most_recent_pr_label_actor(number)
+        gh_available? ? most_recent_pr_label_actor_via_gh(number) : nil
+      end
+
       # Fetch reactions on a specific comment
       # Returns array of reactions with user and content (emoji type)
       def fetch_comment_reactions(comment_id)
@@ -911,6 +936,98 @@ module Aidp
       rescue => e
         Aidp.log_warn("repository_client", "Failed to fetch PR comments", error: e.message)
         []
+      end
+
+      def mark_pr_ready_for_review_via_gh(number)
+        cmd = ["gh", "pr", "ready", number.to_s, "--repo", full_repo]
+        _stdout, stderr, status = Open3.capture3(*cmd)
+
+        unless status.success?
+          Aidp.log_warn("repository_client", "mark_pr_ready_failed",
+            pr: number, stderr: stderr.strip)
+          return false
+        end
+
+        Aidp.log_info("repository_client", "pr_marked_ready", pr: number)
+        true
+      rescue => e
+        Aidp.log_error("repository_client", "mark_pr_ready_exception",
+          pr: number, error: e.message)
+        false
+      end
+
+      def request_reviewers_via_gh(number, reviewers:)
+        reviewer_args = reviewers.flat_map { |r| ["--add-reviewer", r] }
+        cmd = ["gh", "pr", "edit", number.to_s, "--repo", full_repo] + reviewer_args
+        _stdout, stderr, status = Open3.capture3(*cmd)
+
+        unless status.success?
+          Aidp.log_warn("repository_client", "request_reviewers_failed",
+            pr: number, reviewers: reviewers, stderr: stderr.strip)
+          return false
+        end
+
+        Aidp.log_info("repository_client", "reviewers_requested",
+          pr: number, reviewers: reviewers)
+        true
+      rescue => e
+        Aidp.log_error("repository_client", "request_reviewers_exception",
+          pr: number, reviewers: reviewers, error: e.message)
+        false
+      end
+
+      def most_recent_pr_label_actor_via_gh(number)
+        # Use GitHub GraphQL API to fetch the most recent label event actor for a PR
+        query = <<~GRAPHQL
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $number) {
+                timelineItems(last: 100, itemTypes: [LABELED_EVENT]) {
+                  nodes {
+                    ... on LabeledEvent {
+                      createdAt
+                      actor {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        cmd = [
+          "gh", "api", "graphql",
+          "-f", "query=#{query}",
+          "-F", "owner=#{owner}",
+          "-F", "repo=#{repo}",
+          "-F", "number=#{number}"
+        ]
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        unless status.success?
+          Aidp.log_warn("repository_client", "pr_label_actor_query_failed",
+            pr: number, error: stderr.strip)
+          return nil
+        end
+
+        data = JSON.parse(stdout)
+        events = data.dig("data", "repository", "pullRequest", "timelineItems", "nodes") || []
+
+        valid_events = events.select { |event| event.dig("actor", "login") }
+        return nil if valid_events.empty?
+
+        most_recent = valid_events.max_by { |event| event["createdAt"] }
+        most_recent.dig("actor", "login")
+      rescue JSON::ParserError => e
+        Aidp.log_warn("repository_client", "pr_label_actor_parse_failed",
+          pr: number, error: e.message)
+        nil
+      rescue => e
+        Aidp.log_warn("repository_client", "pr_label_actor_exception",
+          pr: number, error: e.message)
+        nil
       end
 
       # Normalization methods for PRs
