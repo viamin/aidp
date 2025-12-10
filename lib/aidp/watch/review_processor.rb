@@ -204,12 +204,35 @@ module Aidp
           else
             parts << "### ⚠️ Implementation Incomplete"
             parts << ""
-            parts << "**This PR appears to be incomplete based on the linked issue requirements:**"
+            parts << "**This PR appears to be incomplete based on the linked issue requirements.**"
             parts << ""
-            verification_result[:reasons]&.each do |reason|
-              parts << "- #{reason}"
+
+            # Show the verification reasoning
+            if verification_result[:reason]
+              parts << "**Summary:** #{verification_result[:reason]}"
+              parts << ""
             end
-            parts << ""
+
+            # Show missing requirements for implementers to address
+            if verification_result[:missing_items]&.any?
+              parts << "**Missing Requirements:**"
+              parts << ""
+              verification_result[:missing_items].each do |item|
+                parts << "- #{item}"
+              end
+              parts << ""
+            end
+
+            # Show additional work needed for implementers
+            if verification_result[:additional_work]&.any?
+              parts << "**Additional Work Needed:**"
+              parts << ""
+              verification_result[:additional_work].each do |work|
+                parts << "- #{work}"
+              end
+              parts << ""
+            end
+
             parts << "**Suggested Action:** Add the `aidp-request-changes` label if you'd like AIDP to help complete the implementation."
           end
           parts << ""
