@@ -390,7 +390,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint eval mcp issue config init watch ws work skill settings models tools].include?(args.first)
+        %w[status jobs kb harness providers checkpoint eval mcp issue config init watch ws work skill settings models tools security].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -415,6 +415,7 @@ module Aidp
         when "settings" then run_settings_command(args)
         when "models" then run_models_command(args)
         when "tools" then run_tools_command(args)
+        when "security" then run_security_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -772,6 +773,12 @@ module Aidp
         require_relative "cli/tools_command"
         tools_cmd = Aidp::CLI::ToolsCommand.new(project_dir: Dir.pwd, prompt: create_prompt)
         tools_cmd.run(args)
+      end
+
+      def run_security_command(args)
+        require_relative "cli/security_command"
+        security_cmd = Aidp::CLI::SecurityCommand.new(project_dir: Dir.pwd, prompt: create_prompt)
+        security_cmd.run(args)
       end
 
       def run_issue_command(args)

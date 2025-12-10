@@ -12,6 +12,7 @@ require_relative "steps"
 require_relative "../harness/test_runner"
 require_relative "../errors"
 require_relative "../style_guide/selector"
+require_relative "../security"
 
 module Aidp
   module Execute
@@ -77,6 +78,9 @@ module Aidp
 
         # FIX for issue #391: Initialize prompt evaluator for iteration threshold assessment
         @prompt_evaluator = options[:prompt_evaluator] || PromptEvaluator.new(config)
+
+        # Initialize security adapter for Rule of Two enforcement
+        @security_adapter = options[:security_adapter] || Aidp::Security::WorkLoopAdapter.new(project_dir: project_dir)
       end
 
       # Execute a step using fix-forward work loop pattern
@@ -147,6 +151,11 @@ module Aidp
         @current_state = :ready
         @state_history.clear
 
+        # Begin security tracking for this agentic work unit
+        work_unit_id = "agentic_#{@step_name}_#{SecureRandom.hex(4)}"
+        @security_adapter.begin_work_unit(work_unit_id: work_unit_id, context: context)
+        display_security_status
+
         create_initial_prompt(step_spec, context)
 
         loop do
@@ -158,6 +167,10 @@ module Aidp
             display_message("⚠️  Max iterations (#{MAX_ITERATIONS}) reached for #{@step_name}", type: :warning)
             display_state_summary
             archive_and_cleanup
+
+            # End security tracking for this work unit
+            @security_adapter.end_work_unit
+
             return build_agentic_payload(
               agent_result: nil,
               response: build_max_iterations_result,
@@ -182,12 +195,45 @@ module Aidp
             prompt_length: prompt_length,
             checks: checks_summary)
 
+          # Check security policy before agent call (Rule of Two enforcement)
+          # Agent calls enable egress capability
+          begin
+            @security_adapter.check_agent_call_allowed!(operation: :agent_execution)
+          rescue Aidp::Security::PolicyViolation => e
+            # Security policy violation - cannot proceed with agent call
+            Aidp.logger.error("work_loop", "Security policy violation",
+              step: @step_name,
+              iteration: @iteration_count,
+              error: e.message)
+            display_message("  🛡️  Security policy violation: #{e.message}", type: :error)
+            display_message("  Cannot proceed - Rule of Two would be violated", type: :error)
+
+            # End security tracking and return error
+            @security_adapter.end_work_unit
+            return build_agentic_payload(
+              agent_result: nil,
+              response: {status: "error", message: "Security policy violation: #{e.message}"},
+              summary: nil,
+              completed: false,
+              terminate: true
+            )
+          end
+
           # Wrap agent call in exception handling for true fix-forward
           begin
             agent_result = apply_patch(preview_provider, preview_model)
           rescue Aidp::Errors::ConfigurationError
             # Configuration errors should crash immediately (crash-early principle)
             # Re-raise without catching
+            raise
+          rescue Aidp::Security::PolicyViolation => e
+            # Security violations should not continue - they are policy failures
+            Aidp.logger.error("work_loop", "Security policy violation during agent call",
+              step: @step_name,
+              iteration: @iteration_count,
+              error: e.message)
+            display_message("  🛡️  Security violation: #{e.message}", type: :error)
+            @security_adapter.end_work_unit
             raise
           rescue => e
             # Convert exception to error result for fix-forward handling
@@ -305,6 +351,9 @@ module Aidp
                   task_status: "complete",
                   completion_reason: task_completion_result[:reason])
                 archive_and_cleanup
+
+                # End security tracking for this work unit
+                @security_adapter.end_work_unit
 
                 return build_agentic_payload(
                   agent_result: agent_result,
@@ -973,18 +1022,27 @@ module Aidp
         # CRITICAL: Change to project directory before calling provider
         # This ensures Claude CLI runs in the correct directory and can create files
         Dir.chdir(@project_dir) do
-          # Send to provider via provider_manager with selected model
-          @provider_manager.execute_with_provider(
-            provider_name,
-            full_prompt,
-            {
-              step_name: @step_name,
-              iteration: @iteration_count,
-              project_dir: @project_dir,
-              model: model_name,
-              tier: @thinking_depth_manager.current_tier
-            }
-          )
+          # Execute with sanitized environment (secrets stripped) when security is enabled
+          # This ensures agent processes cannot access registered secrets directly
+          execute_block = lambda do
+            @provider_manager.execute_with_provider(
+              provider_name,
+              full_prompt,
+              {
+                step_name: @step_name,
+                iteration: @iteration_count,
+                project_dir: @project_dir,
+                model: model_name,
+                tier: @thinking_depth_manager.current_tier
+              }
+            )
+          end
+
+          if @security_adapter.enabled?
+            @security_adapter.with_sanitized_environment(&execute_block)
+          else
+            execute_block.call
+          end
         end
       end
 
@@ -1650,6 +1708,29 @@ module Aidp
 
         if summary[:max_lines_per_commit]
           display_message("  📏 Max lines per commit: #{summary[:max_lines_per_commit]}", type: :info)
+        end
+
+        display_message("")
+      end
+
+      # Display security status for Rule of Two enforcement
+      def display_security_status
+        status = @security_adapter.status
+        return unless status[:enabled]
+
+        display_message("\n🔒 Security (Rule of Two):", type: :info)
+        display_message("  #{status[:status_string]}", type: :info)
+
+        if status[:state]
+          state = status[:state]
+          flags = []
+          flags << "untrusted_input (#{state[:untrusted_input_source]})" if state[:untrusted_input]
+          flags << "private_data (#{state[:private_data_source]})" if state[:private_data]
+          flags << "egress (#{state[:egress_source]})" if state[:egress]
+
+          if flags.any?
+            display_message("  Active flags: #{flags.join(", ")}", type: :info)
+          end
         end
 
         display_message("")

@@ -26,6 +26,12 @@ module Aidp
     def self.evaluations_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "evaluations")
     def self.evaluations_index_file(project_dir = Dir.pwd) = File.join(evaluations_dir(project_dir), "index.json")
 
+    # Security module paths
+    def self.security_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "security")
+    def self.secrets_registry_file(project_dir = Dir.pwd) = File.join(security_dir(project_dir), "secrets_registry.json")
+    def self.security_audit_log_file(project_dir = Dir.pwd) = File.join(security_dir(project_dir), "audit.jsonl")
+    def self.mcp_risk_profile_file(project_dir = Dir.pwd) = File.join(security_dir(project_dir), "mcp_risk_profile.yml")
+
     def self.config_exists?(project_dir = Dir.pwd)
       File.exist?(config_file(project_dir))
     end
@@ -72,6 +78,12 @@ module Aidp
 
     def self.ensure_evaluations_dir(project_dir = Dir.pwd)
       dir = evaluations_dir(project_dir)
+      FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
+      dir
+    end
+
+    def self.ensure_security_dir(project_dir = Dir.pwd)
+      dir = security_dir(project_dir)
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       dir
     end
