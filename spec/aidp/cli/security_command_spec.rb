@@ -7,6 +7,9 @@ require "aidp/security"
 RSpec.describe Aidp::CLI::SecurityCommand do
   let(:project_dir) { Dir.mktmpdir("security_command_spec") }
   let(:mock_prompt) { instance_double(TTY::Prompt) }
+  let(:mock_registry) { instance_double(Aidp::Security::SecretsRegistry) }
+  let(:mock_proxy) { instance_double(Aidp::Security::SecretsProxy) }
+  let(:mock_enforcer) { instance_double(Aidp::Security::RuleOfTwoEnforcer) }
 
   subject(:command) do
     described_class.new(project_dir: project_dir, prompt: mock_prompt)
@@ -17,13 +20,25 @@ RSpec.describe Aidp::CLI::SecurityCommand do
     allow(mock_prompt).to receive(:ok)
     allow(mock_prompt).to receive(:warn)
     allow(mock_prompt).to receive(:error)
-    # Reset security state
-    Aidp::Security.reset!
+
+    # Mock the Security module methods to avoid filesystem access
+    allow(Aidp::Security).to receive(:secrets_registry).and_return(mock_registry)
+    allow(Aidp::Security).to receive(:secrets_proxy).and_return(mock_proxy)
+    allow(Aidp::Security).to receive(:enforcer).and_return(mock_enforcer)
+
+    # Default mock behaviors
+    allow(mock_registry).to receive(:list).and_return([])
+    allow(mock_registry).to receive(:registered?).and_return(false)
+    allow(mock_registry).to receive(:unregister).and_return(true)
+    allow(mock_proxy).to receive(:registry).and_return(mock_registry)
+    allow(mock_proxy).to receive(:active_tokens_summary).and_return([])
+    allow(mock_proxy).to receive(:usage_log).and_return([])
+    allow(mock_proxy).to receive(:revoke_all_for_secret).and_return(0)
+    allow(mock_enforcer).to receive(:status_summary).and_return({active_work_units: 0, completed_work_units: 0})
   end
 
   after do
     FileUtils.rm_rf(project_dir) if project_dir && Dir.exist?(project_dir)
-    Aidp::Security.reset!
   end
 
   describe "#run" do
@@ -142,11 +157,7 @@ RSpec.describe Aidp::CLI::SecurityCommand do
   describe "#run_list" do
     context "when no secrets registered" do
       before do
-        # Ensure registry is empty by using a fresh registry
-        registry = Aidp::Security.secrets_registry
-        registry.list.each do |secret|
-          registry.unregister(name: secret[:name])
-        end
+        allow(mock_registry).to receive(:list).and_return([])
       end
 
       it "shows no secrets message" do
@@ -157,8 +168,9 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
     context "when secrets are registered" do
       before do
-        registry = Aidp::Security.secrets_registry
-        registry.register(name: "test_secret", env_var: "TEST_SECRET")
+        allow(mock_registry).to receive(:list).and_return([
+          {name: "test_secret", env_var: "TEST_SECRET", scopes: [], has_value: true, registered_at: "2024-01-01T00:00:00Z"}
+        ])
       end
 
       it "displays secrets table" do
@@ -169,18 +181,10 @@ RSpec.describe Aidp::CLI::SecurityCommand do
   end
 
   describe "#run_register" do
-    # Clean up any existing registrations before each test
-    before do
-      registry = Aidp::Security.secrets_registry
-      %w[existing new_secret fail_secret].each do |name|
-        registry.unregister(name: name) if registry.registered?(name)
-      end
-    end
-
     context "when secret is already registered" do
       before do
-        registry = Aidp::Security.secrets_registry
-        registry.register(name: "existing", env_var: "EXISTING_VAR")
+        allow(mock_registry).to receive(:registered?).with("existing").and_return(true)
+        allow(mock_registry).to receive(:get).with("existing").and_return({env_var: "EXISTING_VAR"})
       end
 
       it "returns error" do
@@ -191,6 +195,7 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
     context "when env var does not exist" do
       before do
+        allow(mock_registry).to receive(:registered?).with("new_secret").and_return(false)
         allow(ENV).to receive(:key?).and_call_original
         allow(ENV).to receive(:key?).with("MISSING_VAR").and_return(false)
         allow(mock_prompt).to receive(:yes?).and_return(false)
@@ -205,9 +210,11 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
     context "when registration succeeds" do
       before do
+        allow(mock_registry).to receive(:registered?).with("new_secret").and_return(false)
         allow(ENV).to receive(:key?).and_call_original
         allow(ENV).to receive(:key?).with("NEW_SECRET").and_return(true)
         allow(mock_prompt).to receive(:ask).and_return(nil)
+        allow(mock_registry).to receive(:register).and_return({id: "sec_123", registered_at: "2024-01-01T00:00:00Z"})
       end
 
       it "registers the secret" do
@@ -218,11 +225,11 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
     context "when registration fails" do
       before do
+        allow(mock_registry).to receive(:registered?).with("fail_secret").and_return(false)
         allow(ENV).to receive(:key?).and_call_original
         allow(ENV).to receive(:key?).with("FAIL_VAR").and_return(true)
         allow(mock_prompt).to receive(:ask).and_return(nil)
-        registry = Aidp::Security.secrets_registry
-        allow(registry).to receive(:register).and_raise(StandardError, "Database error")
+        allow(mock_registry).to receive(:register).and_raise(StandardError, "Database error")
       end
 
       it "returns error" do
@@ -234,6 +241,10 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
   describe "#run_unregister" do
     context "when secret is not registered" do
+      before do
+        allow(mock_registry).to receive(:registered?).with("unknown").and_return(false)
+      end
+
       it "returns error" do
         expect(mock_prompt).to receive(:error).with("Secret 'unknown' is not registered")
         expect(command.run_unregister("unknown")).to eq(1)
@@ -242,8 +253,7 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
     context "when user cancels" do
       before do
-        registry = Aidp::Security.secrets_registry
-        registry.register(name: "to_remove", env_var: "TO_REMOVE")
+        allow(mock_registry).to receive(:registered?).with("to_remove").and_return(true)
         allow(mock_prompt).to receive(:yes?).and_return(false)
       end
 
@@ -255,14 +265,27 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
     context "when user confirms" do
       before do
-        registry = Aidp::Security.secrets_registry
-        registry.register(name: "to_remove", env_var: "TO_REMOVE")
+        allow(mock_registry).to receive(:registered?).with("to_remove").and_return(true)
+        allow(mock_registry).to receive(:unregister).with(name: "to_remove").and_return(true)
         allow(mock_prompt).to receive(:yes?).and_return(true)
       end
 
       it "unregisters the secret" do
         expect(mock_prompt).to receive(:ok).with("Secret 'to_remove' unregistered")
         expect(command.run_unregister("to_remove")).to eq(0)
+      end
+    end
+
+    context "when unregistration fails" do
+      before do
+        allow(mock_registry).to receive(:registered?).with("fail_remove").and_return(true)
+        allow(mock_registry).to receive(:unregister).with(name: "fail_remove").and_return(false)
+        allow(mock_prompt).to receive(:yes?).and_return(true)
+      end
+
+      it "returns error" do
+        expect(mock_prompt).to receive(:error).with("Failed to unregister secret")
+        expect(command.run_unregister("fail_remove")).to eq(1)
       end
     end
   end
@@ -275,13 +298,25 @@ RSpec.describe Aidp::CLI::SecurityCommand do
 
     context "with active tokens" do
       before do
-        registry = Aidp::Security.secrets_registry
-        registry.register(name: "active_secret", env_var: "ACTIVE_SECRET")
-        proxy = Aidp::Security.secrets_proxy
-        proxy.request_token(secret_name: "active_secret")
+        allow(mock_proxy).to receive(:active_tokens_summary).and_return([
+          {secret_name: "active_secret", scope: "read", remaining_ttl: 120, used: false}
+        ])
       end
 
       it "displays active tokens table" do
+        expect(mock_prompt).to receive(:say).at_least(:once)
+        expect(command.run_proxy_status).to eq(0)
+      end
+    end
+
+    context "with usage log" do
+      before do
+        allow(mock_proxy).to receive(:usage_log).and_return([
+          {secret_name: "used_secret", scope: "write", used_at: "2024-01-01T12:00:00Z"}
+        ])
+      end
+
+      it "displays usage log" do
         expect(mock_prompt).to receive(:say).at_least(:once)
         expect(command.run_proxy_status).to eq(0)
       end
