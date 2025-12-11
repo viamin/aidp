@@ -291,8 +291,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       it "displays warning message when max iterations reached" do
         # Capture display messages during execution
         displayed_messages = []
-        allow(runner).to receive(:display_message) do |message, options|
-          displayed_messages << {message: message, type: options[:type]}
+        allow(runner).to receive(:display_message) do |message, options = {}|
+          displayed_messages << {message: message, type: options&.dig(:type)}
         end
 
         # Setup persistent test failures
