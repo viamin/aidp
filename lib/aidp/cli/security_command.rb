@@ -314,6 +314,9 @@ module Aidp
         0
       end
 
+      # Default timeout for audit command (5 minutes)
+      AUDIT_TIMEOUT_SECONDS = 300
+
       # Run audit command - run security audit tests
       def run_audit(args)
         Aidp.log_info("security_cli", "running_audit")
@@ -345,23 +348,60 @@ module Aidp
           return 0
         end
 
-        # Run RSpec
+        # Run RSpec with timeout protection
         cmd = "bundle exec rspec #{rspec_path} --format documentation"
         @prompt.say("$ #{cmd}\n")
+        @prompt.say("(timeout: #{AUDIT_TIMEOUT_SECONDS / 60} minutes)\n")
 
-        system(cmd)
-        exit_status = $?.exitstatus
+        exit_status = run_with_timeout(cmd, AUDIT_TIMEOUT_SECONDS)
 
-        if exit_status == 0
+        case exit_status
+        when 0
           @prompt.ok("\nSecurity audit passed")
+        when :timeout
+          @prompt.error("\nSecurity audit timed out after #{AUDIT_TIMEOUT_SECONDS / 60} minutes")
+          return 1
         else
           @prompt.error("\nSecurity audit failed")
         end
 
-        exit_status
+        exit_status.is_a?(Integer) ? exit_status : 1
       end
 
       private
+
+      # Run a command with timeout protection
+      # @param cmd [String] The command to execute
+      # @param timeout [Integer] Timeout in seconds
+      # @return [Integer, Symbol] Exit status or :timeout
+      def run_with_timeout(cmd, timeout)
+        pid = spawn(cmd)
+        start_time = Time.now
+
+        loop do
+          # Check if process has exited
+          result = Process.waitpid(pid, Process::WNOHANG)
+          return $?.exitstatus if result
+
+          # Check timeout
+          if Time.now - start_time > timeout
+            Process.kill("TERM", pid)
+            sleep 0.5
+            begin
+              Process.kill("KILL", pid)
+            rescue Errno::ESRCH
+              # Process already exited
+            end
+            Process.waitpid(pid)
+            return :timeout
+          end
+
+          sleep 0.5
+        end
+      rescue => e
+        Aidp.log_error("security_cli", "audit_execution_error", error: e.message)
+        1
+      end
 
       # Parse --env-var option from args
       def parse_env_var_option(args)

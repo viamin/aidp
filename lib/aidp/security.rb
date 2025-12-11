@@ -10,9 +10,10 @@
 #
 # When all three would be active ("lethal trifecta"), the operation is denied.
 
+# Error classes are defined in lib/aidp/errors.rb and aliased into this module
+require_relative "errors"
 require_relative "security/trifecta_state"
 require_relative "security/rule_of_two_enforcer"
-require_relative "security/policy_violation"
 require_relative "security/secrets_registry"
 require_relative "security/secrets_proxy"
 require_relative "security/work_loop_adapter"

@@ -24,6 +24,7 @@ module Aidp
       def initialize(project_dir: Dir.pwd)
         @project_dir = project_dir
         @cache = nil
+        @cache_mtime = nil
         @mutex = Mutex.new
       end
 
@@ -166,7 +167,10 @@ module Aidp
 
       # Clear the in-memory cache (forces reload on next access)
       def clear_cache!
-        @mutex.synchronize { @cache = nil }
+        @mutex.synchronize do
+          @cache = nil
+          @cache_mtime = nil
+        end
       end
 
       private
@@ -181,13 +185,17 @@ module Aidp
       end
 
       def load_registry
-        return @cache if @cache
+        # Check if cache is still valid based on file mtime
+        return @cache if cache_valid?
 
         if File.exist?(registry_path)
           content = File.read(registry_path)
           @cache = JSON.parse(content, symbolize_names: true)
+          @cache_mtime = File.mtime(registry_path)
+          Aidp.log_debug("security.registry", "cache_loaded", path: registry_path)
         else
           @cache = {}
+          @cache_mtime = nil
         end
 
         @cache
@@ -196,12 +204,23 @@ module Aidp
           error: e.message,
           path: registry_path)
         @cache = {}
+        @cache_mtime = nil
+        @cache
+      end
+
+      def cache_valid?
+        return false unless @cache
+        return true unless File.exist?(registry_path)
+
+        current_mtime = File.mtime(registry_path)
+        @cache_mtime && current_mtime == @cache_mtime
       end
 
       def save_registry(registry)
         ensure_security_dir
         File.write(registry_path, JSON.pretty_generate(registry))
         @cache = registry
+        @cache_mtime = File.mtime(registry_path)
       end
     end
   end

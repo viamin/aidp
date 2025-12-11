@@ -26,12 +26,16 @@ module Aidp
 
       attr_reader :registry, :config
 
+      # How often to run automatic cleanup (every N operations)
+      CLEANUP_INTERVAL = 10
+
       def initialize(registry:, config: {})
         @registry = registry
         @config = config
         @active_tokens = {}
         @token_usage_log = []
         @mutex = Mutex.new
+        @operation_count = 0
       end
 
       # Request a token for accessing a registered secret
@@ -42,6 +46,8 @@ module Aidp
       # @raise [UnregisteredSecretError] if secret is not registered
       def request_token(secret_name:, scope: nil, ttl: nil)
         @mutex.synchronize do
+          # Periodic cleanup to prevent memory leaks
+          maybe_cleanup_expired
           # Verify secret is registered
           registration = @registry.get(secret_name)
           unless registration
@@ -280,6 +286,26 @@ module Aidp
       end
 
       private
+
+      # Periodically clean up expired tokens to prevent memory leaks
+      # Called automatically during token operations
+      def maybe_cleanup_expired
+        @operation_count += 1
+        return unless @operation_count >= CLEANUP_INTERVAL
+
+        @operation_count = 0
+        cleanup_expired_internal
+      end
+
+      # Internal cleanup without mutex (called from within synchronized blocks)
+      def cleanup_expired_internal
+        now = Time.now
+        expired = @active_tokens.select { |_t, d| now > d[:expires_at] }
+        return if expired.empty?
+
+        expired.keys.each { |t| @active_tokens.delete(t) }
+        Aidp.log_debug("security.proxy", "auto_cleanup_expired", count: expired.size)
+      end
 
       def generate_token
         "aidp_proxy_#{SecureRandom.hex(24)}"

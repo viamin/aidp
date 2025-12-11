@@ -189,7 +189,6 @@ module Aidp
         loader.ignore(File.expand_path("auto_update/errors.rb", __dir__))
         loader.ignore(File.expand_path("errors.rb", __dir__))
         loader.ignore(File.expand_path("harness/state/errors.rb", __dir__))
-        loader.ignore(File.expand_path("security/policy_violation.rb", __dir__))
       end
     end
   end
