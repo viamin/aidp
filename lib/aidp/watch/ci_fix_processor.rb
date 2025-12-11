@@ -548,20 +548,31 @@ module Aidp
         slug = "pr-#{pr_number}-ci-fix"
         display_message("🌿 Creating worktree for PR ##{pr_number}: #{head_ref}", type: :info)
 
-        # Fetch the branch first
+        # Fetch the branch first to ensure we have the latest refs
         Dir.chdir(@project_dir) do
           run_git(%w[fetch origin])
         end
 
-        # Create worktree
+        # Create worktree - Worktree.create will automatically use origin/head_ref
+        # as base if the branch only exists on the remote (e.g., PRs from Claude Code Web)
         result = Aidp::Worktree.create(
           slug: slug,
           project_dir: @project_dir,
           branch: head_ref,
-          base_branch: nil # Branch already exists, no base needed
+          base_branch: nil
         )
 
         worktree_path = result[:path]
+
+        # Ensure the local branch tracks the remote and has latest changes
+        # This handles cases where the branch was created from origin/branch
+        Dir.chdir(worktree_path) do
+          # Set upstream tracking if not already set
+          run_git(["branch", "--set-upstream-to=origin/#{head_ref}", head_ref], allow_failure: true)
+          # Pull any changes that may have been pushed since fetch
+          run_git(%w[pull --ff-only], allow_failure: true)
+        end
+
         Aidp.log_debug("ci_fix_processor", "worktree_created", pr_number: pr_number, branch: head_ref, path: worktree_path)
         display_message("✅ Worktree created at #{worktree_path}", type: :success)
 

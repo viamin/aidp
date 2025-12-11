@@ -87,6 +87,101 @@ RSpec.describe Aidp::Worktree, "integration with real git", :integration do
     end
   end
 
+  describe "remote-only branches" do
+    let(:remote_dir) { Dir.mktmpdir("aidp_worktree_remote") }
+
+    before do
+      # Create a "remote" bare repository
+      Dir.chdir(remote_dir) do
+        system("git", "init", "--bare", out: File::NULL, err: File::NULL)
+      end
+
+      # Add it as origin to our test repo
+      Dir.chdir(project_dir) do
+        system("git", "remote", "add", "origin", remote_dir, out: File::NULL, err: File::NULL)
+        system("git", "push", "-u", "origin", "master", out: File::NULL, err: File::NULL)
+      end
+    end
+
+    after do
+      FileUtils.rm_rf(remote_dir)
+    end
+
+    it "creates worktree from remote branch when branch only exists on origin" do
+      # Create a branch on the remote with different content
+      clone_dir = Dir.mktmpdir("aidp_worktree_clone")
+      begin
+        Dir.chdir(clone_dir) do
+          system("git", "clone", remote_dir, ".", out: File::NULL, err: File::NULL)
+          system("git", "config", "user.name", "Remote User", out: File::NULL, err: File::NULL)
+          system("git", "config", "user.email", "remote@example.com", out: File::NULL, err: File::NULL)
+          system("git", "config", "commit.gpgsign", "false", out: File::NULL, err: File::NULL)
+          system("git", "checkout", "-b", "claude/pr-feature", out: File::NULL, err: File::NULL)
+          File.write("pr_changes.txt", "Changes from PR branch\n")
+          system("git", "add", "pr_changes.txt", out: File::NULL, err: File::NULL)
+          system("git", "commit", "-m", "PR changes", out: File::NULL, err: File::NULL)
+          system("git", "push", "origin", "claude/pr-feature", out: File::NULL, err: File::NULL)
+        end
+
+        # Now in our main repo, fetch but DON'T checkout the branch
+        Dir.chdir(project_dir) do
+          system("git", "fetch", "origin", out: File::NULL, err: File::NULL)
+
+          # Verify the local branch does NOT exist
+          local_exists = system("git", "show-ref", "--verify", "--quiet", "refs/heads/claude/pr-feature")
+          expect(local_exists).to be false
+
+          # Verify the remote branch DOES exist
+          remote_exists = system("git", "show-ref", "--verify", "--quiet", "refs/remotes/origin/claude/pr-feature")
+          expect(remote_exists).to be true
+        end
+
+        # Create worktree with the remote-only branch
+        result = described_class.create(
+          slug: "pr-123-ci-fix",
+          project_dir: project_dir,
+          branch: "claude/pr-feature",
+          base_branch: nil
+        )
+
+        expect(result[:path]).to include(".worktrees/pr-123-ci-fix")
+        expect(Dir.exist?(result[:path])).to be true
+
+        # Verify the worktree has the PR's content (not HEAD from master)
+        pr_file = File.join(result[:path], "pr_changes.txt")
+        expect(File.exist?(pr_file)).to be true
+        expect(File.read(pr_file)).to eq("Changes from PR branch\n")
+
+        # Verify the local branch was created
+        Dir.chdir(project_dir) do
+          local_exists = system("git", "show-ref", "--verify", "--quiet", "refs/heads/claude/pr-feature")
+          expect(local_exists).to be true
+        end
+      ensure
+        FileUtils.rm_rf(clone_dir)
+        described_class.remove(slug: "pr-123-ci-fix", project_dir: project_dir) rescue nil
+      end
+    end
+
+    it "falls back to HEAD when branch doesn't exist locally or on remote" do
+      result = described_class.create(
+        slug: "new-branch-test",
+        project_dir: project_dir,
+        branch: "brand-new-branch",
+        base_branch: nil
+      )
+
+      expect(result[:path]).to include(".worktrees/new-branch-test")
+      expect(Dir.exist?(result[:path])).to be true
+
+      # Verify the branch was created from HEAD (has README but no pr_changes.txt)
+      readme_file = File.join(result[:path], "README.md")
+      expect(File.exist?(readme_file)).to be true
+
+      described_class.remove(slug: "new-branch-test", project_dir: project_dir)
+    end
+  end
+
   describe ".find_by_branch" do
     it "finds worktree by branch name" do
       described_class.create(
