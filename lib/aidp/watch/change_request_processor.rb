@@ -506,14 +506,24 @@ module Aidp
           slug: slug
         )
 
+        # Don't pass base_branch - let Worktree.create auto-detect from origin/head_ref
+        # if the branch exists on the remote. This ensures we get the PR's actual commits
+        # for PRs created by external tools (Claude Code Web, GitHub UI, etc.)
         result = Aidp::Worktree.create(
           slug: slug,
           project_dir: @project_dir,
           branch: head_ref,
-          base_branch: pr_data[:base_ref]
+          base_branch: nil
         )
 
-        result[:path]
+        worktree_path = result[:path]
+
+        # Ensure tracking is set up for the remote branch
+        Dir.chdir(worktree_path) do
+          run_git(["branch", "--set-upstream-to=origin/#{head_ref}", head_ref], allow_failure: true)
+        end
+
+        worktree_path
       end
 
       def apply_changes(changes)
