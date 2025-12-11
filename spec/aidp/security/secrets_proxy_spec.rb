@@ -143,7 +143,7 @@ RSpec.describe Aidp::Security::SecretsProxy do
     end
 
     it "restores secrets after block" do
-      proxy.with_sanitized_environment { }
+      proxy.with_sanitized_environment {}
       expect(ENV["TEST_SECRET"]).to eq("secret_value_123")
     end
 
