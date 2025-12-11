@@ -159,7 +159,11 @@ RSpec.describe Aidp::Worktree, "integration with real git", :integration do
         end
       ensure
         FileUtils.rm_rf(clone_dir)
-        described_class.remove(slug: "pr-123-ci-fix", project_dir: project_dir) rescue nil
+        begin
+          described_class.remove(slug: "pr-123-ci-fix", project_dir: project_dir)
+        rescue Aidp::Worktree::WorktreeNotFound
+          # Worktree may not exist if test failed before creation
+        end
       end
     end
 
