@@ -13,6 +13,7 @@ The three dangerous conditions are:
 3. **Egress Capability** (`egress`) - Ability to communicate externally via git push, API calls, HTTP requests, or other network operations
 
 When all three conditions are active simultaneously (the "lethal trifecta"), an attacker could potentially:
+
 - Inject malicious instructions via untrusted input
 - Access sensitive credentials
 - Exfiltrate those credentials to an external server
@@ -23,7 +24,7 @@ By limiting operations to a maximum of two conditions, we break the attack chain
 
 ### Core Components
 
-```
+```text
 lib/aidp/security/
 ├── trifecta_state.rb       # State machine for tracking the three flags
 ├── rule_of_two_enforcer.rb # Main enforcement engine
@@ -65,6 +66,7 @@ end
 ### SecretsProxy
 
 Agents never receive raw credentials. Instead, the SecretsProxy:
+
 1. Stores registered secrets in a secure registry
 2. Issues short-lived, capability-scoped tokens
 3. Exchanges tokens for actual credentials at execution time
@@ -158,7 +160,7 @@ The security framework automatically integrates with AIDP's work loops:
 
 ### Example Flow
 
-```
+```text
 Issue from GitHub (untrusted_input=true)
          ↓
     Work Loop starts
@@ -230,6 +232,7 @@ bundle exec rspec spec/aidp/security/
 ### Prompt Injection Scenarios
 
 The audit command runs scenarios that test resistance to:
+
 - Direct prompt injection in issue bodies
 - Indirect injection via referenced content
 - Credential extraction attempts
@@ -239,14 +242,15 @@ The audit command runs scenarios that test resistance to:
 
 The security framework respects these environment variables:
 
-| Variable | Description |
-|----------|-------------|
-| `AIDP_SECURITY_DISABLED` | Set to `1` to disable all security enforcement (testing only) |
-| `AIDP_PROXY_TOKEN_TTL` | Override default token TTL in seconds |
+| Variable                 | Description                                                    |
+|--------------------------|----------------------------------------------------------------|
+| `AIDP_SECURITY_DISABLED` | Set to `1` to disable all security enforcement (testing only)  |
+| `AIDP_PROXY_TOKEN_TTL`   | Override default token TTL in seconds                          |
 
 ## Future Work
 
 See [Issue #XXX: MCP Tool Risk Classification via AGD](link) for planned improvements:
+
 - Automatic risk profiling of MCP tools
 - AI-generated deterministic rules for tool classification
 - Integration with devcontainer security policies
