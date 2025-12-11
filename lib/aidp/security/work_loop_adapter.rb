@@ -12,11 +12,11 @@ module Aidp
     # - Private data detection (registered secrets)
     #
     # Usage:
-    #   adapter = WorkLoopSecurityAdapter.new(project_dir: Dir.pwd)
+    #   adapter = WorkLoopAdapter.new(project_dir: Dir.pwd)
     #   adapter.begin_work_unit(work_unit_id: "unit_123", context: context)
     #   adapter.check_agent_call_allowed!(operation: :git_push)
     #   adapter.end_work_unit
-    class WorkLoopSecurityAdapter
+    class WorkLoopAdapter
       attr_reader :project_dir, :config, :current_work_unit_id, :current_state
 
       # Sources of untrusted input that trigger the untrusted_input flag
