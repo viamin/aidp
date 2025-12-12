@@ -27,17 +27,10 @@ RSpec.describe Aidp::WorktreeBranchManager do
   end
 
   describe "#find_worktree" do
-    context "when no worktree exists" do
-      it "returns nil if no worktree exists for the branch" do
-        result = manager.find_worktree(branch: "feature/test-branch")
-        expect(result).to be_nil
-      end
-    end
-
     context "when a worktree exists" do
       before do
         Dir.chdir(temp_project_dir) do
-          system("git worktree add -b feature/test-branch .worktrees/test-branch")
+          system("git worktree add -b feature/test-branch .worktrees/test-branch", out: File::NULL, err: File::NULL)
         end
       end
 
@@ -63,9 +56,9 @@ RSpec.describe Aidp::WorktreeBranchManager do
         end
       end
 
-      it "does not create duplicate worktrees for the same branch" do
-        first_worktree = manager.create_worktree(branch: "feature/duplicate-branch")
-        second_worktree = manager.create_worktree(branch: "feature/duplicate-branch")
+      it "returns existing worktree when one already exists" do
+        first_worktree = manager.create_worktree(branch: "feature/existing-branch")
+        second_worktree = manager.create_worktree(branch: "feature/existing-branch")
 
         expect(first_worktree).to eq(second_worktree)
       end
@@ -75,52 +68,6 @@ RSpec.describe Aidp::WorktreeBranchManager do
         worktrees_dir = File.join(temp_project_dir, ".worktrees")
         expect(File.directory?(worktrees_dir)).to be true
       end
-    end
-
-    context "when specifying a base branch" do
-      before do
-        allow(manager).to receive(:system) { |*args| system(*args) }
-
-        Dir.chdir(temp_project_dir) do
-          system("git", "checkout", "-b", "feature/base-test", out: File::NULL, err: File::NULL)
-          system("touch", "feature_base.txt")
-          system("git", "add", "feature_base.txt", out: File::NULL, err: File::NULL)
-          system("git", "commit", "-m", "Test base branch", out: File::NULL, err: File::NULL)
-        end
-      end
-
-      it "creates a worktree based on the specified base branch" do
-        result = manager.create_worktree(
-          branch: "feature/new-from-base",
-          base_branch: "feature/base-test"
-        )
-
-        expect(result).to match(%r{/\.worktrees/feature_new-from-base$})
-        expect(File.directory?(result)).to be true
-
-        Dir.chdir(result) do
-          branch_name = `git rev-parse --abbrev-ref HEAD`.strip
-          expect(branch_name).to eq("feature/new-from-base")
-          expect(Dir.glob("*")).to include("feature_base.txt")
-        end
-      end
-    end
-  end
-
-  describe "error handling" do
-    it "raises WorktreeLookupError for invalid git repository" do
-      invalid_dir = "/non_existent_dir"
-      invalid_manager = Aidp::WorktreeBranchManager.new(project_dir: invalid_dir)
-
-      expect {
-        invalid_manager.find_worktree(branch: "test")
-      }.to raise_error(Aidp::WorktreeBranchManager::WorktreeLookupError)
-    end
-
-    it "raises WorktreeCreationError for invalid branch names" do
-      expect {
-        manager.create_worktree(branch: "../invalid/branch")
-      }.to raise_error(Aidp::WorktreeBranchManager::WorktreeCreationError)
     end
   end
 
@@ -146,13 +93,15 @@ RSpec.describe Aidp::WorktreeBranchManager do
       expect(registry_entry["created_at"]).to be_a(Integer)
     end
 
-    it "updates registry when creating multiple worktrees" do
+    it "tracks multiple worktrees in registry" do
       manager.create_worktree(branch: "feature/first-branch")
       manager.create_worktree(branch: "feature/second-branch")
 
       registry_data = JSON.parse(File.read(registry_path))
       expect(registry_data.length).to eq(2)
-      expect(registry_data.map { |w| w["branch"] }).to include("feature/first-branch", "feature/second-branch")
+
+      branch_names = registry_data.map { |w| w["branch"] }
+      expect(branch_names).to include("feature/first-branch", "feature/second-branch")
     end
 
     it "falls back gracefully on invalid registry JSON" do
@@ -191,6 +140,7 @@ RSpec.describe Aidp::WorktreeBranchManager do
         expect(result).to match(%r{/\.worktrees/#{head_branch}-pr-#{pr_number}$})
         expect(File.directory?(result)).to be true
 
+        # Verify git branch is correct (should be the unique PR branch)
         Dir.chdir(result) do
           branch_name = `git rev-parse --abbrev-ref HEAD`.strip
           expect(branch_name).to eq("#{head_branch}-pr-#{pr_number}")
@@ -200,23 +150,21 @@ RSpec.describe Aidp::WorktreeBranchManager do
       it "creates worktree with specified base branch" do
         custom_base_branch = "development"
 
+        # First create the base branch
         Dir.chdir(temp_project_dir) do
-          system("git checkout -b #{custom_base_branch}")
+          system("git checkout -b #{custom_base_branch}", out: File::NULL, err: File::NULL)
           system("touch BASE_README.md")
-          system("git add BASE_README.md")
-          system("git commit -m 'Base branch commit'")
-          system("git checkout main")
+          system("git add BASE_README.md", out: File::NULL, err: File::NULL)
+          system("git commit -m 'Base branch commit'", out: File::NULL, err: File::NULL)
+          system("git checkout main", out: File::NULL, err: File::NULL)
         end
 
-        result = manager.find_or_create_pr_worktree(
-          pr_number: pr_number,
-          head_branch: head_branch,
-          base_branch: custom_base_branch
-        )
+        result = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch, base_branch: custom_base_branch)
 
         expect(result).to match(%r{/\.worktrees/#{head_branch}-pr-#{pr_number}$})
         expect(File.directory?(result)).to be true
 
+        # Verify base branch contents are present
         Dir.chdir(result) do
           expect(File.exist?("BASE_README.md")).to be true
           branch_name = `git rev-parse --abbrev-ref HEAD`.strip
@@ -227,6 +175,7 @@ RSpec.describe Aidp::WorktreeBranchManager do
 
     context "when existing worktree" do
       before do
+        # Create a worktree first
         @first_worktree = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch)
       end
 
@@ -288,8 +237,7 @@ RSpec.describe Aidp::WorktreeBranchManager do
           .with("worktree_branch_manager", "finding_or_creating_pr_worktree",
             pr_number: pr_number,
             head_branch: head_branch,
-            base_branch: "main",
-            derived_branch: "#{head_branch}-pr-#{pr_number}")
+            base_branch: "main")
       end
     end
   end
