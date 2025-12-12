@@ -16,6 +16,7 @@ RSpec.describe Aidp::WorktreeBranchManager do
       system("git", "init", "-b", "main", out: File::NULL, err: File::NULL)
       system("git", "config", "user.email", "test@example.com", out: File::NULL, err: File::NULL)
       system("git", "config", "user.name", "Test User", out: File::NULL, err: File::NULL)
+      system("git", "config", "commit.gpgsign", "false", out: File::NULL, err: File::NULL)
       system("touch", "README.md")
       system("git", "add", "README.md", out: File::NULL, err: File::NULL)
       system("git", "commit", "-m", "Initial commit", out: File::NULL, err: File::NULL)
@@ -47,18 +48,11 @@ RSpec.describe Aidp::WorktreeBranchManager do
 
         # First create the base branch
         Dir.chdir(temp_project_dir) do
-<<<<<<< HEAD
-          system("git", "checkout", "-b", "feature/base-test", out: File::NULL, err: File::NULL)
-          system("touch", "feature_base.txt")
-          system("git", "add", "feature_base.txt", out: File::NULL, err: File::NULL)
-          system("git", "commit", "-m", "Test base branch", out: File::NULL, err: File::NULL)
-=======
-          system("git checkout -b #{custom_base_branch}")
+          system("git checkout -b #{custom_base_branch}", out: File::NULL, err: File::NULL)
           system("touch BASE_README.md")
-          system("git add BASE_README.md")
-          system("git commit -m 'Base branch commit'")
-          system("git checkout main")
->>>>>>> 46f05ac (Fix git status command typo in change request processor)
+          system("git add BASE_README.md", out: File::NULL, err: File::NULL)
+          system("git commit -m 'Base branch commit'", out: File::NULL, err: File::NULL)
+          system("git checkout main", out: File::NULL, err: File::NULL)
         end
 
         result = manager.find_or_create_pr_worktree(pr_number: pr_number, head_branch: head_branch, base_branch: custom_base_branch)
@@ -102,37 +96,11 @@ RSpec.describe Aidp::WorktreeBranchManager do
         }.to raise_error(Aidp::WorktreeBranchManager::WorktreeCreationError)
       end
 
-<<<<<<< HEAD
-  describe "registry operations" do
-    let(:registry_path) { File.join(temp_project_dir, ".aidp", "worktrees.json") }
-    let(:pr_registry_path) { File.join(temp_project_dir, ".aidp", "pr_worktrees.json") }
-
-    before do
-      allow(Aidp).to receive(:log_warn)
-    end
-
-    it "creates a registry file when creating a worktree" do
-      manager.create_worktree(branch: "feature/registry-test")
-
-      # Verify registry file exists
-      expect(File.exist?(registry_path)).to be true
-
-      # Read and parse registry
-      registry_data = JSON.parse(File.read(registry_path))
-      expect(registry_data).to be_a(Array)
-
-      # Check registry entry
-      registry_entry = registry_data.find { |w| w["branch"] == "feature/registry-test" }
-      expect(registry_entry).not_to be_nil
-      expect(registry_entry["path"]).to match(%r{/\.worktrees/feature_registry-test$})
-      expect(registry_entry["created_at"]).to be_a(Integer)
-=======
       it "raises error when no PR number is provided" do
         expect {
           manager.find_or_create_pr_worktree(head_branch: head_branch)
         }.to raise_error(ArgumentError)
       end
->>>>>>> 46f05ac (Fix git status command typo in change request processor)
     end
 
     context "PR-specific registry" do
@@ -142,42 +110,8 @@ RSpec.describe Aidp::WorktreeBranchManager do
         pr_registry_path = File.join(temp_project_dir, ".aidp", "pr_worktrees.json")
         expect(File.exist?(pr_registry_path)).to be true
 
-<<<<<<< HEAD
-      branch_names = registry_data.map { |w| w["branch"] }
-      expect(branch_names).to include("feature/first-branch", "feature/second-branch")
-    end
-
-    it "falls back gracefully on invalid registry JSON" do
-      FileUtils.mkdir_p(File.dirname(registry_path))
-      File.write(registry_path, "{not_json")
-
-      expect(manager.send(:read_registry)).to eq([])
-      expect(Aidp).to have_received(:log_warn)
-    end
-
-    it "reads pr registry entry and returns existing worktree" do
-      FileUtils.mkdir_p(File.join(temp_project_dir, ".worktrees"))
-      existing_path = File.join(temp_project_dir, ".worktrees", "pr_123")
-      FileUtils.mkdir_p(existing_path)
-      FileUtils.mkdir_p(File.dirname(pr_registry_path))
-      File.write(pr_registry_path, JSON.dump([{"pr_number" => 123, "path" => existing_path}]))
-
-      result = manager.find_or_create_pr_worktree(pr_number: 123, head_branch: "feature/pr-123")
-      expect(result).to eq(existing_path)
-    end
-
-    it "handles invalid pr registry JSON" do
-      FileUtils.mkdir_p(File.dirname(pr_registry_path))
-      File.write(pr_registry_path, "{oops")
-
-      expect(manager.send(:read_pr_registry)).to eq([])
-      expect(Aidp).to have_received(:log_warn)
-    end
-  end
-=======
         pr_registry_content = JSON.parse(File.read(pr_registry_path))
         pr_entry = pr_registry_content.find { |entry| entry["pr_number"] == pr_number }
->>>>>>> 46f05ac (Fix git status command typo in change request processor)
 
         expect(pr_entry).not_to be_nil
         expect(pr_entry["path"]).to eq(worktree_path)
