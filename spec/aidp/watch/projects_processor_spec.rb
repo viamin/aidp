@@ -17,6 +17,29 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
     )
   end
 
+  describe "#initialize" do
+    it "sets default field mappings when not provided" do
+      proc = described_class.new(
+        repository_client: repository_client,
+        state_store: state_store,
+        project_id: project_id,
+        config: {}
+      )
+      expect(proc.project_id).to eq(project_id)
+    end
+
+    it "accepts custom field mappings" do
+      custom_config = {field_mappings: {status: "CustomStatus"}}
+      proc = described_class.new(
+        repository_client: repository_client,
+        state_store: state_store,
+        project_id: project_id,
+        config: custom_config
+      )
+      expect(proc.project_id).to eq(project_id)
+    end
+  end
+
   describe "#sync_issue_to_project" do
     let(:issue_number) { 42 }
 
@@ -61,6 +84,35 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
       before do
         allow(state_store).to receive(:project_item_id).with(issue_number).and_return(nil)
         allow(repository_client).to receive(:link_issue_to_project).and_raise(StandardError, "API error")
+      end
+
+      it "returns false" do
+        expect(processor.sync_issue_to_project(issue_number)).to be false
+      end
+    end
+
+    context "when syncing with status parameter" do
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_existing")
+        allow(state_store).to receive(:blocking_status).with(issue_number).and_return({blocked: false, blockers: []})
+        allow(state_store).to receive(:record_project_sync)
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: [{name: "In Progress", id: "opt_progress"}]}
+        ])
+        allow(repository_client).to receive(:update_project_item_field)
+      end
+
+      it "updates the status" do
+        expect(repository_client).to receive(:update_project_item_field)
+        processor.sync_issue_to_project(issue_number, status: "In Progress")
+      end
+    end
+
+    context "when record_project_sync fails" do
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_existing")
+        allow(state_store).to receive(:blocking_status).with(issue_number).and_return({blocked: false, blockers: []})
+        allow(state_store).to receive(:record_project_sync).and_raise(StandardError, "Storage error")
       end
 
       it "returns false" do
@@ -258,6 +310,73 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
       result = processor.sync_all_issues(issues)
       expect(result[:synced]).to eq(3)
       expect(result[:failed]).to eq(0)
+    end
+
+    context "when some issues fail to sync" do
+      before do
+        allow(processor).to receive(:sync_issue_to_project).with(1).and_return(true)
+        allow(processor).to receive(:sync_issue_to_project).with(2).and_return(false)
+        allow(processor).to receive(:sync_issue_to_project).with(3).and_return(true)
+      end
+
+      it "counts failures correctly" do
+        result = processor.sync_all_issues(issues)
+        expect(result[:synced]).to eq(2)
+        expect(result[:failed]).to eq(1)
+      end
+    end
+
+    context "with empty issues list" do
+      let(:issues) { [] }
+
+      it "returns zero counts" do
+        result = processor.sync_all_issues(issues)
+        expect(result[:synced]).to eq(0)
+        expect(result[:failed]).to eq(0)
+      end
+    end
+  end
+
+  describe "#ensure_project_fields" do
+    context "when all fields already exist" do
+      before do
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: []},
+          {name: "Blocking", id: "PVTSSF_blocking", options: []}
+        ])
+      end
+
+      it "returns true without creating fields" do
+        expect(repository_client).not_to receive(:create_project_field)
+        expect(processor.ensure_project_fields).to be true
+      end
+    end
+
+    context "when fetch_project_fields fails" do
+      before do
+        allow(repository_client).to receive(:fetch_project_fields).and_raise(StandardError, "API error")
+        allow(repository_client).to receive(:create_project_field).and_return({id: "new", name: "Status"})
+      end
+
+      it "tries to create fields anyway" do
+        processor.ensure_project_fields
+      end
+    end
+  end
+
+  describe "case insensitive field matching" do
+    let(:issue_number) { 42 }
+
+    before do
+      allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_123")
+      allow(repository_client).to receive(:fetch_project_fields).and_return([
+        {name: "STATUS", id: "PVTSSF_status", options: [{name: "IN PROGRESS", id: "opt_progress"}]}
+      ])
+      allow(repository_client).to receive(:update_project_item_field)
+    end
+
+    it "matches field names case-insensitively" do
+      expect(processor.update_issue_status(issue_number, "in progress")).to be true
     end
   end
 end

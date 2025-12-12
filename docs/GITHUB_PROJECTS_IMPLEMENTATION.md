@@ -353,7 +353,9 @@ Supported Gantt formats:
 ### GraphQL Over REST
 
 **Decision**: Use GitHub's GraphQL API for Projects V2
+
 **Rationale**:
+
 - Projects V2 only available via GraphQL
 - More efficient (single query for multiple resources)
 - Better type safety with structured queries
@@ -361,7 +363,9 @@ Supported Gantt formats:
 ### State Storage
 
 **Decision**: Extend existing YAML-based StateStore
+
 **Rationale**:
+
 - Consistent with existing watch mode state
 - Simple file-based persistence
 - Easy to inspect and debug
@@ -370,7 +374,9 @@ Supported Gantt formats:
 ### Hierarchical Planning Mode
 
 **Decision**: Explicit hierarchical flag vs automatic detection
+
 **Rationale**:
+
 - User control over when to break down issues
 - Prevents unwanted sub-issue creation
 - Can be overridden by AI's `should_create_sub_issues` flag
@@ -378,7 +384,9 @@ Supported Gantt formats:
 ### Parent PR Strategy
 
 **Decision**: Draft PRs that can't be auto-merged
+
 **Rationale**:
+
 - Ensures human review of integration
 - Shows progress as sub-PRs merge
 - Prevents accidental merge to main

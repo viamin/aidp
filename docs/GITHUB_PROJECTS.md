@@ -235,7 +235,7 @@ When AIDP processes a sub-issue:
 
 ### Branch Strategy
 
-```
+```text
 main
  └── aidp/parent-292-collaboration-features
       ├── aidp/sub-292-293-websocket-infrastructure
@@ -454,7 +454,7 @@ gh issue create \
 
 ### 3. AIDP Processes Issue
 
-```
+```text
 [Watch Mode] 🧠 Generating hierarchical plan for issue #456
 [Plan Generator] ✓ Generated plan with 5 sub-issues
 [Sub-Issue Creator] 🔨 Creating 5 sub-issues for #456
@@ -482,6 +482,7 @@ Each sub-issue is automatically:
 ### 5. Final Review
 
 When all sub-PRs are merged:
+
 - Parent PR shows all completed work
 - Manual review ensures everything integrates correctly
 - Merge parent PR to main
@@ -544,6 +545,7 @@ gh api graphql -f query='
 **Issue**: Hierarchical planning doesn't create sub-issues
 
 **Solutions**:
+
 1. Ensure issue is large enough (AI determines complexity)
 2. Add explicit instruction in issue body: "Please break this into sub-issues"
 3. Check AI provider is available and responding
@@ -554,6 +556,7 @@ gh api graphql -f query='
 **Issue**: Sub-issue PRs not auto-merging
 
 **Checklist**:
+
 - [ ] `auto_merge.enabled: true` in config
 - [ ] PR has `aidp-sub-pr` label
 - [ ] CI checks are passing
