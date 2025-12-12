@@ -43,7 +43,7 @@ module Aidp
         @verbose = verbose
 
         # Initialize worktree managers
-        @pr_worktree_manager = Aidp::PrWorktreeManager.new(project_dir: project_dir)
+        @pr_worktree_manager = Aidp::PRWorktreeManager.new(project_dir: project_dir)
         @worktree_branch_manager = Aidp::WorktreeBranchManager.new(project_dir: project_dir)
 
         # Initialize verifier

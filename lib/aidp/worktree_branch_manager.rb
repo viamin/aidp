@@ -1,5 +1,6 @@
 require "json"
 require "fileutils"
+require "open3"
 
 module Aidp
   # Manages git worktrees for pull request branches
@@ -67,7 +68,7 @@ module Aidp
         # 3. Use git worktree list for broader search
         -> {
           begin
-            worktree_list_output = run_git_command("git worktree list")
+            worktree_list_output = run_git_command(["git", "worktree", "list"])
             worktree_list_output.split("\n").each do |line|
               path, branch_info = line.split(" ", 2)
               return path if branch_info&.include?(branch)
@@ -151,7 +152,7 @@ module Aidp
           if force_recreate
             # Attempt to remove existing worktree
             begin
-              run_git_command("git worktree remove #{existing_worktree}")
+              run_git_command(["git", "worktree", "remove", existing_worktree])
               Aidp.log_debug("worktree_branch_manager", "existing_worktree_removed",
                 path: existing_worktree)
             rescue => e
@@ -186,8 +187,8 @@ module Aidp
           Aidp.log_debug("worktree_branch_manager", "create_strategy_remote_tracking",
             branch: effective_branch,
             base_branch: resolved_base_branch)
-          run_git_command("git fetch origin #{resolved_base_branch}")
-          run_git_command("git worktree add -b #{effective_branch} #{worktree_path} origin/#{resolved_base_branch}")
+          run_git_command(["git", "fetch", "origin", resolved_base_branch])
+          run_git_command(["git", "worktree", "add", "-b", effective_branch, worktree_path, "origin/#{resolved_base_branch}"])
         },
 
         # Strategy 2: Create without remote tracking
@@ -195,7 +196,7 @@ module Aidp
           Aidp.log_debug("worktree_branch_manager", "create_strategy_local_branch",
             branch: effective_branch,
             base_branch: resolved_base_branch)
-          run_git_command("git worktree add -b #{effective_branch} #{worktree_path} #{resolved_base_branch}")
+          run_git_command(["git", "worktree", "add", "-b", effective_branch, worktree_path, resolved_base_branch])
         },
 
         # Strategy 3: Checkout existing branch (for when branch already exists)
@@ -203,7 +204,7 @@ module Aidp
           Aidp.log_debug("worktree_branch_manager", "create_strategy_existing_branch",
             branch: effective_branch,
             base_branch: resolved_base_branch)
-          run_git_command("git worktree add #{worktree_path} #{effective_branch}")
+          run_git_command(["git", "worktree", "add", worktree_path, effective_branch])
         }
       ]
 
@@ -316,7 +317,7 @@ module Aidp
       # If PR number is provided, try to get base branch from GitHub
       if pr_number
         begin
-          pr_info_output = run_git_command("gh pr view #{pr_number} --json baseRefName")
+          pr_info_output = run_git_command(["gh", "pr", "view", pr_number.to_s, "--json", "baseRefName"])
           pr_base_branch = JSON.parse(pr_info_output)["baseRefName"]
           return pr_base_branch if pr_base_branch && !pr_base_branch.empty?
         rescue => e
@@ -327,7 +328,7 @@ module Aidp
 
       # Try to fetch origin branches
       begin
-        run_git_command("git fetch origin #{default_base_branch}")
+        run_git_command(["git", "fetch", "origin", default_base_branch])
       rescue => e
         Aidp.log_debug("worktree_branch_manager", "base_branch_fetch_failed",
           base_branch: default_base_branch, error: e.message)
@@ -353,8 +354,10 @@ module Aidp
 
     def run_git_command(cmd)
       Dir.chdir(@project_dir) do
-        output = `#{cmd} 2>&1`
-        raise StandardError, output unless $?.success?
+        # Convert string command to array for safe execution (no shell interpolation)
+        args = cmd.is_a?(Array) ? cmd : cmd.split
+        output, status = Open3.capture2e(*args)
+        raise StandardError, output unless status.success?
         output
       end
     end
@@ -441,7 +444,7 @@ module Aidp
 
       # Fetch pull request information from GitHub
       begin
-        pr_info_output = run_git_command("gh pr view #{pr_number} --json headRefName")
+        pr_info_output = run_git_command(["gh", "pr", "view", pr_number.to_s, "--json", "headRefName"])
         pr_branch = JSON.parse(pr_info_output)["headRefName"]
 
         if pr_branch.nil? || pr_branch.empty?
