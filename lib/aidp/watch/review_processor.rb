@@ -10,6 +10,7 @@ require_relative "implementation_verifier"
 require_relative "reviewers/senior_dev_reviewer"
 require_relative "reviewers/security_reviewer"
 require_relative "reviewers/performance_reviewer"
+require_relative "feedback_collector"
 
 module Aidp
   module Watch
@@ -81,13 +82,16 @@ module Aidp
           review_results: review_results,
           verification_result: verification_result
         )
-        @repository_client.post_comment(number, comment_body)
+        comment_body_with_feedback = FeedbackCollector.append_feedback_prompt(comment_body)
+        result = @repository_client.post_comment(number, comment_body_with_feedback)
+        comment_id = result[:id] if result.is_a?(Hash)
 
         display_message("💬 Posted review comment for PR ##{number}", type: :success)
         @state_store.record_review(number, {
           timestamp: Time.now.utc.iso8601,
           reviewers: review_results.map { |r| r[:persona] },
-          total_findings: review_results.sum { |r| r[:findings].length }
+          total_findings: review_results.sum { |r| r[:findings].length },
+          comment_id: comment_id
         })
 
         # Remove review label after processing
@@ -200,12 +204,35 @@ module Aidp
           else
             parts << "### ⚠️ Implementation Incomplete"
             parts << ""
-            parts << "**This PR appears to be incomplete based on the linked issue requirements:**"
+            parts << "**This PR appears to be incomplete based on the linked issue requirements.**"
             parts << ""
-            verification_result[:reasons]&.each do |reason|
-              parts << "- #{reason}"
+
+            # Show the verification reasoning
+            if verification_result[:reason]
+              parts << "**Summary:** #{verification_result[:reason]}"
+              parts << ""
             end
-            parts << ""
+
+            # Show missing requirements for implementers to address
+            if verification_result[:missing_items]&.any?
+              parts << "**Missing Requirements:**"
+              parts << ""
+              verification_result[:missing_items].each do |item|
+                parts << "- #{item}"
+              end
+              parts << ""
+            end
+
+            # Show additional work needed for implementers
+            if verification_result[:additional_work]&.any?
+              parts << "**Additional Work Needed:**"
+              parts << ""
+              verification_result[:additional_work].each do |work|
+                parts << "- #{work}"
+              end
+              parts << ""
+            end
+
             parts << "**Suggested Action:** Add the `aidp-request-changes` label if you'd like AIDP to help complete the implementation."
           end
           parts << ""

@@ -134,11 +134,12 @@ RSpec.describe "Work Loop Task Completion" do
       end
 
       context "when no tasks exist" do
-        it "returns complete (allows work without tasks)" do
+        # FIX for issue #391: Empty task lists now block completion to prevent premature PR creation
+        it "returns incomplete (requires task filing)" do
           result = runner.send(:check_task_completion)
 
-          expect(result[:complete]).to be true
-          expect(result[:message]).to be_nil
+          expect(result[:complete]).to be false
+          expect(result[:message]).to include("task")
         end
       end
 
@@ -193,7 +194,24 @@ RSpec.describe "Work Loop Task Completion" do
           persistent_tasklist.update_status(task.id, :abandoned, reason: "Requirements changed")
         end
 
-        it "returns complete: true" do
+        # FIX for issue #391: At least one task must be done, not just abandoned
+        it "returns incomplete when all tasks are abandoned with no completed work" do
+          result = runner.send(:check_task_completion)
+
+          expect(result[:complete]).to be false
+          expect(result[:message]).to include("abandoned")
+        end
+      end
+
+      context "when mix of done and abandoned tasks" do
+        before do
+          task1 = persistent_tasklist.create("Implement feature", session: "TEST_STEP")
+          task2 = persistent_tasklist.create("Secondary task", session: "TEST_STEP")
+          persistent_tasklist.update_status(task1.id, :done)
+          persistent_tasklist.update_status(task2.id, :abandoned, reason: "Not needed")
+        end
+
+        it "returns complete: true when at least one task is done" do
           result = runner.send(:check_task_completion)
 
           expect(result[:complete]).to be true
@@ -221,11 +239,12 @@ RSpec.describe "Work Loop Task Completion" do
           end
         end
 
-        it "returns incomplete requiring confirmation" do
+        # FIX for issue #391: All abandoned with no done tasks triggers the "all abandoned" check first
+        it "returns incomplete due to all tasks being abandoned" do
           result = runner.send(:check_task_completion)
 
           expect(result[:complete]).to be false
-          expect(result[:message]).to include("Abandoned tasks require user confirmation")
+          expect(result[:message]).to include("abandoned")
         end
       end
 
@@ -319,13 +338,14 @@ RSpec.describe "Work Loop Task Completion" do
         )
       end
 
-      it "includes task tracking section" do
+      it "includes task filing section" do
         header = runner.send(:build_work_loop_header, "TEST_STEP", 1)
 
-        expect(header).to include("## Task Tracking (REQUIRED)")
+        # FIX for issue #391: Header updated to emphasize upfront task filing
+        expect(header).to include("## Task Filing (REQUIRED - DO THIS FIRST)")
         expect(header).to include("File task:")
         expect(header).to include("Update task:")
-        expect(header).to include("DONE or ABANDONED")
+        expect(header).to include("At least ONE task must be DONE")
       end
 
       it "includes task filing examples" do
@@ -339,9 +359,10 @@ RSpec.describe "Work Loop Task Completion" do
       it "includes anti-abandonment guidance" do
         header = runner.send(:build_work_loop_header, "TEST_STEP", 1)
 
-        expect(header).to include("Do NOT abandon tasks due to perceived complexity or scope concerns")
-        expect(header).to include("careful planning and requirements analysis")
-        expect(header).to include("When in doubt, mark in_progress and implement")
+        # FIX for issue #391: Updated guidance text
+        expect(header).to include("Do NOT abandon tasks due to")
+        expect(header).to include("perceived complexity")
+        expect(header).to include("careful planning")
       end
     end
 
@@ -356,10 +377,11 @@ RSpec.describe "Work Loop Task Completion" do
         )
       end
 
-      it "does not include task tracking section" do
+      it "does not include task filing section" do
         header = runner.send(:build_work_loop_header, "TEST_STEP", 1)
 
-        expect(header).not_to include("## Task Tracking (REQUIRED)")
+        # FIX for issue #391: Updated section name
+        expect(header).not_to include("## Task Filing (REQUIRED - DO THIS FIRST)")
         expect(header).not_to include("File task:")
       end
     end

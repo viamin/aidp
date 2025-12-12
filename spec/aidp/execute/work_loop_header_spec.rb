@@ -92,7 +92,7 @@ RSpec.describe "Work Loop Header Prepending" do
 
       runner.send(:send_to_agent)
 
-      expect(sent_prompt).to include("**Write/edit code files**")
+      expect(sent_prompt).to include("**Write/edit CODE files**")
       expect(sent_prompt).to include("You are working in a work loop")
     end
 
@@ -130,7 +130,7 @@ RSpec.describe "Work Loop Header Prepending" do
 
       expect(header).to include("# Work Loop: TEST_STEP (Iteration 5)")
       expect(header).to include("## Instructions")
-      expect(header).to include("**Write/edit code files**")
+      expect(header).to include("**Write/edit CODE files**")
     end
   end
 end

@@ -3,6 +3,7 @@
 require_relative "../message_display"
 require_relative "plan_generator"
 require_relative "state_store"
+require_relative "feedback_collector"
 
 module Aidp
   module Watch
@@ -59,29 +60,35 @@ module Aidp
         archived_content = existing_plan ? archive_previous_plan(number, existing_plan) : nil
 
         comment_body = build_comment(issue: issue, plan: plan_data, label_actor: label_actor, archived_content: archived_content)
+        comment_body_with_feedback = FeedbackCollector.append_feedback_prompt(comment_body)
+        comment_id = nil
 
         if existing_plan && existing_plan["comment_id"]
           # Update existing comment
-          @repository_client.update_comment(existing_plan["comment_id"], comment_body)
+          @repository_client.update_comment(existing_plan["comment_id"], comment_body_with_feedback)
+          comment_id = existing_plan["comment_id"]
           display_message("📝 Updated plan comment for issue ##{number}", type: :success)
         elsif existing_plan
           # Try to find existing comment by header
           existing_comment = @repository_client.find_comment(number, COMMENT_HEADER)
           if existing_comment
-            @repository_client.update_comment(existing_comment[:id], comment_body)
+            @repository_client.update_comment(existing_comment[:id], comment_body_with_feedback)
+            comment_id = existing_comment[:id]
             display_message("📝 Updated plan comment for issue ##{number}", type: :success)
-            plan_data = plan_data.merge(comment_id: existing_comment[:id])
           else
             # Fallback to posting new comment if we can't find the old one
-            @repository_client.post_comment(number, comment_body)
+            result = @repository_client.post_comment(number, comment_body_with_feedback)
+            comment_id = result[:id] if result.is_a?(Hash)
             display_message("💬 Posted new plan comment for issue ##{number}", type: :success)
           end
         else
           # First time planning - post new comment
-          @repository_client.post_comment(number, comment_body)
+          result = @repository_client.post_comment(number, comment_body_with_feedback)
+          comment_id = result[:id] if result.is_a?(Hash)
           display_message("💬 Posted plan comment for issue ##{number}", type: :success)
         end
 
+        plan_data = plan_data.merge(comment_id: comment_id) if comment_id
         @state_store.record_plan(number, plan_data.merge(comment_body: comment_body, comment_hint: COMMENT_HEADER))
 
         # Update labels: remove plan trigger, add appropriate status label

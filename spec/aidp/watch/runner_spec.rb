@@ -14,6 +14,7 @@ RSpec.describe Aidp::Watch::Runner do
   let(:ci_fix_processor) { instance_double("CiFixProcessor", process: nil) }
   let(:auto_pr_processor) { instance_double("AutoPrProcessor", process: nil) }
   let(:change_request_processor) { instance_double("ChangeRequestProcessor", process: nil) }
+  let(:feedback_collector) { instance_double("FeedbackCollector", collect_feedback: []) }
   let(:auto_update_policy) { instance_double("AutoUpdatePolicy", enabled: true, check_interval_seconds: 1) }
   let(:auto_update_check) { instance_double("UpdateCheck", should_update?: true, current_version: "1", available_version: "2") }
   let(:auto_update) { instance_double("AutoUpdateCoordinator", check_for_updates: nil, check_for_update: auto_update_check, policy: auto_update_policy, restore_from_checkpoint: nil, hot_reload_available?: false, initiate_update: nil) }
@@ -35,6 +36,7 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp::Watch::CiFixProcessor).to receive(:new).and_return(ci_fix_processor)
     allow(Aidp::Watch::AutoPrProcessor).to receive(:new).and_return(auto_pr_processor)
     allow(Aidp::Watch::ChangeRequestProcessor).to receive(:new).and_return(change_request_processor)
+    allow(Aidp::Watch::FeedbackCollector).to receive(:new).and_return(feedback_collector)
     allow(Aidp::AutoUpdate).to receive(:coordinator).and_return(auto_update)
     allow_any_instance_of(described_class).to receive(:display_message)
     allow(Aidp).to receive(:log_info)
@@ -72,6 +74,7 @@ RSpec.describe Aidp::Watch::Runner do
         process_ci_fix_triggers
         process_auto_pr_triggers
         process_change_request_triggers
+        collect_feedback
       ].each do |method|
         allow(runner).to receive(method).and_return(nil)
         expect(runner).to receive(method).once

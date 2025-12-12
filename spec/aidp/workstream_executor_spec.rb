@@ -16,6 +16,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
       system("git", "init", "-q")
       system("git", "config", "user.email", "test@example.com")
       system("git", "config", "user.name", "Test User")
+      system("git", "config", "commit.gpgsign", "false")
       File.write("README.md", "# Test Project")
       system("git", "add", ".")
       system("git", "commit", "-m", "Initial commit", "-q")

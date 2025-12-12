@@ -81,6 +81,12 @@ RSpec.configure do |config|
 
   # Set up global test prompt to suppress verbose output
   config.before(:suite) do
+    # Note: We don't enable quiet mode globally here because unit tests need to
+    # verify that output is generated correctly. The --quiet flag is for production
+    # use or system tests that invoke the actual CLI.
+    # Instead, we use TestPrompt::SUPPRESS_PATTERNS to filter known noisy messages
+    # while still allowing tests to verify critical output.
+
     # Monkey-patch TTY::Prompt to use TestPrompt in test environment
     # This ensures all components use our quiet prompt without needing explicit injection
     TTY::Prompt.class_eval do

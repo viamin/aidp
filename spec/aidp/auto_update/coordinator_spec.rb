@@ -336,7 +336,11 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
 
   describe "#status" do
     it "returns comprehensive status information" do
-      # Stub RubyGems API to avoid real network call
+      # Mock the bundler adapter to avoid slow `bundle outdated` command
+      mock_bundler = instance_double(Aidp::AutoUpdate::BundlerAdapter)
+      allow(mock_bundler).to receive(:latest_version_for).with("aidp").and_return(nil)
+
+      # Stub RubyGems API as fallback
       stub_request(:get, "https://rubygems.org/api/v1/gems/aidp.json")
         .with(
           headers: {
@@ -352,7 +356,17 @@ RSpec.describe Aidp::AutoUpdate::Coordinator do
           headers: {"Content-Type" => "application/json"}
         )
 
-      coordinator = described_class.new(policy: policy, project_dir: project_dir)
+      # Create version detector with mocked bundler adapter
+      version_detector = Aidp::AutoUpdate::VersionDetector.new(
+        policy: policy,
+        bundler_adapter: mock_bundler
+      )
+
+      coordinator = described_class.new(
+        policy: policy,
+        version_detector: version_detector,
+        project_dir: project_dir
+      )
       status = coordinator.status
 
       expect(status).to include(

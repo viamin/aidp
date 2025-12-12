@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "tty-prompt"
+require_relative "feedback_collector"
+require_relative "github_state_extractor"
 
 module Aidp
   module Watch
@@ -11,13 +13,14 @@ module Aidp
 
       DEFAULT_INTERVAL = 30
 
-      def initialize(issues_url:, interval: DEFAULT_INTERVAL, provider_name: nil, gh_available: nil, project_dir: Dir.pwd, once: false, use_workstreams: true, prompt: TTY::Prompt.new, safety_config: {}, force: false, verbose: false)
+      def initialize(issues_url:, interval: DEFAULT_INTERVAL, provider_name: nil, gh_available: nil, project_dir: Dir.pwd, once: false, use_workstreams: true, prompt: TTY::Prompt.new, safety_config: {}, force: false, verbose: false, quiet: false)
         @prompt = prompt
         @interval = interval
         @once = once
         @project_dir = project_dir
         @force = force
         @verbose = verbose
+        @quiet = quiet
         @provider_name = provider_name
         @safety_config = safety_config
 
@@ -102,6 +105,12 @@ module Aidp
           safety_config: safety_config[:safety] || safety_config["safety"] || {},
           verbose: verbose
         )
+
+        @feedback_collector = FeedbackCollector.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          project_dir: project_dir
+        )
       end
 
       def start
@@ -129,6 +138,7 @@ module Aidp
           process_cycle
           Aidp.log_debug("watch_runner", "poll_cycle.complete", once: @once, next_poll_in: @once ? nil : @interval)
           break if @once
+
           Aidp.log_debug("watch_runner", "poll_cycle.sleep", seconds: @interval)
           sleep @interval
         end
@@ -150,6 +160,7 @@ module Aidp
         process_ci_fix_triggers
         process_auto_pr_triggers
         process_change_request_triggers
+        collect_feedback
       end
 
       def process_plan_triggers
@@ -182,7 +193,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "plan_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "plan_skip_unauthorized_author", issue: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -238,7 +250,8 @@ module Aidp
 
             # Check author authorization before processing
             unless @safety_checker.should_process_issue?(detailed, enforce: false)
-              Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+              Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number],
+                author: detailed[:author])
               next
             end
 
@@ -261,7 +274,8 @@ module Aidp
               begin
                 @repository_client.remove_labels(detailed[:number], GitHubStateExtractor::IN_PROGRESS_LABEL)
               rescue => e
-                Aidp.log_warn("watch_runner", "failed_to_remove_in_progress_label", issue: detailed[:number], error: e.message)
+                Aidp.log_warn("watch_runner", "failed_to_remove_in_progress_label", issue: detailed[:number],
+                  error: e.message)
               end
             end
           end
@@ -281,7 +295,8 @@ module Aidp
 
         issues.each do |issue|
           unless issue_has_label?(issue, auto_label)
-            Aidp.log_debug("watch_runner", "auto_issue_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
+            Aidp.log_debug("watch_runner", "auto_issue_skip_label_mismatch", issue: issue[:number],
+              labels: issue[:labels])
             next
           end
 
@@ -300,7 +315,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "auto_issue_skip_unauthorized_author", issue: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "auto_issue_skip_unauthorized_author", issue: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -346,7 +362,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -383,7 +400,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "auto_pr_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "auto_pr_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -419,7 +437,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -455,7 +474,8 @@ module Aidp
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number], author: detailed[:author])
+            Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number],
+              author: detailed[:author])
             next
           end
 
@@ -511,7 +531,8 @@ module Aidp
         update_check = @auto_update_coordinator.check_for_update
 
         if update_check.should_update?
-          display_message("🔄 Update available: #{update_check.current_version} → #{update_check.available_version}", type: :highlight)
+          display_message("🔄 Update available: #{update_check.current_version} → #{update_check.available_version}",
+            type: :highlight)
 
           # Prefer hot reloading if available (Zeitwerk enabled with reloading)
           if @auto_update_coordinator.hot_reload_available?
@@ -643,6 +664,21 @@ module Aidp
           name = (pr_label.is_a?(Hash) ? pr_label["name"] : pr_label.to_s)
           name.casecmp(label).zero?
         end
+      end
+
+      # Collect feedback from reactions on tracked comments
+      def collect_feedback
+        new_evaluations = @feedback_collector.collect_feedback
+        return if new_evaluations.empty?
+
+        Aidp.log_info("watch_runner", "feedback_collected",
+          count: new_evaluations.size,
+          evaluations: new_evaluations.map { |e| {id: e[:id], rating: e[:rating]} })
+
+        display_message("📊 Collected #{new_evaluations.size} new feedback evaluation(s)", type: :info) if @verbose
+      rescue => e
+        Aidp.log_error("watch_runner", "feedback_collection_failed", error: e.message)
+        display_message("⚠️  Feedback collection failed: #{e.message}", type: :warn) if @verbose
       end
     end
   end

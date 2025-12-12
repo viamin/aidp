@@ -164,4 +164,83 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
       expect(custom_processor.review_label).to eq("custom-review")
     end
   end
+
+  describe "incomplete implementation guidance" do
+    let(:state_extractor) { instance_double(Aidp::Watch::GitHubStateExtractor) }
+    let(:pr_with_issue) do
+      pr.merge(body: "Fixes #42\n\nThis PR adds a new feature")
+    end
+
+    before do
+      allow(Aidp::Watch::GitHubStateExtractor).to receive(:new).and_return(state_extractor)
+      allow(state_extractor).to receive(:review_completed?).and_return(false)
+      allow(state_extractor).to receive(:extract_linked_issue).and_return(42)
+      allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(pr_with_issue)
+      allow(repository_client).to receive(:fetch_pull_request_files).with(123).and_return(files)
+      allow(repository_client).to receive(:fetch_pull_request_diff).with(123).and_return(diff)
+      allow(repository_client).to receive(:fetch_issue).with(42).and_return({number: 42, title: "Add feature", body: "Feature description"})
+      allow(repository_client).to receive(:remove_labels)
+      allow(Aidp::Worktree).to receive(:find_by_branch).and_return(nil)
+    end
+
+    it "includes missing requirements and additional work when implementation is incomplete" do
+      allow(verifier).to receive(:verify).and_return({
+        verified: false,
+        reason: "Implementation does not fully address all requirements",
+        missing_items: ["Database migration for new field", "API endpoint for data retrieval"],
+        additional_work: ["Add migration file for users table", "Create GET /api/data endpoint"]
+      })
+
+      expect(repository_client).to receive(:post_comment) do |_number, body|
+        expect(body).to include("⚠️ Implementation Incomplete")
+        expect(body).to include("**Summary:** Implementation does not fully address all requirements")
+        expect(body).to include("**Missing Requirements:**")
+        expect(body).to include("- Database migration for new field")
+        expect(body).to include("- API endpoint for data retrieval")
+        expect(body).to include("**Additional Work Needed:**")
+        expect(body).to include("- Add migration file for users table")
+        expect(body).to include("- Create GET /api/data endpoint")
+        expect(body).to include("aidp-request-changes")
+      end
+
+      processor.process(pr)
+    end
+
+    it "omits missing requirements section when empty" do
+      allow(verifier).to receive(:verify).and_return({
+        verified: false,
+        reason: "Only documentation files were changed",
+        missing_items: [],
+        additional_work: ["Implement the actual code changes"]
+      })
+
+      expect(repository_client).to receive(:post_comment) do |_number, body|
+        expect(body).to include("⚠️ Implementation Incomplete")
+        expect(body).to include("**Summary:** Only documentation files were changed")
+        expect(body).not_to include("**Missing Requirements:**")
+        expect(body).to include("**Additional Work Needed:**")
+        expect(body).to include("- Implement the actual code changes")
+      end
+
+      processor.process(pr)
+    end
+
+    it "omits additional work section when empty" do
+      allow(verifier).to receive(:verify).and_return({
+        verified: false,
+        reason: "Some requirements are missing",
+        missing_items: ["Feature X not implemented"],
+        additional_work: []
+      })
+
+      expect(repository_client).to receive(:post_comment) do |_number, body|
+        expect(body).to include("⚠️ Implementation Incomplete")
+        expect(body).to include("**Missing Requirements:**")
+        expect(body).to include("- Feature X not implemented")
+        expect(body).not_to include("**Additional Work Needed:**")
+      end
+
+      processor.process(pr)
+    end
+  end
 end
