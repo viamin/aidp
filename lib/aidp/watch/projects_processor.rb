@@ -129,17 +129,13 @@ module Aidp
           # Fetch current status of sub-issues
           open_blockers = []
           status[:blockers].each do |sub_number|
-            begin
-              issue = @repository_client.fetch_issue(sub_number)
-              if issue[:state] == "open"
-                open_blockers << sub_number
-              end
-            rescue => e
-              Aidp.log_warn("projects_processor", "Failed to fetch sub-issue",
-                sub_issue: sub_number, error: e.message)
-              # Assume still blocking if we can't check
-              open_blockers << sub_number
-            end
+            issue = @repository_client.fetch_issue(sub_number)
+            open_blockers << sub_number if issue[:state] == "open"
+          rescue => e
+            Aidp.log_warn("projects_processor", "Failed to fetch sub-issue",
+              sub_issue: sub_number, error: e.message)
+            # Assume still blocking if we can't check
+            open_blockers << sub_number
           end
 
           if open_blockers.any?

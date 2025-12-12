@@ -30,14 +30,12 @@ module Aidp
         created_issues = []
 
         sub_issues_data.each_with_index do |sub_data, index|
-          begin
-            issue = create_single_sub_issue(parent_issue, sub_data, index + 1)
-            created_issues << issue
-            display_message("  ✓ Created sub-issue ##{issue[:number]}: #{sub_data[:title]}", type: :success)
-          rescue => e
-            Aidp.log_error("sub_issue_creator", "Failed to create sub-issue", parent: parent_number, index: index, error: e.message)
-            display_message("  ✗ Failed to create sub-issue #{index + 1}: #{e.message}", type: :error)
-          end
+          issue = create_single_sub_issue(parent_issue, sub_data, index + 1)
+          created_issues << issue
+          display_message("  ✓ Created sub-issue ##{issue[:number]}: #{sub_data[:title]}", type: :success)
+        rescue => e
+          Aidp.log_error("sub_issue_creator", "Failed to create sub-issue", parent: parent_number, index: index, error: e.message)
+          display_message("  ✗ Failed to create sub-issue #{index + 1}: #{e.message}", type: :error)
         end
 
         # Link all created issues to project if project_id is configured
@@ -110,7 +108,7 @@ module Aidp
         end
 
         # Tasks
-        if sub_data[:tasks] && sub_data[:tasks].any?
+        if sub_data[:tasks]&.any?
           parts << "## ✅ Tasks"
           parts << ""
           sub_data[:tasks].each do |task|
@@ -120,7 +118,7 @@ module Aidp
         end
 
         # Skills required
-        if sub_data[:skills] && sub_data[:skills].any?
+        if sub_data[:skills]&.any?
           parts << "## 🛠️ Skills Required"
           parts << ""
           parts << sub_data[:skills].map { |s| "- #{s}" }.join("\n")
@@ -128,7 +126,7 @@ module Aidp
         end
 
         # Personas
-        if sub_data[:personas] && sub_data[:personas].any?
+        if sub_data[:personas]&.any?
           parts << "## 👤 Suggested Personas"
           parts << ""
           parts << sub_data[:personas].map { |p| "- #{p}" }.join("\n")
@@ -136,7 +134,7 @@ module Aidp
         end
 
         # Dependencies
-        if sub_data[:dependencies] && sub_data[:dependencies].any?
+        if sub_data[:dependencies]&.any?
           parts << "## ⚠️ Dependencies"
           parts << ""
           parts << "This issue depends on:"
@@ -168,14 +166,12 @@ module Aidp
 
         # Link sub-issues
         sub_issue_numbers.each do |number|
-          begin
-            item_id = @repository_client.link_issue_to_project(@project_id, number)
-            @state_store.record_project_item_id(number, item_id)
-            display_message("  ✓ Linked sub-issue ##{number}", type: :success)
-          rescue => e
-            Aidp.log_error("sub_issue_creator", "Failed to link sub-issue to project", issue: number, error: e.message)
-            display_message("  ✗ Failed to link sub-issue ##{number}: #{e.message}", type: :warn)
-          end
+          item_id = @repository_client.link_issue_to_project(@project_id, number)
+          @state_store.record_project_item_id(number, item_id)
+          display_message("  ✓ Linked sub-issue ##{number}", type: :success)
+        rescue => e
+          Aidp.log_error("sub_issue_creator", "Failed to link sub-issue to project", issue: number, error: e.message)
+          display_message("  ✗ Failed to link sub-issue ##{number}: #{e.message}", type: :warn)
         end
       end
 

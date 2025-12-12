@@ -164,11 +164,8 @@ module Aidp
 
         sub_issues.each do |sub_number|
           sub_build = @state_store.workstream_for_issue(sub_number)
-          if sub_build && sub_build[:pr_url]
-            lines << "- ##{sub_number}: #{sub_build[:pr_url]}"
-          else
-            lines << "- ##{sub_number}: _(PR pending)_"
-          end
+          pr_link = sub_build&.dig(:pr_url) ? sub_build[:pr_url] : "_(PR pending)_"
+          lines << "- ##{sub_number}: #{pr_link}"
         end
 
         lines << ""
@@ -190,11 +187,8 @@ module Aidp
         lines << "This PR implements a sub-issue of ##{parent_number}."
         lines << ""
 
-        if parent_build && parent_build[:pr_url]
-          lines << "**Parent PR:** #{parent_build[:pr_url]}"
-        else
-          lines << "**Parent PR:** _(pending)_"
-        end
+        pr_link = parent_build&.dig(:pr_url) || "_(pending)_"
+        lines << "**Parent PR:** #{pr_link}"
 
         lines << ""
         lines << "This sub-issue PR will be automatically merged when CI passes."

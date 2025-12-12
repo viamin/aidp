@@ -160,12 +160,10 @@ module Aidp
       # List all PRs with the sub-PR label that are candidates for auto-merge
       # @return [Array<Hash>] PRs that might be eligible for auto-merge
       def list_sub_pr_candidates
-        begin
-          @repository_client.list_pull_requests(labels: [SUB_PR_LABEL], state: "open")
-        rescue => e
-          Aidp.log_error("auto_merger", "Failed to list sub-PR candidates", error: e.message)
-          []
-        end
+        @repository_client.list_pull_requests(labels: [SUB_PR_LABEL], state: "open")
+      rescue => e
+        Aidp.log_error("auto_merger", "Failed to list sub-PR candidates", error: e.message)
+        []
       end
 
       private
