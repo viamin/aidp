@@ -46,6 +46,7 @@ New to AIDP? Start here:
 | ---------- | ------------- |
 | [Thinking Depth](THINKING_DEPTH.md) | Dynamic model tier selection |
 | [Workstreams](WORKSTREAMS.md) | Parallel workflow execution |
+| [GitHub Projects](GITHUB_PROJECTS.md) | GitHub Projects V2 integration for large projects |
 | [Prompt Optimization](PROMPT_OPTIMIZATION.md) | Context management |
 | [Persistent Tasklist](PERSISTENT_TASKLIST.md) | Cross-session task tracking |
 | [Streaming Guide](STREAMING_GUIDE.md) | Real-time output streaming |
@@ -68,6 +69,7 @@ New to AIDP? Start here:
 | ---------- | ------------- |
 | [AIDP Capabilities](AIDP_CAPABILITIES.md) | System capabilities overview |
 | [AI-Generated Determinism (AGD)](AI_GENERATED_DETERMINISM.md) | Pattern for AI-generated deterministic code |
+| [GitHub Projects Implementation](GITHUB_PROJECTS_IMPLEMENTATION.md) | Projects V2 implementation plan |
 | [Worktree PR Change Requests](WORKTREE_PR_CHANGE_REQUESTS.md) | Worktree-based PR change workflow |
 | [Metadata Tool Discovery](METADATA_TOOL_DISCOVERY.md) | Metadata-driven skill/persona/template discovery |
 | [Concurrency Patterns](CONCURRENCY_PATTERNS.md) | Thread safety patterns |

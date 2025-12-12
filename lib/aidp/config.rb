@@ -191,6 +191,43 @@ module Aidp
           fail_forward_enabled: true,
           needs_input_label: "aidp-needs-input"
         }
+      },
+      watch: {
+        enabled: false,
+        polling_interval: 30,
+        labels: {
+          plan_trigger: "aidp-plan",
+          build_trigger: "aidp-build",
+          review_trigger: "aidp-review",
+          fix_ci_trigger: "aidp-fix-ci",
+          change_request_trigger: "aidp-request-changes",
+          auto_trigger: "aidp-auto",
+          parent_pr: "aidp-parent-pr",
+          sub_pr: "aidp-sub-pr"
+        },
+        projects: {
+          enabled: false,
+          default_project_id: nil,
+          field_mappings: {
+            status: "Status",
+            priority: "Priority",
+            skills: "Skills",
+            personas: "Personas",
+            blocking: "Blocking"
+          },
+          auto_create_fields: true,
+          sync_interval: 60,
+          default_status_values: ["Backlog", "Todo", "In Progress", "In Review", "Done"],
+          default_priority_values: ["Low", "Medium", "High", "Critical"]
+        },
+        auto_merge: {
+          enabled: true,
+          sub_issue_prs_only: true,
+          require_ci_success: true,
+          require_reviews: 0,
+          merge_method: "squash",
+          delete_branch: true
+        }
       }
     }.freeze
 
