@@ -182,5 +182,71 @@ RSpec.describe Aidp::Watch::HierarchicalPrStrategy do
         expect(description).to include("auto-merged")
       end
     end
+
+    context "for a regular issue" do
+      before do
+        allow(state_store).to receive(:sub_issues).with(42).and_return([])
+        allow(state_store).to receive(:parent_issue).with(42).and_return(nil)
+      end
+
+      it "builds a regular PR description" do
+        description = strategy.pr_description_for(issue, plan_summary: plan_summary)
+        expect(description).to include("Fixes #42")
+        expect(description).to include("Summary")
+        expect(description).to include("Automated implementation by AIDP")
+      end
+    end
+  end
+
+  describe "#parent_branch_for_sub_issue" do
+    context "when parent has a workstream" do
+      before do
+        allow(state_store).to receive(:parent_issue).with(43).and_return(42)
+        allow(state_store).to receive(:workstream_for_issue).with(42).and_return({branch: "aidp/parent-42-feature"})
+      end
+
+      it "returns the parent branch" do
+        expect(strategy.parent_branch_for_sub_issue(43)).to eq("aidp/parent-42-feature")
+      end
+    end
+
+    context "when parent has no workstream" do
+      before do
+        allow(state_store).to receive(:parent_issue).with(43).and_return(42)
+        allow(state_store).to receive(:workstream_for_issue).with(42).and_return(nil)
+      end
+
+      it "returns nil" do
+        expect(strategy.parent_branch_for_sub_issue(43)).to be_nil
+      end
+    end
+
+    context "when issue has no parent" do
+      before do
+        allow(state_store).to receive(:parent_issue).with(42).and_return(nil)
+      end
+
+      it "returns nil" do
+        expect(strategy.parent_branch_for_sub_issue(42)).to be_nil
+      end
+    end
+  end
+
+  describe "#pr_options_for_issue" do
+    context "for a sub-issue without parent branch" do
+      let(:issue) { {number: 43, title: "Sub task"} }
+
+      before do
+        allow(state_store).to receive(:sub_issues).with(43).and_return([])
+        allow(state_store).to receive(:parent_issue).with(43).and_return(42)
+        allow(state_store).to receive(:workstream_for_issue).with(42).and_return(nil)
+      end
+
+      it "falls back to default base branch" do
+        options = strategy.pr_options_for_issue(issue, default_base_branch: "main")
+        expect(options[:base_branch]).to eq("main")
+        expect(options[:labels]).to include("aidp-sub-pr")
+      end
+    end
   end
 end

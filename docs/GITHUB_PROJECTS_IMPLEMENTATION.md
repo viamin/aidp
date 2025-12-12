@@ -134,6 +134,7 @@ This document tracks the implementation of GitHub Projects V2 integration for AI
 #### Implementation Notes
 
 Key features:
+
 - Rate limiting: Field cache to reduce API calls
 - Error recovery: Continue processing if one issue fails
 - Idempotency: Safe to run sync multiple times
@@ -180,7 +181,8 @@ Key features:
 #### Implementation Notes
 
 Branch strategy:
-```
+
+```text
 main
  └── aidp/parent-292-feature
       ├── aidp/sub-292-293-subtask-1
@@ -225,6 +227,7 @@ main
 #### Implementation Notes
 
 Auto-merge eligibility:
+
 - Must have `aidp-sub-pr` label
 - Must NOT have `aidp-parent-pr` label
 - CI must be passing (state: success)
@@ -261,6 +264,7 @@ Auto-merge eligibility:
 #### Implementation Notes
 
 Supported Gantt formats:
+
 - Mermaid Gantt charts
 - Microsoft Project XML
 - CSV with task dependencies

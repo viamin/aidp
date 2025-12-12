@@ -119,6 +119,127 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
         expect(result[:blocked]).to be false
       end
     end
+
+    context "when fetch issue fails" do
+      before do
+        allow(state_store).to receive(:blocking_status).with(issue_number).and_return({blocked: true, blockers: [43]})
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_123")
+        allow(repository_client).to receive(:fetch_issue).with(43).and_raise(StandardError, "API error")
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Blocking", id: "PVTSSF_blocking", options: []}
+        ])
+        allow(repository_client).to receive(:update_project_item_field)
+      end
+
+      it "assumes blocker is still blocking" do
+        result = processor.check_blocking_dependencies(issue_number)
+        expect(result[:blocked]).to be true
+        expect(result[:blockers]).to include(43)
+      end
+    end
+  end
+
+  describe "#update_issue_status" do
+    let(:issue_number) { 42 }
+
+    context "when issue has no project item id" do
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return(nil)
+      end
+
+      it "returns false" do
+        expect(processor.update_issue_status(issue_number, "In Progress")).to be false
+      end
+    end
+
+    context "when status field not found and cannot be created" do
+      let(:config) { {field_mappings: {status: "Status", blocking: "Blocking"}, auto_create_fields: false} }
+
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_123")
+        allow(repository_client).to receive(:fetch_project_fields).and_return([])
+      end
+
+      it "returns false" do
+        expect(processor.update_issue_status(issue_number, "In Progress")).to be false
+      end
+    end
+
+    context "when option not found" do
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_123")
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: [{name: "Todo", id: "opt_todo"}]}
+        ])
+      end
+
+      it "returns false for unknown status" do
+        expect(processor.update_issue_status(issue_number, "Unknown Status")).to be false
+      end
+    end
+
+    context "when update succeeds" do
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_123")
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: [{name: "In Progress", id: "opt_in_progress"}]}
+        ])
+        allow(repository_client).to receive(:update_project_item_field)
+      end
+
+      it "returns true" do
+        expect(processor.update_issue_status(issue_number, "In Progress")).to be true
+      end
+    end
+
+    context "when update fails" do
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_123")
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: [{name: "In Progress", id: "opt_in_progress"}]}
+        ])
+        allow(repository_client).to receive(:update_project_item_field).and_raise(StandardError, "API error")
+      end
+
+      it "returns false" do
+        expect(processor.update_issue_status(issue_number, "In Progress")).to be false
+      end
+    end
+  end
+
+  describe "#ensure_project_fields" do
+    context "when auto_create_fields is false" do
+      let(:config) { {field_mappings: {status: "Status", blocking: "Blocking"}, auto_create_fields: false} }
+
+      it "returns true immediately" do
+        expect(processor.ensure_project_fields).to be true
+      end
+    end
+
+    context "when fields need to be created" do
+      before do
+        allow(repository_client).to receive(:fetch_project_fields).and_return([])
+        allow(repository_client).to receive(:create_project_field).and_return(
+          {id: "PVTF_new", name: "Status"}
+        )
+      end
+
+      it "attempts to create required fields" do
+        expect(repository_client).to receive(:create_project_field).at_least(:once)
+        processor.ensure_project_fields
+      end
+    end
+
+    context "when field creation fails" do
+      before do
+        allow(repository_client).to receive(:fetch_project_fields).and_return([])
+        allow(repository_client).to receive(:create_project_field).and_raise(StandardError, "Cannot create field")
+      end
+
+      it "returns false" do
+        expect(processor.ensure_project_fields).to be false
+      end
+    end
   end
 
   describe "#sync_all_issues" do

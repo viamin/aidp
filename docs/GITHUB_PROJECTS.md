@@ -472,6 +472,7 @@ gh issue create \
 ### 4. Automatic Implementation
 
 Each sub-issue is automatically:
+
 - Planned individually
 - Implemented via work loops
 - Tested and committed
