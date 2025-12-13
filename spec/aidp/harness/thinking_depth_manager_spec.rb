@@ -334,7 +334,7 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       expect(model).to eq("o1-preview")
     end
 
-    it "returns nil when provider lacks tier and switching disabled" do
+    it "falls back to available tier when provider lacks requested tier and switching disabled" do
       config_data = sample_config.dup
       config_data["thinking"]["allow_provider_switch"] = false
       File.write(config_path, YAML.dump(config_data))
@@ -342,8 +342,11 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       configuration_no_switch = Aidp::Harness::Configuration.new(temp_dir)
       manager_no_switch = described_class.new(configuration_no_switch, registry: registry)
 
-      result = manager_no_switch.select_model_for_tier("thinking", provider: "anthropic")
-      expect(result).to be_nil
+      # Per issue #323: Instead of returning nil, fallback to available tier
+      # anthropic has mini and standard tiers configured, so should fall back to one of those
+      provider, model, _data = manager_no_switch.select_model_for_tier("thinking", provider: "anthropic")
+      expect(provider).to eq("anthropic")
+      expect(model).to be_a(String)
     end
 
     it "validates tier" do
@@ -425,6 +428,53 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
         expect(provider).to eq("kilocode")
         expect(model).to be_nil
         expect(data[:auto_model]).to be true
+      end
+    end
+
+    context "when provider has partial tiers configured (issue #323)" do
+      let(:config_with_partial_tiers) do
+        config_data = sample_config.dup
+        # Provider has only mini tier configured, not pro or thinking
+        config_data["providers"]["newprovider"] = {
+          "type" => "usage_based",
+          "model_family" => "auto",
+          "thinking_tiers" => {
+            "mini" => {
+              "models" => ["mini-model-1"]
+            }
+          }
+        }
+        config_data["thinking"]["allow_provider_switch"] = false
+        config_data["harness"]["default_provider"] = "newprovider"
+        config_data
+      end
+
+      it "falls back to lower tier when requested tier not configured" do
+        File.write(config_path, YAML.dump(config_with_partial_tiers))
+
+        configuration_partial = Aidp::Harness::Configuration.new(temp_dir)
+        manager_partial = described_class.new(configuration_partial, registry: registry)
+
+        # Request pro tier which is not configured - should fall back to mini
+        provider, model, _data = manager_partial.select_model_for_tier("pro", provider: "newprovider")
+
+        # Should fall back to the configured mini tier
+        expect(provider).to eq("newprovider")
+        expect(model).to eq("mini-model-1")
+      end
+
+      it "falls back to lower tier when standard tier requested" do
+        File.write(config_path, YAML.dump(config_with_partial_tiers))
+
+        configuration_partial = Aidp::Harness::Configuration.new(temp_dir)
+        manager_partial = described_class.new(configuration_partial, registry: registry)
+
+        # Request standard tier, but mini tier is configured as fallback
+        provider, model, _data = manager_partial.select_model_for_tier("standard", provider: "newprovider")
+
+        # Should use the configured mini tier as fallback
+        expect(provider).to eq("newprovider")
+        expect(model).to eq("mini-model-1")
       end
     end
   end
