@@ -137,10 +137,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         runner.send(:transition_to, :apply_patch)
         runner.send(:transition_to, :test)
 
-        state_history = runner.instance_variable_get(:@state_history)
-        expect(state_history.size).to eq(2)
-        expect(state_history[0][:to]).to eq(:apply_patch)
-        expect(state_history[1][:to]).to eq(:test)
+        expect(runner.state_history.size).to eq(2)
+        expect(runner.state_history[0][:to]).to eq(:apply_patch)
+        expect(runner.state_history[1][:to]).to eq(:test)
       end
     end
 
@@ -460,13 +459,12 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         result = runner.execute_step("test_step", step_spec, {})
 
         # Verify state history was maintained
-        state_history = runner.instance_variable_get(:@state_history)
-        expect(state_history.size).to be > 0
+        expect(runner.state_history.size).to be > 0
 
         # Should have multiple FAIL → DIAGNOSE → NEXT_PATCH cycles
-        fail_states = state_history.select { |h| h[:to] == :fail }
-        diagnose_states = state_history.select { |h| h[:to] == :diagnose }
-        next_patch_states = state_history.select { |h| h[:to] == :next_patch }
+        fail_states = runner.state_history.select { |h| h[:to] == :fail }
+        diagnose_states = runner.state_history.select { |h| h[:to] == :diagnose }
+        next_patch_states = runner.state_history.select { |h| h[:to] == :next_patch }
 
         expect(fail_states.size).to eq(3)
         expect(diagnose_states.size).to eq(3)
@@ -645,8 +643,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         expect(result[:status]).to eq("completed")
 
         # Check state history includes key states
-        state_history = runner.instance_variable_get(:@state_history)
-        states_visited = state_history.map { |h| h[:to] }
+        states_visited = runner.state_history.map { |h| h[:to] }
 
         expect(states_visited).to include(:apply_patch, :test, :pass, :done)
       end
@@ -691,8 +688,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         result = runner.execute_step("test_step", step_spec, {})
 
         # Check state history includes diagnostic states
-        state_history = runner.instance_variable_get(:@state_history)
-        states_visited = state_history.map { |h| h[:to] }
+        states_visited = runner.state_history.map { |h| h[:to] }
 
         expect(states_visited).to include(:fail, :diagnose, :next_patch)
         expect(result[:status]).to eq("completed")
@@ -764,7 +760,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       before do
         allow(Aidp::Execute::PromptManager).to receive(:new).and_return(prompt_manager)
         allow(prompt_manager).to receive(:read).and_return("# Current prompt content")
-        runner.instance_variable_set(:@iteration_count, 1)
+        runner.iteration_count = 1
       end
 
       it "appends fix-forward instructions to PROMPT.md" do
@@ -843,18 +839,17 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     describe "#display_state_summary" do
       before do
-        runner.instance_variable_set(:@iteration_count, 3)
-        runner.instance_variable_set(:@state_history, [
-          {from: :ready, to: :apply_patch, iteration: 1},
-          {from: :apply_patch, to: :test, iteration: 1},
-          {from: :test, to: :fail, iteration: 1},
-          {from: :fail, to: :diagnose, iteration: 1},
-          {from: :diagnose, to: :next_patch, iteration: 1},
-          {from: :next_patch, to: :apply_patch, iteration: 2},
-          {from: :apply_patch, to: :test, iteration: 2},
-          {from: :test, to: :pass, iteration: 2},
-          {from: :pass, to: :done, iteration: 2}
-        ])
+        runner.iteration_count = 3
+        # Set state history via transitions
+        runner.send(:transition_to, :apply_patch)
+        runner.send(:transition_to, :test)
+        runner.send(:transition_to, :fail)
+        runner.send(:transition_to, :diagnose)
+        runner.send(:transition_to, :next_patch)
+        runner.send(:transition_to, :apply_patch)
+        runner.send(:transition_to, :test)
+        runner.send(:transition_to, :pass)
+        runner.send(:transition_to, :done)
       end
 
       it "displays state transition summary" do
@@ -876,34 +871,34 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       describe "#should_reinject_style_guide?" do
         context "when provider needs style guide (cursor)" do
           it "returns false for iteration 1" do
-            cursor_runner.instance_variable_set(:@iteration_count, 1)
+            cursor_runner.iteration_count = 1
             expect(cursor_runner.send(:should_reinject_style_guide?)).to be false
           end
 
           it "returns false for iterations not at interval" do
-            cursor_runner.instance_variable_set(:@iteration_count, 3)
+            cursor_runner.iteration_count = 3
             expect(cursor_runner.send(:should_reinject_style_guide?)).to be false
           end
 
           it "returns true for iteration 5" do
-            cursor_runner.instance_variable_set(:@iteration_count, 5)
+            cursor_runner.iteration_count = 5
             expect(cursor_runner.send(:should_reinject_style_guide?)).to be true
           end
 
           it "returns true for iteration 10" do
-            cursor_runner.instance_variable_set(:@iteration_count, 10)
+            cursor_runner.iteration_count = 10
             expect(cursor_runner.send(:should_reinject_style_guide?)).to be true
           end
 
           it "returns true for iteration 15" do
-            cursor_runner.instance_variable_set(:@iteration_count, 15)
+            cursor_runner.iteration_count = 15
             expect(cursor_runner.send(:should_reinject_style_guide?)).to be true
           end
         end
 
         context "when provider has instruction file (anthropic)" do
           it "returns false even at injection interval" do
-            runner.instance_variable_set(:@iteration_count, 5)
+            runner.iteration_count = 5
             expect(runner.send(:should_reinject_style_guide?)).to be false
           end
         end
@@ -911,8 +906,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
       describe "#reinject_style_guide_reminder" do
         before do
-          cursor_runner.instance_variable_set(:@iteration_count, 5)
-          cursor_runner.instance_variable_set(:@step_name, "test_step")
+          cursor_runner.iteration_count = 5
+          cursor_runner.step_name = "test_step"
         end
 
         it "includes style guide content when available" do
@@ -921,7 +916,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("# Style Guide\nUse proper conventions")
-          cursor_runner.instance_variable_set(:@style_guide_selector, mock_selector)
+          cursor_runner.style_guide_selector = mock_selector
 
           reminder = cursor_runner.send(:reinject_style_guide_reminder)
 
@@ -936,7 +931,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return(long_style_guide)
-          cursor_runner.instance_variable_set(:@style_guide_selector, mock_selector)
+          cursor_runner.style_guide_selector = mock_selector
 
           reminder = cursor_runner.send(:reinject_style_guide_reminder)
 
@@ -949,7 +944,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("")
-          cursor_runner.instance_variable_set(:@style_guide_selector, mock_selector)
+          cursor_runner.style_guide_selector = mock_selector
 
           reminder = cursor_runner.send(:reinject_style_guide_reminder)
 
@@ -962,7 +957,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("# Style Guide")
-          cursor_runner.instance_variable_set(:@style_guide_selector, mock_selector)
+          cursor_runner.style_guide_selector = mock_selector
 
           reminder = cursor_runner.send(:reinject_style_guide_reminder)
 
@@ -971,8 +966,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
         context "when provider has instruction file" do
           it "returns empty string for anthropic provider" do
-            runner.instance_variable_set(:@iteration_count, 5)
-            runner.instance_variable_set(:@step_name, "test_step")
+            runner.iteration_count = 5
+            runner.step_name = "test_step"
 
             reminder = runner.send(:reinject_style_guide_reminder)
 
@@ -987,7 +982,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         before do
           allow(Aidp::Execute::PromptManager).to receive(:new).and_return(prompt_manager)
           allow(prompt_manager).to receive(:read).and_return("# Current prompt content")
-          cursor_runner.instance_variable_set(:@iteration_count, 5)
+          cursor_runner.iteration_count = 5
         end
 
         it "includes style guide reminder at iteration 5 for cursor provider" do
@@ -995,7 +990,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("# Style Guide")
-          cursor_runner.instance_variable_set(:@style_guide_selector, mock_selector)
+          cursor_runner.style_guide_selector = mock_selector
 
           test_results = {
             success: false,
@@ -1010,13 +1005,13 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).to include("Iteration 5")
           end
 
-          cursor_runner.instance_variable_set(:@prompt_manager, prompt_manager)
+          cursor_runner.prompt_manager = prompt_manager
           all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
           cursor_runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
 
         it "does not include style guide reminder at iteration 3" do
-          cursor_runner.instance_variable_set(:@iteration_count, 3)
+          cursor_runner.iteration_count = 3
 
           test_results = {
             success: false,
@@ -1030,7 +1025,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).not_to include("Style Guide & Template Reminder")
           end
 
-          cursor_runner.instance_variable_set(:@prompt_manager, prompt_manager)
+          cursor_runner.prompt_manager = prompt_manager
           all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
           cursor_runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
@@ -1047,8 +1042,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     it "maintains compatibility with prompt manager" do
       runner_instance = described_class.new(project_dir, provider_manager, config)
-      prompt_manager = runner_instance.instance_variable_get(:@prompt_manager)
-      expect(prompt_manager).to be_a(Aidp::Execute::PromptManager)
+      expect(runner_instance.prompt_manager).to be_a(Aidp::Execute::PromptManager)
     end
   end
 
@@ -1077,8 +1071,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     let(:created_task) { task_struct.new("Follow up", :high, Time.now, "TASK-1") }
 
     before do
-      runner.instance_variable_set(:@guard_policy, guard_policy)
-      runner.instance_variable_set(:@persistent_tasklist, tasklist)
+      runner.guard_policy = guard_policy
+      runner.persistent_tasklist = tasklist
       allow(runner).to receive(:display_message)
       allow(tasklist).to receive(:pending).and_return(pending_tasks)
       allow(tasklist).to receive(:create).and_return(created_task)
@@ -1122,8 +1116,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     describe "#process_task_filing" do
       it "creates persistent tasks from agent signals" do
-        runner.instance_variable_set(:@step_name, "Implement feature")
-        runner.instance_variable_set(:@iteration_count, 2)
+        runner.step_name = "Implement feature"
+        runner.iteration_count = 2
         allow(Aidp::Execute::AgentSignalParser).to receive(:parse_task_filing).and_return([
           {description: "Handle edge case", priority: :high, tags: %w[bug]}
         ])
@@ -1165,13 +1159,13 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       let(:confirmation_files) { ["config/secrets.yml"] }
 
       it "auto-skips confirmations in automated mode" do
-        runner.instance_variable_set(:@options, {automated: true})
+        runner.options = {automated: true}
         runner.send(:handle_confirmation_requests)
         expect(runner).to have_received(:display_message).with(a_string_matching(/Automated mode/), type: :info)
       end
 
       it "confirms files interactively when not automated" do
-        runner.instance_variable_set(:@options, {})
+        runner.options = {}
         runner.send(:handle_confirmation_requests)
         expect(guard_policy).to have_received(:confirm_file).with("config/secrets.yml")
       end
@@ -1181,8 +1175,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
   describe "exception handling during agent calls (fix-forward)" do
     let(:step_spec) { {"name" => "test_step", "templates" => ["test.md"]} }
     let(:context) { {user_input: {}} }
-    let(:test_runner) { runner.instance_variable_get(:@test_runner) }
-    let(:prompt_manager) { runner.instance_variable_get(:@prompt_manager) }
+    let(:test_runner) { runner.test_runner }
+    let(:prompt_manager) { runner.prompt_manager }
 
     before do
       # Mock all the infrastructure

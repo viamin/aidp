@@ -26,13 +26,14 @@ module Aidp
       PASSING_CI_STATES = %w[success skipped].freeze
 
       def initialize(repository_client:, state_store:, review_processor:, ci_fix_processor:,
-        label_config: {}, iteration_cap: nil, verbose: false)
+        label_config: {}, iteration_cap: nil, verbose: false, prompt: nil)
         @repository_client = repository_client
         @state_store = state_store
         @review_processor = review_processor
         @ci_fix_processor = ci_fix_processor
         @state_extractor = GitHubStateExtractor.new(repository_client: repository_client)
         @verbose = verbose
+        @prompt = prompt
         @auto_label = label_config[:auto_trigger] || label_config["auto_trigger"] || DEFAULT_AUTO_LABEL
         @iteration_cap = iteration_cap || DEFAULT_ITERATION_CAP
       end

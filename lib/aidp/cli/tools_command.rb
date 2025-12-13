@@ -21,9 +21,11 @@ module Aidp
       #
       # @param project_dir [String] Project directory path
       # @param prompt [TTY::Prompt] TTY prompt instance
-      def initialize(project_dir: Dir.pwd, prompt: TTY::Prompt.new)
+      # @param query_class [Class] Query class for dependency injection (testing)
+      def initialize(project_dir: Dir.pwd, prompt: TTY::Prompt.new, query_class: nil)
         @project_dir = project_dir
         @prompt = prompt
+        @query_class = query_class || Metadata::Query
       end
 
       # Run tools command
@@ -79,7 +81,7 @@ module Aidp
         @prompt.say("\nValidating tool metadata...")
 
         cache = create_cache
-        query = Metadata::Query.new(cache: cache)
+        query = @query_class.new(cache: cache)
 
         begin
           query.directory
@@ -116,7 +118,7 @@ module Aidp
         Aidp.log_info("tools", "Showing tool info", tool_id: tool_id)
 
         cache = create_cache
-        query = Metadata::Query.new(cache: cache)
+        query = @query_class.new(cache: cache)
 
         tool = query.find_by_id(tool_id)
 
@@ -155,7 +157,7 @@ module Aidp
         Aidp.log_info("tools", "Listing all tools")
 
         cache = create_cache
-        query = Metadata::Query.new(cache: cache)
+        query = @query_class.new(cache: cache)
 
         query.directory
         stats = query.statistics

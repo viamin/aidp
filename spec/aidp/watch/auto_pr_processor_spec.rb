@@ -9,16 +9,22 @@ RSpec.describe Aidp::Watch::AutoPrProcessor do
   let(:review_processor) { instance_double(Aidp::Watch::ReviewProcessor) }
   let(:ci_fix_processor) { instance_double(Aidp::Watch::CiFixProcessor) }
   let(:auto_label) { described_class::DEFAULT_AUTO_LABEL }
+  # Silent test prompt that doesn't output
+  let(:test_prompt) { instance_double(TTY::Prompt, say: nil) }
 
   let(:processor) do
-    described_class.new(
+    p = described_class.new(
       repository_client: repository_client,
       state_store: state_store,
       review_processor: review_processor,
       ci_fix_processor: ci_fix_processor,
       label_config: {},
-      verbose: false
+      verbose: false,
+      prompt: test_prompt
     )
+    # Mock display_message on the specific instance
+    allow(p).to receive(:display_message)
+    p
   end
 
   let(:pr) { {number: 456, title: "Example PR"} }
@@ -30,8 +36,6 @@ RSpec.describe Aidp::Watch::AutoPrProcessor do
     allow(state_store).to receive(:record_auto_pr_iteration).and_return(1)
     allow(state_store).to receive(:auto_pr_iteration_count).and_return(1)
     allow(state_store).to receive(:complete_auto_pr)
-    # Suppress display_message output during tests to avoid TTY::Prompt stdout interference
-    allow_any_instance_of(described_class).to receive(:display_message)
   end
 
   describe "#process" do
@@ -139,8 +143,10 @@ RSpec.describe Aidp::Watch::AutoPrProcessor do
         state_store: state_store,
         review_processor: review_processor,
         ci_fix_processor: ci_fix_processor,
-        iteration_cap: 5
+        iteration_cap: 5,
+        prompt: test_prompt
       )
+      allow(custom_processor).to receive(:display_message)
       expect(custom_processor.iteration_cap).to eq(5)
     end
 

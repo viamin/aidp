@@ -23,6 +23,10 @@ module Aidp
     class InteractiveRepl
       include Aidp::RescueLogging
 
+      # Expose running state and repl_macros for testability
+      attr_accessor :running
+      attr_reader :repl_macros, :async_runner, :completion_setup_needed
+
       def initialize(project_dir, provider_manager, config, options = {})
         @project_dir = project_dir
         @provider_manager = provider_manager
@@ -30,8 +34,8 @@ module Aidp
         @options = options
         @prompt = options[:prompt] || TTY::Prompt.new
         @async_runner_class = options[:async_runner_class] || AsyncWorkLoopRunner
-        @async_runner = nil
-        @repl_macros = ReplMacros.new
+        @async_runner = options[:async_runner]
+        @repl_macros = options[:repl_macros] || ReplMacros.new
         @output_display_thread = nil
         @running = false
         @completion_setup_needed = true

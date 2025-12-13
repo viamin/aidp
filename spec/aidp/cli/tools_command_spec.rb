@@ -16,7 +16,13 @@ RSpec.describe Aidp::CLI::ToolsCommand do
   let(:test_dir) { Dir.mktmpdir }
   let(:skills_dir) { File.join(test_dir, "skills") }
   let(:prompt) { instance_double(TTY::Prompt) }
-  let(:command) { described_class.new(project_dir: test_dir, prompt: prompt) }
+  let(:mock_query) { instance_double(Aidp::Metadata::Query) }
+  let(:mock_query_class) do
+    klass = Class.new
+    allow(klass).to receive(:new).and_return(mock_query)
+    klass
+  end
+  let(:command) { described_class.new(project_dir: test_dir, prompt: prompt, query_class: mock_query_class) }
 
   before do
     FileUtils.mkdir_p(skills_dir)
@@ -91,12 +97,13 @@ RSpec.describe Aidp::CLI::ToolsCommand do
     it "handles list subcommand" do
       create_skill_file("test.md", id: "test_skill")
 
-      # Mock the statistics and find_by_type methods
-      allow_any_instance_of(Aidp::Metadata::Query).to receive(:statistics).and_return({
+      # Mock the statistics and find_by_type methods using injected query
+      allow(mock_query).to receive(:directory)
+      allow(mock_query).to receive(:statistics).and_return({
         "total_tools" => 1,
         "by_type" => {"skill" => 1}
       })
-      allow_any_instance_of(Aidp::Metadata::Query).to receive(:find_by_type).and_return([])
+      allow(mock_query).to receive(:find_by_type).and_return([])
       allow(prompt).to receive(:say)
       allow(Aidp::Config).to receive(:load_from_project).and_return(
         double(skill_directories: [skills_dir])
@@ -141,8 +148,8 @@ RSpec.describe Aidp::CLI::ToolsCommand do
     it "handles info subcommand when tool not found" do
       create_skill_file("test.md", id: "test_skill")
 
-      # Mock find_by_id to return nil (tool not found in cache)
-      allow_any_instance_of(Aidp::Metadata::Query).to receive(:find_by_id).with("nonexistent").and_return(nil)
+      # Mock find_by_id to return nil using injected query
+      allow(mock_query).to receive(:find_by_id).with("nonexistent").and_return(nil)
       expect(prompt).to receive(:error).with(/not found/)
       allow(Aidp::Config).to receive(:load_from_project).and_return(
         double(skill_directories: [skills_dir])

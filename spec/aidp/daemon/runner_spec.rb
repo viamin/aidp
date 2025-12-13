@@ -160,13 +160,13 @@ RSpec.describe Aidp::Daemon::Runner do
 
     it "traps TERM and INT signals" do
       allow(Signal).to receive(:trap).and_return(true)
-      runner.instance_variable_set(:@running, true)
+      runner.running = true
 
       expect(Signal).to receive(:trap).with("TERM").and_yield
       expect(Signal).to receive(:trap).with("INT").and_yield
 
       runner.send(:setup_signal_handlers)
-      expect(runner.instance_variable_get(:@running)).to be false
+      expect(runner.running).to be false
     end
   end
 
@@ -179,13 +179,13 @@ RSpec.describe Aidp::Daemon::Runner do
       client = instance_double("Client", gets: nil, close: nil)
       allow(UNIXServer).to receive(:new).and_return(server)
       allow(server).to receive(:accept_nonblock) do
-        runner.instance_variable_set(:@running, false)
+        runner.running = false
         client
       end
       allow(Thread).to receive(:new).and_yield
       allow(runner).to receive(:handle_ipc_client)
 
-      runner.instance_variable_set(:@running, true)
+      runner.running = true
       runner.send(:start_ipc_server)
 
       expect(UNIXServer).to have_received(:new).with(process_manager.socket_path)
@@ -202,18 +202,23 @@ RSpec.describe Aidp::Daemon::Runner do
   describe "IPC helpers" do
     let(:process_running) { true }
     let(:socket_exists) { true }
+    let(:watch_runner_double) { double("WatchRunner") }
 
     it "returns watch mode status when watch runner is active" do
-      runner.instance_variable_set(:@watch_runner, double("WatchRunner"))
-      response = runner.send(:status_response)
+      runner_with_watch = described_class.new(
+        project_dir, config, options,
+        process_manager: process_manager,
+        watch_runner: watch_runner_double
+      )
+      response = runner_with_watch.send(:status_response)
       expect(response[:mode]).to eq("watch")
       expect(response[:status]).to eq("running")
     end
 
     it "stops the runner when stop command is processed" do
-      runner.instance_variable_set(:@running, true)
+      runner.running = true
       expect(runner.send(:stop_response)).to eq(status: "stopping")
-      expect(runner.instance_variable_get(:@running)).to be false
+      expect(runner.running).to be false
     end
 
     it "returns attach payload" do
@@ -225,9 +230,13 @@ RSpec.describe Aidp::Daemon::Runner do
     end
 
     it "handles IPC commands end-to-end" do
-      runner.instance_variable_set(:@watch_runner, double("Watch"))
+      runner_with_watch = described_class.new(
+        project_dir, config, options,
+        process_manager: process_manager,
+        watch_runner: watch_runner_double
+      )
       client = FakeIpcClient.new("status")
-      runner.send(:handle_ipc_client, client)
+      runner_with_watch.send(:handle_ipc_client, client)
       response = JSON.parse(client.response_line)
       expect(response["mode"]).to eq("watch")
     end
@@ -258,9 +267,13 @@ RSpec.describe Aidp::Daemon::Runner do
     it "shuts down components gracefully" do
       work_loop_runner = instance_double("WorkLoopRunner", cancel: nil)
       ipc_server = instance_double("UNIXServer", close: nil)
-      runner.instance_variable_set(:@work_loop_runner, work_loop_runner)
-      runner.instance_variable_set(:@ipc_server, ipc_server)
-      runner.send(:cleanup)
+      runner_with_components = described_class.new(
+        project_dir, config, options,
+        process_manager: process_manager,
+        work_loop_runner: work_loop_runner,
+        ipc_server: ipc_server
+      )
+      runner_with_components.send(:cleanup)
       expect(work_loop_runner).to have_received(:cancel).with(save_checkpoint: true)
       expect(ipc_server).to have_received(:close)
       expect(process_manager).to have_received(:remove_socket)
@@ -275,9 +288,9 @@ RSpec.describe Aidp::Daemon::Runner do
     describe "#run_work_loop_mode" do
       it "logs heartbeats until stopped" do
         allow(runner).to receive(:sleep) do
-          runner.instance_variable_set(:@running, false)
+          runner.running = false
         end
-        runner.instance_variable_set(:@running, true)
+        runner.running = true
         runner.send(:run_work_loop_mode)
         expect(runner).to have_received(:sleep).with(10)
       end
@@ -293,12 +306,12 @@ RSpec.describe Aidp::Daemon::Runner do
 
       it "executes a watch cycle when running" do
         allow(runner).to receive(:sleep) do
-          runner.instance_variable_set(:@running, false)
+          runner.running = false
         end
         allow(watch_runner).to receive(:run_cycle) do
-          runner.instance_variable_set(:@running, false)
+          runner.running = false
         end
-        runner.instance_variable_set(:@running, true)
+        runner.running = true
         runner.send(:run_watch_mode)
         expect(watch_runner).to have_received(:run_cycle).once
       end
@@ -308,14 +321,14 @@ RSpec.describe Aidp::Daemon::Runner do
         allow(runner).to receive(:sleep) do |duration|
           next if duration == 30
 
-          runner.instance_variable_set(:@running, false)
+          runner.running = false
         end
         allow(watch_runner).to receive(:run_cycle) do
           call_count += 1
           raise "boom" if call_count == 1
-          runner.instance_variable_set(:@running, false)
+          runner.running = false
         end
-        runner.instance_variable_set(:@running, true)
+        runner.running = true
         runner.send(:run_watch_mode)
         expect(runner).to have_received(:sleep).with(30)
         expect(watch_runner).to have_received(:run_cycle).at_least(:twice)
