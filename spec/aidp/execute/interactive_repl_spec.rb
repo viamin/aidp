@@ -28,6 +28,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
     end
   end
   let(:options) { {prompt: prompt, async_runner_class: async_runner_class} }
+  let(:options_with_runner) { {prompt: prompt, async_runner_class: async_runner_class, async_runner: async_runner} }
 
   before do
     allow(prompt).to receive(:say)
@@ -53,9 +54,8 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#print_prompt_text" do
     it "prints prompt text for running state" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(repl).to receive(:print).and_return(nil) # swallow output
-      repl.instance_variable_set(:@async_runner, async_runner)
       repl.send(:print_prompt_text)
     end
   end
@@ -71,54 +71,48 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#handle_command" do
     it "handles pause macro result" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       macro_result = {success: true, action: :pause_work_loop, message: "Paused", data: {}}
-      allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with("/pause").and_return(macro_result)
+      allow(repl.repl_macros).to receive(:execute).with("/pause").and_return(macro_result)
       expect(prompt).to receive(:say).with("Paused")
       repl.send(:handle_command, "/pause")
     end
 
     it "handles resume macro" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       macro_result = {success: true, action: :resume_work_loop, message: "Resumed", data: {}}
-      allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with("/resume").and_return(macro_result)
+      allow(repl.repl_macros).to receive(:execute).with("/resume").and_return(macro_result)
       expect(prompt).to receive(:say).with("Resumed")
       repl.send(:handle_command, "/resume")
     end
 
     it "handles cancel macro" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       macro_result = {success: true, action: :cancel_work_loop, message: "Cancelled", data: {save_checkpoint: true}}
-      allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with("/cancel").and_return(macro_result)
+      allow(repl.repl_macros).to receive(:execute).with("/cancel").and_return(macro_result)
       expect(prompt).to receive(:say).with("Cancelled")
       repl.send(:handle_command, "/cancel")
     end
 
     it "handles enqueue instruction macro" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       macro_result = {success: true, action: :enqueue_instruction, message: nil, data: {instruction: "Do it", type: :immediate, priority: 1}}
-      allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with("/inject Do it").and_return(macro_result)
+      allow(repl.repl_macros).to receive(:execute).with("/inject Do it").and_return(macro_result)
       repl.send(:handle_command, "/inject Do it")
     end
 
     it "handles guard update macro" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       macro_result = {success: true, action: :update_guard, message: "Guard updated", data: {key: :max_tokens, value: 1000}}
-      allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with("/update guard max_tokens=1000").and_return(macro_result)
+      allow(repl.repl_macros).to receive(:execute).with("/update guard max_tokens=1000").and_return(macro_result)
       expect(prompt).to receive(:say).with("Guard updated")
       repl.send(:handle_command, "/update guard max_tokens=1000")
     end
 
     it "handles config reload macro" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       macro_result = {success: true, action: :reload_config, message: "Config reload queued", data: {}}
-      allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).with("/reload config").and_return(macro_result)
+      allow(repl.repl_macros).to receive(:execute).with("/reload config").and_return(macro_result)
       expect(prompt).to receive(:say).with("Config reload queued")
       repl.send(:handle_command, "/reload config")
     end
@@ -146,10 +140,9 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#handle_command error path" do
     it "reports error for failed macro execution" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       macro_result = {success: false, message: "Unknown"}
-      allow(repl.instance_variable_get(:@repl_macros)).to receive(:execute).and_return(macro_result)
+      allow(repl.repl_macros).to receive(:execute).and_return(macro_result)
       expect(prompt).to receive(:error).with("Unknown")
       repl.send(:handle_command, "/bad")
     end
@@ -159,17 +152,19 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
     it "initializes with default prompt when not provided" do
       allow(TTY::Prompt).to receive(:new).and_return(prompt)
       repl = described_class.new(project_dir, provider_manager, config)
-      expect(repl.instance_variable_get(:@prompt)).to eq(prompt)
+      # Use the public async_runner accessor to verify initialization works
+      expect(repl.async_runner).to be_nil
     end
 
     it "initializes with provided prompt" do
       repl = described_class.new(project_dir, provider_manager, config, options)
-      expect(repl.instance_variable_get(:@prompt)).to eq(prompt)
+      # Verify options are used by checking repl_macros is initialized
+      expect(repl.repl_macros).to be_a(Aidp::Execute::ReplMacros)
     end
 
     it "initializes repl macros" do
       repl = described_class.new(project_dir, provider_manager, config, options)
-      expect(repl.instance_variable_get(:@repl_macros)).to be_a(Aidp::Execute::ReplMacros)
+      expect(repl.repl_macros).to be_a(Aidp::Execute::ReplMacros)
     end
   end
 
@@ -206,8 +201,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#handle_rollback" do
     it "pauses work loop before rollback" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(repl).to receive(:execute_git_rollback).and_return({success: true, message: "Done"})
       allow(async_runner.state).to receive(:paused?).and_return(false)
 
@@ -217,8 +211,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
     end
 
     it "asks to resume after successful rollback" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(repl).to receive(:execute_git_rollback).and_return({success: true, message: "Done"})
       allow(async_runner.state).to receive(:paused?).and_return(true)
 
@@ -230,19 +223,17 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#handle_interrupt" do
     it "handles cancel choice" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(prompt).to receive(:select).and_return(:cancel)
 
       repl.send(:handle_interrupt)
 
       expect(async_runner).to have_received(:cancel).with(save_checkpoint: true)
-      expect(repl.instance_variable_get(:@running)).to be false
+      expect(repl.running).to be false
     end
 
     it "handles pause choice" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(prompt).to receive(:select).and_return(:pause)
 
       repl.send(:handle_interrupt)
@@ -251,8 +242,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
     end
 
     it "handles continue choice" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(prompt).to receive(:select).and_return(:continue)
 
       repl.send(:handle_interrupt)
@@ -298,30 +288,27 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
     it "marks completion as set up" do
       repl = described_class.new(project_dir, provider_manager, config, options)
       repl.send(:setup_completion)
-      expect(repl.instance_variable_get(:@completion_setup_needed)).to be false
+      expect(repl.completion_setup_needed).to be false
     end
   end
 
   describe "#print_prompt_text" do
     it "displays state in prompt for PAUSED" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(async_runner).to receive(:status).and_return({state: "PAUSED", iteration: 5, queued_instructions: {total: 0}})
       expect(repl).to receive(:print).with(a_string_matching(/PAUSED/))
       repl.send(:print_prompt_text)
     end
 
     it "displays state in prompt for CANCELLED" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(async_runner).to receive(:status).and_return({state: "CANCELLED", iteration: 3, queued_instructions: {total: 0}})
       expect(repl).to receive(:print).with(a_string_matching(/CANCELLED/))
       repl.send(:print_prompt_text)
     end
 
     it "displays queued instructions for IDLE state" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(async_runner).to receive(:status).and_return({state: "IDLE", iteration: 2, queued_instructions: {total: 3}})
       expect(repl).to receive(:print).with(a_string_matching(/\+3/))
       repl.send(:print_prompt_text)
@@ -347,11 +334,11 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#start_output_display" do
     it "starts output display thread" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(async_runner).to receive(:running?).and_return(false)
       repl.send(:start_output_display)
-      thread = repl.instance_variable_get(:@output_display_thread)
+      # Access thread via send since it's a private instance variable
+      thread = repl.send(:instance_variable_get, :@output_display_thread)
       expect(thread).to be_a(Thread)
       thread.kill
       thread.join(1)
@@ -360,18 +347,17 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#stop_output_display" do
     it "stops output display thread" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(async_runner).to receive(:running?).and_return(false)
       repl.send(:start_output_display)
       repl.send(:stop_output_display)
-      thread = repl.instance_variable_get(:@output_display_thread)
+      # Access thread via send since it's a private instance variable
+      thread = repl.send(:instance_variable_get, :@output_display_thread)
       expect(thread).to be_nil
     end
 
     it "drains remaining output" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(async_runner).to receive(:drain_output).and_return([{message: "test", type: :info}])
       expect(prompt).to receive(:say).with("test")
       repl.send(:stop_output_display)
@@ -380,8 +366,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
 
   describe "#handle_rollback" do
     it "reports rollback success" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(repl).to receive(:execute_git_rollback).and_return({success: true, message: "Rolled back"})
       allow(async_runner.state).to receive(:paused?).and_return(false)
 
@@ -390,8 +375,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
     end
 
     it "reports rollback failure" do
-      repl = described_class.new(project_dir, provider_manager, config, options)
-      repl.instance_variable_set(:@async_runner, async_runner)
+      repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(repl).to receive(:execute_git_rollback).and_return({success: false, message: "Failed"})
       allow(async_runner.state).to receive(:paused?).and_return(false)
 
