@@ -224,6 +224,41 @@ Analyze existing codebase and create user research plan:
 
 See [Agile Development Mode Guide](docs/AGILE_MODE_GUIDE.md) for complete documentation.
 
+### GitHub Projects V2 Integration
+
+AIDP integrates with GitHub Projects V2 for hierarchical issue management and automated PR workflows:
+
+```bash
+# Start watch mode with projects integration
+aidp watch owner/repo
+
+# Issues with aidp-plan label are automatically:
+# 1. Analyzed for complexity
+# 2. Broken into sub-issues (if large)
+# 3. Linked to your GitHub Project
+# 4. Implemented with hierarchical PRs
+```
+
+**Key Features:**
+
+- **Hierarchical Planning** - Large issues automatically decomposed into manageable sub-issues
+- **Project Board Sync** - Issues and status automatically synced to GitHub Projects V2
+- **Sub-Issue PRs** - Each sub-issue gets its own PR targeting the parent branch
+- **Auto-Merge** - Sub-issue PRs auto-merge when CI passes
+- **Parent PR Aggregation** - Parent PR shows all completed work for final review
+
+**Branch Strategy:**
+
+```text
+main
+ └── aidp/parent-123-feature
+      ├── aidp/sub-123-124-component-a
+      ├── aidp/sub-123-125-component-b
+      └── aidp/sub-123-126-component-c
+```
+
+See [GitHub Projects Guide](docs/GITHUB_PROJECTS.md) for complete documentation.
+
 ### Job Management
 
 Monitor and control background jobs:

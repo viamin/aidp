@@ -1537,6 +1537,69 @@ watch:
 - [LABELS.md](LABELS.md) - Full label reference
 - [WATCH_MODE_SAFETY.md](WATCH_MODE_SAFETY.md) - Safety configuration
 
+### GitHub Projects V2 Integration
+
+Watch Mode supports GitHub Projects V2 for advanced issue management and hierarchical planning.
+
+#### Hierarchical Issue Planning
+
+When enabled, AIDP can break down large issues into sub-issues:
+
+```bash
+# Create a parent issue with aidp-plan label
+gh issue create --title "Add user authentication" --label "aidp-plan"
+
+# AIDP automatically:
+# 1. Analyzes the issue complexity
+# 2. Creates sub-issues for each component
+# 3. Links all issues to your GitHub Project
+# 4. Sets up parent-child relationships
+```
+
+#### Sub-Issue PRs and Auto-Merge
+
+Sub-issue PRs target the parent branch (not main) and can be auto-merged:
+
+```text
+Branch Strategy:
+main
+ └── aidp/parent-123-auth-feature
+      ├── aidp/sub-123-124-login-form
+      ├── aidp/sub-123-125-session-management
+      └── aidp/sub-123-126-password-reset
+```
+
+When CI passes on a sub-issue PR:
+
+1. PR is automatically merged into parent branch
+2. Parent PR description is updated
+3. When all sub-issues complete, parent PR is ready for review
+
+#### Projects Configuration
+
+```yaml
+watch:
+  projects:
+    enabled: true
+    project_id: "PVT_kwDOA..."     # GitHub Project V2 ID
+    hierarchical_planning: true     # Enable sub-issue creation
+    field_mappings:
+      status: "Status"
+      blocking: "Blocking"
+    auto_create_fields: true
+
+  auto_merge:
+    enabled: true
+    sub_issue_prs_only: true        # Only auto-merge sub-issue PRs
+    require_ci_success: true
+    merge_method: "squash"
+```
+
+#### Related Documentation
+
+- [GITHUB_PROJECTS.md](GITHUB_PROJECTS.md) - Complete GitHub Projects guide
+- [GITHUB_PROJECTS_IMPLEMENTATION.md](GITHUB_PROJECTS_IMPLEMENTATION.md) - Implementation details
+
 ## Workflow Examples
 
 ### Example 1: Interactive Feature Development
