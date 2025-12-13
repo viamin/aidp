@@ -427,6 +427,55 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
         expect(data[:auto_model]).to be true
       end
     end
+
+    context "when provider has partial tiers configured (issue #323)" do
+      let(:config_with_partial_tiers) do
+        config_data = sample_config.dup
+        # Provider has only mini tier configured, not pro or thinking
+        config_data["providers"]["newprovider"] = {
+          "type" => "usage_based",
+          "model_family" => "auto",
+          "thinking_tiers" => {
+            "mini" => {
+              "models" => ["mini-model-1"]
+            }
+          }
+        }
+        config_data["thinking"]["allow_provider_switch"] = false
+        config_data["harness"]["default_provider"] = "newprovider"
+        config_data
+      end
+
+      it "defers to provider auto model selection when requested tier not configured and fallback fails" do
+        File.write(config_path, YAML.dump(config_with_partial_tiers))
+
+        configuration_partial = Aidp::Harness::Configuration.new(temp_dir)
+        manager_partial = described_class.new(configuration_partial, registry: registry)
+
+        # Request pro tier which is not configured, with provider switching disabled
+        provider, model, data = manager_partial.select_model_for_tier("pro", provider: "newprovider")
+
+        # Should defer to provider auto model selection instead of failing
+        expect(provider).to eq("newprovider")
+        expect(model).to be_nil
+        expect(data[:auto_model]).to be true
+        expect(data[:reason]).to eq("tier_not_configured")
+      end
+
+      it "still uses fallback tier when available" do
+        File.write(config_path, YAML.dump(config_with_partial_tiers))
+
+        configuration_partial = Aidp::Harness::Configuration.new(temp_dir)
+        manager_partial = described_class.new(configuration_partial, registry: registry)
+
+        # Request standard tier, but mini tier is configured as fallback
+        provider, model, _data = manager_partial.select_model_for_tier("standard", provider: "newprovider")
+
+        # Should use the configured mini tier as fallback
+        expect(provider).to eq("newprovider")
+        expect(model).to eq("mini-model-1")
+      end
+    end
   end
 
   describe "#tier_for_model" do
