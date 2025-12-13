@@ -243,32 +243,23 @@ module Aidp
               model: model_name)
             return [provider, model_name, model_data]
           end
-
-          # If provider doesn't support tier and switching allowed, try others
-          unless configuration.allow_provider_switch_for_tier?
-            Aidp.log_warn("thinking_depth_manager", "Provider lacks tier in catalog, switching disabled",
-              tier: tier,
-              provider: provider)
-            return nil
-          end
+          # Per issue #323: Don't return nil here - let fallback logic handle missing tiers
         end
 
-        # Try all providers in catalog
-        if provider && !configuration.allow_provider_switch_for_tier?
-          return nil
-        end
+        # Try all providers in catalog if provider switching is allowed
+        if configuration.allow_provider_switch_for_tier?
+          providers_to_try = provider ? (@registry.provider_names - [provider]) : @registry.provider_names
 
-        providers_to_try = provider ? [@registry.provider_names - [provider]].flatten : @registry.provider_names
-
-        providers_to_try.each do |prov_name|
-          model_name, model_data = @registry.best_model_for_tier(tier, prov_name)
-          if model_name
-            Aidp.log_info("thinking_depth_manager", "Selected model from catalog (alternate provider)",
-              tier: tier,
-              original_provider: provider,
-              selected_provider: prov_name,
-              model: model_name)
-            return [prov_name, model_name, model_data]
+          providers_to_try.each do |prov_name|
+            model_name, model_data = @registry.best_model_for_tier(tier, prov_name)
+            if model_name
+              Aidp.log_info("thinking_depth_manager", "Selected model from catalog (alternate provider)",
+                tier: tier,
+                original_provider: provider,
+                selected_provider: prov_name,
+                model: model_name)
+              return [prov_name, model_name, model_data]
+            end
           end
         end
 
