@@ -772,6 +772,92 @@ thinking:
 
 For detailed documentation, see [THINKING_DEPTH.md](THINKING_DEPTH.md).
 
+## Watch Mode Configuration
+
+Configure Watch Mode behavior for automated issue and PR processing.
+
+### Basic Watch Settings
+
+```yaml
+watch:
+  labels:
+    auto_trigger: "aidp-auto"
+    plan_trigger: "aidp-plan"
+    build_trigger: "aidp-build"
+    review_trigger: "aidp-review"
+    ci_fix_trigger: "aidp-fix-ci"
+    request_changes_trigger: "aidp-request-changes"
+
+  safety:
+    author_allowlist:
+      - "username1"
+      - "org/team-name"
+    require_allowlist: true
+
+  processing:
+    poll_interval_seconds: 30
+    max_iterations: 20
+```
+
+### GitHub Projects V2 Integration
+
+Enable GitHub Projects V2 for hierarchical issue management:
+
+```yaml
+watch:
+  projects:
+    enabled: true
+    project_id: "PVT_kwDOA..."       # Required: Your Project V2 ID
+    hierarchical_planning: true       # Break large issues into sub-issues
+    field_mappings:                   # Map AIDP fields to project fields
+      status: "Status"
+      priority: "Priority"
+      blocking: "Blocking"
+    auto_create_fields: true          # Create fields if they don't exist
+```
+
+**Finding Your Project ID:**
+
+```bash
+# List your organization's projects
+gh api graphql -f query='
+  query { organization(login: "YOUR_ORG") {
+    projectsV2(first: 10) { nodes { id title } }
+  }
+}'
+
+# List your user projects
+gh api graphql -f query='
+  query { viewer {
+    projectsV2(first: 10) { nodes { id title } }
+  }
+}'
+```
+
+### Auto-Merge Configuration
+
+Configure automatic merging for sub-issue PRs:
+
+```yaml
+watch:
+  auto_merge:
+    enabled: true
+    sub_issue_prs_only: true          # Only auto-merge sub-issue PRs (safety)
+    require_ci_success: true          # Wait for CI to pass
+    require_reviews: 0                # Minimum required reviews (0 = none)
+    merge_method: "squash"            # squash, merge, or rebase
+    delete_branch: true               # Delete branch after merge
+```
+
+**Safety Features:**
+
+- Parent PRs are **never** auto-merged (always require human review)
+- Only PRs with `aidp-sub-pr` label are eligible (when `sub_issue_prs_only: true`)
+- CI must pass before merge (when `require_ci_success: true`)
+- Merge conflicts prevent auto-merge
+
+For complete documentation, see [GITHUB_PROJECTS.md](GITHUB_PROJECTS.md).
+
 ## Devcontainer Configuration
 
 AIDP can automatically generate and manage your `.devcontainer/devcontainer.json` configuration based on your project settings.
