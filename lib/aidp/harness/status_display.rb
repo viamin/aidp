@@ -9,6 +9,15 @@ module Aidp
     class StatusDisplay
       include Aidp::MessageDisplay
 
+      # Expose state for testability
+      attr_accessor :current_step, :current_provider, :current_model
+      attr_accessor :start_time, :running, :display_mode, :update_interval
+      attr_accessor :status_data, :performance_metrics, :error_summary
+      attr_accessor :provider_status, :token_usage, :circuit_breaker_status
+      attr_accessor :rate_limit_status, :recovery_status, :user_feedback_status
+      attr_accessor :work_completion_status, :display_config
+      attr_reader :status_formatter, :metrics_calculator, :alert_manager, :display_animator
+
       def initialize(provider_manager = nil, metrics_manager = nil, circuit_breaker_manager = nil, error_logger = nil, prompt: TTY::Prompt.new)
         @provider_manager = provider_manager
         @metrics_manager = metrics_manager
@@ -686,8 +695,6 @@ module Aidp
         }
       end
 
-      attr_reader :provider_status
-
       def performance_status
         @performance_metrics
       end
@@ -696,19 +703,9 @@ module Aidp
         @error_summary
       end
 
-      attr_reader :circuit_breaker_status
-
       def token_status
         @token_usage
       end
-
-      attr_reader :rate_limit_status
-
-      attr_reader :recovery_status
-
-      attr_reader :user_feedback_status
-
-      attr_reader :work_completion_status
 
       def alerts
         @alert_manager.active_alerts
