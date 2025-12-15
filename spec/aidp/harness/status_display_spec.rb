@@ -70,21 +70,21 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       status_display.update_current_step("Test Step")
 
       expect(status_display.current_step).to eq("Test Step")
-      expect(status_display.status_data[:current_step]).to eq("Test Step")
+      expect(status_display.internal_status_data[:current_step]).to eq("Test Step")
     end
 
     it "updates current provider" do
       status_display.update_current_provider("claude")
 
       expect(status_display.current_provider).to eq("claude")
-      expect(status_display.status_data[:current_provider]).to eq("claude")
+      expect(status_display.internal_status_data[:current_provider]).to eq("claude")
     end
 
     it "updates current model" do
       status_display.update_current_model("claude", "model1")
 
       expect(status_display.current_model).to eq("model1")
-      expect(status_display.status_data[:current_model]).to eq("model1")
+      expect(status_display.internal_status_data[:current_model]).to eq("model1")
     end
 
     it "updates token usage" do
