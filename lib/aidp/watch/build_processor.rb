@@ -26,6 +26,8 @@ module Aidp
       IMPLEMENTATION_STEP = "16_IMPLEMENTATION"
 
       attr_reader :build_label, :needs_input_label
+      # Expose state for testability
+      attr_writer :config, :verifier
 
       def initialize(repository_client:, state_store:, project_dir: Dir.pwd, use_workstreams: true, verbose: false, label_config: {})
         @repository_client = repository_client
