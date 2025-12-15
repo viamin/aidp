@@ -663,7 +663,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "switches model when current model is rate limited" do
         # Set current provider and model
         manager.send(:set_current_provider, "anthropic")
-        manager.instance_variable_set(:@current_model, "claude-3-opus")
+        manager.current_model = "claude-3-opus"
 
         # Mark current model as rate limited - should trigger switch
         manager.send(:mark_model_rate_limited, "anthropic", "claude-3-opus")
@@ -676,7 +676,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       it "does not switch model when rate limited model is not current" do
         # Set current provider but different model
         manager.send(:set_current_provider, "anthropic")
-        manager.instance_variable_set(:@current_model, "claude-3-sonnet")
+        manager.current_model = "claude-3-sonnet"
 
         # Mark different model as rate limited
         old_model = manager.current_model
@@ -1110,7 +1110,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         expect(provider).to be_nil # Should be expired at exactly timeout
 
         # Clear sessions and reset time for clean test
-        manager.instance_variable_set(:@sticky_sessions, {})
+        manager.sticky_sessions = {}
         allow(Time).to receive(:now).and_return(mock_time)
         manager.update_sticky_session("cursor")
 
@@ -1122,7 +1122,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
       it "correctly handles empty sticky sessions hash" do
         # Ensure sticky sessions is empty
-        manager.instance_variable_set(:@sticky_sessions, {})
+        manager.sticky_sessions = {}
 
         provider = manager.sticky_session_provider("session123")
         expect(provider).to be_nil
@@ -1155,7 +1155,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
       context "with cached result within TTL" do
         it "returns cached value without re-checking" do
           # Clear cache first
-          cache = manager.instance_variable_get(:@binary_check_cache)
+          cache = manager.binary_check_cache
           cache.clear
 
           # First call should check and cache
@@ -1204,7 +1204,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
           expect(Process).to receive(:kill).with("KILL", fake_pid).ordered
 
           # Clear cache to force check
-          cache = manager.instance_variable_get(:@binary_check_cache)
+          cache = manager.binary_check_cache
           cache.delete("anthropic")
 
           ok, reason = manager.send(:provider_cli_available?, "anthropic")
@@ -1220,7 +1220,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
           allow(mock_binary_checker).to receive(:which).with("claude").and_return(nil)
 
           # Clear cache to force check
-          cache = manager.instance_variable_get(:@binary_check_cache)
+          cache = manager.binary_check_cache
           cache.delete("anthropic")
 
           ok, reason = manager.send(:provider_cli_available?, "anthropic")
@@ -1234,7 +1234,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
         it "re-checks after TTL expiry and recovers to available" do
           # First: simulate missing binary
           allow(mock_binary_checker).to receive(:which).with("claude").and_return(nil)
-          cache = manager.instance_variable_get(:@binary_check_cache)
+          cache = manager.binary_check_cache
           cache.delete("anthropic")
           ok1, reason1 = manager.send(:provider_cli_available?, "anthropic")
           expect(ok1).to be false
@@ -1247,7 +1247,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
           expect(reason2).to eq("binary_missing")
 
           # Force TTL expiry by rewinding checked_at timestamp beyond @binary_check_ttl
-          ttl = manager.instance_variable_get(:@binary_check_ttl)
+          ttl = manager.binary_check_ttl
           cache_key = "anthropic:claude"
           cache_entry = cache[cache_key]
           expect(cache_entry).not_to be_nil
@@ -1449,7 +1449,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
             manager.record_metrics("anthropic", success: true, duration: 1.0, tokens_used: 100)
 
             # Simulate additional metrics (would normally come from different provider instances)
-            metrics = manager.instance_variable_get(:@provider_metrics)
+            metrics = manager.provider_metrics
             metrics["anthropic"] ||= {}
             metrics["anthropic"][:total_requests] = (metrics["anthropic"][:total_requests] || 0) + 3
             metrics["anthropic"][:successful_requests] = (metrics["anthropic"][:successful_requests] || 0) + 2
@@ -1485,7 +1485,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
             manager.mark_rate_limited("anthropic", Time.now + 1800) # 30 minutes
 
             # Simulate additional rate limit source with longer time
-            rate_info = manager.instance_variable_get(:@rate_limit_info)
+            rate_info = manager.rate_limit_info
             rate_info["anthropic"][:reset_time] = Time.now + 3600 # Override with 60 minutes
 
             dashboard = manager.send(:health_dashboard)
@@ -1525,7 +1525,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
             5.times { manager.update_provider_health("anthropic", "error") }
 
             # Manually simulate a second circuit breaker with different timeout
-            health = manager.instance_variable_get(:@provider_health)
+            health = manager.provider_health
             health["anthropic"][:circuit_breaker_opened_at] = Time.now - 100 # Opened 100 seconds ago
 
             dashboard = manager.send(:health_dashboard)
@@ -1540,9 +1540,9 @@ RSpec.describe Aidp::Harness::ProviderManager do
         describe "edge cases and boundary conditions" do
           it "handles empty health data gracefully" do
             # Clear all health data
-            manager.instance_variable_set(:@provider_health, {})
-            manager.instance_variable_set(:@provider_metrics, {})
-            manager.instance_variable_set(:@rate_limit_info, {})
+            manager.provider_health = {}
+            manager.provider_metrics = {}
+            manager.rate_limit_info = {}
 
             dashboard = manager.send(:health_dashboard)
 
@@ -1556,7 +1556,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
             manager.record_metrics("anthropic", success: true, duration: 1.0, tokens_used: 100)
 
             # Clear health info
-            manager.instance_variable_get(:@provider_health).delete("anthropic")
+            manager.provider_health.delete("anthropic")
 
             dashboard = manager.send(:health_dashboard)
             claude_row = dashboard.find { |row| row[:provider] == "claude" }
@@ -1675,11 +1675,11 @@ RSpec.describe Aidp::Harness::ProviderManager do
 
     context "without session_id in context" do
       it "does not update sticky session" do
-        initial_sessions = manager.instance_variable_get(:@sticky_sessions).dup
+        initial_sessions = manager.sticky_sessions.dup
         manager.send(:set_current_provider, "cursor", "manual", {})
 
         # Should not have added any new sessions
-        expect(manager.instance_variable_get(:@sticky_sessions)).to eq(initial_sessions)
+        expect(manager.sticky_sessions).to eq(initial_sessions)
       end
     end
   end
@@ -2174,7 +2174,7 @@ RSpec.describe Aidp::Harness::ProviderManager do
     describe "load balancing performance" do
       before do
         # Enable load balancing
-        @large_manager.instance_variable_set(:@load_balancing_enabled, true)
+        @large_manager.load_balancing_enabled = true
 
         # Set up provider weights for all providers
         weights = {}
