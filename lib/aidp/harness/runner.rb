@@ -23,7 +23,11 @@ module Aidp
       }.freeze
 
       # Public accessors for testing and integration
-      attr_reader :current_provider, :current_step, :user_input, :execution_log, :provider_manager, :clarification_questions
+      attr_reader :clarification_questions, :last_error
+      attr_accessor :current_provider, :current_step, :user_input, :execution_log, :provider_manager
+      attr_accessor :state, :mode, :project_dir, :configuration, :condition_detector
+      attr_accessor :state_manager, :user_interface, :error_handler, :status_display
+      attr_writer :completion_checker, :workflow_type, :non_interactive
 
       def initialize(project_dir, mode = :analyze, options = {})
         @project_dir = project_dir
