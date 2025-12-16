@@ -116,6 +116,7 @@ RSpec.describe Aidp::CLI::ToolsCommand do
     it "handles lint subcommand" do
       create_skill_file("test.md", id: "test_skill")
 
+      allow(mock_query).to receive(:directory)
       allow(prompt).to receive(:say)
       allow(prompt).to receive(:ok)
       allow(Aidp::Config).to receive(:load_from_project).and_return(
