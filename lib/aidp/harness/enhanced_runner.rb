@@ -24,8 +24,8 @@ module Aidp
       }.freeze
 
       # Expose state for testability
-      attr_accessor :state, :current_step, :current_provider, :start_time
-      attr_accessor :user_input, :execution_log
+      attr_accessor :state, :current_step, :start_time
+      attr_writer :current_provider, :user_input, :execution_log
       attr_accessor :mode, :project_dir, :selected_steps, :workflow_type
       attr_reader :provider_manager, :sleeper
       attr_writer :completion_checker, :workflow_controller, :error_handler
