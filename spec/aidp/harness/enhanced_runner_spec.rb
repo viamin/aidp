@@ -20,8 +20,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
   let(:mock_completion_checker) { double("CompletionChecker", completion_status: {all_complete: true}) }
   let(:mock_tui) do
     double("EnhancedTUI").tap do |tui|
-      allow(tui).to receive(:instance_variable_set)
-      allow(tui).to receive(:instance_variable_get).with(:@jobs).and_return({"main_workflow" => {}})
+      allow(tui).to receive(:jobs).and_return({"main_workflow" => {}})
     end
   end
   let(:mock_workflow_selector) { double("EnhancedWorkflowSelector") }
@@ -471,7 +470,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       it "calls cleanup method which removes remaining jobs" do
         # Cleanup method should remove all jobs from TUI
         jobs = {"job1" => {}, "job2" => {}}
-        allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return(jobs)
+        allow(mock_tui).to receive(:jobs).and_return(jobs)
 
         # The cleanup method is called during run, so we need to test it directly
         # or ensure it's called during the run method
@@ -959,7 +958,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       instance.execution_log = ["event1", "event2", "event3"]
 
       allow(Time).to receive(:now).and_return(current_time)
-      allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return({"job1" => {}, "job2" => {}})
+      allow(mock_tui).to receive(:jobs).and_return({"job1" => {}, "job2" => {}})
     end
 
     it "returns comprehensive status information" do
@@ -1543,7 +1542,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
       before do
         jobs = {"job1" => {}, "job2" => {}, "job3" => {}}
-        allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return(jobs)
+        allow(mock_tui).to receive(:jobs).and_return(jobs)
         allow(mock_tui).to receive(:remove_job)
       end
 
@@ -1594,7 +1593,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(mock_tui).to receive(:update_job)
         allow(mock_tui).to receive(:remove_job)
         allow(mock_tui).to receive(:show_step_execution)
-        allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return({})
+        allow(mock_tui).to receive(:jobs).and_return({})
 
         # Mock runner behaviors
         allow(mock_runner).to receive(:mark_step_in_progress)

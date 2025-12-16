@@ -11,6 +11,9 @@ module Aidp
       class SpinnerHelper
         class SpinnerError < StandardError; end
 
+        # Expose for testability
+        attr_accessor :active_spinners
+
         def initialize
           @pastel = Pastel.new
           @active_spinners = []

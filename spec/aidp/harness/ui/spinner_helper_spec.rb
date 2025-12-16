@@ -73,7 +73,7 @@ RSpec.describe Aidp::Harness::UI::SpinnerHelper do
     it "cleans up spinner after execution" do
       helper.with_spinner("Test") { "done" }
 
-      expect(helper.instance_variable_get(:@active_spinners)).not_to include(spinner_double)
+      expect(helper.active_spinners).not_to include(spinner_double)
     end
   end
 
@@ -174,7 +174,7 @@ RSpec.describe Aidp::Harness::UI::SpinnerHelper do
     it "returns true when spinners are active" do
       allow(spinner_double).to receive(:spinning?).and_return(true)
 
-      helper.instance_variable_set(:@active_spinners, [spinner_double])
+      helper.active_spinners = [spinner_double]
       expect(helper.any_active?).to be true
     end
   end
@@ -186,7 +186,7 @@ RSpec.describe Aidp::Harness::UI::SpinnerHelper do
 
     it "returns count of active spinners" do
       allow(spinner_double).to receive(:spinning?).and_return(true)
-      helper.instance_variable_set(:@active_spinners, [spinner_double, spinner_double])
+      helper.active_spinners = [spinner_double, spinner_double]
 
       expect(helper.active_count).to eq(2)
     end
@@ -195,17 +195,17 @@ RSpec.describe Aidp::Harness::UI::SpinnerHelper do
   describe "#stop_all" do
     it "stops all active spinners" do
       allow(spinner_double).to receive(:spinning?).and_return(true)
-      helper.instance_variable_set(:@active_spinners, [spinner_double])
+      helper.active_spinners = [spinner_double]
 
       helper.stop_all
 
       expect(spinner_double).to have_received(:stop)
-      expect(helper.instance_variable_get(:@active_spinners)).to be_empty
+      expect(helper.active_spinners).to be_empty
     end
 
     it "skips non-spinning spinners" do
       allow(spinner_double).to receive(:spinning?).and_return(false)
-      helper.instance_variable_set(:@active_spinners, [spinner_double])
+      helper.active_spinners = [spinner_double]
 
       helper.stop_all
 
