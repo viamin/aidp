@@ -357,7 +357,7 @@ module Aidp
           duration: @start_time ? Time.now - @start_time : 0,
           user_input_count: @user_input.size,
           execution_log_count: @execution_log.size,
-          jobs_count: @tui.instance_variable_get(:@jobs).size
+          jobs_count: @tui.jobs.size
         }
       end
 
@@ -533,7 +533,7 @@ module Aidp
 
       def cleanup
         # Cleanup any remaining jobs
-        @tui.instance_variable_get(:@jobs).keys.each do |job_id|
+        @tui.jobs.keys.each do |job_id|
           @tui.remove_job(job_id)
         end
       end

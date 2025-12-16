@@ -200,6 +200,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       allow(mock_tui).to receive(:remove_job)
       allow(mock_tui).to receive(:show_step_execution)
       allow(mock_tui).to receive(:show_input_area)
+      allow(mock_tui).to receive(:jobs).and_return({})
 
       # Mock core methods
       allow(instance).to receive(:get_mode_runner).and_return(mock_runner)
@@ -499,6 +500,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       allow(mock_tui).to receive(:update_job)
       allow(mock_tui).to receive(:remove_job)
       allow(mock_tui).to receive(:show_step_execution)
+      allow(mock_tui).to receive(:jobs).and_return({})
 
       # Mock runner methods
       allow(mock_runner).to receive(:mark_step_in_progress)
