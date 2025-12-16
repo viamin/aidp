@@ -27,8 +27,7 @@ RSpec.describe Aidp::Harness::UI::ErrorHandler do
 
     it "uses default logger when not provided" do
       handler = described_class.new
-      logger = handler.instance_variable_get(:@logger)
-      expect(logger).to respond_to(:error)
+      expect(handler.logger).to respond_to(:error)
     end
   end
 

@@ -92,7 +92,7 @@ RSpec.describe Aidp::Watch::Runner do
     it "invokes coordinator when interval has passed" do
       runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01, prompt: test_prompt)
       allow(runner).to receive(:display_message)
-      runner.instance_variable_set(:@last_update_check, Time.now - 100)
+      runner.last_update_check = Time.now - 100
       expect(auto_update).to receive(:check_for_update).and_return(auto_update_check)
       expect(auto_update).to receive(:initiate_update)
 
@@ -104,7 +104,7 @@ RSpec.describe Aidp::Watch::Runner do
     it "enables post_detection_comments by default" do
       runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
       allow(runner).to receive(:display_message)
-      expect(runner.instance_variable_get(:@post_detection_comments)).to be true
+      expect(runner.post_detection_comments).to be true
     end
   end
 

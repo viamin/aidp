@@ -134,13 +134,13 @@ RSpec.configure do |config|
   # Clean up loggers after each test to prevent closed stream warnings
   config.after(:each) do
     # Close the Aidp logger if it exists
-    if defined?(Aidp) && Aidp.instance_variable_get(:@logger)
+    if defined?(Aidp) && Aidp.logger
       begin
-        Aidp.instance_variable_get(:@logger)&.close
+        Aidp.logger&.close
       rescue IOError
         # Ignore closed stream errors during cleanup
       end
-      Aidp.instance_variable_set(:@logger, nil)
+      Aidp.logger = nil
     end
 
     # Kill any leftover threads to prevent test suite hangs

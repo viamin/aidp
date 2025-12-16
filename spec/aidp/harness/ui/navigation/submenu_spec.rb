@@ -96,12 +96,12 @@ RSpec.describe Aidp::Harness::UI::Navigation::SubMenu do
 
   describe "#within_depth_limit?" do
     it "returns true when within limit" do
-      submenu.instance_variable_set(:@current_level, 2)
+      submenu.current_level = 2
       expect(submenu.within_depth_limit?).to be true
     end
 
     it "returns false when at limit" do
-      submenu.instance_variable_set(:@current_level, 5)
+      submenu.current_level = 5
       expect(submenu.within_depth_limit?).to be false
     end
   end
@@ -153,7 +153,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::SubMenu do
     end
 
     it "raises error at max depth" do
-      submenu.instance_variable_set(:@current_level, 5)
+      submenu.current_level = 5
       expect { submenu.create_child_submenu("Child") }.to raise_error(Aidp::Harness::UI::Navigation::SubMenu::InvalidSubMenuError)
     end
   end

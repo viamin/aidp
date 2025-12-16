@@ -26,7 +26,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::WorkflowSelector do
 
     it "creates default prompt when not provided" do
       selector = described_class.new({})
-      expect(selector.instance_variable_get(:@prompt)).to be_a(TTY::Prompt)
+      expect(selector.prompt).to be_a(TTY::Prompt)
     end
   end
 
@@ -132,7 +132,7 @@ RSpec.describe Aidp::Harness::UI::Navigation::WorkflowFormatter do
 
   describe "#initialize" do
     it "creates a pastel instance" do
-      expect(formatter.instance_variable_get(:@pastel)).not_to be_nil
+      expect(formatter.pastel).not_to be_nil
     end
   end
 

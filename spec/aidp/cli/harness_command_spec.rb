@@ -96,7 +96,7 @@ RSpec.describe Aidp::CLI::HarnessCommand do
 
   describe "#run with reset subcommand" do
     before do
-      allow(runner_double).to receive(:instance_variable_get).with(:@state_manager).and_return(state_manager_double)
+      allow(runner_double).to receive(:state_manager).and_return(state_manager_double)
     end
 
     context "with analyze mode" do

@@ -19,6 +19,10 @@ module Aidp
 
       class ConversationError < StandardError; end
 
+      # Expose for testability
+      attr_reader :project_dir, :conversation_history, :user_input, :config_manager
+      attr_writer :provider_manager
+
       def initialize(project_dir, prompt: nil, use_enhanced_input: true, verbose: false, config_manager: nil, provider_manager: nil)
         @project_dir = project_dir
 

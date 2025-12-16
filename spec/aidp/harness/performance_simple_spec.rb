@@ -53,7 +53,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
         configuration = Aidp::Harness::Configuration.new(project_dir)
         provider_manager = Aidp::Harness::ProviderManager.new(configuration, prompt: test_prompt)
         error_handler = Aidp::Harness::ErrorHandler.new(provider_manager, configuration)
-        error_handler.instance_variable_get(:@retry_strategies)
+        error_handler.retry_strategies
       end
 
       # Condition detector initialization
@@ -109,7 +109,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       # Error classification
       times[:error_classification] = Benchmark.realtime do
         100.times do
-          error_handler.instance_variable_get(:@error_classifier).classify_error(
+          error_handler.error_classifier.classify_error(
             StandardError.new("test"), {}
           )
         end
@@ -249,7 +249,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
 
     it "handles provider operations efficiently" do
       harness_runner = Aidp::Harness::Runner.new(project_dir, :analyze)
-      provider_manager = harness_runner.instance_variable_get(:@provider_manager)
+      provider_manager = harness_runner.provider_manager
 
       # Measure provider operation performance
       provider_times = []
@@ -315,7 +315,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
 
       # Error classification
       actual_times[:error_classification] = Benchmark.realtime do
-        error_handler.instance_variable_get(:@error_classifier).classify_error(
+        error_handler.error_classifier.classify_error(
           StandardError.new("test"), {}
         )
       end

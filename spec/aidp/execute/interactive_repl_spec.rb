@@ -337,8 +337,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
       repl = described_class.new(project_dir, provider_manager, config, options_with_runner)
       allow(async_runner).to receive(:running?).and_return(false)
       repl.send(:start_output_display)
-      # Access thread via send since it's a private instance variable
-      thread = repl.send(:instance_variable_get, :@output_display_thread)
+      thread = repl.output_display_thread
       expect(thread).to be_a(Thread)
       thread.kill
       thread.join(1)
@@ -351,8 +350,7 @@ RSpec.describe Aidp::Execute::InteractiveRepl do
       allow(async_runner).to receive(:running?).and_return(false)
       repl.send(:start_output_display)
       repl.send(:stop_output_display)
-      # Access thread via send since it's a private instance variable
-      thread = repl.send(:instance_variable_get, :@output_display_thread)
+      thread = repl.output_display_thread
       expect(thread).to be_nil
     end
 

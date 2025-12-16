@@ -25,7 +25,7 @@ module Aidp
 
       # Expose running state and repl_macros for testability
       attr_accessor :running
-      attr_reader :repl_macros, :async_runner, :completion_setup_needed
+      attr_reader :repl_macros, :async_runner, :completion_setup_needed, :output_display_thread
 
       def initialize(project_dir, provider_manager, config, options = {})
         @project_dir = project_dir
