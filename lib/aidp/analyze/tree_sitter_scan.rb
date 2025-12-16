@@ -14,6 +14,9 @@ module Aidp
     class TreeSitterScan
       include Aidp::MessageDisplay
 
+      # Expose state for testability
+      attr_accessor :symbols, :imports, :calls, :metrics, :seams, :hotspots, :tests, :cycles
+
       def initialize(root: Dir.pwd, kb_dir: ".aidp/kb", langs: %w[ruby], threads: Etc.nprocessors, prompt: TTY::Prompt.new)
         @root = File.expand_path(root)
         @kb_dir = File.expand_path(kb_dir, @root)

@@ -42,9 +42,9 @@ module Aidp
       include Aidp::MessageDisplay
 
       # Expose state for testability
-      attr_accessor :iteration_count, :step_name, :options
+      attr_accessor :iteration_count, :step_name, :options, :persistent_tasklist
       attr_reader :project_dir, :current_state, :state_history, :test_runner, :prompt_manager
-      attr_writer :guard_policy, :persistent_tasklist, :prompt_manager, :style_guide_selector
+      attr_writer :guard_policy, :prompt_manager, :style_guide_selector
 
       MAX_ITERATIONS = 50 # Safety limit
       CHECKPOINT_INTERVAL = 5 # Record checkpoint every N iterations

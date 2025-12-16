@@ -538,7 +538,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
         before do
           # Mock both worktree managers in the processor
-          processor.instance_variable_set(:@worktree_branch_manager, branch_manager)
+          processor.worktree_branch_manager = branch_manager
 
           # Mock common methods
           allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
@@ -608,7 +608,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
             processor.send(:checkout_pr_branch, pr)
 
             # Verify project_dir is updated
-            expect(processor.instance_variable_get(:@project_dir)).to eq("/tmp/existing_worktree")
+            expect(processor.project_dir).to eq("/tmp/existing_worktree")
           end
         end
 
@@ -660,7 +660,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
             processor.send(:checkout_pr_branch, pr)
 
             # Verify project_dir is updated
-            expect(processor.instance_variable_get(:@project_dir)).to eq("/tmp/new_worktree")
+            expect(processor.project_dir).to eq("/tmp/new_worktree")
           end
         end
       end
@@ -714,7 +714,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
         before do
           # Setup processor to be in a worktree directory
-          processor.instance_variable_set(:@project_dir, "/tmp/.worktrees/pr-123")
+          processor.project_dir = "/tmp/.worktrees/pr-123"
 
           # Clear any existing ordered expectations from previous tests
           RSpec::Mocks.space.proxy_for(processor).reset
@@ -810,7 +810,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
       before do
         # Directly set the mock WorktreeBranchManager on the processor instance
-        processor.instance_variable_set(:@worktree_branch_manager, branch_manager)
+        processor.worktree_branch_manager = branch_manager
 
         allow(Dir).to receive(:chdir) do |path, &block|
           block&.call
@@ -987,7 +987,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         let(:branch_manager) { instance_double(Aidp::WorktreeBranchManager) }
 
         before do
-          processor.instance_variable_set(:@worktree_branch_manager, branch_manager)
+          processor.worktree_branch_manager = branch_manager
           allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
         end
 
@@ -1109,7 +1109,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         let(:branch_manager) { instance_double(Aidp::WorktreeBranchManager) }
 
         before do
-          processor.instance_variable_set(:@worktree_branch_manager, branch_manager)
+          processor.worktree_branch_manager = branch_manager
           allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
         end
 
@@ -1158,7 +1158,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
       before do
         # Set up processor to be in a worktree directory
-        processor.instance_variable_set(:@project_dir, worktree_project_dir)
+        processor.project_dir = worktree_project_dir
 
         allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
         allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)

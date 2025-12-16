@@ -107,7 +107,7 @@ RSpec.describe "Work Loop Task Completion" do
           prompt: test_prompt,
           thinking_depth_manager: mock_thinking_depth_manager
         )
-        runner.instance_variable_set(:@step_name, "TEST_STEP")
+        runner.step_name = "TEST_STEP"
 
         result = runner.send(:check_task_completion)
 
@@ -127,10 +127,10 @@ RSpec.describe "Work Loop Task Completion" do
         )
       end
 
-      let(:persistent_tasklist) { runner.instance_variable_get(:@persistent_tasklist) }
+      let(:persistent_tasklist) { runner.persistent_tasklist }
 
       before do
-        runner.instance_variable_set(:@step_name, "TEST_STEP")
+        runner.step_name = "TEST_STEP"
       end
 
       context "when no tasks exist" do
@@ -297,10 +297,10 @@ RSpec.describe "Work Loop Task Completion" do
       )
     end
 
-    let(:persistent_tasklist) { runner.instance_variable_get(:@persistent_tasklist) }
+    let(:persistent_tasklist) { runner.persistent_tasklist }
 
     before do
-      runner.instance_variable_set(:@step_name, "TEST_STEP")
+      runner.step_name = "TEST_STEP"
     end
 
     it "displays task summary with counts for all project tasks" do
@@ -398,11 +398,11 @@ RSpec.describe "Work Loop Task Completion" do
       )
     end
 
-    let(:persistent_tasklist) { runner.instance_variable_get(:@persistent_tasklist) }
+    let(:persistent_tasklist) { runner.persistent_tasklist }
 
     before do
-      runner.instance_variable_set(:@step_name, "TEST_STEP")
-      runner.instance_variable_set(:@iteration_count, 1)
+      runner.step_name = "TEST_STEP"
+      runner.iteration_count = 1
     end
 
     context "with task status updates" do
@@ -491,7 +491,7 @@ RSpec.describe "Work Loop Task Completion" do
       )
     end
 
-    let(:persistent_tasklist) { runner.instance_variable_get(:@persistent_tasklist) }
+    let(:persistent_tasklist) { runner.persistent_tasklist }
 
     it "returns true when all abandoned tasks have reasons" do
       task1 = persistent_tasklist.create("Task 1", session: "TEST_STEP")
