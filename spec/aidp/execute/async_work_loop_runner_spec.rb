@@ -8,7 +8,12 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
   let(:provider_manager) { instance_double(Aidp::Harness::ProviderManager) }
   let(:config) { instance_double(Aidp::Config) }
   let(:test_prompt) { TestPrompt.new }
-  let(:sync_runner) { instance_double(Aidp::Execute::WorkLoopRunner) }
+  let(:sync_runner) do
+    instance_double(Aidp::Execute::WorkLoopRunner).tap do |runner|
+      # Default stub for checkpoint to prevent errors in after blocks
+      allow(runner).to receive(:checkpoint).and_return(nil)
+    end
+  end
   let(:sync_runner_class) do
     class_double(Aidp::Execute::WorkLoopRunner).tap do |klass|
       allow(klass).to receive(:new).and_return(sync_runner)
