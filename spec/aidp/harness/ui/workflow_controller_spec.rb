@@ -48,7 +48,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
       end
 
       it "calculates pause duration" do
-        workflow_controller.instance_variable_set(:@pause_time, Time.now - 60)
+        workflow_controller.pause_time = Time.now - 60
 
         workflow_controller.resume_workflow("Test resume")
 
@@ -217,7 +217,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
       it "starts the control interface" do
         workflow_controller.start_control_interface
 
-        expect(workflow_controller.instance_variable_get(:@control_thread)).to be_a(Thread)
+        expect(workflow_controller.control_thread).to be_a(Thread)
       end
     end
 
@@ -225,10 +225,10 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
       before { workflow_controller.start_control_interface }
 
       it "does not start a second control thread" do
-        original_thread = workflow_controller.instance_variable_get(:@control_thread)
+        original_thread = workflow_controller.control_thread
         workflow_controller.start_control_interface
 
-        expect(workflow_controller.instance_variable_get(:@control_thread)).to eq(original_thread)
+        expect(workflow_controller.control_thread).to eq(original_thread)
       end
     end
   end
@@ -240,7 +240,7 @@ RSpec.describe Aidp::Harness::UI::WorkflowController do
       it "stops the control interface" do
         workflow_controller.stop_control_interface
 
-        expect(workflow_controller.instance_variable_get(:@control_thread)).to be_nil
+        expect(workflow_controller.control_thread).to be_nil
       end
     end
 

@@ -188,7 +188,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       it "creates monitoring thread" do
         job_monitor.start_monitoring(1.0)
 
-        expect(job_monitor.instance_variable_get(:@monitor_thread)).to be_a(Thread)
+        expect(job_monitor.monitor_thread).to be_a(Thread)
       end
     end
 
@@ -196,10 +196,10 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       before { job_monitor.start_monitoring(1.0) }
 
       it "does not start a second monitoring thread" do
-        original_thread = job_monitor.instance_variable_get(:@monitor_thread)
+        original_thread = job_monitor.monitor_thread
         job_monitor.start_monitoring(1.0)
 
-        expect(job_monitor.instance_variable_get(:@monitor_thread)).to eq(original_thread)
+        expect(job_monitor.monitor_thread).to eq(original_thread)
       end
     end
   end
@@ -217,7 +217,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
       it "clears monitoring thread" do
         job_monitor.stop_monitoring
 
-        expect(job_monitor.instance_variable_get(:@monitor_thread)).to be_nil
+        expect(job_monitor.monitor_thread).to be_nil
       end
     end
 
@@ -236,7 +236,7 @@ RSpec.describe Aidp::Harness::UI::JobMonitor do
 
         job_monitor.add_update_callback(callback)
 
-        expect(job_monitor.instance_variable_get(:@update_callbacks)).to include(callback)
+        expect(job_monitor.update_callbacks).to include(callback)
       end
     end
 
