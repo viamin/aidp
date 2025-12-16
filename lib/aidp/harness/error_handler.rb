@@ -12,6 +12,9 @@ module Aidp
     class ErrorHandler
       include Aidp::DebugMixin
 
+      # Expose internal components for testability
+      attr_reader :retry_strategies, :backoff_calculator, :error_classifier, :recovery_planner
+
       # Simple wrapper to allow dependency injection of sleep behavior in tests
       class Sleeper
         def sleep(seconds)

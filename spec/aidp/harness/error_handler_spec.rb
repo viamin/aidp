@@ -28,7 +28,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     end
 
     it "initializes retry strategies" do
-      strategies = error_handler.instance_variable_get(:@retry_strategies)
+      strategies = error_handler.retry_strategies
 
       expect(strategies).to include(
         :transient,
@@ -41,9 +41,9 @@ RSpec.describe Aidp::Harness::ErrorHandler do
     end
 
     it "initializes helper components" do
-      expect(error_handler.instance_variable_get(:@backoff_calculator)).to be_a(described_class::BackoffCalculator)
-      expect(error_handler.instance_variable_get(:@error_classifier)).to be_a(described_class::ErrorClassifier)
-      expect(error_handler.instance_variable_get(:@recovery_planner)).to be_a(described_class::RecoveryPlanner)
+      expect(error_handler.backoff_calculator).to be_a(described_class::BackoffCalculator)
+      expect(error_handler.error_classifier).to be_a(described_class::ErrorClassifier)
+      expect(error_handler.recovery_planner).to be_a(described_class::RecoveryPlanner)
     end
   end
 
@@ -61,7 +61,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "handles rate limit errors without retry" do
       error = StandardError.new("Rate limit exceeded")
-      allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
+      allow(error_handler.error_classifier).to receive(:classify_error).and_return({
         error: error,
         error_type: :rate_limited,
         provider: "claude",
@@ -79,7 +79,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "switches providers for authentication errors when fallback available" do
       error = StandardError.new("Authentication failed")
-      allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
+      allow(error_handler.error_classifier).to receive(:classify_error).and_return({
         error: error,
         error_type: :auth_expired,
         provider: "claude",
@@ -100,7 +100,7 @@ RSpec.describe Aidp::Harness::ErrorHandler do
 
     it "crashes when authentication fails and no fallback providers available" do
       error = StandardError.new("Authentication failed")
-      allow(error_handler.instance_variable_get(:@error_classifier)).to receive(:classify_error).and_return({
+      allow(error_handler.error_classifier).to receive(:classify_error).and_return({
         error: error,
         error_type: :auth_expired,
         provider: "claude",
