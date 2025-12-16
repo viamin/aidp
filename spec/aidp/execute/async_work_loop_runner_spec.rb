@@ -220,7 +220,7 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
     end
 
     it "returns if already cancelled or completed" do
-      runner.state.instance_variable_set(:@current_state, :cancelled)
+      runner.state.current_state = :cancelled
       result = runner.cancel
       expect(result).to be_nil
     end
@@ -239,7 +239,7 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
 
     it "saves checkpoint when requested" do
       checkpoint = instance_double("Checkpoint")
-      allow(sync_runner).to receive(:instance_variable_get).with(:@checkpoint).and_return(checkpoint)
+      allow(sync_runner).to receive(:checkpoint).and_return(checkpoint)
       allow(checkpoint).to receive(:record_checkpoint)
 
       runner.execute_step_async(step_name, step_spec)
@@ -351,7 +351,7 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
 
       it "builds unknown result for unexpected state" do
         runner.state.start!
-        runner.state.instance_variable_set(:@current_state, :unexpected)
+        runner.state.current_state = :unexpected
         result = runner.send(:build_final_result)
 
         expect(result[:status]).to eq("unknown")
@@ -363,8 +363,8 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
       let(:checkpoint) { instance_double("Checkpoint") }
 
       it "saves checkpoint when sync runner and checkpoint exist" do
-        runner.instance_variable_set(:@sync_runner, sync_runner)
-        allow(sync_runner).to receive(:instance_variable_get).with(:@checkpoint).and_return(checkpoint)
+        runner.sync_runner = sync_runner
+        allow(sync_runner).to receive(:checkpoint).and_return(checkpoint)
         allow(checkpoint).to receive(:record_checkpoint)
 
         runner.send(:save_cancellation_checkpoint)
@@ -377,8 +377,8 @@ RSpec.describe Aidp::Execute::AsyncWorkLoopRunner do
       end
 
       it "returns early when no checkpoint" do
-        runner.instance_variable_set(:@sync_runner, sync_runner)
-        allow(sync_runner).to receive(:instance_variable_get).with(:@checkpoint).and_return(nil)
+        runner.sync_runner = sync_runner
+        allow(sync_runner).to receive(:checkpoint).and_return(nil)
 
         expect { runner.send(:save_cancellation_checkpoint) }.not_to raise_error
       end

@@ -18,7 +18,10 @@ module Aidp
         error: "ERROR"
       }.freeze
 
-      attr_reader :current_state, :iteration, :queued_instructions, :last_error
+      attr_reader :iteration, :queued_instructions, :last_error
+
+      # Expose current_state for testability (use state transition methods in production)
+      attr_accessor :current_state
 
       def initialize
         super # Initialize MonitorMixin

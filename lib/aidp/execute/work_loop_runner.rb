@@ -43,7 +43,7 @@ module Aidp
 
       # Expose state for testability
       attr_accessor :iteration_count, :step_name, :options, :persistent_tasklist
-      attr_reader :project_dir, :current_state, :state_history, :test_runner, :prompt_manager
+      attr_reader :project_dir, :current_state, :state_history, :test_runner, :prompt_manager, :checkpoint
       attr_writer :guard_policy, :prompt_manager, :style_guide_selector
 
       MAX_ITERATIONS = 50 # Safety limit
