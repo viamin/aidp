@@ -23,6 +23,15 @@ module Aidp
         error: "error"
       }.freeze
 
+      # Expose state for testability
+      attr_accessor :state, :current_step, :start_time
+      attr_writer :current_provider, :user_input, :execution_log
+      attr_accessor :mode, :project_dir, :selected_steps, :workflow_type
+      attr_reader :provider_manager, :sleeper
+      attr_writer :completion_checker, :workflow_controller, :error_handler
+      attr_accessor :condition_detector
+      attr_writer :state_manager, :configuration
+
       # Simple sleeper abstraction for test control
       class Sleeper
         def sleep(duration)
@@ -75,26 +84,20 @@ module Aidp
         @completion_checker = options[:completion_checker] || CompletionChecker.new(@project_dir, @workflow_type)
       end
 
-      # Get current provider (delegate to provider manager)
+      # Get current provider (delegate to provider manager with fallback)
       def current_provider
         @current_provider || @provider_manager&.current_provider || "unknown"
       end
 
-      # Get current step
-      attr_reader :current_step
-
-      # Get user input
+      # Get user input (with nil safety)
       def user_input
         @user_input || {}
       end
 
-      # Get execution log
+      # Get execution log (with nil safety)
       def execution_log
         @execution_log || []
       end
-
-      # Get provider manager
-      attr_reader :provider_manager
 
       # Main execution method with enhanced TUI
       def run
@@ -354,7 +357,7 @@ module Aidp
           duration: @start_time ? Time.now - @start_time : 0,
           user_input_count: @user_input.size,
           execution_log_count: @execution_log.size,
-          jobs_count: @tui.instance_variable_get(:@jobs).size
+          jobs_count: @tui.jobs.size
         }
       end
 
@@ -530,7 +533,7 @@ module Aidp
 
       def cleanup
         # Cleanup any remaining jobs
-        @tui.instance_variable_get(:@jobs).keys.each do |job_id|
+        @tui.jobs.keys.each do |job_id|
           @tui.remove_job(job_id)
         end
       end

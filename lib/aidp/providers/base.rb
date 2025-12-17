@@ -48,6 +48,8 @@ module Aidp
       }.freeze
 
       attr_reader :activity_state, :last_activity_time, :start_time, :step_name, :model
+      # Expose for testability
+      attr_writer :harness_context
 
       def initialize(output: nil, prompt: TTY::Prompt.new)
         @activity_state = :idle

@@ -9,6 +9,9 @@ module Aidp
   module Harness
     # Enhanced configuration loader for harness
     class ConfigLoader
+      # Expose for testability
+      attr_reader :validator
+
       def initialize(project_dir = Dir.pwd, validator: nil)
         @project_dir = project_dir
         @validator = validator || ConfigValidator.new(project_dir)

@@ -278,9 +278,7 @@ RSpec.describe Aidp::Providers::GithubCopilot do
       test_cases.each do |step_name, expected_timeout|
         allow(ENV).to receive(:[]).and_call_original
         allow(ENV).to receive(:[]).with("AIDP_CURRENT_STEP").and_return(step_name)
-
-        # Clear the cached timeout to ensure fresh calculation for each step
-        provider.instance_variable_set(:@adaptive_timeout, nil)
+        # adaptive_timeout no longer caches, so no need to clear state
         actual_timeout = provider.__send__(:adaptive_timeout)
         expect(actual_timeout).to eq(expected_timeout), "Expected #{expected_timeout} for #{step_name}, got #{actual_timeout}"
       end

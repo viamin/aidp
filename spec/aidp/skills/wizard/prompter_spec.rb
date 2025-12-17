@@ -21,7 +21,7 @@ RSpec.describe Aidp::Skills::Wizard::Prompter do
     end
 
     it "stores the prompt as an instance variable" do
-      expect(prompter.instance_variable_get(:@prompt)).to be_a(TTY::Prompt)
+      expect(prompter.prompt).to be_a(TTY::Prompt)
     end
   end
 

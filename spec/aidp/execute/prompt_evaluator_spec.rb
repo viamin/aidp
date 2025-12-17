@@ -15,7 +15,7 @@ RSpec.describe Aidp::Execute::PromptEvaluator do
     context "when ai_decision_engine is provided" do
       it "uses the provided engine" do
         evaluator = described_class.new(config, ai_decision_engine: ai_decision_engine)
-        expect(evaluator.instance_variable_get(:@ai_decision_engine)).to eq(ai_decision_engine)
+        expect(evaluator.ai_decision_engine).to eq(ai_decision_engine)
       end
     end
 
@@ -24,7 +24,7 @@ RSpec.describe Aidp::Execute::PromptEvaluator do
 
       it "sets ai_decision_engine to nil" do
         evaluator = described_class.new(limited_config)
-        expect(evaluator.instance_variable_get(:@ai_decision_engine)).to be_nil
+        expect(evaluator.ai_decision_engine).to be_nil
       end
     end
   end

@@ -93,14 +93,14 @@ RSpec.describe Aidp::Providers::Kilocode do
       provider.__send__(:setup_activity_monitoring, "kilocode", provider.method(:activity_callback))
       provider.__send__(:record_activity, "start")
       provider.__send__(:mark_completed)
-      expect(provider.instance_variable_get(:@activity_state)).to eq(:completed)
+      expect(provider.activity_state).to eq(:completed)
     end
 
     it "marks as failed with reason" do
       allow(provider).to receive(:display_message)
       provider.__send__(:setup_activity_monitoring, "kilocode", provider.method(:activity_callback))
       provider.__send__(:mark_failed, "test failure")
-      expect(provider.instance_variable_get(:@activity_state)).to eq(:failed)
+      expect(provider.activity_state).to eq(:failed)
     end
 
     it "records activity messages" do
@@ -251,7 +251,7 @@ RSpec.describe Aidp::Providers::Kilocode do
       expect {
         provider.send_message(prompt: "test")
       }.to raise_error(/kilocode failed with exit code 1/)
-      expect(provider.instance_variable_get(:@activity_state)).to eq(:failed)
+      expect(provider.activity_state).to eq(:failed)
     end
 
     it "warns about large prompts" do

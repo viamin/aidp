@@ -18,6 +18,9 @@ module Aidp
 
         class InteractionError < UIError; end
 
+        # Expose for testability
+        attr_reader :logger
+
         def initialize(ui_components = {})
           @logger = ui_components[:logger] || default_logger
           @formatter = ui_components[:formatter] || ErrorFormatter.new

@@ -13,6 +13,10 @@ module Aidp
 
       DEFAULT_INTERVAL = 30
 
+      # Expose for testability
+      attr_reader :post_detection_comments
+      attr_writer :last_update_check
+
       def initialize(issues_url:, interval: DEFAULT_INTERVAL, provider_name: nil, gh_available: nil, project_dir: Dir.pwd, once: false, use_workstreams: true, prompt: TTY::Prompt.new, safety_config: {}, force: false, verbose: false, quiet: false)
         @prompt = prompt
         @interval = interval

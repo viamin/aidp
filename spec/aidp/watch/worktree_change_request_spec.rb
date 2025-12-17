@@ -95,7 +95,7 @@ RSpec.describe "Worktree-based PR change requests" do
       allow(repository_client).to receive(:replace_labels)
 
       # Set the mock branch manager on the processor instance
-      processor.instance_variable_set(:@worktree_branch_manager, branch_manager)
+      processor.worktree_branch_manager = branch_manager
 
       # Mock get_pr_branch to return the head branch
       allow(branch_manager).to receive(:get_pr_branch)
@@ -321,7 +321,7 @@ RSpec.describe "Worktree-based PR change requests" do
       allow(repository_client).to receive(:replace_labels)
 
       # Set the mock branch manager on the processor
-      processor.instance_variable_set(:@worktree_branch_manager, branch_manager)
+      processor.worktree_branch_manager = branch_manager
 
       # Mock branch manager methods
       allow(branch_manager).to receive(:get_pr_branch).with(456).and_return("large-feature-branch")
@@ -364,12 +364,12 @@ RSpec.describe "Worktree-based PR change requests" do
         .with(pr_number: 456, head_branch: "large-feature-branch", base_branch: "main")
 
       # Should update the project directory to use the worktree
-      expect(processor.instance_variable_get(:@project_dir)).to eq(tmp_dir) # Before processing
+      expect(processor.project_dir).to eq(tmp_dir) # Before processing
 
       processor.process(pr)
 
       # After processing, the project_dir should be updated to the worktree path
-      expect(processor.instance_variable_get(:@project_dir)).to eq(worktree_path)
+      expect(processor.project_dir).to eq(worktree_path)
 
       # Verify that a success comment was posted
       expect(repository_client).to have_received(:post_comment)

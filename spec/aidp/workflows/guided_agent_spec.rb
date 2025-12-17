@@ -65,12 +65,12 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
 
   describe "#initialize" do
     it "initializes with project directory and prompt" do
-      expect(agent.instance_variable_get(:@project_dir)).to eq(project_dir)
+      expect(agent.project_dir).to eq(project_dir)
     end
 
     it "initializes empty conversation history and user input" do
-      expect(agent.instance_variable_get(:@conversation_history)).to eq([])
-      expect(agent.instance_variable_get(:@user_input)).to eq({})
+      expect(agent.conversation_history).to eq([])
+      expect(agent.user_input).to eq({})
     end
   end
 
@@ -1293,8 +1293,8 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     allow(Aidp::Harness::ProviderFactory).to receive(:new).and_return(provider_factory)
     allow(provider_factory).to receive(:create_provider).and_return(provider)
     allow(prompt).to receive(:ask).and_return("Goal")
-    allow(agent.instance_variable_get(:@config_manager)).to receive(:respond_to?).and_return(false)
-    agent.instance_variable_set(:@provider_manager, provider_manager)
+    allow(agent.config_manager).to receive(:respond_to?).and_return(false)
+    agent.provider_manager = provider_manager
     allow(provider).to receive(:send_message).and_raise(StandardError, "ConnectError: [resource_exhausted] Error")
     allow(provider_manager).to receive(:configured_providers).and_return(["cursor"])
     allow(provider_manager).to receive(:switch_provider_for_error).and_return("cursor")

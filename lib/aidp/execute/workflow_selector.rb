@@ -10,6 +10,9 @@ module Aidp
     class WorkflowSelector
       include Aidp::MessageDisplay
 
+      # Expose for testability
+      attr_reader :user_input
+
       def initialize(prompt: TTY::Prompt.new, workflow_selector: nil)
         @user_input = {}
         @prompt = prompt

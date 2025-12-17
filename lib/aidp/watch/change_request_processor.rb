@@ -34,6 +34,9 @@ module Aidp
 
       attr_reader :change_request_label, :needs_input_label
 
+      # Expose state for testability
+      attr_accessor :project_dir, :worktree_branch_manager
+
       def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, change_request_config: {}, safety_config: {}, verbose: false)
         @repository_client = repository_client
         @state_store = state_store

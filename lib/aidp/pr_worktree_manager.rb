@@ -3,15 +3,27 @@ require "fileutils"
 require "shellwords"
 
 module Aidp
+  # Simple shell command executor wrapper for testability
+  class ShellExecutor
+    def run(command)
+      `#{command}`
+    end
+
+    def success?
+      $?.success?
+    end
+  end
+
   # Manages worktrees specifically for Pull Request branches
   class PRWorktreeManager
-    def initialize(base_repo_path: nil, project_dir: nil, worktree_registry_path: nil)
+    def initialize(base_repo_path: nil, project_dir: nil, worktree_registry_path: nil, shell_executor: nil)
       @base_repo_path = base_repo_path || project_dir || Dir.pwd
       @project_dir = project_dir
       @worktree_registry_path = worktree_registry_path || File.join(
         project_dir || File.expand_path("~/.aidp"),
         "pr_worktrees.json"
       )
+      @shell_executor = shell_executor || ShellExecutor.new
       FileUtils.mkdir_p(File.dirname(@worktree_registry_path))
       @worktrees = load_registry
     end
@@ -427,7 +439,7 @@ module Aidp
 
       Dir.chdir(worktree_path) do
         # Check staged changes with more robust capture
-        staged_changes_output = `git diff --staged --name-only`.strip
+        staged_changes_output = @shell_executor.run("git diff --staged --name-only").strip
 
         if !staged_changes_output.empty?
           push_result[:git_actions][:staged_changes] = true
@@ -436,16 +448,16 @@ module Aidp
           # More robust commit command with additional logging
           commit_message = "Changes applied via AIDP request-changes workflow for PR ##{pr_number}"
           commit_command = "git commit -m '#{commit_message}' 2>&1"
-          commit_output = `#{commit_command}`.strip
+          commit_output = @shell_executor.run(commit_command).strip
 
-          if $?.success?
+          if @shell_executor.success?
             push_result[:git_actions][:committed] = true
 
             # Enhanced push with verbose tracking
             push_command = "git push origin #{head_branch} 2>&1"
-            push_output = `#{push_command}`.strip
+            push_output = @shell_executor.run(push_command).strip
 
-            if $?.success?
+            if @shell_executor.success?
               push_result[:git_actions][:pushed] = true
               push_result[:success] = true
 

@@ -8,28 +8,28 @@ RSpec.describe Aidp::Harness::ConditionDetector do
 
   describe "#initialize" do
     it "initializes with rate limit patterns for different providers" do
-      expect(detector.instance_variable_get(:@rate_limit_patterns)).to have_key(:common)
-      expect(detector.instance_variable_get(:@rate_limit_patterns)).to have_key(:anthropic)
-      expect(detector.instance_variable_get(:@rate_limit_patterns)).to have_key(:openai)
-      expect(detector.instance_variable_get(:@rate_limit_patterns)).to have_key(:google)
-      expect(detector.instance_variable_get(:@rate_limit_patterns)).to have_key(:cursor)
+      expect(detector.rate_limit_patterns).to have_key(:common)
+      expect(detector.rate_limit_patterns).to have_key(:anthropic)
+      expect(detector.rate_limit_patterns).to have_key(:openai)
+      expect(detector.rate_limit_patterns).to have_key(:google)
+      expect(detector.rate_limit_patterns).to have_key(:cursor)
     end
 
     it "initializes with user feedback patterns" do
-      patterns = detector.instance_variable_get(:@user_feedback_patterns)
+      patterns = detector.user_feedback_patterns
       expect(patterns).to be_a(Hash)
       expect(patterns[:direct_requests]).to include(/please provide/i)
       expect(patterns[:clarification]).to include(/can you clarify/i)
     end
 
     it "initializes with question patterns" do
-      patterns = detector.instance_variable_get(:@question_patterns)
+      patterns = detector.question_patterns
       expect(patterns).to include(/^\d+\.\s+(.+)\?/)
       expect(patterns).to include(/^(\d+)\)\s+(.+)\?/)
     end
 
     it "initializes with reset time patterns" do
-      patterns = detector.instance_variable_get(:@reset_time_patterns)
+      patterns = detector.reset_time_patterns
       expect(patterns).to include(/reset(?:s)?\s+in\s+(\d+)\s+seconds/i)
       expect(patterns).to include(/retry\s+after\s+(\d+)\s+seconds/i)
     end
@@ -346,20 +346,20 @@ RSpec.describe Aidp::Harness::ConditionDetector do
   describe "#get_rate_limit_patterns" do
     it "returns common patterns for unknown provider" do
       patterns = detector.get_rate_limit_patterns("unknown")
-      expect(patterns).to eq(detector.instance_variable_get(:@rate_limit_patterns)[:common])
+      expect(patterns).to eq(detector.rate_limit_patterns[:common])
     end
 
     it "returns combined patterns for known provider" do
       patterns = detector.get_rate_limit_patterns("anthropic")
-      common_patterns = detector.instance_variable_get(:@rate_limit_patterns)[:common]
-      anthropic_patterns = detector.instance_variable_get(:@rate_limit_patterns)[:anthropic]
+      common_patterns = detector.rate_limit_patterns[:common]
+      anthropic_patterns = detector.rate_limit_patterns[:anthropic]
 
       expect(patterns).to eq(common_patterns + anthropic_patterns)
     end
 
     it "returns common patterns for nil provider" do
       patterns = detector.get_rate_limit_patterns(nil)
-      expect(patterns).to eq(detector.instance_variable_get(:@rate_limit_patterns)[:common])
+      expect(patterns).to eq(detector.rate_limit_patterns[:common])
     end
   end
 

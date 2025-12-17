@@ -15,6 +15,9 @@ module Aidp
   module Harness
     # Factory for creating configured provider instances
     class ProviderFactory
+      # Expose for testability
+      attr_reader :provider_instances, :provider_configs
+
       PROVIDER_CLASSES = {
         "cursor" => Aidp::Providers::Cursor,
         "anthropic" => Aidp::Providers::Anthropic,

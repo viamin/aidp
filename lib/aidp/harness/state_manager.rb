@@ -14,6 +14,9 @@ module Aidp
     class StateManager
       include Aidp::SafeDirectory
 
+      # Expose for testability
+      attr_reader :project_dir, :mode
+
       def initialize(project_dir, mode, skip_persistence: false)
         @project_dir = project_dir
         @mode = mode

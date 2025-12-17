@@ -447,9 +447,9 @@ RSpec.describe Aidp::Harness::CapabilityRegistry do
     let(:registry) { described_class.new(catalog_path: catalog_path) }
 
     it "loads catalog on first access" do
-      expect(registry.instance_variable_get(:@catalog_data)).to be_nil
+      expect(registry.catalog_data).to be_nil
       registry.provider_names
-      expect(registry.instance_variable_get(:@catalog_data)).not_to be_nil
+      expect(registry.catalog_data).not_to be_nil
     end
   end
 

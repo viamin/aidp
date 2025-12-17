@@ -62,8 +62,8 @@ RSpec.describe "Work Loop Header Prepending" do
       prompt: test_prompt,
       thinking_depth_manager: mock_thinking_depth_manager
     )
-    runner.instance_variable_set(:@step_name, "16_IMPLEMENTATION")
-    runner.instance_variable_set(:@iteration_count, 3)
+    runner.step_name = "16_IMPLEMENTATION"
+    runner.iteration_count = 3
     runner
   end
 

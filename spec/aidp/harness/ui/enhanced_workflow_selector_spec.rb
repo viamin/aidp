@@ -50,7 +50,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
   subject do
     described_class.new(mock_tui, project_dir: project_dir).tap do |selector|
       # Inject mock dependencies
-      selector.instance_variable_set(:@workflow_selector, mock_workflow_selector)
+      selector.workflow_selector = mock_workflow_selector
       allow(Aidp::Workflows::GuidedAgent).to receive(:new).and_return(mock_guided_agent)
     end
   end
@@ -62,10 +62,10 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
     it "creates instance with TUI and project directory" do
       selector = described_class.new(mock_tui, project_dir: project_dir)
 
-      expect(selector.instance_variable_get(:@tui)).to eq(mock_tui)
-      expect(selector.instance_variable_get(:@project_dir)).to eq(project_dir)
-      expect(selector.instance_variable_get(:@user_input)).to eq({})
-      expect(selector.instance_variable_get(:@workflow_selector)).to be_a(Aidp::Workflows::Selector)
+      expect(selector.tui).to eq(mock_tui)
+      expect(selector.project_dir).to eq(project_dir)
+      expect(selector.user_input).to eq({})
+      expect(selector.workflow_selector).to be_a(Aidp::Workflows::Selector)
     end
 
     it "creates default TUI when none provided" do
@@ -75,7 +75,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
 
       selector = described_class.new(nil, project_dir: project_dir)
 
-      expect(selector.instance_variable_get(:@tui)).to eq(mock_default_tui)
+      expect(selector.tui).to eq(mock_default_tui)
     end
 
     it "uses current directory as default project directory" do
@@ -83,7 +83,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
 
       selector = described_class.new(mock_tui)
 
-      expect(selector.instance_variable_get(:@project_dir)).to eq("/current/dir")
+      expect(selector.project_dir).to eq("/current/dir")
     end
   end
 
@@ -195,7 +195,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
 
         real_subject.send(:collect_project_info_interactive)
 
-        user_input = real_subject.instance_variable_get(:@user_input)
+        user_input = real_subject.user_input
         expect(user_input[:project_description]).to eq("Test project description")
         expect(user_input[:tech_stack]).to eq("Ruby/Rails")
         expect(user_input[:target_users]).to eq("developers")
@@ -233,7 +233,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
 
         real_subject.send(:choose_workflow_type_interactive)
 
-        user_input = real_subject.instance_variable_get(:@user_input)
+        user_input = real_subject.user_input
         expect(user_input[:workflow_type]).to eq(workflow_choice)
       end
     end
@@ -354,7 +354,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedWorkflowSelector do
       it "stores user input from guided agent result" do
         subject.send(:select_guided_workflow)
 
-        user_input = subject.instance_variable_get(:@user_input)
+        user_input = subject.user_input
         expect(user_input).to eq({project_description: "Test project"})
       end
     end

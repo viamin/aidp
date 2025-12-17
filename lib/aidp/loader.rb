@@ -21,10 +21,10 @@ module Aidp
   module Loader
     class << self
       # @return [Zeitwerk::Loader, nil] The configured loader instance
-      attr_reader :loader
+      attr_accessor :loader
 
       # @return [Boolean] Whether reloading is enabled
-      attr_reader :reloading_enabled
+      attr_accessor :reloading_enabled
 
       # Set up the Zeitwerk loader for AIDP
       #

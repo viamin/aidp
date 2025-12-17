@@ -23,6 +23,8 @@ module Aidp
       }.freeze
 
       attr_reader :project_dir, :prompt, :dry_run
+      # Expose state for testability
+      attr_reader :warnings, :existing_config, :config, :discovery_threads
 
       def initialize(project_dir = Dir.pwd, prompt: nil, dry_run: false)
         @project_dir = project_dir

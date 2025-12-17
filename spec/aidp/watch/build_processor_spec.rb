@@ -215,7 +215,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
       work_loop: {version_control: {auto_create_pr: true, pr_strategy: "draft"}}
     }
     File.write(config_path, YAML.dump(config_hash))
-    processor.instance_variable_set(:@config, nil) # Force config reload
+    processor.config = nil # Force config reload
 
     allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
     allow(processor).to receive(:create_pull_request).and_return("https://example.com/pr/77")
@@ -946,7 +946,7 @@ RSpec.describe Aidp::Watch::BuildProcessor do
         work_loop: {version_control: {auto_create_pr: true, pr_strategy: "draft"}}
       }
       File.write(config_path, YAML.dump(config_hash))
-      processor.instance_variable_set(:@config, nil)
+      processor.config = nil
 
       allow(processor).to receive(:run_harness).and_return({status: "completed", message: "done"})
       allow(repository_client).to receive(:remove_labels)
