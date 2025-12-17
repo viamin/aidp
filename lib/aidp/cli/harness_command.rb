@@ -58,7 +58,7 @@ module Aidp
 
         # Build a runner to access state manager
         runner = @runner_class.new(@project_dir, mode.to_sym, {})
-        state_manager = runner.instance_variable_get(:@state_manager)
+        state_manager = runner.state_manager
         state_manager.reset_all if state_manager.respond_to?(:reset_all)
         display_message("✅ Reset harness state for #{mode} mode", type: :success)
       end
