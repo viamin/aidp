@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.1](https://github.com/viamin/aidp/compare/aidp/v0.34.0...aidp/v0.34.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* add UI module with global helpers ([1881d65](https://github.com/viamin/aidp/commit/1881d652c871aeafc6af6bdfeb215281df4d2723))
+
 ## [0.34.0](https://github.com/viamin/aidp/compare/aidp/v0.33.0...aidp/v0.34.0) (2025-12-17)
 
 
