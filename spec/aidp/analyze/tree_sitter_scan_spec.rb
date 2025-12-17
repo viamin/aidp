@@ -208,18 +208,18 @@ RSpec.describe Aidp::Analyze::TreeSitterScan do
   describe "#write_kb_files" do
     before do
       # Set up some test data
-      scanner.instance_variable_set(:@symbols, [
+      scanner.symbols = [
         {id: "test.rb:1:TestClass", kind: "class", name: "TestClass"}
-      ])
-      scanner.instance_variable_set(:@imports, [
+      ]
+      scanner.imports = [
         {kind: "require", target: "json", file: "test.rb"}
-      ])
-      scanner.instance_variable_set(:@calls, [])
-      scanner.instance_variable_set(:@metrics, [])
-      scanner.instance_variable_set(:@seams, [])
-      scanner.instance_variable_set(:@hotspots, [])
-      scanner.instance_variable_set(:@tests, [])
-      scanner.instance_variable_set(:@cycles, [])
+      ]
+      scanner.calls = []
+      scanner.metrics = []
+      scanner.seams = []
+      scanner.hotspots = []
+      scanner.tests = []
+      scanner.cycles = []
     end
 
     it "creates the KB directory" do

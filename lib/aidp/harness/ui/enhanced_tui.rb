@@ -20,6 +20,10 @@ module Aidp
 
         class DisplayError < TUIError; end
 
+        # Expose state for testability
+        attr_accessor :headless, :current_mode, :workflow_active, :current_step
+        attr_reader :jobs
+
         def initialize(prompt: TTY::Prompt.new, tty: $stdin)
           @cursor = TTY::Cursor
           @screen = TTY::Screen

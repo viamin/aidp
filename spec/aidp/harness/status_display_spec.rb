@@ -32,9 +32,9 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     })
 
     # Initialize error summary directly
-    status_display.instance_variable_set(:@error_summary, {
+    status_display.error_summary = {
       error_summary: {total_errors: 2, error_rate: 0.05}
-    })
+    }
   end
 
   describe "initialization" do
@@ -43,7 +43,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "initializes with default configuration" do
-      config = status_display.instance_variable_get(:@display_config)
+      config = status_display.display_config
 
       expect(config).to include(
         :mode,
@@ -58,10 +58,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "initializes helper components" do
-      expect(status_display.instance_variable_get(:@status_formatter)).to be_a(described_class::StatusFormatter)
-      expect(status_display.instance_variable_get(:@metrics_calculator)).to be_a(described_class::MetricsCalculator)
-      expect(status_display.instance_variable_get(:@alert_manager)).to be_a(described_class::AlertManager)
-      expect(status_display.instance_variable_get(:@display_animator)).to be_a(described_class::DisplayAnimator)
+      expect(status_display.status_formatter).to be_a(described_class::StatusFormatter)
+      expect(status_display.metrics_calculator).to be_a(described_class::MetricsCalculator)
+      expect(status_display.alert_manager).to be_a(described_class::AlertManager)
+      expect(status_display.display_animator).to be_a(described_class::DisplayAnimator)
     end
   end
 
@@ -69,28 +69,28 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "updates current step" do
       status_display.update_current_step("Test Step")
 
-      expect(status_display.instance_variable_get(:@current_step)).to eq("Test Step")
-      expect(status_display.instance_variable_get(:@status_data)[:current_step]).to eq("Test Step")
+      expect(status_display.current_step).to eq("Test Step")
+      expect(status_display.internal_status_data[:current_step]).to eq("Test Step")
     end
 
     it "updates current provider" do
       status_display.update_current_provider("claude")
 
-      expect(status_display.instance_variable_get(:@current_provider)).to eq("claude")
-      expect(status_display.instance_variable_get(:@status_data)[:current_provider]).to eq("claude")
+      expect(status_display.current_provider).to eq("claude")
+      expect(status_display.internal_status_data[:current_provider]).to eq("claude")
     end
 
     it "updates current model" do
       status_display.update_current_model("claude", "model1")
 
-      expect(status_display.instance_variable_get(:@current_model)).to eq("model1")
-      expect(status_display.instance_variable_get(:@status_data)[:current_model]).to eq("model1")
+      expect(status_display.current_model).to eq("model1")
+      expect(status_display.internal_status_data[:current_model]).to eq("model1")
     end
 
     it "updates token usage" do
       status_display.update_token_usage("claude", "model1", 1000, 500)
 
-      token_usage = status_display.instance_variable_get(:@token_usage)
+      token_usage = status_display.token_usage
       expect(token_usage["claude"]["model1"][:used]).to eq(1000)
       expect(token_usage["claude"]["model1"][:remaining]).to eq(500)
     end
@@ -105,7 +105,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
       status_display.update_rate_limit_status("claude", "model1", rate_limit_info)
 
-      rate_limit_status = status_display.instance_variable_get(:@rate_limit_status)
+      rate_limit_status = status_display.rate_limit_status
       expect(rate_limit_status["claude"]["model1"][:rate_limited]).to be true
       expect(rate_limit_status["claude"]["model1"][:quota_remaining]).to eq(100)
     end
@@ -113,7 +113,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "updates recovery status" do
       status_display.update_recovery_status(:provider_switch, :success, {new_provider: "gemini"})
 
-      recovery_status = status_display.instance_variable_get(:@recovery_status)
+      recovery_status = status_display.recovery_status
       expect(recovery_status[:provider_switch][:status]).to eq(:success)
       expect(recovery_status[:provider_switch][:details][:new_provider]).to eq("gemini")
     end
@@ -121,7 +121,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "updates user feedback status" do
       status_display.update_user_feedback_status(:question, :waiting, {question_count: 3})
 
-      user_feedback_status = status_display.instance_variable_get(:@user_feedback_status)
+      user_feedback_status = status_display.user_feedback_status
       expect(user_feedback_status[:question][:status]).to eq(:waiting)
       expect(user_feedback_status[:question][:details][:question_count]).to eq(3)
     end
@@ -135,7 +135,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
       status_display.update_work_completion_status(completion_info)
 
-      work_completion_status = status_display.instance_variable_get(:@work_completion_status)
+      work_completion_status = status_display.work_completion_status
       expect(work_completion_status[:is_complete]).to be false
       expect(work_completion_status[:completed_steps]).to eq(3)
     end
@@ -144,7 +144,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       metrics = {throughput: 15, error_rate: 0.02}
       status_display.update_performance_metrics(metrics)
 
-      performance_metrics = status_display.instance_variable_get(:@performance_metrics)
+      performance_metrics = status_display.performance_metrics
       expect(performance_metrics[:throughput]).to eq(15)
       expect(performance_metrics[:error_rate]).to eq(0.02)
     end
@@ -153,7 +153,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       error_summary = {total_errors: 5, error_rate: 0.1}
       status_display.update_error_summary(error_summary)
 
-      error_summary_data = status_display.instance_variable_get(:@error_summary)
+      error_summary_data = status_display.error_summary
       expect(error_summary_data[:total_errors]).to eq(5)
       expect(error_summary_data[:error_rate]).to eq(0.1)
     end
@@ -163,20 +163,20 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "sets display mode" do
       status_display.display_mode(:detailed)
 
-      expect(status_display.instance_variable_get(:@display_mode)).to eq(:detailed)
+      expect(status_display.display_mode).to eq(:detailed)
     end
 
     it "sets update interval" do
       status_display.update_interval(5)
 
-      expect(status_display.instance_variable_get(:@update_interval)).to eq(5)
+      expect(status_display.update_interval).to eq(5)
     end
 
     it "configures display settings" do
       config = {show_animations: false, show_colors: false}
       status_display.configure_display(config)
 
-      display_config = status_display.instance_variable_get(:@display_config)
+      display_config = status_display.display_config
       expect(display_config[:show_animations]).to be false
       expect(display_config[:show_colors]).to be false
     end
@@ -186,7 +186,7 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "collects status data from managers" do
       status_display.send(:collect_status_data)
 
-      provider_status = status_display.instance_variable_get(:@provider_status)
+      provider_status = status_display.provider_status
       expect(provider_status[:current_provider]).to eq("claude")
       expect(provider_status[:available_providers]).to include("claude", "gemini", "cursor")
     end
@@ -194,14 +194,14 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "collects circuit breaker status" do
       status_display.send(:collect_status_data)
 
-      circuit_breaker_status = status_display.instance_variable_get(:@circuit_breaker_status)
+      circuit_breaker_status = status_display.circuit_breaker_status
       expect(circuit_breaker_status["claude"][:state]).to eq(:closed)
     end
 
     it "collects metrics data" do
       status_display.send(:collect_status_data)
 
-      performance_metrics = status_display.instance_variable_get(:@performance_metrics)
+      performance_metrics = status_display.performance_metrics
       expect(performance_metrics[:throughput]).to eq(10)
       expect(performance_metrics[:error_rate]).to eq(0.05)
     end
@@ -209,26 +209,26 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     it "collects error data" do
       status_display.send(:collect_status_data)
 
-      error_summary = status_display.instance_variable_get(:@error_summary)
+      error_summary = status_display.error_summary
       expect(error_summary[:error_summary][:total_errors]).to eq(2)
     end
 
     it "calculates performance data" do
-      status_display.instance_variable_set(:@start_time, Time.now - 60)
+      status_display.start_time = Time.now - 60
       status_display.send(:collect_performance_data)
 
-      performance_metrics = status_display.instance_variable_get(:@performance_metrics)
+      performance_metrics = status_display.performance_metrics
       expect(performance_metrics[:uptime]).to be > 0
     end
   end
 
   describe "status display modes" do
     before do
-      status_display.instance_variable_set(:@start_time, Time.now - 30)
-      status_display.instance_variable_set(:@current_step, "Test Step")
-      status_display.instance_variable_set(:@current_provider, "claude")
-      status_display.instance_variable_set(:@current_model, "model1")
-      status_display.instance_variable_set(:@running, true)
+      status_display.start_time = Time.now - 30
+      status_display.current_step = "Test Step"
+      status_display.current_provider = "claude"
+      status_display.current_model = "model1"
+      status_display.running = true
     end
 
     it "displays compact status" do
@@ -254,10 +254,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "status information display" do
     before do
-      status_display.instance_variable_set(:@start_time, Time.now - 60)
-      status_display.instance_variable_set(:@current_step, "Test Step")
-      status_display.instance_variable_set(:@current_provider, "claude")
-      status_display.instance_variable_set(:@current_model, "model1")
+      status_display.start_time = Time.now - 60
+      status_display.current_step = "Test Step"
+      status_display.current_provider = "claude"
+      status_display.current_model = "model1"
     end
 
     it "displays basic information" do
@@ -266,64 +266,64 @@ RSpec.describe Aidp::Harness::StatusDisplay do
     end
 
     it "displays provider information" do
-      status_display.instance_variable_set(:@provider_status, {
+      status_display.provider_status = {
         available_providers: ["claude", "gemini"],
         provider_health: {"claude" => {status: "healthy", health_score: 0.95}}
-      })
+      }
 
       status_display.send(:display_provider_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/PROVIDER INFORMATION/) }).to be true
     end
 
     it "displays performance information" do
-      status_display.instance_variable_set(:@performance_metrics, {
+      status_display.performance_metrics = {
         uptime: 60,
         step_duration: 30,
         provider_switch_count: 2,
         error_rate: 0.05
-      })
+      }
 
       status_display.send(:display_performance_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/PERFORMANCE METRICS/) }).to be true
     end
 
     it "displays error information" do
-      status_display.instance_variable_set(:@error_summary, {
+      status_display.error_summary = {
         error_summary: {
           total_errors: 3,
           error_rate: 0.1,
           errors_by_severity: {warning: 2, error: 1},
           errors_by_provider: {"claude" => 2, "gemini" => 1}
         }
-      })
+      }
 
       status_display.send(:display_error_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/ERROR INFORMATION/) }).to be true
     end
 
     it "displays circuit breaker information" do
-      status_display.instance_variable_set(:@circuit_breaker_status, {
+      status_display.circuit_breaker_status = {
         "claude" => {state: :closed, failure_count: 0},
         "gemini" => {state: :open, failure_count: 5}
-      })
+      }
 
       status_display.send(:display_circuit_breaker_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/CIRCUIT BREAKER STATUS/) }).to be true
     end
 
     it "displays token usage information" do
-      status_display.instance_variable_set(:@token_usage, {
+      status_display.token_usage = {
         "claude" => {
           "model1" => {used: 1000, remaining: 500}
         }
-      })
+      }
 
       status_display.send(:display_token_usage)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/TOKEN USAGE/) }).to be true
     end
 
     it "displays rate limit information" do
-      status_display.instance_variable_set(:@rate_limit_status, {
+      status_display.rate_limit_status = {
         "claude" => {
           "model1" => {
             rate_limited: true,
@@ -333,43 +333,43 @@ RSpec.describe Aidp::Harness::StatusDisplay do
             quota_limit: 1000
           }
         }
-      })
+      }
 
       status_display.send(:display_rate_limit_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/RATE LIMIT STATUS/) }).to be true
     end
 
     it "displays recovery information" do
-      status_display.instance_variable_set(:@recovery_status, {
+      status_display.recovery_status = {
         provider_switch: {status: :success, details: {new_provider: "gemini"}}
-      })
+      }
 
       status_display.send(:display_recovery_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/RECOVERY STATUS/) }).to be true
     end
 
     it "displays user feedback information" do
-      status_display.instance_variable_set(:@user_feedback_status, {
+      status_display.user_feedback_status = {
         question: {status: :waiting, details: {question_count: 3}}
-      })
+      }
 
       status_display.send(:display_user_feedback_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/USER FEEDBACK STATUS/) }).to be true
     end
 
     it "displays work completion information" do
-      status_display.instance_variable_set(:@work_completion_status, {
+      status_display.work_completion_status = {
         is_complete: false,
         completed_steps: 3,
         total_steps: 5
-      })
+      }
 
       status_display.send(:display_work_completion_info)
       expect(test_prompt.messages.any? { |msg| msg[:message].match(/WORK COMPLETION STATUS/) }).to be true
     end
 
     it "displays alerts" do
-      alert_manager = status_display.instance_variable_get(:@alert_manager)
+      alert_manager = status_display.alert_manager
       alert_manager.process_alerts([
         {severity: :warning, message: "High error rate", timestamp: Time.now}
       ])
@@ -381,25 +381,25 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "alert checking" do
     it "checks for high error rate alerts" do
-      status_display.instance_variable_set(:@performance_metrics, {error_rate: 0.15})
+      status_display.performance_metrics = {error_rate: 0.15}
 
       expect { status_display.send(:check_alerts) }.not_to raise_error
     end
 
     it "checks for open circuit breaker alerts" do
-      status_display.instance_variable_set(:@circuit_breaker_status, {
+      status_display.circuit_breaker_status = {
         "claude" => {state: :open, failure_count: 5}
-      })
+      }
 
       expect { status_display.send(:check_alerts) }.not_to raise_error
     end
 
     it "checks for rate limit alerts" do
-      status_display.instance_variable_set(:@rate_limit_status, {
+      status_display.rate_limit_status = {
         "claude" => {
           "model1" => {rate_limited: true}
         }
-      })
+      }
 
       expect { status_display.send(:check_alerts) }.not_to raise_error
     end
@@ -407,10 +407,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
 
   describe "status data retrieval" do
     before do
-      status_display.instance_variable_set(:@start_time, Time.now - 60)
-      status_display.instance_variable_set(:@current_step, "Test Step")
-      status_display.instance_variable_set(:@current_provider, "claude")
-      status_display.instance_variable_set(:@current_model, "model1")
+      status_display.start_time = Time.now - 60
+      status_display.current_step = "Test Step"
+      status_display.current_provider = "claude"
+      status_display.current_model = "model1"
     end
 
     it "gets basic status" do
@@ -545,10 +545,10 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       # Wait for thread to start using deterministic wait
       require "aidp/concurrency"
       Aidp::Concurrency::Wait.until(timeout: 1, interval: 0.01) do
-        status_display.instance_variable_get(:@running) == true
+        status_display.running == true
       end
 
-      expect(status_display.instance_variable_get(:@running)).to be true
+      expect(status_display.running).to be true
     end
 
     it "stops status updates" do
@@ -556,12 +556,12 @@ RSpec.describe Aidp::Harness::StatusDisplay do
       # Wait for thread to start
       require "aidp/concurrency"
       Aidp::Concurrency::Wait.until(timeout: 1, interval: 0.01) do
-        status_display.instance_variable_get(:@running) == true
+        status_display.running == true
       end
 
       expect { status_display.stop_status_updates }.not_to raise_error
 
-      expect(status_display.instance_variable_get(:@running)).to be false
+      expect(status_display.running).to be false
     end
 
     it "cleans up display" do

@@ -15,7 +15,7 @@ module Aidp
 
       def initialize(configuration, registry: nil, root_dir: nil)
         @configuration = configuration
-        @registry = registry || CapabilityRegistry.new(root_dir: root_dir || configuration.instance_variable_get(:@project_dir))
+        @registry = registry || CapabilityRegistry.new(root_dir: root_dir || configuration.project_dir)
         @current_tier = nil
         @session_max_tier = nil
         @tier_history = []

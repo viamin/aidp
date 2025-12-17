@@ -17,6 +17,9 @@ module Aidp
 
           class SelectionError < WorkflowError; end
 
+          # Expose for testability
+          attr_reader :prompt
+
           WORKFLOW_MODES = {
             simple: {
               name: "Simple Mode",
@@ -132,6 +135,9 @@ module Aidp
 
         # Formats workflow selection display
         class WorkflowFormatter
+          # Expose for testability
+          attr_reader :pastel
+
           def initialize
             @pastel = Pastel.new
           end

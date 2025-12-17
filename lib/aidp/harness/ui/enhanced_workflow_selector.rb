@@ -11,6 +11,10 @@ module Aidp
       class EnhancedWorkflowSelector
         class WorkflowError < StandardError; end
 
+        # Expose state for testability
+        attr_reader :tui, :project_dir, :user_input
+        attr_accessor :workflow_selector
+
         def initialize(tui = nil, project_dir: Dir.pwd)
           @tui = tui || EnhancedTUI.new
           @user_input = {}

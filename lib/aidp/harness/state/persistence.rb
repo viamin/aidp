@@ -11,6 +11,9 @@ module Aidp
       class Persistence
         include Aidp::SafeDirectory
 
+        # Expose for testability
+        attr_reader :state_file, :lock_file
+
         def initialize(project_dir, mode, skip_persistence: false)
           @project_dir = project_dir
           @mode = mode

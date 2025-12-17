@@ -17,6 +17,10 @@ module Aidp
 
         class MonitorError < JobMonitorError; end
 
+        # Expose for testability
+        attr_accessor :monitor_thread
+        attr_reader :update_callbacks
+
         JOB_STATUSES = {
           pending: "Pending",
           running: "Running",

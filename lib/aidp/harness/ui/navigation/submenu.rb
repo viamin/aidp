@@ -22,6 +22,8 @@ module Aidp
 
           attr_reader :title, :parent_menu
           attr_accessor :drill_down_enabled, :max_depth
+          # Expose current_level for testability
+          attr_accessor :current_level
 
           def add_submenu_item(item)
             validate_submenu_item(item)

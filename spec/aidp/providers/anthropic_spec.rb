@@ -318,7 +318,7 @@ RSpec.describe Aidp::Providers::Anthropic do
 
       context "when harness context is not available" do
         before do
-          provider.instance_variable_set(:@harness_context, nil)
+          provider.harness_context = nil
         end
 
         it "still raises rate limit error without notifying" do

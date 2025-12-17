@@ -32,6 +32,9 @@ module Aidp
       # Re-evaluate periodically after threshold
       EVALUATION_INTERVAL = 5
 
+      # Expose for testability
+      attr_reader :ai_decision_engine
+
       def initialize(config, ai_decision_engine: nil)
         @config = config
         @ai_decision_engine = ai_decision_engine || safely_build_ai_decision_engine

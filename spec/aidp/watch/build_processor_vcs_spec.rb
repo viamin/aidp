@@ -38,7 +38,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
       before do
         create_config({conventional_commits: false, co_author_ai: false})
         # Force config reload
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
       end
 
       it "creates a simple commit message" do
@@ -50,7 +50,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "with conventional commits enabled (default style)" do
       before do
         create_config({conventional_commits: true, commit_style: "default", co_author_ai: false})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
       end
 
       it "creates a conventional commit message" do
@@ -62,7 +62,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "with conventional commits enabled (angular style)" do
       before do
         create_config({conventional_commits: true, commit_style: "angular", co_author_ai: false})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
       end
 
       it "creates an angular-style commit message with scope" do
@@ -74,7 +74,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "with conventional commits enabled (emoji style)" do
       before do
         create_config({conventional_commits: true, commit_style: "emoji", co_author_ai: false})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
       end
 
       it "creates an emoji-prefixed commit message" do
@@ -86,7 +86,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "with co_author_ai enabled" do
       before do
         create_config({conventional_commits: false, co_author_ai: true})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
         allow(processor).to receive(:detect_current_provider).and_return("Claude")
       end
 
@@ -99,7 +99,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "with co_author_ai disabled" do
       before do
         create_config({conventional_commits: false, co_author_ai: false})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
       end
 
       it "does not include Co-authored-by line" do
@@ -111,7 +111,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "with all options enabled" do
       before do
         create_config({conventional_commits: true, commit_style: "emoji", co_author_ai: true})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
         allow(processor).to receive(:detect_current_provider).and_return("Gemini")
       end
 
@@ -161,13 +161,13 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
         additional_work: []
       })
       # Inject the mock verifier into the processor
-      processor.instance_variable_set(:@verifier, verifier)
+      processor.verifier = verifier
     end
 
     context "when auto_create_pr is disabled" do
       before do
         create_config({auto_create_pr: false})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
       end
 
       it "skips PR creation" do
@@ -206,7 +206,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "when auto_create_pr is enabled with draft strategy" do
       before do
         create_config({auto_create_pr: true, pr_strategy: "draft"})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
         allow(processor).to receive(:gather_test_summary).and_return("All tests passed")
         allow(processor).to receive(:extract_pr_url).and_return("https://github.com/owner/repo/pull/456")
         allow(repository_client).to receive(:gh_available?).and_return(true)
@@ -230,7 +230,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "when auto_create_pr is enabled with ready strategy" do
       before do
         create_config({auto_create_pr: true, pr_strategy: "ready"})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
         allow(processor).to receive(:gather_test_summary).and_return("All tests passed")
         allow(processor).to receive(:extract_pr_url).and_return("https://github.com/owner/repo/pull/456")
         allow(repository_client).to receive(:gh_available?).and_return(true)
@@ -253,7 +253,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "when no commits were created" do
       before do
         create_config({auto_create_pr: true})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
       end
 
       it "skips PR creation entirely" do
@@ -274,7 +274,7 @@ RSpec.describe Aidp::Watch::BuildProcessor, "#vcs_preferences" do
     context "when PR creation fails" do
       before do
         create_config({auto_create_pr: true})
-        processor.instance_variable_set(:@config, nil)
+        processor.config = nil
         allow(processor).to receive(:gather_test_summary).and_return("All tests passed")
         allow(repository_client).to receive(:gh_available?).and_return(true)
       end

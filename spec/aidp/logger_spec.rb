@@ -450,12 +450,12 @@ RSpec.describe Aidp::Logger do
   describe "module-level logger" do
     before do
       # Reset module-level logger
-      Aidp.instance_variable_set(:@logger, nil)
+      Aidp.logger = nil
     end
 
     after do
-      Aidp.logger.close if Aidp.instance_variable_get(:@logger)
-      Aidp.instance_variable_set(:@logger, nil)
+      Aidp.logger&.close
+      Aidp.logger = nil
     end
 
     it "creates default logger when not set up" do

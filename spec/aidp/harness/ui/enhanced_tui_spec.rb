@@ -84,7 +84,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
         tui.add_job("test_job_1", job_data)
 
         # Access the internal jobs hash to verify the job was added
-        jobs = tui.instance_variable_get(:@jobs)
+        jobs = tui.jobs
         expect(jobs).to have_key("test_job_1")
         expect(jobs["test_job_1"][:name]).to eq("Test Job")
         expect(jobs["test_job_1"][:status]).to eq(:running)
@@ -97,7 +97,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       it "uses job_id as name when name is not provided" do
         tui.add_job("test_job_2", {status: :pending})
 
-        jobs = tui.instance_variable_get(:@jobs)
+        jobs = tui.jobs
         expect(jobs["test_job_2"][:name]).to eq("test_job_2")
       end
     end
@@ -110,7 +110,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
         # Then update it
         tui.update_job("test_job_3", {status: :completed, progress: 100, message: "Done!"})
 
-        jobs = tui.instance_variable_get(:@jobs)
+        jobs = tui.jobs
         expect(jobs["test_job_3"][:status]).to eq(:completed)
         expect(jobs["test_job_3"][:progress]).to eq(100)
         expect(jobs["test_job_3"][:message]).to eq("Done!")
@@ -127,7 +127,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
         # First add a job
         tui.add_job("test_job_4", {name: "Test Job", status: :running})
 
-        jobs = tui.instance_variable_get(:@jobs)
+        jobs = tui.jobs
         expect(jobs).to have_key("test_job_4")
 
         # Then remove it
@@ -167,22 +167,22 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
 
     it "sets current mode after announcement" do
       tui.announce_mode(:analyze)
-      expect(tui.instance_variable_get(:@current_mode)).to eq(:analyze)
+      expect(tui.current_mode).to eq(:analyze)
     end
   end
 
   describe "#simulate_step_execution" do
     it "simulates PRD step execution in headless mode" do
       expect { tui.simulate_step_execution("00_PRD_initial_planning") }.not_to raise_error
-      expect(tui.instance_variable_get(:@workflow_active)).to be true
-      expect(tui.instance_variable_get(:@current_step)).to eq("00_PRD_initial_planning")
+      expect(tui.workflow_active).to be true
+      expect(tui.current_step).to eq("00_PRD_initial_planning")
       messages_text = test_prompt.messages.map { |m| m[:message] }.join(" ")
       expect(messages_text).to include("00") # basic completion prefix
     end
 
     it "sets current step for non-PRD step in headless mode" do
       expect { tui.simulate_step_execution("some_other_step") }.not_to raise_error
-      expect(tui.instance_variable_get(:@current_step)).to eq("some_other_step")
+      expect(tui.current_step).to eq("some_other_step")
     end
   end
 
@@ -284,16 +284,16 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       # Simulate real tty via stub
       tty = double("RealTTY", tty?: true)
       instance = described_class.new(prompt: test_prompt, tty: tty)
-      expect(instance.instance_variable_get(:@headless)).to be false
+      expect(instance.headless).to be false
     end
 
     it "sets headless true when tty is non-interactive" do
       instance = described_class.new(prompt: test_prompt, tty: non_tty)
-      expect(instance.instance_variable_get(:@headless)).to be true
+      expect(instance.headless).to be true
     end
 
     it "initializes with empty jobs hash" do
-      expect(tui.instance_variable_get(:@jobs)).to eq({})
+      expect(tui.jobs).to eq({})
     end
   end
 
@@ -358,7 +358,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
           message: "Processing..."
         }
         tui.add_job("job-123", job_data)
-        expect(tui.instance_variable_get(:@jobs)["job-123"]).to include(
+        expect(tui.jobs["job-123"]).to include(
           id: "job-123",
           name: "Test Job",
           status: :running,
@@ -370,17 +370,17 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
 
       it "uses job_id as name if name not provided" do
         tui.add_job("job-456", {})
-        expect(tui.instance_variable_get(:@jobs)["job-456"][:name]).to eq("job-456")
+        expect(tui.jobs["job-456"][:name]).to eq("job-456")
       end
 
       it "sets default status to pending" do
         tui.add_job("job-789", {})
-        expect(tui.instance_variable_get(:@jobs)["job-789"][:status]).to eq(:pending)
+        expect(tui.jobs["job-789"][:status]).to eq(:pending)
       end
 
       it "sets default progress to 0" do
         tui.add_job("job-000", {})
-        expect(tui.instance_variable_get(:@jobs)["job-000"][:progress]).to eq(0)
+        expect(tui.jobs["job-000"][:progress]).to eq(0)
       end
     end
 
@@ -388,7 +388,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       it "updates an existing job" do
         tui.add_job("job-123", {name: "Test"})
         tui.update_job("job-123", {status: :completed, progress: 100})
-        expect(tui.instance_variable_get(:@jobs)["job-123"]).to include(
+        expect(tui.jobs["job-123"]).to include(
           status: :completed,
           progress: 100
         )
@@ -403,7 +403,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
   describe "#extract_questions_for_step" do
     it "returns empty array in non-headless mode" do
       headless_tui = described_class.new(prompt: test_prompt)
-      headless_tui.instance_variable_set(:@headless, false)
+      headless_tui.headless = false
 
       result = headless_tui.send(:extract_questions_for_step, "test_step")
       expect(result).to eq([])
@@ -422,8 +422,8 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       CONTENT
 
       headless_tui = described_class.new(prompt: test_prompt)
-      headless_tui.instance_variable_set(:@headless, true)
-      headless_tui.instance_variable_set(:@current_mode, :analyze)
+      headless_tui.headless = true
+      headless_tui.current_mode = :analyze
 
       result = headless_tui.send(:extract_questions_for_step, "00_PRD")
       expect(result).to eq(["What is the main goal?", "Who are the users?"])
@@ -434,7 +434,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       allow(Dir).to receive(:glob).and_return([])
 
       headless_tui = described_class.new(prompt: test_prompt)
-      headless_tui.instance_variable_set(:@headless, true)
+      headless_tui.headless = true
 
       result = headless_tui.send(:extract_questions_for_step, "test_step")
       expect(result).to eq([])
@@ -446,7 +446,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       allow(File).to receive(:read).and_return("# No questions here")
 
       headless_tui = described_class.new(prompt: test_prompt)
-      headless_tui.instance_variable_set(:@headless, true)
+      headless_tui.headless = true
 
       result = headless_tui.send(:extract_questions_for_step, "test_step")
       expect(result).to eq([])
@@ -458,7 +458,7 @@ RSpec.describe Aidp::Harness::UI::EnhancedTUI do
       allow(File).to receive(:read).and_raise(Errno::ENOENT)
 
       headless_tui = described_class.new(prompt: test_prompt)
-      headless_tui.instance_variable_set(:@headless, true)
+      headless_tui.headless = true
 
       result = headless_tui.send(:extract_questions_for_step, "test_step")
       expect(result).to eq([])

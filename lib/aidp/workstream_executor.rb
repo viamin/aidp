@@ -9,6 +9,9 @@ module Aidp
   class WorkstreamExecutor
     include Aidp::MessageDisplay
 
+    # Expose for testability
+    attr_reader :project_dir, :max_concurrent, :results, :start_times
+
     # Result from executing a workstream
     WorkstreamResult = Struct.new(
       :slug,

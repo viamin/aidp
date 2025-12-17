@@ -20,6 +20,9 @@ RSpec.describe Aidp::Watch::Runner do
   let(:auto_update) { instance_double("AutoUpdateCoordinator", check_for_updates: nil, check_for_update: auto_update_check, policy: auto_update_policy, restore_from_checkpoint: nil, hot_reload_available?: false, initiate_update: nil) }
   let(:issue_detail) { {number: 1, labels: ["plan"], comments: [], author: "alice"} }
 
+  # Silent test prompt that doesn't output
+  let(:test_prompt) { instance_double(TTY::Prompt, say: nil) }
+
   before do
     extractor_class = Class.new
     extractor_class.const_set(:IN_PROGRESS_LABEL, "aidp-in-progress")
@@ -38,7 +41,6 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp::Watch::ChangeRequestProcessor).to receive(:new).and_return(change_request_processor)
     allow(Aidp::Watch::FeedbackCollector).to receive(:new).and_return(feedback_collector)
     allow(Aidp::AutoUpdate).to receive(:coordinator).and_return(auto_update)
-    allow_any_instance_of(described_class).to receive(:display_message)
     allow(Aidp).to receive(:log_info)
     allow(Aidp).to receive(:log_debug)
     allow(Aidp).to receive(:log_error)
@@ -54,7 +56,8 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "#start" do
     it "runs a single cycle when once is true" do
-      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01)
+      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
       expect(safety_checker).to receive(:validate_watch_mode_safety!)
       expect(runner).to receive(:process_cycle).and_return(nil)
 
@@ -64,7 +67,8 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "#process_cycle" do
     it "calls each processor in order" do
-      runner = described_class.new(issues_url: "o/r", once: true)
+      runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
       %i[
         process_plan_triggers
         process_build_triggers
@@ -86,8 +90,9 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "#check_for_updates_if_due" do
     it "invokes coordinator when interval has passed" do
-      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01)
-      runner.instance_variable_set(:@last_update_check, Time.now - 100)
+      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
+      runner.last_update_check = Time.now - 100
       expect(auto_update).to receive(:check_for_update).and_return(auto_update_check)
       expect(auto_update).to receive(:initiate_update)
 
@@ -97,13 +102,18 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "post detection comments" do
     it "enables post_detection_comments by default" do
-      runner = described_class.new(issues_url: "o/r", once: true)
-      expect(runner.instance_variable_get(:@post_detection_comments)).to be true
+      runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
+      expect(runner.post_detection_comments).to be true
     end
   end
 
   describe "trigger processing" do
-    let(:runner) { described_class.new(issues_url: "o/r", once: true) }
+    let(:runner) do
+      r = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(r).to receive(:display_message)
+      r
+    end
 
     before do
       allow(runner).to receive(:post_detection_comment)

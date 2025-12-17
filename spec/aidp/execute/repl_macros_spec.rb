@@ -19,7 +19,7 @@ RSpec.describe Aidp::Execute::ReplMacros do
   describe "#current_skill_object" do
     it "logs and returns nil when registry fails" do
       macros = described_class.new(project_dir: temp_dir)
-      macros.instance_variable_set(:@current_skill, "repo-analyst")
+      macros.current_skill = "repo-analyst"
       allow(Aidp::Skills::Registry).to receive(:new).and_raise(StandardError, "boom")
       allow(Aidp).to receive(:log_error)
 
@@ -109,7 +109,7 @@ RSpec.describe Aidp::Execute::ReplMacros do
   describe "/unpin command" do
     it "removes pinned files discovered via glob patterns" do
       macros = described_class.new
-      macros.instance_variable_get(:@pinned_files) << "lib/example.rb"
+      macros.pinned_files << "lib/example.rb"
       allow(macros).to receive(:expand_pattern).and_return(["lib/example.rb"])
 
       result = macros.send(:cmd_unpin, ["lib/*.rb"])
@@ -608,7 +608,7 @@ RSpec.describe Aidp::Execute::ReplMacros do
       end
 
       it "returns nil for non-existent skill" do
-        skill_repl.instance_variable_set(:@current_skill, "nonexistent")
+        skill_repl.current_skill = "nonexistent"
         expect(skill_repl.current_skill_object).to be_nil
       end
 

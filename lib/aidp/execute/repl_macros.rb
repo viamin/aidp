@@ -9,7 +9,9 @@ module Aidp
     # - /split - Divide work into smaller contracts
     # - /halt-on <pattern> - Pause on specific test failures
     class ReplMacros
-      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode, :current_workstream, :current_skill
+      attr_reader :pinned_files, :focus_patterns, :halt_patterns, :split_mode, :current_workstream
+      # Expose current_skill for testability
+      attr_accessor :current_skill
 
       def initialize(project_dir: Dir.pwd)
         @pinned_files = Set.new

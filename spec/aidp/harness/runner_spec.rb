@@ -62,27 +62,27 @@ RSpec.describe Aidp::Harness::Runner do
 
   describe "#initialize" do
     it "initializes with analyze mode" do
-      expect(runner.instance_variable_get(:@mode)).to eq(:analyze)
-      expect(runner.instance_variable_get(:@project_dir)).to eq(temp_dir)
+      expect(runner.mode).to eq(:analyze)
+      expect(runner.project_dir).to eq(temp_dir)
     end
 
     it "initializes with execute mode" do
       execute_runner = described_class.new(temp_dir, :execute)
-      expect(execute_runner.instance_variable_get(:@mode)).to eq(:execute)
+      expect(execute_runner.mode).to eq(:execute)
     end
 
     it "initializes all components" do
-      expect(runner.instance_variable_get(:@configuration)).to be_a(Aidp::Harness::Configuration)
-      expect(runner.instance_variable_get(:@state_manager)).to be_a(Aidp::Harness::StateManager)
-      expect(runner.instance_variable_get(:@condition_detector)).to be_a(Aidp::Harness::ZfcConditionDetector)
-      expect(runner.instance_variable_get(:@provider_manager)).to be_a(Aidp::Harness::ProviderManager)
-      expect(runner.instance_variable_get(:@user_interface)).to be_a(Aidp::Harness::SimpleUserInterface)
-      expect(runner.instance_variable_get(:@error_handler)).to be_a(Aidp::Harness::ErrorHandler)
-      expect(runner.instance_variable_get(:@status_display)).to be_a(Aidp::Harness::StatusDisplay)
+      expect(runner.configuration).to be_a(Aidp::Harness::Configuration)
+      expect(runner.state_manager).to be_a(Aidp::Harness::StateManager)
+      expect(runner.condition_detector).to be_a(Aidp::Harness::ZfcConditionDetector)
+      expect(runner.provider_manager).to be_a(Aidp::Harness::ProviderManager)
+      expect(runner.user_interface).to be_a(Aidp::Harness::SimpleUserInterface)
+      expect(runner.error_handler).to be_a(Aidp::Harness::ErrorHandler)
+      expect(runner.status_display).to be_a(Aidp::Harness::StatusDisplay)
     end
 
     it "initializes with idle state" do
-      expect(runner.instance_variable_get(:@state)).to eq("idle")
+      expect(runner.state).to eq("idle")
     end
   end
 
@@ -123,37 +123,37 @@ RSpec.describe Aidp::Harness::Runner do
 
   describe "#pause" do
     it "pauses the harness" do
-      runner.instance_variable_set(:@state, "running")
+      runner.state = "running"
       runner.pause
-      expect(runner.instance_variable_get(:@state)).to eq("paused")
+      expect(runner.state).to eq("paused")
     end
 
     it "does not pause if not running" do
-      runner.instance_variable_set(:@state, "idle")
+      runner.state = "idle"
       runner.pause
-      expect(runner.instance_variable_get(:@state)).to eq("idle")
+      expect(runner.state).to eq("idle")
     end
   end
 
   describe "#resume" do
     it "resumes the harness" do
-      runner.instance_variable_set(:@state, "paused")
+      runner.state = "paused"
       runner.resume
-      expect(runner.instance_variable_get(:@state)).to eq("running")
+      expect(runner.state).to eq("running")
     end
 
     it "does not resume if not paused" do
-      runner.instance_variable_set(:@state, "idle")
+      runner.state = "idle"
       runner.resume
-      expect(runner.instance_variable_get(:@state)).to eq("idle")
+      expect(runner.state).to eq("idle")
     end
   end
 
   describe "#stop" do
     it "stops the harness" do
-      runner.instance_variable_set(:@state, "running")
+      runner.state = "running"
       runner.stop
-      expect(runner.instance_variable_get(:@state)).to eq("stopped")
+      expect(runner.state).to eq("stopped")
     end
   end
 
@@ -170,7 +170,7 @@ RSpec.describe Aidp::Harness::Runner do
     end
 
     it "raises error for unsupported mode" do
-      runner.instance_variable_set(:@mode, :invalid)
+      runner.mode = :invalid
       expect { runner.send(:get_mode_runner) }.to raise_error(ArgumentError)
     end
   end
@@ -184,11 +184,11 @@ RSpec.describe Aidp::Harness::Runner do
     let(:condition_detector) { double("condition_detector") }
 
     before do
-      runner.instance_variable_set(:@state_manager, state_manager)
-      runner.instance_variable_set(:@status_display, status_display)
-      runner.instance_variable_set(:@provider_manager, provider_manager)
-      runner.instance_variable_set(:@error_handler, error_handler)
-      runner.instance_variable_set(:@condition_detector, condition_detector)
+      runner.state_manager = state_manager
+      runner.status_display = status_display
+      runner.provider_manager = provider_manager
+      runner.error_handler = error_handler
+      runner.condition_detector = condition_detector
 
       allow(state_manager).to receive(:mark_step_in_progress)
       allow(state_manager).to receive(:mark_step_completed)
@@ -208,9 +208,9 @@ RSpec.describe Aidp::Harness::Runner do
     let(:state_manager) { double("state_manager") }
 
     before do
-      runner.instance_variable_set(:@condition_detector, condition_detector)
-      runner.instance_variable_set(:@user_interface, user_interface)
-      runner.instance_variable_set(:@state_manager, state_manager)
+      runner.condition_detector = condition_detector
+      runner.user_interface = user_interface
+      runner.state_manager = state_manager
 
       allow(condition_detector).to receive(:extract_questions).and_return([{question: "test?"}])
       allow(user_interface).to receive(:collect_feedback).and_return({"question_1" => "answer"})
@@ -225,7 +225,7 @@ RSpec.describe Aidp::Harness::Runner do
       expect(condition_detector).to have_received(:extract_questions).with(result)
       expect(user_interface).to have_received(:collect_feedback)
       expect(state_manager).to have_received(:add_user_input).with("question_1", "answer")
-      expect(runner.instance_variable_get(:@user_input)["question_1"]).to eq("answer")
+      expect(runner.user_input["question_1"]).to eq("answer")
     end
   end
 
@@ -235,9 +235,9 @@ RSpec.describe Aidp::Harness::Runner do
     let(:reset_time) { Time.now + 3600 }
 
     before do
-      runner.instance_variable_set(:@provider_manager, provider_manager)
-      runner.instance_variable_set(:@condition_detector, condition_detector)
-      runner.instance_variable_set(:@current_provider, "cursor")
+      runner.provider_manager = provider_manager
+      runner.condition_detector = condition_detector
+      runner.current_provider = "cursor"
       allow(provider_manager).to receive(:mark_rate_limited)
       allow(provider_manager).to receive(:current_provider).and_return("cursor")
       allow(provider_manager).to receive(:switch_provider).and_return("claude")
@@ -251,8 +251,8 @@ RSpec.describe Aidp::Harness::Runner do
 
       expect(provider_manager).to have_received(:mark_rate_limited).with("cursor", reset_time)
       expect(provider_manager).to have_received(:switch_provider)
-      expect(runner.instance_variable_get(:@current_provider)).to eq("claude")
-      expect(runner.instance_variable_get(:@state)).to eq("running")
+      expect(runner.current_provider).to eq("claude")
+      expect(runner.state).to eq("running")
       expect(condition_detector).to have_received(:extract_rate_limit_info).with(result, "cursor")
     end
 
@@ -272,7 +272,7 @@ RSpec.describe Aidp::Harness::Runner do
     end
 
     it "does not switch again when provider manager already rotated upstream" do
-      runner.instance_variable_set(:@current_provider, "anthropic")
+      runner.current_provider = "anthropic"
       allow(provider_manager).to receive(:current_provider).and_return("codex")
       allow(condition_detector).to receive(:extract_rate_limit_info).and_return(nil)
       allow(provider_manager).to receive(:switch_provider)
@@ -282,8 +282,8 @@ RSpec.describe Aidp::Harness::Runner do
 
       expect(provider_manager).to have_received(:mark_rate_limited).with("anthropic", nil)
       expect(provider_manager).not_to have_received(:switch_provider)
-      expect(runner.instance_variable_get(:@current_provider)).to eq("codex")
-      expect(runner.instance_variable_get(:@state)).to eq("running")
+      expect(runner.current_provider).to eq("codex")
+      expect(runner.state).to eq("running")
     end
   end
 
@@ -308,23 +308,23 @@ RSpec.describe Aidp::Harness::Runner do
         current_provider: "cursor"
       })
       allow(state_manager).to receive(:user_input).and_return({"question_1" => "answer"})
-      runner.instance_variable_set(:@state_manager, state_manager)
+      runner.state_manager = state_manager
 
       runner.send(:load_state)
 
-      expect(runner.instance_variable_get(:@current_step)).to eq("test_step")
-      expect(runner.instance_variable_get(:@current_provider)).to eq("cursor")
-      expect(runner.instance_variable_get(:@user_input)["question_1"]).to eq("answer")
+      expect(runner.current_step).to eq("test_step")
+      expect(runner.current_provider).to eq("cursor")
+      expect(runner.user_input["question_1"]).to eq("answer")
     end
 
     it "saves state correctly" do
       state_manager = double("state_manager")
       allow(state_manager).to receive(:save_state)
-      runner.instance_variable_set(:@state_manager, state_manager)
-      runner.instance_variable_set(:@state, "running")
-      runner.instance_variable_set(:@current_step, "test_step")
-      runner.instance_variable_set(:@current_provider, "cursor")
-      runner.instance_variable_set(:@user_input, {"test" => "data"})
+      runner.state_manager = state_manager
+      runner.state = "running"
+      runner.current_step = "test_step"
+      runner.current_provider = "cursor"
+      runner.user_input = {"test" => "data"}
 
       runner.send(:save_state)
 
@@ -342,7 +342,7 @@ RSpec.describe Aidp::Harness::Runner do
     it "handles errors gracefully" do
       error_handler = double("error_handler")
       allow(error_handler).to receive(:handle_error)
-      runner.instance_variable_set(:@error_handler, error_handler)
+      runner.error_handler = error_handler
 
       error = StandardError.new("test error")
       runner.send(:handle_error, error)
@@ -351,7 +351,7 @@ RSpec.describe Aidp::Harness::Runner do
     end
 
     it "protects ensure block from save_state exceptions" do
-      state_manager = runner.instance_variable_get(:@state_manager)
+      state_manager = runner.state_manager
       mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
 
       # Make save_state raise an exception
@@ -371,7 +371,7 @@ RSpec.describe Aidp::Harness::Runner do
     end
 
     it "protects ensure block from cleanup exceptions" do
-      state_manager = runner.instance_variable_get(:@state_manager)
+      state_manager = runner.state_manager
       mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
 
       # Make cleanup raise an exception
@@ -391,7 +391,7 @@ RSpec.describe Aidp::Harness::Runner do
     end
 
     it "sets last_error when save_state fails and no previous error exists" do
-      state_manager = runner.instance_variable_get(:@state_manager)
+      state_manager = runner.state_manager
       mode_runner = double("mode_runner", next_step: nil, all_steps_completed?: true)
       save_error = StandardError.new("Save state failed")
 
@@ -401,7 +401,7 @@ RSpec.describe Aidp::Harness::Runner do
       runner.run
 
       # last_error should be set to the save_state error
-      expect(runner.instance_variable_get(:@last_error)).to eq(save_error)
+      expect(runner.last_error).to eq(save_error)
     end
   end
 
@@ -411,7 +411,7 @@ RSpec.describe Aidp::Harness::Runner do
       error_handler = double("error_handler")
       allow(error_handler).to receive(:execute_with_retry) { |&blk| blk.call }
       allow(error_handler).to receive(:handle_error)
-      runner.instance_variable_set(:@error_handler, error_handler)
+      runner.error_handler = error_handler
 
       # Basic provider manager stub; individual tests can override additional behavior
       provider_manager = double("provider_manager")
@@ -419,7 +419,7 @@ RSpec.describe Aidp::Harness::Runner do
       allow(provider_manager).to receive(:mark_rate_limited)
       allow(provider_manager).to receive(:switch_provider).and_return(nil)
       allow(provider_manager).to receive(:next_reset_time).and_return(Time.now + 1)
-      runner.instance_variable_set(:@provider_manager, provider_manager)
+      runner.provider_manager = provider_manager
 
       # Status display stub to avoid real output and provide cleanup
       status_display = double("status_display",
@@ -428,13 +428,13 @@ RSpec.describe Aidp::Harness::Runner do
         update_rate_limit_countdown: nil,
         show_rate_limit_wait: nil,
         cleanup: nil)
-      runner.instance_variable_set(:@status_display, status_display)
+      runner.status_display = status_display
 
       # Default condition detector (tests override where needed)
       condition_detector = double("condition_detector")
       allow(condition_detector).to receive(:needs_user_feedback?).and_return(false)
       allow(condition_detector).to receive(:is_rate_limited?).and_return(false)
-      runner.instance_variable_set(:@condition_detector, condition_detector)
+      runner.condition_detector = condition_detector
     end
     it "marks completed when completion criteria met" do
       analyze_runner = double("analyze_runner")
@@ -445,7 +445,7 @@ RSpec.describe Aidp::Harness::Runner do
       allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
 
       completion_checker = double("completion_checker", completion_status: {all_complete: true, summary: "All good"})
-      runner.instance_variable_set(:@completion_checker, completion_checker)
+      runner.completion_checker = completion_checker
 
       # Inject mocked mode runner
       allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
@@ -463,12 +463,12 @@ RSpec.describe Aidp::Harness::Runner do
       allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
 
       completion_checker = double("completion_checker", completion_status: {all_complete: false, summary: "Missing artifacts"})
-      runner.instance_variable_set(:@completion_checker, completion_checker)
+      runner.completion_checker = completion_checker
 
       # Stub user interface confirmation to override
       ui = double("user_interface")
       allow(ui).to receive(:get_confirmation).and_return(true)
-      runner.instance_variable_set(:@user_interface, ui)
+      runner.user_interface = ui
 
       allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
 
@@ -485,11 +485,11 @@ RSpec.describe Aidp::Harness::Runner do
       allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
 
       completion_checker = double("completion_checker", completion_status: {all_complete: false, summary: "Missing coverage"})
-      runner.instance_variable_set(:@completion_checker, completion_checker)
+      runner.completion_checker = completion_checker
 
       ui = double("user_interface")
       allow(ui).to receive(:get_confirmation).and_return(false)
-      runner.instance_variable_set(:@user_interface, ui)
+      runner.user_interface = ui
 
       allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
 
@@ -506,12 +506,12 @@ RSpec.describe Aidp::Harness::Runner do
       allow(analyze_runner).to receive(:all_steps_completed?).and_return(true)
 
       completion_checker = double("completion_checker", completion_status: {all_complete: false, summary: "Missing tests"})
-      runner.instance_variable_set(:@completion_checker, completion_checker)
+      runner.completion_checker = completion_checker
 
       ui = double("user_interface")
-      runner.instance_variable_set(:@user_interface, ui)
-      runner.instance_variable_set(:@workflow_type, :watch_mode)
-      runner.instance_variable_set(:@non_interactive, true)
+      runner.user_interface = ui
+      runner.workflow_type = :watch_mode
+      runner.non_interactive = true
 
       expect(ui).not_to receive(:get_confirmation)
       allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
@@ -532,11 +532,11 @@ RSpec.describe Aidp::Harness::Runner do
       condition_detector = double("condition_detector")
       allow(condition_detector).to receive(:needs_user_feedback?).and_return(false)
       allow(condition_detector).to receive(:is_rate_limited?).and_return(true, false)
-      runner.instance_variable_set(:@condition_detector, condition_detector)
-      provider_manager = runner.instance_variable_get(:@provider_manager)
+      runner.condition_detector = condition_detector
+      provider_manager = runner.provider_manager
 
       # Stub countdown methods to avoid real sleep
-      allow(runner).to receive(:sleep_until_reset) { runner.instance_variable_set(:@state, "running") }
+      allow(runner).to receive(:sleep_until_reset) { runner.state = "running" }
 
       allow(runner).to receive(:get_mode_runner).and_return(analyze_runner)
 
@@ -562,7 +562,7 @@ RSpec.describe Aidp::Harness::Runner do
       mode_runner = instance_double("mode_runner")
       completion_checker = instance_double("completion_checker")
 
-      execute_runner.instance_variable_set(:@completion_checker, completion_checker)
+      execute_runner.completion_checker = completion_checker
 
       allow(execute_runner).to receive(:load_state)
       allow(execute_runner).to receive(:update_state)

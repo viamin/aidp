@@ -23,12 +23,11 @@ RSpec.describe Aidp::Harness::State::Persistence do
     end
 
     it "sets up state file path" do
-      expect(persistence.instance_variable_get(:@state_file)).to eq(state_file)
+      expect(persistence.state_file).to eq(state_file)
     end
 
     it "sets up lock file path" do
-      lock_file = File.join(state_dir, "#{mode}_state.lock")
-      expect(persistence.instance_variable_get(:@lock_file)).to eq(lock_file)
+      expect(persistence.lock_file).to eq(lock_file)
     end
   end
 

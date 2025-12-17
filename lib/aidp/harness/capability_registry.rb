@@ -21,6 +21,8 @@ module Aidp
       }.freeze
 
       attr_reader :catalog_path
+      # Expose for testability
+      attr_reader :catalog_data
 
       def initialize(catalog_path: nil, root_dir: nil)
         @root_dir = root_dir || Dir.pwd

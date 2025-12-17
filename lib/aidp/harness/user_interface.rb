@@ -9,6 +9,9 @@ module Aidp
     class UserInterface
       include Aidp::MessageDisplay
 
+      # Expose for testability
+      attr_reader :auto_confirm_defaults, :show_help_automatically, :verbose_mode, :file_selection_enabled
+
       def initialize(prompt: TTY::Prompt.new)
         @input_history = []
         @file_selection_enabled = false

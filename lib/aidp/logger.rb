@@ -307,6 +307,9 @@ module Aidp
 
   # Module-level logger accessor
   class << self
+    # Expose for testability
+    attr_writer :logger
+
     # Set up global logger instance
     def setup_logger(project_dir = Dir.pwd, config = {})
       @logger = Logger.new(project_dir, config)

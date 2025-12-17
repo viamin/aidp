@@ -31,7 +31,7 @@ RSpec.describe Aidp::Setup::Wizard do
   # Clean up any background discovery threads after each test
   after do
     if defined?(wizard)
-      threads = wizard.instance_variable_get(:@discovery_threads)
+      threads = wizard.discovery_threads
       if threads&.any?
         threads.each do |entry|
           thread = entry[:thread]
@@ -416,32 +416,32 @@ RSpec.describe Aidp::Setup::Wizard do
       allow(Aidp::Util).to receive(:which).and_return(nil)
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "nonexistent-command")
-      expect(wizard.instance_variable_get(:@warnings)).to include(/Command 'nonexistent-command' not found/)
+      expect(wizard.warnings).to include(/Command 'nonexistent-command' not found/)
     end
 
     it "does not warn for nil commands" do
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, nil)
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
 
     it "does not warn for empty commands" do
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "  ")
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
 
     it "does not warn for echo commands" do
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "echo 'test'")
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
 
     it "does not warn when command is found" do
       allow(Aidp::Util).to receive(:which).and_return("/usr/bin/found")
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "found-command")
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
   end
 
@@ -584,8 +584,8 @@ RSpec.describe Aidp::Setup::Wizard do
       File.write(Aidp::ConfigPaths.config_file(tmp_dir), "invalid: yaml: [[[")
 
       wizard = described_class.new(tmp_dir, prompt: prompt)
-      expect(wizard.instance_variable_get(:@warnings)).not_to be_empty
-      expect(wizard.instance_variable_get(:@existing_config)).to eq({})
+      expect(wizard.warnings).not_to be_empty
+      expect(wizard.existing_config).to eq({})
     end
 
     it "handles provider loading errors gracefully" do
@@ -606,35 +606,35 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
 
         # Inject an existing config with a legacy label stored (simulating previous bug)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "Anthropic Claude (balanced)"}
         }
 
         # Run normalization
         wizard.send(:normalize_existing_model_families!)
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
       end
 
       it "falls back to auto for unknown entries" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           foo: {type: "usage_based", model_family: "Totally Unknown"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:foo][:model_family]).to eq("auto")
       end
 
       it "leaves canonical values unchanged" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "claude"},
           mistral: {type: "usage_based", model_family: "mistral"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
         expect(providers[:mistral][:model_family]).to eq("mistral")
       end
@@ -664,7 +664,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.run
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:type]).to eq("subscription")
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("claude")
@@ -699,7 +699,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:type]).to eq("subscription")
         expect(providers[:cursor][:model_family]).to eq("auto")
         expect(providers[:github_copilot][:type]).to eq("usage_based")
@@ -743,7 +743,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("openai_o")
       end
@@ -816,7 +816,7 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(model_family_prompt).not_to be_nil, "Expected model family prompt for github_copilot but it was not called"
 
         # Verify the configuration was saved
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("claude")
       end
@@ -865,7 +865,7 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(model_family_prompt_anthropic).not_to be_nil, "Expected model family prompt for anthropic (second fallback) but it was not called"
 
         # Verify both configurations were saved
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("claude")
         expect(providers[:anthropic][:type]).to eq("subscription")
@@ -901,7 +901,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.send(:configure_providers)
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("subscription")
         expect(providers[:github_copilot][:model_family]).to eq("auto")
       end
@@ -937,7 +937,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         fallback_providers = harness_config[:fallback_providers]
         expect(fallback_providers).not_to include("anthropic")
       end
@@ -974,7 +974,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         fallback_providers = harness_config[:fallback_providers]
         expect(fallback_providers).not_to include("anthropic")
         expect(fallback_providers).to include("github_copilot")
@@ -1009,7 +1009,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         fallback_providers = harness_config[:fallback_providers]
         expect(fallback_providers).to include("anthropic")
       end
@@ -1039,7 +1039,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         expect(harness_config[:fallback_providers]).to eq([])
       end
 
@@ -1109,33 +1109,33 @@ RSpec.describe Aidp::Setup::Wizard do
     context "with case-insensitive model family normalization" do
       it "normalizes uppercase model family values" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "CLAUDE"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
       end
 
       it "normalizes mixed-case model family values" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "Gemini"},
           anthropic: {type: "usage_based", model_family: "LLaMA"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("gemini")
         expect(providers[:anthropic][:model_family]).to eq("llama")
       end
 
       it "normalizes model family labels case-insensitively" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "anthropic claude (balanced)"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
       end
     end
@@ -1172,7 +1172,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_nfrs)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:nfrs, :configure)).to be false
       end
 
@@ -1184,7 +1184,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_nfrs)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:nfrs, :configure)).to be true
       end
 
@@ -1226,7 +1226,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_devcontainer)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:devcontainer, :manage)).to be false
       end
 
@@ -1238,7 +1238,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_devcontainer)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:devcontainer, :manage)).to be true
       end
 

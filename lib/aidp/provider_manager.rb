@@ -5,6 +5,9 @@ require "tty-prompt"
 module Aidp
   class ProviderManager
     class << self
+      # Expose for testability
+      attr_accessor :harness_factory
+
       def get_provider(provider_type, options = {})
         factory = get_harness_factory
         raise "Harness factory not available" unless factory
