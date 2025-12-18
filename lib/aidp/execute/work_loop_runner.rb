@@ -317,6 +317,16 @@ module Aidp
                   iteration: @iteration_count,
                   reason: task_completion_result[:reason])
 
+                # Run full_loop phase commands before final completion
+                full_loop_results = run_full_loop_commands
+                unless full_loop_results[:success]
+                  # Full loop commands failed - continue iterating
+                  display_message("  Full loop commands failed, continuing work loop", type: :warning)
+                  all_results[:full_loop] = full_loop_results
+                  transition_to(:fail)
+                  next
+                end
+
                 transition_to(:done)
                 record_final_checkpoint(all_results)
                 display_task_summary
@@ -784,6 +794,19 @@ module Aidp
         end
 
         all_results
+      end
+
+      # Run full_loop phase commands (only at end of entire work loop)
+      def run_full_loop_commands
+        return {success: true, output: "", failures: [], required_failures: []} unless @config.respond_to?(:commands)
+
+        full_loop_results = @test_runner.run_commands_for_phase(:full_loop)
+
+        Aidp.log_debug("work_loop", "ran_full_loop_commands",
+          success: full_loop_results[:success],
+          command_count: full_loop_results[:results_by_command]&.size || 0)
+
+        full_loop_results
       end
 
       # Run commands using legacy category-based approach (backwards compatibility)
