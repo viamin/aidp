@@ -143,7 +143,7 @@ module Aidp
 
       # Format failures for phase-based execution
       def format_phase_failures(failures, phase)
-        output = ["#{phase.to_s.gsub("_", " ").capitalize} Phase Failures:", ""]
+        output = ["#{phase.to_s.tr("_", " ").capitalize} Phase Failures:", ""]
 
         failures.each do |failure|
           required_label = failure[:required] ? "[REQUIRED]" : "[OPTIONAL]"
