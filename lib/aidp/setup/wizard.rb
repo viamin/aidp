@@ -489,13 +489,209 @@ module Aidp
 
         configure_work_loop_limits
         configure_output_filtering
-        configure_test_commands
-        configure_linting
+        configure_commands
         configure_watch_patterns
         configure_guards
         configure_coverage
         configure_interactive_testing
         configure_vcs_behavior
+      end
+
+      # Configure generic deterministic commands for work loop
+      # Replaces the old category-specific configure_test_commands and configure_linting
+      def configure_commands
+        prompt.say("\n📋 Deterministic Commands Configuration")
+        prompt.say("  Commands run automatically during work loops to validate changes")
+        prompt.say("  Commands can run: after each unit, at full loop end, or on completion")
+
+        existing_commands = get([:work_loop, :commands]) || []
+
+        # If user has existing commands, offer to edit or start fresh
+        if existing_commands.any?
+          prompt.say("\n  Found #{existing_commands.size} existing command(s)")
+          action = prompt.select("What would you like to do?") do |menu|
+            menu.choice "Keep existing commands", :keep
+            menu.choice "Add more commands", :add
+            menu.choice "Replace all commands", :replace
+            menu.choice "Skip command configuration", :skip
+          end
+
+          case action
+          when :skip
+            return
+          when :keep
+            return
+          when :replace
+            existing_commands = []
+          end
+        else
+          return unless prompt.yes?("Configure deterministic commands?", default: true)
+        end
+
+        commands = existing_commands.dup
+        loop do
+          prompt.say("\n  Current commands: #{commands.size}")
+          commands.each_with_index do |cmd, i|
+            prompt.say("    #{i + 1}. [#{cmd[:category]}] #{cmd[:name]}: #{cmd[:command]}")
+          end
+
+          action = prompt.select("\nWhat would you like to do?") do |menu|
+            menu.choice "Add a command", :add
+            menu.choice "Add from auto-detected tooling", :detect
+            menu.choice "Remove a command", :remove if commands.any?
+            menu.choice "Done configuring commands", :done
+          end
+
+          case action
+          when :add
+            cmd = collect_command_details
+            commands << cmd if cmd
+          when :detect
+            detected = add_detected_commands(commands)
+            commands = detected
+          when :remove
+            commands = remove_command_interactive(commands)
+          when :done
+            break
+          end
+        end
+
+        set([:work_loop, :commands], commands)
+        prompt.say("✅ Configured #{commands.size} command(s)")
+      end
+
+      # Collect details for a single command
+      def collect_command_details
+        prompt.say("\n  Adding new command:")
+
+        name = prompt.ask("Command name (identifier):", required: true) do |q|
+          q.validate(/\A[a-z0-9_]+\z/i, "Name must be alphanumeric with underscores")
+        end
+
+        command = prompt.ask("Shell command to run:", required: true)
+
+        category_choices = [
+          ["Test (unit, integration, e2e)", :test],
+          ["Lint (code style)", :lint],
+          ["Formatter (auto-fix)", :formatter],
+          ["Build (compilation)", :build],
+          ["Documentation", :documentation],
+          ["Custom", :custom]
+        ]
+        category = prompt.select("Category:") do |menu|
+          category_choices.each { |label, value| menu.choice label, value }
+        end
+
+        run_after_choices = [
+          ["After each work unit iteration (recommended for tests/linters)", :each_unit],
+          ["Only at end of full work loop", :full_loop],
+          ["Only when agent marks work complete (recommended for formatters)", :on_completion]
+        ]
+        run_after = prompt.select("When should this command run?") do |menu|
+          run_after_choices.each { |label, value| menu.choice label, value }
+        end
+
+        required = prompt.yes?("Is this command required to pass? (failures block completion)", default: true)
+
+        {
+          name: name,
+          command: command,
+          category: category,
+          run_after: run_after,
+          required: required,
+          timeout_seconds: nil
+        }
+      end
+
+      # Add auto-detected commands
+      def add_detected_commands(existing_commands)
+        detected = detect_all_tooling
+        return existing_commands if detected.empty?
+
+        prompt.say("\n  Auto-detected tooling:")
+        detected.each_with_index do |cmd, i|
+          prompt.say("    #{i + 1}. [#{cmd[:category]}] #{cmd[:command]}")
+        end
+
+        selected = prompt.multi_select("Select commands to add:") do |menu|
+          detected.each_with_index do |cmd, i|
+            # Skip if already exists
+            existing = existing_commands.any? { |e| e[:command] == cmd[:command] }
+            label = "[#{cmd[:category]}] #{cmd[:command]}"
+            label += " (already added)" if existing
+            menu.choice label, i, disabled: existing ? "(already added)" : nil
+          end
+        end
+
+        new_commands = existing_commands.dup
+        selected.each do |idx|
+          new_commands << detected[idx]
+        end
+        new_commands
+      end
+
+      # Detect all tooling and return as generic command configs
+      def detect_all_tooling
+        commands = []
+
+        # Detect test command
+        test_cmd = detect_unit_test_command
+        if test_cmd && !test_cmd.empty?
+          commands << {
+            name: "unit_tests",
+            command: test_cmd,
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 1800
+          }
+        end
+
+        # Detect lint command
+        lint_cmd = detect_lint_command
+        if lint_cmd && !lint_cmd.empty?
+          commands << {
+            name: "lint",
+            command: lint_cmd,
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 300
+          }
+        end
+
+        # Detect format command
+        format_cmd = detect_format_command
+        if format_cmd && !format_cmd.empty?
+          commands << {
+            name: "format",
+            command: format_cmd,
+            category: :formatter,
+            run_after: :on_completion,
+            required: false,
+            timeout_seconds: 120
+          }
+        end
+
+        commands
+      end
+
+      # Remove a command interactively
+      def remove_command_interactive(commands)
+        return commands if commands.empty?
+
+        choices = commands.each_with_index.map do |cmd, i|
+          ["#{cmd[:name]}: #{cmd[:command]}", i]
+        end
+
+        idx = prompt.select("Select command to remove:") do |menu|
+          choices.each { |label, value| menu.choice label, value }
+          menu.choice "Cancel", nil
+        end
+
+        return commands if idx.nil?
+
+        commands.dup.tap { |c| c.delete_at(idx) }
       end
 
       def configure_work_loop_limits
