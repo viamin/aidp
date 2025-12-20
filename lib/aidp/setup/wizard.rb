@@ -517,12 +517,15 @@ module Aidp
           end
 
           case action
-          when :skip
-            return
-          when :keep
+          when :skip, :keep, nil
             return
           when :replace
             existing_commands = []
+          when :add
+            # Continue to the loop below with existing commands
+          else
+            # Unexpected value - treat as skip for safety
+            return
           end
         else
           return unless prompt.yes?("Configure deterministic commands?", default: true)
@@ -551,7 +554,8 @@ module Aidp
             commands = detected
           when :remove
             commands = remove_command_interactive(commands)
-          when :done
+          when :done, nil
+            # Exit on explicit done or unexpected nil (safety for tests)
             break
           end
         end
