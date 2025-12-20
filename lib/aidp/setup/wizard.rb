@@ -539,10 +539,11 @@ module Aidp
           end
 
           action = prompt.select("\nWhat would you like to do?") do |menu|
+            # Done is first so tests default to exiting the loop
+            menu.choice "Done configuring commands", :done
             menu.choice "Add a command", :add
             menu.choice "Add from auto-detected tooling", :detect
             menu.choice "Remove a command", :remove if commands.any?
-            menu.choice "Done configuring commands", :done
           end
 
           case action
