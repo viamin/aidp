@@ -1039,7 +1039,7 @@ cat .aidp/logs/aidp.log
 - Review [CLI User Guide](CLI_USER_GUIDE.md) for command reference
 - See [Waterfall Planning Mode](WATERFALL_PLANNING_MODE.md) for comparison
 - Read [Work Loops Guide](WORK_LOOPS_GUIDE.md) for implementation details
-- Check [Configuration Guide](CONFIGURATION.md) for customization options
+- Check [Configuration Guide](../reference/CONFIGURATION.md) for customization options
 
 ## Feedback
 

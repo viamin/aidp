@@ -370,6 +370,6 @@ The modern system is recommended for all new projects. See the code in:
 
 ## See Also
 
-- [Configuration Reference](CONFIGURATION.md) - Full aidp.yml schema
+- [Configuration Reference](../reference/CONFIGURATION.md) - Full aidp.yml schema
 - [Setup Wizard](SETUP_WIZARD.md) - Interactive configuration guide
 - [Devcontainer Specification](https://containers.dev) - Official devcontainer docs

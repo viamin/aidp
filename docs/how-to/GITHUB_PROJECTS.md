@@ -598,7 +598,7 @@ gh api graphql -f query='
 - [Watch Mode Guide](WATCH_MODE.md) - Watch mode configuration
 - [Work Loops Guide](WORK_LOOPS_GUIDE.md) - Work loop execution
 - [CLI User Guide](CLI_USER_GUIDE.md) - Command reference
-- [Configuration Reference](CONFIGURATION.md) - Full config options
+- [Configuration Reference](../reference/CONFIGURATION.md) - Full config options
 
 ## GitHub GraphQL API Resources
 
