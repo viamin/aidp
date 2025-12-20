@@ -10,12 +10,73 @@ module Aidp
     # Executes test and linter commands configured in aidp.yml
     # Returns results with exit status and output
     # Applies intelligent output filtering to reduce token consumption
+    #
+    # Supports both legacy category-specific commands (test_commands, lint_commands, etc.)
+    # and the new generic commands array with run_after phases.
     class TestRunner
       def initialize(project_dir, config)
         @project_dir = project_dir
         @config = config
         @iteration_count = 0
         @filter_stats = {total_input_bytes: 0, total_output_bytes: 0}
+      end
+
+      # Run all commands configured for a specific execution phase
+      # @param phase [Symbol] :each_unit, :full_loop, or :on_completion
+      # @return [Hash] Aggregated results with success status and outputs by command
+      def run_commands_for_phase(phase)
+        @iteration_count += 1
+        commands = @config.commands_for_phase(phase)
+
+        Aidp.log_debug("test_runner", "running_commands_for_phase",
+          phase: phase,
+          command_count: commands.length,
+          iteration: @iteration_count)
+
+        return empty_results if commands.empty?
+
+        results_by_command = {}
+        all_failures = []
+        required_failures = []
+
+        commands.each do |cmd_config|
+          result = execute_command(cmd_config[:command], cmd_config[:category].to_s)
+          result[:name] = cmd_config[:name]
+          result[:category] = cmd_config[:category]
+          result[:required] = cmd_config[:required]
+
+          results_by_command[cmd_config[:name]] = result
+
+          unless result[:success]
+            all_failures << result
+            required_failures << result if cmd_config[:required]
+          end
+        end
+
+        success = required_failures.empty?
+        output = if all_failures.empty?
+          "All #{commands.length} commands passed"
+        else
+          format_phase_failures(all_failures, phase)
+        end
+
+        {
+          success: success,
+          output: output,
+          failures: all_failures,
+          required_failures: required_failures,
+          results_by_command: results_by_command
+        }
+      end
+
+      # Get all commands organized by phase
+      # @return [Hash] Commands grouped by run_after phase
+      def commands_by_phase
+        {
+          each_unit: @config.commands_for_phase(:each_unit),
+          full_loop: @config.commands_for_phase(:full_loop),
+          on_completion: @config.commands_for_phase(:on_completion)
+        }
       end
 
       # Run all configured tests
@@ -74,6 +135,29 @@ module Aidp
       end
 
       private
+
+      # Return empty results structure
+      def empty_results
+        {success: true, output: "", failures: [], required_failures: [], results_by_command: {}}
+      end
+
+      # Format failures for phase-based execution
+      def format_phase_failures(failures, phase)
+        output = ["#{phase.to_s.tr("_", " ").capitalize} Phase Failures:", ""]
+
+        failures.each do |failure|
+          required_label = failure[:required] ? "[REQUIRED]" : "[OPTIONAL]"
+          output << "#{required_label} #{failure[:name]} (#{failure[:category]})"
+          output << "Command: #{failure[:command]}"
+          output << "Exit Code: #{failure[:exit_code]}"
+          output << "--- Output ---"
+          output << failure[:stdout] unless failure[:stdout].to_s.strip.empty?
+          output << failure[:stderr] unless failure[:stderr].to_s.strip.empty?
+          output << ""
+        end
+
+        output.join("\n")
+      end
 
       # Run commands for a specific category (test, lint, formatter, build, documentation)
       def run_command_category(category, display_name)

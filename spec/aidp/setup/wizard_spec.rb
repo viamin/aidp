@@ -1620,4 +1620,300 @@ RSpec.describe Aidp::Setup::Wizard do
       expect(Open3).to have_received(:capture3).twice
     end
   end
+
+  describe "#configure_commands" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "when no existing commands and user declines to configure" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          yes?: false,
+          yes_map: {"Configure deterministic commands?" => false}
+        })
+      end
+
+      it "exits early without setting commands" do
+        wizard.send(:configure_commands)
+        expect(wizard.send(:get, [:work_loop, :commands])).to be_nil
+      end
+    end
+
+    context "when no existing commands and user adds commands manually" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          ask: ["test_runner", "bundle exec rspec"],
+          yes?: true,
+          yes_map: {
+            "Configure deterministic commands?" => true,
+            "Is this command required to pass? (failures block completion)" => true
+          },
+          select_map: {
+            "What would you like to do?" => :done,
+            "Category:" => :test,
+            "When should this command run?" => :each_unit
+          }
+        })
+      end
+
+      it "saves commands to configuration" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to be_an(Array)
+      end
+    end
+
+    context "when existing commands and user keeps them" do
+      let(:existing_commands) do
+        [{name: "existing_test", command: "npm test", category: :test, run_after: :each_unit, required: true}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :keep}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+      end
+
+      it "preserves existing commands" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq(existing_commands)
+      end
+    end
+
+    context "when existing commands and user skips configuration" do
+      let(:existing_commands) do
+        [{name: "lint", command: "npm run lint", category: :lint, run_after: :each_unit, required: false}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :skip}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+      end
+
+      it "returns without modifying commands" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq(existing_commands)
+      end
+    end
+
+    context "when existing commands and user replaces all" do
+      let(:existing_commands) do
+        [{name: "old_test", command: "old_command", category: :test, run_after: :each_unit, required: true}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => [:replace, :done]
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+      end
+
+      it "clears existing commands before starting fresh" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq([])
+      end
+    end
+  end
+
+  describe "#collect_command_details" do
+    let(:prompt) do
+      TestPrompt.new(responses: {
+        ask: ["my_test", "bundle exec rspec spec/"],
+        yes?: true,
+        select_map: {
+          "Category:" => :test,
+          "When should this command run?" => :each_unit
+        }
+      })
+    end
+
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "collects all command details from user input" do
+      result = wizard.send(:collect_command_details)
+
+      expect(result[:name]).to eq("my_test")
+      expect(result[:command]).to eq("bundle exec rspec spec/")
+      expect(result[:category]).to eq(:test)
+      expect(result[:run_after]).to eq(:each_unit)
+      expect(result[:required]).to be true
+      expect(result[:timeout_seconds]).to be_nil
+    end
+
+    context "with different run_after options" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          ask: ["formatter", "bundle exec standardrb --fix"],
+          yes?: false,
+          select_map: {
+            "Category:" => :formatter,
+            "When should this command run?" => :on_completion
+          }
+        })
+      end
+
+      it "captures on_completion run_after option" do
+        result = wizard.send(:collect_command_details)
+
+        expect(result[:run_after]).to eq(:on_completion)
+        expect(result[:required]).to be false
+      end
+    end
+  end
+
+  describe "#detect_all_tooling" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "with RSpec project" do
+      before do
+        FileUtils.mkdir_p(File.join(tmp_dir, "spec"))
+      end
+
+      it "detects RSpec as unit test command" do
+        tooling = wizard.send(:detect_all_tooling)
+
+        test_cmd = tooling.find { |t| t[:category] == :test }
+        expect(test_cmd).not_to be_nil
+        expect(test_cmd[:command]).to eq("bundle exec rspec")
+        expect(test_cmd[:name]).to eq("unit_tests")
+        expect(test_cmd[:run_after]).to eq(:each_unit)
+        expect(test_cmd[:required]).to be true
+      end
+    end
+
+    context "with StandardRB project" do
+      before do
+        FileUtils.mkdir_p(File.join(tmp_dir, "spec"))
+        File.write(File.join(tmp_dir, "Gemfile"), "gem 'standard'")
+      end
+
+      it "detects StandardRB as lint command" do
+        allow(wizard).to receive(:detect_lint_command).and_return("bundle exec standardrb")
+
+        tooling = wizard.send(:detect_all_tooling)
+
+        lint_cmd = tooling.find { |t| t[:category] == :lint }
+        expect(lint_cmd).not_to be_nil
+        expect(lint_cmd[:command]).to eq("bundle exec standardrb")
+        expect(lint_cmd[:name]).to eq("lint")
+        expect(lint_cmd[:run_after]).to eq(:each_unit)
+      end
+    end
+
+    context "with formatter detected" do
+      before do
+        allow(wizard).to receive(:detect_format_command).and_return("bundle exec standardrb --fix")
+      end
+
+      it "detects formatter with on_completion run_after" do
+        tooling = wizard.send(:detect_all_tooling)
+
+        format_cmd = tooling.find { |t| t[:category] == :formatter }
+        expect(format_cmd).not_to be_nil
+        expect(format_cmd[:run_after]).to eq(:on_completion)
+        expect(format_cmd[:required]).to be false
+      end
+    end
+  end
+
+  describe "#add_detected_commands" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "with no tooling detected" do
+      before do
+        allow(wizard).to receive(:detect_all_tooling).and_return([])
+      end
+
+      it "returns existing commands unchanged" do
+        existing = [{name: "test", command: "npm test", category: :test, run_after: :each_unit, required: true}]
+        result = wizard.send(:add_detected_commands, existing)
+        expect(result).to eq(existing)
+      end
+    end
+
+    context "with tooling detected and user selects some" do
+      let(:detected) do
+        [
+          {name: "unit_tests", command: "bundle exec rspec", category: :test, run_after: :each_unit, required: true},
+          {name: "lint", command: "bundle exec standardrb", category: :lint, run_after: :each_unit, required: true}
+        ]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          multi_select: [0]  # Select first detected command
+        })
+      end
+
+      before do
+        allow(wizard).to receive(:detect_all_tooling).and_return(detected)
+      end
+
+      it "adds selected commands to existing" do
+        result = wizard.send(:add_detected_commands, [])
+        expect(result.size).to eq(1)
+        expect(result.first[:command]).to eq("bundle exec rspec")
+      end
+    end
+  end
+
+  describe "#remove_command_interactive" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "with empty commands list" do
+      it "returns empty list unchanged" do
+        result = wizard.send(:remove_command_interactive, [])
+        expect(result).to eq([])
+      end
+    end
+
+    context "when user cancels removal" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"Select command to remove:" => nil}
+        })
+      end
+
+      it "returns commands unchanged" do
+        commands = [{name: "test", command: "npm test", category: :test, run_after: :each_unit, required: true}]
+        result = wizard.send(:remove_command_interactive, commands)
+        expect(result).to eq(commands)
+      end
+    end
+
+    context "when user selects command to remove" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"Select command to remove:" => 0}
+        })
+      end
+
+      it "removes the selected command" do
+        commands = [
+          {name: "test1", command: "npm test", category: :test, run_after: :each_unit, required: true},
+          {name: "test2", command: "npm run lint", category: :lint, run_after: :each_unit, required: false}
+        ]
+        result = wizard.send(:remove_command_interactive, commands)
+
+        expect(result.size).to eq(1)
+        expect(result.first[:name]).to eq("test2")
+      end
+    end
+  end
 end

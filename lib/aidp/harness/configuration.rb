@@ -171,29 +171,50 @@ module Aidp
         work_loop_config.fetch(:task_completion_required, true)
       end
 
-      # Get test commands
+      # Get all generic deterministic commands
+      # Returns array of command configs with normalized structure:
+      # [{name:, command:, required:, run_after:, category:, timeout_seconds:}]
+      def commands
+        @commands ||= load_commands
+      end
+
+      # Get commands filtered by execution phase
+      # @param phase [Symbol] :each_unit, :full_loop, or :on_completion
+      # @return [Array<Hash>] Commands configured for the specified phase
+      def commands_for_phase(phase)
+        commands.select { |cmd| cmd[:run_after] == phase.to_sym }
+      end
+
+      # Get commands filtered by category
+      # @param category [Symbol] :test, :lint, :formatter, :build, :documentation, etc.
+      # @return [Array<Hash>] Commands in the specified category
+      def commands_for_category(category)
+        commands.select { |cmd| cmd[:category] == category.to_sym }
+      end
+
+      # Get test commands (filtered from generic commands for backwards compatibility)
       def test_commands
-        normalize_commands(work_loop_config[:test_commands] || [])
+        commands_for_category(:test).map { |cmd| {command: cmd[:command], required: cmd[:required]} }
       end
 
-      # Get lint commands
+      # Get lint commands (filtered from generic commands for backwards compatibility)
       def lint_commands
-        normalize_commands(work_loop_config[:lint_commands] || [])
+        commands_for_category(:lint).map { |cmd| {command: cmd[:command], required: cmd[:required]} }
       end
 
-      # Get formatter commands
+      # Get formatter commands (filtered from generic commands for backwards compatibility)
       def formatter_commands
-        normalize_commands(work_loop_config[:formatter_commands] || [])
+        commands_for_category(:formatter).map { |cmd| {command: cmd[:command], required: cmd[:required]} }
       end
 
-      # Get build commands
+      # Get build commands (filtered from generic commands for backwards compatibility)
       def build_commands
-        normalize_commands(work_loop_config[:build_commands] || [])
+        commands_for_category(:build).map { |cmd| {command: cmd[:command], required: cmd[:required]} }
       end
 
-      # Get documentation commands
+      # Get documentation commands (filtered from generic commands for backwards compatibility)
       def documentation_commands
-        normalize_commands(work_loop_config[:documentation_commands] || [])
+        commands_for_category(:documentation).map { |cmd| {command: cmd[:command], required: cmd[:required]} }
       end
 
       # Get output filtering configuration
@@ -857,6 +878,157 @@ module Aidp
         end
       end
 
+      # Load commands from configuration, supporting both new generic format
+      # and legacy category-specific format for backwards compatibility
+      def load_commands
+        commands = []
+
+        # Load from new generic commands array if present
+        raw_commands = work_loop_config[:commands] || []
+        commands.concat(normalize_generic_commands(raw_commands))
+
+        # Load from legacy category-specific arrays for backwards compatibility
+        commands.concat(load_legacy_commands)
+
+        Aidp.log_debug("configuration", "loaded_commands",
+          total: commands.size,
+          from_generic: raw_commands.size,
+          from_legacy: commands.size - raw_commands.size)
+
+        commands
+      end
+
+      # Normalize generic command format
+      # @param commands [Array] Raw command configurations
+      # @return [Array<Hash>] Normalized command configs
+      def normalize_generic_commands(commands)
+        return [] if commands.nil? || commands.empty?
+
+        commands.each_with_index.map do |cmd, index|
+          case cmd
+          when String
+            {
+              name: "command_#{index}",
+              command: cmd,
+              required: true,
+              run_after: :each_unit,
+              category: :custom,
+              timeout_seconds: nil
+            }
+          when Hash
+            normalize_generic_command_hash(cmd, index)
+          else
+            raise ConfigurationError, "Command must be a string or hash, got: #{cmd.class}"
+          end
+        end
+      end
+
+      # Normalize a single generic command hash
+      def normalize_generic_command_hash(cmd, index)
+        command_value = cmd[:command] || cmd["command"]
+        unless command_value.is_a?(String) && !command_value.empty?
+          raise ConfigurationError, "Command must be a non-empty string, got: #{command_value.inspect}"
+        end
+
+        name = cmd[:name] || cmd["name"] || "command_#{index}"
+        required = fetch_boolean(cmd, :required, true)
+        run_after_raw = cmd[:run_after] || cmd["run_after"] || "each_unit"
+        run_after = normalize_run_after(run_after_raw)
+        category_raw = cmd[:category] || cmd["category"] || "custom"
+        category = category_raw.to_s.to_sym
+        timeout = cmd[:timeout_seconds] || cmd["timeout_seconds"]
+
+        {
+          name: name.to_s,
+          command: command_value,
+          required: required,
+          run_after: run_after,
+          category: category,
+          timeout_seconds: timeout
+        }
+      end
+
+      # Normalize run_after value to symbol
+      def normalize_run_after(value)
+        case value.to_s.downcase
+        when "each_unit", "each"
+          :each_unit
+        when "full_loop", "loop"
+          :full_loop
+        when "on_completion", "completion"
+          :on_completion
+        else
+          :each_unit
+        end
+      end
+
+      # Fetch boolean value from hash with symbol/string key support
+      def fetch_boolean(hash, key, default)
+        if hash.key?(key)
+          hash[key]
+        elsif hash.key?(key.to_s)
+          hash[key.to_s]
+        else
+          default
+        end
+      end
+
+      # Load commands from legacy category-specific configuration
+      # Converts old test_commands, lint_commands, etc. to generic format
+      def load_legacy_commands
+        commands = []
+
+        # Map legacy config keys to categories and default run_after
+        legacy_mappings = {
+          test_commands: {category: :test, run_after: :each_unit},
+          lint_commands: {category: :lint, run_after: :each_unit},
+          formatter_commands: {category: :formatter, run_after: :on_completion},
+          build_commands: {category: :build, run_after: :each_unit},
+          documentation_commands: {category: :documentation, run_after: :on_completion}
+        }
+
+        legacy_mappings.each do |config_key, defaults|
+          raw = work_loop_config[config_key] || []
+          next if raw.empty?
+
+          raw.each_with_index do |cmd, index|
+            normalized = normalize_legacy_command(cmd, defaults[:category], index)
+            normalized[:run_after] = defaults[:run_after]
+            commands << normalized
+          end
+        end
+
+        commands
+      end
+
+      # Normalize a legacy command to generic format
+      def normalize_legacy_command(cmd, category, index)
+        case cmd
+        when String
+          {
+            name: "#{category}_#{index}",
+            command: cmd,
+            required: true,
+            run_after: :each_unit,
+            category: category,
+            timeout_seconds: nil
+          }
+        when Hash
+          command_value = cmd[:command] || cmd["command"]
+          required = fetch_boolean(cmd, :required, true)
+          {
+            name: cmd[:name] || cmd["name"] || "#{category}_#{index}",
+            command: command_value,
+            required: required,
+            run_after: :each_unit,
+            category: category,
+            timeout_seconds: cmd[:timeout_seconds] || cmd["timeout_seconds"]
+          }
+        else
+          raise ConfigurationError, "Legacy command must be a string or hash, got: #{cmd.class}"
+        end
+      end
+
       def validate_configuration!
         errors = Aidp::Config.validate_harness_config(@config, @project_dir)
 
@@ -999,8 +1171,15 @@ module Aidp
         {
           enabled: true,
           max_iterations: 50,
+          # New generic commands array - replaces category-specific arrays
+          # Each command specifies when it runs (each_unit, full_loop, on_completion)
+          commands: [],
+          # Legacy category-specific arrays (for backwards compatibility)
           test_commands: [],
           lint_commands: [],
+          formatter_commands: [],
+          build_commands: [],
+          documentation_commands: [],
           guards: default_guards_config,
           units: default_units_config
         }

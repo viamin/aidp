@@ -281,26 +281,9 @@ module Aidp
           process_task_filing(agent_result)
 
           transition_to(:test)
-          # Run all configured checks
-          test_results = @test_runner.run_tests
-          lint_results = @test_runner.run_linters
-          build_results = @test_runner.run_builds
-          doc_results = @test_runner.run_documentation
 
-          # Run formatters only if agent marked work complete (per issue #234)
-          formatter_results = if agent_marked_complete?(agent_result)
-            @test_runner.run_formatters
-          else
-            {success: true, output: "Formatters: Skipped (work not complete)", failures: [], required_failures: []}
-          end
-
-          all_results = {
-            tests: test_results,
-            lints: lint_results,
-            formatters: formatter_results,
-            builds: build_results,
-            docs: doc_results
-          }
+          # Run all configured checks using phase-based execution
+          all_results = run_phase_based_commands(agent_result)
 
           record_periodic_checkpoint(all_results)
 
@@ -308,28 +291,21 @@ module Aidp
           track_failures_and_escalate(all_results)
 
           # All required checks must pass for completion
-          all_checks_pass = test_results[:success] &&
-            lint_results[:success] &&
-            formatter_results[:success] &&
-            build_results[:success] &&
-            doc_results[:success]
+          all_checks_pass = all_results.values.all? { |r| r[:success] }
 
           # Check task completion status
           task_completion_result = check_task_completion
           agent_completed = agent_marked_complete?(agent_result)
 
           # FIX for issue #391: Comprehensive logging at completion decision point
+          results_summary = all_results.transform_values { |r| r[:success] }
           Aidp.log_debug("work_loop", "completion_decision_point",
             iteration: @iteration_count,
             all_checks_pass: all_checks_pass,
             agent_marked_complete: agent_completed,
             task_completion_complete: task_completion_result[:complete],
             task_completion_reason: task_completion_result[:reason],
-            test_success: test_results[:success],
-            lint_success: lint_results[:success],
-            formatter_success: formatter_results[:success],
-            build_success: build_results[:success],
-            doc_success: doc_results[:success])
+            phase_results: results_summary)
 
           if all_checks_pass
             transition_to(:pass)
@@ -340,6 +316,16 @@ module Aidp
                 Aidp.log_debug("work_loop", "completion_approved",
                   iteration: @iteration_count,
                   reason: task_completion_result[:reason])
+
+                # Run full_loop phase commands before final completion
+                full_loop_results = run_full_loop_commands
+                unless full_loop_results[:success]
+                  # Full loop commands failed - continue iterating
+                  display_message("  Full loop commands failed, continuing work loop", type: :warning)
+                  all_results[:full_loop] = full_loop_results
+                  transition_to(:fail)
+                  next
+                end
 
                 transition_to(:done)
                 record_final_checkpoint(all_results)
@@ -769,6 +755,81 @@ module Aidp
       # Check if agent marked work complete
       def agent_marked_complete?(result)
         result[:status] == "completed" || prompt_marked_complete?
+      end
+
+      # Run commands using the new phase-based execution model
+      # This method supports both the new generic commands and legacy category-specific commands
+      #
+      # @param agent_result [Hash] Result from the agent (used to determine if on_completion should run)
+      # @return [Hash] Results keyed by phase/category
+      def run_phase_based_commands(agent_result)
+        all_results = {}
+
+        # Check if we're using the new generic commands or legacy category commands
+        if @config.respond_to?(:commands) && @config.commands.any?
+          # New phase-based execution
+          each_unit_results = @test_runner.run_commands_for_phase(:each_unit)
+          all_results[:each_unit] = each_unit_results
+
+          # Run on_completion commands only if agent marked work complete
+          if agent_marked_complete?(agent_result)
+            on_completion_results = @test_runner.run_commands_for_phase(:on_completion)
+            all_results[:on_completion] = on_completion_results
+          else
+            all_results[:on_completion] = {
+              success: true,
+              output: "On-completion commands: Skipped (work not complete)",
+              failures: [],
+              required_failures: []
+            }
+          end
+
+          Aidp.log_debug("work_loop", "ran_phase_based_commands",
+            each_unit_success: each_unit_results[:success],
+            on_completion_success: all_results[:on_completion][:success],
+            agent_completed: agent_marked_complete?(agent_result))
+        else
+          # Legacy category-based execution for backwards compatibility
+          all_results = run_legacy_category_commands(agent_result)
+        end
+
+        all_results
+      end
+
+      # Run full_loop phase commands (only at end of entire work loop)
+      def run_full_loop_commands
+        return {success: true, output: "", failures: [], required_failures: []} unless @config.respond_to?(:commands)
+
+        full_loop_results = @test_runner.run_commands_for_phase(:full_loop)
+
+        Aidp.log_debug("work_loop", "ran_full_loop_commands",
+          success: full_loop_results[:success],
+          command_count: full_loop_results[:results_by_command]&.size || 0)
+
+        full_loop_results
+      end
+
+      # Run commands using legacy category-based approach (backwards compatibility)
+      def run_legacy_category_commands(agent_result)
+        test_results = @test_runner.run_tests
+        lint_results = @test_runner.run_linters
+        build_results = @test_runner.run_builds
+        doc_results = @test_runner.run_documentation
+
+        # Run formatters only if agent marked work complete (per issue #234)
+        formatter_results = if agent_marked_complete?(agent_result)
+          @test_runner.run_formatters
+        else
+          {success: true, output: "Formatters: Skipped (work not complete)", failures: [], required_failures: []}
+        end
+
+        {
+          tests: test_results,
+          lints: lint_results,
+          formatters: formatter_results,
+          builds: build_results,
+          docs: doc_results
+        }
       end
 
       # Diagnose all failures (tests, lints, formatters, builds, docs)
