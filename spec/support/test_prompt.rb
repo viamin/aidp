@@ -8,8 +8,8 @@ class MockMenu
     @choices = []
   end
 
-  def choice(label, value = nil)
-    @choices << {label: label, value: value || label}
+  def choice(label, value = nil, **options)
+    @choices << {label: label, value: value || label, **options}
   end
 end
 
