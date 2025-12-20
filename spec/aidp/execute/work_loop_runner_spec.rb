@@ -31,7 +31,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       escalation_fail_attempts: 2,
       escalation_complexity_threshold: {files_changed: 10, modules_touched: 5},
       permission_for_tier: "tools",
-      tier_override_for: nil
+      tier_override_for: nil,
+      # Prompt optimization configuration
+      prompt_optimization_enabled?: false
     )
   end
 
@@ -1387,6 +1389,248 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       prompt = runner.send(:build_diagnose_prompt, context)
       expect(prompt).to include("run_full_tests")
       expect(prompt).to include("Agent summary.")
+    end
+  end
+
+  describe "phase-based command execution" do
+    let(:test_runner) { instance_double("Aidp::Harness::TestRunner") }
+
+    before do
+      allow(Aidp::Harness::TestRunner).to receive(:new).and_return(test_runner)
+    end
+
+    describe "#run_phase_based_commands" do
+      context "when config has generic commands" do
+        let(:config_with_commands) do
+          instance_double(
+            "Configuration",
+            commands: [
+              {name: "test", command: "rspec", run_after: :each_unit, category: :test, required: true}
+            ],
+            test_commands: [],
+            lint_commands: [],
+            formatter_commands: [],
+            build_commands: [],
+            documentation_commands: [],
+            test_output_mode: :full,
+            lint_output_mode: :full,
+            guards_config: {enabled: false},
+            task_completion_required?: false,
+            work_loop_units_config: {deterministic: [], defaults: {initial_unit: :agentic}},
+            default_tier: "standard",
+            max_tier: "pro",
+            allow_provider_switch_for_tier?: true,
+            escalation_fail_attempts: 2,
+            escalation_complexity_threshold: {},
+            permission_for_tier: "tools",
+            tier_override_for: nil,
+            models_for_tier: [],
+            configured_tiers: [],
+            prompt_optimization_enabled?: false
+          )
+        end
+        let(:runner_with_commands) do
+          described_class.new(project_dir, provider_manager, config_with_commands, prompt: test_prompt)
+        end
+
+        before do
+          allow(config_with_commands).to receive(:respond_to?).and_return(false)
+          allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
+          allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+        end
+
+        it "uses phase-based execution when config has commands" do
+          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
+          on_completion_results = {success: true, output: "passed", failures: [], required_failures: []}
+
+          allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
+          allow(test_runner).to receive(:run_commands_for_phase).with(:on_completion).and_return(on_completion_results)
+
+          agent_result = {status: "completed", output: "done"}
+          allow(runner_with_commands).to receive(:agent_marked_complete?).and_return(true)
+
+          result = runner_with_commands.send(:run_phase_based_commands, agent_result)
+
+          expect(result[:each_unit]).to eq(each_unit_results)
+          expect(result[:on_completion]).to eq(on_completion_results)
+        end
+
+        it "skips on_completion when work is not complete" do
+          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
+          allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
+
+          agent_result = {status: "in_progress", output: "working"}
+          allow(runner_with_commands).to receive(:agent_marked_complete?).and_return(false)
+
+          result = runner_with_commands.send(:run_phase_based_commands, agent_result)
+
+          expect(result[:each_unit]).to eq(each_unit_results)
+          expect(result[:on_completion][:success]).to be true
+          expect(result[:on_completion][:output]).to include("Skipped")
+        end
+      end
+
+      context "when config has no generic commands" do
+        it "falls back to legacy category-based execution" do
+          test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
+          lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
+          formatter_results = {success: true, output: "Format passed", failures: [], required_failures: []}
+          build_results = {success: true, output: "Build passed", failures: [], required_failures: []}
+          doc_results = {success: true, output: "Doc passed", failures: [], required_failures: []}
+
+          allow(test_runner).to receive(:run_tests).and_return(test_results)
+          allow(test_runner).to receive(:run_linters).and_return(lint_results)
+          allow(test_runner).to receive(:run_formatters).and_return(formatter_results)
+          allow(test_runner).to receive(:run_builds).and_return(build_results)
+          allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+
+          agent_result = {status: "completed", output: "done"}
+          allow(runner).to receive(:agent_marked_complete?).and_return(true)
+
+          result = runner.send(:run_phase_based_commands, agent_result)
+
+          expect(result[:tests]).to eq(test_results)
+          expect(result[:lints]).to eq(lint_results)
+          expect(result[:formatters]).to eq(formatter_results)
+          expect(result[:builds]).to eq(build_results)
+          expect(result[:docs]).to eq(doc_results)
+        end
+      end
+    end
+
+    describe "#run_full_loop_commands" do
+      context "when config has commands method" do
+        let(:config_with_commands) do
+          instance_double(
+            "Configuration",
+            commands: [{name: "full_suite", command: "rspec --all", run_after: :full_loop, category: :test, required: true}],
+            test_commands: [],
+            lint_commands: [],
+            formatter_commands: [],
+            build_commands: [],
+            documentation_commands: [],
+            test_output_mode: :full,
+            lint_output_mode: :full,
+            guards_config: {enabled: false},
+            task_completion_required?: false,
+            work_loop_units_config: {deterministic: [], defaults: {initial_unit: :agentic}},
+            default_tier: "standard",
+            max_tier: "pro",
+            allow_provider_switch_for_tier?: true,
+            escalation_fail_attempts: 2,
+            escalation_complexity_threshold: {},
+            permission_for_tier: "tools",
+            tier_override_for: nil,
+            models_for_tier: [],
+            configured_tiers: [],
+            prompt_optimization_enabled?: false
+          )
+        end
+        let(:runner_with_commands) do
+          described_class.new(project_dir, provider_manager, config_with_commands, prompt: test_prompt)
+        end
+
+        before do
+          allow(config_with_commands).to receive(:respond_to?).and_return(false)
+          allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
+          allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+        end
+
+        it "runs full_loop phase commands" do
+          full_loop_results = {
+            success: true,
+            output: "Full suite passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"full_suite" => {success: true}}
+          }
+          allow(test_runner).to receive(:run_commands_for_phase).with(:full_loop).and_return(full_loop_results)
+
+          result = runner_with_commands.send(:run_full_loop_commands)
+
+          expect(result[:success]).to be true
+          expect(result[:output]).to eq("Full suite passed")
+        end
+
+        it "returns failure when full_loop commands fail" do
+          full_loop_results = {
+            success: false,
+            output: "Full suite failed",
+            failures: [{name: "full_suite", command: "rspec --all"}],
+            required_failures: [{name: "full_suite", command: "rspec --all"}],
+            results_by_command: {"full_suite" => {success: false}}
+          }
+          allow(test_runner).to receive(:run_commands_for_phase).with(:full_loop).and_return(full_loop_results)
+
+          result = runner_with_commands.send(:run_full_loop_commands)
+
+          expect(result[:success]).to be false
+        end
+      end
+
+      context "when config does not have commands method" do
+        it "returns empty success result" do
+          # The base config already responds to common methods, just stub :commands to return false
+          allow(config).to receive(:respond_to?).with(anything).and_return(true)
+          allow(config).to receive(:respond_to?).with(:commands).and_return(false)
+
+          result = runner.send(:run_full_loop_commands)
+
+          expect(result[:success]).to be true
+          expect(result[:output]).to eq("")
+          expect(result[:failures]).to be_empty
+        end
+      end
+    end
+
+    describe "#run_legacy_category_commands" do
+      it "runs all legacy category commands" do
+        test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
+        lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
+        formatter_results = {success: true, output: "Format passed", failures: [], required_failures: []}
+        build_results = {success: true, output: "Build passed", failures: [], required_failures: []}
+        doc_results = {success: true, output: "Doc passed", failures: [], required_failures: []}
+
+        allow(test_runner).to receive(:run_tests).and_return(test_results)
+        allow(test_runner).to receive(:run_linters).and_return(lint_results)
+        allow(test_runner).to receive(:run_formatters).and_return(formatter_results)
+        allow(test_runner).to receive(:run_builds).and_return(build_results)
+        allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+
+        agent_result = {status: "completed", output: "done"}
+        allow(runner).to receive(:agent_marked_complete?).and_return(true)
+
+        result = runner.send(:run_legacy_category_commands, agent_result)
+
+        expect(result[:tests]).to eq(test_results)
+        expect(result[:lints]).to eq(lint_results)
+        expect(result[:formatters]).to eq(formatter_results)
+        expect(result[:builds]).to eq(build_results)
+        expect(result[:docs]).to eq(doc_results)
+      end
+
+      it "skips formatters when work is not complete" do
+        test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
+        lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
+        build_results = {success: true, output: "Build passed", failures: [], required_failures: []}
+        doc_results = {success: true, output: "Doc passed", failures: [], required_failures: []}
+
+        allow(test_runner).to receive(:run_tests).and_return(test_results)
+        allow(test_runner).to receive(:run_linters).and_return(lint_results)
+        allow(test_runner).to receive(:run_builds).and_return(build_results)
+        allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+        # run_formatters should not be called when work is not complete
+        allow(test_runner).to receive(:run_formatters)
+
+        agent_result = {status: "in_progress", output: "working"}
+        allow(runner).to receive(:agent_marked_complete?).and_return(false)
+
+        result = runner.send(:run_legacy_category_commands, agent_result)
+
+        expect(test_runner).not_to have_received(:run_formatters)
+        expect(result[:formatters][:success]).to be true
+        expect(result[:formatters][:output]).to include("Skipped")
+      end
     end
   end
 end
