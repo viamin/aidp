@@ -35,13 +35,14 @@ AIDP is a portable CLI that automates AI development workflows from idea to impl
 ├── README.md                          # Main project documentation
 ├── CLAUDE.md                          # This file - AI assistant guide
 ├── docs/
+│   ├── GETTING_STARTED.md            # Entry point for new users
 │   ├── LLM_STYLE_GUIDE.md            # ⭐ PRIMARY REFERENCE for AI agents
-│   ├── STYLE_GUIDE.md                # Comprehensive style guide (73KB)
-│   ├── README.md                     # Documentation index
-│   ├── CLI_USER_GUIDE.md             # Complete CLI reference
-│   ├── WORK_LOOPS_GUIDE.md           # Iterative workflow details
-│   ├── CONFIGURATION.md              # Configuration reference
-│   └── [40+ other documentation files]
+│   ├── STYLE_GUIDE.md                # Comprehensive style guide (93KB)
+│   ├── README.md                     # Documentation index (Diataxis organized)
+│   ├── tutorials/                    # Step-by-step learning guides
+│   ├── how-to/                       # Goal-oriented guides
+│   ├── explanation/                  # Conceptual documentation
+│   └── reference/                    # Technical reference
 ```
 
 ## Quick Start for AI Assistants
@@ -106,7 +107,7 @@ When AI should run **once during configuration** to generate deterministic code:
 - Runtime execution is deterministic (no AI calls)
 - Example: `AIFilterFactory` generates `FilterDefinition` during setup
 
-See [`docs/AI_GENERATED_DETERMINISM.md`](docs/AI_GENERATED_DETERMINISM.md) for the full pattern.
+See [`docs/explanation/AI_GENERATED_DETERMINISM.md`](docs/explanation/AI_GENERATED_DETERMINISM.md) for the full pattern.
 
 ### 6. Logging (CRITICAL)
 
@@ -183,13 +184,13 @@ When you need to understand a specific area:
 
 | Topic | File |
 | ----- | ---- |
-| CLI Commands | `docs/CLI_USER_GUIDE.md` |
-| Work Loops | `docs/WORK_LOOPS_GUIDE.md` |
-| Configuration | `docs/CONFIGURATION.md` |
-| Devcontainers | `docs/DEVELOPMENT_CONTAINER.md` |
+| CLI Commands | `docs/how-to/CLI_USER_GUIDE.md` |
+| Work Loops | `docs/how-to/WORK_LOOPS_GUIDE.md` |
+| Configuration | `docs/reference/CONFIGURATION.md` |
+| Devcontainers | `docs/how-to/DEVELOPMENT_CONTAINER.md` |
 | Testing | `docs/LLM_STYLE_GUIDE.md` (Section 7) |
 | ZFC Pattern | `docs/LLM_STYLE_GUIDE.md` (Section 2) |
-| AGD Pattern | `docs/AI_GENERATED_DETERMINISM.md` |
+| AGD Pattern | `docs/explanation/AI_GENERATED_DETERMINISM.md` |
 
 ## Anti-Patterns to Avoid
 

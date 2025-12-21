@@ -522,7 +522,7 @@ After waterfall planning:
 
 - [Work Loops Guide](WORK_LOOPS_GUIDE.md) - Iterative execution
 - [CLI User Guide](CLI_USER_GUIDE.md) - Complete CLI reference
-- [Configuration Guide](CONFIGURATION.md) - AIDP configuration options
+- [Configuration Guide](../reference/CONFIGURATION.md) - AIDP configuration options
 - [Skills Guide](SKILLS_USER_GUIDE.md) - Understanding personas and skills
 
 ## Support

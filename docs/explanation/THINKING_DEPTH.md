@@ -379,7 +379,7 @@ thinking:
 
 ## Related Documentation
 
-- [Configuration Guide](CONFIGURATION.md) - Full configuration reference
+- [Configuration Guide](../reference/CONFIGURATION.md) - Full configuration reference
 - [Interactive REPL](INTERACTIVE_REPL.md) - REPL commands and features
 - [Issue #157](https://github.com/viamin/aidp/issues/157) - Original feature proposal
 

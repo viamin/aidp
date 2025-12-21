@@ -116,7 +116,7 @@ aidp devcontainer list-backups
 aidp devcontainer restore 0
 ```
 
-See [docs/DEVELOPMENT_CONTAINER.md](docs/DEVELOPMENT_CONTAINER.md) for complete devcontainer management documentation.
+See [docs/how-to/DEVELOPMENT_CONTAINER.md](docs/how-to/DEVELOPMENT_CONTAINER.md) for complete devcontainer management documentation.
 
 ### Devcontainer Detection
 
@@ -133,7 +133,7 @@ AIDP implements **work loops** - an iterative execution pattern where AI agents 
 - **Automatic validation**: Tests and linters run after each iteration
 - **Self-correction**: Only failures are fed back for the next iteration
 
-See [Work Loops Guide](docs/WORK_LOOPS_GUIDE.md) for details.
+See [Work Loops Guide](docs/how-to/WORK_LOOPS_GUIDE.md) for details.
 
 ### Waterfall Planning Mode
 
@@ -167,7 +167,7 @@ aidp execute
 - **Mermaid Visualizations** - Gantt charts renderable on GitHub/GitLab
 - **TDD Integration** - Optional test-driven development workflow
 
-See [Waterfall Planning Mode Guide](docs/WATERFALL_PLANNING_MODE.md) for complete documentation.
+See [Waterfall Planning Mode Guide](docs/how-to/WATERFALL_PLANNING_MODE.md) for complete documentation.
 
 ### Agile Development Mode
 
@@ -222,7 +222,7 @@ Analyze existing codebase and create user research plan:
 - **Marketing Focus** - Translate features into customer value
 - **Three New Personas** - Product Manager, UX Researcher, Marketing Strategist
 
-See [Agile Development Mode Guide](docs/AGILE_MODE_GUIDE.md) for complete documentation.
+See [Agile Development Mode Guide](docs/how-to/AGILE_MODE_GUIDE.md) for complete documentation.
 
 ### GitHub Projects V2 Integration
 
@@ -257,7 +257,7 @@ main
       └── aidp/sub-123-126-component-c
 ```
 
-See [GitHub Projects Guide](docs/GITHUB_PROJECTS.md) for complete documentation.
+See [GitHub Projects Guide](docs/how-to/GITHUB_PROJECTS.md) for complete documentation.
 
 ### Job Management
 
@@ -323,7 +323,7 @@ aidp ws rm issue-123-fix-auth --delete-branch
 - Independent state and history
 - Work on multiple features in parallel
 
-See [Workstreams Guide](docs/WORKSTREAMS.md) for detailed usage.
+See [Workstreams Guide](docs/how-to/WORKSTREAMS.md) for detailed usage.
 
 ### Watch Mode (Automated GitHub Integration)
 
@@ -454,10 +454,10 @@ This ensures AIDP never gets stuck - if it needs more information, it will ask f
 
 **Additional Documentation:**
 
-- [Watch Mode Guide](docs/FULLY_AUTOMATIC_MODE.md) - Complete guide to watch mode setup and operation
-- [Watch Mode Safety](docs/WATCH_MODE_SAFETY.md) - Security features and best practices
-- [PR Automation Guide](docs/PR_AUTOMATION.md) - Detailed guide for code review, CI fixes, and PR changes
-- [PR Change Requests](docs/PR_CHANGE_REQUESTS.md) - Comprehensive documentation for automated PR modifications
+- [Watch Mode Guide](docs/how-to/FULLY_AUTOMATIC_MODE.md) - Complete guide to watch mode setup and operation
+- [Watch Mode Safety](docs/explanation/WATCH_MODE_SAFETY.md) - Security features and best practices
+- [PR Automation Guide](docs/how-to/PR_AUTOMATION.md) - Detailed guide for code review, CI fixes, and PR changes
+- [PR Change Requests](docs/how-to/PR_CHANGE_REQUESTS.md) - Comprehensive documentation for automated PR modifications
 
 ## Command Reference
 
@@ -844,10 +844,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and conventional co
 
 For detailed information:
 
-- **[CLI User Guide](docs/CLI_USER_GUIDE.md)** - Complete guide to using AIDP commands
-- **[Work Loops Guide](docs/WORK_LOOPS_GUIDE.md)** - Iterative workflows with automatic validation
-- **[Configuration Guide](docs/harness-configuration.md)** - Detailed configuration options and examples
-- **[Troubleshooting Guide](docs/harness-troubleshooting.md)** - Common issues and solutions
+- **[CLI User Guide](docs/how-to/CLI_USER_GUIDE.md)** - Complete guide to using AIDP commands
+- **[Work Loops Guide](docs/how-to/WORK_LOOPS_GUIDE.md)** - Iterative workflows with automatic validation
+- **[Configuration Guide](docs/reference/CONFIGURATION.md)** - Detailed configuration options and examples
+- **[Debug Guide](docs/how-to/DEBUG_GUIDE.md)** - Debugging and troubleshooting
 
 ## Manual Workflow (Alternative)
 

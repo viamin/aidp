@@ -310,14 +310,14 @@ aidp skill validate .aidp/skills/my_skill/SKILL.md
 
 ## Next Reading
 
-- [Skills User Guide](SKILLS_USER_GUIDE.md) - Complete reference
-- [Skill Authoring Wizard Design](SKILL_AUTHORING_WIZARD_DESIGN.md) - Technical details
-- [aidp.yml Example](../examples/aidp.yml.example) - Configuration options
+- [Skills User Guide](../how-to/SKILLS_USER_GUIDE.md) - Complete reference
+- [Skill Authoring Wizard Design](../explanation/SKILL_AUTHORING_WIZARD_DESIGN.md) - Technical details
+- [aidp.yml Example](../../examples/aidp.yml.example) - Configuration options
 
 ## Need Help?
 
 - Run `aidp skill --help` for command reference
 - Report issues: <https://github.com/viamin/aidp/issues>
-- Check the [User Guide](SKILLS_USER_GUIDE.md) for detailed documentation
+- Check the [User Guide](../how-to/SKILLS_USER_GUIDE.md) for detailed documentation
 
 Happy coding! 🚀

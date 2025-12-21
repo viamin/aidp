@@ -1,236 +1,218 @@
 # AIDP Documentation
 
-Complete documentation for the AI Dev Pipeline (AIDP) project.
+Complete documentation for the AI Dev Pipeline (AIDP) project, organized using the [Diataxis framework](https://diataxis.fr/).
 
-## Quick Start
+## Start Here
 
-New to AIDP? Start here:
+**New to AIDP?** Start with [GETTING_STARTED.md](GETTING_STARTED.md) for quick setup and core concepts.
 
-1. **[CLI User Guide](CLI_USER_GUIDE.md)** - Complete guide to using AIDP CLI commands
-2. **[Skills Quickstart](SKILLS_QUICKSTART.md)** - Get started with skills in 5 minutes
-3. **[Setup Wizard](SETUP_WIZARD.md)** - Initial configuration guide
+---
 
-## User Guides
+## Documentation Structure
 
-### Core Features
+This documentation is organized into four categories:
 
-| Document | Description |
-| ---------- | ------------- |
-| [CLI User Guide](CLI_USER_GUIDE.md) | Complete CLI command reference with examples |
-| [Copilot Mode](COPILOT_MODE_FLOW.md) | Interactive AI assistant mode |
-| [Work Loops Guide](WORK_LOOPS_GUIDE.md) | Understanding iterative execution |
-| [Interactive REPL](INTERACTIVE_REPL.md) | Live control during work loops |
-| [Background Jobs](CLI_USER_GUIDE.md#background-jobs) | Running workflows in background |
+| Category | Purpose | When to Use |
+| -------- | ------- | ----------- |
+| [Tutorials](tutorials/) | Learning-oriented lessons | Learning AIDP for the first time |
+| [How-To Guides](how-to/) | Goal-oriented guides | Solving a specific problem |
+| [Explanation](explanation/) | Understanding-oriented | Learning why things work |
+| [Reference](reference/) | Information-oriented | Looking up technical details |
 
-### Skills System
+---
 
-| Document | Description |
-| ---------- | ------------- |
-| [Skills User Guide](SKILLS_USER_GUIDE.md) | Complete skills documentation |
-| [Skills Quickstart](SKILLS_QUICKSTART.md) | Quick 5-minute skills introduction |
-| [Skill Authoring Wizard](SKILL_AUTHORING_WIZARD_DESIGN.md) | Interactive skill creation |
+## Tutorials
 
-### Modes & Workflows
+Step-by-step lessons that take you through a specific workflow from start to finish.
 
-| Document | Description |
-| ---------- | ------------- |
-| [Init Mode](INIT_MODE.md) | High-level project analysis |
-| [Fully Automatic Mode](FULLY_AUTOMATIC_MODE.md) | Autonomous execution |
-| [Non-Interactive Mode](NON_INTERACTIVE_MODE.md) | Headless/CI execution |
-| [Watch Mode Safety](WATCH_MODE_SAFETY.md) | File watching safeguards |
-| [Read-Only GitHub Mode](READ_ONLY_GITHUB_MODE.md) | Safe GitHub operations |
+| Tutorial | Description | Time |
+| -------- | ----------- | ---- |
+| [Skills Quickstart](tutorials/SKILLS_QUICKSTART.md) | Create custom AI skills | 10 min |
+| [Setup Wizard](tutorials/SETUP_WIZARD.md) | Configure AIDP for your project | 5 min |
 
-### Advanced Features
+---
 
-| Document | Description |
-| ---------- | ------------- |
-| [Thinking Depth](THINKING_DEPTH.md) | Dynamic model tier selection |
-| [Workstreams](WORKSTREAMS.md) | Parallel workflow execution |
-| [GitHub Projects](GITHUB_PROJECTS.md) | GitHub Projects V2 integration for large projects |
-| [Prompt Optimization](PROMPT_OPTIMIZATION.md) | Context management |
-| [Persistent Tasklist](PERSISTENT_TASKLIST.md) | Cross-session task tracking |
-| [Streaming Guide](STREAMING_GUIDE.md) | Real-time output streaming |
+## How-To Guides
 
-## Configuration
+Practical guides for accomplishing specific tasks.
 
-| Document | Description |
-| ---------- | ------------- |
-| [Configuration](CONFIGURATION.md) | Complete configuration reference |
-| [Setup Wizard](SETUP_WIZARD.md) | Interactive setup |
-| [Provider Adapter Guide](PROVIDER_ADAPTER_GUIDE.md) | Adding new AI providers |
-| [Optional Tools](OPTIONAL_TOOLS.md) | Additional tool configuration |
-| [Key Bindings](KEY_BINDINGS.md) | Keyboard shortcuts |
+### Core Workflows
 
-## Developer Documentation
+| Guide | Description |
+| ----- | ----------- |
+| [CLI User Guide](how-to/CLI_USER_GUIDE.md) | Complete CLI command reference |
+| [Work Loops](how-to/WORK_LOOPS_GUIDE.md) | Iterative AI execution with auto-validation |
+| [Copilot Mode](how-to/COPILOT_MODE_FLOW.md) | Interactive AI-guided development |
+| [Interactive REPL](how-to/INTERACTIVE_REPL.md) | Live control during work loops |
+
+### Automation & CI
+
+| Guide | Description |
+| ----- | ----------- |
+| [Watch Mode](how-to/FULLY_AUTOMATIC_MODE.md) | Automated GitHub issue monitoring |
+| [Watch Mode Labels](how-to/WATCH_MODE.md) | Label-based workflow automation |
+| [Non-Interactive Mode](how-to/NON_INTERACTIVE_MODE.md) | Headless/CI execution |
+| [PR Automation](how-to/PR_AUTOMATION.md) | Automated PR workflows |
+| [PR Change Requests](how-to/PR_CHANGE_REQUESTS.md) | Handling PR change requests |
+| [Worktree PR Changes](how-to/WORKTREE_PR_CHANGE_REQUESTS.md) | Worktree-based PR workflows |
+
+### Development Modes
+
+| Guide | Description |
+| ----- | ----------- |
+| [Init Mode](how-to/INIT_MODE.md) | High-level project analysis |
+| [Agile Mode](how-to/AGILE_MODE_GUIDE.md) | Iterative development with user feedback |
+| [Waterfall Planning](how-to/WATERFALL_PLANNING_MODE.md) | Comprehensive project planning |
+| [Workstreams](how-to/WORKSTREAMS.md) | Parallel task execution with git worktrees |
+
+### Configuration & Setup
+
+| Guide | Description |
+| ----- | ----------- |
+| [Development Container](how-to/DEVELOPMENT_CONTAINER.md) | Devcontainer integration |
+| [Devcontainer Auto Restart](how-to/DEVCONTAINER_AUTO_RESTART.md) | Auto-restart configuration |
+| [Firewall Configuration](how-to/FIREWALL_CONFIGURATION.md) | Network security setup |
+| [Provider Adapter Guide](how-to/PROVIDER_ADAPTER_GUIDE.md) | Adding new AI providers |
+
+### GitHub Integration
+
+| Guide | Description |
+| ----- | ----------- |
+| [GitHub Projects](how-to/GITHUB_PROJECTS.md) | GitHub Projects V2 integration |
+| [GitHub API Signed Commits](how-to/GITHUB_API_SIGNED_COMMITS.md) | Commit signing with GitHub API |
+| [Release Please Signed Commits](how-to/RELEASE_PLEASE_SIGNED_COMMITS.md) | Release automation |
+
+### Skills & Customization
+
+| Guide | Description |
+| ----- | ----------- |
+| [Skills User Guide](how-to/SKILLS_USER_GUIDE.md) | Complete skills documentation |
+
+### Troubleshooting
+
+| Guide | Description |
+| ----- | ----------- |
+| [Debug Guide](how-to/DEBUG_GUIDE.md) | Debugging AIDP issues |
+| [Job Troubleshooting](how-to/JOB_TROUBLESHOOTING.md) | Background job issues |
+| [Jobs Command Usage](how-to/JOBS_COMMAND_USAGE.md) | Job management commands |
+| [Analyze Mode Usage](how-to/ANALYZE_MODE_USAGE.md) | Analysis workflow usage |
+| [Migration Guide](how-to/MIGRATION_GUIDE.md) | Version migration instructions |
+
+---
+
+## Explanation
+
+Conceptual documentation that explains how and why things work.
 
 ### Architecture & Design
 
 | Document | Description |
-| ---------- | ------------- |
-| [AIDP Capabilities](AIDP_CAPABILITIES.md) | System capabilities overview |
-| [AI-Generated Determinism (AGD)](AI_GENERATED_DETERMINISM.md) | Pattern for AI-generated deterministic code |
-| [GitHub Projects Implementation](GITHUB_PROJECTS_IMPLEMENTATION.md) | Projects V2 implementation plan |
-| [Worktree PR Change Requests](WORKTREE_PR_CHANGE_REQUESTS.md) | Worktree-based PR change workflow |
-| [Metadata Tool Discovery](METADATA_TOOL_DISCOVERY.md) | Metadata-driven skill/persona/template discovery |
-| [Concurrency Patterns](CONCURRENCY_PATTERNS.md) | Thread safety patterns |
-| [Safety Guards](SAFETY_GUARDS.md) | Safety mechanisms |
-| [Work Loop Alignment PRD](WORK_LOOP_ALIGNMENT_PRD.md) | Work loop design |
+| -------- | ----------- |
+| [AIDP Capabilities](explanation/AIDP_CAPABILITIES.md) | System capabilities overview |
+| [Zero Framework Cognition](explanation/ZFC_PATTERN.md) | ZFC pattern - delegate meaning to AI |
+| [AI-Generated Determinism](explanation/AI_GENERATED_DETERMINISM.md) | AGD pattern for AI-generated code |
+| [Concurrency Patterns](explanation/CONCURRENCY_PATTERNS.md) | Thread safety patterns |
+| [Memory Integration](explanation/MEMORY_INTEGRATION.md) | Memory/context management |
 
-### Code Quality & Style
+### Security & Safety
 
 | Document | Description |
-| ---------- | ------------- |
-| [Style Guide](STYLE_GUIDE.md) | Comprehensive style guide (73KB) |
-| [LLM Style Guide](LLM_STYLE_GUIDE.md) | AI-optimized style guide |
-| [Tree-sitter Analysis](tree-sitter-analysis.md) | Code analysis with tree-sitter |
-| [Mocking Audit Report](MOCKING_AUDIT_REPORT.md) | Testing quality assessment |
-| [Coverage Baseline](COVERAGE_BASELINE_IN_RELEASES.md) | Test coverage tracking |
+| -------- | ----------- |
+| [Security Framework](explanation/SECURITY_FRAMEWORK.md) | Rule of Two security model |
+| [Safety Guards](explanation/SAFETY_GUARDS.md) | Safety mechanisms |
+| [Watch Mode Safety](explanation/WATCH_MODE_SAFETY.md) | Watch mode security features |
+| [Read-Only GitHub Mode](explanation/READ_ONLY_GITHUB_MODE.md) | Safe GitHub operations |
 
-### Integration & Tooling
-
-| Document | Description |
-| ---------- | ------------- |
-| [Development Container](DEVELOPMENT_CONTAINER.md) | Devcontainer integration |
-| [Devcontainer Auto Restart](DEVCONTAINER_AUTO_RESTART.md) | Auto-restart configuration |
-| [PRD: Devcontainer Integration](PRD_DEVCONTAINER_INTEGRATION.md) | Devcontainer requirements |
-| [GitHub API Signed Commits](GITHUB_API_SIGNED_COMMITS.md) | Commit signing with GitHub API |
-| [Release Please Signed Commits](RELEASE_PLEASE_SIGNED_COMMITS.md) | Release automation |
-
-## Reference Documentation
-
-### Command References
+### AI & Models
 
 | Document | Description |
-| ---------- | ------------- |
-| [CLI User Guide](CLI_USER_GUIDE.md) | All CLI commands |
-| [REPL Reference](REPL_REFERENCE.md) | REPL macro commands |
-| [Interactive REPL](INTERACTIVE_REPL.md) | Work loop REPL commands |
-| [Jobs Command Usage](jobs-command-usage.md) | Background job management |
-| [Analyze Mode Usage](analyze-mode-usage.md) | Analysis workflow commands |
+| -------- | ----------- |
+| [Thinking Depth](explanation/THINKING_DEPTH.md) | Dynamic model tier selection |
+| [Prompt Optimization](explanation/PROMPT_OPTIMIZATION.md) | Context management strategies |
+| [Automated Model Discovery](explanation/AUTOMATED_MODEL_DISCOVERY.md) | Model auto-detection |
+| [Model Deprecation Handling](explanation/MODEL_DEPRECATION_HANDLING.md) | Handling deprecated models |
 
-### Migration & Updates
-
-| Document | Description |
-| ---------- | ------------- |
-| [Migration Guide](MIGRATION_GUIDE.md) | Version migration instructions |
-| [Follow-Up Opportunities](FOLLOW_UP_OPPORTUNITIES.md) | Planned enhancements |
-| [Logging Improvements](LOGGING_IMPROVEMENTS.md) | Logging system changes |
-| [Memory Integration](MEMORY_INTEGRATION.md) | Memory/context management |
-
-### Troubleshooting
+### Metadata & Discovery
 
 | Document | Description |
-| ---------- | ------------- |
-| [CLI User Guide: Troubleshooting](CLI_USER_GUIDE.md#troubleshooting) | Common issues & solutions |
-| [Debug Guide](DEBUG_GUIDE.md) | Debugging AIDP issues |
-| [Job Troubleshooting](job-troubleshooting.md) | Background job issues |
+| -------- | ----------- |
+| [Metadata Headers](explanation/METADATA_HEADERS.md) | File metadata format |
+| [Metadata Tool Discovery](explanation/METADATA_TOOL_DISCOVERY.md) | Tool discovery patterns |
+| [Comment Consolidation](explanation/COMMENT_CONSOLIDATION.md) | Comment handling |
 
-### Specialized Topics
+### Design Documents
 
 | Document | Description |
-| ---------- | ------------- |
-| [Ports](PORTS.md) | Port configuration |
-| [Copilot Mode Testing](COPILOT_MODE_TESTING_TODO.md) | Test coverage tracking |
-
-## Devcontainer Documentation
-
-The `devcontainer/` subfolder contains devcontainer integration documentation:
-
-```bash
-docs/devcontainer/
-├── ARCHITECTURE.md           # Devcontainer architecture
-├── CONFIGURATION.md          # Configuration options
-├── FINAL_STATUS.md          # Integration status
-├── HANDOFF_CHECKLIST.md     # Implementation checklist
-├── PHASE_1_SUMMARY.md       # Phase 1 completion
-└── SESSION_SUMMARY.md       # Implementation summary
-```
-
-## Documentation Organization
-
-### By Audience
-
-**End Users** (start here):
-
-- CLI User Guide
-- Skills Quickstart
-- Work Loops Guide
-- Configuration
-
-**Power Users**:
-
-- Interactive REPL
-- Thinking Depth
-- Workstreams
-- Prompt Optimization
-
-**Developers**:
-
-- Implementation Guide
-- Provider Adapter Guide
-- Style Guide
-- Architecture documents
-
-### By Topic
-
-**Getting Started**: Setup Wizard, Skills Quickstart, CLI User Guide
-**Daily Usage**: Copilot Mode, Work Loops, Skills
-**Advanced**: Thinking Depth, Workstreams, Prompt Optimization
-**Configuration**: Configuration, Setup Wizard, Provider Adapter
-**Development**: Implementation Guide, Style Guide, Architecture
-**Troubleshooting**: Debug Guide, Job Troubleshooting, Migration Guide
-
-## Document Formats
-
-All documentation follows a consistent format:
-
-### User Guides
-
-```markdown
-# Title
-## Overview
-## Getting Started
-## Usage
-## Configuration
-## Troubleshooting
-```
-
-### Technical Documentation
-
-```markdown
-# Title
-## Overview
-## Architecture
-## Implementation
-## Examples
-## References
-```
-
-## Contributing to Documentation
-
-When adding or updating documentation:
-
-1. **Follow the standard format** - Use the templates above
-2. **Update this README** - Add new documents to the appropriate section
-3. **Keep it current** - Update docs when features change
-4. **Cross-reference** - Link to related documents
-5. **Test examples** - Ensure all code examples work
-
-## Getting Help
-
-- **General Help**: [CLI User Guide](CLI_USER_GUIDE.md)
-- **Configuration Issues**: [Configuration](CONFIGURATION.md)
-- **Troubleshooting**: [Debug Guide](DEBUG_GUIDE.md)
-- **GitHub Issues**: Report bugs and request features at <https://github.com/viamin/aidp/issues>
-
-## Documentation Stats
-
-- **Total Documents**: 48 markdown files
-- **User Guides**: 15+ guides
-- **Developer Docs**: 10+ technical documents
-- **Reference Docs**: 10+ command references
-- **Last Updated**: 2025-11-11
+| -------- | ----------- |
+| [Skill Authoring Wizard Design](explanation/SKILL_AUTHORING_WIZARD_DESIGN.md) | Skill wizard architecture |
+| [Work Loop Alignment PRD](explanation/WORK_LOOP_ALIGNMENT_PRD.md) | Work loop design |
+| [Waterfall Planning Design](explanation/WATERFALL_PLANNING_MODE_DESIGN.md) | Planning mode design |
+| [PRD Devcontainer Integration](explanation/PRD_DEVCONTAINER_INTEGRATION.md) | Devcontainer requirements |
+| [GitHub Projects Implementation](explanation/GITHUB_PROJECTS_IMPLEMENTATION.md) | Projects V2 implementation |
+| [Evaluations](explanation/EVALUATIONS.md) | Evaluation framework |
+| [Tree-sitter Analysis](explanation/TREE_SITTER_ANALYSIS.md) | Code analysis with tree-sitter |
 
 ---
 
-**Quick Links**: [CLI Guide](CLI_USER_GUIDE.md) | [Skills](SKILLS_QUICKSTART.md) | [Work Loops](WORK_LOOPS_GUIDE.md) | [Configuration](CONFIGURATION.md) | [REPL](INTERACTIVE_REPL.md)
+## Reference
+
+Technical reference documentation for configuration and APIs.
+
+| Document | Description |
+| -------- | ----------- |
+| [Configuration](reference/CONFIGURATION.md) | Complete `aidp.yml` reference |
+| [REPL Reference](reference/REPL_REFERENCE.md) | REPL macro commands |
+| [Key Bindings](reference/KEY_BINDINGS.md) | Keyboard shortcuts |
+| [Labels](reference/LABELS.md) | GitHub label reference |
+| [Ports](reference/PORTS.md) | Port configuration |
+| [Tool Directory](reference/TOOL_DIRECTORY.md) | Available tools reference |
+| [Optional Tools](reference/OPTIONAL_TOOLS.md) | Optional tool configuration |
+| [Persistent Tasklist](reference/PERSISTENT_TASKLIST.md) | Cross-session task tracking |
+| [Self Update](reference/SELF_UPDATE.md) | Self-update reference |
+
+---
+
+## Style Guides
+
+Coding standards and style guides (maintained separately from Diataxis categories):
+
+| Document | Description |
+| -------- | ----------- |
+| [LLM Style Guide](LLM_STYLE_GUIDE.md) | AI-optimized coding standards |
+| [Style Guide](STYLE_GUIDE.md) | Comprehensive style guide (93KB) |
+
+---
+
+## Devcontainer Documentation
+
+The `devcontainer/` subfolder contains devcontainer-specific documentation:
+
+| Document | Description |
+| -------- | ----------- |
+| [README](devcontainer/README.md) | Devcontainer overview |
+| [Quick Start](devcontainer/QUICK_START.md) | Getting started with devcontainer |
+| [Commit Guide](devcontainer/COMMIT_GUIDE.md) | Commit conventions |
+| [Final Status](devcontainer/FINAL_STATUS.md) | Integration status |
+| [Handoff Checklist](devcontainer/HANDOFF_CHECKLIST.md) | Implementation checklist |
+| [Phase 1 Summary](devcontainer/PHASE_1_SUMMARY.md) | Phase 1 completion |
+| [Session Summary](devcontainer/SESSION_SUMMARY.md) | Implementation summary |
+
+---
+
+## Other Documentation
+
+| Document | Description |
+| -------- | ----------- |
+| [Follow-Up Opportunities](FOLLOW_UP_OPPORTUNITIES.md) | Planned enhancements |
+
+---
+
+## Getting Help
+
+- **CLI help**: `aidp --help`
+- **Debug mode**: `AIDP_DEBUG=1 aidp`
+- **Issues**: [GitHub Issues](https://github.com/viamin/aidp/issues)
+
+---
+
+**Quick Links**: [Getting Started](GETTING_STARTED.md) | [CLI Guide](how-to/CLI_USER_GUIDE.md) | [Configuration](reference/CONFIGURATION.md) | [Work Loops](how-to/WORK_LOOPS_GUIDE.md)

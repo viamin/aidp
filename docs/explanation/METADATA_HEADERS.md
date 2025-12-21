@@ -414,5 +414,5 @@ The system will automatically convert old-style skills during parsing.
 ## See Also
 
 - [TOOL_DIRECTORY.md](TOOL_DIRECTORY.md) - Tool directory compilation and querying
-- [CONFIGURATION.md](CONFIGURATION.md) - Configuration reference
-- [CLI_USER_GUIDE.md](CLI_USER_GUIDE.md) - CLI command reference
+- [CONFIGURATION.md](../reference/CONFIGURATION.md) - Configuration reference
+- [CLI_USER_GUIDE.md](../how-to/CLI_USER_GUIDE.md) - CLI command reference

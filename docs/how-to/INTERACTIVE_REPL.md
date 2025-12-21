@@ -497,7 +497,7 @@ Running cli tests:
 
 Tools are configured in `.aidp/aidp.yml`. Run `aidp config --interactive` to configure tools using the wizard.
 
-See [CONFIGURATION.md](CONFIGURATION.md) for detailed configuration options.
+See [CONFIGURATION.md](../reference/CONFIGURATION.md) for detailed configuration options.
 
 ---
 
