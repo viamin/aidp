@@ -595,7 +595,7 @@ gh api graphql -f query='
 
 ## Related Documentation
 
-- [Watch Mode Guide](WATCH_MODE.md) - Watch mode configuration
+- [Watch Mode Guide](FULLY_AUTOMATIC_MODE.md) - Watch mode configuration
 - [Work Loops Guide](WORK_LOOPS_GUIDE.md) - Work loop execution
 - [CLI User Guide](CLI_USER_GUIDE.md) - Command reference
 - [Configuration Reference](../reference/CONFIGURATION.md) - Full config options
