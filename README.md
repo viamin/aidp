@@ -846,8 +846,8 @@ For detailed information:
 
 - **[CLI User Guide](docs/how-to/CLI_USER_GUIDE.md)** - Complete guide to using AIDP commands
 - **[Work Loops Guide](docs/how-to/WORK_LOOPS_GUIDE.md)** - Iterative workflows with automatic validation
-- **[Configuration Guide](docs/harness-configuration.md)** - Detailed configuration options and examples
-- **[Troubleshooting Guide](docs/harness-troubleshooting.md)** - Common issues and solutions
+- **[Configuration Guide](docs/reference/CONFIGURATION.md)** - Detailed configuration options and examples
+- **[Debug Guide](docs/how-to/DEBUG_GUIDE.md)** - Debugging and troubleshooting
 
 ## Manual Workflow (Alternative)
 

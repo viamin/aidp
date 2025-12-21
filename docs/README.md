@@ -109,6 +109,7 @@ Conceptual documentation that explains how and why things work.
 | Document | Description |
 | -------- | ----------- |
 | [AIDP Capabilities](explanation/AIDP_CAPABILITIES.md) | System capabilities overview |
+| [Zero Framework Cognition](explanation/ZFC_PATTERN.md) | ZFC pattern - delegate meaning to AI |
 | [AI-Generated Determinism](explanation/AI_GENERATED_DETERMINISM.md) | AGD pattern for AI-generated code |
 | [Concurrency Patterns](explanation/CONCURRENCY_PATTERNS.md) | Thread safety patterns |
 | [Memory Integration](explanation/MEMORY_INTEGRATION.md) | Memory/context management |
