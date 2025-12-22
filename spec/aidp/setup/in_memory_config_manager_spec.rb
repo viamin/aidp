@@ -132,8 +132,8 @@ RSpec.describe Aidp::Setup::InMemoryConfigManager do
 
     it "filters to only configured providers" do
       config_with_bad_fallback = {
-        harness: { fallback_providers: ["unknown", "gemini"] },
-        providers: { gemini: { type: "usage_based" } }
+        harness: {fallback_providers: ["unknown", "gemini"]},
+        providers: {gemini: {type: "usage_based"}}
       }
       mgr = described_class.new(config_with_bad_fallback, project_dir)
       expect(mgr.fallback_providers).to eq(["gemini"])
@@ -194,13 +194,13 @@ RSpec.describe Aidp::Setup::InMemoryConfigManager do
     end
 
     it "#subscription_provider? returns true for subscription providers" do
-      sub_config = { providers: { test: { type: "subscription" } } }
+      sub_config = {providers: {test: {type: "subscription"}}}
       sub_manager = described_class.new(sub_config, project_dir)
       expect(sub_manager.subscription_provider?("test")).to be true
     end
 
     it "#passthrough_provider? returns true for passthrough providers" do
-      pass_config = { providers: { test: { type: "passthrough" } } }
+      pass_config = {providers: {test: {type: "passthrough"}}}
       pass_manager = described_class.new(pass_config, project_dir)
       expect(pass_manager.passthrough_provider?("test")).to be true
     end
@@ -246,7 +246,7 @@ RSpec.describe Aidp::Setup::InMemoryConfigManager do
     end
 
     it "returns 1 as default" do
-      config_no_priority = { providers: { test: { type: "sub" } } }
+      config_no_priority = {providers: {test: {type: "sub"}}}
       mgr = described_class.new(config_no_priority, project_dir)
       expect(mgr.provider_priority("test")).to eq(1)
     end

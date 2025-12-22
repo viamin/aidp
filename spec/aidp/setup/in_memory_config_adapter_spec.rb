@@ -16,9 +16,9 @@ RSpec.describe Aidp::Setup::InMemoryConfigAdapter do
           type: "usage_based",
           model_family: "claude",
           thinking_tiers: {
-            mini: { models: ["claude-3-5-haiku"] },
-            standard: { models: ["claude-3-5-sonnet"] },
-            pro: { models: ["claude-3-opus"] }
+            mini: {models: ["claude-3-5-haiku"]},
+            standard: {models: ["claude-3-5-sonnet"]},
+            pro: {models: ["claude-3-opus"]}
           }
         },
         gemini: {
@@ -114,7 +114,7 @@ RSpec.describe Aidp::Setup::InMemoryConfigAdapter do
     end
 
     it "returns 'auto' as default" do
-      config_without_family = { providers: { test: { type: "subscription" } } }
+      config_without_family = {providers: {test: {type: "subscription"}}}
       adapter_without = described_class.new(config_without_family, project_dir)
       expect(adapter_without.model_family("test")).to eq("auto")
     end
@@ -157,7 +157,7 @@ RSpec.describe Aidp::Setup::InMemoryConfigAdapter do
     end
 
     it "returns false when explicitly disabled" do
-      config_no_switch = { thinking: { allow_provider_switch: false } }
+      config_no_switch = {thinking: {allow_provider_switch: false}}
       adapter_no_switch = described_class.new(config_no_switch, project_dir)
       expect(adapter_no_switch.allow_provider_switch_for_tier?).to be false
     end
