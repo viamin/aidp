@@ -160,7 +160,9 @@ module Aidp
         # Save primary provider
         set([:harness, :default_provider], provider_choice) unless provider_choice == "custom"
 
-        ensure_provider_billing_config(provider_choice) unless provider_choice == "custom"
+        # Always ask for billing config when running interactive wizard (force: true)
+        # This ensures users can update billing type when reconfiguring
+        ensure_provider_billing_config(provider_choice, force: true) unless provider_choice == "custom"
 
         # Prompt for fallback providers (excluding the primary), pre-select existing
         existing_fallbacks = Array(get([:harness, :fallback_providers])).map(&:to_s) - [provider_choice]
