@@ -69,7 +69,7 @@ module Aidp
 
       # Check if configuration is valid
       def config_valid?
-        default_provider && provider_config(default_provider)
+        !!(default_provider && provider_config(default_provider))
       end
 
       # Get validation errors (empty for in-memory config)
