@@ -127,6 +127,21 @@ module Aidp
         permissions[tier] || permissions[tier.to_sym] || "tools"
       end
 
+      # Get escalation configuration
+      def escalation_config
+        thinking_config[:escalation] || default_escalation_config
+      end
+
+      # Get fail attempts threshold for escalation
+      def escalation_fail_attempts
+        escalation_config[:on_fail_attempts] || 2
+      end
+
+      # Get complexity threshold configuration for escalation
+      def escalation_complexity_threshold
+        escalation_config[:on_complexity_threshold] || {}
+      end
+
       # Get provider models configuration
       def provider_models(provider_name)
         provider_config(provider_name)[:models] || []
@@ -174,6 +189,13 @@ module Aidp
           default_tier: "mini",
           max_tier: "pro",
           allow_provider_switch: true
+        }
+      end
+
+      def default_escalation_config
+        {
+          on_fail_attempts: 2,
+          on_complexity_threshold: {}
         }
       end
     end

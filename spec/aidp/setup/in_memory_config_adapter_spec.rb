@@ -206,6 +206,52 @@ RSpec.describe Aidp::Setup::InMemoryConfigAdapter do
     end
   end
 
+  describe "#escalation_config" do
+    it "returns escalation configuration" do
+      config_with_escalation = {
+        thinking: {
+          escalation: {
+            on_fail_attempts: 3,
+            on_complexity_threshold: {high: 0.8}
+          }
+        }
+      }
+      esc_adapter = described_class.new(config_with_escalation, project_dir)
+      expect(esc_adapter.escalation_config[:on_fail_attempts]).to eq(3)
+    end
+
+    it "returns defaults when not configured" do
+      empty_adapter = described_class.new({}, project_dir)
+      expect(empty_adapter.escalation_config[:on_fail_attempts]).to eq(2)
+    end
+  end
+
+  describe "#escalation_fail_attempts" do
+    it "returns configured fail attempts" do
+      config_with_esc = {thinking: {escalation: {on_fail_attempts: 5}}}
+      esc_adapter = described_class.new(config_with_esc, project_dir)
+      expect(esc_adapter.escalation_fail_attempts).to eq(5)
+    end
+
+    it "returns 2 as default" do
+      empty_adapter = described_class.new({}, project_dir)
+      expect(empty_adapter.escalation_fail_attempts).to eq(2)
+    end
+  end
+
+  describe "#escalation_complexity_threshold" do
+    it "returns configured complexity threshold" do
+      config_with_esc = {thinking: {escalation: {on_complexity_threshold: {high: 0.9}}}}
+      esc_adapter = described_class.new(config_with_esc, project_dir)
+      expect(esc_adapter.escalation_complexity_threshold).to eq({high: 0.9})
+    end
+
+    it "returns empty hash as default" do
+      empty_adapter = described_class.new({}, project_dir)
+      expect(empty_adapter.escalation_complexity_threshold).to eq({})
+    end
+  end
+
   describe "#provider_configured?" do
     it "returns true for configured providers" do
       expect(adapter.provider_configured?("anthropic")).to be true
