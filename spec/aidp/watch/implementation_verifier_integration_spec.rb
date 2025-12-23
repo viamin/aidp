@@ -12,7 +12,7 @@ require "fileutils"
 RSpec.describe Aidp::Watch::ImplementationVerifier, :integration do
   let(:project_dir) { Dir.mktmpdir }
   let(:working_dir) { project_dir }
-  let(:config_path) { File.join(project_dir, ".aidp", "config.yml") }
+  let(:config_path) { File.join(project_dir, ".aidp", "aidp.yml") }
   let(:repository_client) { instance_double(Aidp::Watch::RepositoryClient) }
 
   # Create a real configuration with minimal setup

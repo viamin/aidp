@@ -13,7 +13,7 @@ require "aidp/harness/configuration"
 # but unit tests didn't catch this because they mock ThinkingDepthManager.
 RSpec.describe Aidp::Harness::AIDecisionEngine, :integration do
   let(:project_dir) { Dir.mktmpdir }
-  let(:config_path) { File.join(project_dir, ".aidp", "config.yml") }
+  let(:config_path) { File.join(project_dir, ".aidp", "aidp.yml") }
 
   # Create a real configuration with minimal setup
   let(:config_content) do
