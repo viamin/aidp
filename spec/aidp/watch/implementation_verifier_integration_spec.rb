@@ -19,7 +19,8 @@ RSpec.describe Aidp::Watch::ImplementationVerifier, :integration do
   let(:config_content) do
     {
       "harness" => {
-        "default_provider" => "anthropic"
+        "default_provider" => "anthropic",
+        "fallback_providers" => []  # Override default to avoid validation errors
       },
       "providers" => {
         "anthropic" => {
