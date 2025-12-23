@@ -41,7 +41,10 @@ module Aidp
       # Get provider configuration
       def provider_config(provider_name, _options = {})
         providers = @config[:providers] || {}
-        providers[provider_name.to_sym] || providers[provider_name.to_s]
+        config = providers[provider_name.to_sym] || providers[provider_name.to_s]
+        Aidp.log_debug("in_memory_config_manager", "provider_config_retrieved",
+          provider: provider_name, found: !config.nil?)
+        config
       end
 
       # Get all provider configurations
@@ -69,7 +72,10 @@ module Aidp
 
       # Check if configuration is valid
       def config_valid?
-        !!(default_provider && provider_config(default_provider))
+        result = !!(default_provider && provider_config(default_provider))
+        Aidp.log_debug("in_memory_config_manager", "config_valid_check",
+          valid: result, default_provider: default_provider)
+        result
       end
 
       # Get validation errors (empty for in-memory config)
@@ -127,7 +133,10 @@ module Aidp
       # Check if provider supports feature
       def provider_supports_feature?(provider_name, feature, options = {})
         features = provider_features(provider_name, options)
-        features[feature.to_sym] == true
+        result = features[feature.to_sym] == true
+        Aidp.log_debug("in_memory_config_manager", "feature_support_check",
+          provider: provider_name, feature: feature, supported: result)
+        result
       end
 
       # Get provider priority
@@ -241,7 +250,9 @@ module Aidp
         else
           begin
             obj.dup
-          rescue TypeError
+          rescue TypeError => e
+            Aidp.log_debug("in_memory_config_manager", "deep_dup_type_error",
+              object_class: obj.class.name, error: e.message)
             obj
           end
         end

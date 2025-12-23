@@ -31,13 +31,19 @@ module Aidp
 
       # Get harness-specific configuration
       def harness_config
-        @config[:harness] || {}
+        config = @config[:harness] || {}
+        Aidp.log_debug("in_memory_config_adapter", "harness_config_retrieved",
+          keys: config.keys)
+        config
       end
 
       # Get provider configuration
       def provider_config(provider_name)
         providers = @config[:providers] || {}
-        providers[provider_name.to_sym] || providers[provider_name.to_s] || {}
+        config = providers[provider_name.to_sym] || providers[provider_name.to_s] || {}
+        Aidp.log_debug("in_memory_config_adapter", "provider_config_retrieved",
+          provider: provider_name, found: !config.empty?)
+        config
       end
 
       # Get all configured providers
@@ -74,16 +80,25 @@ module Aidp
 
       # Get models configured for a specific tier and provider
       def models_for_tier(tier, provider_name)
-        return [] unless provider_name
+        unless provider_name
+          Aidp.log_debug("in_memory_config_adapter", "models_for_tier_skipped",
+            reason: "no_provider_name")
+          return []
+        end
 
         tier_config = provider_thinking_tiers(provider_name)[tier] ||
           provider_thinking_tiers(provider_name)[tier.to_sym]
-        return [] unless tier_config
+        unless tier_config
+          Aidp.log_debug("in_memory_config_adapter", "models_for_tier_not_found",
+            tier: tier, provider: provider_name)
+          return []
+        end
 
         models = tier_config[:models] || tier_config["models"]
-        return [] unless models
-
-        Array(models).map(&:to_s).compact
+        result = models ? Array(models).map(&:to_s).compact : []
+        Aidp.log_debug("in_memory_config_adapter", "models_for_tier_retrieved",
+          tier: tier, provider: provider_name, count: result.size)
+        result
       end
 
       # Get all configured tiers for a provider
@@ -159,7 +174,10 @@ module Aidp
 
       # Check if provider is configured
       def provider_configured?(provider_name)
-        configured_providers.include?(provider_name.to_s)
+        result = configured_providers.include?(provider_name.to_s)
+        Aidp.log_debug("in_memory_config_adapter", "provider_configured_check",
+          provider: provider_name, configured: result)
+        result
       end
 
       # Get work loop configuration
