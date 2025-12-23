@@ -292,6 +292,7 @@ When converting legacy code to ZFC:
 - **Availability**: Depends on AI provider uptime
 
 Mitigate costs with:
+
 - **Caching**: Similar decisions return cached results
 - **Batching**: Group multiple decisions into one call
 - **Tier selection**: Use "mini" tier for simple decisions
