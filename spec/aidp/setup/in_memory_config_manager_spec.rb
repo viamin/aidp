@@ -76,6 +76,14 @@ RSpec.describe Aidp::Setup::InMemoryConfigManager do
       expect(manager.config).to eq(config)
     end
 
+    it "returns a copy to prevent mutation" do
+      returned_config = manager.config
+      expect(returned_config).not_to be(config)
+      # Verify mutation doesn't affect internal state
+      returned_config[:harness][:default_provider] = "modified"
+      expect(manager.default_provider).to eq("anthropic")
+    end
+
     it "ignores options parameter (for compatibility)" do
       expect(manager.config(force_reload: true)).to eq(config)
     end
@@ -185,24 +193,6 @@ RSpec.describe Aidp::Setup::InMemoryConfigManager do
 
     it "returns nil for unknown provider" do
       expect(manager.provider_type("unknown")).to be_nil
-    end
-  end
-
-  describe "provider type checks" do
-    it "#usage_based_provider? returns true for usage_based providers" do
-      expect(manager.usage_based_provider?("anthropic")).to be true
-    end
-
-    it "#subscription_provider? returns true for subscription providers" do
-      sub_config = {providers: {test: {type: "subscription"}}}
-      sub_manager = described_class.new(sub_config, project_dir)
-      expect(sub_manager.subscription_provider?("test")).to be true
-    end
-
-    it "#passthrough_provider? returns true for passthrough providers" do
-      pass_config = {providers: {test: {type: "passthrough"}}}
-      pass_manager = described_class.new(pass_config, project_dir)
-      expect(pass_manager.passthrough_provider?("test")).to be true
     end
   end
 

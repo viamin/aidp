@@ -28,9 +28,9 @@ module Aidp
           providers: provider_names)
       end
 
-      # Get complete configuration
+      # Get complete configuration (returns a copy to prevent mutation)
       def config(_options = {})
-        @config
+        deep_dup(@config)
       end
 
       # Get harness configuration
@@ -101,21 +101,6 @@ module Aidp
         cfg = provider_config(provider_name)
         return nil unless cfg
         cfg[:type] || cfg["type"]
-      end
-
-      # Check if provider is usage-based
-      def usage_based_provider?(provider_name, options = {})
-        provider_type(provider_name, options) == "usage_based"
-      end
-
-      # Check if provider is subscription-based
-      def subscription_provider?(provider_name, options = {})
-        provider_type(provider_name, options) == "subscription"
-      end
-
-      # Check if provider is passthrough
-      def passthrough_provider?(provider_name, options = {})
-        provider_type(provider_name, options) == "passthrough"
       end
 
       # Get provider models
@@ -221,14 +206,16 @@ module Aidp
         flags.map(&:to_s)
       end
 
-      # Get provider auth configuration
+      # Get provider auth configuration (redacts sensitive values)
       def provider_auth_config(provider_name, _options = {})
         cfg = provider_config(provider_name)
         return {} unless cfg
         auth = cfg[:auth] || cfg["auth"] || {}
         {
+          # Only expose the env var name, not actual keys
           api_key_env: auth[:api_key_env] || auth["api_key_env"],
-          api_key: auth[:api_key] || auth["api_key"]
+          # Redact actual API key - callers should use api_key_env
+          api_key: auth[:api_key] || auth["api_key"] ? "[REDACTED]" : nil
         }
       end
 
@@ -240,6 +227,20 @@ module Aidp
         {
           default: endpoints[:default] || endpoints["default"]
         }
+      end
+
+      private
+
+      # Deep duplicate a hash/array structure to prevent mutation
+      def deep_dup(obj)
+        case obj
+        when Hash
+          obj.each_with_object({}) { |(k, v), h| h[k] = deep_dup(v) }
+        when Array
+          obj.map { |v| deep_dup(v) }
+        else
+          obj.dup rescue obj
+        end
       end
     end
   end
