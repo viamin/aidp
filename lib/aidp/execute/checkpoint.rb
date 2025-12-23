@@ -44,6 +44,7 @@ module Aidp
       # Get the latest checkpoint data
       def latest_checkpoint
         return nil unless File.exist?(@checkpoint_file)
+
         YAML.safe_load_file(@checkpoint_file, permitted_classes: [Date, Time, Symbol], aliases: true)
       end
 
@@ -303,6 +304,27 @@ module Aidp
         File.open(@history_file, "a") do |f|
           f.puts(data.to_json)
         end
+      end
+
+      def read_run_loop_started_at
+        return nil unless File.exist?(@run_loop_file)
+
+        File.read(@run_loop_file).strip
+      rescue => e
+        log_rescue(e,
+          component: "checkpoint",
+          action: "read_run_loop_started_at",
+          fallback: nil)
+        nil
+      end
+
+      def write_run_loop_started_at(timestamp)
+        File.write(@run_loop_file, timestamp)
+      rescue => e
+        log_rescue(e,
+          component: "checkpoint",
+          action: "write_run_loop_started_at",
+          fallback: nil)
       end
     end
   end
