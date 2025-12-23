@@ -18,15 +18,19 @@ module Aidp
         @project_dir = project_dir
         @checkpoint_file = File.join(project_dir, ".aidp", "checkpoint.yml")
         @history_file = File.join(project_dir, ".aidp", "checkpoint_history.jsonl")
+        @run_loop_file = File.join(project_dir, ".aidp", "run_loop_started_at")
         ensure_checkpoint_directory
       end
 
       # Record a checkpoint during work loop iteration
       def record_checkpoint(step_name, iteration, metrics = {})
+        run_loop_started_at = read_run_loop_started_at || Time.now.iso8601
+        write_run_loop_started_at(run_loop_started_at) if iteration == 1
         checkpoint_data = {
           step_name: step_name,
           iteration: iteration,
           timestamp: Time.now.iso8601,
+          run_loop_started_at: run_loop_started_at,
           metrics: collect_metrics.merge(metrics),
           status: determine_status(metrics)
         }
