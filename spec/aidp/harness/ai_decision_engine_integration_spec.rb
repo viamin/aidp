@@ -145,7 +145,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine, :integration do
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)
       allow(provider).to receive(:send_message).and_return(
-        {condition: "none", confidence: 0.9, reasoning: "test"}.to_json
+        {condition: "other", confidence: 0.9, reasoning: "test"}.to_json
       )
 
       engine = described_class.new(config, provider_factory: provider_factory)
