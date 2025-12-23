@@ -215,7 +215,7 @@ module Aidp
           # Only expose the env var name, not actual keys
           api_key_env: auth[:api_key_env] || auth["api_key_env"],
           # Redact actual API key - callers should use api_key_env
-          api_key: auth[:api_key] || auth["api_key"] ? "[REDACTED]" : nil
+          api_key: (auth[:api_key] || auth["api_key"]) ? "[REDACTED]" : nil
         }
       end
 
@@ -239,7 +239,11 @@ module Aidp
         when Array
           obj.map { |v| deep_dup(v) }
         else
-          obj.dup rescue obj
+          begin
+            obj.dup
+          rescue TypeError
+            obj
+          end
         end
       end
     end
