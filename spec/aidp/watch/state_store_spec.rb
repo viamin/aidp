@@ -219,13 +219,13 @@ RSpec.describe Aidp::Watch::StateStore do
 
     it "overwrites previous cleanup data" do
       store.record_worktree_cleanup(cleaned: 1, skipped: 0, errors: [])
-      first_cleanup = store.last_worktree_cleanup
+      first_data = store.worktree_cleanup_data.dup
 
-      sleep 0.01 # Ensure different timestamp
+      # ISO8601 has second precision, so we need to wait at least 1 second
+      sleep 1.1
       store.record_worktree_cleanup(cleaned: 5, skipped: 2, errors: [])
-      second_cleanup = store.last_worktree_cleanup
 
-      expect(second_cleanup).to be > first_cleanup
+      expect(store.worktree_cleanup_data["last_cleanup_at"]).not_to eq(first_data["last_cleanup_at"])
       expect(store.worktree_cleanup_data["last_cleaned_count"]).to eq(5)
     end
 
