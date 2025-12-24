@@ -227,6 +227,12 @@ module Aidp
           require_reviews: 0,
           merge_method: "squash",
           delete_branch: true
+        },
+        worktree_cleanup: {
+          enabled: true,
+          frequency: "weekly",  # daily or weekly
+          base_branch: "main",
+          delete_branch: true
         }
       }
     }.freeze
@@ -375,6 +381,15 @@ module Aidp
       sec_config = security_config(project_dir)
       proxy_config = sec_config[:secrets_proxy] || {}
       proxy_config.fetch(:enabled, true)
+    end
+
+    # Get worktree cleanup configuration
+    def self.worktree_cleanup_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      watch_section = config[:watch] || config["watch"] || {}
+      cleanup_section = watch_section[:worktree_cleanup] || watch_section["worktree_cleanup"] || {}
+
+      symbolize_keys(cleanup_section)
     end
 
     # Check if configuration file exists

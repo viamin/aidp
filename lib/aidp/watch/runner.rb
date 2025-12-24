@@ -3,6 +3,7 @@
 require "tty-prompt"
 require_relative "feedback_collector"
 require_relative "github_state_extractor"
+require_relative "worktree_cleanup_job"
 
 module Aidp
   module Watch
@@ -115,6 +116,13 @@ module Aidp
           state_store: @state_store,
           project_dir: project_dir
         )
+
+        # Initialize worktree cleanup job (issue #367)
+        cleanup_config = Aidp::Config.worktree_cleanup_config(project_dir)
+        @worktree_cleanup_job = WorktreeCleanupJob.new(
+          project_dir: project_dir,
+          config: cleanup_config
+        )
       end
 
       def start
@@ -165,6 +173,7 @@ module Aidp
         process_auto_pr_triggers
         process_change_request_triggers
         collect_feedback
+        process_worktree_cleanup
       end
 
       def process_plan_triggers
@@ -683,6 +692,35 @@ module Aidp
       rescue => e
         Aidp.log_error("watch_runner", "feedback_collection_failed", error: e.message)
         display_message("⚠️  Feedback collection failed: #{e.message}", type: :warn) if @verbose
+      end
+
+      # Process worktree cleanup if due (issue #367)
+      # Runs periodically based on configured frequency (daily/weekly)
+      def process_worktree_cleanup
+        return unless @worktree_cleanup_job.enabled?
+
+        last_cleanup = @state_store.last_worktree_cleanup
+        return unless @worktree_cleanup_job.cleanup_due?(last_cleanup)
+
+        Aidp.log_debug("watch_runner", "worktree_cleanup.checking",
+          last_cleanup: last_cleanup&.iso8601,
+          frequency: @worktree_cleanup_job.cleanup_interval_seconds)
+
+        result = @worktree_cleanup_job.execute
+
+        @state_store.record_worktree_cleanup(
+          cleaned: result[:cleaned],
+          skipped: result[:skipped],
+          errors: result[:errors]
+        )
+
+        if result[:cleaned] > 0 || @verbose
+          display_message("🧹 Worktree cleanup: #{result[:cleaned]} cleaned, #{result[:skipped]} skipped",
+            type: :info)
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "worktree_cleanup_failed", error: e.message)
+        display_message("⚠️  Worktree cleanup failed: #{e.message}", type: :warn) if @verbose
       end
     end
   end

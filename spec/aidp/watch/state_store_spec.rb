@@ -185,4 +185,55 @@ RSpec.describe Aidp::Watch::StateStore do
       expect(store.detection_comment_posted?(another_label_key)).to be false
     end
   end
+
+  describe "worktree cleanup tracking" do
+    it "returns nil when no cleanup has been performed" do
+      expect(store.last_worktree_cleanup).to be_nil
+    end
+
+    it "records and retrieves cleanup timestamp" do
+      store.record_worktree_cleanup(cleaned: 3, skipped: 2, errors: [])
+
+      last_cleanup = store.last_worktree_cleanup
+      expect(last_cleanup).to be_a(Time)
+      expect(last_cleanup).to be_within(60).of(Time.now)
+    end
+
+    it "records cleanup statistics" do
+      errors = [{slug: "issue-1", error: "failed"}]
+      store.record_worktree_cleanup(cleaned: 5, skipped: 3, errors: errors)
+
+      data = store.worktree_cleanup_data
+      expect(data["last_cleaned_count"]).to eq(5)
+      expect(data["last_skipped_count"]).to eq(3)
+      expect(data["last_errors"]).to eq([{"slug" => "issue-1", "error" => "failed"}])
+    end
+
+    it "persists cleanup data across reloads" do
+      store.record_worktree_cleanup(cleaned: 2, skipped: 1, errors: [])
+
+      reloaded = described_class.new(project_dir: tmp_dir, repository: repository)
+      expect(reloaded.last_worktree_cleanup).to be_a(Time)
+      expect(reloaded.worktree_cleanup_data["last_cleaned_count"]).to eq(2)
+    end
+
+    it "overwrites previous cleanup data" do
+      store.record_worktree_cleanup(cleaned: 1, skipped: 0, errors: [])
+      first_cleanup = store.last_worktree_cleanup
+
+      sleep 0.01 # Ensure different timestamp
+      store.record_worktree_cleanup(cleaned: 5, skipped: 2, errors: [])
+      second_cleanup = store.last_worktree_cleanup
+
+      expect(second_cleanup).to be > first_cleanup
+      expect(store.worktree_cleanup_data["last_cleaned_count"]).to eq(5)
+    end
+
+    it "handles invalid timestamp gracefully" do
+      # Manually set invalid timestamp
+      store.send(:state)["worktree_cleanup"] = {"last_cleanup_at" => "invalid-timestamp"}
+
+      expect(store.last_worktree_cleanup).to be_nil
+    end
+  end
 end

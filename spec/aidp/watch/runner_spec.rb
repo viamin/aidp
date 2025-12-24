@@ -18,6 +18,7 @@ RSpec.describe Aidp::Watch::Runner do
   let(:auto_update_policy) { instance_double("AutoUpdatePolicy", enabled: true, check_interval_seconds: 1) }
   let(:auto_update_check) { instance_double("UpdateCheck", should_update?: true, current_version: "1", available_version: "2") }
   let(:auto_update) { instance_double("AutoUpdateCoordinator", check_for_updates: nil, check_for_update: auto_update_check, policy: auto_update_policy, restore_from_checkpoint: nil, hot_reload_available?: false, initiate_update: nil) }
+  let(:worktree_cleanup_job) { instance_double("WorktreeCleanupJob", enabled?: true, cleanup_due?: false, cleanup_interval_seconds: 604_800, execute: {cleaned: 0, skipped: 0, errors: []}) }
   let(:issue_detail) { {number: 1, labels: ["plan"], comments: [], author: "alice"} }
 
   # Silent test prompt that doesn't output
@@ -40,6 +41,8 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp::Watch::AutoPrProcessor).to receive(:new).and_return(auto_pr_processor)
     allow(Aidp::Watch::ChangeRequestProcessor).to receive(:new).and_return(change_request_processor)
     allow(Aidp::Watch::FeedbackCollector).to receive(:new).and_return(feedback_collector)
+    allow(Aidp::Watch::WorktreeCleanupJob).to receive(:new).and_return(worktree_cleanup_job)
+    allow(Aidp::Config).to receive(:worktree_cleanup_config).and_return({enabled: true, frequency: "weekly"})
     allow(Aidp::AutoUpdate).to receive(:coordinator).and_return(auto_update)
     allow(Aidp).to receive(:log_info)
     allow(Aidp).to receive(:log_debug)
@@ -79,6 +82,7 @@ RSpec.describe Aidp::Watch::Runner do
         process_auto_pr_triggers
         process_change_request_triggers
         collect_feedback
+        process_worktree_cleanup
       ].each do |method|
         allow(runner).to receive(method).and_return(nil)
         expect(runner).to receive(method).once
@@ -196,6 +200,65 @@ RSpec.describe Aidp::Watch::Runner do
       runner.send(:process_change_request_triggers)
 
       expect(change_request_processor).to have_received(:process)
+    end
+  end
+
+  describe "#process_worktree_cleanup" do
+    let(:runner) do
+      r = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(r).to receive(:display_message)
+      r
+    end
+
+    it "skips cleanup when job is disabled" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(false)
+      expect(worktree_cleanup_job).not_to receive(:execute)
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "skips cleanup when not due" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(false)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(Time.now)
+      expect(worktree_cleanup_job).not_to receive(:execute)
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "executes cleanup when due" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(true)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(nil)
+      allow(worktree_cleanup_job).to receive(:execute).and_return({cleaned: 2, skipped: 1, errors: []})
+      expect(state_store).to receive(:record_worktree_cleanup).with(
+        cleaned: 2,
+        skipped: 1,
+        errors: []
+      )
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "displays message when worktrees are cleaned" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(true)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(nil)
+      allow(worktree_cleanup_job).to receive(:execute).and_return({cleaned: 3, skipped: 0, errors: []})
+      allow(state_store).to receive(:record_worktree_cleanup)
+
+      expect(runner).to receive(:display_message).with(/3 cleaned/, type: :info)
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "handles errors gracefully" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(true)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(nil)
+      allow(worktree_cleanup_job).to receive(:execute).and_raise(StandardError.new("cleanup failed"))
+
+      expect { runner.send(:process_worktree_cleanup) }.not_to raise_error
     end
   end
 end
