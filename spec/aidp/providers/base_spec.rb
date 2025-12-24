@@ -455,4 +455,26 @@ RSpec.describe Aidp::Providers::Base do
       )
     end
   end
+
+  describe ".instruction_file_paths" do
+    it "returns an empty array by default" do
+      expect(described_class.instruction_file_paths).to eq([])
+    end
+
+    it "is a class method" do
+      expect(described_class).to respond_to(:instruction_file_paths)
+    end
+  end
+
+  describe ".firewall_requirements" do
+    it "returns empty domains and ip_ranges by default" do
+      result = described_class.firewall_requirements
+
+      expect(result).to eq({domains: [], ip_ranges: []})
+    end
+
+    it "is a class method" do
+      expect(described_class).to respond_to(:firewall_requirements)
+    end
+  end
 end

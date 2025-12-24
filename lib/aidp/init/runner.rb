@@ -5,6 +5,7 @@ require_relative "../message_display"
 require_relative "project_analyzer"
 require_relative "doc_generator"
 require_relative "devcontainer_generator"
+require_relative "agent_instructions_generator"
 
 module Aidp
   module Init
@@ -13,12 +14,13 @@ module Aidp
     class Runner
       include Aidp::MessageDisplay
 
-      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new, analyzer: nil, doc_generator: nil, devcontainer_generator: nil, options: {})
+      def initialize(project_dir = Dir.pwd, prompt: TTY::Prompt.new, analyzer: nil, doc_generator: nil, devcontainer_generator: nil, agent_instructions_generator: nil, options: {})
         @project_dir = project_dir
         @prompt = prompt
         @analyzer = analyzer || ProjectAnalyzer.new(project_dir)
         @doc_generator = doc_generator || DocGenerator.new(project_dir)
         @devcontainer_generator = devcontainer_generator || DevcontainerGenerator.new(project_dir)
+        @agent_instructions_generator = agent_instructions_generator || AgentInstructionsGenerator.new(project_dir, prompt: prompt)
         @options = options
       end
 
@@ -78,11 +80,17 @@ module Aidp
           devcontainer_files = @devcontainer_generator.generate(analysis: analysis, preferences: preferences)
           generated_files.concat(devcontainer_files)
 
-          display_message("\n📦 Generated devcontainer:", type: :info)
-          devcontainer_files.each { |file| display_message("  - #{file}", type: :success) }
+          display_message("\n   Generated devcontainer:", type: :info)
+          devcontainer_files.each { |file| display_message("     - #{file}", type: :success) }
         end
 
-        display_message("\n✅ aidp init complete.", type: :success)
+        # Generate agent instruction files
+        if @options[:with_agent_instructions] || should_generate_agent_instructions?(preferences)
+          agent_files = @agent_instructions_generator.generate(analysis: analysis, preferences: preferences)
+          generated_files.concat(agent_files)
+        end
+
+        display_message("\n   aidp init complete.", type: :success)
 
         {
           analysis: analysis,
@@ -264,11 +272,24 @@ module Aidp
           )
         end
 
+        # Ask about agent instruction files unless explicitly set via options
+        unless @options.key?(:with_agent_instructions)
+          prefs[:generate_agent_instructions] = ask_yes_no_with_context(
+            "Generate agent instruction files for AI coding assistants?",
+            context: "Creates AGENTS.md and symlinks to provider-specific locations (CLAUDE.md, .github/copilot-instructions.md, etc.).",
+            default: !@agent_instructions_generator.exists?
+          )
+        end
+
         prefs
       end
 
       def should_generate_devcontainer?(preferences)
         preferences[:generate_devcontainer] == true
+      end
+
+      def should_generate_agent_instructions?(preferences)
+        preferences[:generate_agent_instructions] == true
       end
 
       def ask_yes_no_with_context(question, context:, default:)

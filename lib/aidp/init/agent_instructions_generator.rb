@@ -1,0 +1,319 @@
+# frozen_string_literal: true
+
+require "fileutils"
+require "time"
+
+module Aidp
+  module Init
+    # Generates agent instruction files for AI coding assistants.
+    #
+    # This generator creates a master AGENTS.md file and symlinks it to
+    # provider-specific locations (e.g., CLAUDE.md, .github/copilot-instructions.md).
+    #
+    # @example Basic usage
+    #   generator = AgentInstructionsGenerator.new(project_dir: "/path/to/project")
+    #   files = generator.generate(analysis: analysis, preferences: preferences)
+    #
+    class AgentInstructionsGenerator
+      include Aidp::MessageDisplay
+
+      MASTER_FILE = "AGENTS.md"
+
+      # Known provider classes for instruction file generation
+      PROVIDER_CLASSES = %w[
+        Anthropic
+        GithubCopilot
+        Cursor
+        Gemini
+        Aider
+        Kilocode
+        Opencode
+        Codex
+      ].freeze
+
+      def initialize(project_dir = Dir.pwd, prompt: nil)
+        @project_dir = project_dir
+        @prompt = prompt
+      end
+
+      # Generate agent instruction files
+      #
+      # @param analysis [Hash] Project analysis results
+      # @param preferences [Hash] User preferences
+      # @return [Array<String>] List of generated files
+      def generate(analysis:, preferences: {})
+        Aidp.log_debug("agent_instructions_generator", "starting_generation",
+          project_dir: @project_dir)
+
+        generated_files = []
+        skipped_files = []
+        symlinked_files = []
+
+        # Generate master AGENTS.md
+        master_path = File.join(@project_dir, MASTER_FILE)
+        if generate_master_file(master_path, analysis, preferences)
+          generated_files << MASTER_FILE
+        end
+
+        # Create symlinks to provider-specific locations
+        provider_instruction_files.each do |file_info|
+          result = create_provider_symlink(file_info, master_path)
+          case result[:status]
+          when :created
+            symlinked_files << file_info[:path]
+          when :skipped
+            skipped_files << { path: file_info[:path], reason: result[:reason] }
+          end
+        end
+
+        # Report results
+        report_generation_results(generated_files, symlinked_files, skipped_files)
+
+        generated_files + symlinked_files
+      end
+
+      # Check if master AGENTS.md exists
+      #
+      # @return [Boolean]
+      def exists?
+        File.exist?(File.join(@project_dir, MASTER_FILE))
+      end
+
+      # Get all provider instruction file paths
+      #
+      # @return [Array<Hash>] Array of file info hashes
+      def provider_instruction_files
+        @provider_instruction_files ||= collect_provider_instruction_files
+      end
+
+      # Preview what files would be generated
+      #
+      # @return [Hash] Preview information
+      def preview
+        existing = []
+        to_create = []
+        to_symlink = []
+
+        master_path = File.join(@project_dir, MASTER_FILE)
+        if File.exist?(master_path)
+          existing << MASTER_FILE
+        else
+          to_create << MASTER_FILE
+        end
+
+        provider_instruction_files.each do |file_info|
+          full_path = File.join(@project_dir, file_info[:path])
+          if File.exist?(full_path) || File.symlink?(full_path)
+            existing << file_info[:path]
+          else
+            to_symlink << file_info[:path]
+          end
+        end
+
+        {
+          existing: existing,
+          to_create: to_create,
+          to_symlink: to_symlink
+        }
+      end
+
+      private
+
+      def collect_provider_instruction_files
+        files = []
+
+        PROVIDER_CLASSES.each do |class_name|
+          begin
+            provider_class = Aidp::Providers.const_get(class_name)
+            next unless provider_class.respond_to?(:instruction_file_paths)
+
+            provider_class.instruction_file_paths.each do |file_info|
+              files << file_info.merge(provider: class_name.downcase)
+            end
+          rescue NameError => e
+            Aidp.log_debug("agent_instructions_generator", "provider_not_found",
+              provider: class_name, error: e.message)
+          end
+        end
+
+        files
+      end
+
+      def generate_master_file(path, analysis, preferences)
+        if File.exist?(path)
+          Aidp.log_debug("agent_instructions_generator", "master_exists",
+            path: path)
+          return false
+        end
+
+        content = build_master_content(analysis, preferences)
+        File.write(path, content)
+
+        Aidp.log_debug("agent_instructions_generator", "master_created",
+          path: path, size: content.length)
+        true
+      end
+
+      def build_master_content(analysis, preferences)
+        languages = format_list(analysis[:languages]&.keys)
+        frameworks = extract_confident_names(analysis[:frameworks], threshold: 0.7)
+        test_frameworks = extract_confident_names(analysis[:test_frameworks], threshold: 0.7)
+
+        <<~AGENTS
+          # AI Agent Instructions
+
+          > Generated by `aidp init` on #{Time.now.utc.iso8601}
+          >
+          > This file provides instructions for AI coding assistants working on this project.
+          > Provider-specific instruction files (CLAUDE.md, .github/copilot-instructions.md, etc.)
+          > are symlinked to this master file for consistency.
+
+          ## Primary Reference
+
+          **Before making ANY code changes, read and follow [`docs/LLM_STYLE_GUIDE.md`](docs/LLM_STYLE_GUIDE.md).**
+
+          The LLM_STYLE_GUIDE is your primary reference for all coding standards and patterns.
+
+          ## Project Overview
+
+          #{build_project_overview(analysis)}
+
+          ## Key Principles
+
+          1. **Follow the LLM_STYLE_GUIDE** - All code must adhere to the documented standards
+          2. **Read before writing** - Always read existing code before making modifications
+          3. **Test at boundaries** - Mock only external services (network, filesystem, APIs)
+          4. **Log extensively** - Use `Aidp.log_debug()` for important code paths
+          5. **Small, focused changes** - Follow Sandi Metz guidelines for code organization
+
+          ## Quick Reference
+
+          ### Languages & Frameworks
+          - **Languages**: #{languages.empty? ? "Not detected" : languages}
+          - **Frameworks**: #{frameworks.empty? ? "None detected" : frameworks.join(", ")}
+          - **Testing**: #{test_frameworks.empty? ? "Unknown" : test_frameworks.join(", ")}
+
+          ### Important Documentation
+          - [`docs/LLM_STYLE_GUIDE.md`](docs/LLM_STYLE_GUIDE.md) - Coding standards (PRIMARY)
+          - [`docs/PROJECT_ANALYSIS.md`](docs/PROJECT_ANALYSIS.md) - Project structure analysis
+          - [`docs/CODE_QUALITY_PLAN.md`](docs/CODE_QUALITY_PLAN.md) - Quality improvement plan
+
+          ## Anti-Patterns to Avoid
+
+          - Do NOT use `puts` or `print` for output (use TTY components)
+          - Do NOT add mock methods to production code (use dependency injection)
+          - Do NOT skip tests for "small fixes"
+          - Do NOT create god classes or methods
+          - Do NOT use regex for semantic analysis (use AI decision engines)
+
+          ## Getting Help
+
+          If uncertain about standards or patterns:
+          1. Check `docs/LLM_STYLE_GUIDE.md` first
+          2. Look at similar existing code in the project
+          3. Ask for clarification rather than guessing
+
+          ---
+
+          *This file is the single source of truth for AI agent instructions.*
+          *Provider-specific files are symlinked to this master file.*
+        AGENTS
+      end
+
+      def build_project_overview(analysis)
+        repo_stats = analysis[:repo_stats] || {}
+        lines = []
+
+        if repo_stats[:total_files]
+          lines << "- **Files**: #{repo_stats[:total_files]} total"
+        end
+
+        if analysis[:key_directories]&.any?
+          lines << "- **Key directories**: #{analysis[:key_directories].take(5).join(", ")}"
+        end
+
+        if repo_stats[:has_ci_config]
+          lines << "- **CI/CD**: Configured"
+        end
+
+        if repo_stats[:has_containerization]
+          lines << "- **Containerization**: Available"
+        end
+
+        if lines.empty?
+          "Project structure information not available. Run `aidp init --explain-detection` for details."
+        else
+          lines.join("\n")
+        end
+      end
+
+      def create_provider_symlink(file_info, master_path)
+        target_path = File.join(@project_dir, file_info[:path])
+
+        # Check if file already exists
+        if File.exist?(target_path) || File.symlink?(target_path)
+          Aidp.log_debug("agent_instructions_generator", "file_exists",
+            path: file_info[:path])
+          return { status: :skipped, reason: "file already exists" }
+        end
+
+        # Create parent directory if needed
+        parent_dir = File.dirname(target_path)
+        unless File.directory?(parent_dir)
+          FileUtils.mkdir_p(parent_dir)
+          Aidp.log_debug("agent_instructions_generator", "created_directory",
+            path: parent_dir)
+        end
+
+        # Calculate relative path from target to master
+        relative_master = calculate_relative_path(target_path, master_path)
+
+        # Create symlink
+        begin
+          File.symlink(relative_master, target_path)
+          Aidp.log_debug("agent_instructions_generator", "symlink_created",
+            target: file_info[:path], source: relative_master)
+          { status: :created }
+        rescue Errno::EEXIST
+          { status: :skipped, reason: "symlink already exists" }
+        rescue => e
+          Aidp.log_error("agent_instructions_generator", "symlink_failed",
+            target: file_info[:path], error: e.message)
+          { status: :skipped, reason: e.message }
+        end
+      end
+
+      def calculate_relative_path(from_path, to_path)
+        from_dir = File.dirname(from_path)
+        Pathname.new(to_path).relative_path_from(Pathname.new(from_dir)).to_s
+      end
+
+      def report_generation_results(generated, symlinked, skipped)
+        if generated.any?
+          display_message("\n   Created master agent instructions:", type: :info)
+          generated.each { |f| display_message("     - #{f}", type: :success) }
+        end
+
+        if symlinked.any?
+          display_message("\n   Created provider symlinks:", type: :info)
+          symlinked.each { |f| display_message("     - #{f} -> #{MASTER_FILE}", type: :success) }
+        end
+
+        if skipped.any?
+          display_message("\n   Preserved existing files:", type: :info)
+          skipped.each { |s| display_message("     - #{s[:path]} (#{s[:reason]})", type: :info) }
+        end
+      end
+
+      def format_list(values)
+        Array(values).join(", ")
+      end
+
+      def extract_confident_names(detections, threshold: 0.7, key: :name)
+        return [] if detections.nil? || detections.empty?
+
+        detections.select { |d| d[:confidence] >= threshold }.map { |d| d[key] }
+      end
+    end
+  end
+end
