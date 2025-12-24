@@ -242,5 +242,146 @@ RSpec.describe Aidp::Watch::ReviewProcessor do
 
       processor.process(pr)
     end
+
+    context "when verifier raises an exception" do
+      before do
+        allow(verifier).to receive(:verify).and_raise(StandardError.new("Verification crashed"))
+      end
+
+      it "does not include verification section in comment" do
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          expect(body).not_to include("Implementation Incomplete")
+          expect(body).not_to include("Implementation Verification")
+          expect(body).to include("AIDP Code Review")
+        end
+
+        processor.process(pr)
+      end
+
+      it "logs the verification failure" do
+        allow(repository_client).to receive(:post_comment)
+
+        expect(Aidp).to receive(:log_error).with(
+          "review_processor",
+          "Verification failed",
+          hash_including(error: "Verification crashed")
+        )
+
+        processor.process(pr)
+      end
+    end
+
+    context "when verifier returns a technical error result" do
+      # This tests the current behavior where verification errors are displayed
+      # as "Implementation Incomplete" - documenting this as a potential issue
+      before do
+        allow(verifier).to receive(:verify).and_return({
+          verified: false,
+          reason: "Verification failed due to error: wrong number of arguments (given 3, expected 2)",
+          missing_items: ["Unable to verify due to technical error"],
+          additional_work: []
+        })
+      end
+
+      it "currently displays technical errors as incomplete (documents existing behavior)" do
+        # NOTE: This test documents current behavior that may need improvement
+        # A technical error should ideally be distinguishable from a genuine
+        # "implementation incomplete" determination
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          expect(body).to include("⚠️ Implementation Incomplete")
+          expect(body).to include("wrong number of arguments")
+          expect(body).to include("Unable to verify due to technical error")
+        end
+
+        processor.process(pr)
+      end
+
+      it "includes error message in summary which hints at technical failure" do
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          # The summary should at least show the error nature
+          expect(body).to include("**Summary:** Verification failed due to error")
+        end
+
+        processor.process(pr)
+      end
+    end
+
+    context "when verifier returns AI engine unavailable error" do
+      before do
+        allow(verifier).to receive(:verify).and_return({
+          verified: false,
+          reason: "AI decision engine not available for verification",
+          missing_items: ["Unable to verify - AI decision engine initialization failed"],
+          additional_work: []
+        })
+      end
+
+      it "displays AI unavailable as incomplete (documents existing behavior)" do
+        expect(repository_client).to receive(:post_comment) do |_number, body|
+          expect(body).to include("⚠️ Implementation Incomplete")
+          expect(body).to include("AI decision engine not available")
+        end
+
+        processor.process(pr)
+      end
+    end
+  end
+
+  describe "distinguishing verification errors from incomplete determinations" do
+    # These tests document the gap where technical errors look like incomplete implementations
+    let(:state_extractor) { instance_double(Aidp::Watch::GitHubStateExtractor) }
+    let(:pr_with_issue) do
+      pr.merge(body: "Fixes #42\n\nThis PR adds a new feature")
+    end
+
+    before do
+      allow(Aidp::Watch::GitHubStateExtractor).to receive(:new).and_return(state_extractor)
+      allow(state_extractor).to receive(:review_completed?).and_return(false)
+      allow(state_extractor).to receive(:extract_linked_issue).and_return(42)
+      allow(repository_client).to receive(:fetch_pull_request).with(123).and_return(pr_with_issue)
+      allow(repository_client).to receive(:fetch_pull_request_files).with(123).and_return(files)
+      allow(repository_client).to receive(:fetch_pull_request_diff).with(123).and_return(diff)
+      allow(repository_client).to receive(:fetch_issue).with(42).and_return({number: 42, title: "Add feature", body: "Feature description"})
+      allow(repository_client).to receive(:remove_labels)
+      allow(Aidp::Worktree).to receive(:find_by_branch).and_return(nil)
+    end
+
+    it "genuine incomplete: missing items describe actual missing features" do
+      allow(verifier).to receive(:verify).and_return({
+        verified: false,
+        reason: "Implementation does not address all requirements",
+        missing_items: ["User authentication endpoint", "Database migration"],
+        additional_work: ["Add login route", "Create users table migration"]
+      })
+
+      expect(repository_client).to receive(:post_comment) do |_number, body|
+        expect(body).to include("⚠️ Implementation Incomplete")
+        # Missing items are specific feature descriptions
+        expect(body).to include("User authentication endpoint")
+        expect(body).to include("Database migration")
+        # Additional work is actionable
+        expect(body).to include("Add login route")
+      end
+
+      processor.process(pr)
+    end
+
+    it "technical error: missing items indicate verification failure" do
+      allow(verifier).to receive(:verify).and_return({
+        verified: false,
+        reason: "Verification failed due to error: connection refused",
+        missing_items: ["Unable to verify due to technical error"],
+        additional_work: []
+      })
+
+      expect(repository_client).to receive(:post_comment) do |_number, body|
+        expect(body).to include("⚠️ Implementation Incomplete")
+        # These are error indicators, not missing features
+        expect(body).to include("Unable to verify due to technical error")
+        expect(body).to include("Verification failed due to error")
+      end
+
+      processor.process(pr)
+    end
   end
 end

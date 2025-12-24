@@ -161,6 +161,88 @@ RSpec.describe Aidp::Watch::ImplementationVerifier do
 
         verifier.verify(issue: issue, working_dir: working_dir)
       end
+
+      it "includes error class name in logs" do
+        expect(Aidp).to receive(:log_error).with(
+          "implementation_verifier",
+          "zfc_verification_failed",
+          hash_including(error_class: "StandardError")
+        )
+
+        verifier.verify(issue: issue, working_dir: working_dir)
+      end
+    end
+
+    context "when ZFC verification fails with ArgumentError" do
+      before do
+        Dir.chdir(working_dir) do
+          FileUtils.mkdir_p("app/models")
+          File.write("app/models/user.rb", "class User < ApplicationRecord\nend\n")
+          system("git add .", out: File::NULL, err: File::NULL)
+          system("git commit -m 'Add user model'", out: File::NULL, err: File::NULL)
+        end
+
+        allow(ai_decision_engine).to receive(:decide).and_raise(
+          ArgumentError.new("wrong number of arguments (given 3, expected 2)")
+        )
+      end
+
+      it "fails safe with ArgumentError and returns not verified" do
+        result = verifier.verify(issue: issue, working_dir: working_dir)
+
+        expect(result[:verified]).to be false
+        expect(result[:reason]).to include("wrong number of arguments")
+        expect(result[:missing_items]).to include("Unable to verify due to technical error")
+      end
+
+      it "logs ArgumentError with correct error class" do
+        expect(Aidp).to receive(:log_error).with(
+          "implementation_verifier",
+          "zfc_verification_failed",
+          hash_including(
+            error: "wrong number of arguments (given 3, expected 2)",
+            error_class: "ArgumentError"
+          )
+        )
+
+        verifier.verify(issue: issue, working_dir: working_dir)
+      end
+
+      it "result reason indicates this is a technical error not an incomplete implementation" do
+        result = verifier.verify(issue: issue, working_dir: working_dir)
+
+        # The reason should clearly indicate this is an error, not a determination
+        expect(result[:reason]).to match(/failed|error/i)
+        # Missing items should indicate technical failure
+        expect(result[:missing_items].first).to match(/technical error|unable to verify/i)
+      end
+    end
+
+    context "when AI decision engine is nil" do
+      let(:verifier_without_ai) do
+        described_class.new(
+          repository_client: repository_client,
+          project_dir: project_dir,
+          ai_decision_engine: nil
+        )
+      end
+
+      before do
+        Dir.chdir(project_dir) do
+          FileUtils.mkdir_p("app/models")
+          File.write("app/models/user.rb", "class User < ApplicationRecord\nend\n")
+          system("git add .", out: File::NULL, err: File::NULL)
+          system("git commit -m 'Add user model'", out: File::NULL, err: File::NULL)
+        end
+      end
+
+      it "returns not verified with clear error message" do
+        result = verifier_without_ai.verify(issue: issue, working_dir: project_dir)
+
+        expect(result[:verified]).to be false
+        expect(result[:reason]).to include("AI decision engine not available")
+        expect(result[:missing_items]).to include("Unable to verify - AI decision engine initialization failed")
+      end
     end
 
     context "when no changes are present" do

@@ -7,6 +7,8 @@ require "time"
 require "fileutils"
 require "json"
 require "ostruct"
+require_relative "in_memory_config_adapter"
+require_relative "in_memory_config_manager"
 
 module Aidp
   module Setup
@@ -158,7 +160,9 @@ module Aidp
         # Save primary provider
         set([:harness, :default_provider], provider_choice) unless provider_choice == "custom"
 
-        ensure_provider_billing_config(provider_choice) unless provider_choice == "custom"
+        # Always ask for billing config when running interactive wizard (force: true)
+        # This ensures users can update billing type when reconfiguring
+        ensure_provider_billing_config(provider_choice, force: true) unless provider_choice == "custom"
 
         # Prompt for fallback providers (excluding the primary), pre-select existing
         existing_fallbacks = Array(get([:harness, :fallback_providers])).map(&:to_s) - [provider_choice]
@@ -908,18 +912,29 @@ module Aidp
       end
 
       def create_filter_factory
-        # Build a minimal configuration for the factory
-        config = build_harness_config_for_factory
-        Aidp::Harness::AIFilterFactory.new(config)
+        # Build in-memory configuration adapters for the factory
+        # This enables AGD to work before the config file is written
+        config_adapter = build_in_memory_config_adapter
+        config_manager = build_in_memory_config_manager
+
+        # Create provider factory with in-memory config manager
+        provider_factory = Aidp::Harness::ProviderFactory.new(config_manager)
+
+        Aidp.log_debug("setup_wizard", "creating_filter_factory",
+          provider: config_adapter.default_provider,
+          configured_providers: config_adapter.configured_providers)
+
+        Aidp::Harness::AIFilterFactory.new(config_adapter, provider_factory: provider_factory)
       end
 
-      def build_harness_config_for_factory
-        # Create a minimal config object that the factory needs
-        OpenStruct.new(
-          default_provider: get([:harness, :default_provider]),
-          providers: get([:providers]) || {},
-          thinking_tiers: get([:thinking, :tiers])
-        )
+      def build_in_memory_config_adapter
+        # Create adapter that provides Configuration-like interface from in-memory config
+        InMemoryConfigAdapter.new(@config, project_dir)
+      end
+
+      def build_in_memory_config_manager
+        # Create ConfigManager-compatible wrapper for in-memory config
+        InMemoryConfigManager.new(@config, project_dir)
       end
 
       def configure_test_commands
