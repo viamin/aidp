@@ -858,6 +858,69 @@ watch:
 
 For complete documentation, see [GITHUB_PROJECTS.md](GITHUB_PROJECTS.md).
 
+### Worktree Cleanup Configuration
+
+Configure automatic cleanup of worktrees whose branches have been merged:
+
+```yaml
+watch:
+  worktree_cleanup:
+    enabled: true              # Enable/disable automatic cleanup
+    frequency: "weekly"        # "daily" or "weekly" (default: weekly)
+    base_branch: "main"        # Branch to check merges against
+    delete_branch: true        # Delete local branch when removing worktree
+```
+
+**Configuration Options:**
+
+- `enabled` (boolean, default: `true`): Enable or disable automatic worktree cleanup
+- `frequency` (string, default: `"weekly"`): How often to run cleanup
+  - `"daily"`: Run cleanup once per day
+  - `"weekly"`: Run cleanup once per week
+- `base_branch` (string, default: `"main"`): The branch to check merges against
+- `delete_branch` (boolean, default: `true`): Whether to delete the local branch when removing the worktree
+
+**Behavior:**
+
+- Cleanup runs during watch mode according to the configured frequency
+- Only worktrees whose branches are **fully merged** into the base branch are cleaned
+- Worktrees with **uncommitted changes** are skipped (safety first)
+- Failed worktrees are skipped and retried on the next cleanup cycle
+- Cleanup runs silently with log entries (no interactive prompts)
+- Last cleanup time is tracked in `.aidp/watch/<repository>.yml`
+
+**Example Configurations:**
+
+**Conservative (weekly, keep branches):**
+
+```yaml
+watch:
+  worktree_cleanup:
+    enabled: true
+    frequency: "weekly"
+    base_branch: "main"
+    delete_branch: false      # Keep branches for reference
+```
+
+**Aggressive (daily, full cleanup):**
+
+```yaml
+watch:
+  worktree_cleanup:
+    enabled: true
+    frequency: "daily"
+    base_branch: "main"
+    delete_branch: true
+```
+
+**Disabled:**
+
+```yaml
+watch:
+  worktree_cleanup:
+    enabled: false
+```
+
 ## Devcontainer Configuration
 
 AIDP can automatically generate and manage your `.devcontainer/devcontainer.json` configuration based on your project settings.

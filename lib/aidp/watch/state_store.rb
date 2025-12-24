@@ -397,7 +397,44 @@ module Aidp
         }
       end
 
+      # Worktree cleanup tracking methods (issue #367)
+
+      # Get the timestamp of last worktree cleanup
+      # @return [Time, nil] Time of last cleanup or nil if never run
+      def last_worktree_cleanup
+        timestamp = worktree_cleanup_state["last_cleanup_at"]
+        return nil unless timestamp
+
+        Time.parse(timestamp)
+      rescue ArgumentError
+        nil
+      end
+
+      # Record a worktree cleanup run
+      # @param cleaned [Integer] Number of worktrees cleaned
+      # @param skipped [Integer] Number of worktrees skipped
+      # @param errors [Array<Hash>] List of errors encountered
+      def record_worktree_cleanup(cleaned:, skipped:, errors: [])
+        state["worktree_cleanup"] = {
+          "last_cleanup_at" => Time.now.utc.iso8601,
+          "last_cleaned_count" => cleaned,
+          "last_skipped_count" => skipped,
+          "last_errors" => errors.map { |e| stringify_keys(e) }
+        }
+        save!
+      end
+
+      # Get the full worktree cleanup state
+      # @return [Hash] Cleanup state data
+      def worktree_cleanup_data
+        worktree_cleanup_state.dup
+      end
+
       private
+
+      def worktree_cleanup_state
+        state["worktree_cleanup"] ||= {}
+      end
 
       def ensure_directory
         FileUtils.mkdir_p(File.dirname(@path))
