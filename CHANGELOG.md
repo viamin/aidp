@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.35.0](https://github.com/viamin/aidp/compare/aidp/v0.34.1...aidp/v0.35.0) (2025-12-26)
+
+
+### Features
+
+* add comprehensive logging to InMemoryConfig classes ([1d37e35](https://github.com/viamin/aidp/commit/1d37e356fab09b615e6277fc8643cc4527adb449))
+* add escalation config methods to InMemoryConfigAdapter ([6847db0](https://github.com/viamin/aidp/commit/6847db0040805c542511d54e28be1c4399658a06))
+* add generic deterministic commands to replace category-specific arrays ([21dab1d](https://github.com/viamin/aidp/commit/21dab1d0e36eea6c478bf7e2bb0f8e2e57048d6d)), closes [#315](https://github.com/viamin/aidp/issues/315)
+* add generic deterministic commands to replace category-specific arrays ([#426](https://github.com/viamin/aidp/issues/426)) ([5beffbf](https://github.com/viamin/aidp/commit/5beffbf0583d28ecae6f190fe5984eb749ba243c))
+* add methods to read and write run loop start time to checkpoint file ([f0fff22](https://github.com/viamin/aidp/commit/f0fff224fd3c77f850e8d21997838d9f94542369))
+* add run loop start time to checkpoint data and display ([d688db0](https://github.com/viamin/aidp/commit/d688db061ba85f395b544204a39515c1eec8528b))
+* automatic worktree cleanup in watch mode ([#367](https://github.com/viamin/aidp/issues/367)) ([f17f362](https://github.com/viamin/aidp/commit/f17f3622a75bbd1ffd46f6baa191a26e19257dea))
+* automatic worktree cleanup in watch mode ([#367](https://github.com/viamin/aidp/issues/367)) ([#432](https://github.com/viamin/aidp/issues/432)) ([a28cdc6](https://github.com/viamin/aidp/commit/a28cdc67e2b1224f08ceed154b50e6a6549b4ba2))
+
+
+### Bug Fixes
+
+* add fallback_providers override to integration test configs ([79e8b98](https://github.com/viamin/aidp/commit/79e8b989298a7668726cf6d5b634bc2c3c324d02))
+* add full_loop phase execution at work loop completion ([c001a2a](https://github.com/viamin/aidp/commit/c001a2a0c859623a5863234b40ef4e53fedfbcda))
+* add safety guards to prevent infinite loops in wizard ([cd34714](https://github.com/viamin/aidp/commit/cd34714310a025256b0ee099e4e0ab67587cf684))
+* address code review feedback for InMemoryConfigManager ([bbfc31e](https://github.com/viamin/aidp/commit/bbfc31eef6404114a2fd74020421152d45cc2994))
+* always show billing type selection for primary provider ([0b80358](https://github.com/viamin/aidp/commit/0b80358946e11901779d471213822502e2f7dcad)), closes [#429](https://github.com/viamin/aidp/issues/429)
+* enable AGD/ZFC during interactive config before file write ([db19af5](https://github.com/viamin/aidp/commit/db19af51393410c49b66b911538ed305a3a213e8)), closes [#429](https://github.com/viamin/aidp/issues/429)
+* enable AGD/ZFC during interactive config before file write ([#430](https://github.com/viamin/aidp/issues/430)) ([c7717cb](https://github.com/viamin/aidp/commit/c7717cb96135df35123284fc29c119e8d7a41b1e))
+* ensure config_valid? returns boolean instead of hash ([4d913d5](https://github.com/viamin/aidp/commit/4d913d515e53495468a271882becc98853f8c42f))
+* errors in watch mode ([1ea39c0](https://github.com/viamin/aidp/commit/1ea39c08aed8d97b3b3df3970757e26172bc56e5))
+* reorder menu choices to prevent infinite loop in tests ([b4889de](https://github.com/viamin/aidp/commit/b4889de01a6cc0c5943cd2b5764df8a1ffb9fa74))
+* spec timestamp precision and add worktree_cleanup docs ([774c922](https://github.com/viamin/aidp/commit/774c922b0e179ab1f0a1ebbcc37ddf3e0eb29cb3))
+* update related documentation links in GITHUB_PROJECTS.md ([ad4873b](https://github.com/viamin/aidp/commit/ad4873b5dd476be50871a7db0c2e75ef8f7f7674))
+* use correct config filename aidp.yml in integration tests ([44ad9d3](https://github.com/viamin/aidp/commit/44ad9d373813edad92e39dbfe3feef6b0769b70e))
+* use valid enum value 'other' instead of 'none' in test ([caf2a06](https://github.com/viamin/aidp/commit/caf2a065b3159e4f9ca55742362a8e01402402d7))
+
+
+### Documentation
+
+* add ZFC_PATTERN.md and fix broken references ([526ec24](https://github.com/viamin/aidp/commit/526ec241dfd40ec62e73d1834ab70930180df9d1))
+* reorganize documentation using Diataxis framework ([15f04ba](https://github.com/viamin/aidp/commit/15f04baf4b25f758507b5c3b65ad0cb87aea112f)), closes [#279](https://github.com/viamin/aidp/issues/279)
+* reorganize documentation using Diataxis framework ([#428](https://github.com/viamin/aidp/issues/428)) ([7b19880](https://github.com/viamin/aidp/commit/7b19880ba62eea10307e6be998af1f0c0f53a2f1))
+
 ## [0.34.1](https://github.com/viamin/aidp/compare/aidp/v0.34.0...aidp/v0.34.1) (2025-12-17)
 
 
