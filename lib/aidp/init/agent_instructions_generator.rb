@@ -62,7 +62,7 @@ module Aidp
           when :created
             symlinked_files << file_info[:path]
           when :skipped
-            skipped_files << { path: file_info[:path], reason: result[:reason] }
+            skipped_files << {path: file_info[:path], reason: result[:reason]}
           end
         end
 
@@ -123,17 +123,15 @@ module Aidp
         files = []
 
         PROVIDER_CLASSES.each do |class_name|
-          begin
-            provider_class = Aidp::Providers.const_get(class_name)
-            next unless provider_class.respond_to?(:instruction_file_paths)
+          provider_class = Aidp::Providers.const_get(class_name)
+          next unless provider_class.respond_to?(:instruction_file_paths)
 
-            provider_class.instruction_file_paths.each do |file_info|
-              files << file_info.merge(provider: class_name.downcase)
-            end
-          rescue NameError => e
-            Aidp.log_debug("agent_instructions_generator", "provider_not_found",
-              provider: class_name, error: e.message)
+          provider_class.instruction_file_paths.each do |file_info|
+            files << file_info.merge(provider: class_name.downcase)
           end
+        rescue NameError => e
+          Aidp.log_debug("agent_instructions_generator", "provider_not_found",
+            provider: class_name, error: e.message)
         end
 
         files
@@ -254,7 +252,7 @@ module Aidp
         if File.exist?(target_path) || File.symlink?(target_path)
           Aidp.log_debug("agent_instructions_generator", "file_exists",
             path: file_info[:path])
-          return { status: :skipped, reason: "file already exists" }
+          return {status: :skipped, reason: "file already exists"}
         end
 
         # Create parent directory if needed
@@ -273,13 +271,13 @@ module Aidp
           File.symlink(relative_master, target_path)
           Aidp.log_debug("agent_instructions_generator", "symlink_created",
             target: file_info[:path], source: relative_master)
-          { status: :created }
+          {status: :created}
         rescue Errno::EEXIST
-          { status: :skipped, reason: "symlink already exists" }
+          {status: :skipped, reason: "symlink already exists"}
         rescue => e
           Aidp.log_error("agent_instructions_generator", "symlink_failed",
             target: file_info[:path], error: e.message)
-          { status: :skipped, reason: e.message }
+          {status: :skipped, reason: e.message}
         end
       end
 
