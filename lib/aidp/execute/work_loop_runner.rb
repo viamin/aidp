@@ -496,8 +496,9 @@ module Aidp
 
       def append_evaluation_feedback_to_prompt(evaluation)
         feedback_section = build_evaluation_feedback_section(evaluation)
-
-        @prompt_manager.append(feedback_section)
+        current_prompt = @prompt_manager.read || ""
+        updated_prompt = current_prompt + "\n\n---\n\n" + feedback_section
+        @prompt_manager.write(updated_prompt, step_name: @step_name)
 
         Aidp.log_debug("work_loop", "appended_evaluation_feedback",
           iteration: @iteration_count,
