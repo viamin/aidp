@@ -57,17 +57,21 @@ RSpec.describe Aidp::Init::Runner do
   let(:analyzer) { instance_double(Aidp::Init::ProjectAnalyzer) }
   let(:doc_generator) { instance_double(Aidp::Init::DocGenerator) }
   let(:devcontainer_generator) { instance_double(Aidp::Init::DevcontainerGenerator) }
-  let(:prompt) { fake_prompt_class.new([true, false, true, false]) }
+  let(:agent_instructions_generator) { instance_double(Aidp::Init::AgentInstructionsGenerator) }
+  # Responses: adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions
+  let(:prompt) { fake_prompt_class.new([true, false, true, false, false]) }
 
   before do
     allow(analyzer).to receive(:analyze).and_return(analysis)
     allow(doc_generator).to receive(:generate)
     allow(devcontainer_generator).to receive(:exists?).and_return(false)
     allow(devcontainer_generator).to receive(:generate).and_return([".devcontainer/devcontainer.json"])
+    allow(agent_instructions_generator).to receive(:exists?).and_return(false)
+    allow(agent_instructions_generator).to receive(:generate).and_return(["AGENTS.md"])
   end
 
   it "runs analysis, gathers preferences, and generates docs" do
-    runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator)
+    runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator)
     result = runner.run
 
     expect(analyzer).to have_received(:analyze).with(explain_detection: nil)
@@ -75,21 +79,22 @@ RSpec.describe Aidp::Init::Runner do
       adopt_new_conventions: true,
       stricter_linters: false,
       migrate_styles: true,
-      generate_devcontainer: false
+      generate_devcontainer: false,
+      generate_agent_instructions: false
     })
     expect(result[:generated_files]).to include("docs/LLM_STYLE_GUIDE.md")
   end
 
   describe "with options" do
     it "passes explain_detection option to analyzer" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {explain_detection: true})
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {explain_detection: true})
       runner.run
 
       expect(analyzer).to have_received(:analyze).with(explain_detection: true)
     end
 
     it "skips preferences and generation in dry_run mode" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {dry_run: true})
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {dry_run: true})
       result = runner.run
 
       expect(doc_generator).not_to have_received(:generate)
@@ -103,14 +108,14 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "displays high-confidence frameworks" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator)
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator)
       # Just verify it runs without error - actual display testing would require capturing output
       expect { runner.run }.not_to raise_error
     end
   end
 
   describe "#display_summary" do
-    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {dry_run: true}) }
+    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {dry_run: true}) }
 
     it "displays languages when present" do
       expect { runner.run }.not_to raise_error
@@ -162,7 +167,7 @@ RSpec.describe Aidp::Init::Runner do
   end
 
   describe "#display_detailed_analysis" do
-    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {dry_run: true, explain_detection: true}) }
+    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {dry_run: true, explain_detection: true}) }
 
     it "displays detailed language breakdown with percentages" do
       multi_lang_analysis = analysis.merge(
@@ -215,7 +220,7 @@ RSpec.describe Aidp::Init::Runner do
   end
 
   describe "#gather_preferences" do
-    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator) }
+    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator) }
 
     it "asks about adopting conventions" do
       result = runner.run
@@ -242,13 +247,15 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "does not ask about devcontainer when explicitly set in options" do
-      custom_prompt = fake_prompt_class.new([true, false, true])
+      # Responses: adopt_new_conventions, stricter_linters, migrate_styles, generate_agent_instructions
+      custom_prompt = fake_prompt_class.new([true, false, true, false])
       runner_with_devcontainer = described_class.new(
         "/tmp",
         prompt: custom_prompt,
         analyzer: analyzer,
         doc_generator: doc_generator,
         devcontainer_generator: devcontainer_generator,
+        agent_instructions_generator: agent_instructions_generator,
         options: {with_devcontainer: true}
       )
 
@@ -266,8 +273,9 @@ RSpec.describe Aidp::Init::Runner do
   end
 
   describe "preview mode" do
-    let(:preview_prompt) { fake_prompt_class.new([true, false, true, false, true, true]) }
-    let(:runner) { described_class.new("/tmp", prompt: preview_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {preview: true}) }
+    # Responses: adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions, proceed_yes, proceed_yes
+    let(:preview_prompt) { fake_prompt_class.new([true, false, true, false, false, true, true]) }
+    let(:runner) { described_class.new("/tmp", prompt: preview_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {preview: true}) }
 
     before do
       allow(analyzer).to receive(:analyze).and_return(analysis_with_detections)
@@ -280,9 +288,9 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "cancels generation if user declines after preview" do
-      # adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, proceed (NO)
-      cancel_prompt = fake_prompt_class.new([true, false, true, false, false])
-      cancel_runner = described_class.new("/tmp", prompt: cancel_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {preview: true})
+      # adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions, proceed (NO)
+      cancel_prompt = fake_prompt_class.new([true, false, true, false, false, false])
+      cancel_runner = described_class.new("/tmp", prompt: cancel_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {preview: true})
 
       result = cancel_runner.run
 
@@ -300,6 +308,7 @@ RSpec.describe Aidp::Init::Runner do
         analyzer: analyzer,
         doc_generator: doc_generator,
         devcontainer_generator: devcontainer_generator,
+        agent_instructions_generator: agent_instructions_generator,
         options: {with_devcontainer: true}
       )
 
@@ -310,14 +319,16 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "generates devcontainer when user chooses to in preferences" do
-      devcontainer_prompt = fake_prompt_class.new([true, false, true, true])
+      # Responses: adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions
+      devcontainer_prompt = fake_prompt_class.new([true, false, true, true, false])
       allow(devcontainer_generator).to receive(:generate).and_return([".devcontainer/devcontainer.json"])
       runner = described_class.new(
         "/tmp",
         prompt: devcontainer_prompt,
         analyzer: analyzer,
         doc_generator: doc_generator,
-        devcontainer_generator: devcontainer_generator
+        devcontainer_generator: devcontainer_generator,
+        agent_instructions_generator: agent_instructions_generator
       )
 
       result = runner.run
@@ -327,13 +338,15 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "does not generate devcontainer when user declines" do
-      no_devcontainer_prompt = fake_prompt_class.new([true, false, true, false])
+      # Responses: adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions
+      no_devcontainer_prompt = fake_prompt_class.new([true, false, true, false, false])
       runner = described_class.new(
         "/tmp",
         prompt: no_devcontainer_prompt,
         analyzer: analyzer,
         doc_generator: doc_generator,
-        devcontainer_generator: devcontainer_generator
+        devcontainer_generator: devcontainer_generator,
+        agent_instructions_generator: agent_instructions_generator
       )
 
       result = runner.run
@@ -344,7 +357,7 @@ RSpec.describe Aidp::Init::Runner do
   end
 
   describe "#validate_tooling" do
-    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {preview: true}) }
+    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {preview: true}) }
 
     before do
       # Mock system calls to avoid actual command execution
@@ -415,8 +428,9 @@ RSpec.describe Aidp::Init::Runner do
   end
 
   describe "#preview_generated_docs" do
-    let(:preview_prompt) { fake_prompt_class.new([true, false, true, false, true, true]) }
-    let(:runner) { described_class.new("/tmp", prompt: preview_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {preview: true}) }
+    # Responses: adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions, proceed_yes, proceed_yes
+    let(:preview_prompt) { fake_prompt_class.new([true, false, true, false, false, true, true]) }
+    let(:runner) { described_class.new("/tmp", prompt: preview_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {preview: true}) }
 
     it "shows framework adoption status" do
       allow(analyzer).to receive(:analyze).and_return(analysis_with_detections)
@@ -425,8 +439,9 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "shows optional reference when not adopting conventions" do
-      no_adopt_prompt = fake_prompt_class.new([false, false, true, false, true, true])
-      no_adopt_runner = described_class.new("/tmp", prompt: no_adopt_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {preview: true})
+      # Responses: adopt_new_conventions (false), stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions, proceed_yes, proceed_yes
+      no_adopt_prompt = fake_prompt_class.new([false, false, true, false, false, true, true])
+      no_adopt_runner = described_class.new("/tmp", prompt: no_adopt_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {preview: true})
       allow(analyzer).to receive(:analyze).and_return(analysis_with_detections)
 
       expect { no_adopt_runner.run }.not_to raise_error
@@ -455,16 +470,18 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "displays stricter linting preference" do
-      strict_prompt = fake_prompt_class.new([true, true, true, false, true, true])
-      strict_runner = described_class.new("/tmp", prompt: strict_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {preview: true})
+      # Responses: adopt_new_conventions, stricter_linters (true), migrate_styles, generate_devcontainer, generate_agent_instructions, proceed_yes, proceed_yes
+      strict_prompt = fake_prompt_class.new([true, true, true, false, false, true, true])
+      strict_runner = described_class.new("/tmp", prompt: strict_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {preview: true})
       allow(analyzer).to receive(:analyze).and_return(analysis_with_detections)
 
       expect { strict_runner.run }.not_to raise_error
     end
 
     it "displays migration planning preference" do
-      migrate_prompt = fake_prompt_class.new([true, false, true, false, true, true])
-      migrate_runner = described_class.new("/tmp", prompt: migrate_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {preview: true})
+      # Responses: adopt_new_conventions, stricter_linters, migrate_styles, generate_devcontainer, generate_agent_instructions, proceed_yes, proceed_yes
+      migrate_prompt = fake_prompt_class.new([true, false, true, false, false, true, true])
+      migrate_runner = described_class.new("/tmp", prompt: migrate_prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {preview: true})
       allow(analyzer).to receive(:analyze).and_return(analysis_with_detections)
 
       expect { migrate_runner.run }.not_to raise_error
@@ -472,7 +489,7 @@ RSpec.describe Aidp::Init::Runner do
   end
 
   describe "#format_tool" do
-    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, options: {dry_run: true}) }
+    let(:runner) { described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator, options: {dry_run: true}) }
 
     it "formats snake_case tool names to Title Case" do
       tooling_analysis = analysis.merge(
@@ -500,7 +517,8 @@ RSpec.describe Aidp::Init::Runner do
         prompt: broken_prompt,
         analyzer: analyzer,
         doc_generator: doc_generator,
-        devcontainer_generator: devcontainer_generator
+        devcontainer_generator: devcontainer_generator,
+        agent_instructions_generator: agent_instructions_generator
       )
 
       result = runner.run
@@ -512,7 +530,7 @@ RSpec.describe Aidp::Init::Runner do
 
   describe "return value structure" do
     it "returns hash with analysis, preferences, and generated_files" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator)
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator)
 
       result = runner.run
 
@@ -522,7 +540,7 @@ RSpec.describe Aidp::Init::Runner do
     end
 
     it "includes correct file paths in generated_files" do
-      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator)
+      runner = described_class.new("/tmp", prompt: prompt, analyzer: analyzer, doc_generator: doc_generator, devcontainer_generator: devcontainer_generator, agent_instructions_generator: agent_instructions_generator)
 
       result = runner.run
 
