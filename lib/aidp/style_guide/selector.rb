@@ -152,13 +152,35 @@ module Aidp
 
       # Check if a provider needs style guide injection
       #
+      # Providers with instruction files (CLAUDE.md, .github/copilot-instructions.md, etc.)
+      # don't need style guide injected as they have their own instruction mechanism.
+      #
       # @param provider_name [String] Name of the provider
       # @return [Boolean] true if style guide should be injected
       def provider_needs_style_guide?(provider_name)
         return true if provider_name.nil?
 
         normalized = provider_name.to_s.downcase.strip
-        !PROVIDERS_WITH_INSTRUCTION_FILES.include?(normalized)
+
+        # Check legacy constant first for backwards compatibility
+        return false if PROVIDERS_WITH_INSTRUCTION_FILES.include?(normalized)
+
+        # Dynamically check if provider has instruction files
+        !provider_has_instruction_files?(normalized)
+      end
+
+      # Check if a provider class defines instruction file paths
+      #
+      # @param provider_name [String] Name of the provider
+      # @return [Boolean] true if provider has instruction files defined
+      def provider_has_instruction_files?(provider_name)
+        provider_class = find_provider_class(provider_name)
+        return false unless provider_class
+
+        instruction_paths = provider_class.instruction_file_paths
+        instruction_paths.is_a?(Array) && instruction_paths.any?
+      rescue NoMethodError
+        false
       end
 
       # Select relevant sections from STYLE_GUIDE.md based on keywords
@@ -354,6 +376,39 @@ module Aidp
         patterns << keyword.chomp("s") if keyword.end_with?("s")
 
         patterns.uniq
+      end
+
+      # Find provider class by name
+      #
+      # @param provider_name [String] Name of the provider
+      # @return [Class, nil] The provider class or nil if not found
+      def find_provider_class(provider_name)
+        # Map common provider names to class names
+        class_name = case provider_name.to_s.downcase
+        when "anthropic", "claude"
+          "Anthropic"
+        when "github_copilot", "copilot"
+          "GithubCopilot"
+        when "cursor"
+          "Cursor"
+        when "gemini"
+          "Gemini"
+        when "aider"
+          "Aider"
+        when "kilocode"
+          "Kilocode"
+        when "opencode"
+          "Opencode"
+        when "codex"
+          "Codex"
+        else
+          # Try to find by capitalizing the name
+          provider_name.to_s.split("_").map(&:capitalize).join
+        end
+
+        Aidp::Providers.const_get(class_name)
+      rescue NameError
+        nil
       end
     end
   end

@@ -56,6 +56,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for Codex provider
+      #
+      # Codex CLI looks for CODEX.md or codex-instructions.md in the project.
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: "CODEX.md",
+            description: "OpenAI Codex CLI agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       def name
         "codex"
       end

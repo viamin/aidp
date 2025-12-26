@@ -68,6 +68,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for Cursor provider
+      #
+      # Cursor looks for .cursor/rules/*.mdc files or .cursorrules
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: ".cursorrules",
+            description: "Cursor AI agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       # Discover available models from Cursor
       #
       # Note: Cursor doesn't have a public model listing API

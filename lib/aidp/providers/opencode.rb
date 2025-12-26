@@ -48,6 +48,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for OpenCode provider
+      #
+      # OpenCode looks for instruction files in the project.
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: "OPENCODE.md",
+            description: "OpenCode agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       def name
         "opencode"
       end

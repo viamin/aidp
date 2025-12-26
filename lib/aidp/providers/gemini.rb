@@ -68,6 +68,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for Gemini provider
+      #
+      # Gemini CLI looks for GEMINI.md in the project root.
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: "GEMINI.md",
+            description: "Google Gemini agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       def name
         "gemini"
       end
