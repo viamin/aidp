@@ -861,40 +861,40 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     end
 
     describe "style guide reinforcement" do
-      # Provider-aware style guide selection: use a provider that needs style guide
-      # (providers like "cursor" need it; "anthropic"/"claude" have instruction files)
-      let(:cursor_provider_manager) do
-        instance_double("ProviderManager", current_provider: "cursor")
+      # Provider-aware style guide selection: use an unknown provider that needs style guide
+      # (all real providers now have instruction files, so we use an unknown one for testing)
+      let(:unknown_provider_manager) do
+        instance_double("ProviderManager", current_provider: "unknown_test_provider")
       end
-      let(:cursor_runner) do
-        described_class.new(project_dir, cursor_provider_manager, config, prompt: test_prompt)
+      let(:unknown_runner) do
+        described_class.new(project_dir, unknown_provider_manager, config, prompt: test_prompt)
       end
 
       describe "#should_reinject_style_guide?" do
-        context "when provider needs style guide (cursor)" do
+        context "when provider needs style guide (unknown provider)" do
           it "returns false for iteration 1" do
-            cursor_runner.iteration_count = 1
-            expect(cursor_runner.send(:should_reinject_style_guide?)).to be false
+            unknown_runner.iteration_count = 1
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be false
           end
 
           it "returns false for iterations not at interval" do
-            cursor_runner.iteration_count = 3
-            expect(cursor_runner.send(:should_reinject_style_guide?)).to be false
+            unknown_runner.iteration_count = 3
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be false
           end
 
           it "returns true for iteration 5" do
-            cursor_runner.iteration_count = 5
-            expect(cursor_runner.send(:should_reinject_style_guide?)).to be true
+            unknown_runner.iteration_count = 5
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be true
           end
 
           it "returns true for iteration 10" do
-            cursor_runner.iteration_count = 10
-            expect(cursor_runner.send(:should_reinject_style_guide?)).to be true
+            unknown_runner.iteration_count = 10
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be true
           end
 
           it "returns true for iteration 15" do
-            cursor_runner.iteration_count = 15
-            expect(cursor_runner.send(:should_reinject_style_guide?)).to be true
+            unknown_runner.iteration_count = 15
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be true
           end
         end
 
@@ -908,8 +908,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
       describe "#reinject_style_guide_reminder" do
         before do
-          cursor_runner.iteration_count = 5
-          cursor_runner.step_name = "test_step"
+          unknown_runner.iteration_count = 5
+          unknown_runner.step_name = "test_step"
         end
 
         it "includes style guide content when available" do
@@ -918,9 +918,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("# Style Guide\nUse proper conventions")
-          cursor_runner.style_guide_selector = mock_selector
+          unknown_runner.style_guide_selector = mock_selector
 
-          reminder = cursor_runner.send(:reinject_style_guide_reminder)
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("Style Guide & Template Reminder")
           expect(reminder).to include("Relevant Style Guide Sections")
@@ -933,9 +933,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return(long_style_guide)
-          cursor_runner.style_guide_selector = mock_selector
+          unknown_runner.style_guide_selector = mock_selector
 
-          reminder = cursor_runner.send(:reinject_style_guide_reminder)
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("(truncated)")
           expect(reminder.length).to be < long_style_guide.length
@@ -946,9 +946,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("")
-          cursor_runner.style_guide_selector = mock_selector
+          unknown_runner.style_guide_selector = mock_selector
 
-          reminder = cursor_runner.send(:reinject_style_guide_reminder)
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("Style Guide & Template Reminder")
           expect(reminder).to include("prevent drift")
@@ -959,9 +959,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("# Style Guide")
-          cursor_runner.style_guide_selector = mock_selector
+          unknown_runner.style_guide_selector = mock_selector
 
-          reminder = cursor_runner.send(:reinject_style_guide_reminder)
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("Test failures may indicate style guide violations")
         end
@@ -984,15 +984,15 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         before do
           allow(Aidp::Execute::PromptManager).to receive(:new).and_return(prompt_manager)
           allow(prompt_manager).to receive(:read).and_return("# Current prompt content")
-          cursor_runner.iteration_count = 5
+          unknown_runner.iteration_count = 5
         end
 
-        it "includes style guide reminder at iteration 5 for cursor provider" do
+        it "includes style guide reminder at iteration 5 for unknown provider" do
           mock_selector = instance_double(Aidp::StyleGuide::Selector)
           allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
           allow(mock_selector).to receive(:extract_keywords).and_return([])
           allow(mock_selector).to receive(:select_sections).and_return("# Style Guide")
-          cursor_runner.style_guide_selector = mock_selector
+          unknown_runner.style_guide_selector = mock_selector
 
           test_results = {
             success: false,
@@ -1007,13 +1007,13 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).to include("Iteration 5")
           end
 
-          cursor_runner.prompt_manager = prompt_manager
+          unknown_runner.prompt_manager = prompt_manager
           all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
-          cursor_runner.send(:prepare_next_iteration, all_results, diagnostic)
+          unknown_runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
 
         it "does not include style guide reminder at iteration 3" do
-          cursor_runner.iteration_count = 3
+          unknown_runner.iteration_count = 3
 
           test_results = {
             success: false,
@@ -1027,9 +1027,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).not_to include("Style Guide & Template Reminder")
           end
 
-          cursor_runner.prompt_manager = prompt_manager
+          unknown_runner.prompt_manager = prompt_manager
           all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
-          cursor_runner.send(:prepare_next_iteration, all_results, diagnostic)
+          unknown_runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
       end
     end
