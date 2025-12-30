@@ -25,9 +25,7 @@ RSpec.describe Aidp::Watch::Runner do
   let(:test_prompt) { instance_double(TTY::Prompt, say: nil) }
 
   before do
-    extractor_class = Class.new
-    extractor_class.const_set(:IN_PROGRESS_LABEL, "aidp-in-progress")
-    stub_const("Aidp::Watch::GitHubStateExtractor", extractor_class)
+    stub_const("Aidp::Watch::GitHubStateExtractor", Class.new)
     allow(Aidp::Watch::RepositoryClient).to receive(:parse_issues_url).and_return(["o", "r"])
     allow(Aidp::Watch::RepositoryClient).to receive(:new).and_return(repo_client)
     allow(Aidp::Watch::RepositorySafetyChecker).to receive(:new).and_return(safety_checker)
@@ -50,7 +48,6 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp).to receive(:log_warn)
 
     allow(state_extractor).to receive_messages(
-      in_progress?: false,
       detection_comment_posted?: false,
       build_completed?: false
     )
@@ -83,6 +80,7 @@ RSpec.describe Aidp::Watch::Runner do
         process_change_request_triggers
         collect_feedback
         process_worktree_cleanup
+        process_worktree_reconciliation
       ].each do |method|
         allow(runner).to receive(method).and_return(nil)
         expect(runner).to receive(method).once
@@ -139,17 +137,13 @@ RSpec.describe Aidp::Watch::Runner do
       expect { runner.send(:process_plan_triggers) }.not_to raise_error
     end
 
-    it "processes build triggers with in-progress label handling" do
+    it "processes build triggers" do
       allow(repo_client).to receive(:list_issues).and_return([{number: 2, labels: ["build"]}])
       allow(repo_client).to receive(:fetch_issue).and_return(issue_detail.merge(number: 2, labels: ["build"]))
-      allow(repo_client).to receive(:add_labels)
-      allow(repo_client).to receive(:remove_labels)
 
       runner.send(:process_build_triggers)
 
       expect(build_processor).to have_received(:process)
-      expect(repo_client).to have_received(:add_labels)
-      expect(repo_client).to have_received(:remove_labels)
     end
 
     it "processes auto issue triggers" do

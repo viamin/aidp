@@ -4,6 +4,7 @@ require "tty-prompt"
 require_relative "feedback_collector"
 require_relative "github_state_extractor"
 require_relative "worktree_cleanup_job"
+require_relative "worktree_reconciler"
 
 module Aidp
   module Watch
@@ -123,6 +124,17 @@ module Aidp
           project_dir: project_dir,
           config: cleanup_config
         )
+
+        # Initialize worktree reconciler for dirty worktree handling
+        reconciler_config = safety_config[:worktree_reconciliation] || safety_config["worktree_reconciliation"] || {}
+        @worktree_reconciler = WorktreeReconciler.new(
+          project_dir: project_dir,
+          repository_client: @repository_client,
+          build_processor: @build_processor,
+          state_store: @state_store,
+          config: reconciler_config
+        )
+        @last_reconcile_at = nil
       end
 
       def start
@@ -174,6 +186,7 @@ module Aidp
         process_change_request_triggers
         collect_feedback
         process_worktree_cleanup
+        process_worktree_reconciliation
       end
 
       def process_plan_triggers
@@ -196,12 +209,6 @@ module Aidp
           rescue => e
             Aidp.log_error("watch_runner", "fetch_issue_failed", issue: issue[:number], error: e.message)
             next # Skip this issue, continue with others
-          end
-
-          # Check if already in progress by another instance
-          if @state_extractor.in_progress?(detailed)
-            Aidp.log_debug("watch_runner", "plan_skip_in_progress", issue: detailed[:number])
-            next
           end
 
           # Check author authorization before processing
@@ -234,7 +241,6 @@ module Aidp
         Aidp.log_debug("watch_runner", "build_poll", label: build_label, total: issues.size)
         issues.each do |issue|
           detailed = nil
-          in_progress_added = false
 
           begin
             unless issue_has_label?(issue, build_label)
@@ -255,12 +261,6 @@ module Aidp
               next
             end
 
-            # Check if already in progress by another instance
-            if @state_extractor.in_progress?(detailed)
-              Aidp.log_debug("watch_runner", "build_skip_in_progress", issue: detailed[:number])
-              next
-            end
-
             # Check author authorization before processing
             unless @safety_checker.should_process_issue?(detailed, enforce: false)
               Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number],
@@ -273,24 +273,10 @@ module Aidp
               post_detection_comment(item_type: :issue, number: detailed[:number], label: build_label)
             end
 
-            # Add in-progress label before processing
-            @repository_client.add_labels(detailed[:number], GitHubStateExtractor::IN_PROGRESS_LABEL)
-            in_progress_added = true
-
             Aidp.log_debug("watch_runner", "build_process", issue: detailed[:number])
             @build_processor.process(detailed)
           rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
             Aidp.log_warn("watch_runner", "unauthorized issue author", issue: issue[:number], error: e.message)
-          ensure
-            # Remove in-progress label when done (only if we added it)
-            if in_progress_added && detailed
-              begin
-                @repository_client.remove_labels(detailed[:number], GitHubStateExtractor::IN_PROGRESS_LABEL)
-              rescue => e
-                Aidp.log_warn("watch_runner", "failed_to_remove_in_progress_label", issue: detailed[:number],
-                  error: e.message)
-              end
-            end
           end
         end
       end
@@ -317,12 +303,6 @@ module Aidp
             detailed = @repository_client.fetch_issue(issue[:number])
           rescue => e
             Aidp.log_error("watch_runner", "auto_issue_fetch_failed", issue: issue[:number], error: e.message)
-            next
-          end
-
-          # Check if already in progress by another instance
-          if @state_extractor.in_progress?(detailed)
-            Aidp.log_debug("watch_runner", "auto_issue_skip_in_progress", issue: detailed[:number])
             next
           end
 
@@ -367,12 +347,6 @@ module Aidp
             next # Skip this PR, continue with others
           end
 
-          # Check if already in progress by another instance
-          if @state_extractor.in_progress?(detailed)
-            Aidp.log_debug("watch_runner", "review_skip_in_progress", pr: detailed[:number])
-            next
-          end
-
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
             Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number],
@@ -405,12 +379,6 @@ module Aidp
 
           detailed = @repository_client.fetch_pull_request(pr[:number])
 
-          # Check if already in progress by another instance
-          if @state_extractor.in_progress?(detailed)
-            Aidp.log_debug("watch_runner", "auto_pr_skip_in_progress", pr: detailed[:number])
-            next
-          end
-
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
             Aidp.log_debug("watch_runner", "auto_pr_skip_unauthorized_author", pr: detailed[:number],
@@ -442,12 +410,6 @@ module Aidp
 
           detailed = @repository_client.fetch_pull_request(pr[:number])
 
-          # Check if already in progress by another instance
-          if @state_extractor.in_progress?(detailed)
-            Aidp.log_debug("watch_runner", "ci_fix_skip_in_progress", pr: detailed[:number])
-            next
-          end
-
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
             Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number],
@@ -478,12 +440,6 @@ module Aidp
           end
 
           detailed = @repository_client.fetch_pull_request(pr[:number])
-
-          # Check if already in progress by another instance
-          if @state_extractor.in_progress?(detailed)
-            Aidp.log_debug("watch_runner", "change_request_skip_in_progress", pr: detailed[:number])
-            next
-          end
 
           # Check author authorization before processing
           unless @safety_checker.should_process_issue?(detailed, enforce: false)
@@ -721,6 +677,31 @@ module Aidp
       rescue => e
         Aidp.log_error("watch_runner", "worktree_cleanup_failed", error: e.message)
         display_message("⚠️  Worktree cleanup failed: #{e.message}", type: :warn) if @verbose
+      end
+
+      # Process worktree reconciliation for dirty worktrees
+      # Resumes interrupted work or reconciles merged PRs
+      def process_worktree_reconciliation
+        return unless @worktree_reconciler.enabled?
+        return unless @worktree_reconciler.reconciliation_due?(@last_reconcile_at)
+
+        Aidp.log_debug("watch_runner", "worktree_reconciliation.checking",
+          last_reconcile: @last_reconcile_at&.iso8601)
+
+        result = @worktree_reconciler.execute
+        @last_reconcile_at = Time.now
+
+        total_actions = result[:resumed] + result[:reconciled] + result[:cleaned]
+        if total_actions > 0 || @verbose
+          display_message(
+            "🔄 Worktree reconciliation: #{result[:resumed]} resumed, " \
+            "#{result[:reconciled]} reconciled, #{result[:cleaned]} cleaned",
+            type: :info
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "worktree_reconciliation_failed", error: e.message)
+        display_message("⚠️  Worktree reconciliation failed: #{e.message}", type: :warn) if @verbose
       end
     end
   end

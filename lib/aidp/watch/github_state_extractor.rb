@@ -17,16 +17,8 @@ module Aidp
       # Pattern for detecting plan proposal comments
       PLAN_PROPOSAL_PATTERN = /<!-- PLAN_SUMMARY_START -->/i
 
-      # Pattern for detecting in-progress label
-      IN_PROGRESS_LABEL = "aidp-in-progress"
-
       def initialize(repository_client:)
         @repository_client = repository_client
-      end
-
-      # Check if an issue/PR is currently being worked on by another instance
-      def in_progress?(item)
-        has_label?(item, IN_PROGRESS_LABEL)
       end
 
       # Check if build is already completed for an issue
