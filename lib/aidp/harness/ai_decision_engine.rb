@@ -277,7 +277,9 @@ module Aidp
       # @param provider_factory [ProviderFactory] Factory for creating provider instances
       def initialize(config, provider_factory: nil)
         @config = config
-        @provider_factory = provider_factory || ProviderFactory.new(config)
+        # ProviderFactory expects a ConfigManager, not a Configuration object.
+        # Pass nil to let ProviderFactory create its own ConfigManager.
+        @provider_factory = provider_factory || ProviderFactory.new
         @cache = {}
         @cache_timestamps = {}
       end
