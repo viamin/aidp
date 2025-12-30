@@ -38,7 +38,7 @@ module Aidp
         @conversation_history = []
         @user_input = {}
         @verbose = verbose
-        @debug_env = ENV["DEBUG"] == "1" || ENV["DEBUG"] == "2"
+        @debug_env = debug_level >= Aidp::DebugMixin::DEBUG_BASIC
       end
 
       # Main entry point for guided workflow selection

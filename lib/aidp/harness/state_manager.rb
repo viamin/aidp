@@ -616,7 +616,7 @@ module Aidp
           end
         rescue => e
           # Ignore errors when cleaning up stale locks
-          warn "Failed to cleanup stale lock: #{e.message}" if ENV["DEBUG"]
+          warn "Failed to cleanup stale lock: #{e.message}" if Aidp.debug_env_enabled?
         end
       end
     end

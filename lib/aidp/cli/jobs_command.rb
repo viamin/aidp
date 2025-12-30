@@ -311,7 +311,7 @@ module Aidp
 
           jobs << job_info
         rescue JSON::ParserError => e
-          display_message("Warning: Could not parse harness log #{log_file}: #{e.message}", type: :warning) if ENV["AIDP_DEBUG"]
+          display_message("Warning: Could not parse harness log #{log_file}: #{e.message}", type: :warning) if Aidp.debug_env_enabled?
         end
 
         # Sort by creation time (newest first)

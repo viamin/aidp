@@ -121,13 +121,7 @@ module Aidp
     end
 
     def debug_env_enabled?
-      raw = ENV["AIDP_DEBUG"] || ENV["DEBUG"]
-      return false if raw.nil?
-
-      normalized = raw.to_s.strip.downcase
-      return true if %w[true on yes debug].include?(normalized)
-
-      /\A\d+\z/.match?(normalized) ? normalized.to_i.positive? : false
+      Aidp.debug_env_enabled?
     end
 
     def should_log?(level)
@@ -318,6 +312,30 @@ module Aidp
     # Get current logger instance (creates default if not set up)
     def logger
       @logger ||= Logger.new
+    end
+
+    def debug_env_value
+      ENV["AIDP_DEBUG"] || ENV["DEBUG"]
+    end
+
+    def debug_env_enabled?
+      raw = debug_env_value
+      return false if raw.nil?
+
+      normalized = raw.to_s.strip.downcase
+      return true if %w[true on yes debug].include?(normalized)
+
+      /\A\d+\z/.match?(normalized) ? normalized.to_i.positive? : false
+    end
+
+    def debug_env_level
+      raw = debug_env_value
+      return 0 if raw.nil?
+
+      normalized = raw.to_s.strip.downcase
+      return 1 if %w[true on yes debug].include?(normalized)
+
+      /\A\d+\z/.match?(normalized) ? normalized.to_i : 0
     end
 
     # Convenience logging methods

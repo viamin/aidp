@@ -154,7 +154,7 @@ module Aidp
         provider_instance.fetch_mcp_servers
       rescue => e
         log_rescue(e, component: "provider_info", action: "fetch_mcp_servers", fallback: [], provider: @provider_name)
-        warn "Failed to fetch MCP servers for #{@provider_name}: #{e.message}" if ENV["AIDP_DEBUG"]
+        warn "Failed to fetch MCP servers for #{@provider_name}: #{e.message}" if Aidp.debug_env_enabled?
         []
       end
 
@@ -369,7 +369,7 @@ module Aidp
         @provider_instance = provider_class.new
       rescue => e
         log_rescue(e, component: "provider_info", action: "create_provider_instance", fallback: nil, provider: @provider_name)
-        warn "Failed to create provider instance for #{@provider_name}: #{e.message}" if ENV["AIDP_DEBUG"]
+        warn "Failed to create provider instance for #{@provider_name}: #{e.message}" if Aidp.debug_env_enabled?
         nil
       end
 

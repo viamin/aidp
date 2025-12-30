@@ -459,7 +459,7 @@ module Aidp
           **data.slice(:error, :error_class, :criteria, :all_complete, :summary).compact)
 
         # Also log to standard output in debug mode
-        puts "[#{Time.now.strftime("%H:%M:%S")}] #{message}" if ENV["AIDP_DEBUG"] == "1"
+        puts "[#{Time.now.strftime("%H:%M:%S")}] #{message}" if Aidp.debug_env_level >= 1
       end
 
       def get_completion_message

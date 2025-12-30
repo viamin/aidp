@@ -133,7 +133,7 @@ module Aidp
             end
           rescue => e
             # Skip providers that can't be loaded, but don't fail the entire discovery
-            warn "Warning: Could not load provider #{provider_name}: #{e.message}" if ENV["DEBUG"]
+            warn "Warning: Could not load provider #{provider_name}: #{e.message}" if Aidp.debug_env_enabled?
           end
         end
 

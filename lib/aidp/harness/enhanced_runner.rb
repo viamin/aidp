@@ -476,7 +476,7 @@ module Aidp
         }
 
         # Show backtrace in debug mode only
-        if ENV["DEBUG"]
+        if Aidp.debug_env_enabled?
           @tui.show_message("Backtrace: #{error.backtrace&.first(3)&.join("\n")}", :error)
         end
       end

@@ -1328,6 +1328,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         error = StandardError.new("Test error")
         error.set_backtrace(["line1", "line2", "line3", "line4"])
 
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("AIDP_DEBUG").and_return("true")
         allow(ENV).to receive(:[]).with("DEBUG").and_return("true")
 
         expect(mock_tui).to receive(:show_message).with("Backtrace: line1\nline2\nline3", :error)
@@ -1339,6 +1341,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         error = StandardError.new("Test error")
         error.set_backtrace(["line1", "line2"])
 
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("AIDP_DEBUG").and_return(nil)
         allow(ENV).to receive(:[]).with("DEBUG").and_return(nil)
 
         expect(mock_tui).not_to receive(:show_message).with(/Backtrace/, :error)
