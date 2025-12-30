@@ -207,24 +207,6 @@ watch:
 
 ---
 
-## System Labels
-
-### aidp-in-progress
-
-**Purpose:** Prevents concurrent processing by multiple instances.
-
-**Behavior:**
-
-- Added when processing begins
-- Removed when processing completes
-- Other instances skip items with this label
-
-**Default Label:** `aidp-in-progress`
-
-**Note:** This is an internal label managed by AIDP. Do not add/remove manually.
-
----
-
 ## Configuration Example
 
 Full label configuration in `.aidp/aidp.yml`:
@@ -286,8 +268,7 @@ aidp-request-changes → (removed on completion)
 
 1. Verify exact label name matches configuration
 2. Check if author is in allowlist (if configured)
-3. Look for `aidp-in-progress` blocking
-4. Check Watch Mode logs for errors
+3. Check Watch Mode logs for errors
 
 ### Duplicate processing
 

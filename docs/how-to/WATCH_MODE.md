@@ -144,13 +144,6 @@ watch:
     allow_public_repos: true
 ```
 
-### In-Progress Label
-
-Prevents concurrent processing of the same item by multiple instances:
-
-- Adds `aidp-in-progress` label during processing
-- Removes on completion
-
 ### Detection Comments
 
 Posts detection comments to prevent duplicate processing:
@@ -213,8 +206,7 @@ Reactions are tracked in state and can be used for evaluation.
 
 1. Check if the label exactly matches configuration
 2. Verify author is in allowlist (if configured)
-3. Check for `aidp-in-progress` label blocking processing
-4. Review `.aidp/watch/*.yml` for state conflicts
+3. Review `.aidp/watch/*.yml` for state conflicts
 
 **CI status not detected:**
 

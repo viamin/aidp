@@ -386,6 +386,24 @@ git merge aidp/issue-123
 aidp ws rm issue-123 --delete-branch
 ```
 
+**Q: What happens to worktrees with uncommitted changes?**
+
+A: In watch mode, the worktree reconciler automatically handles dirty worktrees:
+
+- For open issues with the `aidp-build` label: Work is resumed automatically
+- For merged PRs: If meaningful uncommitted changes remain, a follow-up PR is created
+- For closed PRs: The worktree is skipped for manual review
+
+Configure this behavior in `aidp.yml` under `watch.worktree_reconciler`. See [CONFIGURATION.md](../reference/CONFIGURATION.md#worktree-reconciler-configuration) for details.
+
+**Q: How do I manually clean up a worktree with uncommitted changes?**
+
+A: You have several options:
+
+1. Commit the changes: `cd .worktrees/<slug> && git add . && git commit`
+2. Discard changes: `cd .worktrees/<slug> && git checkout .`
+3. Force remove: `aidp ws rm <slug> --force` (discards uncommitted changes)
+
 ## See Also
 
 - [Git Worktree Documentation](https://git-scm.com/docs/git-worktree)

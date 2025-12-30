@@ -921,6 +921,75 @@ watch:
     enabled: false
 ```
 
+### Worktree Reconciler Configuration
+
+Configure automatic reconciliation of worktrees with uncommitted changes:
+
+```yaml
+watch:
+  worktree_reconciler:
+    enabled: true              # Enable/disable automatic reconciliation
+    interval_seconds: 300      # How often to check (default: 5 minutes)
+    base_branch: "main"        # Branch to compare against for merged PRs
+    auto_resume: true          # Resume work on open issues with aidp-build label
+    auto_reconcile: true       # Create follow-up PRs for uncommitted changes after merge
+```
+
+**Configuration Options:**
+
+- `enabled` (boolean, default: `true`): Enable or disable automatic worktree reconciliation
+- `interval_seconds` (integer, default: `300`): How often to check for dirty worktrees (in seconds)
+- `base_branch` (string, default: `"main"`): The branch to compare against when checking merged PRs
+- `auto_resume` (boolean, default: `true`): Automatically resume work on open issues that have the build label
+- `auto_reconcile` (boolean, default: `true`): Automatically reconcile merged PRs by creating follow-up PRs for remaining uncommitted changes
+
+**Behavior:**
+
+The worktree reconciler handles worktrees that have uncommitted changes (dirty worktrees):
+
+1. **Open Issues/PRs with Build Label**: If a worktree is linked to an open issue/PR that has the `aidp-build` label, the reconciler will resume work by triggering the build processor. This handles cases where work was interrupted.
+
+2. **Merged PRs**: If the linked PR was merged but uncommitted changes remain in the worktree:
+   - Compares uncommitted changes against what was actually merged
+   - If meaningful differences exist, creates a follow-up PR
+   - If no meaningful differences, cleans up the worktree
+
+3. **Closed PRs (not merged)**: Skips with a log entry for manual review
+
+4. **Orphan Worktrees**: Worktrees without a linked issue or PR are skipped
+
+**Example Configurations:**
+
+**Default (auto-resume and reconcile):**
+
+```yaml
+watch:
+  worktree_reconciler:
+    enabled: true
+    interval_seconds: 300
+    auto_resume: true
+    auto_reconcile: true
+```
+
+**Resume only (no auto-reconcile):**
+
+```yaml
+watch:
+  worktree_reconciler:
+    enabled: true
+    interval_seconds: 600      # Check every 10 minutes
+    auto_resume: true
+    auto_reconcile: false      # Don't create follow-up PRs automatically
+```
+
+**Disabled:**
+
+```yaml
+watch:
+  worktree_reconciler:
+    enabled: false
+```
+
 ## Devcontainer Configuration
 
 AIDP can automatically generate and manage your `.devcontainer/devcontainer.json` configuration based on your project settings.

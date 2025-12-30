@@ -1787,14 +1787,6 @@ module Aidp
           required << {name: name, color: color, key: key}
         end
 
-        # Always include the internal in-progress label for coordination
-        required << {
-          name: "aidp-in-progress",
-          color: default_colors[:in_progress],
-          key: :in_progress,
-          internal: true
-        }
-
         Aidp.log_debug("setup_wizard.collect_labels", "collected", count: required.size)
         required
       end

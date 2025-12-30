@@ -1367,8 +1367,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         allow(wizard).to receive(:gh_cli_available?).and_return(true)
         allow(wizard).to receive(:extract_repo_info).and_return(["owner", "repo"])
-        # Include aidp-in-progress as existing since it's always added
-        allow(wizard).to receive(:fetch_existing_labels).and_return(["aidp-plan", "aidp-in-progress"])
+        allow(wizard).to receive(:fetch_existing_labels).and_return(["aidp-plan"])
         expect(wizard).not_to receive(:create_labels)
 
         wizard.send(:configure_watch_label_creation)
@@ -1396,8 +1395,8 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(wizard).to receive(:create_labels) do |owner, repo, labels|
           expect(owner).to eq("owner")
           expect(repo).to eq("repo")
-          expect(labels.size).to eq(2)  # aidp-build + aidp-in-progress
-          expect(labels.map { |l| l[:name] }).to include("aidp-build", "aidp-in-progress")
+          expect(labels.size).to eq(1)  # aidp-build only
+          expect(labels.map { |l| l[:name] }).to include("aidp-build")
         end
 
         wizard.send(:configure_watch_label_creation)
@@ -1528,14 +1527,11 @@ RSpec.describe Aidp::Setup::Wizard do
       }
       result = wizard.send(:collect_required_labels, labels_config)
 
-      expect(result.size).to eq(3)  # Includes aidp-in-progress
+      expect(result.size).to eq(2)
       expect(result[0][:name]).to eq("aidp-plan")
       expect(result[0][:color]).to eq("0E8A16")
       expect(result[1][:name]).to eq("aidp-build")
       expect(result[1][:color]).to eq("5319E7")
-      expect(result[2][:name]).to eq("aidp-in-progress")
-      expect(result[2][:color]).to eq("1D76DB")
-      expect(result[2][:internal]).to eq(true)
     end
 
     it "skips nil or empty label names" do
@@ -1546,9 +1542,8 @@ RSpec.describe Aidp::Setup::Wizard do
       }
       result = wizard.send(:collect_required_labels, labels_config)
 
-      expect(result.size).to eq(2)  # aidp-plan + aidp-in-progress
+      expect(result.size).to eq(1)  # aidp-plan only
       expect(result[0][:name]).to eq("aidp-plan")
-      expect(result[1][:name]).to eq("aidp-in-progress")
     end
 
     it "uses fallback color for unknown label types" do
@@ -1557,10 +1552,9 @@ RSpec.describe Aidp::Setup::Wizard do
       }
       result = wizard.send(:collect_required_labels, labels_config)
 
-      expect(result.size).to eq(2)  # custom + aidp-in-progress
+      expect(result.size).to eq(1)  # custom only
       expect(result[0][:name]).to eq("custom")
       expect(result[0][:color]).to eq("EDEDED")
-      expect(result[1][:name]).to eq("aidp-in-progress")
     end
   end
 
