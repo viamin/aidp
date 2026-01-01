@@ -20,8 +20,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
   let(:mock_completion_checker) { double("CompletionChecker", completion_status: {all_complete: true}) }
   let(:mock_tui) do
     double("EnhancedTUI").tap do |tui|
-      allow(tui).to receive(:instance_variable_set)
-      allow(tui).to receive(:instance_variable_get).with(:@jobs).and_return({"main_workflow" => {}})
+      allow(tui).to receive(:jobs).and_return({"main_workflow" => {}})
     end
   end
   let(:mock_workflow_selector) { double("EnhancedWorkflowSelector") }
@@ -124,7 +123,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     let(:instance) { create_instance(provider_manager: provider_manager) }
 
     it "returns current provider from instance variable when set" do
-      instance.instance_variable_set(:@current_provider, "test_provider")
+      instance.current_provider = "test_provider"
       expect(instance.current_provider).to eq("test_provider")
     end
 
@@ -143,7 +142,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     let(:instance) { create_instance }
 
     it "returns the current step being executed" do
-      instance.instance_variable_set(:@current_step, "step1")
+      instance.current_step = "step1"
       expect(instance.current_step).to eq("step1")
     end
 
@@ -156,7 +155,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     let(:instance) { create_instance }
 
     it "returns user input hash when set" do
-      instance.instance_variable_set(:@user_input, {key: "value"})
+      instance.user_input = {key: "value"}
       expect(instance.user_input).to eq({key: "value"})
     end
 
@@ -169,7 +168,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     let(:instance) { create_instance }
 
     it "returns execution log array when set" do
-      instance.instance_variable_set(:@execution_log, ["step1", "step2"])
+      instance.execution_log = ["step1", "step2"]
       expect(instance.execution_log).to eq(["step1", "step2"])
     end
 
@@ -201,6 +200,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       allow(mock_tui).to receive(:remove_job)
       allow(mock_tui).to receive(:show_step_execution)
       allow(mock_tui).to receive(:show_input_area)
+      allow(mock_tui).to receive(:jobs).and_return({})
 
       # Mock core methods
       allow(instance).to receive(:get_mode_runner).and_return(mock_runner)
@@ -219,12 +219,12 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       # Mock completion checker
       completion_checker = double
       allow(completion_checker).to receive(:completion_status).and_return({all_complete: true})
-      instance.instance_variable_set(:@completion_checker, completion_checker)
+      instance.completion_checker = completion_checker
 
       # Mock workflow controller
       workflow_controller = double
       allow(workflow_controller).to receive(:complete_workflow)
-      instance.instance_variable_set(:@workflow_controller, workflow_controller)
+      instance.workflow_controller = workflow_controller
     end
 
     it "initializes state and timing correctly" do
@@ -233,8 +233,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
       result = instance.run
 
-      expect(instance.instance_variable_get(:@state)).to eq("completed")
-      expect(instance.instance_variable_get(:@start_time)).to eq(freeze_time)
+      expect(instance.state).to eq("completed")
+      expect(instance.start_time).to eq(freeze_time)
       expect(result).to eq({status: "completed", message: "Completed"})
     end
 
@@ -270,7 +270,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     it "handles completion criteria not met" do
       completion_checker = double
       allow(completion_checker).to receive(:completion_status).and_return({all_complete: false})
-      instance.instance_variable_set(:@completion_checker, completion_checker)
+      instance.completion_checker = completion_checker
 
       allow(instance).to receive(:handle_completion_criteria_not_met)
 
@@ -355,12 +355,12 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         # Mock completion checker
         completion_checker = double
         allow(completion_checker).to receive(:completion_status).and_return({all_complete: true})
-        paused_instance.instance_variable_set(:@completion_checker, completion_checker)
+        paused_instance.completion_checker = completion_checker
 
         # Mock workflow controller
         workflow_controller = double
         allow(workflow_controller).to receive(:complete_workflow)
-        paused_instance.instance_variable_set(:@workflow_controller, workflow_controller)
+        paused_instance.workflow_controller = workflow_controller
 
         # Stub sleeper for predictable timing
         allow(test_sleeper).to receive(:sleep)
@@ -381,7 +381,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(paused_instance).to receive(:get_next_step).and_return(nil)
 
         # Set state to paused and test handle_pause_condition directly
-        paused_instance.instance_variable_set(:@state, "paused")
+        paused_instance.state = "paused"
 
         # Test the private method directly for paused state
         expect(test_sleeper).to receive(:sleep).with(1)
@@ -402,7 +402,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(paused_instance).to receive(:get_next_step).and_return(nil)
 
         # Set state to waiting_for_user
-        paused_instance.instance_variable_set(:@state, "waiting_for_user")
+        paused_instance.state = "waiting_for_user"
 
         # Should not call sleep for waiting_for_user state
         expect(test_sleeper).not_to receive(:sleep)
@@ -416,7 +416,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(paused_instance).to receive(:get_next_step).and_return(nil)
 
         # Set state to waiting_for_rate_limit
-        paused_instance.instance_variable_set(:@state, "waiting_for_rate_limit")
+        paused_instance.state = "waiting_for_rate_limit"
 
         # Should not call sleep for waiting_for_rate_limit state
         expect(test_sleeper).not_to receive(:sleep)
@@ -446,12 +446,12 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         # Mock completion checker
         completion_checker = double
         allow(completion_checker).to receive(:completion_status).and_return({all_complete: true})
-        thread_tracking_instance.instance_variable_set(:@completion_checker, completion_checker)
+        thread_tracking_instance.completion_checker = completion_checker
 
         # Mock workflow controller
         workflow_controller = double
         allow(workflow_controller).to receive(:complete_workflow)
-        thread_tracking_instance.instance_variable_set(:@workflow_controller, workflow_controller)
+        thread_tracking_instance.workflow_controller = workflow_controller
       end
 
       it "cleans up background threads after run completion" do
@@ -471,7 +471,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       it "calls cleanup method which removes remaining jobs" do
         # Cleanup method should remove all jobs from TUI
         jobs = {"job1" => {}, "job2" => {}}
-        allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return(jobs)
+        allow(mock_tui).to receive(:jobs).and_return(jobs)
 
         # The cleanup method is called during run, so we need to test it directly
         # or ensure it's called during the run method
@@ -500,6 +500,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       allow(mock_tui).to receive(:update_job)
       allow(mock_tui).to receive(:remove_job)
       allow(mock_tui).to receive(:show_step_execution)
+      allow(mock_tui).to receive(:jobs).and_return({})
 
       # Mock runner methods
       allow(mock_runner).to receive(:mark_step_in_progress)
@@ -507,8 +508,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       allow(mock_runner).to receive(:run_step).and_return({status: "completed"})
 
       # Mock dependencies
-      instance.instance_variable_set(:@error_handler, mock_error_handler)
-      instance.instance_variable_set(:@condition_detector, mock_condition_detector)
+      instance.error_handler = mock_error_handler
+      instance.condition_detector = mock_condition_detector
       allow(mock_error_handler).to receive(:execute_with_retry).and_yield
       allow(mock_condition_detector).to receive(:needs_user_feedback?).and_return(false)
       allow(mock_condition_detector).to receive(:is_rate_limited?).and_return(false)
@@ -630,7 +631,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
     it "executes step in correct directory" do
       project_dir = "/test/project"
-      instance.instance_variable_set(:@project_dir, project_dir)
+      instance.project_dir = project_dir
 
       expect(Dir).to receive(:chdir).with(project_dir).and_yield
       expect(mock_runner).to receive(:run_step)
@@ -684,10 +685,10 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     let(:instance) { create_instance(tui: mock_tui) }
 
     before do
-      instance.instance_variable_set(:@condition_detector, mock_condition_detector)
-      instance.instance_variable_set(:@workflow_controller, mock_workflow_controller)
-      instance.instance_variable_set(:@state_manager, mock_state_manager)
-      instance.instance_variable_set(:@user_input, {})
+      instance.condition_detector = mock_condition_detector
+      instance.workflow_controller = mock_workflow_controller
+      instance.state_manager = mock_state_manager
+      instance.user_input = {}
 
       # Mock TUI methods
       allow(mock_tui).to receive(:show_message)
@@ -710,7 +711,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       instance.handle_user_feedback_request_with_tui(result)
 
       # After method completes, state is back to running
-      expect(instance.instance_variable_get(:@state)).to eq("running")
+      expect(instance.state).to eq("running")
     end
 
     it "pauses workflow" do
@@ -787,7 +788,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
       instance.handle_user_feedback_request_with_tui(result)
 
-      expect(instance.instance_variable_get(:@state)).to eq("running")
+      expect(instance.state).to eq("running")
     end
 
     it "shows success message after collecting feedback" do
@@ -816,8 +817,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       allow(instance).to receive(:calculate_progress_percentage).and_return(33.33)
       allow(mock_tui).to receive(:show_workflow_status)
 
-      instance.instance_variable_set(:@workflow_type, "test_workflow")
-      instance.instance_variable_set(:@selected_steps, %w[step1 step2])
+      instance.workflow_type = "test_workflow"
+      instance.selected_steps = %w[step1 step2]
     end
 
     it "shows workflow status with correct data" do
@@ -835,7 +836,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     end
 
     it "uses all_steps when selected_steps is nil" do
-      instance.instance_variable_set(:@selected_steps, nil)
+      instance.selected_steps = nil
 
       expected_data = {
         workflow_type: "test_workflow",
@@ -857,7 +858,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
     before do
       allow(mock_tui).to receive(:add_job)
-      instance.instance_variable_set(:@current_provider, "test_provider")
+      instance.current_provider = "test_provider"
     end
 
     it "registers main workflow job with correct data" do
@@ -875,7 +876,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     end
 
     it "uses 'unknown' provider when current_provider is nil" do
-      instance.instance_variable_set(:@current_provider, nil)
+      instance.current_provider = nil
 
       expected_job_data = {
         name: "Main Workflow",
@@ -918,7 +919,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     let(:instance) { create_instance(tui: mock_tui) }
 
     before do
-      instance.instance_variable_set(:@workflow_controller, mock_workflow_controller)
+      instance.workflow_controller = mock_workflow_controller
       allow(mock_workflow_controller).to receive(:stop_workflow)
       allow(mock_tui).to receive(:show_message)
     end
@@ -926,7 +927,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     it "sets state to stopped" do
       instance.stop
 
-      expect(instance.instance_variable_get(:@state)).to eq("stopped")
+      expect(instance.state).to eq("stopped")
     end
 
     it "stops workflow with message" do
@@ -950,16 +951,16 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       start_time = Time.parse("2024-01-01 12:00:00")
       current_time = Time.parse("2024-01-01 12:05:00")
 
-      instance.instance_variable_set(:@state, "running")
-      instance.instance_variable_set(:@mode, "test")
-      instance.instance_variable_set(:@current_step, "step1")
-      instance.instance_variable_set(:@current_provider, "test_provider")
-      instance.instance_variable_set(:@start_time, start_time)
-      instance.instance_variable_set(:@user_input, {key1: "value1", key2: "value2"})
-      instance.instance_variable_set(:@execution_log, ["event1", "event2", "event3"])
+      instance.state = "running"
+      instance.mode = "test"
+      instance.current_step = "step1"
+      instance.current_provider = "test_provider"
+      instance.start_time = start_time
+      instance.user_input = {key1: "value1", key2: "value2"}
+      instance.execution_log = ["event1", "event2", "event3"]
 
       allow(Time).to receive(:now).and_return(current_time)
-      allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return({"job1" => {}, "job2" => {}})
+      allow(mock_tui).to receive(:jobs).and_return({"job1" => {}, "job2" => {}})
     end
 
     it "returns comprehensive status information" do
@@ -979,7 +980,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
     end
 
     it "returns 0 duration when start_time is nil" do
-      instance.instance_variable_set(:@start_time, nil)
+      instance.start_time = nil
 
       status = instance.status
 
@@ -1003,8 +1004,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
     describe "#get_mode_runner" do
       it "returns analyze runner for analyze mode" do
-        instance.instance_variable_set(:@mode, :analyze)
-        instance.instance_variable_set(:@project_dir, "/test/project")
+        instance.mode = :analyze
+        instance.project_dir = "/test/project"
 
         expect(Aidp::Analyze::Runner).to receive(:new).with("/test/project", instance, prompt: be_a(TTY::Prompt))
 
@@ -1012,8 +1013,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       end
 
       it "returns execute runner for execute mode" do
-        instance.instance_variable_set(:@mode, :execute)
-        instance.instance_variable_set(:@project_dir, "/test/project")
+        instance.mode = :execute
+        instance.project_dir = "/test/project"
 
         expect(Aidp::Execute::Runner).to receive(:new).with("/test/project", instance, prompt: be_a(TTY::Prompt))
 
@@ -1021,7 +1022,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       end
 
       it "raises error for unsupported mode" do
-        instance.instance_variable_set(:@mode, :unsupported)
+        instance.mode = :unsupported
 
         expect { instance.send(:get_mode_runner) }.to raise_error(ArgumentError, "Unsupported mode: unsupported")
       end
@@ -1041,59 +1042,59 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
     describe "#should_stop?" do
       it "returns true when state is stopped" do
-        instance.instance_variable_set(:@state, "stopped")
+        instance.state = "stopped"
         expect(instance.send(:should_stop?)).to be true
       end
 
       it "returns true when state is completed" do
-        instance.instance_variable_set(:@state, "completed")
+        instance.state = "completed"
         expect(instance.send(:should_stop?)).to be true
       end
 
       it "returns true when state is error" do
-        instance.instance_variable_set(:@state, "error")
+        instance.state = "error"
         expect(instance.send(:should_stop?)).to be true
       end
 
       it "returns false for other states" do
-        instance.instance_variable_set(:@state, "running")
+        instance.state = "running"
         expect(instance.send(:should_stop?)).to be false
       end
     end
 
     describe "#should_pause?" do
       it "returns true when state is paused" do
-        instance.instance_variable_set(:@state, "paused")
+        instance.state = "paused"
         expect(instance.send(:should_pause?)).to be true
       end
 
       it "returns true when state is waiting_for_user" do
-        instance.instance_variable_set(:@state, "waiting_for_user")
+        instance.state = "waiting_for_user"
         expect(instance.send(:should_pause?)).to be true
       end
 
       it "returns true when state is waiting_for_rate_limit" do
-        instance.instance_variable_set(:@state, "waiting_for_rate_limit")
+        instance.state = "waiting_for_rate_limit"
         expect(instance.send(:should_pause?)).to be true
       end
 
       it "returns false for other states" do
-        instance.instance_variable_set(:@state, "running")
+        instance.state = "running"
         expect(instance.send(:should_pause?)).to be false
       end
     end
 
     describe "#handle_pause_condition" do
       it "sleeps when state is paused" do
-        instance.instance_variable_set(:@state, "paused")
-        sleeper = instance.instance_variable_get(:@sleeper)
+        instance.state = "paused"
+        sleeper = instance.sleeper
         expect(sleeper).to receive(:sleep).with(1)
 
         instance.send(:handle_pause_condition)
       end
 
       it "returns nil for waiting_for_user state" do
-        instance.instance_variable_set(:@state, "waiting_for_user")
+        instance.state = "waiting_for_user"
 
         result = instance.send(:handle_pause_condition)
 
@@ -1101,7 +1102,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       end
 
       it "returns nil for waiting_for_rate_limit state" do
-        instance.instance_variable_set(:@state, "waiting_for_rate_limit")
+        instance.state = "waiting_for_rate_limit"
 
         result = instance.send(:handle_pause_condition)
 
@@ -1161,11 +1162,11 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:mock_state_manager) { double }
 
       before do
-        instance.instance_variable_set(:@state_manager, mock_state_manager)
-        instance.instance_variable_set(:@state, "running")
-        instance.instance_variable_set(:@current_step, "step1")
-        instance.instance_variable_set(:@current_provider, "test_provider")
-        instance.instance_variable_set(:@user_input, {key: "value"})
+        instance.state_manager = mock_state_manager
+        instance.state = "running"
+        instance.current_step = "step1"
+        instance.current_provider = "test_provider"
+        instance.user_input = {key: "value"}
         allow(mock_state_manager).to receive(:update_state)
       end
 
@@ -1191,8 +1192,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:mock_state_manager) { double }
 
       before do
-        instance.instance_variable_set(:@state_manager, mock_state_manager)
-        instance.instance_variable_set(:@user_input, {})
+        instance.state_manager = mock_state_manager
+        instance.user_input = {}
       end
 
       it "loads state when state manager has state" do
@@ -1236,11 +1237,11 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:mock_state_manager) { double }
 
       before do
-        instance.instance_variable_set(:@state_manager, mock_state_manager)
-        instance.instance_variable_set(:@state, "completed")
-        instance.instance_variable_set(:@current_step, "final_step")
-        instance.instance_variable_set(:@current_provider, "test_provider")
-        instance.instance_variable_set(:@user_input, {key: "value"})
+        instance.state_manager = mock_state_manager
+        instance.state = "completed"
+        instance.current_step = "final_step"
+        instance.current_provider = "test_provider"
+        instance.user_input = {key: "value"}
         allow(mock_state_manager).to receive(:save_state)
       end
 
@@ -1271,7 +1272,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       end
 
       it "shows analyze mode feedback" do
-        instance.instance_variable_set(:@mode, :analyze)
+        instance.mode = :analyze
 
         expect(mock_tui).to receive(:show_message).with("🔬 Starting codebase analysis...", :info)
         expect(mock_tui).to receive(:show_message).with("Press 'j' to view background jobs, 'h' for help", :info)
@@ -1280,7 +1281,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       end
 
       it "shows execute mode feedback" do
-        instance.instance_variable_set(:@mode, :execute)
+        instance.mode = :execute
 
         expect(mock_tui).to receive(:show_message).with("🏗️ Starting development workflow...", :info)
         expect(mock_tui).to receive(:show_message).with("Press 'j' to view background jobs, 'h' for help", :info)
@@ -1294,7 +1295,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:instance) { create_instance(tui: mock_tui) }
 
       before do
-        instance.instance_variable_set(:@execution_log, [])
+        instance.execution_log = []
         allow(mock_tui).to receive(:show_message)
       end
 
@@ -1327,6 +1328,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         error = StandardError.new("Test error")
         error.set_backtrace(["line1", "line2", "line3", "line4"])
 
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("AIDP_DEBUG").and_return("true")
         allow(ENV).to receive(:[]).with("DEBUG").and_return("true")
 
         expect(mock_tui).to receive(:show_message).with("Backtrace: line1\nline2\nline3", :error)
@@ -1338,6 +1341,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         error = StandardError.new("Test error")
         error.set_backtrace(["line1", "line2"])
 
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("AIDP_DEBUG").and_return(nil)
         allow(ENV).to receive(:[]).with("DEBUG").and_return(nil)
 
         expect(mock_tui).not_to receive(:show_message).with(/Backtrace/, :error)
@@ -1352,7 +1357,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:instance) { create_instance(tui: mock_tui) }
 
       before do
-        instance.instance_variable_set(:@workflow_controller, mock_workflow_controller)
+        instance.workflow_controller = mock_workflow_controller
         allow(mock_tui).to receive(:show_message)
         allow(mock_workflow_controller).to receive(:complete_workflow)
         allow(mock_workflow_controller).to receive(:stop_workflow)
@@ -1381,7 +1386,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
           instance.send(:handle_completion_criteria_not_met, completion_status)
 
-          expect(instance.instance_variable_get(:@state)).to eq("completed")
+          expect(instance.state).to eq("completed")
         end
       end
 
@@ -1398,7 +1403,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
           instance.send(:handle_completion_criteria_not_met, completion_status)
 
-          expect(instance.instance_variable_get(:@state)).to eq("error")
+          expect(instance.state).to eq("error")
         end
       end
     end
@@ -1409,7 +1414,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:instance) { create_instance(tui: mock_tui, provider_manager: provider_manager) }
 
       before do
-        instance.instance_variable_set(:@current_provider, "current_provider")
+        instance.current_provider = "current_provider"
         allow(mock_tui).to receive(:show_message)
         allow(provider_manager).to receive(:mark_rate_limited)
         allow(provider_manager).to receive(:switch_provider)
@@ -1422,7 +1427,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         instance.send(:handle_rate_limit, {})
 
         # After successful switch, state is back to running
-        expect(instance.instance_variable_get(:@state)).to eq("running")
+        expect(instance.state).to eq("running")
       end
 
       it "shows rate limit message" do
@@ -1451,8 +1456,8 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
           instance.send(:handle_rate_limit, {})
 
-          expect(instance.instance_variable_get(:@current_provider)).to eq("new_provider")
-          expect(instance.instance_variable_get(:@state)).to eq("running")
+          expect(instance.current_provider).to eq("new_provider")
+          expect(instance.state).to eq("running")
         end
       end
 
@@ -1497,7 +1502,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
           instance.send(:wait_for_rate_limit_reset)
 
-          expect(instance.instance_variable_get(:@state)).to eq("running")
+          expect(instance.state).to eq("running")
         end
       end
 
@@ -1509,7 +1514,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         it "raises error and sets state to error" do
           expect { instance.send(:wait_for_rate_limit_reset) }.to raise_error("All providers rate limited with no reset time available")
 
-          expect(instance.instance_variable_get(:@state)).to eq("error")
+          expect(instance.state).to eq("error")
         end
       end
     end
@@ -1520,7 +1525,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:instance) { create_instance(tui: mock_tui, sleeper: test_sleeper) }
 
       before do
-        instance.instance_variable_set(:@state, "waiting_for_rate_limit")
+        instance.state = "waiting_for_rate_limit"
         allow(mock_tui).to receive(:show_message)
         # sleeper already stubbed
       end
@@ -1530,7 +1535,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(Time).to receive(:now).and_return(Time.now, reset_time - 2, reset_time - 1, reset_time + 1)
 
         expect(mock_tui).to receive(:show_message).with(/Rate limit reset in \d+ seconds/, :info).at_least(:once)
-        sleeper = instance.instance_variable_get(:@sleeper)
+        sleeper = instance.sleeper
         expect(sleeper).to receive(:sleep).with(1).at_least(:once)
 
         instance.send(:sleep_until_reset, reset_time)
@@ -1543,7 +1548,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
 
       before do
         jobs = {"job1" => {}, "job2" => {}, "job3" => {}}
-        allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return(jobs)
+        allow(mock_tui).to receive(:jobs).and_return(jobs)
         allow(mock_tui).to receive(:remove_job)
       end
 
@@ -1560,22 +1565,22 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
       let(:instance) { create_instance }
 
       it "returns completed message for completed state" do
-        instance.instance_variable_set(:@state, "completed")
+        instance.state = "completed"
         expect(instance.send(:get_completion_message)).to eq("Harness completed successfully")
       end
 
       it "returns stopped message for stopped state" do
-        instance.instance_variable_set(:@state, "stopped")
+        instance.state = "stopped"
         expect(instance.send(:get_completion_message)).to eq("Harness stopped by user")
       end
 
       it "returns error message for error state" do
-        instance.instance_variable_set(:@state, "error")
+        instance.state = "error"
         expect(instance.send(:get_completion_message)).to eq("Harness encountered an error")
       end
 
       it "returns default message for other states" do
-        instance.instance_variable_set(:@state, "unknown")
+        instance.state = "unknown"
         expect(instance.send(:get_completion_message)).to eq("Harness finished")
       end
     end
@@ -1594,7 +1599,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(mock_tui).to receive(:update_job)
         allow(mock_tui).to receive(:remove_job)
         allow(mock_tui).to receive(:show_step_execution)
-        allow(mock_tui).to receive(:instance_variable_get).with(:@jobs).and_return({})
+        allow(mock_tui).to receive(:jobs).and_return({})
 
         # Mock runner behaviors
         allow(mock_runner).to receive(:mark_step_in_progress)
@@ -1607,7 +1612,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         allow(Thread).to receive(:new).and_yield
 
         # Inject error handler
-        instance.instance_variable_set(:@error_handler, mock_error_handler)
+        instance.error_handler = mock_error_handler
       end
 
       describe "step execution exception handling" do
@@ -1752,7 +1757,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
             instance.execute_step_with_enhanced_tui(mock_runner, "test_step")
 
             # Verify that the current provider was read from provider manager
-            expect(instance.instance_variable_get(:@current_provider)).to eq("openai")
+            expect(instance.current_provider).to eq("openai")
           end
         end
       end
@@ -1761,7 +1766,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
         let(:mock_configuration) { instance_double("Configuration") }
 
         before do
-          instance.instance_variable_set(:@configuration, mock_configuration)
+          instance.configuration = mock_configuration
         end
 
         context "when policy allows unlimited retries" do
@@ -1871,7 +1876,7 @@ RSpec.describe Aidp::Harness::EnhancedRunner do
             allow(mock_error_handler).to receive(:execute_with_retry).and_yield
 
             # Mock condition detector to detect rate limit
-            mock_condition_detector = instance.instance_variable_get(:@condition_detector)
+            mock_condition_detector = instance.condition_detector
             allow(mock_condition_detector).to receive(:is_rate_limited?).and_return(true)
 
             expect(instance).to receive(:handle_rate_limit).with(rate_limited_result)

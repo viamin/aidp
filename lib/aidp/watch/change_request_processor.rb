@@ -13,6 +13,8 @@ require_relative "../harness/runner"
 require_relative "../harness/state_manager"
 require_relative "../harness/test_runner"
 require_relative "../worktree"
+require_relative "../pr_worktree_manager"
+require_relative "../worktree_branch_manager"
 require_relative "github_state_extractor"
 require_relative "implementation_verifier"
 
@@ -32,6 +34,9 @@ module Aidp
 
       attr_reader :change_request_label, :needs_input_label
 
+      # Expose state for testability
+      attr_accessor :project_dir, :worktree_branch_manager
+
       def initialize(repository_client:, state_store:, provider_name: nil, project_dir: Dir.pwd, label_config: {}, change_request_config: {}, safety_config: {}, verbose: false)
         @repository_client = repository_client
         @state_store = state_store
@@ -40,11 +45,9 @@ module Aidp
         @project_dir = project_dir
         @verbose = verbose
 
-        # Log initialization details
-        Aidp.log_debug("change_request_processor", "initializing",
-          provider_name: provider_name,
-          project_dir: project_dir,
-          verbose: verbose)
+        # Initialize worktree managers
+        @pr_worktree_manager = Aidp::PRWorktreeManager.new(project_dir: project_dir)
+        @worktree_branch_manager = Aidp::WorktreeBranchManager.new(project_dir: project_dir)
 
         # Initialize verifier
         @verifier = ImplementationVerifier.new(
@@ -56,11 +59,6 @@ module Aidp
         @change_request_label = label_config[:change_request_trigger] || label_config["change_request_trigger"] || DEFAULT_CHANGE_REQUEST_LABEL
         @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || DEFAULT_NEEDS_INPUT_LABEL
 
-        # Log label details
-        Aidp.log_debug("change_request_processor", "label_configuration",
-          change_request_label: @change_request_label,
-          needs_input_label: @needs_input_label)
-
         # Load change request configuration
         @config = {
           enabled: true,
@@ -69,40 +67,62 @@ module Aidp
           commit_message_prefix: "aidp: pr-change",
           require_comment_reference: true,
           max_diff_size: 2000,
-          allow_large_pr_worktree_bypass: true # Default to always using worktree for large PRs
+          large_pr_strategy: "create_worktree", # Options: create_worktree, manual, skip
+          worktree_strategy: "auto", # Options: auto, always_create, reuse_only
+          worktree_max_age: 7 * 24 * 60 * 60, # 7 days in seconds
+          worktree_cleanup_on_success: true,
+          worktree_cleanup_on_failure: false
         }.merge(symbolize_keys(change_request_config))
 
-        # Log configuration details
-        Aidp.log_debug("change_request_processor", "change_request_config",
-          config: @config.transform_values { |v| v.is_a?(Proc) ? "Proc" : v })
+        # Log the configuration, especially the large PR strategy
+        Aidp.log_debug(
+          "change_request_processor", "Initialized with config",
+          max_diff_size: @config[:max_diff_size],
+          large_pr_strategy: @config[:large_pr_strategy],
+          run_tests_before_push: @config[:run_tests_before_push],
+          enabled: @config[:enabled],
+          worktree_strategy: @config[:worktree_strategy],
+          worktree_max_age: @config[:worktree_max_age],
+          worktree_cleanup_on_success: @config[:worktree_cleanup_on_success],
+          worktree_cleanup_on_failure: @config[:worktree_cleanup_on_failure]
+        )
 
         # Load safety configuration
         @safety_config = safety_config
         @author_allowlist = Array(@safety_config[:author_allowlist] || @safety_config["author_allowlist"])
-
-        # Log safety configuration
-        Aidp.log_debug("change_request_processor", "safety_configuration",
-          author_allowlist: @author_allowlist,
-          allowlist_count: @author_allowlist.length)
       end
 
       def process(pr)
         number = pr[:number]
 
+        Aidp.log_debug(
+          "change_request_processor", "Starting change request processing",
+          pr_number: number, pr_title: pr[:title]
+        )
+
         unless @config[:enabled]
-          display_message("ℹ️  PR change requests are disabled in configuration. Skipping PR ##{number}.", type: :muted)
+          display_message(
+            "ℹ️  PR change requests are disabled in configuration. Skipping PR ##{number}.",
+            type: :muted
+          )
           return
         end
 
         # Check clarification round limit
         existing_data = @state_store.change_request_data(number)
         if existing_data && existing_data["clarification_count"].to_i >= MAX_CLARIFICATION_ROUNDS
-          display_message("⚠️  Max clarification rounds (#{MAX_CLARIFICATION_ROUNDS}) reached for PR ##{number}. Skipping.", type: :warn)
+          display_message(
+            "⚠️  Max clarification rounds (#{MAX_CLARIFICATION_ROUNDS}) reached for PR ##{number}. Skipping.",
+            type: :warn
+          )
           post_max_rounds_comment(pr)
           return
         end
 
-        display_message("📝 Processing change request for PR ##{number} (#{pr[:title]})", type: :info)
+        display_message(
+          "📝 Processing change request for PR ##{number} (#{pr[:title]})",
+          type: :info
+        )
 
         # Fetch PR details
         pr_data = @repository_client.fetch_pull_request(number)
@@ -112,29 +132,135 @@ module Aidp
         authorized_comments = filter_authorized_comments(comments, pr_data)
 
         if authorized_comments.empty?
-          display_message("ℹ️  No authorized comments found for PR ##{number}. Skipping.", type: :muted)
+          display_message(
+            "ℹ️  No authorized comments found for PR ##{number}. Skipping.",
+            type: :muted
+          )
           return
         end
 
-        # If max_diff_size is set, attempt to fetch and check diff
-        # But bypass restriction for worktree-based workflows
+        # Fetch diff to check size with enhanced strategy
         diff = @repository_client.fetch_pull_request_diff(number)
         diff_size = diff.lines.count
 
-        # Check if we want to use the worktree bypass
-        use_worktree_bypass = @config[:allow_large_pr_worktree_bypass] || @config[:allow_large_pr_worktree_bypass].nil?
+        # Enhanced diff size and worktree handling
+        large_pr = diff_size > @config[:max_diff_size]
 
-        if diff_size > @config[:max_diff_size] && !use_worktree_bypass
-          display_message("⚠️  PR ##{number} diff too large (#{diff_size} lines > #{@config[:max_diff_size]}). Skipping.", type: :warn)
-          post_diff_too_large_comment(pr, diff_size)
-          return
+        if large_pr
+          # Comprehensive logging for large PR detection
+          Aidp.log_debug(
+            "change_request_processor", "Large PR detected",
+            pr_number: number,
+            diff_size: diff_size,
+            max_diff_size: @config[:max_diff_size],
+            large_pr_strategy: @config[:large_pr_strategy]
+          )
+
+          display_message(
+            "⚠️  Large PR detected - applying enhanced worktree handling strategy.",
+            type: :info
+          )
+
+          # Handle different strategies for large PRs
+          case @config[:large_pr_strategy]
+          when "skip"
+            Aidp.log_debug(
+              "change_request_processor", "Skipping large PR processing",
+              pr_number: number
+            )
+            post_diff_too_large_comment(pr_data, diff_size)
+            return
+          when "manual"
+            post_diff_too_large_comment(pr_data, diff_size)
+            display_message("❌ Change request processing failed: Large PR requires manual processing. See comment for details.", type: :error)
+            @state_store.record_change_request(pr_data[:number], {
+              status: "manual_processing_required",
+              timestamp: Time.now.utc.iso8601,
+              diff_size: diff_size,
+              max_diff_size: @config[:max_diff_size]
+            })
+            raise "Large PR requires manual processing. See comment for details."
+          when "create_worktree"
+            # Use our enhanced WorktreeBranchManager to handle PR worktrees
+            begin
+              # Get PR branch information
+              head_ref = @worktree_branch_manager.get_pr_branch(number)
+
+              # Check if a PR-specific worktree already exists
+              Aidp.log_debug(
+                "change_request_processor", "Checking for existing PR worktree",
+                pr_number: number,
+                head_branch: head_ref
+              )
+
+              # Try to find existing worktree first
+              existing_worktree = @worktree_branch_manager.find_worktree(
+                branch: head_ref,
+                pr_number: number
+              )
+
+              # Create new worktree if none exists
+              if existing_worktree.nil?
+                Aidp.log_info(
+                  "change_request_processor", "Creating PR-specific worktree",
+                  pr_number: number,
+                  head_branch: head_ref,
+                  base_branch: pr_data[:base_ref],
+                  strategy: "create_worktree"
+                )
+
+                # Use find_or_create_pr_worktree for PR-specific handling
+                @worktree_branch_manager.find_or_create_pr_worktree(
+                  pr_number: number,
+                  head_branch: head_ref,
+                  base_branch: pr_data[:base_ref]
+                )
+              else
+                Aidp.log_debug(
+                  "change_request_processor", "Using existing PR worktree",
+                  pr_number: number,
+                  worktree_path: existing_worktree
+                )
+              end
+            rescue => e
+              Aidp.log_error(
+                "change_request_processor", "Large PR worktree handling failed",
+                pr_number: number,
+                error: e.message,
+                strategy: @config[:large_pr_strategy]
+              )
+
+              # Fallback error handling
+              post_diff_too_large_comment(pr_data, diff_size)
+              raise "Failed to handle large PR: #{e.message}"
+            end
+          else
+            # Default fallback
+            Aidp.log_warn(
+              "change_request_processor", "Unknown large_pr_strategy",
+              strategy: @config[:large_pr_strategy],
+              fallback: "skip"
+            )
+            post_diff_too_large_comment(pr_data, diff_size)
+            return
+          end
+
+          # Provide additional context via debug log
+          Aidp.log_info(
+            "change_request_processor", "Large PR worktree strategy applied",
+            pr_number: number,
+            diff_size: diff_size,
+            max_diff_size: @config[:max_diff_size],
+            strategy: @config[:large_pr_strategy]
+          )
         end
 
-        # Log the diff size for observability
-        Aidp.log_debug("change_request_processor", "PR diff size", number: number, size: diff_size, max_allowed: @config[:max_diff_size], worktree_bypass: use_worktree_bypass)
-
         # Analyze change requests
-        analysis_result = analyze_change_requests(pr_data: pr_data, comments: authorized_comments, diff: diff)
+        analysis_result = analyze_change_requests(
+          pr_data: pr_data,
+          comments: authorized_comments,
+          diff: diff
+        )
 
         if analysis_result[:needs_clarification]
           handle_clarification_needed(pr: pr_data, analysis: analysis_result)
@@ -144,8 +270,17 @@ module Aidp
           handle_cannot_implement(pr: pr_data, analysis: analysis_result)
         end
       rescue => e
-        display_message("❌ Change request processing failed: #{e.message}", type: :error)
-        Aidp.log_error("change_request_processor", "Change request failed", pr: pr[:number], error: e.message, backtrace: e.backtrace&.first(10))
+        display_message(
+          "❌ Change request processing failed: #{e.message}",
+          type: :error
+        )
+        Aidp.log_error(
+          "change_request_processor", "Change request failed",
+          pr: pr[:number],
+          error: e.message,
+          backtrace: e.backtrace&.first(10),
+          error_class: e.class.name
+        )
 
         # Record failure state internally but DON'T post error to GitHub
         # (per issue #280 - error messages should never appear on issues)
@@ -162,29 +297,15 @@ module Aidp
       def filter_authorized_comments(comments, pr_data)
         # If allowlist is empty (for private repos), consider PR author and all commenters
         # For public repos, enforce allowlist
-        Aidp.log_debug("change_request_processor", "filtering_authorized_comments",
-          total_comments: comments.length,
-          allowlist_count: @author_allowlist.length,
-          is_private_repo: @author_allowlist.empty?)
-
         if @author_allowlist.empty?
           # Private repo: trust all comments from PR participants
-          Aidp.log_debug("change_request_processor", "private_repo_comments_allowed",
-            comments_allowed: comments.length)
           comments
         else
           # Public repo: only allow comments from allowlisted users
-          authorized_comments = comments.select do |comment|
+          comments.select do |comment|
             author = comment[:author]
             @author_allowlist.include?(author)
           end
-
-          Aidp.log_debug("change_request_processor", "public_repo_comment_filtering",
-            total_comments: comments.length,
-            authorized_comments: authorized_comments.length,
-            allowed_authors: authorized_comments.map { |c| c[:author] })
-
-          authorized_comments
         end
       end
 
@@ -206,19 +327,41 @@ module Aidp
         # Parse JSON response
         parsed = JSON.parse(json_content)
 
-        {
+        # Additional structured analysis
+        result = {
           can_implement: parsed["can_implement"],
           needs_clarification: parsed["needs_clarification"],
           clarifying_questions: parsed["clarifying_questions"] || [],
           reason: parsed["reason"],
-          changes: parsed["changes"] || []
+          changes: []
         }
+
+        # Enhanced change parsing
+        begin
+          result[:changes] = parse_ai_changes(
+            {changes: parsed["changes"]},
+            pr_data,
+            comments
+          )
+        rescue => e
+          Aidp.log_warn("change_request_processor", "Change parsing failed",
+            pr_number: pr_data[:number],
+            error: e.message)
+        end
+
+        Aidp.log_debug("change_request_processor", "Change request analysis result",
+          pr_number: pr_data[:number],
+          can_implement: result[:can_implement],
+          needs_clarification: result[:needs_clarification],
+          changes_count: result[:changes].length)
+
+        result
       rescue JSON::ParserError => e
         Aidp.log_error("change_request_processor", "Failed to parse AI response", error: e.message, content: content)
-        {can_implement: false, needs_clarification: false, reason: "Failed to parse AI analysis"}
+        {can_implement: false, needs_clarification: false, reason: "Failed to parse AI analysis", changes: []}
       rescue => e
         Aidp.log_error("change_request_processor", "AI analysis failed", error: e.message)
-        {can_implement: false, needs_clarification: false, reason: "AI analysis error: #{e.message}"}
+        {can_implement: false, needs_clarification: false, reason: "AI analysis error: #{e.message}", changes: []}
       end
 
       def change_request_system_prompt
@@ -347,194 +490,351 @@ module Aidp
       end
 
       def checkout_pr_branch(pr_data)
-        head_ref = pr_data[:head_ref]
         pr_number = pr_data[:number]
-
-        worktree_path = resolve_worktree_for_pr(pr_data)
-
-        Dir.chdir(worktree_path) do
-          run_git(%w[fetch origin], allow_failure: true)
-          run_git(["checkout", head_ref])
-          run_git(%w[pull --ff-only], allow_failure: true)
-        end
-
-        @project_dir = worktree_path
-
-        Aidp.log_debug("change_request_processor", "Checked out PR branch", branch: head_ref, worktree: worktree_path)
-        display_message("🌿 Using worktree for PR ##{pr_number}: #{head_ref}", type: :info)
-      end
-
-      def resolve_worktree_for_pr(pr_data)
-        head_ref = pr_data[:head_ref]
-        pr_number = pr_data[:number]
-
-        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
-
-        if existing && existing[:active]
-          display_message("🔄 Using existing worktree for branch: #{head_ref}", type: :info)
-          Aidp.log_debug("change_request_processor", "worktree_reused", pr_number: pr_number, branch: head_ref, path: existing[:path])
-          return existing[:path]
-        end
-
-        issue_worktree = find_issue_worktree_for_pr(pr_data)
-        return issue_worktree if issue_worktree
-
-        create_worktree_for_pr(pr_data)
-      end
-
-      def find_issue_worktree_for_pr(pr_data)
-        pr_number = pr_data[:number]
-        linked_issue_numbers = extract_issue_numbers_from_pr(pr_data)
-
-        build_match = @state_store.find_build_by_pr(pr_number)
-        linked_issue_numbers << build_match[:issue_number] if build_match
-        linked_issue_numbers = linked_issue_numbers.compact.uniq
-
-        linked_issue_numbers.each do |issue_number|
-          workstream = @state_store.workstream_for_issue(issue_number)
-          next unless workstream
-
-          slug = workstream[:workstream]
-          branch = workstream[:branch]
-
-          if slug
-            info = Aidp::Worktree.info(slug: slug, project_dir: @project_dir)
-            if info && info[:active]
-              Aidp.log_debug("change_request_processor", "issue_worktree_reused", pr_number: pr_number, issue_number: issue_number, branch: branch, path: info[:path])
-              display_message("🔄 Reusing worktree #{slug} for issue ##{issue_number} (PR ##{pr_number})", type: :info)
-              return info[:path]
-            end
-          end
-
-          if branch
-            existing = Aidp::Worktree.find_by_branch(branch: branch, project_dir: @project_dir)
-            if existing && existing[:active]
-              Aidp.log_debug("change_request_processor", "issue_branch_worktree_reused", pr_number: pr_number, issue_number: issue_number, branch: branch, path: existing[:path])
-              display_message("🔄 Reusing branch worktree for issue ##{issue_number}: #{branch}", type: :info)
-              return existing[:path]
-            end
-          end
-        end
-
-        nil
-      end
-
-      def extract_issue_numbers_from_pr(pr_data)
-        body = pr_data[:body].to_s
-        issue_matches = body.scan(/(?:Fixes|Resolves|Closes)\s+#(\d+)/i).flatten
-
-        issue_matches.map { |num| num.to_i }.uniq
-      end
-
-      def create_worktree_for_pr(pr_data)
-        head_ref = pr_data[:head_ref]
-        pr_number = pr_data[:number]
-
-        # Configure slug and worktree strategy
-        slug = pr_data.fetch(:worktree_slug, "pr-#{pr_number}-change-requests")
-        strategy = @config.fetch(:worktree_strategy, "auto")
-
-        display_message("🌿 Preparing worktree for PR ##{pr_number}: #{head_ref} (Strategy: #{strategy})", type: :info)
-
-        # Pre-create setup: fetch latest refs
-        Dir.chdir(@project_dir) do
-          run_git(%w[fetch origin], allow_failure: true)
-        end
-
-        # Worktree creation strategy
-        worktree_path =
-          case strategy
-          when "always_create"
-            create_fresh_worktree(pr_data, slug)
-          when "reuse_only"
-            find_existing_worktree(pr_data, slug)
-          else # 'auto' or default
-            find_existing_worktree(pr_data, slug) || create_fresh_worktree(pr_data, slug)
-          end
+        base_branch = pr_data[:base_ref]
 
         Aidp.log_debug(
-          "change_request_processor",
-          "worktree_resolved",
+          "change_request_processor", "Starting PR branch checkout process",
           pr_number: pr_number,
-          branch: head_ref,
-          path: worktree_path,
-          strategy: strategy
+          base_branch: base_branch,
+          project_dir: @project_dir
         )
 
-        display_message("✅ Worktree available at #{worktree_path}", type: :success)
-        worktree_path
-      rescue => e
+        # Get PR branch information
+        head_ref = @worktree_branch_manager.get_pr_branch(pr_number)
+
+        begin
+          # Advanced worktree strategy with more detailed lookup
+          existing_worktree = @worktree_branch_manager.find_worktree(
+            branch: head_ref,
+            pr_number: pr_number
+          )
+
+          # Logging: Detailed worktree search strategy
+          log_worktree_strategy = {
+            pr_number: pr_number,
+            head_branch: head_ref,
+            existing_worktree: !!existing_worktree,
+            worktree_creation_strategy: @config.fetch(:worktree_strategy, "auto")
+          }
+
+          # Enhanced logging for worktree preparation
+          Aidp.log_info(
+            "change_request_processor", "Preparing PR worktree",
+            **log_worktree_strategy
+          )
+
+          # Worktree creation or reuse strategy
+          case @config.fetch(:worktree_strategy, "auto")
+          when "always_create"
+            # Force new worktree creation, useful for complex/large PRs
+            Aidp.log_info("change_request_processor", "Forcing new worktree creation", pr: pr_number)
+            existing_worktree = nil
+          when "reuse_only"
+            # Use only existing worktrees, error if not found
+            unless existing_worktree
+              raise "No existing worktree found for PR ##{pr_number}"
+            end
+          else # "auto" or default
+            # Existing default behavior: find or create
+          end
+
+          # Use the enhanced find_or_create_pr_worktree method for PR-specific worktree handling
+          worktree_path = @worktree_branch_manager.find_or_create_pr_worktree(
+            pr_number: pr_number,
+            head_branch: head_ref,
+            base_branch: base_branch
+          )
+
+          # Detailed logging of worktree path and strategy
+          Aidp.log_debug(
+            "change_request_processor", "PR worktree determined",
+            worktree_path: worktree_path,
+            creation_strategy: existing_worktree ? "reused" : "created",
+            pr_number: pr_number
+          )
+
+          display_message("🔄 Using PR-specific worktree for branch: #{head_ref}", type: :info)
+
+          # Update project directory to use the worktree
+          @project_dir = worktree_path
+
+          # Ensure the branch is up-to-date with remote
+          Dir.chdir(@project_dir) do
+            run_git(["fetch", "origin", base_branch], allow_failure: true)
+            run_git(["fetch", "origin", head_ref], allow_failure: true)
+
+            # Checkout branch with more detailed tracking
+            checkout_result = run_git(["checkout", head_ref])
+
+            # Pull with fast-forward preference for cleaner history
+            pull_result = run_git(
+              ["pull", "--ff-only", "origin", head_ref],
+              allow_failure: true
+            )
+
+            # Enhanced branch state logging
+            Aidp.log_info(
+              "change_request_processor", "Branch synchronization complete",
+              pr_number: pr_number,
+              checkout_status: checkout_result.strip,
+              pull_status: pull_result.strip,
+              current_branch: run_git(["rev-parse", "--abbrev-ref", "HEAD"]).strip
+            )
+          end
+
+          # Additional validation and logging
+          worktree_details = {
+            path: worktree_path,
+            branch: head_ref,
+            base_branch: base_branch,
+            pr_number: pr_number,
+            timestamp: Time.now.utc.iso8601
+          }
+
+          Aidp.log_debug(
+            "change_request_processor", "Validated PR worktree",
+            **worktree_details
+          )
+
+          worktree_path
+        rescue => e
+          Aidp.log_error(
+            "change_request_processor", "Critical worktree preparation failure",
+            pr_number: pr_number,
+            base_branch: base_branch,
+            head_branch: head_ref,
+            error: e.message,
+            error_class: e.class.name,
+            backtrace: e.backtrace.first(10)
+          )
+
+          # Provide detailed error handling and recovery
+          handle_worktree_error(pr_data, e)
+        end
+      end
+
+      def handle_worktree_error(pr_data, error)
+        # Log the detailed error
         Aidp.log_error(
-          "change_request_processor",
-          "worktree_creation_failed",
-          pr_number: pr_number,
-          error: e.message,
-          backtrace: e.backtrace&.first(5)
+          "change_request_processor", "Worktree preparation critical error",
+          pr_number: pr_data[:number],
+          error_message: error.message,
+          error_class: error.class.name
         )
-        display_message("❌ Failed to create worktree: #{e.message}", type: :error)
-        raise
+
+        # Post a comment to GitHub about the failure
+        comment_body = <<~COMMENT
+          #{COMMENT_HEADER}
+
+          ❌ Automated worktree preparation failed for this pull request.
+
+          **Error Details:**
+          ```
+          #{error.message}
+          ```
+
+          **Possible Actions:**
+          1. Review the PR branch and its configuration
+          2. Check if the base repository is accessible
+          3. Try re-adding the `#{@change_request_label}` label
+
+          This may require manual intervention or administrative access.
+        COMMENT
+
+        begin
+          @repository_client.post_comment(pr_data[:number], comment_body)
+
+          # Optionally remove or modify the label to indicate a problem
+          @repository_client.replace_labels(
+            pr_data[:number],
+            old_labels: [@change_request_label],
+            new_labels: ["aidp-worktree-error"]
+          )
+        rescue => comment_error
+          Aidp.log_warn(
+            "change_request_processor", "Failed to post error comment",
+            pr_number: pr_data[:number],
+            error: comment_error.message
+          )
+        end
+
+        # Re-raise the original error to halt processing
+        raise error
       end
 
       private
 
-      def find_existing_worktree(pr_data, slug)
-        head_ref = pr_data[:head_ref]
-        pr_number = pr_data[:number]
-
-        # First check for existing worktree by branch
-        existing = Aidp::Worktree.find_by_branch(branch: head_ref, project_dir: @project_dir)
-        return existing[:path] if existing && existing[:active]
-
-        # If no branch-specific worktree, look for PR-specific worktree
-        pr_worktrees = Aidp::Worktree.list(project_dir: @project_dir)
-        pr_specific_worktree = pr_worktrees.find do |w|
-          w[:slug]&.include?("pr-#{pr_number}")
-        end
-
-        pr_specific_worktree ? pr_specific_worktree[:path] : nil
-      end
-
-      def create_fresh_worktree(pr_data, slug)
-        head_ref = pr_data[:head_ref]
-        pr_number = pr_data[:number]
-
-        Aidp.log_debug(
-          "change_request_processor",
-          "creating_new_worktree",
-          pr_number: pr_number,
-          branch: head_ref,
-          slug: slug
-        )
-
-        result = Aidp::Worktree.create(
-          slug: slug,
-          project_dir: @project_dir,
-          branch: head_ref,
-          base_branch: pr_data[:base_ref]
-        )
-
-        result[:path]
-      end
-
       def apply_changes(changes)
-        changes.each do |change|
-          file_path = File.join(@project_dir, change["file"])
+        # Validate we're in a worktree for enhanced change handling
+        in_worktree = @project_dir.include?(".worktrees")
 
-          case change["action"]
-          when "create", "edit"
-            FileUtils.mkdir_p(File.dirname(file_path))
-            File.write(file_path, change["content"])
-            display_message("  ✓ #{change["action"]} #{change["file"]}", type: :muted) if @verbose
-            Aidp.log_debug("change_request_processor", "Applied change", action: change["action"], file: change["file"])
-          when "delete"
-            File.delete(file_path) if File.exist?(file_path)
-            display_message("  ✓ Deleted #{change["file"]}", type: :muted) if @verbose
-            Aidp.log_debug("change_request_processor", "Deleted file", file: change["file"])
-          else
-            display_message("  ⚠️  Unknown action: #{change["action"]} for #{change["file"]}", type: :warn)
-            Aidp.log_warn("change_request_processor", "Unknown change action", action: change["action"], file: change["file"])
+        Aidp.log_debug("change_request_processor", "Starting change application",
+          total_changes: changes.length,
+          in_worktree: in_worktree,
+          working_dir: @project_dir)
+
+        # Track overall change application results
+        results = {
+          total_changes: changes.length,
+          successful_changes: 0,
+          failed_changes: 0,
+          skipped_changes: 0,
+          errors: [],
+          worktree_context: in_worktree
+        }
+
+        # Enhanced change application with worktree context awareness
+        changes.each_with_index do |change, index|
+          file_path = change["file"].start_with?(@project_dir) ? change["file"] : File.join(@project_dir, change["file"])
+
+          Aidp.log_debug("change_request_processor", "Preparing to apply change",
+            index: index + 1,
+            total: changes.length,
+            action: change["action"],
+            file: change["file"],
+            content_length: change["content"]&.length || 0,
+            in_worktree: in_worktree)
+
+          begin
+            case change["action"]
+            when "create", "edit"
+              # Enhanced file change strategy with worktree awareness
+              unless change["content"]
+                results[:skipped_changes] += 1
+                Aidp.log_warn("change_request_processor", "Skipping change with empty content",
+                  file: change["file"], action: change["action"], in_worktree: in_worktree)
+                next
+              end
+
+              # Enhanced directory creation with worktree validation
+              target_directory = File.dirname(file_path)
+              unless File.directory?(target_directory)
+                FileUtils.mkdir_p(target_directory)
+                Aidp.log_debug("change_request_processor", "Created directory structure",
+                  directory: target_directory, in_worktree: in_worktree)
+              end
+
+              # Preserve file permissions if file already exists
+              old_permissions = File.exist?(file_path) ? File.stat(file_path).mode : 0o644
+
+              # Enhanced content writing with validation
+              File.write(file_path, change["content"])
+              File.chmod(old_permissions, file_path)
+
+              # Validate file was written correctly
+              unless File.exist?(file_path) && File.readable?(file_path)
+                raise "File creation validation failed"
+              end
+
+              display_message("  ✓ #{change["action"]} #{change["file"]}", type: :muted) if @verbose
+              Aidp.log_debug("change_request_processor", "Applied file change",
+                action: change["action"],
+                file: change["file"],
+                content_preview: change["content"]&.slice(0, 100),
+                file_size: File.size(file_path),
+                original_source_comments: change["source_comment_urls"],
+                in_worktree: in_worktree)
+
+              results[:successful_changes] += 1
+
+            when "delete"
+              # Enhanced delete strategy with worktree context
+              if File.exist?(file_path)
+                # Additional validation for worktree safety
+                if in_worktree
+                  canonical_path = File.expand_path(file_path)
+                  worktree_canonical = File.expand_path(@project_dir)
+                  unless canonical_path.start_with?(worktree_canonical)
+                    raise SecurityError, "Attempted to delete file outside worktree"
+                  end
+                end
+
+                File.delete(file_path)
+                display_message("  ✓ Deleted #{change["file"]}", type: :muted) if @verbose
+                Aidp.log_debug("change_request_processor", "Deleted file",
+                  file: change["file"],
+                  original_source_comments: change["source_comment_urls"],
+                  in_worktree: in_worktree)
+                results[:successful_changes] += 1
+              else
+                results[:skipped_changes] += 1
+                Aidp.log_warn("change_request_processor", "File to delete does not exist",
+                  file: change["file"], in_worktree: in_worktree)
+              end
+
+            else
+              results[:skipped_changes] += 1
+              error_msg = "Unknown change action: #{change["action"]}"
+              display_message("  ⚠️  #{error_msg} for #{change["file"]}", type: :warn)
+
+              results[:errors] << {
+                file: change["file"],
+                action: change["action"],
+                error: error_msg,
+                worktree_context: in_worktree
+              }
+
+              Aidp.log_warn("change_request_processor", "Unhandled change action",
+                action: change["action"],
+                file: change["file"],
+                in_worktree: in_worktree)
+            end
+          rescue SecurityError => e
+            results[:failed_changes] += 1
+            error_details = {
+              file: change["file"],
+              action: change["action"],
+              error: e.message,
+              error_type: "security_violation",
+              worktree_context: in_worktree
+            }
+
+            results[:errors] << error_details
+
+            Aidp.log_error("change_request_processor", "Security violation during change application",
+              **error_details)
+
+            display_message("  🔒 Security error applying change to #{change["file"]}: #{e.message}", type: :error)
+          rescue => e
+            results[:failed_changes] += 1
+            error_details = {
+              file: change["file"],
+              action: change["action"],
+              error: e.message,
+              backtrace: e.backtrace&.first(3),
+              worktree_context: in_worktree
+            }
+
+            results[:errors] << error_details
+
+            Aidp.log_error("change_request_processor", "Change application failed",
+              **error_details)
+
+            display_message("  ❌ Failed to apply change to #{change["file"]}: #{e.message}", type: :error)
           end
         end
+
+        # Enhanced logging of overall change application results
+        Aidp.log_info("change_request_processor", "Change application summary",
+          total_changes: results[:total_changes],
+          successful_changes: results[:successful_changes],
+          skipped_changes: results[:skipped_changes],
+          failed_changes: results[:failed_changes],
+          errors_count: results[:errors].length,
+          success_rate: (results[:successful_changes].to_f / results[:total_changes] * 100).round(2),
+          in_worktree: in_worktree,
+          working_directory: @project_dir)
+
+        # Additional worktree-specific logging
+        if in_worktree && results[:successful_changes] > 0
+          Aidp.log_info("change_request_processor", "Worktree changes applied successfully",
+            worktree_path: @project_dir,
+            files_modified: results[:successful_changes])
+        end
+
+        # Return enhanced results for potential additional handling
+        results
       end
 
       def run_tests_and_linters
@@ -565,30 +865,96 @@ module Aidp
 
       def commit_and_push(pr_data, analysis)
         Dir.chdir(@project_dir) do
-          # Check if there are changes
-          status_output = run_git(%w[status --porcelain])
-          if status_output.strip.empty?
-            display_message("ℹ️  No changes to commit after applying changes.", type: :muted)
+          # Validate we're in a worktree
+          unless @project_dir.include?(".worktrees")
+            Aidp.log_error(
+              "change_request_processor", "Invalid project directory for commit_and_push",
+              pr_number: pr_data[:number],
+              project_dir: @project_dir
+            )
             return false
           end
 
-          # Stage all changes
-          run_git(%w[add -A])
+          begin
+            # Check for changes
+            status_result = run_git(%w[status --porcelain])
+            return false if status_result.strip.empty?
 
-          # Create commit
-          commit_message = build_commit_message(pr_data, analysis)
-          run_git(["commit", "-m", commit_message])
+            modified_files = status_result.split("\n").map { |l| l.strip.split(" ", 2).last }
 
-          display_message("💾 Created commit: #{commit_message.lines.first.strip}", type: :info)
-          Aidp.log_debug("change_request_processor", "Created commit", pr: pr_data[:number])
+            # Stage all changes
+            run_git(%w[add -A])
+            Aidp.log_debug("change_request_processor", "Staged changes",
+              pr_number: pr_data[:number],
+              staged_files: modified_files)
 
-          # Push to origin
-          head_ref = pr_data[:head_ref]
-          run_git(["push", "origin", head_ref])
+            # Create commit
+            commit_message = build_commit_message(pr_data, analysis)
+            commit_result = run_git(["commit", "-m", commit_message])
+            first_line = commit_message.lines.first.strip
+            Aidp.log_info(
+              "change_request_processor", "Created commit",
+              pr: pr_data[:number],
+              commit_message: first_line,
+              files_changed: modified_files,
+              commit_result: commit_result.strip
+            )
+            display_message("💾 Created commit: #{first_line}", type: :info)
 
-          display_message("⬆️  Pushed changes to #{head_ref}", type: :success)
-          Aidp.log_info("change_request_processor", "Pushed changes", pr: pr_data[:number], branch: head_ref)
-          true
+            # Push changes
+            head_ref = pr_data[:head_ref]
+            begin
+              push_result = run_git(["push", "origin", head_ref], allow_failure: false)
+              Aidp.log_info("change_request_processor", "Pushed changes",
+                pr: pr_data[:number],
+                branch: head_ref,
+                push_result: push_result.strip)
+              display_message("⬆️  Pushed changes to #{head_ref}", type: :success)
+              return true
+            rescue => push_error
+              # Push failed, but commit was successful
+              Aidp.log_warn("change_request_processor", "Push failed, but commit was successful",
+                pr_number: pr_data[:number],
+                error: push_error.message)
+
+              # Post a detailed comment about the push failure
+              comment_body = <<~COMMENT
+                #{COMMENT_HEADER}
+
+                ⚠️ Automated changes were committed successfully, but pushing to the branch failed.
+
+                **Error Details:**
+                ```
+                #{push_error.message}
+                ```
+
+                **Suggested Actions:**
+                1. Check branch permissions
+                2. Verify remote repository configuration
+                3. Manually push the changes
+                4. Contact repository administrator
+              COMMENT
+
+              begin
+                @repository_client.post_comment(pr_data[:number], comment_body)
+              rescue => comment_error
+                Aidp.log_warn("change_request_processor", "Failed to post push error comment",
+                  pr_number: pr_data[:number],
+                  error: comment_error.message)
+              end
+
+              return false
+            end
+          rescue => error
+            # Catch any other unexpected errors during the entire process
+            Aidp.log_error(
+              "change_request_processor", "Unexpected error in commit_and_push",
+              pr_number: pr_data[:number],
+              error: error.message,
+              backtrace: error.backtrace.first(5)
+            )
+            return false
+          end
         end
       end
 
@@ -670,42 +1036,22 @@ module Aidp
       end
 
       def handle_incomplete_implementation(pr:, analysis:, verification_result:)
-        Aidp.log_debug("change_request_processor", "start_incomplete_implementation_handling",
-          pr_number: pr[:number],
-          verification_result: {
-            missing_items_count: verification_result[:missing_items]&.length || 0,
-            additional_work_count: verification_result[:additional_work]&.length || 0
-          })
-
         display_message("⚠️  Implementation incomplete; creating follow-up tasks.", type: :warn)
 
         # Create tasks for missing requirements
         if verification_result[:additional_work] && !verification_result[:additional_work].empty?
-          Aidp.log_debug("change_request_processor", "preparing_follow_up_tasks",
-            pr_number: pr[:number],
-            additional_work_tasks_count: verification_result[:additional_work].length)
           create_follow_up_tasks(@project_dir, verification_result[:additional_work])
         end
 
         # Record state but do not post a separate comment
         # (verification details will be included in the next summary comment)
-        state_record = {
+        @state_store.record_change_request(pr[:number], {
           status: "incomplete_implementation",
           timestamp: Time.now.utc.iso8601,
           verification_reasons: verification_result[:reasons],
           missing_items: verification_result[:missing_items],
           additional_work: verification_result[:additional_work]
-        }
-
-        # Log the details of the state record before storing
-        Aidp.log_debug("change_request_processor", "recording_incomplete_implementation_state",
-          pr_number: pr[:number],
-          status: state_record[:status],
-          verification_reasons_count: state_record[:verification_reasons]&.length || 0,
-          missing_items_count: state_record[:missing_items]&.length || 0,
-          additional_work_count: state_record[:additional_work]&.length || 0)
-
-        @state_store.record_change_request(pr[:number], state_record)
+        })
 
         display_message("📝 Recorded incomplete implementation status for PR ##{pr[:number]}", type: :info)
 
@@ -722,55 +1068,36 @@ module Aidp
       def create_follow_up_tasks(working_dir, additional_work)
         return if additional_work.nil? || additional_work.empty?
 
-        Aidp.log_debug("change_request_processor", "start_creating_follow_up_tasks",
-          working_dir: working_dir,
-          additional_work_tasks_count: additional_work.length)
-
         tasklist_file = File.join(working_dir, ".aidp", "tasklist.jsonl")
         FileUtils.mkdir_p(File.dirname(tasklist_file))
 
         require_relative "../execute/persistent_tasklist"
         tasklist = Aidp::Execute::PersistentTasklist.new(working_dir)
 
-        tasks_created = []
         additional_work.each do |task_description|
-          task = tasklist.create(
+          tasklist.create(
             description: task_description,
             priority: :high,
             source: "verification"
           )
-          tasks_created << task
         end
 
         display_message("📝 Created #{additional_work.length} follow-up task(s) for continued work", type: :info)
 
-        Aidp.log_debug("change_request_processor", "follow_up_tasks_details",
-          task_count: tasks_created.length,
-          working_dir: working_dir,
-          task_descriptions: tasks_created.map(&:description))
-
         Aidp.log_info(
           "change_request_processor",
           "created_follow_up_tasks",
-          task_count: tasks_created.length,
+          task_count: additional_work.length,
           working_dir: working_dir
         )
-
-        tasks_created
       rescue => e
+        display_message("⚠️  Failed to create follow-up tasks: #{e.message}", type: :warn)
         Aidp.log_error(
           "change_request_processor",
           "failed_to_create_follow_up_tasks",
           error: e.message,
-          error_class: e.class.name,
-          backtrace: e.backtrace&.first(5),
-          working_dir: working_dir
+          backtrace: e.backtrace&.first(5)
         )
-
-        display_message("⚠️  Failed to create follow-up tasks: #{e.message}", type: :warn)
-
-        # Return an empty array to indicate failure
-        []
       end
 
       def handle_clarification_needed(pr:, analysis:)
@@ -912,36 +1239,56 @@ module Aidp
       end
 
       def post_diff_too_large_comment(pr, diff_size)
+        # Configure handling based on repository/project config
+        handling_strategy = case @config[:large_pr_strategy]
+        when "create_worktree"
+          "Creating a dedicated git worktree"
+        when "manual"
+          "Requiring manual intervention"
+        else
+          "Skipping processing"
+        end
+
         comment = <<~COMMENT
           #{COMMENT_HEADER}
 
-          ⚠️  PR diff is too large for default change requests.
+          ⚠️  PR diff is too large for standard automated change requests.
 
           **Current size:** #{diff_size} lines
           **Maximum allowed:** #{@config[:max_diff_size]} lines
+          **Handling strategy:** #{handling_strategy}
 
-          For large PRs, you have several options:
-          1. Enable worktree-based large PR handling:
-             Set `allow_large_pr_worktree_bypass: true` in your `aidp.yml`
-          2. Break the PR into smaller chunks
-          3. Implement changes manually
-          4. Increase `max_diff_size` in your configuration
-
-          The worktree bypass allows processing large PRs by working directly in the branch
-          instead of using diff-based changes.
+          Options:
+          1. Break the PR into smaller chunks
+          2. Implement changes manually
+          3. Increase `max_diff_size` in your `aidp.yml` configuration
+          4. Configure `large_pr_strategy` to customize processing
         COMMENT
+
+        Aidp.log_debug(
+          "change_request_processor", "Large PR detected",
+          pr_number: pr[:number],
+          diff_size: diff_size,
+          max_diff_size: @config[:max_diff_size],
+          strategy: handling_strategy
+        )
 
         begin
           @repository_client.post_comment(pr[:number], comment)
           @repository_client.remove_labels(pr[:number], @change_request_label)
-        rescue
-          nil
+        rescue => e
+          Aidp.log_warn(
+            "change_request_processor", "Failed to post large PR comment",
+            pr_number: pr[:number],
+            error: e.message
+          )
         end
       end
 
       def run_git(args, allow_failure: false)
-        stdout, stderr, status = Open3.capture3("git", *Array(args))
-        raise "git #{args.join(" ")} failed: #{stderr.strip}" unless status.success? || allow_failure
+        args_array = Array(args)
+        stdout, stderr, status = Open3.capture3("git", *args_array)
+        raise "git #{args_array.join(" ")} failed: #{stderr.strip}" unless status.success? || allow_failure
         stdout
       end
 
@@ -975,6 +1322,53 @@ module Aidp
         else
           text
         end
+      end
+
+      def parse_ai_changes(ai_response, pr_data, comments)
+        changes = ai_response[:changes] || []
+
+        # Log raw changes for debugging
+        Aidp.log_debug(
+          "change_request_processor", "Extracted changes",
+          pr_number: pr_data[:number],
+          changes_count: changes.length
+        )
+
+        # Validate and sanitize changes
+        validated_changes = changes.map do |change|
+          # Sanitize file path
+          file_path = change["file"].to_s.gsub(%r{^/|\.\.}, "")
+          file_path = File.join(@project_dir, file_path) unless file_path.start_with?(@project_dir)
+
+          # Validate change structure
+          {
+            "file" => file_path,
+            "action" => %w[create edit delete].include?(change["action"]) ? change["action"] : "edit",
+            "content" => change["content"].to_s,
+            "description" => change["description"].to_s.slice(0, 500), # Limit description length
+            "line_start" => change["line_start"]&.to_i,
+            "line_end" => change["line_end"]&.to_i
+          }
+        end.select do |change|
+          # Filter out invalid or empty changes
+          change["file"].present? &&
+            (change["action"] == "delete" || change["content"].present?)
+        end
+
+        # Add source reference for traceability
+        validated_changes.each do |change|
+          change["source_comment_urls"] = comments
+            .select { |c| c[:body].include?(change["description"]) }
+            .map { |c| c[:url] }
+        end
+
+        Aidp.log_debug(
+          "change_request_processor", "Validated changes",
+          pr_number: pr_data[:number],
+          validated_changes_count: validated_changes.length
+        )
+
+        validated_changes
       end
 
       def symbolize_keys(hash)

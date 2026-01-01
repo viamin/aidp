@@ -6,6 +6,9 @@ module Aidp
   module Harness
     # Detects run conditions (rate limits, user feedback, completion, errors)
     class ConditionDetector
+      # Expose patterns for testability
+      attr_reader :rate_limit_patterns, :user_feedback_patterns, :question_patterns, :reset_time_patterns
+
       def initialize
         # Enhanced rate limit patterns for different providers
         @rate_limit_patterns = {

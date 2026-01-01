@@ -25,7 +25,7 @@ RSpec.describe Aidp::RescueLogging do
   end
 
   before do
-    Aidp.instance_variable_set(:@logger, logger)
+    Aidp.logger = logger
   end
 
   after do

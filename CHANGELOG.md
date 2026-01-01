@@ -1,5 +1,182 @@
 # Changelog
 
+## [0.34.1](https://github.com/viamin/aidp/compare/aidp/v0.34.0...aidp/v0.34.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* add UI module with global helpers ([1881d65](https://github.com/viamin/aidp/commit/1881d652c871aeafc6af6bdfeb215281df4d2723))
+
+## [0.34.0](https://github.com/viamin/aidp/compare/aidp/v0.33.0...aidp/v0.34.0) (2025-12-17)
+
+
+### Features
+
+* Add --launch-test option for CI/CD validation ([cd343e9](https://github.com/viamin/aidp/commit/cd343e914185def75ae2e28929a5e2681bce70f3))
+* Add --launch-test option for CI/CD validation ([#404](https://github.com/viamin/aidp/issues/404)) ([24319bd](https://github.com/viamin/aidp/commit/24319bdb5bfadcfaa989448a507f1b482a9e08cf))
+* Add --quiet option to reduce console output ([0e75171](https://github.com/viamin/aidp/commit/0e7517152b8fd10ce72e837a36966ebd3ee47090))
+* Add evaluation & feedback system for AIDP outputs ([#272](https://github.com/viamin/aidp/issues/272)) ([5e89e1c](https://github.com/viamin/aidp/commit/5e89e1c6d6b9afc8d99b91bac70ec7d8e1dd2c21))
+* Add evaluation & feedback system for AIDP outputs ([#272](https://github.com/viamin/aidp/issues/272)) ([#392](https://github.com/viamin/aidp/issues/392)) ([64db0d9](https://github.com/viamin/aidp/commit/64db0d9e316fbedf06c191e235c2b43adbec7324))
+* Add GitHub Projects V2 API integration (Phase 1) ([#418](https://github.com/viamin/aidp/issues/418)) ([e83043f](https://github.com/viamin/aidp/commit/e83043fb946a7315a593c0024d20559ad4813f2b))
+* Add GitHub reaction-based feedback collection for watch mode ([899be1d](https://github.com/viamin/aidp/commit/899be1db8d88c70c750437fc925e3a85fa7dae38))
+* Add more test output suppression patterns ([b6e7e17](https://github.com/viamin/aidp/commit/b6e7e17ad13257dece2a5922c4bbe973b7bb9568))
+* Add watch mode evaluation support ([abc347a](https://github.com/viamin/aidp/commit/abc347a0cdac63178e83440ffcbd4c1f6d17daa8))
+* Complete aidp-auto implementation with iteration cap and reviewer request ([051c8a6](https://github.com/viamin/aidp/commit/051c8a6164fcc80c6ced91083c8b218e1a4c3ad0)), closes [#376](https://github.com/viamin/aidp/issues/376)
+* Complete aidp-auto implementation with iteration cap and reviewer request ([#407](https://github.com/viamin/aidp/issues/407)) ([3836437](https://github.com/viamin/aidp/commit/3836437af38ee883c16b3f2ab8570e1ed49cfea5))
+* Complete GitHub Projects V2 integration (Issue [#292](https://github.com/viamin/aidp/issues/292)) ([2f21914](https://github.com/viamin/aidp/commit/2f21914a4d9bb58c1c8fa257010d1ef3821a777d))
+* Enhance launch test validation by mocking dependencies and verifying instantiations ([c33f21f](https://github.com/viamin/aidp/commit/c33f21f06e5a49d94830d8081ec190a84daa3d24))
+* Implement automatic merge conflict resolution in CI fix processor ([8ba3c96](https://github.com/viamin/aidp/commit/8ba3c96d3a5581cf5f302718f58ecbb00ac632e3))
+* Implement Rule of Two security framework (Issue [#225](https://github.com/viamin/aidp/issues/225)) ([fe8bc5e](https://github.com/viamin/aidp/commit/fe8bc5eaef67622468704967131470cfa02ce5e2))
+* Implement Rule of Two security framework (Issue [#225](https://github.com/viamin/aidp/issues/225)) ([#413](https://github.com/viamin/aidp/issues/413)) ([628d299](https://github.com/viamin/aidp/commit/628d2996e7a84f1952517ae59f58243e9a8312d2))
+
+
+### Bug Fixes
+
+* Add comprehensive test output suppression patterns ([#398](https://github.com/viamin/aidp/issues/398)) ([ddc429e](https://github.com/viamin/aidp/commit/ddc429edc7871ec36bb929d9f10f6ed7f458b697))
+* Add default checkpoint stub to sync_runner mock ([e1fb69d](https://github.com/viamin/aidp/commit/e1fb69db34a1d363f02d27677e11e6892a932cf4))
+* Add merge conflict detection and handling in CI fix processor ([9d87e40](https://github.com/viamin/aidp/commit/9d87e40a61fffb211103c772e598e53a5829f901))
+* Add missing mock for directory method in tools_command_spec.rb ([43ba706](https://github.com/viamin/aidp/commit/43ba706194a8db09ff8a9da039bc8f5ced464977))
+* Add more test output suppression patterns ([4ff4336](https://github.com/viamin/aidp/commit/4ff433672cd0fff4c1040c5921fbec0394ec7f7d))
+* Address CI failures - markdown lint and coverage ([6811fa0](https://github.com/viamin/aidp/commit/6811fa065d1eb0ed77b97d0d97c1cb0a2855d70e))
+* Address linting errors and add tests for GitHub Projects classes ([6f7624e](https://github.com/viamin/aidp/commit/6f7624ea0612c1eb4bdb65717dcbeb3a6ff917c4))
+* Address PR review feedback for security framework ([6ef1f26](https://github.com/viamin/aidp/commit/6ef1f26e0642e5ee6b09c4df2f4c67d28079d6a5))
+* Adjust bundle install jobs to 1 to resolve Ruby 3.4.7 race condition ([f8af774](https://github.com/viamin/aidp/commit/f8af7744ac011570194f0eef401eaa3d2b532b9d))
+* Correct markdown linting issues in EVALUATIONS.md ([c06fed3](https://github.com/viamin/aidp/commit/c06fed33054e612656b1ade884956937e0d17f66))
+* Disable GPG signing for test Git configurations ([ac01d72](https://github.com/viamin/aidp/commit/ac01d72a75ae2d102c1d87850fe3d7fa7f8aa339))
+* Exclude capability_registry from provider selection menu ([33a3319](https://github.com/viamin/aidp/commit/33a3319b397e59b907eb225bd3ac0721a5c0199b)), closes [#297](https://github.com/viamin/aidp/issues/297)
+* Exclude capability_registry from provider selection menu ([#416](https://github.com/viamin/aidp/issues/416)) ([7e3602d](https://github.com/viamin/aidp/commit/7e3602d52c8ce9f822c21c0b1e32a6e7009619dc))
+* Fix PRWorktreeManager constant and secure shell commands ([d864047](https://github.com/viamin/aidp/commit/d864047e03e2dce0814268f18ad6d7129f124898))
+* Gracefully handle missing thinking_tiers configuration ([74fcf60](https://github.com/viamin/aidp/commit/74fcf60eb9329e11f7b5254c84a93094c0a2e289)), closes [#323](https://github.com/viamin/aidp/issues/323)
+* Gracefully handle missing thinking_tiers configuration ([#421](https://github.com/viamin/aidp/issues/421)) ([48a4db5](https://github.com/viamin/aidp/commit/48a4db57c728674e5664bc3b843e3e29bb9fa2ce))
+* Handle emoji variation selectors in workflow status patterns ([e98d8ae](https://github.com/viamin/aidp/commit/e98d8ae8c17709dbceef8c681dd00d80b4fb5b21))
+* Handle nil options in display_message mock for work_loop_runner_spec ([a786ea9](https://github.com/viamin/aidp/commit/a786ea9c18d6e8ea1f8e9ddfef357bff3774dd9c))
+* Handle remote-only PR branches in worktree creation ([5b2d066](https://github.com/viamin/aidp/commit/5b2d066a64bebe45b55443e6ed756e0c0107fcc2))
+* Handle remote-only PR branches in worktree creation ([#415](https://github.com/viamin/aidp/issues/415)) ([66fa7dc](https://github.com/viamin/aidp/commit/66fa7dcc278d0e213b4c3096220a08ae021140a6))
+* Improve postCreateCommand to install Ruby gems before generating firewall config ([8b9fcfc](https://github.com/viamin/aidp/commit/8b9fcfc036bc87d42fac7cda6ef48be337ca4279))
+* Improve test coverage and fix markdown formatting ([2a2c45a](https://github.com/viamin/aidp/commit/2a2c45ad605ee371aa0bc4d5119438865d52d38d))
+* Include missing requirements and additional work in incomplete implementation warning ([ada028a](https://github.com/viamin/aidp/commit/ada028a3d2974b140839ffc4b7f2b074b4298f05)), closes [#364](https://github.com/viamin/aidp/issues/364)
+* Include missing requirements and additional work in incomplete implementation warning ([#412](https://github.com/viamin/aidp/issues/412)) ([4ece1c5](https://github.com/viamin/aidp/commit/4ece1c5f67306b1726b083afe41c899fc6fc4e59))
+* Narrow overly broad test output suppression patterns ([e6c57aa](https://github.com/viamin/aidp/commit/e6c57aa258efaf9aa57d0a6decbb3fd2498bffb6))
+* Pass root_dir to ThinkingDepthManager in WorkLoopRunner ([6ef9f89](https://github.com/viamin/aidp/commit/6ef9f897b98fe5797b5c46066241f66b67298834))
+* Pass root_dir to ThinkingDepthManager in WorkLoopRunner ([#424](https://github.com/viamin/aidp/issues/424)) ([1df3501](https://github.com/viamin/aidp/commit/1df3501e183a8d3fd02af983229e10ca50653904))
+* Prevent premature task completion and PR creation in work loops ([e8df133](https://github.com/viamin/aidp/commit/e8df1336f1ae8b55397280d5797fbee4d076e24c))
+* Prevent premature task completion and PR creation in work loops ([#405](https://github.com/viamin/aidp/issues/405)) ([a9ec1d3](https://github.com/viamin/aidp/commit/a9ec1d3def8f6f774b9c27803e0cc30f0a4692ee))
+* Reduce test output by adding comprehensive suppression patterns ([3684458](https://github.com/viamin/aidp/commit/3684458c9376fdcc2da79d16fbabb3a44753a8c7))
+* Reduce test output by adding comprehensive suppression patterns ([#399](https://github.com/viamin/aidp/issues/399)) ([8697b9a](https://github.com/viamin/aidp/commit/8697b9ad1ddfd7cb3b6c2fb4139666803a8a41df))
+* Remove duplicate method definitions flagged by linter ([744e060](https://github.com/viamin/aidp/commit/744e06022005c1605939eb00b10d926c7ffd81a8))
+* Remove early return nil that prevented fallback logic ([354b0cb](https://github.com/viamin/aidp/commit/354b0cb50fb78f80399ca43de73d9c0b623f73d0))
+* Remove patterns that suppress test-verified output ([1e149e7](https://github.com/viamin/aidp/commit/1e149e719949b616aba6504b6f896800257639c0))
+* Remove redundant regex character classes (lint) ([78fb061](https://github.com/viamin/aidp/commit/78fb061573c5f912a55770dc691468972624307f))
+* Remove space inside empty braces in secrets_proxy_spec ([09bf8a4](https://github.com/viamin/aidp/commit/09bf8a4dd90b5faf7a78e83ad6c00751045b5bc1))
+* Remove unused variables to satisfy linter ([f3a98d3](https://github.com/viamin/aidp/commit/f3a98d343577b69617f7fffde3aa3289d6f1b75e))
+* Rename WorkLoopSecurityAdapter to WorkLoopAdapter for Zeitwerk compatibility ([3a1845e](https://github.com/viamin/aidp/commit/3a1845e1717c67014e802ac3c917f18d2ae72c3e))
+* Resolve markdown lint errors in documentation files ([85633b4](https://github.com/viamin/aidp/commit/85633b4920789747b2523bd07874c645fbd334e1))
+* Resolve markdownlint errors in SECURITY_FRAMEWORK.md ([10caccc](https://github.com/viamin/aidp/commit/10caccc92f4de3c2e626d1704ae7d0f6a00a2823))
+* Resolve pre-existing merge conflict markers in spec file ([986d84b](https://github.com/viamin/aidp/commit/986d84b39d535db3aaa6ed4a7bcc86a66c6737be))
+* Resolve test failures in status_display_spec.rb ([aceab91](https://github.com/viamin/aidp/commit/aceab91ba9772f54f8e5e21d2d88c55d5457d6db))
+* Suppress display_message output in AutoPrProcessor tests ([efecc60](https://github.com/viamin/aidp/commit/efecc60b30afbeb3222f1f1783d483282b589c1d))
+* Update enhanced_runner to use public jobs accessor ([ac0a3ae](https://github.com/viamin/aidp/commit/ac0a3ae69286bfb4dcaa322ed37604a8948d8fbf))
+* Use instance_variable_get for side-effect-free logger check in cleanup ([2f98712](https://github.com/viamin/aidp/commit/2f987124b32953dee5f2f5d27410acbb81cb41ae))
+* Use mocked registry/proxy in SecurityCommand tests ([90a7720](https://github.com/viamin/aidp/commit/90a7720f5bbeafdec24587f7edd269e34beb556c))
+* Use state_manager accessor instead of instance_variable_get ([e84cd0e](https://github.com/viamin/aidp/commit/e84cd0e878fd883775e1fec8b8835c5591fe368e))
+
+
+### Improvements
+
+* Eliminate instance_variable_set/get violations in spec files ([af34ab0](https://github.com/viamin/aidp/commit/af34ab027e375256e598d61ae19517671e578131))
+* Improve logging and error handling in worktree management and runner classes ([2065b18](https://github.com/viamin/aidp/commit/2065b1845ff390e11b2cc8707f99ff1e2335b8e9))
+* Remove all allow_any_instance_of violations from test suite ([466cc1b](https://github.com/viamin/aidp/commit/466cc1b5f8cccd1f7f827c0dbae1c5284b2ef736)), closes [#295](https://github.com/viamin/aidp/issues/295)
+* Remove all allow_any_instance_of violations from test suite ([#420](https://github.com/viamin/aidp/issues/420)) ([4964b78](https://github.com/viamin/aidp/commit/4964b78d166692c9d27647ce8c901b87ba0e4962))
+* Replace instance_variable_get in condition_detector_spec.rb ([27be0aa](https://github.com/viamin/aidp/commit/27be0aa126b2f18bb860a149758cae34ccd7b220))
+* Replace instance_variable_get in wizard_spec.rb ([a19d83e](https://github.com/viamin/aidp/commit/a19d83e457c1b23fa3d4551d6636889cd4d1270a))
+* Replace instance_variable_set in build_processor_vcs_spec.rb ([938ff59](https://github.com/viamin/aidp/commit/938ff59753da69a12b0856d31f573e6c4d3f7420))
+* Replace instance_variable_set in enhanced_runner_spec.rb ([adc327d](https://github.com/viamin/aidp/commit/adc327dd67bc90a7cd04b3dad0b5918633d7872a))
+* Replace instance_variable_set in harness/runner_spec.rb ([cb31b99](https://github.com/viamin/aidp/commit/cb31b99767fa93cb55d4593bab68eec3e47b598b))
+* Replace instance_variable_set in status_display_spec.rb ([9dec398](https://github.com/viamin/aidp/commit/9dec39805693e8bdffccb0a9fc7f2b978e2da3dc))
+* Replace instance_variable_set in work_loop_runner_spec.rb ([133f455](https://github.com/viamin/aidp/commit/133f4559496ca3e87d03e9d66e1ddf9bee228c66))
+* Replace instance_variable_set with dependency injection ([ba850b8](https://github.com/viamin/aidp/commit/ba850b82e3204aa03baf04ad473133dd0719c6b7))
+* Replace instance_variable_set/get in 4 more spec files ([755c3d6](https://github.com/viamin/aidp/commit/755c3d665d576683c0b7c07a3b172740e8404454))
+* Replace instance_variable_set/get in 5 spec files ([c36d557](https://github.com/viamin/aidp/commit/c36d557c253a620c93617aba8d51988cfee02b4d))
+* Replace instance_variable_set/get in async work loop specs ([6366a03](https://github.com/viamin/aidp/commit/6366a034f01d210842de31b9713c7f03475697dd))
+* Replace instance_variable_set/get in enhanced_tui_spec.rb ([8dd746f](https://github.com/viamin/aidp/commit/8dd746fbbc64127cef8ee80c88d435a7ff039afe))
+* Replace instance_variable_set/get in provider_manager_spec.rb ([89f5fe0](https://github.com/viamin/aidp/commit/89f5fe01ef768f35ccbf8c4acfbd617ae3a538c5))
+* Replace instance_variable_set/get in spinner_helper and enhanced_runner specs ([d079950](https://github.com/viamin/aidp/commit/d079950c9af9974fa2de9dcea94bcd302c56dc42))
+* Replace instance_variable_set/get in workflow_controller and job_monitor specs ([bb88990](https://github.com/viamin/aidp/commit/bb88990aae4116f7e8aac5da8883161d70f70621))
+
+
+### Documentation
+
+* Complete Phase 7 - Documentation updates for GitHub Projects V2 ([430c8b8](https://github.com/viamin/aidp/commit/430c8b86fb03f6de73ab1d8c93ecb37c91af6c9d))
+
+
+### Dependencies
+
+* **deps-dev:** bump aruba from 2.3.2 to 2.3.3 in the minor-updates group ([#410](https://github.com/viamin/aidp/issues/410)) ([6832560](https://github.com/viamin/aidp/commit/683256005fd00e2f266106cddffa2a6c99ed8327))
+* **deps-dev:** bump aruba in the minor-updates group ([4466937](https://github.com/viamin/aidp/commit/446693719cf8e2696713cbf56f9de6b84906278e))
+* **deps-dev:** bump simplecov-mcp from 1.0.1 to 2.0.1 ([63d6828](https://github.com/viamin/aidp/commit/63d6828492cbd6871929a3eaed52e57a63b03c02))
+* **deps-dev:** bump simplecov-mcp from 1.0.1 to 2.0.1 ([#411](https://github.com/viamin/aidp/issues/411)) ([7960b2a](https://github.com/viamin/aidp/commit/7960b2a098f18ae2a6afeebb917684de509ac49c))
+* **deps:** bump concurrent-ruby from 1.3.5 to 1.3.6 in the minor-updates group ([#423](https://github.com/viamin/aidp/issues/423)) ([c623e90](https://github.com/viamin/aidp/commit/c623e90324ea7d500615d3814316f9990cfc4d46))
+* **deps:** bump concurrent-ruby in the minor-updates group ([1c1911b](https://github.com/viamin/aidp/commit/1c1911ba91780b81b3732a550825970c2fd3dc63))
+* **deps:** bump the minor-updates group with 3 updates ([4ab28e8](https://github.com/viamin/aidp/commit/4ab28e8e64d9c349fd70ce503d47a45a59bb9165))
+* **deps:** bump the minor-updates group with 3 updates ([#401](https://github.com/viamin/aidp/issues/401)) ([2b2a6fe](https://github.com/viamin/aidp/commit/2b2a6fe95333ff51e2c4ebd2b7d7b1f3d6941533))
+* update cucumber and related gems to latest versions ([6320962](https://github.com/viamin/aidp/commit/6320962cb44866da1e1c65f6945bb78913c2e723))
+
+## [0.33.0](https://github.com/viamin/aidp/compare/aidp/v0.32.0...aidp/v0.33.0) (2025-12-01)
+
+
+### Features
+
+* Add auto-update configuration to setup wizard and corresponding tests ([578a34f](https://github.com/viamin/aidp/commit/578a34f8addc78775b2c0235e30f0888f768d827))
+* Add comprehensive guide for Gemini and AI assistants in AIDP ([767c2fd](https://github.com/viamin/aidp/commit/767c2fdde99b57cebed0bba120ea63cfe8e2d554))
+* Add deterministic STYLE_GUIDE section selector for prompt optimization ([dbc4991](https://github.com/viamin/aidp/commit/dbc499134546def946ebd4fce122122def230810)), closes [#380](https://github.com/viamin/aidp/issues/380)
+* Add deterministic STYLE_GUIDE section selector for prompt optimization ([#389](https://github.com/viamin/aidp/issues/389)) ([a8feb22](https://github.com/viamin/aidp/commit/a8feb221aec6ca8741ef375b5d4a56d2d6d47e26))
+* Add hot code reloading with Zeitwerk autoloader ([047afa0](https://github.com/viamin/aidp/commit/047afa04905a79852ca58c6620ea89b3c5d25ec8)), closes [#333](https://github.com/viamin/aidp/issues/333)
+* Add hot code reloading with Zeitwerk autoloader ([#383](https://github.com/viamin/aidp/issues/383)) ([c9c630d](https://github.com/viamin/aidp/commit/c9c630df2ed8900b1d1235b2b8679a3b0f2fdb16))
+* Add iteration overview and command preview in work loop execution ([5458172](https://github.com/viamin/aidp/commit/5458172b0b19ec1f8545288af7356ef3ba558a6a))
+* Add timeout support to coverage Rake task for improved test execution control ([62bf469](https://github.com/viamin/aidp/commit/62bf469e1f37d80303ad9116be738c71b0fdee81))
+* Enhance logging and test coverage for worktree request-changes workflow ([9d6c153](https://github.com/viamin/aidp/commit/9d6c1532b40a4fc84269ad8b9785bbb540127d8a))
+* Implement Comment Consolidation System for managing GitHub comments ([6395770](https://github.com/viamin/aidp/commit/6395770b79b274f2f4df386f2a69879a9fa47975)), closes [#359](https://github.com/viamin/aidp/issues/359)
+* Implement hot code reloading support and refactor path management ([479b877](https://github.com/viamin/aidp/commit/479b877888c049f48b44589d74ca629e68dbf49b))
+* Implement intelligent test/lint output filtering ([#377](https://github.com/viamin/aidp/issues/377)) ([bf758ef](https://github.com/viamin/aidp/commit/bf758ef43ca09e10edf57f56e39e054a19580fd5))
+* Implement intelligent test/lint output filtering ([#377](https://github.com/viamin/aidp/issues/377)) ([#382](https://github.com/viamin/aidp/issues/382)) ([57ed98e](https://github.com/viamin/aidp/commit/57ed98ec93f3319d8268097dd67ee10fecfbc0c7))
+* Implement model fallback logic and retry mechanism in ProviderManager ([a9345ad](https://github.com/viamin/aidp/commit/a9345ad8d530066f0a70369179cd0a4783e85353))
+* Implement strict mode for metadata validation and enhance error handling ([e054d22](https://github.com/viamin/aidp/commit/e054d222f603060113fbbf9989b1657d1ccbd8d4))
+* Improve logging in find_or_create_pr_worktree method for better traceability ([bb6de83](https://github.com/viamin/aidp/commit/bb6de8347e105506f5dce34ad9ab3127104819a3))
+
+
+### Bug Fixes
+
+* Add consolidate_category_comment method for managing categorized comments on issues ([40b8ac5](https://github.com/viamin/aidp/commit/40b8ac54dd25205deb0fce604f06a4fed3dba77f))
+* Add missing 'ostruct' requirement in wizard.rb ([40ff727](https://github.com/viamin/aidp/commit/40ff727d8f1f01606d33425ba40373ee2d2dbdfe))
+* Add missing IssueImporter require and namespace ([3b928e5](https://github.com/viamin/aidp/commit/3b928e55c3a06da983b100843f3785dc4d381313))
+* Add missing IssueImporter require and namespace ([#384](https://github.com/viamin/aidp/issues/384)) ([c926145](https://github.com/viamin/aidp/commit/c926145c56df13961ecc4ef71fe30924fc6adf88))
+* Add missing requires to lib/aidp.rb for work_loop_runner dependencies ([deaa1ea](https://github.com/viamin/aidp/commit/deaa1ea2f2ea6b17395f245ebefa9e7e155325ac))
+* Add missing spec_helper require to rspec_filter_strategy_spec ([7d73b2a](https://github.com/viamin/aidp/commit/7d73b2a1f8b983bb018b2b4e569d585435e5db43))
+* Add missing spec_helper require to rspec_filter_strategy_spec ([#387](https://github.com/viamin/aidp/issues/387)) ([53b8a05](https://github.com/viamin/aidp/commit/53b8a05e294b3f1e48dd4e68dd37e2ebf01ea141))
+* Add missing x86_64-linux-gnu platform and dependencies in Gemfile.lock ([a7cb0ec](https://github.com/viamin/aidp/commit/a7cb0ec94e226ba11fedd3d72a89094b9fac355e))
+* Correct email address and reorder runtime dependencies in aidp.gemspec ([cbdfa02](https://github.com/viamin/aidp/commit/cbdfa02b8f131dccd061a5fd1c9e27f5276aba77))
+* Integrate filter definitions with TestRunner for runtime use ([14edbc1](https://github.com/viamin/aidp/commit/14edbc141a4bce34f482806213966beaf26708a1))
+* Rename PrWorktreeManager to PRWorktreeManager for Zeitwerk compliance ([f5d23d9](https://github.com/viamin/aidp/commit/f5d23d939673f11b9bab2d5b0405099298991571)), closes [#383](https://github.com/viamin/aidp/issues/383)
+* Rename PrWorktreeManager to PRWorktreeManager for Zeitwerk compliance ([#386](https://github.com/viamin/aidp/issues/386)) ([30d66c5](https://github.com/viamin/aidp/commit/30d66c57e756662fdc089e72c0f614ee94f2b3d2))
+* Resolve Zeitwerk constant loading errors in specs ([12bb2c2](https://github.com/viamin/aidp/commit/12bb2c221bc21eefaf6fe5c5e0fe14a83509df8b))
+* Resolve Zeitwerk constant loading errors in specs ([#385](https://github.com/viamin/aidp/issues/385)) ([f3d26c5](https://github.com/viamin/aidp/commit/f3d26c5251786af29fc38ca7f6a43a8be3346cee))
+* Update class names to use consistent casing for PRWorktreeManager and add RSpecFilterStrategy to loader ([8ed1d4b](https://github.com/viamin/aidp/commit/8ed1d4b181a418bac462bd89f180c3c668054dac))
+* Update regex pattern for file change detection and adjust expected operations in specs ([2cdca05](https://github.com/viamin/aidp/commit/2cdca054988fc108abc65b060142d4a5ab90c26e))
+* Update YAML loading method in wizard_spec to use safe_load_file for improved safety ([83059f8](https://github.com/viamin/aidp/commit/83059f80cf2638c2684fdf565697034ad63a175a))
+
+
+### Improvements
+
+* code structure for improved readability and maintainability ([72e13b1](https://github.com/viamin/aidp/commit/72e13b19063c819463585707881c8574406b0c31))
+* Enhance CLI tests with additional command output expectations and CI status normalization tests ([2f1debe](https://github.com/viamin/aidp/commit/2f1debe6c09c78b51d65dd1738b4d01c21f5f4eb))
+* Replace hard-coded filter strategies with AI-generated definitions ([4bb0913](https://github.com/viamin/aidp/commit/4bb09139ec5af5aa6b250293d102ff28d1c8d92a))
+
+
+### Documentation
+
+* Add AI-Generated Determinism (AGD) pattern documentation ([c81e951](https://github.com/viamin/aidp/commit/c81e951af84ee422942cf326087a8d157130c3af))
+* Add AI-Generated Determinism (AGD) section to the style guide ([702fa5b](https://github.com/viamin/aidp/commit/702fa5b81440e31d384f18b2d48c854f5dd9d6b9))
+
 ## [0.32.0](https://github.com/viamin/aidp/compare/aidp/v0.31.0...aidp/v0.32.0) (2025-11-26)
 
 

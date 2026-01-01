@@ -170,6 +170,70 @@ module Aidp
           method: "zfc_automatic",
           allow_parallel: true
         }
+      },
+      evaluations: {
+        enabled: true,
+        prompt_after_work_loop: false,
+        capture_full_context: true,
+        directory: ".aidp/evaluations"
+      },
+      security: {
+        rule_of_two: {
+          enabled: true,
+          policy: "strict"  # strict or relaxed
+        },
+        secrets_proxy: {
+          enabled: true,
+          token_ttl: 300  # seconds
+        },
+        watch_mode: {
+          max_retry_attempts: 3,
+          fail_forward_enabled: true,
+          needs_input_label: "aidp-needs-input"
+        }
+      },
+      watch: {
+        enabled: false,
+        polling_interval: 30,
+        labels: {
+          plan_trigger: "aidp-plan",
+          build_trigger: "aidp-build",
+          review_trigger: "aidp-review",
+          fix_ci_trigger: "aidp-fix-ci",
+          change_request_trigger: "aidp-request-changes",
+          auto_trigger: "aidp-auto",
+          parent_pr: "aidp-parent-pr",
+          sub_pr: "aidp-sub-pr"
+        },
+        projects: {
+          enabled: false,
+          default_project_id: nil,
+          field_mappings: {
+            status: "Status",
+            priority: "Priority",
+            skills: "Skills",
+            personas: "Personas",
+            blocking: "Blocking"
+          },
+          auto_create_fields: true,
+          sync_interval: 60,
+          default_status_values: ["Backlog", "Todo", "In Progress", "In Review", "Done"],
+          default_priority_values: ["Low", "Medium", "High", "Critical"]
+        },
+        auto_merge: {
+          enabled: true,
+          sub_issue_prs_only: true,
+          require_ci_success: true,
+          require_reviews: 0,
+          merge_method: "squash",
+          delete_branch: true
+        },
+        worktree_cleanup: {
+          enabled: true,
+          frequency: "weekly",  # daily or weekly
+          base_branch: "main",
+          delete_branch: true
+        }
       }
     }.freeze
 
@@ -287,6 +351,47 @@ module Aidp
       symbolize_keys(tool_metadata_section)
     end
 
+    # Get evaluations configuration
+    def self.evaluations_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      evaluations_section = config[:evaluations] || config["evaluations"] || {}
+
+      # Convert string keys to symbols for consistency
+      symbolize_keys(evaluations_section)
+    end
+
+    # Get security configuration
+    def self.security_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      security_section = config[:security] || config["security"] || {}
+
+      # Convert string keys to symbols for consistency
+      symbolize_keys(security_section)
+    end
+
+    # Check if Rule of Two enforcement is enabled
+    def self.rule_of_two_enabled?(project_dir = Dir.pwd)
+      sec_config = security_config(project_dir)
+      rule_of_two = sec_config[:rule_of_two] || {}
+      rule_of_two.fetch(:enabled, true)
+    end
+
+    # Check if Secrets Proxy is enabled
+    def self.secrets_proxy_enabled?(project_dir = Dir.pwd)
+      sec_config = security_config(project_dir)
+      proxy_config = sec_config[:secrets_proxy] || {}
+      proxy_config.fetch(:enabled, true)
+    end
+
+    # Get worktree cleanup configuration
+    def self.worktree_cleanup_config(project_dir = Dir.pwd)
+      config = load_harness_config(project_dir)
+      watch_section = config[:watch] || config["watch"] || {}
+      cleanup_section = watch_section[:worktree_cleanup] || watch_section["worktree_cleanup"] || {}
+
+      symbolize_keys(cleanup_section)
+    end
+
     # Check if configuration file exists
     def self.config_exists?(project_dir = Dir.pwd)
       ConfigPaths.config_exists?(project_dir)
@@ -393,7 +498,30 @@ module Aidp
         merged[:waterfall] = merged[:waterfall].merge(symbolize_keys(waterfall_section))
       end
 
+      # Deep merge evaluations config
+      if config[:evaluations] || config["evaluations"]
+        evaluations_section = config[:evaluations] || config["evaluations"]
+        merged[:evaluations] = merged[:evaluations].merge(symbolize_keys(evaluations_section))
+      end
+
+      # Deep merge security config
+      if config[:security] || config["security"]
+        security_section = config[:security] || config["security"]
+        merged[:security] = deep_merge_hash(merged[:security], symbolize_keys(security_section))
+      end
+
       merged
+    end
+
+    # Deep merge for nested hashes (preserves nested defaults)
+    private_class_method def self.deep_merge_hash(base, override)
+      base.merge(override) do |_key, base_val, override_val|
+        if base_val.is_a?(Hash) && override_val.is_a?(Hash)
+          deep_merge_hash(base_val, override_val)
+        else
+          override_val
+        end
+      end
     end
 
     private_class_method def self.symbolize_keys(hash)

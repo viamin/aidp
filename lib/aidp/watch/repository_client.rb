@@ -26,9 +26,9 @@ module Aidp
       def self.parse_issues_url(issues_url)
         case issues_url
         when %r{\Ahttps://github\.com/([^/]+)/([^/]+)(?:/issues)?/?\z}
-          [$1, $2]
+          [::Regexp.last_match(1), ::Regexp.last_match(2)]
         when %r{\A([^/]+)/([^/]+)\z}
-          [$1, $2]
+          [::Regexp.last_match(1), ::Regexp.last_match(2)]
         else
           raise ArgumentError, "Unsupported issues URL: #{issues_url}"
         end
@@ -50,7 +50,14 @@ module Aidp
       end
 
       def list_issues(labels: [], state: "open")
-        gh_available? ? list_issues_via_gh(labels: labels, state: state) : list_issues_via_api(labels: labels, state: state)
+        if gh_available?
+          list_issues_via_gh(labels: labels,
+            state: state)
+        else
+          list_issues_via_api(
+            labels: labels, state: state
+          )
+        end
       end
 
       def fetch_issue(number)
@@ -70,7 +77,10 @@ module Aidp
       end
 
       def create_pull_request(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
-        gh_available? ? create_pull_request_via_gh(title: title, body: body, head: head, base: base, issue_number: issue_number, draft: draft, assignee: assignee) : raise("GitHub CLI not available - cannot create PR")
+        raise("GitHub CLI not available - cannot create PR") unless gh_available?
+
+        create_pull_request_via_gh(title: title, body: body, head: head, base: base,
+          issue_number: issue_number, draft: draft, assignee: assignee)
       end
 
       def add_labels(number, *labels)
@@ -109,56 +119,198 @@ module Aidp
       end
 
       def post_review_comment(number, body, commit_id: nil, path: nil, line: nil)
-        gh_available? ? post_review_comment_via_gh(number, body, commit_id: commit_id, path: path, line: line) : post_review_comment_via_api(number, body, commit_id: commit_id, path: path, line: line)
+        if gh_available?
+          post_review_comment_via_gh(number, body, commit_id: commit_id, path: path,
+            line: line)
+        else
+          post_review_comment_via_api(number,
+            body, commit_id: commit_id, path: path, line: line)
+        end
       end
 
       def list_pull_requests(labels: [], state: "open")
-        gh_available? ? list_pull_requests_via_gh(labels: labels, state: state) : list_pull_requests_via_api(labels: labels, state: state)
+        if gh_available?
+          list_pull_requests_via_gh(labels: labels,
+            state: state)
+        else
+          list_pull_requests_via_api(
+            labels: labels, state: state
+          )
+        end
       end
 
       def fetch_pr_comments(number)
         gh_available? ? fetch_pr_comments_via_gh(number) : fetch_pr_comments_via_api(number)
       end
 
+      # Convert a draft PR to ready for review
+      # @param number [Integer] PR number
+      # @return [Boolean] True if successful
+      def mark_pr_ready_for_review(number)
+        raise("GitHub CLI not available - cannot mark PR ready") unless gh_available?
+        mark_pr_ready_for_review_via_gh(number)
+      end
+
+      # Request reviewers for a PR
+      # @param number [Integer] PR number
+      # @param reviewers [Array<String>] GitHub usernames to request as reviewers
+      # @return [Boolean] True if successful
+      def request_reviewers(number, reviewers:)
+        return true if reviewers.nil? || reviewers.empty?
+        raise("GitHub CLI not available - cannot request reviewers") unless gh_available?
+        request_reviewers_via_gh(number, reviewers: reviewers)
+      end
+
+      # Get the actor who most recently added a label to a PR
+      # @param number [Integer] PR number
+      # @return [String, nil] GitHub username or nil
+      def most_recent_pr_label_actor(number)
+        gh_available? ? most_recent_pr_label_actor_via_gh(number) : nil
+      end
+
+      # Fetch reactions on a specific comment
+      # Returns array of reactions with user and content (emoji type)
+      def fetch_comment_reactions(comment_id)
+        gh_available? ? fetch_comment_reactions_via_gh(comment_id) : fetch_comment_reactions_via_api(comment_id)
+      end
+
       # Create or update a categorized comment (e.g., under a header) on an issue.
       # If a comment with the category header exists, either append to it or
       # replace it while archiving the previous content inline.
-      def consolidate_category_comment(issue_number, category_header, content, append: false)
-        existing_comment = find_comment(issue_number, category_header)
+      def consolidate_category_comment(number, category_header, content, append: false)
+        Aidp.log_debug(
+          "repository_client",
+          "consolidate_category_comment_started",
+          number: number,
+          category_header: category_header,
+          append: append,
+          content_length: content.length,
+          content_preview: content[0, 100]
+        )
 
-        if existing_comment.nil?
-          Aidp.log_debug("repository_client", "creating_category_comment",
-            issue: issue_number,
-            header: category_header)
-          return post_comment(issue_number, "#{category_header}\n\n#{content}")
-        end
+        existing_comment = find_comment(number, category_header)
 
-        existing_body = existing_comment[:body] || existing_comment["body"] || ""
-        content_without_header = existing_body.sub(/\A#{Regexp.escape(category_header)}\s*/, "").strip
-
-        new_body =
-          if append
-            Aidp.log_debug("repository_client", "appending_category_comment",
-              issue: issue_number,
-              header: category_header)
-            segments = [category_header, content_without_header, content].reject(&:empty?)
-            segments.join("\n\n")
+        if existing_comment
+          body = if append
+            Aidp.log_debug(
+              "repository_client",
+              "updating_category_comment_appending",
+              comment_id: existing_comment[:id],
+              existing_body_length: existing_comment[:body].length,
+              existing_body_preview: existing_comment[:body][0, 100],
+              appending_content_length: content.length,
+              appending_content_preview: content[0, 100]
+            )
+            "#{existing_comment[:body]}\n\n#{content}"
           else
-            Aidp.log_debug("repository_client", "replacing_category_comment",
-              issue: issue_number,
-              header: category_header)
-            timestamp = Time.now.utc.iso8601
-            archive_marker = "<!-- ARCHIVED_PLAN_START #{timestamp} ARCHIVED_PLAN_END -->"
-            [category_header, content, archive_marker, content_without_header].join("\n\n")
+            Aidp.log_debug(
+              "repository_client",
+              "updating_category_comment_replacing",
+              comment_id: existing_comment[:id],
+              existing_body_length: existing_comment[:body].length,
+              existing_body_preview: existing_comment[:body][0, 100],
+              replacement_content_length: content.length,
+              replacement_content_preview: content[0, 100]
+            )
+
+            archived_prefix = "<!-- ARCHIVED_PLAN_START "
+            archived_suffix = " ARCHIVED_PLAN_END -->"
+            archived_content = "#{archived_prefix}#{Time.now.utc.iso8601}#{archived_suffix}\n\n#{existing_comment[:body].gsub(
+              /^(#{Regexp.escape(category_header)}|#{Regexp.escape(archived_prefix)}.*?#{Regexp.escape(archived_suffix)})/m, ""
+            )}\n\n"
+
+            "#{category_header}\n\n#{archived_content}#{content}"
           end
 
-        update_comment(existing_comment[:id] || existing_comment["id"], new_body)
+          update_comment(existing_comment[:id], body)
+
+          Aidp.log_debug(
+            "repository_client",
+            "existing_category_comment_updated",
+            comment_id: existing_comment[:id],
+            updated_body_length: body.length,
+            updated_body_preview: body[0, 100],
+            update_method: append ? "append" : "replace"
+          )
+
+          {
+            id: existing_comment[:id],
+            body: body
+          }
+        else
+          body = "#{category_header}\n\n#{content}"
+
+          post_comment(number, body)
+
+          Aidp.log_debug(
+            "repository_client",
+            "new_category_comment_created",
+            issue_number: number,
+            body_length: body.length,
+            body_preview: body[0, 100],
+            category_header: category_header
+          )
+
+          {
+            id: 999,
+            body: body
+          }
+        end
       rescue => e
-        Aidp.log_error("repository_client", "consolidate_category_comment_failed",
-          issue: issue_number,
-          header: category_header,
-          error: e.message)
-        raise "GitHub error: #{e.message}"
+        Aidp.log_error(
+          "repository_client",
+          "consolidate_category_comment_failed",
+          error: e.message,
+          error_class: e.class.name,
+          number: number,
+          category_header: category_header,
+          content_length: content.length,
+          content_preview: content[0, 100],
+          backtrace: e.backtrace&.first(5)
+        )
+
+        raise RuntimeError, "GitHub error", e.backtrace
+      end
+
+      # GitHub Projects V2 operations
+      def fetch_project(project_id)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        fetch_project_via_gh(project_id)
+      end
+
+      def list_project_items(project_id)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        list_project_items_via_gh(project_id)
+      end
+
+      def link_issue_to_project(project_id, issue_number)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        link_issue_to_project_via_gh(project_id, issue_number)
+      end
+
+      def update_project_item_field(item_id, field_id, value)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        update_project_item_field_via_gh(item_id, field_id, value)
+      end
+
+      def fetch_project_fields(project_id)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        fetch_project_fields_via_gh(project_id)
+      end
+
+      def create_project_field(project_id, name, field_type, options: nil)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        create_project_field_via_gh(project_id, name, field_type, options: options)
+      end
+
+      def create_issue(title:, body:, labels: [], assignees: [])
+        raise "GitHub CLI not available - cannot create issue" unless gh_available?
+        create_issue_via_gh(title: title, body: body, labels: labels, assignees: assignees)
+      end
+
+      def merge_pull_request(number, merge_method: "squash")
+        raise "GitHub CLI not available - cannot merge PR" unless gh_available?
+        merge_pull_request_via_gh(number, merge_method: merge_method)
       end
 
       private
@@ -221,7 +373,10 @@ module Aidp
       def list_issues_via_api(labels:, state:)
         label_param = labels.join(",")
         uri = URI("https://api.github.com/repos/#{full_repo}/issues?state=#{state}")
-        uri.query = [uri.query, "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&") unless label_param.empty?
+        unless label_param.empty?
+          uri.query = [uri.query,
+            "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&")
+        end
 
         response = Net::HTTP.get_response(uri)
         return [] unless response.code == "200"
@@ -259,11 +414,20 @@ module Aidp
       end
 
       def post_comment_via_gh(number, body)
-        cmd = ["gh", "issue", "comment", number.to_s, "--repo", full_repo, "--body", body]
-        stdout, stderr, status = Open3.capture3(*cmd)
-        raise "Failed to post comment via gh: #{stderr.strip}" unless status.success?
+        # Use gh api to post comment and get structured response with comment ID
+        with_gh_retry("post_comment") do
+          cmd = ["gh", "api", "repos/#{full_repo}/issues/#{number}/comments",
+            "-X", "POST", "-f", "body=#{body}"]
+          stdout, stderr, status = Open3.capture3(*cmd)
+          raise "Failed to post comment via gh: #{stderr.strip}" unless status.success?
 
-        stdout.strip
+          response = JSON.parse(stdout)
+          {
+            id: response["id"],
+            url: response["html_url"],
+            body: response["body"]
+          }
+        end
       end
 
       def post_comment_via_api(number, body)
@@ -277,7 +441,13 @@ module Aidp
         end
 
         raise "GitHub API comment failed (#{response.code})" unless response.code.start_with?("2")
-        response.body
+
+        data = JSON.parse(response.body)
+        {
+          id: data["id"],
+          url: data["html_url"],
+          body: data["body"]
+        }
       end
 
       def find_comment_via_gh(number, header_text)
@@ -315,7 +485,55 @@ module Aidp
         end
 
         raise "GitHub API update comment failed (#{response.code})" unless response.code.start_with?("2")
+
         response.body
+      end
+
+      def fetch_comment_reactions_via_gh(comment_id)
+        with_gh_retry("fetch_comment_reactions") do
+          cmd = ["gh", "api", "repos/#{full_repo}/issues/comments/#{comment_id}/reactions"]
+          stdout, stderr, status = Open3.capture3(*cmd)
+          raise "Failed to fetch reactions via gh: #{stderr.strip}" unless status.success?
+
+          reactions = JSON.parse(stdout)
+          reactions.map do |r|
+            {
+              id: r["id"],
+              user: r.dig("user", "login"),
+              content: r["content"],
+              created_at: r["created_at"]
+            }
+          end
+        end
+      rescue => e
+        Aidp.log_error("repository_client", "fetch_reactions_failed", comment_id: comment_id, error: e.message)
+        []
+      end
+
+      def fetch_comment_reactions_via_api(comment_id)
+        uri = URI("https://api.github.com/repos/#{full_repo}/issues/comments/#{comment_id}/reactions")
+        request = Net::HTTP::Get.new(uri)
+        # Reactions API requires special Accept header
+        request["Accept"] = "application/vnd.github+json"
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        return [] unless response.code.start_with?("2")
+
+        reactions = JSON.parse(response.body)
+        reactions.map do |r|
+          {
+            id: r["id"],
+            user: r.dig("user", "login"),
+            content: r["content"],
+            created_at: r["created_at"]
+          }
+        end
+      rescue => e
+        Aidp.log_error("repository_client", "fetch_reactions_api_failed", comment_id: comment_id, error: e.message)
+        []
       end
 
       def create_pull_request_via_gh(title:, body:, head:, base:, issue_number:, draft: false, assignee: nil)
@@ -436,6 +654,7 @@ module Aidp
         end
 
         raise "Failed to add labels via API (#{response.code})" unless response.code.start_with?("2")
+
         response.body
       end
 
@@ -546,7 +765,10 @@ module Aidp
       def list_pull_requests_via_api(labels:, state:)
         label_param = labels.join(",")
         uri = URI("https://api.github.com/repos/#{full_repo}/pulls?state=#{state}")
-        uri.query = [uri.query, "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&") unless label_param.empty?
+        unless label_param.empty?
+          uri.query = [uri.query,
+            "labels=#{URI.encode_www_form_component(label_param)}"].compact.join("&")
+        end
 
         response = Net::HTTP.get_response(uri)
         return [] unless response.code == "200"
@@ -558,7 +780,7 @@ module Aidp
       end
 
       def fetch_pull_request_via_gh(number)
-        fields = %w[number title body labels state url headRefName baseRefName commits author mergeable]
+        fields = %w[number title body labels state url headRefName baseRefName headRefOid commits author mergeable mergeStateStatus]
         cmd = ["gh", "pr", "view", number.to_s, "--repo", full_repo, "--json", fields.join(",")]
 
         stdout, stderr, status = Open3.capture3(*cmd)
@@ -597,6 +819,7 @@ module Aidp
         end
 
         raise "GitHub API diff failed (#{response.code})" unless response.code == "200"
+
         response.body
       end
 
@@ -664,7 +887,8 @@ module Aidp
           data = JSON.parse(response.body)
           data["check_runs"] || []
         else
-          Aidp.log_warn("repository_client", "Failed to fetch check runs via API", sha: head_sha, code: response.code)
+          Aidp.log_warn("repository_client", "Failed to fetch check runs via API", sha: head_sha,
+            code: response.code)
           []
         end
 
@@ -680,7 +904,7 @@ module Aidp
 
       def post_review_comment_via_gh(number, body, commit_id: nil, path: nil, line: nil)
         if path && line && commit_id
-          # Note: gh CLI doesn't support inline comments directly, so we use the API
+          # NOTE: gh CLI doesn't support inline comments directly, so we use the API
           # For inline comments, we need to use the GitHub API
           post_review_comment_via_api(number, body, commit_id: commit_id, path: path, line: line)
         else
@@ -755,6 +979,98 @@ module Aidp
         []
       end
 
+      def mark_pr_ready_for_review_via_gh(number)
+        cmd = ["gh", "pr", "ready", number.to_s, "--repo", full_repo]
+        _stdout, stderr, status = Open3.capture3(*cmd)
+
+        unless status.success?
+          Aidp.log_warn("repository_client", "mark_pr_ready_failed",
+            pr: number, stderr: stderr.strip)
+          return false
+        end
+
+        Aidp.log_info("repository_client", "pr_marked_ready", pr: number)
+        true
+      rescue => e
+        Aidp.log_error("repository_client", "mark_pr_ready_exception",
+          pr: number, error: e.message)
+        false
+      end
+
+      def request_reviewers_via_gh(number, reviewers:)
+        reviewer_args = reviewers.flat_map { |r| ["--add-reviewer", r] }
+        cmd = ["gh", "pr", "edit", number.to_s, "--repo", full_repo] + reviewer_args
+        _stdout, stderr, status = Open3.capture3(*cmd)
+
+        unless status.success?
+          Aidp.log_warn("repository_client", "request_reviewers_failed",
+            pr: number, reviewers: reviewers, stderr: stderr.strip)
+          return false
+        end
+
+        Aidp.log_info("repository_client", "reviewers_requested",
+          pr: number, reviewers: reviewers)
+        true
+      rescue => e
+        Aidp.log_error("repository_client", "request_reviewers_exception",
+          pr: number, reviewers: reviewers, error: e.message)
+        false
+      end
+
+      def most_recent_pr_label_actor_via_gh(number)
+        # Use GitHub GraphQL API to fetch the most recent label event actor for a PR
+        query = <<~GRAPHQL
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $number) {
+                timelineItems(last: 100, itemTypes: [LABELED_EVENT]) {
+                  nodes {
+                    ... on LabeledEvent {
+                      createdAt
+                      actor {
+                        login
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        cmd = [
+          "gh", "api", "graphql",
+          "-f", "query=#{query}",
+          "-F", "owner=#{owner}",
+          "-F", "repo=#{repo}",
+          "-F", "number=#{number}"
+        ]
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        unless status.success?
+          Aidp.log_warn("repository_client", "pr_label_actor_query_failed",
+            pr: number, error: stderr.strip)
+          return nil
+        end
+
+        data = JSON.parse(stdout)
+        events = data.dig("data", "repository", "pullRequest", "timelineItems", "nodes") || []
+
+        valid_events = events.select { |event| event.dig("actor", "login") }
+        return nil if valid_events.empty?
+
+        most_recent = valid_events.max_by { |event| event["createdAt"] }
+        most_recent.dig("actor", "login")
+      rescue JSON::ParserError => e
+        Aidp.log_warn("repository_client", "pr_label_actor_parse_failed",
+          pr: number, error: e.message)
+        nil
+      rescue => e
+        Aidp.log_warn("repository_client", "pr_label_actor_exception",
+          pr: number, error: e.message)
+        nil
+      end
+
       # Normalization methods for PRs
       def normalize_pull_request(raw)
         {
@@ -793,8 +1109,9 @@ module Aidp
           url: raw["url"],
           head_ref: raw["headRefName"],
           base_ref: raw["baseRefName"],
-          head_sha: raw.dig("commits", 0, "oid") || raw["headRefOid"],
-          mergeable: raw["mergeable"]
+          head_sha: raw["headRefOid"] || raw.dig("commits", 0, "oid"),
+          mergeable: raw["mergeable"],
+          merge_state_status: raw["mergeStateStatus"]&.downcase
         }
       end
 
@@ -810,7 +1127,8 @@ module Aidp
           head_ref: raw.dig("head", "ref"),
           base_ref: raw.dig("base", "ref"),
           head_sha: raw.dig("head", "sha"),
-          mergeable: raw["mergeable"]
+          mergeable: raw["mergeable"],
+          merge_state_status: raw["merge_state_status"]&.downcase
         }
       end
 
@@ -863,6 +1181,13 @@ module Aidp
       end
 
       def normalize_ci_status_combined(check_runs, commit_statuses, head_sha)
+        # Log raw inputs for debugging
+        Aidp.log_debug("repository_client", "normalize_ci_status_combined_raw_inputs",
+          check_run_count: check_runs.length,
+          commit_status_count: commit_statuses.length,
+          check_runs_sample: check_runs.first(3).map { |cr| {name: cr["name"], status: cr["status"], conclusion: cr["conclusion"]} },
+          commit_statuses_sample: commit_statuses.first(3).map { |cs| {context: cs["context"], state: cs["state"]} })
+
         # Convert commit statuses to same format as check runs for unified processing
         # normalize_ci_status expects string keys, so we use string keys here
         checks_from_statuses = commit_statuses.map do |status|
@@ -882,7 +1207,8 @@ module Aidp
         Aidp.log_debug("repository_client", "combined_ci_checks",
           check_run_count: check_runs.length,
           commit_status_count: commit_statuses.length,
-          total_checks: all_checks.length)
+          total_checks: all_checks.length,
+          combined_checks_sample: all_checks.first(5).map { |c| {name: c["name"], status: c["status"], conclusion: c["conclusion"]} })
 
         # Use existing normalize logic
         normalize_ci_status(all_checks, head_sha)
@@ -905,6 +1231,12 @@ module Aidp
       end
 
       def normalize_ci_status(check_runs, head_sha)
+        # Log raw input data for debugging
+        Aidp.log_debug("repository_client", "normalize_ci_status_raw_input",
+          sha: head_sha,
+          raw_check_run_count: check_runs.length,
+          raw_checks_detailed: check_runs.map { |r| {name: r["name"], status: r["status"], conclusion: r["conclusion"]} })
+
         checks = check_runs.map do |run|
           {
             name: run["name"],
@@ -915,7 +1247,7 @@ module Aidp
           }
         end
 
-        Aidp.log_debug("repository_client", "normalize_ci_status",
+        Aidp.log_debug("repository_client", "normalize_ci_status_normalized",
           check_count: checks.length,
           checks: checks.map { |c| {name: c[:name], status: c[:status], conclusion: c[:conclusion]} })
 
@@ -945,7 +1277,9 @@ module Aidp
           non_success_checks = checks.reject { |c| c[:conclusion] == "success" }
           Aidp.log_debug("repository_client", "ci_status_unknown",
             non_success_count: non_success_checks.length,
-            non_success_checks: non_success_checks.map { |c| {name: c[:name], conclusion: c[:conclusion]} })
+            non_success_checks: non_success_checks.map do |c|
+              {name: c[:name], conclusion: c[:conclusion]}
+            end)
           "unknown"
         end
 
@@ -1032,6 +1366,480 @@ module Aidp
           created_at: raw["created_at"],
           updated_at: raw["updated_at"]
         }
+      end
+
+      # GitHub Projects V2 API implementations
+      def fetch_project_via_gh(project_id)
+        Aidp.log_debug("repository_client", "fetch_project", project_id: project_id)
+
+        query = <<~GRAPHQL
+          query($projectId: ID!) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                id
+                title
+                number
+                url
+                fields(first: 100) {
+                  nodes {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                      dataType
+                    }
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                      dataType
+                      options {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, projectId: project_id)
+        project_data = result.dig("data", "node")
+
+        unless project_data
+          Aidp.log_warn("repository_client", "Project not found", project_id: project_id)
+          raise "Project not found: #{project_id}"
+        end
+
+        normalize_project(project_data)
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to fetch project", project_id: project_id, error: e.message)
+        raise
+      end
+
+      def list_project_items_via_gh(project_id)
+        Aidp.log_debug("repository_client", "list_project_items", project_id: project_id)
+
+        query = <<~GRAPHQL
+          query($projectId: ID!, $cursor: String) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                items(first: 100, after: $cursor) {
+                  pageInfo {
+                    hasNextPage
+                    endCursor
+                  }
+                  nodes {
+                    id
+                    type
+                    content {
+                      ... on Issue {
+                        number
+                        title
+                        state
+                        url
+                      }
+                      ... on PullRequest {
+                        number
+                        title
+                        state
+                        url
+                      }
+                    }
+                    fieldValues(first: 100) {
+                      nodes {
+                        ... on ProjectV2ItemFieldTextValue {
+                          text
+                          field {
+                            ... on ProjectV2Field {
+                              id
+                              name
+                            }
+                          }
+                        }
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          field {
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        all_items = []
+        cursor = nil
+        has_next_page = true
+
+        while has_next_page
+          variables = {projectId: project_id}
+          variables[:cursor] = cursor if cursor
+
+          result = execute_graphql_query(query, **variables)
+          items_data = result.dig("data", "node", "items")
+
+          break unless items_data
+
+          items = items_data["nodes"] || []
+          all_items.concat(items.map { |item| normalize_project_item(item) })
+
+          page_info = items_data["pageInfo"]
+          has_next_page = page_info["hasNextPage"]
+          cursor = page_info["endCursor"]
+        end
+
+        Aidp.log_debug("repository_client", "list_project_items_complete", project_id: project_id, count: all_items.size)
+        all_items
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to list project items", project_id: project_id, error: e.message)
+        raise
+      end
+
+      def link_issue_to_project_via_gh(project_id, issue_number)
+        Aidp.log_debug("repository_client", "link_issue_to_project", project_id: project_id, issue_number: issue_number)
+
+        # First, get the issue's node ID
+        issue_query = <<~GRAPHQL
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $number) {
+                id
+              }
+            }
+          }
+        GRAPHQL
+
+        issue_result = execute_graphql_query(issue_query, owner: owner, repo: repo, number: issue_number)
+        issue_id = issue_result.dig("data", "repository", "issue", "id")
+
+        unless issue_id
+          raise "Issue ##{issue_number} not found in #{full_repo}"
+        end
+
+        # Now add the issue to the project
+        mutation = <<~GRAPHQL
+          mutation($projectId: ID!, $contentId: ID!) {
+            addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+              item {
+                id
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(mutation, projectId: project_id, contentId: issue_id)
+        item_id = result.dig("data", "addProjectV2ItemById", "item", "id")
+
+        Aidp.log_debug("repository_client", "link_issue_to_project_complete", project_id: project_id, issue_number: issue_number, item_id: item_id)
+        item_id
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to link issue to project", project_id: project_id, issue_number: issue_number, error: e.message)
+        raise
+      end
+
+      def update_project_item_field_via_gh(item_id, field_id, value)
+        Aidp.log_debug("repository_client", "update_project_item_field", item_id: item_id, field_id: field_id, value: value)
+
+        # Determine the mutation based on value type
+        mutation = if value.is_a?(Hash) && value[:option_id]
+          # Single select field
+          <<~GRAPHQL
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: {singleSelectOptionId: $optionId}
+              }) {
+                projectV2Item {
+                  id
+                }
+              }
+            }
+          GRAPHQL
+        else
+          # Text field
+          <<~GRAPHQL
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $text: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: {text: $text}
+              }) {
+                projectV2Item {
+                  id
+                }
+              }
+            }
+          GRAPHQL
+        end
+
+        # Note: We need the project ID for the mutation
+        # For now, we'll require it to be passed in the value hash
+        project_id = value.is_a?(Hash) ? value[:project_id] : nil
+        raise "project_id required in value hash" unless project_id
+
+        variables = {
+          projectId: project_id,
+          itemId: item_id,
+          fieldId: field_id
+        }
+
+        if value.is_a?(Hash) && value[:option_id]
+          variables[:optionId] = value[:option_id]
+        else
+          variables[:text] = value.to_s
+        end
+
+        result = execute_graphql_query(mutation, **variables)
+        success = result.dig("data", "updateProjectV2ItemFieldValue", "projectV2Item", "id")
+
+        Aidp.log_debug("repository_client", "update_project_item_field_complete", item_id: item_id, field_id: field_id, success: !success.nil?)
+        success
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to update project item field", item_id: item_id, field_id: field_id, error: e.message)
+        raise
+      end
+
+      def fetch_project_fields_via_gh(project_id)
+        Aidp.log_debug("repository_client", "fetch_project_fields", project_id: project_id)
+
+        query = <<~GRAPHQL
+          query($projectId: ID!) {
+            node(id: $projectId) {
+              ... on ProjectV2 {
+                fields(first: 100) {
+                  nodes {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                      dataType
+                    }
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      name
+                      dataType
+                      options {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, projectId: project_id)
+        fields_data = result.dig("data", "node", "fields", "nodes") || []
+
+        fields = fields_data.map { |field| normalize_project_field(field) }
+        Aidp.log_debug("repository_client", "fetch_project_fields_complete", project_id: project_id, count: fields.size)
+        fields
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to fetch project fields", project_id: project_id, error: e.message)
+        raise
+      end
+
+      def create_project_field_via_gh(project_id, name, field_type, options: nil)
+        Aidp.log_debug("repository_client", "create_project_field", project_id: project_id, name: name, field_type: field_type)
+
+        mutation = if field_type == "SINGLE_SELECT" && options
+          <<~GRAPHQL
+            mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+              createProjectV2Field(input: {
+                projectId: $projectId
+                dataType: $dataType
+                name: $name
+                singleSelectOptions: $options
+              }) {
+                projectV2Field {
+                  ... on ProjectV2SingleSelectField {
+                    id
+                    name
+                    dataType
+                    options {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          GRAPHQL
+        else
+          <<~GRAPHQL
+            mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+              createProjectV2Field(input: {
+                projectId: $projectId
+                dataType: $dataType
+                name: $name
+              }) {
+                projectV2Field {
+                  ... on ProjectV2Field {
+                    id
+                    name
+                    dataType
+                  }
+                }
+              }
+            }
+          GRAPHQL
+        end
+
+        variables = {projectId: project_id, name: name, dataType: field_type}
+        variables[:options] = options if options
+
+        result = execute_graphql_query(mutation, **variables)
+        field_data = result.dig("data", "createProjectV2Field", "projectV2Field")
+
+        unless field_data
+          Aidp.log_warn("repository_client", "Failed to create project field", project_id: project_id, name: name)
+          raise "Failed to create project field: #{name}"
+        end
+
+        field = normalize_project_field(field_data)
+        Aidp.log_debug("repository_client", "create_project_field_complete", project_id: project_id, field_id: field[:id])
+        field
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to create project field", project_id: project_id, name: name, error: e.message)
+        raise
+      end
+
+      def create_issue_via_gh(title:, body:, labels: [], assignees: [])
+        Aidp.log_debug("repository_client", "create_issue", title: title, label_count: labels.size, assignee_count: assignees.size)
+
+        cmd = ["gh", "issue", "create", "--repo", full_repo, "--title", title, "--body", body]
+        labels.each { |label| cmd += ["--label", label] }
+        assignees.each { |assignee| cmd += ["--assignee", assignee] }
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to create issue via gh: #{stderr.strip}" unless status.success?
+
+        # Parse the issue URL to get the number
+        issue_url = stdout.strip
+        issue_number = issue_url.split("/").last.to_i
+
+        Aidp.log_debug("repository_client", "create_issue_complete", issue_number: issue_number, url: issue_url)
+        {number: issue_number, url: issue_url}
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to create issue", title: title, error: e.message)
+        raise
+      end
+
+      def merge_pull_request_via_gh(number, merge_method: "squash")
+        Aidp.log_debug("repository_client", "merge_pull_request", number: number, merge_method: merge_method)
+
+        cmd = ["gh", "pr", "merge", number.to_s, "--repo", full_repo]
+        case merge_method
+        when "merge"
+          cmd << "--merge"
+        when "squash"
+          cmd << "--squash"
+        when "rebase"
+          cmd << "--rebase"
+        else
+          raise "Unknown merge method: #{merge_method}"
+        end
+
+        # Add auto-delete branch flag
+        cmd << "--delete-branch"
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to merge PR via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug("repository_client", "merge_pull_request_complete", number: number)
+        stdout.strip
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to merge PR", number: number, error: e.message)
+        raise
+      end
+
+      def execute_graphql_query(query, **variables)
+        cmd = ["gh", "api", "graphql", "-f", "query=#{query}"]
+        variables.each do |key, value|
+          flag = value.is_a?(Integer) ? "-F" : "-f"
+          cmd += [flag, "#{key}=#{value}"]
+        end
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+        unless status.success?
+          Aidp.log_warn("repository_client", "GraphQL query failed", error: stderr.strip)
+          raise "GraphQL query failed: #{stderr.strip}"
+        end
+
+        JSON.parse(stdout)
+      rescue JSON::ParserError => e
+        Aidp.log_error("repository_client", "Failed to parse GraphQL response", error: e.message)
+        raise "Failed to parse GraphQL response: #{e.message}"
+      end
+
+      def normalize_project(raw)
+        {
+          id: raw["id"],
+          title: raw["title"],
+          number: raw["number"],
+          url: raw["url"],
+          fields: Array(raw.dig("fields", "nodes")).map { |field| normalize_project_field(field) }
+        }
+      end
+
+      def normalize_project_field(raw)
+        field = {
+          id: raw["id"],
+          name: raw["name"],
+          data_type: raw["dataType"]
+        }
+
+        # Add options for single select fields
+        if raw["options"]
+          field[:options] = raw["options"].map { |opt| {id: opt["id"], name: opt["name"]} }
+        end
+
+        field
+      end
+
+      def normalize_project_item(raw)
+        item = {
+          id: raw["id"],
+          type: raw["type"]
+        }
+
+        # Add content (issue or PR)
+        if raw["content"]
+          content = raw["content"]
+          item[:content] = {
+            number: content["number"],
+            title: content["title"],
+            state: content["state"],
+            url: content["url"]
+          }
+        end
+
+        # Add field values
+        if raw["fieldValues"]
+          field_values = {}
+          Array(raw.dig("fieldValues", "nodes")).each do |fv|
+            next unless fv["field"]
+
+            field_name = fv.dig("field", "name")
+            field_value = fv["text"] || fv["name"]
+            field_values[field_name] = field_value
+          end
+          item[:field_values] = field_values
+        end
+
+        item
       end
     end
   end

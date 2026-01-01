@@ -15,7 +15,7 @@ module Aidp
 
       def initialize(configuration, registry: nil, root_dir: nil)
         @configuration = configuration
-        @registry = registry || CapabilityRegistry.new(root_dir: root_dir || configuration.instance_variable_get(:@project_dir))
+        @registry = registry || CapabilityRegistry.new(root_dir: root_dir || configuration.project_dir)
         @current_tier = nil
         @session_max_tier = nil
         @tier_history = []
@@ -243,50 +243,47 @@ module Aidp
               model: model_name)
             return [provider, model_name, model_data]
           end
-
-          # If provider doesn't support tier and switching allowed, try others
-          unless configuration.allow_provider_switch_for_tier?
-            Aidp.log_warn("thinking_depth_manager", "Provider lacks tier in catalog, switching disabled",
-              tier: tier,
-              provider: provider)
-            return nil
-          end
+          # Per issue #323: Don't return nil here - let fallback logic handle missing tiers
         end
 
-        # Try all providers in catalog
-        if provider && !configuration.allow_provider_switch_for_tier?
-          return nil
-        end
+        # Try all providers in catalog if provider switching is allowed
+        if configuration.allow_provider_switch_for_tier?
+          providers_to_try = provider ? (@registry.provider_names - [provider]) : @registry.provider_names
 
-        providers_to_try = provider ? [@registry.provider_names - [provider]].flatten : @registry.provider_names
-
-        providers_to_try.each do |prov_name|
-          model_name, model_data = @registry.best_model_for_tier(tier, prov_name)
-          if model_name
-            Aidp.log_info("thinking_depth_manager", "Selected model from catalog (alternate provider)",
-              tier: tier,
-              original_provider: provider,
-              selected_provider: prov_name,
-              model: model_name)
-            return [prov_name, model_name, model_data]
+          providers_to_try.each do |prov_name|
+            model_name, model_data = @registry.best_model_for_tier(tier, prov_name)
+            if model_name
+              Aidp.log_info("thinking_depth_manager", "Selected model from catalog (alternate provider)",
+                tier: tier,
+                original_provider: provider,
+                selected_provider: prov_name,
+                model: model_name)
+              return [prov_name, model_name, model_data]
+            end
           end
         end
 
         # No model found for requested tier - try fallback to other tiers
-        Aidp.log_warn("thinking_depth_manager", "No model found for requested tier, trying fallback",
+        # Per issue #323: fallback events log at debug level
+        Aidp.log_debug("thinking_depth_manager", "tier_not_found_trying_fallback",
           tier: tier,
           provider: provider)
 
         result = try_fallback_tiers(tier, provider)
 
-        if provider_has_no_tiers && result.nil? && provider
-          Aidp.log_info("thinking_depth_manager", "No configured tiers for provider, deferring to provider auto model selection",
+        # If no model found after fallback, defer to provider auto model selection
+        # This allows providers to select their own model when no explicit tier config exists
+        # Per issue #323: log at debug level, don't constrain model selection
+        if result.nil? && provider
+          Aidp.log_debug("thinking_depth_manager", "no_model_for_tier_deferring_to_provider",
             requested_tier: tier,
-            provider: provider)
-          return [provider, nil, {auto_model: true, reason: "provider_has_no_tiers"}]
+            provider: provider,
+            reason: provider_has_no_tiers ? "provider_has_no_tiers" : "tier_not_configured")
+          return [provider, nil, {auto_model: true, reason: provider_has_no_tiers ? "provider_has_no_tiers" : "tier_not_configured"}]
         end
 
         unless result
+          # This path should only be reached when no provider is specified
           # Enhanced error message with discovery hints
           display_enhanced_tier_error(tier, provider)
 
@@ -452,7 +449,8 @@ module Aidp
 
             if configured_models.any?
               model_name = configured_models.first
-              Aidp.log_warn("thinking_depth_manager", "Falling back to different tier (from config)",
+              # Per issue #323: fallback events log at debug level
+              Aidp.log_debug("thinking_depth_manager", "tier_fallback_from_config",
                 requested_tier: requested_tier,
                 fallback_tier: fallback_tier,
                 provider: provider,
@@ -466,7 +464,8 @@ module Aidp
           if provider
             model_name, model_data = @registry.best_model_for_tier(fallback_tier, provider)
             if model_name
-              Aidp.log_warn("thinking_depth_manager", "Falling back to different tier (from catalog)",
+              # Per issue #323: fallback events log at debug level
+              Aidp.log_debug("thinking_depth_manager", "tier_fallback_from_catalog",
                 requested_tier: requested_tier,
                 fallback_tier: fallback_tier,
                 provider: provider,
@@ -482,7 +481,8 @@ module Aidp
 
               model_name, model_data = @registry.best_model_for_tier(fallback_tier, prov_name)
               if model_name
-                Aidp.log_warn("thinking_depth_manager", "Falling back to different tier and provider (from catalog)",
+                # Per issue #323: fallback events log at debug level
+                Aidp.log_debug("thinking_depth_manager", "tier_fallback_provider_switch",
                   requested_tier: requested_tier,
                   fallback_tier: fallback_tier,
                   requested_provider: provider,

@@ -62,8 +62,8 @@ RSpec.describe "Work Loop Header Prepending" do
       prompt: test_prompt,
       thinking_depth_manager: mock_thinking_depth_manager
     )
-    runner.instance_variable_set(:@step_name, "16_IMPLEMENTATION")
-    runner.instance_variable_set(:@iteration_count, 3)
+    runner.step_name = "16_IMPLEMENTATION"
+    runner.iteration_count = 3
     runner
   end
 
@@ -92,7 +92,7 @@ RSpec.describe "Work Loop Header Prepending" do
 
       runner.send(:send_to_agent)
 
-      expect(sent_prompt).to include("**Write/edit code files**")
+      expect(sent_prompt).to include("**Write/edit CODE files**")
       expect(sent_prompt).to include("You are working in a work loop")
     end
 
@@ -130,7 +130,7 @@ RSpec.describe "Work Loop Header Prepending" do
 
       expect(header).to include("# Work Loop: TEST_STEP (Iteration 5)")
       expect(header).to include("## Instructions")
-      expect(header).to include("**Write/edit code files**")
+      expect(header).to include("**Write/edit CODE files**")
     end
   end
 end

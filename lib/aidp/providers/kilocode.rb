@@ -48,6 +48,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for Kilocode provider
+      #
+      # Kilocode looks for instruction files in the project.
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: ".kilocode/rules.md",
+            description: "Kilocode agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       def name
         "kilocode"
       end

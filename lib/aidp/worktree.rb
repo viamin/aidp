@@ -3,6 +3,7 @@
 require "fileutils"
 require "json"
 require "open3"
+require "time"
 
 module Aidp
   # Manages git worktree operations for parallel workstreams.
@@ -144,19 +145,43 @@ module Aidp
       #
       # @param branch [String] Branch name to search for
       # @param project_dir [String] Project root directory
-      # @return [Hash, nil] Worktree info or nil if not found
-      def find_by_branch(branch:, project_dir: Dir.pwd)
+      # @param create_if_not_found [Boolean] Whether to create a worktree if not found
+      # @param base_branch [String, nil] Base branch to use if creating a new worktree
+      # @return [Hash, nil] Worktree info or nil if not found and create_if_not_found is false
+      def find_by_branch(branch:, project_dir: Dir.pwd, create_if_not_found: false, base_branch: nil)
+        # First, try exact match in the registry
         registry = load_registry(project_dir)
         slug, data = registry.find { |_slug, info| info["branch"] == branch }
-        return nil unless data
 
-        {
-          slug: slug,
-          path: data["path"],
-          branch: data["branch"],
-          created_at: data["created_at"],
-          active: Dir.exist?(data["path"])
-        }
+        # Check if the existing worktree is still active
+        if data
+          active = Dir.exist?(data["path"])
+          Aidp.log_debug("worktree", active ? "found_existing" : "found_inactive", branch: branch, slug: slug)
+          return {
+            slug: slug,
+            path: data["path"],
+            branch: data["branch"],
+            created_at: data["created_at"],
+            active: active
+          }
+        end
+
+        # If not found and create_if_not_found is true, create a new worktree
+        if create_if_not_found
+          # Generate a slug from the branch name, replacing problematic characters
+          safe_slug = branch.downcase.gsub(/[^a-z0-9\-_]/, "-")
+
+          Aidp.log_debug("worktree", "creating_for_branch", branch: branch, slug: safe_slug)
+          return create(
+            slug: safe_slug,
+            project_dir: project_dir,
+            branch: branch,
+            base_branch: base_branch
+          )
+        end
+
+        # If no existing worktree and not set to create, return nil
+        nil
       end
 
       private
@@ -227,11 +252,36 @@ module Aidp
         end
       end
 
+      # Check if a branch exists on the remote (origin)
+      # @param project_dir [String] Project root directory
+      # @param branch [String] Branch name to check
+      # @return [Boolean] True if branch exists on origin
+      def remote_branch_exists?(project_dir, branch)
+        Dir.chdir(project_dir) do
+          system("git", "show-ref", "--verify", "--quiet", "refs/remotes/origin/#{branch}")
+        end
+      end
+
       def run_worktree_add!(project_dir:, branch:, branch_exists:, worktree_path:, base_branch:)
         prune_attempted = false
 
+        # If branch doesn't exist locally and no base_branch provided,
+        # check if it exists on the remote and use that as the base.
+        # This handles PRs created by external tools (Claude Code Web, GitHub UI, etc.)
+        effective_base_branch = base_branch
+        if !branch_exists && base_branch.nil? && remote_branch_exists?(project_dir, branch)
+          effective_base_branch = "origin/#{branch}"
+          Aidp.log_debug("worktree", "using_remote_branch_as_base",
+            branch: branch, remote_ref: effective_base_branch)
+        end
+
         loop do
-          cmd = build_worktree_command(branch_exists: branch_exists, branch: branch, worktree_path: worktree_path, base_branch: base_branch)
+          cmd = build_worktree_command(
+            branch_exists: branch_exists,
+            branch: branch,
+            worktree_path: worktree_path,
+            base_branch: effective_base_branch
+          )
           stdout, stderr, status = Dir.chdir(project_dir) { Open3.capture3(*cmd) }
 
           return if status.success?

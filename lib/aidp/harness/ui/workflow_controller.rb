@@ -16,6 +16,9 @@ module Aidp
 
         class ControlError < WorkflowError; end
 
+        # Expose for testability
+        attr_accessor :pause_time, :control_thread
+
         WORKFLOW_STATES = {
           running: "Running",
           paused: "Paused",

@@ -14,6 +14,9 @@ module Aidp
     class StateManager
       include Aidp::SafeDirectory
 
+      # Expose for testability
+      attr_reader :project_dir, :mode
+
       def initialize(project_dir, mode, skip_persistence: false)
         @project_dir = project_dir
         @mode = mode
@@ -613,7 +616,7 @@ module Aidp
           end
         rescue => e
           # Ignore errors when cleaning up stale locks
-          warn "Failed to cleanup stale lock: #{e.message}" if ENV["DEBUG"]
+          warn "Failed to cleanup stale lock: #{e.message}" if Aidp.debug_env_enabled?
         end
       end
     end

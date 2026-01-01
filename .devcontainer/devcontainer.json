@@ -62,6 +62,9 @@
   // Post-create command - install dependencies
   // Post-create: mandatory bundle install; optional tools below (uncomment to enable)
   "postCreateCommand": {
+    // Install Ruby gems first (required for firewall config generation)
+    // NOTE: Using --jobs 1 due to Ruby 3.4.7 race condition with parallel gem installation
+    "bundle-install": "bundle install --jobs 1 --retry 3",
     "markdownlint": "npm install -g markdownlint-cli",
     // OPTIONAL TOOLS (uncomment any you want):
     "git-curate": "gem install git_curate",
@@ -75,13 +78,15 @@
     "aider": "curl -fsSL https://aider.chat/install.sh | bash",
     // Configure LLM tools for auto-approve mode (devcontainer only)
     "configure-llm-tools": "/workspaces/aidp/.devcontainer/configure-llm-tools.sh",
-    // Install gems and generate firewall config (runs once per build)
-    "bundle-and-firewall": "bundle install --jobs 4 --retry 3 && bundle exec ruby bin/update-firewall-config"
+    // Generate firewall configuration from provider requirements
+    // NOTE: Using --jobs 1 due to Ruby 3.4.7 race condition with parallel gem installation
+    "generate-firewall-config": "bundle check || bundle install --jobs 1 --retry 3 && bundle exec ruby bin/update-firewall-config"
   },
   // Post-start command - initialize firewall, then ensure bundle
   "postStartCommand": {
     "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
-    "ensure-bundle": "bundle check || bundle install --jobs 4 --retry 3",
+    // NOTE: Using --jobs 1 due to Ruby 3.4.7 race condition with parallel gem installation
+    "ensure-bundle": "bundle check || bundle install --jobs 1 --retry 3",
     "fix-aidp-permissions": "sudo chown -R vscode:vscode /home/vscode/.aidp"
   },
   "waitFor": "postStartCommand",

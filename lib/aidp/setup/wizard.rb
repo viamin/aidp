@@ -7,6 +7,8 @@ require "time"
 require "fileutils"
 require "json"
 require "ostruct"
+require_relative "in_memory_config_adapter"
+require_relative "in_memory_config_manager"
 
 module Aidp
   module Setup
@@ -23,6 +25,8 @@ module Aidp
       }.freeze
 
       attr_reader :project_dir, :prompt, :dry_run
+      # Expose state for testability
+      attr_reader :warnings, :existing_config, :config, :discovery_threads
 
       def initialize(project_dir = Dir.pwd, prompt: nil, dry_run: false)
         @project_dir = project_dir
@@ -105,8 +109,8 @@ module Aidp
         providers_dir = File.join(__dir__, "../providers")
         provider_files = Dir.glob("*.rb", base: providers_dir)
 
-        # Exclude base classes
-        excluded_files = ["base.rb"]
+        # Exclude base classes and non-provider utility files
+        excluded_files = ["base.rb", "adapter.rb", "capability_registry.rb", "error_taxonomy.rb"]
         provider_files -= excluded_files
 
         providers = {}
@@ -129,7 +133,7 @@ module Aidp
             end
           rescue => e
             # Skip providers that can't be loaded, but don't fail the entire discovery
-            warn "Warning: Could not load provider #{provider_name}: #{e.message}" if ENV["DEBUG"]
+            warn "Warning: Could not load provider #{provider_name}: #{e.message}" if Aidp.debug_env_enabled?
           end
         end
 
@@ -156,7 +160,9 @@ module Aidp
         # Save primary provider
         set([:harness, :default_provider], provider_choice) unless provider_choice == "custom"
 
-        ensure_provider_billing_config(provider_choice) unless provider_choice == "custom"
+        # Always ask for billing config when running interactive wizard (force: true)
+        # This ensures users can update billing type when reconfiguring
+        ensure_provider_billing_config(provider_choice, force: true) unless provider_choice == "custom"
 
         # Prompt for fallback providers (excluding the primary), pre-select existing
         existing_fallbacks = Array(get([:harness, :fallback_providers])).map(&:to_s) - [provider_choice]
@@ -487,13 +493,214 @@ module Aidp
 
         configure_work_loop_limits
         configure_output_filtering
-        configure_test_commands
-        configure_linting
+        configure_commands
         configure_watch_patterns
         configure_guards
         configure_coverage
         configure_interactive_testing
         configure_vcs_behavior
+      end
+
+      # Configure generic deterministic commands for work loop
+      # Replaces the old category-specific configure_test_commands and configure_linting
+      def configure_commands
+        prompt.say("\n📋 Deterministic Commands Configuration")
+        prompt.say("  Commands run automatically during work loops to validate changes")
+        prompt.say("  Commands can run: after each unit, at full loop end, or on completion")
+
+        existing_commands = get([:work_loop, :commands]) || []
+
+        # If user has existing commands, offer to edit or start fresh
+        if existing_commands.any?
+          prompt.say("\n  Found #{existing_commands.size} existing command(s)")
+          action = prompt.select("What would you like to do?") do |menu|
+            menu.choice "Keep existing commands", :keep
+            menu.choice "Add more commands", :add
+            menu.choice "Replace all commands", :replace
+            menu.choice "Skip command configuration", :skip
+          end
+
+          case action
+          when :skip, :keep, nil
+            return
+          when :replace
+            existing_commands = []
+          when :add
+            # Continue to the loop below with existing commands
+          else
+            # Unexpected value - treat as skip for safety
+            return
+          end
+        else
+          return unless prompt.yes?("Configure deterministic commands?", default: true)
+        end
+
+        commands = existing_commands.dup
+        loop do
+          prompt.say("\n  Current commands: #{commands.size}")
+          commands.each_with_index do |cmd, i|
+            prompt.say("    #{i + 1}. [#{cmd[:category]}] #{cmd[:name]}: #{cmd[:command]}")
+          end
+
+          action = prompt.select("\nWhat would you like to do?") do |menu|
+            # Done is first so tests default to exiting the loop
+            menu.choice "Done configuring commands", :done
+            menu.choice "Add a command", :add
+            menu.choice "Add from auto-detected tooling", :detect
+            menu.choice "Remove a command", :remove if commands.any?
+          end
+
+          case action
+          when :add
+            cmd = collect_command_details
+            commands << cmd if cmd
+          when :detect
+            detected = add_detected_commands(commands)
+            commands = detected
+          when :remove
+            commands = remove_command_interactive(commands)
+          when :done, nil
+            # Exit on explicit done or unexpected nil (safety for tests)
+            break
+          end
+        end
+
+        set([:work_loop, :commands], commands)
+        prompt.say("✅ Configured #{commands.size} command(s)")
+      end
+
+      # Collect details for a single command
+      def collect_command_details
+        prompt.say("\n  Adding new command:")
+
+        name = prompt.ask("Command name (identifier):", required: true) do |q|
+          q.validate(/\A[a-z0-9_]+\z/i, "Name must be alphanumeric with underscores")
+        end
+
+        command = prompt.ask("Shell command to run:", required: true)
+
+        category_choices = [
+          ["Test (unit, integration, e2e)", :test],
+          ["Lint (code style)", :lint],
+          ["Formatter (auto-fix)", :formatter],
+          ["Build (compilation)", :build],
+          ["Documentation", :documentation],
+          ["Custom", :custom]
+        ]
+        category = prompt.select("Category:") do |menu|
+          category_choices.each { |label, value| menu.choice label, value }
+        end
+
+        run_after_choices = [
+          ["After each work unit iteration (recommended for tests/linters)", :each_unit],
+          ["Only at end of full work loop", :full_loop],
+          ["Only when agent marks work complete (recommended for formatters)", :on_completion]
+        ]
+        run_after = prompt.select("When should this command run?") do |menu|
+          run_after_choices.each { |label, value| menu.choice label, value }
+        end
+
+        required = prompt.yes?("Is this command required to pass? (failures block completion)", default: true)
+
+        {
+          name: name,
+          command: command,
+          category: category,
+          run_after: run_after,
+          required: required,
+          timeout_seconds: nil
+        }
+      end
+
+      # Add auto-detected commands
+      def add_detected_commands(existing_commands)
+        detected = detect_all_tooling
+        return existing_commands if detected.empty?
+
+        prompt.say("\n  Auto-detected tooling:")
+        detected.each_with_index do |cmd, i|
+          prompt.say("    #{i + 1}. [#{cmd[:category]}] #{cmd[:command]}")
+        end
+
+        selected = prompt.multi_select("Select commands to add:") do |menu|
+          detected.each_with_index do |cmd, i|
+            # Skip if already exists
+            existing = existing_commands.any? { |e| e[:command] == cmd[:command] }
+            label = "[#{cmd[:category]}] #{cmd[:command]}"
+            label += " (already added)" if existing
+            menu.choice label, i, disabled: existing ? "(already added)" : nil
+          end
+        end
+
+        new_commands = existing_commands.dup
+        selected.each do |idx|
+          new_commands << detected[idx]
+        end
+        new_commands
+      end
+
+      # Detect all tooling and return as generic command configs
+      def detect_all_tooling
+        commands = []
+
+        # Detect test command
+        test_cmd = detect_unit_test_command
+        if test_cmd && !test_cmd.empty?
+          commands << {
+            name: "unit_tests",
+            command: test_cmd,
+            category: :test,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 1800
+          }
+        end
+
+        # Detect lint command
+        lint_cmd = detect_lint_command
+        if lint_cmd && !lint_cmd.empty?
+          commands << {
+            name: "lint",
+            command: lint_cmd,
+            category: :lint,
+            run_after: :each_unit,
+            required: true,
+            timeout_seconds: 300
+          }
+        end
+
+        # Detect format command
+        format_cmd = detect_format_command
+        if format_cmd && !format_cmd.empty?
+          commands << {
+            name: "format",
+            command: format_cmd,
+            category: :formatter,
+            run_after: :on_completion,
+            required: false,
+            timeout_seconds: 120
+          }
+        end
+
+        commands
+      end
+
+      # Remove a command interactively
+      def remove_command_interactive(commands)
+        return commands if commands.empty?
+
+        choices = commands.each_with_index.map do |cmd, i|
+          ["#{cmd[:name]}: #{cmd[:command]}", i]
+        end
+
+        idx = prompt.select("Select command to remove:") do |menu|
+          choices.each { |label, value| menu.choice label, value }
+          menu.choice "Cancel", nil
+        end
+
+        return commands if idx.nil?
+
+        commands.dup.tap { |c| c.delete_at(idx) }
       end
 
       def configure_work_loop_limits
@@ -705,18 +912,29 @@ module Aidp
       end
 
       def create_filter_factory
-        # Build a minimal configuration for the factory
-        config = build_harness_config_for_factory
-        Aidp::Harness::AIFilterFactory.new(config)
+        # Build in-memory configuration adapters for the factory
+        # This enables AGD to work before the config file is written
+        config_adapter = build_in_memory_config_adapter
+        config_manager = build_in_memory_config_manager
+
+        # Create provider factory with in-memory config manager
+        provider_factory = Aidp::Harness::ProviderFactory.new(config_manager)
+
+        Aidp.log_debug("setup_wizard", "creating_filter_factory",
+          provider: config_adapter.default_provider,
+          configured_providers: config_adapter.configured_providers)
+
+        Aidp::Harness::AIFilterFactory.new(config_adapter, provider_factory: provider_factory)
       end
 
-      def build_harness_config_for_factory
-        # Create a minimal config object that the factory needs
-        OpenStruct.new(
-          default_provider: get([:harness, :default_provider]),
-          providers: get([:providers]) || {},
-          thinking_tiers: get([:thinking, :tiers])
-        )
+      def build_in_memory_config_adapter
+        # Create adapter that provides Configuration-like interface from in-memory config
+        InMemoryConfigAdapter.new(@config, project_dir)
+      end
+
+      def build_in_memory_config_manager
+        # Create ConfigManager-compatible wrapper for in-memory config
+        InMemoryConfigManager.new(@config, project_dir)
       end
 
       def configure_test_commands
@@ -1568,14 +1786,6 @@ module Aidp
           color = default_colors[key] || "EDEDED"  # Gray fallback
           required << {name: name, color: color, key: key}
         end
-
-        # Always include the internal in-progress label for coordination
-        required << {
-          name: "aidp-in-progress",
-          color: default_colors[:in_progress],
-          key: :in_progress,
-          internal: true
-        }
 
         Aidp.log_debug("setup_wizard.collect_labels", "collected", count: required.size)
         required

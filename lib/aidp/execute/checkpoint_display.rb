@@ -43,6 +43,22 @@ module Aidp
         current = summary[:current]
         @prompt.say("Step: #{@pastel.cyan(current[:step_name])}")
         @prompt.say("Iteration: #{current[:iteration]}")
+        if current[:run_loop_started_at]
+          started = begin
+            Time.parse(current[:run_loop_started_at])
+          rescue
+            current[:run_loop_started_at]
+          end
+          @prompt.say("Run Loop Started: #{@pastel.blue(started.is_a?(Time) ? started.strftime("%Y-%m-%d %H:%M:%S") : started)}")
+        end
+        if current[:timestamp]
+          ts = begin
+            Time.parse(current[:timestamp])
+          rescue
+            current[:timestamp]
+          end
+          @prompt.say("Last Run: #{@pastel.magenta(ts.is_a?(Time) ? ts.strftime("%Y-%m-%d %H:%M:%S") : ts)}")
+        end
         @prompt.say("Status: #{format_status(current[:status])}")
         @prompt.say("")
 

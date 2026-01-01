@@ -16,6 +16,7 @@ RSpec.describe Aidp::WorkstreamExecutor do
       system("git", "init", "-q")
       system("git", "config", "user.email", "test@example.com")
       system("git", "config", "user.name", "Test User")
+      system("git", "config", "commit.gpgsign", "false")
       File.write("README.md", "# Test Project")
       system("git", "add", ".")
       system("git", "commit", "-m", "Initial commit", "-q")
@@ -28,18 +29,18 @@ RSpec.describe Aidp::WorkstreamExecutor do
 
   describe "#initialize" do
     it "sets project_dir and max_concurrent" do
-      expect(executor.instance_variable_get(:@project_dir)).to eq(project_dir)
-      expect(executor.instance_variable_get(:@max_concurrent)).to eq(2)
+      expect(executor.project_dir).to eq(project_dir)
+      expect(executor.max_concurrent).to eq(2)
     end
 
     it "defaults max_concurrent to 3" do
       default_executor = described_class.new(project_dir: project_dir)
-      expect(default_executor.instance_variable_get(:@max_concurrent)).to eq(3)
+      expect(default_executor.max_concurrent).to eq(3)
     end
 
     it "initializes concurrent data structures" do
-      results = executor.instance_variable_get(:@results)
-      start_times = executor.instance_variable_get(:@start_times)
+      results = executor.results
+      start_times = executor.start_times
 
       expect(results).to be_a(Concurrent::Hash)
       expect(start_times).to be_a(Concurrent::Hash)

@@ -21,6 +21,9 @@ module Aidp
     #   Exec.shutdown_all
     module Exec
       class << self
+        # Expose for testability - reset pool cache between tests
+        attr_writer :pools, :default_pool
+
         # Get or create a named thread pool.
         #
         # Pools are cached by name. Calling this method multiple times with the

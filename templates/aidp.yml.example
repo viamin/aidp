@@ -765,6 +765,76 @@ devcontainer:
       # - "api.example.com"
       # - "registry.example.com"
 
+# Work Loop Configuration
+# Configures deterministic commands that run during work loops
+work_loop:
+  enabled: true
+  max_iterations: 50
+  task_completion_required: true
+
+  # Generic commands array (recommended - replaces category-specific arrays)
+  # Each command specifies when it runs: each_unit, full_loop, or on_completion
+  commands:
+    # Tests run after each work unit iteration
+    - name: "unit_tests"
+      command: "bundle exec rspec"
+      category: "test"
+      run_after: "each_unit"      # Run after each agent iteration
+      required: true              # Failure blocks completion
+      timeout_seconds: 1800
+
+    # Linters run after each work unit iteration
+    - name: "lint"
+      command: "bundle exec standardrb"
+      category: "lint"
+      run_after: "each_unit"
+      required: true
+      timeout_seconds: 300
+
+    # Formatters run only when agent marks work complete
+    - name: "format"
+      command: "bundle exec standardrb --fix"
+      category: "formatter"
+      run_after: "on_completion"  # Only run when work is marked complete
+      required: false             # Auto-fixers don't block completion
+
+    # Build commands run after each iteration
+    - name: "typecheck"
+      command: "bundle exec srb tc"
+      category: "build"
+      run_after: "each_unit"
+      required: false             # Optional - warnings don't block
+
+    # Custom commands for project-specific validation
+    - name: "security_scan"
+      command: "bundle exec brakeman -q"
+      category: "custom"
+      run_after: "full_loop"      # Only run at end of full work loop
+      required: false
+
+  # Legacy category-specific arrays (for backwards compatibility)
+  # These are merged with the commands array above
+  # test_commands: []
+  # lint_commands: []
+  # formatter_commands: []
+  # build_commands: []
+  # documentation_commands: []
+
+  # Output filtering reduces token consumption
+  output_filtering:
+    enabled: true
+    test_mode: "failures_only"    # full, failures_only, minimal
+    lint_mode: "failures_only"
+    test_max_lines: 500
+    lint_max_lines: 300
+
+  # Guards protect sensitive files
+  guards:
+    enabled: false
+    include_files: []
+    exclude_files: ["node_modules/**", "dist/**"]
+    confirm_files: []             # Files requiring confirmation
+
 # Watch mode configuration
 # Configures automated monitoring and processing of GitHub issues/PRs
 watch:

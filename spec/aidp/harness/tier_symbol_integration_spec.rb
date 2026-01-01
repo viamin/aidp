@@ -63,7 +63,7 @@ RSpec.describe "Tier Symbol/String Integration" do
       max_tier: :max,
       escalation_config: {enabled: true},
       allow_provider_switch_for_tier?: true,
-      instance_variable_get: temp_dir)
+      project_dir: temp_dir)
 
     # Create registry
     registry = Aidp::Harness::CapabilityRegistry.new(catalog_path: catalog_path)
@@ -90,7 +90,7 @@ RSpec.describe "Tier Symbol/String Integration" do
       max_tier: "max",
       escalation_config: {enabled: true},
       allow_provider_switch_for_tier?: true,
-      instance_variable_get: temp_dir)
+      project_dir: temp_dir)
 
     registry = Aidp::Harness::CapabilityRegistry.new(catalog_path: catalog_path)
 

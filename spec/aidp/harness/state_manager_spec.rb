@@ -20,8 +20,8 @@ RSpec.describe Aidp::Harness::StateManager do
   describe "initialization" do
     it "creates state manager successfully" do
       expect(state_manager).to be_a(described_class)
-      expect(state_manager.instance_variable_get(:@project_dir)).to eq(project_dir)
-      expect(state_manager.instance_variable_get(:@mode)).to eq(mode)
+      expect(state_manager.project_dir).to eq(project_dir)
+      expect(state_manager.mode).to eq(mode)
     end
 
     it "initializes progress tracker for analyze mode" do

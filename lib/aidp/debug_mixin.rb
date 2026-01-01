@@ -15,11 +15,11 @@ module Aidp
     module ClassMethods
       # Class-level debug configuration
       def debug_enabled?
-        ENV["DEBUG"] && ENV["DEBUG"].to_i > 0
+        Aidp.debug_env_level.positive?
       end
 
       def debug_level
-        ENV["DEBUG"]&.to_i || DEBUG_OFF
+        Aidp.debug_env_level
       end
     end
 

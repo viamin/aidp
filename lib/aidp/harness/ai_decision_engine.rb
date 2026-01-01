@@ -187,6 +187,85 @@ module Aidp
           },
           default_tier: "mini",
           cache_ttl: nil
+        },
+
+        # FIX for issue #391: Prompt effectiveness evaluation for stuck work loops
+        prompt_evaluation: {
+          prompt_template: "{{prompt}}",  # Custom prompt provided by caller
+          schema: {
+            type: "object",
+            properties: {
+              effective: {
+                type: "boolean",
+                description: "True if the prompt is likely to lead to completion"
+              },
+              issues: {
+                type: "array",
+                items: {type: "string"},
+                description: "Specific problems with the current prompt"
+              },
+              suggestions: {
+                type: "array",
+                items: {type: "string"},
+                description: "Actionable suggestions to improve effectiveness"
+              },
+              likely_blockers: {
+                type: "array",
+                items: {type: "string"},
+                description: "Potential blockers preventing progress"
+              },
+              confidence: {
+                type: "number",
+                minimum: 0.0,
+                maximum: 1.0,
+                description: "Confidence in this assessment"
+              }
+            },
+            required: ["effective", "issues", "suggestions", "confidence"]
+          },
+          default_tier: "mini",
+          cache_ttl: nil
+        },
+
+        # FIX for issue #391: Template improvement suggestions for AGD pattern
+        template_improvement: {
+          prompt_template: "{{prompt}}",  # Custom prompt provided by caller
+          schema: {
+            type: "object",
+            properties: {
+              improved_sections: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    section_name: {type: "string"},
+                    original: {type: "string"},
+                    improved: {type: "string"},
+                    rationale: {type: "string"}
+                  }
+                }
+              },
+              additional_sections: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    section_name: {type: "string"},
+                    content: {type: "string"},
+                    rationale: {type: "string"}
+                  }
+                }
+              },
+              completion_criteria_improvements: {
+                type: "array",
+                items: {type: "string"},
+                description: "Improvements to completion criteria definitions"
+              }
+            },
+            required: ["improved_sections", "completion_criteria_improvements"]
+          },
+          default_tier: "standard",  # Use standard tier for thoughtful improvements
+          cache_ttl: nil
         }
       }.freeze
 
@@ -198,7 +277,9 @@ module Aidp
       # @param provider_factory [ProviderFactory] Factory for creating provider instances
       def initialize(config, provider_factory: nil)
         @config = config
-        @provider_factory = provider_factory || ProviderFactory.new(config)
+        # ProviderFactory expects a ConfigManager, not a Configuration object.
+        # Pass nil to let ProviderFactory create its own ConfigManager.
+        @provider_factory = provider_factory || ProviderFactory.new
         @cache = {}
         @cache_timestamps = {}
       end

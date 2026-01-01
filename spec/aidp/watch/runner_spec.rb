@@ -14,15 +14,18 @@ RSpec.describe Aidp::Watch::Runner do
   let(:ci_fix_processor) { instance_double("CiFixProcessor", process: nil) }
   let(:auto_pr_processor) { instance_double("AutoPrProcessor", process: nil) }
   let(:change_request_processor) { instance_double("ChangeRequestProcessor", process: nil) }
+  let(:feedback_collector) { instance_double("FeedbackCollector", collect_feedback: []) }
   let(:auto_update_policy) { instance_double("AutoUpdatePolicy", enabled: true, check_interval_seconds: 1) }
   let(:auto_update_check) { instance_double("UpdateCheck", should_update?: true, current_version: "1", available_version: "2") }
   let(:auto_update) { instance_double("AutoUpdateCoordinator", check_for_updates: nil, check_for_update: auto_update_check, policy: auto_update_policy, restore_from_checkpoint: nil, hot_reload_available?: false, initiate_update: nil) }
+  let(:worktree_cleanup_job) { instance_double("WorktreeCleanupJob", enabled?: true, cleanup_due?: false, cleanup_interval_seconds: 604_800, execute: {cleaned: 0, skipped: 0, errors: []}) }
   let(:issue_detail) { {number: 1, labels: ["plan"], comments: [], author: "alice"} }
 
+  # Silent test prompt that doesn't output
+  let(:test_prompt) { instance_double(TTY::Prompt, say: nil) }
+
   before do
-    extractor_class = Class.new
-    extractor_class.const_set(:IN_PROGRESS_LABEL, "aidp-in-progress")
-    stub_const("Aidp::Watch::GitHubStateExtractor", extractor_class)
+    stub_const("Aidp::Watch::GitHubStateExtractor", Class.new)
     allow(Aidp::Watch::RepositoryClient).to receive(:parse_issues_url).and_return(["o", "r"])
     allow(Aidp::Watch::RepositoryClient).to receive(:new).and_return(repo_client)
     allow(Aidp::Watch::RepositorySafetyChecker).to receive(:new).and_return(safety_checker)
@@ -35,15 +38,16 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp::Watch::CiFixProcessor).to receive(:new).and_return(ci_fix_processor)
     allow(Aidp::Watch::AutoPrProcessor).to receive(:new).and_return(auto_pr_processor)
     allow(Aidp::Watch::ChangeRequestProcessor).to receive(:new).and_return(change_request_processor)
+    allow(Aidp::Watch::FeedbackCollector).to receive(:new).and_return(feedback_collector)
+    allow(Aidp::Watch::WorktreeCleanupJob).to receive(:new).and_return(worktree_cleanup_job)
+    allow(Aidp::Config).to receive(:worktree_cleanup_config).and_return({enabled: true, frequency: "weekly"})
     allow(Aidp::AutoUpdate).to receive(:coordinator).and_return(auto_update)
-    allow_any_instance_of(described_class).to receive(:display_message)
     allow(Aidp).to receive(:log_info)
     allow(Aidp).to receive(:log_debug)
     allow(Aidp).to receive(:log_error)
     allow(Aidp).to receive(:log_warn)
 
     allow(state_extractor).to receive_messages(
-      in_progress?: false,
       detection_comment_posted?: false,
       build_completed?: false
     )
@@ -52,7 +56,8 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "#start" do
     it "runs a single cycle when once is true" do
-      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01)
+      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
       expect(safety_checker).to receive(:validate_watch_mode_safety!)
       expect(runner).to receive(:process_cycle).and_return(nil)
 
@@ -62,7 +67,8 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "#process_cycle" do
     it "calls each processor in order" do
-      runner = described_class.new(issues_url: "o/r", once: true)
+      runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
       %i[
         process_plan_triggers
         process_build_triggers
@@ -72,6 +78,9 @@ RSpec.describe Aidp::Watch::Runner do
         process_ci_fix_triggers
         process_auto_pr_triggers
         process_change_request_triggers
+        collect_feedback
+        process_worktree_cleanup
+        process_worktree_reconciliation
       ].each do |method|
         allow(runner).to receive(method).and_return(nil)
         expect(runner).to receive(method).once
@@ -83,8 +92,9 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "#check_for_updates_if_due" do
     it "invokes coordinator when interval has passed" do
-      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01)
-      runner.instance_variable_set(:@last_update_check, Time.now - 100)
+      runner = described_class.new(issues_url: "o/r", once: true, interval: 0.01, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
+      runner.last_update_check = Time.now - 100
       expect(auto_update).to receive(:check_for_update).and_return(auto_update_check)
       expect(auto_update).to receive(:initiate_update)
 
@@ -94,13 +104,18 @@ RSpec.describe Aidp::Watch::Runner do
 
   describe "post detection comments" do
     it "enables post_detection_comments by default" do
-      runner = described_class.new(issues_url: "o/r", once: true)
-      expect(runner.instance_variable_get(:@post_detection_comments)).to be true
+      runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
+      expect(runner.post_detection_comments).to be true
     end
   end
 
   describe "trigger processing" do
-    let(:runner) { described_class.new(issues_url: "o/r", once: true) }
+    let(:runner) do
+      r = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(r).to receive(:display_message)
+      r
+    end
 
     before do
       allow(runner).to receive(:post_detection_comment)
@@ -122,17 +137,13 @@ RSpec.describe Aidp::Watch::Runner do
       expect { runner.send(:process_plan_triggers) }.not_to raise_error
     end
 
-    it "processes build triggers with in-progress label handling" do
+    it "processes build triggers" do
       allow(repo_client).to receive(:list_issues).and_return([{number: 2, labels: ["build"]}])
       allow(repo_client).to receive(:fetch_issue).and_return(issue_detail.merge(number: 2, labels: ["build"]))
-      allow(repo_client).to receive(:add_labels)
-      allow(repo_client).to receive(:remove_labels)
 
       runner.send(:process_build_triggers)
 
       expect(build_processor).to have_received(:process)
-      expect(repo_client).to have_received(:add_labels)
-      expect(repo_client).to have_received(:remove_labels)
     end
 
     it "processes auto issue triggers" do
@@ -183,6 +194,65 @@ RSpec.describe Aidp::Watch::Runner do
       runner.send(:process_change_request_triggers)
 
       expect(change_request_processor).to have_received(:process)
+    end
+  end
+
+  describe "#process_worktree_cleanup" do
+    let(:runner) do
+      r = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(r).to receive(:display_message)
+      r
+    end
+
+    it "skips cleanup when job is disabled" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(false)
+      expect(worktree_cleanup_job).not_to receive(:execute)
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "skips cleanup when not due" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(false)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(Time.now)
+      expect(worktree_cleanup_job).not_to receive(:execute)
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "executes cleanup when due" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(true)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(nil)
+      allow(worktree_cleanup_job).to receive(:execute).and_return({cleaned: 2, skipped: 1, errors: []})
+      expect(state_store).to receive(:record_worktree_cleanup).with(
+        cleaned: 2,
+        skipped: 1,
+        errors: []
+      )
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "displays message when worktrees are cleaned" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(true)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(nil)
+      allow(worktree_cleanup_job).to receive(:execute).and_return({cleaned: 3, skipped: 0, errors: []})
+      allow(state_store).to receive(:record_worktree_cleanup)
+
+      expect(runner).to receive(:display_message).with(/3 cleaned/, type: :info)
+
+      runner.send(:process_worktree_cleanup)
+    end
+
+    it "handles errors gracefully" do
+      allow(worktree_cleanup_job).to receive(:enabled?).and_return(true)
+      allow(worktree_cleanup_job).to receive(:cleanup_due?).and_return(true)
+      allow(state_store).to receive(:last_worktree_cleanup).and_return(nil)
+      allow(worktree_cleanup_job).to receive(:execute).and_raise(StandardError.new("cleanup failed"))
+
+      expect { runner.send(:process_worktree_cleanup) }.not_to raise_error
     end
   end
 end

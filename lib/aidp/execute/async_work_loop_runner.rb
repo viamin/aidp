@@ -21,6 +21,9 @@ module Aidp
 
       attr_reader :state, :instruction_queue, :work_thread
 
+      # Expose sync_runner for testability
+      attr_accessor :sync_runner
+
       def initialize(project_dir, provider_manager, config, options = {})
         @project_dir = project_dir
         @provider_manager = provider_manager
@@ -175,7 +178,7 @@ module Aidp
       def save_cancellation_checkpoint
         return unless @sync_runner
 
-        checkpoint = @sync_runner.instance_variable_get(:@checkpoint)
+        checkpoint = @sync_runner.checkpoint
         return unless checkpoint
 
         checkpoint.record_checkpoint(

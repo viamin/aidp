@@ -19,6 +19,9 @@ module Aidp
 
       # Verify implementation against issue requirements
       # Returns: { verified: true/false, reason: String, missing_items: Array }
+      #
+      # FIX for issue #391: Enhanced verification to require substantive code changes
+      # Rejects implementations that only contain documentation changes
       def verify(issue:, working_dir:)
         Aidp.log_debug("implementation_verifier", "starting_verification", issue: issue[:number], working_dir: working_dir)
 
@@ -27,6 +30,24 @@ module Aidp
         # Gather verification inputs
         issue_requirements = extract_issue_requirements(issue)
         implementation_changes = extract_implementation_changes(working_dir)
+
+        # FIX for issue #391: Check for substantive changes before ZFC verification
+        substantive_check = verify_substantive_changes(implementation_changes, working_dir)
+        unless substantive_check[:has_substantive_changes]
+          Aidp.log_warn(
+            "implementation_verifier",
+            "no_substantive_changes",
+            issue: issue[:number],
+            reason: substantive_check[:reason]
+          )
+
+          return {
+            verified: false,
+            reason: substantive_check[:reason],
+            missing_items: ["Substantive code changes required - only documentation/config changes detected"],
+            additional_work: ["Implement the actual code changes described in the issue"]
+          }
+        end
 
         # Use ZFC to verify completeness
         result = perform_zfc_verification(
@@ -78,7 +99,10 @@ module Aidp
 
           unless status.success?
             Aidp.log_warn("implementation_verifier", "git_diff_failed", working_dir: working_dir)
-            return "Unable to extract changes: git diff failed"
+            return {
+              diff: "",
+              files_changed: "Unable to extract changes: git diff failed"
+            }
           end
 
           # Get list of changed files with stats
@@ -117,6 +141,123 @@ module Aidp
           _out, _err, branch_status = Open3.capture3("git", "rev-parse", "--verify", candidate)
           branch_status.success?
         end || "main"
+      end
+
+      # FIX for issue #391: Verify that implementation includes substantive code changes
+      # Rejects changes that only include documentation, config, or non-code files
+      # Note: If no files changed, we defer to ZFC verification (which handles empty implementations)
+      def verify_substantive_changes(implementation_changes, working_dir)
+        files_changed = implementation_changes[:files_changed] || ""
+        diff = implementation_changes[:diff] || ""
+
+        # Extract file names from the files changed summary
+        changed_files = extract_changed_file_names(files_changed)
+
+        Aidp.log_debug("implementation_verifier", "checking_substantive_changes",
+          total_files: changed_files.size,
+          files: changed_files.take(10))
+
+        # No changes at all - defer to ZFC verification for proper handling
+        # ZFC will determine if an empty implementation is valid for the issue
+        if changed_files.empty?
+          Aidp.log_debug("implementation_verifier", "no_files_changed_deferring_to_zfc")
+          return {
+            has_substantive_changes: true,  # Allow ZFC to make the determination
+            reason: "No files changed - deferring to ZFC verification"
+          }
+        end
+
+        # Categorize files
+        code_files = []
+        test_files = []
+        doc_files = []
+        config_files = []
+        other_files = []
+
+        changed_files.each do |file|
+          case file
+          when /\.(rb|py|js|ts|jsx|tsx|go|rs|java|kt|swift|c|cpp|h|hpp|cs)$/i
+            if /(_spec|_test|\.spec|\.test|\/spec\/|\/test\/)/i.match?(file)
+              test_files << file
+            else
+              code_files << file
+            end
+          # Only clearly documentation files - not .txt which could be anything
+          when /\.(md|rst|adoc|rdoc)$/i, /^README/i, /^CHANGELOG/i, /^LICENSE/i
+            doc_files << file
+          when /\.(yml|yaml|json|toml|ini|env|config)$/i, /\.gitignore$/, /Gemfile/, /package\.json/
+            config_files << file
+          else
+            other_files << file
+          end
+        end
+
+        Aidp.log_debug("implementation_verifier", "file_categorization",
+          code_files: code_files.size,
+          test_files: test_files.size,
+          doc_files: doc_files.size,
+          config_files: config_files.size,
+          other_files: other_files.size)
+
+        # Check if there are substantive code changes
+        # Substantive means: actual code files changed, not just docs/config
+        # Note: "other" files (unknown extensions) are allowed through to ZFC for proper evaluation
+        if code_files.empty? && test_files.empty? && other_files.empty?
+          if doc_files.any? && config_files.empty?
+            return {
+              has_substantive_changes: false,
+              reason: "Only documentation files were changed (#{doc_files.join(", ")}). " \
+                     "Implementation requires code changes."
+            }
+          elsif config_files.any? && doc_files.empty?
+            return {
+              has_substantive_changes: false,
+              reason: "Only configuration files were changed (#{config_files.join(", ")}). " \
+                     "Implementation requires code changes."
+            }
+          elsif doc_files.any? || config_files.any?
+            return {
+              has_substantive_changes: false,
+              reason: "Only documentation and configuration files were changed. " \
+                     "Implementation requires code changes."
+            }
+          end
+        end
+
+        # If only test files changed, that's potentially valid for test-related issues
+        # but we should flag it for issues that require implementation
+        if code_files.empty? && test_files.any?
+          # This is acceptable but worth noting
+          Aidp.log_debug("implementation_verifier", "only_test_files_changed",
+            test_files: test_files)
+        end
+
+        # Check diff size - very small diffs might be insignificant
+        if diff.bytesize < 100 && code_files.any?
+          return {
+            has_substantive_changes: false,
+            reason: "Code changes are too minimal (#{diff.bytesize} bytes). " \
+                   "Please implement the required functionality fully."
+          }
+        end
+
+        {
+          has_substantive_changes: true,
+          reason: "Found #{code_files.size} code files and #{test_files.size} test files changed"
+        }
+      end
+
+      def extract_changed_file_names(files_changed_summary)
+        return [] if files_changed_summary.nil? || files_changed_summary.empty?
+
+        # Parse git diff --stat output format:
+        # lib/aidp/foo.rb | 10 +++++-----
+        # docs/README.md  |  3 +++
+        files_changed_summary.lines.map do |line|
+          # Extract filename from diff --stat format
+          match = line.match(/^\s*([^\s|]+)\s*\|/)
+          match ? match[1].strip : nil
+        end.compact.reject(&:empty?)
       end
 
       def perform_zfc_verification(issue_number:, issue_requirements:, implementation_changes:)

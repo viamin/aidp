@@ -31,7 +31,7 @@ RSpec.describe Aidp::Setup::Wizard do
   # Clean up any background discovery threads after each test
   after do
     if defined?(wizard)
-      threads = wizard.instance_variable_get(:@discovery_threads)
+      threads = wizard.discovery_threads
       if threads&.any?
         threads.each do |entry|
           thread = entry[:thread]
@@ -416,32 +416,32 @@ RSpec.describe Aidp::Setup::Wizard do
       allow(Aidp::Util).to receive(:which).and_return(nil)
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "nonexistent-command")
-      expect(wizard.instance_variable_get(:@warnings)).to include(/Command 'nonexistent-command' not found/)
+      expect(wizard.warnings).to include(/Command 'nonexistent-command' not found/)
     end
 
     it "does not warn for nil commands" do
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, nil)
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
 
     it "does not warn for empty commands" do
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "  ")
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
 
     it "does not warn for echo commands" do
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "echo 'test'")
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
 
     it "does not warn when command is found" do
       allow(Aidp::Util).to receive(:which).and_return("/usr/bin/found")
       wizard = described_class.new(tmp_dir, prompt: prompt)
       wizard.send(:validate_command, "found-command")
-      expect(wizard.instance_variable_get(:@warnings)).to be_empty
+      expect(wizard.warnings).to be_empty
     end
   end
 
@@ -584,8 +584,8 @@ RSpec.describe Aidp::Setup::Wizard do
       File.write(Aidp::ConfigPaths.config_file(tmp_dir), "invalid: yaml: [[[")
 
       wizard = described_class.new(tmp_dir, prompt: prompt)
-      expect(wizard.instance_variable_get(:@warnings)).not_to be_empty
-      expect(wizard.instance_variable_get(:@existing_config)).to eq({})
+      expect(wizard.warnings).not_to be_empty
+      expect(wizard.existing_config).to eq({})
     end
 
     it "handles provider loading errors gracefully" do
@@ -606,35 +606,35 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
 
         # Inject an existing config with a legacy label stored (simulating previous bug)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "Anthropic Claude (balanced)"}
         }
 
         # Run normalization
         wizard.send(:normalize_existing_model_families!)
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
       end
 
       it "falls back to auto for unknown entries" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           foo: {type: "usage_based", model_family: "Totally Unknown"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:foo][:model_family]).to eq("auto")
       end
 
       it "leaves canonical values unchanged" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "claude"},
           mistral: {type: "usage_based", model_family: "mistral"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
         expect(providers[:mistral][:model_family]).to eq("mistral")
       end
@@ -664,7 +664,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.run
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:type]).to eq("subscription")
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("claude")
@@ -699,7 +699,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:type]).to eq("subscription")
         expect(providers[:cursor][:model_family]).to eq("auto")
         expect(providers[:github_copilot][:type]).to eq("usage_based")
@@ -743,7 +743,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("openai_o")
       end
@@ -816,7 +816,7 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(model_family_prompt).not_to be_nil, "Expected model family prompt for github_copilot but it was not called"
 
         # Verify the configuration was saved
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("claude")
       end
@@ -865,7 +865,7 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(model_family_prompt_anthropic).not_to be_nil, "Expected model family prompt for anthropic (second fallback) but it was not called"
 
         # Verify both configurations were saved
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("usage_based")
         expect(providers[:github_copilot][:model_family]).to eq("claude")
         expect(providers[:anthropic][:type]).to eq("subscription")
@@ -901,7 +901,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.send(:configure_providers)
 
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:github_copilot][:type]).to eq("subscription")
         expect(providers[:github_copilot][:model_family]).to eq("auto")
       end
@@ -937,7 +937,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         fallback_providers = harness_config[:fallback_providers]
         expect(fallback_providers).not_to include("anthropic")
       end
@@ -974,7 +974,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         fallback_providers = harness_config[:fallback_providers]
         expect(fallback_providers).not_to include("anthropic")
         expect(fallback_providers).to include("github_copilot")
@@ -1009,7 +1009,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         fallback_providers = harness_config[:fallback_providers]
         expect(fallback_providers).to include("anthropic")
       end
@@ -1039,7 +1039,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         wizard.run
 
-        harness_config = wizard.instance_variable_get(:@config)[:harness]
+        harness_config = wizard.config[:harness]
         expect(harness_config[:fallback_providers]).to eq([])
       end
 
@@ -1109,33 +1109,33 @@ RSpec.describe Aidp::Setup::Wizard do
     context "with case-insensitive model family normalization" do
       it "normalizes uppercase model family values" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "CLAUDE"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
       end
 
       it "normalizes mixed-case model family values" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "Gemini"},
           anthropic: {type: "usage_based", model_family: "LLaMA"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("gemini")
         expect(providers[:anthropic][:model_family]).to eq("llama")
       end
 
       it "normalizes model family labels case-insensitively" do
         wizard = described_class.new(tmp_dir, prompt: prompt, dry_run: true)
-        wizard.instance_variable_get(:@config)[:providers] = {
+        wizard.config[:providers] = {
           cursor: {type: "usage_based", model_family: "anthropic claude (balanced)"}
         }
         wizard.send(:normalize_existing_model_families!)
-        providers = wizard.instance_variable_get(:@config)[:providers]
+        providers = wizard.config[:providers]
         expect(providers[:cursor][:model_family]).to eq("claude")
       end
     end
@@ -1172,7 +1172,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_nfrs)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:nfrs, :configure)).to be false
       end
 
@@ -1184,7 +1184,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_nfrs)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:nfrs, :configure)).to be true
       end
 
@@ -1226,7 +1226,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_devcontainer)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:devcontainer, :manage)).to be false
       end
 
@@ -1238,7 +1238,7 @@ RSpec.describe Aidp::Setup::Wizard do
         wizard = described_class.new(tmp_dir, prompt: test_prompt, dry_run: true)
         wizard.send(:configure_devcontainer)
 
-        config = wizard.instance_variable_get(:@config)
+        config = wizard.config
         expect(config.dig(:devcontainer, :manage)).to be true
       end
 
@@ -1367,8 +1367,7 @@ RSpec.describe Aidp::Setup::Wizard do
 
         allow(wizard).to receive(:gh_cli_available?).and_return(true)
         allow(wizard).to receive(:extract_repo_info).and_return(["owner", "repo"])
-        # Include aidp-in-progress as existing since it's always added
-        allow(wizard).to receive(:fetch_existing_labels).and_return(["aidp-plan", "aidp-in-progress"])
+        allow(wizard).to receive(:fetch_existing_labels).and_return(["aidp-plan"])
         expect(wizard).not_to receive(:create_labels)
 
         wizard.send(:configure_watch_label_creation)
@@ -1396,8 +1395,8 @@ RSpec.describe Aidp::Setup::Wizard do
         expect(wizard).to receive(:create_labels) do |owner, repo, labels|
           expect(owner).to eq("owner")
           expect(repo).to eq("repo")
-          expect(labels.size).to eq(2)  # aidp-build + aidp-in-progress
-          expect(labels.map { |l| l[:name] }).to include("aidp-build", "aidp-in-progress")
+          expect(labels.size).to eq(1)  # aidp-build only
+          expect(labels.map { |l| l[:name] }).to include("aidp-build")
         end
 
         wizard.send(:configure_watch_label_creation)
@@ -1528,14 +1527,11 @@ RSpec.describe Aidp::Setup::Wizard do
       }
       result = wizard.send(:collect_required_labels, labels_config)
 
-      expect(result.size).to eq(3)  # Includes aidp-in-progress
+      expect(result.size).to eq(2)
       expect(result[0][:name]).to eq("aidp-plan")
       expect(result[0][:color]).to eq("0E8A16")
       expect(result[1][:name]).to eq("aidp-build")
       expect(result[1][:color]).to eq("5319E7")
-      expect(result[2][:name]).to eq("aidp-in-progress")
-      expect(result[2][:color]).to eq("1D76DB")
-      expect(result[2][:internal]).to eq(true)
     end
 
     it "skips nil or empty label names" do
@@ -1546,9 +1542,8 @@ RSpec.describe Aidp::Setup::Wizard do
       }
       result = wizard.send(:collect_required_labels, labels_config)
 
-      expect(result.size).to eq(2)  # aidp-plan + aidp-in-progress
+      expect(result.size).to eq(1)  # aidp-plan only
       expect(result[0][:name]).to eq("aidp-plan")
-      expect(result[1][:name]).to eq("aidp-in-progress")
     end
 
     it "uses fallback color for unknown label types" do
@@ -1557,10 +1552,9 @@ RSpec.describe Aidp::Setup::Wizard do
       }
       result = wizard.send(:collect_required_labels, labels_config)
 
-      expect(result.size).to eq(2)  # custom + aidp-in-progress
+      expect(result.size).to eq(1)  # custom only
       expect(result[0][:name]).to eq("custom")
       expect(result[0][:color]).to eq("EDEDED")
-      expect(result[1][:name]).to eq("aidp-in-progress")
     end
   end
 
@@ -1618,6 +1612,302 @@ RSpec.describe Aidp::Setup::Wizard do
       wizard.send(:create_labels, "owner", "repo", labels)
 
       expect(Open3).to have_received(:capture3).twice
+    end
+  end
+
+  describe "#configure_commands" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "when no existing commands and user declines to configure" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          yes?: false,
+          yes_map: {"Configure deterministic commands?" => false}
+        })
+      end
+
+      it "exits early without setting commands" do
+        wizard.send(:configure_commands)
+        expect(wizard.send(:get, [:work_loop, :commands])).to be_nil
+      end
+    end
+
+    context "when no existing commands and user adds commands manually" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          ask: ["test_runner", "bundle exec rspec"],
+          yes?: true,
+          yes_map: {
+            "Configure deterministic commands?" => true,
+            "Is this command required to pass? (failures block completion)" => true
+          },
+          select_map: {
+            "What would you like to do?" => :done,
+            "Category:" => :test,
+            "When should this command run?" => :each_unit
+          }
+        })
+      end
+
+      it "saves commands to configuration" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to be_an(Array)
+      end
+    end
+
+    context "when existing commands and user keeps them" do
+      let(:existing_commands) do
+        [{name: "existing_test", command: "npm test", category: :test, run_after: :each_unit, required: true}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :keep}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+      end
+
+      it "preserves existing commands" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq(existing_commands)
+      end
+    end
+
+    context "when existing commands and user skips configuration" do
+      let(:existing_commands) do
+        [{name: "lint", command: "npm run lint", category: :lint, run_after: :each_unit, required: false}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"What would you like to do?" => :skip}
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+      end
+
+      it "returns without modifying commands" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq(existing_commands)
+      end
+    end
+
+    context "when existing commands and user replaces all" do
+      let(:existing_commands) do
+        [{name: "old_test", command: "old_command", category: :test, run_after: :each_unit, required: true}]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {
+            "What would you like to do?" => [:replace, :done]
+          }
+        })
+      end
+
+      before do
+        wizard.send(:set, [:work_loop, :commands], existing_commands)
+      end
+
+      it "clears existing commands before starting fresh" do
+        wizard.send(:configure_commands)
+        commands = wizard.send(:get, [:work_loop, :commands])
+        expect(commands).to eq([])
+      end
+    end
+  end
+
+  describe "#collect_command_details" do
+    let(:prompt) do
+      TestPrompt.new(responses: {
+        ask: ["my_test", "bundle exec rspec spec/"],
+        yes?: true,
+        select_map: {
+          "Category:" => :test,
+          "When should this command run?" => :each_unit
+        }
+      })
+    end
+
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    it "collects all command details from user input" do
+      result = wizard.send(:collect_command_details)
+
+      expect(result[:name]).to eq("my_test")
+      expect(result[:command]).to eq("bundle exec rspec spec/")
+      expect(result[:category]).to eq(:test)
+      expect(result[:run_after]).to eq(:each_unit)
+      expect(result[:required]).to be true
+      expect(result[:timeout_seconds]).to be_nil
+    end
+
+    context "with different run_after options" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          ask: ["formatter", "bundle exec standardrb --fix"],
+          yes?: false,
+          select_map: {
+            "Category:" => :formatter,
+            "When should this command run?" => :on_completion
+          }
+        })
+      end
+
+      it "captures on_completion run_after option" do
+        result = wizard.send(:collect_command_details)
+
+        expect(result[:run_after]).to eq(:on_completion)
+        expect(result[:required]).to be false
+      end
+    end
+  end
+
+  describe "#detect_all_tooling" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "with RSpec project" do
+      before do
+        FileUtils.mkdir_p(File.join(tmp_dir, "spec"))
+      end
+
+      it "detects RSpec as unit test command" do
+        tooling = wizard.send(:detect_all_tooling)
+
+        test_cmd = tooling.find { |t| t[:category] == :test }
+        expect(test_cmd).not_to be_nil
+        expect(test_cmd[:command]).to eq("bundle exec rspec")
+        expect(test_cmd[:name]).to eq("unit_tests")
+        expect(test_cmd[:run_after]).to eq(:each_unit)
+        expect(test_cmd[:required]).to be true
+      end
+    end
+
+    context "with StandardRB project" do
+      before do
+        FileUtils.mkdir_p(File.join(tmp_dir, "spec"))
+        File.write(File.join(tmp_dir, "Gemfile"), "gem 'standard'")
+      end
+
+      it "detects StandardRB as lint command" do
+        allow(wizard).to receive(:detect_lint_command).and_return("bundle exec standardrb")
+
+        tooling = wizard.send(:detect_all_tooling)
+
+        lint_cmd = tooling.find { |t| t[:category] == :lint }
+        expect(lint_cmd).not_to be_nil
+        expect(lint_cmd[:command]).to eq("bundle exec standardrb")
+        expect(lint_cmd[:name]).to eq("lint")
+        expect(lint_cmd[:run_after]).to eq(:each_unit)
+      end
+    end
+
+    context "with formatter detected" do
+      before do
+        allow(wizard).to receive(:detect_format_command).and_return("bundle exec standardrb --fix")
+      end
+
+      it "detects formatter with on_completion run_after" do
+        tooling = wizard.send(:detect_all_tooling)
+
+        format_cmd = tooling.find { |t| t[:category] == :formatter }
+        expect(format_cmd).not_to be_nil
+        expect(format_cmd[:run_after]).to eq(:on_completion)
+        expect(format_cmd[:required]).to be false
+      end
+    end
+  end
+
+  describe "#add_detected_commands" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "with no tooling detected" do
+      before do
+        allow(wizard).to receive(:detect_all_tooling).and_return([])
+      end
+
+      it "returns existing commands unchanged" do
+        existing = [{name: "test", command: "npm test", category: :test, run_after: :each_unit, required: true}]
+        result = wizard.send(:add_detected_commands, existing)
+        expect(result).to eq(existing)
+      end
+    end
+
+    context "with tooling detected and user selects some" do
+      let(:detected) do
+        [
+          {name: "unit_tests", command: "bundle exec rspec", category: :test, run_after: :each_unit, required: true},
+          {name: "lint", command: "bundle exec standardrb", category: :lint, run_after: :each_unit, required: true}
+        ]
+      end
+
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          multi_select: [0]  # Select first detected command
+        })
+      end
+
+      before do
+        allow(wizard).to receive(:detect_all_tooling).and_return(detected)
+      end
+
+      it "adds selected commands to existing" do
+        result = wizard.send(:add_detected_commands, [])
+        expect(result.size).to eq(1)
+        expect(result.first[:command]).to eq("bundle exec rspec")
+      end
+    end
+  end
+
+  describe "#remove_command_interactive" do
+    let(:wizard) { described_class.new(tmp_dir, prompt: prompt, dry_run: true) }
+
+    context "with empty commands list" do
+      it "returns empty list unchanged" do
+        result = wizard.send(:remove_command_interactive, [])
+        expect(result).to eq([])
+      end
+    end
+
+    context "when user cancels removal" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"Select command to remove:" => nil}
+        })
+      end
+
+      it "returns commands unchanged" do
+        commands = [{name: "test", command: "npm test", category: :test, run_after: :each_unit, required: true}]
+        result = wizard.send(:remove_command_interactive, commands)
+        expect(result).to eq(commands)
+      end
+    end
+
+    context "when user selects command to remove" do
+      let(:prompt) do
+        TestPrompt.new(responses: {
+          select_map: {"Select command to remove:" => 0}
+        })
+      end
+
+      it "removes the selected command" do
+        commands = [
+          {name: "test1", command: "npm test", category: :test, run_after: :each_unit, required: true},
+          {name: "test2", command: "npm run lint", category: :lint, run_after: :each_unit, required: false}
+        ]
+        result = wizard.send(:remove_command_interactive, commands)
+
+        expect(result.size).to eq(1)
+        expect(result.first[:name]).to eq("test2")
+      end
     end
   end
 end

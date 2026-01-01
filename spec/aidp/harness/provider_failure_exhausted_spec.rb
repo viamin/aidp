@@ -49,7 +49,7 @@ RSpec.describe "Provider failure exhaustion handling" do
     end
 
     expect(result[:status]).to eq("failed")
-    health_after = provider_manager.instance_variable_get(:@provider_health)[start_provider]
+    health_after = provider_manager.provider_health[start_provider]
     expect(health_after[:unhealthy_reason]).to eq("auth")
     expect(health_after[:status]).to eq("unhealthy_auth")
   end

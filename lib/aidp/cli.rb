@@ -2,6 +2,7 @@
 
 require "optparse"
 require "tty-prompt"
+require "stringio"
 require_relative "harness/runner"
 require_relative "execute/workflow_selector"
 require_relative "harness/ui/enhanced_tui"
@@ -46,6 +47,18 @@ module Aidp
         options = parse_options(args)
         self.last_options = options
 
+        # Validate incompatible options
+        if options[:quiet] && options[:verbose]
+          display_message("❌ --quiet and --verbose are mutually exclusive", type: :error)
+          return 1
+        end
+
+        # --quiet is incompatible with default interactive mode (no subcommand)
+        if options[:quiet] && !options[:help] && !options[:version]
+          display_message("❌ --quiet is not compatible with interactive mode. Use with 'watch' command instead.", type: :error)
+          return 1
+        end
+
         if options[:help]
           display_message(options[:parser].to_s, type: :info)
           return 0
@@ -54,6 +67,12 @@ module Aidp
         if options[:version]
           display_message("Aidp version #{Aidp::VERSION}", type: :info)
           return 0
+        end
+
+        # Undocumented: Launch test mode for CI/CD validation
+        # Initializes app components and exits cleanly without running full workflows
+        if options[:launch_test]
+          return run_launch_test(:interactive)
         end
 
         # Initialize logger from aidp.yml config
@@ -147,6 +166,117 @@ module Aidp
         Aidp.logger.warn("cli", "Failed to load logging config, using defaults", error: e.message)
       end
 
+      # Quick exit launch test for CI/CD validation
+      # Initializes app components and exits cleanly without running full workflows
+      def run_launch_test(mode)
+        Aidp.log_debug("cli", "launch_test_started", mode: mode)
+        display_message("Aidp version #{Aidp::VERSION}", type: :info)
+
+        # Initialize logging
+        setup_logging(Dir.pwd)
+
+        case mode
+        when :interactive
+          run_interactive_launch_test
+        when :watch
+          run_watch_launch_test
+        else
+          display_message("Unknown launch test mode: #{mode}", type: :error)
+          return 1
+        end
+
+        Aidp.log_info("cli", "launch_test_completed", mode: mode)
+        display_message("Launch test completed successfully", type: :success)
+        0
+      rescue => e
+        log_rescue(e, component: "cli", action: "launch_test", fallback: 1, mode: mode)
+        display_message("Launch test failed: #{e.message}", type: :error)
+        1
+      end
+
+      def run_interactive_launch_test
+        Aidp.log_debug("cli", "interactive_launch_test", step: "init_tui")
+
+        # Initialize TUI components (validates they can be created)
+        tui = Aidp::Harness::UI::EnhancedTUI.new
+        Aidp.log_debug("cli", "interactive_launch_test", step: "tui_created")
+
+        # Initialize workflow selector (validates harness loading)
+        _selector = Aidp::Harness::UI::EnhancedWorkflowSelector.new(tui, project_dir: Dir.pwd)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "workflow_selector_created")
+
+        # Initialize config manager (validates config loading)
+        _config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "config_manager_created")
+
+        # Validate EnhancedRunner can be instantiated (orchestrates workflows)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "validate_enhanced_runner")
+        require_relative "harness/enhanced_runner"
+        _runner = Aidp::Harness::EnhancedRunner.new(Dir.pwd, :execute, {mode: :execute})
+        Aidp.log_debug("cli", "interactive_launch_test", step: "enhanced_runner_created")
+        display_message("Enhanced Runner instantiation verified", type: :info)
+
+        # Validate FirstRunWizard can be loaded (critical for setup)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "validate_first_run_wizard")
+        require_relative "cli/first_run_wizard"
+        # Don't instantiate to avoid triggering actual wizard
+        Aidp.log_debug("cli", "interactive_launch_test", step: "first_run_wizard_loaded")
+        display_message("First Run Wizard loaded", type: :info)
+
+        # Validate Init::Runner can be instantiated (init command)
+        Aidp.log_debug("cli", "interactive_launch_test", step: "validate_init_runner")
+        require_relative "init/runner"
+        mock_prompt = TTY::Prompt.new(input: StringIO.new, output: StringIO.new)
+        _init_runner = Aidp::Init::Runner.new(Dir.pwd, prompt: mock_prompt, options: {dry_run: true})
+        Aidp.log_debug("cli", "interactive_launch_test", step: "init_runner_created")
+        display_message("Init Runner instantiation verified", type: :info)
+
+        display_message("Interactive mode initialization verified", type: :info)
+      ensure
+        tui&.restore_screen
+      end
+
+      def run_watch_launch_test
+        Aidp.log_debug("cli", "watch_launch_test", step: "init_config")
+
+        # Load config to validate configuration parsing
+        config_manager = Aidp::Harness::ConfigManager.new(Dir.pwd)
+        config = config_manager.config || {}
+        watch_config = config[:watch] || config["watch"] || {}
+
+        Aidp.log_debug("cli", "watch_launch_test", step: "config_loaded", has_watch_config: !watch_config.empty?)
+
+        display_message("Watch mode configuration verified", type: :info)
+
+        # Instantiate Runner to validate all dependencies are loadable
+        # Use mock GitHub client to avoid external API calls
+        Aidp.log_debug("cli", "watch_launch_test", step: "validate_runner")
+        mock_gh_client = Class.new do
+          def available?
+            false
+          end
+        end.new
+
+        Aidp::Watch::Runner.new(
+          issues_url: "https://github.com/test/test/issues",
+          interval: 30,
+          once: true,
+          gh_available: mock_gh_client,
+          prompt: TTY::Prompt.new(input: StringIO.new, output: StringIO.new)
+        )
+
+        Aidp.log_debug("cli", "watch_launch_test", step: "runner_instantiated")
+        display_message("Watch mode Runner instantiation verified", type: :info)
+
+        # Validate key Watch mode dependencies are loadable
+        Aidp.log_debug("cli", "watch_launch_test", step: "validate_watch_dependencies")
+        require_relative "watch/plan_generator"
+        require_relative "auto_update"
+        require_relative "worktree"
+        Aidp.log_debug("cli", "watch_launch_test", step: "watch_dependencies_loaded")
+        display_message("Watch mode dependencies loaded", type: :info)
+      end
+
       def parse_options(args)
         options = {}
 
@@ -217,6 +347,9 @@ module Aidp
           opts.on("-v", "--version", "Show version information") { options[:version] = true }
           opts.on("--setup-config", "Setup or reconfigure config file") { options[:setup_config] = true }
           opts.on("--verbose", "Show detailed prompts and raw provider responses during guided workflow") { options[:verbose] = true }
+          opts.on("--quiet", "Suppress non-critical output (incompatible with --verbose and --interactive)") { options[:quiet] = true }
+          # Undocumented: Quick exit launch test for CI/CD validation
+          opts.on("--launch-test", nil) { options[:launch_test] = true }
 
           opts.separator ""
           opts.separator "Examples:"
@@ -257,7 +390,7 @@ module Aidp
       # Determine if the invocation is a subcommand style call
       def subcommand?(args)
         return false if args.nil? || args.empty?
-        %w[status jobs kb harness providers checkpoint mcp issue config init watch ws work skill settings models tools].include?(args.first)
+        %w[status jobs kb harness providers checkpoint eval mcp issue config init watch ws work skill settings models tools security].include?(args.first)
       end
 
       def run_subcommand(args)
@@ -269,6 +402,7 @@ module Aidp
         when "harness" then run_harness_command(args)
         when "providers" then run_providers_command(args)
         when "checkpoint" then run_checkpoint_command(args)
+        when "eval" then run_eval_command(args)
         when "mcp" then run_mcp_command(args)
         when "issue" then run_issue_command(args)
         when "config" then run_config_command(args)
@@ -281,6 +415,7 @@ module Aidp
         when "settings" then run_settings_command(args)
         when "models" then run_models_command(args)
         when "tools" then run_tools_command(args)
+        when "security" then run_security_command(args)
         else
           display_message("Unknown command: #{cmd}", type: :info)
           return 1
@@ -420,6 +555,13 @@ module Aidp
         # Delegate to CheckpointCommand
         require_relative "cli/checkpoint_command"
         command = CheckpointCommand.new(prompt: create_prompt)
+        command.run(args)
+      end
+
+      def run_eval_command(args)
+        # Delegate to EvalCommand
+        require_relative "cli/eval_command"
+        command = EvalCommand.new(prompt: create_prompt)
         command.run(args)
       end
 
@@ -633,6 +775,12 @@ module Aidp
         tools_cmd.run(args)
       end
 
+      def run_security_command(args)
+        require_relative "cli/security_command"
+        security_cmd = Aidp::CLI::SecurityCommand.new(project_dir: Dir.pwd, prompt: create_prompt)
+        security_cmd.run(args)
+      end
+
       def run_issue_command(args)
         require_relative "cli/issue_importer"
 
@@ -826,7 +974,7 @@ module Aidp
 
       def run_watch_command(args)
         if args.empty?
-          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams] [--force] [--verbose]", type: :info)
+          display_message("Usage: aidp watch <issues_url> [--interval SECONDS] [--provider NAME] [--once] [--no-workstreams] [--force] [--verbose] [--quiet]", type: :info)
           return
         end
 
@@ -837,6 +985,8 @@ module Aidp
         use_workstreams = true # Default to using workstreams
         force = false
         verbose = false
+        quiet = false
+        launch_test = false
 
         until args.empty?
           token = args.shift
@@ -854,9 +1004,25 @@ module Aidp
             force = true
           when "--verbose"
             verbose = true
+          when "--quiet"
+            quiet = true
+          when "--launch-test"
+            launch_test = true
           else
             display_message("⚠️  Unknown watch option: #{token}", type: :warn)
           end
+        end
+
+        # Validate incompatible options
+        if quiet && verbose
+          display_message("❌ --quiet and --verbose are mutually exclusive", type: :error)
+          return 1
+        end
+
+        # Undocumented: Launch test mode for CI/CD validation
+        # Exits after validating watch mode initialization
+        if launch_test
+          return run_launch_test(:watch)
         end
 
         # Initialize logger for watch mode
@@ -877,7 +1043,8 @@ module Aidp
           prompt: create_prompt,
           safety_config: watch_config,
           force: force,
-          verbose: verbose
+          verbose: verbose,
+          quiet: quiet
         )
         runner.start
       rescue ArgumentError => e

@@ -8,6 +8,11 @@ module Aidp
   #   include Aidp::MessageDisplay
   #   display_message("Hello", type: :success)
   # Supports color types: :error, :success, :warning, :info, :highlight, :muted
+  #
+  # Quiet mode:
+  #   When quiet mode is enabled (via CLI --quiet flag or setting quiet=true on instance),
+  #   only :error, :warning, and :success messages are displayed. Info, highlight, and muted
+  #   messages are suppressed to reduce output noise.
   module MessageDisplay
     COLOR_MAP = {
       error: :red,
@@ -19,12 +24,28 @@ module Aidp
       muted: :bright_black
     }.freeze
 
+    # Message types that are always shown even in quiet mode
+    CRITICAL_TYPES = %i[error warning warn success].freeze
+
     def self.included(base)
       base.extend(ClassMethods)
     end
 
+    # Check if quiet mode is enabled
+    # Priority: instance @quiet variable > CLI.last_options[:quiet]
+    def quiet_mode?
+      return @quiet if instance_variable_defined?(:@quiet) && !@quiet.nil?
+
+      Aidp::CLI.last_options&.dig(:quiet) || false
+    rescue
+      false
+    end
+
     # Instance helper for displaying a colored message via TTY::Prompt
     def display_message(message, type: :info)
+      # In quiet mode, suppress non-critical messages
+      return if quiet_mode? && !CRITICAL_TYPES.include?(type)
+
       # Ensure message is UTF-8 encoded to handle emoji and special characters
       message_str = message.to_s
       message_str = message_str.force_encoding("UTF-8") if message_str.encoding.name == "ASCII-8BIT"
@@ -43,8 +64,18 @@ module Aidp
     end
 
     module ClassMethods
+      # Check if quiet mode is enabled at class level
+      def quiet_mode?
+        Aidp::CLI.last_options&.dig(:quiet) || false
+      rescue
+        false
+      end
+
       # Class-level display helper (uses fresh prompt to respect $stdout changes)
       def display_message(message, type: :info)
+        # In quiet mode, suppress non-critical messages
+        return if quiet_mode? && !CRITICAL_TYPES.include?(type)
+
         # Ensure message is UTF-8 encoded to handle emoji and special characters
         message_str = message.to_s
         message_str = message_str.force_encoding("UTF-8") if message_str.encoding.name == "ASCII-8BIT"

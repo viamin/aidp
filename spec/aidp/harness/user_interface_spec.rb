@@ -341,10 +341,10 @@ RSpec.describe Aidp::Harness::UserInterface do
 
         ui.apply_preferences(preferences)
 
-        expect(ui.instance_variable_get(:@auto_confirm_defaults)).to be true
-        expect(ui.instance_variable_get(:@show_help_automatically)).to be false
-        expect(ui.instance_variable_get(:@verbose_mode)).to be false
-        expect(ui.instance_variable_get(:@file_selection_enabled)).to be true
+        expect(ui.auto_confirm_defaults).to be true
+        expect(ui.show_help_automatically).to be false
+        expect(ui.verbose_mode).to be false
+        expect(ui.file_selection_enabled).to be true
       end
     end
 

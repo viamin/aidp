@@ -151,11 +151,10 @@ RSpec.describe Aidp::Execute::WorkflowSelector do
 
       selector.send(:collect_project_info)
 
-      user_input = selector.instance_variable_get(:@user_input)
-      expect(user_input[:project_description]).to eq("Project description")
-      expect(user_input[:tech_stack]).to eq("Ruby/Rails")
-      expect(user_input[:target_users]).to eq("developers")
-      expect(user_input[:success_criteria]).to eq("100% coverage")
+      expect(selector.user_input[:project_description]).to eq("Project description")
+      expect(selector.user_input[:tech_stack]).to eq("Ruby/Rails")
+      expect(selector.user_input[:target_users]).to eq("developers")
+      expect(selector.user_input[:success_criteria]).to eq("100% coverage")
     end
   end
 

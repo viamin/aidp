@@ -15,6 +15,7 @@ RSpec.describe Aidp::PRWorktreeManager do
       system("git", "init", "-b", "main", out: File::NULL, err: File::NULL)
       system("git", "config", "user.name", "Test User", out: File::NULL, err: File::NULL)
       system("git", "config", "user.email", "test@example.com", out: File::NULL, err: File::NULL)
+      system("git", "config", "commit.gpgsign", "false", out: File::NULL, err: File::NULL)
       system("touch", "README.md")
       system("git", "add", "README.md", out: File::NULL, err: File::NULL)
       system("git", "commit", "-m", "Initial commit", out: File::NULL, err: File::NULL)
@@ -426,6 +427,15 @@ RSpec.describe Aidp::PRWorktreeManager do
     end
 
     describe "#push_worktree_changes" do
+      let(:shell_executor) { instance_double(Aidp::ShellExecutor) }
+      let(:manager_with_executor) do
+        Aidp::PRWorktreeManager.new(
+          base_repo_path: temp_repo_path,
+          project_dir: temp_repo_path,
+          shell_executor: shell_executor
+        )
+      end
+
       before do
         @worktree_path = @pr_worktree_manager.create_worktree(pr_number, base_branch, head_branch)
       end
@@ -437,13 +447,13 @@ RSpec.describe Aidp::PRWorktreeManager do
         }
         @pr_worktree_manager.apply_worktree_changes(pr_number, changes)
 
-        # Mock the git system calls to succeed
-        allow_any_instance_of(Object).to receive(:`).with(/git diff --staged --name-only/).and_return("README.md")
-        allow_any_instance_of(Object).to receive(:$?).and_return(double(success?: true))
-        allow_any_instance_of(Object).to receive(:`).with(/git commit/).and_return("Commit successful")
-        allow_any_instance_of(Object).to receive(:`).with(/git push origin/).and_return("Push successful")
+        # Use injected shell executor for git commands
+        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("README.md")
+        allow(shell_executor).to receive(:run).with(/git commit/).and_return("Commit successful")
+        allow(shell_executor).to receive(:run).with(/git push origin/).and_return("Push successful")
+        allow(shell_executor).to receive(:success?).and_return(true)
 
-        result = @pr_worktree_manager.push_worktree_changes(pr_number)
+        result = manager_with_executor.push_worktree_changes(pr_number)
 
         expect(result[:success]).to be true
         expect(result[:git_actions][:staged_changes]).to be true
@@ -453,11 +463,11 @@ RSpec.describe Aidp::PRWorktreeManager do
       end
 
       it "handles no changes to push" do
-        # Mock an empty staged changes list
-        allow_any_instance_of(Object).to receive(:`).with(/git diff --staged --name-only/).and_return("")
-        allow_any_instance_of(Object).to receive(:$?).and_return(double(success?: true))
+        # Use injected shell executor with empty staged changes
+        allow(shell_executor).to receive(:run).with("git diff --staged --name-only").and_return("")
+        allow(shell_executor).to receive(:success?).and_return(true)
 
-        result = @pr_worktree_manager.push_worktree_changes(pr_number)
+        result = manager_with_executor.push_worktree_changes(pr_number)
 
         expect(result[:success]).to be true
         expect(result[:git_actions][:staged_changes]).to be false

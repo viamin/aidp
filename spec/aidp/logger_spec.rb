@@ -20,14 +20,32 @@ RSpec.describe Aidp::Logger do
   end
 
   around do |example|
-    original = ENV["AIDP_LOG_FILE"]
+    original_log_file = ENV["AIDP_LOG_FILE"]
+    original_debug = ENV["DEBUG"]
+    original_aidp_debug = ENV["AIDP_DEBUG"]
+
     ENV.delete("AIDP_LOG_FILE")
+    ENV.delete("DEBUG")
+    ENV.delete("AIDP_DEBUG")
+
     example.run
   ensure
-    if original
-      ENV["AIDP_LOG_FILE"] = original
+    if original_log_file
+      ENV["AIDP_LOG_FILE"] = original_log_file
     else
       ENV.delete("AIDP_LOG_FILE")
+    end
+
+    if original_debug
+      ENV["DEBUG"] = original_debug
+    else
+      ENV.delete("DEBUG")
+    end
+
+    if original_aidp_debug
+      ENV["AIDP_DEBUG"] = original_aidp_debug
+    else
+      ENV.delete("AIDP_DEBUG")
     end
   end
 
@@ -432,12 +450,12 @@ RSpec.describe Aidp::Logger do
   describe "module-level logger" do
     before do
       # Reset module-level logger
-      Aidp.instance_variable_set(:@logger, nil)
+      Aidp.logger = nil
     end
 
     after do
-      Aidp.logger.close if Aidp.instance_variable_get(:@logger)
-      Aidp.instance_variable_set(:@logger, nil)
+      Aidp.logger&.close
+      Aidp.logger = nil
     end
 
     it "creates default logger when not set up" do

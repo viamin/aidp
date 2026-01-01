@@ -169,4 +169,141 @@ RSpec.describe Aidp::Harness::TestRunner do
       expect(result[:output]).to include("All passed")
     end
   end
+
+  describe "#run_commands_for_phase" do
+    context "when commands are configured for the phase" do
+      before do
+        allow(config).to receive(:commands_for_phase).with(:each_unit).and_return([
+          {name: "test_1", command: "echo 'test passed'", category: :test, required: true},
+          {name: "lint_1", command: "echo 'lint passed'", category: :lint, required: false}
+        ])
+      end
+
+      it "runs all commands for the phase" do
+        result = runner.run_commands_for_phase(:each_unit)
+
+        expect(result[:success]).to be true
+        expect(result[:output]).to include("All 2 commands passed")
+        expect(result[:results_by_command]).to have_key("test_1")
+        expect(result[:results_by_command]).to have_key("lint_1")
+      end
+
+      it "increments iteration count" do
+        expect { runner.run_commands_for_phase(:each_unit) }.to change { runner.iteration_count }.by(1)
+      end
+    end
+
+    context "when a required command fails" do
+      before do
+        allow(config).to receive(:commands_for_phase).with(:each_unit).and_return([
+          {name: "failing_test", command: "exit 1", category: :test, required: true},
+          {name: "passing_test", command: "echo 'pass'", category: :test, required: true}
+        ])
+      end
+
+      it "returns failure status" do
+        result = runner.run_commands_for_phase(:each_unit)
+
+        expect(result[:success]).to be false
+        expect(result[:required_failures].length).to eq(1)
+        expect(result[:required_failures].first[:name]).to eq("failing_test")
+      end
+    end
+
+    context "when only optional command fails" do
+      before do
+        allow(config).to receive(:commands_for_phase).with(:each_unit).and_return([
+          {name: "optional_lint", command: "exit 1", category: :lint, required: false},
+          {name: "required_test", command: "echo 'pass'", category: :test, required: true}
+        ])
+      end
+
+      it "returns success status since only optional failed" do
+        result = runner.run_commands_for_phase(:each_unit)
+
+        expect(result[:success]).to be true
+        expect(result[:failures].length).to eq(1)
+        expect(result[:required_failures]).to be_empty
+      end
+    end
+
+    context "when no commands configured for phase" do
+      before do
+        allow(config).to receive(:commands_for_phase).with(:full_loop).and_return([])
+      end
+
+      it "returns empty success result" do
+        result = runner.run_commands_for_phase(:full_loop)
+
+        expect(result[:success]).to be true
+        expect(result[:output]).to eq("")
+        expect(result[:failures]).to be_empty
+        expect(result[:results_by_command]).to eq({})
+      end
+    end
+
+    context "with on_completion phase" do
+      before do
+        allow(config).to receive(:commands_for_phase).with(:on_completion).and_return([
+          {name: "formatter", command: "echo 'formatted'", category: :formatter, required: true}
+        ])
+      end
+
+      it "runs on_completion commands" do
+        result = runner.run_commands_for_phase(:on_completion)
+
+        expect(result[:success]).to be true
+        expect(result[:results_by_command]["formatter"][:success]).to be true
+      end
+    end
+  end
+
+  describe "#commands_by_phase" do
+    before do
+      allow(config).to receive(:commands_for_phase).with(:each_unit).and_return([
+        {name: "test", command: "rspec", category: :test, required: true}
+      ])
+      allow(config).to receive(:commands_for_phase).with(:full_loop).and_return([
+        {name: "full_test", command: "rspec --all", category: :test, required: true}
+      ])
+      allow(config).to receive(:commands_for_phase).with(:on_completion).and_return([
+        {name: "format", command: "rubocop -a", category: :formatter, required: true}
+      ])
+    end
+
+    it "returns commands organized by phase" do
+      result = runner.commands_by_phase
+
+      expect(result[:each_unit].length).to eq(1)
+      expect(result[:each_unit].first[:name]).to eq("test")
+      expect(result[:full_loop].length).to eq(1)
+      expect(result[:full_loop].first[:name]).to eq("full_test")
+      expect(result[:on_completion].length).to eq(1)
+      expect(result[:on_completion].first[:name]).to eq("format")
+    end
+  end
+
+  describe "#iteration_count" do
+    before do
+      allow(config).to receive(:test_commands).and_return(["echo 'test'"])
+    end
+
+    it "tracks iterations across multiple runs" do
+      expect(runner.iteration_count).to eq(0)
+
+      runner.run_tests
+      expect(runner.iteration_count).to eq(1)
+
+      runner.run_tests
+      expect(runner.iteration_count).to eq(2)
+    end
+
+    it "can be reset" do
+      runner.run_tests
+      expect(runner.iteration_count).to eq(1)
+
+      runner.reset_iteration_count
+      expect(runner.iteration_count).to eq(0)
+    end
+  end
 end

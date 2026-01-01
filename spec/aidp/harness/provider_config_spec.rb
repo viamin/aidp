@@ -590,15 +590,15 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     it "clears cache" do
       factory.clear_cache
 
-      expect(factory.instance_variable_get(:@provider_instances)).to be_empty
-      expect(factory.instance_variable_get(:@provider_configs)).to be_empty
+      expect(factory.provider_instances).to be_empty
+      expect(factory.provider_configs).to be_empty
     end
 
     it "reloads configuration" do
       factory.reload_config
 
-      expect(factory.instance_variable_get(:@provider_instances)).to be_empty
-      expect(factory.instance_variable_get(:@provider_configs)).to be_empty
+      expect(factory.provider_instances).to be_empty
+      expect(factory.provider_configs).to be_empty
     end
   end
 end

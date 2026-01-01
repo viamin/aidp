@@ -31,7 +31,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       escalation_fail_attempts: 2,
       escalation_complexity_threshold: {files_changed: 10, modules_touched: 5},
       permission_for_tier: "tools",
-      tier_override_for: nil
+      tier_override_for: nil,
+      # Prompt optimization configuration
+      prompt_optimization_enabled?: false
     )
   end
 
@@ -137,10 +139,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         runner.send(:transition_to, :apply_patch)
         runner.send(:transition_to, :test)
 
-        state_history = runner.instance_variable_get(:@state_history)
-        expect(state_history.size).to eq(2)
-        expect(state_history[0][:to]).to eq(:apply_patch)
-        expect(state_history[1][:to]).to eq(:test)
+        expect(runner.state_history.size).to eq(2)
+        expect(runner.state_history[0][:to]).to eq(:apply_patch)
+        expect(runner.state_history[1][:to]).to eq(:test)
       end
     end
 
@@ -291,8 +292,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       it "displays warning message when max iterations reached" do
         # Capture display messages during execution
         displayed_messages = []
-        allow(runner).to receive(:display_message) do |message, options|
-          displayed_messages << {message: message, type: options[:type]}
+        allow(runner).to receive(:display_message) do |message, options = {}|
+          displayed_messages << {message: message, type: options&.dig(:type)}
         end
 
         # Setup persistent test failures
@@ -460,13 +461,12 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         result = runner.execute_step("test_step", step_spec, {})
 
         # Verify state history was maintained
-        state_history = runner.instance_variable_get(:@state_history)
-        expect(state_history.size).to be > 0
+        expect(runner.state_history.size).to be > 0
 
         # Should have multiple FAIL → DIAGNOSE → NEXT_PATCH cycles
-        fail_states = state_history.select { |h| h[:to] == :fail }
-        diagnose_states = state_history.select { |h| h[:to] == :diagnose }
-        next_patch_states = state_history.select { |h| h[:to] == :next_patch }
+        fail_states = runner.state_history.select { |h| h[:to] == :fail }
+        diagnose_states = runner.state_history.select { |h| h[:to] == :diagnose }
+        next_patch_states = runner.state_history.select { |h| h[:to] == :next_patch }
 
         expect(fail_states.size).to eq(3)
         expect(diagnose_states.size).to eq(3)
@@ -645,8 +645,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         expect(result[:status]).to eq("completed")
 
         # Check state history includes key states
-        state_history = runner.instance_variable_get(:@state_history)
-        states_visited = state_history.map { |h| h[:to] }
+        states_visited = runner.state_history.map { |h| h[:to] }
 
         expect(states_visited).to include(:apply_patch, :test, :pass, :done)
       end
@@ -691,8 +690,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         result = runner.execute_step("test_step", step_spec, {})
 
         # Check state history includes diagnostic states
-        state_history = runner.instance_variable_get(:@state_history)
-        states_visited = state_history.map { |h| h[:to] }
+        states_visited = runner.state_history.map { |h| h[:to] }
 
         expect(states_visited).to include(:fail, :diagnose, :next_patch)
         expect(result[:status]).to eq("completed")
@@ -764,7 +762,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       before do
         allow(Aidp::Execute::PromptManager).to receive(:new).and_return(prompt_manager)
         allow(prompt_manager).to receive(:read).and_return("# Current prompt content")
-        runner.instance_variable_set(:@iteration_count, 1)
+        runner.iteration_count = 1
       end
 
       it "appends fix-forward instructions to PROMPT.md" do
@@ -843,18 +841,17 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     describe "#display_state_summary" do
       before do
-        runner.instance_variable_set(:@iteration_count, 3)
-        runner.instance_variable_set(:@state_history, [
-          {from: :ready, to: :apply_patch, iteration: 1},
-          {from: :apply_patch, to: :test, iteration: 1},
-          {from: :test, to: :fail, iteration: 1},
-          {from: :fail, to: :diagnose, iteration: 1},
-          {from: :diagnose, to: :next_patch, iteration: 1},
-          {from: :next_patch, to: :apply_patch, iteration: 2},
-          {from: :apply_patch, to: :test, iteration: 2},
-          {from: :test, to: :pass, iteration: 2},
-          {from: :pass, to: :done, iteration: 2}
-        ])
+        runner.iteration_count = 3
+        # Set state history via transitions
+        runner.send(:transition_to, :apply_patch)
+        runner.send(:transition_to, :test)
+        runner.send(:transition_to, :fail)
+        runner.send(:transition_to, :diagnose)
+        runner.send(:transition_to, :next_patch)
+        runner.send(:transition_to, :apply_patch)
+        runner.send(:transition_to, :test)
+        runner.send(:transition_to, :pass)
+        runner.send(:transition_to, :done)
       end
 
       it "displays state transition summary" do
@@ -864,75 +861,120 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     end
 
     describe "style guide reinforcement" do
+      # Provider-aware style guide selection: use an unknown provider that needs style guide
+      # (all real providers now have instruction files, so we use an unknown one for testing)
+      let(:unknown_provider_manager) do
+        instance_double("ProviderManager", current_provider: "unknown_test_provider")
+      end
+      let(:unknown_runner) do
+        described_class.new(project_dir, unknown_provider_manager, config, prompt: test_prompt)
+      end
+
       describe "#should_reinject_style_guide?" do
-        it "returns false for iteration 1" do
-          runner.instance_variable_set(:@iteration_count, 1)
-          expect(runner.send(:should_reinject_style_guide?)).to be false
+        context "when provider needs style guide (unknown provider)" do
+          it "returns false for iteration 1" do
+            unknown_runner.iteration_count = 1
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be false
+          end
+
+          it "returns false for iterations not at interval" do
+            unknown_runner.iteration_count = 3
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be false
+          end
+
+          it "returns true for iteration 5" do
+            unknown_runner.iteration_count = 5
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be true
+          end
+
+          it "returns true for iteration 10" do
+            unknown_runner.iteration_count = 10
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be true
+          end
+
+          it "returns true for iteration 15" do
+            unknown_runner.iteration_count = 15
+            expect(unknown_runner.send(:should_reinject_style_guide?)).to be true
+          end
         end
 
-        it "returns false for iterations not at interval" do
-          runner.instance_variable_set(:@iteration_count, 3)
-          expect(runner.send(:should_reinject_style_guide?)).to be false
-        end
-
-        it "returns true for iteration 5" do
-          runner.instance_variable_set(:@iteration_count, 5)
-          expect(runner.send(:should_reinject_style_guide?)).to be true
-        end
-
-        it "returns true for iteration 10" do
-          runner.instance_variable_set(:@iteration_count, 10)
-          expect(runner.send(:should_reinject_style_guide?)).to be true
-        end
-
-        it "returns true for iteration 15" do
-          runner.instance_variable_set(:@iteration_count, 15)
-          expect(runner.send(:should_reinject_style_guide?)).to be true
+        context "when provider has instruction file (anthropic)" do
+          it "returns false even at injection interval" do
+            runner.iteration_count = 5
+            expect(runner.send(:should_reinject_style_guide?)).to be false
+          end
         end
       end
 
       describe "#reinject_style_guide_reminder" do
         before do
-          runner.instance_variable_set(:@iteration_count, 5)
-          runner.instance_variable_set(:@step_name, "test_step")
+          unknown_runner.iteration_count = 5
+          unknown_runner.step_name = "test_step"
         end
 
         it "includes style guide content when available" do
-          allow(File).to receive(:exist?).with(/LLM_STYLE_GUIDE/).and_return(true)
-          allow(File).to receive(:read).with(/LLM_STYLE_GUIDE/).and_return("# Style Guide\nUse proper conventions")
+          # Mock the style_guide_selector to return content
+          mock_selector = instance_double(Aidp::StyleGuide::Selector)
+          allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
+          allow(mock_selector).to receive(:extract_keywords).and_return([])
+          allow(mock_selector).to receive(:select_sections).and_return("# Style Guide\nUse proper conventions")
+          unknown_runner.style_guide_selector = mock_selector
 
-          reminder = runner.send(:reinject_style_guide_reminder)
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("Style Guide & Template Reminder")
-          expect(reminder).to include("LLM Style Guide")
-          expect(reminder).to include("Use proper conventions")
+          expect(reminder).to include("Relevant Style Guide Sections")
           expect(reminder).to include("prevent drift")
         end
 
         it "truncates long style guides" do
-          long_style_guide = "x" * 2000
-          allow(File).to receive(:exist?).with(/LLM_STYLE_GUIDE/).and_return(true)
-          allow(File).to receive(:read).with(/LLM_STYLE_GUIDE/).and_return(long_style_guide)
+          long_style_guide = "x" * 3000
+          mock_selector = instance_double(Aidp::StyleGuide::Selector)
+          allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
+          allow(mock_selector).to receive(:extract_keywords).and_return([])
+          allow(mock_selector).to receive(:select_sections).and_return(long_style_guide)
+          unknown_runner.style_guide_selector = mock_selector
 
-          reminder = runner.send(:reinject_style_guide_reminder)
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("(truncated)")
           expect(reminder.length).to be < long_style_guide.length
         end
 
-        it "works when style guide is not available" do
-          allow(File).to receive(:exist?).and_return(false)
+        it "returns minimal reminder when style guide is not available" do
+          mock_selector = instance_double(Aidp::StyleGuide::Selector)
+          allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
+          allow(mock_selector).to receive(:extract_keywords).and_return([])
+          allow(mock_selector).to receive(:select_sections).and_return("")
+          unknown_runner.style_guide_selector = mock_selector
 
-          reminder = runner.send(:reinject_style_guide_reminder)
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("Style Guide & Template Reminder")
           expect(reminder).to include("prevent drift")
         end
 
         it "includes note about style violations" do
-          reminder = runner.send(:reinject_style_guide_reminder)
+          mock_selector = instance_double(Aidp::StyleGuide::Selector)
+          allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
+          allow(mock_selector).to receive(:extract_keywords).and_return([])
+          allow(mock_selector).to receive(:select_sections).and_return("# Style Guide")
+          unknown_runner.style_guide_selector = mock_selector
+
+          reminder = unknown_runner.send(:reinject_style_guide_reminder)
 
           expect(reminder).to include("Test failures may indicate style guide violations")
+        end
+
+        context "when provider has instruction file" do
+          it "returns empty string for anthropic provider" do
+            runner.iteration_count = 5
+            runner.step_name = "test_step"
+
+            reminder = runner.send(:reinject_style_guide_reminder)
+
+            expect(reminder).to eq("")
+          end
         end
       end
 
@@ -942,10 +984,16 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         before do
           allow(Aidp::Execute::PromptManager).to receive(:new).and_return(prompt_manager)
           allow(prompt_manager).to receive(:read).and_return("# Current prompt content")
-          runner.instance_variable_set(:@iteration_count, 5)
+          unknown_runner.iteration_count = 5
         end
 
-        it "includes style guide reminder at iteration 5" do
+        it "includes style guide reminder at iteration 5 for unknown provider" do
+          mock_selector = instance_double(Aidp::StyleGuide::Selector)
+          allow(mock_selector).to receive(:provider_needs_style_guide?).and_return(true)
+          allow(mock_selector).to receive(:extract_keywords).and_return([])
+          allow(mock_selector).to receive(:select_sections).and_return("# Style Guide")
+          unknown_runner.style_guide_selector = mock_selector
+
           test_results = {
             success: false,
             output: "Test failures",
@@ -959,12 +1007,13 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).to include("Iteration 5")
           end
 
+          unknown_runner.prompt_manager = prompt_manager
           all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
-          runner.send(:prepare_next_iteration, all_results, diagnostic)
+          unknown_runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
 
         it "does not include style guide reminder at iteration 3" do
-          runner.instance_variable_set(:@iteration_count, 3)
+          unknown_runner.iteration_count = 3
 
           test_results = {
             success: false,
@@ -978,8 +1027,9 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
             expect(content).not_to include("Style Guide & Template Reminder")
           end
 
+          unknown_runner.prompt_manager = prompt_manager
           all_results = empty_all_results.merge(tests: test_results, lints: lint_results)
-          runner.send(:prepare_next_iteration, all_results, diagnostic)
+          unknown_runner.send(:prepare_next_iteration, all_results, diagnostic)
         end
       end
     end
@@ -994,8 +1044,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     it "maintains compatibility with prompt manager" do
       runner_instance = described_class.new(project_dir, provider_manager, config)
-      prompt_manager = runner_instance.instance_variable_get(:@prompt_manager)
-      expect(prompt_manager).to be_a(Aidp::Execute::PromptManager)
+      expect(runner_instance.prompt_manager).to be_a(Aidp::Execute::PromptManager)
     end
   end
 
@@ -1024,8 +1073,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     let(:created_task) { task_struct.new("Follow up", :high, Time.now, "TASK-1") }
 
     before do
-      runner.instance_variable_set(:@guard_policy, guard_policy)
-      runner.instance_variable_set(:@persistent_tasklist, tasklist)
+      runner.guard_policy = guard_policy
+      runner.persistent_tasklist = tasklist
       allow(runner).to receive(:display_message)
       allow(tasklist).to receive(:pending).and_return(pending_tasks)
       allow(tasklist).to receive(:create).and_return(created_task)
@@ -1069,8 +1118,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
     describe "#process_task_filing" do
       it "creates persistent tasks from agent signals" do
-        runner.instance_variable_set(:@step_name, "Implement feature")
-        runner.instance_variable_set(:@iteration_count, 2)
+        runner.step_name = "Implement feature"
+        runner.iteration_count = 2
         allow(Aidp::Execute::AgentSignalParser).to receive(:parse_task_filing).and_return([
           {description: "Handle edge case", priority: :high, tags: %w[bug]}
         ])
@@ -1112,13 +1161,13 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       let(:confirmation_files) { ["config/secrets.yml"] }
 
       it "auto-skips confirmations in automated mode" do
-        runner.instance_variable_set(:@options, {automated: true})
+        runner.options = {automated: true}
         runner.send(:handle_confirmation_requests)
         expect(runner).to have_received(:display_message).with(a_string_matching(/Automated mode/), type: :info)
       end
 
       it "confirms files interactively when not automated" do
-        runner.instance_variable_set(:@options, {})
+        runner.options = {}
         runner.send(:handle_confirmation_requests)
         expect(guard_policy).to have_received(:confirm_file).with("config/secrets.yml")
       end
@@ -1128,8 +1177,8 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
   describe "exception handling during agent calls (fix-forward)" do
     let(:step_spec) { {"name" => "test_step", "templates" => ["test.md"]} }
     let(:context) { {user_input: {}} }
-    let(:test_runner) { runner.instance_variable_get(:@test_runner) }
-    let(:prompt_manager) { runner.instance_variable_get(:@prompt_manager) }
+    let(:test_runner) { runner.test_runner }
+    let(:prompt_manager) { runner.prompt_manager }
 
     before do
       # Mock all the infrastructure
@@ -1340,6 +1389,248 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       prompt = runner.send(:build_diagnose_prompt, context)
       expect(prompt).to include("run_full_tests")
       expect(prompt).to include("Agent summary.")
+    end
+  end
+
+  describe "phase-based command execution" do
+    let(:test_runner) { instance_double("Aidp::Harness::TestRunner") }
+
+    before do
+      allow(Aidp::Harness::TestRunner).to receive(:new).and_return(test_runner)
+    end
+
+    describe "#run_phase_based_commands" do
+      context "when config has generic commands" do
+        let(:config_with_commands) do
+          instance_double(
+            "Configuration",
+            commands: [
+              {name: "test", command: "rspec", run_after: :each_unit, category: :test, required: true}
+            ],
+            test_commands: [],
+            lint_commands: [],
+            formatter_commands: [],
+            build_commands: [],
+            documentation_commands: [],
+            test_output_mode: :full,
+            lint_output_mode: :full,
+            guards_config: {enabled: false},
+            task_completion_required?: false,
+            work_loop_units_config: {deterministic: [], defaults: {initial_unit: :agentic}},
+            default_tier: "standard",
+            max_tier: "pro",
+            allow_provider_switch_for_tier?: true,
+            escalation_fail_attempts: 2,
+            escalation_complexity_threshold: {},
+            permission_for_tier: "tools",
+            tier_override_for: nil,
+            models_for_tier: [],
+            configured_tiers: [],
+            prompt_optimization_enabled?: false
+          )
+        end
+        let(:runner_with_commands) do
+          described_class.new(project_dir, provider_manager, config_with_commands, prompt: test_prompt)
+        end
+
+        before do
+          allow(config_with_commands).to receive(:respond_to?).and_return(false)
+          allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
+          allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+        end
+
+        it "uses phase-based execution when config has commands" do
+          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
+          on_completion_results = {success: true, output: "passed", failures: [], required_failures: []}
+
+          allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
+          allow(test_runner).to receive(:run_commands_for_phase).with(:on_completion).and_return(on_completion_results)
+
+          agent_result = {status: "completed", output: "done"}
+          allow(runner_with_commands).to receive(:agent_marked_complete?).and_return(true)
+
+          result = runner_with_commands.send(:run_phase_based_commands, agent_result)
+
+          expect(result[:each_unit]).to eq(each_unit_results)
+          expect(result[:on_completion]).to eq(on_completion_results)
+        end
+
+        it "skips on_completion when work is not complete" do
+          each_unit_results = {success: true, output: "passed", failures: [], required_failures: []}
+          allow(test_runner).to receive(:run_commands_for_phase).with(:each_unit).and_return(each_unit_results)
+
+          agent_result = {status: "in_progress", output: "working"}
+          allow(runner_with_commands).to receive(:agent_marked_complete?).and_return(false)
+
+          result = runner_with_commands.send(:run_phase_based_commands, agent_result)
+
+          expect(result[:each_unit]).to eq(each_unit_results)
+          expect(result[:on_completion][:success]).to be true
+          expect(result[:on_completion][:output]).to include("Skipped")
+        end
+      end
+
+      context "when config has no generic commands" do
+        it "falls back to legacy category-based execution" do
+          test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
+          lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
+          formatter_results = {success: true, output: "Format passed", failures: [], required_failures: []}
+          build_results = {success: true, output: "Build passed", failures: [], required_failures: []}
+          doc_results = {success: true, output: "Doc passed", failures: [], required_failures: []}
+
+          allow(test_runner).to receive(:run_tests).and_return(test_results)
+          allow(test_runner).to receive(:run_linters).and_return(lint_results)
+          allow(test_runner).to receive(:run_formatters).and_return(formatter_results)
+          allow(test_runner).to receive(:run_builds).and_return(build_results)
+          allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+
+          agent_result = {status: "completed", output: "done"}
+          allow(runner).to receive(:agent_marked_complete?).and_return(true)
+
+          result = runner.send(:run_phase_based_commands, agent_result)
+
+          expect(result[:tests]).to eq(test_results)
+          expect(result[:lints]).to eq(lint_results)
+          expect(result[:formatters]).to eq(formatter_results)
+          expect(result[:builds]).to eq(build_results)
+          expect(result[:docs]).to eq(doc_results)
+        end
+      end
+    end
+
+    describe "#run_full_loop_commands" do
+      context "when config has commands method" do
+        let(:config_with_commands) do
+          instance_double(
+            "Configuration",
+            commands: [{name: "full_suite", command: "rspec --all", run_after: :full_loop, category: :test, required: true}],
+            test_commands: [],
+            lint_commands: [],
+            formatter_commands: [],
+            build_commands: [],
+            documentation_commands: [],
+            test_output_mode: :full,
+            lint_output_mode: :full,
+            guards_config: {enabled: false},
+            task_completion_required?: false,
+            work_loop_units_config: {deterministic: [], defaults: {initial_unit: :agentic}},
+            default_tier: "standard",
+            max_tier: "pro",
+            allow_provider_switch_for_tier?: true,
+            escalation_fail_attempts: 2,
+            escalation_complexity_threshold: {},
+            permission_for_tier: "tools",
+            tier_override_for: nil,
+            models_for_tier: [],
+            configured_tiers: [],
+            prompt_optimization_enabled?: false
+          )
+        end
+        let(:runner_with_commands) do
+          described_class.new(project_dir, provider_manager, config_with_commands, prompt: test_prompt)
+        end
+
+        before do
+          allow(config_with_commands).to receive(:respond_to?).and_return(false)
+          allow(config_with_commands).to receive(:respond_to?).with(:commands).and_return(true)
+          allow(config_with_commands).to receive(:respond_to?).with(:prompt_optimization_enabled?).and_return(true)
+        end
+
+        it "runs full_loop phase commands" do
+          full_loop_results = {
+            success: true,
+            output: "Full suite passed",
+            failures: [],
+            required_failures: [],
+            results_by_command: {"full_suite" => {success: true}}
+          }
+          allow(test_runner).to receive(:run_commands_for_phase).with(:full_loop).and_return(full_loop_results)
+
+          result = runner_with_commands.send(:run_full_loop_commands)
+
+          expect(result[:success]).to be true
+          expect(result[:output]).to eq("Full suite passed")
+        end
+
+        it "returns failure when full_loop commands fail" do
+          full_loop_results = {
+            success: false,
+            output: "Full suite failed",
+            failures: [{name: "full_suite", command: "rspec --all"}],
+            required_failures: [{name: "full_suite", command: "rspec --all"}],
+            results_by_command: {"full_suite" => {success: false}}
+          }
+          allow(test_runner).to receive(:run_commands_for_phase).with(:full_loop).and_return(full_loop_results)
+
+          result = runner_with_commands.send(:run_full_loop_commands)
+
+          expect(result[:success]).to be false
+        end
+      end
+
+      context "when config does not have commands method" do
+        it "returns empty success result" do
+          # The base config already responds to common methods, just stub :commands to return false
+          allow(config).to receive(:respond_to?).with(anything).and_return(true)
+          allow(config).to receive(:respond_to?).with(:commands).and_return(false)
+
+          result = runner.send(:run_full_loop_commands)
+
+          expect(result[:success]).to be true
+          expect(result[:output]).to eq("")
+          expect(result[:failures]).to be_empty
+        end
+      end
+    end
+
+    describe "#run_legacy_category_commands" do
+      it "runs all legacy category commands" do
+        test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
+        lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
+        formatter_results = {success: true, output: "Format passed", failures: [], required_failures: []}
+        build_results = {success: true, output: "Build passed", failures: [], required_failures: []}
+        doc_results = {success: true, output: "Doc passed", failures: [], required_failures: []}
+
+        allow(test_runner).to receive(:run_tests).and_return(test_results)
+        allow(test_runner).to receive(:run_linters).and_return(lint_results)
+        allow(test_runner).to receive(:run_formatters).and_return(formatter_results)
+        allow(test_runner).to receive(:run_builds).and_return(build_results)
+        allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+
+        agent_result = {status: "completed", output: "done"}
+        allow(runner).to receive(:agent_marked_complete?).and_return(true)
+
+        result = runner.send(:run_legacy_category_commands, agent_result)
+
+        expect(result[:tests]).to eq(test_results)
+        expect(result[:lints]).to eq(lint_results)
+        expect(result[:formatters]).to eq(formatter_results)
+        expect(result[:builds]).to eq(build_results)
+        expect(result[:docs]).to eq(doc_results)
+      end
+
+      it "skips formatters when work is not complete" do
+        test_results = {success: true, output: "Tests passed", failures: [], required_failures: []}
+        lint_results = {success: true, output: "Lint passed", failures: [], required_failures: []}
+        build_results = {success: true, output: "Build passed", failures: [], required_failures: []}
+        doc_results = {success: true, output: "Doc passed", failures: [], required_failures: []}
+
+        allow(test_runner).to receive(:run_tests).and_return(test_results)
+        allow(test_runner).to receive(:run_linters).and_return(lint_results)
+        allow(test_runner).to receive(:run_builds).and_return(build_results)
+        allow(test_runner).to receive(:run_documentation).and_return(doc_results)
+        # run_formatters should not be called when work is not complete
+        allow(test_runner).to receive(:run_formatters)
+
+        agent_result = {status: "in_progress", output: "working"}
+        allow(runner).to receive(:agent_marked_complete?).and_return(false)
+
+        result = runner.send(:run_legacy_category_commands, agent_result)
+
+        expect(test_runner).not_to have_received(:run_formatters)
+        expect(result[:formatters][:success]).to be true
+        expect(result[:formatters][:output]).to include("Skipped")
+      end
     end
   end
 end

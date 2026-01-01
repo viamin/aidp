@@ -13,6 +13,12 @@ module Aidp
       include Aidp::MessageDisplay
       include Aidp::RescueLogging
 
+      # Expose state for testability
+      attr_accessor :sticky_sessions, :load_balancing_enabled
+      attr_writer :current_model
+      attr_accessor :provider_health, :provider_metrics, :rate_limit_info
+      attr_reader :binary_check_cache, :binary_check_ttl
+
       def initialize(configuration, prompt: TTY::Prompt.new, binary_checker: Aidp::Util)
         @configuration = configuration
         @prompt = prompt

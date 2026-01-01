@@ -29,13 +29,13 @@ RSpec.describe Aidp::Loader do
         original_loader = described_class.loader
         original_reloading = described_class.reloading?
 
-        described_class.instance_variable_set(:@loader, nil)
-        described_class.instance_variable_set(:@reloading_enabled, false)
+        described_class.loader = nil
+        described_class.reloading_enabled = false
 
         expect(described_class.reload!).to be false
       ensure
-        described_class.instance_variable_set(:@loader, original_loader)
-        described_class.instance_variable_set(:@reloading_enabled, original_reloading)
+        described_class.loader = original_loader
+        described_class.reloading_enabled = original_reloading
       end
     end
 
@@ -45,14 +45,14 @@ RSpec.describe Aidp::Loader do
         original_reloading = described_class.reloading?
 
         test_loader = instance_double(Zeitwerk::Loader, reload: true)
-        described_class.instance_variable_set(:@loader, test_loader)
-        described_class.instance_variable_set(:@reloading_enabled, true)
+        described_class.loader = test_loader
+        described_class.reloading_enabled = true
 
         expect(described_class.reload!).to be true
         expect(test_loader).to have_received(:reload)
       ensure
-        described_class.instance_variable_set(:@loader, original_loader)
-        described_class.instance_variable_set(:@reloading_enabled, original_reloading)
+        described_class.loader = original_loader
+        described_class.reloading_enabled = original_reloading
       end
     end
   end

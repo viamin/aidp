@@ -282,6 +282,229 @@ RSpec.describe Aidp::Harness::Configuration do
     end
   end
 
+  describe "generic commands" do
+    context "with generic commands configured" do
+      let(:mock_config) do
+        super().tap do |config|
+          config[:harness][:work_loop] = {
+            enabled: true,
+            max_iterations: 50,
+            commands: [
+              {
+                name: "run_tests",
+                command: "bundle exec rspec",
+                category: "test",
+                run_after: "each_unit",
+                required: true
+              },
+              {
+                name: "run_lint",
+                command: "bundle exec standardrb",
+                category: "lint",
+                run_after: "each_unit",
+                required: false
+              },
+              {
+                name: "format_code",
+                command: "bundle exec standardrb --fix",
+                category: "formatter",
+                run_after: "on_completion",
+                required: true
+              },
+              {
+                name: "full_test_suite",
+                command: "bundle exec rspec --format documentation",
+                category: "test",
+                run_after: "full_loop",
+                required: true
+              }
+            ]
+          }
+        end
+      end
+
+      describe "#commands" do
+        it "returns all configured commands" do
+          expect(configuration.commands.length).to eq(4)
+        end
+
+        it "normalizes command structure with symbols" do
+          cmd = configuration.commands.first
+          expect(cmd[:name]).to eq("run_tests")
+          expect(cmd[:command]).to eq("bundle exec rspec")
+          expect(cmd[:category]).to eq(:test)
+          expect(cmd[:run_after]).to eq(:each_unit)
+          expect(cmd[:required]).to be true
+        end
+      end
+
+      describe "#commands_for_phase" do
+        it "returns commands for each_unit phase" do
+          commands = configuration.commands_for_phase(:each_unit)
+          expect(commands.length).to eq(2)
+          expect(commands.map { |c| c[:name] }).to include("run_tests", "run_lint")
+        end
+
+        it "returns commands for on_completion phase" do
+          commands = configuration.commands_for_phase(:on_completion)
+          expect(commands.length).to eq(1)
+          expect(commands.first[:name]).to eq("format_code")
+        end
+
+        it "returns commands for full_loop phase" do
+          commands = configuration.commands_for_phase(:full_loop)
+          expect(commands.length).to eq(1)
+          expect(commands.first[:name]).to eq("full_test_suite")
+        end
+
+        it "returns empty array for phase with no commands" do
+          # Remove all commands and add one for a different phase
+          configuration.instance_variable_set(:@commands, [{run_after: :each_unit}])
+          expect(configuration.commands_for_phase(:on_completion)).to be_empty
+        end
+      end
+
+      describe "#commands_for_category" do
+        it "returns commands for test category" do
+          commands = configuration.commands_for_category(:test)
+          expect(commands.length).to eq(2)
+          expect(commands.map { |c| c[:name] }).to include("run_tests", "full_test_suite")
+        end
+
+        it "returns commands for lint category" do
+          commands = configuration.commands_for_category(:lint)
+          expect(commands.length).to eq(1)
+          expect(commands.first[:name]).to eq("run_lint")
+        end
+
+        it "returns empty array for category with no commands" do
+          expect(configuration.commands_for_category(:documentation)).to be_empty
+        end
+      end
+
+      describe "#test_commands" do
+        it "returns test commands filtered from generic commands" do
+          test_cmds = configuration.test_commands
+          expect(test_cmds.length).to eq(2)
+          expect(test_cmds.first[:command]).to eq("bundle exec rspec")
+          expect(test_cmds.first[:required]).to be true
+        end
+      end
+
+      describe "#lint_commands" do
+        it "returns lint commands filtered from generic commands" do
+          lint_cmds = configuration.lint_commands
+          expect(lint_cmds.length).to eq(1)
+          expect(lint_cmds.first[:command]).to eq("bundle exec standardrb")
+          expect(lint_cmds.first[:required]).to be false
+        end
+      end
+
+      describe "#formatter_commands" do
+        it "returns formatter commands filtered from generic commands" do
+          formatter_cmds = configuration.formatter_commands
+          expect(formatter_cmds.length).to eq(1)
+          expect(formatter_cmds.first[:command]).to eq("bundle exec standardrb --fix")
+        end
+      end
+    end
+
+    context "with legacy category-specific commands" do
+      let(:mock_config) do
+        super().tap do |config|
+          config[:harness][:work_loop] = {
+            enabled: true,
+            max_iterations: 50,
+            test_commands: ["bundle exec rspec"],
+            lint_commands: [{command: "bundle exec rubocop", required: false}],
+            formatter_commands: ["bundle exec standardrb --fix"]
+          }
+        end
+      end
+
+      describe "#commands" do
+        it "loads legacy commands into generic format" do
+          commands = configuration.commands
+          expect(commands.length).to eq(3)
+        end
+
+        it "assigns correct categories to legacy commands" do
+          test_cmds = configuration.commands.select { |c| c[:category] == :test }
+          lint_cmds = configuration.commands.select { |c| c[:category] == :lint }
+          formatter_cmds = configuration.commands.select { |c| c[:category] == :formatter }
+
+          expect(test_cmds.length).to eq(1)
+          expect(lint_cmds.length).to eq(1)
+          expect(formatter_cmds.length).to eq(1)
+        end
+
+        it "assigns correct run_after phases to legacy commands" do
+          test_cmd = configuration.commands.find { |c| c[:category] == :test }
+          lint_cmd = configuration.commands.find { |c| c[:category] == :lint }
+          formatter_cmd = configuration.commands.find { |c| c[:category] == :formatter }
+
+          expect(test_cmd[:run_after]).to eq(:each_unit)
+          expect(lint_cmd[:run_after]).to eq(:each_unit)
+          expect(formatter_cmd[:run_after]).to eq(:on_completion)
+        end
+
+        it "preserves required flag from legacy hash format" do
+          lint_cmd = configuration.commands.find { |c| c[:category] == :lint }
+          expect(lint_cmd[:required]).to be false
+        end
+      end
+    end
+
+    context "with string command format" do
+      let(:mock_config) do
+        super().tap do |config|
+          config[:harness][:work_loop] = {
+            enabled: true,
+            commands: ["echo hello", "echo world"]
+          }
+        end
+      end
+
+      it "normalizes string commands to hash format" do
+        commands = configuration.commands
+        expect(commands.length).to eq(2)
+        expect(commands.first[:command]).to eq("echo hello")
+        expect(commands.first[:name]).to eq("command_0")
+        expect(commands.first[:required]).to be true
+        expect(commands.first[:run_after]).to eq(:each_unit)
+        expect(commands.first[:category]).to eq(:custom)
+      end
+    end
+
+    context "with no commands configured" do
+      it "returns empty array" do
+        expect(configuration.commands).to be_empty
+      end
+    end
+
+    context "with run_after aliases" do
+      let(:mock_config) do
+        super().tap do |config|
+          config[:harness][:work_loop] = {
+            enabled: true,
+            commands: [
+              {name: "cmd1", command: "echo 1", run_after: "each"},
+              {name: "cmd2", command: "echo 2", run_after: "loop"},
+              {name: "cmd3", command: "echo 3", run_after: "completion"}
+            ]
+          }
+        end
+      end
+
+      it "normalizes run_after aliases" do
+        commands = configuration.commands
+        expect(commands[0][:run_after]).to eq(:each_unit)
+        expect(commands[1][:run_after]).to eq(:full_loop)
+        expect(commands[2][:run_after]).to eq(:on_completion)
+      end
+    end
+  end
+
   describe "model configuration" do
     it "returns provider models" do
       anthropic_models = configuration.provider_models("anthropic")

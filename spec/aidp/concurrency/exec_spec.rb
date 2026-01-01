@@ -3,8 +3,8 @@
 RSpec.describe Aidp::Concurrency::Exec do
   # Reset pool cache before each test to ensure clean state
   before(:each) do
-    described_class.instance_variable_set(:@pools, nil)
-    described_class.instance_variable_set(:@default_pool, nil)
+    described_class.pools = nil
+    described_class.default_pool = nil
   end
 
   after(:each) do

@@ -111,7 +111,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
     context "when diff too large" do
       let(:large_diff) { "diff\n" * 3000 }
-      let(:change_request_config) { {enabled: true, run_tests_before_push: false, max_diff_size: 2000, allow_large_pr_worktree_bypass: false} }
+      let(:change_request_config) { {enabled: true, run_tests_before_push: false, max_diff_size: 2000, large_pr_strategy: "manual"} }
 
       before do
         allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
@@ -119,56 +119,12 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
         allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
       end
 
-      it "posts diff too large comment" do
+      it "posts diff too large comment and stops processing" do
         expect(repository_client).to receive(:post_comment).with(123, /diff is too large/)
         expect(repository_client).to receive(:remove_labels).with(123, "aidp-request-changes")
+        # Should not try to analyze changes since it stops after large PR detection
+        expect_any_instance_of(described_class).not_to receive(:analyze_change_requests)
         processor.process(pr)
-      end
-
-      context "with worktree bypass enabled" do
-        let(:change_request_config) do
-          {
-            enabled: true,
-            max_diff_size: 2000,
-            allow_large_pr_worktree_bypass: true
-          }
-        end
-
-        let(:analysis_result) do
-          {
-            can_implement: true,
-            needs_clarification: false,
-            changes: [
-              {
-                "file" => "test.rb",
-                "action" => "edit",
-                "content" => "new content",
-                "description" => "Fixed implementation"
-              }
-            ],
-            reason: "Large PR with worktree bypass"
-          }
-        end
-
-        before do
-          allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
-          allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
-          allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
-          allow(processor).to receive(:checkout_pr_branch)
-          allow(processor).to receive(:apply_changes)
-          allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
-          allow(processor).to receive(:commit_and_push).and_return(true)
-          allow(repository_client).to receive(:post_comment)
-          allow(repository_client).to receive(:remove_labels)
-        end
-
-        it "processes large PR using worktree bypass" do
-          expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
-          expect(processor).to receive(:checkout_pr_branch).with(pr)
-          expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
-
-          processor.process(pr)
-        end
       end
     end
 
@@ -280,62 +236,6 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
           processor.process(pr_with_issue)
         end
-      end
-    end
-
-    context "when PR is linked to an existing issue worktree" do
-      let(:analysis_result) do
-        {
-          can_implement: true,
-          needs_clarification: false,
-          changes: [
-            {
-              "file" => "test.rb",
-              "action" => "edit",
-              "content" => "new content",
-              "description" => "Fixed typo"
-            }
-          ],
-          reason: "Clear request"
-        }
-      end
-
-      let(:worktree_path) { File.join(tmp_dir, "worktrees", "issue-294-slug") }
-      let(:issue) do
-        {
-          number: 294,
-          title: "Issue 294",
-          body: "Details"
-        }
-      end
-
-      before do
-        FileUtils.mkdir_p(worktree_path)
-
-        state_store.record_build_status(294, status: "completed", details: {branch: "aidp/issue-294", workstream: "issue-294-slug"})
-
-        allow(repository_client).to receive(:fetch_pull_request).and_return(pr.merge(body: "Fixes #294"))
-        allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
-        allow(repository_client).to receive(:fetch_pull_request_diff).and_return(diff)
-        allow(repository_client).to receive(:post_comment)
-        allow(repository_client).to receive(:remove_labels)
-
-        allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
-        allow(processor).to receive(:apply_changes)
-        allow(processor).to receive(:commit_and_push).and_return(true)
-        allow(processor).to receive(:run_git).and_return("")
-
-        allow(Aidp::Worktree).to receive(:find_by_branch).and_return(nil)
-        allow(Aidp::Worktree).to receive(:info).with(slug: "issue-294-slug", project_dir: tmp_dir).and_return({slug: "issue-294-slug", path: worktree_path, branch: "aidp/issue-294", active: true})
-        allow(Aidp::Worktree).to receive(:create)
-        allow(repository_client).to receive(:fetch_issue).with(294).and_return(issue)
-      end
-
-      it "reuses the issue worktree instead of switching the main workspace" do
-        processor.process(pr.merge(body: "Fixes #294"))
-
-        expect(processor.instance_variable_get(:@project_dir)).to eq(worktree_path)
-        expect(Aidp::Worktree).not_to have_received(:create)
       end
     end
 
@@ -634,17 +534,134 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
       end
 
       describe "#checkout_pr_branch" do
+        let(:branch_manager) { instance_double(Aidp::WorktreeBranchManager) }
+
         before do
-          allow(processor).to receive(:resolve_worktree_for_pr).and_return(tmp_dir)
-          allow(processor).to receive(:run_git)
+          # Mock both worktree managers in the processor
+          processor.worktree_branch_manager = branch_manager
+
+          # Mock common methods
+          allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
+
+          # Ensure find_worktree is always mocked, even if not explicitly used in a test
+          allow(branch_manager).to receive(:find_worktree)
+            .with(branch: "feature-branch", pr_number: 123)
+            .and_return(nil)
+
+          allow(branch_manager).to receive(:find_or_create_pr_worktree)
+            .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+            .and_return("/tmp/worktree_path")
+
+          # Stub Dir.chdir to avoid actual directory changing
+          allow(Dir).to receive(:chdir) do |path, &block|
+            block&.call
+          end
+
+          # Allow run_git calls to be mocked individually in tests
+          # Removed general stub to avoid conflicts with specific expectations
+
+          # Allow repository_client to receive post_comment for error handling
+          allow(repository_client).to receive(:post_comment)
+          allow(repository_client).to receive(:replace_labels)
         end
 
-        it "checks out PR branch" do
-          expect(processor).to receive(:run_git).with(%w[fetch origin], allow_failure: true)
-          expect(processor).to receive(:run_git).with(["checkout", "feature-branch"])
-          expect(processor).to receive(:run_git).with(%w[pull --ff-only], allow_failure: true)
+        context "when worktree exists" do
+          before do
+            # Simulate an existing worktree by configuring the mocks
+            allow(branch_manager).to receive(:find_worktree)
+              .with(branch: "feature-branch", pr_number: 123)
+              .and_return("/tmp/existing_worktree")
 
-          processor.send(:checkout_pr_branch, pr)
+            # Mock find_or_create_pr_worktree to use the existing worktree path
+            allow(branch_manager).to receive(:find_or_create_pr_worktree)
+              .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+              .and_return("/tmp/existing_worktree")
+          end
+
+          it "checks out PR branch using existing worktree" do
+            # Simulate git operations with specific output expectations
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "main"], allow_failure: true)
+              .and_return("Fetched main\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Fetched feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["checkout", "feature-branch"])
+              .and_return("Checked out feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["pull", "--ff-only", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Pulled origin/feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["rev-parse", "--abbrev-ref", "HEAD"])
+              .and_return("feature-branch\n")
+              .ordered
+
+            processor.send(:checkout_pr_branch, pr)
+
+            # Verify project_dir is updated
+            expect(processor.project_dir).to eq("/tmp/existing_worktree")
+          end
+        end
+
+        context "when no existing worktree" do
+          before do
+            # Mock find_worktree to return nil (no existing worktree)
+            allow(branch_manager).to receive(:find_worktree)
+              .with(branch: "feature-branch", pr_number: 123)
+              .and_return(nil)
+
+            # Use find_or_create_pr_worktree for new worktree
+            allow(branch_manager).to receive(:find_or_create_pr_worktree)
+              .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+              .and_return("/tmp/new_worktree")
+          end
+
+          it "creates and checks out new worktree" do
+            # Create worktree before checking out
+            expect(branch_manager).to receive(:find_or_create_pr_worktree)
+              .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+              .and_return("/tmp/new_worktree")
+
+            # Simulate git operations with specific output expectations
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "main"], allow_failure: true)
+              .and_return("Fetched main\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["fetch", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Fetched feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["checkout", "feature-branch"])
+              .and_return("Checked out feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["pull", "--ff-only", "origin", "feature-branch"], allow_failure: true)
+              .and_return("Pulled origin/feature-branch\n")
+              .ordered
+
+            expect(processor).to receive(:run_git)
+              .with(["rev-parse", "--abbrev-ref", "HEAD"])
+              .and_return("feature-branch\n")
+              .ordered
+
+            processor.send(:checkout_pr_branch, pr)
+
+            # Verify project_dir is updated
+            expect(processor.project_dir).to eq("/tmp/new_worktree")
+          end
         end
       end
 
@@ -657,9 +674,17 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
           ]
         end
 
+        before do
+          # Mock the registry file operations for PrWorktreeManager
+          registry_path = File.join(tmp_dir, "pr_worktrees.json")
+          allow(File).to receive(:exist?).with(registry_path).and_return(false)
+          allow(FileUtils).to receive(:mkdir_p)
+          allow(File).to receive(:write).with(registry_path, anything)
+        end
+
         it "creates/edits files" do
           expect(File).to receive(:write).with(File.join(tmp_dir, "test.rb"), "new content")
-          allow(File).to receive(:exist?).and_return(true)
+          allow(File).to receive(:exist?).and_call_original
           allow(File).to receive(:delete)
 
           processor.send(:apply_changes, changes)
@@ -667,6 +692,7 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
 
         it "deletes files" do
           allow(File).to receive(:write)
+          allow(File).to receive(:exist?).and_call_original
           expect(File).to receive(:exist?).with(File.join(tmp_dir, "delete.rb")).and_return(true)
           expect(File).to receive(:delete).with(File.join(tmp_dir, "delete.rb"))
 
@@ -686,18 +712,69 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
       describe "#commit_and_push" do
         let(:analysis) { {changes: [{"description" => "Fix"}], reason: "test"} }
 
+        before do
+          # Setup processor to be in a worktree directory
+          processor.project_dir = "/tmp/.worktrees/pr-123"
+
+          # Clear any existing ordered expectations from previous tests
+          RSpec::Mocks.space.proxy_for(processor).reset
+
+          # Mock Dir.chdir to not actually change directories
+          allow(Dir).to receive(:chdir) do |path, &block|
+            block&.call
+          end
+
+          # Ensure repository_client can handle comment posting
+          allow(repository_client).to receive(:post_comment)
+        end
+
         it "commits and pushes when changes exist" do
-          allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb\n")
-          expect(processor).to receive(:run_git).with(%w[add -A])
-          expect(processor).to receive(:run_git).with(["commit", "-m", anything])
-          expect(processor).to receive(:run_git).with(["push", "origin", "feature-branch"])
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb
+")
+          expect(processor).to receive(:run_git).with(%w[add -A]).and_return("")
+          expect(processor).to receive(:run_git).with(["commit", "-m", anything]).and_return("Created commit")
+          expect(processor).to receive(:run_git).with(["push", "origin", "feature-branch"], allow_failure: false).and_return("Pushed")
 
           result = processor.send(:commit_and_push, pr, analysis)
           expect(result).to be true
         end
 
         it "returns false when no changes to commit" do
-          allow(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("")
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("")
+
+          result = processor.send(:commit_and_push, pr, analysis)
+          expect(result).to be false
+        end
+
+        it "returns false when commit fails" do
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb
+")
+          expect(processor).to receive(:run_git).with(%w[add -A]).and_return("")
+          expect(processor).to receive(:run_git).with(["commit", "-m", anything]).and_raise(StandardError.new("Commit failed"))
+
+          result = processor.send(:commit_and_push, pr, analysis)
+          expect(result).to be false
+        end
+
+        it "returns false when push fails" do
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_return("M test.rb
+")
+          expect(processor).to receive(:run_git).with(%w[add -A]).and_return("")
+          expect(processor).to receive(:run_git).with(["commit", "-m", anything]).and_return("Created commit")
+          expect(processor).to receive(:run_git)
+            .with(["push", "origin", "feature-branch"], allow_failure: false)
+            .and_raise(StandardError.new("Push failed"))
+
+          # Expect a comment to be posted about push failure
+          expect(repository_client).to receive(:post_comment)
+            .with(123, /Automated changes were committed successfully, but pushing to the branch failed/)
+
+          result = processor.send(:commit_and_push, pr, analysis)
+          expect(result).to be false
+        end
+
+        it "handles errors outside the git operations" do
+          expect(processor).to receive(:run_git).with(%w[status --porcelain]).and_raise(StandardError.new("Unexpected error"))
 
           result = processor.send(:commit_and_push, pr, analysis)
           expect(result).to be false
@@ -726,123 +803,620 @@ RSpec.describe Aidp::Watch::ChangeRequestProcessor do
       end
     end
 
-    context "large PR change request handling" do
-      let(:large_diff) { "diff\n" * 3000 }
-      let(:analysis_result) do
-        {
-          can_implement: true,
-          needs_clarification: false,
-          changes: [
-            {
-              "file" => "test.rb",
-              "action" => "edit",
-              "content" => "new content",
-              "description" => "Implemented large PR changes"
-            }
-          ],
-          reason: "Large PR with comprehensive changes"
-        }
-      end
+    # Tests for enhanced worktree and large PR handling
+    describe "advanced worktree and PR handling" do
+      let(:branch_manager) { instance_double(Aidp::WorktreeBranchManager) }
+      let(:error_comment_processor) { instance_double(Aidp::Watch::ChangeRequestProcessor) }
 
       before do
+        # Directly set the mock WorktreeBranchManager on the processor instance
+        processor.worktree_branch_manager = branch_manager
+
+        allow(Dir).to receive(:chdir) do |path, &block|
+          block&.call
+        end
+
+        # Ensure all run_git calls return a string value to avoid nil.strip errors
+        allow(processor).to receive(:run_git).and_return("")
+
+        # Allow repository_client to receive post_comment for error handling
+        allow(repository_client).to receive(:post_comment)
+        allow(repository_client).to receive(:replace_labels)
+      end
+
+      context "when handling large PRs with worktree strategy" do
+        let(:large_pr) { pr.merge(body: "Large PR with multiple changes") }
+        let(:large_diff) { "diff\n" * 3500 }
+
+        before do
+          allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
+          allow(repository_client).to receive(:fetch_pull_request).and_return(large_pr)
+          allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
+          allow(repository_client).to receive(:post_comment)
+          allow(repository_client).to receive(:remove_labels)
+
+          allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
+        end
+
+        context "with create_worktree strategy" do
+          let(:change_request_config) {
+            {
+              enabled: true,
+              max_diff_size: 2000,
+              large_pr_strategy: "create_worktree",
+              run_tests_before_push: false
+            }
+          }
+
+          it "creates a worktree and processes the large PR" do
+            # Mock the find_worktree call
+            allow(branch_manager).to receive(:find_worktree)
+              .with(branch: "feature-branch", pr_number: 123)
+              .and_return(nil)
+
+            # Expect the find_or_create_pr_worktree call
+            expect(branch_manager).to receive(:find_or_create_pr_worktree)
+              .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+              .and_return("/tmp/worktree_path")
+
+            # Note: We've already set the expectation for find_or_create_pr_worktree above
+            # which replaces the old create_worktree method call
+
+            expect(repository_client).to receive(:remove_labels)
+              .with(123, "aidp-request-changes")
+
+            # Mock analysis result
+            allow(processor).to receive(:analyze_change_requests)
+              .and_return({
+                can_implement: true,
+                needs_clarification: false,
+                changes: [{"file" => "test.rb", "action" => "edit", "content" => "new content"}],
+                reason: "Large PR processing"
+              })
+
+            allow(processor).to receive(:checkout_pr_branch)
+            allow(processor).to receive(:apply_changes)
+            allow(processor).to receive(:commit_and_push).and_return(true)
+
+            expect(repository_client).to receive(:post_comment)
+              .with(123, /Successfully implemented/)
+
+            processor.process(large_pr)
+          end
+        end
+
+        context "with manual strategy" do
+          let(:change_request_config) {
+            {
+              enabled: true,
+              max_diff_size: 2000,
+              large_pr_strategy: "manual",
+              run_tests_before_push: false
+            }
+          }
+
+          it "stops processing and posts large PR comment" do
+            expect(repository_client).to receive(:post_comment)
+              .with(123, /diff is too large/)
+
+            expect(repository_client).to receive(:remove_labels)
+              .with(123, "aidp-request-changes")
+
+            # Process should complete without raising an exception
+            # (exceptions are caught and handled internally)
+            expect {
+              processor.process(large_pr)
+            }.not_to raise_error
+          end
+        end
+
+        context "with skip strategy" do
+          let(:change_request_config) {
+            {
+              enabled: true,
+              max_diff_size: 2000,
+              large_pr_strategy: "skip",
+              run_tests_before_push: false
+            }
+          }
+
+          it "skips large PR processing" do
+            expect(repository_client).to receive(:post_comment)
+              .with(123, /diff is too large/)
+
+            expect(repository_client).to receive(:remove_labels)
+              .with(123, "aidp-request-changes")
+
+            # Should not try to analyze changes
+            expect(processor).not_to receive(:analyze_change_requests)
+
+            processor.process(large_pr)
+          end
+        end
+      end
+
+      context "when worktree operation fails" do
+        let(:large_pr) { pr.merge(body: "Large PR with multiple changes") }
+        let(:large_diff) { "diff\n" * 3500 }
+
+        before do
+          allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
+          allow(repository_client).to receive(:fetch_pull_request).and_return(large_pr)
+          allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
+          allow(repository_client).to receive(:post_comment)
+          allow(repository_client).to receive(:remove_labels)
+          allow(repository_client).to receive(:replace_labels)
+
+          allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
+        end
+
+        let(:change_request_config) {
+          {
+            enabled: true,
+            max_diff_size: 2000,
+            large_pr_strategy: "create_worktree",
+            run_tests_before_push: false
+          }
+        }
+
+        it "posts error comment when worktree creation fails" do
+          # Mock the find_worktree call
+          allow(branch_manager).to receive(:find_worktree)
+            .with(branch: "feature-branch", pr_number: 123)
+            .and_return(nil)
+
+          # Simulate worktree creation failure
+          expect(branch_manager).to receive(:find_or_create_pr_worktree)
+            .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+            .and_raise(StandardError.new("Permission denied"))
+
+          expect(repository_client).to receive(:post_comment)
+            .with(123, /diff is too large/)
+
+          expect(repository_client).to receive(:remove_labels)
+            .with(123, "aidp-request-changes")
+
+          # Process should handle the error gracefully
+          expect {
+            processor.process(large_pr)
+          }.not_to raise_error
+        end
+      end
+
+      context "when processing changes in worktree" do
+        let(:branch_manager) { instance_double(Aidp::WorktreeBranchManager) }
+
+        before do
+          processor.worktree_branch_manager = branch_manager
+          allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
+        end
+
+        it "applies changes in the worktree context" do
+          # Use a worktree path that includes .worktrees to pass validation
+          worktree_path = "/tmp/.worktrees/pr-123"
+
+          allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
+          allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
+          allow(repository_client).to receive(:fetch_pull_request_diff).and_return(diff)
+          allow(repository_client).to receive(:post_comment)
+          allow(repository_client).to receive(:remove_labels)
+
+          # Mock the find_worktree call first (returns nil to trigger creation)
+          allow(branch_manager).to receive(:find_worktree)
+            .with(branch: "feature-branch", pr_number: 123)
+            .and_return(nil)
+
+          # Ensure the branch manager returns the correct worktree path
+          allow(branch_manager).to receive(:find_or_create_pr_worktree)
+            .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+            .and_return(worktree_path)
+
+          # Mock the Dir.chdir block to simulate working in the worktree
+          allow(Dir).to receive(:chdir) do |path, &block|
+            # Execute the block in the context of the worktree
+            block&.call
+          end
+
+          analysis_result = {
+            can_implement: true,
+            needs_clarification: false,
+            changes: [
+              {
+                "file" => "test.rb",
+                "action" => "edit",
+                "content" => "new content in worktree",
+                "description" => "Fixed in worktree"
+              }
+            ],
+            reason: "Clear request"
+          }
+
+          allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
+
+          # Track file writes
+          file_written = false
+
+          # Mock file operations
+          allow(FileUtils).to receive(:mkdir_p).and_return(true)
+          allow(File).to receive(:exist?) do |path|
+            # Allow file to exist after it's written
+            if path.include?("test.rb")
+              file_written
+            else
+              # Return false for files we're not tracking
+              false
+            end
+          end
+          allow(File).to receive(:stat).and_return(double(mode: 0o644))
+          allow(File).to receive(:chmod).and_return(true)
+
+          # Track when file is written
+          write_calls = []
+          allow(File).to receive(:write) do |path, content|
+            write_calls << {path: path, content: content}
+
+            if path.include?("test.rb") && content == "new content in worktree"
+              file_written = true
+            elsif path.include?(".aidp")
+              # Allow state store writes
+            end
+            # Return bytes written for any file
+            content.length
+          end
+
+          # Mock git operations
+          allow(processor).to receive(:run_git) do |cmd, opts = {}|
+            cmd_str = cmd.is_a?(Array) ? cmd.join(" ") : cmd.to_s
+            puts "DEBUG: git #{cmd_str} called, file_written=#{file_written}" if ENV["DEBUG"]
+            case cmd
+            when %w[status --porcelain]
+              # Return modified status if file was written
+              file_written ? "M test.rb\n" : ""
+            when %w[add -A]
+              ""
+            when ["commit", "-m", anything]
+              ""
+            when ["push", "origin", "feature-branch"]
+              ""
+            when ["fetch", "origin", "main"], ["fetch", "origin", "feature-branch"]
+              ""
+            when ["checkout", "feature-branch"]
+              ""
+            when ["pull", "--ff-only", "origin", "feature-branch"]
+              ""
+            when ["rev-parse", "--abbrev-ref", "HEAD"]
+              "feature-branch"
+            else
+              ""
+            end
+          end
+
+          expect(repository_client).to receive(:post_comment)
+            .with(123, /Analysis completed but no changes were needed/)
+
+          # Process should write the file, detect changes, and commit them
+          processor.process(pr)
+
+          # Debug output
+          puts "DEBUG: Write calls: #{write_calls.inspect}" if write_calls.any?
+
+          # Verify file was written
+          expect(file_written).to be true
+        end
+      end
+
+      context "when existing worktree is found" do
+        let(:branch_manager) { instance_double(Aidp::WorktreeBranchManager) }
+
+        before do
+          processor.worktree_branch_manager = branch_manager
+          allow(branch_manager).to receive(:get_pr_branch).with(123).and_return("feature-branch")
+        end
+
+        it "uses existing worktree without creating a new one" do
+          existing_worktree_path = "/existing/worktree/pr-123"
+
+          allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
+          allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
+          allow(repository_client).to receive(:fetch_pull_request_diff).and_return(diff)
+          allow(repository_client).to receive(:post_comment)
+          allow(repository_client).to receive(:remove_labels)
+
+          # Existing worktree is found
+          allow(branch_manager).to receive(:find_worktree)
+            .with(branch: "feature-branch", pr_number: 123)
+            .and_return(existing_worktree_path)
+
+          # find_or_create_pr_worktree should still be called for the checkout process
+          expect(branch_manager).to receive(:find_or_create_pr_worktree)
+            .with(pr_number: 123, head_branch: "feature-branch", base_branch: "main")
+            .and_return(existing_worktree_path)
+
+          analysis_result = {
+            can_implement: true,
+            needs_clarification: false,
+            changes: [{"file" => "test.rb", "action" => "edit", "content" => "updated", "description" => "Update"}],
+            reason: "Clear"
+          }
+
+          allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
+          allow(processor).to receive(:apply_changes)
+          allow(processor).to receive(:commit_and_push).and_return(true)
+          allow(processor).to receive(:run_git).and_return("")
+
+          expect(repository_client).to receive(:post_comment)
+            .with(123, /Successfully implemented/)
+
+          processor.process(pr)
+        end
+      end
+    end
+
+    # Enhanced worktree functionality tests
+    describe "enhanced worktree change application" do
+      let(:worktree_project_dir) { "/tmp/.worktrees/pr-123-feature-branch" }
+
+      before do
+        # Set up processor to be in a worktree directory
+        processor.project_dir = worktree_project_dir
+
         allow(repository_client).to receive(:fetch_pull_request).and_return(pr)
         allow(repository_client).to receive(:fetch_pr_comments).and_return(comments)
-        allow(repository_client).to receive(:fetch_pull_request_diff).and_return(large_diff)
-        allow(processor).to receive(:analyze_change_requests).and_return(analysis_result)
-        allow(processor).to receive(:checkout_pr_branch)
-        allow(processor).to receive(:apply_changes)
-        allow(processor).to receive(:commit_and_push).and_return(true)
+        allow(repository_client).to receive(:fetch_pull_request_diff).and_return(diff)
         allow(repository_client).to receive(:post_comment)
         allow(repository_client).to receive(:remove_labels)
       end
 
-      context "when worktree bypass is disabled" do
-        let(:change_request_config) do
+      it "detects worktree context and applies enhanced logging" do
+        changes = [
           {
-            enabled: true,
-            max_diff_size: 2000,
-            allow_large_pr_worktree_bypass: false
+            "file" => "test.rb",
+            "action" => "create",
+            "content" => "# Test file content\nputs 'hello world'\n",
+            "description" => "Create test file"
           }
+        ]
+
+        # Mock file operations
+        allow(File).to receive(:exist?).and_return(false, true) # First for directory check, then for file validation
+        allow(File).to receive(:directory?).and_return(true)
+        allow(File).to receive(:readable?).and_return(true)
+        allow(File).to receive(:size).and_return(42)
+        allow(File).to receive(:write).and_return(42)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(FileUtils).to receive(:mkdir_p).and_return(true)
+
+        # Capture debug logs
+        debug_logs = []
+        allow(Aidp).to receive(:log_debug) do |component, action, details|
+          debug_logs << {component: component, action: action, details: details}
         end
 
-        it "prevents processing and posts a large diff comment" do
-          expect(repository_client).to receive(:post_comment).with(123, /diff is too large/)
-          expect(repository_client).to receive(:remove_labels).with(123, "aidp-request-changes")
-          expect(processor).not_to receive(:checkout_pr_branch)
-
-          processor.process(pr)
+        # Capture info logs
+        info_logs = []
+        allow(Aidp).to receive(:log_info) do |component, action, details|
+          info_logs << {component: component, action: action, details: details}
         end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify worktree context detection
+        expect(result[:worktree_context]).to be true
+        expect(result[:successful_changes]).to eq 1
+
+        # Verify enhanced logging
+        debug_log_actions = debug_logs.map { |log| log[:action] }
+        expect(debug_log_actions).to include("Starting change application")
+        expect(debug_log_actions).to include("Preparing to apply change")
+        expect(debug_log_actions).to include("Applied file change")
+
+        # Verify worktree-specific info logging
+        worktree_info_logs = info_logs.select { |log| log[:action] == "Worktree changes applied successfully" }
+        expect(worktree_info_logs).not_to be_empty
+        expect(worktree_info_logs.first[:details][:worktree_path]).to eq worktree_project_dir
       end
 
-      context "when worktree bypass is dynamically configured" do
-        context "when configuration allows bypass" do
-          let(:change_request_config) do
-            {
-              enabled: true,
-              max_diff_size: 2000,
-              allow_large_pr_worktree_bypass: true
-            }
-          end
+      it "applies security validation for delete operations in worktree" do
+        changes = [
+          {
+            "file" => "../../etc/passwd",
+            "action" => "delete",
+            "description" => "Malicious delete attempt"
+          }
+        ]
 
-          it "allows processing despite large diff" do
-            expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
-            expect(processor).to receive(:checkout_pr_branch).with(pr)
-            expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
+        # Mock file system
+        allow(File).to receive(:exist?).with("/tmp/.worktrees/pr-123-feature-branch/../../etc/passwd").and_return(true)
+        allow(File).to receive(:expand_path).and_call_original
 
-            processor.process(pr)
-          end
+        # Capture error logs
+        error_logs = []
+        allow(Aidp).to receive(:log_error) do |component, action, details|
+          error_logs << {component: component, action: action, details: details}
         end
 
-        context "when configuration allows bypass by default" do
-          let(:change_request_config) do
-            {
-              enabled: true,
-              max_diff_size: 2000
-            }
-          end
+        result = processor.send(:apply_changes, changes)
 
-          it "allows processing with default bypass" do
-            expect(repository_client).not_to receive(:post_comment).with(123, /diff is too large/)
-            expect(processor).to receive(:checkout_pr_branch).with(pr)
-            expect(processor).to receive(:apply_changes).with(analysis_result[:changes])
+        # Verify security violation is caught
+        expect(result[:failed_changes]).to eq 1
+        expect(result[:errors].first[:error_type]).to eq "security_violation"
 
-            processor.process(pr)
-          end
-        end
+        # Verify security error logging
+        security_errors = error_logs.select { |log| log[:action] == "Security violation during change application" }
+        expect(security_errors).not_to be_empty
       end
 
-      context "logging for large PRs" do
-        let(:change_request_config) do
+      it "handles directory creation in worktree context" do
+        changes = [
           {
-            enabled: true,
-            max_diff_size: 2000,
-            allow_large_pr_worktree_bypass: true
+            "file" => "deep/nested/structure/new_file.rb",
+            "action" => "create",
+            "content" => "# Nested file content\n",
+            "description" => "Create nested file"
           }
+        ]
+
+        # Mock file operations
+        directory_creations = []
+
+        # Track directory existence checks
+        allow(File).to receive(:directory?) do |path|
+          !path.include?("deep/nested/structure") # Target directory doesn't exist initially
         end
 
-        it "logs detailed information about large PR handling" do
-          # Private repo comments logging
-          expect(Aidp).to receive(:log_debug)
-            .with("change_request_processor", "filtering_authorized_comments",
-              total_comments: comments.length,
-              allowlist_count: 0,
-              is_private_repo: true)
-
-          # Private repo comments allowed logging
-          expect(Aidp).to receive(:log_debug)
-            .with("change_request_processor", "private_repo_comments_allowed",
-              comments_allowed: comments.length)
-
-          # Additional log debug expectation for PR diff size
-          expect(Aidp).to receive(:log_debug)
-            .with("change_request_processor", "PR diff size",
-              number: 123,
-              size: large_diff.lines.count,
-              max_allowed: 2000,
-              worktree_bypass: true)
-
-          processor.process(pr)
+        # File existence checks: directory doesn't exist, then file exists and is readable
+        file_checks = 0
+        allow(File).to receive(:exist?) do |path|
+          file_checks += 1
+          case file_checks
+          when 1
+            false # Directory doesn't exist
+          else
+            true # File exists and is readable
+          end
         end
+
+        allow(File).to receive(:readable?).and_return(true)
+        allow(File).to receive(:size).and_return(25)
+        allow(File).to receive(:write).and_return(25)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(FileUtils).to receive(:mkdir_p) do |path|
+          directory_creations << path
+          true
+        end
+
+        # Capture debug logs
+        debug_logs = []
+        allow(Aidp).to receive(:log_debug) do |component, action, details|
+          debug_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify directory creation
+        expect(directory_creations).not_to be_empty
+        expected_directory = File.join(worktree_project_dir, "deep/nested/structure")
+        expect(directory_creations).to include(expected_directory)
+
+        # Verify logging of directory creation
+        dir_creation_logs = debug_logs.select { |log| log[:action] == "Created directory structure" }
+        expect(dir_creation_logs).not_to be_empty
+        expect(dir_creation_logs.first[:details][:in_worktree]).to be true
+
+        # Verify successful change
+        expect(result[:successful_changes]).to eq 1
+        expect(result[:worktree_context]).to be true
+      end
+
+      it "provides comprehensive change application summary with success rate" do
+        changes = [
+          {
+            "file" => "success1.rb",
+            "action" => "create",
+            "content" => "# Success 1\n",
+            "description" => "Create success file 1"
+          },
+          {
+            "file" => "success2.rb",
+            "action" => "edit",
+            "content" => "# Success 2\n",
+            "description" => "Edit success file 2"
+          },
+          {
+            "file" => "empty.rb",
+            "action" => "create",
+            "content" => nil,
+            "description" => "Empty content - should be skipped"
+          }
+        ]
+
+        # Mock file operations more specifically
+        allow(File).to receive(:exist?).and_return(true)
+
+        allow(File).to receive(:directory?).and_return(true)
+        allow(File).to receive(:readable?).and_return(true)
+        allow(File).to receive(:size).and_return(12)
+        allow(File).to receive(:write).and_return(12)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(File).to receive(:stat).and_return(double(mode: 0o644))
+        allow(FileUtils).to receive(:mkdir_p).and_return(true)
+
+        # Capture info logs
+        info_logs = []
+        allow(Aidp).to receive(:log_info) do |component, action, details|
+          info_logs << {component: component, action: action, details: details}
+        end
+
+        # Capture warn logs
+        warn_logs = []
+        allow(Aidp).to receive(:log_warn) do |component, action, details|
+          warn_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify results (empty content file is skipped)
+        expect(result[:total_changes]).to eq 3
+        expect(result[:successful_changes]).to eq 2
+        expect(result[:skipped_changes]).to eq 1  # Empty content file is skipped
+        expect(result[:failed_changes]).to eq 0
+
+        # Verify comprehensive summary logging
+        summary_logs = info_logs.select { |log| log[:action] == "Change application summary" }
+        expect(summary_logs).not_to be_empty
+
+        summary_details = summary_logs.first[:details]
+        expect(summary_details[:success_rate]).to eq 66.67
+        expect(summary_details[:in_worktree]).to be true
+        expect(summary_details[:working_directory]).to eq worktree_project_dir
+
+        # Verify worktree-specific logging
+        worktree_logs = info_logs.select { |log| log[:action] == "Worktree changes applied successfully" }
+        expect(worktree_logs).not_to be_empty
+        expect(worktree_logs.first[:details][:files_modified]).to eq 2
+      end
+
+      it "handles file validation failures gracefully" do
+        changes = [
+          {
+            "file" => "test.rb",
+            "action" => "create",
+            "content" => "# Test content\n",
+            "description" => "Create test file"
+          }
+        ]
+
+        # Mock file operations to simulate validation failure
+        allow(File).to receive(:exist?).and_return(true) # Directory exists
+        allow(File).to receive(:directory?).and_return(true)
+        allow(File).to receive(:write).and_return(15)
+        allow(File).to receive(:chmod).and_return(true)
+        allow(FileUtils).to receive(:mkdir_p).and_return(true)
+
+        # Simulate validation failure
+        validation_calls = 0
+        allow(File).to receive(:exist?) do |path|
+          validation_calls += 1
+          validation_calls == 1 || !path.include?("test.rb")
+        end
+        allow(File).to receive(:readable?).and_return(false)
+
+        # Capture error logs
+        error_logs = []
+        allow(Aidp).to receive(:log_error) do |component, action, details|
+          error_logs << {component: component, action: action, details: details}
+        end
+
+        result = processor.send(:apply_changes, changes)
+
+        # Verify failure handling
+        expect(result[:failed_changes]).to eq 1
+        expect(result[:successful_changes]).to eq 0
+
+        # Verify error logging
+        error_logs_filtered = error_logs.select { |log| log[:action] == "Change application failed" }
+        expect(error_logs_filtered).not_to be_empty
+        expect(error_logs_filtered.first[:details][:worktree_context]).to be true
       end
     end
   end

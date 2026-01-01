@@ -9,6 +9,17 @@ module Aidp
     class StatusDisplay
       include Aidp::MessageDisplay
 
+      # Expose state for testability
+      attr_accessor :current_step, :current_provider, :current_model
+      attr_accessor :start_time, :running
+      attr_accessor :performance_metrics, :error_summary
+      attr_accessor :provider_status, :token_usage, :circuit_breaker_status
+      attr_accessor :rate_limit_status, :recovery_status, :user_feedback_status
+      attr_accessor :work_completion_status, :display_config
+      attr_reader :status_formatter, :metrics_calculator, :alert_manager, :display_animator
+      # Internal status hash (separate from computed status_data method)
+      attr_accessor :internal_status_data
+
       def initialize(provider_manager = nil, metrics_manager = nil, circuit_breaker_manager = nil, error_logger = nil, prompt: TTY::Prompt.new)
         @provider_manager = provider_manager
         @metrics_manager = metrics_manager
@@ -27,6 +38,7 @@ module Aidp
         @update_interval = 2
         @last_update = Time.now
         @status_data = {}
+        @internal_status_data = @status_data # Alias for testability
         @performance_metrics = {}
         @error_summary = {}
         @provider_status = {}
@@ -167,16 +179,24 @@ module Aidp
         @error_summary[:last_updated] = Time.now
       end
 
-      # Set display mode
-      def display_mode(mode)
-        @display_mode = mode
-        @display_config[:mode] = mode
+      # Get or set display mode
+      def display_mode(mode = nil)
+        if mode.nil?
+          @display_mode
+        else
+          @display_mode = mode
+          @display_config[:mode] = mode
+        end
       end
 
-      # Set update interval
-      def update_interval(interval)
-        @update_interval = interval
-        @display_config[:update_interval] = interval
+      # Get or set update interval
+      def update_interval(interval = nil)
+        if interval.nil?
+          @update_interval
+        else
+          @update_interval = interval
+          @display_config[:update_interval] = interval
+        end
       end
 
       # Configure display settings
@@ -686,8 +706,6 @@ module Aidp
         }
       end
 
-      attr_reader :provider_status
-
       def performance_status
         @performance_metrics
       end
@@ -696,19 +714,9 @@ module Aidp
         @error_summary
       end
 
-      attr_reader :circuit_breaker_status
-
       def token_status
         @token_usage
       end
-
-      attr_reader :rate_limit_status
-
-      attr_reader :recovery_status
-
-      attr_reader :user_feedback_status
-
-      attr_reader :work_completion_status
 
       def alerts
         @alert_manager.active_alerts
