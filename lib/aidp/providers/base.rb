@@ -398,6 +398,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for this provider
+      #
+      # Returns an array of file paths where this provider looks for agent instructions.
+      # These paths are relative to the project root.
+      #
+      # @return [Array<Hash>] Array of instruction file info with keys:
+      #   - path: Relative file path (e.g., "CLAUDE.md")
+      #   - description: Human-readable description of the file
+      #   - symlink: Whether this should be a symlink to AGENTS.md (optional, default: true)
+      #
+      # Override in subclasses to provide provider-specific instruction file paths
+      def self.instruction_file_paths
+        []
+      end
+
       protected
 
       # Log message to job if in background mode

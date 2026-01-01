@@ -33,6 +33,30 @@ RSpec.describe Aidp::StyleGuide::Selector do
         expect(selector.provider_needs_style_guide?("github_copilot")).to be false
       end
 
+      it "returns false for cursor" do
+        expect(selector.provider_needs_style_guide?("cursor")).to be false
+      end
+
+      it "returns false for gemini" do
+        expect(selector.provider_needs_style_guide?("gemini")).to be false
+      end
+
+      it "returns false for opencode" do
+        expect(selector.provider_needs_style_guide?("opencode")).to be false
+      end
+
+      it "returns false for kilocode" do
+        expect(selector.provider_needs_style_guide?("kilocode")).to be false
+      end
+
+      it "returns false for codex" do
+        expect(selector.provider_needs_style_guide?("codex")).to be false
+      end
+
+      it "returns false for aider" do
+        expect(selector.provider_needs_style_guide?("aider")).to be false
+      end
+
       it "handles case insensitivity" do
         expect(selector.provider_needs_style_guide?("CLAUDE")).to be false
         expect(selector.provider_needs_style_guide?("Claude")).to be false
@@ -43,29 +67,9 @@ RSpec.describe Aidp::StyleGuide::Selector do
       end
     end
 
-    context "when provider needs style guide" do
-      it "returns true for cursor" do
-        expect(selector.provider_needs_style_guide?("cursor")).to be true
-      end
-
-      it "returns true for gemini" do
-        expect(selector.provider_needs_style_guide?("gemini")).to be true
-      end
-
-      it "returns true for opencode" do
-        expect(selector.provider_needs_style_guide?("opencode")).to be true
-      end
-
-      it "returns true for kilocode" do
-        expect(selector.provider_needs_style_guide?("kilocode")).to be true
-      end
-
-      it "returns true for codex" do
-        expect(selector.provider_needs_style_guide?("codex")).to be true
-      end
-
-      it "returns true for aider" do
-        expect(selector.provider_needs_style_guide?("aider")).to be true
+    context "when provider is unknown or nil" do
+      it "returns true for unknown provider" do
+        expect(selector.provider_needs_style_guide?("unknown_provider")).to be true
       end
 
       it "returns true for nil provider" do

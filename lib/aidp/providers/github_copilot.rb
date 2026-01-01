@@ -31,6 +31,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for GitHub Copilot provider
+      #
+      # GitHub Copilot looks for .github/copilot-instructions.md
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: ".github/copilot-instructions.md",
+            description: "GitHub Copilot agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       def name
         "github_copilot"
       end

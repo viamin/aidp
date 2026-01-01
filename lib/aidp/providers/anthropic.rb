@@ -84,6 +84,21 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for Anthropic/Claude provider
+      #
+      # Claude Code CLI looks for CLAUDE.md in the project root.
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: "CLAUDE.md",
+            description: "Claude Code CLI agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       class << self
         private
 

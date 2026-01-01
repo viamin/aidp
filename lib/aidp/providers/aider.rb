@@ -55,6 +55,22 @@ module Aidp
         }
       end
 
+      # Get instruction file paths for Aider provider
+      #
+      # Aider looks for .aider.conf.yml for configuration and
+      # can read convention files in the project.
+      #
+      # @return [Array<Hash>] Instruction file paths
+      def self.instruction_file_paths
+        [
+          {
+            path: "AIDER.md",
+            description: "Aider agent instructions",
+            symlink: true
+          }
+        ]
+      end
+
       def name
         "aider"
       end
