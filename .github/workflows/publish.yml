@@ -86,7 +86,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@ae195bbe749a7cef685ac729197124a48305c1cb
+        uses: ruby/setup-ruby@b90be12699fdfcbee4440c2bba85f6f460446bb0
         with:
           bundler-cache: true
 
@@ -204,7 +204,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@ae195bbe749a7cef685ac729197124a48305c1cb
+        uses: ruby/setup-ruby@b90be12699fdfcbee4440c2bba85f6f460446bb0
         with:
           bundler-cache: true
           ruby-version: ruby
