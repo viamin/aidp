@@ -30,6 +30,9 @@ module Aidp
     def self.security_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "security")
     def self.secrets_registry_file(project_dir = Dir.pwd) = File.join(security_dir(project_dir), "secrets_registry.json")
 
+    # Database path
+    def self.database_file(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "aidp.db")
+
     def self.config_exists?(project_dir = Dir.pwd)
       File.exist?(config_file(project_dir))
     end
