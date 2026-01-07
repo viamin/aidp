@@ -4,6 +4,67 @@
 
 This document outlines the migration from file-based storage in `.aidp/` to a single SQLite database (`aidp.db`), while preserving specific files that should remain as files.
 
+## Audit Results & Rationale
+
+This section documents the deep audit of each file type in `.aidp/` to verify active usage and determine whether to migrate to SQLite, remove as dead code, or keep as files.
+
+### Files to Migrate to SQLite (Actively Used)
+
+| File | Status | Rationale |
+|------|--------|-----------|
+| `checkpoint.yml` | ✅ ACTIVE | Used by work loops (every 5 iterations), CLI `aidp checkpoint` commands, background job monitoring. Records iteration-level progress. |
+| `checkpoint_history.jsonl` | ✅ ACTIVE | Append-only history used by `aidp checkpoint history` command. Essential for debugging and progress tracking. |
+| `tasklist.jsonl` | ✅ ACTIVE | Critical for `task_completion_requirement` enforcement in work loops. Used by WorkLoopRunner, BuildProcessor, ChangeRequestProcessor. NOT superseded by GitHub Projects (different purpose). |
+| `progress/execute.yml` | ✅ ACTIVE | Step completion tracking for execute mode. Used by Runner, StateManager, ConditionDetector. Core to workflow execution. |
+| `progress/analyze.yml` | ✅ ACTIVE | Step completion tracking for analyze mode. Same architecture as execute progress. |
+| `harness/*_state.json` | ✅ ACTIVE | Primary state management for execution context. Tracks user feedback, provider state, rate limits, token usage. NOT redundant with progress (complementary). |
+| `workstreams/*/state.json` | ✅ ACTIVE | Core to parallel work execution via git worktrees. 13 CLI subcommands, 9 REPL macros. Actively maintained feature. |
+| `workstreams/*/history.jsonl` | ✅ ACTIVE | Event log for workstream lifecycle (created, iteration, paused, resumed, completed). Essential for debugging. |
+| `watch/*.yml` | ✅ ACTIVE | Critical for watch mode deduplication (prevents re-processing). Tracks plans, builds, reviews, CI fixes, change requests. 30+ read/write locations. |
+| `worktrees.json` | ✅ ACTIVE | Registry for standard worktrees. Used by CLI, watch mode processors, cleanup jobs. Core to workstream feature. |
+| `pr_worktrees.json` | ✅ ACTIVE | Registry for PR-specific worktrees. Used by ChangeRequestProcessor, CiFixProcessor, BuildProcessor. |
+| `evaluations/*.json` | ✅ ACTIVE | Feedback collection system. 3 entry points: CLI, REPL `/rate`, GitHub reactions. Well-integrated feature. |
+| `provider_metrics.yml` | ✅ ACTIVE | Persists provider performance metrics. Used for dashboard, load balancing, health tracking. Written on every provider call. |
+| `provider_rate_limits.yml` | ✅ ACTIVE | Persists rate limit state. Critical for automatic failover between providers. |
+| `secrets_registry.json` | ✅ ACTIVE | Security feature for credential proxying. 5 CLI commands. Only stores metadata, never actual secrets. |
+| `prompt_archive/*.md` | ✅ ACTIVE | Write-only audit trail. Archives created on every prompt write (10+ call sites). Useful for debugging. |
+| `jobs/*` | ✅ ACTIVE | Background job tracking (metadata, logs, PID). 7+ CLI commands for job management. Production-ready feature. |
+| `deprecated_models.json` | ✅ ACTIVE | Runtime deprecation detection cache. Critical for model auto-upgrade. Used by Anthropic provider and RubyLLMRegistry. |
+| `checkpoints/*.json` (auto-update) | ✅ ACTIVE | State recovery for auto-update process. Used by AutoUpdate::Coordinator for resumption. |
+| `providers/*_info.yml` | ✅ ACTIVE | Caches provider capabilities (24h TTL). Used by `aidp providers info` command. |
+
+### Files to Remove (Dead Code)
+
+| File | Status | Rationale | Action |
+|------|--------|-----------|--------|
+| `security/audit.jsonl` | ❌ DEAD | Path defined in ConfigPaths but NEVER written or read. No implementation exists. | Remove `security_audit_log_file()` from ConfigPaths. Remove table from schema. |
+| `security/mcp_risk_profile.yml` | ❌ DEAD | Planned AGD feature that was never implemented. Only exists in GitHub issue template. | Remove `mcp_risk_profile_file()` from ConfigPaths. Remove from migration scope. |
+| `future_work.yml` | ❌ DEAD | FutureWorkBacklog class (412 lines) is never instantiated. Superseded by PersistentTasklist which is actively used. | Remove FutureWorkBacklog class and future_work table from schema. |
+| `json/*.json` (JsonFileStorage) | ❌ DEAD | JsonFileStorage class (292 lines) is never instantiated. Complete implementation but never integrated. | Remove JsonFileStorage class. Keep FileManager which has minimal active usage. |
+
+### Files with Minimal Usage (Consider Removal)
+
+| File | Status | Rationale | Recommendation |
+|------|--------|-----------|----------------|
+| `model_cache/models.json` | ⚠️ MINIMAL | Only read in error path (ThinkingDepthManager). Never written in normal workflows. | Keep for now but consider deprecation. Low priority for migration. |
+
+### Files to Keep as Files (No Migration)
+
+| File | Reason | Notes |
+|------|--------|-------|
+| `aidp.yml` | User-editable configuration | Users may manually edit |
+| `firewall-allowlist.yml` | User-editable security rules | Users may manually edit |
+| `PROMPT.md` | Current prompt (user may view/edit) | Active work loop prompt |
+| `docs/*.md` | Planning documents (WBS, GANTT, etc.) | Markdown for human consumption |
+| `logs/*.log` | Log files (text-based, rotated) | Standard log file format |
+| `grammars/*` | Binary tree-sitter grammar files | Binary data, not suitable for SQLite |
+| `out/*` | Harness tool output files | Tool-specific output |
+| `harness/*.lock` | Filesystem-level lock files | Required for process coordination |
+| `kb/*.json` | Knowledge base (large, infrequently accessed) | Large files, tree-sitter cache |
+| `work_loop/initial_units.txt` | Transient signaling file | Written by BuildProcessor, read and deleted by WorkLoopUnitScheduler. Transient coordination file. |
+
+---
+
 ## Scope
 
 ### Files to Migrate to SQLite
@@ -23,16 +84,16 @@ This document outlines the migration from file-based storage in `.aidp/` to a si
 | `harness/*_state.json` | JSON | Frequent | High |
 | `evaluations/*.json` + `index.json` | JSON | On-demand | Medium |
 | `security/secrets_registry.json` | JSON | On-demand | Medium |
-| `security/audit.jsonl` | JSONL | On-demand | Medium |
-| `security/mcp_risk_profile.yml` | YAML | On-demand | Low |
+| ~~`security/audit.jsonl`~~ | ~~JSONL~~ | ~~On-demand~~ | ❌ REMOVE (dead code) |
+| ~~`security/mcp_risk_profile.yml`~~ | ~~YAML~~ | ~~On-demand~~ | ❌ REMOVE (dead code) |
 | `workstreams/*/state.json` | JSON | Frequent | High |
 | `workstreams/*/history.jsonl` | JSONL | Frequent | High |
 | `watch/*.yml` | YAML | Frequent | High |
-| `json/*.json` (analysis results) | JSON | On-demand | Medium |
+| ~~`json/*.json` (analysis results)~~ | ~~JSON~~ | ~~On-demand~~ | ❌ REMOVE (dead code) |
 | `providers/*_info.yml` | YAML | On-demand | Low |
 | `model_cache/models.json` | JSON | On-demand | Low |
 | `prompt_archive/*.md` | Markdown | On-demand | Medium |
-| `future_work.yml` | YAML | On-demand | Medium |
+| ~~`future_work.yml`~~ | ~~YAML~~ | ~~On-demand~~ | ❌ REMOVE (dead code) |
 | `jobs/*` | Mixed | On-demand | Medium |
 | `checkpoints/*.json` (auto-update) | JSON | On-demand | Medium |
 
@@ -242,16 +303,8 @@ CREATE TABLE secrets_registry (
 );
 CREATE UNIQUE INDEX idx_secrets_project_name ON secrets_registry(project_dir, secret_name);
 
--- Security audit log (replaces security/audit.jsonl)
-CREATE TABLE security_audit_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_dir TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    event_data TEXT, -- JSON blob
-    timestamp TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX idx_audit_project ON security_audit_log(project_dir);
-CREATE INDEX idx_audit_timestamp ON security_audit_log(timestamp);
+-- REMOVED: security_audit_log table
+-- Reason: security/audit.jsonl is dead code (path defined but never used)
 
 -- Prompt archive (replaces prompt_archive/*.md)
 CREATE TABLE prompt_archive (
@@ -296,28 +349,11 @@ CREATE TABLE deprecated_models (
 );
 CREATE INDEX idx_deprecated_models_provider ON deprecated_models(project_dir, provider_name);
 
--- Generic JSON storage (replaces json/*.json)
-CREATE TABLE json_storage (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_dir TEXT NOT NULL,
-    storage_key TEXT NOT NULL,
-    data TEXT NOT NULL, -- JSON blob
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE UNIQUE INDEX idx_json_storage_key ON json_storage(project_dir, storage_key);
+-- REMOVED: json_storage table
+-- Reason: JsonFileStorage class is dead code (292 lines, never instantiated)
 
--- Future work backlog (replaces future_work.yml)
-CREATE TABLE future_work (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_dir TEXT NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT,
-    priority TEXT DEFAULT 'medium',
-    source TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX idx_future_work_project ON future_work(project_dir);
+-- REMOVED: future_work table
+-- Reason: FutureWorkBacklog class is dead code (412 lines, superseded by PersistentTasklist)
 
 -- Background jobs (replaces jobs/*)
 CREATE TABLE background_jobs (
@@ -347,6 +383,35 @@ CREATE INDEX idx_auto_checkpoints_project ON auto_update_checkpoints(project_dir
 ```
 
 ## Implementation Plan
+
+### Phase 0: Dead Code Cleanup (Priority: Immediate)
+
+Before starting the SQLite migration, remove dead code identified in the audit:
+
+#### 0.1 Remove Dead Security Code
+- [ ] Remove `security_audit_log_file()` method from `lib/aidp/config_paths.rb:32`
+- [ ] Remove `mcp_risk_profile_file()` method from `lib/aidp/config_paths.rb:33`
+- [ ] Verify no references exist to these methods
+
+#### 0.2 Remove FutureWorkBacklog (Superseded by PersistentTasklist)
+- [ ] Remove `lib/aidp/execute/future_work_backlog.rb` (412 lines)
+- [ ] Remove `spec/aidp/execute/future_work_backlog_spec.rb`
+- [ ] Remove any documentation references to future_work.yml
+- [ ] Verify PersistentTasklist handles all use cases
+
+#### 0.3 Remove JsonFileStorage (Never Integrated)
+- [ ] Remove `lib/aidp/analyze/json_file_storage.rb` (292 lines)
+- [ ] Remove `spec/aidp/analyze/json_file_storage_spec.rb`
+- [ ] Keep `lib/aidp/storage/json_storage.rb` (used by FileManager)
+- [ ] Verify no broken imports
+
+#### 0.4 Update Documentation
+- [ ] Remove references to dead code from docs
+- [ ] Update this migration plan to reflect cleanup
+
+**Estimated Cleanup**: ~700 lines of dead code removal
+
+---
 
 ### Phase 1: Foundation (Priority: Critical)
 
@@ -497,17 +562,18 @@ end
 #### 3.4 Security Migration
 - [ ] Create `lib/aidp/database/repositories/security_repository.rb`
 - [ ] Update `lib/aidp/security/secrets_registry.rb` to use repository
-- [ ] Create migration script for `secrets_registry.json` and `audit.jsonl`
+- [ ] Create migration script for `secrets_registry.json` only
+- **Note**: `audit.jsonl` removed in Phase 0 (dead code - never implemented)
 
 #### 3.5 Prompt Archive Migration
 - [ ] Create `lib/aidp/database/repositories/prompt_archive_repository.rb`
 - [ ] Update `lib/aidp/execute/prompt_manager.rb` to use repository
 - [ ] Create migration script
 
-#### 3.6 Future Work Migration
-- [ ] Create `lib/aidp/database/repositories/future_work_repository.rb`
-- [ ] Update `lib/aidp/execute/future_work_backlog.rb` to use repository
-- [ ] Create migration script
+#### ~~3.6 Future Work Migration~~ (REMOVED - Dead Code)
+- ~~Create `lib/aidp/database/repositories/future_work_repository.rb`~~
+- ~~Update `lib/aidp/execute/future_work_backlog.rb` to use repository~~
+- **Action**: Remove FutureWorkBacklog class in Phase 0 (superseded by PersistentTasklist)
 
 #### 3.7 Background Jobs Migration
 - [ ] Create `lib/aidp/database/repositories/job_repository.rb`
@@ -523,11 +589,11 @@ end
 - [ ] Update `lib/aidp/harness/deprecation_cache.rb`
 - [ ] Create migration scripts
 
-#### 4.2 Generic JSON Storage Migration
-- [ ] Create `lib/aidp/database/repositories/json_storage_repository.rb`
-- [ ] Update `lib/aidp/storage/json_storage.rb`
-- [ ] Update `lib/aidp/analyze/json_file_storage.rb`
-- [ ] Create migration script
+#### ~~4.2 Generic JSON Storage Migration~~ (REMOVED - Dead Code)
+- ~~Create `lib/aidp/database/repositories/json_storage_repository.rb`~~
+- ~~Update `lib/aidp/analyze/json_file_storage.rb`~~
+- **Action**: Remove JsonFileStorage class in Phase 0 (never integrated)
+- **Note**: Keep `lib/aidp/storage/json_storage.rb` (minimal usage by FileManager)
 
 ### Phase 5: Migration Script & Cleanup
 
@@ -554,10 +620,10 @@ module Aidp
         migrate_provider_metrics
         migrate_security
         migrate_prompt_archive
-        migrate_future_work
+        # REMOVED: migrate_future_work (dead code)
         migrate_jobs
         migrate_caches
-        migrate_json_storage
+        # REMOVED: migrate_json_storage (dead code)
       end
 
       def rollback!
@@ -597,10 +663,10 @@ lib/aidp/database/repositories/
   provider_metrics_repository.rb
   security_repository.rb
   prompt_archive_repository.rb
-  future_work_repository.rb
   job_repository.rb
   cache_repository.rb
-  json_storage_repository.rb
+  # REMOVED: future_work_repository.rb (dead code)
+  # REMOVED: json_storage_repository.rb (dead code)
 spec/aidp/database/
   (corresponding test files)
 ```
@@ -624,14 +690,28 @@ lib/aidp/evaluations/evaluation_storage.rb # Use EvaluationRepository
 lib/aidp/harness/provider_metrics.rb      # Use ProviderMetricsRepository
 lib/aidp/security/secrets_registry.rb     # Use SecurityRepository
 lib/aidp/execute/prompt_manager.rb        # Use PromptArchiveRepository
-lib/aidp/execute/future_work_backlog.rb   # Use FutureWorkRepository
+# REMOVED: lib/aidp/execute/future_work_backlog.rb (delete in Phase 0)
 lib/aidp/jobs/background_runner.rb        # Use JobRepository
 lib/aidp/harness/provider_info.rb         # Use CacheRepository
 lib/aidp/harness/model_cache.rb           # Use CacheRepository
 lib/aidp/harness/deprecation_cache.rb     # Use CacheRepository
-lib/aidp/storage/json_storage.rb          # Use JsonStorageRepository
-lib/aidp/analyze/json_file_storage.rb     # Use JsonStorageRepository
+# REMOVED: lib/aidp/analyze/json_file_storage.rb (delete in Phase 0)
+# NOTE: lib/aidp/storage/json_storage.rb kept (minimal usage by FileManager)
 lib/aidp/cli.rb                           # Add migrate-storage command
+```
+
+### Files to Remove Immediately (Phase 0 - Dead Code)
+
+```
+# Dead code to delete before SQLite migration:
+lib/aidp/execute/future_work_backlog.rb        # 412 lines, superseded by PersistentTasklist
+spec/aidp/execute/future_work_backlog_spec.rb  # Corresponding tests
+lib/aidp/analyze/json_file_storage.rb          # 292 lines, never integrated
+spec/aidp/analyze/json_file_storage_spec.rb    # Corresponding tests
+
+# ConfigPaths methods to remove:
+lib/aidp/config_paths.rb:32                    # security_audit_log_file() - never used
+lib/aidp/config_paths.rb:33                    # mcp_risk_profile_file() - never used
 ```
 
 ### Files to Eventually Remove (after migration is stable)
@@ -642,7 +722,7 @@ lib/aidp/cli.rb                           # Add migrate-storage command
 .aidp/harness/*_state.json (keep .lock files)
 .aidp/evaluations/
 .aidp/security/secrets_registry.json
-.aidp/security/audit.jsonl
+# REMOVED: .aidp/security/audit.jsonl (never created - dead code)
 .aidp/workstreams/
 .aidp/watch/
 .aidp/providers/
@@ -659,7 +739,8 @@ lib/aidp/cli.rb                           # Add migrate-storage command
 .aidp/provider_metrics.yml
 .aidp/provider_rate_limits.yml
 .aidp/deprecated_models.json
-.aidp/future_work.yml
+# REMOVED: .aidp/future_work.yml (never created - dead code)
+# REMOVED: .aidp/json/ (never created - dead code)
 ```
 
 ## Testing Strategy
