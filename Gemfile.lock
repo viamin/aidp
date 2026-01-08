@@ -196,7 +196,6 @@ GEM
       simplecov (>= 0.21, < 1.0)
     simplecov_json_formatter (0.1.4)
     sorbet-runtime (0.6.12854)
-    sqlite3 (2.6.0)
     sqlite3 (2.6.0-aarch64-linux-gnu)
     sqlite3 (2.6.0-x86_64-linux-gnu)
     standard (1.52.0)
