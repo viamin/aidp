@@ -4,8 +4,8 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_repo_test")}
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
+  let(:temp_dir) { Dir.mktmpdir("aidp_repo_test") }
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
 
   # Concrete repository class for testing
   let(:test_repo_class) do
@@ -54,7 +54,7 @@ RSpec.describe Aidp::Database::Repository do
     end
   end
 
-  let(:repository) { test_repo_class.new(project_dir: temp_dir)}
+  let(:repository) { test_repo_class.new(project_dir: temp_dir) }
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)

@@ -147,7 +147,7 @@ RSpec.describe Aidp::Database::Migrations do
 
     it "creates unique indexes" do
       db = Aidp::Database.connection(temp_dir)
-      indexes = db.execute("SELECT name FROM sqlite_master WHERE type='index'").map { |r| r["name"]}
+      indexes = db.execute("SELECT name FROM sqlite_master WHERE type='index'").map { |r| r["name"] }
 
       expect(indexes).to include("idx_progress_project_mode")
       expect(indexes).to include("idx_workstreams_project_slug")

@@ -6,9 +6,9 @@ require "aidp/database"
 require "aidp/config_paths"
 
 RSpec.describe Aidp::Database::StorageMigrator do
-  let(:temp_dir) { Dir.mktmpdir}
-  let(:migrator) { described_class.new(project_dir: temp_dir)}
-  let(:aidp_dir) { File.join(temp_dir, ".aidp")}
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:migrator) { described_class.new(project_dir: temp_dir) }
+  let(:aidp_dir) { File.join(temp_dir, ".aidp") }
 
   before do
     FileUtils.mkdir_p(aidp_dir)
@@ -101,7 +101,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
             {title: "Task 1", status: "pending"},
             {title: "Task 2", status: "completed"}
           ]
-      }
+        }
         File.write(File.join(aidp_dir, "tasks.json"), JSON.generate(tasks))
       end
 
@@ -168,7 +168,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
     end
 
     context "in dry run mode" do
-      let(:migrator) { described_class.new(project_dir: temp_dir, dry_run: true)}
+      let(:migrator) { described_class.new(project_dir: temp_dir, dry_run: true) }
 
       before do
         File.write(File.join(aidp_dir, "checkpoint.yml"), YAML.dump("step" => "test"))

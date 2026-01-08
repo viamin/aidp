@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_watch_state_repo_test")}
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
-  let(:repository) { described_class.new(project_dir: temp_dir, repository: "owner/repo")}
+  let(:temp_dir) { Dir.mktmpdir("aidp_watch_state_repo_test") }
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
+  let(:repository) { described_class.new(project_dir: temp_dir, repository: "owner/repo") }
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -194,7 +194,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
 
     describe "#auto_pr_cap_reached?" do
       before do
-        3.times { repository.record_auto_pr_iteration(456)}
+        3.times { repository.record_auto_pr_iteration(456) }
       end
 
       it "returns true when cap reached" do
@@ -249,7 +249,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
         repository.track_comment_for_feedback(comment_id: "123", processor_type: "custom", number: 456)
 
         comments = repository.tracked_comments
-        custom = comments.find { |c| c[:processor_type] == "custom"}
+        custom = comments.find { |c| c[:processor_type] == "custom" }
 
         expect(custom[:comment_id]).to eq("123")
         expect(custom[:number]).to eq(456)

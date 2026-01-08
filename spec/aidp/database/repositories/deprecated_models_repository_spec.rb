@@ -5,8 +5,8 @@ require "aidp/database"
 require "aidp/database/repositories/deprecated_models_repository"
 
 RSpec.describe Aidp::Database::Repositories::DeprecatedModelsRepository do
-  let(:temp_dir) { Dir.mktmpdir}
-  let(:repository) { described_class.new(project_dir: temp_dir)}
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:repository) { described_class.new(project_dir: temp_dir) }
 
   before do
     Aidp::Database.initialize!(temp_dir)

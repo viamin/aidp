@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::ProviderMetricsRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_metrics_repo_test")}
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
-  let(:repository) { described_class.new(project_dir: temp_dir)}
+  let(:temp_dir) { Dir.mktmpdir("aidp_metrics_repo_test") }
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
+  let(:repository) { described_class.new(project_dir: temp_dir) }
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -46,7 +46,7 @@ RSpec.describe Aidp::Database::Repositories::ProviderMetricsRepository do
 
       repository.save_rate_limits("openai", {
         requests: {limit: 1000, remaining: 500, reset_at: reset_time}
-     })
+      })
 
       limits = repository.load_rate_limits
 
@@ -58,7 +58,7 @@ RSpec.describe Aidp::Database::Repositories::ProviderMetricsRepository do
   describe "#clear" do
     it "clears all data" do
       repository.save_metrics("test", {count: 1})
-      repository.save_rate_limits("test", {x: {limit: 10, remaining: 5 }})
+      repository.save_rate_limits("test", {x: {limit: 10, remaining: 5}})
 
       repository.clear
 

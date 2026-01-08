@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_workstream_repo_test")}
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
-  let(:repository) { described_class.new(project_dir: temp_dir)}
+  let(:temp_dir) { Dir.mktmpdir("aidp_workstream_repo_test") }
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
+  let(:repository) { described_class.new(project_dir: temp_dir) }
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -59,7 +59,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
   end
 
   describe "#update" do
-    before { repository.init(slug: "feature-123")}
+    before { repository.init(slug: "feature-123") }
 
     it "updates attributes" do
       state = repository.update(slug: "feature-123", branch: "feature/123", status: "paused")
@@ -77,7 +77,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
   end
 
   describe "#increment_iteration" do
-    before { repository.init(slug: "feature-123")}
+    before { repository.init(slug: "feature-123") }
 
     it "increments iteration counter" do
       state = repository.increment_iteration(slug: "feature-123")
@@ -89,7 +89,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
       repository.increment_iteration(slug: "feature-123")
 
       events = repository.recent_events(slug: "feature-123")
-      iteration_event = events.find { |e| e[:type] == "iteration"}
+      iteration_event = events.find { |e| e[:type] == "iteration" }
 
       expect(iteration_event[:data][:count]).to eq(1)
     end
@@ -103,7 +103,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
   end
 
   describe "#pause" do
-    before { repository.init(slug: "feature-123")}
+    before { repository.init(slug: "feature-123") }
 
     it "pauses workstream" do
       result = repository.pause(slug: "feature-123")
@@ -146,7 +146,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
   end
 
   describe "#complete" do
-    before { repository.init(slug: "feature-123")}
+    before { repository.init(slug: "feature-123") }
 
     it "completes workstream" do
       result = repository.complete(slug: "feature-123")
@@ -163,7 +163,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
   end
 
   describe "#mark_removed" do
-    before { repository.init(slug: "feature-123")}
+    before { repository.init(slug: "feature-123") }
 
     it "marks workstream as removed" do
       repository.mark_removed(slug: "feature-123")
@@ -176,7 +176,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
       repository.mark_removed(slug: "feature-123")
 
       events = repository.recent_events(slug: "feature-123")
-      completed_event = events.find { |e| e[:type] == "completed"}
+      completed_event = events.find { |e| e[:type] == "completed" }
 
       expect(completed_event).not_to be_nil
     end
@@ -185,7 +185,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
   describe "#recent_events" do
     before do
       repository.init(slug: "feature-123")
-      3.times { repository.increment_iteration(slug: "feature-123")}
+      3.times { repository.increment_iteration(slug: "feature-123") }
     end
 
     it "returns recent events" do
@@ -225,7 +225,7 @@ RSpec.describe Aidp::Database::Repositories::WorkstreamRepository do
   end
 
   describe "#stalled?" do
-    before { repository.init(slug: "feature-123")}
+    before { repository.init(slug: "feature-123") }
 
     it "returns false for recent activity" do
       expect(repository.stalled?(slug: "feature-123", threshold_seconds: 3600)).to be false

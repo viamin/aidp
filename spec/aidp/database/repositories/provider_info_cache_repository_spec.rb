@@ -5,8 +5,8 @@ require "aidp/database"
 require "aidp/database/repositories/provider_info_cache_repository"
 
 RSpec.describe Aidp::Database::Repositories::ProviderInfoCacheRepository do
-  let(:temp_dir) { Dir.mktmpdir}
-  let(:repository) { described_class.new(project_dir: temp_dir)}
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:repository) { described_class.new(project_dir: temp_dir) }
 
   before do
     Aidp::Database.initialize!(temp_dir)
@@ -24,7 +24,7 @@ RSpec.describe Aidp::Database::Repositories::ProviderInfoCacheRepository do
         cli_available: true,
         mcp_support: true,
         capabilities: {model_selection: true}
-    }
+      }
 
       result = repository.cache("claude", info, ttl: 3600)
 

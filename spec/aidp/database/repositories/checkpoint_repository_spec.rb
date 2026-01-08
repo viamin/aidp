@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::CheckpointRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_checkpoint_repo_test")}
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
-  let(:repository) { described_class.new(project_dir: temp_dir)}
+  let(:temp_dir) { Dir.mktmpdir("aidp_checkpoint_repo_test") }
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
+  let(:repository) { described_class.new(project_dir: temp_dir) }
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -26,7 +26,7 @@ RSpec.describe Aidp::Database::Repositories::CheckpointRepository do
         status: "healthy",
         run_loop_started_at: "2024-01-01T00:00:00Z",
         metrics: {lines_of_code: 1000, test_coverage: 80}
-    }
+      }
     end
 
     it "creates a new checkpoint" do
