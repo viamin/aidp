@@ -140,7 +140,7 @@ module Aidp
               limit: row["limit_value"],
               remaining: row["remaining"],
               reset_at: parse_time(row["reset_at"])
-           }
+            }
           end
 
           result
@@ -162,7 +162,7 @@ module Aidp
               limit: row["limit_value"],
               remaining: row["remaining"],
               reset_at: parse_time(row["reset_at"])
-           }
+            }
           end
           limits
         end
@@ -195,7 +195,7 @@ module Aidp
           )
 
           rows.map do |row|
-            {value: row["value"], recorded_at: row["recorded_at"]}
+            { value: row["value"], recorded_at: row["recorded_at"] }
           end
         end
 

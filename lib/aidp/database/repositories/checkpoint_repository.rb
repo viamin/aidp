@@ -143,7 +143,7 @@ module Aidp
             metrics: deserialize_json(row["metadata"]) || {},
             created_at: row["created_at"],
             updated_at: row["updated_at"]
-         }
+          }
         end
 
         def deserialize_history_entry(row)
@@ -153,7 +153,7 @@ module Aidp
             status: row["status"],
             timestamp: row["timestamp"],
             metrics: deserialize_json(row["metadata"]) || {}
-         }
+          }
         end
       end
     end

@@ -162,8 +162,8 @@ module Aidp
         # @return [Hash] Result with status or error
         def pause(slug:)
           state = read(slug: slug)
-          return {error: "Workstream not found" } unless state
-          return {error: "Already paused" } if state[:status] == "paused"
+          return { error: "Workstream not found" } unless state
+          return { error: "Already paused" } if state[:status] == "paused"
 
           now = current_timestamp
           update(slug: slug, status: "paused", paused_at: now)
@@ -178,8 +178,8 @@ module Aidp
         # @return [Hash] Result with status or error
         def resume(slug:)
           state = read(slug: slug)
-          return {error: "Workstream not found" } unless state
-          return {error: "Not paused" } unless state[:status] == "paused"
+          return { error: "Workstream not found" } unless state
+          return { error: "Not paused" } unless state[:status] == "paused"
 
           now = current_timestamp
           update(slug: slug, status: "active", resumed_at: now)
@@ -194,8 +194,8 @@ module Aidp
         # @return [Hash] Result with status or error
         def complete(slug:)
           state = read(slug: slug)
-          return {error: "Workstream not found" } unless state
-          return {error: "Already completed" } if state[:status] == "completed"
+          return { error: "Workstream not found" } unless state
+          return { error: "Already completed" } if state[:status] == "completed"
 
           now = current_timestamp
           update(slug: slug, status: "completed", completed_at: now)
@@ -269,7 +269,7 @@ module Aidp
             )
           end
 
-          rows.map { |row| deserialize_workstream(row)}
+          rows.map { |row| deserialize_workstream(row) }
         end
 
         private
@@ -292,7 +292,7 @@ module Aidp
             completed_at: metadata[:completed_at],
             created_at: row["created_at"],
             updated_at: row["updated_at"]
-         }
+          }
         end
 
         def deserialize_event(row)
@@ -302,7 +302,7 @@ module Aidp
             type: row["event_type"],
             data: deserialize_json(row["event_data"]) || {},
             timestamp: row["timestamp"]
-         }
+          }
         end
       end
     end

@@ -149,7 +149,7 @@ module Aidp
             total_providers: total || 0,
             cached_providers: valid_providers,
             valid_count: valid_providers.size
-         }
+          }
         end
 
         # Clean up expired entries

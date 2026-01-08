@@ -24,7 +24,7 @@ RSpec.describe Aidp::Database::Repositories::ProviderInfoCacheRepository do
         cli_available: true,
         mcp_support: true,
         capabilities: {model_selection: true}
-     }
+    }
 
       result = repository.cache("claude", info, ttl: 3600)
 

@@ -101,7 +101,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
             {title: "Task 1", status: "pending"},
             {title: "Task 2", status: "completed"}
           ]
-       }
+      }
         File.write(File.join(aidp_dir, "tasks.json"), JSON.generate(tasks))
       end
 

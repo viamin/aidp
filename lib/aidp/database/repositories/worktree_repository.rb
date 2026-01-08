@@ -134,7 +134,7 @@ module Aidp
             )
           end
 
-          rows.map { |row| deserialize_worktree(row)}
+          rows.map { |row| deserialize_worktree(row) }
         end
 
         # List standard worktrees (for Worktree module)
@@ -208,7 +208,7 @@ module Aidp
             execute("DELETE FROM worktrees WHERE id = ?", [row["id"]])
           end
 
-          stale.map { |row| deserialize_worktree(row)}
+          stale.map { |row| deserialize_worktree(row) }
         end
 
         private
@@ -232,7 +232,7 @@ module Aidp
             created_at: row["created_at"],
             updated_at: row["updated_at"],
             active: row["path"] && Dir.exist?(row["path"])
-         }
+          }
         end
       end
     end

@@ -169,7 +169,7 @@ module Aidp
             )
           end
 
-          rows.map { |row| deserialize_job(row)}
+          rows.map { |row| deserialize_job(row) }
         end
 
         # List running jobs
@@ -199,7 +199,7 @@ module Aidp
             started_at: job[:started_at],
             completed_at: job[:completed_at],
             error: job[:error]
-         }
+          }
         end
 
         # Delete a job
@@ -283,7 +283,7 @@ module Aidp
             started_at: row["started_at"],
             completed_at: row["completed_at"],
             created_at: row["created_at"]
-         }
+          }
         end
       end
     end

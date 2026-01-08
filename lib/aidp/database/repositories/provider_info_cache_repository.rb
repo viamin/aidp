@@ -143,7 +143,7 @@ module Aidp
             SQL
           end
 
-          query(sql, [project_dir]).map { |row| row["provider_name"]}
+          query(sql, [project_dir]).map { |row| row["provider_name"] }
         end
 
         # Get cache statistics
@@ -172,7 +172,7 @@ module Aidp
             valid_entries: valid || 0,
             expired_entries: expired || 0,
             providers: cached_providers(include_expired: true)
-         }
+          }
         end
 
         # Clean up expired entries

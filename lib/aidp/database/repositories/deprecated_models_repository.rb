@@ -81,7 +81,7 @@ module Aidp
             ORDER BY model_name
           SQL
 
-          rows.map { |row| row["model_name"]}
+          rows.map { |row| row["model_name"] }
         end
 
         # Get full deprecation info for a model
@@ -102,7 +102,7 @@ module Aidp
             replacement: row["replacement"],
             reason: row["reason"],
             detected_at: row["detected_at"]
-         }
+          }
         end
 
         # Remove a model from the deprecated cache
@@ -139,7 +139,7 @@ module Aidp
             ORDER BY provider_name
           SQL
 
-          providers = providers_rows.map { |row| row["provider_name"]}
+          providers = providers_rows.map { |row| row["provider_name"] }
 
           by_provider = {}
           providers.each do |provider|
@@ -156,7 +156,7 @@ module Aidp
             providers: providers,
             total_deprecated: total,
             by_provider: by_provider
-         }
+          }
         end
 
         # List all deprecated models with full info
@@ -177,7 +177,7 @@ module Aidp
               replacement: row["replacement"],
               reason: row["reason"],
               detected_at: row["detected_at"]
-           }
+            }
           end
         end
 
@@ -197,7 +197,7 @@ module Aidp
               provider: row["provider_name"],
               model: row["model_name"],
               replacement: row["replacement"]
-           }
+            }
           end
         end
       end

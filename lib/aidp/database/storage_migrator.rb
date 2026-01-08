@@ -91,7 +91,7 @@ module Aidp
           stats: @stats.dup,
           errors: @errors.dup,
           dry_run: @dry_run
-       }
+        }
 
         Aidp.log_info("storage_migrator", "migration_complete",
           status: result[:status], stats: @stats)

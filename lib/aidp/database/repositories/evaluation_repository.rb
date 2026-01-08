@@ -41,7 +41,7 @@ module Aidp
                 rating: record[:rating],
                 feedback: record[:feedback],
                 target_id: record[:target_id]
-             }),
+              }),
               serialize_json(record[:context] || {}),
               record[:created_at] || now
             ]
@@ -101,7 +101,7 @@ module Aidp
             params
           )
 
-          rows.map { |row| deserialize_evaluation(row)}
+          rows.map { |row| deserialize_evaluation(row) }
         end
 
         # Get statistics
@@ -149,7 +149,7 @@ module Aidp
             by_target_type: by_target_type,
             first_evaluation: first_row&.dig("created_at"),
             last_evaluation: last_row&.dig("created_at")
-         }
+          }
         end
 
         # Delete an evaluation
@@ -209,7 +209,7 @@ module Aidp
             created_at: row["created_at"],
             started_at: row["started_at"],
             completed_at: row["completed_at"]
-         }
+          }
         end
       end
     end

@@ -26,7 +26,7 @@ RSpec.describe Aidp::Database::Repositories::CheckpointRepository do
         status: "healthy",
         run_loop_started_at: "2024-01-01T00:00:00Z",
         metrics: {lines_of_code: 1000, test_coverage: 80}
-     }
+    }
     end
 
     it "creates a new checkpoint" do
