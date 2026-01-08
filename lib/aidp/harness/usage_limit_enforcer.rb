@@ -231,7 +231,7 @@ module Aidp
       private
 
       def calculate_percent(current, max)
-        return nil unless max && max.positive?
+        return nil unless max&.positive?
 
         ((current.to_f / max) * 100).round(1)
       end

@@ -217,13 +217,13 @@ module Aidp
           # Current period started this month
           @start_time = Time.new(year, month, @reset_day, 0, 0, 0)
           # End at reset day next month
-          next_month = month == 12 ? 1 : month + 1
-          next_year = month == 12 ? year + 1 : year
+          next_month = (month == 12) ? 1 : month + 1
+          next_year = (month == 12) ? year + 1 : year
           @end_time = Time.new(next_year, next_month, @reset_day, 0, 0, 0)
         else
           # Current period started last month
-          prev_month = month == 1 ? 12 : month - 1
-          prev_year = month == 1 ? year - 1 : year
+          prev_month = (month == 1) ? 12 : month - 1
+          prev_year = (month == 1) ? year - 1 : year
           @start_time = Time.new(prev_year, prev_month, @reset_day, 0, 0, 0)
           @end_time = Time.new(year, month, @reset_day, 0, 0, 0)
         end

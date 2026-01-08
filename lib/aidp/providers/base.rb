@@ -365,9 +365,9 @@ module Aidp
       # Enhanced send method that integrates with harness
       # @param prompt [String] The prompt to send
       # @param session [Object] Session context (optional)
-      # @param _options [Hash] Additional options (may include :tier)
-      def send_with_harness(prompt:, session: nil, _options: {})
-        tier = _options[:tier]&.to_s || "standard"
+      # @param options [Hash] Additional options (may include :tier)
+      def send_with_harness(prompt:, session: nil, options: {})
+        tier = options[:tier]&.to_s || "standard"
         start_time = Time.now
         success = false
         rate_limited = false
