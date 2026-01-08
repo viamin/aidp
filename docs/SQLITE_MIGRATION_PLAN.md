@@ -11,7 +11,7 @@ This section documents the deep audit of each file type in `.aidp/` to verify ac
 ### Files to Migrate to SQLite (Actively Used)
 
 | File | Status | Rationale |
-|------|--------|-----------|
+| ---- | ------ | --------- |
 | `checkpoint.yml` | ✅ ACTIVE | Used by work loops (every 5 iterations), CLI `aidp checkpoint` commands, background job monitoring. Records iteration-level progress. |
 | `checkpoint_history.jsonl` | ✅ ACTIVE | Append-only history used by `aidp checkpoint history` command. Essential for debugging and progress tracking. |
 | `tasklist.jsonl` | ✅ ACTIVE | Critical for `task_completion_requirement` enforcement in work loops. Used by WorkLoopRunner, BuildProcessor, ChangeRequestProcessor. NOT superseded by GitHub Projects (different purpose). |
@@ -36,7 +36,7 @@ This section documents the deep audit of each file type in `.aidp/` to verify ac
 ### Files to Remove (Dead Code)
 
 | File | Status | Rationale | Action |
-|------|--------|-----------|--------|
+| ---- | ------ | --------- | ------ |
 | `security/audit.jsonl` | ❌ DEAD | Path defined in ConfigPaths but NEVER written or read. No implementation exists. | Remove `security_audit_log_file()` from ConfigPaths. Remove table from schema. |
 | `security/mcp_risk_profile.yml` | ❌ DEAD | Planned AGD feature that was never implemented. Only exists in GitHub issue template. | Remove `mcp_risk_profile_file()` from ConfigPaths. Remove from migration scope. |
 | `future_work.yml` | ❌ DEAD | FutureWorkBacklog class (412 lines) is never instantiated. Superseded by PersistentTasklist which is actively used. | Remove FutureWorkBacklog class and future_work table from schema. |
@@ -45,13 +45,13 @@ This section documents the deep audit of each file type in `.aidp/` to verify ac
 ### Files with Minimal Usage (Consider Removal)
 
 | File | Status | Rationale | Recommendation |
-|------|--------|-----------|----------------|
+| ---- | ------ | --------- | -------------- |
 | `model_cache/models.json` | ⚠️ MINIMAL | Only read in error path (ThinkingDepthManager). Never written in normal workflows. | Keep for now but consider deprecation. Low priority for migration. |
 
 ### Files to Keep as Files (No Migration)
 
 | File | Reason | Notes |
-|------|--------|-------|
+| ---- | ------ | ----- |
 | `aidp.yml` | User-editable configuration | Users may manually edit |
 | `firewall-allowlist.yml` | User-editable security rules | Users may manually edit |
 | `PROMPT.md` | Current prompt (user may view/edit) | Active work loop prompt |
@@ -70,7 +70,7 @@ This section documents the deep audit of each file type in `.aidp/` to verify ac
 ### Files to Migrate to SQLite
 
 | Current File | Data Type | Write Frequency | Migration Priority |
-|--------------|-----------|-----------------|-------------------|
+| ------------ | --------- | --------------- | ------------------ |
 | `checkpoint.yml` | YAML | Frequent | High |
 | `checkpoint_history.jsonl` | JSONL | Frequent | High |
 | `tasklist.jsonl` | JSONL | Frequent | High |
@@ -100,7 +100,7 @@ This section documents the deep audit of each file type in `.aidp/` to verify ac
 ### Files to Keep as Files
 
 | File | Reason |
-|------|--------|
+| ---- | ------ |
 | `aidp.yml` | User-editable configuration |
 | `firewall-allowlist.yml` | User-editable security rules |
 | `PROMPT.md` | Current prompt (user may view/edit) |
@@ -389,23 +389,27 @@ CREATE INDEX idx_auto_checkpoints_project ON auto_update_checkpoints(project_dir
 Before starting the SQLite migration, remove dead code identified in the audit:
 
 #### 0.1 Remove Dead Security Code
+
 - [ ] Remove `security_audit_log_file()` method from `lib/aidp/config_paths.rb:32`
 - [ ] Remove `mcp_risk_profile_file()` method from `lib/aidp/config_paths.rb:33`
 - [ ] Verify no references exist to these methods
 
 #### 0.2 Remove FutureWorkBacklog (Superseded by PersistentTasklist)
+
 - [ ] Remove `lib/aidp/execute/future_work_backlog.rb` (412 lines)
 - [ ] Remove `spec/aidp/execute/future_work_backlog_spec.rb`
 - [ ] Remove any documentation references to future_work.yml
 - [ ] Verify PersistentTasklist handles all use cases
 
 #### 0.3 Remove JsonFileStorage (Never Integrated)
+
 - [ ] Remove `lib/aidp/analyze/json_file_storage.rb` (292 lines)
 - [ ] Remove `spec/aidp/analyze/json_file_storage_spec.rb`
 - [ ] Keep `lib/aidp/storage/json_storage.rb` (used by FileManager)
 - [ ] Verify no broken imports
 
 #### 0.4 Update Documentation
+
 - [ ] Remove references to dead code from docs
 - [ ] Update this migration plan to reflect cleanup
 
@@ -416,6 +420,7 @@ Before starting the SQLite migration, remove dead code identified in the audit:
 ### Phase 1: Foundation (Priority: Critical)
 
 #### 1.1 Create Database Infrastructure
+
 - [ ] Add `sqlite3` gem to `aidp.gemspec`
 - [ ] Create `lib/aidp/database.rb` - Database connection manager
 - [ ] Create `lib/aidp/database/schema.rb` - Schema definitions
@@ -423,7 +428,8 @@ Before starting the SQLite migration, remove dead code identified in the audit:
 - [ ] Update `ConfigPaths` to include `database_file` method
 
 **Files to create:**
-```
+
+```plaintext
 lib/aidp/database.rb
 lib/aidp/database/schema.rb
 lib/aidp/database/migrations.rb
@@ -431,6 +437,7 @@ lib/aidp/database/connection.rb
 ```
 
 **Key classes:**
+
 ```ruby
 # lib/aidp/database.rb
 module Aidp
@@ -448,12 +455,14 @@ end
 ```
 
 #### 1.2 Create Repository Pattern Base
+
 - [ ] Create `lib/aidp/database/repository.rb` - Base repository class
 - [ ] Implement common CRUD operations
 - [ ] Add JSON serialization helpers
 - [ ] Add timestamp management
 
 **Base repository:**
+
 ```ruby
 # lib/aidp/database/repository.rb
 module Aidp
@@ -481,6 +490,7 @@ end
 ### Phase 2: High-Priority Migrations
 
 #### 2.1 Checkpoint Migration
+
 - [ ] Create `lib/aidp/database/repositories/checkpoint_repository.rb`
 - [ ] Update `lib/aidp/execute/checkpoint.rb` to use repository
 - [ ] Create migration script for existing `checkpoint.yml` and `checkpoint_history.jsonl`
@@ -488,12 +498,14 @@ end
 
 **Current file:** `lib/aidp/execute/checkpoint.rb`
 **Methods to update:**
+
 - `save_checkpoint` (line 300)
 - `load_checkpoint` (line 48)
 - `append_to_history` (line 304)
 - `load_history` (line 56)
 
 #### 2.2 Task List Migration
+
 - [ ] Create `lib/aidp/database/repositories/task_repository.rb`
 - [ ] Update `lib/aidp/execute/persistent_tasklist.rb` to use repository
 - [ ] Create migration script for existing `tasklist.jsonl`
@@ -501,11 +513,13 @@ end
 
 **Current file:** `lib/aidp/execute/persistent_tasklist.rb`
 **Methods to update:**
+
 - `append_task` (line 137)
 - `load_tasks` (line 147)
 - `all_tasks` (line 162)
 
 #### 2.3 Progress Migration
+
 - [ ] Create `lib/aidp/database/repositories/progress_repository.rb`
 - [ ] Update `lib/aidp/execute/progress.rb` to use repository
 - [ ] Update `lib/aidp/analyze/progress.rb` to use repository
@@ -513,10 +527,12 @@ end
 - [ ] Add tests
 
 **Current files:**
+
 - `lib/aidp/execute/progress.rb`
 - `lib/aidp/analyze/progress.rb`
 
 #### 2.4 Harness State Migration
+
 - [ ] Create `lib/aidp/database/repositories/harness_state_repository.rb`
 - [ ] Update `lib/aidp/harness/state/persistence.rb` to use repository
 - [ ] Create migration script for existing `harness/*_state.json`
@@ -525,6 +541,7 @@ end
 **Current file:** `lib/aidp/harness/state/persistence.rb`
 
 #### 2.5 Workstream Migration
+
 - [ ] Create `lib/aidp/database/repositories/workstream_repository.rb`
 - [ ] Update `lib/aidp/workstream_state.rb` to use repository
 - [ ] Create migration script for existing `workstreams/*/state.json` and `history.jsonl`
@@ -533,6 +550,7 @@ end
 **Current file:** `lib/aidp/workstream_state.rb`
 
 #### 2.6 Watch State Migration
+
 - [ ] Create `lib/aidp/database/repositories/watch_state_repository.rb`
 - [ ] Update `lib/aidp/watch/state_store.rb` to use repository
 - [ ] Create migration script for existing `watch/*.yml`
@@ -543,6 +561,7 @@ end
 ### Phase 3: Medium-Priority Migrations
 
 #### 3.1 Worktree Registry Migration
+
 - [ ] Create `lib/aidp/database/repositories/worktree_repository.rb`
 - [ ] Update `lib/aidp/worktree.rb` to use repository
 - [ ] Update `lib/aidp/worktree_branch_manager.rb` to use repository
@@ -550,32 +569,38 @@ end
 - [ ] Create migration script
 
 #### 3.2 Evaluations Migration
+
 - [ ] Create `lib/aidp/database/repositories/evaluation_repository.rb`
 - [ ] Update `lib/aidp/evaluations/evaluation_storage.rb` to use repository
 - [ ] Create migration script
 
 #### 3.3 Provider Metrics Migration
+
 - [ ] Create `lib/aidp/database/repositories/provider_metrics_repository.rb`
 - [ ] Update `lib/aidp/harness/provider_metrics.rb` to use repository
 - [ ] Create migration script
 
 #### 3.4 Security Migration
+
 - [ ] Create `lib/aidp/database/repositories/security_repository.rb`
 - [ ] Update `lib/aidp/security/secrets_registry.rb` to use repository
 - [ ] Create migration script for `secrets_registry.json` only
 - **Note**: `audit.jsonl` removed in Phase 0 (dead code - never implemented)
 
 #### 3.5 Prompt Archive Migration
+
 - [ ] Create `lib/aidp/database/repositories/prompt_archive_repository.rb`
 - [ ] Update `lib/aidp/execute/prompt_manager.rb` to use repository
 - [ ] Create migration script
 
 #### ~~3.6 Future Work Migration~~ (REMOVED - Dead Code)
+
 - ~~Create `lib/aidp/database/repositories/future_work_repository.rb`~~
 - ~~Update `lib/aidp/execute/future_work_backlog.rb` to use repository~~
 - **Action**: Remove FutureWorkBacklog class in Phase 0 (superseded by PersistentTasklist)
 
 #### 3.7 Background Jobs Migration
+
 - [ ] Create `lib/aidp/database/repositories/job_repository.rb`
 - [ ] Update `lib/aidp/jobs/background_runner.rb` to use repository
 - [ ] Create migration script
@@ -583,6 +608,7 @@ end
 ### Phase 4: Low-Priority Migrations
 
 #### 4.1 Cache Migrations
+
 - [ ] Create `lib/aidp/database/repositories/cache_repository.rb`
 - [ ] Update `lib/aidp/harness/provider_info.rb`
 - [ ] Update `lib/aidp/harness/model_cache.rb`
@@ -590,6 +616,7 @@ end
 - [ ] Create migration scripts
 
 #### ~~4.2 Generic JSON Storage Migration~~ (REMOVED - Dead Code)
+
 - ~~Create `lib/aidp/database/repositories/json_storage_repository.rb`~~
 - ~~Update `lib/aidp/analyze/json_file_storage.rb`~~
 - **Action**: Remove JsonFileStorage class in Phase 0 (never integrated)
@@ -598,12 +625,14 @@ end
 ### Phase 5: Migration Script & Cleanup
 
 #### 5.1 Migration Script
+
 - [ ] Create `lib/aidp/database/migrator.rb` - Data migration from files to SQLite
 - [ ] Add CLI command `aidp migrate-storage`
 - [ ] Implement rollback capability
 - [ ] Add progress reporting
 
 **Migration script features:**
+
 ```ruby
 module Aidp
   module Database
@@ -635,6 +664,7 @@ end
 ```
 
 #### 5.2 Cleanup
+
 - [ ] Remove old file-based storage code (after migration is stable)
 - [ ] Update `.gitignore` to include `aidp.db`
 - [ ] Update documentation
@@ -644,7 +674,7 @@ end
 
 ### New Files to Create
 
-```
+```plaintext
 lib/aidp/database.rb
 lib/aidp/database/connection.rb
 lib/aidp/database/schema.rb
@@ -673,7 +703,7 @@ spec/aidp/database/
 
 ### Files to Modify
 
-```
+```plaintext
 aidp.gemspec                              # Add sqlite3 gem
 lib/aidp/config_paths.rb                  # Add database_file method
 lib/aidp/execute/checkpoint.rb            # Use CheckpointRepository
@@ -702,7 +732,7 @@ lib/aidp/cli.rb                           # Add migrate-storage command
 
 ### Files to Remove Immediately (Phase 0 - Dead Code)
 
-```
+```plaintext
 # Dead code to delete before SQLite migration:
 lib/aidp/execute/future_work_backlog.rb        # 412 lines, superseded by PersistentTasklist
 spec/aidp/execute/future_work_backlog_spec.rb  # Corresponding tests
@@ -716,7 +746,7 @@ lib/aidp/config_paths.rb:33                    # mcp_risk_profile_file() - never
 
 ### Files to Eventually Remove (after migration is stable)
 
-```
+```plaintext
 # These directories will become empty after migration:
 .aidp/progress/
 .aidp/harness/*_state.json (keep .lock files)
@@ -781,7 +811,7 @@ lib/aidp/config_paths.rb:33                    # mcp_risk_profile_file() - never
 ## Risks and Mitigations
 
 | Risk | Mitigation |
-|------|------------|
+| ---- | ---------- |
 | Data loss during migration | Create backup before migration, implement rollback |
 | Performance regression | Benchmark critical paths, use indexes appropriately |
 | Concurrent access issues | Use WAL mode, implement proper locking |
