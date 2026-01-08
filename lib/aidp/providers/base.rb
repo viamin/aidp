@@ -3,6 +3,9 @@
 require "tty-prompt"
 require "tty-spinner"
 require_relative "adapter"
+require_relative "../harness/usage_limit"
+require_relative "../harness/usage_limit_tracker"
+require_relative "../harness/usage_limit_enforcer"
 
 module Aidp
   module Providers
@@ -65,6 +68,7 @@ module Aidp
         @output = output
         @prompt = prompt
         @model = nil
+        @usage_limit_enforcer = nil
         @harness_metrics = {
           total_requests: 0,
           successful_requests: 0,
@@ -93,6 +97,71 @@ module Aidp
         if config[:model]
           @model = resolve_model_name(config[:model].to_s)
         end
+      end
+
+      # Set up usage limits for this provider
+      #
+      # @param usage_limit [Aidp::Harness::UsageLimit] Usage limit configuration
+      # @param project_dir [String] Project directory for usage tracking persistence
+      def setup_usage_limits(usage_limit:, project_dir:)
+        return unless usage_limit&.enabled?
+
+        tracker = Aidp::Harness::UsageLimitTracker.new(
+          provider_name: name,
+          project_dir: project_dir
+        )
+
+        @usage_limit_enforcer = Aidp::Harness::UsageLimitEnforcer.new(
+          provider_name: name,
+          usage_limit: usage_limit,
+          tracker: tracker
+        )
+
+        Aidp.log_debug(name, "usage_limits_configured",
+          enabled: true,
+          period: usage_limit.period)
+      end
+
+      # Check if usage limits allow a request
+      # Called before making API requests
+      #
+      # @param tier [String] The tier for this request
+      # @raise [Aidp::Harness::UsageLimitExceededError] If limits exceeded
+      def check_usage_limits(tier: "standard")
+        return unless @usage_limit_enforcer
+
+        @usage_limit_enforcer.check_before_request(tier: tier)
+      end
+
+      # Record usage after a successful request
+      #
+      # @param tokens [Integer] Tokens used in the request
+      # @param cost [Float] Cost of the request
+      # @param tier [String] Tier used for the request
+      def record_usage(tokens:, cost:, tier: "standard")
+        return unless @usage_limit_enforcer
+
+        @usage_limit_enforcer.record_after_request(
+          tokens: tokens,
+          cost: cost,
+          tier: tier
+        )
+      end
+
+      # Check if this provider has usage limits configured
+      #
+      # @return [Boolean] True if usage limits are enabled
+      def usage_limits_enabled?
+        @usage_limit_enforcer&.usage_limit&.enabled? || false
+      end
+
+      # Get usage summary for this provider
+      #
+      # @return [Hash] Usage summary or empty hash if limits not configured
+      def usage_summary
+        return {enabled: false} unless @usage_limit_enforcer
+
+        @usage_limit_enforcer.usage_summary
       end
 
       def send_message(prompt:, session: nil, options: {})
@@ -294,13 +363,21 @@ module Aidp
       end
 
       # Enhanced send method that integrates with harness
+      # @param prompt [String] The prompt to send
+      # @param session [Object] Session context (optional)
+      # @param _options [Hash] Additional options (may include :tier)
       def send_with_harness(prompt:, session: nil, _options: {})
+        tier = _options[:tier]&.to_s || "standard"
         start_time = Time.now
         success = false
         rate_limited = false
         tokens_used = 0
         cost = 0.0
         error_message = nil
+
+        # Check usage limits before making the request
+        # This will raise UsageLimitExceededError if limits are exceeded
+        check_usage_limits(tier: tier)
 
         begin
           # Call the original send_message method
@@ -317,6 +394,9 @@ module Aidp
           if result.is_a?(Hash) && result[:rate_limited]
             rate_limited = true
           end
+
+          # Record usage for usage limits tracking
+          record_usage(tokens: tokens_used, cost: cost, tier: tier) if success
 
           result
         rescue => e

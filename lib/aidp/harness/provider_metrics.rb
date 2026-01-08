@@ -12,13 +12,14 @@ module Aidp
     class ProviderMetrics
       include Aidp::RescueLogging
 
-      attr_reader :project_dir, :metrics_file, :rate_limit_file
+      attr_reader :project_dir, :metrics_file, :rate_limit_file, :usage_tracking_dir
 
       def initialize(project_dir)
         # Store metrics at the repository root so different worktrees/modes share state
         @project_dir = Aidp::Util.find_project_root(project_dir)
         @metrics_file = File.join(@project_dir, ".aidp", "provider_metrics.yml")
         @rate_limit_file = File.join(@project_dir, ".aidp", "provider_rate_limits.yml")
+        @usage_tracking_dir = File.join(@project_dir, ".aidp", "usage_tracking")
         ensure_directory
       end
 
@@ -78,6 +79,76 @@ module Aidp
       def clear
         File.delete(@metrics_file) if File.exist?(@metrics_file)
         File.delete(@rate_limit_file) if File.exist?(@rate_limit_file)
+        clear_usage_tracking
+      end
+
+      # Save usage tracking data for a provider
+      #
+      # @param provider_name [String] Name of the provider
+      # @param usage_data [Hash] Usage tracking data
+      def save_usage_tracking(provider_name, usage_data)
+        return if usage_data.nil? || usage_data.empty?
+
+        ensure_usage_tracking_directory
+        usage_file = usage_tracking_file(provider_name)
+
+        # Serialize Time objects for YAML
+        serializable_data = serialize_usage_tracking(usage_data)
+
+        # Write atomically using temp file + rename
+        temp_file = "#{usage_file}.tmp"
+        File.write(temp_file, YAML.dump(serializable_data))
+        File.rename(temp_file, usage_file)
+      rescue => e
+        log_rescue(e, component: "provider_metrics", action: "save_usage_tracking", fallback: nil)
+        File.delete(temp_file) if defined?(temp_file) && File.exist?(temp_file)
+      end
+
+      # Load usage tracking data for a provider
+      #
+      # @param provider_name [String] Name of the provider
+      # @return [Hash] Usage tracking data or empty hash
+      def load_usage_tracking(provider_name)
+        usage_file = usage_tracking_file(provider_name)
+        return {} unless File.exist?(usage_file)
+
+        data = YAML.safe_load_file(usage_file, permitted_classes: [Time, Date, Symbol], aliases: true)
+        return {} unless data.is_a?(Hash)
+
+        deserialize_usage_tracking(data)
+      rescue => e
+        log_rescue(e, component: "provider_metrics", action: "load_usage_tracking", fallback: {})
+        {}
+      end
+
+      # Clear usage tracking data for a specific provider
+      #
+      # @param provider_name [String] Name of the provider (optional, clears all if nil)
+      def clear_usage_tracking(provider_name = nil)
+        if provider_name
+          usage_file = usage_tracking_file(provider_name)
+          File.delete(usage_file) if File.exist?(usage_file)
+        else
+          # Clear all usage tracking files
+          return unless File.directory?(@usage_tracking_dir)
+
+          Dir.glob(File.join(@usage_tracking_dir, "*.yml")).each do |file|
+            File.delete(file)
+          rescue => e
+            log_rescue(e, component: "provider_metrics", action: "clear_usage_file", fallback: nil)
+          end
+        end
+      end
+
+      # List all providers with usage tracking data
+      #
+      # @return [Array<String>] Array of provider names
+      def providers_with_usage_tracking
+        return [] unless File.directory?(@usage_tracking_dir)
+
+        Dir.glob(File.join(@usage_tracking_dir, "*.yml")).map do |file|
+          File.basename(file, ".yml")
+        end
       end
 
       private
@@ -85,6 +156,37 @@ module Aidp
       def ensure_directory
         aidp_dir = File.join(@project_dir, ".aidp")
         FileUtils.mkdir_p(aidp_dir) unless File.directory?(aidp_dir)
+      end
+
+      def ensure_usage_tracking_directory
+        FileUtils.mkdir_p(@usage_tracking_dir) unless File.directory?(@usage_tracking_dir)
+      end
+
+      def usage_tracking_file(provider_name)
+        File.join(@usage_tracking_dir, "#{provider_name}.yml")
+      end
+
+      def serialize_usage_tracking(data)
+        deep_transform_values(data) do |value|
+          value.is_a?(Time) ? value.iso8601 : value
+        end
+      end
+
+      def deserialize_usage_tracking(data)
+        deep_transform_values(data) do |value|
+          parse_time_if_string(value)
+        end
+      end
+
+      def deep_transform_values(obj, &block)
+        case obj
+        when Hash
+          obj.transform_values { |v| deep_transform_values(v, &block) }
+        when Array
+          obj.map { |v| deep_transform_values(v, &block) }
+        else
+          yield(obj)
+        end
       end
 
       def serialize_metrics(metrics_hash)

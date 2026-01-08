@@ -1166,6 +1166,65 @@ module Aidp
                       max: 3600
                     }
                   }
+                },
+                usage_limits: {
+                  type: :hash,
+                  required: false,
+                  default: {
+                    enabled: false
+                  },
+                  properties: {
+                    enabled: {
+                      type: :boolean,
+                      required: false,
+                      default: false
+                    },
+                    period: {
+                      type: :string,
+                      required: false,
+                      default: "monthly",
+                      enum: ["daily", "weekly", "monthly"]
+                    },
+                    reset_day: {
+                      type: :integer,
+                      required: false,
+                      default: 1,
+                      min: 1,
+                      max: 28
+                    },
+                    max_tokens: {
+                      type: :integer,
+                      required: false,
+                      min: 1000
+                    },
+                    max_cost: {
+                      type: :number,
+                      required: false,
+                      min: 0.01
+                    },
+                    tier_limits: {
+                      type: :hash,
+                      required: false,
+                      default: {},
+                      pattern_properties: {
+                        /^(mini|standard|advanced)$/ => {
+                          type: :hash,
+                          properties: {
+                            max_tokens: {
+                              type: :integer,
+                              required: false,
+                              min: 1000
+                            },
+                            max_cost: {
+                              type: :number,
+                              required: false,
+                              min: 0.01
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }

@@ -2185,6 +2185,12 @@ module Aidp
         merged = (existing || {}).merge(type: provider_type, model_family: model_family)
         set([:providers, provider_name.to_sym], merged)
         normalize_existing_model_families!
+
+        # Offer to configure usage limits for usage-based providers
+        if provider_type == "usage_based"
+          configure_usage_limits(provider_name)
+        end
+
         action_word = if existing
           force ? "reconfigured" : "updated"
         else
@@ -2236,10 +2242,169 @@ module Aidp
         prompt.say("\n🔧 Editing provider '#{provider_name}' (current: type=#{existing[:type] || "unset"}, model_family=#{existing[:model_family] || "unset"})")
         new_type = ask_provider_billing_type_with_default(provider_name, existing[:type])
         new_family = ask_model_family(provider_name, existing[:model_family] || "auto")
-        set([:providers, provider_name.to_sym], {type: new_type, model_family: new_family})
+
+        # Preserve existing usage_limits if any
+        updated_config = {type: new_type, model_family: new_family}
+        updated_config[:usage_limits] = existing[:usage_limits] if existing[:usage_limits]
+
+        set([:providers, provider_name.to_sym], updated_config)
         # Normalize immediately so tests relying on canonical value see 'claude' rather than label
         normalize_existing_model_families!
+
+        # Offer to configure/edit usage limits for usage-based providers
+        if new_type == "usage_based"
+          configure_usage_limits(provider_name)
+        end
+
         prompt.ok("Updated '#{provider_name}' → type=#{new_type}, model_family=#{new_family}")
+      end
+
+      # Configure usage limits for a usage-based provider
+      # @param provider_name [String] Name of the provider
+      def configure_usage_limits(provider_name)
+        existing = get([:providers, provider_name.to_sym, :usage_limits]) || {}
+        existing_enabled = existing[:enabled] == true
+
+        display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
+
+        if existing_enabled
+          prompt.say("\n💰 Usage limits currently enabled for '#{display_name}'")
+          action = prompt.select("Configure usage limits?") do |menu|
+            menu.choice "Keep current settings", :keep
+            menu.choice "Edit usage limits", :edit
+            menu.choice "Disable usage limits", :disable
+          end
+
+          case action
+          when :keep
+            return
+          when :disable
+            set([:providers, provider_name.to_sym, :usage_limits], {enabled: false})
+            prompt.ok("Disabled usage limits for '#{display_name}'")
+            return
+          end
+        else
+          return unless prompt.yes?("\n💰 Configure usage limits for '#{display_name}'? (prevents runaway costs)", default: false)
+        end
+
+        # Configure usage limits
+        limits_config = ask_usage_limits_config(provider_name, existing)
+        set([:providers, provider_name.to_sym, :usage_limits], limits_config)
+
+        if limits_config[:enabled]
+          prompt.ok("Configured usage limits for '#{display_name}'")
+        end
+      end
+
+      # Ask for usage limits configuration
+      # @param provider_name [String] Provider name
+      # @param existing [Hash] Existing configuration
+      # @return [Hash] Usage limits configuration
+      def ask_usage_limits_config(provider_name, existing = {})
+        display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
+
+        # Period selection
+        period = prompt.select("Billing period for '#{display_name}':", default: existing[:period] || "monthly") do |menu|
+          menu.choice "Monthly", "monthly"
+          menu.choice "Weekly", "weekly"
+          menu.choice "Daily", "daily"
+        end
+
+        # Reset day (only for monthly)
+        reset_day = 1
+        if period == "monthly"
+          reset_day = prompt.ask("Day of month for period reset (1-28):",
+            default: (existing[:reset_day] || 1).to_s,
+            convert: :int) do |q|
+            q.in("1-28")
+          end
+        end
+
+        # Limit type selection
+        limit_type = prompt.select("How would you like to set limits?") do |menu|
+          menu.choice "By tier (different limits for mini vs advanced)", :tier
+          menu.choice "Global (single limit for all usage)", :global
+          menu.choice "Skip (no limits)", :skip
+        end
+
+        return {enabled: false} if limit_type == :skip
+
+        if limit_type == :tier
+          ask_tier_limits_config(period, reset_day, existing)
+        else
+          ask_global_limits_config(period, reset_day, existing)
+        end
+      end
+
+      # Ask for global limits configuration
+      def ask_global_limits_config(period, reset_day, existing = {})
+        max_cost = prompt.ask("Maximum cost per #{period} in USD (e.g., 50.00, or blank for no limit):",
+          default: existing[:max_cost]&.to_s) do |q|
+          q.validate(/\A(\d+\.?\d*|\s*)$/, "Please enter a valid number or leave blank")
+        end
+
+        max_tokens = prompt.ask("Maximum tokens per #{period} (e.g., 1000000, or blank for no limit):",
+          default: existing[:max_tokens]&.to_s) do |q|
+          q.validate(/\A(\d+|\s*)$/, "Please enter a valid integer or leave blank")
+        end
+
+        config = {
+          enabled: true,
+          period: period,
+          reset_day: reset_day
+        }
+
+        config[:max_cost] = max_cost.to_f if max_cost && !max_cost.strip.empty?
+        config[:max_tokens] = max_tokens.to_i if max_tokens && !max_tokens.strip.empty?
+
+        config
+      end
+
+      # Ask for tier-based limits configuration
+      def ask_tier_limits_config(period, reset_day, existing = {})
+        existing_tier_limits = existing[:tier_limits] || {}
+
+        prompt.say("\n📊 Configure limits by tier (mini models typically have higher limits)")
+
+        tier_limits = {}
+
+        # Mini tier
+        prompt.say("\n🔹 Mini tier (fast, cheap models):")
+        mini_limits = ask_single_tier_limits("mini", period, existing_tier_limits[:mini] || existing_tier_limits["mini"])
+        tier_limits[:mini] = mini_limits if mini_limits
+
+        # Advanced tier
+        prompt.say("\n🔸 Advanced tier (powerful, expensive models):")
+        advanced_limits = ask_single_tier_limits("advanced", period, existing_tier_limits[:advanced] || existing_tier_limits["advanced"])
+        tier_limits[:advanced] = advanced_limits if advanced_limits
+
+        {
+          enabled: true,
+          period: period,
+          reset_day: reset_day,
+          tier_limits: tier_limits
+        }
+      end
+
+      # Ask for limits for a single tier
+      def ask_single_tier_limits(tier, period, existing = {})
+        existing ||= {}
+
+        max_cost = prompt.ask("  Max cost per #{period} for #{tier} tier (USD, blank for no limit):",
+          default: existing[:max_cost]&.to_s) do |q|
+          q.validate(/\A(\d+\.?\d*|\s*)$/, "Please enter a valid number or leave blank")
+        end
+
+        max_tokens = prompt.ask("  Max tokens per #{period} for #{tier} tier (blank for no limit):",
+          default: existing[:max_tokens]&.to_s) do |q|
+          q.validate(/\A(\d+|\s*)$/, "Please enter a valid integer or leave blank")
+        end
+
+        limits = {}
+        limits[:max_cost] = max_cost.to_f if max_cost && !max_cost.strip.empty?
+        limits[:max_tokens] = max_tokens.to_i if max_tokens && !max_tokens.strip.empty?
+
+        limits.empty? ? nil : limits
       end
 
       def ask_provider_billing_type(provider_name)
