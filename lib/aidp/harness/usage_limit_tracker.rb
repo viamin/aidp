@@ -53,10 +53,11 @@ module Aidp
 
           # Initialize period data if needed
           data[:periods] ||= {}
-          data[:periods][period_key] ||= new_period_data(period)
+          period_sym = period_key.to_sym
+          data[:periods][period_sym] ||= new_period_data(period)
 
           # Update usage metrics
-          period_data = data[:periods][period_key]
+          period_data = data[:periods][period_sym]
           period_data[:total_tokens] = (period_data[:total_tokens] || 0) + tokens
           period_data[:total_cost] = (period_data[:total_cost] || 0.0) + cost
           period_data[:request_count] = (period_data[:request_count] || 0) + 1
@@ -89,7 +90,7 @@ module Aidp
         period_key = period.period_key
 
         data = load_usage_data
-        period_data = data[:periods]&.[](period_key)
+        period_data = data[:periods]&.[](period_key.to_sym)
 
         if period_data
           {
@@ -178,7 +179,7 @@ module Aidp
           period_key = period.period_key
 
           data = load_usage_data
-          data[:periods]&.delete(period_key)
+          data[:periods]&.delete(period_key.to_sym)
 
           save_usage_data(data)
           @usage_data = data
@@ -268,13 +269,13 @@ module Aidp
         end
       end
 
-      def symbolize_keys(hash, depth: 0)
+      def symbolize_keys(hash)
         return hash unless hash.is_a?(Hash)
 
-        hash.transform_keys { |k| depth < 2 ? k.to_sym : k.to_s }.transform_values do |v|
+        hash.transform_keys(&:to_sym).transform_values do |v|
           case v
-          when Hash then symbolize_keys(v, depth: depth + 1)
-          when Array then v.map { |i| i.is_a?(Hash) ? symbolize_keys(i, depth: depth + 1) : i }
+          when Hash then symbolize_keys(v)
+          when Array then v.map { |i| i.is_a?(Hash) ? symbolize_keys(i) : i }
           else v
           end
         end

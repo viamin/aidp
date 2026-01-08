@@ -2316,7 +2316,7 @@ module Aidp
           reset_day = prompt.ask("Day of month for period reset (1-28):",
             default: (existing[:reset_day] || 1).to_s,
             convert: :int) do |q|
-            q.in("1-28")
+            q.validate(->(v) { v.to_i.between?(1, 28) }, "Please enter a day between 1 and 28")
           end
         end
 
