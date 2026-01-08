@@ -152,7 +152,7 @@ module Aidp
           ConfigPaths.jobs_dir(project_dir)
         ]
 
-        files.any? { |f| File.exist?(f) } || dirs.any? { |d| Dir.exist?(d) && !Dir.empty?(d)}
+        files.any? { |f| File.exist?(f) } || dirs.any? { |d| Dir.exist?(d) && !Dir.empty?(d) }
       end
 
       def migrated_files

@@ -372,7 +372,7 @@ module Aidp
             feedback_comments: feedback_comments,
             processed_reactions: processed_reactions,
             auto_prs: auto_prs
-        }
+          }
 
           existing = query_one(
             "SELECT id FROM watch_state WHERE project_dir = ? AND repository = ?",

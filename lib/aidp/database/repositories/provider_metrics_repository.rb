@@ -195,7 +195,7 @@ module Aidp
           )
 
           rows.map do |row|
-            { value: row["value"], recorded_at: row["recorded_at"] }
+            {value: row["value"], recorded_at: row["recorded_at"]}
           end
         end
 

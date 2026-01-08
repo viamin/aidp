@@ -4,8 +4,8 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Migrations do
-  let(:temp_dir) { Dir.mktmpdir("aidp_migrations_test")}
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
+  let(:temp_dir) { Dir.mktmpdir("aidp_migrations_test") }
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -27,7 +27,7 @@ RSpec.describe Aidp::Database::Migrations do
       described_class.run!(temp_dir)
 
       db = Aidp::Database.connection(temp_dir)
-      tables = db.execute("SELECT name FROM sqlite_master WHERE type='table'").map { |r| r["name"]}
+      tables = db.execute("SELECT name FROM sqlite_master WHERE type='table'").map { |r| r["name"] }
 
       expect(tables).to include("schema_migrations")
     end
@@ -36,7 +36,7 @@ RSpec.describe Aidp::Database::Migrations do
       described_class.run!(temp_dir)
 
       db = Aidp::Database.connection(temp_dir)
-      tables = db.execute("SELECT name FROM sqlite_master WHERE type='table'").map { |r| r["name"]}
+      tables = db.execute("SELECT name FROM sqlite_master WHERE type='table'").map { |r| r["name"] }
 
       expected_tables = %w[
         schema_migrations
@@ -84,7 +84,7 @@ RSpec.describe Aidp::Database::Migrations do
     end
 
     it "is idempotent" do
-      3.times { described_class.run!(temp_dir)}
+      3.times { described_class.run!(temp_dir) }
 
       db = Aidp::Database.connection(temp_dir)
       count = db.get_first_value("SELECT COUNT(*) FROM schema_migrations")
@@ -132,14 +132,14 @@ RSpec.describe Aidp::Database::Migrations do
 
     it "creates checkpoints index" do
       db = Aidp::Database.connection(temp_dir)
-      indexes = db.execute("SELECT name FROM sqlite_master WHERE type='index'").map { |r| r["name"]}
+      indexes = db.execute("SELECT name FROM sqlite_master WHERE type='index'").map { |r| r["name"] }
 
       expect(indexes).to include("idx_checkpoints_project")
     end
 
     it "creates tasks indexes" do
       db = Aidp::Database.connection(temp_dir)
-      indexes = db.execute("SELECT name FROM sqlite_master WHERE type='index'").map { |r| r["name"]}
+      indexes = db.execute("SELECT name FROM sqlite_master WHERE type='index'").map { |r| r["name"] }
 
       expect(indexes).to include("idx_tasks_project")
       expect(indexes).to include("idx_tasks_status")
