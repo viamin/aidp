@@ -268,13 +268,13 @@ module Aidp
         end
       end
 
-      def symbolize_keys(hash)
+      def symbolize_keys(hash, depth: 0)
         return hash unless hash.is_a?(Hash)
 
-        hash.transform_keys(&:to_sym).transform_values do |v|
+        hash.transform_keys { |k| depth < 2 ? k.to_sym : k.to_s }.transform_values do |v|
           case v
-          when Hash then symbolize_keys(v)
-          when Array then v.map { |i| i.is_a?(Hash) ? symbolize_keys(i) : i }
+          when Hash then symbolize_keys(v, depth: depth + 1)
+          when Array then v.map { |i| i.is_a?(Hash) ? symbolize_keys(i, depth: depth + 1) : i }
           else v
           end
         end

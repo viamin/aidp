@@ -62,7 +62,7 @@ RSpec.describe Aidp::Harness::UsageLimitEnforcer do
       tracker.record_usage(tokens: 100_000, cost: 5.0, tier: "standard")
 
       expect { enforcer.check_before_request(tier: "standard") }
-        .to raise_error(Aidp::Harness::UsageLimitExceededError, /Token limit exceeded/)
+        .to raise_error(Aidp::Harness::UsageLimitExceededError, /Tokens: 100000\/100000/)
     end
   end
 
@@ -154,7 +154,8 @@ RSpec.describe Aidp::Harness::UsageLimitEnforcer do
     it "record_after_request does nothing" do
       disabled_enforcer.record_after_request(tokens: 5000, cost: 0.50)
       usage = tracker.current_usage
-      expect(usage[:total_tokens]).to eq(1_000_000) # From previous recording
+      # Disabled enforcer should not record usage, so tokens remain 0
+      expect(usage[:total_tokens]).to eq(0)
     end
 
     it "usage_summary returns enabled: false" do
