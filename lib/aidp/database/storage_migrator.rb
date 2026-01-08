@@ -4,7 +4,7 @@ require "yaml"
 require "json"
 require "fileutils"
 require_relative "../config_paths"
-require_relative "database"
+require_relative "../database"
 
 module Aidp
   module Database
