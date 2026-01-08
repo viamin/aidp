@@ -83,7 +83,7 @@ module Aidp
             workstream: data[:workstream],
             pr_url: data[:pr_url],
             status: data[:status]
-          }
+         }
         end
 
         def find_build_by_pr(pr_number)
@@ -98,7 +98,7 @@ module Aidp
                 workstream: data[:workstream],
                 pr_url: pr_url,
                 status: data[:status]
-              }
+             }
             end
           end
 
@@ -215,7 +215,7 @@ module Aidp
           auto_prs[key] = existing.merge({
             status: "completed",
             completed_at: current_timestamp
-          }).merge(symbolize_keys(data))
+         }).merge(symbolize_keys(data))
 
           save!
         end
@@ -234,7 +234,7 @@ module Aidp
           detection_comments[detection_key.to_s] = {
             timestamp: timestamp,
             posted_at: current_timestamp
-          }
+         }
           save!
         end
 
@@ -250,7 +250,7 @@ module Aidp
               processor_type: "plan",
               number: issue_number.to_i,
               posted_at: data[:posted_at]
-            }
+           }
           end
 
           reviews.each do |pr_number, data|
@@ -260,7 +260,7 @@ module Aidp
               processor_type: "review",
               number: pr_number.to_i,
               posted_at: data[:timestamp]
-            }
+           }
           end
 
           builds.each do |issue_number, data|
@@ -270,7 +270,7 @@ module Aidp
               processor_type: "build",
               number: issue_number.to_i,
               posted_at: data[:updated_at]
-            }
+           }
           end
 
           feedback_comments.each do |_key, data|
@@ -279,7 +279,7 @@ module Aidp
               processor_type: data[:processor_type],
               number: data[:number].to_i,
               posted_at: data[:posted_at]
-            }
+           }
           end
 
           comments
@@ -292,7 +292,7 @@ module Aidp
             processor_type: processor_type,
             number: number,
             posted_at: current_timestamp
-          }
+         }
           save!
         end
 
@@ -304,7 +304,7 @@ module Aidp
 
         def mark_reaction_processed(comment_id, reaction_id)
           key = comment_id.to_s
-          processed_reactions[key] ||= { reaction_ids: [], last_checked: nil }
+          processed_reactions[key] ||= {reaction_ids: [], last_checked: nil}
           processed_reactions[key][:reaction_ids] << reaction_id unless processed_reactions[key][:reaction_ids].include?(reaction_id)
           processed_reactions[key][:last_checked] = current_timestamp
           save!
@@ -357,7 +357,7 @@ module Aidp
               auto_prs: {},
               pull_requests: {},
               metadata: {}
-            }
+           }
           end
         end
 
@@ -372,7 +372,7 @@ module Aidp
             feedback_comments: feedback_comments,
             processed_reactions: processed_reactions,
             auto_prs: auto_prs
-          }
+         }
 
           existing = query_one(
             "SELECT id FROM watch_state WHERE project_dir = ? AND repository = ?",

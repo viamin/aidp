@@ -4,8 +4,8 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_repo_test") }
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
+  let(:temp_dir) { Dir.mktmpdir("aidp_repo_test")}
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
 
   # Concrete repository class for testing
   let(:test_repo_class) do
@@ -54,7 +54,7 @@ RSpec.describe Aidp::Database::Repository do
     end
   end
 
-  let(:repository) { test_repo_class.new(project_dir: temp_dir) }
+  let(:repository) { test_repo_class.new(project_dir: temp_dir)}
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -136,7 +136,7 @@ RSpec.describe Aidp::Database::Repository do
 
   describe "JSON serialization" do
     it "serializes hash to JSON" do
-      json = repository.send(:serialize_json, { foo: "bar", count: 42 })
+      json = repository.send(:serialize_json, {foo: "bar", count: 42})
 
       expect(json).to eq('{"foo":"bar","count":42}')
     end
@@ -150,7 +150,7 @@ RSpec.describe Aidp::Database::Repository do
     it "deserializes JSON to hash with symbol keys" do
       hash = repository.send(:deserialize_json, '{"foo":"bar","count":42}')
 
-      expect(hash).to eq({ foo: "bar", count: 42 })
+      expect(hash).to eq({foo: "bar", count: 42})
     end
 
     it "returns nil for nil JSON" do
@@ -279,7 +279,7 @@ RSpec.describe Aidp::Database::Repository do
 
   describe "metadata round-trip" do
     it "stores and retrieves metadata correctly" do
-      metadata = { key: "value", nested: { foo: "bar" }, numbers: [1, 2, 3] }
+      metadata = {key: "value", nested: {foo: "bar"}, numbers: [1, 2, 3]}
 
       id = repository.insert(name: "with_meta", metadata: metadata)
       record = repository.send(:find_by_id, id)

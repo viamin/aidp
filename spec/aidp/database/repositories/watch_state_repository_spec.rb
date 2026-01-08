@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_watch_state_repo_test") }
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
-  let(:repository) { described_class.new(project_dir: temp_dir, repository: "owner/repo") }
+  let(:temp_dir) { Dir.mktmpdir("aidp_watch_state_repo_test")}
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
+  let(:repository) { described_class.new(project_dir: temp_dir, repository: "owner/repo")}
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -25,7 +25,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       end
 
       it "returns true when processed" do
-        repository.record_plan(123, { summary: "Test plan" })
+        repository.record_plan(123, {summary: "Test plan"})
 
         expect(repository.plan_processed?(123)).to be true
       end
@@ -37,7 +37,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       end
 
       it "returns plan data" do
-        repository.record_plan(123, { summary: "Test plan", tasks: ["Task 1"] })
+        repository.record_plan(123, {summary: "Test plan", tasks: ["Task 1"]})
 
         data = repository.plan_data(123)
 
@@ -48,10 +48,10 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
 
     describe "#record_plan" do
       it "increments iteration on subsequent plans" do
-        repository.record_plan(123, { summary: "Plan 1" })
+        repository.record_plan(123, {summary: "Plan 1"})
         expect(repository.plan_iteration_count(123)).to eq(1)
 
-        repository.record_plan(123, { summary: "Plan 2" })
+        repository.record_plan(123, {summary: "Plan 2"})
         expect(repository.plan_iteration_count(123)).to eq(2)
       end
     end
@@ -64,7 +64,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       end
 
       it "returns build status" do
-        repository.record_build_status(123, status: "in_progress", details: { branch: "feature/123" })
+        repository.record_build_status(123, status: "in_progress", details: {branch: "feature/123"})
 
         status = repository.build_status(123)
 
@@ -81,7 +81,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       it "returns workstream info" do
         repository.record_build_status(123,
           status: "in_progress",
-          details: { branch: "feature/123", workstream: "ws-123", pr_url: "https://github.com/owner/repo/pull/456" })
+          details: {branch: "feature/123", workstream: "ws-123", pr_url: "https://github.com/owner/repo/pull/456"})
 
         info = repository.workstream_for_issue(123)
 
@@ -95,7 +95,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       before do
         repository.record_build_status(123,
           status: "completed",
-          details: { branch: "feature/123", pr_url: "https://github.com/owner/repo/pull/456" })
+          details: {branch: "feature/123", pr_url: "https://github.com/owner/repo/pull/456"})
       end
 
       it "finds build by PR number" do
@@ -117,7 +117,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       end
 
       it "returns true when processed" do
-        repository.record_review(456, { reviewers: ["user1"] })
+        repository.record_review(456, {reviewers: ["user1"]})
 
         expect(repository.review_processed?(456)).to be true
       end
@@ -125,7 +125,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
 
     describe "#record_review" do
       it "stores review data" do
-        repository.record_review(456, { reviewers: ["user1", "user2"], total_findings: 5 })
+        repository.record_review(456, {reviewers: ["user1", "user2"], total_findings: 5})
 
         data = repository.review_data(456)
 
@@ -142,13 +142,13 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       end
 
       it "returns true when completed" do
-        repository.record_ci_fix(456, { status: "completed", fixes_count: 3 })
+        repository.record_ci_fix(456, {status: "completed", fixes_count: 3})
 
         expect(repository.ci_fix_completed?(456)).to be true
       end
 
       it "returns false when not completed" do
-        repository.record_ci_fix(456, { status: "in_progress" })
+        repository.record_ci_fix(456, {status: "in_progress"})
 
         expect(repository.ci_fix_completed?(456)).to be false
       end
@@ -162,7 +162,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
       end
 
       it "returns true when processed" do
-        repository.record_change_request(456, { status: "completed" })
+        repository.record_change_request(456, {status: "completed"})
 
         expect(repository.change_request_processed?(456)).to be true
       end
@@ -170,7 +170,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
 
     describe "#reset_change_request_state" do
       it "removes change request state" do
-        repository.record_change_request(456, { status: "completed" })
+        repository.record_change_request(456, {status: "completed"})
         repository.reset_change_request_state(456)
 
         expect(repository.change_request_processed?(456)).to be false
@@ -194,7 +194,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
 
     describe "#auto_pr_cap_reached?" do
       before do
-        3.times { repository.record_auto_pr_iteration(456) }
+        3.times { repository.record_auto_pr_iteration(456)}
       end
 
       it "returns true when cap reached" do
@@ -234,7 +234,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
   describe "feedback tracking" do
     describe "#tracked_comments" do
       it "returns comments from plans" do
-        repository.record_plan(123, { summary: "Plan", comment_id: "comment_1" })
+        repository.record_plan(123, {summary: "Plan", comment_id: "comment_1"})
 
         comments = repository.tracked_comments
 
@@ -249,7 +249,7 @@ RSpec.describe Aidp::Database::Repositories::WatchStateRepository do
         repository.track_comment_for_feedback(comment_id: "123", processor_type: "custom", number: 456)
 
         comments = repository.tracked_comments
-        custom = comments.find { |c| c[:processor_type] == "custom" }
+        custom = comments.find { |c| c[:processor_type] == "custom"}
 
         expect(custom[:comment_id]).to eq("123")
         expect(custom[:number]).to eq(456)

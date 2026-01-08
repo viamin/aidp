@@ -9,9 +9,9 @@ module Aidp
     class Repository
       attr_reader :project_dir, :table_name
 
-      # @param project_dir [String] Project directory path
       # @param table_name [String] Database table name
-      def initialize(project_dir: Dir.pwd, table_name:)
+      # @param project_dir [String] Project directory path
+      def initialize(table_name:, project_dir: Dir.pwd)
         @project_dir = project_dir
         @table_name = table_name
       end

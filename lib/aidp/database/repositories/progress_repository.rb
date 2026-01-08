@@ -141,7 +141,7 @@ module Aidp
             steps_completed: [],
             started_at: nil,
             updated_at: nil
-          }
+         }
         end
 
         def upsert_progress(mode:, current_step:, steps_completed:, started_at:, updated_at:)
@@ -195,7 +195,7 @@ module Aidp
             steps_completed: deserialize_json(row["steps_completed"]) || [],
             started_at: row["started_at"],
             updated_at: row["updated_at"]
-          }
+         }
         end
       end
     end

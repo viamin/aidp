@@ -34,7 +34,7 @@ module Aidp
             description: description,
             scopes: scopes,
             id: SecureRandom.hex(8)
-          }
+         }
 
           execute(
             insert_sql([
@@ -179,7 +179,7 @@ module Aidp
             scopes: metadata[:scopes] || [],
             id: metadata[:id],
             registered_at: row["registered_at"]
-          }
+         }
         end
       end
     end

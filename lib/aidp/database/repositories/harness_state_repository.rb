@@ -120,7 +120,7 @@ module Aidp
             "SELECT DISTINCT mode FROM harness_state WHERE project_dir = ?",
             [project_dir]
           )
-          rows.map { |r| r["mode"] }
+          rows.map { |r| r["mode"]}
         end
 
         # Get state version for mode

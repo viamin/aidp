@@ -5,8 +5,8 @@ require "aidp/database"
 require "aidp/database/repositories/model_cache_repository"
 
 RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
-  let(:temp_dir) { Dir.mktmpdir }
-  let(:repository) { described_class.new(project_dir: temp_dir) }
+  let(:temp_dir) { Dir.mktmpdir}
+  let(:repository) { described_class.new(project_dir: temp_dir)}
 
   before do
     Aidp::Database.initialize!(temp_dir)
@@ -20,8 +20,8 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
   describe "#cache_models" do
     it "stores models for a provider" do
       models = [
-        { id: "claude-3-opus", name: "Claude 3 Opus" },
-        { id: "claude-3-sonnet", name: "Claude 3 Sonnet" }
+        {id: "claude-3-opus", name: "Claude 3 Opus"},
+        {id: "claude-3-sonnet", name: "Claude 3 Sonnet"}
       ]
 
       result = repository.cache_models("anthropic", models)
@@ -30,8 +30,8 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
     end
 
     it "updates existing cache" do
-      models1 = [{ id: "model-v1" }]
-      models2 = [{ id: "model-v2" }, { id: "model-v3" }]
+      models1 = [{id: "model-v1" }]
+      models2 = [{id: "model-v2"}, {id: "model-v3" }]
 
       repository.cache_models("anthropic", models1)
       repository.cache_models("anthropic", models2)
@@ -45,8 +45,8 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
   describe "#get_cached_models" do
     it "returns cached models when valid" do
       models = [
-        { id: "gpt-4", name: "GPT-4" },
-        { id: "gpt-4-turbo", name: "GPT-4 Turbo" }
+        {id: "gpt-4", name: "GPT-4"},
+        {id: "gpt-4-turbo", name: "GPT-4 Turbo"}
       ]
       repository.cache_models("openai", models, ttl: 3600)
 
@@ -57,7 +57,7 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
     end
 
     it "returns nil for expired cache" do
-      models = [{ id: "expired-model" }]
+      models = [{id: "expired-model" }]
       repository.cache_models("provider", models, ttl: -1)
 
       cached = repository.get_cached_models("provider")
@@ -74,8 +74,8 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
 
   describe "#invalidate" do
     it "removes cache for specific provider" do
-      repository.cache_models("anthropic", [{ id: "model1" }])
-      repository.cache_models("openai", [{ id: "model2" }])
+      repository.cache_models("anthropic", [{id: "model1" }])
+      repository.cache_models("openai", [{id: "model2" }])
 
       result = repository.invalidate("anthropic")
 
@@ -87,8 +87,8 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
 
   describe "#invalidate_all" do
     it "removes all cached models" do
-      repository.cache_models("anthropic", [{ id: "model1" }])
-      repository.cache_models("openai", [{ id: "model2" }])
+      repository.cache_models("anthropic", [{id: "model1" }])
+      repository.cache_models("openai", [{id: "model2" }])
 
       result = repository.invalidate_all
 
@@ -99,9 +99,9 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
 
   describe "#cached_providers" do
     it "returns providers with valid caches" do
-      repository.cache_models("anthropic", [{ id: "m1" }], ttl: 3600)
-      repository.cache_models("openai", [{ id: "m2" }], ttl: 3600)
-      repository.cache_models("expired", [{ id: "m3" }], ttl: -1)
+      repository.cache_models("anthropic", [{id: "m1" }], ttl: 3600)
+      repository.cache_models("openai", [{id: "m2" }], ttl: 3600)
+      repository.cache_models("expired", [{id: "m3" }], ttl: -1)
 
       providers = repository.cached_providers
 
@@ -111,8 +111,8 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
 
   describe "#stats" do
     it "returns cache statistics" do
-      repository.cache_models("anthropic", [{ id: "m1" }], ttl: 3600)
-      repository.cache_models("openai", [{ id: "m2" }], ttl: 3600)
+      repository.cache_models("anthropic", [{id: "m1" }], ttl: 3600)
+      repository.cache_models("openai", [{id: "m2" }], ttl: 3600)
 
       stats = repository.stats
 
@@ -124,9 +124,9 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
 
   describe "#cleanup_expired" do
     it "removes expired entries" do
-      repository.cache_models("valid", [{ id: "m1" }], ttl: 3600)
-      repository.cache_models("expired1", [{ id: "m2" }], ttl: -1)
-      repository.cache_models("expired2", [{ id: "m3" }], ttl: -1)
+      repository.cache_models("valid", [{id: "m1" }], ttl: 3600)
+      repository.cache_models("expired1", [{id: "m2" }], ttl: -1)
+      repository.cache_models("expired2", [{id: "m3" }], ttl: -1)
 
       count = repository.cleanup_expired
 
@@ -138,9 +138,9 @@ RSpec.describe Aidp::Database::Repositories::ModelCacheRepository do
   describe "#model_count" do
     it "returns number of cached models for provider" do
       models = [
-        { id: "m1" },
-        { id: "m2" },
-        { id: "m3" }
+        {id: "m1"},
+        {id: "m2"},
+        {id: "m3"}
       ]
       repository.cache_models("anthropic", models)
 

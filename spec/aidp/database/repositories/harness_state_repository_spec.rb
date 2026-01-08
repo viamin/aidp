@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_harness_state_repo_test") }
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
-  let(:repository) { described_class.new(project_dir: temp_dir) }
+  let(:temp_dir) { Dir.mktmpdir("aidp_harness_state_repo_test")}
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
+  let(:repository) { described_class.new(project_dir: temp_dir)}
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -24,7 +24,7 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
     end
 
     it "returns true when state exists" do
-      repository.save_state(:execute, { foo: "bar" })
+      repository.save_state(:execute, {foo: "bar"})
 
       expect(repository.has_state?(:execute)).to be true
     end
@@ -36,7 +36,7 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
     end
 
     it "returns saved state" do
-      repository.save_state(:execute, { user_feedback: "positive", step: "01" })
+      repository.save_state(:execute, {user_feedback: "positive", step: "01"})
 
       state = repository.load_state(:execute)
 
@@ -45,7 +45,7 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
     end
 
     it "includes metadata" do
-      repository.save_state(:execute, { data: "test" })
+      repository.save_state(:execute, {data: "test"})
 
       state = repository.load_state(:execute)
 
@@ -57,14 +57,14 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
 
   describe "#save_state" do
     it "creates new state" do
-      repository.save_state(:execute, { key: "value" })
+      repository.save_state(:execute, {key: "value"})
 
       expect(repository.has_state?(:execute)).to be true
     end
 
     it "updates existing state" do
-      repository.save_state(:execute, { key: "value1" })
-      repository.save_state(:execute, { key: "value2" })
+      repository.save_state(:execute, {key: "value1"})
+      repository.save_state(:execute, {key: "value2"})
 
       state = repository.load_state(:execute)
 
@@ -72,17 +72,17 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
     end
 
     it "increments version on update" do
-      repository.save_state(:execute, { key: "v1" })
+      repository.save_state(:execute, {key: "v1"})
       expect(repository.version(:execute)).to eq(1)
 
-      repository.save_state(:execute, { key: "v2" })
+      repository.save_state(:execute, {key: "v2"})
       expect(repository.version(:execute)).to eq(2)
     end
   end
 
   describe "#clear_state" do
     it "removes state" do
-      repository.save_state(:execute, { key: "value" })
+      repository.save_state(:execute, {key: "value"})
       repository.clear_state(:execute)
 
       expect(repository.has_state?(:execute)).to be false
@@ -95,8 +95,8 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
     end
 
     it "returns modes with state" do
-      repository.save_state(:execute, { x: 1 })
-      repository.save_state(:analyze, { x: 2 })
+      repository.save_state(:execute, {x: 1})
+      repository.save_state(:analyze, {x: 2})
 
       modes = repository.modes_with_state
 
@@ -110,7 +110,7 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
     end
 
     it "returns current version" do
-      repository.save_state(:execute, { x: 1 })
+      repository.save_state(:execute, {x: 1})
 
       expect(repository.version(:execute)).to eq(1)
     end
@@ -118,8 +118,8 @@ RSpec.describe Aidp::Database::Repositories::HarnessStateRepository do
 
   describe "mode isolation" do
     it "keeps modes separate" do
-      repository.save_state(:execute, { mode_data: "execute" })
-      repository.save_state(:analyze, { mode_data: "analyze" })
+      repository.save_state(:execute, {mode_data: "execute"})
+      repository.save_state(:analyze, {mode_data: "analyze"})
 
       execute_state = repository.load_state(:execute)
       analyze_state = repository.load_state(:analyze)

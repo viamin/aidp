@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::JobRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_job_repo_test") }
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
-  let(:repository) { described_class.new(project_dir: temp_dir) }
+  let(:temp_dir) { Dir.mktmpdir("aidp_job_repo_test")}
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
+  let(:repository) { described_class.new(project_dir: temp_dir)}
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -20,7 +20,7 @@ RSpec.describe Aidp::Database::Repositories::JobRepository do
 
   describe "#create" do
     it "creates a job" do
-      job_id = repository.create(job_type: "execute", input: { mode: "analyze" })
+      job_id = repository.create(job_type: "execute", input: {mode: "analyze"})
 
       expect(job_id).to start_with("job_")
     end
@@ -55,7 +55,7 @@ RSpec.describe Aidp::Database::Repositories::JobRepository do
       job_id = repository.create(job_type: "execute")
       repository.start(job_id)
 
-      repository.complete(job_id, output: { result: "success" })
+      repository.complete(job_id, output: {result: "success"})
 
       job = repository.find(job_id)
       expect(job[:status]).to eq("completed")

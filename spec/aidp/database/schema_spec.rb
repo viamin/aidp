@@ -40,7 +40,7 @@ RSpec.describe Aidp::Database::Schema do
   end
 
   describe "V1_INITIAL schema" do
-    let(:sql) { described_class::V1_INITIAL }
+    let(:sql) {described_class::V1_INITIAL}
 
     it "creates schema_migrations table" do
       expect(sql).to include("CREATE TABLE IF NOT EXISTS schema_migrations")

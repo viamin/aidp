@@ -149,7 +149,7 @@ module Aidp
             total_providers: total || 0,
             cached_providers: valid_providers,
             valid_count: valid_providers.size
-          }
+         }
         end
 
         # Clean up expired entries
@@ -171,8 +171,10 @@ module Aidp
           SQL
 
           count = result || 0
-          Aidp.log_info("model_cache_repo", "cleanup_expired",
-            deleted: count) if count > 0
+          if count > 0
+            Aidp.log_info("model_cache_repo", "cleanup_expired",
+              deleted: count)
+          end
           count
         end
 

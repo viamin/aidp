@@ -64,7 +64,7 @@ module Aidp
 
         unless migration_needed?
           Aidp.log_info("storage_migrator", "no_migration_needed")
-          return { status: :skipped, reason: "No file-based storage found" }
+          return {status: :skipped, reason: "No file-based storage found"}
         end
 
         create_backup if backup && !@dry_run
@@ -91,7 +91,7 @@ module Aidp
           stats: @stats.dup,
           errors: @errors.dup,
           dry_run: @dry_run
-        }
+       }
 
         Aidp.log_info("storage_migrator", "migration_complete",
           status: result[:status], stats: @stats)
@@ -152,7 +152,7 @@ module Aidp
           ConfigPaths.jobs_dir(project_dir)
         ]
 
-        files.any? { |f| File.exist?(f) } || dirs.any? { |d| Dir.exist?(d) && !Dir.empty?(d) }
+        files.any? { |f| File.exist?(f) } || dirs.any? { |d| Dir.exist?(d) && !Dir.empty?(d)}
       end
 
       def migrated_files
@@ -238,11 +238,11 @@ module Aidp
             end
             @stats[:checkpoint_history_migrated] += 1
           rescue JSON::ParserError => e
-            @errors << { type: :checkpoint_history, error: e.message }
+            @errors << {type: :checkpoint_history, error: e.message}
           end
         end
       rescue => e
-        @errors << { type: :checkpoints, error: e.message }
+        @errors << {type: :checkpoints, error: e.message}
         Aidp.log_error("storage_migrator", "checkpoint_migration_failed", error: e.message)
       end
 
@@ -271,7 +271,7 @@ module Aidp
           @stats[:tasks_migrated] += 1
         end
       rescue => e
-        @errors << { type: :tasks, error: e.message }
+        @errors << {type: :tasks, error: e.message}
         Aidp.log_error("storage_migrator", "tasks_migration_failed", error: e.message)
       end
 
@@ -299,7 +299,7 @@ module Aidp
           @stats[:progress_migrated] += 1
         end
       rescue => e
-        @errors << { type: :progress, error: e.message }
+        @errors << {type: :progress, error: e.message}
         Aidp.log_error("storage_migrator", "progress_migration_failed", error: e.message)
       end
 
@@ -326,10 +326,10 @@ module Aidp
           end
           @stats[:harness_states_migrated] += 1
         rescue => e
-          @errors << { type: :harness_state, file: state_file, error: e.message }
+          @errors << {type: :harness_state, file: state_file, error: e.message}
         end
       rescue => e
-        @errors << { type: :harness_state, error: e.message }
+        @errors << {type: :harness_state, error: e.message}
         Aidp.log_error("storage_migrator", "harness_state_migration_failed", error: e.message)
       end
 
@@ -360,7 +360,7 @@ module Aidp
           @stats[:workstreams_migrated] += 1
         end
       rescue => e
-        @errors << { type: :workstreams, error: e.message }
+        @errors << {type: :workstreams, error: e.message}
         Aidp.log_error("storage_migrator", "workstreams_migration_failed", error: e.message)
       end
 
@@ -404,7 +404,7 @@ module Aidp
           end
         end
       rescue => e
-        @errors << { type: :watch_state, error: e.message }
+        @errors << {type: :watch_state, error: e.message}
         Aidp.log_error("storage_migrator", "watch_state_migration_failed", error: e.message)
       end
 
@@ -456,7 +456,7 @@ module Aidp
           end
         end
       rescue => e
-        @errors << { type: :worktrees, error: e.message }
+        @errors << {type: :worktrees, error: e.message}
         Aidp.log_error("storage_migrator", "worktrees_migration_failed", error: e.message)
       end
 
@@ -484,10 +484,10 @@ module Aidp
           end
           @stats[:evaluations_migrated] += 1
         rescue => e
-          @errors << { type: :evaluation, file: eval_file, error: e.message }
+          @errors << {type: :evaluation, file: eval_file, error: e.message}
         end
       rescue => e
-        @errors << { type: :evaluations, error: e.message }
+        @errors << {type: :evaluations, error: e.message}
         Aidp.log_error("storage_migrator", "evaluations_migration_failed", error: e.message)
       end
 
@@ -509,10 +509,10 @@ module Aidp
           end
           @stats[:provider_info_migrated] += 1
         rescue => e
-          @errors << { type: :provider_info, file: info_file, error: e.message }
+          @errors << {type: :provider_info, file: info_file, error: e.message}
         end
       rescue => e
-        @errors << { type: :provider_info, error: e.message }
+        @errors << {type: :provider_info, error: e.message}
         Aidp.log_error("storage_migrator", "provider_info_migration_failed", error: e.message)
       end
 
@@ -538,7 +538,7 @@ module Aidp
           @stats[:model_cache_migrated] += 1
         end
       rescue => e
-        @errors << { type: :model_cache, error: e.message }
+        @errors << {type: :model_cache, error: e.message}
         Aidp.log_error("storage_migrator", "model_cache_migration_failed", error: e.message)
       end
 
@@ -569,7 +569,7 @@ module Aidp
           end
         end
       rescue => e
-        @errors << { type: :deprecated_models, error: e.message }
+        @errors << {type: :deprecated_models, error: e.message}
         Aidp.log_error("storage_migrator", "deprecated_models_migration_failed", error: e.message)
       end
 
@@ -597,7 +597,7 @@ module Aidp
           @stats[:secrets_migrated] += 1
         end
       rescue => e
-        @errors << { type: :secrets, error: e.message }
+        @errors << {type: :secrets, error: e.message}
         Aidp.log_error("storage_migrator", "secrets_migration_failed", error: e.message)
       end
 
@@ -625,15 +625,15 @@ module Aidp
               step: step,
               provider: provider,
               prompt: content,
-              metadata: { original_file: filename, archived_at: timestamp }
+              metadata: {original_file: filename, archived_at: timestamp}
             )
           end
           @stats[:prompts_migrated] += 1
         rescue => e
-          @errors << { type: :prompt_archive, file: prompt_file, error: e.message }
+          @errors << {type: :prompt_archive, file: prompt_file, error: e.message}
         end
       rescue => e
-        @errors << { type: :prompt_archive, error: e.message }
+        @errors << {type: :prompt_archive, error: e.message}
         Aidp.log_error("storage_migrator", "prompt_archive_migration_failed", error: e.message)
       end
 
@@ -670,10 +670,10 @@ module Aidp
           end
           @stats[:jobs_migrated] += 1
         rescue => e
-          @errors << { type: :job, file: job_file, error: e.message }
+          @errors << {type: :job, file: job_file, error: e.message}
         end
       rescue => e
-        @errors << { type: :jobs, error: e.message }
+        @errors << {type: :jobs, error: e.message}
         Aidp.log_error("storage_migrator", "jobs_migration_failed", error: e.message)
       end
 
@@ -708,7 +708,7 @@ module Aidp
           end
         end
       rescue => e
-        @errors << { type: :provider_metrics, error: e.message }
+        @errors << {type: :provider_metrics, error: e.message}
         Aidp.log_error("storage_migrator", "provider_metrics_migration_failed", error: e.message)
       end
     end

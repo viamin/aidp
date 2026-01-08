@@ -30,13 +30,13 @@ module Aidp
               slug,
               "active",
               0,
-              serialize_json({ task: task, started_at: now }),
+              serialize_json({task: task, started_at: now}),
               now,
               now
             ]
           )
 
-          append_event(slug: slug, type: "created", data: { task: task })
+          append_event(slug: slug, type: "created", data: {task: task})
 
           Aidp.log_debug("workstream_repository", "initialized", slug: slug)
 
@@ -107,11 +107,11 @@ module Aidp
           existing ||= init(slug: slug)
 
           new_iteration = (existing[:iteration] || 0) + 1
-          new_status = existing[:status] == "paused" ? "active" : existing[:status]
+          new_status = (existing[:status] == "paused") ? "active" : existing[:status]
 
           state = update(slug: slug, iteration: new_iteration, status: new_status)
 
-          append_event(slug: slug, type: "iteration", data: { count: new_iteration })
+          append_event(slug: slug, type: "iteration", data: {count: new_iteration})
 
           state
         end
@@ -162,14 +162,14 @@ module Aidp
         # @return [Hash] Result with status or error
         def pause(slug:)
           state = read(slug: slug)
-          return { error: "Workstream not found" } unless state
-          return { error: "Already paused" } if state[:status] == "paused"
+          return {error: "Workstream not found" } unless state
+          return {error: "Already paused" } if state[:status] == "paused"
 
           now = current_timestamp
           update(slug: slug, status: "paused", paused_at: now)
           append_event(slug: slug, type: "paused", data: {})
 
-          { status: "paused" }
+          {status: "paused"}
         end
 
         # Resume workstream
@@ -178,14 +178,14 @@ module Aidp
         # @return [Hash] Result with status or error
         def resume(slug:)
           state = read(slug: slug)
-          return { error: "Workstream not found" } unless state
-          return { error: "Not paused" } unless state[:status] == "paused"
+          return {error: "Workstream not found" } unless state
+          return {error: "Not paused" } unless state[:status] == "paused"
 
           now = current_timestamp
           update(slug: slug, status: "active", resumed_at: now)
           append_event(slug: slug, type: "resumed", data: {})
 
-          { status: "active" }
+          {status: "active"}
         end
 
         # Complete workstream
@@ -194,14 +194,14 @@ module Aidp
         # @return [Hash] Result with status or error
         def complete(slug:)
           state = read(slug: slug)
-          return { error: "Workstream not found" } unless state
-          return { error: "Already completed" } if state[:status] == "completed"
+          return {error: "Workstream not found" } unless state
+          return {error: "Already completed" } if state[:status] == "completed"
 
           now = current_timestamp
           update(slug: slug, status: "completed", completed_at: now)
-          append_event(slug: slug, type: "completed", data: { iterations: state[:iteration] })
+          append_event(slug: slug, type: "completed", data: {iterations: state[:iteration]})
 
-          { status: "completed" }
+          {status: "completed"}
         end
 
         # Mark workstream as removed
@@ -257,19 +257,19 @@ module Aidp
         # @param status [String, nil] Filter by status
         # @return [Array<Hash>] Workstreams
         def list(status: nil)
-          if status
-            rows = query(
+          rows = if status
+            query(
               "SELECT * FROM workstreams WHERE project_dir = ? AND status = ? ORDER BY updated_at DESC",
               [project_dir, status]
             )
           else
-            rows = query(
+            query(
               "SELECT * FROM workstreams WHERE project_dir = ? ORDER BY updated_at DESC",
               [project_dir]
             )
           end
 
-          rows.map { |row| deserialize_workstream(row) }
+          rows.map { |row| deserialize_workstream(row)}
         end
 
         private
@@ -292,7 +292,7 @@ module Aidp
             completed_at: metadata[:completed_at],
             created_at: row["created_at"],
             updated_at: row["updated_at"]
-          }
+         }
         end
 
         def deserialize_event(row)
@@ -302,7 +302,7 @@ module Aidp
             type: row["event_type"],
             data: deserialize_json(row["event_data"]) || {},
             timestamp: row["timestamp"]
-          }
+         }
         end
       end
     end

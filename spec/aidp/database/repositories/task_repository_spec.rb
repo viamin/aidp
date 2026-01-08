@@ -4,9 +4,9 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Aidp::Database::Repositories::TaskRepository do
-  let(:temp_dir) { Dir.mktmpdir("aidp_task_repo_test") }
-  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db") }
-  let(:repository) { described_class.new(project_dir: temp_dir) }
+  let(:temp_dir) { Dir.mktmpdir("aidp_task_repo_test")}
+  let(:db_path) { File.join(temp_dir, ".aidp", "aidp.db")}
+  let(:repository) { described_class.new(project_dir: temp_dir)}
 
   before do
     allow(Aidp::ConfigPaths).to receive(:database_file).with(temp_dir).and_return(db_path)
@@ -67,7 +67,7 @@ RSpec.describe Aidp::Database::Repositories::TaskRepository do
   end
 
   describe "#update_status" do
-    let!(:task) { repository.create(description: "Status test") }
+    let!(:task) { repository.create(description: "Status test")}
 
     it "updates status to in_progress" do
       updated = repository.update_status(task[:id], :in_progress)
@@ -162,7 +162,7 @@ RSpec.describe Aidp::Database::Repositories::TaskRepository do
 
   describe "#counts" do
     before do
-      2.times { repository.create(description: "Pending") }
+      2.times { repository.create(description: "Pending")}
 
       in_progress = repository.create(description: "In progress")
       repository.update_status(in_progress[:id], :in_progress)

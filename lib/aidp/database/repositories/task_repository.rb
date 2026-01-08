@@ -40,7 +40,7 @@ module Aidp
               priority.to_s,
               "pending",
               serialize_json(Array(tags)),
-              serialize_json({ session: session, discovered_during: discovered_during }),
+              serialize_json({session: session, discovered_during: discovered_during}),
               now,
               now
             ]
@@ -58,7 +58,7 @@ module Aidp
             discovered_during: discovered_during,
             created_at: now,
             updated_at: now
-          }
+         }
         end
 
         # Update task status
@@ -74,7 +74,7 @@ module Aidp
           now = current_timestamp
           status_str = new_status.to_s
 
-          updates = { status: status_str, updated_at: now }
+          updates = {status: status_str, updated_at: now}
 
           case status_str
           when "in_progress"
@@ -148,7 +148,7 @@ module Aidp
           SQL
 
           rows = query(sql, params)
-          tasks = rows.map { |row| deserialize_task(row) }
+          tasks = rows.map { |row| deserialize_task(row)}
 
           # Filter by tags in Ruby (JSON array matching is complex in SQLite)
           if tags && !tags.empty?
@@ -197,7 +197,7 @@ module Aidp
             in_progress: counts_by_status[:in_progress] || 0,
             done: counts_by_status[:done] || 0,
             abandoned: counts_by_status[:abandoned] || 0
-          }
+         }
         end
 
         private
@@ -223,7 +223,7 @@ module Aidp
             started_at: row["started_at"],
             completed_at: row["completed_at"],
             source: source
-          }
+         }
         end
       end
     end

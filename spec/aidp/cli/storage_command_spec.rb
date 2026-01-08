@@ -5,10 +5,10 @@ require "aidp/cli/storage_command"
 require "aidp/database"
 
 RSpec.describe Aidp::CLI::StorageCommand do
-  let(:temp_dir) { Dir.mktmpdir }
-  let(:prompt) { instance_double(TTY::Prompt) }
-  let(:command) { described_class.new(prompt: prompt, project_dir: temp_dir) }
-  let(:aidp_dir) { File.join(temp_dir, ".aidp") }
+  let(:temp_dir) { Dir.mktmpdir}
+  let(:prompt) { instance_double(TTY::Prompt)}
+  let(:command) { described_class.new(prompt: prompt, project_dir: temp_dir)}
+  let(:aidp_dir) { File.join(temp_dir, ".aidp")}
 
   before do
     FileUtils.mkdir_p(aidp_dir)

@@ -207,7 +207,7 @@ module Aidp
           display_message("\nMigrated:", type: :info)
           stats.each do |key, count|
             next if count.zero?
-            label = key.to_s.gsub("_", " ").capitalize
+            label = key.to_s.tr("_", " ").capitalize
             display_message("  #{label}: #{count}", type: :info)
           end
         end

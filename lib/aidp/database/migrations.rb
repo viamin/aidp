@@ -74,7 +74,7 @@ module Aidp
 
         # Get list of pending migrations
         def pending_migrations(current_version)
-          Schema.versions.select { |v| v > current_version }
+          Schema.versions.select { |v| v > current_version}
         end
 
         # Apply a single migration

@@ -41,7 +41,7 @@ module Aidp
                 rating: record[:rating],
                 feedback: record[:feedback],
                 target_id: record[:target_id]
-              }),
+             }),
               serialize_json(record[:context] || {}),
               record[:created_at] || now
             ]
@@ -50,11 +50,11 @@ module Aidp
           Aidp.log_debug("evaluation_repository", "stored",
             id: record[:id], rating: record[:rating])
 
-          { success: true, id: record[:id] }
+          {success: true, id: record[:id]}
         rescue => e
           Aidp.log_debug("evaluation_repository", "store_failed",
             id: record[:id], error: e.message)
-          { success: false, error: e.message, id: record[:id] }
+          {success: false, error: e.message, id: record[:id]}
         end
 
         # Load an evaluation by ID
@@ -101,7 +101,7 @@ module Aidp
             params
           )
 
-          rows.map { |row| deserialize_evaluation(row) }
+          rows.map { |row| deserialize_evaluation(row)}
         end
 
         # Get statistics
@@ -149,7 +149,7 @@ module Aidp
             by_target_type: by_target_type,
             first_evaluation: first_row&.dig("created_at"),
             last_evaluation: last_row&.dig("created_at")
-          }
+         }
         end
 
         # Delete an evaluation
@@ -162,7 +162,7 @@ module Aidp
             [id, project_dir]
           )
           Aidp.log_debug("evaluation_repository", "deleted", id: id)
-          { success: true, id: id }
+          {success: true, id: id}
         end
 
         # Clear all evaluations
@@ -177,7 +177,7 @@ module Aidp
           execute("DELETE FROM evaluations WHERE project_dir = ?", [project_dir])
 
           Aidp.log_debug("evaluation_repository", "cleared", count: count)
-          { success: true, count: count }
+          {success: true, count: count}
         end
 
         # Check if any evaluations exist
@@ -209,7 +209,7 @@ module Aidp
             created_at: row["created_at"],
             started_at: row["started_at"],
             completed_at: row["completed_at"]
-          }
+         }
         end
       end
     end

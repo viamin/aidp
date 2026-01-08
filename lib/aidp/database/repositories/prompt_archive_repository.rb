@@ -40,8 +40,8 @@ module Aidp
         # @param step_name [String, nil] Filter by step
         # @return [Array<Hash>] Archive entries
         def recent(limit: 50, step_name: nil)
-          if step_name
-            rows = query(
+          rows = if step_name
+            query(
               <<~SQL,
                 SELECT * FROM prompt_archive
                 WHERE project_dir = ? AND step_name = ?
@@ -51,7 +51,7 @@ module Aidp
               [project_dir, step_name, limit]
             )
           else
-            rows = query(
+            query(
               <<~SQL,
                 SELECT * FROM prompt_archive
                 WHERE project_dir = ?
@@ -62,7 +62,7 @@ module Aidp
             )
           end
 
-          rows.map { |row| deserialize_entry(row) }
+          rows.map { |row| deserialize_entry(row)}
         end
 
         # Get archive entry by ID
@@ -132,7 +132,7 @@ module Aidp
             by_step: by_step,
             first_archived_at: first&.dig("archived_at"),
             last_archived_at: last&.dig("archived_at")
-          }
+         }
         end
 
         # Search archived prompts
@@ -151,7 +151,7 @@ module Aidp
             [project_dir, "%#{query_text}%", limit]
           )
 
-          rows.map { |row| deserialize_entry(row) }
+          rows.map { |row| deserialize_entry(row)}
         end
 
         # Clear old archives (keep recent N days)
@@ -187,7 +187,7 @@ module Aidp
             step_name: row["step_name"],
             content: row["content"],
             archived_at: row["archived_at"]
-          }
+         }
         end
       end
     end

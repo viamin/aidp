@@ -122,19 +122,19 @@ module Aidp
         # @param type [String, nil] Filter by type (standard, pr)
         # @return [Array<Hash>] Worktrees
         def list(type: nil)
-          if type
-            rows = query(
+          rows = if type
+            query(
               "SELECT * FROM worktrees WHERE project_dir = ? AND worktree_type = ? ORDER BY created_at DESC",
               [project_dir, type]
             )
           else
-            rows = query(
+            query(
               "SELECT * FROM worktrees WHERE project_dir = ? ORDER BY created_at DESC",
               [project_dir]
             )
           end
 
-          rows.map { |row| deserialize_worktree(row) }
+          rows.map { |row| deserialize_worktree(row)}
         end
 
         # List standard worktrees (for Worktree module)
@@ -208,7 +208,7 @@ module Aidp
             execute("DELETE FROM worktrees WHERE id = ?", [row["id"]])
           end
 
-          stale.map { |row| deserialize_worktree(row) }
+          stale.map { |row| deserialize_worktree(row)}
         end
 
         private
@@ -232,7 +232,7 @@ module Aidp
             created_at: row["created_at"],
             updated_at: row["updated_at"],
             active: row["path"] && Dir.exist?(row["path"])
-          }
+         }
         end
       end
     end
