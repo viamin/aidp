@@ -119,7 +119,6 @@ module Aidp
       # Configure database connection with optimal settings
       def configure_connection(db)
         db.results_as_hash = true
-        db.type_translation = true
 
         # Enable WAL mode for better concurrency
         db.execute("PRAGMA journal_mode = WAL")
