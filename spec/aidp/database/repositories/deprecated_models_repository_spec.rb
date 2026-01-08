@@ -9,7 +9,7 @@ RSpec.describe Aidp::Database::Repositories::DeprecatedModelsRepository do
   let(:repository) { described_class.new(project_dir: temp_dir) }
 
   before do
-    Aidp::Database.initialize!(temp_dir)
+    Aidp::Database::Migrations.run!(temp_dir)
   end
 
   after do

@@ -56,7 +56,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "when database has data" do
       before do
-        Aidp::Database.initialize!(temp_dir)
+        Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
         db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
@@ -205,7 +205,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
       File.write(File.join(aidp_dir, "aidp.yml"), "config: true")
 
       # Initialize database with some data
-      Aidp::Database.initialize!(temp_dir)
+      Aidp::Database::Migrations.run!(temp_dir)
       db = Aidp::Database.connection(temp_dir)
       db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
         [temp_dir, "test", "completed"])

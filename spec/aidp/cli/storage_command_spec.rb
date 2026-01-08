@@ -64,7 +64,7 @@ RSpec.describe Aidp::CLI::StorageCommand do
     context "when already migrated" do
       before do
         File.write(File.join(aidp_dir, "checkpoint.yml"), YAML.dump("step" => "test"))
-        Aidp::Database.initialize!(temp_dir)
+        Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
         db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
@@ -97,7 +97,7 @@ RSpec.describe Aidp::CLI::StorageCommand do
 
     context "with database" do
       before do
-        Aidp::Database.initialize!(temp_dir)
+        Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
         db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
@@ -119,7 +119,7 @@ RSpec.describe Aidp::CLI::StorageCommand do
     context "when migrated" do
       before do
         File.write(File.join(aidp_dir, "checkpoint.yml"), "test")
-        Aidp::Database.initialize!(temp_dir)
+        Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
         db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
