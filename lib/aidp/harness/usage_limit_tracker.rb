@@ -84,7 +84,16 @@ module Aidp
       #
       # @param period_type [String] Period type (daily, weekly, monthly)
       # @param reset_day [Integer] Reset day for monthly periods
-      # @return [Hash] Current usage data with :total_tokens, :total_cost, :tier_usage
+      # @return [Hash] Current usage data with keys:
+      #   - :period_key [String] Period identifier (e.g., "2024-01")
+      #   - :period_description [String] Human-readable period description
+      #   - :total_tokens [Integer] Total tokens used in period
+      #   - :total_cost [Float] Total cost incurred in period
+      #   - :request_count [Integer] Number of requests made
+      #   - :tier_usage [Hash] Usage breakdown by tier
+      #   - :start_time [Time] Period start time
+      #   - :end_time [Time] Period end time
+      #   - :remaining_seconds [Integer] Seconds until period ends
       def current_usage(period_type: "monthly", reset_day: 1)
         period = UsagePeriod.current(period_type: period_type, reset_day: reset_day)
         period_key = period.period_key
@@ -146,6 +155,8 @@ module Aidp
       #
       # @param limit [Integer] Maximum number of periods to return
       # @return [Array<Hash>] Array of period usage data, newest first
+      # @note Sorting relies on lexicographic ordering of period keys (e.g., "2024-01", "2024-W01")
+      #       which produces correct chronological order for ISO-formatted date strings
       def usage_history(limit: MAX_HISTORY_PERIODS)
         data = load_usage_data
         return [] unless data[:periods].is_a?(Hash)
@@ -170,7 +181,7 @@ module Aidp
       # @param period_type [String] Period type
       # @param reset_day [Integer] Reset day
       def reset_current_period(period_type: "monthly", reset_day: 1)
-        Aidp.log_info("usage_limit_tracker", "resetting_current_period",
+        Aidp.log_warn("usage_limit_tracker", "resetting_current_period",
           provider: @provider_name,
           period_type: period_type)
 

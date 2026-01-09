@@ -2340,12 +2340,12 @@ module Aidp
       def ask_global_limits_config(period, reset_day, existing = {})
         max_cost = prompt.ask("Maximum cost per #{period} in USD (e.g., 50.00, or blank for no limit):",
           default: existing[:max_cost]&.to_s) do |q|
-          q.validate(/\A(\d+\.?\d*|\s*)$/, "Please enter a valid number or leave blank")
+          q.validate(/\A(\d+\.?\d*|)$/, "Please enter a valid number or leave blank")
         end
 
         max_tokens = prompt.ask("Maximum tokens per #{period} (e.g., 1000000, or blank for no limit):",
           default: existing[:max_tokens]&.to_s) do |q|
-          q.validate(/\A(\d+|\s*)$/, "Please enter a valid integer or leave blank")
+          q.validate(/\A(\d+|)$/, "Please enter a valid integer or leave blank")
         end
 
         config = {

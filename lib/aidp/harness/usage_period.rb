@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require "date"
 
 module Aidp
   module Harness
