@@ -2243,9 +2243,8 @@ module Aidp
         new_type = ask_provider_billing_type_with_default(provider_name, existing[:type])
         new_family = ask_model_family(provider_name, existing[:model_family] || "auto")
 
-        # Preserve existing usage_limits if any
-        updated_config = {type: new_type, model_family: new_family}
-        updated_config[:usage_limits] = existing[:usage_limits] if existing[:usage_limits]
+        # Merge with existing config to preserve other keys (e.g., usage_limits, custom settings)
+        updated_config = existing.merge(type: new_type, model_family: new_family)
 
         set([:providers, provider_name.to_sym], updated_config)
         # Normalize immediately so tests relying on canonical value see 'claude' rather than label
@@ -2392,12 +2391,12 @@ module Aidp
 
         max_cost = prompt.ask("  Max cost per #{period} for #{tier} tier (USD, blank for no limit):",
           default: existing[:max_cost]&.to_s) do |q|
-          q.validate(/\A(\d+\.?\d*|\s*)$/, "Please enter a valid number or leave blank")
+          q.validate(/\A(\d+\.?\d*|)$/, "Please enter a valid number or leave blank")
         end
 
         max_tokens = prompt.ask("  Max tokens per #{period} for #{tier} tier (blank for no limit):",
           default: existing[:max_tokens]&.to_s) do |q|
-          q.validate(/\A(\d+|\s*)$/, "Please enter a valid integer or leave blank")
+          q.validate(/\A(\d+|)$/, "Please enter a valid integer or leave blank")
         end
 
         limits = {}

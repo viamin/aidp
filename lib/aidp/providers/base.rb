@@ -363,9 +363,13 @@ module Aidp
       end
 
       # Enhanced send method that integrates with harness
+      #
       # @param prompt [String] The prompt to send
       # @param session [Object] Session context (optional)
-      # @param options [Hash] Additional options (may include :tier)
+      # @param options [Hash] Additional options passed to send_message (may include :tier for usage tracking)
+      # @return [Object] Result from send_message
+      # @raise [UsageLimitExceededError] If usage limits are exceeded before request
+      # @note Usage is only recorded for successful requests to avoid counting failed attempts
       def send_with_harness(prompt:, session: nil, options: {})
         tier = options[:tier]&.to_s || "standard"
         start_time = Time.now

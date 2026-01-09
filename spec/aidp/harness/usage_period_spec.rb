@@ -57,6 +57,21 @@ RSpec.describe Aidp::Harness::UsagePeriod do
     it "generates correct period key" do
       expect(period.period_key).to match(/2024-W\d{2}/)
     end
+
+    context "on Sunday (week boundary)" do
+      let(:sunday_reference) { Time.new(2024, 6, 16, 14, 30, 0) } # Sunday
+      let(:sunday_period) { described_class.current(period_type: "weekly", reference_time: sunday_reference) }
+
+      it "includes Sunday in the current week starting Monday" do
+        expect(sunday_period.start_time.wday).to eq(1) # Monday
+        expect(sunday_period.start_time.day).to eq(10) # Monday June 10
+      end
+
+      it "has Sunday within the period boundaries" do
+        expect(sunday_reference).to be >= sunday_period.start_time
+        expect(sunday_reference).to be < sunday_period.end_time
+      end
+    end
   end
 
   describe "monthly period with reset_day" do
