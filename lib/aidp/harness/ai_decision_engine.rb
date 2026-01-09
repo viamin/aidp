@@ -12,7 +12,7 @@ module Aidp
     # Delegates semantic analysis and decision-making to AI models instead of
     # using brittle pattern matching, scoring formulas, or heuristic thresholds.
     #
-    # Prompts can be customized via YAML templates at:
+    # All prompts are loaded from YAML templates at:
     # - Project level: .aidp/prompts/decision_engine/<name>.yml
     # - User level: ~/.aidp/prompts/decision_engine/<name>.yml
     # - Built-in: lib/aidp/prompts/defaults/decision_engine/<name>.yml
@@ -21,7 +21,6 @@ module Aidp
     #   engine = AIDecisionEngine.new(config, provider_manager)
     #   result = engine.decide(:condition_detection,
     #     context: { error: "Rate limit exceeded" },
-    #     schema: ConditionSchema,
     #     tier: "mini"
     #   )
     #   # => { condition: "rate_limit", confidence: 0.95, reasoning: "..." }
@@ -29,252 +28,6 @@ module Aidp
     # @see docs/ZFC_COMPLIANCE_ASSESSMENT.md
     # @see docs/ZFC_IMPLEMENTATION_PLAN.md
     class AIDecisionEngine
-      # Decision templates define prompts, schemas, and defaults for each decision type
-      DECISION_TEMPLATES = {
-        condition_detection: {
-          prompt_template: <<~PROMPT,
-            Analyze the following API response or error message and classify the condition.
-
-            Response/Error:
-            {{response}}
-
-            Classify this into one of the following conditions:
-            - rate_limit: API rate limiting or quota exceeded
-            - auth_error: Authentication or authorization failure
-            - timeout: Request timeout or network timeout
-            - completion_marker: Work is complete or done
-            - user_feedback_needed: AI is asking for user input/clarification
-            - api_error: General API error (not rate limit/auth)
-            - success: Successful response
-            - other: None of the above
-
-            Provide your classification with a confidence score (0.0 to 1.0) and brief reasoning.
-          PROMPT
-          schema: {
-            type: "object",
-            properties: {
-              condition: {
-                type: "string",
-                enum: [
-                  "rate_limit",
-                  "auth_error",
-                  "timeout",
-                  "completion_marker",
-                  "user_feedback_needed",
-                  "api_error",
-                  "success",
-                  "other"
-                ]
-              },
-              confidence: {
-                type: "number",
-                minimum: 0.0,
-                maximum: 1.0
-              },
-              reasoning: {
-                type: "string"
-              }
-            },
-            required: ["condition", "confidence"]
-          },
-          default_tier: "mini",
-          cache_ttl: nil  # Each response is unique
-        },
-
-        error_classification: {
-          prompt_template: <<~PROMPT,
-            Classify the following error and determine if it's retryable.
-
-            Error:
-            {{error_message}}
-
-            Context:
-            {{context}}
-
-            Determine:
-            1. Error type (rate_limit, auth, timeout, network, api_bug, other)
-            2. Whether it's retryable (transient vs permanent)
-            3. Recommended action (retry, switch_provider, escalate, fail)
-
-            Provide classification with confidence and reasoning.
-          PROMPT
-          schema: {
-            type: "object",
-            properties: {
-              error_type: {
-                type: "string",
-                enum: ["rate_limit", "auth", "timeout", "network", "api_bug", "other"]
-              },
-              retryable: {
-                type: "boolean"
-              },
-              recommended_action: {
-                type: "string",
-                enum: ["retry", "switch_provider", "escalate", "fail"]
-              },
-              confidence: {
-                type: "number",
-                minimum: 0.0,
-                maximum: 1.0
-              },
-              reasoning: {
-                type: "string"
-              }
-            },
-            required: ["error_type", "retryable", "recommended_action", "confidence"]
-          },
-          default_tier: "mini",
-          cache_ttl: nil
-        },
-
-        completion_detection: {
-          prompt_template: <<~PROMPT,
-            Determine if the work described is complete based on the AI response.
-
-            Task:
-            {{task_description}}
-
-            AI Response:
-            {{response}}
-
-            Is the work complete? Consider:
-            - Explicit completion markers ("done", "finished", etc.)
-            - Implicit indicators (results provided, no follow-up questions)
-            - Requests for more information (incomplete)
-
-            Provide boolean completion status with confidence and reasoning.
-          PROMPT
-          schema: {
-            type: "object",
-            properties: {
-              complete: {
-                type: "boolean"
-              },
-              confidence: {
-                type: "number",
-                minimum: 0.0,
-                maximum: 1.0
-              },
-              reasoning: {
-                type: "string"
-              }
-            },
-            required: ["complete", "confidence"]
-          },
-          default_tier: "mini",
-          cache_ttl: nil
-        },
-
-        implementation_verification: {
-          prompt_template: "{{prompt}}",  # Custom prompt provided by caller
-          schema: {
-            type: "object",
-            properties: {
-              fully_implemented: {
-                type: "boolean",
-                description: "True if the implementation fully addresses all issue requirements"
-              },
-              reasoning: {
-                type: "string",
-                description: "Detailed explanation of the verification decision"
-              },
-              missing_requirements: {
-                type: "array",
-                items: {type: "string"},
-                description: "List of specific requirements from the issue that are not yet implemented"
-              },
-              additional_work_needed: {
-                type: "array",
-                items: {type: "string"},
-                description: "List of specific tasks needed to complete the implementation"
-              }
-            },
-            required: ["fully_implemented", "reasoning", "missing_requirements", "additional_work_needed"]
-          },
-          default_tier: "mini",
-          cache_ttl: nil
-        },
-
-        # FIX for issue #391: Prompt effectiveness evaluation for stuck work loops
-        prompt_evaluation: {
-          prompt_template: "{{prompt}}",  # Custom prompt provided by caller
-          schema: {
-            type: "object",
-            properties: {
-              effective: {
-                type: "boolean",
-                description: "True if the prompt is likely to lead to completion"
-              },
-              issues: {
-                type: "array",
-                items: {type: "string"},
-                description: "Specific problems with the current prompt"
-              },
-              suggestions: {
-                type: "array",
-                items: {type: "string"},
-                description: "Actionable suggestions to improve effectiveness"
-              },
-              likely_blockers: {
-                type: "array",
-                items: {type: "string"},
-                description: "Potential blockers preventing progress"
-              },
-              confidence: {
-                type: "number",
-                minimum: 0.0,
-                maximum: 1.0,
-                description: "Confidence in this assessment"
-              }
-            },
-            required: ["effective", "issues", "suggestions", "confidence"]
-          },
-          default_tier: "mini",
-          cache_ttl: nil
-        },
-
-        # FIX for issue #391: Template improvement suggestions for AGD pattern
-        template_improvement: {
-          prompt_template: "{{prompt}}",  # Custom prompt provided by caller
-          schema: {
-            type: "object",
-            properties: {
-              improved_sections: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    section_name: {type: "string"},
-                    original: {type: "string"},
-                    improved: {type: "string"},
-                    rationale: {type: "string"}
-                  }
-                }
-              },
-              additional_sections: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    section_name: {type: "string"},
-                    content: {type: "string"},
-                    rationale: {type: "string"}
-                  }
-                }
-              },
-              completion_criteria_improvements: {
-                type: "array",
-                items: {type: "string"},
-                description: "Improvements to completion criteria definitions"
-              }
-            },
-            required: ["improved_sections", "completion_criteria_improvements"]
-          },
-          default_tier: "standard",  # Use standard tier for thoughtful improvements
-          cache_ttl: nil
-        }
-      }.freeze
-
       # Maps decision types to template file paths
       TEMPLATE_PATHS = {
         condition_detection: "decision_engine/condition_detection",
@@ -307,33 +60,40 @@ module Aidp
       #
       # @param decision_type [Symbol] Type of decision (:condition_detection, :error_classification, etc.)
       # @param context [Hash] Context data for the decision
-      # @param schema [Hash, nil] JSON schema for response validation (overrides default)
-      # @param tier [String, nil] Thinking depth tier (overrides default)
-      # @param cache_ttl [Integer, nil] Cache TTL in seconds (overrides default)
+      # @param schema [Hash, nil] JSON schema for response validation (overrides template schema)
+      # @param tier [String, nil] Thinking depth tier (overrides template tier)
+      # @param cache_ttl [Integer, nil] Cache TTL in seconds (overrides template cache_ttl)
       # @return [Hash] Validated decision result
       # @raise [ArgumentError] If decision_type is unknown
+      # @raise [Prompts::TemplateNotFoundError] If template is not found
       # @raise [ValidationError] If response doesn't match schema
       def decide(decision_type, context:, schema: nil, tier: nil, cache_ttl: nil)
-        # Get fallback template for defaults and fallback prompt
-        fallback_template = DECISION_TEMPLATES[decision_type]
-        raise ArgumentError, "Unknown decision type: #{decision_type}" unless fallback_template
+        template_path = TEMPLATE_PATHS[decision_type]
+        raise ArgumentError, "Unknown decision type: #{decision_type}" unless template_path
+
+        # Load template data
+        template_data = @prompt_template_manager.load_template(template_path)
+        raise Prompts::TemplateNotFoundError, "Template not found: #{template_path}" unless template_data
 
         # Check cache if TTL specified
+        template_cache_ttl = template_data["cache_ttl"] || template_data[:cache_ttl]
+        ttl = cache_ttl || template_cache_ttl
         cache_key = build_cache_key(decision_type, context)
-        ttl = cache_ttl || fallback_template[:cache_ttl]
         if ttl && (cached_result = get_cached(cache_key, ttl))
-          Aidp.log_debug("ai_decision_engine", "Cache hit for #{decision_type}", {
+          Aidp.log_debug("ai_decision_engine", "cache_hit", {
+            decision_type: decision_type,
             cache_key: cache_key,
             ttl: ttl
           })
           return cached_result
         end
 
-        # Load prompt from template manager, falling back to hardcoded template
-        prompt = load_prompt_from_template(decision_type, context, fallback_template)
+        # Render prompt with variables
+        prompt = @prompt_template_manager.render(template_path, **context)
 
-        # Select tier from template file or fallback
-        selected_tier = tier || load_tier_from_template(decision_type) || fallback_template[:default_tier]
+        # Select tier from parameter, template, or default
+        template_tier = template_data["tier"] || template_data[:tier]
+        selected_tier = tier || template_tier || "mini"
 
         # Get model for tier, using harness default provider
         thinking_manager = ThinkingDepthManager.new(config)
@@ -342,87 +102,57 @@ module Aidp
           provider: config.default_provider
         )
 
-        Aidp.log_debug("ai_decision_engine", "Making AI decision", {
+        Aidp.log_debug("ai_decision_engine", "making_decision", {
           decision_type: decision_type,
+          template_path: template_path,
           tier: selected_tier,
           provider: provider_name,
           model: model_name,
           cache_ttl: ttl
         })
 
+        # Get schema from parameter or template
+        template_schema = template_data["schema"] || template_data[:schema]
+        response_schema = schema || symbolize_schema(template_schema)
+        raise ArgumentError, "No schema defined for decision type: #{decision_type}" unless response_schema
+
         # Call AI with schema validation
-        response_schema = schema || template[:schema]
         result = call_ai_with_schema(provider_name, model_name, prompt, response_schema)
 
         # Validate result
         validate_schema(result, response_schema)
 
         # Cache if TTL specified
-        if ttl
-          set_cached(cache_key, result)
-        end
+        set_cached(cache_key, result) if ttl
 
         result
       end
 
-      private
-
-      # Load prompt from template manager, falling back to hardcoded template
+      # List available decision types
       #
-      # @param decision_type [Symbol] Decision type
-      # @param context [Hash] Context variables for substitution
-      # @param fallback_template [Hash] Hardcoded fallback template
-      # @return [String] Rendered prompt
-      def load_prompt_from_template(decision_type, context, fallback_template)
-        template_path = TEMPLATE_PATHS[decision_type]
-        fallback_prompt = fallback_template[:prompt_template]
-
-        begin
-          prompt = @prompt_template_manager.render(template_path, fallback: fallback_prompt, **context)
-
-          Aidp.log_debug("ai_decision_engine", "loaded_template", {
-            decision_type: decision_type,
-            template_path: template_path,
-            used_fallback: prompt == build_prompt(fallback_prompt, context)
-          })
-
-          prompt
-        rescue Prompts::TemplateNotFoundError => e
-          Aidp.log_debug("ai_decision_engine", "template_not_found_using_fallback", {
-            decision_type: decision_type,
-            error: e.message
-          })
-          build_prompt(fallback_prompt, context)
-        rescue => e
-          Aidp.log_warn("ai_decision_engine", "template_load_error_using_fallback", {
-            decision_type: decision_type,
-            error: e.message
-          })
-          build_prompt(fallback_prompt, context)
-        end
+      # @return [Array<Symbol>] Available decision type symbols
+      def available_decision_types
+        TEMPLATE_PATHS.keys
       end
 
-      # Load tier configuration from template file
-      #
-      # @param decision_type [Symbol] Decision type
-      # @return [String, nil] Tier name or nil if not found
-      def load_tier_from_template(decision_type)
-        template_path = TEMPLATE_PATHS[decision_type]
-        template_data = @prompt_template_manager.load_template(template_path)
-        return nil unless template_data
+      private
 
-        template_data["tier"] || template_data[:tier]
-      rescue => e
-        Aidp.log_debug("ai_decision_engine", "tier_load_error", {
-          decision_type: decision_type,
-          error: e.message
-        })
-        nil
+      # Recursively symbolize schema keys for consistent access
+      def symbolize_schema(schema)
+        return nil unless schema
+
+        case schema
+        when Hash
+          schema.transform_keys(&:to_sym).transform_values { |v| symbolize_schema(v) }
+        when Array
+          schema.map { |v| symbolize_schema(v) }
+        else
+          schema
+        end
       end
 
       # Build cache key from decision type and context
       def build_cache_key(decision_type, context)
-        # Simple hash-based key
         "#{decision_type}:#{context.hash}"
       end
 
@@ -437,15 +167,6 @@ module Aidp
       def set_cached(key, value)
         @cache[key] = value
         @cache_timestamps[key] = Time.now
-      end
-
-      # Build prompt from template with context substitution
-      def build_prompt(template, context)
-        prompt = template.dup
-        context.each do |key, value|
-          prompt.gsub!("{{#{key}}}", value.to_s)
-        end
-        prompt
       end
 
       # Call AI with schema validation using structured output
@@ -472,17 +193,15 @@ module Aidp
 
         # Parse JSON response
         begin
-          # Response might be a string or already structured
           response_text = response.is_a?(String) ? response : response.to_s
 
           # Try to extract JSON if there's extra text
-          # Use non-greedy match and handle nested braces
           json_match = response_text.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/m) || response_text.match(/\{.*\}/m)
           json_text = json_match ? json_match[0] : response_text
 
           result = JSON.parse(json_text, symbolize_names: true)
 
-          Aidp.log_debug("ai_decision_engine", "Parsed JSON successfully", {
+          Aidp.log_debug("ai_decision_engine", "parsed_response", {
             response_length: response_text.length,
             json_length: json_text.length,
             result_keys: result.keys,
@@ -491,7 +210,7 @@ module Aidp
 
           result
         rescue JSON::ParserError => e
-          Aidp.log_error("ai_decision_engine", "Failed to parse AI response as JSON", {
+          Aidp.log_error("ai_decision_engine", "json_parse_failed", {
             error: e.message,
             response: response_text&.slice(0, 200),
             provider: provider_name,
@@ -500,7 +219,7 @@ module Aidp
           raise ValidationError, "AI response is not valid JSON: #{e.message}"
         end
       rescue => e
-        Aidp.log_error("ai_decision_engine", "Error calling AI provider", {
+        Aidp.log_error("ai_decision_engine", "provider_error", {
           error: e.message,
           provider: provider_name,
           model: model_name,
@@ -511,13 +230,9 @@ module Aidp
 
       # Validate response against JSON schema
       def validate_schema(result, schema)
-        # Basic validation of required fields and types
-        # Schema uses string keys, but our result uses symbol keys from JSON parsing
         schema[:required]&.each do |field|
           field_sym = field.to_sym
-          unless result.key?(field_sym)
-            raise ValidationError, "Missing required field: #{field}"
-          end
+          raise ValidationError, "Missing required field: #{field}" unless result.key?(field_sym)
         end
 
         schema[:properties]&.each do |field, constraints|
@@ -525,21 +240,14 @@ module Aidp
           next unless result.key?(field_sym)
           value = result[field_sym]
 
-          # Type validation
           case constraints[:type]
           when "string"
-            unless value.is_a?(String)
-              raise ValidationError, "Field #{field} must be string, got #{value.class}"
-            end
-            # Enum validation
+            raise ValidationError, "Field #{field} must be string, got #{value.class}" unless value.is_a?(String)
             if constraints[:enum] && !constraints[:enum].include?(value)
               raise ValidationError, "Field #{field} must be one of #{constraints[:enum]}, got #{value}"
             end
           when "number"
-            unless value.is_a?(Numeric)
-              raise ValidationError, "Field #{field} must be number, got #{value.class}"
-            end
-            # Range validation
+            raise ValidationError, "Field #{field} must be number, got #{value.class}" unless value.is_a?(Numeric)
             if constraints[:minimum] && value < constraints[:minimum]
               raise ValidationError, "Field #{field} must be >= #{constraints[:minimum]}"
             end
@@ -547,9 +255,7 @@ module Aidp
               raise ValidationError, "Field #{field} must be <= #{constraints[:maximum]}"
             end
           when "boolean"
-            unless [true, false].include?(value)
-              raise ValidationError, "Field #{field} must be boolean, got #{value.class}"
-            end
+            raise ValidationError, "Field #{field} must be boolean, got #{value.class}" unless [true, false].include?(value)
           end
         end
 

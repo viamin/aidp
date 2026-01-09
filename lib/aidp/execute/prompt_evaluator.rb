@@ -246,42 +246,6 @@ module Aidp
       private
 
       def build_evaluation_prompt(prompt_content:, iteration_count:, task_summary:, recent_failures:)
-        fallback = <<~PROMPT
-          You are evaluating the effectiveness of a work loop prompt that has been running for {{iteration_count}} iterations without completion.
-
-          ## Current Prompt Content
-          {{prompt_content}}
-
-          ## Task Summary
-          {{task_summary}}
-
-          ## Recent Check Results
-          {{recent_failures}}
-
-          ## Evaluation Criteria
-
-          Analyze why this prompt may not be leading to completion:
-
-          1. **Clarity of Goals**: Are the implementation requirements clearly defined?
-          2. **Task Breakdown**: Does the prompt guide proper task decomposition?
-          3. **Completion Criteria**: Are the completion criteria specific and achievable?
-          4. **Context Sufficiency**: Does the agent have enough context to proceed?
-          5. **Blockers**: Are there technical blockers or missing information?
-          6. **Scope**: Is the scope realistic for an AI agent to complete?
-
-          ## Your Assessment
-
-          Provide:
-          - Whether this prompt is likely effective (true/false)
-          - Specific issues with the current prompt
-          - Actionable suggestions for improvement
-          - Likely blockers preventing progress
-          - Prioritized recommended actions
-          - Your confidence in this assessment (0.0-1.0)
-
-          Be specific and actionable. Focus on what can be changed to achieve completion.
-        PROMPT
-
         variables = {
           iteration_count: iteration_count.to_s,
           prompt_content: truncate_content(prompt_content, 8000),
@@ -289,37 +253,10 @@ module Aidp
           recent_failures: format_failures(recent_failures)
         }
 
-        @prompt_template_manager.render(
-          TEMPLATE_PATHS[:evaluation],
-          fallback: fallback,
-          **variables
-        )
+        @prompt_template_manager.render(TEMPLATE_PATHS[:evaluation], **variables)
       end
 
       def build_improvement_prompt(evaluation_result, original_template)
-        fallback = <<~PROMPT
-          Based on the following prompt evaluation, suggest improvements to the template.
-
-          ## Evaluation Results
-          - Effective: {{effective}}
-          - Issues: {{issues}}
-          - Suggestions: {{suggestions}}
-
-          ## Original Template
-          {{original_template}}
-
-          ## Your Task
-
-          Suggest specific improvements to make the template more effective:
-          1. Identify sections that need improvement
-          2. Propose new sections if needed
-          3. Focus especially on completion criteria clarity
-          4. Ensure task breakdown instructions are explicit
-          5. Add guidance for common failure modes
-
-          Be specific - provide actual text that could replace or supplement the template.
-        PROMPT
-
         variables = {
           effective: evaluation_result[:effective].to_s,
           issues: (evaluation_result[:issues] || []).join(", "),
@@ -327,11 +264,7 @@ module Aidp
           original_template: truncate_content(original_template, 4000)
         }
 
-        @prompt_template_manager.render(
-          TEMPLATE_PATHS[:improvement],
-          fallback: fallback,
-          **variables
-        )
+        @prompt_template_manager.render(TEMPLATE_PATHS[:improvement], **variables)
       end
 
       def format_task_summary(task_summary)

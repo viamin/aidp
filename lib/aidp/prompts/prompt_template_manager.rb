@@ -9,7 +9,6 @@ module Aidp
     # Manages dynamic prompt templates with support for:
     # - Template loading from YAML files
     # - Variable substitution with {{placeholder}} syntax
-    # - Graceful fallback to hardcoded defaults
     # - Template versioning and caching
     # - User/project-level template customization
     #
@@ -17,7 +16,6 @@ module Aidp
     # 1. Project-level: .aidp/prompts/<category>/<name>.yml
     # 2. User-level: ~/.aidp/prompts/<category>/<name>.yml
     # 3. Built-in: lib/aidp/prompts/defaults/<category>/<name>.yml
-    # 4. Hardcoded fallback (if provided)
     #
     # @example Load and render a template
     #   manager = PromptTemplateManager.new(project_dir: Dir.pwd)
@@ -46,26 +44,19 @@ module Aidp
       #
       # @param template_id [String] Template identifier (e.g., "decision_engine/condition_detection")
       # @param variables [Hash] Variables to substitute in the template
-      # @param fallback [String, nil] Fallback prompt if template not found
       # @return [String] Rendered prompt text
-      def render(template_id, fallback: nil, **variables)
+      # @raise [TemplateNotFoundError] If template is not found
+      def render(template_id, **variables)
         Aidp.log_debug("prompt_template_manager", "rendering_template",
           template_id: template_id,
           variables: variables.keys)
 
         template_data = load_template(template_id)
-
-        if template_data.nil?
-          if fallback
-            Aidp.log_debug("prompt_template_manager", "using_fallback",
-              template_id: template_id)
-            return substitute_variables(fallback, variables)
-          else
-            raise TemplateNotFoundError, "Template not found: #{template_id}"
-          end
-        end
+        raise TemplateNotFoundError, "Template not found: #{template_id}" if template_data.nil?
 
         prompt_text = template_data["prompt"] || template_data[:prompt]
+        raise TemplateNotFoundError, "Template has no prompt: #{template_id}" if prompt_text.nil?
+
         substitute_variables(prompt_text, variables)
       end
 

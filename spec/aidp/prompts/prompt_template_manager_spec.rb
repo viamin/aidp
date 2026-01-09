@@ -59,25 +59,28 @@ RSpec.describe Aidp::Prompts::PromptTemplateManager do
       end
     end
 
-    context "with a fallback prompt" do
-      it "uses the fallback when template not found" do
-        fallback = "This is the fallback prompt for {{name}}"
-
-        prompt = manager.render(
-          "nonexistent/template",
-          fallback: fallback,
-          name: "Bob"
-        )
-
-        expect(prompt).to eq("This is the fallback prompt for Bob")
+    context "when template not found" do
+      it "raises TemplateNotFoundError" do
+        expect {
+          manager.render("nonexistent/template", name: "Bob")
+        }.to raise_error(Aidp::Prompts::TemplateNotFoundError, /Template not found/)
       end
     end
 
-    context "without fallback" do
-      it "raises TemplateNotFoundError when template not found" do
+    context "when template has no prompt" do
+      before do
+        category_dir = File.join(project_prompts_dir, "invalid")
+        FileUtils.mkdir_p(category_dir)
+        File.write(
+          File.join(category_dir, "no_prompt.yml"),
+          {"name" => "No Prompt Template"}.to_yaml
+        )
+      end
+
+      it "raises TemplateNotFoundError" do
         expect {
-          manager.render("nonexistent/template", name: "Bob")
-        }.to raise_error(Aidp::Prompts::TemplateNotFoundError)
+          manager.render("invalid/no_prompt")
+        }.to raise_error(Aidp::Prompts::TemplateNotFoundError, /has no prompt/)
       end
     end
   end
