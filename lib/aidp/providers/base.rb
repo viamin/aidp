@@ -381,7 +381,7 @@ module Aidp
 
         begin
           # Call the original send_message method
-          result = send_message(prompt: prompt, session: session)
+          result = send_message(prompt: prompt, session: session, options: options)
           success = true
 
           # Extract token usage and cost if available

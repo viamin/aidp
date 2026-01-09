@@ -152,6 +152,8 @@ RSpec.describe Aidp::Harness::UsageLimitEnforcer do
     end
 
     it "record_after_request does nothing" do
+      # Clear any state from previous tests to avoid pollution
+      tracker.clear_all_usage
       disabled_enforcer.record_after_request(tokens: 5000, cost: 0.50)
       usage = tracker.current_usage
       # Disabled enforcer should not record usage, so tokens remain 0

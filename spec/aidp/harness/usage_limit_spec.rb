@@ -34,7 +34,7 @@ RSpec.describe Aidp::Harness::UsageLimit do
 
     it "creates disabled limit from empty hash" do
       limit = described_class.from_config({})
-      expect(limit.enabled?).to be true # default when hash provided
+      expect(limit.enabled?).to be false # enabled requires explicit true
     end
 
     it "defaults period to monthly" do

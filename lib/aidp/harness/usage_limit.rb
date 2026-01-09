@@ -20,7 +20,7 @@ module Aidp
         return new(enabled: false) unless config.is_a?(Hash)
 
         new(
-          enabled: config[:enabled] != false,
+          enabled: config[:enabled] == true,
           period: normalize_period(config[:period]),
           reset_day: config[:reset_day] || DEFAULT_RESET_DAY,
           tier_limits: parse_tier_limits(config[:tier_limits]),
