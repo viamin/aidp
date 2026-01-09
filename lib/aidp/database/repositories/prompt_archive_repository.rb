@@ -86,7 +86,7 @@ module Aidp
             <<~SQL,
               SELECT * FROM prompt_archive
               WHERE project_dir = ? AND step_name = ?
-              ORDER BY archived_at DESC
+              ORDER BY archived_at DESC, id DESC
               LIMIT 1
             SQL
             [project_dir, step_name]

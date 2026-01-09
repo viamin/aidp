@@ -54,6 +54,7 @@ module Aidp
             source TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            started_at TEXT,
             completed_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_dir);

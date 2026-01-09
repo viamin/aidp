@@ -122,9 +122,10 @@ module Aidp
         Aidp.log_info("storage_migrator", "cleaning_up_old_storage")
 
         files_to_remove = migrated_files
+        files_to_remove << ConfigPaths.config_file(project_dir) unless keep_config
+
         files_to_remove.each do |file|
           next unless File.exist?(file)
-          next if keep_config && file == ConfigPaths.config_file(project_dir)
 
           FileUtils.rm_rf(file)
           @stats[:files_removed] += 1

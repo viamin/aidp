@@ -36,7 +36,8 @@ RSpec.describe Aidp::CLI::StorageCommand do
 
     context "with unknown subcommand" do
       it "displays error and usage" do
-        expect { command.run(["unknown"]) }.to output(/Unknown subcommand/).to_stdout
+        command.run(["unknown"])
+        expect(prompt).to have_received(:say).with(/Unknown subcommand/, any_args)
       end
     end
   end
@@ -44,7 +45,8 @@ RSpec.describe Aidp::CLI::StorageCommand do
   describe "migrate subcommand" do
     context "when no file storage exists" do
       it "reports nothing to migrate" do
-        expect { command.run(["migrate"]) }.to output(/No file-based storage found/).to_stdout
+        command.run(["migrate"])
+        expect(prompt).to have_received(:say).with(/No file-based storage found/, any_args)
       end
     end
 
@@ -54,11 +56,13 @@ RSpec.describe Aidp::CLI::StorageCommand do
       end
 
       it "performs migration" do
-        expect { command.run(["migrate"]) }.to output(/Migration Results/).to_stdout
+        command.run(["migrate"])
+        expect(prompt).to have_received(:say).with(/Migration Results/, any_args)
       end
 
       it "supports dry run" do
-        expect { command.run(["migrate", "--dry-run"]) }.to output(/DRY RUN/).to_stdout
+        command.run(["migrate", "--dry-run"])
+        expect(prompt).to have_received(:say).with(/DRY RUN/, any_args)
       end
     end
 
@@ -72,18 +76,21 @@ RSpec.describe Aidp::CLI::StorageCommand do
       end
 
       it "warns about existing data" do
-        expect { command.run(["migrate"]) }.to output(/already contains migrated data/).to_stdout
+        command.run(["migrate"])
+        expect(prompt).to have_received(:say).with(/already contains migrated data/, any_args)
       end
 
       it "allows force migration" do
-        expect { command.run(["migrate", "--force"]) }.to output(/Migration Results/).to_stdout
+        command.run(["migrate", "--force"])
+        expect(prompt).to have_received(:say).with(/Migration Results/, any_args)
       end
     end
   end
 
   describe "status subcommand" do
     it "displays storage status" do
-      expect { command.run(["status"]) }.to output(/Storage Migration Status/).to_stdout
+      command.run(["status"])
+      expect(prompt).to have_received(:say).with(/Storage Migration Status/, any_args)
     end
 
     context "with file storage" do
@@ -92,7 +99,8 @@ RSpec.describe Aidp::CLI::StorageCommand do
       end
 
       it "indicates migration needed" do
-        expect { command.run(["status"]) }.to output(/File-based storage: Found/).to_stdout
+        command.run(["status"])
+        expect(prompt).to have_received(:say).with(/File-based storage: Found/, any_args)
       end
     end
 
@@ -105,7 +113,8 @@ RSpec.describe Aidp::CLI::StorageCommand do
       end
 
       it "indicates database has data" do
-        expect { command.run(["status"]) }.to output(/SQLite database: Contains data/).to_stdout
+        command.run(["status"])
+        expect(prompt).to have_received(:say).with(/SQLite database: Contains data/, any_args)
       end
     end
   end
@@ -113,7 +122,8 @@ RSpec.describe Aidp::CLI::StorageCommand do
   describe "cleanup subcommand" do
     context "when not migrated" do
       it "refuses to cleanup" do
-        expect { command.run(["cleanup"]) }.to output(/Cannot cleanup/).to_stdout
+        command.run(["cleanup"])
+        expect(prompt).to have_received(:say).with(/Cannot cleanup/, any_args)
       end
     end
 
@@ -127,7 +137,8 @@ RSpec.describe Aidp::CLI::StorageCommand do
       end
 
       it "cleans up old storage" do
-        expect { command.run(["cleanup", "--force"]) }.to output(/Cleanup complete/).to_stdout
+        command.run(["cleanup", "--force"])
+        expect(prompt).to have_received(:say).with(/Cleanup complete/, any_args)
         expect(File.exist?(File.join(aidp_dir, "checkpoint.yml"))).to be false
       end
     end
