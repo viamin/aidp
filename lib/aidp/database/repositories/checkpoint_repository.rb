@@ -32,6 +32,7 @@ module Aidp
           now = current_timestamp
 
           if existing
+            existing_id = existing[:id]
             execute(
               <<~SQL,
                 UPDATE checkpoints SET
@@ -50,11 +51,11 @@ module Aidp
                 data[:run_loop_started_at],
                 serialize_json(data[:metrics]),
                 now,
-                existing["id"]
+                existing_id
               ]
             )
-            Aidp.log_debug("checkpoint_repository", "updated", id: existing["id"])
-            existing["id"]
+            Aidp.log_debug("checkpoint_repository", "updated", id: existing_id)
+            existing_id
           else
             execute(
               insert_sql([
@@ -125,7 +126,7 @@ module Aidp
             <<~SQL,
               SELECT * FROM checkpoint_history
               WHERE project_dir = ?
-              ORDER BY timestamp DESC
+              ORDER BY timestamp DESC, id DESC
               LIMIT ?
             SQL
             [project_dir, limit]

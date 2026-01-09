@@ -321,29 +321,17 @@ module Aidp
           if row
             {
               id: row["id"],
-              plans: deserialize_json(row["issues"]) || {},
-              builds: {},
-              reviews: {},
-              ci_fixes: {},
-              change_requests: {},
-              detection_comments: {},
-              feedback_comments: {},
-              processed_reactions: {},
-              auto_prs: {},
-              pull_requests: deserialize_json(row["pull_requests"]) || {},
+              plans: deserialize_json(row["plans"]) || {},
+              builds: deserialize_json(row["builds"]) || {},
+              reviews: deserialize_json(row["reviews"]) || {},
+              ci_fixes: deserialize_json(row["ci_fixes"]) || {},
+              change_requests: deserialize_json(row["change_requests"]) || {},
+              detection_comments: deserialize_json(row["detection_comments"]) || {},
+              feedback_comments: deserialize_json(row["feedback_comments"]) || {},
+              processed_reactions: deserialize_json(row["processed_reactions"]) || {},
+              auto_prs: deserialize_json(row["auto_prs"]) || {},
               metadata: deserialize_json(row["metadata"]) || {}
-            }.tap do |s|
-              # Merge metadata sections into top-level for backwards compat
-              meta = s[:metadata]
-              s[:builds] = meta[:builds] || {}
-              s[:reviews] = meta[:reviews] || {}
-              s[:ci_fixes] = meta[:ci_fixes] || {}
-              s[:change_requests] = meta[:change_requests] || {}
-              s[:detection_comments] = meta[:detection_comments] || {}
-              s[:feedback_comments] = meta[:feedback_comments] || {}
-              s[:processed_reactions] = meta[:processed_reactions] || {}
-              s[:auto_prs] = meta[:auto_prs] || {}
-            end
+            }
           else
             {
               plans: {},
@@ -355,7 +343,6 @@ module Aidp
               feedback_comments: {},
               processed_reactions: {},
               auto_prs: {},
-              pull_requests: {},
               metadata: {}
             }
           end
@@ -363,16 +350,6 @@ module Aidp
 
         def save!
           now = current_timestamp
-          metadata = {
-            builds: builds,
-            reviews: reviews,
-            ci_fixes: ci_fixes,
-            change_requests: change_requests,
-            detection_comments: detection_comments,
-            feedback_comments: feedback_comments,
-            processed_reactions: processed_reactions,
-            auto_prs: auto_prs
-          }
 
           existing = query_one(
             "SELECT id FROM watch_state WHERE project_dir = ? AND repository = ?",
@@ -383,8 +360,15 @@ module Aidp
             execute(
               <<~SQL,
                 UPDATE watch_state SET
-                  issues = ?,
-                  pull_requests = ?,
+                  plans = ?,
+                  builds = ?,
+                  reviews = ?,
+                  ci_fixes = ?,
+                  change_requests = ?,
+                  detection_comments = ?,
+                  feedback_comments = ?,
+                  processed_reactions = ?,
+                  auto_prs = ?,
                   metadata = ?,
                   last_poll_at = ?,
                   updated_at = ?
@@ -392,8 +376,15 @@ module Aidp
               SQL
               [
                 serialize_json(plans),
-                serialize_json(state[:pull_requests]),
-                serialize_json(metadata),
+                serialize_json(builds),
+                serialize_json(reviews),
+                serialize_json(ci_fixes),
+                serialize_json(change_requests),
+                serialize_json(detection_comments),
+                serialize_json(feedback_comments),
+                serialize_json(processed_reactions),
+                serialize_json(auto_prs),
+                serialize_json(state[:metadata]),
                 now,
                 now,
                 project_dir,
@@ -403,15 +394,24 @@ module Aidp
           else
             execute(
               insert_sql([
-                :project_dir, :repository, :issues, :pull_requests,
+                :project_dir, :repository, :plans, :builds, :reviews,
+                :ci_fixes, :change_requests, :detection_comments,
+                :feedback_comments, :processed_reactions, :auto_prs,
                 :metadata, :last_poll_at, :created_at, :updated_at
               ]),
               [
                 project_dir,
                 repository,
                 serialize_json(plans),
-                serialize_json(state[:pull_requests]),
-                serialize_json(metadata),
+                serialize_json(builds),
+                serialize_json(reviews),
+                serialize_json(ci_fixes),
+                serialize_json(change_requests),
+                serialize_json(detection_comments),
+                serialize_json(feedback_comments),
+                serialize_json(processed_reactions),
+                serialize_json(auto_prs),
+                serialize_json(state[:metadata]),
                 now,
                 now,
                 now
