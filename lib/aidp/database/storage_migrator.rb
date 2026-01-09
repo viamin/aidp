@@ -42,7 +42,7 @@ module Aidp
       def already_migrated?
         return false unless File.exist?(ConfigPaths.database_file(project_dir))
 
-        Database.initialize!(project_dir)
+        Database::Migrations.run!(project_dir)
         # Check if any tables have data
         db = Database.connection(project_dir)
         tables = %w[checkpoints tasks progress harness_state workstreams watch_state]
@@ -68,7 +68,7 @@ module Aidp
         end
 
         create_backup if backup && !@dry_run
-        Database.initialize!(project_dir) unless @dry_run
+        Database::Migrations.run!(project_dir) unless @dry_run
 
         migrate_checkpoints
         migrate_tasks
@@ -215,10 +215,10 @@ module Aidp
         if File.exist?(checkpoint_file)
           data = YAML.safe_load_file(checkpoint_file, permitted_classes: [Time, Symbol])
           if data && !@dry_run
-            repo.save(
-              step: data["step"] || data[:step],
+            repo.save_checkpoint(
+              step_name: data["step"] || data[:step],
               status: data["status"] || data[:status] || "unknown",
-              metadata: data
+              metrics: data
             )
           end
           @stats[:checkpoints_migrated] += 1
@@ -230,10 +230,10 @@ module Aidp
             next if line.strip.empty?
             entry = JSON.parse(line, symbolize_names: true)
             unless @dry_run
-              repo.add_history(
-                step: entry[:step],
+              repo.append_history(
+                step_name: entry[:step],
                 status: entry[:status] || "completed",
-                metadata: entry
+                metrics: entry
               )
             end
             @stats[:checkpoint_history_migrated] += 1
@@ -261,11 +261,9 @@ module Aidp
         tasks.each do |task|
           unless @dry_run
             repo.create(
-              title: task[:title] || task["title"],
-              description: task[:description] || task["description"],
-              status: task[:status] || task["status"] || "pending",
-              priority: task[:priority] || task["priority"],
-              metadata: task
+              description: task[:title] || task["title"] || task[:description] || task["description"],
+              priority: task[:priority] || task["priority"] || "medium",
+              tags: task[:tags] || task["tags"] || []
             )
           end
           @stats[:tasks_migrated] += 1
@@ -288,12 +286,14 @@ module Aidp
           data = YAML.safe_load_file(progress_file, permitted_classes: [Time, Symbol])
           next unless data
 
+          now = Time.now.utc.strftime("%Y-%m-%d %H:%M:%S")
           unless @dry_run
-            repo.save(
+            repo.upsert_progress(
               mode: mode,
               current_step: data["current_step"] || data[:current_step],
-              status: data["status"] || data[:status] || "unknown",
-              metadata: data
+              steps_completed: data["steps_completed"] || data[:steps_completed] || [],
+              started_at: data["started_at"] || data[:started_at] || now,
+              updated_at: now
             )
           end
           @stats[:progress_migrated] += 1
@@ -317,12 +317,7 @@ module Aidp
           data = JSON.parse(File.read(state_file), symbolize_names: true)
 
           unless @dry_run
-            repo.save(
-              mode: mode,
-              provider: data[:provider] || data["provider"],
-              status: data[:status] || data["status"] || "unknown",
-              state_data: data
-            )
+            repo.save_state(mode, data)
           end
           @stats[:harness_states_migrated] += 1
         rescue => e
@@ -348,14 +343,19 @@ module Aidp
         workstreams = [workstreams] if workstreams.is_a?(Hash)
 
         workstreams.each do |ws|
+          slug = ws[:slug] || ws["slug"] || ws[:name] || ws["name"]
+          next unless slug
+
           unless @dry_run
-            repo.create(
-              name: ws[:name] || ws["name"],
-              branch: ws[:branch] || ws["branch"],
-              status: ws[:status] || ws["status"] || "active",
-              worktree_path: ws[:worktree_path] || ws["worktree_path"],
-              metadata: ws
+            repo.init(
+              slug: slug,
+              task: ws[:task] || ws["task"] || ws[:name] || ws["name"]
             )
+            # Update additional attributes if present
+            branch = ws[:branch] || ws["branch"]
+            if branch
+              repo.update(slug: slug, branch: branch)
+            end
           end
           @stats[:workstreams_migrated] += 1
         end
@@ -370,42 +370,13 @@ module Aidp
 
         return unless File.exist?(watch_state_file) || File.exist?(watch_results_file)
 
-        Aidp.log_debug("storage_migrator", "migrating_watch_state")
+        # Watch state has a complex format that requires issue-specific records.
+        # Skip automatic migration - the data will be regenerated when watch mode runs.
+        Aidp.log_debug("storage_migrator", "skipping_watch_state_migration",
+          reason: "Watch state will be regenerated on next watch mode run")
 
-        require_relative "repositories/watch_state_repository"
-        repo = Repositories::WatchStateRepository.new(project_dir: project_dir)
-
-        if File.exist?(watch_state_file)
-          data = YAML.safe_load_file(watch_state_file, permitted_classes: [Time, Symbol])
-          unless @dry_run
-            repo.save_state(
-              status: data["status"] || data[:status] || "stopped",
-              last_check: data["last_check"] || data[:last_check],
-              state_data: data
-            )
-          end
-          @stats[:watch_state_migrated] += 1
-        end
-
-        if File.exist?(watch_results_file)
-          results = YAML.safe_load_file(watch_results_file, permitted_classes: [Time, Symbol])
-          results = [results] unless results.is_a?(Array)
-
-          results.each do |result|
-            next unless result
-            unless @dry_run
-              repo.add_result(
-                issue_number: result["issue_number"] || result[:issue_number],
-                status: result["status"] || result[:status],
-                result_data: result
-              )
-            end
-            @stats[:watch_results_migrated] += 1
-          end
-        end
-      rescue => e
-        @errors << {type: :watch_state, error: e.message}
-        Aidp.log_error("storage_migrator", "watch_state_migration_failed", error: e.message)
+        @stats[:watch_state_skipped] = 1 if File.exist?(watch_state_file)
+        @stats[:watch_results_skipped] = 1 if File.exist?(watch_results_file)
       end
 
       def migrate_worktrees
@@ -426,13 +397,13 @@ module Aidp
 
           worktrees.each do |slug, wt|
             wt = wt.merge(slug: slug) if wt.is_a?(Hash)
+            slug_str = (wt[:slug] || slug).to_s
+            path = wt[:path] || wt["path"]
+            branch = wt[:branch] || wt["branch"]
+            next unless slug_str && path && branch
+
             unless @dry_run
-              repo.register(
-                slug: wt[:slug] || slug,
-                path: wt[:path] || wt["path"],
-                branch: wt[:branch] || wt["branch"],
-                metadata: wt
-              )
+              repo.register(slug: slug_str, path: path, branch: branch)
             end
             @stats[:worktrees_migrated] += 1
           end
@@ -444,12 +415,16 @@ module Aidp
           pr_worktrees = data[:pr_worktrees] || data["pr_worktrees"] || data
 
           pr_worktrees.each do |pr_num, wt|
+            path = wt[:path] || wt["path"]
+            branch = wt[:branch] || wt["branch"] || "main"
+            next unless path
+
             unless @dry_run
               repo.register_pr(
                 pr_number: pr_num.to_s.to_i,
-                path: wt[:path] || wt["path"],
-                branch: wt[:branch] || wt["branch"],
-                metadata: wt
+                path: path,
+                base_branch: wt[:base_branch] || wt["base_branch"] || "main",
+                head_branch: wt[:head_branch] || wt["head_branch"] || branch
               )
             end
             @stats[:pr_worktrees_migrated] += 1
@@ -475,11 +450,12 @@ module Aidp
           data = JSON.parse(File.read(eval_file), symbolize_names: true)
           unless @dry_run
             repo.store(
-              eval_id: data[:id] || File.basename(eval_file, ".json"),
-              eval_type: data[:type] || data["type"] || "unknown",
-              status: data[:status] || data["status"] || "completed",
-              results: data[:results] || data["results"] || data,
-              metadata: data
+              id: data[:id] || File.basename(eval_file, ".json"),
+              rating: data[:rating] || data["rating"] || data[:status] || data["status"] || "neutral",
+              target_type: data[:type] || data["type"] || data[:target_type] || data["target_type"],
+              target_id: data[:target_id] || data["target_id"],
+              feedback: data[:comment] || data["comment"] || data[:feedback] || data["feedback"],
+              context: data[:context] || data["context"] || data
             )
           end
           @stats[:evaluations_migrated] += 1
@@ -586,12 +562,16 @@ module Aidp
         secrets = data[:secrets] || data["secrets"] || data
 
         secrets.each do |secret|
+          name = secret[:name] || secret["name"]
+          env_var = secret[:env_var] || secret["env_var"]
+          next unless name && env_var
+
           unless @dry_run
             repo.register(
-              name: secret[:name] || secret["name"],
-              env_var: secret[:env_var] || secret["env_var"],
-              source: secret[:source] || secret["source"],
-              metadata: secret
+              name: name,
+              env_var: env_var,
+              description: secret[:description] || secret["description"],
+              scopes: secret[:scopes] || secret["scopes"] || []
             )
           end
           @stats[:secrets_migrated] += 1
@@ -621,12 +601,7 @@ module Aidp
           provider = parts[-1] || "unknown"
 
           unless @dry_run
-            repo.archive(
-              step: step,
-              provider: provider,
-              prompt: content,
-              metadata: {original_file: filename, archived_at: timestamp}
-            )
+            repo.archive(step_name: step, content: content)
           end
           @stats[:prompts_migrated] += 1
         rescue => e
@@ -648,24 +623,23 @@ module Aidp
 
         Dir.glob(File.join(jobs_dir, "*.json")).each do |job_file|
           data = JSON.parse(File.read(job_file), symbolize_names: true)
-          job_id = File.basename(job_file, ".json")
 
           unless @dry_run
-            repo.create(
-              job_id: data[:id] || job_id,
+            # Note: create() generates its own job_id, so old IDs are not preserved
+            new_job_id = repo.create(
               job_type: data[:type] || data["type"] || "background",
-              options: data[:options] || data["options"] || {}
+              input: data[:options] || data["options"] || data[:input] || data["input"] || {}
             )
 
             # Update status based on stored state
             status = data[:status] || data["status"]
             case status
             when "running"
-              repo.start(data[:id] || job_id, pid: data[:pid] || data["pid"])
+              repo.start(new_job_id, pid: data[:pid] || data["pid"])
             when "completed"
-              repo.complete(data[:id] || job_id, result: data[:result] || data["result"])
+              repo.complete(new_job_id, output: data[:result] || data["result"] || data[:output] || data["output"] || {})
             when "failed"
-              repo.fail(data[:id] || job_id, error: data[:error] || data["error"])
+              repo.fail(new_job_id, error: data[:error] || data["error"] || "Unknown error")
             end
           end
           @stats[:jobs_migrated] += 1

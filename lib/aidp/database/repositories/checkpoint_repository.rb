@@ -91,7 +91,10 @@ module Aidp
         # @param data [Hash] Checkpoint data
         def append_history(data)
           execute(
-            insert_sql([:project_dir, :step_name, :step_index, :status, :timestamp, :metadata]),
+            <<~SQL,
+              INSERT INTO checkpoint_history (project_dir, step_name, step_index, status, timestamp, metadata)
+              VALUES (?, ?, ?, ?, ?, ?)
+            SQL
             [
               project_dir,
               data[:step_name],
