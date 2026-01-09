@@ -640,7 +640,8 @@ module Aidp
             when "running"
               repo.start(new_job_id, pid: data[:pid] || data["pid"])
             when "completed"
-              repo.complete(new_job_id, output: data[:result] || data["result"] || data[:output] || data["output"] || {})
+              output = data[:result] || data["result"] || data[:output] || data["output"] || {}
+              repo.complete(new_job_id, output: output)
             when "failed"
               repo.fail(new_job_id, error: data[:error] || data["error"] || "Unknown error")
             end
