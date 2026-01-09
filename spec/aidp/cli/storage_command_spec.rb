@@ -13,10 +13,11 @@ RSpec.describe Aidp::CLI::StorageCommand do
   before do
     FileUtils.mkdir_p(aidp_dir)
     allow(prompt).to receive(:yes?).and_return(true)
+    allow(prompt).to receive(:say)
   end
 
   after do
-    Aidp::Database.close(temp_dir) if Aidp::Database.connection?(temp_dir)
+    Aidp::Database.close(temp_dir) if Aidp::Database.exists?(temp_dir)
     FileUtils.rm_rf(temp_dir)
   end
 
