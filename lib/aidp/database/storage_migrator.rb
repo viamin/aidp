@@ -597,11 +597,9 @@ module Aidp
           content = File.read(prompt_file)
           filename = File.basename(prompt_file, ".md")
 
-          # Parse filename for metadata (format: timestamp_step_provider.md)
+          # Parse filename for step name (format: timestamp_step_provider.md)
           parts = filename.split("_")
-          timestamp = parts[0]
           step = parts[1..-2]&.join("_") || "unknown"
-          provider = parts[-1] || "unknown"
 
           unless @dry_run
             repo.archive(step_name: step, content: content)
