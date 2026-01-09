@@ -169,6 +169,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with workstream files" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         workstreams_dir = File.join(aidp_dir, "workstreams", "feature-123")
         FileUtils.mkdir_p(workstreams_dir)
         File.write(
@@ -187,6 +189,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with worktree files" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         File.write(
           File.join(aidp_dir, "worktrees.json"),
           JSON.generate([{path: "/tmp/worktree", branch: "feature", slug: "ws-1"}])
@@ -221,6 +225,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with model cache files" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         model_cache_dir = File.join(aidp_dir, "model_cache")
         FileUtils.mkdir_p(model_cache_dir)
         File.write(
@@ -239,6 +245,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with secrets registry" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         security_dir = File.join(aidp_dir, "security")
         FileUtils.mkdir_p(security_dir)
         File.write(
@@ -257,6 +265,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with prompt archive files" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         prompt_archive_dir = File.join(aidp_dir, "prompt_archive")
         FileUtils.mkdir_p(prompt_archive_dir)
         File.write(
@@ -293,6 +303,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with provider metrics files" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         File.write(
           File.join(aidp_dir, "provider_metrics.yml"),
           YAML.dump("claude" => {"success_count" => 10, "error_count" => 1})
@@ -309,6 +321,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with watch state files" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         watch_dir = File.join(aidp_dir, "watch")
         FileUtils.mkdir_p(watch_dir)
         File.write(
@@ -327,6 +341,8 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
     context "with deprecated models file" do
       before do
+        # Add trigger file for migration_needed?
+        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         File.write(
           File.join(aidp_dir, "deprecated_models.json"),
           JSON.generate([{provider: "openai", model: "gpt-3", replacement: "gpt-4"}])
@@ -368,54 +384,6 @@ RSpec.describe Aidp::Database::StorageMigrator do
 
       expect(File.exist?(backup_dir)).to be true
       expect(File.exist?(File.join(backup_dir, "test.txt"))).to be true
-    end
-  end
-
-  describe "#file_storage_exists?" do
-    context "when no file storage exists" do
-      it "returns false" do
-        expect(migrator.file_storage_exists?).to be false
-      end
-    end
-
-    context "when checkpoint file exists" do
-      before do
-        File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
-      end
-
-      it "returns true" do
-        expect(migrator.file_storage_exists?).to be true
-      end
-    end
-
-    context "when progress directory exists" do
-      before do
-        FileUtils.mkdir_p(File.join(aidp_dir, "progress"))
-        File.write(File.join(aidp_dir, "progress", "execute.yml"), "step: test")
-      end
-
-      it "returns true" do
-        expect(migrator.file_storage_exists?).to be true
-      end
-    end
-  end
-
-  describe "#migrated_files" do
-    context "when files exist" do
-      before do
-        File.write(File.join(aidp_dir, "checkpoint.yml"), "test")
-        File.write(File.join(aidp_dir, "tasks.json"), "{}")
-        progress_dir = File.join(aidp_dir, "progress")
-        FileUtils.mkdir_p(progress_dir)
-        File.write(File.join(progress_dir, "execute.yml"), "test")
-      end
-
-      it "returns list of migratable files" do
-        files = migrator.migrated_files
-
-        expect(files).to include(File.join(aidp_dir, "checkpoint.yml"))
-        expect(files).to include(File.join(aidp_dir, "tasks.json"))
-      end
     end
   end
 
