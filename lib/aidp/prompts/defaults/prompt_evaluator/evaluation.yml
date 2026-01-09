@@ -1,0 +1,99 @@
+# Prompt Evaluation Template
+# Used by PromptEvaluator to analyze stuck work loops
+name: Prompt Evaluation
+description: >
+  Evaluates why a work loop prompt may not be leading to completion,
+  analyzing clarity, task breakdown, context, and blockers.
+version: "1.0.0"
+category: prompt_evaluator
+tier: mini
+cache_ttl: null
+
+prompt: |
+  You are evaluating the effectiveness of a work loop prompt that has been running for {{iteration_count}} iterations without completion.
+
+  ## Current Prompt Content
+  {{prompt_content}}
+
+  ## Task Summary
+  {{task_summary}}
+
+  ## Recent Check Results
+  {{recent_failures}}
+
+  ## Evaluation Criteria
+
+  Analyze why this prompt may not be leading to completion:
+
+  1. **Clarity of Goals**: Are the implementation requirements clearly defined?
+  2. **Task Breakdown**: Does the prompt guide proper task decomposition?
+  3. **Completion Criteria**: Are the completion criteria specific and achievable?
+  4. **Context Sufficiency**: Does the agent have enough context to proceed?
+  5. **Blockers**: Are there technical blockers or missing information?
+  6. **Scope**: Is the scope realistic for an AI agent to complete?
+
+  ## Your Assessment
+
+  Provide:
+  - Whether this prompt is likely effective (true/false)
+  - Specific issues with the current prompt
+  - Actionable suggestions for improvement
+  - Likely blockers preventing progress
+  - Prioritized recommended actions
+  - Your confidence in this assessment (0.0-1.0)
+
+  Be specific and actionable. Focus on what can be changed to achieve completion.
+
+schema:
+  type: object
+  properties:
+    effective:
+      type: boolean
+      description: True if the prompt is likely to lead to completion within a few more iterations
+    issues:
+      type: array
+      items:
+        type: string
+      description: Specific problems identified with the current prompt
+    suggestions:
+      type: array
+      items:
+        type: string
+      description: Actionable suggestions to improve prompt effectiveness
+    likely_blockers:
+      type: array
+      items:
+        type: string
+      description: Potential blockers preventing progress
+    recommended_actions:
+      type: array
+      items:
+        type: object
+        properties:
+          action:
+            type: string
+          priority:
+            type: string
+            enum:
+              - high
+              - medium
+              - low
+          rationale:
+            type: string
+      description: Specific actions to take, prioritized
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: Confidence in this assessment
+  required:
+    - effective
+    - issues
+    - suggestions
+    - confidence
+
+variables:
+  - iteration_count
+  - prompt_content
+  - task_summary
+  - recent_failures

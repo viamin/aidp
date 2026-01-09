@@ -3,6 +3,7 @@
 require "json"
 require_relative "provider_factory"
 require_relative "thinking_depth_manager"
+require_relative "../prompts/prompt_template_manager"
 
 module Aidp
   module Harness
@@ -10,6 +11,11 @@ module Aidp
     #
     # Delegates semantic analysis and decision-making to AI models instead of
     # using brittle pattern matching, scoring formulas, or heuristic thresholds.
+    #
+    # Prompts can be customized via YAML templates at:
+    # - Project level: .aidp/prompts/decision_engine/<name>.yml
+    # - User level: ~/.aidp/prompts/decision_engine/<name>.yml
+    # - Built-in: lib/aidp/prompts/defaults/decision_engine/<name>.yml
     #
     # @example Basic usage
     #   engine = AIDecisionEngine.new(config, provider_manager)
@@ -269,17 +275,30 @@ module Aidp
         }
       }.freeze
 
-      attr_reader :config, :provider_factory, :cache
+      # Maps decision types to template file paths
+      TEMPLATE_PATHS = {
+        condition_detection: "decision_engine/condition_detection",
+        error_classification: "decision_engine/error_classification",
+        completion_detection: "decision_engine/completion_detection",
+        implementation_verification: "decision_engine/implementation_verification",
+        prompt_evaluation: "decision_engine/prompt_evaluation",
+        template_improvement: "decision_engine/template_improvement"
+      }.freeze
+
+      attr_reader :config, :provider_factory, :cache, :prompt_template_manager
 
       # Initialize the AI Decision Engine
       #
       # @param config [Configuration] AIDP configuration object
       # @param provider_factory [ProviderFactory] Factory for creating provider instances
-      def initialize(config, provider_factory: nil)
+      # @param prompt_template_manager [PromptTemplateManager] Optional template manager
+      # @param project_dir [String] Project directory for template loading
+      def initialize(config, provider_factory: nil, prompt_template_manager: nil, project_dir: Dir.pwd)
         @config = config
         # ProviderFactory expects a ConfigManager, not a Configuration object.
         # Pass nil to let ProviderFactory create its own ConfigManager.
         @provider_factory = provider_factory || ProviderFactory.new
+        @prompt_template_manager = prompt_template_manager || Prompts::PromptTemplateManager.new(project_dir: project_dir)
         @cache = {}
         @cache_timestamps = {}
       end
@@ -295,12 +314,13 @@ module Aidp
       # @raise [ArgumentError] If decision_type is unknown
       # @raise [ValidationError] If response doesn't match schema
       def decide(decision_type, context:, schema: nil, tier: nil, cache_ttl: nil)
-        template = DECISION_TEMPLATES[decision_type]
-        raise ArgumentError, "Unknown decision type: #{decision_type}" unless template
+        # Get fallback template for defaults and fallback prompt
+        fallback_template = DECISION_TEMPLATES[decision_type]
+        raise ArgumentError, "Unknown decision type: #{decision_type}" unless fallback_template
 
         # Check cache if TTL specified
         cache_key = build_cache_key(decision_type, context)
-        ttl = cache_ttl || template[:cache_ttl]
+        ttl = cache_ttl || fallback_template[:cache_ttl]
         if ttl && (cached_result = get_cached(cache_key, ttl))
           Aidp.log_debug("ai_decision_engine", "Cache hit for #{decision_type}", {
             cache_key: cache_key,
@@ -309,11 +329,11 @@ module Aidp
           return cached_result
         end
 
-        # Build prompt from template
-        prompt = build_prompt(template[:prompt_template], context)
+        # Load prompt from template manager, falling back to hardcoded template
+        prompt = load_prompt_from_template(decision_type, context, fallback_template)
 
-        # Select tier
-        selected_tier = tier || template[:default_tier]
+        # Select tier from template file or fallback
+        selected_tier = tier || load_tier_from_template(decision_type) || fallback_template[:default_tier]
 
         # Get model for tier, using harness default provider
         thinking_manager = ThinkingDepthManager.new(config)
@@ -346,6 +366,59 @@ module Aidp
       end
 
       private
+
+      # Load prompt from template manager, falling back to hardcoded template
+      #
+      # @param decision_type [Symbol] Decision type
+      # @param context [Hash] Context variables for substitution
+      # @param fallback_template [Hash] Hardcoded fallback template
+      # @return [String] Rendered prompt
+      def load_prompt_from_template(decision_type, context, fallback_template)
+        template_path = TEMPLATE_PATHS[decision_type]
+        fallback_prompt = fallback_template[:prompt_template]
+
+        begin
+          prompt = @prompt_template_manager.render(template_path, fallback: fallback_prompt, **context)
+
+          Aidp.log_debug("ai_decision_engine", "loaded_template", {
+            decision_type: decision_type,
+            template_path: template_path,
+            used_fallback: prompt == build_prompt(fallback_prompt, context)
+          })
+
+          prompt
+        rescue Prompts::TemplateNotFoundError => e
+          Aidp.log_debug("ai_decision_engine", "template_not_found_using_fallback", {
+            decision_type: decision_type,
+            error: e.message
+          })
+          build_prompt(fallback_prompt, context)
+        rescue => e
+          Aidp.log_warn("ai_decision_engine", "template_load_error_using_fallback", {
+            decision_type: decision_type,
+            error: e.message
+          })
+          build_prompt(fallback_prompt, context)
+        end
+      end
+
+      # Load tier configuration from template file
+      #
+      # @param decision_type [Symbol] Decision type
+      # @return [String, nil] Tier name or nil if not found
+      def load_tier_from_template(decision_type)
+        template_path = TEMPLATE_PATHS[decision_type]
+        template_data = @prompt_template_manager.load_template(template_path)
+        return nil unless template_data
+
+        template_data["tier"] || template_data[:tier]
+      rescue => e
+        Aidp.log_debug("ai_decision_engine", "tier_load_error", {
+          decision_type: decision_type,
+          error: e.message
+        })
+        nil
+      end
 
       # Build cache key from decision type and context
       def build_cache_key(decision_type, context)

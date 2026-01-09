@@ -1,0 +1,52 @@
+# Template Improvement Prompt Template
+# Used by AIDecisionEngine to generate prompt template improvements (AGD pattern)
+name: Template Improvement
+description: >
+  Generates template improvement suggestions based on evaluation results,
+  following the AI-Generated Determinism (AGD) pattern.
+version: "1.0.0"
+category: decision_engine
+tier: standard
+cache_ttl: null
+
+prompt: |
+  {{prompt}}
+
+schema:
+  type: object
+  properties:
+    improved_sections:
+      type: array
+      items:
+        type: object
+        properties:
+          section_name:
+            type: string
+          original:
+            type: string
+          improved:
+            type: string
+          rationale:
+            type: string
+    additional_sections:
+      type: array
+      items:
+        type: object
+        properties:
+          section_name:
+            type: string
+          content:
+            type: string
+          rationale:
+            type: string
+    completion_criteria_improvements:
+      type: array
+      items:
+        type: string
+      description: Improvements to completion criteria definitions
+  required:
+    - improved_sections
+    - completion_criteria_improvements
+
+variables:
+  - prompt

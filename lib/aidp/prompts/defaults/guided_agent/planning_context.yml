@@ -1,0 +1,33 @@
+# Planning Context Prompt Template
+# Used by GuidedAgent to build context for iterative planning conversations
+name: Planning Context
+description: >
+  Builds context for iterative planning conversations, presenting current plan
+  state and conversation history to determine next questions.
+version: "1.0.0"
+category: guided_agent
+tier: mini
+cache_ttl: null
+
+prompt: |
+  Current Plan:
+  Goal: {{goal}}
+  Scope: {{scope}}
+  Users: {{users}}
+  Requirements: {{requirements}}
+  Constraints: {{constraints}}
+  Completion Criteria: {{completion_criteria}}
+
+  Conversation History:
+  {{conversation_history}}
+
+  Based on this plan, determine if you have enough information or what clarifying questions to ask next.
+
+variables:
+  - goal
+  - scope
+  - users
+  - requirements
+  - constraints
+  - completion_criteria
+  - conversation_history
