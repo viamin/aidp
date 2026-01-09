@@ -30,13 +30,13 @@ RSpec.describe Aidp::Database::Repositories::CheckpointRepository do
     end
 
     it "creates a new checkpoint" do
-      id = repository.save_checkpoint(checkpoint_data)
+      id = repository.save_checkpoint(**checkpoint_data)
 
       expect(id).to be_a(Integer)
     end
 
     it "returns current checkpoint after save" do
-      repository.save_checkpoint(checkpoint_data)
+      repository.save_checkpoint(**checkpoint_data)
 
       current = repository.current_checkpoint
 
@@ -47,8 +47,8 @@ RSpec.describe Aidp::Database::Repositories::CheckpointRepository do
     end
 
     it "updates existing checkpoint" do
-      id1 = repository.save_checkpoint(checkpoint_data)
-      id2 = repository.save_checkpoint(checkpoint_data.merge(iteration: 2))
+      id1 = repository.save_checkpoint(**checkpoint_data)
+      id2 = repository.save_checkpoint(**checkpoint_data.merge(iteration: 2))
 
       expect(id2).to eq(id1)
 
