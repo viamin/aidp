@@ -26,7 +26,7 @@ module Aidp
 
           execute(
             insert_sql([
-              :id, :project_dir, :job_type, :status, :input, :created_at
+              :id, :project_dir, :job_type, :status, :options, :created_at
             ]),
             [
               job_id,
@@ -51,18 +51,15 @@ module Aidp
         def start(job_id, pid: nil)
           now = current_timestamp
 
-          input = load_input(job_id) || {}
-          input[:pid] = pid if pid
-
           execute(
             <<~SQL,
               UPDATE background_jobs SET
                 status = 'running',
-                input = ?,
+                pid = ?,
                 started_at = ?
               WHERE id = ? AND project_dir = ?
             SQL
-            [serialize_json(input), now, job_id, project_dir]
+            [pid, now, job_id, project_dir]
           )
 
           Aidp.log_debug("job_repository", "started", job_id: job_id, pid: pid)
@@ -79,7 +76,7 @@ module Aidp
             <<~SQL,
               UPDATE background_jobs SET
                 status = 'completed',
-                output = ?,
+                result = ?,
                 completed_at = ?
               WHERE id = ? AND project_dir = ?
             SQL
@@ -187,8 +184,7 @@ module Aidp
           job = find(job_id)
           return nil unless job
 
-          input = job[:input] || {}
-          pid = input[:pid]
+          pid = job[:pid]
 
           {
             job_id: job_id,
@@ -251,16 +247,6 @@ module Aidp
           "job_#{timestamp}_#{SecureRandom.hex(4)}"
         end
 
-        def load_input(job_id)
-          row = query_one(
-            "SELECT input FROM background_jobs WHERE id = ? AND project_dir = ?",
-            [job_id, project_dir]
-          )
-          return nil unless row
-
-          deserialize_json(row["input"])
-        end
-
         def process_running?(pid)
           return false unless pid
 
@@ -277,8 +263,9 @@ module Aidp
             id: row["id"],
             job_type: row["job_type"],
             status: row["status"],
-            input: deserialize_json(row["input"]) || {},
-            output: deserialize_json(row["output"]) || {},
+            options: deserialize_json(row["options"]) || {},
+            result: deserialize_json(row["result"]) || {},
+            pid: row["pid"],
             error: row["error"],
             started_at: row["started_at"],
             completed_at: row["completed_at"],

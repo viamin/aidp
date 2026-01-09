@@ -46,7 +46,7 @@ RSpec.describe Aidp::Database::Repositories::JobRepository do
 
       job = repository.find(job_id)
       expect(job[:status]).to eq("running")
-      expect(job[:input][:pid]).to eq(12345)
+      expect(job[:pid]).to eq(12345)
     end
   end
 
@@ -59,7 +59,7 @@ RSpec.describe Aidp::Database::Repositories::JobRepository do
 
       job = repository.find(job_id)
       expect(job[:status]).to eq("completed")
-      expect(job[:output][:result]).to eq("success")
+      expect(job[:result][:result]).to eq("success")
     end
   end
 

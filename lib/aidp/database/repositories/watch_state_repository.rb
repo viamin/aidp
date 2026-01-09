@@ -130,7 +130,7 @@ module Aidp
 
         def ci_fix_completed?(pr_number)
           fix_data = ci_fixes[pr_number.to_s]
-          fix_data && fix_data[:status] == "completed"
+          !!(fix_data && fix_data[:status] == "completed")
         end
 
         def ci_fix_data(pr_number)

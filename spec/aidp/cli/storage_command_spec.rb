@@ -24,13 +24,15 @@ RSpec.describe Aidp::CLI::StorageCommand do
   describe "#run" do
     context "with no subcommand" do
       it "displays usage" do
-        expect { command.run([]) }.to output(/Usage:.*storage/).to_stdout
+        command.run([])
+        expect(prompt).to have_received(:say).with(/Usage:.*storage/, any_args)
       end
     end
 
     context "with --help" do
       it "displays usage" do
-        expect { command.run(["--help"]) }.to output(/Usage:.*storage/).to_stdout
+        command.run(["--help"])
+        expect(prompt).to have_received(:say).with(/Usage:.*storage/, any_args)
       end
     end
 
