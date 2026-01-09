@@ -23,6 +23,7 @@ module Aidp
         # @return [Hash] Registration details
         def register(name:, env_var:, description: nil, scopes: [])
           now = current_timestamp
+          secret_id = SecureRandom.hex(8)
 
           # Warn if env var doesn't exist
           unless ENV.key?(env_var)
@@ -30,23 +31,18 @@ module Aidp
               name: name, env_var: env_var)
           end
 
-          metadata = {
-            description: description,
-            scopes: scopes,
-            id: SecureRandom.hex(8)
-          }
-
           execute(
             insert_sql([
-              :project_dir, :secret_name, :secret_type, :source,
-              :metadata, :registered_at
+              :project_dir, :secret_id, :secret_name, :env_var,
+              :description, :scopes, :registered_at
             ]),
             [
               project_dir,
+              secret_id,
               name,
-              "env_var",
               env_var,
-              serialize_json(metadata),
+              description,
+              serialize_json(scopes),
               now
             ]
           )
@@ -54,7 +50,14 @@ module Aidp
           Aidp.log_debug("secrets_repository", "registered",
             name: name, env_var: env_var)
 
-          metadata.merge(name: name, env_var: env_var, registered_at: now)
+          {
+            id: secret_id,
+            name: name,
+            env_var: env_var,
+            description: description,
+            scopes: scopes,
+            registered_at: now
+          }
         end
 
         # Unregister a secret
@@ -107,10 +110,10 @@ module Aidp
         # @return [String, nil] Env var name or nil
         def env_var_for(name)
           row = query_one(
-            "SELECT source FROM secrets_registry WHERE project_dir = ? AND secret_name = ?",
+            "SELECT env_var FROM secrets_registry WHERE project_dir = ? AND secret_name = ?",
             [project_dir, name]
           )
-          row&.dig("source")
+          row&.dig("env_var")
         end
 
         # List all registered secrets
@@ -134,10 +137,10 @@ module Aidp
         # @return [Array<String>]
         def env_vars_to_strip
           rows = query(
-            "SELECT DISTINCT source FROM secrets_registry WHERE project_dir = ?",
+            "SELECT DISTINCT env_var FROM secrets_registry WHERE project_dir = ?",
             [project_dir]
           )
-          rows.map { |r| r["source"] }.compact
+          rows.map { |r| r["env_var"] }.compact
         end
 
         # Check if an env var is registered
@@ -146,7 +149,7 @@ module Aidp
         # @return [Boolean]
         def env_var_registered?(env_var)
           count = query_value(
-            "SELECT COUNT(*) FROM secrets_registry WHERE project_dir = ? AND source = ?",
+            "SELECT COUNT(*) FROM secrets_registry WHERE project_dir = ? AND env_var = ?",
             [project_dir, env_var]
           )
           count.positive?
@@ -158,7 +161,7 @@ module Aidp
         # @return [String, nil] Secret name or nil
         def name_for_env_var(env_var)
           row = query_one(
-            "SELECT secret_name FROM secrets_registry WHERE project_dir = ? AND source = ?",
+            "SELECT secret_name FROM secrets_registry WHERE project_dir = ? AND env_var = ?",
             [project_dir, env_var]
           )
           row&.dig("secret_name")
@@ -169,15 +172,12 @@ module Aidp
         def deserialize_secret(row)
           return nil unless row
 
-          metadata = deserialize_json(row["metadata"]) || {}
-
           {
+            id: row["secret_id"],
             name: row["secret_name"],
-            env_var: row["source"],
-            secret_type: row["secret_type"],
-            description: metadata[:description],
-            scopes: metadata[:scopes] || [],
-            id: metadata[:id],
+            env_var: row["env_var"],
+            description: row["description"],
+            scopes: deserialize_json(row["scopes"]) || [],
             registered_at: row["registered_at"]
           }
         end
