@@ -67,7 +67,7 @@ RSpec.describe Aidp::CLI::StorageCommand do
         File.write(File.join(aidp_dir, "checkpoint.yml"), YAML.dump("step" => "test"))
         Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
-        db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
+        db.execute("INSERT INTO checkpoints (project_dir, step_name, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
       end
 
@@ -100,7 +100,7 @@ RSpec.describe Aidp::CLI::StorageCommand do
       before do
         Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
-        db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
+        db.execute("INSERT INTO checkpoints (project_dir, step_name, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
       end
 
@@ -122,7 +122,7 @@ RSpec.describe Aidp::CLI::StorageCommand do
         File.write(File.join(aidp_dir, "checkpoint.yml"), "test")
         Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
-        db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
+        db.execute("INSERT INTO checkpoints (project_dir, step_name, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
       end
 

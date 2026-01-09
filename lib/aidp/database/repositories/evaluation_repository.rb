@@ -25,25 +25,19 @@ module Aidp
         #   - context [Hash, nil] Additional context
         # @return [Hash] Result with :success and :id
         def store(record)
-          now = current_timestamp
-
           execute(
             insert_sql([
-              :id, :project_dir, :evaluation_type, :status, :result,
-              :metadata, :created_at
+              :id, :project_dir, :rating, :target_type, :target_id,
+              :comment, :context
             ]),
             [
               record[:id],
               project_dir,
-              record[:target_type],
               record[:rating],
-              serialize_json({
-                rating: record[:rating],
-                feedback: record[:feedback],
-                target_id: record[:target_id]
-              }),
-              serialize_json(record[:context] || {}),
-              record[:created_at] || now
+              record[:target_type],
+              record[:target_id],
+              record[:feedback],
+              serialize_json(record[:context] || {})
             ]
           )
 
@@ -80,12 +74,12 @@ module Aidp
           params = [project_dir]
 
           if rating
-            conditions << "status = ?"
+            conditions << "rating = ?"
             params << rating
           end
 
           if target_type
-            conditions << "evaluation_type = ?"
+            conditions << "target_type = ?"
             params << target_type
           end
 
@@ -116,22 +110,22 @@ module Aidp
           by_rating = {}
           %w[good neutral bad].each do |r|
             by_rating[r.to_sym] = query_value(
-              "SELECT COUNT(*) FROM evaluations WHERE project_dir = ? AND status = ?",
+              "SELECT COUNT(*) FROM evaluations WHERE project_dir = ? AND rating = ?",
               [project_dir, r]
             ) || 0
           end
 
           by_type_rows = query(
             <<~SQL,
-              SELECT evaluation_type, COUNT(*) as count
+              SELECT target_type, COUNT(*) as count
               FROM evaluations
               WHERE project_dir = ?
-              GROUP BY evaluation_type
+              GROUP BY target_type
             SQL
             [project_dir]
           )
           by_target_type = by_type_rows.each_with_object({}) do |row, h|
-            h[row["evaluation_type"]] = row["count"]
+            h[row["target_type"]] = row["count"]
           end
 
           first_row = query_one(
@@ -196,19 +190,16 @@ module Aidp
         def deserialize_evaluation(row)
           return nil unless row
 
-          result = deserialize_json(row["result"]) || {}
-          metadata = deserialize_json(row["metadata"]) || {}
+          context = deserialize_json(row["context"]) || {}
 
           {
             id: row["id"],
-            rating: result[:rating] || row["status"],
-            target_type: row["evaluation_type"],
-            target_id: result[:target_id],
-            feedback: result[:feedback],
-            context: metadata,
-            created_at: row["created_at"],
-            started_at: row["started_at"],
-            completed_at: row["completed_at"]
+            rating: row["rating"],
+            target_type: row["target_type"],
+            target_id: row["target_id"],
+            feedback: row["comment"],
+            context: context,
+            created_at: row["created_at"]
           }
         end
       end

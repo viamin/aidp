@@ -15,7 +15,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
   end
 
   after do
-    Aidp::Database.close(temp_dir) if Aidp::Database.connection?(temp_dir)
+    Aidp::Database.close(temp_dir) if Aidp::Database.exists?(temp_dir)
     FileUtils.rm_rf(temp_dir)
   end
 
@@ -58,7 +58,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
       before do
         Aidp::Database::Migrations.run!(temp_dir)
         db = Aidp::Database.connection(temp_dir)
-        db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
+        db.execute("INSERT INTO checkpoints (project_dir, step_name, status) VALUES (?, ?, ?)",
           [temp_dir, "test", "completed"])
       end
 
@@ -207,7 +207,7 @@ RSpec.describe Aidp::Database::StorageMigrator do
       # Initialize database with some data
       Aidp::Database::Migrations.run!(temp_dir)
       db = Aidp::Database.connection(temp_dir)
-      db.execute("INSERT INTO checkpoints (project_dir, step, status) VALUES (?, ?, ?)",
+      db.execute("INSERT INTO checkpoints (project_dir, step_name, status) VALUES (?, ?, ?)",
         [temp_dir, "test", "completed"])
     end
 
