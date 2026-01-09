@@ -217,7 +217,9 @@ module Aidp
           if data && !@dry_run
             repo.save_checkpoint(
               step_name: data["step"] || data[:step],
+              iteration: data["iteration"] || data[:iteration] || data["step_index"] || data[:step_index] || 0,
               status: data["status"] || data[:status] || "unknown",
+              run_loop_started_at: data["run_loop_started_at"] || data[:run_loop_started_at],
               metrics: data
             )
           end
@@ -232,6 +234,7 @@ module Aidp
             unless @dry_run
               repo.append_history(
                 step_name: entry[:step],
+                iteration: entry[:iteration] || entry[:step_index] || 0,
                 status: entry[:status] || "completed",
                 metrics: entry
               )

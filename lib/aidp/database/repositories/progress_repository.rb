@@ -132,18 +132,13 @@ module Aidp
           nil
         end
 
-        private
-
-        def empty_progress(mode)
-          {
-            mode: mode,
-            current_step: nil,
-            steps_completed: [],
-            started_at: nil,
-            updated_at: nil
-          }
-        end
-
+        # Upsert progress data (for migrations and direct updates)
+        #
+        # @param mode [String] Mode (execute or analyze)
+        # @param current_step [String, nil] Current step name
+        # @param steps_completed [Array<String>] Completed step names
+        # @param started_at [String] Started at timestamp
+        # @param updated_at [String] Updated at timestamp
         def upsert_progress(mode:, current_step:, steps_completed:, started_at:, updated_at:)
           existing = query_one(
             "SELECT id FROM progress WHERE project_dir = ? AND mode = ?",
@@ -185,6 +180,18 @@ module Aidp
               ]
             )
           end
+        end
+
+        private
+
+        def empty_progress(mode)
+          {
+            mode: mode,
+            current_step: nil,
+            steps_completed: [],
+            started_at: nil,
+            updated_at: nil
+          }
         end
 
         def deserialize_progress(row)
