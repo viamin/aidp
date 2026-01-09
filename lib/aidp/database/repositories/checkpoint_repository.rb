@@ -14,15 +14,20 @@ module Aidp
 
         # Save or update current checkpoint
         #
-        # @param data [Hash] Checkpoint data with keys:
-        #   - step_name [String]
-        #   - iteration [Integer]
-        #   - timestamp [String]
-        #   - run_loop_started_at [String]
-        #   - metrics [Hash]
-        #   - status [String]
+        # @param step_name [String]
+        # @param iteration [Integer]
+        # @param status [String]
+        # @param run_loop_started_at [String, nil]
+        # @param metrics [Hash]
         # @return [Integer] Checkpoint ID
-        def save_checkpoint(data)
+        def save_checkpoint(step_name:, iteration: nil, status: nil, run_loop_started_at: nil, metrics: {})
+          data = {
+            step_name: step_name,
+            iteration: iteration,
+            status: status,
+            run_loop_started_at: run_loop_started_at,
+            metrics: metrics
+          }
           existing = current_checkpoint
           now = current_timestamp
 
@@ -88,8 +93,12 @@ module Aidp
 
         # Append checkpoint to history
         #
-        # @param data [Hash] Checkpoint data
-        def append_history(data)
+        # @param step_name [String]
+        # @param iteration [Integer]
+        # @param status [String]
+        # @param timestamp [String, nil]
+        # @param metrics [Hash]
+        def append_history(step_name:, iteration: nil, status: nil, timestamp: nil, metrics: {})
           execute(
             <<~SQL,
               INSERT INTO checkpoint_history (project_dir, step_name, step_index, status, timestamp, metadata)
@@ -97,14 +106,14 @@ module Aidp
             SQL
             [
               project_dir,
-              data[:step_name],
-              data[:iteration],
-              data[:status],
-              data[:timestamp] || current_timestamp,
-              serialize_json(data[:metrics])
+              step_name,
+              iteration,
+              status,
+              timestamp || current_timestamp,
+              serialize_json(metrics)
             ]
           )
-          Aidp.log_debug("checkpoint_repository", "history_appended", step: data[:step_name])
+          Aidp.log_debug("checkpoint_repository", "history_appended", step: step_name)
         end
 
         # Get checkpoint history
