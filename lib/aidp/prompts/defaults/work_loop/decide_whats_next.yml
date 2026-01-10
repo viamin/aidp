@@ -1,0 +1,33 @@
+# Decide What's Next Prompt Template
+# Used by WorkLoopRunner to decide the next work loop unit
+name: Decide What's Next
+description: >
+  Template for deciding the next work loop unit based on deterministic
+  outputs and previous agent activity.
+version: "1.0.0"
+category: work_loop
+tier: mini
+cache_ttl: null
+
+prompt: |
+  # Decide Next Work Loop Unit
+
+  ## Deterministic Outputs
+
+  {{DETERMINISTIC_OUTPUTS}}
+
+  ## Previous Agent Summary
+
+  {{PREVIOUS_AGENT_SUMMARY}}
+
+  ## Guidance
+  - Decide whether to run another deterministic unit or resume agentic editing.
+  - Announce your decision with `NEXT_UNIT: <unit_name>`.
+  - Valid values: names defined in configuration, `agentic`, or `wait_for_github`.
+  - Provide a concise rationale below.
+
+  ## Rationale
+
+variables:
+  - DETERMINISTIC_OUTPUTS
+  - PREVIOUS_AGENT_SUMMARY

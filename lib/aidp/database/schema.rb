@@ -279,9 +279,30 @@ module Aidp
         CREATE INDEX IF NOT EXISTS idx_auto_checkpoints_project ON auto_update_checkpoints(project_dir);
       SQL
 
+      # Version 2: Add prompt feedback table for AGD pattern
+      V2_PROMPT_FEEDBACK = <<~SQL
+        -- Prompt feedback (tracks prompt template effectiveness for AGD evolution)
+        CREATE TABLE IF NOT EXISTS prompt_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_dir TEXT NOT NULL,
+            template_id TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            iterations INTEGER,
+            user_reaction TEXT,
+            suggestions TEXT,
+            context TEXT,
+            aidp_version TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_prompt_feedback_project ON prompt_feedback(project_dir);
+        CREATE INDEX IF NOT EXISTS idx_prompt_feedback_template ON prompt_feedback(template_id);
+        CREATE INDEX IF NOT EXISTS idx_prompt_feedback_outcome ON prompt_feedback(outcome);
+      SQL
+
       # All migrations in order
       MIGRATIONS = {
-        1 => V1_INITIAL
+        1 => V1_INITIAL,
+        2 => V2_PROMPT_FEEDBACK
       }.freeze
 
       # Get SQL for a specific version

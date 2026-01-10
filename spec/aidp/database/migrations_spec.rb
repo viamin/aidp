@@ -59,6 +59,7 @@ RSpec.describe Aidp::Database::Migrations do
         deprecated_models
         background_jobs
         auto_update_checkpoints
+        prompt_feedback
       ]
 
       expected_tables.each do |table|
@@ -72,7 +73,7 @@ RSpec.describe Aidp::Database::Migrations do
       db = Aidp::Database.connection(temp_dir)
       version = db.get_first_value("SELECT MAX(version) FROM schema_migrations")
 
-      expect(version).to eq(1)
+      expect(version).to eq(2)
     end
 
     it "returns empty array if already migrated" do
@@ -89,7 +90,7 @@ RSpec.describe Aidp::Database::Migrations do
       db = Aidp::Database.connection(temp_dir)
       count = db.get_first_value("SELECT COUNT(*) FROM schema_migrations")
 
-      expect(count).to eq(1)
+      expect(count).to eq(2)
     end
   end
 
@@ -114,6 +115,7 @@ RSpec.describe Aidp::Database::Migrations do
       pending = described_class.pending_versions(temp_dir)
 
       expect(pending).to include(1)
+      expect(pending).to include(2)
     end
 
     it "returns empty array after migration" do

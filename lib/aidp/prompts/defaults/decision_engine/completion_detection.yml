@@ -1,0 +1,45 @@
+# Completion Detection Prompt Template
+# Used by AIDecisionEngine to determine if work is complete
+name: Completion Detection
+description: >
+  Determines if work is complete based on AI response analysis,
+  looking for explicit and implicit completion indicators.
+version: "1.0.0"
+category: decision_engine
+tier: mini
+cache_ttl: null
+
+prompt: |
+  Determine if the work described is complete based on the AI response.
+
+  Task:
+  {{task_description}}
+
+  AI Response:
+  {{response}}
+
+  Is the work complete? Consider:
+  - Explicit completion markers ("done", "finished", etc.)
+  - Implicit indicators (results provided, no follow-up questions)
+  - Requests for more information (incomplete)
+
+  Provide boolean completion status with confidence and reasoning.
+
+schema:
+  type: object
+  properties:
+    complete:
+      type: boolean
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+    reasoning:
+      type: string
+  required:
+    - complete
+    - confidence
+
+variables:
+  - task_description
+  - response

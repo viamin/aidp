@@ -1,0 +1,44 @@
+# Plan Generation Prompt Template
+# Used by PlanGenerator to create implementation plans for GitHub issues
+name: Plan Generation
+description: >
+  AIDP's planning specialist prompt for generating implementation contracts
+  from GitHub issues during watch mode.
+version: "1.0.0"
+category: watch
+tier: standard
+cache_ttl: null
+
+prompt: |
+  You are AIDP's planning specialist. Read the GitHub issue and existing comments.
+  Produce a concise implementation contract describing the plan for the aidp agent.
+  Respond in JSON with the following shape (no extra text, no code fences):
+  {
+    "plan_summary": "one paragraph summary of what will be implemented",
+    "plan_tasks": ["task 1", "task 2", "..."],
+    "clarifying_questions": ["question 1", "question 2"]
+  }
+  Focus on concrete engineering tasks. Ensure questions are actionable.
+
+  ## Issue
+  {{issue_content}}
+
+schema:
+  type: object
+  properties:
+    plan_summary:
+      type: string
+    plan_tasks:
+      type: array
+      items:
+        type: string
+    clarifying_questions:
+      type: array
+      items:
+        type: string
+  required:
+    - plan_summary
+    - plan_tasks
+
+variables:
+  - issue_content

@@ -1,0 +1,48 @@
+# Prompt Evaluation Prompt Template
+# Used by AIDecisionEngine to evaluate prompt effectiveness for stuck work loops
+name: Prompt Evaluation
+description: >
+  Evaluates the effectiveness of a work loop prompt, identifying issues
+  and suggesting improvements when loops appear stuck.
+version: "1.0.0"
+category: decision_engine
+tier: mini
+cache_ttl: null
+
+prompt: |
+  {{prompt}}
+
+schema:
+  type: object
+  properties:
+    effective:
+      type: boolean
+      description: True if the prompt is likely to lead to completion
+    issues:
+      type: array
+      items:
+        type: string
+      description: Specific problems with the current prompt
+    suggestions:
+      type: array
+      items:
+        type: string
+      description: Actionable suggestions to improve effectiveness
+    likely_blockers:
+      type: array
+      items:
+        type: string
+      description: Potential blockers preventing progress
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: Confidence in this assessment
+  required:
+    - effective
+    - issues
+    - suggestions
+    - confidence
+
+variables:
+  - prompt

@@ -1,0 +1,74 @@
+# Template Improvement Prompt
+# Used by PromptEvaluator to suggest template improvements
+name: Template Improvement
+description: >
+  Suggests specific improvements to prompt templates based on evaluation
+  results, focusing on completion criteria and task breakdown.
+version: "1.0.0"
+category: prompt_evaluator
+tier: standard
+cache_ttl: null
+
+prompt: |
+  Based on the following prompt evaluation, suggest improvements to the template.
+
+  ## Evaluation Results
+  - Effective: {{effective}}
+  - Issues: {{issues}}
+  - Suggestions: {{suggestions}}
+
+  ## Original Template
+  {{original_template}}
+
+  ## Your Task
+
+  Suggest specific improvements to make the template more effective:
+  1. Identify sections that need improvement
+  2. Propose new sections if needed
+  3. Focus especially on completion criteria clarity
+  4. Ensure task breakdown instructions are explicit
+  5. Add guidance for common failure modes
+
+  Be specific - provide actual text that could replace or supplement the template.
+
+schema:
+  type: object
+  properties:
+    improved_sections:
+      type: array
+      items:
+        type: object
+        properties:
+          section_name:
+            type: string
+          original:
+            type: string
+          improved:
+            type: string
+          rationale:
+            type: string
+    additional_sections:
+      type: array
+      items:
+        type: object
+        properties:
+          section_name:
+            type: string
+          content:
+            type: string
+          rationale:
+            type: string
+    completion_criteria_improvements:
+      type: array
+      items:
+        type: string
+      description: Specific improvements to completion criteria definitions
+  required:
+    - improved_sections
+    - completion_criteria_improvements
+
+variables:
+  - effective
+  - issues
+  - suggestions
+  - original_template

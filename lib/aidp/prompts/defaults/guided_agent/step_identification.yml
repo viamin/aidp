@@ -1,0 +1,42 @@
+# Step Identification Prompt Template
+# Used by GuidedAgent to identify which AIDP workflow steps are needed
+name: Step Identification
+description: >
+  Identifies which AIDP workflow steps are needed for a project based on
+  the gathered plan requirements.
+version: "1.0.0"
+category: guided_agent
+tier: mini
+cache_ttl: null
+
+prompt: |
+  You are an expert at identifying which AIDP workflow steps are needed for a project.
+
+  Available Execute Steps:
+  {{all_steps}}
+
+  Based on the plan provided, identify which steps are needed and in what order.
+
+  Response Format (JSON):
+  {
+    "steps": ["00_PRD", "02_ARCHITECTURE", "16_IMPLEMENTATION"],
+    "reasoning": "brief explanation of why these steps"
+  }
+
+  Be concise and select only the necessary steps.
+
+schema:
+  type: object
+  properties:
+    steps:
+      type: array
+      items:
+        type: string
+    reasoning:
+      type: string
+  required:
+    - steps
+    - reasoning
+
+variables:
+  - all_steps

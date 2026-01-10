@@ -103,7 +103,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
       it "logs decision making" do
         expect(Aidp).to receive(:log_debug).with(
           "ai_decision_engine",
-          "Making AI decision",
+          "making_decision",
           hash_including(
             decision_type: :condition_detection,
             tier: "mini",
@@ -213,7 +213,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
 
         expect(Aidp).to receive(:log_debug).with(
           "ai_decision_engine",
-          /Cache hit/,
+          "cache_hit",
           hash_including(:cache_key, :ttl)
         )
 
@@ -317,7 +317,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
 
         expect(Aidp).to receive(:log_error).with(
           "ai_decision_engine",
-          /Failed to parse/,
+          "json_parse_failed",
           hash_including(:error)
         )
 
@@ -367,52 +367,27 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
     end
   end
 
-  describe "decision templates" do
-    it "has condition_detection template" do
-      template = described_class::DECISION_TEMPLATES[:condition_detection]
-
-      expect(template).to include(
-        :prompt_template,
-        :schema,
-        :default_tier,
-        :cache_ttl
-      )
-      expect(template[:default_tier]).to eq("mini")
-      expect(template[:cache_ttl]).to be_nil
+  describe "TEMPLATE_PATHS" do
+    it "has condition_detection template path" do
+      expect(described_class::TEMPLATE_PATHS[:condition_detection]).to eq("decision_engine/condition_detection")
     end
 
-    it "has error_classification template" do
-      template = described_class::DECISION_TEMPLATES[:error_classification]
-
-      expect(template).to include(
-        :prompt_template,
-        :schema,
-        :default_tier
-      )
-      expect(template[:default_tier]).to eq("mini")
+    it "has error_classification template path" do
+      expect(described_class::TEMPLATE_PATHS[:error_classification]).to eq("decision_engine/error_classification")
     end
 
-    it "has completion_detection template" do
-      template = described_class::DECISION_TEMPLATES[:completion_detection]
-
-      expect(template).to include(
-        :prompt_template,
-        :schema,
-        :default_tier
-      )
-      expect(template[:default_tier]).to eq("mini")
+    it "has completion_detection template path" do
+      expect(described_class::TEMPLATE_PATHS[:completion_detection]).to eq("decision_engine/completion_detection")
     end
   end
 
-  describe "prompt building" do
-    it "substitutes context variables in prompt template" do
-      template = "Error: {{error_message}}\nContext: {{context}}"
-      context = {error_message: "Timeout", context: "API call"}
+  describe "#available_decision_types" do
+    it "returns all available decision types" do
+      types = engine.available_decision_types
 
-      prompt = engine.send(:build_prompt, template, context)
-
-      expect(prompt).to include("Error: Timeout")
-      expect(prompt).to include("Context: API call")
+      expect(types).to include(:condition_detection)
+      expect(types).to include(:error_classification)
+      expect(types).to include(:completion_detection)
     end
   end
 end
