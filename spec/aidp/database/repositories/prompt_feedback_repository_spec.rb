@@ -176,7 +176,7 @@ RSpec.describe Aidp::Database::Repositories::PromptFeedbackRepository do
     before do
       # Template with 80% success (above threshold)
       4.times { repository.record(template_id: "good_template", outcome: :success) }
-      1.times { repository.record(template_id: "good_template", outcome: :failure) }
+      repository.record(template_id: "good_template", outcome: :failure)
 
       # Template with 40% success (below threshold)
       2.times { repository.record(template_id: "bad_template", outcome: :success) }
