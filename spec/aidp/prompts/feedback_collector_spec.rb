@@ -2,23 +2,33 @@
 
 require "spec_helper"
 require "aidp/prompts/feedback_collector"
+require "aidp/database"
 
 RSpec.describe Aidp::Prompts::FeedbackCollector do
   let(:temp_dir) { Dir.mktmpdir }
   let(:collector) { described_class.new(project_dir: temp_dir) }
   let(:template_id) { "decision_engine/condition_detection" }
 
+  before do
+    # Initialize database for the temp project
+    Aidp::Database.connection(temp_dir)
+  end
+
   after do
+    # Close database connection
+    Aidp::Database.close(temp_dir)
     FileUtils.rm_rf(temp_dir)
   end
 
   describe "#record" do
     it "records feedback entry" do
-      collector.record(
+      result = collector.record(
         template_id: template_id,
         outcome: :success,
         iterations: 5
       )
+
+      expect(result[:success]).to be true
 
       entries = collector.entries(template_id: template_id)
       expect(entries.size).to eq(1)
@@ -199,44 +209,21 @@ RSpec.describe Aidp::Prompts::FeedbackCollector do
     end
 
     it "removes all feedback data" do
-      collector.clear
+      result = collector.clear
 
-      entries = collector.entries
-      expect(entries).to be_empty
+      expect(result[:success]).to be true
+      expect(collector.any?).to be false
     end
   end
 
-  describe "pruning old entries" do
-    it "keeps only MAX_ENTRIES_PER_TEMPLATE entries" do
-      # Record more than MAX_ENTRIES_PER_TEMPLATE
-      (described_class::MAX_ENTRIES_PER_TEMPLATE + 10).times do |i|
-        collector.record(
-          template_id: template_id,
-          outcome: :success,
-          iterations: i
-        )
-      end
-
-      entries = collector.entries(template_id: template_id, limit: 200)
-
-      # Should be pruned to MAX_ENTRIES_PER_TEMPLATE
-      expect(entries.size).to eq(described_class::MAX_ENTRIES_PER_TEMPLATE)
+  describe "#any?" do
+    it "returns false when no feedback exists" do
+      expect(collector.any?).to be false
     end
 
-    it "keeps most recent entries when pruning" do
-      (described_class::MAX_ENTRIES_PER_TEMPLATE + 10).times do |i|
-        collector.record(
-          template_id: template_id,
-          outcome: :success,
-          iterations: i
-        )
-      end
-
-      entries = collector.entries(template_id: template_id, limit: 200)
-
-      # Most recent entries should have highest iteration counts
-      iterations = entries.map { |e| e[:iterations] }
-      expect(iterations.max).to eq(described_class::MAX_ENTRIES_PER_TEMPLATE + 9)
+    it "returns true when feedback exists" do
+      collector.record(template_id: template_id, outcome: :success)
+      expect(collector.any?).to be true
     end
   end
 end

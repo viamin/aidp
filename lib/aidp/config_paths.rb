@@ -26,10 +26,8 @@ module Aidp
     def self.evaluations_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "evaluations")
     def self.evaluations_index_file(project_dir = Dir.pwd) = File.join(evaluations_dir(project_dir), "index.json")
 
-    # Prompt template paths
+    # Prompt template paths (feedback is stored in SQLite database)
     def self.prompts_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "prompts")
-    def self.prompt_feedback_dir(project_dir = Dir.pwd) = File.join(prompts_dir(project_dir), "feedback")
-    def self.prompt_feedback_file(project_dir = Dir.pwd) = File.join(prompt_feedback_dir(project_dir), "feedback.jsonl")
 
     # Security module paths
     def self.security_dir(project_dir = Dir.pwd) = File.join(aidp_dir(project_dir), "security")
@@ -96,12 +94,6 @@ module Aidp
 
     def self.ensure_prompts_dir(project_dir = Dir.pwd)
       dir = prompts_dir(project_dir)
-      FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
-      dir
-    end
-
-    def self.ensure_prompt_feedback_dir(project_dir = Dir.pwd)
-      dir = prompt_feedback_dir(project_dir)
       FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
       dir
     end
