@@ -172,7 +172,7 @@ module Aidp
           display_message("Edit the template at: #{path}", type: :info)
           display_message("\nThe template will now be loaded from your project directory.", type: :muted)
           display_message("Use 'aidp prompts reset #{template_id}' to restore the default.", type: :muted)
-        rescue Prompts::TemplateNotFoundError => e
+        rescue Prompts::TemplateNotFoundError
           display_message("Template not found: #{template_id}", type: :error)
           display_message("Use 'aidp prompts list' to see available templates", type: :muted)
         rescue => e

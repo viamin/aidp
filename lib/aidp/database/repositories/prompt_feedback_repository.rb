@@ -26,7 +26,7 @@ module Aidp
         #   - context [Hash, nil] Additional context
         # @return [Hash] Result with :success and :id
         def record(record)
-          id = execute(
+          execute(
             insert_sql([
               :project_dir, :template_id, :outcome, :iterations,
               :user_reaction, :suggestions, :context, :aidp_version
@@ -109,7 +109,7 @@ module Aidp
           {
             template_id: template_id,
             total_uses: total,
-            success_rate: total > 0 ? (success_count.to_f / total * 100).round(1) : 0,
+            success_rate: (total > 0) ? (success_count.to_f / total * 100).round(1) : 0,
             success_count: success_count,
             failure_count: failure_count,
             avg_iterations: avg_iterations&.round(1),
