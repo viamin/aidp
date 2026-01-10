@@ -1,0 +1,32 @@
+# Diagnose Failures Prompt Template
+# Used by WorkLoopRunner to diagnose test/lint failures
+name: Diagnose Failures
+description: >
+  Template for diagnosing failures in the work loop and recommending
+  the next concrete action.
+version: "1.0.0"
+category: work_loop
+tier: mini
+cache_ttl: null
+
+prompt: |
+  # Diagnose Failures
+
+  ## Recent Deterministic Outputs
+
+  {{DETERMINISTIC_OUTPUTS}}
+
+  ## Previous Agent Summary
+
+  {{PREVIOUS_AGENT_SUMMARY}}
+
+  ## Instructions
+  - Identify the root cause of the failures above.
+  - Recommend the next concrete action (another deterministic unit, agentic editing, or waiting).
+  - Emit `NEXT_UNIT: <unit_name>` on its own line.
+
+  ## Analysis
+
+variables:
+  - DETERMINISTIC_OUTPUTS
+  - PREVIOUS_AGENT_SUMMARY

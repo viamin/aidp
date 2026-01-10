@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../harness/ai_decision_engine"
+require_relative "../prompts/prompt_template_manager"
 
 module Aidp
   module Execute
@@ -15,6 +16,11 @@ module Aidp
     # - Whether the agent has sufficient context
     # - If there are blockers preventing progress
     #
+    # Prompts can be customized via YAML templates at:
+    # - Project level: .aidp/prompts/prompt_evaluator/<name>.yml
+    # - User level: ~/.aidp/prompts/prompt_evaluator/<name>.yml
+    # - Built-in: lib/aidp/prompts/defaults/prompt_evaluator/<name>.yml
+    #
     # @example
     #   evaluator = PromptEvaluator.new(config)
     #   result = evaluator.evaluate(
@@ -26,6 +32,12 @@ module Aidp
     #   # => { effective: false, issues: [...], suggestions: [...] }
     #
     class PromptEvaluator
+      # Template paths for dynamic prompts
+      TEMPLATE_PATHS = {
+        evaluation: "prompt_evaluator/evaluation",
+        improvement: "prompt_evaluator/improvement"
+      }.freeze
+
       # Threshold for triggering evaluation
       EVALUATION_ITERATION_THRESHOLD = 10
 
@@ -33,10 +45,12 @@ module Aidp
       EVALUATION_INTERVAL = 5
 
       # Expose for testability
-      attr_reader :ai_decision_engine
+      attr_reader :ai_decision_engine, :prompt_template_manager
 
-      def initialize(config, ai_decision_engine: nil)
+      def initialize(config, ai_decision_engine: nil, prompt_template_manager: nil, project_dir: Dir.pwd)
         @config = config
+        @project_dir = project_dir
+        @prompt_template_manager = prompt_template_manager || Prompts::PromptTemplateManager.new(project_dir: project_dir)
         @ai_decision_engine = ai_decision_engine || safely_build_ai_decision_engine
       end
 
@@ -232,66 +246,25 @@ module Aidp
       private
 
       def build_evaluation_prompt(prompt_content:, iteration_count:, task_summary:, recent_failures:)
-        <<~PROMPT
-          You are evaluating the effectiveness of a work loop prompt that has been running for #{iteration_count} iterations without completion.
+        variables = {
+          iteration_count: iteration_count.to_s,
+          prompt_content: truncate_content(prompt_content, 8000),
+          task_summary: format_task_summary(task_summary),
+          recent_failures: format_failures(recent_failures)
+        }
 
-          ## Current Prompt Content
-          #{truncate_content(prompt_content, 8000)}
-
-          ## Task Summary
-          #{format_task_summary(task_summary)}
-
-          ## Recent Check Results
-          #{format_failures(recent_failures)}
-
-          ## Evaluation Criteria
-
-          Analyze why this prompt may not be leading to completion:
-
-          1. **Clarity of Goals**: Are the implementation requirements clearly defined?
-          2. **Task Breakdown**: Does the prompt guide proper task decomposition?
-          3. **Completion Criteria**: Are the completion criteria specific and achievable?
-          4. **Context Sufficiency**: Does the agent have enough context to proceed?
-          5. **Blockers**: Are there technical blockers or missing information?
-          6. **Scope**: Is the scope realistic for an AI agent to complete?
-
-          ## Your Assessment
-
-          Provide:
-          - Whether this prompt is likely effective (true/false)
-          - Specific issues with the current prompt
-          - Actionable suggestions for improvement
-          - Likely blockers preventing progress
-          - Prioritized recommended actions
-          - Your confidence in this assessment (0.0-1.0)
-
-          Be specific and actionable. Focus on what can be changed to achieve completion.
-        PROMPT
+        @prompt_template_manager.render(TEMPLATE_PATHS[:evaluation], **variables)
       end
 
       def build_improvement_prompt(evaluation_result, original_template)
-        <<~PROMPT
-          Based on the following prompt evaluation, suggest improvements to the template.
+        variables = {
+          effective: evaluation_result[:effective].to_s,
+          issues: (evaluation_result[:issues] || []).join(", "),
+          suggestions: (evaluation_result[:suggestions] || []).join(", "),
+          original_template: truncate_content(original_template, 4000)
+        }
 
-          ## Evaluation Results
-          - Effective: #{evaluation_result[:effective]}
-          - Issues: #{(evaluation_result[:issues] || []).join(", ")}
-          - Suggestions: #{(evaluation_result[:suggestions] || []).join(", ")}
-
-          ## Original Template
-          #{truncate_content(original_template, 4000)}
-
-          ## Your Task
-
-          Suggest specific improvements to make the template more effective:
-          1. Identify sections that need improvement
-          2. Propose new sections if needed
-          3. Focus especially on completion criteria clarity
-          4. Ensure task breakdown instructions are explicit
-          5. Add guidance for common failure modes
-
-          Be specific - provide actual text that could replace or supplement the template.
-        PROMPT
+        @prompt_template_manager.render(TEMPLATE_PATHS[:improvement], **variables)
       end
 
       def format_task_summary(task_summary)

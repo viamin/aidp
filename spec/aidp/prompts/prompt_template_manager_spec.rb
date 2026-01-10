@@ -1,0 +1,267 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+require "aidp/prompts/prompt_template_manager"
+
+RSpec.describe Aidp::Prompts::PromptTemplateManager do
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:project_prompts_dir) { File.join(temp_dir, ".aidp", "prompts") }
+  let(:manager) { described_class.new(project_dir: temp_dir) }
+
+  before do
+    FileUtils.mkdir_p(project_prompts_dir)
+  end
+
+  after do
+    FileUtils.rm_rf(temp_dir)
+  end
+
+  describe "#render" do
+    context "with a built-in template" do
+      it "renders the template with variable substitution" do
+        # Built-in templates should exist
+        prompt = manager.render(
+          "decision_engine/condition_detection",
+          response: "Rate limit exceeded"
+        )
+
+        expect(prompt).to include("Rate limit exceeded")
+        expect(prompt).not_to include("{{response}}")
+      end
+    end
+
+    context "with a project-level template" do
+      before do
+        category_dir = File.join(project_prompts_dir, "test_category")
+        FileUtils.mkdir_p(category_dir)
+
+        template_content = {
+          "name" => "Test Template",
+          "description" => "A test template",
+          "version" => "1.0.0",
+          "prompt" => "Hello, {{name}}! Your task is: {{task}}"
+        }
+
+        File.write(
+          File.join(category_dir, "greeting.yml"),
+          template_content.to_yaml
+        )
+      end
+
+      it "renders the project-level template" do
+        prompt = manager.render(
+          "test_category/greeting",
+          name: "Alice",
+          task: "write tests"
+        )
+
+        expect(prompt).to eq("Hello, Alice! Your task is: write tests")
+      end
+    end
+
+    context "when template not found" do
+      it "raises TemplateNotFoundError" do
+        expect {
+          manager.render("nonexistent/template", name: "Bob")
+        }.to raise_error(Aidp::Prompts::TemplateNotFoundError, /Template not found/)
+      end
+    end
+
+    context "when template has no prompt" do
+      before do
+        category_dir = File.join(project_prompts_dir, "invalid")
+        FileUtils.mkdir_p(category_dir)
+        File.write(
+          File.join(category_dir, "no_prompt.yml"),
+          {"name" => "No Prompt Template"}.to_yaml
+        )
+      end
+
+      it "raises TemplateNotFoundError" do
+        expect {
+          manager.render("invalid/no_prompt")
+        }.to raise_error(Aidp::Prompts::TemplateNotFoundError, /has no prompt/)
+      end
+    end
+  end
+
+  describe "#template_exists?" do
+    it "returns true for existing built-in template" do
+      expect(manager.template_exists?("decision_engine/condition_detection")).to be true
+    end
+
+    it "returns false for non-existent template" do
+      expect(manager.template_exists?("nonexistent/template")).to be false
+    end
+
+    context "with project-level template" do
+      before do
+        category_dir = File.join(project_prompts_dir, "custom")
+        FileUtils.mkdir_p(category_dir)
+        File.write(File.join(category_dir, "test.yml"), {"prompt" => "test"}.to_yaml)
+      end
+
+      it "returns true for project-level template" do
+        expect(manager.template_exists?("custom/test")).to be true
+      end
+    end
+  end
+
+  describe "#list_templates" do
+    it "lists all available templates" do
+      templates = manager.list_templates
+
+      expect(templates).to be_an(Array)
+      expect(templates).not_to be_empty
+
+      # Should include built-in decision_engine templates
+      ids = templates.map { |t| t[:id] }
+      expect(ids).to include("decision_engine/condition_detection")
+      expect(ids).to include("decision_engine/error_classification")
+    end
+
+    it "includes metadata for each template" do
+      templates = manager.list_templates
+
+      template = templates.find { |t| t[:id] == "decision_engine/condition_detection" }
+
+      expect(template[:name]).to eq("Condition Detection")
+      expect(template[:version]).to eq("1.0.0")
+      expect(template[:category]).to eq("decision_engine")
+    end
+  end
+
+  describe "#template_info" do
+    it "returns detailed info for existing template" do
+      info = manager.template_info("decision_engine/condition_detection")
+
+      expect(info[:id]).to eq("decision_engine/condition_detection")
+      expect(info[:name]).to eq("Condition Detection")
+      expect(info[:source]).to eq(:builtin)
+      expect(info[:variables]).to include("response")
+      expect(info[:prompt_preview]).to be_a(String)
+    end
+
+    it "returns nil for non-existent template" do
+      info = manager.template_info("nonexistent/template")
+
+      expect(info).to be_nil
+    end
+  end
+
+  describe "#customize_template" do
+    it "copies template to project directory" do
+      path = manager.customize_template("decision_engine/condition_detection")
+
+      expect(File.exist?(path)).to be true
+      expect(path).to start_with(project_prompts_dir)
+
+      content = YAML.safe_load_file(path, permitted_classes: [Symbol])
+      expect(content["name"]).to eq("Condition Detection")
+    end
+
+    it "raises error for non-existent template" do
+      expect {
+        manager.customize_template("nonexistent/template")
+      }.to raise_error(Aidp::Prompts::TemplateNotFoundError)
+    end
+
+    context "when already customized" do
+      before do
+        manager.customize_template("decision_engine/condition_detection")
+      end
+
+      it "returns existing path without overwriting" do
+        # Modify the customized template
+        path = manager.customize_template("decision_engine/condition_detection")
+        original_content = File.read(path)
+
+        File.write(path, original_content + "\n# Modified")
+
+        # Calling customize again should not overwrite
+        second_path = manager.customize_template("decision_engine/condition_detection")
+        expect(File.read(second_path)).to include("# Modified")
+      end
+    end
+  end
+
+  describe "#reset_template" do
+    context "when template is customized" do
+      before do
+        manager.customize_template("decision_engine/condition_detection")
+      end
+
+      it "removes the customized template" do
+        result = manager.reset_template("decision_engine/condition_detection")
+
+        expect(result).to be true
+
+        path = File.join(project_prompts_dir, "decision_engine", "condition_detection.yml")
+        expect(File.exist?(path)).to be false
+      end
+    end
+
+    context "when template is not customized" do
+      it "returns false" do
+        result = manager.reset_template("decision_engine/condition_detection")
+
+        expect(result).to be false
+      end
+    end
+  end
+
+  describe "#clear_cache" do
+    it "clears the internal cache" do
+      # Load a template to populate cache
+      manager.load_template("decision_engine/condition_detection")
+
+      expect(manager.cache).not_to be_empty
+
+      manager.clear_cache
+
+      expect(manager.cache).to be_empty
+    end
+  end
+
+  describe "template precedence" do
+    context "when project template exists" do
+      before do
+        category_dir = File.join(project_prompts_dir, "decision_engine")
+        FileUtils.mkdir_p(category_dir)
+
+        custom_template = {
+          "name" => "Custom Condition Detection",
+          "description" => "A customized version",
+          "version" => "2.0.0",
+          "prompt" => "CUSTOM PROMPT: {{response}}"
+        }
+
+        File.write(
+          File.join(category_dir, "condition_detection.yml"),
+          custom_template.to_yaml
+        )
+      end
+
+      it "uses project template over built-in" do
+        # Clear cache to ensure fresh load
+        manager.clear_cache
+
+        prompt = manager.render(
+          "decision_engine/condition_detection",
+          response: "test error"
+        )
+
+        expect(prompt).to include("CUSTOM PROMPT")
+      end
+
+      it "shows project source in template info" do
+        manager.clear_cache
+
+        info = manager.template_info("decision_engine/condition_detection")
+
+        expect(info[:source]).to eq(:project)
+        expect(info[:version]).to eq("2.0.0")
+      end
+    end
+  end
+end

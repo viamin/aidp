@@ -1,0 +1,55 @@
+# Condition Detection Prompt Template
+# Used by AIDecisionEngine to classify API responses and errors
+name: Condition Detection
+description: >
+  Classifies API responses or error messages into specific condition types
+  for determining appropriate handling strategies.
+version: "1.0.0"
+category: decision_engine
+tier: mini
+cache_ttl: null
+
+prompt: |
+  Analyze the following API response or error message and classify the condition.
+
+  Response/Error:
+  {{response}}
+
+  Classify this into one of the following conditions:
+  - rate_limit: API rate limiting or quota exceeded
+  - auth_error: Authentication or authorization failure
+  - timeout: Request timeout or network timeout
+  - completion_marker: Work is complete or done
+  - user_feedback_needed: AI is asking for user input/clarification
+  - api_error: General API error (not rate limit/auth)
+  - success: Successful response
+  - other: None of the above
+
+  Provide your classification with a confidence score (0.0 to 1.0) and brief reasoning.
+
+schema:
+  type: object
+  properties:
+    condition:
+      type: string
+      enum:
+        - rate_limit
+        - auth_error
+        - timeout
+        - completion_marker
+        - user_feedback_needed
+        - api_error
+        - success
+        - other
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+    reasoning:
+      type: string
+  required:
+    - condition
+    - confidence
+
+variables:
+  - response

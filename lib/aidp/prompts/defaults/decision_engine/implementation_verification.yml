@@ -1,0 +1,41 @@
+# Implementation Verification Prompt Template
+# Used by AIDecisionEngine to verify if implementation meets requirements
+name: Implementation Verification
+description: >
+  Verifies if an implementation fully addresses all issue requirements
+  and identifies any missing or incomplete work.
+version: "1.0.0"
+category: decision_engine
+tier: mini
+cache_ttl: null
+
+prompt: |
+  {{prompt}}
+
+schema:
+  type: object
+  properties:
+    fully_implemented:
+      type: boolean
+      description: True if the implementation fully addresses all issue requirements
+    reasoning:
+      type: string
+      description: Detailed explanation of the verification decision
+    missing_requirements:
+      type: array
+      items:
+        type: string
+      description: List of specific requirements from the issue that are not yet implemented
+    additional_work_needed:
+      type: array
+      items:
+        type: string
+      description: List of specific tasks needed to complete the implementation
+  required:
+    - fully_implemented
+    - reasoning
+    - missing_requirements
+    - additional_work_needed
+
+variables:
+  - prompt
