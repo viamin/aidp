@@ -193,18 +193,6 @@ RSpec.describe Aidp::CLI::PromptsCommand do
     end
   end
 
-  describe "#determine_source" do
-    it "identifies project source" do
-      path = File.join(prompts_dir, "test.yml")
-      expect(command.send(:determine_source, path)).to eq(:project)
-    end
-
-    it "identifies builtin source" do
-      path = "/some/other/path/test.yml"
-      expect(command.send(:determine_source, path)).to eq(:builtin)
-    end
-  end
-
   describe "#truncate" do
     it "returns empty string for nil" do
       expect(command.send(:truncate, nil, 10)).to eq("")

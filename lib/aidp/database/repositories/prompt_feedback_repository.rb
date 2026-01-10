@@ -162,20 +162,42 @@ module Aidp
         # @param max_success_rate [Float] Success rate threshold
         # @return [Array<Hash>] Templates needing improvement
         def templates_needing_improvement(min_uses: 5, max_success_rate: 70.0)
-          # Get unique template IDs
-          template_rows = query(
-            "SELECT DISTINCT template_id FROM prompt_feedback WHERE project_dir = ?",
-            [project_dir]
+          # Use a single aggregated query instead of N+1 queries
+          rows = query(
+            <<~SQL,
+              SELECT
+                template_id,
+                COUNT(*) as total_uses,
+                SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END) as success_count,
+                SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END) as failure_count,
+                AVG(CASE WHEN iterations IS NOT NULL THEN iterations END) as avg_iterations,
+                SUM(CASE WHEN user_reaction = 'positive' THEN 1 ELSE 0 END) as positive_reactions,
+                SUM(CASE WHEN user_reaction = 'negative' THEN 1 ELSE 0 END) as negative_reactions
+              FROM prompt_feedback
+              WHERE project_dir = ?
+              GROUP BY template_id
+              HAVING COUNT(*) >= ?
+            SQL
+            [project_dir, min_uses]
           )
 
-          template_rows.filter_map do |row|
-            template_id = row["template_id"]
-            stats = summary(template_id: template_id)
+          rows.filter_map do |row|
+            total = row["total_uses"]
+            success_count = row["success_count"]
+            success_rate = (total > 0) ? (success_count.to_f / total * 100).round(1) : 0
 
-            next if stats[:total_uses] < min_uses
-            next if stats[:success_rate] > max_success_rate
+            next if success_rate > max_success_rate
 
-            stats
+            {
+              template_id: row["template_id"],
+              total_uses: total,
+              success_rate: success_rate,
+              success_count: success_count,
+              failure_count: row["failure_count"],
+              avg_iterations: row["avg_iterations"]&.round(1),
+              positive_reactions: row["positive_reactions"],
+              negative_reactions: row["negative_reactions"]
+            }
           end.sort_by { |s| s[:success_rate] }
         end
 

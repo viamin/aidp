@@ -112,6 +112,8 @@ module Aidp
             next if templates.any? { |t| t[:id] == template_id }
 
             template_data = load_yaml_template(path)
+            next if template_data.nil?
+
             templates << {
               id: template_id,
               path: path,
@@ -135,6 +137,8 @@ module Aidp
         return nil unless path
 
         template_data = load_yaml_template(path)
+        return nil if template_data.nil?
+
         source = determine_source(path)
 
         {
@@ -212,6 +216,20 @@ module Aidp
         ]
       end
 
+      # Determine the source of a template based on its path
+      #
+      # @param path [String] Full path to the template file
+      # @return [Symbol] :project, :user, or :builtin
+      def determine_source(path)
+        if path.start_with?(project_prompts_dir)
+          :project
+        elsif path.start_with?(user_prompts_dir)
+          :user
+        else
+          :builtin
+        end
+      end
+
       private
 
       def project_prompts_dir
@@ -240,8 +258,17 @@ module Aidp
 
       def load_yaml_template(path)
         YAML.safe_load_file(path, permitted_classes: [Symbol], aliases: true)
-      rescue => e
-        Aidp.log_error("prompt_template_manager", "failed_to_load_template",
+      rescue Errno::ENOENT
+        Aidp.log_debug("prompt_template_manager", "template_file_not_found",
+          path: path)
+        nil
+      rescue Psych::SyntaxError => e
+        Aidp.log_error("prompt_template_manager", "invalid_yaml_syntax",
+          path: path,
+          error: e.message)
+        nil
+      rescue Psych::DisallowedClass => e
+        Aidp.log_error("prompt_template_manager", "disallowed_yaml_class",
           path: path,
           error: e.message)
         nil
@@ -261,16 +288,6 @@ module Aidp
         return [] if prompt_text.nil?
 
         prompt_text.scan(/\{\{(\w+)\}\}/).flatten.uniq
-      end
-
-      def determine_source(path)
-        if path.start_with?(project_prompts_dir)
-          :project
-        elsif path.start_with?(user_prompts_dir)
-          :user
-        else
-          :builtin
-        end
       end
 
       def truncate(text, max_length)

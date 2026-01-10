@@ -93,7 +93,7 @@ module Aidp
           display_message("\n#{category}/", type: :info)
 
           table_data = category_templates.map do |t|
-            source_badge = case determine_source(t[:path])
+            source_badge = case @template_manager.determine_source(t[:path])
             when :project then "[project]"
             when :user then "[user]"
             else "[builtin]"
@@ -199,19 +199,6 @@ module Aidp
           display_message("Template reset to default successfully!", type: :success)
         else
           display_message("No customization found for: #{template_id}", type: :info)
-        end
-      end
-
-      def determine_source(path)
-        project_prompts_dir = File.join(@project_dir, ".aidp", "prompts")
-        user_prompts_dir = File.join(Dir.home, ".aidp", "prompts")
-
-        if path.start_with?(project_prompts_dir)
-          :project
-        elsif path.start_with?(user_prompts_dir)
-          :user
-        else
-          :builtin
         end
       end
 
