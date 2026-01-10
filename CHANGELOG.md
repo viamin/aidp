@@ -1,5 +1,88 @@
 # Changelog
 
+## [0.35.0](https://github.com/viamin/aidp/compare/aidp/v0.34.1...aidp/v0.35.0) (2026-01-10)
+
+
+### Features
+
+* add agent instruction file generation to aidp init ([#338](https://github.com/viamin/aidp/issues/338)) ([228e922](https://github.com/viamin/aidp/commit/228e92215f1f5f5fd8839e31ea5bf8ee88329e14))
+* add agent instruction file generation to aidp init ([#338](https://github.com/viamin/aidp/issues/338)) ([#433](https://github.com/viamin/aidp/issues/433)) ([4a7acb0](https://github.com/viamin/aidp/commit/4a7acb09347320627aa035c7d31d6ac139dbb2b1))
+* add comprehensive logging to InMemoryConfig classes ([1d37e35](https://github.com/viamin/aidp/commit/1d37e356fab09b615e6277fc8643cc4527adb449))
+* add concrete repository classes (Phase 2) ([71a3f62](https://github.com/viamin/aidp/commit/71a3f628371b50ed0940f1dd89f145d82154de65))
+* add escalation config methods to InMemoryConfigAdapter ([6847db0](https://github.com/viamin/aidp/commit/6847db0040805c542511d54e28be1c4399658a06))
+* add generic deterministic commands to replace category-specific arrays ([21dab1d](https://github.com/viamin/aidp/commit/21dab1d0e36eea6c478bf7e2bb0f8e2e57048d6d)), closes [#315](https://github.com/viamin/aidp/issues/315)
+* add generic deterministic commands to replace category-specific arrays ([#426](https://github.com/viamin/aidp/issues/426)) ([5beffbf](https://github.com/viamin/aidp/commit/5beffbf0583d28ecae6f190fe5984eb749ba243c))
+* add methods to read and write run loop start time to checkpoint file ([f0fff22](https://github.com/viamin/aidp/commit/f0fff224fd3c77f850e8d21997838d9f94542369))
+* add Phase 3 repository classes for medium-priority migrations ([be1de1d](https://github.com/viamin/aidp/commit/be1de1da578366e8f745f9f75889f7e0bfa3be01))
+* add Phase 4 repository classes for cache migrations ([0d45906](https://github.com/viamin/aidp/commit/0d45906efb453012d5c31feeca268fd34c1b3653))
+* add run loop start time to checkpoint data and display ([d688db0](https://github.com/viamin/aidp/commit/d688db061ba85f395b544204a39515c1eec8528b))
+* add SQLite database infrastructure (Phase 1) ([95df612](https://github.com/viamin/aidp/commit/95df61278ed4ec7b210ea71dd257fdd60890c114))
+* add storage migration CLI command (Phase 5) ([d186b58](https://github.com/viamin/aidp/commit/d186b582dd8c76bf2a36011f05502b6a511137b8))
+* automatic worktree cleanup in watch mode ([#367](https://github.com/viamin/aidp/issues/367)) ([f17f362](https://github.com/viamin/aidp/commit/f17f3622a75bbd1ffd46f6baa191a26e19257dea))
+* automatic worktree cleanup in watch mode ([#367](https://github.com/viamin/aidp/issues/367)) ([#432](https://github.com/viamin/aidp/issues/432)) ([a28cdc6](https://github.com/viamin/aidp/commit/a28cdc67e2b1224f08ceed154b50e6a6549b4ba2))
+* implement usage limits for usage-based providers ([#296](https://github.com/viamin/aidp/issues/296)) ([5a73df6](https://github.com/viamin/aidp/commit/5a73df6057408ae1d061b9faa6ca088297d39c4a))
+* Implement WorktreeReconciler for managing dirty worktrees ([09e7c95](https://github.com/viamin/aidp/commit/09e7c953104df7fbcd63fd76fce54b5e2a81b28e))
+
+
+### Bug Fixes
+
+* add fallback_providers override to integration test configs ([79e8b98](https://github.com/viamin/aidp/commit/79e8b989298a7668726cf6d5b634bc2c3c324d02))
+* add full_loop phase execution at work loop completion ([c001a2a](https://github.com/viamin/aidp/commit/c001a2a0c859623a5863234b40ef4e53fedfbcda))
+* add missing parameters to storage_migrator and make upsert_progress public ([9a5a92c](https://github.com/viamin/aidp/commit/9a5a92c03c2a4069e0ee7b89f423eac74b03591d))
+* add safety guards to prevent infinite loops in wizard ([cd34714](https://github.com/viamin/aidp/commit/cd34714310a025256b0ee099e4e0ab67587cf684))
+* add sqlite3 to Gemfile.lock for CI compatibility ([2fef3cc](https://github.com/viamin/aidp/commit/2fef3ccba00da672bf1004a01884db635c7f4636))
+* address additional PR review comments ([e352e2a](https://github.com/viamin/aidp/commit/e352e2a97cf66b584f77e2d59d37c126fae88faf))
+* address code review feedback for InMemoryConfigManager ([bbfc31e](https://github.com/viamin/aidp/commit/bbfc31eef6404114a2fd74020421152d45cc2994))
+* address PR review comments from Copilot ([5330bda](https://github.com/viamin/aidp/commit/5330bdadea37cb529bab1e9aa783b8350863d43e))
+* address remaining PR review comments ([94346a4](https://github.com/viamin/aidp/commit/94346a4acc8bfeb194d6f7e98ccb0b388884790e))
+* address test failures in database specs ([336cf3e](https://github.com/viamin/aidp/commit/336cf3e78a9cf2f90c0849d33b0bd2a938f0d57c))
+* address test failures in database specs ([6f0e6a1](https://github.com/viamin/aidp/commit/6f0e6a1ca85a2a8b36bb2901da90122e5154cf0f))
+* align repositories with schema column definitions ([70237ae](https://github.com/viamin/aidp/commit/70237aed3d3f4c2fd42e921600ee8a5f8c2172b4))
+* align repository code and specs with actual schema ([a97242f](https://github.com/viamin/aidp/commit/a97242f6ef6bff85622a1b934c6c1209971c2390))
+* align secrets_repository with schema columns ([04211fa](https://github.com/viamin/aidp/commit/04211fa0dadbf903fa42d8614a108668a3eabede))
+* align storage_migrator method calls with repository APIs ([9fcb314](https://github.com/viamin/aidp/commit/9fcb314faf46db7014d3e6f68143f08027b54e93))
+* always show billing type selection for primary provider ([0b80358](https://github.com/viamin/aidp/commit/0b80358946e11901779d471213822502e2f7dcad)), closes [#429](https://github.com/viamin/aidp/issues/429)
+* correct require_relative path in storage_migrator.rb ([86bafa4](https://github.com/viamin/aidp/commit/86bafa4110230ee10b22ef92bd4e40a4bb6e56a6))
+* correct test data formats in storage_migrator_spec ([fcc2d78](https://github.com/viamin/aidp/commit/fcc2d786bcd59af58d21b189863461804ae33b53))
+* correct usage limit test failures ([c707812](https://github.com/viamin/aidp/commit/c707812221a66d4552c64ca3fef790ab9a2b2bfd))
+* correct usage limit test failures ([50be506](https://github.com/viamin/aidp/commit/50be506541df2215976301fc4a01192353e1af93))
+* enable AGD/ZFC during interactive config before file write ([db19af5](https://github.com/viamin/aidp/commit/db19af51393410c49b66b911538ed305a3a213e8)), closes [#429](https://github.com/viamin/aidp/issues/429)
+* enable AGD/ZFC during interactive config before file write ([#430](https://github.com/viamin/aidp/issues/430)) ([c7717cb](https://github.com/viamin/aidp/commit/c7717cb96135df35123284fc29c119e8d7a41b1e))
+* ensure config_valid? returns boolean instead of hash ([4d913d5](https://github.com/viamin/aidp/commit/4d913d515e53495468a271882becc98853f8c42f))
+* errors in watch mode ([1ea39c0](https://github.com/viamin/aidp/commit/1ea39c08aed8d97b3b3df3970757e26172bc56e5))
+* fix storage_migrator spec test failures ([9eebfb0](https://github.com/viamin/aidp/commit/9eebfb086dc36691080b462dcc52597fa48100dd))
+* remove deprecated type_translation from sqlite3 configuration ([3b8b5d0](https://github.com/viamin/aidp/commit/3b8b5d0e46c1751d2de99cfa4313cdd4b9bb3f46))
+* remove pure Ruby sqlite3 variant from Gemfile.lock ([99fc01c](https://github.com/viamin/aidp/commit/99fc01c0188b971ad4fa1bb9a9d5fd0a7db74e9c))
+* reorder menu choices to prevent infinite loop in tests ([b4889de](https://github.com/viamin/aidp/commit/b4889de01a6cc0c5943cd2b5764df8a1ffb9fa74))
+* replace non-existent Database.initialize! with Migrations.run! ([a88e823](https://github.com/viamin/aidp/commit/a88e82386bd6373bd12542b609777dac8df4487f))
+* spec timestamp precision and add worktree_cleanup docs ([774c922](https://github.com/viamin/aidp/commit/774c922b0e179ab1f0a1ebbcc37ddf3e0eb29cb3))
+* update base_spec to expect options parameter in send_message ([8dd492a](https://github.com/viamin/aidp/commit/8dd492a994765b5120737513c96d6f0264570939))
+* update provider_factory initialization to use ConfigManager ([884b337](https://github.com/viamin/aidp/commit/884b3379645ba45f179b62f33b188e528ee8188e))
+* update related documentation links in GITHUB_PROJECTS.md ([ad4873b](https://github.com/viamin/aidp/commit/ad4873b5dd476be50871a7db0c2e75ef8f7f7674))
+* update storage_command_spec.rb for correct Database API ([92bd240](https://github.com/viamin/aidp/commit/92bd2405d41847cc306c18e95be97bbc30818a48))
+* update tests to reflect all providers now have instruction files ([5495881](https://github.com/viamin/aidp/commit/5495881c5aa7670bf3a2b61b79d8f697a181ddb4))
+* use correct config filename aidp.yml in integration tests ([44ad9d3](https://github.com/viamin/aidp/commit/44ad9d373813edad92e39dbfe3feef6b0769b70e))
+* use double-splat for hash to keyword arguments in spec ([8ba3476](https://github.com/viamin/aidp/commit/8ba3476b1efeac61fca1de9c84af63ce73109b10))
+* use keyword arguments for checkpoint_repository methods ([9ef6822](https://github.com/viamin/aidp/commit/9ef68225afe92fc2f13be2ddcc777ca9cd3ec7af))
+* use valid enum value 'other' instead of 'none' in test ([caf2a06](https://github.com/viamin/aidp/commit/caf2a065b3159e4f9ca55742362a8e01402402d7))
+
+
+### Improvements
+
+* remove dead code (Phase 0 of SQLite migration) ([62f448e](https://github.com/viamin/aidp/commit/62f448e31732e1f9d57c4f6a59645aea431e8ec7))
+* Remove internal `aidp-in-progress` label from documentation and setup ([4a41e26](https://github.com/viamin/aidp/commit/4a41e26ade3ece696450200ea2d0f11be052dc0b))
+* Replace ENV["DEBUG"] checks with Aidp.debug_env_enabled() for consistency ([221efb2](https://github.com/viamin/aidp/commit/221efb25e9e107c7709aa0aab5e10d78a309b24b))
+
+
+### Documentation
+
+* add audit results and rationale to SQLite migration plan ([5f0f802](https://github.com/viamin/aidp/commit/5f0f802da22955191e4585457f6a30725f3ff814))
+* add SQLite migration plan for .aidp directory ([aefa461](https://github.com/viamin/aidp/commit/aefa461f194ffafc99c7df5428e5d1be31c07398))
+* add SQLite migration plan for .aidp directory ([#437](https://github.com/viamin/aidp/issues/437)) ([408d1fb](https://github.com/viamin/aidp/commit/408d1fbe136dd4a2a6f9fae5db8c1981ac34afd9))
+* add ZFC_PATTERN.md and fix broken references ([526ec24](https://github.com/viamin/aidp/commit/526ec241dfd40ec62e73d1834ab70930180df9d1))
+* reorganize documentation using Diataxis framework ([15f04ba](https://github.com/viamin/aidp/commit/15f04baf4b25f758507b5c3b65ad0cb87aea112f)), closes [#279](https://github.com/viamin/aidp/issues/279)
+* reorganize documentation using Diataxis framework ([#428](https://github.com/viamin/aidp/issues/428)) ([7b19880](https://github.com/viamin/aidp/commit/7b19880ba62eea10307e6be998af1f0c0f53a2f1))
+
 ## [0.34.1](https://github.com/viamin/aidp/compare/aidp/v0.34.0...aidp/v0.34.1) (2025-12-17)
 
 
