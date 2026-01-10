@@ -171,11 +171,10 @@ RSpec.describe Aidp::Database::StorageMigrator do
       before do
         # Add trigger file for migration_needed?
         File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
-        workstreams_dir = File.join(aidp_dir, "workstreams", "feature-123")
-        FileUtils.mkdir_p(workstreams_dir)
+        # Workstreams use workstreams.json at root, not subdirectories
         File.write(
-          File.join(workstreams_dir, "state.json"),
-          JSON.generate(slug: "feature-123", status: "active", task: "Implement feature")
+          File.join(aidp_dir, "workstreams.json"),
+          JSON.generate(workstreams: [{slug: "feature-123", status: "active", task: "Implement feature"}])
         )
       end
 
@@ -191,9 +190,10 @@ RSpec.describe Aidp::Database::StorageMigrator do
       before do
         # Add trigger file for migration_needed?
         File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
+        # Worktrees expect hash format {slug: {path:, branch:}}
         File.write(
           File.join(aidp_dir, "worktrees.json"),
-          JSON.generate([{path: "/tmp/worktree", branch: "feature", slug: "ws-1"}])
+          JSON.generate({"ws-1" => {path: "/tmp/worktree", branch: "feature"}})
         )
       end
 
@@ -229,9 +229,10 @@ RSpec.describe Aidp::Database::StorageMigrator do
         File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
         model_cache_dir = File.join(aidp_dir, "model_cache")
         FileUtils.mkdir_p(model_cache_dir)
+        # Model cache expects format: {provider: {models: [...], ttl: ...}}
         File.write(
           File.join(model_cache_dir, "models.json"),
-          JSON.generate(claude: [{id: "claude-3", name: "Claude 3"}])
+          JSON.generate(claude: {models: [{id: "claude-3", name: "Claude 3"}], ttl: 86400})
         )
       end
 
@@ -323,19 +324,18 @@ RSpec.describe Aidp::Database::StorageMigrator do
       before do
         # Add trigger file for migration_needed?
         File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
-        watch_dir = File.join(aidp_dir, "watch")
-        FileUtils.mkdir_p(watch_dir)
+        # Watch state is explicitly skipped during migration
         File.write(
-          File.join(watch_dir, "owner_repo.yml"),
+          File.join(aidp_dir, "watch_state.yml"),
           YAML.dump("repository" => "owner/repo", "plans" => {"1" => {summary: "Plan"}})
         )
       end
 
-      it "migrates watch state data" do
+      it "skips watch state migration" do
         result = migrator.migrate!(backup: false)
 
         expect(result[:status]).to eq(:success)
-        expect(result[:stats][:watch_states_migrated]).to eq(1)
+        expect(result[:stats][:watch_state_skipped]).to eq(1)
       end
     end
 
@@ -343,9 +343,10 @@ RSpec.describe Aidp::Database::StorageMigrator do
       before do
         # Add trigger file for migration_needed?
         File.write(File.join(aidp_dir, "checkpoint.yml"), "step: test")
+        # Deprecated models expects format: {providers: {provider: {model: {replacement:, reason:}}}}
         File.write(
           File.join(aidp_dir, "deprecated_models.json"),
-          JSON.generate([{provider: "openai", model: "gpt-3", replacement: "gpt-4"}])
+          JSON.generate(providers: {openai: {"gpt-3" => {replacement: "gpt-4", reason: "deprecated"}}})
         )
       end
 
