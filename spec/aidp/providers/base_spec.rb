@@ -261,7 +261,7 @@ RSpec.describe Aidp::Providers::Base do
       result = provider.send_with_harness(prompt: "test prompt")
 
       expect(result).to eq("test result")
-      expect(provider).to have_received(:send_message).with(prompt: "test prompt", session: nil)
+      expect(provider).to have_received(:send_message).with(prompt: "test prompt", session: nil, options: {})
 
       metrics = provider.harness_metrics
       expect(metrics[:total_requests]).to eq(1)

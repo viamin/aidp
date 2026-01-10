@@ -2,6 +2,7 @@
 
 require_relative "config_manager"
 require_relative "provider_type_checker"
+require_relative "usage_limit"
 
 module Aidp
   module Harness
@@ -270,6 +271,41 @@ module Aidp
           fixed_cost_per_request: cost[:fixed_cost_per_request] || cost["fixed_cost_per_request"],
           currency: cost[:currency] || cost["currency"] || "USD"
         }
+      end
+
+      # Get usage limits configuration
+      #
+      # @param options [Hash] Options for config loading
+      # @return [Hash] Raw usage limits configuration hash
+      def usage_limits_config(options = {})
+        config = config(options)
+        limits = config[:usage_limits] || config["usage_limits"] || {}
+
+        {
+          enabled: limits[:enabled] == true,
+          period: limits[:period] || limits["period"] || "monthly",
+          reset_day: limits[:reset_day] || limits["reset_day"] || 1,
+          max_tokens: limits[:max_tokens] || limits["max_tokens"],
+          max_cost: limits[:max_cost] || limits["max_cost"],
+          tier_limits: limits[:tier_limits] || limits["tier_limits"] || {}
+        }
+      end
+
+      # Get usage limits as a UsageLimit value object
+      #
+      # @param options [Hash] Options for config loading
+      # @return [UsageLimit] UsageLimit instance
+      def usage_limit(options = {})
+        config = usage_limits_config(options)
+        UsageLimit.from_config(config)
+      end
+
+      # Check if usage limits are enabled for this provider
+      #
+      # @param options [Hash] Options for config loading
+      # @return [Boolean] True if limits are enabled
+      def usage_limits_enabled?(options = {})
+        usage_limits_config(options)[:enabled]
       end
 
       # Get provider-specific harness configuration
