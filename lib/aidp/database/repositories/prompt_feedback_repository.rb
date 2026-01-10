@@ -147,7 +147,7 @@ module Aidp
             <<~SQL,
               SELECT * FROM prompt_feedback
               WHERE #{conditions.join(" AND ")}
-              ORDER BY created_at DESC
+              ORDER BY created_at DESC, id DESC
               LIMIT ?
             SQL
             params
