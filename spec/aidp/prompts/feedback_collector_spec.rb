@@ -10,8 +10,9 @@ RSpec.describe Aidp::Prompts::FeedbackCollector do
   let(:template_id) { "decision_engine/condition_detection" }
 
   before do
-    # Initialize database for the temp project
+    # Initialize database and run migrations for the temp project
     Aidp::Database.connection(temp_dir)
+    Aidp::Database::Migrations.run!(temp_dir)
   end
 
   after do
