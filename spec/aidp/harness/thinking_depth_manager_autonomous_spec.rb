@@ -231,7 +231,10 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       expect(model).to eq("claude-3-5-haiku")
     end
 
-    it "returns nil when all models exhausted" do
+    it "returns nil when all models exhausted and retry disabled" do
+      # Disable retry to test exhaustion behavior
+      allow(@configuration).to receive(:retry_failed_models?).and_return(false)
+
       # Exhaust all models in mini tier
       2.times do
         manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
@@ -240,6 +243,18 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
 
       model = manager.select_next_model(provider: "anthropic")
       expect(model).to be_nil
+    end
+
+    it "retries failed models when retry enabled" do
+      # Exhaust all models in mini tier
+      2.times do
+        manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
+        manager.record_model_attempt(provider: "anthropic", model: "claude-3-5-haiku", success: false)
+      end
+
+      # With retry enabled (default), should return a failed model to retry
+      model = manager.select_next_model(provider: "anthropic")
+      expect(model).to eq("claude-3-haiku")
     end
   end
 
