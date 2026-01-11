@@ -434,11 +434,13 @@ module Aidp
       end
 
       # Reset model tracking (call when changing tiers or starting new work)
-      # Note: Preserves @model_attempts history for analysis; only resets tier-specific counters
+      # Clears current tier's data for consistency; preserves other tiers' history for analysis
       def reset_model_tracking
+        tier = current_tier
+        @model_attempts[tier] = {} if @model_attempts[tier]
         @total_attempts_in_tier = 0
 
-        Aidp.log_debug("thinking_depth_manager", "Model tracking reset for new tier")
+        Aidp.log_debug("thinking_depth_manager", "Model tracking reset for tier", tier: tier)
       end
 
       # Get summary of model attempts in current tier
@@ -478,10 +480,24 @@ module Aidp
         # Check for explicit tier labels first (fast path)
         tier_from_labels = extract_tier_from_labels(labels)
         if tier_from_labels
+          tier = tier_from_labels
+          reasoning = "Explicit tier label found: #{tier_from_labels}"
+
+          # In autonomous mode, cap at autonomous_max_tier (same as ZFC path)
+          if @autonomous_mode && @registry.compare_tiers(tier, autonomous_max_tier) > 0
+            original_tier = tier
+            tier = autonomous_max_tier
+            reasoning += " (capped from #{original_tier} due to autonomous mode)"
+
+            Aidp.log_debug("thinking_depth_manager", "Label tier capped for autonomous mode",
+              original: original_tier,
+              capped_to: tier)
+          end
+
           return {
-            tier: tier_from_labels,
+            tier: tier,
             confidence: 1.0,
-            reasoning: "Explicit tier label found: #{tier_from_labels}",
+            reasoning: reasoning,
             source: "label"
           }
         end

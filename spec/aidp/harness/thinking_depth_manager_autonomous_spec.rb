@@ -147,14 +147,14 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
         expect(manager.current_tier).to eq("standard")
       end
 
-      it "resets tier attempt counter but preserves history" do
+      it "resets model tracking for current tier" do
         manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
         manager.enable_autonomous_mode
-        # History is preserved for analysis
-        expect(manager.model_attempts).not_to be_empty
-        # But tier counter is reset
+        # Current tier's data is cleared for consistency
+        expect(manager.model_attempt_count(provider: "anthropic", model: "claude-3-haiku")).to eq(0)
         summary = manager.model_attempts_summary
         expect(summary[:total_attempts]).to eq(0)
+        expect(summary[:providers]).to be_empty
       end
     end
 
@@ -398,17 +398,17 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
   describe "#reset_model_tracking" do
     before { manager.enable_autonomous_mode }
 
-    it "resets tier counter but preserves history for analysis" do
+    it "clears current tier data for consistency" do
       manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
       manager.reset_model_tracking
 
-      # History is preserved for cross-tier analysis
-      expect(manager.model_attempts).not_to be_empty
-      expect(manager.model_attempt_count(provider: "anthropic", model: "claude-3-haiku")).to eq(1)
+      # Current tier's data is cleared to maintain consistency with total counter
+      expect(manager.model_attempt_count(provider: "anthropic", model: "claude-3-haiku")).to eq(0)
 
-      # Tier counter is reset
+      # Summary is consistent - both counter and providers are empty
       summary = manager.model_attempts_summary
       expect(summary[:total_attempts]).to eq(0)
+      expect(summary[:providers]).to be_empty
     end
   end
 
@@ -443,7 +443,7 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       expect(result[:source]).to eq("zfc")
     end
 
-    it "caps tier at autonomous_max_tier in autonomous mode" do
+    it "caps ZFC tier at autonomous_max_tier in autonomous mode" do
       manager.enable_autonomous_mode
 
       allow(provider_manager).to receive(:execute_with_provider).and_return(
@@ -457,6 +457,20 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       )
 
       expect(result[:tier]).to eq("standard")  # Capped at autonomous_max_tier
+    end
+
+    it "caps label-derived tier at autonomous_max_tier in autonomous mode" do
+      manager.enable_autonomous_mode
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Any text",
+        provider_manager: provider_manager,
+        labels: ["tier:pro"]  # Label requests pro tier
+      )
+
+      expect(result[:tier]).to eq("standard")  # Capped at autonomous_max_tier
+      expect(result[:source]).to eq("label")
+      expect(result[:reasoning]).to include("capped from pro")
     end
 
     it "returns fallback on error" do

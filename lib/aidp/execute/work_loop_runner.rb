@@ -2237,12 +2237,23 @@ module Aidp
           # No model from intelligent selection - check if we should escalate
           escalation_check = @thinking_depth_manager.should_escalate_tier?(provider: provider)
           if escalation_check[:should_escalate]
-            Aidp.logger.debug("work_loop", "All models exhausted, escalation recommended",
-              tier: current_tier,
-              reason: escalation_check[:reason])
+            # Attempt escalation to get access to higher-tier models
+            new_tier = @thinking_depth_manager.escalate_tier_intelligent(provider: provider)
+            if new_tier
+              Aidp.logger.info("work_loop", "Escalated tier after exhausting models",
+                from: current_tier,
+                to: new_tier,
+                reason: escalation_check[:reason])
+              # Retry selection with new tier
+              return select_model_for_current_tier
+            else
+              Aidp.logger.warn("work_loop", "Escalation recommended but not possible",
+                tier: current_tier,
+                reason: "at_max_tier_or_blocked")
+              # Fall through to standard selection as last resort
+            end
           end
-          # Fall through to standard selection only if escalation is not recommended
-          # (e.g., still have untested models in other scenarios)
+          # Fall through to standard selection if escalation not recommended or not possible
         end
 
         # Standard model selection (non-autonomous or fallback)
