@@ -201,6 +201,16 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
 
       expect(manager.model_failed?(provider: "anthropic", model: "claude-3-haiku")).to be false
     end
+
+    it "clears failed status when model succeeds after failure" do
+      # First fail the model
+      manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
+      expect(manager.model_failed?(provider: "anthropic", model: "claude-3-haiku")).to be true
+
+      # Then succeed - should clear failed status
+      manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: true)
+      expect(manager.model_failed?(provider: "anthropic", model: "claude-3-haiku")).to be false
+    end
   end
 
   describe "#select_next_model" do

@@ -234,7 +234,7 @@ module Aidp
 
         @model_attempts[tier][provider][model][:attempts] += 1
         @model_attempts[tier][provider][model][:last_attempt_at] = Time.now
-        @model_attempts[tier][provider][model][:failed] = !success if !success
+        @model_attempts[tier][provider][model][:failed] = !success
 
         @total_attempts_in_tier += 1
 
@@ -315,11 +315,22 @@ module Aidp
           end
         end
 
-        # Second pass: find models that haven't completely failed (if retry enabled)
+        # Second pass: retry models (if retry enabled)
+        # Prioritize non-failed models first, then retry failed models
         if configuration.retry_failed_models?
+          # First try non-failed models that have met min attempts
           models.each do |model|
             unless model_failed?(provider: provider, model: model)
-              Aidp.log_debug("thinking_depth_manager", "Selected model for retry",
+              Aidp.log_debug("thinking_depth_manager", "Selected non-failed model for retry",
+                model: model)
+              return model
+            end
+          end
+
+          # Then retry previously failed models
+          models.each do |model|
+            if model_failed?(provider: provider, model: model)
+              Aidp.log_debug("thinking_depth_manager", "Retrying previously failed model",
                 model: model)
               return model
             end
@@ -404,12 +415,13 @@ module Aidp
         new_tier = escalate_tier(reason: reason || escalation_check[:reason])
 
         if new_tier
+          attempts_before_reset = @total_attempts_in_tier
           reset_model_tracking
           Aidp.log_info("thinking_depth_manager", "Intelligent tier escalation",
             from: old_tier,
             to: new_tier,
             reason: reason || escalation_check[:reason],
-            total_attempts_in_old_tier: @total_attempts_in_tier)
+            total_attempts_in_old_tier: attempts_before_reset)
         end
 
         new_tier
@@ -781,6 +793,8 @@ module Aidp
       # @param labels [Array<String>] Issue labels
       # @return [String, nil] Tier name or nil if no tier label found
       def extract_tier_from_labels(labels)
+        return nil unless labels.is_a?(Array)
+
         tier_label_patterns = {
           /\btier[:\-_]?mini\b/i => "mini",
           /\btier[:\-_]?standard\b/i => "standard",
@@ -826,6 +840,10 @@ module Aidp
 
       # Build prompt for ZFC tier determination
       def build_tier_determination_prompt(comment_text)
+        max_length = 2000
+        truncated = comment_text && comment_text.length > max_length
+        truncation_note = truncated ? "\n\n[Note: Comment was truncated from #{comment_text.length} to #{max_length} characters]" : ""
+
         <<~PROMPT
           Analyze the following issue/PR comment and determine the appropriate thinking tier for an AI agent to address it.
 
@@ -838,8 +856,8 @@ module Aidp
 
           ## Comment to Analyze:
           ```
-          #{truncate_string(comment_text, 2000)}
-          ```
+          #{truncate_string(comment_text, max_length)}
+          ```#{truncation_note}
 
           ## Your Task:
           Determine which tier is most appropriate for handling this work.
@@ -860,7 +878,7 @@ module Aidp
       def parse_tier_determination_response(response)
         tier_match = response.match(/TIER:\s*(\w+)/i)
         confidence_match = response.match(/CONFIDENCE:\s*([\d.]+)/i)
-        reasoning_match = response.match(/REASONING:\s*(.+?)(?:\n|$)/i)
+        reasoning_match = response.match(/REASONING:\s*(.+)/mi)
 
         tier = tier_match&.[](1)&.downcase || "standard"
         confidence = confidence_match&.[](1)&.to_f || 0.7
