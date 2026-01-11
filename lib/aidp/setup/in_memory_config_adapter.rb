@@ -157,6 +157,31 @@ module Aidp
         escalation_config[:on_complexity_threshold] || {}
       end
 
+      # Issue #375: Get maximum tier for autonomous contexts (watch mode, work loops)
+      def autonomous_max_tier
+        thinking_config[:autonomous_max_tier] || default_thinking_config[:autonomous_max_tier]
+      end
+
+      # Issue #375: Get escalation configuration for autonomous contexts
+      def autonomous_escalation_config
+        thinking_config[:autonomous_escalation] || default_autonomous_escalation_config
+      end
+
+      # Issue #375: Minimum attempts per model before trying next model in tier
+      def min_attempts_per_model
+        autonomous_escalation_config[:min_attempts_per_model] || 2
+      end
+
+      # Issue #375: Minimum total attempts across all models before tier escalation
+      def min_total_attempts_before_escalation
+        autonomous_escalation_config[:min_total_attempts] || 10
+      end
+
+      # Issue #375: Whether to retry failed models after exhausting untested models
+      def retry_failed_models?
+        autonomous_escalation_config[:retry_failed_models] != false
+      end
+
       # Get provider models configuration
       def provider_models(provider_name)
         provider_config(provider_name)[:models] || []
@@ -206,7 +231,9 @@ module Aidp
         {
           default_tier: "mini",
           max_tier: "pro",
-          allow_provider_switch: true
+          autonomous_max_tier: "standard",  # Issue #375: restrict autonomous operations
+          allow_provider_switch: true,
+          autonomous_escalation: default_autonomous_escalation_config
         }
       end
 
@@ -214,6 +241,15 @@ module Aidp
         {
           on_fail_attempts: 2,
           on_complexity_threshold: {}
+        }
+      end
+
+      # Issue #375: Default autonomous escalation configuration
+      def default_autonomous_escalation_config
+        {
+          min_attempts_per_model: 2,
+          min_total_attempts: 10,
+          retry_failed_models: true
         }
       end
     end
