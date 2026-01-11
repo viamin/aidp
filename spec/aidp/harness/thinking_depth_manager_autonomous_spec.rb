@@ -35,7 +35,11 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
   let(:sample_config) do
     {
       "harness" => {
-        "default_provider" => "anthropic"
+        "default_provider" => "anthropic",
+        "fallback_providers" => [],
+        "work_loop" => {
+          "enabled" => true
+        }
       },
       "thinking" => {
         "default_tier" => "mini",
@@ -43,18 +47,30 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
         "autonomous_max_tier" => "standard",
         "allow_provider_switch" => true,
         "escalation" => {
-          "on_fail_attempts" => 2
+          "on_fail_attempts" => 2,
+          "on_complexity_threshold" => {
+            "files_changed" => 5,
+            "modules_touched" => 3
+          }
         },
         "autonomous_escalation" => {
           "min_attempts_per_model" => 2,
           "min_total_attempts" => 10,
           "retry_failed_models" => true
-        }
+        },
+        "permissions_by_tier" => {
+          "mini" => "safe",
+          "standard" => "tools",
+          "pro" => "dangerous"
+        },
+        "overrides" => {}
       },
       "providers" => {
         "anthropic" => {
           "type" => "usage_based",
           "api_key" => "test-key",
+          "models" => ["claude-3-5-sonnet"],
+          "priority" => 1,
           "thinking_tiers" => {
             "mini" => {
               "models" => ["claude-3-haiku", "claude-3-5-haiku"]
@@ -66,6 +82,11 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
               "models" => ["claude-3-opus"]
             }
           }
+        },
+        "cursor" => {
+          "type" => "subscription",
+          "models" => ["cursor-default"],
+          "priority" => 2
         }
       }
     }
