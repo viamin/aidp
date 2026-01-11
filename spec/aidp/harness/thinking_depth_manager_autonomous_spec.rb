@@ -147,10 +147,14 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
         expect(manager.current_tier).to eq("standard")
       end
 
-      it "resets model tracking" do
+      it "resets tier attempt counter but preserves history" do
         manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
         manager.enable_autonomous_mode
-        expect(manager.model_attempts).to be_empty
+        # History is preserved for analysis
+        expect(manager.model_attempts).not_to be_empty
+        # But tier counter is reset
+        summary = manager.model_attempts_summary
+        expect(summary[:total_attempts]).to eq(0)
       end
     end
 
@@ -394,12 +398,17 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
   describe "#reset_model_tracking" do
     before { manager.enable_autonomous_mode }
 
-    it "clears all model tracking data" do
+    it "resets tier counter but preserves history for analysis" do
       manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
       manager.reset_model_tracking
 
-      expect(manager.model_attempts).to be_empty
-      expect(manager.model_attempt_count(provider: "anthropic", model: "claude-3-haiku")).to eq(0)
+      # History is preserved for cross-tier analysis
+      expect(manager.model_attempts).not_to be_empty
+      expect(manager.model_attempt_count(provider: "anthropic", model: "claude-3-haiku")).to eq(1)
+
+      # Tier counter is reset
+      summary = manager.model_attempts_summary
+      expect(summary[:total_attempts]).to eq(0)
     end
   end
 
