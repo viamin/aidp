@@ -2212,10 +2212,14 @@ module Aidp
         end
       end
 
+      # Maximum escalation depth to prevent infinite recursion
+      MAX_ESCALATION_DEPTH = 5
+
       # Select model based on current thinking depth tier
       # Returns [provider_name, model_name, model_data]
       # Issue #375: Uses intelligent model selection in autonomous mode
-      def select_model_for_current_tier
+      # @param escalation_depth [Integer] Current recursion depth (prevents infinite loops)
+      def select_model_for_current_tier(escalation_depth: 0)
         current_tier = @thinking_depth_manager.current_tier
         provider = @provider_manager.current_provider
 
@@ -2236,7 +2240,7 @@ module Aidp
 
           # No model from intelligent selection - check if we should escalate
           escalation_check = @thinking_depth_manager.should_escalate_tier?(provider: provider)
-          if escalation_check[:should_escalate]
+          if escalation_check[:should_escalate] && escalation_depth < MAX_ESCALATION_DEPTH
             # Attempt escalation to get access to higher-tier models
             new_tier = @thinking_depth_manager.escalate_tier_intelligent(provider: provider)
             if new_tier
@@ -2244,14 +2248,18 @@ module Aidp
                 from: current_tier,
                 to: new_tier,
                 reason: escalation_check[:reason])
-              # Retry selection with new tier
-              return select_model_for_current_tier
+              # Retry selection with new tier (increment depth to prevent infinite recursion)
+              return select_model_for_current_tier(escalation_depth: escalation_depth + 1)
             else
               Aidp.logger.warn("work_loop", "Escalation recommended but not possible",
                 tier: current_tier,
                 reason: "at_max_tier_or_blocked")
               # Fall through to standard selection as last resort
             end
+          elsif escalation_depth >= MAX_ESCALATION_DEPTH
+            Aidp.logger.warn("work_loop", "Max escalation depth reached",
+              depth: escalation_depth,
+              tier: current_tier)
           end
           # Fall through to standard selection if escalation not recommended or not possible
         end

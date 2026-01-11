@@ -487,6 +487,162 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
     end
   end
 
+  describe "malformed ZFC responses" do
+    let(:provider_manager) { double("ProviderManager") }
+
+    it "defaults to 'standard' tier when invalid tier name returned" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "TIER: ultramax\nCONFIDENCE: 0.9\nREASONING: Made up tier"}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("standard")
+      expect(result[:source]).to eq("zfc")
+    end
+
+    it "handles missing TIER field gracefully" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "CONFIDENCE: 0.8\nREASONING: No tier specified"}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("standard")
+      expect(result[:confidence]).to eq(0.8)
+    end
+
+    it "handles missing CONFIDENCE field gracefully" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "TIER: mini\nREASONING: Simple task"}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("mini")
+      expect(result[:confidence]).to eq(0.7)  # Default confidence
+    end
+
+    it "handles missing REASONING field gracefully" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "TIER: standard\nCONFIDENCE: 0.85"}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("standard")
+      expect(result[:reasoning]).to eq("No reasoning provided")
+    end
+
+    it "handles completely empty response" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: ""}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("standard")
+      expect(result[:confidence]).to eq(0.7)
+      expect(result[:reasoning]).to eq("No reasoning provided")
+    end
+
+    it "handles nil response output" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: nil}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("mini")  # Fallback due to error
+      expect(result[:source]).to eq("fallback")
+    end
+
+    it "handles confidence outside 0.0-1.0 range by using raw value" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "TIER: standard\nCONFIDENCE: 1.5\nREASONING: High confidence"}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("standard")
+      expect(result[:confidence]).to eq(1.5)  # Parser doesn't validate range
+    end
+
+    it "handles negative confidence by using raw value" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "TIER: mini\nCONFIDENCE: -0.5\nREASONING: Negative confidence"}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("mini")
+      expect(result[:confidence]).to eq(-0.5)  # Parser doesn't validate range
+    end
+
+    it "handles malformed response with extra content" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "Let me analyze this...\n\nTIER: thinking\nCONFIDENCE: 0.75\nREASONING: Complex task requiring deep analysis"}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("thinking")
+      expect(result[:confidence]).to eq(0.75)
+    end
+
+    it "handles multi-line reasoning" do
+      allow(provider_manager).to receive(:execute_with_provider).and_return(
+        {output: "TIER: pro\nCONFIDENCE: 0.9\nREASONING: This is a complex task.\nIt requires multiple considerations.\nAnd careful planning."}
+      )
+
+      result = manager.determine_tier_from_comment(
+        comment_text: "Some task",
+        provider_manager: provider_manager,
+        labels: []
+      )
+
+      expect(result[:tier]).to eq("pro")
+      expect(result[:reasoning]).to include("This is a complex task")
+      expect(result[:reasoning]).to include("multiple considerations")
+    end
+  end
+
   describe "label parsing" do
     let(:provider_manager) { double("ProviderManager") }
 

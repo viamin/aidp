@@ -6,6 +6,18 @@ require_relative "../message_display"
 
 module Aidp
   module Harness
+    # Custom exception for model availability issues
+    class NoModelAvailableError < StandardError
+      attr_reader :tier, :provider
+
+      def initialize(tier:, provider:)
+        @tier = tier
+        @provider = provider
+        super("No model available for tier '#{tier}' with provider '#{provider}'. " \
+              "Check your aidp.yml configuration or run 'aidp models discover' to find available models.")
+      end
+    end
+
     # Manages thinking depth tier selection and escalation
     # Integrates with CapabilityRegistry and Configuration to select appropriate models
     class ThinkingDepthManager
@@ -108,20 +120,31 @@ module Aidp
         end
       end
 
-      # Get maximum allowed tier (respects session override and autonomous mode)
+      # Get the base maximum tier (from session override or config, ignoring autonomous mode)
+      # This is the "raw" max tier before autonomous mode restrictions are applied
+      def base_max_tier
+        @session_max_tier || configuration.max_tier
+      end
+
+      # Get effective maximum tier (applies autonomous mode restrictions)
       # Issue #375: In autonomous mode, respects autonomous_max_tier
       def max_tier
-        base_max = @session_max_tier || configuration.max_tier
+        apply_autonomous_tier_cap(base_max_tier)
+      end
 
-        # In autonomous mode, use the lower of base_max and autonomous_max_tier
-        if @autonomous_mode
-          auto_max = autonomous_max_tier
-          if @registry.compare_tiers(auto_max, base_max) < 0
-            return auto_max
-          end
+      # Apply autonomous mode tier cap if active
+      # Returns the tier capped at autonomous_max_tier when in autonomous mode
+      # @param tier [String] The tier to potentially cap
+      # @return [String] The effective tier (capped if in autonomous mode)
+      def apply_autonomous_tier_cap(tier)
+        return tier unless @autonomous_mode
+
+        auto_max = autonomous_max_tier
+        if @registry.compare_tiers(auto_max, tier) < 0
+          auto_max
+        else
+          tier
         end
-
-        base_max
       end
 
       # Set maximum tier for this session (temporary override)
@@ -290,6 +313,13 @@ module Aidp
         [model_name].reject { |m| model_denylisted?(m) }
       end
 
+      # Check if any models are configured for the current tier and provider
+      # @param provider [String] Provider name
+      # @return [Boolean] true if models are available, false if none configured
+      def models_configured_for_tier?(provider:)
+        available_models_for_tier(provider: provider).any?
+      end
+
       # Select the next model to try in current tier
       # Issue #375: Tries all models before escalating, respects min attempts per model
       # @param provider [String] Provider name
@@ -298,7 +328,13 @@ module Aidp
         tier = current_tier
         models = available_models_for_tier(provider: provider)
 
-        return nil if models.empty?
+        if models.empty?
+          Aidp.log_debug("thinking_depth_manager", "No models configured for tier",
+            tier: tier,
+            provider: provider,
+            reason: "no_models_configured")
+          return nil
+        end
 
         min_attempts = configuration.min_attempts_per_model
 
@@ -851,7 +887,7 @@ module Aidp
           Aidp.log_warn("thinking_depth_manager", "No model available for ZFC tier determination",
             tier: "mini",
             provider: configuration.default_provider)
-          raise "No model available for tier determination"
+          raise NoModelAvailableError.new(tier: "mini", provider: configuration.default_provider)
         end
 
         result = provider_manager.execute_with_provider(
