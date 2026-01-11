@@ -581,7 +581,7 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       expect(result[:source]).to eq("fallback")
     end
 
-    it "handles confidence outside 0.0-1.0 range by using raw value" do
+    it "clamps confidence above 1.0 to 1.0" do
       allow(provider_manager).to receive(:execute_with_provider).and_return(
         {output: "TIER: standard\nCONFIDENCE: 1.5\nREASONING: High confidence"}
       )
@@ -593,10 +593,10 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       )
 
       expect(result[:tier]).to eq("standard")
-      expect(result[:confidence]).to eq(1.5)  # Parser doesn't validate range
+      expect(result[:confidence]).to eq(1.0)  # Clamped to max
     end
 
-    it "handles negative confidence by using raw value" do
+    it "clamps negative confidence to 0.0" do
       allow(provider_manager).to receive(:execute_with_provider).and_return(
         {output: "TIER: mini\nCONFIDENCE: -0.5\nREASONING: Negative confidence"}
       )
@@ -608,7 +608,7 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       )
 
       expect(result[:tier]).to eq("mini")
-      expect(result[:confidence]).to eq(-0.5)  # Parser doesn't validate range
+      expect(result[:confidence]).to eq(0.0)  # Clamped to min
     end
 
     it "handles malformed response with extra content" do

@@ -1639,4 +1639,47 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       end
     end
   end
+
+  describe "Issue #375: Intelligent model escalation" do
+    describe "MAX_ESCALATION_DEPTH constant" do
+      it "defines a maximum escalation depth to prevent infinite recursion" do
+        expect(described_class::MAX_ESCALATION_DEPTH).to eq(5)
+      end
+    end
+
+    describe "#select_model_for_current_tier" do
+      let(:thinking_manager) { runner.instance_variable_get(:@thinking_depth_manager) }
+
+      before do
+        # Allow autonomous mode methods
+        allow(thinking_manager).to receive(:autonomous_mode?).and_return(true)
+        allow(thinking_manager).to receive(:select_next_model).and_return("claude-3-5-sonnet")
+        allow(thinking_manager).to receive(:current_tier).and_return("standard")
+        allow(thinking_manager).to receive(:should_escalate_tier?).and_return({should_escalate: false, reason: "continue"})
+      end
+
+      it "accepts an escalation_depth parameter" do
+        allow(mock_registry).to receive(:best_model_for_tier).and_return(["anthropic", "claude-3-5-sonnet", {}])
+
+        # Method should accept escalation_depth parameter without error
+        result = runner.send(:select_model_for_current_tier, escalation_depth: 0)
+
+        expect(result).to be_an(Array)
+        expect(result.length).to eq(3)
+      end
+
+      it "prevents infinite recursion by respecting MAX_ESCALATION_DEPTH" do
+        allow(thinking_manager).to receive(:select_next_model).and_return(nil)
+        allow(thinking_manager).to receive(:should_escalate_tier?).and_return({should_escalate: true, reason: "all_models_failed"})
+        allow(thinking_manager).to receive(:escalate_tier_intelligent).and_return("pro")
+        allow(mock_registry).to receive(:best_model_for_tier).and_return(["anthropic", "claude-3-5-sonnet", {}])
+
+        # Calling at max depth should not recurse further
+        result = runner.send(:select_model_for_current_tier, escalation_depth: described_class::MAX_ESCALATION_DEPTH)
+
+        # Should fall through to standard selection without recursion
+        expect(result).to be_an(Array)
+      end
+    end
+  end
 end

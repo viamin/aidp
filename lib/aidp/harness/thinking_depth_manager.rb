@@ -23,6 +23,12 @@ module Aidp
     class ThinkingDepthManager
       include Aidp::MessageDisplay
 
+      # Configuration constants for tier management
+      MAX_TIER_HISTORY_SIZE = 100
+      MAX_COMMENT_LENGTH = 2000
+      MAX_REASONING_DISPLAY_LENGTH = 100
+      DEFAULT_CONFIDENCE = 0.7
+
       attr_reader :configuration, :registry
 
       # Issue #375: Model attempt tracking for intelligent escalation
@@ -839,7 +845,7 @@ module Aidp
         @tier_history << entry
 
         # Keep history bounded
-        @tier_history.shift if @tier_history.size > 100
+        @tier_history.shift if @tier_history.size > MAX_TIER_HISTORY_SIZE
       end
 
       # ============================================================
@@ -905,7 +911,7 @@ module Aidp
 
       # Build prompt for ZFC tier determination
       def build_tier_determination_prompt(comment_text)
-        max_length = 2000
+        max_length = MAX_COMMENT_LENGTH
         truncated = comment_text && comment_text.length > max_length
         truncation_note = truncated ? "\n\n[Note: Comment was truncated from #{comment_text.length} to #{max_length} characters]" : ""
 
@@ -946,7 +952,9 @@ module Aidp
         reasoning_match = response.match(/REASONING:\s*(.+)/mi)
 
         tier = tier_match&.[](1)&.downcase || "standard"
-        confidence = confidence_match&.[](1)&.to_f || 0.7
+        raw_confidence = confidence_match&.[](1)&.to_f || DEFAULT_CONFIDENCE
+        # Clamp confidence to valid 0.0-1.0 range
+        confidence = [[raw_confidence, 0.0].max, 1.0].min
         reasoning = reasoning_match&.[](1)&.strip || "No reasoning provided"
 
         # Validate tier is in allowed list
@@ -966,7 +974,7 @@ module Aidp
         Aidp.log_info("thinking_depth_manager", "ZFC tier determination",
           tier: tier,
           confidence: confidence,
-          reasoning: truncate_string(reasoning, 100))
+          reasoning: truncate_string(reasoning, MAX_REASONING_DISPLAY_LENGTH))
 
         {
           tier: tier,
