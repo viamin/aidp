@@ -2233,9 +2233,19 @@ module Aidp
               iteration: @iteration_count)
             return [provider, model_name, {}]
           end
+
+          # No model from intelligent selection - check if we should escalate
+          escalation_check = @thinking_depth_manager.should_escalate_tier?(provider: provider)
+          if escalation_check[:should_escalate]
+            Aidp.logger.debug("work_loop", "All models exhausted, escalation recommended",
+              tier: current_tier,
+              reason: escalation_check[:reason])
+          end
+          # Fall through to standard selection only if escalation is not recommended
+          # (e.g., still have untested models in other scenarios)
         end
 
-        # Standard model selection
+        # Standard model selection (non-autonomous or fallback)
         provider_name, model_name, model_data = @thinking_depth_manager.select_model_for_tier(
           current_tier,
           provider: provider

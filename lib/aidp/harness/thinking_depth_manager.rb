@@ -28,7 +28,6 @@ module Aidp
         # Issue #375: Track model attempts for intelligent escalation
         @model_attempts = {}
         @total_attempts_in_tier = 0
-        @current_model_index = 0
         @autonomous_mode = autonomous_mode
         @model_denylist = []  # Models to skip (e.g., denylisted by user)
 
@@ -303,11 +302,12 @@ module Aidp
 
         min_attempts = configuration.min_attempts_per_model
 
-        # First pass: find untested or under-min-attempts models
+        # First pass: find any model with under-min-attempts (must reach min before retry)
+        # This ensures every model gets minimum attempts before we consider retrying
         models.each do |model|
           attempts = model_attempt_count(provider: provider, model: model)
-          if attempts < min_attempts && !model_failed?(provider: provider, model: model)
-            Aidp.log_debug("thinking_depth_manager", "Selected untested/under-min model",
+          if attempts < min_attempts
+            Aidp.log_debug("thinking_depth_manager", "Selected under-min-attempts model",
               model: model,
               attempts: attempts,
               min_required: min_attempts)
@@ -315,23 +315,27 @@ module Aidp
           end
         end
 
-        # Second pass: retry models (if retry enabled)
+        # Second pass: retry models that have met min attempts (if retry enabled)
         # Prioritize non-failed models first, then retry failed models
         if configuration.retry_failed_models?
           # First try non-failed models that have met min attempts
           models.each do |model|
-            unless model_failed?(provider: provider, model: model)
+            attempts = model_attempt_count(provider: provider, model: model)
+            if attempts >= min_attempts && !model_failed?(provider: provider, model: model)
               Aidp.log_debug("thinking_depth_manager", "Selected non-failed model for retry",
-                model: model)
+                model: model,
+                attempts: attempts)
               return model
             end
           end
 
-          # Then retry previously failed models
+          # Then retry previously failed models that have met min attempts
           models.each do |model|
-            if model_failed?(provider: provider, model: model)
+            attempts = model_attempt_count(provider: provider, model: model)
+            if attempts >= min_attempts && model_failed?(provider: provider, model: model)
               Aidp.log_debug("thinking_depth_manager", "Retrying previously failed model",
-                model: model)
+                model: model,
+                attempts: attempts)
               return model
             end
           end
@@ -382,12 +386,14 @@ module Aidp
         end
 
         # Check if all models have failed
+        # Only escalate if ALL models have failed - don't escalate just because min attempts reached
+        # if some models are still succeeding
         all_failed = models.all? { |m| model_failed?(provider: provider, model: m) }
 
-        if all_failed || @total_attempts_in_tier >= effective_min_total
+        if all_failed
           return {
             should_escalate: true,
-            reason: all_failed ? "all_models_failed" : "min_attempts_reached",
+            reason: "all_models_failed",
             total_attempts: @total_attempts_in_tier
           }
         end
@@ -428,12 +434,11 @@ module Aidp
       end
 
       # Reset model tracking (call when changing tiers or starting new work)
+      # Note: Preserves @model_attempts history for analysis; only resets tier-specific counters
       def reset_model_tracking
-        @model_attempts = {}
         @total_attempts_in_tier = 0
-        @current_model_index = 0
 
-        Aidp.log_debug("thinking_depth_manager", "Model tracking reset")
+        Aidp.log_debug("thinking_depth_manager", "Model tracking reset for new tier")
       end
 
       # Get summary of model attempts in current tier
@@ -824,6 +829,14 @@ module Aidp
 
         # Use mini tier for the ZFC decision itself (cost efficiency)
         provider_name, model_name, _data = select_model_for_tier("mini", provider: configuration.default_provider)
+
+        # Handle case where no model is available for tier determination
+        if provider_name.nil?
+          Aidp.log_warn("thinking_depth_manager", "No model available for ZFC tier determination",
+            tier: "mini",
+            provider: configuration.default_provider)
+          raise "No model available for tier determination"
+        end
 
         result = provider_manager.execute_with_provider(
           provider_name,

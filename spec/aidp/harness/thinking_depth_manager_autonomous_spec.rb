@@ -277,16 +277,26 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
     end
 
     it "returns false when below minimum total attempts" do
-      # Test all models but below min total attempts
+      # Test one model but below min total attempts
       manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
-      manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
+
+      result = manager.should_escalate_tier?(provider: "anthropic")
+      expect(result[:should_escalate]).to be false
+      expect(result[:reason]).to eq("untested_models_remain")
+    end
+
+    it "returns false when min attempts met but some models succeeded" do
+      # Both models have min attempts, but one succeeded - should NOT escalate
+      manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: true)
+      manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: true)
       manager.record_model_attempt(provider: "anthropic", model: "claude-3-5-haiku", success: false)
       manager.record_model_attempt(provider: "anthropic", model: "claude-3-5-haiku", success: false)
 
       result = manager.should_escalate_tier?(provider: "anthropic")
-      # With 2 models and min 2 attempts each, effective min is 4
-      # We have 4 attempts, so should allow escalation
-      expect(result[:should_escalate]).to be true
+      # Min attempts met (4 total, 2 per model), but claude-3-haiku succeeded
+      # Should NOT escalate because not all models have failed
+      expect(result[:should_escalate]).to be false
+      expect(result[:reason]).to eq("continue_current_tier")
     end
 
     it "returns true when all models failed and min attempts met" do
