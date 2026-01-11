@@ -340,7 +340,6 @@ module Aidp
       def should_escalate_tier?(provider:)
         return {should_escalate: false, reason: "not_autonomous"} unless @autonomous_mode
 
-        tier = current_tier
         min_total = configuration.min_total_attempts_before_escalation
         min_per_model = configuration.min_attempts_per_model
         models = available_models_for_tier(provider: provider)
@@ -455,10 +454,10 @@ module Aidp
 
       # Determine appropriate tier from issue/PR comment content using ZFC
       # @param comment_text [String] The issue or PR comment text
-      # @param labels [Array<String>] Optional labels on the issue/PR
       # @param provider_manager [ProviderManager] Provider manager for AI calls
+      # @param labels [Array<String>] Optional labels on the issue/PR
       # @return [Hash] {tier: String, confidence: Float, reasoning: String}
-      def determine_tier_from_comment(comment_text:, labels: [], provider_manager:)
+      def determine_tier_from_comment(comment_text:, provider_manager:, labels: [])
         # Check for explicit tier labels first (fast path)
         tier_from_labels = extract_tier_from_labels(labels)
         if tier_from_labels

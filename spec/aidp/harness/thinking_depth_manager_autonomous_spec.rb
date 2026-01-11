@@ -359,8 +359,8 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
     it "returns tier from label if present" do
       result = manager.determine_tier_from_comment(
         comment_text: "Fix the bug",
-        labels: ["tier:mini", "bug"],
-        provider_manager: provider_manager
+        provider_manager: provider_manager,
+        labels: ["tier:mini", "bug"]
       )
 
       expect(result[:tier]).to eq("mini")
@@ -370,8 +370,8 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
     it "uses ZFC when no tier label present" do
       result = manager.determine_tier_from_comment(
         comment_text: "Implement a new feature for user authentication",
-        labels: ["enhancement"],
-        provider_manager: provider_manager
+        provider_manager: provider_manager,
+        labels: ["enhancement"]
       )
 
       expect(result[:tier]).to eq("standard")
@@ -387,8 +387,8 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
 
       result = manager.determine_tier_from_comment(
         comment_text: "Complex architectural change",
-        labels: [],
-        provider_manager: provider_manager
+        provider_manager: provider_manager,
+        labels: []
       )
 
       expect(result[:tier]).to eq("standard")  # Capped at autonomous_max_tier
@@ -399,8 +399,8 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
 
       result = manager.determine_tier_from_comment(
         comment_text: "Some work",
-        labels: [],
-        provider_manager: provider_manager
+        provider_manager: provider_manager,
+        labels: []
       )
 
       expect(result[:tier]).to eq("mini")
@@ -424,8 +424,8 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       it "parses '#{label}' as '#{expected_tier}'" do
         result = manager.determine_tier_from_comment(
           comment_text: "Task",
-          labels: [label],
-          provider_manager: provider_manager
+          provider_manager: provider_manager,
+          labels: [label]
         )
 
         expect(result[:tier]).to eq(expected_tier)

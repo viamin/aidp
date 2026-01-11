@@ -2280,11 +2280,9 @@ module Aidp
           # Issue #375: Use intelligent escalation in autonomous mode
           if @thinking_depth_manager.autonomous_mode?
             intelligent_escalate_thinking_tier(provider)
-          else
+          elsif @thinking_depth_manager.should_escalate_on_failures?(@consecutive_failures)
             # Legacy behavior for non-autonomous mode
-            if @thinking_depth_manager.should_escalate_on_failures?(@consecutive_failures)
-              escalate_thinking_tier("consecutive_failures")
-            end
+            escalate_thinking_tier("consecutive_failures")
           end
         end
 
