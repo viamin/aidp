@@ -35,6 +35,7 @@ RSpec.describe "Work Loop Header Prepending" do
   let(:mock_thinking_depth_manager) do
     instance_double("Aidp::Harness::ThinkingDepthManager",
       select_model_for_tier: ["anthropic", "claude-3-5-sonnet-20241022", {tier: "standard"}],
+      select_next_model: "claude-3-5-sonnet-20241022",
       current_tier: "standard",
       autonomous_mode?: true)
   end

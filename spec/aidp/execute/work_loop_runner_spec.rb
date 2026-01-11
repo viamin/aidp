@@ -27,6 +27,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       # Thinking depth configuration
       default_tier: "standard",
       max_tier: "pro",
+      autonomous_max_tier: "standard",
       allow_provider_switch_for_tier?: true,
       escalation_fail_attempts: 2,
       escalation_complexity_threshold: {files_changed: 10, modules_touched: 5},
