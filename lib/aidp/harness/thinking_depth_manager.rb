@@ -838,7 +838,7 @@ module Aidp
 
           ## Comment to Analyze:
           ```
-          #{comment_text.truncate(2000)}
+          #{truncate_string(comment_text, 2000)}
           ```
 
           ## Your Task:
@@ -883,7 +883,7 @@ module Aidp
         Aidp.log_info("thinking_depth_manager", "ZFC tier determination",
           tier: tier,
           confidence: confidence,
-          reasoning: reasoning.truncate(100))
+          reasoning: truncate_string(reasoning, 100))
 
         {
           tier: tier,
@@ -1040,6 +1040,14 @@ module Aidp
         display_message("   1. Run 'aidp models discover' to find available models", type: :info)
         display_message("   2. Run 'aidp models list --tier=#{tier}' to see models for this tier", type: :info)
         display_message("   3. Run 'aidp models validate' to check your configuration\n", type: :info)
+      end
+
+      # Truncate string to max_length (plain Ruby replacement for ActiveSupport truncate)
+      def truncate_string(string, max_length)
+        return "" if string.nil?
+        return string if string.length <= max_length
+
+        "#{string[0, max_length - 3]}..."
       end
     end
   end

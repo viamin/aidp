@@ -61,6 +61,7 @@ RSpec.describe "Tier Symbol/String Integration" do
     config = instance_double("Aidp::Harness::Configuration",
       default_tier: :mini,  # Symbol!
       max_tier: :max,
+      autonomous_max_tier: :standard,
       escalation_config: {enabled: true},
       allow_provider_switch_for_tier?: true,
       project_dir: temp_dir)
@@ -88,6 +89,7 @@ RSpec.describe "Tier Symbol/String Integration" do
     config = instance_double("Aidp::Harness::Configuration",
       default_tier: "mini",  # String
       max_tier: "max",
+      autonomous_max_tier: "standard",
       escalation_config: {enabled: true},
       allow_provider_switch_for_tier?: true,
       project_dir: temp_dir)
