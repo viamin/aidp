@@ -954,7 +954,7 @@ module Aidp
         tier = tier_match&.[](1)&.downcase || "standard"
         raw_confidence = confidence_match&.[](1)&.to_f || DEFAULT_CONFIDENCE
         # Clamp confidence to valid 0.0-1.0 range
-        confidence = [[raw_confidence, 0.0].max, 1.0].min
+        confidence = raw_confidence.clamp(0.0, 1.0)
         reasoning = reasoning_match&.[](1)&.strip || "No reasoning provided"
 
         # Validate tier is in allowed list
