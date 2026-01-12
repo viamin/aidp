@@ -948,7 +948,7 @@ module Aidp
       # Parse the ZFC response for tier determination
       def parse_tier_determination_response(response)
         tier_match = response.match(/TIER:\s*(\w+)/i)
-        confidence_match = response.match(/CONFIDENCE:\s*([\d.]+)/i)
+        confidence_match = response.match(/CONFIDENCE:\s*([-\d.]+)/i)
         reasoning_match = response.match(/REASONING:\s*(.+)/mi)
 
         tier = tier_match&.[](1)&.downcase || "standard"
