@@ -1668,17 +1668,15 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         expect(result.length).to eq(3)
       end
 
-      it "prevents infinite recursion by respecting MAX_ESCALATION_DEPTH" do
+      it "raises NoModelAvailableError when MAX_ESCALATION_DEPTH is reached" do
         allow(thinking_manager).to receive(:select_next_model).and_return(nil)
         allow(thinking_manager).to receive(:should_escalate_tier?).and_return({should_escalate: true, reason: "all_models_failed"})
         allow(thinking_manager).to receive(:escalate_tier_intelligent).and_return("pro")
-        allow(mock_registry).to receive(:best_model_for_tier).and_return(["anthropic", "claude-3-5-sonnet", {}])
 
-        # Calling at max depth should not recurse further
-        result = runner.send(:select_model_for_current_tier, escalation_depth: described_class::MAX_ESCALATION_DEPTH)
-
-        # Should fall through to standard selection without recursion
-        expect(result).to be_an(Array)
+        # Calling at max depth should raise an exception instead of recursing
+        expect {
+          runner.send(:select_model_for_current_tier, escalation_depth: described_class::MAX_ESCALATION_DEPTH)
+        }.to raise_error(Aidp::Harness::NoModelAvailableError)
       end
     end
   end

@@ -272,12 +272,12 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
       expect(result[:reason]).to eq("not_autonomous")
     end
 
-    it "returns false when untested models remain" do
+    it "returns false when models below minimum attempts remain" do
       manager.record_model_attempt(provider: "anthropic", model: "claude-3-haiku", success: false)
 
       result = manager.should_escalate_tier?(provider: "anthropic")
       expect(result[:should_escalate]).to be false
-      expect(result[:reason]).to eq("untested_models_remain")
+      expect(result[:reason]).to eq("models_below_min_attempts")
     end
 
     it "returns false when below minimum total attempts" do
@@ -286,7 +286,7 @@ RSpec.describe Aidp::Harness::ThinkingDepthManager do
 
       result = manager.should_escalate_tier?(provider: "anthropic")
       expect(result[:should_escalate]).to be false
-      expect(result[:reason]).to eq("untested_models_remain")
+      expect(result[:reason]).to eq("models_below_min_attempts")
     end
 
     it "returns false when min attempts met but some models succeeded" do

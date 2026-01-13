@@ -2257,9 +2257,14 @@ module Aidp
               # Fall through to standard selection as last resort
             end
           elsif escalation_depth >= MAX_ESCALATION_DEPTH
-            Aidp.logger.warn("work_loop", "Max escalation depth reached",
+            Aidp.logger.error("work_loop", "Max escalation depth reached - model selection exhausted",
               depth: escalation_depth,
-              tier: current_tier)
+              tier: current_tier,
+              provider: provider)
+            raise Aidp::Harness::NoModelAvailableError.new(
+              tier: current_tier,
+              provider: provider
+            )
           end
           # Fall through to standard selection if escalation not recommended or not possible
         end
@@ -2269,6 +2274,17 @@ module Aidp
           current_tier,
           provider: provider
         )
+
+        # Validate that we got a usable model
+        if model_name.nil?
+          Aidp.logger.error("work_loop", "No model available after standard selection",
+            tier: current_tier,
+            provider: provider_name)
+          raise Aidp::Harness::NoModelAvailableError.new(
+            tier: current_tier,
+            provider: provider_name || provider
+          )
+        end
 
         # Track the selected model for attempt recording
         @last_model = model_name

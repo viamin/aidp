@@ -401,16 +401,16 @@ module Aidp
         min_per_model = configuration.min_attempts_per_model
         models = available_models_for_tier(provider: provider)
 
-        # Check if we have any untested models
-        untested_models = models.select do |model|
+        # Check if we have any models below minimum attempts threshold
+        models_below_min = models.select do |model|
           model_attempt_count(provider: provider, model: model) < min_per_model
         end
 
-        if untested_models.any?
+        if models_below_min.any?
           return {
             should_escalate: false,
-            reason: "untested_models_remain",
-            untested_count: untested_models.size
+            reason: "models_below_min_attempts",
+            remaining_count: models_below_min.size
           }
         end
 
@@ -479,7 +479,9 @@ module Aidp
       # Clears current tier's data for consistency; preserves other tiers' history for analysis
       def reset_model_tracking
         tier = current_tier
-        @model_attempts[tier] = {} if @model_attempts[tier]
+        # Ensure hash exists then clear it for consistency with counter reset
+        @model_attempts[tier] ||= {}
+        @model_attempts[tier].clear
         @total_attempts_in_tier = 0
 
         Aidp.log_debug("thinking_depth_manager", "Model tracking reset for tier", tier: tier)
