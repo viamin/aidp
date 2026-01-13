@@ -71,10 +71,16 @@ module Aidp
         @unit_scheduler = nil
 
         # Initialize thinking depth manager for intelligent model selection
+        # Issue #375: Enable autonomous mode by default for work loops
         require_relative "../harness/thinking_depth_manager"
-        @thinking_depth_manager = options[:thinking_depth_manager] || Aidp::Harness::ThinkingDepthManager.new(config, root_dir: @project_dir)
+        @thinking_depth_manager = options[:thinking_depth_manager] || Aidp::Harness::ThinkingDepthManager.new(
+          config,
+          root_dir: @project_dir,
+          autonomous_mode: true  # Issue #375: Work loops use autonomous mode
+        )
         @consecutive_failures = 0
         @last_tier = nil
+        @last_model = nil  # Issue #375: Track last used model
 
         # Initialize style guide selector for intelligent section selection
         @style_guide_selector = options[:style_guide_selector] || Aidp::StyleGuide::Selector.new(project_dir: project_dir)
@@ -2206,14 +2212,82 @@ module Aidp
         end
       end
 
+      # Maximum escalation depth to prevent infinite recursion
+      MAX_ESCALATION_DEPTH = 5
+
       # Select model based on current thinking depth tier
       # Returns [provider_name, model_name, model_data]
-      def select_model_for_current_tier
+      # Issue #375: Uses intelligent model selection in autonomous mode
+      # @param escalation_depth [Integer] Current recursion depth (prevents infinite loops)
+      def select_model_for_current_tier(escalation_depth: 0)
         current_tier = @thinking_depth_manager.current_tier
+        provider = @provider_manager.current_provider
+
+        # Issue #375: In autonomous mode, use intelligent model selection
+        # that considers previous attempts and prefers untested models
+        if @thinking_depth_manager.autonomous_mode?
+          model_name = @thinking_depth_manager.select_next_model(provider: provider)
+          if model_name
+            @last_model = model_name
+            Aidp.logger.debug("work_loop", "Selected model intelligently",
+              tier: current_tier,
+              provider: provider,
+              model: model_name,
+              step: @step_name,
+              iteration: @iteration_count)
+            return [provider, model_name, {}]
+          end
+
+          # No model from intelligent selection - check if we should escalate
+          escalation_check = @thinking_depth_manager.should_escalate_tier?(provider: provider)
+          if escalation_check[:should_escalate] && escalation_depth < MAX_ESCALATION_DEPTH
+            # Attempt escalation to get access to higher-tier models
+            new_tier = @thinking_depth_manager.escalate_tier_intelligent(provider: provider)
+            if new_tier
+              Aidp.logger.info("work_loop", "Escalated tier after exhausting models",
+                from: current_tier,
+                to: new_tier,
+                reason: escalation_check[:reason])
+              # Retry selection with new tier (increment depth to prevent infinite recursion)
+              return select_model_for_current_tier(escalation_depth: escalation_depth + 1)
+            else
+              Aidp.logger.warn("work_loop", "Escalation recommended but not possible",
+                tier: current_tier,
+                reason: "at_max_tier_or_blocked")
+              # Fall through to standard selection as last resort
+            end
+          elsif escalation_depth >= MAX_ESCALATION_DEPTH
+            Aidp.logger.error("work_loop", "Max escalation depth reached - model selection exhausted",
+              depth: escalation_depth,
+              tier: current_tier,
+              provider: provider)
+            raise Aidp::Harness::NoModelAvailableError.new(
+              tier: current_tier,
+              provider: provider
+            )
+          end
+          # Fall through to standard selection if escalation not recommended or not possible
+        end
+
+        # Standard model selection (non-autonomous or fallback)
         provider_name, model_name, model_data = @thinking_depth_manager.select_model_for_tier(
           current_tier,
-          provider: @provider_manager.current_provider
+          provider: provider
         )
+
+        # Validate that we got a usable model
+        if model_name.nil?
+          Aidp.logger.error("work_loop", "No model available after standard selection",
+            tier: current_tier,
+            provider: provider_name)
+          raise Aidp::Harness::NoModelAvailableError.new(
+            tier: current_tier,
+            provider: provider_name || provider
+          )
+        end
+
+        # Track the selected model for attempt recording
+        @last_model = model_name
 
         Aidp.logger.debug("work_loop", "Selected model for tier",
           tier: current_tier,
@@ -2226,8 +2300,20 @@ module Aidp
       end
 
       # Track test/lint/formatter/build/doc failures and escalate tier if needed
+      # Issue #375: Uses intelligent escalation that tries all models in tier first
       def track_failures_and_escalate(all_results)
         all_pass = all_results.values.all? { |result| result[:success] }
+        provider = @provider_manager.current_provider
+        model = @last_model
+
+        # Record model attempt with success/failure
+        if model
+          @thinking_depth_manager.record_model_attempt(
+            provider: provider,
+            model: model,
+            success: all_pass
+          )
+        end
 
         if all_pass
           # Reset failure count on success
@@ -2236,19 +2322,75 @@ module Aidp
           # Increment failure count
           @consecutive_failures += 1
 
-          # Check if we should escalate based on consecutive failures
-          if @thinking_depth_manager.should_escalate_on_failures?(@consecutive_failures)
+          # Issue #375: Use intelligent escalation in autonomous mode
+          if @thinking_depth_manager.autonomous_mode?
+            intelligent_escalate_thinking_tier(provider)
+          elsif @thinking_depth_manager.should_escalate_on_failures?(@consecutive_failures)
+            # Legacy behavior for non-autonomous mode
             escalate_thinking_tier("consecutive_failures")
           end
         end
 
-        # Check complexity-based escalation
+        # Check complexity-based escalation (applies to both modes)
         changed_files = get_changed_files
         if @thinking_depth_manager.should_escalate_on_complexity?(
           files_changed: changed_files.size,
           modules_touched: estimate_modules_touched(changed_files)
         )
-          escalate_thinking_tier("complexity_threshold")
+          # In autonomous mode, only escalate if intelligent check allows
+          if @thinking_depth_manager.autonomous_mode?
+            intelligent_escalate_thinking_tier(provider, reason: "complexity_threshold")
+          else
+            escalate_thinking_tier("complexity_threshold")
+          end
+        end
+      end
+
+      # Issue #375: Intelligent tier escalation that tries all models in current tier first
+      def intelligent_escalate_thinking_tier(provider, reason: nil)
+        escalation_check = @thinking_depth_manager.should_escalate_tier?(provider: provider)
+
+        unless escalation_check[:should_escalate]
+          # Log why we're not escalating yet
+          case escalation_check[:reason]
+          when "untested_models_remain"
+            display_message("  ℹ️  Not escalating tier: #{escalation_check[:untested_count]} untested models remain", type: :info)
+          when "below_min_attempts"
+            display_message("  ℹ️  Not escalating tier: #{escalation_check[:current]}/#{escalation_check[:required]} attempts made", type: :info)
+          end
+
+          Aidp.log_debug("work_loop", "Intelligent escalation blocked",
+            reason: escalation_check[:reason],
+            details: escalation_check)
+          return
+        end
+
+        # Proceed with escalation
+        old_tier = @thinking_depth_manager.current_tier
+        new_tier = @thinking_depth_manager.escalate_tier_intelligent(
+          provider: provider,
+          reason: reason || escalation_check[:reason]
+        )
+
+        if new_tier
+          display_message("  ⬆️  Escalated thinking tier: #{old_tier} → #{new_tier} (#{reason || escalation_check[:reason]})", type: :warning)
+          display_message("     Total attempts in #{old_tier}: #{escalation_check[:total_attempts]}", type: :info)
+
+          Aidp.logger.info("work_loop", "Intelligent tier escalation",
+            from: old_tier,
+            to: new_tier,
+            reason: reason || escalation_check[:reason],
+            step: @step_name,
+            iteration: @iteration_count,
+            model_attempts_summary: @thinking_depth_manager.model_attempts_summary)
+
+          # Reset last tier to trigger display of new tier
+          @last_tier = nil
+        else
+          Aidp.logger.debug("work_loop", "Cannot escalate tier further",
+            current: @thinking_depth_manager.current_tier,
+            max: @thinking_depth_manager.max_tier,
+            reason: reason)
         end
       end
 

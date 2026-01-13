@@ -6,14 +6,36 @@ require_relative "../message_display"
 
 module Aidp
   module Harness
+    # Custom exception for model availability issues
+    class NoModelAvailableError < StandardError
+      attr_reader :tier, :provider
+
+      def initialize(tier:, provider:)
+        @tier = tier
+        @provider = provider
+        super("No model available for tier '#{tier}' with provider '#{provider}'. " \
+              "Check your aidp.yml configuration or run 'aidp models discover' to find available models.")
+      end
+    end
+
     # Manages thinking depth tier selection and escalation
     # Integrates with CapabilityRegistry and Configuration to select appropriate models
     class ThinkingDepthManager
       include Aidp::MessageDisplay
 
+      # Configuration constants for tier management
+      MAX_TIER_HISTORY_SIZE = 100
+      MAX_COMMENT_LENGTH = 2000
+      MAX_REASONING_DISPLAY_LENGTH = 100
+      DEFAULT_CONFIDENCE = 0.7
+
       attr_reader :configuration, :registry
 
-      def initialize(configuration, registry: nil, root_dir: nil)
+      # Issue #375: Model attempt tracking for intelligent escalation
+      # Structure: { tier => { provider => { model => { attempts: n, failed: bool } } } }
+      attr_reader :model_attempts
+
+      def initialize(configuration, registry: nil, root_dir: nil, autonomous_mode: false)
         @configuration = configuration
         @registry = registry || CapabilityRegistry.new(root_dir: root_dir || configuration.project_dir)
         @current_tier = nil
@@ -21,9 +43,64 @@ module Aidp
         @tier_history = []
         @escalation_count = 0
 
+        # Issue #375: Track model attempts for intelligent escalation
+        @model_attempts = {}
+        @total_attempts_in_tier = 0
+        @autonomous_mode = autonomous_mode
+        @model_denylist = []  # Models to skip (e.g., denylisted by user)
+
         Aidp.log_debug("thinking_depth_manager", "Initialized",
           default_tier: default_tier,
-          max_tier: max_tier)
+          max_tier: max_tier,
+          autonomous_max_tier: autonomous_max_tier,
+          autonomous_mode: autonomous_mode)
+      end
+
+      # Enable autonomous mode (restricts max tier, enables model-level tracking)
+      # Should be called when entering watch mode or work loops
+      def enable_autonomous_mode
+        @autonomous_mode = true
+        reset_model_tracking
+
+        # Cap current tier at autonomous max if needed
+        if @registry.compare_tiers(current_tier, autonomous_max_tier) > 0
+          old_tier = current_tier
+          @current_tier = autonomous_max_tier
+          log_tier_change(old_tier, @current_tier, "autonomous_mode_cap")
+
+          Aidp.log_info("thinking_depth_manager", "Tier capped for autonomous mode",
+            old: old_tier,
+            new: @current_tier,
+            autonomous_max: autonomous_max_tier)
+        end
+
+        Aidp.log_debug("thinking_depth_manager", "Autonomous mode enabled",
+          max_tier: autonomous_max_tier)
+      end
+
+      # Disable autonomous mode (restores normal max tier)
+      def disable_autonomous_mode
+        @autonomous_mode = false
+        Aidp.log_debug("thinking_depth_manager", "Autonomous mode disabled")
+      end
+
+      # Check if in autonomous mode
+      def autonomous_mode?
+        @autonomous_mode
+      end
+
+      # Get maximum tier for autonomous operations (issue #375)
+      def autonomous_max_tier
+        @session_autonomous_max_tier || configuration.autonomous_max_tier
+      end
+
+      # Set autonomous max tier for this session
+      def autonomous_max_tier=(tier)
+        validate_tier!(tier)
+        @session_autonomous_max_tier = tier
+
+        Aidp.log_info("thinking_depth_manager", "Autonomous max tier updated",
+          new: tier)
       end
 
       # Get current tier (defaults to config default_tier if not set)
@@ -49,9 +126,31 @@ module Aidp
         end
       end
 
-      # Get maximum allowed tier (respects session override)
-      def max_tier
+      # Get the base maximum tier (from session override or config, ignoring autonomous mode)
+      # This is the "raw" max tier before autonomous mode restrictions are applied
+      def base_max_tier
         @session_max_tier || configuration.max_tier
+      end
+
+      # Get effective maximum tier (applies autonomous mode restrictions)
+      # Issue #375: In autonomous mode, respects autonomous_max_tier
+      def max_tier
+        apply_autonomous_tier_cap(base_max_tier)
+      end
+
+      # Apply autonomous mode tier cap if active
+      # Returns the tier capped at autonomous_max_tier when in autonomous mode
+      # @param tier [String] The tier to potentially cap
+      # @return [String] The effective tier (capped if in autonomous mode)
+      def apply_autonomous_tier_cap(tier)
+        return tier unless @autonomous_mode
+
+        auto_max = autonomous_max_tier
+        if @registry.compare_tiers(auto_max, tier) < 0
+          auto_max
+        else
+          tier
+        end
       end
 
       # Set maximum tier for this session (temporary override)
@@ -145,6 +244,322 @@ module Aidp
           reason: reason)
 
         prev_tier
+      end
+
+      # ============================================================
+      # Issue #375: Intelligent model-level escalation for autonomous mode
+      # ============================================================
+
+      # Record an attempt with a specific model
+      # @param provider [String] Provider name
+      # @param model [String] Model name
+      # @param success [Boolean] Whether the attempt succeeded
+      def record_model_attempt(provider:, model:, success:)
+        tier = current_tier
+        @model_attempts[tier] ||= {}
+        @model_attempts[tier][provider] ||= {}
+        @model_attempts[tier][provider][model] ||= {attempts: 0, failed: false, last_attempt_at: nil}
+
+        @model_attempts[tier][provider][model][:attempts] += 1
+        @model_attempts[tier][provider][model][:last_attempt_at] = Time.now
+        @model_attempts[tier][provider][model][:failed] = !success
+
+        @total_attempts_in_tier += 1
+
+        Aidp.log_debug("thinking_depth_manager", "Recorded model attempt",
+          tier: tier,
+          provider: provider,
+          model: model,
+          success: success,
+          total_attempts: @model_attempts[tier][provider][model][:attempts],
+          tier_total: @total_attempts_in_tier)
+      end
+
+      # Get attempts for a specific model
+      def model_attempt_count(provider:, model:)
+        tier = current_tier
+        @model_attempts.dig(tier, provider, model, :attempts) || 0
+      end
+
+      # Check if a model has been marked as failed
+      def model_failed?(provider:, model:)
+        tier = current_tier
+        @model_attempts.dig(tier, provider, model, :failed) || false
+      end
+
+      # Add model to denylist
+      def denylist_model(model)
+        @model_denylist << model unless @model_denylist.include?(model)
+        Aidp.log_debug("thinking_depth_manager", "Model denylisted", model: model)
+      end
+
+      # Check if model is denylisted
+      def model_denylisted?(model)
+        @model_denylist.include?(model)
+      end
+
+      # Get all available models for current tier and provider
+      # @param provider [String] Provider name
+      # @return [Array<String>] List of model names
+      def available_models_for_tier(provider:)
+        tier = current_tier
+
+        # First try user-configured models
+        configured = configuration.models_for_tier(tier, provider)
+
+        if configured.any?
+          # Filter out denylisted models
+          return configured.reject { |m| model_denylisted?(m) }
+        end
+
+        # Fall back to catalog models
+        model_name, _data = @registry.best_model_for_tier(tier, provider)
+        return [] unless model_name
+
+        [model_name].reject { |m| model_denylisted?(m) }
+      end
+
+      # Check if any models are configured for the current tier and provider
+      # @param provider [String] Provider name
+      # @return [Boolean] true if models are available, false if none configured
+      def models_configured_for_tier?(provider:)
+        available_models_for_tier(provider: provider).any?
+      end
+
+      # Select the next model to try in current tier
+      # Issue #375: Tries all models before escalating, respects min attempts per model
+      # @param provider [String] Provider name
+      # @return [String, nil] Model name or nil if should escalate
+      def select_next_model(provider:)
+        tier = current_tier
+        models = available_models_for_tier(provider: provider)
+
+        if models.empty?
+          Aidp.log_debug("thinking_depth_manager", "No models configured for tier",
+            tier: tier,
+            provider: provider,
+            reason: "no_models_configured")
+          return nil
+        end
+
+        min_attempts = configuration.min_attempts_per_model
+
+        # First pass: find any model with under-min-attempts (must reach min before retry)
+        # This ensures every model gets minimum attempts before we consider retrying
+        models.each do |model|
+          attempts = model_attempt_count(provider: provider, model: model)
+          if attempts < min_attempts
+            Aidp.log_debug("thinking_depth_manager", "Selected under-min-attempts model",
+              model: model,
+              attempts: attempts,
+              min_required: min_attempts)
+            return model
+          end
+        end
+
+        # Second pass: retry models that have met min attempts (if retry enabled)
+        # Prioritize non-failed models first, then retry failed models
+        if configuration.retry_failed_models?
+          # First try non-failed models that have met min attempts
+          models.each do |model|
+            attempts = model_attempt_count(provider: provider, model: model)
+            if attempts >= min_attempts && !model_failed?(provider: provider, model: model)
+              Aidp.log_debug("thinking_depth_manager", "Selected non-failed model for retry",
+                model: model,
+                attempts: attempts)
+              return model
+            end
+          end
+
+          # Then retry previously failed models that have met min attempts
+          models.each do |model|
+            attempts = model_attempt_count(provider: provider, model: model)
+            if attempts >= min_attempts && model_failed?(provider: provider, model: model)
+              Aidp.log_debug("thinking_depth_manager", "Retrying previously failed model",
+                model: model,
+                attempts: attempts)
+              return model
+            end
+          end
+        end
+
+        # All models exhausted in this tier
+        Aidp.log_debug("thinking_depth_manager", "All models exhausted in tier",
+          tier: tier,
+          models_tried: models.size)
+        nil
+      end
+
+      # Check if we should escalate tier based on model exhaustion
+      # Issue #375: Requires minimum total attempts and trying all models first
+      # @param provider [String] Provider name
+      # @return [Hash] {should_escalate: bool, reason: string}
+      def should_escalate_tier?(provider:)
+        return {should_escalate: false, reason: "not_autonomous"} unless @autonomous_mode
+
+        min_total = configuration.min_total_attempts_before_escalation
+        min_per_model = configuration.min_attempts_per_model
+        models = available_models_for_tier(provider: provider)
+
+        # Check if we have any models below minimum attempts threshold
+        models_below_min = models.select do |model|
+          model_attempt_count(provider: provider, model: model) < min_per_model
+        end
+
+        if models_below_min.any?
+          return {
+            should_escalate: false,
+            reason: "models_below_min_attempts",
+            remaining_count: models_below_min.size
+          }
+        end
+
+        # Check minimum total attempts
+        # Relax if tier lacks sufficient models (each model needs min 2 tries)
+        effective_min_total = [min_total, models.size * min_per_model].min
+
+        if @total_attempts_in_tier < effective_min_total
+          return {
+            should_escalate: false,
+            reason: "below_min_attempts",
+            current: @total_attempts_in_tier,
+            required: effective_min_total
+          }
+        end
+
+        # Check if all models have failed
+        # Only escalate if ALL models have failed - don't escalate just because min attempts reached
+        # if some models are still succeeding
+        all_failed = models.all? { |m| model_failed?(provider: provider, model: m) }
+
+        if all_failed
+          return {
+            should_escalate: true,
+            reason: "all_models_failed",
+            total_attempts: @total_attempts_in_tier
+          }
+        end
+
+        {should_escalate: false, reason: "continue_current_tier"}
+      end
+
+      # Escalate tier with intelligent model tracking (issue #375)
+      # Only escalates if all models in current tier have been tried
+      # @param provider [String] Provider name
+      # @param reason [String, nil] Reason for escalation
+      # @return [String, nil] New tier or nil if cannot escalate
+      def escalate_tier_intelligent(provider:, reason: nil)
+        escalation_check = should_escalate_tier?(provider: provider)
+
+        unless escalation_check[:should_escalate]
+          Aidp.log_debug("thinking_depth_manager", "Intelligent escalation blocked",
+            reason: escalation_check[:reason],
+            details: escalation_check)
+          return nil
+        end
+
+        # Reset model tracking for new tier
+        old_tier = current_tier
+        new_tier = escalate_tier(reason: reason || escalation_check[:reason])
+
+        if new_tier
+          attempts_before_reset = @total_attempts_in_tier
+          reset_model_tracking
+          Aidp.log_info("thinking_depth_manager", "Intelligent tier escalation",
+            from: old_tier,
+            to: new_tier,
+            reason: reason || escalation_check[:reason],
+            total_attempts_in_old_tier: attempts_before_reset)
+        end
+
+        new_tier
+      end
+
+      # Reset model tracking (call when changing tiers or starting new work)
+      # Clears current tier's data for consistency; preserves other tiers' history for analysis
+      def reset_model_tracking
+        tier = current_tier
+        # Ensure hash exists then clear it for consistency with counter reset
+        @model_attempts[tier] ||= {}
+        @model_attempts[tier].clear
+        @total_attempts_in_tier = 0
+
+        Aidp.log_debug("thinking_depth_manager", "Model tracking reset for tier", tier: tier)
+      end
+
+      # Get summary of model attempts in current tier
+      def model_attempts_summary
+        tier = current_tier
+        tier_attempts = @model_attempts[tier] || {}
+
+        summary = {
+          tier: tier,
+          total_attempts: @total_attempts_in_tier,
+          providers: {}
+        }
+
+        tier_attempts.each do |provider, models|
+          summary[:providers][provider] = models.map do |model, data|
+            {
+              model: model,
+              attempts: data[:attempts],
+              failed: data[:failed]
+            }
+          end
+        end
+
+        summary
+      end
+
+      # ============================================================
+      # Issue #375: ZFC-based tier determination from issue comments
+      # ============================================================
+
+      # Determine appropriate tier from issue/PR comment content using ZFC
+      # @param comment_text [String] The issue or PR comment text
+      # @param provider_manager [ProviderManager] Provider manager for AI calls
+      # @param labels [Array<String>] Optional labels on the issue/PR
+      # @return [Hash] {tier: String, confidence: Float, reasoning: String}
+      def determine_tier_from_comment(comment_text:, provider_manager:, labels: [])
+        # Check for explicit tier labels first (fast path)
+        tier_from_labels = extract_tier_from_labels(labels)
+        if tier_from_labels
+          tier = tier_from_labels
+          reasoning = "Explicit tier label found: #{tier_from_labels}"
+
+          # In autonomous mode, cap at autonomous_max_tier (same as ZFC path)
+          if @autonomous_mode && @registry.compare_tiers(tier, autonomous_max_tier) > 0
+            original_tier = tier
+            tier = autonomous_max_tier
+            reasoning += " (capped from #{original_tier} due to autonomous mode)"
+
+            Aidp.log_debug("thinking_depth_manager", "Label tier capped for autonomous mode",
+              original: original_tier,
+              capped_to: tier)
+          end
+
+          return {
+            tier: tier,
+            confidence: 1.0,
+            reasoning: reasoning,
+            source: "label"
+          }
+        end
+
+        # Use ZFC to determine tier from comment content
+        determine_tier_via_zfc(comment_text, provider_manager)
+      rescue => e
+        Aidp.log_warn("thinking_depth_manager", "ZFC tier determination failed, using default",
+          error: e.message,
+          error_class: e.class.name)
+
+        # Return conservative default on error
+        {
+          tier: "mini",
+          confidence: 0.5,
+          reasoning: "ZFC determination failed, using conservative default",
+          source: "fallback"
+        }
       end
 
       # Select best model for current tier and provider
@@ -432,7 +847,143 @@ module Aidp
         @tier_history << entry
 
         # Keep history bounded
-        @tier_history.shift if @tier_history.size > 100
+        @tier_history.shift if @tier_history.size > MAX_TIER_HISTORY_SIZE
+      end
+
+      # ============================================================
+      # Issue #375: ZFC helper methods for tier determination
+      # ============================================================
+
+      # Extract tier from issue labels (fast path, no AI needed)
+      # @param labels [Array<String>] Issue labels
+      # @return [String, nil] Tier name or nil if no tier label found
+      def extract_tier_from_labels(labels)
+        return nil unless labels.is_a?(Array)
+
+        tier_label_patterns = {
+          /\btier[:\-_]?mini\b/i => "mini",
+          /\btier[:\-_]?standard\b/i => "standard",
+          /\btier[:\-_]?thinking\b/i => "thinking",
+          /\btier[:\-_]?pro\b/i => "pro",
+          /\btier[:\-_]?max\b/i => "max",
+          /\bcomplexity[:\-_]?low\b/i => "mini",
+          /\bcomplexity[:\-_]?medium\b/i => "standard",
+          /\bcomplexity[:\-_]?high\b/i => "pro"
+        }
+
+        labels.each do |label|
+          tier_label_patterns.each do |pattern, tier|
+            return tier if label.match?(pattern)
+          end
+        end
+
+        nil
+      end
+
+      # Use Zero Framework Cognition to determine tier from comment content
+      # @param comment_text [String] The comment text to analyze
+      # @param provider_manager [ProviderManager] Provider manager for AI calls
+      # @return [Hash] Tier determination result
+      def determine_tier_via_zfc(comment_text, provider_manager)
+        prompt = build_tier_determination_prompt(comment_text)
+
+        # Use mini tier for the ZFC decision itself (cost efficiency)
+        provider_name, model_name, _data = select_model_for_tier("mini", provider: configuration.default_provider)
+
+        # Handle case where no model is available for tier determination
+        if provider_name.nil?
+          Aidp.log_warn("thinking_depth_manager", "No model available for ZFC tier determination",
+            tier: "mini",
+            provider: configuration.default_provider)
+          raise NoModelAvailableError.new(tier: "mini", provider: configuration.default_provider)
+        end
+
+        result = provider_manager.execute_with_provider(
+          provider_name,
+          prompt,
+          {
+            model: model_name,
+            mode: :tier_determination,
+            max_tokens: 500  # Keep response short
+          }
+        )
+
+        parse_tier_determination_response(result[:output])
+      end
+
+      # Build prompt for ZFC tier determination
+      def build_tier_determination_prompt(comment_text)
+        max_length = MAX_COMMENT_LENGTH
+        truncated = comment_text && comment_text.length > max_length
+        truncation_note = truncated ? "\n\n[Note: Comment was truncated from #{comment_text.length} to #{max_length} characters]" : ""
+
+        <<~PROMPT
+          Analyze the following issue/PR comment and determine the appropriate thinking tier for an AI agent to address it.
+
+          ## Available Tiers (lowest to highest capability/cost):
+          - **mini**: Simple fixes, typos, minor changes, documentation updates
+          - **standard**: Normal features, bug fixes, moderate complexity changes
+          - **thinking**: Complex problems requiring extended reasoning, multi-step solutions
+          - **pro**: Highly complex tasks, architectural decisions, security-sensitive work
+          - **max**: Extreme complexity, requires maximum reasoning capability (rarely needed)
+
+          ## Comment to Analyze:
+          ```
+          #{truncate_string(comment_text, max_length)}
+          ```#{truncation_note}
+
+          ## Your Task:
+          Determine which tier is most appropriate for handling this work.
+          Consider:
+          1. Task complexity (simple fix vs architectural change)
+          2. Reasoning depth required
+          3. Risk level (security, data integrity)
+          4. Domain expertise needed
+
+          Respond in this exact format:
+          TIER: <mini|standard|thinking|pro|max>
+          CONFIDENCE: <0.0-1.0>
+          REASONING: <brief explanation>
+        PROMPT
+      end
+
+      # Parse the ZFC response for tier determination
+      def parse_tier_determination_response(response)
+        tier_match = response.match(/TIER:\s*(\w+)/i)
+        confidence_match = response.match(/CONFIDENCE:\s*([-\d.]+)/i)
+        reasoning_match = response.match(/REASONING:\s*(.+)/mi)
+
+        tier = tier_match&.[](1)&.downcase || "standard"
+        raw_confidence = confidence_match&.[](1)&.to_f || DEFAULT_CONFIDENCE
+        # Clamp confidence to valid 0.0-1.0 range
+        confidence = raw_confidence.clamp(0.0, 1.0)
+        reasoning = reasoning_match&.[](1)&.strip || "No reasoning provided"
+
+        # Validate tier is in allowed list
+        tier = "standard" unless CapabilityRegistry::VALID_TIERS.include?(tier)
+
+        # In autonomous mode, cap at autonomous_max_tier
+        if @autonomous_mode && @registry.compare_tiers(tier, autonomous_max_tier) > 0
+          original_tier = tier
+          tier = autonomous_max_tier
+          reasoning += " (capped from #{original_tier} due to autonomous mode)"
+
+          Aidp.log_debug("thinking_depth_manager", "ZFC tier capped for autonomous mode",
+            original: original_tier,
+            capped_to: tier)
+        end
+
+        Aidp.log_info("thinking_depth_manager", "ZFC tier determination",
+          tier: tier,
+          confidence: confidence,
+          reasoning: truncate_string(reasoning, MAX_REASONING_DISPLAY_LENGTH))
+
+        {
+          tier: tier,
+          confidence: confidence,
+          reasoning: reasoning,
+          source: "zfc"
+        }
       end
 
       # Try to find a model in fallback tiers when requested tier has no models
@@ -582,6 +1133,14 @@ module Aidp
         display_message("   1. Run 'aidp models discover' to find available models", type: :info)
         display_message("   2. Run 'aidp models list --tier=#{tier}' to see models for this tier", type: :info)
         display_message("   3. Run 'aidp models validate' to check your configuration\n", type: :info)
+      end
+
+      # Truncate string to max_length (plain Ruby replacement for ActiveSupport truncate)
+      def truncate_string(string, max_length)
+        return "" if string.nil?
+        return string if string.length <= max_length
+
+        "#{string[0, max_length - 3]}..."
       end
     end
   end

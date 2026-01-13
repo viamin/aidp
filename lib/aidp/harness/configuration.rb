@@ -461,6 +461,34 @@ module Aidp
         thinking_config[:max_tier] || default_thinking_config[:max_tier]
       end
 
+      # Get maximum tier for autonomous contexts (watch mode, work loops)
+      # Restricts escalation to standard tier by default to prevent cost explosion
+      # Issue #375: Thinking tiers escalate too quickly in autonomous operations
+      def autonomous_max_tier
+        thinking_config[:autonomous_max_tier] || default_thinking_config[:autonomous_max_tier]
+      end
+
+      # Get escalation configuration for autonomous contexts
+      # Controls how models are tried before tier escalation
+      def autonomous_escalation_config
+        thinking_config[:autonomous_escalation] || default_autonomous_escalation_config
+      end
+
+      # Minimum attempts per model before trying next model in tier
+      def min_attempts_per_model
+        autonomous_escalation_config[:min_attempts_per_model] || 2
+      end
+
+      # Minimum total attempts across all models before tier escalation
+      def min_total_attempts_before_escalation
+        autonomous_escalation_config[:min_total_attempts] || 10
+      end
+
+      # Whether to retry failed models after exhausting untested models
+      def retry_failed_models?
+        autonomous_escalation_config[:retry_failed_models] != false
+      end
+
       # Check if provider switching for tier is allowed
       def allow_provider_switch_for_tier?
         thinking_config[:allow_provider_switch] != false
@@ -1293,12 +1321,24 @@ module Aidp
         {
           default_tier: "mini",  # Use mini tier by default for cost optimization
           max_tier: "pro",       # Max tier rarely needed; pro is sufficient for most tasks
+          autonomous_max_tier: "standard", # Issue #375: restrict autonomous operations to standard tier
           allow_provider_switch: true,
           auto_escalate: true,
           escalation_threshold: 2,
           escalation: default_escalation_config,
+          autonomous_escalation: default_autonomous_escalation_config,
           permissions_by_tier: {},
           overrides: {}
+        }
+      end
+
+      # Default autonomous escalation configuration (issue #375)
+      # Controls tier escalation in watch mode and work loops
+      def default_autonomous_escalation_config
+        {
+          min_attempts_per_model: 2,    # Each model needs min 2 attempts before trying next
+          min_total_attempts: 10,       # Min 10 total attempts before tier escalation
+          retry_failed_models: true     # Retry failed models after exhausting untested
         }
       end
 
