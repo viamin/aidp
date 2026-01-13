@@ -83,7 +83,7 @@ module Aidp
           return versioned_result if versioned_result
         end
 
-        template_data = load_template(template_id)
+        template_data = load_template(template_id, use_versioned: use_versioned)
         raise TemplateNotFoundError, "Template not found: #{template_id}" if template_data.nil?
 
         prompt_text = template_data["prompt"] || template_data[:prompt]

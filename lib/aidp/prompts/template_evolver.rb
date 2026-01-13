@@ -32,17 +32,25 @@ module Aidp
 
       attr_reader :config, :version_manager, :ai_decision_engine
 
+      # Special marker to indicate "use default" vs explicit nil
+      NOT_PROVIDED = Object.new.freeze
+      private_constant :NOT_PROVIDED
+
       def initialize(
         config,
         version_manager: nil,
-        ai_decision_engine: nil,
+        ai_decision_engine: NOT_PROVIDED,
         project_dir: Dir.pwd
       )
         @config = config
         @project_dir = project_dir
         @version_manager = version_manager ||
           TemplateVersionManager.new(project_dir: project_dir)
-        @ai_decision_engine = ai_decision_engine || build_ai_decision_engine
+        @ai_decision_engine = if ai_decision_engine == NOT_PROVIDED
+          build_ai_decision_engine
+        else
+          ai_decision_engine
+        end
       end
 
       # Evolve a template based on feedback
