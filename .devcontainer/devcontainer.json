@@ -41,7 +41,8 @@
     "TREE_SITTER_PARSERS": "/workspaces/aidp/.aidp/parsers",
     // LLM CLI tools - dangerous/auto-approve mode (container only)
     "CODEX_APPROVAL_POLICY": "never",
-    "CODEX_SANDBOX_MODE": "danger-full-access"
+    "CODEX_SANDBOX_MODE": "danger-full-access",
+    "GITHUB_TOKEN": "${localEnv:AIDP_TOKEN}"
   },
   // remoteEnv is set when the container is started
   // put environment variables that may change in here
