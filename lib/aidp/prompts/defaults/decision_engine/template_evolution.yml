@@ -1,0 +1,35 @@
+# Template Evolution Prompt Template
+# Used by TemplateEvolver for AGD-based template improvement
+name: Template Evolution
+description: >
+  Template for evolving prompt templates based on user feedback.
+  Part of the versioned template system (issue #402).
+version: "1.0.0"
+category: decision_engine
+tier: standard
+cache_ttl: null
+
+prompt: |
+  {{prompt}}
+
+schema:
+  type: object
+  properties:
+    improved_prompt:
+      type: string
+      description: The improved prompt text with user suggestions applied
+    changes:
+      type: array
+      items:
+        type: string
+      description: List of specific changes made to the template
+    reasoning:
+      type: string
+      description: Explanation of why these changes address the feedback
+
+  required:
+    - improved_prompt
+    - changes
+
+variables:
+  - prompt

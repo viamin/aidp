@@ -35,7 +35,8 @@ module Aidp
         completion_detection: "decision_engine/completion_detection",
         implementation_verification: "decision_engine/implementation_verification",
         prompt_evaluation: "decision_engine/prompt_evaluation",
-        template_improvement: "decision_engine/template_improvement"
+        template_improvement: "decision_engine/template_improvement",
+        template_evolution: "decision_engine/template_evolution"
       }.freeze
 
       attr_reader :config, :provider_factory, :cache, :prompt_template_manager
