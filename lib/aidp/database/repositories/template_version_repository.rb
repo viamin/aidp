@@ -230,8 +230,8 @@ module Aidp
         # @param template_id [String, nil] Filter by template (nil for all)
         # @return [Array<Hash>] Versions with negative votes
         def versions_needing_evolution(template_id: nil)
-          if template_id
-            rows = query(
+          rows = if template_id
+            query(
               <<~SQL,
                 SELECT * FROM template_versions
                 WHERE project_dir = ? AND template_id = ? AND negative_votes > 0
@@ -240,7 +240,7 @@ module Aidp
               [project_dir, template_id]
             )
           else
-            rows = query(
+            query(
               <<~SQL,
                 SELECT * FROM template_versions
                 WHERE project_dir = ? AND negative_votes > 0
