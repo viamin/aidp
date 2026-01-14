@@ -3,6 +3,8 @@
 require "tty-prompt"
 require_relative "feedback_collector"
 require_relative "github_state_extractor"
+require_relative "round_robin_scheduler"
+require_relative "work_item"
 require_relative "worktree_cleanup_job"
 require_relative "worktree_reconciler"
 
@@ -135,6 +137,13 @@ module Aidp
           config: reconciler_config
         )
         @last_reconcile_at = nil
+
+        # Initialize round-robin scheduler (issue #434)
+        @round_robin_scheduler = RoundRobinScheduler.new(
+          state_store: @state_store,
+          label_config: label_config
+        )
+        @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || "aidp-needs-input"
       end
 
       def start
@@ -176,288 +185,316 @@ module Aidp
       private
 
       def process_cycle
-        process_plan_triggers
-        process_build_triggers
-        process_auto_issue_triggers
+        # Collect all work items and refresh the scheduler queue
+        work_items = collect_all_work_items
+        @round_robin_scheduler.refresh_queue(work_items)
+
+        # Get paused items (aidp-needs-input label)
+        paused_numbers = fetch_paused_item_numbers
+
+        # Log queue status
+        stats = @round_robin_scheduler.stats
+        Aidp.log_debug("watch_runner", "round_robin.queue_status",
+          total: stats[:total],
+          by_processor: stats[:by_processor],
+          paused_count: paused_numbers.size)
+
+        # Process one work item using round-robin
+        if @round_robin_scheduler.has_work?(paused_numbers: paused_numbers)
+          process_next_work_item(paused_numbers: paused_numbers)
+        else
+          Aidp.log_debug("watch_runner", "round_robin.no_work",
+            queue_size: stats[:total], paused_count: paused_numbers.size)
+        end
+
+        # Run maintenance tasks (these run every cycle regardless)
         check_for_updates_if_due
-        process_review_triggers
-        process_ci_fix_triggers
-        process_auto_pr_triggers
-        process_change_request_triggers
         collect_feedback
         process_worktree_cleanup
         process_worktree_reconciliation
       end
 
-      def process_plan_triggers
-        plan_label = @plan_processor.plan_label
-        begin
-          issues = @repository_client.list_issues(labels: [plan_label], state: "open")
-        rescue => e
-          Aidp.log_error("watch_runner", "plan_poll_failed", label: plan_label, error: e.message)
-          return # Skip this cycle, continue watch loop
-        end
-        Aidp.log_debug("watch_runner", "plan_poll", label: plan_label, total: issues.size)
-        issues.each do |issue|
-          unless issue_has_label?(issue, plan_label)
-            Aidp.log_debug("watch_runner", "plan_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
-            next
-          end
+      # Process the next work item from the round-robin queue.
+      # @param paused_numbers [Array<Integer>] Numbers of paused items to skip
+      def process_next_work_item(paused_numbers:)
+        item = @round_robin_scheduler.next_item(paused_numbers: paused_numbers)
+        return unless item
 
-          begin
-            detailed = @repository_client.fetch_issue(issue[:number])
-          rescue => e
-            Aidp.log_error("watch_runner", "fetch_issue_failed", issue: issue[:number], error: e.message)
-            next # Skip this issue, continue with others
-          end
+        Aidp.log_info("watch_runner", "round_robin.processing",
+          key: item.key, number: item.number, processor_type: item.processor_type)
 
-          # Check author authorization before processing
-          unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "plan_skip_unauthorized_author", issue: detailed[:number],
-              author: detailed[:author])
-            next
-          end
+        # Dispatch to appropriate processor
+        dispatch_work_item(item)
 
-          # Check if detection comment already posted (deduplication)
-          unless @state_extractor.detection_comment_posted?(detailed, plan_label)
-            post_detection_comment(item_type: :issue, number: detailed[:number], label: plan_label)
-          end
-
-          Aidp.log_debug("watch_runner", "plan_process", issue: detailed[:number])
-          @plan_processor.process(detailed)
-        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-          Aidp.log_warn("watch_runner", "unauthorized issue author", issue: issue[:number], error: e.message)
-        end
+        # Mark as processed for rotation tracking
+        @round_robin_scheduler.mark_processed(item)
+      rescue => e
+        Aidp.log_error("watch_runner", "round_robin.process_failed",
+          key: item&.key, error: e.message, error_class: e.class.name)
       end
 
-      def process_build_triggers
-        build_label = @build_processor.build_label
-        begin
-          issues = @repository_client.list_issues(labels: [build_label], state: "open")
-        rescue => e
-          Aidp.log_error("watch_runner", "build_poll_failed", label: build_label, error: e.message)
-          return # Skip this cycle, continue watch loop
-        end
-        Aidp.log_debug("watch_runner", "build_poll", label: build_label, total: issues.size)
-        issues.each do |issue|
-          detailed = nil
+      # Dispatch a work item to its appropriate processor.
+      # @param item [WorkItem] The work item to process
+      def dispatch_work_item(item)
+        detailed = fetch_detailed_item(item)
+        return unless detailed
 
-          begin
-            unless issue_has_label?(issue, build_label)
-              Aidp.log_debug("watch_runner", "build_skip_label_mismatch", issue: issue[:number], labels: issue[:labels])
-              next
-            end
-
-            begin
-              detailed = @repository_client.fetch_issue(issue[:number])
-            rescue => e
-              Aidp.log_error("watch_runner", "fetch_issue_failed", issue: issue[:number], error: e.message)
-              next # Skip this issue, continue with others
-            end
-
-            # Check if already completed (via GitHub comments)
-            if @state_extractor.build_completed?(detailed)
-              Aidp.log_debug("watch_runner", "build_skip_completed", issue: detailed[:number])
-              next
-            end
-
-            # Check author authorization before processing
-            unless @safety_checker.should_process_issue?(detailed, enforce: false)
-              Aidp.log_debug("watch_runner", "build_skip_unauthorized_author", issue: detailed[:number],
-                author: detailed[:author])
-              next
-            end
-
-            # Check if detection comment already posted (deduplication)
-            unless @state_extractor.detection_comment_posted?(detailed, build_label)
-              post_detection_comment(item_type: :issue, number: detailed[:number], label: build_label)
-            end
-
-            Aidp.log_debug("watch_runner", "build_process", issue: detailed[:number])
-            @build_processor.process(detailed)
-          rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-            Aidp.log_warn("watch_runner", "unauthorized issue author", issue: issue[:number], error: e.message)
-          end
-        end
-      end
-
-      def process_auto_issue_triggers
-        auto_label = @auto_processor.auto_label
-        begin
-          issues = @repository_client.list_issues(labels: [auto_label], state: "open")
-        rescue => e
-          Aidp.log_error("watch_runner", "auto_issue_poll_failed", label: auto_label, error: e.message)
+        # Check authorization
+        unless @safety_checker.should_process_issue?(detailed, enforce: false)
+          Aidp.log_debug("watch_runner", "round_robin.skip_unauthorized",
+            key: item.key, author: detailed[:author])
           return
         end
 
-        Aidp.log_debug("watch_runner", "auto_issue_poll", label: auto_label, total: issues.size)
+        # Post detection comment if not already posted
+        post_detection_comment_for_item(item, detailed)
 
-        issues.each do |issue|
-          unless issue_has_label?(issue, auto_label)
-            Aidp.log_debug("watch_runner", "auto_issue_skip_label_mismatch", issue: issue[:number],
-              labels: issue[:labels])
-            next
-          end
-
-          begin
-            detailed = @repository_client.fetch_issue(issue[:number])
-          rescue => e
-            Aidp.log_error("watch_runner", "auto_issue_fetch_failed", issue: issue[:number], error: e.message)
-            next
-          end
-
-          # Check author authorization before processing
-          unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "auto_issue_skip_unauthorized_author", issue: detailed[:number],
-              author: detailed[:author])
-            next
-          end
-
-          # Check if detection comment already posted (deduplication)
-          unless @state_extractor.detection_comment_posted?(detailed, auto_label)
-            post_detection_comment(item_type: :issue, number: detailed[:number], label: auto_label)
-          end
-
-          Aidp.log_debug("watch_runner", "auto_issue_process", issue: detailed[:number])
+        # Dispatch to processor
+        case item.processor_type
+        when :plan
+          @plan_processor.process(detailed)
+        when :build
+          @build_processor.process(detailed)
+        when :auto_issue
           @auto_processor.process(detailed)
-        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-          Aidp.log_warn("watch_runner", "unauthorized_issue_author_auto", issue: issue[:number], error: e.message)
-        end
-      end
-
-      def process_review_triggers
-        review_label = @review_processor.review_label
-        begin
-          prs = @repository_client.list_pull_requests(labels: [review_label], state: "open")
-        rescue => e
-          Aidp.log_error("watch_runner", "review_poll_failed", label: review_label, error: e.message)
-          return # Skip this cycle, continue watch loop
-        end
-        Aidp.log_debug("watch_runner", "review_poll", label: review_label, total: prs.size)
-        prs.each do |pr|
-          unless pr_has_label?(pr, review_label)
-            Aidp.log_debug("watch_runner", "review_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
-            next
-          end
-
-          begin
-            detailed = @repository_client.fetch_pull_request(pr[:number])
-          rescue => e
-            Aidp.log_error("watch_runner", "fetch_pr_failed", pr: pr[:number], error: e.message)
-            next # Skip this PR, continue with others
-          end
-
-          # Check author authorization before processing
-          unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "review_skip_unauthorized_author", pr: detailed[:number],
-              author: detailed[:author])
-            next
-          end
-
-          # Check if detection comment already posted (deduplication)
-          unless @state_extractor.detection_comment_posted?(detailed, review_label)
-            post_detection_comment(item_type: :pr, number: detailed[:number], label: review_label)
-          end
-
-          Aidp.log_debug("watch_runner", "review_process", pr: detailed[:number])
+        when :review
           @review_processor.process(detailed)
-        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-          Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
-        end
-      end
-
-      def process_auto_pr_triggers
-        auto_label = @auto_pr_processor.auto_label
-        prs = @repository_client.list_pull_requests(labels: [auto_label], state: "open")
-        Aidp.log_debug("watch_runner", "auto_pr_poll", label: auto_label, total: prs.size)
-
-        prs.each do |pr|
-          unless pr_has_label?(pr, auto_label)
-            Aidp.log_debug("watch_runner", "auto_pr_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
-            next
-          end
-
-          detailed = @repository_client.fetch_pull_request(pr[:number])
-
-          # Check author authorization before processing
-          unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "auto_pr_skip_unauthorized_author", pr: detailed[:number],
-              author: detailed[:author])
-            next
-          end
-
-          # Check if detection comment already posted (deduplication)
-          unless @state_extractor.detection_comment_posted?(detailed, auto_label)
-            post_detection_comment(item_type: :pr, number: detailed[:number], label: auto_label)
-          end
-
-          Aidp.log_debug("watch_runner", "auto_pr_process", pr: detailed[:number])
-          @auto_pr_processor.process(detailed)
-        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-          Aidp.log_warn("watch_runner", "unauthorized_pr_author_auto", pr: pr[:number], error: e.message)
-        end
-      end
-
-      def process_ci_fix_triggers
-        ci_fix_label = @ci_fix_processor.ci_fix_label
-        prs = @repository_client.list_pull_requests(labels: [ci_fix_label], state: "open")
-        Aidp.log_debug("watch_runner", "ci_fix_poll", label: ci_fix_label, total: prs.size)
-        prs.each do |pr|
-          unless pr_has_label?(pr, ci_fix_label)
-            Aidp.log_debug("watch_runner", "ci_fix_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
-            next
-          end
-
-          detailed = @repository_client.fetch_pull_request(pr[:number])
-
-          # Check author authorization before processing
-          unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "ci_fix_skip_unauthorized_author", pr: detailed[:number],
-              author: detailed[:author])
-            next
-          end
-
-          # Check if detection comment already posted (deduplication)
-          unless @state_extractor.detection_comment_posted?(detailed, ci_fix_label)
-            post_detection_comment(item_type: :pr, number: detailed[:number], label: ci_fix_label)
-          end
-
-          Aidp.log_debug("watch_runner", "ci_fix_process", pr: detailed[:number])
+        when :ci_fix
           @ci_fix_processor.process(detailed)
-        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-          Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
+        when :auto_pr
+          @auto_pr_processor.process(detailed)
+        when :change_request
+          @change_request_processor.process(detailed)
+        else
+          Aidp.log_warn("watch_runner", "round_robin.unknown_processor",
+            processor_type: item.processor_type)
         end
+      rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
+        Aidp.log_warn("watch_runner", "round_robin.unauthorized_author",
+          key: item.key, error: e.message)
       end
 
-      def process_change_request_triggers
-        change_request_label = @change_request_processor.change_request_label
-        prs = @repository_client.list_pull_requests(labels: [change_request_label], state: "open")
-        Aidp.log_debug("watch_runner", "change_request_poll", label: change_request_label, total: prs.size)
-        prs.each do |pr|
-          unless pr_has_label?(pr, change_request_label)
-            Aidp.log_debug("watch_runner", "change_request_skip_label_mismatch", pr: pr[:number], labels: pr[:labels])
-            next
-          end
-
-          detailed = @repository_client.fetch_pull_request(pr[:number])
-
-          # Check author authorization before processing
-          unless @safety_checker.should_process_issue?(detailed, enforce: false)
-            Aidp.log_debug("watch_runner", "change_request_skip_unauthorized_author", pr: detailed[:number],
-              author: detailed[:author])
-            next
-          end
-
-          # Check if detection comment already posted (deduplication)
-          unless @state_extractor.detection_comment_posted?(detailed, change_request_label)
-            post_detection_comment(item_type: :pr, number: detailed[:number], label: change_request_label)
-          end
-
-          Aidp.log_debug("watch_runner", "change_request_process", pr: detailed[:number])
-          @change_request_processor.process(detailed)
-        rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-          Aidp.log_warn("watch_runner", "unauthorized PR author", pr: pr[:number], error: e.message)
+      # Fetch detailed issue or PR data for a work item.
+      # @param item [WorkItem] Work item to fetch details for
+      # @return [Hash, nil] Detailed item data or nil on error
+      def fetch_detailed_item(item)
+        if item.issue?
+          @repository_client.fetch_issue(item.number)
+        else
+          @repository_client.fetch_pull_request(item.number)
         end
+      rescue => e
+        Aidp.log_error("watch_runner", "round_robin.fetch_failed",
+          key: item.key, error: e.message)
+        nil
+      end
+
+      # Post detection comment for a work item if not already posted.
+      # @param item [WorkItem] Work item
+      # @param detailed [Hash] Detailed issue/PR data
+      def post_detection_comment_for_item(item, detailed)
+        return unless @post_detection_comments
+        return if @state_extractor.detection_comment_posted?(detailed, item.label)
+
+        post_detection_comment(
+          item_type: item.item_type,
+          number: item.number,
+          label: item.label
+        )
+      end
+
+      # Collect all work items from all processors.
+      # @return [Array<WorkItem>] List of all work items
+      def collect_all_work_items
+        items = []
+
+        items.concat(collect_plan_work_items)
+        items.concat(collect_build_work_items)
+        items.concat(collect_auto_issue_work_items)
+        items.concat(collect_review_work_items)
+        items.concat(collect_ci_fix_work_items)
+        items.concat(collect_auto_pr_work_items)
+        items.concat(collect_change_request_work_items)
+
+        Aidp.log_debug("watch_runner", "collect_all_work_items.complete",
+          total: items.size)
+
+        items
+      end
+
+      # Collect work items for plan triggers.
+      # @return [Array<WorkItem>]
+      def collect_plan_work_items
+        label = @plan_processor.plan_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+
+          WorkItem.new(
+            number: issue[:number],
+            item_type: :issue,
+            processor_type: :plan,
+            label: label,
+            data: issue
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_plan_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for build triggers.
+      # @return [Array<WorkItem>]
+      def collect_build_work_items
+        label = @build_processor.build_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+
+          # Skip already completed builds
+          detailed = @repository_client.fetch_issue(issue[:number])
+          next if @state_extractor.build_completed?(detailed)
+
+          WorkItem.new(
+            number: issue[:number],
+            item_type: :issue,
+            processor_type: :build,
+            label: label,
+            data: issue
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_build_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for auto issue triggers.
+      # @return [Array<WorkItem>]
+      def collect_auto_issue_work_items
+        label = @auto_processor.auto_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+
+          WorkItem.new(
+            number: issue[:number],
+            item_type: :issue,
+            processor_type: :auto_issue,
+            label: label,
+            data: issue
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_auto_issue_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for review triggers.
+      # @return [Array<WorkItem>]
+      def collect_review_work_items
+        label = @review_processor.review_label
+        prs = @repository_client.list_pull_requests(labels: [label], state: "open")
+
+        prs.filter_map do |pr|
+          next unless pr_has_label?(pr, label)
+
+          WorkItem.new(
+            number: pr[:number],
+            item_type: :pr,
+            processor_type: :review,
+            label: label,
+            data: pr
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_review_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for CI fix triggers.
+      # @return [Array<WorkItem>]
+      def collect_ci_fix_work_items
+        label = @ci_fix_processor.ci_fix_label
+        prs = @repository_client.list_pull_requests(labels: [label], state: "open")
+
+        prs.filter_map do |pr|
+          next unless pr_has_label?(pr, label)
+
+          WorkItem.new(
+            number: pr[:number],
+            item_type: :pr,
+            processor_type: :ci_fix,
+            label: label,
+            data: pr
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_ci_fix_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for auto PR triggers.
+      # @return [Array<WorkItem>]
+      def collect_auto_pr_work_items
+        label = @auto_pr_processor.auto_label
+        prs = @repository_client.list_pull_requests(labels: [label], state: "open")
+
+        prs.filter_map do |pr|
+          next unless pr_has_label?(pr, label)
+
+          WorkItem.new(
+            number: pr[:number],
+            item_type: :pr,
+            processor_type: :auto_pr,
+            label: label,
+            data: pr
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_auto_pr_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for change request triggers.
+      # @return [Array<WorkItem>]
+      def collect_change_request_work_items
+        label = @change_request_processor.change_request_label
+        prs = @repository_client.list_pull_requests(labels: [label], state: "open")
+
+        prs.filter_map do |pr|
+          next unless pr_has_label?(pr, label)
+
+          WorkItem.new(
+            number: pr[:number],
+            item_type: :pr,
+            processor_type: :change_request,
+            label: label,
+            data: pr
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_change_request_items_failed", error: e.message)
+        []
+      end
+
+      # Fetch the numbers of all paused items (with aidp-needs-input label).
+      # @return [Array<Integer>] Issue/PR numbers that are paused
+      def fetch_paused_item_numbers
+        issues = @repository_client.list_issues(labels: [@needs_input_label], state: "open")
+        prs = @repository_client.list_pull_requests(labels: [@needs_input_label], state: "open")
+
+        paused = issues.map { |i| i[:number] } + prs.map { |p| p[:number] }
+
+        Aidp.log_debug("watch_runner", "fetch_paused_items",
+          count: paused.size, numbers: paused)
+
+        paused
+      rescue => e
+        Aidp.log_error("watch_runner", "fetch_paused_items_failed", error: e.message)
+        []
       end
 
       def issue_has_label?(issue, label)
