@@ -84,6 +84,26 @@ RSpec.describe Aidp::Database::Repositories::TemplateVersionRepository do
       expect(version[:metadata][:source]).to eq("test")
       expect(version[:metadata][:suggestions]).to include("improve clarity")
     end
+
+    it "returns error for nil content" do
+      result = repository.create(
+        template_id: template_id,
+        content: nil
+      )
+
+      expect(result[:success]).to be false
+      expect(result[:error]).to eq("Content cannot be nil or empty")
+    end
+
+    it "returns error for empty content" do
+      result = repository.create(
+        template_id: template_id,
+        content: "   "
+      )
+
+      expect(result[:success]).to be false
+      expect(result[:error]).to eq("Content cannot be nil or empty")
+    end
   end
 
   describe "#active_version" do
@@ -260,15 +280,27 @@ RSpec.describe Aidp::Database::Repositories::TemplateVersionRepository do
     end
 
     it "keeps positive-feedback versions" do
-      # Create 7 versions, with first 2 having positive votes
+      # Create 7 versions (exceeds MIN_VERSIONS=5), with first 2 having positive votes
+      positive_version_ids = []
       7.times do |i|
         res = repository.create(template_id: template_id, content: "content #{i}")
-        repository.record_positive_vote(id: res[:id]) if i < 2
+        if i < 2
+          repository.record_positive_vote(id: res[:id])
+          positive_version_ids << res[:id]
+        end
       end
 
       repository.prune_old_versions(template_id: template_id)
 
       versions = repository.list(template_id: template_id)
+      remaining_ids = versions.map { |v| v[:id] }
+
+      # Verify that the specific versions with positive votes are preserved
+      positive_version_ids.each do |id|
+        expect(remaining_ids).to include(id),
+          "Expected positive-vote version #{id} to be preserved after pruning"
+      end
+
       positive_count = versions.count { |v| v[:positive_votes].positive? }
       expect(positive_count).to be >= 2
     end

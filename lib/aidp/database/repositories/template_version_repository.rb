@@ -33,6 +33,14 @@ module Aidp
         # @param metadata [Hash, nil] Additional metadata
         # @return [Hash] Result with :success, :id, :version_number
         def create(template_id:, content:, parent_version_id: nil, metadata: nil)
+          # Validate content is present
+          if content.nil? || content.to_s.strip.empty?
+            Aidp.log_error("template_version_repository", "invalid_content",
+              template_id: template_id,
+              error: "Content cannot be nil or empty")
+            return {success: false, error: "Content cannot be nil or empty"}
+          end
+
           Aidp.log_debug("template_version_repository", "creating_version",
             template_id: template_id,
             parent_version_id: parent_version_id)

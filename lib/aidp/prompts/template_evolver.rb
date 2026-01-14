@@ -276,7 +276,8 @@ module Aidp
       end
 
       def apply_improvements(current_template, ai_result)
-        improved = current_template.dup
+        # Use deep copy to avoid modifying nested structures in the original
+        improved = Marshal.load(Marshal.dump(current_template))
 
         # Update prompt text
         improved["prompt"] = ai_result[:improved_prompt]
