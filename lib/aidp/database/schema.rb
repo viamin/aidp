@@ -309,11 +309,11 @@ module Aidp
             version_number INTEGER NOT NULL,
             content TEXT NOT NULL,
             parent_version_id INTEGER,
-            is_active INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 0 CHECK (is_active IN (0, 1)),
             positive_votes INTEGER DEFAULT 0,
             negative_votes INTEGER DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            metadata TEXT
+            metadata TEXT  -- JSON-encoded hash with evolution context (source, suggestions, changes)
         );
         CREATE INDEX IF NOT EXISTS idx_template_versions_project ON template_versions(project_dir);
         CREATE INDEX IF NOT EXISTS idx_template_versions_template ON template_versions(project_dir, template_id);

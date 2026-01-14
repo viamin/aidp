@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../database/repositories/prompt_feedback_repository"
+require_relative "template_version_manager"
 
 module Aidp
   module Prompts
@@ -34,18 +35,19 @@ module Aidp
     class FeedbackCollector
       attr_reader :project_dir, :repository
 
+      # Threshold for logging error about persistent version manager failures
+      VERSION_MANAGER_FAILURE_THRESHOLD = 3
+
       def initialize(project_dir: Dir.pwd, repository: nil, version_manager: nil)
         @project_dir = project_dir
         @repository = repository || Database::Repositories::PromptFeedbackRepository.new(project_dir: project_dir)
         @version_manager_instance = version_manager
+        @version_manager_failure_count = 0
       end
 
-      # Lazily initialize version manager to avoid circular dependencies
+      # Lazily initialize version manager
       def version_manager
-        @version_manager_instance ||= begin
-          require_relative "template_version_manager"
-          TemplateVersionManager.new(project_dir: @project_dir)
-        end
+        @version_manager_instance ||= TemplateVersionManager.new(project_dir: @project_dir)
       end
 
       # Record feedback for a prompt template
@@ -169,10 +171,24 @@ module Aidp
           )
         end
       rescue => e
-        # Don't fail the main feedback recording if version update fails
-        Aidp.log_warn("feedback_collector", "version_feedback_update_failed",
-          template_id: template_id,
-          error: e.message)
+        # Track consecutive failures to detect persistent issues
+        @version_manager_failure_count += 1
+
+        if @version_manager_failure_count >= VERSION_MANAGER_FAILURE_THRESHOLD
+          Aidp.log_error("feedback_collector", "persistent_version_manager_failures",
+            template_id: template_id,
+            failure_count: @version_manager_failure_count,
+            error: e.message)
+        else
+          Aidp.log_warn("feedback_collector", "version_feedback_update_failed",
+            template_id: template_id,
+            error: e.message)
+        end
+      end
+
+      # Reset failure count on successful version update (called after successful operations)
+      def reset_version_manager_failure_count
+        @version_manager_failure_count = 0
       end
     end
   end

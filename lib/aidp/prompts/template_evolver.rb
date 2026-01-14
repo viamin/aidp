@@ -285,9 +285,8 @@ module Aidp
         current_version = improved["version"] || "1.0.0"
         improved["version"] = increment_version(current_version)
 
-        # Update description to note this is an evolved version
-        original_desc = improved["description"] || ""
-        improved["description"] = "#{original_desc} (AI-evolved based on feedback)"
+        # Note: Evolution is tracked in metadata (passed to create_evolved_version)
+        # rather than modifying the description to avoid duplication on multiple evolutions
 
         improved
       end

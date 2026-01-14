@@ -47,8 +47,21 @@ module Aidp
       # @param template_id [String] Template identifier
       # @return [Boolean]
       def versionable?(template_id)
+        return false unless valid_template_id?(template_id)
+
         category = template_id.split("/").first
         VERSIONED_CATEGORIES.include?(category)
+      end
+
+      # Validate template_id format (must be "category/name")
+      #
+      # @param template_id [String] Template identifier
+      # @return [Boolean]
+      def valid_template_id?(template_id)
+        return false if template_id.nil? || template_id.empty?
+
+        parts = template_id.split("/")
+        parts.length == 2 && parts.all? { |p| !p.empty? }
       end
 
       # Initialize versioning for a template by importing current content
@@ -106,8 +119,7 @@ module Aidp
         if result[:success]
           Aidp.log_info("template_version_manager", "positive_feedback_recorded",
             template_id: template_id,
-            version_id: active[:id],
-            total_positive: active[:positive_votes] + 1)
+            version_id: active[:id])
         end
 
         result

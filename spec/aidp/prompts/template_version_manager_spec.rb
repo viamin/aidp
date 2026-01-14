@@ -160,20 +160,21 @@ RSpec.describe Aidp::Prompts::TemplateVersionManager do
       expect(result[:version_number]).to eq(2)
     end
 
-    it "sets new version as active" do
+    it "sets new version as active with correct parent reference" do
       manager.initialize_versioning(template_id: template_id)
-      active = manager.active_version(template_id: template_id)
+      original_active = manager.active_version(template_id: template_id)
 
       new_content = "evolved: true"
 
       manager.create_evolved_version(
         template_id: template_id,
         new_content: new_content,
-        parent_version_id: active[:id]
+        parent_version_id: original_active[:id]
       )
 
       new_active = manager.active_version(template_id: template_id)
       expect(new_active[:version_number]).to eq(2)
+      expect(new_active[:parent_version_id]).to eq(original_active[:id])
     end
   end
 

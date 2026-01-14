@@ -263,6 +263,9 @@ module Aidp
           Aidp.log_debug("template_version_repository", "pruning_versions",
             template_id: template_id)
 
+          # Fetch active version first to avoid race conditions
+          active = active_version(template_id: template_id)
+
           versions = list(template_id: template_id, limit: 100)
           return {success: true, pruned_count: 0} if versions.size <= MIN_VERSIONS
 
@@ -271,7 +274,6 @@ module Aidp
           versions_to_prune = versions.reject { |v| versions_to_keep.include?(v[:id]) }
 
           # Never prune the active version
-          active = active_version(template_id: template_id)
           versions_to_prune.reject! { |v| v[:id] == active&.dig(:id) }
 
           pruned_count = 0

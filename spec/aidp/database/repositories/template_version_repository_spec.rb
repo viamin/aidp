@@ -249,6 +249,7 @@ RSpec.describe Aidp::Database::Repositories::TemplateVersionRepository do
   end
 
   describe "#prune_old_versions" do
+    # We create 7 versions in these tests to exceed MIN_VERSIONS (5) and trigger pruning behavior
     it "keeps at least MIN_VERSIONS" do
       7.times { repository.create(template_id: template_id, content: "content") }
 
@@ -259,6 +260,7 @@ RSpec.describe Aidp::Database::Repositories::TemplateVersionRepository do
     end
 
     it "keeps positive-feedback versions" do
+      # Create 7 versions, with first 2 having positive votes
       7.times do |i|
         res = repository.create(template_id: template_id, content: "content #{i}")
         repository.record_positive_vote(id: res[:id]) if i < 2
@@ -272,6 +274,7 @@ RSpec.describe Aidp::Database::Repositories::TemplateVersionRepository do
     end
 
     it "never prunes the active version" do
+      # Create 7 versions to trigger pruning
       7.times { repository.create(template_id: template_id, content: "content") }
       active = repository.active_version(template_id: template_id)
 
