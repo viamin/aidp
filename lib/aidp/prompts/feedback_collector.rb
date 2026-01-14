@@ -170,6 +170,9 @@ module Aidp
             context: context
           )
         end
+
+        # Reset failure count on successful operation
+        reset_version_manager_failure_count
       rescue => e
         # Track consecutive failures to detect persistent issues
         @version_manager_failure_count += 1

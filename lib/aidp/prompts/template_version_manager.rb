@@ -38,8 +38,10 @@ module Aidp
         @project_dir = project_dir
         @repository = repository ||
           Database::Repositories::TemplateVersionRepository.new(project_dir: project_dir)
+        # Pass self as version_manager to avoid circular dependency where
+        # PromptTemplateManager creates its own TemplateVersionManager instance
         @template_manager = template_manager ||
-          PromptTemplateManager.new(project_dir: project_dir)
+          PromptTemplateManager.new(project_dir: project_dir, version_manager: self)
       end
 
       # Check if a template is eligible for versioning
@@ -75,8 +77,8 @@ module Aidp
         Aidp.log_debug("template_version_manager", "initializing_versioning",
           template_id: template_id)
 
-        # Load current template content
-        template_data = @template_manager.load_template(template_id)
+        # Load current template content from file (not versioned, since we're initializing)
+        template_data = @template_manager.load_template(template_id, use_versioned: false)
         return {success: false, error: "Template not found"} unless template_data
 
         # Store as version 1

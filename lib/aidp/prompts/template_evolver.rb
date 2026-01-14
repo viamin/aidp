@@ -276,20 +276,17 @@ module Aidp
       end
 
       def apply_improvements(current_template, ai_result)
-        # Use deep copy to avoid modifying nested structures in the original
-        improved = Marshal.load(Marshal.dump(current_template))
+        # Build new hash with only the fields we need to modify
+        # This avoids Marshal deep copy anti-pattern while preventing mutation of original
+        current_version = current_template["version"] || "1.0.0"
 
-        # Update prompt text
-        improved["prompt"] = ai_result[:improved_prompt]
-
-        # Increment version
-        current_version = improved["version"] || "1.0.0"
-        improved["version"] = increment_version(current_version)
-
+        # Create new hash by merging original with updated fields
         # Note: Evolution is tracked in metadata (passed to create_evolved_version)
         # rather than modifying the description to avoid duplication on multiple evolutions
-
-        improved
+        current_template.merge(
+          "prompt" => ai_result[:improved_prompt],
+          "version" => increment_version(current_version)
+        )
       end
 
       def increment_version(version_string)
