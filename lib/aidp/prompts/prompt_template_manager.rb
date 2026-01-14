@@ -11,8 +11,10 @@ module Aidp
     # - Variable substitution with {{placeholder}} syntax
     # - Template versioning and caching
     # - User/project-level template customization
+    # - Per issue #402: Database-backed versioned templates with feedback-based selection
     #
     # Template search order:
+    # 0. Database versioned templates (for versionable categories like work_loop)
     # 1. Project-level: .aidp/prompts/<category>/<name>.yml
     # 2. User-level: ~/.aidp/prompts/<category>/<name>.yml
     # 3. Built-in: lib/aidp/prompts/defaults/<category>/<name>.yml
@@ -32,26 +34,56 @@ module Aidp
       # Cache TTL for template metadata (5 minutes)
       CACHE_TTL = 300
 
+      # Categories that support database versioning
+      VERSIONED_CATEGORIES = %w[work_loop].freeze
+
       attr_reader :project_dir, :cache
 
-      def initialize(project_dir: Dir.pwd)
+      def initialize(project_dir: Dir.pwd, version_manager: nil)
         @project_dir = project_dir
         @cache = {}
         @cache_timestamps = {}
+        @version_manager_instance = version_manager
+      end
+
+      # Lazily initialize version manager
+      def version_manager
+        @version_manager_instance ||= begin
+          require_relative "template_version_manager"
+          TemplateVersionManager.new(project_dir: @project_dir)
+        end
+      end
+
+      # Check if a template category supports versioning
+      #
+      # @param template_id [String] Template identifier
+      # @return [Boolean]
+      def versionable?(template_id)
+        category = template_id.split("/").first
+        VERSIONED_CATEGORIES.include?(category)
       end
 
       # Render a template with variable substitution
+      # Per issue #402: Checks database versions first for versionable templates
       #
       # @param template_id [String] Template identifier (e.g., "decision_engine/condition_detection")
       # @param variables [Hash] Variables to substitute in the template
+      # @param use_versioned [Boolean] Whether to check versioned templates (default: true)
       # @return [String] Rendered prompt text
       # @raise [TemplateNotFoundError] If template is not found
-      def render(template_id, **variables)
+      def render(template_id, use_versioned: true, **variables)
         Aidp.log_debug("prompt_template_manager", "rendering_template",
           template_id: template_id,
-          variables: variables.keys)
+          variables: variables.keys,
+          use_versioned: use_versioned)
 
-        template_data = load_template(template_id)
+        # Try versioned template first for versionable categories
+        if use_versioned && versionable?(template_id)
+          versioned_result = render_versioned(template_id, **variables)
+          return versioned_result if versioned_result
+        end
+
+        template_data = load_template(template_id, use_versioned: use_versioned)
         raise TemplateNotFoundError, "Template not found: #{template_id}" if template_data.nil?
 
         prompt_text = template_data["prompt"] || template_data[:prompt]
@@ -60,11 +92,42 @@ module Aidp
         substitute_variables(prompt_text, variables)
       end
 
-      # Load template metadata without rendering
+      # Render using a versioned template from the database
       #
       # @param template_id [String] Template identifier
+      # @param variables [Hash] Variables to substitute
+      # @return [String, nil] Rendered prompt or nil if no version exists
+      def render_versioned(template_id, **variables)
+        return nil unless versionable?(template_id)
+
+        active = version_manager.active_version(template_id: template_id)
+        return nil unless active
+
+        Aidp.log_debug("prompt_template_manager", "rendering_versioned_template",
+          template_id: template_id,
+          version_id: active[:id],
+          version_number: active[:version_number])
+
+        # Parse the stored YAML content
+        template_data = YAML.safe_load(active[:content], permitted_classes: [Symbol], aliases: true)
+        prompt_text = template_data["prompt"] || template_data[:prompt]
+        return nil unless prompt_text
+
+        substitute_variables(prompt_text, variables)
+      rescue => e
+        Aidp.log_warn("prompt_template_manager", "versioned_render_failed",
+          template_id: template_id,
+          error: e.message)
+        nil
+      end
+
+      # Load template metadata without rendering
+      # Per issue #402: Checks database versions first for versionable templates
+      #
+      # @param template_id [String] Template identifier
+      # @param use_versioned [Boolean] Whether to check versioned templates (default: true)
       # @return [Hash, nil] Template data or nil if not found
-      def load_template(template_id)
+      def load_template(template_id, use_versioned: true)
         cache_key = "template:#{template_id}"
 
         # Check cache
@@ -74,7 +137,16 @@ module Aidp
           return @cache[cache_key]
         end
 
-        # Search for template in order of precedence
+        # Try versioned template first for versionable categories
+        if use_versioned && versionable?(template_id)
+          versioned = load_versioned_template(template_id)
+          if versioned
+            set_cache(cache_key, versioned)
+            return versioned
+          end
+        end
+
+        # Search for template in order of precedence (file-based)
         template_path = find_template_path(template_id)
         return nil unless template_path
 
@@ -85,6 +157,28 @@ module Aidp
         template_data = load_yaml_template(template_path)
         set_cache(cache_key, template_data)
         template_data
+      end
+
+      # Load template data from versioned storage
+      #
+      # @param template_id [String] Template identifier
+      # @return [Hash, nil] Template data or nil if no version exists
+      def load_versioned_template(template_id)
+        return nil unless versionable?(template_id)
+
+        active = version_manager.active_version(template_id: template_id)
+        return nil unless active
+
+        Aidp.log_debug("prompt_template_manager", "loading_versioned_template",
+          template_id: template_id,
+          version_id: active[:id])
+
+        YAML.safe_load(active[:content], permitted_classes: [Symbol], aliases: true)
+      rescue => e
+        Aidp.log_warn("prompt_template_manager", "versioned_load_failed",
+          template_id: template_id,
+          error: e.message)
+        nil
       end
 
       # Check if a template exists

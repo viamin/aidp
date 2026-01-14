@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../database/repositories/prompt_feedback_repository"
+require_relative "template_version_manager"
 
 module Aidp
   module Prompts
@@ -18,6 +19,10 @@ module Aidp
     # - Analytics: Understanding which prompts work well
     # - Evolution: Automatic prompt improvement over time
     #
+    # Per issue #402: Integrates with TemplateVersionManager to:
+    # - Record positive votes (count but don't alter templates)
+    # - Record negative votes (trigger AGD for new template variants)
+    #
     # @example Record feedback
     #   collector = FeedbackCollector.new(project_dir: Dir.pwd)
     #   collector.record(
@@ -30,9 +35,19 @@ module Aidp
     class FeedbackCollector
       attr_reader :project_dir, :repository
 
-      def initialize(project_dir: Dir.pwd, repository: nil)
+      # Threshold for logging error about persistent version manager failures
+      VERSION_MANAGER_FAILURE_THRESHOLD = 3
+
+      def initialize(project_dir: Dir.pwd, repository: nil, version_manager: nil)
         @project_dir = project_dir
         @repository = repository || Database::Repositories::PromptFeedbackRepository.new(project_dir: project_dir)
+        @version_manager_instance = version_manager
+        @version_manager_failure_count = 0
+      end
+
+      # Lazily initialize version manager
+      def version_manager
+        @version_manager_instance ||= TemplateVersionManager.new(project_dir: @project_dir)
       end
 
       # Record feedback for a prompt template
@@ -43,11 +58,13 @@ module Aidp
       # @param user_reaction [Symbol, nil] :positive, :negative, :neutral
       # @param suggestions [Array<String>, nil] Improvement suggestions
       # @param context [Hash] Additional context (task type, error type, etc.)
-      def record(template_id:, outcome:, iterations: nil, user_reaction: nil, suggestions: nil, context: {})
+      # @param track_version [Boolean] Whether to update version manager (default: true)
+      def record(template_id:, outcome:, iterations: nil, user_reaction: nil, suggestions: nil, context: {}, track_version: true)
         Aidp.log_debug("feedback_collector", "recording_feedback",
           template_id: template_id,
           outcome: outcome,
-          iterations: iterations)
+          iterations: iterations,
+          user_reaction: user_reaction)
 
         result = @repository.record(
           template_id: template_id,
@@ -62,6 +79,16 @@ module Aidp
           Aidp.log_info("feedback_collector", "feedback_recorded",
             template_id: template_id,
             outcome: outcome)
+
+          # Per issue #402: Update version manager based on user reaction
+          if track_version && user_reaction
+            update_version_feedback(
+              template_id: template_id,
+              user_reaction: user_reaction,
+              suggestions: suggestions,
+              context: context
+            )
+          end
         else
           Aidp.log_warn("feedback_collector", "feedback_record_failed",
             template_id: template_id,
@@ -113,6 +140,58 @@ module Aidp
       # @return [Boolean]
       def any?
         @repository.any?
+      end
+
+      private
+
+      # Update version manager based on user reaction
+      # Per issue #402:
+      # - Positive feedback: Count votes, prioritize for future use
+      # - Negative feedback: Trigger AGD to create new variant
+      def update_version_feedback(template_id:, user_reaction:, suggestions:, context:)
+        # Only process versionable templates (work_loop category initially)
+        return unless version_manager.versionable?(template_id)
+
+        case user_reaction.to_sym
+        when :positive
+          Aidp.log_debug("feedback_collector", "recording_positive_version_feedback",
+            template_id: template_id)
+          version_manager.record_positive_feedback(template_id: template_id)
+
+        when :negative
+          Aidp.log_debug("feedback_collector", "recording_negative_version_feedback",
+            template_id: template_id,
+            suggestion_count: suggestions&.size || 0)
+
+          # Record negative feedback - this will mark evolution as pending
+          version_manager.record_negative_feedback(
+            template_id: template_id,
+            suggestions: suggestions || [],
+            context: context
+          )
+        end
+
+        # Reset failure count on successful operation
+        reset_version_manager_failure_count
+      rescue => e
+        # Track consecutive failures to detect persistent issues
+        @version_manager_failure_count += 1
+
+        if @version_manager_failure_count >= VERSION_MANAGER_FAILURE_THRESHOLD
+          Aidp.log_error("feedback_collector", "persistent_version_manager_failures",
+            template_id: template_id,
+            failure_count: @version_manager_failure_count,
+            error: e.message)
+        else
+          Aidp.log_warn("feedback_collector", "version_feedback_update_failed",
+            template_id: template_id,
+            error: e.message)
+        end
+      end
+
+      # Reset failure count on successful version update (called after successful operations)
+      def reset_version_manager_failure_count
+        @version_manager_failure_count = 0
       end
     end
   end

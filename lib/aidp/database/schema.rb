@@ -299,10 +299,33 @@ module Aidp
         CREATE INDEX IF NOT EXISTS idx_prompt_feedback_outcome ON prompt_feedback(outcome);
       SQL
 
+      # Version 3: Add template_versions table for versioned template management
+      V3_TEMPLATE_VERSIONS = <<~SQL
+        -- Template versions (tracks template versions with feedback-based selection)
+        CREATE TABLE IF NOT EXISTS template_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_dir TEXT NOT NULL,
+            template_id TEXT NOT NULL,
+            version_number INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            parent_version_id INTEGER,
+            is_active INTEGER DEFAULT 0 CHECK (is_active IN (0, 1)),
+            positive_votes INTEGER DEFAULT 0,
+            negative_votes INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            metadata TEXT  -- JSON-encoded hash with evolution context (source, suggestions, changes)
+        );
+        CREATE INDEX IF NOT EXISTS idx_template_versions_project ON template_versions(project_dir);
+        CREATE INDEX IF NOT EXISTS idx_template_versions_template ON template_versions(project_dir, template_id);
+        CREATE INDEX IF NOT EXISTS idx_template_versions_active ON template_versions(project_dir, template_id, is_active);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_template_versions_unique ON template_versions(project_dir, template_id, version_number);
+      SQL
+
       # All migrations in order
       MIGRATIONS = {
         1 => V1_INITIAL,
-        2 => V2_PROMPT_FEEDBACK
+        2 => V2_PROMPT_FEEDBACK,
+        3 => V3_TEMPLATE_VERSIONS
       }.freeze
 
       # Get SQL for a specific version

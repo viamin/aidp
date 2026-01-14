@@ -73,7 +73,7 @@ RSpec.describe Aidp::Database::Migrations do
       db = Aidp::Database.connection(temp_dir)
       version = db.get_first_value("SELECT MAX(version) FROM schema_migrations")
 
-      expect(version).to eq(2)
+      expect(version).to eq(3)
     end
 
     it "returns empty array if already migrated" do
@@ -90,7 +90,7 @@ RSpec.describe Aidp::Database::Migrations do
       db = Aidp::Database.connection(temp_dir)
       count = db.get_first_value("SELECT COUNT(*) FROM schema_migrations")
 
-      expect(count).to eq(2)
+      expect(count).to eq(3)
     end
   end
 

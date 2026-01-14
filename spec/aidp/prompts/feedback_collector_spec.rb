@@ -227,4 +227,124 @@ RSpec.describe Aidp::Prompts::FeedbackCollector do
       expect(collector.any?).to be true
     end
   end
+
+  describe "version manager integration" do
+    let(:work_loop_template) { "work_loop/decide_whats_next" }
+    let(:mock_version_manager) { instance_double("Aidp::Prompts::TemplateVersionManager") }
+
+    let(:collector_with_mock) do
+      described_class.new(
+        project_dir: temp_dir,
+        version_manager: mock_version_manager
+      )
+    end
+
+    describe "#record with positive user_reaction" do
+      before do
+        allow(mock_version_manager).to receive(:versionable?)
+          .with(work_loop_template)
+          .and_return(true)
+
+        allow(mock_version_manager).to receive(:record_positive_feedback)
+          .with(template_id: work_loop_template)
+          .and_return({success: true})
+      end
+
+      it "updates version manager for versionable templates" do
+        expect(mock_version_manager).to receive(:record_positive_feedback)
+          .with(template_id: work_loop_template)
+
+        collector_with_mock.record(
+          template_id: work_loop_template,
+          outcome: :success,
+          user_reaction: :positive
+        )
+      end
+    end
+
+    describe "#record with negative user_reaction" do
+      before do
+        allow(mock_version_manager).to receive(:versionable?)
+          .with(work_loop_template)
+          .and_return(true)
+
+        allow(mock_version_manager).to receive(:record_negative_feedback)
+          .and_return({success: true, evolution_pending: true})
+      end
+
+      it "updates version manager with suggestions" do
+        expect(mock_version_manager).to receive(:record_negative_feedback)
+          .with(
+            template_id: work_loop_template,
+            suggestions: ["Improve clarity"],
+            context: {task_type: "test"}
+          )
+
+        collector_with_mock.record(
+          template_id: work_loop_template,
+          outcome: :failure,
+          user_reaction: :negative,
+          suggestions: ["Improve clarity"],
+          context: {task_type: "test"}
+        )
+      end
+    end
+
+    describe "#record with non-versionable template" do
+      before do
+        allow(mock_version_manager).to receive(:versionable?)
+          .with(template_id)
+          .and_return(false)
+      end
+
+      it "does not update version manager" do
+        expect(mock_version_manager).not_to receive(:record_positive_feedback)
+        expect(mock_version_manager).not_to receive(:record_negative_feedback)
+
+        collector_with_mock.record(
+          template_id: template_id,
+          outcome: :success,
+          user_reaction: :positive
+        )
+      end
+    end
+
+    describe "#record with track_version: false" do
+      before do
+        allow(mock_version_manager).to receive(:versionable?)
+          .and_return(true)
+      end
+
+      it "skips version manager update" do
+        expect(mock_version_manager).not_to receive(:record_positive_feedback)
+
+        collector_with_mock.record(
+          template_id: work_loop_template,
+          outcome: :success,
+          user_reaction: :positive,
+          track_version: false
+        )
+      end
+    end
+
+    describe "#record when version manager fails" do
+      before do
+        allow(mock_version_manager).to receive(:versionable?)
+          .and_return(true)
+
+        allow(mock_version_manager).to receive(:record_positive_feedback)
+          .and_raise(StandardError.new("DB error"))
+      end
+
+      it "still records feedback successfully" do
+        result = collector_with_mock.record(
+          template_id: work_loop_template,
+          outcome: :success,
+          user_reaction: :positive
+        )
+
+        expect(result[:success]).to be true
+      end
+    end
+  end
 end
