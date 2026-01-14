@@ -271,7 +271,9 @@ module Aidp
           Aidp.log_debug("template_version_repository", "pruning_versions",
             template_id: template_id)
 
-          # Fetch active version first to avoid race conditions
+          # Capture active version reference before list/delete operations.
+          # This ensures we never prune the currently active version, even if
+          # activation changes during pruning (defensive programming).
           active = active_version(template_id: template_id)
 
           versions = list(template_id: template_id, limit: 100)

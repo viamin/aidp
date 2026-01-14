@@ -276,13 +276,15 @@ module Aidp
       end
 
       def apply_improvements(current_template, ai_result)
-        # Build new hash with only the fields we need to modify
-        # This avoids Marshal deep copy anti-pattern while preventing mutation of original
+        # Use merge to create a new hash rather than deep copying. This is cleaner
+        # than Marshal.load/dump which has performance overhead, can fail with complex
+        # objects, and has security implications with untrusted data.
         current_version = current_template["version"] || "1.0.0"
 
-        # Create new hash by merging original with updated fields
-        # Note: Evolution is tracked in metadata (passed to create_evolved_version)
-        # rather than modifying the description to avoid duplication on multiple evolutions
+        # Create new hash by merging original with updated fields.
+        # Evolution history is tracked in metadata (passed to create_evolved_version)
+        # rather than appending to description, which would accumulate redundant
+        # suffixes like "(AI-evolved)" on each evolution cycle.
         current_template.merge(
           "prompt" => ai_result[:improved_prompt],
           "version" => increment_version(current_version)
