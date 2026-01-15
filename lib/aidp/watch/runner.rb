@@ -140,8 +140,7 @@ module Aidp
 
         # Initialize round-robin scheduler (issue #434)
         @round_robin_scheduler = RoundRobinScheduler.new(
-          state_store: @state_store,
-          label_config: label_config
+          state_store: @state_store
         )
         @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || "aidp-needs-input"
       end

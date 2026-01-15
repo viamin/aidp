@@ -17,7 +17,7 @@ module Aidp
     class RoundRobinScheduler
       attr_reader :queue, :last_processed_key
 
-      def initialize(state_store:, label_config: {})
+      def initialize(state_store:)
         @state_store = state_store
         @queue = []
         @last_processed_key = state_store.round_robin_last_key
