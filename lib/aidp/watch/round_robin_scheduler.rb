@@ -15,19 +15,15 @@ module Aidp
     # Paused items (aidp-needs-input label) are skipped during their turn
     # but remain in the queue for later processing.
     class RoundRobinScheduler
-      DEFAULT_NEEDS_INPUT_LABEL = "aidp-needs-input"
-
       attr_reader :queue, :last_processed_key
 
       def initialize(state_store:, label_config: {})
         @state_store = state_store
         @queue = []
         @last_processed_key = state_store.round_robin_last_key
-        @needs_input_label = label_config[:needs_input] || label_config["needs_input"] || DEFAULT_NEEDS_INPUT_LABEL
 
         Aidp.log_debug("round_robin_scheduler", "initialized",
-          last_key: @last_processed_key,
-          needs_input_label: @needs_input_label)
+          last_key: @last_processed_key)
       end
 
       # Refresh the queue with current work items from GitHub.
