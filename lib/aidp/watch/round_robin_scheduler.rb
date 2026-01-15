@@ -35,19 +35,13 @@ module Aidp
           incoming_count: work_items.size,
           current_queue_size: @queue.size)
 
-        # Group by priority and sort within groups
-        prioritized = work_items.group_by(&:priority)
-        sorted_items = []
-
-        prioritized.keys.sort.each do |priority|
-          sorted_items.concat(prioritized[priority])
-        end
-
-        @queue = sorted_items
+        # Sort by priority (primary) and key (secondary) for deterministic ordering
+        # This ensures consistent queue order across refreshes
+        @queue = work_items.sort_by { |item| [item.priority, item.key] }
 
         Aidp.log_debug("round_robin_scheduler", "refresh_queue.complete",
           queue_size: @queue.size,
-          priorities: prioritized.keys.sort)
+          priorities: @queue.map(&:priority).uniq.sort)
       end
 
       # Get the next work item to process using round-robin rotation.
@@ -131,6 +125,8 @@ module Aidp
       # Find the index to start searching from based on last processed item.
       # Returns the index AFTER the last processed item for round-robin.
       #
+      # @note This method handles empty queues by returning 0 early.
+      #   The modulo operation on line 140 is only reached when queue is non-empty.
       # @return [Integer] Starting index for rotation
       def find_start_index
         return 0 if @last_processed_key.nil?
@@ -143,6 +139,7 @@ module Aidp
         return 0 unless last_index
 
         # Start from the next item (wrap around)
+        # Safe: @queue.size > 0 guaranteed by early return above
         (last_index + 1) % @queue.size
       end
     end

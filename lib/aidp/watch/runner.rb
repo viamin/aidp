@@ -222,11 +222,11 @@ module Aidp
         Aidp.log_info("watch_runner", "round_robin.processing",
           key: item.key, number: item.number, processor_type: item.processor_type)
 
-        # Dispatch to appropriate processor
-        dispatch_work_item(item)
+        # Dispatch to appropriate processor - returns true if item was actually processed
+        was_processed = dispatch_work_item(item)
 
-        # Mark as processed for rotation tracking
-        @round_robin_scheduler.mark_processed(item)
+        # Only mark as processed if work was actually done (not skipped)
+        @round_robin_scheduler.mark_processed(item) if was_processed
       rescue => e
         Aidp.log_error("watch_runner", "round_robin.process_failed",
           key: item&.key, error: e.message, error_class: e.class.name)
@@ -234,15 +234,16 @@ module Aidp
 
       # Dispatch a work item to its appropriate processor.
       # @param item [WorkItem] The work item to process
+      # @return [Boolean] True if item was actually processed, false if skipped
       def dispatch_work_item(item)
         detailed = fetch_detailed_item(item)
-        return unless detailed
+        return false unless detailed
 
         # Check authorization
         unless @safety_checker.should_process_issue?(detailed, enforce: false)
           Aidp.log_debug("watch_runner", "round_robin.skip_unauthorized",
             key: item.key, author: detailed[:author])
-          return
+          return false
         end
 
         # Post detection comment if not already posted
@@ -257,7 +258,7 @@ module Aidp
           if @state_extractor.build_completed?(detailed)
             Aidp.log_debug("watch_runner", "round_robin.skip_build_completed",
               key: item.key, number: item.number)
-            return
+            return false
           end
           @build_processor.process(detailed)
         when :auto_issue
@@ -273,10 +274,14 @@ module Aidp
         else
           Aidp.log_warn("watch_runner", "round_robin.unknown_processor",
             processor_type: item.processor_type)
+          return false
         end
+
+        true # Item was processed
       rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
         Aidp.log_warn("watch_runner", "round_robin.unauthorized_author",
           key: item.key, error: e.message)
+        false
       end
 
       # Fetch detailed issue or PR data for a work item.

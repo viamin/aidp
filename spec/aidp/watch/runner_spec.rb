@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe Aidp::Watch::Runner do
   let(:repo_client) { instance_double("RepositoryClient", full_repo: "o/r") }
   let(:safety_checker) { instance_double("RepositorySafetyChecker", validate_watch_mode_safety!: true) }
-  let(:state_store) { instance_double("StateStore", state: {}, round_robin_last_key: nil) }
+  let(:state_store) { instance_double("StateStore", state: {}, round_robin_last_key: nil, record_round_robin_position: nil) }
   let(:state_extractor) { instance_double("GitHubStateExtractor") }
   let(:plan_processor) { instance_double("PlanProcessor", plan_label: "plan", process: nil) }
   let(:build_processor) { instance_double("BuildProcessor", build_label: "build", process: nil) }
