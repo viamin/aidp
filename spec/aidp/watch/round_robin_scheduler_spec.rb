@@ -196,16 +196,16 @@ RSpec.describe Aidp::Watch::RoundRobinScheduler do
     end
   end
 
-  describe "#has_work?" do
+  describe "#work?" do
     it "returns false for empty queue" do
-      expect(scheduler.has_work?).to be false
+      expect(scheduler.work?).to be false
     end
 
     it "returns true when queue has non-paused items" do
       items = [create_work_item(number: 1, item_type: :issue, processor_type: :build)]
       scheduler.refresh_queue(items)
 
-      expect(scheduler.has_work?).to be true
+      expect(scheduler.work?).to be true
     end
 
     it "returns false when all items are paused" do
@@ -215,7 +215,7 @@ RSpec.describe Aidp::Watch::RoundRobinScheduler do
       ]
       scheduler.refresh_queue(items)
 
-      expect(scheduler.has_work?(paused_numbers: [1, 2])).to be false
+      expect(scheduler.work?(paused_numbers: [1, 2])).to be false
     end
 
     it "returns true when some items are not paused" do
@@ -225,7 +225,7 @@ RSpec.describe Aidp::Watch::RoundRobinScheduler do
       ]
       scheduler.refresh_queue(items)
 
-      expect(scheduler.has_work?(paused_numbers: [1])).to be true
+      expect(scheduler.work?(paused_numbers: [1])).to be true
     end
   end
 

@@ -200,7 +200,7 @@ module Aidp
           paused_count: paused_numbers.size)
 
         # Process one work item using round-robin
-        if @round_robin_scheduler.has_work?(paused_numbers: paused_numbers)
+        if @round_robin_scheduler.work?(paused_numbers: paused_numbers)
           process_next_work_item(paused_numbers: paused_numbers)
         else
           Aidp.log_debug("watch_runner", "round_robin.no_work",
@@ -254,6 +254,12 @@ module Aidp
         when :plan
           @plan_processor.process(detailed)
         when :build
+          # Check build completion at dispatch time (moved from collection for API efficiency)
+          if @state_extractor.build_completed?(detailed)
+            Aidp.log_debug("watch_runner", "round_robin.skip_build_completed",
+              key: item.key, number: item.number)
+            return
+          end
           @build_processor.process(detailed)
         when :auto_issue
           @auto_processor.process(detailed)
@@ -353,10 +359,8 @@ module Aidp
         issues.filter_map do |issue|
           next unless issue_has_label?(issue, label)
 
-          # Skip already completed builds
-          detailed = @repository_client.fetch_issue(issue[:number])
-          next if @state_extractor.build_completed?(detailed)
-
+          # Note: build_completed check moved to dispatch phase to avoid
+          # API calls during collection (addresses rate limiting concerns)
           WorkItem.new(
             number: issue[:number],
             item_type: :issue,

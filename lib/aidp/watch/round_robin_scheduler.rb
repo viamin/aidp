@@ -111,7 +111,7 @@ module Aidp
       #
       # @param paused_numbers [Array<Integer>] Issue/PR numbers that are paused
       # @return [Boolean] True if there's work to do
-      def has_work?(paused_numbers: [])
+      def work?(paused_numbers: [])
         @queue.any? { |item| !paused_numbers.include?(item.number) }
       end
 
