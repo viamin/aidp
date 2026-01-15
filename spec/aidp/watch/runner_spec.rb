@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe Aidp::Watch::Runner do
   let(:repo_client) { instance_double("RepositoryClient", full_repo: "o/r") }
   let(:safety_checker) { instance_double("RepositorySafetyChecker", validate_watch_mode_safety!: true) }
-  let(:state_store) { instance_double("StateStore", state: {}) }
+  let(:state_store) { instance_double("StateStore", state: {}, round_robin_last_key: nil) }
   let(:state_extractor) { instance_double("GitHubStateExtractor") }
   let(:plan_processor) { instance_double("PlanProcessor", plan_label: "plan", process: nil) }
   let(:build_processor) { instance_double("BuildProcessor", build_label: "build", process: nil) }
@@ -66,18 +66,17 @@ RSpec.describe Aidp::Watch::Runner do
   end
 
   describe "#process_cycle" do
-    it "calls each processor in order" do
+    it "collects work items and processes via round-robin" do
       runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
       allow(runner).to receive(:display_message)
+
+      # Allow round-robin scheduler methods
+      allow(runner).to receive(:collect_all_work_items).and_return([])
+      allow(runner).to receive(:fetch_paused_item_numbers).and_return([])
+
+      # Maintenance tasks should still be called
       %i[
-        process_plan_triggers
-        process_build_triggers
-        process_auto_issue_triggers
         check_for_updates_if_due
-        process_review_triggers
-        process_ci_fix_triggers
-        process_auto_pr_triggers
-        process_change_request_triggers
         collect_feedback
         process_worktree_cleanup
         process_worktree_reconciliation
@@ -110,7 +109,7 @@ RSpec.describe Aidp::Watch::Runner do
     end
   end
 
-  describe "trigger processing" do
+  describe "work item collection (round-robin)" do
     let(:runner) do
       r = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
       allow(r).to receive(:display_message)
@@ -121,79 +120,139 @@ RSpec.describe Aidp::Watch::Runner do
       allow(runner).to receive(:post_detection_comment)
     end
 
-    it "processes plan triggers and posts detection comment" do
+    it "collects plan work items" do
       allow(repo_client).to receive(:list_issues).and_return([{number: 1, labels: ["plan"]}])
-      allow(repo_client).to receive(:fetch_issue).and_return(issue_detail)
 
-      runner.send(:process_plan_triggers)
+      items = runner.send(:collect_plan_work_items)
 
-      expect(plan_processor).to have_received(:process).with(issue_detail)
-      expect(runner).to have_received(:post_detection_comment)
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:plan)
+      expect(items.first.number).to eq(1)
     end
 
-    it "skips when plan poll fails" do
+    it "returns empty array when plan poll fails" do
       allow(repo_client).to receive(:list_issues).and_raise(StandardError.new("boom"))
 
-      expect { runner.send(:process_plan_triggers) }.not_to raise_error
+      items = runner.send(:collect_plan_work_items)
+
+      expect(items).to eq([])
     end
 
-    it "processes build triggers" do
+    it "collects build work items" do
       allow(repo_client).to receive(:list_issues).and_return([{number: 2, labels: ["build"]}])
       allow(repo_client).to receive(:fetch_issue).and_return(issue_detail.merge(number: 2, labels: ["build"]))
 
-      runner.send(:process_build_triggers)
+      items = runner.send(:collect_build_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:build)
+    end
+
+    it "collects auto issue work items" do
+      allow(auto_processor).to receive(:auto_label).and_return("auto")
+      allow(repo_client).to receive(:list_issues).and_return([{number: 3, labels: ["auto"]}])
+
+      items = runner.send(:collect_auto_issue_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:auto_issue)
+    end
+
+    it "collects review work items" do
+      allow(review_processor).to receive(:review_label).and_return("review")
+      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 4, labels: ["review"]}])
+
+      items = runner.send(:collect_review_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:review)
+    end
+
+    it "collects auto PR work items" do
+      allow(auto_pr_processor).to receive(:auto_label).and_return("auto-pr")
+      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 5, labels: ["auto-pr"]}])
+
+      items = runner.send(:collect_auto_pr_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:auto_pr)
+    end
+
+    it "collects ci fix work items" do
+      allow(ci_fix_processor).to receive(:ci_fix_label).and_return("ci-fix")
+      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 6, labels: ["ci-fix"]}])
+
+      items = runner.send(:collect_ci_fix_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:ci_fix)
+    end
+
+    it "collects change request work items" do
+      allow(change_request_processor).to receive(:change_request_label).and_return("cr")
+      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 7, labels: ["cr"]}])
+
+      items = runner.send(:collect_change_request_work_items)
+
+      expect(items.size).to eq(1)
+      expect(items.first.processor_type).to eq(:change_request)
+    end
+  end
+
+  describe "#dispatch_work_item" do
+    let(:runner) do
+      r = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(r).to receive(:display_message)
+      r
+    end
+
+    before do
+      allow(runner).to receive(:post_detection_comment_for_item)
+    end
+
+    it "dispatches plan work item to plan processor" do
+      allow(repo_client).to receive(:fetch_issue).and_return(issue_detail)
+      work_item = Aidp::Watch::WorkItem.new(
+        number: 1,
+        item_type: :issue,
+        processor_type: :plan,
+        label: "aidp-plan",
+        data: {}
+      )
+
+      runner.send(:dispatch_work_item, work_item)
+
+      expect(plan_processor).to have_received(:process).with(issue_detail)
+    end
+
+    it "dispatches build work item to build processor" do
+      allow(repo_client).to receive(:fetch_issue).and_return(issue_detail.merge(labels: ["build"]))
+      work_item = Aidp::Watch::WorkItem.new(
+        number: 1,
+        item_type: :issue,
+        processor_type: :build,
+        label: "aidp-build",
+        data: {}
+      )
+
+      runner.send(:dispatch_work_item, work_item)
 
       expect(build_processor).to have_received(:process)
     end
 
-    it "processes auto issue triggers" do
-      allow(auto_processor).to receive(:auto_label).and_return("auto")
-      allow(repo_client).to receive(:list_issues).and_return([{number: 3, labels: ["auto"]}])
-      allow(repo_client).to receive(:fetch_issue).and_return(issue_detail.merge(number: 3, labels: ["auto"]))
+    it "dispatches review work item to review processor" do
+      allow(repo_client).to receive(:fetch_pull_request).and_return({number: 1, labels: ["review"]})
+      work_item = Aidp::Watch::WorkItem.new(
+        number: 1,
+        item_type: :pr,
+        processor_type: :review,
+        label: "aidp-review",
+        data: {}
+      )
 
-      runner.send(:process_auto_issue_triggers)
-
-      expect(auto_processor).to have_received(:process)
-    end
-
-    it "processes review triggers" do
-      allow(review_processor).to receive(:review_label).and_return("review")
-      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 4, labels: ["review"]}])
-      allow(repo_client).to receive(:fetch_pull_request).and_return({number: 4, labels: ["review"]})
-
-      runner.send(:process_review_triggers)
+      runner.send(:dispatch_work_item, work_item)
 
       expect(review_processor).to have_received(:process)
-    end
-
-    it "processes auto PR triggers" do
-      allow(auto_pr_processor).to receive(:auto_label).and_return("auto-pr")
-      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 5, labels: ["auto-pr"]}])
-      allow(repo_client).to receive(:fetch_pull_request).and_return({number: 5, labels: ["auto-pr"]})
-
-      runner.send(:process_auto_pr_triggers)
-
-      expect(auto_pr_processor).to have_received(:process)
-    end
-
-    it "processes ci fix triggers" do
-      allow(ci_fix_processor).to receive(:ci_fix_label).and_return("ci-fix")
-      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 6, labels: ["ci-fix"]}])
-      allow(repo_client).to receive(:fetch_pull_request).and_return({number: 6, labels: ["ci-fix"]})
-
-      runner.send(:process_ci_fix_triggers)
-
-      expect(ci_fix_processor).to have_received(:process)
-    end
-
-    it "processes change request triggers" do
-      allow(change_request_processor).to receive(:change_request_label).and_return("cr")
-      allow(repo_client).to receive(:list_pull_requests).and_return([{number: 7, labels: ["cr"]}])
-      allow(repo_client).to receive(:fetch_pull_request).and_return({number: 7, labels: ["cr"]})
-
-      runner.send(:process_change_request_triggers)
-
-      expect(change_request_processor).to have_received(:process)
     end
   end
 
