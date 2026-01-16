@@ -430,7 +430,50 @@ module Aidp
         worktree_cleanup_state.dup
       end
 
+      # Round-robin scheduling state methods (issue #434)
+
+      # Get the last processed work item key for round-robin rotation
+      # @return [String, nil] Last processed key or nil if never processed
+      def round_robin_last_key
+        round_robin_state["last_key"]
+      end
+
+      # Get the timestamp of the last round-robin processing
+      # @return [Time, nil] Time of last processing or nil
+      def round_robin_last_processed_at
+        timestamp = round_robin_state["processed_at"]
+        return nil unless timestamp
+
+        Time.parse(timestamp)
+      rescue ArgumentError
+        nil
+      end
+
+      # Record the round-robin rotation position
+      # @param last_key [String] Key of the last processed work item
+      # @param processed_at [String] ISO8601 timestamp of processing
+      def record_round_robin_position(last_key:, processed_at:)
+        state["round_robin"] = {
+          "last_key" => last_key,
+          "processed_at" => processed_at
+        }
+        save!
+
+        Aidp.log_debug("state_store", "round_robin_position_recorded",
+          last_key: last_key, processed_at: processed_at)
+      end
+
+      # Get the full round-robin state
+      # @return [Hash] Round-robin state data
+      def round_robin_data
+        round_robin_state.dup
+      end
+
       private
+
+      def round_robin_state
+        state["round_robin"] ||= {}
+      end
 
       def worktree_cleanup_state
         state["worktree_cleanup"] ||= {}

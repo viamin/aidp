@@ -236,4 +236,52 @@ RSpec.describe Aidp::Watch::StateStore do
       expect(store.last_worktree_cleanup).to be_nil
     end
   end
+
+  describe "round-robin scheduling state" do
+    it "returns nil when no position has been recorded" do
+      expect(store.round_robin_last_key).to be_nil
+      expect(store.round_robin_last_processed_at).to be_nil
+    end
+
+    it "records and retrieves round-robin position" do
+      timestamp = Time.now.utc.iso8601
+      store.record_round_robin_position(last_key: "issue_123_plan", processed_at: timestamp)
+
+      expect(store.round_robin_last_key).to eq("issue_123_plan")
+      expect(store.round_robin_last_processed_at).to be_a(Time)
+      expect(store.round_robin_last_processed_at).to be_within(60).of(Time.now)
+    end
+
+    it "returns full round-robin state data" do
+      timestamp = Time.now.utc.iso8601
+      store.record_round_robin_position(last_key: "pr_456_review", processed_at: timestamp)
+
+      data = store.round_robin_data
+      expect(data["last_key"]).to eq("pr_456_review")
+      expect(data["processed_at"]).to eq(timestamp)
+    end
+
+    it "persists round-robin state across reloads" do
+      timestamp = Time.now.utc.iso8601
+      store.record_round_robin_position(last_key: "issue_789_build", processed_at: timestamp)
+
+      reloaded = described_class.new(project_dir: tmp_dir, repository: repository)
+      expect(reloaded.round_robin_last_key).to eq("issue_789_build")
+      expect(reloaded.round_robin_last_processed_at).to be_a(Time)
+    end
+
+    it "overwrites previous position when recording new one" do
+      store.record_round_robin_position(last_key: "issue_1_plan", processed_at: Time.now.utc.iso8601)
+      store.record_round_robin_position(last_key: "issue_2_build", processed_at: Time.now.utc.iso8601)
+
+      expect(store.round_robin_last_key).to eq("issue_2_build")
+    end
+
+    it "handles invalid timestamp gracefully" do
+      store.send(:state)["round_robin"] = {"last_key" => "test", "processed_at" => "invalid"}
+
+      expect(store.round_robin_last_key).to eq("test")
+      expect(store.round_robin_last_processed_at).to be_nil
+    end
+  end
 end
