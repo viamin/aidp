@@ -231,7 +231,10 @@ module Aidp
       rescue => e
         Aidp.log_error("watch_runner", "round_robin.process_failed",
           key: item&.key, error: e.message, error_class: e.class.name)
-        # Mark as processed on error to prevent infinite retry loops.
+        # Mark as processed on error to prevent infinite retry loops within the same
+        # rotation. Unlike authorization/build_completed skips (which return false to
+        # allow immediate retry since their state may change), errors are assumed to be
+        # transient issues that will resolve by the next full queue refresh cycle.
         # The item will be re-added to the queue on the next refresh if still active.
         @round_robin_scheduler.mark_processed(item) if item
       end
