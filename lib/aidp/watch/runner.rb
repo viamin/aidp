@@ -225,7 +225,8 @@ module Aidp
         # Dispatch to appropriate processor - returns true if item was actually processed
         was_processed = dispatch_work_item(item)
 
-        # Only mark as processed if work was actually done (not skipped)
+        # Only mark as processed if work was actually done (not skipped), so skipped
+        # items remain in the queue and will be re-checked on the next cycle.
         @round_robin_scheduler.mark_processed(item) if was_processed
       rescue => e
         Aidp.log_error("watch_runner", "round_robin.process_failed",

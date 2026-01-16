@@ -142,7 +142,7 @@ module Aidp
         return 0 unless last_index
 
         # Start from the next item (wrap around)
-        # Safe: @queue.size > 0 guaranteed by early return on line 133
+        # Safe: @queue.size > 0 guaranteed by early return on line 136
         (last_index + 1) % @queue.size
       end
     end
