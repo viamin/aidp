@@ -229,7 +229,8 @@ module Aidp
       end
 
       # Find replacement for a deprecated model
-      # Returns the latest non-deprecated model in the same family/tier
+      # Returns the cached replacement if available, otherwise finds the latest
+      # non-deprecated model in the same family/tier
       # @param deprecated_model [String] The deprecated model ID
       # @param provider [String, nil] The provider name (AIDP format)
       # @return [String, nil] Replacement model ID or nil
@@ -237,7 +238,16 @@ module Aidp
         registry_provider = provider ? PROVIDER_NAME_MAPPING[provider] : nil
         return nil unless registry_provider
 
-        # Determine tier of deprecated model
+        # First check the deprecation cache for a stored replacement
+        cached_replacement = deprecation_cache.replacement_for(provider: registry_provider, model_id: deprecated_model)
+        if cached_replacement
+          Aidp.log_info("ruby_llm_registry", "found cached replacement",
+            deprecated: deprecated_model,
+            replacement: cached_replacement)
+          return cached_replacement
+        end
+
+        # Determine tier of deprecated model for dynamic lookup
         deprecated_info = @index_by_id[deprecated_model]
         return nil unless deprecated_info
 
