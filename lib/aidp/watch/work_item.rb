@@ -5,6 +5,8 @@ module Aidp
     # Value object representing a work item in the round-robin queue.
     # Encapsulates issue/PR data with metadata needed for scheduling.
     class WorkItem
+      include Comparable
+
       ITEM_TYPES = %i[issue pr].freeze
       PROCESSOR_TYPES = %i[plan build auto_issue review ci_fix auto_pr change_request].freeze
 

@@ -19,6 +19,7 @@ RSpec.describe Aidp::Watch::Runner do
   let(:auto_update_check) { instance_double("UpdateCheck", should_update?: true, current_version: "1", available_version: "2") }
   let(:auto_update) { instance_double("AutoUpdateCoordinator", check_for_updates: nil, check_for_update: auto_update_check, policy: auto_update_policy, restore_from_checkpoint: nil, hot_reload_available?: false, initiate_update: nil) }
   let(:worktree_cleanup_job) { instance_double("WorktreeCleanupJob", enabled?: true, cleanup_due?: false, cleanup_interval_seconds: 604_800, execute: {cleaned: 0, skipped: 0, errors: []}) }
+  let(:worktree_reconciler) { instance_double("WorktreeReconciler", enabled?: false, reconciliation_due?: false, execute: {resumed: 0, reconciled: 0, cleaned: 0, errors: []}) }
   let(:issue_detail) { {number: 1, labels: ["plan"], comments: [], author: "alice"} }
 
   # Silent test prompt that doesn't output
@@ -40,6 +41,7 @@ RSpec.describe Aidp::Watch::Runner do
     allow(Aidp::Watch::ChangeRequestProcessor).to receive(:new).and_return(change_request_processor)
     allow(Aidp::Watch::FeedbackCollector).to receive(:new).and_return(feedback_collector)
     allow(Aidp::Watch::WorktreeCleanupJob).to receive(:new).and_return(worktree_cleanup_job)
+    allow(Aidp::Watch::WorktreeReconciler).to receive(:new).and_return(worktree_reconciler)
     allow(Aidp::Config).to receive(:worktree_cleanup_config).and_return({enabled: true, frequency: "weekly"})
     allow(Aidp::AutoUpdate).to receive(:coordinator).and_return(auto_update)
     allow(Aidp).to receive(:log_info)
@@ -140,7 +142,6 @@ RSpec.describe Aidp::Watch::Runner do
 
     it "collects build work items" do
       allow(repo_client).to receive(:list_issues).and_return([{number: 2, labels: ["build"]}])
-      allow(repo_client).to receive(:fetch_issue).and_return(issue_detail.merge(number: 2, labels: ["build"]))
 
       items = runner.send(:collect_build_work_items)
 

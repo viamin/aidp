@@ -230,9 +230,22 @@ module Aidp
       rescue => e
         Aidp.log_error("watch_runner", "round_robin.process_failed",
           key: item&.key, error: e.message, error_class: e.class.name)
+        # Mark as processed on error to prevent infinite retry loops.
+        # The item will be re-added to the queue on the next refresh if still active.
+        @round_robin_scheduler.mark_processed(item) if item
       end
 
       # Dispatch a work item to its appropriate processor.
+      #
+      # Design note: Items skipped due to authorization or build_completed checks
+      # return false and are NOT marked as processed. This means they will be
+      # re-checked on the next cycle. This is intentional because:
+      # - Authorization: An author could be added to the allowlist between cycles
+      # - Build completed: New commits could be pushed, requiring more work
+      #
+      # The trade-off is some redundant API calls, but this ensures we don't
+      # permanently skip items whose state could change.
+      #
       # @param item [WorkItem] The work item to process
       # @return [Boolean] True if item was actually processed, false if skipped
       def dispatch_work_item(item)

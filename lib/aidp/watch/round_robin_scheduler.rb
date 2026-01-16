@@ -125,9 +125,12 @@ module Aidp
       # Find the index to start searching from based on last processed item.
       # Returns the index AFTER the last processed item for round-robin.
       #
-      # @note This method handles empty queues by returning 0 early.
-      #   The modulo operation on line 140 is only reached when queue is non-empty.
-      # @return [Integer] Starting index for rotation
+      # Empty queue safety: This method returns 0 for empty queues, but the
+      # caller (next_item) guards against empty queues before calling this method.
+      # The modulo operation is safe because we've verified queue.size > 0.
+      #
+      # @return [Integer] Starting index for rotation (0 if queue is empty,
+      #   no last key, or last processed item not found)
       def find_start_index
         return 0 if @last_processed_key.nil?
         return 0 if @queue.empty?
@@ -139,7 +142,7 @@ module Aidp
         return 0 unless last_index
 
         # Start from the next item (wrap around)
-        # Safe: @queue.size > 0 guaranteed by early return above
+        # Safe: @queue.size > 0 guaranteed by early return on line 133
         (last_index + 1) % @queue.size
       end
     end
