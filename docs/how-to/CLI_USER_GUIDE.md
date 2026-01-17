@@ -1504,6 +1504,45 @@ When a PR has `aidp-auto`:
 | `aidp-review` | PR | Automated code review |
 | `aidp-fix-ci` | PR | Fix CI failures |
 | `aidp-request-changes` | PR | Implement change requests |
+| `aidp-rebase` | PR | Automatically rebase PR against target branch with AI-powered conflict resolution
+   - Supports multiple conflict resolution strategies
+   - Preserves original code intent
+   - Generates semantic conflict resolution notes
+   - Handles complex multi-file merge scenarios
+
+### Automatic Rebasing with `aidp-rebase`
+
+When you add the `aidp-rebase` label to a pull request, AIDP will:
+
+1. **Detect the PR's target branch**
+2. **Create a unique git worktree** for safe rebasing
+3. **Rebase the PR branch against its target branch**
+4. **Use AI-powered conflict resolution** if merge conflicts occur
+   - Analyzes code context
+   - Attempts intelligent conflict resolution
+   - Can handle complex merge scenarios
+5. **Post status updates to the PR**
+   - Success status if rebase completes
+   - Failure status with details if rebase fails
+   - Comment with rebase outcome
+
+**Conflict Resolution:**
+- Utilizes advanced AI decision engine
+- Provides semantic understanding of code conflicts
+- Attempts to preserve original code intent
+- Generates human-readable conflict resolution notes
+
+**Example Workflow:**
+```bash
+# Add aidp-rebase label to a PR
+gh pr edit 123 --add-label aidp-rebase
+
+# AIDP Watch Mode will:
+# 1. Detect the label
+# 2. Rebase PR #123 automatically
+# 3. Resolve conflicts if present
+# 4. Remove aidp-rebase label
+```
 
 ### Completion Criteria
 
@@ -1525,6 +1564,7 @@ watch:
     build_trigger: "aidp-build"
     review_trigger: "aidp-review"
     ci_fix_trigger: "aidp-fix-ci"
+    rebase_trigger: "aidp-rebase"
   safety:
     author_allowlist:
       - "username1"

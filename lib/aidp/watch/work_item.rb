@@ -8,7 +8,7 @@ module Aidp
       include Comparable
 
       ITEM_TYPES = %i[issue pr].freeze
-      PROCESSOR_TYPES = %i[plan build auto_issue review ci_fix auto_pr change_request].freeze
+      PROCESSOR_TYPES = %i[plan build auto_issue review ci_fix auto_pr change_request rebase].freeze
 
       # Priority levels for scheduling (lower = higher priority)
       PRIORITY_PLAN = 1

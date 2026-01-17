@@ -113,6 +113,12 @@ module Aidp
           safety_config: safety_config[:safety] || safety_config["safety"] || {},
           verbose: verbose
         )
+        @rebase_processor = RebaseProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          label_config: label_config,
+          verbose: verbose
+        )
 
         @feedback_collector = FeedbackCollector.new(
           repository_client: @repository_client,
@@ -288,6 +294,8 @@ module Aidp
           @auto_pr_processor.process(detailed)
         when :change_request
           @change_request_processor.process(detailed)
+        when :rebase
+          @rebase_processor.process(detailed)
         else
           Aidp.log_warn("watch_runner", "round_robin.unknown_processor",
             processor_type: item.processor_type)
@@ -342,6 +350,7 @@ module Aidp
         items.concat(collect_ci_fix_work_items)
         items.concat(collect_auto_pr_work_items)
         items.concat(collect_change_request_work_items)
+        items.concat(collect_rebase_work_items)
 
         Aidp.log_debug("watch_runner", "collect_all_work_items.complete",
           total: items.size)
@@ -502,6 +511,28 @@ module Aidp
         end
       rescue => e
         Aidp.log_error("watch_runner", "collect_change_request_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for rebase triggers.
+      # @return [Array<WorkItem>]
+      def collect_rebase_work_items
+        label = @rebase_processor.rebase_label
+        prs = @repository_client.list_pull_requests(labels: [label], state: "open")
+
+        prs.filter_map do |pr|
+          next unless pr_has_label?(pr, label)
+
+          WorkItem.new(
+            number: pr[:number],
+            item_type: :pr,
+            processor_type: :rebase,
+            label: label,
+            data: pr
+          )
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "collect_rebase_items_failed", error: e.message)
         []
       end
 
