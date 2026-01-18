@@ -224,7 +224,43 @@ watch:
     review_trigger: "aidp-review"
     ci_fix_trigger: "aidp-fix-ci"
     change_request_trigger: "aidp-request-changes"
+    rebase_trigger: "aidp-rebase"
 ```
+
+### aidp-rebase
+
+**Purpose:** Automatically rebase a Pull Request against its target branch.
+
+**Behavior:**
+
+1. Detects PR with `aidp-rebase` label
+2. Creates an isolated worktree for the PR branch
+3. Fetches the latest changes from the base branch
+4. Attempts to rebase the PR branch
+5. If conflicts occur:
+   - Uses AI-powered conflict resolution to automatically resolve conflicts
+   - Attempts to apply AI-generated resolution
+6. Posts GitHub status:
+   - Success status if rebase completes
+   - Failure status with details if rebase fails
+7. Adds a comment to the PR with rebase result
+8. Removes the `aidp-rebase` label after processing
+
+**Prerequisites:**
+- PR must be in an open state
+- Rebase conflicts must be resolvable by AI
+
+**Default Label:** `aidp-rebase`
+
+**Configuration:**
+
+```yaml
+watch:
+  labels:
+    rebase_trigger: "aidp-rebase"
+```
+
+---
 
 ## Label Lifecycle
 

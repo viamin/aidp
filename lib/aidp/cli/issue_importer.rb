@@ -19,7 +19,8 @@ module Aidp
     # @param gh_available [Boolean, nil] (test-only) forcibly sets whether gh CLI is considered
     #   available. When nil (default) we auto-detect. This enables deterministic specs without
     #   depending on developer environment.
-    def initialize(gh_available: nil, enable_bootstrap: true)
+    # @param project_dir [String] (optional) working directory for the project. Defaults to current directory.
+    def initialize(gh_available: nil, enable_bootstrap: true, project_dir: nil)
       disabled_via_env = ENV["AIDP_DISABLE_GH_CLI"] == "1"
       @gh_available = if disabled_via_env
         false
@@ -27,6 +28,7 @@ module Aidp
         gh_available.nil? ? gh_cli_available? : gh_available
       end
       @enable_bootstrap = enable_bootstrap
+      @project_dir_override = project_dir
       Aidp.log_debug(COMPONENT, "Initialized importer", gh_available: @gh_available, enable_bootstrap: @enable_bootstrap, disabled_via_env: disabled_via_env)
       Aidp.log_debug(COMPONENT, "GitHub CLI disabled via env flag") if disabled_via_env
     end
@@ -244,7 +246,7 @@ module Aidp
       prompt_content = generate_prompt_content(issue_data)
 
       # Use PromptManager to write to .aidp/PROMPT.md and archive immediately
-      prompt_manager = Aidp::Execute::PromptManager.new(Dir.pwd)
+      prompt_manager = Aidp::Execute::PromptManager.new(project_dir)
       step_name = "github_issue_#{issue_data[:number]}"
       prompt_manager.write(prompt_content, step_name: step_name)
 
@@ -487,12 +489,24 @@ module Aidp
         + (result.lint_commands.empty? ? "" : "Lint Commands:\n#{result.lint_commands.map { |c| "- #{c}" }.join("\n")}\n")
 
       # Use PromptManager to append to .aidp/PROMPT.md (issue #226)
-      prompt_manager = Aidp::Execute::PromptManager.new(Dir.pwd)
+      prompt_manager = Aidp::Execute::PromptManager.new(project_dir)
       current_prompt = prompt_manager.read
       updated_prompt = current_prompt + "\n---\n\n#{tooling_info}"
       prompt_manager.write(updated_prompt, step_name: "github_issue_tooling")
 
       display_message("🧪 Detected tooling and appended to PROMPT.md", type: :info)
+    end
+
+    def project_dir
+      @project_dir_override || safe_pwd
+    end
+
+    def safe_pwd
+      Dir.pwd
+    rescue Errno::ENOENT
+      # If the current directory no longer exists (e.g., in test environment),
+      # use ENV["AIDP_PROJECT_DIR"] or fallback to "."
+      ENV["AIDP_PROJECT_DIR"] || "."
     end
   end
 end
