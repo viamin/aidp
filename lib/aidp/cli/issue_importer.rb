@@ -244,7 +244,8 @@ module Aidp
       prompt_content = generate_prompt_content(issue_data)
 
       # Use PromptManager to write to .aidp/PROMPT.md and archive immediately
-      prompt_manager = Aidp::Execute::PromptManager.new(Dir.pwd)
+      project_dir = Dir.pwd
+      prompt_manager = Aidp::Execute::PromptManager.new(project_dir)
       step_name = "github_issue_#{issue_data[:number]}"
       prompt_manager.write(prompt_content, step_name: step_name)
 

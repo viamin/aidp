@@ -223,7 +223,7 @@ RSpec.describe Aidp::Watch::Runner do
 
       runner.send(:dispatch_work_item, work_item)
 
-      expect(plan_processor).to have_received(:process).with(issue_detail)
+      expect(plan_processor).to have_received(:process).with(work_item)
     end
 
     it "dispatches build work item to build processor" do

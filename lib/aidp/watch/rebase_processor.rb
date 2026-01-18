@@ -47,16 +47,18 @@ module Aidp
           "rebase_processor",
           "processing_work_item",
           pr_number: work_item.number,
-          branch: work_item.data[:head][:ref]
+          branch: work_item.data[:head][:ref],
+          labels: work_item.labels
         )
 
+        _final_result = false
+
         begin
-          # Fetch PR details
           pr_details = @repository_client.get_pull_request(work_item.number)
+
           base_branch = pr_details[:base][:ref]
           head_branch = pr_details[:head][:ref]
 
-          # Create worktree for rebasing
           worktree_path = @worktree_manager.create_pr_worktree(
             pr_number: work_item.number,
             base_branch: base_branch,
@@ -67,46 +69,40 @@ module Aidp
           worktree_path ||= "/tmp/worktree/#{work_item.number}"
 
           # Attempt rebase with intelligent conflict resolution
-          rebase_result = perform_rebase(worktree_path, base_branch, head_branch)
-
-          # Remove rebase label after processing
-          @repository_client.remove_labels(
-            work_item.number,
-            [@rebase_label]
-          )
+          final_result = perform_rebase(worktree_path, base_branch, head_branch)
 
           # Post results to PR
-          post_rebase_status(work_item.number, rebase_result)
+          post_rebase_status(work_item.number, final_result)
 
           Aidp.log_debug(
             "rebase_processor",
             "rebase_completed",
             pr_number: work_item.number,
-            result: rebase_result
+            result: final_result,
+            worktree_path: worktree_path
           )
 
-          rebase_result
+          final_result  # Return true/false based on rebase success
         rescue => e
-          # Remove rebase label when error occurs
+          Aidp.log_debug(
+            "rebase_processor",
+            "rebase_failed",
+            pr_number: work_item.number,
+            error_class: e.class.name,
+            error_message: e.message,
+            backtrace: e.backtrace&.first
+          )
+
+          handle_rebase_error(work_item.number, e)
+          false  # Always return false on exception
+        ensure
+          # Always remove labels and cleanup worktree
           @repository_client.remove_labels(
             work_item.number,
             [@rebase_label]
           )
-          # Handle and log rebase failures
-          handle_rebase_error(work_item.number, e)
-          false
-        ensure
-          # Cleanup: remove temporary worktree
-          begin
-            @worktree_manager.cleanup_pr_worktree(work_item.number)
-          rescue
-            # Ignore cleanup errors to ensure the method always finishes
-            Aidp.log_debug(
-              "rebase_processor",
-              "worktree_cleanup_error",
-              pr_number: work_item.number
-            )
-          end
+
+          @worktree_manager.cleanup_pr_worktree(work_item.number)
         end
       end
 
@@ -120,18 +116,14 @@ module Aidp
           base_branch: base_branch,
           head_branch: head_branch
         )
-
         # Fetch the latest changes
         self.system("git fetch origin")
-
         # Attempt to rebase
         rebase_command = "git rebase origin/#{base_branch}"
         rebase_output = self.system(rebase_command)
-
         unless rebase_output
           # Conflict resolution using AI
           conflict_files = detect_conflicting_files(worktree_path)
-
           if !conflict_files.empty?
             # Use AI-powered conflict resolution
             begin
@@ -140,7 +132,6 @@ module Aidp
               # If AI resolution fails, return false
               return false
             end
-
             # If resolution is successful, continue with the rebase
             if resolution
               # Stage resolved files and continue rebase
@@ -154,10 +145,8 @@ module Aidp
             return false
           end
         end
-
         # Push the rebased branch
         self.system("git push -f origin #{head_branch}")
-
         true
       end
 
@@ -173,13 +162,11 @@ module Aidp
           worktree_path: worktree_path,
           base_branch: base_branch
         )
-
-        # Use AIDecisionEngine to analyze and resolve merge conflicts
+        # Use AIDecisionEngine to resolve merge conflicts
         conflict_resolution = @ai_decision_engine.resolve_merge_conflict(
           base_branch_path: worktree_path,
           conflict_files: conflict_files
         )
-
         apply_conflict_resolution(worktree_path, conflict_resolution)
       end
 
@@ -189,12 +176,10 @@ module Aidp
           "applying_conflict_resolution",
           resolution: conflict_resolution
         )
-
         # Apply AI-generated conflict resolution
         conflict_resolution.each do |file, resolution|
           File.write(File.join(worktree_path, file), resolution)
         end
-
         # Stage and continue rebase
         self.system("cd #{worktree_path} && git add . && git rebase --continue")
       end
@@ -208,14 +193,12 @@ module Aidp
         else
           "Rebase failed"
         end
-
         @repository_client.send(
           status_method,
           pr_number,
           context: "aidp/rebase",
           description: description
         )
-
         comment_text = if rebase_result
           "✅ PR has been successfully rebased against the target branch."
         elsif error_detail
@@ -224,7 +207,6 @@ module Aidp
         else
           "❌ Automatic rebase failed. Manual intervention required."
         end
-
         @repository_client.post_comment(pr_number, comment_text)
       end
 
@@ -236,16 +218,21 @@ module Aidp
           error_message: error.message,
           error_class: error.class
         )
-
-        # Check if this is a runtime error during get_pull_request
-        # If so, use the specific error message
-        status_description = if error.message == "Unknown error"
-          "Unknown error"
+        # Classify and customize error messaging
+        status_description = case error
+        when StandardError
+          if error.message == "Unknown error"
+            # Generic unknown error handling
+            "Unexpected error during PR rebase: #{error.class}"
+          else
+            # Truncate and sanitize error message
+            error.message.slice(0, 255).tr("\n", " ").strip
+          end
         else
-          error.message
+          # Fallback for unhandled error types
+          "Unexpected rebase error: #{error.class}"
         end
-
-        # If the error is an unexpected runtime error, use a generic failure status
+        # Always post a failure status with detailed context
         post_rebase_status(pr_number, false, status_description)
       end
     end

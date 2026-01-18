@@ -23,6 +23,7 @@ module Aidp
       attr_reader :cache_file
 
       def initialize(cache_file: nil, cache_dir: nil)
+        @mutex = Mutex.new
         @cache_file = determine_cache_file(cache_file, cache_dir)
         @cache_enabled = ensure_cache_directory
 
@@ -38,33 +39,35 @@ module Aidp
       # @param provider [String] Provider name
       # @return [Array<Hash>, nil] Cached models or nil if expired/not found
       def get_cached_models(provider)
-        cache_data = load_cache
-        provider_cache = cache_data[provider]
+        @mutex.synchronize do
+          cache_data = load_cache
+          provider_cache = cache_data[provider]
 
-        return nil unless provider_cache
+          return nil unless provider_cache
 
-        cached_at = begin
-          Time.parse(provider_cache["cached_at"])
-        rescue
-          nil
+          cached_at = begin
+            Time.parse(provider_cache["cached_at"])
+          rescue
+            nil
+          end
+          return nil unless cached_at
+
+          ttl = provider_cache["ttl"] || DEFAULT_TTL
+          expires_at = cached_at + ttl
+
+          if Time.now > expires_at
+            Aidp.log_debug("model_cache", "cache expired",
+              provider: provider, cached_at: cached_at, expires_at: expires_at)
+            return nil
+          end
+
+          models = provider_cache["models"]
+          # Convert string keys to symbols for consistency with fresh discovery
+          models = models.map { |m| m.transform_keys(&:to_sym) } if models
+          Aidp.log_debug("model_cache", "cache hit",
+            provider: provider, count: models&.size || 0)
+          models
         end
-        return nil unless cached_at
-
-        ttl = provider_cache["ttl"] || DEFAULT_TTL
-        expires_at = cached_at + ttl
-
-        if Time.now > expires_at
-          Aidp.log_debug("model_cache", "cache expired",
-            provider: provider, cached_at: cached_at, expires_at: expires_at)
-          return nil
-        end
-
-        models = provider_cache["models"]
-        # Convert string keys to symbols for consistency with fresh discovery
-        models = models.map { |m| m.transform_keys(&:to_sym) } if models
-        Aidp.log_debug("model_cache", "cache hit",
-          provider: provider, count: models&.size || 0)
-        models
       rescue => e
         Aidp.log_error("model_cache", "failed to read cache",
           provider: provider, error: e.message)
@@ -77,31 +80,54 @@ module Aidp
       # @param models [Array<Hash>] Models to cache
       # @param ttl [Integer] Time to live in seconds (default: 24 hours)
       def cache_models(provider, models, ttl: DEFAULT_TTL)
-        unless @cache_enabled
-          Aidp.log_debug("model_cache", "caching disabled, skipping",
-            provider: provider)
-          return false
-        end
+        @mutex.synchronize do
+          unless @cache_enabled
+            Aidp.log_debug("model_cache", "caching disabled, skipping",
+              provider: provider)
+            return false
+          end
 
-        cache_data = load_cache
+          # Ensure we have a writable cache directory
+          return false unless @cache_enabled
+          return false unless File.directory?(File.dirname(@cache_file))
 
-        cache_data[provider] = {
-          "cached_at" => Time.now.iso8601,
-          "ttl" => ttl,
-          "models" => models
-        }
+          begin
+            cache_data = load_cache
+            cache_data ||= {}
 
-        if save_cache(cache_data)
-          Aidp.log_info("model_cache", "cached models",
-            provider: provider, count: models.size, ttl: ttl)
-          true
-        else
-          Aidp.log_warn("model_cache", "failed to cache models",
-            provider: provider)
-          false
+            cache_data[provider] = {
+              "cached_at" => Time.now.iso8601,
+              "ttl" => ttl,
+              "models" => models
+            }
+
+            # First check if the file is writable before attempting to save
+            raise Errno::EACCES, "Not writable" unless File.writable?(@cache_file) || !File.exist?(@cache_file)
+
+            # Use save_cache for consistent failure handling
+            unless save_cache(cache_data)
+              Aidp.log_warn("model_cache", "failed to save cache",
+                provider: provider)
+              return false
+            end
+
+            Aidp.log_info("model_cache", "cached models",
+              provider: provider, count: models.size, ttl: ttl)
+            true
+          rescue Errno::EACCES, Errno::EPERM => e
+            # Permissions issue prevents saving
+            Aidp.log_warn("model_cache", "failed to cache models - permissions",
+              provider: provider, error: e.message)
+            false
+          rescue SystemCallError, IOError => e
+            # IO-related errors (disk full, read-only filesystem, etc)
+            Aidp.log_warn("model_cache", "failed to cache models",
+              provider: provider, error: e.message)
+            false
+          end
         end
       rescue => e
-        Aidp.log_error("model_cache", "error caching models",
+        Aidp.log_error("model_cache", "unexpected error caching models",
           provider: provider, error: e.message)
         false
       end
@@ -110,13 +136,15 @@ module Aidp
       #
       # @param provider [String] Provider name
       def invalidate(provider)
-        return false unless @cache_enabled
+        @mutex.synchronize do
+          return false unless @cache_enabled
 
-        cache_data = load_cache
-        cache_data.delete(provider)
-        save_cache(cache_data)
-        Aidp.log_info("model_cache", "invalidated cache", provider: provider)
-        true
+          cache_data = load_cache
+          cache_data.delete(provider)
+          save_cache(cache_data)
+          Aidp.log_info("model_cache", "invalidated cache", provider: provider)
+          true
+        end
       rescue => e
         Aidp.log_error("model_cache", "failed to invalidate cache",
           provider: provider, error: e.message)
@@ -125,11 +153,13 @@ module Aidp
 
       # Invalidate all cached models
       def invalidate_all
-        return false unless @cache_enabled
+        @mutex.synchronize do
+          return false unless @cache_enabled
 
-        save_cache({})
-        Aidp.log_info("model_cache", "invalidated all caches")
-        true
+          save_cache({})
+          Aidp.log_info("model_cache", "invalidated all caches")
+          true
+        end
       rescue => e
         Aidp.log_error("model_cache", "failed to invalidate all",
           error: e.message)
@@ -140,24 +170,25 @@ module Aidp
       #
       # @return [Array<String>] Provider names with valid caches
       def cached_providers
-        cache_data = load_cache
-        providers = []
+        @mutex.synchronize do
+          cache_data = load_cache
+          providers = []
 
-        cache_data.each do |provider, data|
-          cached_at = begin
-            Time.parse(data["cached_at"])
-          rescue
-            nil
+          cache_data.each do |provider, data|
+            begin
+              cached_at = Time.parse(data["cached_at"])
+            rescue
+              next
+            end
+
+            ttl = data["ttl"] || DEFAULT_TTL
+            expires_at = cached_at + ttl
+
+            providers << provider if Time.now <= expires_at
           end
-          next unless cached_at
 
-          ttl = data["ttl"] || DEFAULT_TTL
-          expires_at = cached_at + ttl
-
-          providers << provider if Time.now <= expires_at
+          providers
         end
-
-        providers
       rescue => e
         Aidp.log_error("model_cache", "failed to get cached providers",
           error: e.message)
@@ -168,18 +199,20 @@ module Aidp
       #
       # @return [Hash] Statistics about the cache
       def stats
-        cache_data = load_cache
-        file_size = begin
-          File.size(@cache_file)
-        rescue
-          0
-        end
+        @mutex.synchronize do
+          cache_data = load_cache
+          file_size = begin
+            File.size(@cache_file)
+          rescue
+            0
+          end
 
-        {
-          total_providers: cache_data.size,
-          cached_providers: cached_providers,
-          cache_file_size: file_size
-        }
+          {
+            total_providers: cache_data.size,
+            cached_providers: cached_providers,
+            cache_file_size: file_size
+          }
+        end
       rescue => e
         Aidp.log_error("model_cache", "failed to get stats",
           error: e.message)
@@ -257,12 +290,20 @@ module Aidp
         return false unless @cache_enabled
 
         ensure_cache_directory
-        File.write(@cache_file, JSON.pretty_generate(data))
-        true
-      rescue => e
-        Aidp.log_error("model_cache", "failed to save cache",
-          error: e.message, cache_file: @cache_file)
-        false
+
+        # Simulate a write failure for testing (uncomment for testing specific scenarios)
+        # raise SystemCallError.new("Simulated write failure", 0) if data.key?("test-write-failure")
+
+        # Explicitly write JSON with error handling
+        begin
+          json_data = JSON.pretty_generate(data)
+          File.write(@cache_file, json_data)
+          true
+        rescue SystemCallError, IOError => save_error
+          Aidp.log_error("model_cache", "failed to save cache",
+            error: save_error.message, cache_file: @cache_file)
+          false
+        end
       end
     end
   end

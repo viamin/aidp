@@ -245,70 +245,6 @@ module Aidp
         @round_robin_scheduler.mark_processed(item) if item
       end
 
-      # Dispatch a work item to its appropriate processor.
-      #
-      # Design note: Items skipped due to authorization or build_completed checks
-      # return false and are NOT marked as processed. This means they will be
-      # re-checked on the next cycle. This is intentional because:
-      # - Authorization: An author could be added to the allowlist between cycles
-      # - Build completed: New commits could be pushed, requiring more work
-      #
-      # The trade-off is some redundant API calls, but this ensures we don't
-      # permanently skip items whose state could change.
-      #
-      # @param item [WorkItem] The work item to process
-      # @return [Boolean] True if item was actually processed, false if skipped
-      def dispatch_work_item(item)
-        detailed = fetch_detailed_item(item)
-        return false unless detailed
-
-        # Check authorization
-        unless @safety_checker.should_process_issue?(detailed, enforce: false)
-          Aidp.log_debug("watch_runner", "round_robin.skip_unauthorized",
-            key: item.key, author: detailed[:author])
-          return false
-        end
-
-        # Post detection comment if not already posted
-        post_detection_comment_for_item(item, detailed)
-
-        # Dispatch to processor
-        case item.processor_type
-        when :plan
-          @plan_processor.process(detailed)
-        when :build
-          # Check build completion at dispatch time (moved from collection for API efficiency)
-          if @state_extractor.build_completed?(detailed)
-            Aidp.log_debug("watch_runner", "round_robin.skip_build_completed",
-              key: item.key, number: item.number)
-            return false
-          end
-          @build_processor.process(detailed)
-        when :auto_issue
-          @auto_processor.process(detailed)
-        when :review
-          @review_processor.process(detailed)
-        when :ci_fix
-          @ci_fix_processor.process(detailed)
-        when :auto_pr
-          @auto_pr_processor.process(detailed)
-        when :change_request
-          @change_request_processor.process(detailed)
-        when :rebase
-          @rebase_processor.process(detailed)
-        else
-          Aidp.log_warn("watch_runner", "round_robin.unknown_processor",
-            processor_type: item.processor_type)
-          return false
-        end
-
-        true # Item was processed
-      rescue RepositorySafetyChecker::UnauthorizedAuthorError => e
-        Aidp.log_warn("watch_runner", "round_robin.unauthorized_author",
-          key: item.key, error: e.message)
-        false
-      end
-
       # Fetch detailed issue or PR data for a work item.
       # @param item [WorkItem] Work item to fetch details for
       # @return [Hash, nil] Detailed item data or nil on error
@@ -741,6 +677,40 @@ module Aidp
       rescue => e
         Aidp.log_error("watch_runner", "feedback_collection_failed", error: e.message)
         display_message("⚠️  Feedback collection failed: #{e.message}", type: :warn) if @verbose
+      end
+
+      # Dispatch work item to the appropriate processor
+      def dispatch_work_item(work_item)
+        detailed_item = fetch_detailed_item(work_item)
+
+        # Post detection comment if configured and not already posted
+        post_detection_comment_for_item(work_item, detailed_item)
+
+        Aidp.log_debug("watch_runner", "dispatch_work_item",
+          processor_type: work_item.processor_type)
+
+        case work_item.processor_type
+        when :plan
+          @plan_processor.process(work_item)
+        when :build
+          @build_processor.process(work_item)
+        when :auto_issue
+          @auto_processor.process(work_item)
+        when :review
+          @review_processor.process(work_item)
+        when :ci_fix
+          @ci_fix_processor.process(work_item)
+        when :auto_pr
+          @auto_pr_processor.process(work_item)
+        when :change_request
+          @change_request_processor.process(work_item)
+        when :rebase
+          @rebase_processor.process(work_item)
+        else
+          Aidp.log_warn("watch_runner", "dispatch_work_item.unknown_processor",
+            processor_type: work_item.processor_type)
+          false
+        end
       end
 
       # Process worktree cleanup if due (issue #367)

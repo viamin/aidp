@@ -40,6 +40,7 @@ aidp watch viamin/aidp --verbose
 | `aidp-fix-ci` | Fix CI failures | CiFixProcessor |
 | `aidp-auto` | Review + CI Fix loop until ready | AutoPrProcessor |
 | `aidp-request-changes` | Implement change requests | ChangeRequestProcessor |
+| `aidp-rebase` | Automatically rebase PR against target branch with AI conflict resolution | RebaseProcessor |
 
 ## The aidp-auto Workflow
 
@@ -170,6 +171,7 @@ watch:
     ci_fix_trigger: "ai-fix-ci"
     change_request_trigger: "ai-changes"
     needs_input: "ai-needs-input"
+    rebase_trigger: "ai-rebase"  # Optional: customize aidp-rebase label
 ```
 
 ### VCS Preferences

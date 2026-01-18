@@ -84,28 +84,24 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
     before do
       # Stubbing labels method
       allow(work_item).to receive(:labels) { ["aidp-rebase"] }
-
-      # Expect PR retrieval
-      expect(repository_client).to receive(:get_pull_request)
-        .with(work_item.number)
-        .and_return(pr_details)
-
-      # Expect worktree creation
-      expect(worktree_manager).to receive(:create_pr_worktree)
-        .with(
-          pr_number: work_item.number,
-          base_branch: "main",
-          head_branch: "feature-branch"
-        )
-        .and_return(worktree_path)
-
-      # Expect label removal
-      expect(repository_client).to receive(:remove_labels)
-        .with(work_item.number, ["aidp-rebase"])
     end
 
     context "when rebase is successful" do
       before do
+        # Expect PR retrieval
+        expect(repository_client).to receive(:get_pull_request)
+          .with(work_item.number)
+          .and_return(pr_details)
+
+        # Expect worktree creation
+        expect(worktree_manager).to receive(:create_pr_worktree)
+          .with(
+            pr_number: work_item.number,
+            base_branch: "main",
+            head_branch: "feature-branch"
+          )
+          .and_return(worktree_path)
+
         # Simulate successful rebase
         expect(processor).to receive(:system)
           .with(/git fetch origin/)
@@ -118,6 +114,10 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
         expect(processor).to receive(:system)
           .with(/git push -f origin feature-branch/)
           .and_return(true)
+
+        # Expect label removal
+        expect(repository_client).to receive(:remove_labels)
+          .with(work_item.number, ["aidp-rebase"])
 
         # Expect success status
         expect(repository_client).to receive(:add_success_status)
@@ -148,6 +148,20 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
       let(:error) { Errno::ENOENT.new("No such file or directory @ rb_sysopen - #{worktree_path}/conflicts.txt") }
 
       before do
+        # Expect PR retrieval
+        expect(repository_client).to receive(:get_pull_request)
+          .with(work_item.number)
+          .and_return(pr_details)
+
+        # Expect worktree creation
+        expect(worktree_manager).to receive(:create_pr_worktree)
+          .with(
+            pr_number: work_item.number,
+            base_branch: "main",
+            head_branch: "feature-branch"
+          )
+          .and_return(worktree_path)
+
         # Simulate rebase failure
         expect(processor).to receive(:system)
           .with(/git fetch origin/)
@@ -162,8 +176,12 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
           .with(worktree_path)
           .and_return(["conflicts.txt"])
 
-        # Simulate AI resolution failure
-        allow(ai_decision_engine).to receive(:resolve_merge_conflict)
+        # Expect AI resolution
+        expect(ai_decision_engine).to receive(:resolve_merge_conflict)
+          .with(
+            base_branch_path: worktree_path,
+            conflict_files: ["conflicts.txt"]
+          )
           .and_raise(error)
 
         # Expect label and status handling
@@ -199,11 +217,11 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
         expect(repository_client).to receive(:get_pull_request)
           .and_raise(StandardError.new("Unknown error"))
 
-        # Expect labels to be removed
+        # Expect label removal
         expect(repository_client).to receive(:remove_labels)
           .with(work_item.number, ["aidp-rebase"])
 
-        # Expect error logging and status
+        # Expect failure status and comment
         expect(repository_client).to receive(:add_failure_status)
           .with(
             work_item.number,

@@ -468,7 +468,7 @@ module Aidp
 
       def update_comment_via_gh(comment_id, body)
         cmd = ["gh", "api", "repos/#{full_repo}/issues/comments/#{comment_id}", "-X", "PATCH", "-f", "body=#{body}"]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3(*cmd)
         raise "Failed to update comment via gh: #{stderr.strip}" unless status.success?
 
         stdout.strip
@@ -586,7 +586,7 @@ module Aidp
           command: cmd.join(" ")
         )
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3(*cmd)
 
         Aidp.log_debug(
           "repository_client",
@@ -635,7 +635,7 @@ module Aidp
         cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo]
         labels.each { |label| cmd += ["--add-label", label] }
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3(*cmd)
         raise "Failed to add labels via gh: #{stderr.strip}" unless status.success?
 
         stdout.strip
@@ -664,7 +664,7 @@ module Aidp
         cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo]
         labels.each { |label| cmd += ["--remove-label", label] }
 
-        stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3(*cmd)
         raise "Failed to remove labels via gh: #{stderr.strip}" unless status.success?
 
         stdout.strip
@@ -803,7 +803,7 @@ module Aidp
 
       def fetch_pull_request_diff_via_gh(number)
         cmd = ["gh", "pr", "diff", number.to_s, "--repo", full_repo]
-        stdout, stderr, status = Open3.capture3(*cmd)
+        _stdout, stderr, status = Open3.capture3(*cmd)
         raise "Failed to fetch PR diff via gh: #{stderr.strip}" unless status.success?
 
         stdout
@@ -910,7 +910,7 @@ module Aidp
         else
           # Post general review comment
           cmd = ["gh", "pr", "comment", number.to_s, "--repo", full_repo, "--body", body]
-          stdout, stderr, status = Open3.capture3(*cmd)
+          _stdout, stderr, status = Open3.capture3(*cmd)
           raise "Failed to post review comment via gh: #{stderr.strip}" unless status.success?
 
           stdout.strip
@@ -1762,6 +1762,49 @@ module Aidp
         stdout.strip
       rescue => e
         Aidp.log_error("repository_client", "Failed to merge PR", number: number, error: e.message)
+        raise
+      end
+
+      def add_success_status(number, context:, description: nil)
+        Aidp.log_debug("repository_client", "add_success_status", pr_number: number, context: context)
+
+        cmd = [
+          "gh", "pr", "edit", number.to_s,
+          "--repo", full_repo,
+          "--add-status", context
+        ]
+
+        cmd += ["--status-description", description] if description
+
+        _stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to add PR status via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug("repository_client", "add_success_status_complete", pr_number: number, context: context)
+        true
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to add PR success status", pr_number: number, context: context, error: e.message)
+        raise
+      end
+
+      def add_failure_status(number, context:, description: nil)
+        Aidp.log_debug("repository_client", "add_failure_status", pr_number: number, context: context)
+
+        cmd = [
+          "gh", "pr", "edit", number.to_s,
+          "--repo", full_repo,
+          "--add-status", context
+        ]
+
+        cmd += ["--status-description", description] if description
+        cmd += ["--status", "failure"]  # Explicitly mark as failure
+
+        _stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to add PR status via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug("repository_client", "add_failure_status_complete", pr_number: number, context: context)
+        true
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to add PR failure status", pr_number: number, context: context, error: e.message)
         raise
       end
 
