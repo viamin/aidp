@@ -247,6 +247,7 @@ watch:
 8. Removes the `aidp-rebase` label after processing
 
 **Prerequisites:**
+
 - PR must be in an open state
 - Rebase conflicts must be resolvable by AI
 
