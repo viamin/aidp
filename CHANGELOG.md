@@ -1,5 +1,69 @@
 # Changelog
 
+## [0.36.0](https://github.com/viamin/aidp/compare/aidp/v0.35.0...aidp/v0.36.0) (2026-01-18)
+
+
+### Features
+
+* add dynamic prompt template system for evolutionary prompts ([#440](https://github.com/viamin/aidp/issues/440)) ([dda8f33](https://github.com/viamin/aidp/commit/dda8f33b4e80e16f53662cb71afeb3ccc9e0f2aa))
+* implement versioned template management system ([#402](https://github.com/viamin/aidp/issues/402)) ([0fad3e4](https://github.com/viamin/aidp/commit/0fad3e40e0a9083bbac4a3543086d9d99c617338))
+* implement versioned template management system ([#402](https://github.com/viamin/aidp/issues/402)) ([#445](https://github.com/viamin/aidp/issues/445)) ([85f444a](https://github.com/viamin/aidp/commit/85f444a4bac38c83b605a1c2b159a3b9add96edf))
+* migrate prompt feedback to SQLite database ([68f4f9a](https://github.com/viamin/aidp/commit/68f4f9ab2b7ac6d7ba8b857d05a3a90bf8dba6b7))
+* **watch:** complete aidp-rebase label implementation ([afa4c95](https://github.com/viamin/aidp/commit/afa4c95299e13405ef662ddccfb6a1901897e4a0))
+* **watch:** implement round-robin scheduling for work items ([#434](https://github.com/viamin/aidp/issues/434)) ([093a898](https://github.com/viamin/aidp/commit/093a898fe2396707f070f0c08543a9848c5fecaa))
+* **watch:** implement round-robin scheduling for work items ([#434](https://github.com/viamin/aidp/issues/434)) ([#446](https://github.com/viamin/aidp/issues/446)) ([c239d15](https://github.com/viamin/aidp/commit/c239d153f9bbaed776b70af3b7cda163744c0c25))
+* **workloop:** add task description and additional context formatting to prompt builder ([45bdeb9](https://github.com/viamin/aidp/commit/45bdeb906df7232e915ad532b957d0a3f626cae8))
+* **workloop:** add task description and additional context formatting to prompt builder ([#450](https://github.com/viamin/aidp/issues/450)) ([22e285e](https://github.com/viamin/aidp/commit/22e285e9106bbd2466be332652883c4903c2cb62))
+
+
+### Bug Fixes
+
+* add autonomous escalation stubs to work_loop_runner_spec mocks ([29275dd](https://github.com/viamin/aidp/commit/29275dd994953e6908173f78c24a55c2c476582c))
+* add cursor provider to test config to satisfy validation ([99b8ba5](https://github.com/viamin/aidp/commit/99b8ba578a9e85eab403afc1be9f051de7280448))
+* add GITHUB_TOKEN to container environment variables ([ecdde0d](https://github.com/viamin/aidp/commit/ecdde0df8dbb927d4fb6ec12acaa4d6afdc4e424))
+* add missing stubs for autonomous mode in work loop specs ([f9c4965](https://github.com/viamin/aidp/commit/f9c496532821947d8693d72f83191b25233e4b72))
+* add secondary sort by id for deterministic ordering in feedback list ([577ac41](https://github.com/viamin/aidp/commit/577ac41c74c411211cdb7ca68f8e1a1fa11ed3e3))
+* address 4 new PR review comments ([4cf334d](https://github.com/viamin/aidp/commit/4cf334d40e0d8212143db89a0a59693533954837))
+* address additional PR review comments ([87df3b1](https://github.com/viamin/aidp/commit/87df3b11fee2da3ba78a2b11e5513abb06043fe7))
+* address additional PR review feedback for escalation logic ([08051bd](https://github.com/viamin/aidp/commit/08051bd2b2c1b74ef6c9b5c10aae0cd070e9b41e))
+* address failing specs for versioned template system ([7ee4717](https://github.com/viamin/aidp/commit/7ee47177b155c615b8680faa5631120fe97950fb))
+* address fourth round of PR review feedback ([97cee9f](https://github.com/viamin/aidp/commit/97cee9f7b9ee1b64c7509d261ae45d6a067d5588)), closes [#375](https://github.com/viamin/aidp/issues/375)
+* address latest PR review feedback ([19135fc](https://github.com/viamin/aidp/commit/19135fc1688fb022c5797542ae56febed4109476)), closes [#375](https://github.com/viamin/aidp/issues/375)
+* address lint errors from standardrb ([538fbe0](https://github.com/viamin/aidp/commit/538fbe0d65a967b448aef74b2f56d1003fb28cbc))
+* address PR review comments for round-robin implementation ([635e79a](https://github.com/viamin/aidp/commit/635e79ad856c20348fdc8cce32d8c2191a426fbf))
+* address PR review comments for round-robin scheduling ([704341c](https://github.com/viamin/aidp/commit/704341c543534853532acbaa17b509664ff76fff))
+* address PR review comments for versioned template system ([f53d5d7](https://github.com/viamin/aidp/commit/f53d5d793f8c56677842d82a161d74d357530ceb))
+* address PR review feedback ([0618a2e](https://github.com/viamin/aidp/commit/0618a2e55456a57bf3fdc1a2961a2b9f9bb73769))
+* address PR review feedback for autonomous tier escalation ([8957b06](https://github.com/viamin/aidp/commit/8957b06ca724e7c7a756e5302238df8a2e7a919e))
+* address remaining PR review feedback ([9d0cf34](https://github.com/viamin/aidp/commit/9d0cf34144c92a6ba2c2dddd36792aceb17ec847)), closes [#375](https://github.com/viamin/aidp/issues/375)
+* address second round of PR review comments ([e560d2b](https://github.com/viamin/aidp/commit/e560d2bb45f1f78c9b3d44a789cdf28cbafc0ed3))
+* address spec failures from missing stubs and unavailable truncate method ([23f9d05](https://github.com/viamin/aidp/commit/23f9d054d105637f4eb42c28db1b013e98cc4013))
+* address third round of PR review feedback ([6f427d0](https://github.com/viamin/aidp/commit/6f427d0d16f2fa97421d0e3a4ee8bb9571a5c3bd))
+* document error handling design rationale ([3106550](https://github.com/viamin/aidp/commit/310655037da743e62bae9fded7fc578ef09f6eb1))
+* prevent thinking tier escalation too quickly in autonomous operations ([#375](https://github.com/viamin/aidp/issues/375)) ([5f5b6d7](https://github.com/viamin/aidp/commit/5f5b6d79b04709e8ced81a7a3feefc6292e20234))
+* prevent thinking tier escalation too quickly in autonomous operations ([#375](https://github.com/viamin/aidp/issues/375)) ([#442](https://github.com/viamin/aidp/issues/442)) ([42ca5ae](https://github.com/viamin/aidp/commit/42ca5ae3206611e2ef05b307c1a93910642ceac3))
+* remove unused [@needs](https://github.com/needs)_input_label from RoundRobinScheduler ([22098fc](https://github.com/viamin/aidp/commit/22098fc64ebbc84d3178a8a6a335be0809b4c70d))
+* remove unused label_config parameter from RoundRobinScheduler ([77f9703](https://github.com/viamin/aidp/commit/77f970369b057745c1724ac2f58d339b56ce1dbd))
+* remove useless 1.times call in spec ([befd094](https://github.com/viamin/aidp/commit/befd094ae8422a956e108e400fa03cded0f6f4f6))
+* resolve lint errors in prompts_command and prompt_feedback_repository ([57ff2f1](https://github.com/viamin/aidp/commit/57ff2f116d7086f2368f842539b63d21f1904249))
+* update confidence regex to capture negative values for clamping ([c5d0b3d](https://github.com/viamin/aidp/commit/c5d0b3db011573ed36918ecd6c345dc9e40dd85b))
+* update select_next_model test for retry behavior ([aee599f](https://github.com/viamin/aidp/commit/aee599fcbfd34d31e157e8716d23f0146fa7c869))
+* update specs for prompt template system changes ([60539b6](https://github.com/viamin/aidp/commit/60539b67046519b646bb5dfe8879defd6f6df27c))
+* update tests to reflect preserved model history behavior ([ccd285e](https://github.com/viamin/aidp/commit/ccd285e252e28b37b992628a52f472af5824323a))
+* use cached replacement in find_replacement_model ([f4e3d58](https://github.com/viamin/aidp/commit/f4e3d58cfd4f5135acdea73e53abf10f4fd5e5fb))
+
+
+### Documentation
+
+* clarify code comments per PR review feedback ([9bea492](https://github.com/viamin/aidp/commit/9bea49269cb679b2e4423872267ba37c3166bad3))
+
+
+### Dependencies
+
+* **deps:** bump the minor-updates group with 3 updates ([4440419](https://github.com/viamin/aidp/commit/444041927c427b3e7f1439094c755d7995d31690))
+* **deps:** bump the minor-updates group with 3 updates ([#444](https://github.com/viamin/aidp/issues/444)) ([32de6e6](https://github.com/viamin/aidp/commit/32de6e6203c3ca5f1ad1c516d7970bca8340ce8e))
+* **deps:** bump the minor-updates group with 3 updates ([#447](https://github.com/viamin/aidp/issues/447)) ([d51a03d](https://github.com/viamin/aidp/commit/d51a03d882441144b2e0ca8489d4bec93b635d97))
+
 ## [0.35.0](https://github.com/viamin/aidp/compare/aidp/v0.34.1...aidp/v0.35.0) (2026-01-10)
 
 
