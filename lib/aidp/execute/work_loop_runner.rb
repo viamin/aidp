@@ -886,6 +886,8 @@ module Aidp
         user_input = format_user_input(context[:user_input])
         deterministic_outputs = Array(context[:deterministic_outputs])
         previous_summary = context[:previous_agent_summary]
+        task_description = format_task_description(user_input, previous_summary)
+        additional_context = format_additional_context(context[:additional_context])
 
         initial_prompt = build_initial_prompt_content(
           template: template_content,
@@ -894,7 +896,9 @@ module Aidp
           user_input: user_input,
           step_name: @step_name,
           deterministic_outputs: deterministic_outputs,
-          previous_agent_summary: previous_summary
+          previous_agent_summary: previous_summary,
+          task_description: task_description,
+          additional_context: additional_context
         )
 
         @prompt_manager.write(initial_prompt, step_name: @step_name)
@@ -978,6 +982,42 @@ module Aidp
         parts.join("\n\n")
       end
 
+      def format_task_description(user_input, previous_agent_summary)
+        description = build_task_description(user_input, {previous_agent_summary: previous_agent_summary}).to_s.strip
+        description.empty? ? "_No task description provided._" : description
+      end
+
+      def format_additional_context(additional_context)
+        return "_No additional context._" if additional_context.nil?
+
+        formatted = case additional_context
+        when String
+          additional_context.strip
+        when Array
+          additional_context.map do |entry|
+            if entry.is_a?(Hash)
+              entry.map { |key, value| "#{key}: #{value}" }.join(", ")
+            else
+              entry.to_s
+            end
+          end.reject(&:empty?).map { |line| "- #{line}" }.join("\n")
+        when Hash
+          additional_context.map { |key, value| "- #{key}: #{value}" }.join("\n")
+        else
+          additional_context.to_s
+        end
+
+        formatted.empty? ? "_No additional context._" : formatted
+      end
+
+      def interpolate_task_template(template, task_description:, additional_context:)
+        return "" if template.nil?
+
+        template
+          .gsub("{{task_description}}", task_description.to_s)
+          .gsub("{{additional_context}}", additional_context.to_s)
+      end
+
       # Extract relevant tags from input and spec
       def extract_tags(user_input, step_spec)
         tags = []
@@ -998,7 +1038,7 @@ module Aidp
         tags.uniq
       end
 
-      def build_initial_prompt_content(template:, prd:, style_guide:, user_input:, step_name:, deterministic_outputs:, previous_agent_summary:)
+      def build_initial_prompt_content(template:, prd:, style_guide:, user_input:, step_name:, deterministic_outputs:, previous_agent_summary:, task_description:, additional_context:)
         parts = []
 
         parts << "# Work Loop: #{step_name}"
@@ -1056,7 +1096,11 @@ module Aidp
         end
 
         parts << "## Task Template"
-        parts << template
+        parts << interpolate_task_template(
+          template,
+          task_description: task_description,
+          additional_context: additional_context
+        )
         parts << ""
 
         parts.join("\n")

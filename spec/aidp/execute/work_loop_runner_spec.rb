@@ -1325,6 +1325,49 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
     end
   end
 
+  describe "#build_initial_prompt_content" do
+    it "interpolates task description and additional context into the template" do
+      template = "Task:\n{{task_description}}\n\nContext:\n{{additional_context}}\n"
+
+      content = runner.send(:build_initial_prompt_content,
+        template: template,
+        prd: nil,
+        style_guide: nil,
+        user_input: "- **Issue**: 123",
+        step_name: "16_IMPLEMENTATION",
+        deterministic_outputs: [],
+        previous_agent_summary: nil,
+        task_description: "Do the thing",
+        additional_context: "- extra: yes")
+
+      expect(content).to include("Do the thing")
+      expect(content).to include("- extra: yes")
+      expect(content).not_to include("{{task_description}}")
+      expect(content).not_to include("{{additional_context}}")
+    end
+  end
+
+  describe "template context formatting" do
+    it "provides a fallback task description when missing" do
+      description = runner.send(:format_task_description, nil, nil)
+
+      expect(description).to eq("_No task description provided._")
+    end
+
+    it "formats additional context from arrays and hashes" do
+      formatted = runner.send(:format_additional_context, [{foo: "bar"}, "note"])
+
+      expect(formatted).to include("- foo: bar")
+      expect(formatted).to include("- note")
+    end
+
+    it "provides a fallback additional context when empty" do
+      formatted = runner.send(:format_additional_context, [])
+
+      expect(formatted).to eq("_No additional context._")
+    end
+  end
+
   describe "#build_decider_prompt" do
     let(:template_path) { File.join(project_dir, "templates", "work_loop", "decide_whats_next.md") }
 
