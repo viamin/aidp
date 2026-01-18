@@ -1505,44 +1505,87 @@ When a PR has `aidp-auto`:
 | `aidp-fix-ci` | PR | Fix CI failures |
 | `aidp-request-changes` | PR | Implement change requests |
 | `aidp-rebase` | PR | Automatically rebase PR against target branch with AI-powered conflict resolution
-   - Supports multiple conflict resolution strategies
-   - Preserves original code intent
-   - Generates semantic conflict resolution notes
-   - Handles complex multi-file merge scenarios
+   - Detect current base and head branches
+   - Create dedicated git worktree for safe rebasing
+   - Perform automatic branch rebasing
+   - Utilize advanced AI-powered conflict resolution strategies
+   - Preserve original code intent and semantic meaning
+   - Provide detailed resolution notes
+   - Handle complex multi-file merge scenarios
+   - Report status directly on the PR
 
 ### Automatic Rebasing with `aidp-rebase`
 
-When you add the `aidp-rebase` label to a pull request, AIDP will:
+The `aidp-rebase` label enables automatic, intelligent PR rebasing with advanced conflict management:
 
-1. **Detect the PR's target branch**
-2. **Create a unique git worktree** for safe rebasing
-3. **Rebase the PR branch against its target branch**
-4. **Use AI-powered conflict resolution** if merge conflicts occur
-   - Analyzes code context
-   - Attempts intelligent conflict resolution
-   - Can handle complex merge scenarios
-5. **Post status updates to the PR**
-   - Success status if rebase completes
-   - Failure status with details if rebase fails
-   - Comment with rebase outcome
+#### Rebase Workflow
 
-**Conflict Resolution:**
-- Utilizes advanced AI decision engine
-- Provides semantic understanding of code conflicts
-- Attempts to preserve original code intent
-- Generates human-readable conflict resolution notes
+When you add the `aidp-rebase` label to a pull request, AIDP executes a comprehensive rebasing process:
 
-**Example Workflow:**
+1. **Target Branch Detection**
+   - Identify the PR's base and head branches
+   - Fetch latest remote branch information
+
+2. **Safe Rebasing Environment**
+   - Create a dedicated git worktree
+   - Isolate rebase operation from main repository
+   - Prevent unintended side effects
+
+3. **Rebase Execution**
+   - Attempt standard git rebase against target branch
+   - Automatically handle straightforward merges
+
+4. **AI-Powered Conflict Resolution**
+   - When conflicts occur, engage AI decision engine
+   - Analyze code context, semantic intent
+   - Intelligently merge conflicting changes
+   - Preserve original code structure and comments
+
+5. **Status Reporting**
+   - Post comprehensive GitHub PR comments
+   - Indicate rebase success or detailed failure reasons
+   - Remove `aidp-rebase` label after processing
+
+#### Conflict Resolution Capabilities
+
+- **Semantic Understanding**: AI analyzes code beyond textual differences
+- **Contextual Merging**: Preserves original code intent
+- **Multi-File Support**: Handle complex, cross-file merge scenarios
+- **Detailed Reporting**: Generate human-readable resolution notes
+
+#### Example Workflow
+
 ```bash
 # Add aidp-rebase label to a PR
 gh pr edit 123 --add-label aidp-rebase
 
-# AIDP Watch Mode will:
-# 1. Detect the label
-# 2. Rebase PR #123 automatically
-# 3. Resolve conflicts if present
-# 4. Remove aidp-rebase label
+# AIDP Watch Mode automatically:
+# 1. Detects the aidp-rebase label
+# 2. Creates a dedicated worktree
+# 3. Rebases PR #123
+# 4. Resolves conflicts using AI
+# 5. Pushes changes or reports failure
+# 6. Removes aidp-rebase label
 ```
+
+#### Configuration and Safety
+
+Configure rebase behavior in `.aidp/aidp.yml`:
+
+```yaml
+watch:
+  labels:
+    rebase_trigger: "aidp-rebase"
+  rebase:
+    ai_conflict_resolution: true
+    max_attempts: 3
+    preserve_commits: true
+```
+
+**Key Parameters:**
+- `ai_conflict_resolution`: Enable advanced AI merge strategies
+- `max_attempts`: Limit number of rebase/resolve tries
+- `preserve_commits`: Maintain original commit history
 
 ### Completion Criteria
 

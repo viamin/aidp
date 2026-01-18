@@ -1680,4 +1680,142 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
       end
     end
   end
+
+  describe "Template interpolation" do
+    describe "#interpolate_template_variables" do
+      let(:step_spec) do
+        {
+          "description" => "Implement a new feature",
+          "templates" => ["implementation/simple_task.md"]
+        }
+      end
+
+      it "interpolates {{task_description}} with step_spec description" do
+        template = "# Task\n\n{{task_description}}\n\nDone."
+        context = {}
+
+        result = runner.send(:interpolate_template_variables, template, step_spec: step_spec, context: context)
+
+        expect(result).to include("Implement a new feature")
+        expect(result).not_to include("{{task_description}}")
+      end
+
+      it "interpolates {{task_description}} with user_input from context" do
+        template = "# Task\n\n{{task_description}}"
+        context = {user_input: "Fix the authentication bug"}
+
+        result = runner.send(:interpolate_template_variables, template, step_spec: step_spec, context: context)
+
+        expect(result).to include("Fix the authentication bug")
+      end
+
+      it "interpolates {{additional_context}} with context data" do
+        template = "# Context\n\n{{additional_context}}\n\nEnd"
+        context = {additional_context: "Important: Handle edge cases"}
+
+        result = runner.send(:interpolate_template_variables, template, step_spec: step_spec, context: context)
+
+        expect(result).to include("Important: Handle edge cases")
+        expect(result).not_to include("{{additional_context}}")
+      end
+
+      it "handles empty {{additional_context}}" do
+        template = "# Task\n\n{{task_description}}\n\n## Context\n\n{{additional_context}}"
+        context = {}
+
+        result = runner.send(:interpolate_template_variables, template, step_spec: step_spec, context: context)
+
+        expect(result).not_to include("{{additional_context}}")
+      end
+
+      it "interpolates multiple placeholders in one template" do
+        template = "## Task\n\n{{task_description}}\n\n## Additional Context\n\n{{additional_context}}"
+        context = {additional_context: "Note: Use TDD approach"}
+
+        result = runner.send(:interpolate_template_variables, template, step_spec: step_spec, context: context)
+
+        expect(result).to include("Implement a new feature")
+        expect(result).to include("Note: Use TDD approach")
+      end
+
+      it "handles array additional_context" do
+        template = "{{additional_context}}"
+        context = {additional_context: ["Point 1", "Point 2", "Point 3"]}
+
+        result = runner.send(:interpolate_template_variables, template, step_spec: step_spec, context: context)
+
+        expect(result).to include("Point 1")
+        expect(result).to include("Point 2")
+        expect(result).to include("Point 3")
+      end
+    end
+
+    describe "#format_task_description" do
+      let(:step_spec) { {"description" => "Default task description"} }
+
+      it "uses user_input from context if present" do
+        context = {user_input: "User provided description"}
+
+        result = runner.send(:format_task_description, step_spec, context)
+
+        expect(result).to eq("User provided description")
+      end
+
+      it "falls back to step_spec description if no user_input" do
+        context = {}
+
+        result = runner.send(:format_task_description, step_spec, context)
+
+        expect(result).to eq("Default task description")
+      end
+
+      it "returns default text if neither user_input nor description available" do
+        context = {}
+        empty_spec = {}
+
+        result = runner.send(:format_task_description, empty_spec, context)
+
+        expect(result).to eq("Complete the task as described in the step specification.")
+      end
+    end
+
+    describe "#format_additional_context" do
+      it "returns empty string when no additional_context" do
+        context = {}
+
+        result = runner.send(:format_additional_context, context)
+
+        expect(result).to eq("")
+      end
+
+      it "formats string additional_context" do
+        context = {additional_context: "Some context information"}
+
+        result = runner.send(:format_additional_context, context)
+
+        expect(result).to eq("Some context information")
+      end
+
+      it "joins array additional_context with newlines" do
+        context = {additional_context: ["First point", "Second point", "Third point"]}
+
+        result = runner.send(:format_additional_context, context)
+
+        expect(result).to include("First point")
+        expect(result).to include("Second point")
+        expect(result).to include("Third point")
+        expect(result.split("\n\n").length).to eq(3)
+      end
+
+      it "handles mixed array types" do
+        context = {additional_context: ["String value", 42, :symbol]}
+
+        result = runner.send(:format_additional_context, context)
+
+        expect(result).to include("String value")
+        expect(result).to include("42")
+        expect(result).to include("symbol")
+      end
+    end
+  end
 end

@@ -879,6 +879,12 @@ module Aidp
 
         # Traditional prompt building (fallback or when optimization disabled)
         template_content = load_template(step_spec["templates"]&.first)
+        # Interpolate task_description and additional_context placeholders
+        template_content = interpolate_template_variables(
+          template_content,
+          step_spec: step_spec,
+          context: context
+        )
         prd_content = load_prd
         # Use provider-aware style guide loading - skips for Claude/Copilot,
         # selects relevant STYLE_GUIDE sections for other providers
@@ -1610,6 +1616,53 @@ module Aidp
         return File.read(common_path) if File.exist?(common_path)
 
         ""
+      end
+
+      # Interpolate template variables like {{task_description}} and {{additional_context}}
+      def interpolate_template_variables(template, step_spec:, context:)
+        Aidp.log_debug("work_loop", "interpolating_template_variables", step: @step_name)
+
+        task_description = format_task_description(step_spec, context)
+        additional_context = format_additional_context(context)
+
+        replacements = {
+          "{{task_description}}" => task_description,
+          "{{additional_context}}" => additional_context
+        }
+
+        replacements.reduce(template) { |body, (token, value)| body.gsub(token, value) }
+      end
+
+      # Format task description from step_spec and context
+      def format_task_description(step_spec, context)
+        # Prefer description from context (user-provided), fallback to step_spec
+        description = context[:user_input] || step_spec["description"]
+
+        if description && !description.empty?
+          description
+        else
+          "Complete the task as described in the step specification."
+        end
+      end
+
+      # Format additional context from context hash
+      def format_additional_context(context)
+        # Collect all relevant context information
+        parts = []
+
+        # Add any additional_context field directly
+        if context[:additional_context] && !context[:additional_context].empty?
+          additional = context[:additional_context]
+          if additional.is_a?(Array)
+            parts.concat(additional)
+          else
+            parts << additional.to_s
+          end
+        end
+
+        return "" if parts.empty?
+
+        parts.join("\n\n")
       end
 
       def load_prd
