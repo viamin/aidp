@@ -1338,8 +1338,7 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         deterministic_outputs: [],
         previous_agent_summary: nil,
         task_description: "Do the thing",
-        additional_context: "- extra: yes"
-      )
+        additional_context: "- extra: yes")
 
       expect(content).to include("Do the thing")
       expect(content).to include("- extra: yes")
