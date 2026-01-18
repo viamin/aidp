@@ -244,7 +244,7 @@ module Aidp
       prompt_content = generate_prompt_content(issue_data)
 
       # Use PromptManager to write to .aidp/PROMPT.md and archive immediately
-      project_dir = Dir.pwd
+      project_dir = File.expand_path(".")
       prompt_manager = Aidp::Execute::PromptManager.new(project_dir)
       step_name = "github_issue_#{issue_data[:number]}"
       prompt_manager.write(prompt_content, step_name: step_name)
@@ -488,7 +488,7 @@ module Aidp
         + (result.lint_commands.empty? ? "" : "Lint Commands:\n#{result.lint_commands.map { |c| "- #{c}" }.join("\n")}\n")
 
       # Use PromptManager to append to .aidp/PROMPT.md (issue #226)
-      prompt_manager = Aidp::Execute::PromptManager.new(Dir.pwd)
+      prompt_manager = Aidp::Execute::PromptManager.new(File.expand_path("."))
       current_prompt = prompt_manager.read
       updated_prompt = current_prompt + "\n---\n\n#{tooling_info}"
       prompt_manager.write(updated_prompt, step_name: "github_issue_tooling")
