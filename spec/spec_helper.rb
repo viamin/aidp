@@ -24,6 +24,7 @@ require "tempfile"
 require "fileutils"
 require "logger"
 require "tty-prompt"
+require "tty-spinner"
 
 # Monkey-patch Logger::LogDevice to suppress closed stream warnings during tests
 # This prevents "log shifting failed. closed stream" messages during test cleanup
@@ -87,14 +88,80 @@ RSpec.configure do |config|
     # Instead, we use TestPrompt::SUPPRESS_PATTERNS to filter known noisy messages
     # while still allowing tests to verify critical output.
 
-    # Monkey-patch TTY::Prompt to use TestPrompt in test environment
-    # This ensures all components use our quiet prompt without needing explicit injection
+    # Suppress system() command output in tests
+    # This redirects stdout/stderr to /dev/null for all ShellExecutor.system() calls
+    Aidp::ShellExecutor.suppress_output = true
+
+    # Monkey-patch TTY::Prompt to suppress output matching SUPPRESS_PATTERNS
+    # This ensures all components use quiet output without needing explicit injection
     TTY::Prompt.class_eval do
       alias_method :original_say, :say
+      alias_method :original_warn, :warn
+      alias_method :original_error, :error
+      alias_method :original_ok, :ok
 
       def say(message, **options)
         return if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.to_s.match?(pattern) }
         original_say(message, **options)
+      end
+
+      def warn(message, **options)
+        return if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.to_s.match?(pattern) }
+        original_warn(message, **options)
+      end
+
+      def error(message, **options)
+        return if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.to_s.match?(pattern) }
+        original_error(message, **options)
+      end
+
+      def ok(message, **options)
+        return if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.to_s.match?(pattern) }
+        original_ok(message, **options)
+      end
+    end
+
+    # Monkey-patch TTY::Spinner to suppress all spinner output in tests
+    # Spinners produce animated output that clutters test output
+    TTY::Spinner.class_eval do
+      alias_method :original_auto_spin, :auto_spin
+      alias_method :original_spin, :spin
+      alias_method :original_success, :success
+      alias_method :original_error, :error
+      alias_method :original_stop, :stop
+      alias_method :original_update, :update
+
+      def auto_spin
+      end
+
+      def spin
+      end
+
+      def success(message = nil)
+      end
+
+      def error(message = nil)
+      end
+
+      def stop(message = nil)
+      end
+
+      def update(options = {})
+      end
+    end
+
+    # Monkey-patch Kernel#puts to filter output using SUPPRESS_PATTERNS
+    # This catches direct puts calls that bypass TTY::Prompt
+    Kernel.module_eval do
+      alias_method :original_puts, :puts
+
+      define_method(:puts) do |*args|
+        args.each do |arg|
+          message = arg.to_s
+          next if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.match?(pattern) }
+          original_puts(arg)
+        end
+        nil
       end
     end
 
