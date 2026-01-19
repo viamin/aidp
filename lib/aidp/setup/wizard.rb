@@ -158,19 +158,20 @@ module Aidp
         end
 
         # Save primary provider
-        set([:harness, :default_provider], provider_choice) unless provider_choice == "custom"
+        set(%i[harness default_provider], provider_choice) unless provider_choice == "custom"
 
         # Always ask for billing config when running interactive wizard (force: true)
         # This ensures users can update billing type when reconfiguring
         ensure_provider_billing_config(provider_choice, force: true) unless provider_choice == "custom"
 
         # Prompt for fallback providers (excluding the primary), pre-select existing
-        existing_fallbacks = Array(get([:harness, :fallback_providers])).map(&:to_s) - [provider_choice]
+        existing_fallbacks = Array(get(%i[harness fallback_providers])).map(&:to_s) - [provider_choice]
         fallback_choices = available_providers.reject { |_, name| name == provider_choice }
         fallback_default_names = existing_fallbacks.filter_map { |provider_name| fallback_choices.key(provider_name) }
 
         prompt.say("\n💡 Use ↑/↓ arrows to navigate, SPACE to select/deselect, ENTER to confirm")
-        fallback_selected = prompt.multi_select("Select fallback providers (used if primary fails):", default: fallback_default_names) do |menu|
+        fallback_selected = prompt.multi_select("Select fallback providers (used if primary fails):",
+          default: fallback_default_names) do |menu|
           fallback_choices.each do |display_name, provider_name|
             menu.choice display_name, provider_name
           end
@@ -180,9 +181,7 @@ module Aidp
         end
         # Recovery: if multi_select unexpectedly returns empty and there were no existing fallbacks, offer a single-select
         if fallback_selected.empty? && existing_fallbacks.empty? && !fallback_choices.empty?
-          if ENV["AIDP_FALLBACK_DEBUG"] == "1"
-            prompt.say("[debug] invoking recovery single-select for first fallback")
-          end
+          prompt.say("[debug] invoking recovery single-select for first fallback") if ENV["AIDP_FALLBACK_DEBUG"] == "1"
           if prompt.yes?("No fallback selected. Add one?", default: true)
             recovery_choice = prompt.select("Select a fallback provider:") do |menu|
               fallback_choices.each do |display_name, provider_name|
@@ -196,13 +195,14 @@ module Aidp
 
         # If user selected none but we had existing fallbacks, confirm removal
         if fallback_selected.empty? && existing_fallbacks.any?
-          keep = prompt.no?("No fallbacks selected. Remove existing fallbacks (#{existing_fallbacks.join(", ")})?", default: false)
+          keep = prompt.no?("No fallbacks selected. Remove existing fallbacks (#{existing_fallbacks.join(", ")})?",
+            default: false)
           fallback_selected = existing_fallbacks if keep
         end
 
         # Remove any accidental duplication of primary provider & save (preserve order)
         cleaned_fallbacks = fallback_selected.reject { |name| name == provider_choice }
-        set([:harness, :fallback_providers], cleaned_fallbacks)
+        set(%i[harness fallback_providers], cleaned_fallbacks)
 
         # Auto-create minimal provider configs for fallbacks if missing
         cleaned_fallbacks.each do |fp|
@@ -219,16 +219,18 @@ module Aidp
           loop do
             remaining = available_providers.reject { |_, name| ([provider_choice] + cleaned_fallbacks).include?(name) }
             break if remaining.empty?
+
             add_choice = prompt.select("Select additional fallback provider:") do |menu|
               remaining.each { |display, name| menu.choice display, name }
               menu.choice "Done", :done
             end
             break if add_choice == :done
-            unless cleaned_fallbacks.include?(add_choice)
-              cleaned_fallbacks << add_choice
-              set([:harness, :fallback_providers], cleaned_fallbacks)
-              ensure_provider_billing_config(add_choice, force: true)
-            end
+
+            next if cleaned_fallbacks.include?(add_choice)
+
+            cleaned_fallbacks << add_choice
+            set(%i[harness fallback_providers], cleaned_fallbacks)
+            ensure_provider_billing_config(add_choice, force: true)
           end
         end
         # Recompute editable after additions
@@ -245,9 +247,7 @@ module Aidp
               end
               # Sentinel option: add a new fallback provider that isn't yet in editable list
               remaining = available_map.values - editable
-              if remaining.any?
-                menu.choice "➕ Add fallback provider…", :add_fallback
-              end
+              menu.choice "➕ Add fallback provider…", :add_fallback if remaining.any?
               menu.choice "Done", :done
             end
 
@@ -256,16 +256,21 @@ module Aidp
               break
             when :add_fallback
               # Allow user to pick from remaining providers by display name
-              remaining_map = available_map.select { |disp, internal| !editable.include?(internal) && internal != provider_choice }
+              remaining_map = available_map.select do |disp, internal|
+                !editable.include?(internal) && internal != provider_choice
+              end
               add_choice = prompt.select("Select provider to add as fallback:") do |menu|
                 remaining_map.each { |disp, internal| menu.choice disp, internal }
                 menu.choice "Cancel", :cancel
               end
               next if add_choice == :cancel
+
               unless cleaned_fallbacks.include?(add_choice)
                 cleaned_fallbacks << add_choice
-                set([:harness, :fallback_providers], cleaned_fallbacks)
-                prompt.say("[debug] ensuring billing config for newly added fallback '#{add_choice}'") if ENV["AIDP_FALLBACK_DEBUG"] == "1"
+                set(%i[harness fallback_providers], cleaned_fallbacks)
+                if ENV["AIDP_FALLBACK_DEBUG"] == "1"
+                  prompt.say("[debug] ensuring billing config for newly added fallback '#{add_choice}'")
+                end
                 ensure_provider_billing_config(add_choice, force: true)
                 editable = ([provider_choice] + cleaned_fallbacks).uniq.reject { |p| p == "custom" }
               end
@@ -300,7 +305,7 @@ module Aidp
           (existing[:max_retries] || 2).to_s
         ) { |value| value.to_i }
 
-        set([:harness, :max_retries], max_retries)
+        set(%i[harness max_retries], max_retries)
       end
 
       # Removed MCP configuration step (MCP now expected to be provider-specific if used)
@@ -313,8 +318,8 @@ module Aidp
         prompt.say("-" * 40)
 
         # Get configured providers
-        primary_provider = get([:harness, :default_provider])
-        fallback_providers = Array(get([:harness, :fallback_providers]))
+        primary_provider = get(%i[harness default_provider])
+        fallback_providers = Array(get(%i[harness fallback_providers]))
         all_providers = ([primary_provider] + fallback_providers).compact.uniq
 
         if all_providers.empty?
@@ -330,9 +335,7 @@ module Aidp
 
         if has_existing_tiers
           prompt.say("📝 Found existing tier configuration")
-          unless prompt.yes?("Would you like to update it with discovered models?", default: false)
-            return
-          end
+          return unless prompt.yes?("Would you like to update it with discovered models?", default: false)
         elsif !prompt.yes?("Auto-configure thinking tiers with discovered models?", default: true)
           prompt.say("💡 You can run 'aidp models discover' later to see available models")
           return
@@ -436,11 +439,11 @@ module Aidp
             tier_models = find_models_for_tier(models, tier)
 
             # Add to config if we found any models for this tier
-            if tier_models.any?
-              provider_tiers[tier.to_sym] = {
-                models: tier_models.map { |m| m[:name] }
-              }
-            end
+            next unless tier_models.any?
+
+            provider_tiers[tier.to_sym] = {
+              models: tier_models.map { |m| m[:name] }
+            }
           end
 
           # Only add provider if it has at least one tier configured
@@ -508,7 +511,7 @@ module Aidp
         prompt.say("  Commands run automatically during work loops to validate changes")
         prompt.say("  Commands can run: after each unit, at full loop end, or on completion")
 
-        existing_commands = get([:work_loop, :commands]) || []
+        existing_commands = get(%i[work_loop commands]) || []
 
         # If user has existing commands, offer to edit or start fresh
         if existing_commands.any?
@@ -565,7 +568,7 @@ module Aidp
           end
         end
 
-        set([:work_loop, :commands], commands)
+        set(%i[work_loop commands], commands)
         prompt.say("✅ Configured #{commands.size} command(s)")
       end
 
@@ -713,13 +716,13 @@ module Aidp
           (existing[:max_iterations] || 50).to_s
         ) { |value| value.to_i }
 
-        set([:work_loop, :max_iterations], max_iterations)
+        set(%i[work_loop max_iterations], max_iterations)
       end
 
       def configure_output_filtering
         prompt.say("\n🔍 Output filtering configuration")
         prompt.say("  Reduces token consumption by filtering test/lint output")
-        existing = get([:work_loop, :output_filtering]) || {}
+        existing = get(%i[work_loop output_filtering]) || {}
 
         return unless prompt.yes?("Configure output filtering?", default: false)
 
@@ -729,7 +732,7 @@ module Aidp
         )
 
         unless enabled
-          set([:work_loop, :output_filtering], {enabled: false})
+          set(%i[work_loop output_filtering], {enabled: false})
           return
         end
 
@@ -781,7 +784,7 @@ module Aidp
           0
         end
 
-        set([:work_loop, :output_filtering], {
+        set(%i[work_loop output_filtering], {
           enabled: true,
           test_mode: test_mode,
           lint_mode: lint_mode,
@@ -816,7 +819,7 @@ module Aidp
         end
 
         # Check if AI provider is configured
-        primary_provider = get([:harness, :default_provider])
+        primary_provider = get(%i[harness default_provider])
         unless primary_provider
           prompt.warn("⚠️  No AI provider configured. Configure providers first.")
           return
@@ -860,18 +863,18 @@ module Aidp
           end
         end
 
-        if filter_definitions.any?
-          set([:work_loop, :output_filtering, :filter_definitions], filter_definitions)
-          prompt.ok("\n✅ Generated #{filter_definitions.size} filter definition(s)")
-          prompt.say("   These filters will be applied deterministically (no AI calls at runtime)")
-        end
+        return unless filter_definitions.any?
+
+        set(%i[work_loop output_filtering filter_definitions], filter_definitions)
+        prompt.ok("\n✅ Generated #{filter_definitions.size} filter definition(s)")
+        prompt.say("   These filters will be applied deterministically (no AI calls at runtime)")
       end
 
       def collect_commands_for_filtering
         commands = []
 
         # Test commands
-        test_config = get([:work_loop, :test]) || {}
+        test_config = get(%i[work_loop test]) || {}
         if test_config[:unit] && !test_config[:unit].start_with?("echo")
           commands << {
             key: "unit_test",
@@ -898,7 +901,7 @@ module Aidp
         end
 
         # Lint commands
-        lint_config = get([:work_loop, :lint]) || {}
+        lint_config = get(%i[work_loop lint]) || {}
         if lint_config[:command] && !lint_config[:command].start_with?("echo")
           commands << {
             key: "lint",
@@ -938,15 +941,17 @@ module Aidp
       end
 
       def configure_test_commands
-        existing = get([:work_loop, :test]) || {}
+        existing = get(%i[work_loop test]) || {}
 
         unit = ask_with_default("Unit test command", existing[:unit] || detect_unit_test_command)
         integration = ask_with_default("Integration test command", existing[:integration])
         e2e = ask_with_default("End-to-end test command", existing[:e2e])
 
-        timeout = ask_with_default("Test timeout (seconds)", (existing[:timeout_seconds] || 1800).to_s) { |value| value.to_i }
+        timeout = ask_with_default("Test timeout (seconds)", (existing[:timeout_seconds] || 1800).to_s) do |value|
+          value.to_i
+        end
 
-        set([:work_loop, :test], {
+        set(%i[work_loop test], {
           unit: unit,
           integration: integration,
           e2e: e2e,
@@ -959,13 +964,13 @@ module Aidp
       end
 
       def configure_linting
-        existing = get([:work_loop, :lint]) || {}
+        existing = get(%i[work_loop lint]) || {}
 
         lint_cmd = ask_with_default("Lint command", existing[:command] || detect_lint_command)
         format_cmd = ask_with_default("Format command", existing[:format] || detect_format_command)
         autofix = prompt.yes?("Run formatter automatically?", default: existing.fetch(:autofix, false))
 
-        set([:work_loop, :lint], {
+        set(%i[work_loop lint], {
           command: lint_cmd,
           format: format_cmd,
           autofix: autofix
@@ -976,23 +981,29 @@ module Aidp
       end
 
       def configure_watch_patterns
-        existing = get([:work_loop, :test, :watch]) || {}
+        existing = get(%i[work_loop test watch]) || {}
         default_patterns = detect_watch_patterns
 
         watch_patterns = ask_list("Test watch patterns (comma-separated)", existing.fetch(:patterns, default_patterns))
-        set([:work_loop, :test, :watch], {patterns: watch_patterns}) if watch_patterns.any?
+        set(%i[work_loop test watch], {patterns: watch_patterns}) if watch_patterns.any?
       end
 
       def configure_guards
-        existing = get([:work_loop, :guards]) || {}
+        existing = get(%i[work_loop guards]) || {}
 
         include_patterns = ask_list("Guard include patterns", existing[:include] || detect_source_patterns)
-        exclude_patterns = ask_list("Guard exclude patterns", existing[:exclude] || ["node_modules/**", "dist/**", "build/**"])
-        max_lines = ask_with_default("Max lines changed per commit", (existing[:max_lines_changed_per_commit] || 300).to_s) { |value| value.to_i }
-        protected_paths = ask_list("Protected paths (require confirmation)", existing[:protected_paths] || [], allow_empty: true)
-        confirmation_required = prompt.yes?("Require confirmation before editing protected paths?", default: existing.fetch(:confirm_protected, true))
+        exclude_patterns = ask_list("Guard exclude patterns",
+          existing[:exclude] || ["node_modules/**", "dist/**", "build/**"])
+        max_lines = ask_with_default("Max lines changed per commit",
+          (existing[:max_lines_changed_per_commit] || 300).to_s) do |value|
+          value.to_i
+        end
+        protected_paths = ask_list("Protected paths (require confirmation)", existing[:protected_paths] || [],
+          allow_empty: true)
+        confirmation_required = prompt.yes?("Require confirmation before editing protected paths?",
+          default: existing.fetch(:confirm_protected, true))
 
-        set([:work_loop, :guards], {
+        set(%i[work_loop guards], {
           include: include_patterns,
           exclude: exclude_patterns,
           max_lines_changed_per_commit: max_lines,
@@ -1003,10 +1014,10 @@ module Aidp
 
       def configure_coverage
         prompt.say("\n📊 Coverage configuration")
-        existing = get([:work_loop, :coverage]) || {}
+        existing = get(%i[work_loop coverage]) || {}
 
         enabled = prompt.yes?("Enable coverage tracking?", default: existing.fetch(:enabled, false))
-        return set([:work_loop, :coverage], {enabled: false}) unless enabled
+        return set(%i[work_loop coverage], {enabled: false}) unless enabled
 
         coverage_tool_choices = [
           ["SimpleCov (Ruby)", "simplecov"],
@@ -1017,7 +1028,9 @@ module Aidp
           ["Other", "other"]
         ]
         coverage_tool_default = existing[:tool]
-        coverage_tool_default_label = coverage_tool_choices.find { |label, value| value == coverage_tool_default }&.first
+        coverage_tool_default_label = coverage_tool_choices.find do |label, value|
+          value == coverage_tool_default
+        end&.first
 
         tool = prompt.select("Which coverage tool do you use?", default: coverage_tool_default_label) do |menu|
           coverage_tool_choices.each { |label, value| menu.choice label, value }
@@ -1028,12 +1041,13 @@ module Aidp
         fail_on_drop = prompt.yes?("Fail on coverage drop?", default: existing.fetch(:fail_on_drop, false))
 
         minimum_coverage_default = existing[:minimum_coverage]&.to_s
-        minimum_coverage_answer = ask_with_default("Minimum coverage % (optional - press enter to skip)", minimum_coverage_default)
+        minimum_coverage_answer = ask_with_default("Minimum coverage % (optional - press enter to skip)",
+          minimum_coverage_default)
         minimum_coverage = if minimum_coverage_answer && !minimum_coverage_answer.to_s.strip.empty?
           minimum_coverage_answer.to_f
         end
 
-        set([:work_loop, :coverage], {
+        set(%i[work_loop coverage], {
           enabled: true,
           tool: tool,
           run_command: run_command,
@@ -1047,10 +1061,10 @@ module Aidp
 
       def configure_interactive_testing
         prompt.say("\n🎯 Interactive testing configuration")
-        existing = get([:work_loop, :interactive_testing]) || {}
+        existing = get(%i[work_loop interactive_testing]) || {}
 
         enabled = prompt.yes?("Enable interactive testing tools?", default: existing.fetch(:enabled, false))
-        return set([:work_loop, :interactive_testing], {enabled: false}) unless enabled
+        return set(%i[work_loop interactive_testing], {enabled: false}) unless enabled
 
         app_type_choices = [
           ["Web application", "web"],
@@ -1075,7 +1089,7 @@ module Aidp
           tools[:desktop] = configure_desktop_testing_tools(existing.dig(:tools, :desktop) || {})
         end
 
-        set([:work_loop, :interactive_testing], {
+        set(%i[work_loop interactive_testing], {
           enabled: true,
           app_type: app_type,
           tools: tools
@@ -1085,17 +1099,22 @@ module Aidp
       def configure_web_testing_tools(existing)
         tools = {}
 
-        playwright_enabled = prompt.yes?("Enable Playwright MCP?", default: existing.dig(:playwright_mcp, :enabled) || false)
+        playwright_enabled = prompt.yes?("Enable Playwright MCP?",
+          default: existing.dig(:playwright_mcp, :enabled) || false)
         if playwright_enabled
-          playwright_run = ask_with_default("Playwright run command", existing.dig(:playwright_mcp, :run) || "npx playwright test")
-          playwright_specs = ask_with_default("Playwright specs directory", existing.dig(:playwright_mcp, :specs_dir) || ".aidp/tests/web")
+          playwright_run = ask_with_default("Playwright run command",
+            existing.dig(:playwright_mcp, :run) || "npx playwright test")
+          playwright_specs = ask_with_default("Playwright specs directory",
+            existing.dig(:playwright_mcp, :specs_dir) || ".aidp/tests/web")
           tools[:playwright_mcp] = {enabled: true, run: playwright_run, specs_dir: playwright_specs}
         end
 
-        chrome_enabled = prompt.yes?("Enable Chrome DevTools MCP?", default: existing.dig(:chrome_devtools_mcp, :enabled) || false)
+        chrome_enabled = prompt.yes?("Enable Chrome DevTools MCP?",
+          default: existing.dig(:chrome_devtools_mcp, :enabled) || false)
         if chrome_enabled
           chrome_run = ask_with_default("Chrome DevTools run command", existing.dig(:chrome_devtools_mcp, :run) || "")
-          chrome_specs = ask_with_default("Chrome DevTools specs directory", existing.dig(:chrome_devtools_mcp, :specs_dir) || ".aidp/tests/web")
+          chrome_specs = ask_with_default("Chrome DevTools specs directory",
+            existing.dig(:chrome_devtools_mcp, :specs_dir) || ".aidp/tests/web")
           tools[:chrome_devtools_mcp] = {enabled: true, run: chrome_run, specs_dir: chrome_specs}
         end
 
@@ -1107,8 +1126,10 @@ module Aidp
 
         expect_enabled = prompt.yes?("Enable expect scripts?", default: existing.dig(:expect, :enabled) || false)
         if expect_enabled
-          expect_run = ask_with_default("Expect run command", existing.dig(:expect, :run) || "expect .aidp/tests/cli/smoke.exp")
-          expect_specs = ask_with_default("Expect specs directory", existing.dig(:expect, :specs_dir) || ".aidp/tests/cli")
+          expect_run = ask_with_default("Expect run command",
+            existing.dig(:expect, :run) || "expect .aidp/tests/cli/smoke.exp")
+          expect_specs = ask_with_default("Expect specs directory",
+            existing.dig(:expect, :specs_dir) || ".aidp/tests/cli")
           tools[:expect] = {enabled: true, run: expect_run, specs_dir: expect_specs}
         end
 
@@ -1118,16 +1139,22 @@ module Aidp
       def configure_desktop_testing_tools(existing)
         tools = {}
 
-        applescript_enabled = prompt.yes?("Enable AppleScript testing?", default: existing.dig(:applescript, :enabled) || false)
+        applescript_enabled = prompt.yes?("Enable AppleScript testing?",
+          default: existing.dig(:applescript, :enabled) || false)
         if applescript_enabled
-          applescript_run = ask_with_default("AppleScript run command", existing.dig(:applescript, :run) || "osascript .aidp/tests/desktop/smoke.scpt")
-          applescript_specs = ask_with_default("AppleScript specs directory", existing.dig(:applescript, :specs_dir) || ".aidp/tests/desktop")
+          applescript_run = ask_with_default("AppleScript run command",
+            existing.dig(:applescript,
+              :run) || "osascript .aidp/tests/desktop/smoke.scpt")
+          applescript_specs = ask_with_default("AppleScript specs directory",
+            existing.dig(:applescript, :specs_dir) || ".aidp/tests/desktop")
           tools[:applescript] = {enabled: true, run: applescript_run, specs_dir: applescript_specs}
         end
 
-        screen_reader_enabled = prompt.yes?("Enable screen reader testing?", default: existing.dig(:screen_reader, :enabled) || false)
+        screen_reader_enabled = prompt.yes?("Enable screen reader testing?",
+          default: existing.dig(:screen_reader, :enabled) || false)
         if screen_reader_enabled
-          screen_reader_notes = ask_with_default("Screen reader testing notes (optional)", existing.dig(:screen_reader, :notes) || "VoiceOver scripted checks")
+          screen_reader_notes = ask_with_default("Screen reader testing notes (optional)",
+            existing.dig(:screen_reader, :notes) || "VoiceOver scripted checks")
           tools[:screen_reader] = {enabled: true, notes: screen_reader_notes}
         end
 
@@ -1136,7 +1163,7 @@ module Aidp
 
       def configure_vcs_behavior
         prompt.say("\n🗂️  Version control configuration")
-        existing = get([:work_loop, :version_control]) || {}
+        existing = get(%i[work_loop version_control]) || {}
 
         # Detect VCS
         detected_vcs = detect_vcs_tool
@@ -1149,7 +1176,8 @@ module Aidp
         vcs_default_label = vcs_choices.find { |label, value| value == vcs_default }&.first
 
         vcs_tool = if detected_vcs
-          prompt.select("Detected #{detected_vcs}. Use this version control system?", default: vcs_default_label) do |menu|
+          prompt.select("Detected #{detected_vcs}. Use this version control system?",
+            default: vcs_default_label) do |menu|
             vcs_choices.each { |label, value| menu.choice label, value }
           end
         else
@@ -1158,7 +1186,7 @@ module Aidp
           end
         end
 
-        return set([:work_loop, :version_control], {tool: "none", behavior: "nothing"}) if vcs_tool == "none"
+        return set(%i[work_loop version_control], {tool: "none", behavior: "nothing"}) if vcs_tool == "none"
 
         prompt.say("\n📋 Commit Behavior (applies to copilot/interactive mode only)")
         prompt.say("Note: Watch mode and fully automatic daemon mode will always commit changes.")
@@ -1186,7 +1214,7 @@ module Aidp
           {auto_create_pr: false}
         end
 
-        set([:work_loop, :version_control], {
+        set(%i[work_loop version_control], {
           tool: vcs_tool,
           behavior: behavior,
           **commit_config,
@@ -1213,7 +1241,9 @@ module Aidp
             ["Emoji (e.g., '✨ feat: add user authentication')", "emoji"]
           ]
           commit_style_default = existing[:commit_style] || "default"
-          commit_style_default_label = commit_style_choices.find { |label, value| value == commit_style_default }&.first
+          commit_style_default_label = commit_style_choices.find do |label, value|
+            value == commit_style_default
+          end&.first
 
           prompt.select("Conventional commit style:", default: commit_style_default_label) do |menu|
             commit_style_choices.each { |label, value| menu.choice label, value }
@@ -1276,13 +1306,14 @@ module Aidp
       def configure_branching
         prompt.say("\n🌿 Branching strategy")
         prompt.say("-" * 40)
-        existing = get([:work_loop, :branching]) || {}
+        existing = get(%i[work_loop branching]) || {}
 
         prefix = ask_with_default("Branch prefix for work loops", existing[:prefix] || "aidp")
-        slug_format = ask_with_default("Slug format (use %{id} and %{title})", existing[:slug_format] || "issue-%{id}-%{title}")
-        checkpoint_tag = ask_with_default("Checkpoint tag template", existing[:checkpoint_tag] || "aidp-start/%{id}")
+        slug_format = ask_with_default("Slug format (use %<id>s and %<title>s)",
+          existing[:slug_format] || "issue-%<id>s-%<title>s")
+        checkpoint_tag = ask_with_default("Checkpoint tag template", existing[:checkpoint_tag] || "aidp-start/%<id>s")
 
-        set([:work_loop, :branching], {
+        set(%i[work_loop branching], {
           prefix: prefix,
           slug_format: slug_format,
           checkpoint_tag: checkpoint_tag
@@ -1292,13 +1323,13 @@ module Aidp
       def configure_artifacts
         prompt.say("\n📁 Artifact storage")
         prompt.say("-" * 40)
-        existing = get([:work_loop, :artifacts]) || {}
+        existing = get(%i[work_loop artifacts]) || {}
 
         evidence_dir = ask_with_default("Evidence pack directory", existing[:evidence_dir] || ".aidp/evidence")
         logs_dir = ask_with_default("Logs directory", existing[:logs_dir] || ".aidp/logs")
         screenshots_dir = ask_with_default("Screenshots directory", existing[:screenshots_dir] || ".aidp/screenshots")
 
-        set([:work_loop, :artifacts], {
+        set(%i[work_loop artifacts], {
           evidence_dir: evidence_dir,
           logs_dir: logs_dir,
           screenshots_dir: screenshots_dir
@@ -1320,10 +1351,10 @@ module Aidp
 
         unless configure
           Aidp.log_debug("setup_wizard.nfrs", "opt_out")
-          return set([:nfrs, :configure], false)
+          return set(%i[nfrs configure], false)
         end
 
-        set([:nfrs, :configure], true)
+        set(%i[nfrs configure], true)
         categories = %i[performance security reliability accessibility internationalization]
         categories.each do |category|
           existing = get([:nfrs, category])
@@ -1342,11 +1373,11 @@ module Aidp
         prompt.say("\n📚 Detected stack: #{(stack == :other) ? "Custom" : stack.to_s.capitalize}")
         case stack
         when :rails
-          set([:nfrs, :preferred_libraries, :rails], configure_rails_libraries)
+          set(%i[nfrs preferred_libraries rails], configure_rails_libraries)
         when :node
-          set([:nfrs, :preferred_libraries, :node], configure_node_libraries)
+          set(%i[nfrs preferred_libraries node], configure_node_libraries)
         when :python
-          set([:nfrs, :preferred_libraries, :python], configure_python_libraries)
+          set(%i[nfrs preferred_libraries python], configure_python_libraries)
         else
           custom_stack = ask_with_default("Name this stack (e.g. go, php)", "custom")
           libs = ask_list("Preferred libraries (comma-separated)", [])
@@ -1370,7 +1401,7 @@ module Aidp
       end
 
       def configure_rails_libraries
-        existing = get([:nfrs, :preferred_libraries, :rails]) || {}
+        existing = get(%i[nfrs preferred_libraries rails]) || {}
         {
           auth: ask_with_default("Authentication gem", existing[:auth] || "devise"),
           authz: ask_with_default("Authorization gem", existing[:authz] || "pundit"),
@@ -1380,7 +1411,7 @@ module Aidp
       end
 
       def configure_node_libraries
-        existing = get([:nfrs, :preferred_libraries, :node]) || {}
+        existing = get(%i[nfrs preferred_libraries node]) || {}
         {
           validation: ask_with_default("Validation library", existing[:validation] || "zod"),
           orm: ask_with_default("ORM/Database", existing[:orm] || "prisma"),
@@ -1389,7 +1420,7 @@ module Aidp
       end
 
       def configure_python_libraries
-        existing = get([:nfrs, :preferred_libraries, :python]) || {}
+        existing = get(%i[nfrs preferred_libraries python]) || {}
         linting = ask_list("Linting tools", existing[:linting] || %w[ruff mypy])
         {
           validation: ask_with_default("Validation library", existing[:validation] || "pydantic"),
@@ -1407,9 +1438,9 @@ module Aidp
         existing = get([:logging]) || {}
 
         log_level_choices = [
-          ["Debug", "debug"],
-          ["Info", "info"],
-          ["Error", "error"]
+          %w[Debug debug],
+          %w[Info info],
+          %w[Error error]
         ]
         log_level_default = existing[:level] || "info"
         log_level_default_label = log_level_choices.find { |label, value| value == log_level_default }&.first
@@ -1500,9 +1531,11 @@ module Aidp
         prompt.say("-" * 40)
         existing = get([:modes]) || {}
 
-        background = prompt.yes?("Run in background mode by default?", default: existing.fetch(:background_default, false))
+        background = prompt.yes?("Run in background mode by default?",
+          default: existing.fetch(:background_default, false))
         watch = prompt.yes?("Enable watch mode integrations?", default: existing.fetch(:watch_enabled, false))
-        quick_mode = prompt.yes?("Enable quick mode (short timeouts) by default?", default: existing.fetch(:quick_mode_default, false))
+        quick_mode = prompt.yes?("Enable quick mode (short timeouts) by default?",
+          default: existing.fetch(:quick_mode_default, false))
 
         set([:modes], {
           background_default: background,
@@ -1526,7 +1559,7 @@ module Aidp
 
       def configure_watch_safety
         prompt.say("\n🔒 Watch mode safety settings")
-        existing = get([:watch, :safety]) || {}
+        existing = get(%i[watch safety]) || {}
 
         allow_public_repos = prompt.yes?(
           "Allow watch mode on public repositories?",
@@ -1546,7 +1579,7 @@ module Aidp
           default: existing.fetch(:require_container, true)
         )
 
-        set([:watch, :safety], {
+        set(%i[watch safety], {
           allow_public_repos: allow_public_repos,
           author_allowlist: author_allowlist,
           require_container: require_container
@@ -1556,7 +1589,7 @@ module Aidp
       def configure_watch_labels
         prompt.say("\n🏷️  Watch mode label configuration")
         prompt.say("  Configure GitHub issue and PR labels that trigger watch mode actions")
-        existing = get([:watch, :labels]) || {}
+        existing = get(%i[watch labels]) || {}
 
         plan_trigger = ask_with_default(
           "Label to trigger plan generation",
@@ -1598,7 +1631,7 @@ module Aidp
           existing[:change_request_trigger] || "aidp-request-changes"
         )
 
-        set([:watch, :labels], {
+        set(%i[watch labels], {
           plan_trigger: plan_trigger,
           needs_input: needs_input,
           ready_to_build: ready_to_build,
@@ -1613,7 +1646,7 @@ module Aidp
       def configure_watch_change_requests
         prompt.say("\n📝 PR Change Request Configuration")
         prompt.say("  Configure how AIDP handles automated PR change requests")
-        existing = get([:watch, :change_requests]) || {}
+        existing = get(%i[watch change_requests]) || {}
 
         max_diff_size = ask_with_default(
           "Maximum PR diff size (lines) for change requests",
@@ -1625,7 +1658,7 @@ module Aidp
           default: existing.fetch(:post_detection_comments, true)
         )
 
-        set([:watch, :change_requests], {
+        set(%i[watch change_requests], {
           max_diff_size: max_diff_size
         })
 
@@ -1678,7 +1711,7 @@ module Aidp
         Aidp.log_debug("setup_wizard.label_creation", "existing_labels_fetched", count: existing_labels.size)
 
         # Get configured label names
-        labels_config = get([:watch, :labels]) || {}
+        labels_config = get(%i[watch labels]) || {}
         required_labels = collect_required_labels(labels_config)
 
         # Determine which labels need to be created
@@ -1750,7 +1783,8 @@ module Aidp
       # Fetch existing labels from GitHub
       def fetch_existing_labels(owner, repo)
         require "open3"
-        stdout, stderr, status = Open3.capture3("gh", "label", "list", "-R", "#{owner}/#{repo}", "--json", "name", "--jq", ".[].name")
+        stdout, stderr, status = Open3.capture3("gh", "label", "list", "-R", "#{owner}/#{repo}", "--json", "name",
+          "--jq", ".[].name")
 
         unless status.success?
           Aidp.log_error("setup_wizard.fetch_labels", "gh_failed", error: stderr)
@@ -1775,15 +1809,15 @@ module Aidp
           review_trigger: "FBCA04",      # Yellow
           ci_fix_trigger: "D93F0B",      # Red
           auto_trigger: "0C8BD6",        # Blue (distinct from build)
-          change_request_trigger: "F9D0C4",  # Light pink
-          in_progress: "1D76DB"          # Dark blue (internal coordination)
+          change_request_trigger: "F9D0C4", # Light pink
+          in_progress: "1D76DB" # Dark blue (internal coordination)
         }
 
         required = []
         labels_config.each do |key, name|
           next if name.nil? || name.to_s.strip.empty?
 
-          color = default_colors[key] || "EDEDED"  # Gray fallback
+          color = default_colors[key] || "EDEDED" # Gray fallback
           required << {name: name, color: color, key: key}
         end
 
@@ -1936,6 +1970,7 @@ module Aidp
 
         if answer.nil? || answer.strip.empty?
           return default if default.nil? || !block_given?
+
           return yield(default)
         end
 
@@ -1952,6 +1987,7 @@ module Aidp
           line = prompt.ask("", default: nil)
           break if line.nil? || line.empty?
           return nil if line.strip.casecmp("clear").zero?
+
           lines << line
         end
         return default if lines.empty?
@@ -1994,6 +2030,7 @@ module Aidp
         return "bundle exec rspec" if project_file?("Gemfile") && Dir.exist?(File.join(project_dir, "spec"))
         return "npm test" if project_file?("package.json")
         return "pytest" if project_file?("pytest.ini") || Dir.exist?(File.join(project_dir, "tests"))
+
         "echo 'No tests configured'"
       end
 
@@ -2001,6 +2038,7 @@ module Aidp
         return "bundle exec rubocop" if project_file?(".rubocop.yml")
         return "npm run lint" if project_file?("package.json")
         return "ruff check ." if project_file?("pyproject.toml")
+
         "echo 'No linter configured'"
       end
 
@@ -2008,6 +2046,7 @@ module Aidp
         return "bundle exec rubocop -A" if project_file?(".rubocop.yml")
         return "npm run format" if project_file?("package.json")
         return "ruff format ." if project_file?("pyproject.toml")
+
         "echo 'No formatter configured'"
       end
 
@@ -2070,6 +2109,7 @@ module Aidp
       def detect_vcs_tool
         return "git" if Dir.exist?(File.join(project_dir, ".git"))
         return "svn" if Dir.exist?(File.join(project_dir, ".svn"))
+
         nil
       end
 
@@ -2088,7 +2128,8 @@ module Aidp
       end
 
       def show_provider_summary(primary, fallbacks)
-        Aidp.log_debug("wizard.provider_summary", "displaying provider configuration table", primary: primary, fallback_count: fallbacks&.size || 0)
+        Aidp.log_debug("wizard.provider_summary", "displaying provider configuration table", primary: primary,
+          fallback_count: fallbacks&.size || 0)
         prompt.say("\n📋 Provider Configuration Summary:")
         providers_config = get([:providers]) || {}
 
@@ -2168,6 +2209,7 @@ module Aidp
       # Ensure a minimal billing configuration exists for a selected provider (no secrets)
       def ensure_provider_billing_config(provider_name, force: false)
         return if provider_name.nil? || provider_name == "custom"
+
         providers_section = get([:providers]) || {}
         existing = providers_section[provider_name.to_sym]
 
@@ -2187,9 +2229,7 @@ module Aidp
         normalize_existing_model_families!
 
         # Offer to configure usage limits for usage-based providers
-        if provider_type == "usage_based"
-          configure_usage_limits(provider_name)
-        end
+        configure_usage_limits(provider_name) if provider_type == "usage_based"
 
         action_word = if existing
           force ? "reconfigured" : "updated"
@@ -2207,9 +2247,7 @@ module Aidp
 
         action = prompt.select("What would you like to do with '#{display_name}'?") do |menu|
           menu.choice "Edit configuration", :edit
-          unless is_primary
-            menu.choice "Remove from configuration", :remove
-          end
+          menu.choice "Remove from configuration", :remove unless is_primary
           menu.choice "Cancel", :cancel
         end
 
@@ -2229,12 +2267,12 @@ module Aidp
 
       def remove_fallback_provider(provider_name, fallbacks)
         display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
-        if prompt.yes?("Remove '#{display_name}' from fallback providers?", default: false)
-          fallbacks.delete(provider_name)
-          set([:harness, :fallback_providers], fallbacks)
-          Aidp.log_info("wizard.remove_provider", "removed fallback provider", provider: provider_name)
-          prompt.ok("Removed '#{display_name}' from fallback providers")
-        end
+        return unless prompt.yes?("Remove '#{display_name}' from fallback providers?", default: false)
+
+        fallbacks.delete(provider_name)
+        set(%i[harness fallback_providers], fallbacks)
+        Aidp.log_info("wizard.remove_provider", "removed fallback provider", provider: provider_name)
+        prompt.ok("Removed '#{display_name}' from fallback providers")
       end
 
       def edit_provider_configuration(provider_name)
@@ -2251,9 +2289,7 @@ module Aidp
         normalize_existing_model_families!
 
         # Offer to configure/edit usage limits for usage-based providers
-        if new_type == "usage_based"
-          configure_usage_limits(provider_name)
-        end
+        configure_usage_limits(provider_name) if new_type == "usage_based"
 
         prompt.ok("Updated '#{provider_name}' → type=#{new_type}, model_family=#{new_family}")
       end
@@ -2283,16 +2319,17 @@ module Aidp
             return
           end
         else
-          return unless prompt.yes?("\n💰 Configure usage limits for '#{display_name}'? (prevents runaway costs)", default: false)
+          return unless prompt.yes?("\n💰 Configure usage limits for '#{display_name}'? (prevents runaway costs)",
+            default: false)
         end
 
         # Configure usage limits
         limits_config = ask_usage_limits_config(provider_name, existing)
         set([:providers, provider_name.to_sym, :usage_limits], limits_config)
 
-        if limits_config[:enabled]
-          prompt.ok("Configured usage limits for '#{display_name}'")
-        end
+        return unless limits_config[:enabled]
+
+        prompt.ok("Configured usage limits for '#{display_name}'")
       end
 
       # Ask for usage limits configuration
@@ -2303,10 +2340,16 @@ module Aidp
         display_name = discover_available_providers.invert.fetch(provider_name, provider_name)
 
         # Period selection
-        period = prompt.select("Billing period for '#{display_name}':", default: existing[:period] || "monthly") do |menu|
-          menu.choice "Monthly", "monthly"
-          menu.choice "Weekly", "weekly"
-          menu.choice "Daily", "daily"
+        period_choices = [
+          %w[Monthly monthly],
+          %w[Weekly weekly],
+          %w[Daily daily]
+        ]
+        period_default = existing[:period] || "monthly"
+        period_default_label = period_choices.find { |label, value| value == period_default }&.first
+
+        period = prompt.select("Billing period for '#{display_name}':", default: period_default_label) do |menu|
+          period_choices.each { |label, value| menu.choice label, value }
         end
 
         # Reset day (only for monthly)
@@ -2369,12 +2412,14 @@ module Aidp
 
         # Mini tier
         prompt.say("\n🔹 Mini tier (fast, cheap models):")
-        mini_limits = ask_single_tier_limits("mini", period, existing_tier_limits[:mini] || existing_tier_limits["mini"])
+        mini_limits = ask_single_tier_limits("mini", period,
+          existing_tier_limits[:mini] || existing_tier_limits["mini"])
         tier_limits[:mini] = mini_limits if mini_limits
 
         # Advanced tier
         prompt.say("\n🔸 Advanced tier (powerful, expensive models):")
-        advanced_limits = ask_single_tier_limits("advanced", period, existing_tier_limits[:advanced] || existing_tier_limits["advanced"])
+        advanced_limits = ask_single_tier_limits("advanced", period,
+          existing_tier_limits[:advanced] || existing_tier_limits["advanced"])
         tier_limits[:advanced] = advanced_limits if advanced_limits
 
         {
@@ -2448,7 +2493,7 @@ module Aidp
 
         # Try label -> value mapping (case-insensitive)
         choices = ProviderRegistry.model_family_choices
-        mapped = choices.find { |label, _| label.downcase == value.to_s.downcase }&.last
+        mapped = choices.find { |label, _| label.casecmp(value.to_s).zero? }&.last
         return mapped if mapped
 
         # Unknown legacy entry -> fallback to auto
@@ -2458,8 +2503,10 @@ module Aidp
       def normalize_existing_model_families!
         providers_cfg = @config[:providers]
         return unless providers_cfg.is_a?(Hash)
+
         providers_cfg.each do |prov_name, prov_cfg|
           next unless prov_cfg.is_a?(Hash)
+
           mf = prov_cfg[:model_family]
           # Normalize and write back only if different to avoid unnecessary YAML churn
           normalized = normalize_model_family(mf)
@@ -2494,19 +2541,19 @@ module Aidp
         combined = []
         (Array(existing_models) + Array(new_models)).each do |entry|
           next unless entry.is_a?(Hash)
+
           provider = entry[:provider]
           model = entry[:model]
           next unless provider && model
 
-          unless combined.any? { |m| m[:provider] == provider && m[:model] == model }
-            combined << entry
-          end
+          combined << entry unless combined.any? { |m| m[:provider] == provider && m[:model] == model }
         end
         combined
       end
 
       def load_existing_config
         return {} unless File.exist?(config_path)
+
         YAML.safe_load_file(config_path, permitted_classes: [Time]) || {}
       rescue => e
         @warnings << "Failed to parse existing configuration: #{e.message}"
@@ -2674,7 +2721,7 @@ module Aidp
 
         unless manage
           Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.opt_out")
-          return set([:devcontainer, :manage], false)
+          return set(%i[devcontainer manage], false)
         end
 
         # Build wizard config and detect ports
@@ -2712,9 +2759,9 @@ module Aidp
         end
 
         # Save configuration
-        set([:devcontainer, :manage], true)
-        set([:devcontainer, :custom_ports], custom_ports) if custom_ports.any?
-        set([:devcontainer, :last_generated], Time.now.utc.iso8601)
+        set(%i[devcontainer manage], true)
+        set(%i[devcontainer custom_ports], custom_ports) if custom_ports.any?
+        set(%i[devcontainer last_generated], Time.now.utc.iso8601)
         Aidp.log_debug(DEVCONTAINER_COMPONENT, "configure.enabled",
           custom_port_count: custom_ports.count,
           detected_port_count: detected_ports.count)
@@ -2736,6 +2783,7 @@ module Aidp
         return "rails_web" if project_file?("config/routes.rb")
         return "sinatra" if project_file?("config.ru")
         return "express" if project_file?("app.js") && project_file?("package.json")
+
         "cli"
       end
 
