@@ -8,7 +8,7 @@ require "timeout"
 COVERAGE_DIR = File.expand_path("coverage", __dir__)
 
 RSpec::Core::RakeTask.new(:spec) do |t|
-  t.rspec_opts = "--format documentation"
+  t.rspec_opts = "--format failures"
 end
 
 # StandardRB tasks
