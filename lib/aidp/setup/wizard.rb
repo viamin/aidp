@@ -956,6 +956,38 @@ module Aidp
         validate_command(unit)
         validate_command(integration)
         validate_command(e2e)
+
+        # Check RSpec persistence configuration for --only-failures optimization
+        check_rspec_persistence_configuration(unit, integration, e2e)
+      end
+
+      # Validates RSpec persistence configuration if RSpec is detected
+      # Warns user if example_status_persistence_file_path is not configured
+      def check_rspec_persistence_configuration(*commands)
+        rspec_commands = commands.compact.select { |cmd| cmd.to_s.downcase.include?("rspec") }
+        return if rspec_commands.empty?
+
+        # Check if spec_helper.rb has persistence configured
+        require_relative "../harness/rspec_command_optimizer"
+        optimizer = Aidp::Harness::RSpecCommandOptimizer.new(project_dir)
+        config_check = optimizer.check_persistence_configuration
+
+        if config_check[:configured]
+          prompt.ok("✅ RSpec persistence configured for --only-failures optimization")
+        else
+          prompt.warn("\n⚠️  RSpec --only-failures optimization not available")
+          prompt.say("   The work loop can run significantly faster with --only-failures on subsequent iterations.")
+          prompt.say("   To enable, add this to your spec/spec_helper.rb:")
+          prompt.say("")
+          prompt.say("   RSpec.configure do |config|")
+          prompt.say("     config.example_status_persistence_file_path = '.rspec_status'")
+          prompt.say("   end")
+          prompt.say("")
+          prompt.say("   Also add .rspec_status to your .gitignore")
+
+          Aidp.log_info("setup_wizard", "rspec_persistence_missing",
+            message: "RSpec --only-failures optimization not available")
+        end
       end
 
       def configure_linting
