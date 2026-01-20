@@ -133,9 +133,10 @@ module Aidp
               # If resolution is successful, continue with the rebase
               if resolution
                 # Stage resolved files and continue rebase
+                # GIT_EDITOR=true prevents editor from opening during automated rebase
                 quoted_files = conflict_files.map { |f| "\"#{f}\"" }.join(" ")
                 @shell_executor.system("git add #{quoted_files}")
-                @shell_executor.system("git rebase --continue")
+                @shell_executor.system({"GIT_EDITOR" => "true"}, "git rebase --continue")
               else
                 return false
               end

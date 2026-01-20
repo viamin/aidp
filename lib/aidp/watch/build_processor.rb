@@ -67,6 +67,17 @@ module Aidp
 
         sync_local_aidp_config(working_dir)
 
+        # Check for stuck work loop: work appears done but protocol wasn't followed
+        if work_loop_stuck_but_complete?(working_dir: working_dir, base_branch: base_branch)
+          display_message("🔧 Detected stuck work loop - work appears complete, bypassing harness", type: :info)
+          Aidp.log_info("build_processor", "stuck_work_loop_detected",
+            issue: number, working_dir: working_dir)
+
+          # Skip harness and go directly to success handling
+          handle_success(issue: issue, slug: slug, branch_name: branch_name, base_branch: base_branch, plan_data: plan_data, working_dir: working_dir)
+          return
+        end
+
         prompt_content = build_prompt(issue: issue, plan_data: plan_data)
         write_prompt(prompt_content, working_dir: working_dir)
 
@@ -1022,6 +1033,127 @@ module Aidp
         symbol_key = key.to_sym
         string_key = key.to_s
         plan_data[symbol_key] || plan_data[string_key]
+      end
+
+      # Detect if work loop is stuck but work appears complete.
+      # This handles cases where the agent did the work but didn't follow the protocol
+      # (e.g., didn't mark STATUS: COMPLETE in .aidp/PROMPT.md, didn't file tasks).
+      #
+      # Conditions for "stuck but complete":
+      # 1. Has commits ahead of base branch (work was done)
+      # 2. Tests pass (work is valid)
+      # 3. Linters pass (code quality is acceptable)
+      # 4. .aidp/PROMPT.md exists but doesn't have STATUS: COMPLETE (protocol not followed)
+      #
+      # @param working_dir [String] Path to the working directory
+      # @param base_branch [String] Base branch to compare against
+      # @return [Boolean] True if work loop appears stuck but work is complete
+      def work_loop_stuck_but_complete?(working_dir:, base_branch:)
+        Aidp.log_debug("build_processor", "checking_stuck_work_loop", working_dir: working_dir)
+
+        # Check 1: Has commits ahead of base branch
+        unless has_commits_ahead?(working_dir: working_dir, base_branch: base_branch)
+          Aidp.log_debug("build_processor", "stuck_check_no_commits_ahead")
+          return false
+        end
+
+        # Check 2: .aidp/PROMPT.md exists but doesn't have STATUS: COMPLETE
+        prompt_path = File.join(working_dir, ".aidp", "PROMPT.md")
+        if File.exist?(prompt_path)
+          prompt_content = File.read(prompt_path)
+          if prompt_content.match?(/^STATUS:\s*COMPLETE/i)
+            # Protocol was followed, not stuck
+            Aidp.log_debug("build_processor", "stuck_check_already_marked_complete")
+            return false
+          end
+        else
+          # No prompt file means this is a fresh start, not stuck
+          Aidp.log_debug("build_processor", "stuck_check_no_prompt_file")
+          return false
+        end
+
+        # Check 3: Run quick validation (tests + linters)
+        unless quick_validation_passes?(working_dir: working_dir)
+          Aidp.log_debug("build_processor", "stuck_check_validation_failed")
+          return false
+        end
+
+        Aidp.log_info("build_processor", "work_loop_stuck_but_complete",
+          working_dir: working_dir,
+          reason: "has_commits_tests_pass_but_no_status_complete")
+        true
+      rescue => e
+        Aidp.log_warn("build_processor", "stuck_check_error", error: e.message)
+        false
+      end
+
+      # Check if branch has commits ahead of base branch
+      def has_commits_ahead?(working_dir:, base_branch:)
+        Dir.chdir(working_dir) do
+          # Fetch to ensure we have latest refs (use Open3 directly to avoid test mocks)
+          Open3.capture3("git", "fetch", "origin")
+
+          # Count commits ahead of origin/base_branch
+          stdout, _stderr, status = Open3.capture3(
+            "git", "rev-list", "--count", "HEAD", "^origin/#{base_branch}"
+          )
+          return false unless status.success?
+
+          commits_ahead = stdout.strip.to_i
+          Aidp.log_debug("build_processor", "commits_ahead_check",
+            base_branch: base_branch, commits_ahead: commits_ahead)
+          commits_ahead > 0
+        end
+      rescue => e
+        Aidp.log_warn("build_processor", "commits_ahead_check_error", error: e.message)
+        false
+      end
+
+      # Run quick validation to check if tests and linters pass
+      def quick_validation_passes?(working_dir:)
+        Dir.chdir(working_dir) do
+          # Load config to get test/lint commands
+          config_manager = Aidp::Harness::ConfigManager.new(working_dir)
+          harness_config = config_manager.config || {}
+
+          # Try to run tests
+          test_commands = harness_config.dig(:harness, :tests) ||
+            harness_config.dig("harness", "tests") || []
+
+          test_commands.each do |cmd|
+            command = cmd.is_a?(Hash) ? (cmd[:command] || cmd["command"]) : cmd.to_s
+            next if command.nil? || command.empty?
+
+            Aidp.log_debug("build_processor", "quick_validation_running_test", command: command)
+            _stdout, _stderr, status = Open3.capture3(command)
+            unless status.success?
+              Aidp.log_debug("build_processor", "quick_validation_test_failed", command: command)
+              return false
+            end
+          end
+
+          # Try to run linters
+          lint_commands = harness_config.dig(:harness, :linters) ||
+            harness_config.dig("harness", "linters") || []
+
+          lint_commands.each do |cmd|
+            command = cmd.is_a?(Hash) ? (cmd[:command] || cmd["command"]) : cmd.to_s
+            next if command.nil? || command.empty?
+
+            Aidp.log_debug("build_processor", "quick_validation_running_lint", command: command)
+            _stdout, _stderr, status = Open3.capture3(command)
+            unless status.success?
+              Aidp.log_debug("build_processor", "quick_validation_lint_failed", command: command)
+              return false
+            end
+          end
+
+          Aidp.log_debug("build_processor", "quick_validation_passed")
+          true
+        end
+      rescue => e
+        Aidp.log_warn("build_processor", "quick_validation_error", error: e.message)
+        false
       end
     end
   end
