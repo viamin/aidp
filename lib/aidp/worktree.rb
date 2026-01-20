@@ -30,6 +30,10 @@ module Aidp
         worktree_path = worktree_path_for(slug, project_dir)
 
         if Dir.exist?(worktree_path)
+          # Directory exists but not in registry - try to recover it
+          recovered = recover_existing_worktree(slug, worktree_path, branch, project_dir, task)
+          return recovered if recovered
+
           raise WorktreeExists, "Worktree already exists at #{worktree_path}"
         end
 
@@ -250,6 +254,64 @@ module Aidp
         Dir.chdir(project_dir) do
           system("git", "show-ref", "--verify", "--quiet", "refs/heads/#{branch}")
         end
+      end
+
+      # Recover an existing worktree directory that isn't in the registry.
+      # This handles cases where a previous run was interrupted or the registry was lost.
+      #
+      # @param slug [String] Workstream identifier
+      # @param worktree_path [String] Path to the existing worktree directory
+      # @param expected_branch [String] The branch we expected to use
+      # @param project_dir [String] Project root directory
+      # @param task [String, nil] Task description for workstream state
+      # @return [Hash, nil] Worktree info if recovered, nil if recovery failed
+      def recover_existing_worktree(slug, worktree_path, expected_branch, project_dir, task)
+        # Only attempt recovery if the worktree is NOT already registered
+        # If it's registered, this is a true duplicate and should fail
+        registry = load_registry(project_dir)
+        return nil if registry.key?(slug)
+
+        # Check if it's a valid git worktree by looking for .git file
+        git_file = File.join(worktree_path, ".git")
+        return nil unless File.exist?(git_file)
+
+        # Get the current branch in the worktree
+        actual_branch = detect_worktree_branch(worktree_path)
+        return nil unless actual_branch
+
+        Aidp.log_debug("worktree", "recovering_existing",
+          slug: slug, path: worktree_path, branch: actual_branch)
+
+        # Ensure .aidp directory exists
+        ensure_aidp_dir(worktree_path)
+
+        # Re-register the worktree with its actual branch
+        register_worktree(slug, worktree_path, actual_branch, project_dir)
+
+        # Initialize workstream state if not already present
+        unless Aidp::WorkstreamState.read(slug: slug, project_dir: project_dir)
+          Aidp::WorkstreamState.init(slug: slug, project_dir: project_dir, task: task)
+        end
+
+        {
+          slug: slug,
+          path: worktree_path,
+          branch: actual_branch
+        }
+      end
+
+      # Detect the branch name for a worktree directory
+      #
+      # @param worktree_path [String] Path to the worktree
+      # @return [String, nil] Branch name or nil if detection failed
+      def detect_worktree_branch(worktree_path)
+        stdout, _, status = Dir.chdir(worktree_path) do
+          Open3.capture3("git", "rev-parse", "--abbrev-ref", "HEAD")
+        end
+        return nil unless status.success?
+
+        branch = stdout.strip
+        branch.empty? ? nil : branch
       end
 
       # Check if a branch exists on the remote (origin)
