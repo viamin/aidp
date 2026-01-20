@@ -2,11 +2,21 @@
 
 ## Executive Summary
 
-This report evaluates whether Aidp should replace its native Ruby workflow orchestration code with Temporal.io workflows running in a self-hosted environment. After comprehensive analysis of Aidp's current architecture and Temporal's capabilities, we provide findings, recommendations, and a proposed new architecture.
+This report evaluates whether Aidp should replace its native Ruby workflow orchestration code with Temporal.io workflows running in a self-hosted environment. The evaluation focuses specifically on Aidp's strategic direction toward **multi-agent orchestration** where multiple parallel agents work on atomic units that combine into feature-complete PRs.
 
-**Recommendation: Conditionally Recommended**
+**Recommendation: Strongly Recommended**
 
-Temporal adoption would provide significant benefits for durability, observability, and failure recovery, but the migration complexity and operational overhead must be weighed against Aidp's current scale and use cases.
+Temporal adoption is essential for achieving durable multi-agent orchestration at scale. The current fork-based implementation cannot provide the durability, failure isolation, and visibility required when coordinating 10-50+ parallel agents on complex features. Temporal's hierarchical workflow model maps directly to the multi-agent pattern.
+
+### Key Drivers for Adoption
+
+| Requirement | Current Gap | Temporal Solution |
+|-------------|-------------|-------------------|
+| Orchestrator crash recovery | Lost state; manual restart | Automatic resume via Event History |
+| Partial failure retry | Restart all or manual track | Retry only failed child workflows |
+| Progress visibility | Per-process log files | Real-time queries + Web UI |
+| Agent coordination | File-based polling | Signals between workflows |
+| Result aggregation | Manual exit code collection | Structured child workflow results |
 
 ---
 
@@ -315,35 +325,136 @@ The Ruby SDK reached pre-release status in January 2025:
 
 ---
 
-## 7. Recommendation
+## 7. Multi-Agent Orchestration Architecture
 
-### 7.1 Decision: Conditionally Recommended
+The strategic direction toward multi-agent orchestration fundamentally changes the architectural requirements.
 
-Temporal adoption is **conditionally recommended** based on:
+### 7.1 Multi-Agent Vision
 
-**Adopt If:**
-- Aidp needs to scale to multiple concurrent users/projects
-- Durability requirements increase (enterprise deployments)
-- Observability/debugging is becoming a bottleneck
-- Team has capacity for infrastructure investment
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Feature Orchestrator Workflow                   │
+│  "Implement user authentication with OAuth2"                     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │ FeatureDecomposer │
+                    │    Activity       │
+                    └─────────┬─────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ▼                     ▼                     ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│ AtomicUnit    │    │ AtomicUnit    │    │ AtomicUnit    │
+│ Child Workflow│    │ Child Workflow│    │ Child Workflow│
+│               │    │               │    │               │
+│ "OAuth config"│    │ "Login flow"  │    │ "Session mgmt"│
+│               │    │               │    │               │
+│ ✓ WorkLoop    │    │ ✓ WorkLoop    │    │ ✓ WorkLoop    │
+│ ✓ Tests       │    │ ✓ Tests       │    │ ✓ Tests       │
+│ ✓ Commit      │    │ ✓ Commit      │    │ ✓ Commit      │
+└───────────────┘    └───────────────┘    └───────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │  MergeOrchestrator│
+                    │  Child Workflow   │
+                    └─────────┬─────────┘
+                              │
+                              ▼
+                    ┌─────────────────────┐
+                    │ Feature-Complete PR │
+                    └─────────────────────┘
+```
 
-**Defer If:**
-- Current scale is adequate for use cases
-- Operational complexity is a concern
-- Ruby SDK maturity is insufficient
-- Team lacks Temporal expertise
+### 7.2 Why Temporal is Essential for Multi-Agent
 
-### 7.2 Recommended Approach
+| Multi-Agent Requirement | Current Limitation | Temporal Capability |
+|------------------------|-------------------|---------------------|
+| **Durable Orchestrator** | In-memory; crash = lost state | Event History survives crashes |
+| **50+ Parallel Agents** | fork() doesn't scale | Child Workflows with isolation |
+| **Partial Failure Retry** | All-or-nothing restart | Retry only failed children |
+| **Progress Visibility** | Log files per process | Query handlers + Web UI |
+| **Agent Coordination** | File-based polling | Signals between workflows |
+| **Result Aggregation** | Manual exit code check | Structured child results |
+| **Dependency Graphs** | Only 2-level hierarchy | Arbitrary workflow nesting |
 
-If proceeding, we recommend:
+### 7.3 Multi-Agent Task Queues
 
-1. **Start with Work Loop Only**: Migrate `WorkLoopRunner` first as proof-of-concept
-2. **Preserve Existing CLI**: Keep current CLI; add Temporal client layer
-3. **Incremental Migration**: Run Temporal and native modes in parallel
-4. **Self-Hosted PostgreSQL**: Use PostgreSQL backend for familiarity
-5. **Docker Compose First**: Start with Docker Compose before Kubernetes
+| Task Queue | Workers | Purpose |
+|------------|---------|---------|
+| `aidp-orchestrator` | 2 | Feature orchestration (parent workflows) |
+| `aidp-agent-light` | 10 | Lightweight agents (schema gen, config) |
+| `aidp-agent-standard` | 5 | Standard agents (implementation) |
+| `aidp-agent-heavy` | 2 | Heavy agents (integration tests) |
+| `aidp-merge` | 2 | PR merging and aggregation |
 
-### 7.3 Success Criteria
+### 7.4 Multi-Agent Signals and Queries
+
+**Orchestrator Signals:**
+| Signal | Purpose |
+|--------|---------|
+| `pause_orchestration` | Pause at next safe point |
+| `resume_orchestration` | Resume paused orchestration |
+| `cancel_orchestration` | Cancel all agents gracefully |
+| `retry_failed_agents` | Retry only failed child workflows |
+| `adjust_concurrency` | Change parallel agent count |
+
+**Orchestrator Queries:**
+| Query | Returns |
+|-------|---------|
+| `orchestration_status` | Overall progress, per-agent status |
+| `agent_details` | Detailed status for specific agent |
+| `estimated_completion` | ETA based on current progress |
+| `failure_summary` | List of failed agents with errors |
+
+---
+
+## 8. Recommendation
+
+### 8.1 Decision: Strongly Recommended
+
+For the multi-agent orchestration direction, Temporal adoption is **strongly recommended**.
+
+**Critical Drivers:**
+
+1. **Durability at Scale**: Orchestrating 50+ agents requires crash-resilient state
+2. **Failure Isolation**: One bad agent shouldn't kill the entire feature
+3. **Operational Visibility**: Must see what all agents are doing
+4. **Partial Retry**: Retry failed agents without restarting successful ones
+5. **Hierarchical Coordination**: Parent-child workflow model fits perfectly
+
+**The Alternative is Worse:**
+Building these capabilities natively would require:
+- Custom event sourcing system
+- Workflow replay mechanism
+- Distributed state management
+- Custom monitoring/dashboards
+- Essentially rebuilding Temporal
+
+### 8.2 Recommended Approach (Multi-Agent Priority)
+
+1. **Phase 1: Multi-Agent Foundation**
+   - Implement `FeatureOrchestrationWorkflow` (parent)
+   - Implement `AtomicUnitWorkflow` (child)
+   - Parallel execution with failure isolation
+
+2. **Phase 2: Aggregation & Merge**
+   - Implement `MergeOrchestrationWorkflow`
+   - Result aggregation from children
+   - Feature PR creation
+
+3. **Phase 3: Single-Agent Migration**
+   - Migrate `WorkLoopRunner` to Temporal
+   - This becomes the child workflow execution
+
+4. **Defer: Watch Mode**
+   - Watch mode is less critical for multi-agent
+   - Migrate after core multi-agent works
+
+### 8.3 Success Criteria
 
 | Metric | Target |
 |--------|--------|

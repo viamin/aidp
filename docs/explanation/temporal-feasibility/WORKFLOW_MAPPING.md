@@ -1,10 +1,411 @@
 # Temporal Feasibility Study: Workflow Mapping
 
-This document provides a detailed mapping from Aidp's current orchestration concepts to Temporal.io primitives.
+This document provides a detailed mapping from Aidp's current orchestration concepts to Temporal.io primitives, with a focus on **multi-agent orchestration** where parallel agents work on atomic units that combine into feature-complete PRs.
 
 ---
 
-## 1. Concept Mapping Overview
+## 1. Multi-Agent Orchestration Patterns
+
+### 1.1 Feature Orchestration Workflow
+
+The primary pattern for multi-agent orchestration:
+
+```ruby
+class FeatureOrchestrationWorkflow < Temporal::Workflow
+  def execute(feature_spec:, max_parallel: 5)
+    # Phase 1: Decompose feature into atomic units
+    units = workflow.execute_activity(
+      DecomposeFeatureActivity,
+      feature_spec: feature_spec,
+      start_to_close_timeout: 300
+    )
+
+    Aidp.log_info("orchestration", "decomposed_feature",
+      feature: feature_spec[:name],
+      unit_count: units.size)
+
+    # Phase 2: Execute agents in parallel with bounded concurrency
+    results = execute_parallel_with_isolation(units, max_parallel)
+
+    # Phase 3: Handle partial failures
+    results = handle_failures(results)
+
+    # Phase 4: Merge all successful results
+    if results.count { |r| r[:status] == :completed } >= minimum_success_threshold
+      workflow.execute_child_workflow(
+        MergeOrchestrationWorkflow,
+        results: results.select { |r| r[:status] == :completed },
+        feature_branch: feature_spec[:branch]
+      )
+    else
+      raise Temporal::ApplicationError.new(
+        "Too many agents failed",
+        type: "OrchestrationFailure"
+      )
+    end
+  end
+
+  private
+
+  def execute_parallel_with_isolation(units, max_parallel)
+    # Start all child workflows (Temporal handles concurrency via Task Queues)
+    handles = units.map do |unit|
+      workflow.start_child_workflow(
+        AtomicUnitWorkflow,
+        unit: unit,
+        id: "atomic-#{unit[:id]}-#{workflow.info.run_id}",
+        task_queue: classify_task_queue(unit),
+        retry_policy: unit_retry_policy
+      )
+    end
+
+    # Collect results with failure isolation
+    handles.map do |handle|
+      begin
+        { status: :completed, result: handle.result, workflow_id: handle.workflow_id }
+      rescue Temporal::ChildWorkflowFailure => e
+        { status: :failed, error: e.message, workflow_id: handle.workflow_id }
+      end
+    end
+  end
+
+  def handle_failures(results)
+    failed = results.select { |r| r[:status] == :failed }
+    return results if failed.empty? || @retry_count >= 3
+
+    @retry_count ||= 0
+    @retry_count += 1
+
+    # Retry only failed children
+    retry_handles = failed.map do |failure|
+      unit = find_unit_by_workflow_id(failure[:workflow_id])
+      workflow.start_child_workflow(
+        AtomicUnitWorkflow,
+        unit: unit,
+        id: "atomic-#{unit[:id]}-retry#{@retry_count}-#{workflow.info.run_id}"
+      )
+    end
+
+    retry_results = retry_handles.map do |handle|
+      begin
+        { status: :completed, result: handle.result, workflow_id: handle.workflow_id }
+      rescue Temporal::ChildWorkflowFailure => e
+        { status: :failed, error: e.message, workflow_id: handle.workflow_id }
+      end
+    end
+
+    # Merge retry results with original successes
+    successful = results.select { |r| r[:status] == :completed }
+    successful + retry_results
+  end
+
+  # Signal Handlers for orchestration control
+  workflow.signal_handler("pause_orchestration") { @paused = true }
+  workflow.signal_handler("resume_orchestration") { @paused = false }
+  workflow.signal_handler("cancel_orchestration") { @cancelled = true }
+  workflow.signal_handler("adjust_concurrency") { |n| @max_parallel = n }
+
+  # Query Handlers for visibility
+  workflow.query_handler("orchestration_status") do
+    {
+      feature: @feature_spec[:name],
+      total_units: @units&.size || 0,
+      completed: @completed_count || 0,
+      failed: @failed_count || 0,
+      in_progress: @in_progress_count || 0,
+      progress_percent: calculate_progress,
+      estimated_completion: estimate_completion,
+      unit_details: unit_status_details
+    }
+  end
+end
+```
+
+### 1.2 Atomic Unit Workflow (Child)
+
+Each atomic unit runs as an isolated child workflow:
+
+```ruby
+class AtomicUnitWorkflow < Temporal::Workflow
+  def execute(unit:)
+    @unit = unit
+    @started_at = workflow.now
+
+    # Create worktree for isolation
+    worktree = workflow.execute_activity(
+      CreateWorktreeActivity,
+      unit_id: unit[:id],
+      base_branch: unit[:base_branch]
+    )
+
+    # Execute the work loop (agent iteration)
+    work_result = workflow.execute_child_workflow(
+      WorkLoopWorkflow,
+      step_name: unit[:name],
+      step_spec: unit[:spec],
+      context: {
+        project_dir: worktree[:path],
+        unit_id: unit[:id]
+      }
+    )
+
+    # Commit changes
+    if work_result[:status] == "completed"
+      workflow.execute_activity(
+        CommitAndPushActivity,
+        worktree_path: worktree[:path],
+        branch: worktree[:branch],
+        message: "Implement #{unit[:name]}"
+      )
+    end
+
+    {
+      unit_id: unit[:id],
+      status: work_result[:status],
+      branch: worktree[:branch],
+      iterations: work_result[:iterations],
+      duration: workflow.now - @started_at
+    }
+  ensure
+    # Cleanup worktree
+    workflow.execute_activity(
+      CleanupWorktreeActivity,
+      worktree_path: worktree[:path]
+    ) rescue nil
+  end
+
+  # Query for individual unit status
+  workflow.query_handler("unit_status") do
+    {
+      unit_id: @unit[:id],
+      name: @unit[:name],
+      started_at: @started_at,
+      current_step: @current_step,
+      iteration: @iteration
+    }
+  end
+end
+```
+
+### 1.3 Merge Orchestration Workflow
+
+Combines all atomic unit results into a feature PR:
+
+```ruby
+class MergeOrchestrationWorkflow < Temporal::Workflow
+  def execute(results:, feature_branch:)
+    # Analyze for conflicts
+    conflict_analysis = workflow.execute_activity(
+      AnalyzeConflictsActivity,
+      branches: results.map { |r| r[:result][:branch] }
+    )
+
+    # Sort by dependency order
+    ordered = topological_sort(results, conflict_analysis[:dependencies])
+
+    # Merge branches sequentially to handle conflicts
+    ordered.each do |result|
+      workflow.execute_activity(
+        MergeBranchActivity,
+        source_branch: result[:result][:branch],
+        target_branch: feature_branch,
+        strategy: conflict_analysis[:strategies][result[:unit_id]] || :merge
+      )
+    end
+
+    # Create feature PR
+    workflow.execute_activity(
+      CreateFeaturePrActivity,
+      branch: feature_branch,
+      title: "Feature: #{@feature_name}",
+      description: aggregate_descriptions(results),
+      test_summary: aggregate_test_results(results)
+    )
+  end
+end
+```
+
+### 1.4 Multi-Agent Concept Mapping
+
+| Multi-Agent Concept | Temporal Primitive | Implementation |
+|---------------------|-------------------|----------------|
+| Feature Orchestrator | Parent Workflow | `FeatureOrchestrationWorkflow` |
+| Atomic Unit Agent | Child Workflow | `AtomicUnitWorkflow` |
+| Agent Execution | Nested Child Workflow | `WorkLoopWorkflow` |
+| Parallel Dispatch | Multiple `start_child_workflow` | Bounded by Task Queue workers |
+| Failure Isolation | Per-child try/catch | `ChildWorkflowFailure` handling |
+| Partial Retry | Selective re-dispatch | Retry only failed children |
+| Progress Tracking | Query Handlers | `orchestration_status` query |
+| Pause/Resume | Signals | `pause_orchestration` signal |
+| Result Aggregation | Parent collects child results | `handle.result` collection |
+| Merge Coordination | Sequential Child Workflow | `MergeOrchestrationWorkflow` |
+
+---
+
+## 2. Recursive Agents & Prompt Decomposition
+
+Temporal's architecture directly supports advanced agent patterns from recent research:
+
+- **Recursive Agents**: [arXiv:2512.24601](https://arxiv.org/abs/2512.24601), [arXiv:2408.02248](https://arxiv.org/abs/2408.02248)
+- **Prompt Decomposition**: [arXiv:2311.05772](https://arxiv.org/abs/2311.05772)
+
+### 2.1 Why Temporal Enables Recursive Agents
+
+**Current Aidp Limitation**: Only 2-level hierarchy (parent issue → sub-issues)
+
+**Temporal Capability**: Arbitrary nesting depth via Child Workflows
+
+```
+Feature Orchestrator (Level 0)
+├── SubFeature A (Level 1)
+│   ├── Component A1 (Level 2)
+│   │   ├── Task A1a (Level 3)
+│   │   └── Task A1b (Level 3)
+│   └── Component A2 (Level 2)
+├── SubFeature B (Level 1)
+│   └── Component B1 (Level 2)
+│       ├── Task B1a (Level 3)
+│       ├── Task B1b (Level 3)
+│       └── Task B1c (Level 3)
+└── SubFeature C (Level 1)
+```
+
+### 2.2 Recursive Decomposition Workflow
+
+```ruby
+class RecursiveDecompositionWorkflow < Temporal::Workflow
+  MAX_DEPTH = 5  # Safety limit
+
+  def execute(task:, depth: 0)
+    return execute_leaf_task(task) if depth >= MAX_DEPTH
+
+    # AI-powered decomposition decision
+    decomposition = workflow.execute_activity(
+      AnalyzeTaskComplexityActivity,
+      task: task
+    )
+
+    if decomposition[:should_decompose]
+      # Recursive case: spawn child workflows for sub-tasks
+      sub_tasks = workflow.execute_activity(
+        DecomposeTaskActivity,
+        task: task,
+        strategy: decomposition[:strategy]
+      )
+
+      # Recursively process sub-tasks
+      child_handles = sub_tasks.map do |sub_task|
+        workflow.start_child_workflow(
+          RecursiveDecompositionWorkflow,  # Self-reference!
+          task: sub_task,
+          depth: depth + 1,
+          id: "recursive-#{task[:id]}-#{sub_task[:id]}"
+        )
+      end
+
+      # Collect and aggregate results
+      results = child_handles.map(&:result)
+      aggregate_results(results)
+    else
+      # Base case: execute directly
+      execute_leaf_task(task)
+    end
+  end
+
+  private
+
+  def execute_leaf_task(task)
+    workflow.execute_child_workflow(
+      WorkLoopWorkflow,
+      step_name: task[:name],
+      step_spec: task[:spec],
+      context: task[:context]
+    )
+  end
+end
+```
+
+### 2.3 Prompt Decomposition Patterns
+
+Based on [arXiv:2311.05772](https://arxiv.org/abs/2311.05772), Temporal supports:
+
+**Pattern 1: Sequential Decomposition**
+```ruby
+def sequential_decomposition(complex_prompt)
+  # Break into ordered steps
+  steps = workflow.execute_activity(DecomposeSequentialActivity, prompt: complex_prompt)
+
+  results = []
+  steps.each do |step|
+    result = workflow.execute_child_workflow(AtomicUnitWorkflow, unit: step)
+    results << result
+    # Next step can use previous results
+  end
+  results
+end
+```
+
+**Pattern 2: Parallel Decomposition**
+```ruby
+def parallel_decomposition(complex_prompt)
+  # Break into independent sub-prompts
+  sub_prompts = workflow.execute_activity(DecomposeParallelActivity, prompt: complex_prompt)
+
+  # Execute all in parallel
+  handles = sub_prompts.map { |sp| workflow.start_child_workflow(AtomicUnitWorkflow, unit: sp) }
+  handles.map(&:result)
+end
+```
+
+**Pattern 3: Hierarchical Decomposition (Tree)**
+```ruby
+def hierarchical_decomposition(complex_prompt, depth: 0)
+  analysis = workflow.execute_activity(AnalyzeComplexityActivity, prompt: complex_prompt)
+
+  if analysis[:complexity] > THRESHOLD && depth < MAX_DEPTH
+    sub_prompts = workflow.execute_activity(DecomposeHierarchicalActivity, prompt: complex_prompt)
+
+    handles = sub_prompts.map do |sp|
+      workflow.start_child_workflow(
+        self.class,  # Recursive
+        complex_prompt: sp,
+        depth: depth + 1
+      )
+    end
+    aggregate(handles.map(&:result))
+  else
+    # Leaf node - execute directly
+    workflow.execute_child_workflow(WorkLoopWorkflow, step_spec: complex_prompt)
+  end
+end
+```
+
+### 2.4 Temporal Features for Recursive Agents
+
+| Research Concept | Temporal Feature | Benefit |
+|------------------|------------------|---------|
+| **Recursive spawning** | Child Workflows can spawn children | Arbitrary depth |
+| **Dynamic decomposition** | Runtime decision on # of children | Adaptive complexity |
+| **Result aggregation** | Parent collects child results | Bottom-up composition |
+| **Failure at any level** | Per-workflow retry policies | Isolated recovery |
+| **Long recursive chains** | Continue-As-New | Avoid Event History limits |
+| **Cross-level communication** | Signals between workflows | Backpropagation |
+| **Progress tracking** | Queries at each level | Tree-wide visibility |
+| **Resource management** | Task Queues per depth/type | Load balancing |
+
+### 2.5 Current Gap: No Recursive Support
+
+Aidp's current hierarchical issue system:
+- **Fixed 2 levels**: Parent → Sub-issues only
+- **No dynamic decomposition**: Sub-issues defined upfront
+- **No recursive spawning**: Sub-issues can't have their own sub-issues
+- **No depth-based strategies**: Same handling at all levels
+
+**Temporal closes this gap completely.**
+
+---
+
+## 3. Concept Mapping Overview
 
 | Aidp Concept | Temporal Primitive | Notes |
 |--------------|-------------------|-------|

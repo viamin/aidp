@@ -1,6 +1,6 @@
 # Temporal Feasibility Study: Migration Plan
 
-This document provides a stepwise migration plan for adopting Temporal.io in Aidp, including risks, mitigations, and rollout strategy.
+This document provides a stepwise migration plan for adopting Temporal.io in Aidp, with a focus on enabling **multi-agent orchestration** where parallel agents work on atomic units that combine into feature-complete PRs.
 
 ---
 
@@ -8,21 +8,23 @@ This document provides a stepwise migration plan for adopting Temporal.io in Aid
 
 ### 1.1 Key Principles
 
-1. **Incremental Adoption**: Migrate one workflow at a time
+1. **Multi-Agent First**: Prioritize hierarchical orchestration over single-agent migration
 2. **Parallel Operation**: Run Temporal and native modes simultaneously
 3. **Feature Flags**: Toggle between implementations
-4. **Zero Breaking Changes**: Existing CLI interface unchanged
+4. **Value Early**: Deliver multi-agent capability as quickly as possible
 5. **Rollback Capability**: Easy revert at every stage
 
-### 1.2 Migration Phases
+### 1.2 Migration Phases (Multi-Agent Priority)
 
-| Phase | Duration | Focus |
-|-------|----------|-------|
-| Phase 0: Foundation | 2-4 weeks | Infrastructure setup, SDK integration |
-| Phase 1: Proof of Concept | 4-6 weeks | Single WorkLoopWorkflow migration |
-| Phase 2: Core Workflows | 8-12 weeks | All work loop variants |
-| Phase 3: Watch Mode | 6-8 weeks | Watch mode and processors |
-| Phase 4: Full Migration | 4-6 weeks | Deprecate native orchestration |
+| Phase | Duration | Focus | Value Delivered |
+|-------|----------|-------|-----------------|
+| Phase 0: Foundation | 2-4 weeks | Infrastructure, SDK | Temporal running |
+| Phase 1: Multi-Agent Core | 6-8 weeks | Orchestration + Child workflows | **Parallel agents work!** |
+| Phase 2: Merge & Aggregate | 4-6 weeks | Result combination, PR creation | **Feature PRs from agents** |
+| Phase 3: Single-Agent Polish | 4-6 weeks | WorkLoopWorkflow improvements | Better individual agents |
+| Phase 4: Watch Mode (Optional) | 4-6 weeks | Watch mode migration | Automated GitHub loop |
+
+**Key Change from Original Plan**: We front-load the multi-agent orchestration (Phases 1-2) because that's the strategic direction. Single-agent improvements (Phase 3) and Watch mode (Phase 4) become less critical.
 
 ---
 
@@ -98,105 +100,160 @@ end
 
 ---
 
-## 3. Phase 1: Proof of Concept
+## 3. Phase 1: Multi-Agent Core
 
-### 3.1 WorkLoopWorkflow Migration
+**This is the critical phase** - it delivers the core multi-agent orchestration capability.
+
+### 3.1 Feature Orchestration Workflow
 
 **Objectives**:
-- Migrate `WorkLoopRunner` to Temporal Workflow
-- Validate durability and recovery
-- Benchmark performance
+- Implement parent workflow that coordinates multiple agents
+- Parallel child workflow dispatch with bounded concurrency
+- Failure isolation (one agent fails, others continue)
+- Partial retry capability (retry only failed agents)
 
 **Tasks**:
 
 | Task | Description | Effort |
 |------|-------------|--------|
-| Define WorkLoopWorkflow | Port state machine to Temporal | 3-5 days |
-| Implement ExecuteAgentActivity | CLI execution activity | 2-3 days |
-| Implement RunTestsActivity | Test runner activity | 1-2 days |
-| Implement RunLinterActivity | Linter activity | 1-2 days |
-| Add Signal handlers | pause, resume, cancel | 1-2 days |
-| Add Query handlers | status, metrics | 1 day |
-| Unit tests | Workflow and Activity tests | 3-4 days |
-| Integration tests | End-to-end workflow tests | 3-4 days |
-| Benchmarking | Compare with native implementation | 2-3 days |
+| `FeatureOrchestrationWorkflow` | Parent workflow with child dispatch | 5-7 days |
+| `AtomicUnitWorkflow` | Child workflow for single agent | 3-4 days |
+| `DecomposeFeatureActivity` | AI-powered feature decomposition | 3-4 days |
+| `CreateWorktreeActivity` | Git worktree management | 2-3 days |
+| Parallel dispatch logic | Bounded concurrency via Task Queues | 2-3 days |
+| Failure isolation | Per-child try/catch, result collection | 2-3 days |
+| Partial retry mechanism | Retry only failed children | 2-3 days |
+| Orchestration Signals | pause, resume, cancel, adjust_concurrency | 2-3 days |
+| Orchestration Queries | status, progress, agent_details | 2-3 days |
+| Unit tests | Parent and child workflow tests | 4-5 days |
+| Integration tests | Multi-agent end-to-end tests | 4-5 days |
 
 **Success Criteria**:
-- [ ] Work loop completes successfully
-- [ ] Worker restart resumes execution
-- [ ] Signals correctly pause/resume workflow
-- [ ] Queries return accurate status
-- [ ] No performance regression (< 10% overhead)
+- [ ] 10+ agents run in parallel successfully
+- [ ] Orchestrator survives crash/restart
+- [ ] Failed agents can be retried without restarting successful ones
+- [ ] Real-time status via queries
+- [ ] Pause/resume affects all child workflows
 
-### 3.2 Worker Implementation
+### 3.2 Multi-Agent Worker Configuration
 
 ```ruby
-# lib/aidp/temporal/worker.rb
+# lib/aidp/temporal/workers/multi_agent_worker.rb
 module Aidp
   module Temporal
-    class Worker
-      def initialize(config)
-        @client = Temporalio::Client.connect(config[:address])
-        @worker = Temporalio::Worker.new(
-          client: @client,
-          task_queue: config[:task_queue],
-          workflows: [WorkLoopWorkflow],
-          activities: [
-            ExecuteAgentActivity,
-            RunTestsActivity,
-            RunLinterActivity,
-            PrepareNextIterationActivity
-          ]
-        )
-      end
+    module Workers
+      class MultiAgentWorker
+        def initialize(config)
+          @client = Temporalio::Client.connect(config[:address])
 
-      def run
-        @worker.run
+          # Orchestrator worker (low concurrency, high visibility)
+          @orchestrator_worker = Temporalio::Worker.new(
+            client: @client,
+            task_queue: "aidp-orchestrator",
+            workflows: [
+              FeatureOrchestrationWorkflow,
+              MergeOrchestrationWorkflow
+            ],
+            activities: [DecomposeFeatureActivity],
+            max_concurrent_workflow_tasks: 5
+          )
+
+          # Agent worker (higher concurrency)
+          @agent_worker = Temporalio::Worker.new(
+            client: @client,
+            task_queue: "aidp-agent-standard",
+            workflows: [AtomicUnitWorkflow, WorkLoopWorkflow],
+            activities: [
+              ExecuteAgentActivity,
+              RunTestsActivity,
+              RunLinterActivity,
+              CreateWorktreeActivity,
+              CommitAndPushActivity
+            ],
+            max_concurrent_activities: 10
+          )
+        end
+
+        def run
+          # Run both workers in parallel
+          threads = [
+            Thread.new { @orchestrator_worker.run },
+            Thread.new { @agent_worker.run }
+          ]
+          threads.each(&:join)
+        end
       end
     end
   end
 end
 ```
 
-### 3.3 Testing Strategy
+### 3.3 Multi-Agent Testing Strategy
 
 ```ruby
-# spec/temporal/workflows/work_loop_workflow_spec.rb
-RSpec.describe Aidp::Temporal::WorkLoopWorkflow do
+# spec/temporal/workflows/feature_orchestration_workflow_spec.rb
+RSpec.describe Aidp::Temporal::FeatureOrchestrationWorkflow do
   let(:env) { Temporalio::Testing::WorkflowEnvironment.new }
 
-  it "completes after successful iteration" do
-    result = env.run_workflow(
-      described_class,
-      "test_step",
-      { name: "test" },
-      {}
-    )
+  it "orchestrates multiple agents in parallel" do
+    feature_spec = {
+      name: "user_auth",
+      units: [
+        { id: "oauth", name: "OAuth config" },
+        { id: "login", name: "Login flow" },
+        { id: "session", name: "Session management" }
+      ]
+    }
 
+    result = env.run_workflow(described_class, feature_spec: feature_spec)
+
+    expect(result[:completed_count]).to eq(3)
     expect(result[:status]).to eq("completed")
   end
 
-  it "handles pause signal" do
-    handle = env.start_workflow(described_class, ...)
-    handle.signal("pause")
+  it "isolates failures and allows partial retry" do
+    feature_spec = { name: "test", units: make_units(10) }
 
-    status = handle.query("status")
-    expect(status[:paused]).to be true
+    # Make unit 5 fail
+    allow_unit_to_fail(5)
+
+    result = env.run_workflow(described_class, feature_spec: feature_spec)
+
+    # 9 succeeded, 1 failed
+    expect(result[:completed_count]).to eq(9)
+    expect(result[:failed_count]).to eq(1)
+    expect(result[:failed_units]).to include("unit_5")
   end
 
-  it "recovers from worker restart" do
-    # Start workflow
-    handle = env.start_workflow(described_class, ...)
+  it "survives orchestrator crash and resumes" do
+    handle = env.start_workflow(described_class, feature_spec: large_feature)
 
-    # Wait for first iteration
-    env.time_skip(10.seconds)
+    # Wait for some children to complete
+    env.time_skip(60.seconds)
 
-    # Simulate worker restart
+    # Simulate crash
+    completed_before_crash = handle.query("orchestration_status")[:completed]
+
     env.restart_worker
 
-    # Workflow should continue
+    # Workflow continues without re-running completed children
     result = handle.result
-    expect(result[:status]).to eq("completed")
+    expect(result[:total_child_executions]).to be <= result[:unit_count]
+  end
+
+  it "provides real-time status via queries" do
+    handle = env.start_workflow(described_class, feature_spec: feature_spec)
+
+    status = handle.query("orchestration_status")
+
+    expect(status).to include(
+      :total_units,
+      :completed,
+      :in_progress,
+      :failed,
+      :progress_percent,
+      :unit_details
+    )
   end
 end
 ```
@@ -205,19 +262,164 @@ end
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| Activity timeout issues | Medium | Medium | Tune timeouts; add heartbeats |
-| Non-determinism bugs | Medium | High | Strict Activity boundaries; testing |
-| CLI output capture | Low | Medium | Test with all providers |
+| Child workflow coordination complexity | High | High | Extensive testing; start with 5 agents |
+| Event History growth with many children | Medium | Medium | Monitor history size; use Continue-As-New |
+| Task Queue starvation | Medium | Medium | Separate queues for orchestrator vs agents |
+| Deadlock between parent and child | Low | High | Avoid parent waiting synchronously for signals |
 
 ---
 
-## 4. Phase 2: Core Workflows
+## 4. Phase 2: Merge & Aggregate
 
-### 4.1 AsyncWorkLoop Migration
+**This phase completes the multi-agent value proposition** - combining agent results into feature-complete PRs.
 
-**Objective**: Migrate `AsyncWorkLoopRunner` functionality
+### 4.1 Merge Orchestration Workflow
 
-Since Temporal workflows are inherently asynchronous, this is mostly a client-side change:
+**Objectives**:
+- Coordinate merge operations across atomic unit branches
+- Handle merge conflicts with AI-assisted resolution
+- Create feature-complete PRs from combined work
+
+**Tasks**:
+
+| Task | Description | Effort |
+|------|-------------|--------|
+| `MergeOrchestrationWorkflow` | Coordinate branch merging | 4-5 days |
+| `MergeBranchActivity` | Git merge operations | 2-3 days |
+| `ResolveConflictsActivity` | AI-assisted conflict resolution | 3-4 days |
+| `CreateFeaturePRActivity` | GitHub PR creation | 2-3 days |
+| `AggregateResultsActivity` | Combine test/lint results | 2-3 days |
+| Merge strategy selection | Sequential vs parallel merge | 2-3 days |
+| Conflict retry logic | Retry failed merges after fixes | 2-3 days |
+| Integration tests | End-to-end merge tests | 4-5 days |
+
+**Success Criteria**:
+- [ ] Atomic unit branches merge automatically
+- [ ] Merge conflicts trigger AI resolution workflow
+- [ ] Feature PRs created with combined changes
+- [ ] Aggregated test results available in PR
+- [ ] Rollback capability for failed merges
+
+### 4.2 Merge Orchestration Implementation
+
+```ruby
+# lib/aidp/temporal/workflows/merge_orchestration_workflow.rb
+class MergeOrchestrationWorkflow < Temporalio::Workflow
+  def execute(feature_id:, completed_units:, target_branch:)
+    # Aggregate results from all completed units
+    aggregated_results = workflow.execute_activity(
+      AggregateResultsActivity,
+      units: completed_units
+    )
+
+    # Determine optimal merge order (dependency-aware)
+    merge_order = workflow.execute_activity(
+      DetermineMergeOrderActivity,
+      units: completed_units
+    )
+
+    # Merge each unit sequentially (to handle conflicts)
+    merged_units = []
+    merge_order.each do |unit|
+      merge_result = merge_with_conflict_handling(unit, target_branch)
+
+      if merge_result[:success]
+        merged_units << unit
+      else
+        # Store conflict for manual review or retry
+        @merge_conflicts << {
+          unit: unit,
+          conflict: merge_result[:conflict],
+          attempted_at: workflow.now
+        }
+      end
+    end
+
+    # Create feature PR if enough units merged successfully
+    if merged_units.size >= (completed_units.size * 0.8)  # 80% threshold
+      pr_result = workflow.execute_activity(
+        CreateFeaturePRActivity,
+        feature_id: feature_id,
+        merged_units: merged_units,
+        aggregated_results: aggregated_results,
+        conflicts: @merge_conflicts
+      )
+
+      { status: "pr_created", pr_url: pr_result[:url], merged_count: merged_units.size }
+    else
+      { status: "insufficient_merges", merged_count: merged_units.size, conflicts: @merge_conflicts }
+    end
+  end
+
+  private
+
+  def merge_with_conflict_handling(unit, target_branch)
+    result = workflow.execute_activity(
+      MergeBranchActivity,
+      source_branch: unit[:branch],
+      target_branch: target_branch
+    )
+
+    return result if result[:success]
+
+    # Attempt AI-assisted conflict resolution
+    resolution = workflow.execute_activity(
+      ResolveConflictsActivity,
+      conflict: result[:conflict],
+      unit: unit
+    )
+
+    if resolution[:resolved]
+      # Retry merge after resolution
+      workflow.execute_activity(
+        MergeBranchActivity,
+        source_branch: unit[:branch],
+        target_branch: target_branch
+      )
+    else
+      result  # Return original failure
+    end
+  end
+end
+```
+
+### 4.3 Risks & Mitigations
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Merge conflicts between units | High | High | AI-assisted resolution; clear merge order |
+| Failed merges blocking feature | Medium | High | 80% threshold; manual override option |
+| Git state corruption | Low | High | Activity-level rollback; worktree isolation |
+| Large history from many merges | Medium | Medium | Squash merges for atomic units |
+
+---
+
+## 5. Phase 3: Single-Agent Polish
+
+**This phase improves individual agent execution** - refinements to the single-agent work loop.
+
+### 5.1 WorkLoop Workflow Improvements
+
+**Objectives**:
+- Migrate existing `WorkLoopRunner` to Temporal
+- Add durability to individual agent execution
+- Enable better recovery and debugging
+
+**Tasks**:
+
+| Task | Description | Effort |
+|------|-------------|--------|
+| `WorkLoopWorkflow` | Single-agent work loop | 3-4 days |
+| Iteration state management | Track fix-forward progress | 2-3 days |
+| Provider-agnostic execution | Support all AI providers | 3-4 days |
+| Checkpoint migration | Replace file-based checkpoints | 2-3 days |
+| Signal handlers | pause, resume, cancel, inject | 2-3 days |
+| Query handlers | status, iteration_count, history | 2-3 days |
+| Unit tests | WorkLoop workflow tests | 3-4 days |
+
+### 5.2 AsyncWorkLoop & BackgroundRunner
+
+**Objective**: Migrate async execution patterns
 
 ```ruby
 # lib/aidp/temporal/async_client.rb
@@ -239,27 +441,13 @@ class AsyncWorkLoopClient
     @client.get_workflow_handle(workflow_id).result
   end
 end
-```
 
-### 4.2 BackgroundRunner Migration
-
-**Objective**: Replace daemonized processes with Temporal workflows
-
-| Current Feature | Temporal Equivalent |
-|-----------------|---------------------|
-| `start(mode, options)` | `client.start_workflow(...)` |
-| `list_jobs` | `client.list_workflows(...)` |
-| `job_status(id)` | `client.describe_workflow(id)` |
-| `stop_job(id)` | `client.cancel_workflow(id)` |
-| `job_logs(id)` | Activity heartbeat messages + UI |
-
-```ruby
 # lib/aidp/temporal/job_manager.rb
 class JobManager
   def start(mode, options)
     workflow_class = case mode
       when :execute then WorkLoopWorkflow
-      when :analyze then AnalyzeWorkflow
+      when :multi_agent then FeatureOrchestrationWorkflow
       when :watch then WatchModeWorkflow
     end
 
@@ -274,47 +462,24 @@ class JobManager
 
     workflow_id
   end
-
-  def list_jobs
-    @client.list_workflows(
-      query: 'WorkflowType STARTS_WITH "Aidp"'
-    ).map { |info| format_job_info(info) }
-  end
 end
 ```
 
-### 4.3 WorkstreamExecutor Migration
-
-**Objective**: Replace fork-based parallelism with Child Workflows
-
-This is the most complex migration as it involves:
-1. Parent workflow orchestrating children
-2. Parallel execution management
-3. Result aggregation
-
-**Tasks**:
-
-| Task | Description | Effort |
-|------|-------------|--------|
-| WorkstreamOrchestratorWorkflow | Parent workflow | 2-3 days |
-| WorkstreamChildWorkflow | Child workflow | 2-3 days |
-| CreateWorktreeActivity | Git worktree management | 1-2 days |
-| Result aggregation | Fan-in logic | 1-2 days |
-| Integration tests | Multi-workflow tests | 3-4 days |
-
-### 4.4 Risks & Mitigations
+### 5.3 Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| Child workflow coordination | Medium | High | Test Continue-As-New scenarios |
-| Git worktree state | Medium | Medium | Activity-based worktree ops |
-| Resource exhaustion | Low | High | Limit concurrent children |
+| Activity timeout issues | Medium | Medium | Tune timeouts; add heartbeats |
+| Non-determinism bugs | Medium | High | Strict Activity boundaries; testing |
+| CLI output capture | Low | Medium | Test with all providers |
 
 ---
 
-## 5. Phase 3: Watch Mode
+## 6. Phase 4: Watch Mode (Optional)
 
-### 5.1 Watch Mode Migration
+**This phase enables automated GitHub monitoring** - can be deferred if multi-agent is primary focus.
+
+### 6.1 Watch Mode Migration
 
 **Objective**: Replace continuous polling with Temporal Schedule
 
@@ -333,7 +498,7 @@ schedule = client.create_schedule(
 
 **Option B: Long-Running Workflow with Continue-As-New**
 ```ruby
-class WatchModeWorkflow
+class WatchModeWorkflow < Temporalio::Workflow
   MAX_CYCLES = 100  # Prevent history overflow
 
   def execute(config:, cycle: 0)
@@ -349,7 +514,7 @@ class WatchModeWorkflow
 end
 ```
 
-### 5.2 Processor Migration
+### 6.2 Processor Migration
 
 Each processor becomes a Child Workflow:
 
@@ -361,7 +526,7 @@ Each processor becomes a Child Workflow:
 | CiFixProcessor | CiFixProcessorWorkflow |
 | ChangeRequestProcessor | ChangeRequestProcessorWorkflow |
 
-### 5.3 Risks & Mitigations
+### 6.3 Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
@@ -371,16 +536,16 @@ Each processor becomes a Child Workflow:
 
 ---
 
-## 6. Phase 4: Full Migration
+## 7. Phase 5: Full Migration (Optional)
 
-### 6.1 Deprecation Strategy
+### 7.1 Deprecation Strategy
 
 1. **Announcement**: Document migration in CHANGELOG
 2. **Warning Period**: Log deprecation warnings for native mode
 3. **Default Switch**: Change default from `native` to `temporal`
 4. **Removal**: Remove native orchestration code
 
-### 6.2 Cleanup Tasks
+### 7.2 Cleanup Tasks
 
 | Task | Description |
 |------|-------------|
@@ -390,20 +555,20 @@ Each processor becomes a Child Workflow:
 | Update documentation | New orchestration docs |
 | Archive legacy tests | Remove native-only tests |
 
-### 6.3 Rollback Plan
+### 7.3 Rollback Plan
 
 If issues arise post-migration:
 
 1. **Feature Flag Revert**: Change `orchestration.engine` to `native`
-2. **Keep Native Code**: Don't delete until confident (Phase 4+)
+2. **Keep Native Code**: Don't delete until confident (Phase 5+)
 3. **Data Migration**: Export workflow history if needed
 4. **Worker Shutdown**: Gracefully drain Temporal workers
 
 ---
 
-## 7. Risk Registry
+## 8. Risk Registry
 
-### 7.1 Technical Risks
+### 8.1 Technical Risks
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
 |----|------|------------|--------|------------|-------|
@@ -412,8 +577,10 @@ If issues arise post-migration:
 | T3 | Performance regression | Low | Medium | Benchmarking | Dev Team |
 | T4 | Activity timeouts | Medium | Medium | Heartbeats; tuning | Dev Team |
 | T5 | State migration | High | Medium | Don't migrate; start fresh | Dev Team |
+| T6 | Child workflow coordination | High | High | Extensive testing; start small | Dev Team |
+| T7 | Merge conflict handling | High | High | AI-assisted resolution; manual fallback | Dev Team |
 
-### 7.2 Operational Risks
+### 8.2 Operational Risks
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
 |----|------|------------|--------|------------|-------|
@@ -422,7 +589,7 @@ If issues arise post-migration:
 | O3 | Monitoring gaps | Medium | Medium | Prometheus/Grafana | Ops Team |
 | O4 | Team expertise | High | Medium | Training program | Team Lead |
 
-### 7.3 Project Risks
+### 8.3 Project Risks
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
 |----|------|------------|--------|------------|-------|
@@ -432,37 +599,49 @@ If issues arise post-migration:
 
 ---
 
-## 8. Success Metrics
+## 9. Success Metrics
 
-### 8.1 Phase 0 Success
+### 9.1 Phase 0 Success (Foundation)
 
 - [ ] Temporal Service running in dev/staging
 - [ ] Ruby SDK integrated and tested
 - [ ] CI pipeline passing
 - [ ] Team trained on Temporal basics
 
-### 8.2 Phase 1 Success
+### 9.2 Phase 1 Success (Multi-Agent Core) ⭐
+
+**This is the critical milestone - multi-agent orchestration working!**
+
+- [ ] 10+ agents run in parallel successfully
+- [ ] Orchestrator survives crash/restart
+- [ ] Failed agents can be retried without restarting successful ones
+- [ ] Real-time status via queries
+- [ ] Pause/resume affects all child workflows
+- [ ] Worker restart recovers execution < 5s
+
+### 9.3 Phase 2 Success (Merge & Aggregate)
+
+- [ ] Atomic unit branches merge automatically
+- [ ] Merge conflicts trigger AI resolution workflow
+- [ ] Feature PRs created with combined changes
+- [ ] Aggregated test results available in PR
+- [ ] 80%+ of units merge successfully
+
+### 9.4 Phase 3 Success (Single-Agent Polish)
 
 - [ ] WorkLoopWorkflow passes all tests
-- [ ] Worker restart recovers execution < 5s
+- [ ] Signals work correctly (pause, resume, cancel)
 - [ ] Performance within 10% of native
-- [ ] Signals work correctly
+- [ ] File-based checkpoints replaced
 
-### 8.3 Phase 2 Success
-
-- [ ] All work loop variants migrated
-- [ ] Background jobs work via Temporal
-- [ ] Workstream parallelism functional
-- [ ] No regressions in existing functionality
-
-### 8.4 Phase 3 Success
+### 9.5 Phase 4 Success (Watch Mode - Optional)
 
 - [ ] Watch mode runs 24+ hours without issues
 - [ ] Event history stays within limits
 - [ ] All processors work as Child Workflows
 - [ ] Monitoring shows healthy metrics
 
-### 8.5 Phase 4 Success
+### 9.6 Phase 5 Success (Full Migration - Optional)
 
 - [ ] Native code removed
 - [ ] Documentation updated
@@ -471,23 +650,28 @@ If issues arise post-migration:
 
 ---
 
-## 9. Timeline Summary
+## 10. Timeline Summary (Multi-Agent Priority)
 
-| Phase | Start | End | Milestone |
-|-------|-------|-----|-----------|
-| Phase 0 | Week 1 | Week 4 | Infrastructure ready |
-| Phase 1 | Week 5 | Week 10 | WorkLoopWorkflow in production |
-| Phase 2 | Week 11 | Week 22 | All core workflows migrated |
-| Phase 3 | Week 23 | Week 30 | Watch mode migrated |
-| Phase 4 | Week 31 | Week 36 | Migration complete |
+| Phase | Focus | Duration | Milestone |
+|-------|-------|----------|-----------|
+| Phase 0 | Foundation | 2-4 weeks | Infrastructure ready |
+| Phase 1 | **Multi-Agent Core** | 6-8 weeks | **Parallel agents working!** |
+| Phase 2 | Merge & Aggregate | 4-6 weeks | **Feature PRs from agents** |
+| Phase 3 | Single-Agent Polish | 4-6 weeks | Improved individual agents |
+| Phase 4 | Watch Mode (Optional) | 4-6 weeks | Automated GitHub loop |
+| Phase 5 | Full Migration (Optional) | 4-6 weeks | Complete transition |
 
-**Total Duration**: ~9 months (with buffer)
+**Core Value Delivery (Phases 0-2)**: ~16 weeks (~4 months)
+
+**Full Migration (All Phases)**: ~9 months (with buffer)
+
+**Key Insight**: By front-loading multi-agent orchestration (Phases 1-2), we deliver the strategic value within 4 months. Phases 3-5 are refinements that can be deferred or parallelized.
 
 ---
 
-## 10. Decision Points
+## 11. Decision Points
 
-### 10.1 Go/No-Go Criteria
+### 11.1 Go/No-Go Criteria
 
 **Phase 0 → Phase 1**:
 - Infrastructure stable for 1 week
@@ -495,24 +679,40 @@ If issues arise post-migration:
 - Test framework operational
 
 **Phase 1 → Phase 2**:
-- WorkLoopWorkflow in production 2+ weeks
-- No critical bugs
-- Performance acceptable
+- Multi-agent orchestration working with 5+ agents
+- Orchestrator survives restart
+- No critical bugs in child workflow coordination
 
 **Phase 2 → Phase 3**:
-- All core workflows stable
-- No rollbacks required
-- Team confident
+- Feature PRs successfully created from agent work
+- Merge workflow stable
+- Team confident in multi-agent value
 
-**Phase 3 → Phase 4**:
+**Phase 3 → Phase 4** (Optional):
+- Single-agent workflow stable
+- Resources available
+- Watch mode improvement needed
+
+**Phase 4 → Phase 5** (Optional):
 - Watch mode stable 4+ weeks
 - All functionality validated
-- Stakeholder approval
+- Stakeholder approval for cleanup
 
-### 10.2 Abort Criteria
+### 11.2 Abort Criteria
 
 Consider aborting migration if:
 - Ruby SDK has critical unfixable bugs
 - Performance regression > 25%
+- Child workflow coordination unreliable after 4 weeks
 - Operational overhead unmanageable
 - Team unable to maintain both systems
+
+### 11.3 Early Win Criteria
+
+**Migration is successful at Phase 2 if**:
+- Multi-agent orchestration handles 10+ parallel agents
+- Feature PRs created automatically from agent work
+- Failure isolation works (failed agents don't block others)
+- Real-time visibility into orchestration progress
+
+At this point, even without completing Phases 3-5, the strategic value of Temporal has been realized.

@@ -11,30 +11,54 @@
 
 ## Abstract
 
-This RFC proposes adopting Temporal.io as the workflow orchestration engine for Aidp, replacing the current native Ruby implementation. The change would provide improved durability, observability, and fault tolerance for Aidp's AI development workflows.
+This RFC proposes adopting Temporal.io as the workflow orchestration engine for Aidp, replacing the current native Ruby implementation. The change is **strongly recommended** to enable Aidp's strategic direction toward **multi-agent orchestration** - where multiple parallel agents work on atomic units that combine into feature-complete PRs.
 
 ---
 
 ## 1. Motivation
 
-### 1.1 Current Challenges
+### 1.1 Strategic Direction: Multi-Agent Orchestration
 
-Aidp's native orchestration has served well but faces limitations:
+Aidp is evolving toward a model where complex features are decomposed into atomic units, with multiple AI agents working in parallel. This multi-agent approach requires:
 
-1. **Durability Gaps**: File-based checkpoints with manual recovery
-2. **Observability Limitations**: No unified workflow history or replay
-3. **Recovery Complexity**: Manual intervention required after crashes
-4. **Scaling Constraints**: Thread/process-based parallelism limits
-5. **Operational Burden**: PID tracking, stuck detection, daemon management
+1. **Hierarchical Workflow Coordination**: Parent orchestrator managing 10-50+ child agents
+2. **Failure Isolation**: One agent failure shouldn't crash the entire operation
+3. **Partial Retry**: Retry only failed agents without re-running successful ones
+4. **Visibility**: Real-time status across all parallel agents
+5. **Durability**: Orchestrator state survives crashes and restarts
+6. **Merge Coordination**: Combining atomic unit branches into feature PRs
 
-### 1.2 Business Value
+### 1.2 Current Architecture Limitations
+
+Aidp's native orchestration cannot support multi-agent orchestration at scale:
+
+| Gap | Impact |
+|-----|--------|
+| Fork-based parallelism | No failure isolation; one crash affects all |
+| 2-level hierarchy limit | Can't support recursive agent decomposition |
+| No partial retry | Failed agent requires restarting entire operation |
+| File-based checkpoints | Manual recovery; no automatic resume |
+| No unified history | Debugging multi-agent failures is difficult |
+| PID-based tracking | Unreliable for 50+ parallel agents |
+
+### 1.3 Business Value
 
 | Benefit | Impact |
 |---------|--------|
+| **Multi-agent orchestration** | Enable parallel agent development at scale |
+| Failure isolation | Individual agent failures don't block others |
+| Automatic recovery | Orchestrator survives crashes |
+| Real-time visibility | Track 50+ agents simultaneously |
 | Reduced data loss | Higher user trust |
 | Better debugging | Faster issue resolution |
-| Automatic recovery | Reduced ops burden |
-| Workflow visibility | Better understanding of AI execution |
+
+### 1.4 Research Alignment
+
+Temporal's hierarchical workflow model aligns with emerging AI research:
+
+- **Recursive Agents**: Child Workflows support self-referencing decomposition
+- **Prompt Decomposition**: Sequential, parallel, and hierarchical patterns
+- **Multi-Agent Coordination**: First-class support for agent-to-agent communication
 
 ---
 
@@ -42,28 +66,36 @@ Aidp's native orchestration has served well but faces limitations:
 
 ### 2.1 Overview
 
-Replace Aidp's orchestration subsystem with Temporal.io:
+Replace Aidp's orchestration subsystem with Temporal.io, prioritizing multi-agent orchestration:
 
-- **WorkLoopRunner** → Temporal Workflow
+**Multi-Agent Orchestration (Primary)**:
+- **FeatureOrchestrationWorkflow** → Coordinate 10-50+ parallel agents
+- **AtomicUnitWorkflow** → Individual agent executing atomic work
+- **MergeOrchestrationWorkflow** → Combine agent results into feature PRs
+
+**Single-Agent Improvements (Secondary)**:
+- **WorkLoopRunner** → Temporal Workflow with durability
 - **AsyncWorkLoopRunner** → Temporal Workflow + Signals
 - **BackgroundRunner** → Async Workflow Start
-- **WorkstreamExecutor** → Child Workflows
-- **Watch::Runner** → Scheduled Workflow
+
+**Optional**:
+- **Watch::Runner** → Scheduled Workflow (can defer)
 
 ### 2.2 Key Changes
 
 1. **Add Ruby SDK Dependency**: `temporalio` gem
 2. **Introduce Workflow Definitions**: New `lib/aidp/temporal/workflows/`
-3. **Implement Activities**: CLI execution, tests, Git operations
-4. **Create Worker Process**: Long-running Temporal worker
-5. **Add Orchestration Router**: Feature flag between native/Temporal
-6. **Deploy Temporal Service**: Self-hosted with PostgreSQL
+3. **Implement Multi-Agent Orchestration**: Parent-child workflow hierarchy
+4. **Implement Activities**: Agent execution, tests, Git operations, merges
+5. **Create Worker Process**: Separate orchestrator and agent workers
+6. **Add Orchestration Router**: Feature flag between native/Temporal
+7. **Deploy Temporal Service**: Self-hosted with PostgreSQL
 
 ### 2.3 What Stays the Same
 
 - CLI interface and commands
 - Provider abstraction layer
-- AI agent execution patterns
+- AI agent execution patterns (individual agents unchanged)
 - Configuration system
 - Watch mode behavior (from user perspective)
 
@@ -139,28 +171,35 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 
 ## 4. Migration Strategy
 
-### 4.1 Phases
+### 4.1 Phases (Multi-Agent Priority)
 
-| Phase | Focus | Duration |
-|-------|-------|----------|
-| Phase 0 | Infrastructure setup | 2-4 weeks |
-| Phase 1 | WorkLoopWorkflow PoC | 4-6 weeks |
-| Phase 2 | Core workflows | 8-12 weeks |
-| Phase 3 | Watch mode | 6-8 weeks |
-| Phase 4 | Full migration | 4-6 weeks |
+| Phase | Focus | Duration | Value |
+|-------|-------|----------|-------|
+| Phase 0 | Infrastructure setup | 2-4 weeks | Temporal running |
+| Phase 1 | **Multi-Agent Core** | 6-8 weeks | **Parallel agents work!** |
+| Phase 2 | **Merge & Aggregate** | 4-6 weeks | **Feature PRs from agents** |
+| Phase 3 | Single-Agent Polish | 4-6 weeks | Improved individual agents |
+| Phase 4 | Watch Mode (Optional) | 4-6 weeks | Automated GitHub loop |
+| Phase 5 | Full Migration (Optional) | 4-6 weeks | Complete transition |
+
+**Core Value Delivery (Phases 0-2)**: ~16 weeks (~4 months)
+
+**Full Migration (All Phases)**: ~9 months (with buffer)
 
 ### 4.2 Incremental Adoption
 
 1. **Feature Flag**: `orchestration.engine: native | temporal`
-2. **Parallel Operation**: Both engines available
-3. **Gradual Rollout**: Opt-in per project
-4. **Deprecation Period**: Native remains available
+2. **Multi-Agent First**: New capability, not migration
+3. **Parallel Operation**: Both engines available
+4. **Gradual Rollout**: Opt-in per project
+5. **Deprecation Period**: Native remains available
 
 ### 4.3 Rollback Plan
 
 - Revert feature flag to `native`
 - Keep native code through stabilization period
 - No data migration required (workflows are independent)
+- Multi-agent features gracefully degrade to sequential execution
 
 ---
 
@@ -331,29 +370,45 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 
 ### 11.1 Recommendation
 
-**Conditionally Recommended**
+**Strongly Recommended** ⭐
 
-Temporal adoption provides significant benefits for durability, observability, and fault tolerance. However, the decision should be based on:
+Temporal adoption is strongly recommended because Aidp's strategic direction toward **multi-agent orchestration** requires capabilities that cannot be reasonably achieved with the current native implementation:
 
-**Adopt If**:
-- Durability is a critical requirement
-- Team has capacity for 9-month investment
-- Scaling beyond single-user is planned
-- Observability gaps are causing issues
+| Requirement | Native Capability | Temporal Capability |
+|-------------|-------------------|---------------------|
+| 10-50+ parallel agents | Fork-based, fragile | First-class Child Workflows |
+| Failure isolation | Not available | Per-child error handling |
+| Partial retry | Not available | Retry individual workflows |
+| Orchestrator durability | File checkpoints | Automatic event sourcing |
+| Real-time visibility | PID tracking | Web UI + Queries |
+| Recursive decomposition | 2-level limit | Arbitrary depth |
 
-**Defer If**:
-- Current implementation meets needs
-- Team lacks Temporal expertise
-- Infrastructure complexity is a concern
-- Ruby SDK maturity is insufficient
+### 11.2 Key Arguments for Adoption
 
-### 11.2 Next Steps (If Approved)
+1. **Multi-Agent is the Direction**: Temporal's Child Workflow pattern is purpose-built for this use case
+2. **Cannot Build Equivalent**: Adding these features to native would essentially rebuild Temporal
+3. **Value Delivered Early**: Multi-agent capability in ~4 months (Phases 0-2)
+4. **Research Alignment**: Supports recursive agents and prompt decomposition patterns
+5. **Future-Proof**: Investment in proven infrastructure vs. custom code
 
-1. Form implementation team
+### 11.3 Risks Acknowledged
+
+- Ruby SDK is pre-release (January 2025)
+- Infrastructure complexity
+- Team learning curve
+
+These risks are mitigated by:
+- Pinning SDK version with native fallback
+- Starting with Docker Compose
+- Training before Phase 1
+
+### 11.4 Next Steps (If Approved)
+
+1. Form implementation team (2-3 engineers)
 2. Begin Phase 0 (infrastructure setup)
-3. Schedule team training
-4. Establish success metrics
-5. Create detailed sprint plans
+3. Schedule team training on Temporal concepts
+4. Establish success metrics for Phase 1 (multi-agent core)
+5. Create detailed sprint plans for Phases 0-2
 
 ---
 
@@ -363,6 +418,7 @@ Temporal adoption provides significant benefits for durability, observability, a
 
 - [ARCHITECTURE_REPORT.md](./ARCHITECTURE_REPORT.md) - Architecture analysis
 - [WORKFLOW_MAPPING.md](./WORKFLOW_MAPPING.md) - Concept mapping
+- [GAP_ANALYSIS.md](./GAP_ANALYSIS.md) - Multi-agent implementation gaps
 - [MIGRATION_PLAN.md](./MIGRATION_PLAN.md) - Migration strategy
 - [INTEGRATION_API.md](./INTEGRATION_API.md) - API design
 - [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md) - Deployment guide
