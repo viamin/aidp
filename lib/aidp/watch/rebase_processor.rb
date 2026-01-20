@@ -188,7 +188,9 @@ module Aidp
         end
 
         # Stage and continue rebase
-        @shell_executor.system("cd #{worktree_path} && git add . && git rebase --continue")
+        # GIT_EDITOR=true prevents editor from opening during automated rebase
+        @shell_executor.system("cd #{worktree_path} && git add .")
+        @shell_executor.system({"GIT_EDITOR" => "true"}, "cd #{worktree_path} && git rebase --continue")
       end
 
       def post_rebase_status(pr_number, rebase_result, error_detail = nil)
