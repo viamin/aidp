@@ -266,6 +266,11 @@ module Aidp
       # @param task [String, nil] Task description for workstream state
       # @return [Hash, nil] Worktree info if recovered, nil if recovery failed
       def recover_existing_worktree(slug, worktree_path, expected_branch, project_dir, task)
+        # Only attempt recovery if the worktree is NOT already registered
+        # If it's registered, this is a true duplicate and should fail
+        registry = load_registry(project_dir)
+        return nil if registry.key?(slug)
+
         # Check if it's a valid git worktree by looking for .git file
         git_file = File.join(worktree_path, ".git")
         return nil unless File.exist?(git_file)
