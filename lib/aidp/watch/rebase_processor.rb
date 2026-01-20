@@ -136,7 +136,7 @@ module Aidp
             if resolution
               # Stage resolved files and continue rebase
               self.system("git add #{conflict_files.map { |f| "\"#{f}\"" }.join(" ")}")
-              self.system("git rebase --continue")
+              self.system({"GIT_EDITOR" => "true"}, "git rebase --continue")
             else
               return false
             end
@@ -180,8 +180,8 @@ module Aidp
         conflict_resolution.each do |file, resolution|
           File.write(File.join(worktree_path, file), resolution)
         end
-        # Stage and continue rebase
-        self.system("cd #{worktree_path} && git add . && git rebase --continue")
+        # Stage and continue rebase (GIT_EDITOR=true prevents editor from opening)
+        self.system({"GIT_EDITOR" => "true"}, "cd #{worktree_path} && git add . && git rebase --continue")
       end
 
       def post_rebase_status(pr_number, rebase_result, error_detail = nil)

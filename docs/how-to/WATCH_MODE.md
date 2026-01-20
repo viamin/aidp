@@ -40,7 +40,30 @@ aidp watch viamin/aidp --verbose
 | `aidp-fix-ci` | Fix CI failures | CiFixProcessor |
 | `aidp-auto` | Review + CI Fix loop until ready | AutoPrProcessor |
 | `aidp-request-changes` | Implement change requests | ChangeRequestProcessor |
-| `aidp-rebase` | Automatically rebase PR against target branch with AI conflict resolution | RebaseProcessor |
+| `aidp-rebase` | Automatically rebase PR against target branch with AI-powered conflict resolution using AIDecisionEngine. Supports configurable label names. | RebaseProcessor |
+
+#### Rebase Workflow Details
+
+When the `aidp-rebase` label is added to a Pull Request:
+
+1. **Worktree Preparation**: Creates an isolated git worktree for safe rebasing
+2. **Base Branch Update**: Fetches the latest changes from the target branch
+3. **Rebase Attempt**: Attempts to rebase the PR branch
+   - If rebase succeeds, the branch is automatically updated
+4. **Intelligent Conflict Resolution**:
+   - When conflicts occur, uses AIDecisionEngine to resolve
+   - Analyzes code context and applies intelligent merging
+   - Provides detailed conflict resolution comments
+5. **Reporting**:
+   - Posts success/failure comment on the PR
+   - Removes `aidp-rebase` label after successful rebase
+   - Provides detailed rebase logs and conflict resolution details
+
+**Conflict Resolution Scenarios**:
+- Simple conflicts (whitespace, minor edits): Automatically resolved
+- Complex conflicts:
+  - Detailed explanation of unresolvable conflicts
+  - Prompts manual review and intervention
 
 ## The aidp-auto Workflow
 

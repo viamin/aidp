@@ -211,6 +211,92 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
       end
     end
 
+    context "when AI conflict resolution provides a solution" do
+      let(:conflict_files) { ["conflicts.txt"] }
+      let(:ai_resolution) { {"conflicts.txt" => "AI-resolved content"} }
+
+      before do
+        # Expect PR retrieval
+        expect(repository_client).to receive(:get_pull_request)
+          .with(work_item.number)
+          .and_return(pr_details)
+
+        # Expect worktree creation
+        expect(worktree_manager).to receive(:create_pr_worktree)
+          .with(
+            pr_number: work_item.number,
+            base_branch: "main",
+            head_branch: "feature-branch"
+          )
+          .and_return(worktree_path)
+
+        # Simulate rebase failure
+        expect(processor).to receive(:system)
+          .with(/git fetch origin/)
+          .and_return(true)
+
+        expect(processor).to receive(:system)
+          .with(/git rebase origin\/main/)
+          .and_return(false)
+
+        # Simulate conflict detection
+        expect(processor).to receive(:detect_conflicting_files)
+          .with(worktree_path)
+          .and_return(conflict_files)
+
+        # Expect AI resolution
+        expect(ai_decision_engine).to receive(:resolve_merge_conflict)
+          .with(
+            base_branch_path: worktree_path,
+            conflict_files: conflict_files
+          )
+          .and_return(ai_resolution)
+
+        # Simulate AI-resolved file writing
+        expect(File).to receive(:write)
+          .with(File.join(worktree_path, "conflicts.txt"), "AI-resolved content")
+          .and_return(true)
+
+        # Expect successful force push after resolution
+        expect(processor).to receive(:system)
+          .with(/git add ./)
+          .and_return(true)
+
+        expect(processor).to receive(:system)
+          .with(/git commit/)
+          .and_return(true)
+
+        expect(processor).to receive(:system)
+          .with(/git push -f origin feature-branch/)
+          .and_return(true)
+
+        # Expect label and status handling
+        expect(repository_client).to receive(:remove_labels)
+          .with(work_item.number, ["aidp-rebase"])
+
+        expect(repository_client).to receive(:add_success_status)
+          .with(
+            work_item.number,
+            context: "aidp/rebase",
+            description: "PR successfully rebased with AI conflict resolution"
+          )
+
+        expect(repository_client).to receive(:post_comment)
+          .with(
+            work_item.number,
+            "✅ PR has been successfully rebased against the target branch using AI-powered conflict resolution."
+          )
+
+        # Expect worktree cleanup
+        expect(worktree_manager).to receive(:cleanup_pr_worktree)
+          .with(work_item.number)
+      end
+
+      it "handles AI-driven conflict resolution" do
+        expect(processor.process(work_item)).to be true
+      end
+    end
+
     context "when an unexpected error occurs" do
       before do
         # Simulate a runtime error
@@ -242,6 +328,54 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
 
       it "handles unexpected errors" do
         expect(processor.process(work_item)).to be false
+      end
+    end
+
+    context "when custom rebase label is configured" do
+      let(:label_config) { {rebase_trigger: "custom-rebase"} }
+
+      let(:work_item) do
+        Aidp::Watch::WorkItem.new(
+          number: 123,
+          item_type: :pr,
+          processor_type: :rebase,
+          label: "custom-rebase",
+          data: {
+            head: {ref: "feature-branch"},
+            labels: [{name: "custom-rebase"}]
+          }
+        )
+      end
+
+      it "processes the PR with the custom label" do
+        # Setup expectations for a successful rebase similar to the existing successful context
+        expect(repository_client).to receive(:get_pull_request)
+          .with(work_item.number)
+          .and_return(pr_details)
+
+        expect(worktree_manager).to receive(:create_pr_worktree)
+          .and_return(worktree_path)
+
+        expect(processor).to receive(:system)
+          .with(/git fetch origin/)
+          .and_return(true)
+
+        expect(processor).to receive(:system)
+          .with(/git rebase origin\/main/)
+          .and_return(true)
+
+        expect(processor).to receive(:system)
+          .with(/git push -f origin feature-branch/)
+          .and_return(true)
+
+        expect(repository_client).to receive(:remove_labels)
+          .with(work_item.number, ["custom-rebase"])
+
+        expect(repository_client).to receive(:add_success_status)
+        expect(repository_client).to receive(:post_comment)
+        expect(worktree_manager).to receive(:cleanup_pr_worktree)
+
+        expect(processor.process(work_item)).to be true
       end
     end
   end

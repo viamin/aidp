@@ -1514,6 +1514,85 @@ When a PR has `aidp-auto`:
    - Handle complex multi-file merge scenarios
    - Report status directly on the PR
 
+### Detailed `aidp-rebase` Workflow
+
+When the `aidp-rebase` label is added to a Pull Request, AIDP executes a comprehensive rebasing process:
+
+1. **Branch Detection**
+   - Identify the PR's base (target) branch and head (source) branch
+   - Fetch latest remote branch information to ensure up-to-date context
+
+2. **Isolated Worktree Creation**
+   - Generate a dedicated git worktree for the PR
+   - Ensures safe rebasing without affecting the main repository
+   - Prevents unintended side effects or modifications to other branches
+
+3. **Rebase Execution**
+   - Attempt standard git rebase against the target branch
+   - Automatically handle straightforward merges
+   - First pass: Use native git rebase strategies
+
+4. **AI-Powered Conflict Resolution**
+   - When conflicts are detected, engage AI decision engine
+   - Advanced semantic analysis of code context
+   - Intelligent merge strategies that go beyond textual diff
+   - Preserve:
+     * Original code structure
+     * Comments and documentation
+     * Semantic intent of changes
+   - Multi-file conflict handling
+   - Detailed conflict resolution logging
+
+5. **Comprehensive Reporting**
+   - Post detailed GitHub PR comments
+   - Include:
+     * Rebase success/failure status
+     * Conflict resolution details
+     * AI reasoning for merge decisions
+   - Remove `aidp-rebase` label after processing
+   - Set PR status checks (success/failure)
+
+#### Conflict Resolution Intelligence
+- **Context-Aware**: Analyzes surrounding code, not just conflicting lines
+- **Semantic Preservation**: Maintains original code's logical structure
+- **Multi-Language Support**: Works across different programming languages
+- **Detailed Reasoning**: Provides human-readable merge rationale
+
+#### Safety and Control
+
+Configurable via `.aidp/aidp.yml`:
+
+```yaml
+watch:
+  labels:
+    rebase_trigger: "aidp-rebase"
+  rebase:
+    ai_conflict_resolution: true  # Enable AI merge strategies
+    max_attempts: 3               # Limit rebase/resolve tries
+    preserve_commits: true        # Maintain original commit history
+    conflict_resolution_mode: "conservative"  # AI merge aggressiveness
+```
+
+**Conflict Resolution Modes:**
+- `conservative`: Minimal changes, more human review
+- `balanced`: Moderate AI intervention
+- `aggressive`: Maximum AI-driven merging
+
+#### Example Usage
+
+```bash
+# Add rebase label to a PR
+gh pr edit 123 --add-label aidp-rebase
+
+# AIDP Watch Mode automatically:
+# 1. Detects the aidp-rebase label
+# 2. Creates a dedicated worktree
+# 3. Rebases PR #123
+# 4. Resolves conflicts using AI
+# 5. Pushes changes or reports detailed failure
+# 6. Removes aidp-rebase label
+```
+
 ### Automatic Rebasing with `aidp-rebase`
 
 The `aidp-rebase` label enables automatic, intelligent PR rebasing with advanced conflict management:

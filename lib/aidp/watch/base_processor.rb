@@ -30,10 +30,15 @@ module Aidp
       end
 
       # Execute a system command (wrapped for testability)
-      # @param command [String] The command to execute
+      # @param env_or_command [Hash, String] Environment variables hash or the command
+      # @param command [String, nil] The command to execute (if env provided as first arg)
       # @return [Boolean] The result of the system call
-      def system(command)
-        Kernel.system(command)
+      def system(env_or_command, command = nil)
+        if command.nil?
+          Kernel.system(env_or_command)
+        else
+          Kernel.system(env_or_command, command)
+        end
       end
 
       attr_reader :rebase_label
