@@ -263,9 +263,9 @@ module Aidp
 
         ## Instructions
         You are working on a GitHub issue imported into AIDP. Your responsibilities:
-        1. Read this PROMPT.md file to understand what needs to be done
+        1. Read this file (`.aidp/PROMPT.md`) to understand what needs to be done
         2. Complete the work described in the issue below
-        3. **IMPORTANT**: Edit this PROMPT.md file yourself to:
+        3. **IMPORTANT**: Edit this `.aidp/PROMPT.md` file to:
            - Remove completed items
            - Update with current status
            - Keep it concise (remove unnecessary context)
@@ -274,7 +274,7 @@ module Aidp
         5. If tests/linters fail, you'll see the errors in the next iteration
 
         ## Completion Criteria
-        Mark this issue COMPLETE by adding this line to PROMPT.md:
+        Mark this issue COMPLETE by adding this line to `.aidp/PROMPT.md`:
         ```
         STATUS: COMPLETE
         ```
