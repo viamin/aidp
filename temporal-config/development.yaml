@@ -1,0 +1,48 @@
+# Temporal Dynamic Configuration for Development
+# See: https://docs.temporal.io/references/dynamic-configuration
+
+# Enable all features by default for development
+frontend.enableClientVersionCheck:
+  - value: true
+    constraints: {}
+
+# Workflow execution limits
+limit.maxIDLength:
+  - value: 1000
+    constraints: {}
+
+history.maximumSignalCountPerExecution:
+  - value: 10000
+    constraints: {}
+
+# Enable advanced visibility for search attributes
+system.advancedVisibilityWritingMode:
+  - value: "on"
+    constraints: {}
+
+# Worker task processing
+matching.numTaskqueueReadPartitions:
+  - value: 5
+    constraints: {}
+
+matching.numTaskqueueWritePartitions:
+  - value: 5
+    constraints: {}
+
+# History settings
+history.defaultActivityRetryPolicy:
+  - value:
+      InitialIntervalInSeconds: 1
+      MaximumIntervalInSeconds: 100
+      BackoffCoefficient: 2.0
+      MaximumAttempts: 0
+    constraints: {}
+
+# Archival settings (disabled for local dev)
+archival.history.state:
+  - value: "disabled"
+    constraints: {}
+
+archival.visibility.state:
+  - value: "disabled"
+    constraints: {}
