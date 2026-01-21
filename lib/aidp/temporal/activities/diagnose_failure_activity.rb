@@ -63,32 +63,14 @@ module Aidp
 
           case phase.to_sym
           when :test
-            # Extract test failure details
-            output.scan(/(?:FAIL|ERROR|Failure).*?(?=\n\n|\z)/m).each do |match|
-              failures << {
-                type: :test,
-                phase: phase,
-                message: match.strip.slice(0, 500)
-              }
-            end
+            # Extract test failure details - process line by line to avoid ReDoS
+            extract_test_failures(output, failures, phase)
           when :lint
-            # Extract lint errors
-            output.scan(/^.*:\d+:\d+:.*$/m).each do |match|
-              failures << {
-                type: :lint,
-                phase: phase,
-                message: match.strip
-              }
-            end
+            # Extract lint errors - line by line processing
+            extract_lint_failures(output, failures, phase)
           when :typecheck
-            # Extract type errors
-            output.scan(/^.*error.*$/i).each do |match|
-              failures << {
-                type: :typecheck,
-                phase: phase,
-                message: match.strip
-              }
-            end
+            # Extract type errors - line by line processing
+            extract_typecheck_failures(output, failures, phase)
           else
             # Generic failure extraction
             failures << {
@@ -99,6 +81,73 @@ module Aidp
           end
 
           failures.first(20) # Limit to prevent massive payloads
+        end
+
+        def extract_test_failures(output, failures, phase)
+          # Process output in chunks separated by blank lines
+          current_failure = nil
+
+          output.each_line do |line|
+            if line.match?(/\A\s*(FAIL|ERROR|Failure)/i)
+              # Save previous failure if exists
+              if current_failure
+                failures << {
+                  type: :test,
+                  phase: phase,
+                  message: current_failure.strip.slice(0, 500)
+                }
+              end
+              current_failure = line
+            elsif current_failure
+              if line.strip.empty?
+                # End of failure block
+                failures << {
+                  type: :test,
+                  phase: phase,
+                  message: current_failure.strip.slice(0, 500)
+                }
+                current_failure = nil
+              else
+                # Continue accumulating failure message
+                current_failure += line
+              end
+            end
+          end
+
+          # Don't forget the last failure
+          if current_failure
+            failures << {
+              type: :test,
+              phase: phase,
+              message: current_failure.strip.slice(0, 500)
+            }
+          end
+        end
+
+        def extract_lint_failures(output, failures, phase)
+          # Match lint output format: file:line:col: message
+          output.each_line do |line|
+            if line.match?(/\A[^:]+:\d+:\d+:/)
+              failures << {
+                type: :lint,
+                phase: phase,
+                message: line.strip
+              }
+            end
+          end
+        end
+
+        def extract_typecheck_failures(output, failures, phase)
+          # Match lines containing "error" (case insensitive)
+          output.each_line do |line|
+            if line.downcase.include?("error")
+              failures << {
+                type: :typecheck,
+                phase: phase,
+                message: line.strip
+              }
+            end
+          end
         end
 
         def build_failure_summary(failures)

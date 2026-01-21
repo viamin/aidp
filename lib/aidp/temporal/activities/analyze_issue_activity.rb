@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require_relative "base_activity"
 
 module Aidp
@@ -15,6 +16,11 @@ module Aidp
             project_dir = input[:project_dir]
             issue_number = input[:issue_number]
             issue_url = input[:issue_url]
+
+            # Validate issue_number is numeric
+            unless issue_number.to_s.match?(/\A\d+\z/)
+              return error_result("Invalid issue number: must be numeric")
+            end
 
             log_activity("analyzing_issue",
               project_dir: project_dir,
@@ -43,8 +49,9 @@ module Aidp
         private
 
         def fetch_issue(project_dir, issue_number, issue_url)
-          # Try to use GitHub CLI if available
-          if system("which gh > /dev/null 2>&1")
+          # Check if gh CLI is available
+          _stdout, _stderr, status = Open3.capture3("which", "gh")
+          if status.success?
             fetch_with_gh_cli(issue_number)
           elsif issue_url
             fetch_with_url(issue_url)
@@ -59,10 +66,14 @@ module Aidp
         end
 
         def fetch_with_gh_cli(issue_number)
-          output = `gh issue view #{issue_number} --json title,body,labels,comments 2>/dev/null`
-          return nil unless $?.success?
+          # issue_number is validated as numeric in execute()
+          stdout, _stderr, status = Open3.capture3(
+            "gh", "issue", "view", issue_number.to_s,
+            "--json", "title,body,labels,comments"
+          )
+          return nil unless status.success?
 
-          data = JSON.parse(output, symbolize_names: true)
+          data = JSON.parse(stdout, symbolize_names: true)
           {
             number: issue_number,
             title: data[:title],
@@ -74,15 +85,26 @@ module Aidp
 
         def fetch_with_url(issue_url)
           # Parse issue URL to extract owner/repo/number
-          match = issue_url.match(%r{github\.com/([^/]+)/([^/]+)/issues/(\d+)})
+          # This regex is safe - no backtracking issues
+          match = issue_url.match(%r{\Ahttps?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/issues/(\d+)})
           return nil unless match
 
           owner, repo, number = match.captures
 
-          output = `gh issue view #{number} --repo #{owner}/#{repo} --json title,body,labels,comments 2>/dev/null`
-          return nil unless $?.success?
+          # Validate extracted values
+          return nil unless owner.match?(/\A[A-Za-z0-9_.-]+\z/)
+          return nil unless repo.match?(/\A[A-Za-z0-9_.-]+\z/)
+          return nil unless number.match?(/\A\d+\z/)
 
-          data = JSON.parse(output, symbolize_names: true)
+          # Use array-style Open3 to avoid shell injection
+          stdout, _stderr, status = Open3.capture3(
+            "gh", "issue", "view", number,
+            "--repo", "#{owner}/#{repo}",
+            "--json", "title,body,labels,comments"
+          )
+          return nil unless status.success?
+
+          data = JSON.parse(stdout, symbolize_names: true)
           {
             number: number.to_i,
             title: data[:title],
@@ -113,19 +135,25 @@ module Aidp
           # Simple extraction - look for requirement patterns
           requirements = []
 
-          # From body
-          body.scan(/(?:^|\n)[-*]\s*(.+)/).flatten.each do |item|
-            requirements << item.strip if item.length > 10
-          end
+          # From body - process line by line to avoid ReDoS
+          extract_list_items(body, requirements)
 
           # From comments with context
           comments.each do |comment|
-            comment.scan(/(?:^|\n)[-*]\s*(.+)/).flatten.each do |item|
-              requirements << item.strip if item.length > 10
-            end
+            extract_list_items(comment, requirements)
           end
 
           requirements.uniq.first(20)
+        end
+
+        def extract_list_items(text, items)
+          text.each_line do |line|
+            # Match lines starting with - or *
+            if line.match?(/\A\s*[-*]/)
+              content = line.sub(/\A\s*[-*]\s*/, "").strip
+              items << content if content.length > 10
+            end
+          end
         end
 
         def extract_acceptance_criteria(issue_data)
@@ -134,12 +162,17 @@ module Aidp
           # Look for acceptance criteria section
           criteria = []
 
-          if body.include?("Acceptance Criteria") || body.include?("acceptance criteria")
+          if body.downcase.include?("acceptance criteria")
             section = body.split(/acceptance criteria/i).last
             section = section.split(/\n##/).first if section.include?("\n##")
 
-            section.scan(/(?:^|\n)[-*\d.]\s*(.+)/).flatten.each do |item|
-              criteria << item.strip if item.length > 5
+            # Process line by line to avoid ReDoS
+            section.each_line do |line|
+              # Match lines starting with -, *, or numbers
+              if line.match?(/\A\s*[-*\d.]/)
+                content = line.sub(/\A\s*[-*\d.]+\s*/, "").strip
+                criteria << content if content.length > 5
+              end
             end
           end
 

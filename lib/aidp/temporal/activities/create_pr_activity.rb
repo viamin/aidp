@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require_relative "base_activity"
 
 module Aidp
@@ -16,6 +17,11 @@ module Aidp
             issue_number = input[:issue_number]
             implementation = input[:implementation]
             iterations = input[:iterations]
+
+            # Validate issue_number is numeric to prevent injection
+            unless issue_number.to_s.match?(/\A\d+\z/)
+              return error_result("Invalid issue number: must be numeric")
+            end
 
             log_activity("creating_pr",
               project_dir: project_dir,
@@ -67,37 +73,39 @@ module Aidp
         private
 
         def has_uncommitted_changes?(project_dir)
-          Dir.chdir(project_dir) do
-            status = `git status --porcelain 2>/dev/null`.strip
-            !status.empty?
-          end
+          stdout, _stderr, status = Open3.capture3("git", "status", "--porcelain", chdir: project_dir)
+          status.success? && !stdout.strip.empty?
         end
 
         def has_unpushed_commits?(project_dir)
-          Dir.chdir(project_dir) do
-            # Check if we have commits not on remote
-            ahead = `git rev-list --count @{upstream}..HEAD 2>/dev/null`.strip.to_i
-            ahead > 0
-          rescue
-            false
-          end
+          stdout, _stderr, status = Open3.capture3(
+            "git", "rev-list", "--count", "@{upstream}..HEAD",
+            chdir: project_dir
+          )
+          status.success? && stdout.strip.to_i > 0
+        rescue
+          false
         end
 
         def ensure_branch(project_dir, issue_number)
+          # issue_number is validated as numeric in execute()
           branch_name = "aidp/issue-#{issue_number}"
 
-          Dir.chdir(project_dir) do
-            current_branch = `git branch --show-current`.strip
+          stdout, _stderr, _status = Open3.capture3("git", "branch", "--show-current", chdir: project_dir)
+          current_branch = stdout.strip
 
-            if current_branch != branch_name
-              # Check if branch exists
-              branch_exists = system("git show-ref --verify --quiet refs/heads/#{branch_name}")
+          if current_branch != branch_name
+            # Check if branch exists using array-style system call
+            ref_path = "refs/heads/#{branch_name}"
+            _stdout, _stderr, status = Open3.capture3(
+              "git", "show-ref", "--verify", "--quiet", ref_path,
+              chdir: project_dir
+            )
 
-              if branch_exists
-                `git checkout #{branch_name} 2>/dev/null`
-              else
-                `git checkout -b #{branch_name} 2>/dev/null`
-              end
+            if status.success?
+              Open3.capture3("git", "checkout", branch_name, chdir: project_dir)
+            else
+              Open3.capture3("git", "checkout", "-b", branch_name, chdir: project_dir)
             end
           end
 
@@ -105,63 +113,72 @@ module Aidp
         end
 
         def commit_changes(project_dir, issue_number, iterations)
-          Dir.chdir(project_dir) do
-            `git add -A`
+          # Stage all changes
+          Open3.capture3("git", "add", "-A", chdir: project_dir)
 
-            commit_message = build_commit_message(issue_number, iterations)
-            `git commit -m "#{commit_message}"`
-          end
+          # Build commit message (issue_number validated as numeric)
+          commit_message = build_commit_message(issue_number, iterations)
+
+          # Use array-style to avoid shell injection
+          Open3.capture3("git", "commit", "-m", commit_message, chdir: project_dir)
         end
 
         def build_commit_message(issue_number, iterations)
-          "fix: implement changes for issue ##{issue_number}\\n\\n" \
-            "Implemented via AIDP Temporal workflow\\n" \
-            "Iterations: #{iterations}\\n\\n" \
+          # issue_number is validated as numeric, iterations is an integer
+          safe_iterations = iterations.to_i
+
+          "fix: implement changes for issue ##{issue_number}\n\n" \
+            "Implemented via AIDP Temporal workflow\n" \
+            "Iterations: #{safe_iterations}\n\n" \
             "Closes ##{issue_number}"
         end
 
         def push_branch(project_dir, branch_name)
-          Dir.chdir(project_dir) do
-            `git push -u origin #{branch_name} 2>&1`
-          end
+          # branch_name is constructed from validated issue_number
+          Open3.capture3("git", "push", "-u", "origin", branch_name, chdir: project_dir)
         end
 
         def create_pull_request(project_dir:, branch_name:, issue_number:, implementation:, iterations:)
-          Dir.chdir(project_dir) do
-            title = "Fix ##{issue_number}"
-            body = build_pr_body(issue_number, implementation, iterations)
+          # issue_number is validated as numeric
+          title = "Fix ##{issue_number}"
+          body = build_pr_body(issue_number, implementation, iterations)
 
-            # Use GitHub CLI to create PR
-            result = `gh pr create --title "#{title}" --body "#{body}" 2>&1`
+          # Use array-style Open3 to avoid shell injection
+          stdout, stderr, status = Open3.capture3(
+            "gh", "pr", "create", "--title", title, "--body", body,
+            chdir: project_dir
+          )
 
-            if $?.success?
-              # Extract PR URL from output
-              pr_url = result.strip
-              pr_number = pr_url.split("/").last.to_i
+          if status.success?
+            # Extract PR URL from output
+            pr_url = stdout.strip
+            pr_number = pr_url.split("/").last.to_i
 
-              {
-                success: true,
-                pr_url: pr_url,
-                pr_number: pr_number
-              }
-            else
-              {
-                success: false,
-                error: result
-              }
-            end
+            {
+              success: true,
+              pr_url: pr_url,
+              pr_number: pr_number
+            }
+          else
+            {
+              success: false,
+              error: stderr.empty? ? stdout : stderr
+            }
           end
         end
 
         def build_pr_body(issue_number, implementation, iterations)
-          <<~BODY.gsub('"', '\\"')
+          # issue_number validated as numeric, iterations is integer
+          safe_iterations = iterations.to_i
+
+          <<~BODY
             ## Summary
 
             Implements changes requested in ##{issue_number}
 
             ## Implementation Details
 
-            This PR was created via AIDP Temporal workflow after #{iterations} iterations of the fix-forward work loop.
+            This PR was created via AIDP Temporal workflow after #{safe_iterations} iterations of the fix-forward work loop.
 
             ## Testing
 

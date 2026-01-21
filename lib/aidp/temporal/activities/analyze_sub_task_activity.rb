@@ -87,23 +87,32 @@ module Aidp
 
           sub_tasks = []
 
-          # Look for numbered lists
-          description.scan(/^\d+[.)]\s*(.+)$/m).flatten.each do |item|
-            sub_tasks << {
-              description: item.strip,
-              estimated_iterations: estimate_iterations(item)
-            }
-          end
-
-          # Look for bullet points
-          if sub_tasks.empty?
-            description.scan(/^[-*]\s*(.+)$/m).flatten.each do |item|
-              next if item.length < 10
+          # Look for numbered lists - process line by line to avoid ReDoS
+          description.each_line do |line|
+            if line.match?(/^\d+[.)]/)
+              # Extract content after the number marker
+              content = line.sub(/^\d+[.)]\s*/, "").strip
+              next if content.empty?
 
               sub_tasks << {
-                description: item.strip,
-                estimated_iterations: estimate_iterations(item)
+                description: content,
+                estimated_iterations: estimate_iterations(content)
               }
+            end
+          end
+
+          # Look for bullet points if no numbered items found
+          if sub_tasks.empty?
+            description.each_line do |line|
+              if line.match?(/^[-*]/)
+                content = line.sub(/^[-*]\s*/, "").strip
+                next if content.length < 10
+
+                sub_tasks << {
+                  description: content,
+                  estimated_iterations: estimate_iterations(content)
+                }
+              end
             end
           end
 
@@ -116,11 +125,17 @@ module Aidp
 
           affected = []
 
-          # Look for file paths in description
-          description.scan(%r{[\w/]+\.(rb|py|js|ts|jsx|tsx|go|rs)}).each do |match|
-            file_path = match.is_a?(Array) ? match.first : match
-            full_path = File.join(project_dir, file_path)
-            affected << file_path if File.exist?(full_path)
+          # Look for file paths in description - use word boundaries to avoid ReDoS
+          # Match patterns like "lib/foo/bar.rb" with limited path depth
+          file_extensions = %w[rb py js ts jsx tsx go rs]
+          file_extensions.each do |ext|
+            # Use a simpler pattern that matches word characters and slashes, limited depth
+            description.scan(/\b([\w][\w\/]{0,100}\.#{ext})\b/).flatten.each do |file_path|
+              next unless file_path.include?("/") || file_path.match?(/^\w+\.#{ext}$/)
+
+              full_path = File.join(project_dir, file_path)
+              affected << file_path if File.exist?(full_path)
+            end
           end
 
           # Look for common patterns
