@@ -17,6 +17,7 @@ code_maat_analysis_report.md
 .aidp-analyze-tools.yml
 .aidp-progress.yml
 .aidp/
+.aidp_backup*
 
 # Aidp workstreams
 .worktrees/
@@ -26,6 +27,8 @@ code_maat_analysis_report.md
 *.log
 tmp/aruba/*
 coverage/*
+.cache
+.local
 
 # devcontainer caches
 vendor/bundle/*
