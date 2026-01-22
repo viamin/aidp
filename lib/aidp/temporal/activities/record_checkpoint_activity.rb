@@ -61,7 +61,7 @@ module Aidp
           {
             checks_passing: passing,
             checks_total: total,
-            pass_rate: total > 0 ? (passing.to_f / total * 100).round(1) : 0
+            pass_rate: (total > 0) ? (passing.to_f / total * 100).round(1) : 0
           }
         end
 

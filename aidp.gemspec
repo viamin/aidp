@@ -39,5 +39,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "tty-spinner", "~> 0.9"
   s.add_runtime_dependency "tty-table", "~> 0.12"
   s.add_runtime_dependency "sqlite3", "~> 2.0"
-  s.add_runtime_dependency "temporalio", "~> 0.3"
+  s.add_runtime_dependency "temporalio", "~> 1.0"
 end

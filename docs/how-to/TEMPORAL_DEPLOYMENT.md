@@ -22,6 +22,7 @@ docker-compose -f docker-compose.temporal.yml up -d
 ```
 
 This starts:
+
 - PostgreSQL (persistence backend)
 - Temporal Server (port 7233)
 - Temporal UI (port 8080)
@@ -120,7 +121,7 @@ temporal:
 Environment variables override aidp.yml settings:
 
 | Variable | Description |
-|----------|-------------|
+| -------- | ----------- |
 | `TEMPORAL_HOST` | Server address (e.g., `localhost:7233`) |
 | `TEMPORAL_NAMESPACE` | Namespace name |
 | `TEMPORAL_TASK_QUEUE` | Task queue name |
@@ -203,7 +204,7 @@ Child workflow for decomposed tasks. Supports recursive decomposition when tasks
 Workflows support these signals for external control:
 
 | Signal | Description |
-|--------|-------------|
+| ------ | ----------- |
 | `pause` | Pause workflow execution |
 | `resume` | Resume paused workflow |
 | `inject_instruction` | Add instruction for next iteration |
@@ -214,7 +215,7 @@ Workflows support these signals for external control:
 Query workflow state without affecting execution:
 
 | Query | Description |
-|-------|-------------|
+| ----- | ----------- |
 | `current_state` | Current workflow state |
 | `iteration_count` | Number of iterations completed |
 | `progress` | Full progress summary |
@@ -268,9 +269,10 @@ temporal:
 
 ### Temporal UI
 
-Access at http://localhost:8080 (local) or cloud dashboard.
+Access at <http://localhost:8080> (local) or cloud dashboard.
 
 Features:
+
 - Workflow list and search
 - Execution history
 - Pending activities
@@ -297,7 +299,7 @@ AIDP_LOG_LEVEL=debug aidp temporal worker
 
 ### Connection Issues
 
-```
+```text
 Error: failed to connect to temporal server
 ```
 
@@ -308,7 +310,7 @@ Error: failed to connect to temporal server
 
 ### Workflow Not Found
 
-```
+```text
 Error: workflow not found
 ```
 
@@ -318,7 +320,7 @@ Error: workflow not found
 
 ### Activity Timeouts
 
-```
+```text
 Error: activity timeout
 ```
 

@@ -12,7 +12,13 @@ RSpec.describe Aidp::Temporal::WorkflowClient do
   end
 
   describe "#start_workflow" do
-    let(:workflow_class) { Class.new { def self.name; "TestWorkflow"; end } }
+    let(:workflow_class) {
+      Class.new {
+        def self.name
+          "TestWorkflow"
+        end
+      }
+    }
     let(:input) { {key: "value"} }
     let(:workflow_handle) { instance_double(Temporalio::Client::WorkflowHandle, id: "test_workflow_123", result_run_id: "run_123") }
 
@@ -57,7 +63,13 @@ RSpec.describe Aidp::Temporal::WorkflowClient do
   end
 
   describe "#execute_workflow" do
-    let(:workflow_class) { Class.new { def self.name; "TestWorkflow"; end } }
+    let(:workflow_class) {
+      Class.new {
+        def self.name
+          "TestWorkflow"
+        end
+      }
+    }
     let(:input) { {key: "value"} }
     let(:workflow_handle) { instance_double(Temporalio::Client::WorkflowHandle, id: "test_123", result_run_id: "run_123") }
     let(:result) { {status: "completed"} }

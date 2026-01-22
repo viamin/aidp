@@ -130,7 +130,7 @@ module Aidp
           file_extensions = %w[rb py js ts jsx tsx go rs]
           file_extensions.each do |ext|
             # Use a simpler pattern that matches word characters and slashes, limited depth
-            description.scan(/\b([\w][\w\/]{0,100}\.#{ext})\b/).flatten.each do |file_path|
+            description.scan(/\b(\w[\w\/]{0,100}\.#{ext})\b/).flatten.each do |file_path|
               next unless file_path.include?("/") || file_path.match?(/^\w+\.#{ext}$/)
 
               full_path = File.join(project_dir, file_path)

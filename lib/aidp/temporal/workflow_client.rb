@@ -121,7 +121,7 @@ module Aidp
       def list_workflows(query: nil, page_size: 100)
         client = @connection.connect
 
-        options = { page_size: page_size }
+        options = {page_size: page_size}
         options[:query] = query if query
 
         client.list_workflows(**options)

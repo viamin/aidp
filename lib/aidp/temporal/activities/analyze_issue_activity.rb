@@ -55,8 +55,6 @@ module Aidp
             fetch_with_gh_cli(issue_number)
           elsif issue_url
             fetch_with_url(issue_url)
-          else
-            nil
           end
         rescue => e
           Aidp.log_error("analyze_issue_activity", "fetch_failed",
@@ -164,7 +162,7 @@ module Aidp
 
           if body.downcase.include?("acceptance criteria")
             section = body.split(/acceptance criteria/i).last
-            section = section.split(/\n##/).first if section.include?("\n##")
+            section = section.split("\n##").first if section.include?("\n##")
 
             # Process line by line to avoid ReDoS
             section.each_line do |line|

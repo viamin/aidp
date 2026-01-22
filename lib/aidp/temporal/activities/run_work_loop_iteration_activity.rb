@@ -243,7 +243,7 @@ module Aidp
 
         def truncate(text, max_length)
           return "" unless text
-          text.length > max_length ? "#{text.slice(0, max_length)}\n...(truncated)" : text
+          (text.length > max_length) ? "#{text.slice(0, max_length)}\n...(truncated)" : text
         end
       end
     end

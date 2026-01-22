@@ -156,10 +156,10 @@ module Aidp
         client = Aidp::Temporal.workflow_client(@project_dir)
         workflows = client.list_workflows(query: query)
 
-        if workflows.respond_to?(:to_a)
-          workflow_list = workflows.to_a
+        workflow_list = if workflows.respond_to?(:to_a)
+          workflows.to_a
         else
-          workflow_list = []
+          []
         end
 
         if workflow_list.empty?
