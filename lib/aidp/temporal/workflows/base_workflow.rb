@@ -7,9 +7,7 @@ module Aidp
     module Workflows
       # Base class for AIDP Temporal workflows
       # Provides common patterns and utilities for workflow implementations
-      class BaseWorkflow
-        extend Temporalio::Workflow::Definition
-
+      class BaseWorkflow < Temporalio::Workflow::Definition
         # Default activity options applied to all activities
         DEFAULT_ACTIVITY_OPTIONS = {
           start_to_close_timeout: 600,    # 10 minutes

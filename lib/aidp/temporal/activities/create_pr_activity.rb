@@ -9,7 +9,6 @@ module Aidp
       # Activity that creates a pull request from implemented changes
       # Handles git operations and GitHub PR creation
       class CreatePrActivity < BaseActivity
-        activity_type "create_pr"
 
         def execute(input)
           with_activity_context do

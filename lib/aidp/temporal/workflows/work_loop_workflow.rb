@@ -12,22 +12,24 @@ module Aidp
       # State machine:
       # READY → APPLY_PATCH → TEST → {PASS → DONE | FAIL → DIAGNOSE → NEXT_PATCH} → READY
       class WorkLoopWorkflow < BaseWorkflow
-        workflow_type "work_loop"
-
         # Query handlers
-        query_handler def current_state
+        workflow_query
+        def current_state
           @state
         end
 
-        query_handler def iteration_count
+        workflow_query
+        def iteration_count
           @iteration
         end
 
-        query_handler def test_results
+        workflow_query
+        def test_results
           @last_test_results
         end
 
-        query_handler def progress
+        workflow_query
+        def progress
           {
             state: @state,
             iteration: @iteration,
@@ -39,17 +41,20 @@ module Aidp
         end
 
         # Signal handlers
-        signal_handler def pause
+        workflow_signal
+        def pause
           @paused = true
           log_workflow("paused", iteration: @iteration)
         end
 
-        signal_handler def resume
+        workflow_signal
+        def resume
           @paused = false
           log_workflow("resumed", iteration: @iteration)
         end
 
-        signal_handler def inject_instruction(instruction)
+        workflow_signal
+        def inject_instruction(instruction)
           @instruction_queue ||= []
           @instruction_queue << {
             content: instruction,
@@ -59,7 +64,8 @@ module Aidp
           log_workflow("instruction_queued", queue_size: @instruction_queue.length)
         end
 
-        signal_handler def escalate_model
+        workflow_signal
+        def escalate_model
           @escalate_requested = true
           log_workflow("escalation_requested", current_iteration: @iteration)
         end

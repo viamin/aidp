@@ -12,17 +12,17 @@ module Aidp
       # Used by IssueToPrWorkflow to break down complex issues
       # into smaller, manageable sub-tasks executed in parallel
       class SubIssueWorkflow < BaseWorkflow
-        workflow_type "sub_issue"
-
         # Maximum depth for recursive decomposition
         MAX_RECURSION_DEPTH = 3
 
         # Query handlers
-        query_handler def current_state
+        workflow_query
+        def current_state
           @state
         end
 
-        query_handler def progress
+        workflow_query
+        def progress
           {
             state: @state,
             sub_issue_id: @sub_issue_id,
@@ -34,17 +34,19 @@ module Aidp
         end
 
         # Signal handlers
-        signal_handler def pause
+        workflow_signal
+        def pause
           @paused = true
           log_workflow("paused")
         end
 
-        signal_handler def resume
+        workflow_signal
+        def resume
           @paused = false
           log_workflow("resumed")
         end
 
-        # Main execution
+        # Main workflow execution
         def execute(input)
           initialize_state(input)
           log_workflow("started",

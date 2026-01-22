@@ -8,7 +8,6 @@ module Aidp
       # Activity that analyzes test/lint failures and prepares feedback
       # Extracts actionable information from failure output
       class DiagnoseFailureActivity < BaseActivity
-        activity_type "diagnose_failure"
 
         def execute(input)
           with_activity_context do

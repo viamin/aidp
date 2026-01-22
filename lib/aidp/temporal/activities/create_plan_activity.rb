@@ -8,7 +8,6 @@ module Aidp
       # Activity that creates an implementation plan from issue analysis
       # Generates step-by-step plan with dependencies
       class CreatePlanActivity < BaseActivity
-        activity_type "create_plan"
 
         def execute(input)
           with_activity_context do

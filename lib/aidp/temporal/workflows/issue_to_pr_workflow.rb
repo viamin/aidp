@@ -12,18 +12,19 @@ module Aidp
       # State machine:
       # INIT → ANALYZE → PLAN → IMPLEMENT → TEST → {PASS → CREATE_PR | FAIL → IMPLEMENT} → COMPLETE
       class IssueToPrWorkflow < BaseWorkflow
-        workflow_type "issue_to_pr"
-
         # Query handlers for workflow state
-        query_handler def current_state
+        workflow_query
+        def current_state
           @state
         end
 
-        query_handler def iteration_count
+        workflow_query
+        def iteration_count
           @iteration
         end
 
-        query_handler def progress
+        workflow_query
+        def progress
           {
             state: @state,
             iteration: @iteration,
@@ -35,17 +36,20 @@ module Aidp
         end
 
         # Signal handlers for external control
-        signal_handler def pause
+        workflow_signal
+        def pause
           @paused = true
           log_workflow("paused")
         end
 
-        signal_handler def resume
+        workflow_signal
+        def resume
           @paused = false
           log_workflow("resumed")
         end
 
-        signal_handler def inject_instruction(instruction)
+        workflow_signal
+        def inject_instruction(instruction)
           @injected_instructions ||= []
           @injected_instructions << instruction
           log_workflow("instruction_injected", instruction_length: instruction.length)

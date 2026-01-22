@@ -8,7 +8,6 @@ module Aidp
       # Activity that runs tests and linters
       # Wraps AIDP test runner with Temporal durability
       class RunTestsActivity < BaseActivity
-        activity_type "run_tests"
 
         def execute(input)
           with_activity_context do

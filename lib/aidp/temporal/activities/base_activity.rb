@@ -7,8 +7,7 @@ module Aidp
     module Activities
       # Base class for AIDP Temporal activities
       # Provides common patterns and utilities for activity implementations
-      class BaseActivity
-        extend Temporalio::Activity::Definition
+      class BaseActivity < Temporalio::Activity::Definition
 
         # Activity context (set by Temporal)
         def activity_context

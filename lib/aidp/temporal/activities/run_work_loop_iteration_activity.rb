@@ -9,7 +9,6 @@ module Aidp
       # Combines agent execution and testing in one activity
       # Used by IssueToPrWorkflow for simplified orchestration
       class RunWorkLoopIterationActivity < BaseActivity
-        activity_type "run_work_loop_iteration"
 
         def execute(input)
           with_activity_context do
