@@ -155,13 +155,13 @@ RSpec.describe Aidp::Temporal::WorkflowClient do
     it "terminates a workflow" do
       client.terminate_workflow("workflow_123")
 
-      expect(workflow_handle).to have_received(:terminate).with(reason: nil)
+      expect(workflow_handle).to have_received(:terminate).with(nil)
     end
 
     it "passes termination reason" do
       client.terminate_workflow("workflow_123", reason: "test reason")
 
-      expect(workflow_handle).to have_received(:terminate).with(reason: "test reason")
+      expect(workflow_handle).to have_received(:terminate).with("test reason")
     end
   end
 
@@ -193,7 +193,12 @@ RSpec.describe Aidp::Temporal::WorkflowClient do
 
     context "when workflow is not found" do
       before do
-        allow(workflow_handle).to receive(:describe).and_raise(Temporalio::Error::WorkflowNotFoundError.new("not found"))
+        not_found_error = Temporalio::Error::RPCError.new(
+          "workflow not found",
+          code: Temporalio::Error::RPCError::Code::NOT_FOUND,
+          raw_grpc_status: nil
+        )
+        allow(workflow_handle).to receive(:describe).and_raise(not_found_error)
       end
 
       it "returns false" do

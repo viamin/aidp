@@ -1,12 +1,15 @@
 # frozen_string_literal: true
 
+require "date"
+require "yaml"
+
 module Aidp
   module Temporal
     # Configuration management for Temporal integration
     # Loads settings from aidp.yml and environment variables
     class Configuration
       DEFAULT_CONFIG = {
-        enabled: true,
+        enabled: false,  # Disabled by default - users must explicitly opt-in
         target_host: "localhost:7233",
         namespace: "default",
         task_queue: "aidp-workflows",

@@ -153,8 +153,12 @@ module Aidp
         start_time: desc.start_time,
         close_time: desc.close_time
       }
-    rescue Temporalio::Error::WorkflowNotFoundError
-      {type: :temporal, workflow_id: workflow_id, status: "not_found"}
+    rescue Temporalio::Error::RPCError => e
+      if e.code == Temporalio::Error::RPCError::Code::NOT_FOUND
+        {type: :temporal, workflow_id: workflow_id, status: "not_found"}
+      else
+        raise
+      end
     end
 
     def cancel_temporal_workflow(workflow_id)

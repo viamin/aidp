@@ -7,7 +7,13 @@ RSpec.describe Aidp::OrchestrationAdapter do
   let(:project_dir) { Dir.mktmpdir }
   let(:adapter) { described_class.new(project_dir: project_dir) }
 
+  before do
+    # Reset Temporal configuration cache to avoid test pollution
+    Aidp::Temporal.reset! if defined?(Aidp::Temporal)
+  end
+
   after do
+    Aidp::Temporal.reset! if defined?(Aidp::Temporal)
     FileUtils.rm_rf(project_dir)
   end
 

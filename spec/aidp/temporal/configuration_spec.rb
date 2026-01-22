@@ -76,12 +76,26 @@ RSpec.describe Aidp::Temporal::Configuration do
   end
 
   describe "#enabled?" do
-    it "returns true by default" do
+    it "returns false by default (opt-in)" do
       config = described_class.new(project_dir)
-      expect(config.enabled?).to be true
+      expect(config.enabled?).to be false
     end
 
-    context "when disabled in config" do
+    context "when enabled in config" do
+      before do
+        File.write(config_path, <<~YAML)
+          temporal:
+            enabled: true
+        YAML
+      end
+
+      it "returns true" do
+        config = described_class.new(project_dir)
+        expect(config.enabled?).to be true
+      end
+    end
+
+    context "when explicitly disabled in config" do
       before do
         File.write(config_path, <<~YAML)
           temporal:

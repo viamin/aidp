@@ -91,7 +91,7 @@ module Aidp
           workflow_id: workflow_id,
           reason: reason)
 
-        handle.terminate(reason: reason)
+        handle.terminate(reason)
       end
 
       # Get workflow result (waits for completion)
@@ -113,8 +113,11 @@ module Aidp
         handle = get_workflow(workflow_id)
         desc = handle.describe
         desc.status == :running
-      rescue Temporalio::Error::WorkflowNotFoundError
-        false
+      rescue Temporalio::Error::RPCError => e
+        # NOT_FOUND means workflow doesn't exist
+        return false if e.code == Temporalio::Error::RPCError::Code::NOT_FOUND
+
+        raise
       end
 
       # List workflows with optional filters
