@@ -1279,7 +1279,83 @@ class TestPrompt
     /^Warning: [\w.@-]+ was considered valid by email validation$/,
 
     # Test error output
-    /^\s+Test error$/
+    /^\s+Test error$/,
+
+    # Sub-issue creation messages (watch mode)
+    /🔨 Creating \d+ sub-issues? for #\d+/,
+    /[✓✗] Created sub-issue #\d+:/,
+    /[✓✗] Failed to create sub-issue \d+:/,
+    /📊 Linking issues to project/,
+    /[✓✗] Linked parent issue #\d+/,
+    /[✓✗] Linked sub-issue #\d+/,
+    /[✓✗] Failed to link parent issue:/,
+    /[✓✗] Failed to link sub-issue #\d+:/,
+    /💬 Posted sub-issues summary to parent issue #\d+/,
+    /⚠️  Failed to post summary comment:/,
+
+    # MCP Server Dashboard output
+    /^MCP Server Dashboard$/,
+    /^MCP Server \w+$/,
+    /^No MCP servers configured/,
+    /^Add MCP servers with:/,
+    /^No providers with MCP support configured/,
+    /^filesystem [✓✗-]/,
+    /^Legend: [✓✗-] = /,
+    /^⚠ Eligibility Warnings:/,
+    /^These providers won't be eligible/,
+    /^Task Eligibility Check$/,
+    /^Required MCP Servers:/,
+    /^[✓✗] No providers have all required/,
+    /^Consider configuring MCP servers/,
+
+    # Agent instructions symlink output
+    %r{^\s+- \.github/[\w-]+\.md -> AGENTS\.md$},
+    %r{^\s+- [\w./]+ -> AGENTS\.md$},
+
+    # Auto-detected tooling output
+    /Auto-detected tooling:/,
+    /\d+\. \[(test|lint)\] /,
+
+    # Workstream status output - removed patterns that break tests
+    # NOTE: Tests verify "No workstreams found.", "Branch deleted", "Workstream: X" etc.
+    # Only suppress workstream output that isn't verified by tests
+
+    # Configuration file error (temp directories in tests)
+    /^Failed to load configuration file \/tmp\//,
+    /^Failed to load provider info for \w+:/,
+
+    # MCP eligibility messages (additional)
+    /^\s+These providers won't be eligible/,
+    /^\s+Consider configuring MCP servers/,
+
+    # Git init hints
+    /^hint: Using '\w+' as the name for the initial branch/,
+    /^hint: is subject to change/,
+    /^hint: of your new repositories/,
+    /^hint:\s*$/,
+    /^hint: \t/,
+    /^hint: Names commonly chosen/,
+    /^hint: The just-created branch/,
+    /^hint: 	git /,
+
+    # Git init and branch messages
+    /^Initialized empty Git repository/,
+    /^Switched to a new branch '\w+'/,
+
+    # CI/Environment git signing errors
+    /^error: Debug: Namespace set to/,
+    /^Debug: Key file set to/,
+    /^Error: signing failed:/,
+    /signing operation failed:/,
+    /^\s+Usage:$/,
+    /^\s+environment-runner code-sign/,
+    /^Flags:$/,
+    /^\s+-h, --help\s+help for/,
+    /^fatal: failed to write commit object$/,
+
+    # Config diff output (YAML config changes)
+    /^\+\s+- spec\/\*\*\/\*_spec\.rb$/,
+    /^\+\s+- lib\/\*\*\/\*\.rb$/
   ].freeze
 
   def say(message, **options)
