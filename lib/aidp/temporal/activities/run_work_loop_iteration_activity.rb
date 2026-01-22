@@ -9,7 +9,6 @@ module Aidp
       # Combines agent execution and testing in one activity
       # Used by IssueToPrWorkflow for simplified orchestration
       class RunWorkLoopIterationActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

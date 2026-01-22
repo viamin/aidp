@@ -8,7 +8,6 @@ module Aidp
       # Activity that records a checkpoint for progress tracking
       # Persists state for recovery and observability
       class RecordCheckpointActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

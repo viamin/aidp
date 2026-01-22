@@ -8,7 +8,6 @@ module Aidp
       # Activity that creates the initial PROMPT.md for a work loop
       # Assembles context, instructions, and constraints
       class CreatePromptActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

@@ -9,7 +9,6 @@ module Aidp
       # Activity that analyzes a GitHub issue
       # Extracts requirements, acceptance criteria, and context
       class AnalyzeIssueActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

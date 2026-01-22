@@ -8,7 +8,6 @@ module Aidp
       # Activity that executes an AI agent iteration
       # Wraps the existing AIDP agent execution with Temporal durability
       class RunAgentActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

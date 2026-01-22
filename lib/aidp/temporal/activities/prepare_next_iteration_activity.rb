@@ -8,7 +8,6 @@ module Aidp
       # Activity that prepares for the next work loop iteration
       # Updates PROMPT.md with relevant context for continued work
       class PrepareNextIterationActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

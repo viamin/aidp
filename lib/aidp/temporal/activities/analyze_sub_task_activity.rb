@@ -8,7 +8,6 @@ module Aidp
       # Activity that analyzes a sub-task for decomposition
       # Determines complexity and identifies further sub-tasks if needed
       class AnalyzeSubTaskActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

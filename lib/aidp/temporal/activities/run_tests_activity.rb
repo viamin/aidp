@@ -8,7 +8,6 @@ module Aidp
       # Activity that runs tests and linters
       # Wraps AIDP test runner with Temporal durability
       class RunTestsActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]

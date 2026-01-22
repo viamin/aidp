@@ -8,7 +8,6 @@ module Aidp
       # Activity that analyzes test/lint failures and prepares feedback
       # Extracts actionable information from failure output
       class DiagnoseFailureActivity < BaseActivity
-
         def execute(input)
           with_activity_context do
             project_dir = input[:project_dir]
