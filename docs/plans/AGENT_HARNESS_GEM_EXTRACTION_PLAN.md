@@ -28,9 +28,10 @@ This plan details the extraction of AIDP's agent CLI interaction code into a sta
 8. [Token Usage Tracking](#8-token-usage-tracking)
 9. [MCP Support](#9-mcp-support)
 10. [AIDP Adaptation](#10-aidp-adaptation)
-11. [Migration Strategy](#11-migration-strategy)
-12. [Testing Strategy](#12-testing-strategy)
-13. [Phased Implementation](#13-phased-implementation)
+11. [Preparation Work (Pre-Extraction Refactoring)](#11-preparation-work-pre-extraction-refactoring)
+12. [Migration Strategy (Post-Preparation)](#12-migration-strategy-post-preparation)
+13. [Testing Strategy](#13-testing-strategy)
+14. [Phased Implementation](#14-phased-implementation)
 
 ---
 
@@ -2053,7 +2054,309 @@ end
 
 ---
 
-## 11. Migration Strategy
+## 11. Preparation Work (Pre-Extraction Refactoring)
+
+Before beginning the extraction, several refactoring tasks can be performed in AIDP to create cleaner seams and reduce extraction complexity. This work can be done incrementally alongside planning.
+
+### 11.1 AIDP-Specific Coupling to Remove
+
+The following AIDP-specific dependencies are scattered throughout the provider and harness code:
+
+| Coupling Type | Count | Files Affected | Abstraction Needed |
+|---------------|-------|----------------|-------------------|
+| `Aidp.log_*` calls | 150+ | 25+ | Logger interface |
+| `TTY::*` components | 50+ | 6 | UI abstraction |
+| `Aidp::Harness::*` classes | 20+ | 5 | Interface extraction |
+| `ENV["AIDP_*"]` vars | 8 | 4 | Config provider |
+| `.aidp/` file paths | 10+ | 4 | Path provider |
+| `Aidp::Util.*` calls | 15+ | 8 | Utility interfaces |
+| `Aidp::*` mixins | 10+ | 10 | Composition |
+
+### 11.2 Pre-Extraction Refactoring Tasks
+
+#### Phase 0A: Create Abstraction Interfaces (Can Start Immediately)
+
+**Task 0A.1: Extract Logger Interface**
+```ruby
+# lib/aidp/interfaces/logger_interface.rb
+module Aidp
+  module Interfaces
+    module LoggerInterface
+      def log_debug(component, message, **context); end
+      def log_info(component, message, **context); end
+      def log_warn(component, message, **context); end
+      def log_error(component, message, **context); end
+    end
+  end
+end
+```
+- Create interface in AIDP
+- Gradually migrate providers to use injected logger
+- Agent-harness will use this same interface
+
+**Task 0A.2: Extract Command Executor Interface**
+```ruby
+# lib/aidp/interfaces/command_executor_interface.rb
+module Aidp
+  module Interfaces
+    module CommandExecutorInterface
+      def execute(command, args:, input: nil, timeout: nil, env: {})
+        # Returns Result with stdout, stderr, exit_code
+      end
+      def which(binary); end
+    end
+  end
+end
+```
+- Replace `Aidp::Util.which()` and `debug_execute_command()` calls
+- Inject executor into providers
+
+**Task 0A.3: Extract Binary Checker Interface**
+```ruby
+# lib/aidp/interfaces/binary_checker_interface.rb
+module Aidp
+  module Interfaces
+    module BinaryCheckerInterface
+      def available?(binary_name, timeout: 3); end
+      def version(binary_name); end
+    end
+  end
+end
+```
+- Used by `available?()` checks in providers
+- Can cache results with TTL
+
+#### Phase 0B: Standardize Provider Implementations (Critical)
+
+**Task 0B.1: Implement Missing Model Interface Methods**
+
+GitHub Copilot is missing critical model methods:
+- [ ] Add `MODEL_PATTERN` constant
+- [ ] Add `discover_models()` class method
+- [ ] Add `supports_model_family?()` class method
+- [ ] Add `model_family()` class method
+- [ ] Add `provider_model_name()` class method
+
+**Task 0B.2: Standardize Error Patterns**
+
+All providers should implement `error_patterns()`:
+```ruby
+def error_patterns
+  {
+    rate_limited: [/rate.?limit/i, /too many requests/i],
+    auth_expired: [/unauthorized/i, /invalid.*key/i],
+    quota_exceeded: [/quota/i, /billing/i],
+    timeout: [/timeout/i, /timed.?out/i],
+    transient: [/temporary/i, /retry/i],
+    permanent: [/invalid/i, /malformed/i]
+  }
+end
+```
+
+Current status:
+- ✅ Anthropic: Full implementation
+- ❌ Cursor: Missing
+- ❌ Gemini: Missing
+- ❌ GitHub Copilot: Missing
+- ❌ Codex: Missing
+- ❌ Aider: Missing
+- ❌ OpenCode: Missing
+- ❌ Kilocode: Missing
+
+**Task 0B.3: Standardize Input Passing Pattern**
+
+Decide on canonical pattern and apply to all:
+```ruby
+# Option A: Use input parameter (preferred - separates prompt from flags)
+debug_execute_command(binary, args: flags, input: prompt, timeout: timeout)
+
+# Option B: Include in args (current mixed approach)
+debug_execute_command(binary, args: [..., "--prompt", prompt], timeout: timeout)
+```
+
+Providers needing update if Option A chosen:
+- Gemini
+- GitHub Copilot
+- Codex
+- OpenCode
+
+**Task 0B.4: Standardize Dangerous Mode Handling**
+
+All providers should implement `dangerous_mode_flags()` from adapter:
+```ruby
+def dangerous_mode_flags
+  ["--flag-for-this-provider"]  # or []
+end
+```
+
+And use it in `build_command()`:
+```ruby
+def build_command(prompt, options)
+  cmd = [...]
+  cmd += dangerous_mode_flags if options[:dangerous_mode]
+  cmd
+end
+```
+
+**Task 0B.5: Document Session Parameter Interface**
+
+Create standard interface for session handling:
+```ruby
+def session_flags(session_id)
+  return [] unless session_id
+  # Provider-specific implementation
+end
+```
+
+Map current implementations:
+- GitHub Copilot: `["--resume", session_id]`
+- Codex: `["--session", session_id]`
+- Aider: `["--restore-chat-history", session_id]`
+- Others: `[]` (not supported)
+
+#### Phase 0C: Extract Reusable Modules (Medium Priority)
+
+**Task 0C.1: Extract Deprecation Handling**
+
+Move Anthropic's deprecation logic to shared module:
+```ruby
+# lib/aidp/providers/concerns/deprecation_handler.rb
+module Aidp
+  module Providers
+    module DeprecationHandler
+      def check_model_deprecation(model, output); end
+      def find_replacement_model(deprecated_model); end
+      def deprecation_cache; end
+    end
+  end
+end
+```
+
+**Task 0C.2: Extract Activity Monitoring**
+
+Create module for stuck detection:
+```ruby
+# lib/aidp/providers/concerns/activity_monitor.rb
+module Aidp
+  module Providers
+    module ActivityMonitor
+      STATES = [:idle, :working, :stuck, :completed, :failed]
+
+      def setup_activity_monitoring(timeout:, callback:); end
+      def update_activity_state(state, message); end
+    end
+  end
+end
+```
+
+**Task 0C.3: Extract Timeout Calculator**
+
+Adaptive timeout logic as module:
+```ruby
+# lib/aidp/providers/concerns/timeout_calculator.rb
+module Aidp
+  module Providers
+    module TimeoutCalculator
+      TIER_MULTIPLIERS = {
+        mini: 1.0, standard: 1.5, thinking: 6.0, pro: 8.0, max: 12.0
+      }
+
+      def calculate_timeout(options = {}); end
+      def adaptive_timeout(tier); end
+    end
+  end
+end
+```
+
+#### Phase 0D: Remove TTY Direct Dependencies (Before Extraction)
+
+**Task 0D.1: Create UI Abstraction**
+```ruby
+# lib/aidp/interfaces/ui_interface.rb
+module Aidp
+  module Interfaces
+    module UIInterface
+      def spinner(message, &block); end
+      def say(message); end
+      def ask(prompt, **options); end
+      def select(prompt, choices, **options); end
+    end
+  end
+end
+```
+
+**Task 0D.2: Replace `include Aidp::MessageDisplay`**
+
+Change from mixin to injected dependency:
+```ruby
+# Before
+class Base
+  include Aidp::MessageDisplay
+  def initialize
+    @prompt = TTY::Prompt.new
+  end
+end
+
+# After
+class Base
+  def initialize(ui: nil)
+    @ui = ui || NullUI.new
+  end
+end
+```
+
+### 11.3 Provider Standardization Checklist
+
+Before extraction, verify all providers meet these criteria:
+
+**Required Interface Methods:**
+- [ ] `self.provider_name` - Returns symbol
+- [ ] `self.binary_name` - Returns string
+- [ ] `self.available?` - Returns boolean
+- [ ] `self.firewall_requirements` - Returns {domains:, ip_ranges:}
+- [ ] `self.instruction_file_paths` - Returns array of hashes
+- [ ] `self.discover_models` - Returns array of model hashes
+- [ ] `self.supports_model_family?(family)` - Returns boolean
+- [ ] `send_message(prompt:, **options)` - Core method
+- [ ] `capabilities` - Returns capability hash
+- [ ] `error_patterns` - Returns pattern hash
+
+**Optional but Recommended:**
+- [ ] `self.model_family(model_name)` - Normalizes model name
+- [ ] `self.provider_model_name(family)` - Converts family to provider format
+- [ ] `dangerous_mode_flags` - Returns array of flags
+- [ ] `session_flags(session_id)` - Returns array of flags
+
+### 11.4 Files to Refactor Before Extraction
+
+| File | Refactoring Needed | Priority |
+|------|-------------------|----------|
+| `providers/base.rb` | Remove `include MessageDisplay`, inject logger/UI | High |
+| `providers/anthropic.rb` | Extract deprecation module, standardize | High |
+| `providers/github_copilot.rb` | Add model interface methods | High |
+| `providers/cursor.rb` | Add error_patterns, standardize input | Medium |
+| `providers/gemini.rb` | Add error_patterns, standardize input | Medium |
+| `providers/codex.rb` | Add error_patterns, standardize | Medium |
+| `providers/aider.rb` | Add error_patterns, standardize | Medium |
+| `providers/opencode.rb` | Add error_patterns, model methods | Medium |
+| `providers/kilocode.rb` | Add error_patterns, model methods | Medium |
+| `harness/provider_manager.rb` | Extract orchestration logic | High |
+| `harness/provider_factory.rb` | Convert to registry pattern | High |
+
+### 11.5 Preparation Timeline
+
+| Week | Tasks | Outcome |
+|------|-------|---------|
+| Pre-1 | Tasks 0A.1-0A.3 (interfaces) | Clean injection points |
+| Pre-2 | Tasks 0B.1-0B.5 (standardization) | Consistent providers |
+| Pre-3 | Tasks 0C.1-0C.3 (modules) | Reusable components |
+| Pre-4 | Tasks 0D.1-0D.2 (UI abstraction) | TTY-free core |
+
+This preparation work can run in parallel with planning and will significantly reduce extraction complexity.
+
+---
+
+## 12. Migration Strategy (Post-Preparation)
 
 ### Phase 1: Create Gem Structure (Week 1)
 
@@ -2118,9 +2421,9 @@ end
 
 ---
 
-## 12. Testing Strategy
+## 13. Testing Strategy
 
-### 12.1 Test Structure
+### 13.1 Test Structure
 
 ```
 spec/
@@ -2152,7 +2455,7 @@ spec/
     └── orchestration_integration_spec.rb  # Mocked, no real API calls
 ```
 
-### 12.2 Testing Principles
+### 13.2 Testing Principles
 
 1. **Unit tests** for all classes
 2. **Mocked integration tests** for end-to-end flows
@@ -2160,7 +2463,7 @@ spec/
 4. **Dependency injection** for testability
 5. **Extract relevant specs** from AIDP during migration
 
-### 12.3 Example Test
+### 13.3 Example Test
 
 ```ruby
 # spec/unit/orchestration/circuit_breaker_spec.rb
@@ -2223,7 +2526,7 @@ end
 
 ---
 
-## 13. Phased Implementation
+## 14. Phased Implementation
 
 ### Summary Timeline
 
@@ -2298,3 +2601,149 @@ AgentHarness.configure do |config|
   config.register_provider :my_agent, MyAgentProvider
 end
 ```
+
+---
+
+## Appendix C: Additional Considerations
+
+### C.1 Persistence Strategy
+
+**Decision Required:** Should agent-harness persist state, or should consumers provide adapters?
+
+AIDP currently persists:
+- Provider metrics → `.aidp/provider_metrics.yml`
+- Rate limit info → `.aidp/provider_rate_limits.yml`
+- Model cache → `.aidp/model_cache.yml`
+- Usage tracking → `~/.aidp/usage_tracking/`
+
+**Options:**
+1. **No persistence** - Gem is stateless, consumers persist via callbacks
+2. **Pluggable persistence** - Provide interface, default to in-memory
+3. **Built-in persistence** - Include file-based persistence with configurable paths
+
+**Recommendation:** Option 2 (pluggable) - allows flexibility while providing defaults
+
+```ruby
+AgentHarness.configure do |config|
+  config.persistence_adapter = MyRedisAdapter.new
+  # or
+  config.persistence_adapter = AgentHarness::Persistence::FileAdapter.new(path: "/tmp/agent_harness")
+  # or
+  config.persistence_adapter = AgentHarness::Persistence::MemoryAdapter.new  # default
+end
+```
+
+### C.2 Thread Safety
+
+**Areas requiring thread-safe design:**
+- Circuit breaker counters
+- Health metrics
+- Rate limit tracking
+- Provider instance cache
+- Token tracker events
+
+**Implementation approach:**
+- Use `Mutex` for shared mutable state
+- Document thread safety guarantees
+- Provide thread-safe and non-thread-safe variants if needed
+
+### C.3 Process Forking Behavior
+
+Ruby apps using Puma/Unicorn fork workers. Considerations:
+- Circuit breaker state is not shared across workers
+- Metrics are per-process unless using external persistence
+- File locks may cause issues
+
+**Recommendation:** Document forking behavior and recommend:
+- Use Redis/shared persistence for multi-worker deployments
+- Reset state in `after_fork` hooks
+
+### C.4 Streaming Response Support
+
+Current `Response` object doesn't support streaming. For future:
+
+```ruby
+# Streaming API concept
+AgentHarness.stream_message("prompt", provider: :claude) do |chunk|
+  print chunk.content
+end
+```
+
+**Recommendation:** Note in plan, implement in v1.1
+
+### C.5 Ruby Version Compatibility
+
+**Recommendation:**
+- Minimum: Ruby 3.0 (for pattern matching, endless methods)
+- CI matrix: Ruby 3.0, 3.1, 3.2, 3.3
+
+### C.6 Gem Distribution
+
+**Options:**
+1. Public RubyGems.org
+2. GitHub Packages
+3. Private gem server (Gemfury)
+4. Git source dependency
+
+**Recommendation:** Start with GitHub Packages for controlled rollout, then publish to RubyGems.org
+
+### C.7 Documentation
+
+- YARD docs for API documentation
+- README with quick start guide
+- Examples directory with common use cases
+- CHANGELOG following Keep a Changelog format
+
+### C.8 Observability Hooks
+
+Beyond logging, consider hooks for:
+```ruby
+AgentHarness.configure do |config|
+  # Prometheus metrics
+  config.on_request_complete do |event|
+    METRICS[:requests_total].increment(labels: { provider: event.provider })
+  end
+
+  # OpenTelemetry tracing
+  config.on_request_start do |event|
+    OpenTelemetry.tracer.start_span("agent_harness.request")
+  end
+end
+```
+
+### C.9 Middleware/Hooks Pattern
+
+Allow request/response interception:
+```ruby
+AgentHarness.configure do |config|
+  config.use LoggingMiddleware
+  config.use MetricsMiddleware
+  config.use RetryMiddleware, max_attempts: 3
+
+  # Or simpler hooks
+  config.before_request { |req| log_request(req) }
+  config.after_response { |res| log_response(res) }
+end
+```
+
+### C.10 Graceful Degradation
+
+When all providers fail:
+```ruby
+AgentHarness.configure do |config|
+  config.on_all_providers_failed do |error|
+    # Options:
+    # 1. Raise NoProvidersAvailableError (default)
+    # 2. Return cached response if available
+    # 3. Queue for retry
+    # 4. Call fallback handler
+  end
+end
+```
+
+### C.11 Security Considerations
+
+- API keys should never be logged
+- Prompts may contain sensitive data - log levels should respect this
+- Provide option to redact sensitive fields
+- Document secure configuration practices
