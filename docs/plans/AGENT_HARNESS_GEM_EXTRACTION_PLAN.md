@@ -1,6 +1,8 @@
-# Paid-Agents Gem Extraction Plan
+# Agent-Harness Gem Extraction Plan
 
-> **Note:** The gem name `paid-agents` is a working title. Consider alternatives like `cli-agents`, `agent-kit`, or `agent-conductor` to avoid confusion with payment/cost terminology.
+> **Gem Name:** `agent-harness` | **Namespace:** `AgentHarness`
+>
+> The name "harness" conveys control and orchestration of AI agents, similar to the concept of a "test harness" in software testing.
 
 ## Executive Summary
 
@@ -73,7 +75,7 @@ This plan details the extraction of AIDP's agent CLI interaction code into a sta
 └──────────────────────────┬──────────────────────────────────┘
                            │ uses
 ┌──────────────────────────┴──────────────────────────────────┐
-│                 PaidAgents Gem (paid-agents)                 │
+│                 AgentHarness Gem (agent-harness)                 │
 ├─────────────────────────────────────────────────────────────┤
 │ ┌─────────────────────────────────────────────────────────┐ │
 │ │                  Orchestration Layer                     │ │
@@ -101,10 +103,10 @@ This plan details the extraction of AIDP's agent CLI interaction code into a sta
 ### Gem Directory Structure
 
 ```
-paid-agents/
+agent-harness/
 ├── lib/
-│   ├── paid_agents.rb                    # Main entry point
-│   └── paid_agents/
+│   ├── agent_harness.rb                    # Main entry point
+│   └── agent_harness/
 │       ├── version.rb
 │       │
 │       ├── # Core Layer
@@ -158,7 +160,7 @@ paid-agents/
 │
 ├── spec/
 │   ├── spec_helper.rb
-│   ├── paid_agents_spec.rb
+│   ├── agent_harness_spec.rb
 │   ├── configuration_spec.rb
 │   ├── providers/
 │   │   ├── base_spec.rb
@@ -169,7 +171,7 @@ paid-agents/
 │       ├── provider_manager_spec.rb
 │       └── ...
 │
-├── paid_agents.gemspec
+├── agent_harness.gemspec
 ├── Gemfile
 ├── README.md
 ├── CHANGELOG.md
@@ -179,7 +181,7 @@ paid-agents/
 ### Namespace Structure
 
 ```ruby
-module PaidAgents
+module AgentHarness
   # Core
   class Configuration; end
   class CommandExecutor; end
@@ -240,14 +242,14 @@ end
 ### Configuration Sources (Priority Order)
 
 1. **Explicit Ruby configuration** (highest priority)
-2. **YAML file** (`paid_agents.yml` or custom path)
+2. **YAML file** (`agent_harness.yml` or custom path)
 3. **Environment variables** (lowest priority, for secrets)
 
 ### 3.1 YAML Configuration
 
 ```yaml
-# paid_agents.yml
-paid_agents:
+# agent_harness.yml
+agent_harness:
   # Logging
   log_level: info  # debug, info, warn, error
 
@@ -331,10 +333,10 @@ paid_agents:
 ### 3.2 Ruby DSL Configuration
 
 ```ruby
-# config/initializers/paid_agents.rb (Rails)
+# config/initializers/agent_harness.rb (Rails)
 # or anywhere in Ruby application
 
-PaidAgents.configure do |config|
+AgentHarness.configure do |config|
   # Logger (inject your own)
   config.logger = Rails.logger  # or any Logger-compatible object
   config.log_level = :info
@@ -411,19 +413,19 @@ GEMINI_API_KEY=...
 OPENAI_API_KEY=...
 
 # Override configuration
-PAID_AGENTS_DEFAULT_PROVIDER=claude
-PAID_AGENTS_LOG_LEVEL=debug
+AGENT_HARNESS_DEFAULT_PROVIDER=claude
+AGENT_HARNESS_LOG_LEVEL=debug
 
 # Provider-specific
-PAID_AGENTS_CLAUDE_TIMEOUT=600
-PAID_AGENTS_CURSOR_ENABLED=false
+AGENT_HARNESS_CLAUDE_TIMEOUT=600
+AGENT_HARNESS_CURSOR_ENABLED=false
 ```
 
 ### 3.4 Configuration Class Implementation
 
 ```ruby
-# lib/paid_agents/configuration.rb
-module PaidAgents
+# lib/agent_harness/configuration.rb
+module AgentHarness
   class Configuration
     attr_accessor :logger, :log_level, :default_provider, :fallback_providers
     attr_accessor :command_executor, :config_file_path
@@ -498,8 +500,8 @@ end
 ### 4.1 Provider Adapter (Interface Contract)
 
 ```ruby
-# lib/paid_agents/providers/adapter.rb
-module PaidAgents
+# lib/agent_harness/providers/adapter.rb
+module AgentHarness
   module Providers
     # Interface that all providers must implement
     module Adapter
@@ -611,8 +613,8 @@ end
 ### 4.2 Base Provider Class
 
 ```ruby
-# lib/paid_agents/providers/base.rb
-module PaidAgents
+# lib/agent_harness/providers/base.rb
+module AgentHarness
   module Providers
     class Base
       include Adapter
@@ -621,9 +623,9 @@ module PaidAgents
 
       def initialize(config: nil, executor: nil, logger: nil)
         @config = config || ProviderConfig.new(self.class.provider_name)
-        @executor = executor || PaidAgents.configuration.command_executor
-        @logger = logger || PaidAgents.logger
-        @token_tracker = PaidAgents.token_tracker
+        @executor = executor || AgentHarness.configuration.command_executor
+        @logger = logger || AgentHarness.logger
+        @token_tracker = AgentHarness.token_tracker
       end
 
       # Configure the provider instance
@@ -732,11 +734,11 @@ module PaidAgents
       end
 
       def log_debug(action, **context)
-        @logger&.debug("[PaidAgents::#{self.class.provider_name}] #{action}: #{context.inspect}")
+        @logger&.debug("[AgentHarness::#{self.class.provider_name}] #{action}: #{context.inspect}")
       end
 
       def log_error(action, **context)
-        @logger&.error("[PaidAgents::#{self.class.provider_name}] #{action}: #{context.inspect}")
+        @logger&.error("[AgentHarness::#{self.class.provider_name}] #{action}: #{context.inspect}")
       end
     end
   end
@@ -746,8 +748,8 @@ end
 ### 4.3 Response Object
 
 ```ruby
-# lib/paid_agents/response.rb
-module PaidAgents
+# lib/agent_harness/response.rb
+module AgentHarness
   class Response
     attr_reader :output, :exit_code, :duration, :provider, :model
     attr_reader :tokens, :metadata, :error
@@ -791,8 +793,8 @@ end
 ### 4.4 Example Provider Implementation (Anthropic/Claude)
 
 ```ruby
-# lib/paid_agents/providers/anthropic.rb
-module PaidAgents
+# lib/agent_harness/providers/anthropic.rb
+module AgentHarness
   module Providers
     class Anthropic < Base
       class << self
@@ -938,8 +940,8 @@ end
 ### 4.5 Provider Registry (Dynamic Registration)
 
 ```ruby
-# lib/paid_agents/providers/registry.rb
-module PaidAgents
+# lib/agent_harness/providers/registry.rb
+module AgentHarness
   module Providers
     class Registry
       include Singleton
@@ -961,7 +963,7 @@ module PaidAgents
           @aliases[alias_name.to_sym] = name
         end
 
-        PaidAgents.logger&.debug("Registered provider: #{name}")
+        AgentHarness.logger&.debug("Registered provider: #{name}")
       end
 
       # Get provider class by name
@@ -994,7 +996,7 @@ module PaidAgents
 
       def validate_provider_class!(klass)
         unless klass.included_modules.include?(Adapter)
-          raise ConfigurationError, "Provider class must include PaidAgents::Providers::Adapter"
+          raise ConfigurationError, "Provider class must include AgentHarness::Providers::Adapter"
         end
 
         [:provider_name, :available?, :binary_name].each do |method|
@@ -1026,8 +1028,8 @@ end
 ### 5.1 Conductor (Main Entry Point)
 
 ```ruby
-# lib/paid_agents/orchestration/conductor.rb
-module PaidAgents
+# lib/agent_harness/orchestration/conductor.rb
+module AgentHarness
   module Orchestration
     # Main orchestration entry point
     # Provides a simple interface while managing complexity internally
@@ -1035,7 +1037,7 @@ module PaidAgents
       attr_reader :provider_manager, :metrics
 
       def initialize(config: nil)
-        @config = config || PaidAgents.configuration
+        @config = config || AgentHarness.configuration
         @provider_manager = ProviderManager.new(@config)
         @metrics = Metrics.new
       end
@@ -1143,8 +1145,8 @@ end
 ### 5.2 Provider Manager
 
 ```ruby
-# lib/paid_agents/orchestration/provider_manager.rb
-module PaidAgents
+# lib/agent_harness/orchestration/provider_manager.rb
+module AgentHarness
   module Orchestration
     class ProviderManager
       attr_reader :current_provider, :provider_instances
@@ -1201,8 +1203,8 @@ module PaidAgents
 
         @current_provider = fallback.class.provider_name
 
-        PaidAgents.logger&.info(
-          "[PaidAgents] Provider switch: #{old_provider} -> #{@current_provider} (#{reason})"
+        AgentHarness.logger&.info(
+          "[AgentHarness] Provider switch: #{old_provider} -> #{@current_provider} (#{reason})"
         )
 
         fallback
@@ -1273,7 +1275,7 @@ module PaidAgents
         klass.new(
           config: config,
           executor: @config.command_executor,
-          logger: PaidAgents.logger
+          logger: AgentHarness.logger
         )
       end
 
@@ -1317,8 +1319,8 @@ end
 ### 5.3 Circuit Breaker
 
 ```ruby
-# lib/paid_agents/orchestration/circuit_breaker.rb
-module PaidAgents
+# lib/agent_harness/orchestration/circuit_breaker.rb
+module AgentHarness
   module Orchestration
     class CircuitBreaker
       STATES = [:closed, :open, :half_open].freeze
@@ -1392,8 +1394,8 @@ module PaidAgents
           emit_event(:circuit_closed)
         end
 
-        PaidAgents.logger&.info(
-          "[PaidAgents::CircuitBreaker] State transition: #{old_state} -> #{new_state}"
+        AgentHarness.logger&.info(
+          "[AgentHarness::CircuitBreaker] State transition: #{old_state} -> #{new_state}"
         )
       end
 
@@ -1403,7 +1405,7 @@ module PaidAgents
       end
 
       def emit_event(event)
-        PaidAgents.configuration.callbacks.emit(event, circuit_breaker: self)
+        AgentHarness.configuration.callbacks.emit(event, circuit_breaker: self)
       end
     end
   end
@@ -1417,12 +1419,12 @@ end
 ### 6.1 Command Executor
 
 ```ruby
-# lib/paid_agents/command_executor.rb
+# lib/agent_harness/command_executor.rb
 require "open3"
 require "timeout"
 require "shellwords"
 
-module PaidAgents
+module AgentHarness
   class CommandExecutor
     Result = Struct.new(:stdout, :stderr, :exit_code, :duration, keyword_init: true)
 
@@ -1527,7 +1529,7 @@ module PaidAgents
     end
 
     def log_debug(message, **context)
-      @logger&.debug("[PaidAgents::CommandExecutor] #{message}: #{context.inspect}")
+      @logger&.debug("[AgentHarness::CommandExecutor] #{message}: #{context.inspect}")
     end
   end
 end
@@ -1540,8 +1542,8 @@ end
 ### 7.1 Error Classes
 
 ```ruby
-# lib/paid_agents/errors.rb
-module PaidAgents
+# lib/agent_harness/errors.rb
+module AgentHarness
   class Error < StandardError
     attr_reader :original_error, :context
 
@@ -1594,8 +1596,8 @@ end
 ### 7.2 Error Taxonomy
 
 ```ruby
-# lib/paid_agents/error_taxonomy.rb
-module PaidAgents
+# lib/agent_harness/error_taxonomy.rb
+module AgentHarness
   module ErrorTaxonomy
     CATEGORIES = {
       rate_limited: {
@@ -1692,8 +1694,8 @@ end
 ## 8. Token Usage Tracking
 
 ```ruby
-# lib/paid_agents/token_tracker.rb
-module PaidAgents
+# lib/agent_harness/token_tracker.rb
+module AgentHarness
   class TokenTracker
     TokenEvent = Struct.new(
       :provider, :model, :input_tokens, :output_tokens, :total_tokens,
@@ -1801,7 +1803,7 @@ module PaidAgents
       @callbacks.each do |callback|
         callback.call(event)
       rescue => e
-        PaidAgents.logger&.error("[PaidAgents::TokenTracker] Callback error: #{e.message}")
+        AgentHarness.logger&.error("[AgentHarness::TokenTracker] Callback error: #{e.message}")
       end
     end
   end
@@ -1813,8 +1815,8 @@ end
 ## 9. MCP Support
 
 ```ruby
-# lib/paid_agents/mcp/client.rb
-module PaidAgents
+# lib/agent_harness/mcp/client.rb
+module AgentHarness
   module MCP
     class Client
       def initialize(provider:)
@@ -1838,7 +1840,7 @@ module PaidAgents
       end
     end
 
-    # lib/paid_agents/mcp/server_registry.rb
+    # lib/agent_harness/mcp/server_registry.rb
     class ServerRegistry
       def initialize
         @servers = {}
@@ -1872,25 +1874,25 @@ After extracting to the gem, AIDP will need to:
 
 ```ruby
 # Gemfile
-gem "paid-agents", "~> 1.0"
+gem "agent-harness", "~> 1.0"
 ```
 
 #### 10.1.2 Create Adapter Layer
 
 ```ruby
-# lib/aidp/paid_agents_adapter.rb
+# lib/aidp/agent_harness_adapter.rb
 module Aidp
-  class PaidAgentsAdapter
+  class AgentHarnessAdapter
     def initialize
-      configure_paid_agents
+      configure_agent_harness
     end
 
     def send_message(prompt:, provider: nil, **options)
-      # Convert AIDP options to PaidAgents options
+      # Convert AIDP options to AgentHarness options
       pa_options = convert_options(options)
 
-      # Use PaidAgents conductor
-      response = PaidAgents.conductor.send_message(prompt, provider: provider, **pa_options)
+      # Use AgentHarness conductor
+      response = AgentHarness.conductor.send_message(prompt, provider: provider, **pa_options)
 
       # Convert response back to AIDP format
       convert_response(response)
@@ -1898,8 +1900,8 @@ module Aidp
 
     private
 
-    def configure_paid_agents
-      PaidAgents.configure do |config|
+    def configure_agent_harness
+      AgentHarness.configure do |config|
         # Inject AIDP's logger
         config.logger = Aidp.logger
 
@@ -1967,7 +1969,7 @@ module Aidp
     end
 
     def convert_options(options)
-      # Map AIDP options to PaidAgents options
+      # Map AIDP options to AgentHarness options
       {
         model: options[:model],
         timeout: options[:timeout],
@@ -2000,7 +2002,7 @@ provider = Aidp::Providers::Anthropic.new
 result = provider.send_message(prompt: prompt, options: options)
 
 # After (via adapter)
-adapter = Aidp::PaidAgentsAdapter.new
+adapter = Aidp::AgentHarnessAdapter.new
 result = adapter.send_message(prompt: prompt, **options)
 ```
 
@@ -2024,12 +2026,12 @@ module Aidp
   module Providers
     class Base
       def initialize
-        @paid_agents_provider = PaidAgents::Providers::Registry.instance.get(provider_name).new
+        @agent_harness_provider = AgentHarness::Providers::Registry.instance.get(provider_name).new
       end
 
       def send_message(prompt:, **options)
-        # Delegate to PaidAgents
-        response = @paid_agents_provider.send_message(prompt: prompt, **options)
+        # Delegate to AgentHarness
+        response = @agent_harness_provider.send_message(prompt: prompt, **options)
 
         # Convert to legacy format for backward compatibility
         legacy_response(response)
@@ -2099,8 +2101,8 @@ end
 
 ### Phase 5: AIDP Integration (Week 5)
 
-1. Add paid-agents gem to AIDP
-2. Create PaidAgentsAdapter in AIDP
+1. Add agent-harness gem to AIDP
+2. Create AgentHarnessAdapter in AIDP
 3. Update AIDP to use adapter
 4. Ensure all existing tests pass
 5. Remove extracted code from AIDP
@@ -2123,7 +2125,7 @@ end
 ```
 spec/
 ├── spec_helper.rb
-├── paid_agents_spec.rb
+├── agent_harness_spec.rb
 │
 ├── unit/
 │   ├── configuration_spec.rb
@@ -2162,7 +2164,7 @@ spec/
 
 ```ruby
 # spec/unit/orchestration/circuit_breaker_spec.rb
-RSpec.describe PaidAgents::Orchestration::CircuitBreaker do
+RSpec.describe AgentHarness::Orchestration::CircuitBreaker do
   let(:config) do
     double(
       enabled: true,
@@ -2250,20 +2252,20 @@ end
 
 | AIDP File | Gem File | Notes |
 |-----------|----------|-------|
-| `lib/aidp/providers/adapter.rb` | `lib/paid_agents/providers/adapter.rb` | Remove AIDP deps |
-| `lib/aidp/providers/base.rb` | `lib/paid_agents/providers/base.rb` | Major refactor |
-| `lib/aidp/providers/error_taxonomy.rb` | `lib/paid_agents/error_taxonomy.rb` | Minor changes |
-| `lib/aidp/providers/anthropic.rb` | `lib/paid_agents/providers/anthropic.rb` | Remove AIDP deps |
-| `lib/aidp/providers/cursor.rb` | `lib/paid_agents/providers/cursor.rb` | Remove AIDP deps |
-| `lib/aidp/providers/gemini.rb` | `lib/paid_agents/providers/gemini.rb` | Remove AIDP deps |
-| `lib/aidp/providers/*.rb` | `lib/paid_agents/providers/*.rb` | Each provider |
-| `lib/aidp/harness/provider_factory.rb` | `lib/paid_agents/providers/registry.rb` | Redesigned |
-| `lib/aidp/harness/provider_manager.rb` | `lib/paid_agents/orchestration/provider_manager.rb` | Refactored |
-| `lib/aidp/concurrency/backoff.rb` | `lib/paid_agents/orchestration/retry_strategy.rb` | Internalized |
-| `lib/aidp/config.rb` | `lib/paid_agents/configuration.rb` | New design |
-| N/A | `lib/paid_agents/orchestration/conductor.rb` | New |
-| N/A | `lib/paid_agents/orchestration/circuit_breaker.rb` | Extracted from PM |
-| N/A | `lib/paid_agents/token_tracker.rb` | New |
+| `lib/aidp/providers/adapter.rb` | `lib/agent_harness/providers/adapter.rb` | Remove AIDP deps |
+| `lib/aidp/providers/base.rb` | `lib/agent_harness/providers/base.rb` | Major refactor |
+| `lib/aidp/providers/error_taxonomy.rb` | `lib/agent_harness/error_taxonomy.rb` | Minor changes |
+| `lib/aidp/providers/anthropic.rb` | `lib/agent_harness/providers/anthropic.rb` | Remove AIDP deps |
+| `lib/aidp/providers/cursor.rb` | `lib/agent_harness/providers/cursor.rb` | Remove AIDP deps |
+| `lib/aidp/providers/gemini.rb` | `lib/agent_harness/providers/gemini.rb` | Remove AIDP deps |
+| `lib/aidp/providers/*.rb` | `lib/agent_harness/providers/*.rb` | Each provider |
+| `lib/aidp/harness/provider_factory.rb` | `lib/agent_harness/providers/registry.rb` | Redesigned |
+| `lib/aidp/harness/provider_manager.rb` | `lib/agent_harness/orchestration/provider_manager.rb` | Refactored |
+| `lib/aidp/concurrency/backoff.rb` | `lib/agent_harness/orchestration/retry_strategy.rb` | Internalized |
+| `lib/aidp/config.rb` | `lib/agent_harness/configuration.rb` | New design |
+| N/A | `lib/agent_harness/orchestration/conductor.rb` | New |
+| N/A | `lib/agent_harness/orchestration/circuit_breaker.rb` | Extracted from PM |
+| N/A | `lib/agent_harness/token_tracker.rb` | New |
 
 ---
 
@@ -2271,28 +2273,28 @@ end
 
 ```ruby
 # Basic usage
-PaidAgents.send_message("Write a hello world function", provider: :claude)
+AgentHarness.send_message("Write a hello world function", provider: :claude)
 
 # With configuration
-PaidAgents.configure do |config|
+AgentHarness.configure do |config|
   config.logger = Logger.new(STDOUT)
   config.default_provider = :cursor
 end
 
 # Direct provider access
-provider = PaidAgents.provider(:claude)
+provider = AgentHarness.provider(:claude)
 provider.send_message(prompt: "Hello")
 
 # Orchestration control
-conductor = PaidAgents.conductor
+conductor = AgentHarness.conductor
 conductor.status
 conductor.reset!
 
 # Token tracking
-PaidAgents.token_tracker.summary(since: 1.hour.ago)
+AgentHarness.token_tracker.summary(since: 1.hour.ago)
 
 # Provider registration
-PaidAgents.configure do |config|
+AgentHarness.configure do |config|
   config.register_provider :my_agent, MyAgentProvider
 end
 ```
