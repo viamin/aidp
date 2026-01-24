@@ -105,59 +105,82 @@ This plan details the extraction of AIDP's agent CLI interaction code into a sta
 
 ```
 agent-harness/
+├── exe/
+│   └── agent-harness                 # CLI executable
+│
 ├── lib/
-│   ├── agent_harness.rb                    # Main entry point
+│   ├── agent_harness.rb              # Main entry point
 │   └── agent_harness/
 │       ├── version.rb
 │       │
 │       ├── # Core Layer
-│       ├── configuration.rb              # Configuration management
+│       ├── configuration.rb          # Configuration management
 │       ├── configuration/
-│       │   ├── yaml_loader.rb            # YAML config loading
-│       │   ├── env_loader.rb             # Environment variable loading
-│       │   └── dsl.rb                    # Ruby DSL configuration
-│       ├── command_executor.rb           # Shell command execution
-│       ├── logger.rb                     # Logger interface
-│       ├── token_tracker.rb              # Token usage tracking
+│       │   ├── yaml_loader.rb        # YAML config loading
+│       │   ├── env_loader.rb         # Environment variable loading
+│       │   └── dsl.rb                # Ruby DSL configuration
+│       ├── command_executor.rb       # Shell command execution
+│       ├── logger.rb                 # Logger interface
+│       ├── token_tracker.rb          # Token usage tracking
+│       ├── activity_monitor.rb       # Stuck detection & activity tracking
 │       │
 │       ├── # Error Handling
-│       ├── errors.rb                     # Error classes
-│       ├── error_taxonomy.rb             # Error classification
+│       ├── errors.rb                 # Error classes
+│       ├── error_taxonomy.rb         # Error classification
 │       │
 │       ├── # Provider Layer
 │       ├── providers/
-│       │   ├── registry.rb               # Dynamic provider registration
-│       │   ├── adapter.rb                # Provider interface (module)
-│       │   ├── base.rb                   # Base provider class
-│       │   ├── capabilities.rb           # Capability definitions
-│       │   ├── anthropic.rb              # Claude Code provider
-│       │   ├── cursor.rb                 # Cursor provider
-│       │   ├── gemini.rb                 # Gemini CLI provider
-│       │   ├── github_copilot.rb         # GitHub Copilot provider
-│       │   ├── codex.rb                  # OpenAI Codex provider
-│       │   ├── opencode.rb               # OpenCode provider
-│       │   ├── kilocode.rb               # Kilocode provider
-│       │   └── aider.rb                  # Aider provider
+│       │   ├── registry.rb           # Dynamic provider registration
+│       │   ├── adapter.rb            # Provider interface (module)
+│       │   ├── base.rb               # Base provider class
+│       │   ├── binary_checker.rb     # CLI availability checking
+│       │   ├── capabilities.rb       # Capability definitions
+│       │   ├── anthropic.rb          # Claude Code provider
+│       │   ├── cursor.rb             # Cursor provider
+│       │   ├── gemini.rb             # Gemini CLI provider
+│       │   ├── github_copilot.rb     # GitHub Copilot provider
+│       │   ├── codex.rb              # OpenAI Codex provider
+│       │   ├── opencode.rb           # OpenCode provider
+│       │   ├── kilocode.rb           # Kilocode provider
+│       │   └── aider.rb              # Aider provider
 │       │
 │       ├── # Orchestration Layer
 │       ├── orchestration/
-│       │   ├── conductor.rb              # Main orchestration entry point
-│       │   ├── provider_manager.rb       # Provider switching & selection
-│       │   ├── model_manager.rb          # Model switching within providers
-│       │   ├── circuit_breaker.rb        # Circuit breaker logic
-│       │   ├── rate_limiter.rb           # Rate limit tracking
-│       │   ├── health_monitor.rb         # Provider health tracking
-│       │   ├── load_balancer.rb          # Load balancing strategies
-│       │   ├── fallback_chain.rb         # Fallback chain management
-│       │   └── metrics.rb                # Metrics collection
+│       │   ├── conductor.rb          # Main orchestration entry point
+│       │   ├── provider_manager.rb   # Provider switching & selection
+│       │   ├── model_manager.rb      # Model switching within providers
+│       │   ├── circuit_breaker.rb    # Circuit breaker logic
+│       │   ├── rate_limiter.rb       # Rate limit tracking
+│       │   ├── health_monitor.rb     # Provider health tracking
+│       │   ├── health_calculator.rb  # Health score calculation
+│       │   ├── load_balancer.rb      # Load balancing strategies
+│       │   ├── fallback_chain.rb     # Fallback chain management
+│       │   └── metrics.rb            # Metrics collection
 │       │
 │       ├── # MCP Support
 │       ├── mcp/
-│       │   ├── client.rb                 # MCP client interface
-│       │   └── server_registry.rb        # MCP server management
+│       │   ├── client.rb             # MCP client interface
+│       │   └── server_registry.rb    # MCP server management
+│       │
+│       ├── # Observability
+│       ├── observability/
+│       │   └── otel.rb               # OpenTelemetry integration
+│       │
+│       ├── # CLI
+│       ├── cli/
+│       │   ├── main.rb               # CLI entry point
+│       │   ├── commands/
+│       │   │   ├── test.rb           # Test provider connectivity
+│       │   │   ├── validate.rb       # Validate configuration
+│       │   │   ├── health.rb         # Check provider health
+│       │   │   ├── prompt.rb         # Quick prompt for testing
+│       │   │   └── providers.rb      # List available providers
+│       │   └── formatters/
+│       │       ├── text.rb           # Plain text output
+│       │       └── json.rb           # JSON output
 │       │
 │       └── # Rails Integration (optional)
-│           └── railtie.rb                # Rails integration
+│           └── railtie.rb            # Rails integration
 │
 ├── spec/
 │   ├── spec_helper.rb
@@ -167,10 +190,14 @@ agent-harness/
 │   │   ├── base_spec.rb
 │   │   ├── anthropic_spec.rb
 │   │   └── ...
-│   └── orchestration/
-│       ├── conductor_spec.rb
-│       ├── provider_manager_spec.rb
-│       └── ...
+│   ├── orchestration/
+│   │   ├── conductor_spec.rb
+│   │   ├── provider_manager_spec.rb
+│   │   ├── health_calculator_spec.rb
+│   │   └── ...
+│   └── cli/
+│       └── commands/
+│           └── ...
 │
 ├── agent_harness.gemspec
 ├── Gemfile
@@ -2604,146 +2631,235 @@ end
 
 ---
 
-## Appendix C: Additional Considerations
+## Appendix C: Design Decisions
 
 ### C.1 Persistence Strategy
 
-**Decision Required:** Should agent-harness persist state, or should consumers provide adapters?
+**Decision:** Agent-harness is stateless. It publishes data via callbacks but does not persist anything.
 
-AIDP currently persists:
-- Provider metrics → `.aidp/provider_metrics.yml`
-- Rate limit info → `.aidp/provider_rate_limits.yml`
-- Model cache → `.aidp/model_cache.yml`
-- Usage tracking → `~/.aidp/usage_tracking/`
+Consumers receive data through callbacks and handle their own persistence:
+```ruby
+AgentHarness.configure do |config|
+  config.on_tokens_used do |event|
+    MyDatabase.save_token_usage(event)
+  end
 
-**Options:**
-1. **No persistence** - Gem is stateless, consumers persist via callbacks
-2. **Pluggable persistence** - Provide interface, default to in-memory
-3. **Built-in persistence** - Include file-based persistence with configurable paths
+  config.on_provider_health_change do |event|
+    MyMetricsStore.record_health(event)
+  end
 
-**Recommendation:** Option 2 (pluggable) - allows flexibility while providing defaults
+  config.on_circuit_state_change do |event|
+    Redis.set("circuit:#{event.provider}", event.state)
+  end
+end
+```
+
+### C.2 Activity Monitoring & Stuck Detection
+
+**Decision:** Include activity monitoring with stuck detection.
+
+```ruby
+# Provider tracks activity state
+provider.on_activity_change do |state, message|
+  # state: :idle, :working, :stuck, :completed, :failed
+  case state
+  when :stuck
+    # Provider hasn't produced output for configured timeout
+    notify_user("Provider appears stuck: #{message}")
+  end
+end
+```
+
+### C.3 Timeouts
+
+**Decision:** Use simple configurable timeouts (not adaptive).
 
 ```ruby
 AgentHarness.configure do |config|
-  config.persistence_adapter = MyRedisAdapter.new
-  # or
-  config.persistence_adapter = AgentHarness::Persistence::FileAdapter.new(path: "/tmp/agent_harness")
-  # or
-  config.persistence_adapter = AgentHarness::Persistence::MemoryAdapter.new  # default
+  config.default_timeout = 300  # 5 minutes
+
+  config.provider :claude do |p|
+    p.timeout = 600  # 10 minutes for Claude
+  end
 end
 ```
 
-### C.2 Thread Safety
+### C.4 Model-Level Management
 
-**Areas requiring thread-safe design:**
-- Circuit breaker counters
-- Health metrics
-- Rate limit tracking
-- Provider instance cache
-- Token tracker events
+**Decision:** Agent-harness tracks and publishes model-level data (health, metrics, circuit state) but consumers decide what to do with it.
 
-**Implementation approach:**
-- Use `Mutex` for shared mutable state
-- Document thread safety guarantees
-- Provide thread-safe and non-thread-safe variants if needed
+The gem publishes:
+- Model health events
+- Model metrics events
+- Model circuit breaker state changes
 
-### C.3 Process Forking Behavior
+Consumers handle:
+- Persistence of model state
+- Model denylisting decisions
+- Model fallback chain configuration
 
-Ruby apps using Puma/Unicorn fork workers. Considerations:
-- Circuit breaker state is not shared across workers
-- Metrics are per-process unless using external persistence
-- File locks may cause issues
+### C.5 Binary Availability Checking
 
-**Recommendation:** Document forking behavior and recommend:
-- Use Redis/shared persistence for multi-worker deployments
-- Reset state in `after_fork` hooks
-
-### C.4 Streaming Response Support
-
-Current `Response` object doesn't support streaming. For future:
+**Decision:** Include binary availability checking with caching.
 
 ```ruby
-# Streaming API concept
-AgentHarness.stream_message("prompt", provider: :claude) do |chunk|
-  print chunk.content
-end
+# Check if provider CLI is available
+AgentHarness::Providers::Anthropic.available?  # => true/false
+
+# Includes version check with timeout
+# Results cached with configurable TTL (default 5 minutes)
 ```
 
-**Recommendation:** Note in plan, implement in v1.1
+### C.6 Health Score Calculation
 
-### C.5 Ruby Version Compatibility
+**Decision:** Include health score calculation.
 
-**Recommendation:**
-- Minimum: Ruby 3.0 (for pattern matching, endless methods)
-- CI matrix: Ruby 3.0, 3.1, 3.2, 3.3
+```ruby
+# Health score formula
+health_score = (success_rate * 50) +
+               ((1 - rate_limit_ratio) * 30) +
+               (response_time_score * 20)
 
-### C.6 Gem Distribution
+# Exposed via
+provider.health_score        # => 0.0 - 100.0
+provider.healthy?            # => true if health_score > 50
+```
 
-**Options:**
-1. Public RubyGems.org
-2. GitHub Packages
-3. Private gem server (Gemfury)
-4. Git source dependency
+### C.7 Ruby Version Compatibility
 
-**Recommendation:** Start with GitHub Packages for controlled rollout, then publish to RubyGems.org
+**Decision:**
+- Minimum: Ruby 3.3
+- CI Matrix: Ruby 3.3, 3.4, 4.0
 
-### C.7 Documentation
+### C.8 Thread Safety & Process Forking
 
-- YARD docs for API documentation
+**Decision:** Not addressed in v1. Documented as single-threaded, single-process design. May address in future versions.
+
+### C.9 Gem Distribution
+
+**Decision:** Public RubyGems.org
+
+```bash
+gem install agent-harness
+```
+
+### C.10 Documentation
+
+**Decision:** RDoc for API documentation.
+
+```bash
+rdoc lib/
+```
+
+Additional:
 - README with quick start guide
-- Examples directory with common use cases
-- CHANGELOG following Keep a Changelog format
+- Examples directory
+- CHANGELOG (auto-generated via release-please)
 
-### C.8 Observability Hooks
+### C.11 CLI Tool
 
-Beyond logging, consider hooks for:
+**Decision:** Include CLI for testing and validation.
+
+```bash
+# Test provider connectivity
+agent-harness test claude
+
+# Validate configuration
+agent-harness validate
+
+# Check provider health
+agent-harness health
+
+# Quick prompt (for testing)
+agent-harness prompt "Hello world" --provider claude
+
+# List available providers
+agent-harness providers
+```
+
+### C.12 Observability
+
+**Decision:** Support OpenTelemetry (OTEL) for tracing and metrics.
+
 ```ruby
 AgentHarness.configure do |config|
-  # Prometheus metrics
-  config.on_request_complete do |event|
-    METRICS[:requests_total].increment(labels: { provider: event.provider })
-  end
-
-  # OpenTelemetry tracing
-  config.on_request_start do |event|
-    OpenTelemetry.tracer.start_span("agent_harness.request")
-  end
+  config.otel_enabled = true
+  # Uses OTEL_* environment variables for configuration
 end
 ```
 
-### C.9 Middleware/Hooks Pattern
+Emits:
+- `agent_harness.request` spans with provider, model, duration attributes
+- `agent_harness.requests_total` counter
+- `agent_harness.request_duration_seconds` histogram
+- `agent_harness.tokens_used_total` counter
 
-Allow request/response interception:
+### C.13 Security
+
+**Decision:**
+- Agent-harness does NOT store secrets in configuration or files
+- Provides helpers to check if user is logged into provider CLIs
+- Authentication to providers is out of scope (users log in via provider CLIs directly)
+
 ```ruby
-AgentHarness.configure do |config|
-  config.use LoggingMiddleware
-  config.use MetricsMiddleware
-  config.use RetryMiddleware, max_attempts: 3
+# Check login status
+AgentHarness.provider(:claude).authenticated?  # => true/false
 
-  # Or simpler hooks
-  config.before_request { |req| log_request(req) }
-  config.after_response { |res| log_response(res) }
+# Require authentication before use
+AgentHarness.configure do |config|
+  config.require_authentication = true  # Raises if not logged in
 end
 ```
 
-### C.10 Graceful Degradation
+### C.14 Hooks/Middleware
 
-When all providers fail:
+**Decision:** Not in v1. May add in future versions.
+
+### C.15 Debug Mode
+
+**Decision:** Use `AGENT_HARNESS_DEBUG=1` environment variable for enhanced logging.
+
+```bash
+AGENT_HARNESS_DEBUG=1 ruby my_script.rb
+```
+
+No dry-run mode.
+
+### C.16 Graceful Degradation
+
+**Decision:** When all providers fail, raise `NoProvidersAvailableError`.
+
 ```ruby
-AgentHarness.configure do |config|
-  config.on_all_providers_failed do |error|
-    # Options:
-    # 1. Raise NoProvidersAvailableError (default)
-    # 2. Return cached response if available
-    # 3. Queue for retry
-    # 4. Call fallback handler
-  end
+begin
+  AgentHarness.send_message("prompt")
+rescue AgentHarness::NoProvidersAvailableError => e
+  # All providers exhausted
+  puts e.attempted_providers  # [:claude, :cursor, :gemini]
+  puts e.errors               # { claude: "Rate limited", ... }
 end
 ```
 
-### C.11 Security Considerations
+### C.17 Provider Authentication
 
-- API keys should never be logged
-- Prompts may contain sensitive data - log levels should respect this
-- Provide option to redact sensitive fields
-- Document secure configuration practices
+**Decision:** Out of scope. Users authenticate directly with provider CLIs:
+- `claude login`
+- `gh auth login`
+- `gcloud auth login`
+
+Agent-harness only checks authentication status, does not perform authentication.
+
+### C.18 Versioning & Releases
+
+**Decision:**
+- Semantic Versioning (SemVer)
+- Conventional Commits for commit messages
+- release-please for automated releases and changelog generation
+
+Commit message format:
+```
+feat: add cursor provider support
+fix: handle rate limit errors correctly
+feat!: change Response API (BREAKING)
+docs: update README
+chore: update dependencies
+```
