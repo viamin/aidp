@@ -79,6 +79,21 @@ module Aidp
         "Codex CLI"
       end
 
+      # Check if this provider supports session continuation
+      # Codex supports sessions with --session flag
+      #
+      # @return [Boolean] true, codex supports sessions
+      def supports_sessions?
+        true
+      end
+
+      # Get the CLI flag for session continuation
+      #
+      # @return [String] the flag name
+      def session_flag
+        "--session"
+      end
+
       def available?
         return false unless self.class.available?
 
