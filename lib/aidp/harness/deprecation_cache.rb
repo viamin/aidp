@@ -14,11 +14,20 @@ module Aidp
     class DeprecationCache
       class CacheError < StandardError; end
 
+      # Component name for logging
+      COMPONENT = "deprecation_cache"
+
       attr_reader :cache_path
 
-      # @param cache_path [String, nil] custom cache file path
-      # @param root_dir [String, nil] root directory for default cache path
-      # @param logger [#log_info, #log_warn, #log_error, nil] logger instance
+      # Initialize the deprecation cache.
+      #
+      # All parameters are optional for backward compatibility. Existing callers
+      # that don't pass a logger will use AIDP's built-in logging.
+      #
+      # @param cache_path [String, nil] custom cache file path (optional)
+      # @param root_dir [String, nil] root directory for default cache path (optional)
+      # @param logger [#log_info, #log_warn, #log_error, nil] logger instance (optional,
+      #   falls back to Aidp.log_* methods if nil)
       def initialize(cache_path: nil, root_dir: nil, logger: nil)
         @root_dir = root_dir || safe_root_dir
         @cache_path = cache_path || default_cache_path
@@ -177,8 +186,6 @@ module Aidp
       end
 
       # Logging helpers with fallback to Aidp.log_* if no logger injected
-      COMPONENT = "deprecation_cache"
-
       def log_info(message, **metadata)
         if @logger
           @logger.log_info(COMPONENT, message, **metadata)

@@ -344,9 +344,8 @@ agent_harness:
       models:
         - claude-sonnet-4-20250514
         - claude-3-5-haiku-20241022
-      default_flags:
-        - "--dangerously-skip-permissions"
       timeout: 300
+      # Note: dangerous mode requires explicit per-call opt-in, not defaults
 
     gemini:
       enabled: true
@@ -408,7 +407,7 @@ AgentHarness.configure do |config|
     p.type = :usage_based
     p.priority = 2
     p.models = ["claude-sonnet-4-20250514"]
-    p.default_flags = ["--dangerously-skip-permissions"]
+    # Note: dangerous mode requires explicit per-call opt-in via send_message(dangerous: true)
   end
 
   # Register custom provider

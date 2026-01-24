@@ -129,14 +129,21 @@ module Aidp
       # - Store session IDs for later continuation
       # - Not assume session persistence across provider restarts
 
-      # Check if the provider supports session continuation
-      # @return [Boolean] true if session parameter is supported
+      # Check if the provider supports session continuation.
+      # Providers that don't support sessions return false (the default).
+      # Callers should check this before using the session parameter in send_message.
+      #
+      # @return [Boolean] true if session parameter is supported, false otherwise
       def supports_sessions?
         false
       end
 
-      # Get the provider-specific flag for session continuation
-      # @return [String, nil] CLI flag name (e.g., "--resume", "--session")
+      # Get the provider-specific flag for session continuation.
+      # Returns nil for providers that don't support sessions (supports_sessions? == false).
+      # Callers should check supports_sessions? before using this value.
+      #
+      # @return [String, nil] CLI flag name (e.g., "--resume", "--session"),
+      #   or nil if sessions are not supported
       def session_flag
         nil
       end
