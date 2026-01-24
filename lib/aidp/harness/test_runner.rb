@@ -4,6 +4,7 @@ require "open3"
 require_relative "../tooling_detector"
 require_relative "output_filter"
 require_relative "output_filter_config"
+require_relative "rspec_command_optimizer"
 
 module Aidp
   module Harness
@@ -19,6 +20,8 @@ module Aidp
         @config = config
         @iteration_count = 0
         @filter_stats = {total_input_bytes: 0, total_output_bytes: 0}
+        @previous_iteration_had_test_failures = false
+        @rspec_optimizer = RSpecCommandOptimizer.new(project_dir)
       end
 
       # Run all commands configured for a specific execution phase
@@ -129,9 +132,17 @@ module Aidp
       # Get filtering statistics
       attr_reader :filter_stats
 
+      # Get RSpec command optimizer (for inspection/testing)
+      attr_reader :rspec_optimizer
+
+      # Track if previous iteration had test failures (for --only-failures optimization)
+      attr_reader :previous_iteration_had_test_failures
+
       # Reset iteration counter (useful for testing)
       def reset_iteration_count
         @iteration_count = 0
+        @previous_iteration_had_test_failures = false
+        @rspec_optimizer.reset_caches!
       end
 
       private
@@ -169,54 +180,115 @@ module Aidp
         # Determine output mode based on category
         mode = determine_output_mode(category)
 
+        # Enable RSpec optimization for test commands
+        optimize_rspec = (category == :test)
+
         Aidp.log_debug("test_runner", "running_category",
           category: category,
           command_count: commands.length,
           iteration: @iteration_count,
-          output_mode: mode)
+          output_mode: mode,
+          optimize_rspec: optimize_rspec,
+          previous_had_failures: @previous_iteration_had_test_failures)
 
         # Execute all commands
         results = commands.map do |cmd_config|
           # Handle both string commands (legacy) and hash format (new)
           if cmd_config.is_a?(String)
-            result = execute_command(cmd_config, category.to_s)
+            result = execute_command(cmd_config, category.to_s, optimize_rspec: optimize_rspec)
             result.merge(required: true)
           else
-            result = execute_command(cmd_config[:command], category.to_s)
+            result = execute_command(cmd_config[:command], category.to_s, optimize_rspec: optimize_rspec)
             result.merge(required: cmd_config[:required])
           end
         end
 
-        aggregate_results(results, display_name, mode: mode)
+        aggregated = aggregate_results(results, display_name, mode: mode)
+
+        # Track test failures for next iteration's --only-failures optimization
+        if category == :test
+          @previous_iteration_had_test_failures = !aggregated[:success]
+          @rspec_optimizer.reset_caches! if aggregated[:success]
+
+          Aidp.log_debug("test_runner", "test_failure_tracking",
+            iteration: @iteration_count,
+            had_failures: @previous_iteration_had_test_failures,
+            failure_count: aggregated[:failures]&.length || 0)
+        end
+
+        aggregated
       rescue NameError
         # Logging not available
         commands = resolved_commands(category)
         return {success: true, output: "", failures: [], required_failures: []} if commands.empty?
 
+        optimize_rspec = (category == :test)
         mode = determine_output_mode(category)
         results = commands.map do |cmd_config|
           if cmd_config.is_a?(String)
-            result = execute_command(cmd_config, category.to_s)
+            result = execute_command(cmd_config, category.to_s, optimize_rspec: optimize_rspec)
             result.merge(required: true)
           else
-            result = execute_command(cmd_config[:command], category.to_s)
+            result = execute_command(cmd_config[:command], category.to_s, optimize_rspec: optimize_rspec)
             result.merge(required: cmd_config[:required])
           end
         end
 
-        aggregate_results(results, display_name, mode: mode)
+        aggregated = aggregate_results(results, display_name, mode: mode)
+
+        # Track test failures for next iteration (without logging)
+        if category == :test
+          @previous_iteration_had_test_failures = !aggregated[:success]
+          @rspec_optimizer.reset_caches! if aggregated[:success]
+        end
+
+        aggregated
       end
 
-      def execute_command(command, type)
-        stdout, stderr, status = Open3.capture3(command, chdir: @project_dir)
+      def execute_command(command, type, optimize_rspec: false)
+        actual_command = command
+        optimization_info = nil
+
+        # Apply RSpec --only-failures optimization for test commands on subsequent iterations
+        if optimize_rspec && type == "test"
+          optimization_info = @rspec_optimizer.optimize_command(
+            command,
+            iteration: @iteration_count,
+            had_failures: @previous_iteration_had_test_failures
+          )
+          actual_command = optimization_info[:command]
+
+          if optimization_info[:optimized]
+            Aidp.log_info("test_runner", "rspec_optimized",
+              original: command,
+              optimized: actual_command,
+              iteration: @iteration_count,
+              reason: optimization_info[:reason])
+          end
+        end
+
+        stdout, stderr, status = Open3.capture3(actual_command, chdir: @project_dir)
+
+        # Handle special case: --only-failures with no failures to rerun
+        # RSpec exits with 0 and says "All examples were filtered out"
+        if optimization_info&.dig(:optimized) && status.success? && stdout.include?("All examples were filtered out")
+          Aidp.log_info("test_runner", "rspec_only_failures_empty",
+            message: "No failures to rerun, running full suite")
+
+          # Fall back to full RSpec run
+          stdout, stderr, status = Open3.capture3(command, chdir: @project_dir)
+          actual_command = command
+        end
 
         {
-          command: command,
+          command: actual_command,
+          original_command: command,
           type: type,
           success: status.success?,
           exit_code: status.exitstatus,
           stdout: stdout,
-          stderr: stderr
+          stderr: stderr,
+          rspec_optimized: optimization_info&.dig(:optimized) || false
         }
       end
 

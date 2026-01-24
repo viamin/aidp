@@ -947,6 +947,39 @@ test_commands:
   - "npm test -- --bail"             # Stop on first failure
 ```
 
+#### RSpec `--only-failures` Optimization
+
+AIDP automatically optimizes RSpec test runs during work loops by using the `--only-failures` flag on subsequent iterations. This dramatically reduces both execution time and output volume when fixing failing tests.
+
+**How it works:**
+
+1. **First iteration**: Full RSpec suite runs normally
+2. **Subsequent iterations**: If there were failures, AIDP automatically adds `--only-failures` to re-run only the failing tests
+3. **All tests pass**: AIDP runs the full suite again to verify
+
+**To enable this optimization, configure RSpec persistence in your `spec/spec_helper.rb`:**
+
+```ruby
+RSpec.configure do |config|
+  # Required for --only-failures optimization
+  config.example_status_persistence_file_path = '.rspec_status'
+end
+```
+
+Also add `.rspec_status` to your `.gitignore`:
+
+```gitignore
+.rspec_status
+```
+
+**Benefits:**
+
+- **Faster feedback**: Re-running 2 failing tests is much faster than 200 tests
+- **Reduced output**: Agent receives focused output about remaining failures
+- **Lower token consumption**: Less output means fewer tokens spent per iteration
+
+The setup wizard will warn you if RSpec is detected but persistence is not configured. Run `aidp setup` to check your configuration.
+
 ### 3. Use Meaningful Step Names
 
 Step names appear in archived PROMPT.md files:
