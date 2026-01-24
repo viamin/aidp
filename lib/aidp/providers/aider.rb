@@ -79,6 +79,37 @@ module Aidp
         "Aider"
       end
 
+      # Check if this provider supports dangerous/elevated permissions mode
+      # Aider uses --yes-always flag for non-interactive mode
+      #
+      # @return [Boolean] true, aider supports dangerous mode
+      def supports_dangerous_mode?
+        true
+      end
+
+      # Get the provider-specific flag(s) for enabling dangerous mode
+      # Maps the semantic `dangerous: true` flag to Aider's --yes-always
+      #
+      # @return [Array<String>] command-line flags for dangerous mode
+      def dangerous_mode_flags
+        ["--yes-always"]
+      end
+
+      # Check if this provider supports session continuation
+      # Aider supports chat history with --history-file flag
+      #
+      # @return [Boolean] true, aider supports sessions
+      def supports_sessions?
+        true
+      end
+
+      # Get the CLI flag for session continuation
+      #
+      # @return [String] the flag name
+      def session_flag
+        "--history-file"
+      end
+
       def available?
         return false unless self.class.available?
 

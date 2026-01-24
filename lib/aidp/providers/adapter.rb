@@ -110,6 +110,37 @@ module Aidp
         @dangerous_mode_enabled = enabled
       end
 
+      # Session management abstraction
+      #
+      # Sessions allow providers to maintain conversation context across multiple
+      # interactions. The session parameter in send_message is an opaque string
+      # that is passed to the provider CLI in a provider-specific way.
+      #
+      # Provider implementations:
+      # - Anthropic Claude: Currently not used (Claude CLI manages sessions internally)
+      # - GitHub Copilot: --resume <session_id>
+      # - Codex: --session <session_id>
+      # - Aider: --history-file <path>
+      # - Others: May not support sessions
+      #
+      # Consumers should:
+      # - Check supports_sessions? before using session parameter
+      # - Generate unique session IDs (UUIDs recommended)
+      # - Store session IDs for later continuation
+      # - Not assume session persistence across provider restarts
+
+      # Check if the provider supports session continuation
+      # @return [Boolean] true if session parameter is supported
+      def supports_sessions?
+        false
+      end
+
+      # Get the provider-specific flag for session continuation
+      # @return [String, nil] CLI flag name (e.g., "--resume", "--session")
+      def session_flag
+        nil
+      end
+
       # Error classification and handling
 
       # Get error classification regex patterns for this provider
