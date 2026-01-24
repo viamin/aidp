@@ -3,17 +3,6 @@ require "fileutils"
 require "shellwords"
 
 module Aidp
-  # Simple shell command executor wrapper for testability
-  class ShellExecutor
-    def run(command)
-      `#{command}`
-    end
-
-    def success?
-      $?.success?
-    end
-  end
-
   # Manages worktrees specifically for Pull Request branches
   class PRWorktreeManager
     def initialize(base_repo_path: nil, project_dir: nil, worktree_registry_path: nil, shell_executor: nil)
@@ -172,7 +161,7 @@ module Aidp
           ]
 
           fetch_commands.each do |fetch_cmd|
-            system(fetch_cmd)
+            @shell_executor.system(fetch_cmd)
             branch_list_output = `git branch -a`.split("\n").map(&:strip)
             base_branch_exists = branch_list_output.any? do |branch|
               branch.end_with?("/#{base_branch}", "remotes/origin/#{base_branch}") ||
@@ -187,7 +176,7 @@ module Aidp
 
         # Robust worktree creation with enhanced error handling and logging
         worktree_create_command = "git worktree add #{Shellwords.escape(worktree_path)} -b #{Shellwords.escape(head_branch)} #{Shellwords.escape(base_branch)}"
-        unless system(worktree_create_command)
+        unless @shell_executor.system(worktree_create_command)
           error_details = {
             pr_number: pr_number,
             base_branch: base_branch,
@@ -390,7 +379,7 @@ module Aidp
 
         # Stage only successfully modified files
         unless successful_files.empty?
-          system("git add #{successful_files.map { |f| Shellwords.escape(f) }.join(" ")}")
+          @shell_executor.system("git add #{successful_files.map { |f| Shellwords.escape(f) }.join(" ")}")
         end
       end
 
@@ -508,7 +497,7 @@ module Aidp
       return false unless existing_worktree
 
       # Remove git worktree
-      system("git worktree remove #{existing_worktree["path"]}") if File.exist?(existing_worktree["path"])
+      @shell_executor.system("git worktree remove #{existing_worktree["path"]}") if File.exist?(existing_worktree["path"])
 
       # Remove from registry and save
       @worktrees.delete(pr_number.to_s)

@@ -8,15 +8,31 @@ module Aidp
     # Manages a dynamic cache of deprecated models detected at runtime
     # When deprecation errors are detected from provider APIs, models are
     # added to this cache with metadata (replacement, detected date, etc.)
+    #
+    # This class is designed to be extractable to the agent-harness gem.
+    # It uses dependency injection for logging to decouple from AIDP.
     class DeprecationCache
       class CacheError < StandardError; end
 
+      # Component name for logging
+      COMPONENT = "deprecation_cache"
+
       attr_reader :cache_path
 
-      def initialize(cache_path: nil, root_dir: nil)
+      # Initialize the deprecation cache.
+      #
+      # All parameters are optional for backward compatibility. Existing callers
+      # that don't pass a logger will use AIDP's built-in logging.
+      #
+      # @param cache_path [String, nil] custom cache file path (optional)
+      # @param root_dir [String, nil] root directory for default cache path (optional)
+      # @param logger [#log_info, #log_warn, #log_error, nil] logger instance (optional,
+      #   falls back to Aidp.log_* methods if nil)
+      def initialize(cache_path: nil, root_dir: nil, logger: nil)
         @root_dir = root_dir || safe_root_dir
         @cache_path = cache_path || default_cache_path
         @cache_data = nil
+        @logger = logger
         ensure_cache_directory
       end
 
@@ -36,8 +52,7 @@ module Aidp
         }.compact
 
         save_cache
-        Aidp.log_info("deprecation_cache", "Added deprecated model",
-          provider: provider, model: model_id, replacement: replacement)
+        log_info("added_deprecated_model", provider: provider, model: model_id, replacement: replacement)
       end
 
       # Check if a model is deprecated
@@ -78,8 +93,7 @@ module Aidp
         @cache_data["providers"].delete(provider) if @cache_data["providers"][provider].empty?
 
         save_cache
-        Aidp.log_info("deprecation_cache", "Removed deprecated model",
-          provider: provider, model: model_id)
+        log_info("removed_deprecated_model", provider: provider, model: model_id)
       end
 
       # Get full deprecation info for a model
@@ -95,7 +109,7 @@ module Aidp
       def clear!
         @cache_data = default_cache_structure
         save_cache
-        Aidp.log_info("deprecation_cache", "Cleared all deprecations")
+        log_info("cleared_all_deprecations")
       end
 
       # Get cache statistics
@@ -145,16 +159,14 @@ module Aidp
           @cache_data = default_cache_structure
         end
       rescue JSON::ParserError => e
-        Aidp.log_warn("deprecation_cache", "Invalid cache file, resetting",
-          error: e.message, path: @cache_path)
+        log_warn("invalid_cache_file_resetting", error: e.message, path: @cache_path)
         @cache_data = default_cache_structure
       end
 
       def save_cache
         File.write(@cache_path, JSON.pretty_generate(@cache_data))
       rescue => e
-        Aidp.log_error("deprecation_cache", "Failed to save cache",
-          error: e.message, path: @cache_path)
+        log_error("failed_to_save_cache", error: e.message, path: @cache_path)
         raise CacheError, "Failed to save deprecation cache: #{e.message}"
       end
 
@@ -168,8 +180,38 @@ module Aidp
 
       def validate_cache_structure
         unless @cache_data.is_a?(Hash) && @cache_data["providers"].is_a?(Hash)
-          Aidp.log_warn("deprecation_cache", "Invalid cache structure, resetting")
+          log_warn("invalid_cache_structure_resetting")
           @cache_data = default_cache_structure
+        end
+      end
+
+      # Logging helpers with fallback to Aidp.log_* if no logger injected.
+      #
+      # Design note: We intentionally treat nil and "not provided" the same way.
+      # Both mean "use AIDP's built-in logging". If you need to suppress logging
+      # entirely, pass a NullLogger that implements LoggerInterface but does nothing.
+      # This keeps the interface simple while supporting the gem extraction use case.
+      def log_info(message, **metadata)
+        if @logger
+          @logger.log_info(COMPONENT, message, **metadata)
+        else
+          Aidp.log_info(COMPONENT, message, **metadata)
+        end
+      end
+
+      def log_warn(message, **metadata)
+        if @logger
+          @logger.log_warn(COMPONENT, message, **metadata)
+        else
+          Aidp.log_warn(COMPONENT, message, **metadata)
+        end
+      end
+
+      def log_error(message, **metadata)
+        if @logger
+          @logger.log_error(COMPONENT, message, **metadata)
+        else
+          Aidp.log_error(COMPONENT, message, **metadata)
         end
       end
     end

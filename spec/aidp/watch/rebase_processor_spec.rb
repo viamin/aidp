@@ -7,6 +7,7 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
   let(:ai_decision_engine) { double("AIDecisionEngine") }
   let(:label_config) { {rebase_trigger: "aidp-rebase"} }
   let(:state_store) { double("StateStore") }
+  let(:shell_executor) { double("ShellExecutor") }
 
   subject(:processor) do
     described_class.new(
@@ -15,7 +16,8 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
       worktree_manager: worktree_manager,
       ai_decision_engine: ai_decision_engine,
       label_config: label_config,
-      verbose: false
+      verbose: false,
+      shell_executor: shell_executor
     )
   end
 
@@ -107,15 +109,15 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
     context "when rebase is successful" do
       before do
         # Simulate successful rebase
-        allow(processor).to receive(:system)
+        allow(shell_executor).to receive(:system)
           .with(/git fetch origin/)
           .and_return(true)
 
-        allow(processor).to receive(:system)
+        allow(shell_executor).to receive(:system)
           .with(/git rebase origin\/main/)
           .and_return(true)
 
-        allow(processor).to receive(:system)
+        allow(shell_executor).to receive(:system)
           .with(/git push -f origin feature-branch/)
           .and_return(true)
 
@@ -166,11 +168,11 @@ RSpec.describe Aidp::Watch::RebaseProcessor do
 
       before do
         # Simulate rebase failure
-        allow(processor).to receive(:system)
+        allow(shell_executor).to receive(:system)
           .with(/git fetch origin/)
           .and_return(true)
 
-        allow(processor).to receive(:system)
+        allow(shell_executor).to receive(:system)
           .with(/git rebase origin\/main/)
           .and_return(false)
 

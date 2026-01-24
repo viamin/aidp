@@ -1236,7 +1236,7 @@ module Aidp
               display_message("", type: :info)
               display_message("Git Status:", type: :highlight)
               Dir.chdir(ws[:path]) do
-                system("git", "status", "--short")
+                Aidp::ShellExecutor.new.system("git", "status", "--short")
               end
             end
           rescue Aidp::Worktree::Error => e

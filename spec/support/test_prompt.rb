@@ -260,6 +260,11 @@ class TestPrompt
     /🏷️  Added '.*' to PR #\d+/,
     /🏷️  Removed '.*' from (issue|PR) #\d+/,
 
+    # Auto-merge messages
+    /❌ Failed to auto-merge PR #\d+:/,
+    /🔀 Auto-merge: \d+ merged, \d+ skipped, \d+ failed/,
+    /✅ Auto-merged PR #\d+/,
+
     # Provider and circuit breaker messages
     /Context: \{[^}]*}/,
     /All providers are rate limited, unhealthy, or circuit breaker open/,
@@ -271,6 +276,17 @@ class TestPrompt
     /fatal: not a git repository/,
     /fatal: pathspec .* did not match any files/,
     /fatal: could not create leading directories/,
+    /fatal: .* is not a working tree/,
+    /Initialized empty Git repository/,
+    /Switched to a new branch/,
+    /^\[[\w-]+ \([^)]+\) [a-f0-9]+\]/, # Git commit output like "[main (root-commit) abc123]"
+    /^\s*\d+ files? changed/,
+    /^\s*create mode \d+/,
+    /^\s*delete mode \d+/,
+
+    # Large PR and worktree handling messages
+    /⚠️  Large PR detected/,
+    /🔄 Using PR-specific worktree for branch:/,
 
     # Harness execution messages
     /⏹️  Harness (stopped|STOPPED)/,
@@ -284,6 +300,12 @@ class TestPrompt
     /🔍 Reviewing PR #\d+/,
     /ℹ️  Review for PR #\d+ already posted/,
     /❌ Review failed:/,
+    /⚠️  Implementation appears incomplete/,
+    /⚠️  Verification check failed:/,
+    /⚠️  Unknown change action:/,
+    /❌ Failed to apply change to/,
+    /🔒 Security error applying change to/,
+    /DEBUG: Write calls:/,
 
     # Error and cancellation messages
     /⚠️  Failed to create pull request:/,
@@ -417,8 +439,8 @@ class TestPrompt
     /Execute Mode:/,
     /Use 'aidp analyze' or 'aidp execute'/,
 
-    # Table messages
-    /The table size exceeds the currently set width/,
+    # Table messages (TTY::Table outputs these concatenated without newline)
+    /The table size exceeds/,
     /Defaulting to vertical orientation/,
 
     # File preview messages
@@ -721,8 +743,8 @@ class TestPrompt
     /❌ Task \d+ failed/,
     /Connection failed/,
 
-    # MCP and eligibility messages (minimal - some tests verify this output)
-    # Note: Many MCP messages are verified by tests via capture_output, so we don't suppress them
+    # MCP and eligibility messages
+    # Note: MCP Server Dashboard output is verified by tests via capture_output - DO NOT suppress
 
     # Workflow status messages
     /[✓✗⚠] Workflow (completed|resumed|cancelled|stopped|paused):/,
@@ -779,6 +801,14 @@ class TestPrompt
     /^\s+(APPLY_PATCH|TEST|FAIL|DIAGNOSE|NEXT_PATCH|PASS|DONE|READY): \d+ times?$/,
     /^\s+• Prompt size: \d+ chars \| State: \w+$/,
 
+    # Security rule output
+    /🔒 Security \(Rule of Two\):/,
+    /^\s+No flags enabled \(safe\)$/,
+
+    # Prompt evaluation messages
+    /📊 Evaluating prompt effectiveness/,
+    /ℹ️  Prompt evaluation skipped:/,
+
     # Devcontainer paths and diff output
     %r{^\s+/tmp/[^/]+/\.devcontainer/devcontainer\.json$},
     /^\s+\+ [a-z]+:/,        # Config additions like "+ ghcr.io/..."
@@ -820,6 +850,22 @@ class TestPrompt
     /Removed '.+' from fallback providers/,
     /⚠️  Duplicate configurations detected/,
     /Consider using different providers/,
+
+    # Usage limits configuration
+    /📊 Configure limits by tier/,
+    /🔹 Mini tier \(fast, cheap models\):/,
+    /🔸 Advanced tier \(powerful, expensive models\):/,
+    /Configured usage limits for/,
+    /💰 Usage limits currently enabled for/,
+
+    # Deterministic commands configuration
+    /📋 Deterministic Commands Configuration/,
+    /Commands run automatically during work loops/,
+    /Commands can run: after each unit/,
+    /^\s+Found \d+ existing command/,
+    /^\s+Current commands: \d+$/,
+    /^✅ Configured \d+ command/,
+    /^\s+Adding new command:$/,
 
     # Setup wizard section headers
     /💡 You can run 'aidp models discover' later to see available models/,
@@ -873,11 +919,24 @@ class TestPrompt
     /^🎉 Setup complete!$/,
     /^Next steps:$/,
 
-    # Configuration diff output (specific patterns only, avoid broad matches)
+    # Configuration diff output (YAML-style diff lines)
+    # These are specific to config preview/diff output with leading +/-/~ for changes
     /^\+ # .+$/,
     /^\+ ---$/,
-    # Note: Removed broad patterns like /^\+ \w+:/, /^  \w+:/, /^- \w+:/ as they
-    # can match legitimate output like "Task: Add new feature"
+    /^\+ \w+:$/,       # Lines like "+ harness:"
+    /^\+   \w+:/,      # Indented lines like "+   default_provider:"
+    /^\+     \w+:/,    # Further indented
+    /^\+       \w+:/,  # Even further indented
+    /^\+     - .+$/,   # List items like "+     - spec/**/*_spec.rb"
+    /^\+ generated_/,  # Generated metadata lines
+
+    # Agent instructions generation output
+    /^\s+Created master agent instructions:$/,
+    /^\s+- AGENTS\.md$/,
+    /^\s+Created provider symlinks:$/,
+    /^\s+- [\w.\/]+ -> AGENTS\.md$/,
+    /^\s+Preserved existing files:$/,
+    /^\s+- [\w.]+ \(file already exists\)$/,
 
     # Multiline input prompts (specific labels only)
     /^(Description|Summary|Notes|Comments):$/,
@@ -1063,6 +1122,8 @@ class TestPrompt
     /^GitHub CLI list failed:/,
 
     # Harness status display sections
+    /^\s+Status: In Progress$/,
+    /^\s+Steps completed: \d+\/\d+$/,
     /💬 USER FEEDBACK STATUS/,
     /^\s+question: \w+$/,
     /^\s+question_count: \d+$/,
@@ -1137,6 +1198,25 @@ class TestPrompt
     # Additional git worktree messages
     /^Switched to a new branch '[^']+'$/,
     /^fatal: invalid reference: [\w\/-]+$/,
+
+    # Project field and status management
+    /✓ Created project field/,
+    /✓ Updated status for #\d+/,
+    /✓ Issue #\d+ is no longer blocked/,
+    /⚠️  Issue #\d+ is blocked by/,
+    /⚠️  Failed to create project field/,
+    /⚠️  Failed to update status:/,
+    /📊 Linked issue #\d+ to project/,
+    /⚠️  Failed to link issue #\d+ to project:/,
+    /📊 Syncing \d+ issues to project/,
+    /📊 Sync complete: \d+ synced, \d+ failed/,
+
+    # Launch verification output
+    /Launch test (completed successfully|failed:)/,
+    /Enhanced Runner instantiation verified/,
+    /First Run Wizard loaded/,
+    /Init Runner instantiation verified/,
+    /Interactive mode initialization verified/,
 
     # Model discovery output
     /^✓ Found \d+ models for \w+:$/,

@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.36.1](https://github.com/viamin/aidp/compare/aidp/v0.36.0...aidp/v0.36.1) (2026-01-19)
+
+
+### Bug Fixes
+
+* update RSpec output format to 'failures' for better clarity in test results ([93fc995](https://github.com/viamin/aidp/commit/93fc995cd0b83493625f9e04899f561c23a2c0e0))
+
+
+### Improvements
+
+* replace array syntax with symbol array for improved readability ([4cefa7c](https://github.com/viamin/aidp/commit/4cefa7cc46a5d71eeb7a8c973a35b17355ad45f0))
+* replace system calls with ShellExecutor for improved testability ([535016d](https://github.com/viamin/aidp/commit/535016d48ad3113817a66c67547feac8bd28f436))
+
+
+### Dependencies
+
+* **deps:** bump the minor-updates group with 2 updates ([53ee488](https://github.com/viamin/aidp/commit/53ee4884aeccea3f840ad7c57bc25b2b8dbcc689))
+* **deps:** bump the minor-updates group with 2 updates ([#454](https://github.com/viamin/aidp/issues/454)) ([b52431e](https://github.com/viamin/aidp/commit/b52431ee1695d328c975d66bb58371d11b223034))
+
 ## [0.36.0](https://github.com/viamin/aidp/compare/aidp/v0.35.0...aidp/v0.36.0) (2026-01-18)
 
 

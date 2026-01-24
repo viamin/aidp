@@ -160,9 +160,7 @@ module Aidp
         # Check if env var exists
         unless ENV.key?(env_var)
           @prompt.warn("Warning: Environment variable '#{env_var}' is not currently set")
-          unless @prompt.yes?("Continue anyway?")
-            return 1
-          end
+          return 1 unless @prompt.yes?("Continue anyway?")
         end
 
         # Ask for optional description
@@ -189,9 +187,7 @@ module Aidp
           @prompt.say("  Env var: #{env_var}")
           @prompt.say("  Registered at: #{result[:registered_at]}")
 
-          if scope_list.any?
-            @prompt.say("  Scopes: #{scope_list.join(", ")}")
-          end
+          @prompt.say("  Scopes: #{scope_list.join(", ")}") if scope_list.any?
 
           @prompt.say("\nThe secret value will be proxied through short-lived tokens.")
           @prompt.say("Agent processes will not have direct access to '#{env_var}'.")
@@ -229,9 +225,7 @@ module Aidp
 
         if registry.unregister(name: secret_name)
           @prompt.ok("Secret '#{secret_name}' unregistered")
-          if revoked_count > 0
-            @prompt.say("  Revoked #{revoked_count} active token(s)")
-          end
+          @prompt.say("  Revoked #{revoked_count} active token(s)") if revoked_count > 0
           0
         else
           @prompt.error("Failed to unregister secret")
@@ -349,7 +343,7 @@ module Aidp
         end
 
         # Run RSpec with timeout protection
-        cmd = "bundle exec rspec #{rspec_path} --format documentation"
+        cmd = "bundle exec rspec #{rspec_path} --format failures"
         @prompt.say("$ #{cmd}\n")
         @prompt.say("(timeout: #{AUDIT_TIMEOUT_SECONDS / 60} minutes)\n")
 

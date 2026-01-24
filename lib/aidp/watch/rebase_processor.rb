@@ -15,7 +15,8 @@ module Aidp
         worktree_manager: nil,
         ai_decision_engine: AIDecisionEngine.new,
         label_config: {},
-        verbose: false
+        verbose: false,
+        shell_executor: nil
       )
         super(
           repository_client: repository_client,
@@ -25,6 +26,7 @@ module Aidp
         )
         @worktree_manager = worktree_manager || Aidp::PRWorktreeManager.new
         @ai_decision_engine = ai_decision_engine
+        @shell_executor = shell_executor || Aidp::ShellExecutor.new
         @rebase_label = label_config[:rebase_trigger] ||
           label_config["rebase_trigger"] ||
           DEFAULT_REBASE_LABEL
@@ -114,11 +116,11 @@ module Aidp
         # Use PRWorktreeManager's method to perform rebase and conflict resolution
         with_worktree_context(worktree_path) do
           # Fetch the latest changes
-          system("git fetch origin")
+          @shell_executor.system("git fetch origin")
 
           # Attempt to rebase
           rebase_command = "git rebase origin/#{base_branch}"
-          rebase_output = system(rebase_command)
+          rebase_output = @shell_executor.system(rebase_command)
 
           unless rebase_output
             # Conflict resolution using AI
@@ -131,9 +133,10 @@ module Aidp
               # If resolution is successful, continue with the rebase
               if resolution
                 # Stage resolved files and continue rebase
+                # GIT_EDITOR=true prevents editor from opening during automated rebase
                 quoted_files = conflict_files.map { |f| "\"#{f}\"" }.join(" ")
-                system("git add #{quoted_files}")
-                system("git rebase --continue")
+                @shell_executor.system("git add #{quoted_files}")
+                @shell_executor.system({"GIT_EDITOR" => "true"}, "git rebase --continue")
               else
                 return false
               end
@@ -144,7 +147,7 @@ module Aidp
           end
 
           # Push the rebased branch
-          system("git push -f origin #{head_branch}")
+          @shell_executor.system("git push -f origin #{head_branch}")
         end
 
         true
@@ -185,7 +188,9 @@ module Aidp
         end
 
         # Stage and continue rebase
-        system("cd #{worktree_path} && git add . && git rebase --continue")
+        # GIT_EDITOR=true prevents editor from opening during automated rebase
+        @shell_executor.system("cd #{worktree_path} && git add .")
+        @shell_executor.system({"GIT_EDITOR" => "true"}, "cd #{worktree_path} && git rebase --continue")
       end
 
       def post_rebase_status(pr_number, rebase_result, error_detail = nil)

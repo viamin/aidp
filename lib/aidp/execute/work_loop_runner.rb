@@ -1045,9 +1045,9 @@ module Aidp
         parts << ""
         parts << "## Instructions"
         parts << "You are working in a work loop. Your responsibilities:"
-        parts << "1. Read this PROMPT.md file to understand what needs to be done"
+        parts << "1. Read this file (`.aidp/PROMPT.md`) to understand what needs to be done"
         parts << "2. Complete the work described below"
-        parts << "3. **IMPORTANT**: Edit this PROMPT.md file yourself to:"
+        parts << "3. **IMPORTANT**: Edit this `.aidp/PROMPT.md` file to:"
         parts << "   - Remove completed items"
         parts << "   - Update with current status"
         parts << "   - Keep it concise (remove unnecessary context)"
@@ -1056,7 +1056,7 @@ module Aidp
         parts << "5. If tests/linters fail, you'll see the errors in the next iteration"
         parts << ""
         parts << "## Completion Criteria"
-        parts << "Mark this step COMPLETE by adding this line to PROMPT.md:"
+        parts << "Mark this step COMPLETE by adding this line to `.aidp/PROMPT.md`:"
         parts << "```"
         parts << "STATUS: COMPLETE"
         parts << "```"
@@ -1373,7 +1373,7 @@ module Aidp
           parts << "### Step 3: Complete the Work Loop"
           parts << "Only after ALL tasks are done:"
           parts << "- Verify tests pass"
-          parts << "- Add STATUS: COMPLETE to PROMPT.md"
+          parts << "- Add STATUS: COMPLETE to `.aidp/PROMPT.md`"
           parts << ""
           parts << "### Task Rules"
           parts << "- **At least ONE task must be filed** - completion blocked without tasks"
@@ -1397,7 +1397,7 @@ module Aidp
         end
 
         parts << "## Completion Criteria"
-        parts << "Mark this step COMPLETE by adding these lines to PROMPT.md:"
+        parts << "Mark this step COMPLETE by adding these lines to `.aidp/PROMPT.md`:"
         parts << "```"
         parts << "STATUS: COMPLETE"
         if @config.task_completion_required?
