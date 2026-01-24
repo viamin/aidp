@@ -198,7 +198,7 @@ module Aidp
           result = yield
           spin.success("done")
           result
-        rescue => e
+        rescue
           spin.error("failed")
           raise
         end

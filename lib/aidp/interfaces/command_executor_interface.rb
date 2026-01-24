@@ -170,7 +170,7 @@ module Aidp
             stderr: result.err,
             exit_status: result.exit_status
           )
-        rescue TTY::Command::TimeoutExceeded => e
+        rescue TTY::Command::TimeoutExceeded
           duration = Time.now - start_time
           log_debug("command_timeout",
             command: command,

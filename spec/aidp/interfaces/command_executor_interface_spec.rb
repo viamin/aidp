@@ -134,6 +134,7 @@ RSpec.describe Aidp::Interfaces::TtyCommandExecutor do
   let(:spy_logger) do
     Class.new do
       include Aidp::Interfaces::LoggerInterface
+
       attr_reader :calls
 
       def initialize

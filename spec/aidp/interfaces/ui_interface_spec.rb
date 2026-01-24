@@ -18,7 +18,7 @@ RSpec.describe Aidp::Interfaces::UiInterface do
 
     it "requires #with_spinner to be implemented" do
       instance = bare_class.new
-      expect { instance.with_spinner(title: "test") { } }
+      expect { instance.with_spinner(title: "test") {} }
         .to raise_error(NotImplementedError, /must implement #with_spinner/)
     end
 

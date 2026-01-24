@@ -147,6 +147,8 @@ module Aidp
     class ActivityMonitor
       include ActivityMonitorInterface
 
+      attr_reader :state
+
       DEFAULT_STUCK_TIMEOUT = 30
 
       def initialize(logger: nil)
@@ -198,10 +200,6 @@ module Aidp
         else
           false
         end
-      end
-
-      def state
-        @state
       end
 
       def elapsed_time
