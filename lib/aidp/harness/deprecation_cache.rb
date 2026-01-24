@@ -185,7 +185,12 @@ module Aidp
         end
       end
 
-      # Logging helpers with fallback to Aidp.log_* if no logger injected
+      # Logging helpers with fallback to Aidp.log_* if no logger injected.
+      #
+      # Design note: We intentionally treat nil and "not provided" the same way.
+      # Both mean "use AIDP's built-in logging". If you need to suppress logging
+      # entirely, pass a NullLogger that implements LoggerInterface but does nothing.
+      # This keeps the interface simple while supporting the gem extraction use case.
       def log_info(message, **metadata)
         if @logger
           @logger.log_info(COMPONENT, message, **metadata)

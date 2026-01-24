@@ -216,29 +216,35 @@ module Aidp
           # Log the results
           debug_command("copilot", args: args, input: prompt, output: result.out, error: result.err, exit_code: result.exit_status)
 
-          # Detect authorization/access errors using standardized error classification
-          if result.exit_status != 0 || result.err.to_s.length > 0
-            error = StandardError.new(result.err.to_s)
-            error_category = classify_error(error)
-
-            if error_category == :auth_expired
-              spinner.error("✗")
-              mark_failed("copilot authorization error: #{result.err}")
-              @unavailable = true
-              debug_error(error, {exit_code: result.exit_status, stderr: result.err, error_category: error_category})
-              raise Aidp::Providers::ProviderUnavailableError.new("copilot authorization error: #{result.err}")
-            end
-          end
-
           if result.exit_status == 0
             spinner.success("✓")
             mark_completed
             result.out
           else
+            # Classify error and handle appropriately
+            error = StandardError.new(result.err.to_s)
+            error_category = classify_error(error)
+
             spinner.error("✗")
-            mark_failed("copilot failed with exit code #{result.exit_status}")
-            debug_error(StandardError.new("copilot failed"), {exit_code: result.exit_status, stderr: result.err})
-            raise "copilot failed with exit code #{result.exit_status}: #{result.err}"
+            debug_error(error, {exit_code: result.exit_status, stderr: result.err, error_category: error_category})
+
+            case error_category
+            when :auth_expired
+              mark_failed("copilot authorization error: #{result.err}")
+              @unavailable = true
+              raise Aidp::Providers::ProviderUnavailableError.new("copilot authorization error: #{result.err}")
+            when :rate_limited
+              mark_failed("copilot rate limited: #{result.err}")
+              raise Aidp::Providers::ProviderUnavailableError.new("copilot rate limited, retry later: #{result.err}")
+            when :quota_exceeded
+              mark_failed("copilot quota exceeded: #{result.err}")
+              @unavailable = true
+              raise Aidp::Providers::ProviderUnavailableError.new("copilot quota exceeded: #{result.err}")
+            else
+              # :transient, :permanent, or :unknown - raise generic error
+              mark_failed("copilot failed with exit code #{result.exit_status}")
+              raise "copilot failed with exit code #{result.exit_status}: #{result.err}"
+            end
           end
         rescue Aidp::Providers::ProviderUnavailableError
           raise

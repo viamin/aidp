@@ -210,6 +210,52 @@ RSpec.describe Aidp::Interfaces::TtyCommandExecutor do
         expect(result.success?).to be true
         expect(result.stdout).to eq("hello stdin")
       end
+
+      it "reads from file when input is an existing file path" do
+        Tempfile.create("test_input") do |file|
+          file.write("content from file")
+          file.flush
+
+          result = executor.execute("cat", input: file.path)
+
+          expect(result.success?).to be true
+          expect(result.stdout).to eq("content from file")
+        end
+      end
+
+      it "treats non-existent paths as literal input" do
+        result = executor.execute("cat", input: "/nonexistent/path/to/file.txt")
+
+        expect(result.success?).to be true
+        expect(result.stdout).to eq("/nonexistent/path/to/file.txt")
+      end
+
+      it "reads empty files without error" do
+        Tempfile.create("empty_input") do |file|
+          # File is empty by default
+          file.flush
+
+          result = executor.execute("cat", input: file.path)
+
+          expect(result.success?).to be true
+          expect(result.stdout).to eq("")
+        end
+      end
+
+      it "raises error for unreadable files", skip: Process.uid.zero? && "root can read any file" do
+        Tempfile.create("unreadable_input") do |file|
+          file.write("secret content")
+          file.flush
+          File.chmod(0o000, file.path)
+
+          expect {
+            executor.execute("cat", input: file.path)
+          }.to raise_error(Aidp::Interfaces::CommandExecutionError)
+
+          # Restore permissions for cleanup
+          File.chmod(0o644, file.path)
+        end
+      end
     end
 
     context "when command times out" do

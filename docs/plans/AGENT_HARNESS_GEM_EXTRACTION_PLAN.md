@@ -2386,11 +2386,49 @@ This preparation work can run in parallel with planning and will significantly r
 
 ### Phase 1: Create Gem Structure (Week 1)
 
+#### Gem Skeleton Generation
+
+Generate the gem skeleton with the following command:
+
+```bash
+bundle gem agent-harness \
+  --test=rspec \
+  --ci=github \
+  --linter=standardrb \
+  --changelog \
+  --coc \
+  --mit
+```
+
+This creates a gem with:
+- RSpec test framework
+- GitHub Actions CI
+- StandardRB linter (matching AIDP's style)
+- CHANGELOG.md
+- Code of Conduct
+- MIT license
+
+#### Tasks
+
 1. Create new gem repository
-2. Set up gem structure with bundler
+2. Set up gem structure with bundler (command above)
 3. Implement core classes (Configuration, CommandExecutor, Logger interface)
 4. Implement Error classes and ErrorTaxonomy
 5. Write initial tests
+
+#### Design Considerations (from PR Review)
+
+The following items were identified during Phase 0 preparation and should be addressed during gem implementation:
+
+1. **TTY::Command Dependency** (`TtyCommandExecutor`)
+   - Current implementation relies on tty-command gem
+   - Options: include as dependency, provide pure Ruby alternative using Open3, or make optional with fallback
+   - Recommendation: Provide both implementations with auto-detection
+
+2. **resolve_input File Path Ambiguity** (`TtyCommandExecutor`)
+   - Auto-reading files when strings match existing paths could cause unexpected behavior
+   - Consider: require explicit `File` or `Pathname` objects, or add `input_type:` parameter
+   - Recommendation: Document current behavior clearly; consider deprecating auto-detection in v2
 
 ### Phase 2: Extract Provider Layer (Week 2)
 
@@ -2407,6 +2445,15 @@ This preparation work can run in parallel with planning and will significantly r
    - Aider
 4. Implement Provider Registry
 5. Add provider tests
+
+#### Design Considerations (from PR Review)
+
+1. **Session Flag Interface Redesign**
+   - Current: `session_flag` returns String (flag name only, e.g., `"--resume"`)
+   - Concern: Inconsistent with `dangerous_mode_flags` which returns full array
+   - Recommendation: Change to `session_flags(session_id)` returning array like `["--resume", session_id]`
+   - Affects: `adapter.rb`, `aider.rb`, `codex.rb`, and other providers with session support
+   - Migration: Add new method alongside old for backward compatibility, deprecate old in v2
 
 ### Phase 3: Extract Orchestration Layer (Week 3)
 
