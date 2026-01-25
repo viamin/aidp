@@ -1293,20 +1293,9 @@ class TestPrompt
     /💬 Posted sub-issues summary to parent issue #\d+/,
     /⚠️  Failed to post summary comment:/,
 
-    # MCP Server Dashboard output
-    /^MCP Server Dashboard$/,
-    /^MCP Server \w+$/,
-    /^No MCP servers configured/,
-    /^Add MCP servers with:/,
-    /^No providers with MCP support configured/,
-    /^filesystem [✓✗-]/,
-    /^Legend: [✓✗-] = /,
-    /^⚠ Eligibility Warnings:/,
-    /^These providers won't be eligible/,
-    /^Task Eligibility Check$/,
-    /^Required MCP Servers:/,
-    /^[✓✗] No providers have all required/,
-    /^Consider configuring MCP servers/,
+    # MCP Server Dashboard output - removed patterns that break tests
+    # NOTE: Tests in mcp_dashboard_spec.rb verify "MCP Server Dashboard", "filesystem",
+    # and "No providers have all required MCP servers" output via capture_output
 
     # Agent instructions symlink output
     %r{^\s+- \.github/[\w-]+\.md -> AGENTS\.md$},
@@ -1323,10 +1312,6 @@ class TestPrompt
     # Configuration file error (temp directories in tests)
     /^Failed to load configuration file \/tmp\//,
     /^Failed to load provider info for \w+:/,
-
-    # MCP eligibility messages (additional)
-    /^\s+These providers won't be eligible/,
-    /^\s+Consider configuring MCP servers/,
 
     # Git init hints
     /^hint: Using '\w+' as the name for the initial branch/,
