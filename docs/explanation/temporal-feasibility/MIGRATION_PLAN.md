@@ -17,7 +17,7 @@ This document provides a stepwise migration plan for adopting Temporal.io in Aid
 ### 1.2 Migration Phases (Multi-Agent Priority)
 
 | Phase | Duration | Focus | Value Delivered |
-|-------|----------|-------|-----------------|
+| ----- | -------- | ----- | --------------- |
 | Phase 0: Foundation | 2-4 weeks | Infrastructure, SDK | Temporal running |
 | Phase 1: Multi-Agent Core | 6-8 weeks | Orchestration + Child workflows | **Parallel agents work!** |
 | Phase 2: Merge & Aggregate | 4-6 weeks | Result combination, PR creation | **Feature PRs from agents** |
@@ -33,6 +33,7 @@ This document provides a stepwise migration plan for adopting Temporal.io in Aid
 ### 2.1 Infrastructure Setup
 
 **Objectives**:
+
 - Deploy self-hosted Temporal Service
 - Integrate Ruby SDK into Aidp
 - Establish CI/CD for Temporal components
@@ -40,7 +41,7 @@ This document provides a stepwise migration plan for adopting Temporal.io in Aid
 **Tasks**:
 
 | Task | Description | Effort |
-|------|-------------|--------|
+| ---- | ----------- | ------ |
 | Deploy Temporal Service | Docker Compose with PostgreSQL | 2-3 days |
 | Set up Temporal Web UI | Deploy UI for workflow monitoring | 1 day |
 | Configure monitoring | Prometheus + Grafana dashboards | 2-3 days |
@@ -50,6 +51,7 @@ This document provides a stepwise migration plan for adopting Temporal.io in Aid
 | CI pipeline updates | Add Temporal service to CI | 2 days |
 
 **Deliverables**:
+
 - Running Temporal Service (dev/staging)
 - Ruby SDK integrated
 - Test framework operational
@@ -93,7 +95,7 @@ end
 ### 2.3 Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Ruby SDK instability | Medium | High | Pin SDK version; maintain native fallback |
 | Infrastructure complexity | Medium | Medium | Start with Docker Compose; defer K8s |
 | Team learning curve | High | Medium | Training before migration begins |
@@ -107,6 +109,7 @@ end
 ### 3.1 Feature Orchestration Workflow
 
 **Objectives**:
+
 - Implement parent workflow that coordinates multiple agents
 - Parallel child workflow dispatch with bounded concurrency
 - Failure isolation (one agent fails, others continue)
@@ -115,7 +118,7 @@ end
 **Tasks**:
 
 | Task | Description | Effort |
-|------|-------------|--------|
+| ---- | ----------- | ------ |
 | `FeatureOrchestrationWorkflow` | Parent workflow with child dispatch | 5-7 days |
 | `AtomicUnitWorkflow` | Child workflow for single agent | 3-4 days |
 | `DecomposeFeatureActivity` | AI-powered feature decomposition | 3-4 days |
@@ -129,6 +132,7 @@ end
 | Integration tests | Multi-agent end-to-end tests | 4-5 days |
 
 **Success Criteria**:
+
 - [ ] 10+ agents run in parallel successfully
 - [ ] Orchestrator survives crash/restart
 - [ ] Failed agents can be retried without restarting successful ones
@@ -261,7 +265,7 @@ end
 ### 3.4 Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Child workflow coordination complexity | High | High | Extensive testing; start with 5 agents |
 | Event History growth with many children | Medium | Medium | Monitor history size; use Continue-As-New |
 | Task Queue starvation | Medium | Medium | Separate queues for orchestrator vs agents |
@@ -276,6 +280,7 @@ end
 ### 4.1 Merge Orchestration Workflow
 
 **Objectives**:
+
 - Coordinate merge operations across atomic unit branches
 - Handle merge conflicts with AI-assisted resolution
 - Create feature-complete PRs from combined work
@@ -283,7 +288,7 @@ end
 **Tasks**:
 
 | Task | Description | Effort |
-|------|-------------|--------|
+| ---- | ----------- | ------ |
 | `MergeOrchestrationWorkflow` | Coordinate branch merging | 4-5 days |
 | `MergeBranchActivity` | Git merge operations | 2-3 days |
 | `ResolveConflictsActivity` | AI-assisted conflict resolution | 3-4 days |
@@ -294,6 +299,7 @@ end
 | Integration tests | End-to-end merge tests | 4-5 days |
 
 **Success Criteria**:
+
 - [ ] Atomic unit branches merge automatically
 - [ ] Merge conflicts trigger AI resolution workflow
 - [ ] Feature PRs created with combined changes
@@ -386,7 +392,7 @@ end
 ### 4.3 Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Merge conflicts between units | High | High | AI-assisted resolution; clear merge order |
 | Failed merges blocking feature | Medium | High | 80% threshold; manual override option |
 | Git state corruption | Low | High | Activity-level rollback; worktree isolation |
@@ -401,6 +407,7 @@ end
 ### 5.1 WorkLoop Workflow Improvements
 
 **Objectives**:
+
 - Migrate existing `WorkLoopRunner` to Temporal
 - Add durability to individual agent execution
 - Enable better recovery and debugging
@@ -408,7 +415,7 @@ end
 **Tasks**:
 
 | Task | Description | Effort |
-|------|-------------|--------|
+| ---- | ----------- | ------ |
 | `WorkLoopWorkflow` | Single-agent work loop | 3-4 days |
 | Iteration state management | Track fix-forward progress | 2-3 days |
 | Provider-agnostic execution | Support all AI providers | 3-4 days |
@@ -468,7 +475,7 @@ end
 ### 5.3 Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Activity timeout issues | Medium | Medium | Tune timeouts; add heartbeats |
 | Non-determinism bugs | Medium | High | Strict Activity boundaries; testing |
 | CLI output capture | Low | Medium | Test with all providers |
@@ -483,7 +490,8 @@ end
 
 **Objective**: Replace continuous polling with Temporal Schedule
 
-**Option A: Scheduled Workflow**
+### Option A: Scheduled Workflow
+
 ```ruby
 # Execute single cycle, scheduled externally
 schedule = client.create_schedule(
@@ -496,7 +504,8 @@ schedule = client.create_schedule(
 )
 ```
 
-**Option B: Long-Running Workflow with Continue-As-New**
+### Option B: Long-Running Workflow with Continue-As-New
+
 ```ruby
 class WatchModeWorkflow < Temporalio::Workflow
   MAX_CYCLES = 100  # Prevent history overflow
@@ -519,7 +528,7 @@ end
 Each processor becomes a Child Workflow:
 
 | Processor | Child Workflow |
-|-----------|---------------|
+| --------- | -------------- |
 | PlanProcessor | PlanProcessorWorkflow |
 | BuildProcessor | BuildProcessorWorkflow |
 | ReviewProcessor | ReviewProcessorWorkflow |
@@ -529,7 +538,7 @@ Each processor becomes a Child Workflow:
 ### 6.3 Risks & Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Event History growth | High | Medium | Continue-As-New at 100 cycles |
 | GitHub API rate limits | Medium | Medium | Activity-level rate limiting |
 | Long-running stability | Medium | High | Extensive testing; monitoring |
@@ -548,7 +557,7 @@ Each processor becomes a Child Workflow:
 ### 7.2 Cleanup Tasks
 
 | Task | Description |
-|------|-------------|
+| ---- | ----------- |
 | Remove `AsyncWorkLoopRunner` | Replaced by Temporal |
 | Remove `BackgroundRunner` | Replaced by Temporal |
 | Remove `WorkstreamExecutor` | Replaced by Child Workflows |
@@ -571,7 +580,7 @@ If issues arise post-migration:
 ### 8.1 Technical Risks
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
-|----|------|------------|--------|------------|-------|
+| -- | ---- | ---------- | ------ | ---------- | ----- |
 | T1 | Ruby SDK bugs | Medium | High | Pin version; fallback | Dev Team |
 | T2 | Non-determinism | Medium | High | Strict Activity boundaries | Dev Team |
 | T3 | Performance regression | Low | Medium | Benchmarking | Dev Team |
@@ -583,7 +592,7 @@ If issues arise post-migration:
 ### 8.2 Operational Risks
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
-|----|------|------------|--------|------------|-------|
+| -- | ---- | ---------- | ------ | ---------- | ----- |
 | O1 | Infrastructure complexity | Medium | High | Docker Compose first | Ops Team |
 | O2 | Database management | Medium | Medium | Managed PostgreSQL | Ops Team |
 | O3 | Monitoring gaps | Medium | Medium | Prometheus/Grafana | Ops Team |
@@ -592,7 +601,7 @@ If issues arise post-migration:
 ### 8.3 Project Risks
 
 | ID | Risk | Likelihood | Impact | Mitigation | Owner |
-|----|------|------------|--------|------------|-------|
+| -- | ---- | ---------- | ------ | ---------- | ----- |
 | P1 | Scope creep | Medium | Medium | Strict phase gates | PM |
 | P2 | Timeline slip | Medium | Medium | Buffer in estimates | PM |
 | P3 | Parallel workload | Medium | High | Dedicated resources | PM |
@@ -653,7 +662,7 @@ If issues arise post-migration:
 ## 10. Timeline Summary (Multi-Agent Priority)
 
 | Phase | Focus | Duration | Milestone |
-|-------|-------|----------|-----------|
+| ----- | ----- | -------- | --------- |
 | Phase 0 | Foundation | 2-4 weeks | Infrastructure ready |
 | Phase 1 | **Multi-Agent Core** | 6-8 weeks | **Parallel agents working!** |
 | Phase 2 | Merge & Aggregate | 4-6 weeks | **Feature PRs from agents** |
@@ -674,26 +683,31 @@ If issues arise post-migration:
 ### 11.1 Go/No-Go Criteria
 
 **Phase 0 → Phase 1**:
+
 - Infrastructure stable for 1 week
 - All team members trained
 - Test framework operational
 
 **Phase 1 → Phase 2**:
+
 - Multi-agent orchestration working with 5+ agents
 - Orchestrator survives restart
 - No critical bugs in child workflow coordination
 
 **Phase 2 → Phase 3**:
+
 - Feature PRs successfully created from agent work
 - Merge workflow stable
 - Team confident in multi-agent value
 
 **Phase 3 → Phase 4** (Optional):
+
 - Single-agent workflow stable
 - Resources available
 - Watch mode improvement needed
 
 **Phase 4 → Phase 5** (Optional):
+
 - Watch mode stable 4+ weeks
 - All functionality validated
 - Stakeholder approval for cleanup
@@ -701,6 +715,7 @@ If issues arise post-migration:
 ### 11.2 Abort Criteria
 
 Consider aborting migration if:
+
 - Ruby SDK has critical unfixable bugs
 - Performance regression > 25%
 - Child workflow coordination unreliable after 4 weeks
@@ -710,6 +725,7 @@ Consider aborting migration if:
 ### 11.3 Early Win Criteria
 
 **Migration is successful at Phase 2 if**:
+
 - Multi-agent orchestration handles 10+ parallel agents
 - Feature PRs created automatically from agent work
 - Failure isolation works (failed agents don't block others)

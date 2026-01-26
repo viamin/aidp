@@ -90,7 +90,7 @@ RSpec.describe Aidp::Watch::ImplementationVerifier, :integration do
   describe "integration with AIDecisionEngine" do
     it "correctly calls AIDecisionEngine.decide with expected arguments" do
       # Create real AIDecisionEngine but mock the provider
-      provider = instance_double(Aidp::Providers::Base)
+      provider = instance_double(AgentHarness::Providers::Base)
       provider_factory = instance_double(Aidp::Harness::ProviderFactory)
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)
@@ -121,7 +121,7 @@ RSpec.describe Aidp::Watch::ImplementationVerifier, :integration do
 
     it "handles AIDecisionEngine errors gracefully" do
       # Create engine that will raise an error
-      provider = instance_double(Aidp::Providers::Base)
+      provider = instance_double(AgentHarness::Providers::Base)
       provider_factory = instance_double(Aidp::Harness::ProviderFactory)
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)
@@ -152,7 +152,7 @@ RSpec.describe Aidp::Watch::ImplementationVerifier, :integration do
     # Only the actual API call is mocked
 
     it "exercises the complete verification chain" do
-      provider = instance_double(Aidp::Providers::Base)
+      provider = instance_double(AgentHarness::Providers::Base)
       provider_factory = instance_double(Aidp::Harness::ProviderFactory)
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)
@@ -188,7 +188,7 @@ RSpec.describe Aidp::Watch::ImplementationVerifier, :integration do
     # This catches mismatches between how the verifier calls decide and how decide expects args
 
     it "decide accepts the argument format used by ImplementationVerifier" do
-      provider = instance_double(Aidp::Providers::Base)
+      provider = instance_double(AgentHarness::Providers::Base)
       provider_factory = instance_double(Aidp::Harness::ProviderFactory)
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)

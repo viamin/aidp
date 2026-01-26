@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require "net/http"
+require "agent_harness"
 require_relative "../debug_mixin"
 require_relative "../concurrency"
-require_relative "../providers/error_taxonomy"
 require_relative "../errors"
 
 module Aidp
@@ -123,7 +123,7 @@ module Aidp
                 error: error,
                 provider: current_provider,
                 model: current_model_safely,
-                error_type: @error_classifier.classify_error(error)
+                error_type: @error_classifier.classify_error(error)[:error_type]
               }
 
               strategy = retry_strategy(error_info[:error_type])
@@ -264,7 +264,7 @@ module Aidp
 
         # Use ErrorTaxonomy to determine if error is retryable
         error_type = error_info[:error_type]
-        return false unless Aidp::Providers::ErrorTaxonomy.retryable?(error_type)
+        return false unless AgentHarness::ErrorTaxonomy.retryable?(error_type)
 
         # Check circuit breaker
         circuit_breaker_key = "#{error_info[:provider]}:#{error_info[:model]}"
@@ -622,7 +622,7 @@ module Aidp
           message = error.message.to_s
 
           # First, use ErrorTaxonomy to classify by message
-          category = Aidp::Providers::ErrorTaxonomy.classify_message(message)
+          category = AgentHarness::ErrorTaxonomy.classify_message(message)
 
           # Override with more specific classification based on error type
           case error
@@ -645,7 +645,13 @@ module Aidp
             :transient
           else
             # Use message-based classification from ErrorTaxonomy
-            category
+            # Map :unknown and :timeout to :transient for backwards compatibility
+            case category
+            when :unknown, :timeout
+              :transient
+            else
+              category
+            end
           end
         end
       end

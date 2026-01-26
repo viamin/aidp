@@ -18,7 +18,7 @@ RSpec.describe Aidp::Harness::ZfcConditionDetector do
   end
 
   let(:provider_factory) { instance_double(Aidp::Harness::ProviderFactory) }
-  let(:provider) { instance_double(Aidp::Providers::Base) }
+  let(:provider) { instance_double(AgentHarness::Providers::Base) }
 
   subject(:detector) { described_class.new(config, provider_factory: provider_factory) }
 

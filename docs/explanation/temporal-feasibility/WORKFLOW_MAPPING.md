@@ -228,7 +228,7 @@ end
 ### 1.4 Multi-Agent Concept Mapping
 
 | Multi-Agent Concept | Temporal Primitive | Implementation |
-|---------------------|-------------------|----------------|
+| ------------------- | ------------------ | -------------- |
 | Feature Orchestrator | Parent Workflow | `FeatureOrchestrationWorkflow` |
 | Atomic Unit Agent | Child Workflow | `AtomicUnitWorkflow` |
 | Agent Execution | Nested Child Workflow | `WorkLoopWorkflow` |
@@ -255,7 +255,7 @@ Temporal's architecture directly supports advanced agent patterns from recent re
 
 **Temporal Capability**: Arbitrary nesting depth via Child Workflows
 
-```
+```text
 Feature Orchestrator (Level 0)
 ├── SubFeature A (Level 1)
 │   ├── Component A1 (Level 2)
@@ -329,7 +329,8 @@ end
 
 Based on [arXiv:2311.05772](https://arxiv.org/abs/2311.05772), Temporal supports:
 
-**Pattern 1: Sequential Decomposition**
+### Pattern 1: Sequential Decomposition
+
 ```ruby
 def sequential_decomposition(complex_prompt)
   # Break into ordered steps
@@ -345,7 +346,8 @@ def sequential_decomposition(complex_prompt)
 end
 ```
 
-**Pattern 2: Parallel Decomposition**
+### Pattern 2: Parallel Decomposition
+
 ```ruby
 def parallel_decomposition(complex_prompt)
   # Break into independent sub-prompts
@@ -357,7 +359,8 @@ def parallel_decomposition(complex_prompt)
 end
 ```
 
-**Pattern 3: Hierarchical Decomposition (Tree)**
+### Pattern 3: Hierarchical Decomposition (Tree)
+
 ```ruby
 def hierarchical_decomposition(complex_prompt, depth: 0)
   analysis = workflow.execute_activity(AnalyzeComplexityActivity, prompt: complex_prompt)
@@ -383,7 +386,7 @@ end
 ### 2.4 Temporal Features for Recursive Agents
 
 | Research Concept | Temporal Feature | Benefit |
-|------------------|------------------|---------|
+| ---------------- | ---------------- | ------- |
 | **Recursive spawning** | Child Workflows can spawn children | Arbitrary depth |
 | **Dynamic decomposition** | Runtime decision on # of children | Adaptive complexity |
 | **Result aggregation** | Parent collects child results | Bottom-up composition |
@@ -396,6 +399,7 @@ end
 ### 2.5 Current Gap: No Recursive Support
 
 Aidp's current hierarchical issue system:
+
 - **Fixed 2 levels**: Parent → Sub-issues only
 - **No dynamic decomposition**: Sub-issues defined upfront
 - **No recursive spawning**: Sub-issues can't have their own sub-issues
@@ -408,7 +412,7 @@ Aidp's current hierarchical issue system:
 ## 3. Concept Mapping Overview
 
 | Aidp Concept | Temporal Primitive | Notes |
-|--------------|-------------------|-------|
+| ------------ | ------------------ | ----- |
 | Work Loop | Workflow | State machine becomes durable workflow |
 | Iteration | Workflow loop iteration | Each cycle is persisted |
 | Agent Execution | Activity | Non-deterministic LLM calls |
@@ -429,6 +433,7 @@ Aidp's current hierarchical issue system:
 ### 2.1 WorkLoopWorkflow
 
 **Current Aidp Code** (`work_loop_runner.rb`):
+
 ```ruby
 def execute_step(step_name, step_spec, context = {})
   @iteration_count = 0
@@ -451,6 +456,7 @@ end
 ```
 
 **Temporal Workflow**:
+
 ```ruby
 class WorkLoopWorkflow < Temporal::Workflow
   MAX_ITERATIONS = 50
@@ -573,6 +579,7 @@ end
 ### 2.2 AsyncWorkLoopWorkflow (Replaces AsyncWorkLoopRunner)
 
 **Current Aidp Code** (`async_work_loop_runner.rb`):
+
 ```ruby
 def execute_step_async(step_name, step_spec, context = {})
   @work_thread = Thread.new { run_async_loop }
@@ -627,6 +634,7 @@ end
 ### 2.3 WorkstreamWorkflow (Replaces WorkstreamExecutor)
 
 **Current Aidp Code** (`workstream_executor.rb`):
+
 ```ruby
 def execute_parallel(slugs, options = {})
   pool = Concurrent::FixedThreadPool.new(@max_concurrent)
@@ -644,6 +652,7 @@ end
 ```
 
 **Temporal Workflow with Child Workflows**:
+
 ```ruby
 class WorkstreamOrchestratorWorkflow < Temporal::Workflow
   def execute(slugs, options)
@@ -705,6 +714,7 @@ end
 ### 2.4 WatchModeWorkflow (Replaces Watch::Runner)
 
 **Current Aidp Code** (`watch/runner.rb`):
+
 ```ruby
 def start
   loop do
@@ -716,6 +726,7 @@ end
 ```
 
 **Temporal Workflow with Continue-As-New**:
+
 ```ruby
 class WatchModeWorkflow < Temporal::Workflow
   # Event History limit mitigation
@@ -801,6 +812,7 @@ schedule = Temporal::Schedule.new(
 ### 2.5 BackgroundJobWorkflow (Replaces BackgroundRunner)
 
 **Current Aidp Code** (`jobs/background_runner.rb`):
+
 ```ruby
 def start(mode, options = {})
   job_id = generate_job_id
@@ -1024,7 +1036,7 @@ end
 ## 4. Signal Mapping
 
 | Aidp Pattern | Temporal Signal | Handler |
-|--------------|----------------|---------|
+| ------------ | --------------- | ------- |
 | `@state.pause!` | `pause` signal | Set `@paused = true` |
 | `@state.resume!` | `resume` signal | Set `@paused = false` |
 | `@state.cancel!` | `cancel` signal | Set `@cancelled = true` |
@@ -1037,7 +1049,7 @@ end
 ## 5. Query Mapping
 
 | Aidp Pattern | Temporal Query | Returns |
-|--------------|---------------|---------|
+| ------------ | -------------- | ------- |
 | `@state.summary` | `status` query | State, iteration, progress |
 | `@instruction_queue.summary` | `pending_instructions` query | Queued count |
 | `checkpoint.latest_checkpoint` | `checkpoint` query | Current metrics |
@@ -1048,6 +1060,7 @@ end
 ## 6. Retry Policy Mapping
 
 **Current Aidp Backoff** (`concurrency/backoff.rb`):
+
 ```ruby
 Backoff.retry(
   max_attempts: 5,
@@ -1060,6 +1073,7 @@ Backoff.retry(
 ```
 
 **Temporal Retry Policy**:
+
 ```ruby
 retry_policy = Temporal::RetryPolicy.new(
   initial_interval: 0.5,              # base delay
@@ -1084,7 +1098,7 @@ workflow.execute_activity(
 ## 7. Timeout Mapping
 
 | Aidp Timeout | Temporal Timeout | Usage |
-|--------------|-----------------|-------|
+| ------------ | ---------------- | ----- |
 | `Wait.until(timeout: 30)` | `start_to_close_timeout` | Activity execution time |
 | `@cancel_timeout` (5s) | `heartbeat_timeout` | Activity liveness check |
 | MAX_ITERATIONS * avg_time | `workflow_execution_timeout` | Total workflow time |
@@ -1095,6 +1109,7 @@ workflow.execute_activity(
 ## 8. Error Handling Mapping
 
 **Current Aidp Error Handler** (`harness/error_handler.rb`):
+
 ```ruby
 case error_type
 when :rate_limited
@@ -1109,6 +1124,7 @@ end
 ```
 
 **Temporal Error Handling**:
+
 ```ruby
 class WorkLoopWorkflow < Temporal::Workflow
   def execute(...)
@@ -1153,7 +1169,7 @@ end
 ## 9. Summary Table
 
 | Current Aidp | Temporal Primitive | Migration Complexity |
-|--------------|-------------------|---------------------|
+| ------------ | ------------------ | -------------------- |
 | `WorkLoopRunner` | Workflow | Medium |
 | `AsyncWorkLoopRunner` | Workflow + Signals | Low |
 | `WorkstreamExecutor` | Child Workflows | Medium |

@@ -6,7 +6,7 @@ This document defines the proposed Ruby interface for integrating Temporal.io wo
 
 ## 1. Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Aidp CLI                                  │
 │  (Existing commands: execute, watch, jobs, workstreams)          │
@@ -31,7 +31,7 @@ This document defines the proposed Ruby interface for integrating Temporal.io wo
 
 ## 2. Module Structure
 
-```
+```text
 lib/aidp/temporal/
 ├── client.rb                 # Main Temporal client wrapper
 ├── connection.rb             # Connection management

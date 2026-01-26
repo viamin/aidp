@@ -39,7 +39,7 @@ This plan details the extraction of AIDP's agent CLI interaction code into a sta
 
 ### Current AIDP Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    AIDP Application                          │
 ├─────────────────────────────────────────────────────────────┤
@@ -67,7 +67,7 @@ This plan details the extraction of AIDP's agent CLI interaction code into a sta
 
 ### Target Architecture (After Extraction)
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    AIDP Application                          │
 ├─────────────────────────────────────────────────────────────┤
@@ -103,7 +103,7 @@ This plan details the extraction of AIDP's agent CLI interaction code into a sta
 
 ### Gem Directory Structure
 
-```
+```text
 agent-harness/
 ├── exe/
 │   └── agent-harness                 # CLI executable
@@ -2036,6 +2036,7 @@ result = adapter.send_message(prompt: prompt, **options)
 #### 10.1.4 Keep AIDP-Specific Code in AIDP
 
 The following should remain in AIDP:
+
 - `Aidp::Harness::Runner` (work loop orchestration)
 - `Aidp::Harness::UsageLimit*` (usage limit enforcement)
 - `Aidp::MessageDisplay` (TUI output)
@@ -2089,7 +2090,7 @@ Before beginning the extraction, several refactoring tasks can be performed in A
 The following AIDP-specific dependencies are scattered throughout the provider and harness code:
 
 | Coupling Type | Count | Files Affected | Abstraction Needed |
-|---------------|-------|----------------|-------------------|
+| ------------- | ----- | -------------- | ------------------ |
 | `Aidp.log_*` calls | 150+ | 25+ | Logger interface |
 | `TTY::*` components | 50+ | 6 | UI abstraction |
 | `Aidp::Harness::*` classes | 20+ | 5 | Interface extraction |
@@ -2102,7 +2103,8 @@ The following AIDP-specific dependencies are scattered throughout the provider a
 
 #### Phase 0A: Create Abstraction Interfaces (Can Start Immediately)
 
-**Task 0A.1: Extract Logger Interface**
+##### Task 0A.1: Extract Logger Interface
+
 ```ruby
 # lib/aidp/interfaces/logger_interface.rb
 module Aidp
@@ -2116,11 +2118,13 @@ module Aidp
   end
 end
 ```
+
 - Create interface in AIDP
 - Gradually migrate providers to use injected logger
 - Agent-harness will use this same interface
 
-**Task 0A.2: Extract Command Executor Interface**
+##### Task 0A.2: Extract Command Executor Interface
+
 ```ruby
 # lib/aidp/interfaces/command_executor_interface.rb
 module Aidp
@@ -2134,10 +2138,12 @@ module Aidp
   end
 end
 ```
+
 - Replace `Aidp::Util.which()` and `debug_execute_command()` calls
 - Inject executor into providers
 
-**Task 0A.3: Extract Binary Checker Interface**
+##### Task 0A.3: Extract Binary Checker Interface
+
 ```ruby
 # lib/aidp/interfaces/binary_checker_interface.rb
 module Aidp
@@ -2149,23 +2155,26 @@ module Aidp
   end
 end
 ```
+
 - Used by `available?()` checks in providers
 - Can cache results with TTL
 
 #### Phase 0B: Standardize Provider Implementations (Critical)
 
-**Task 0B.1: Implement Missing Model Interface Methods**
+##### Task 0B.1: Implement Missing Model Interface Methods
 
 GitHub Copilot is missing critical model methods:
+
 - [ ] Add `MODEL_PATTERN` constant
 - [ ] Add `discover_models()` class method
 - [ ] Add `supports_model_family?()` class method
 - [ ] Add `model_family()` class method
 - [ ] Add `provider_model_name()` class method
 
-**Task 0B.2: Standardize Error Patterns**
+##### Task 0B.2: Standardize Error Patterns
 
 All providers should implement `error_patterns()`:
+
 ```ruby
 def error_patterns
   {
@@ -2180,6 +2189,7 @@ end
 ```
 
 Current status:
+
 - ✅ Anthropic: Full implementation
 - ❌ Cursor: Missing
 - ❌ Gemini: Missing
@@ -2189,9 +2199,10 @@ Current status:
 - ❌ OpenCode: Missing
 - ❌ Kilocode: Missing
 
-**Task 0B.3: Standardize Input Passing Pattern**
+##### Task 0B.3: Standardize Input Passing Pattern
 
 Decide on canonical pattern and apply to all:
+
 ```ruby
 # Option A: Use input parameter (preferred - separates prompt from flags)
 debug_execute_command(binary, args: flags, input: prompt, timeout: timeout)
@@ -2201,14 +2212,16 @@ debug_execute_command(binary, args: [..., "--prompt", prompt], timeout: timeout)
 ```
 
 Providers needing update if Option A chosen:
+
 - Gemini
 - GitHub Copilot
 - Codex
 - OpenCode
 
-**Task 0B.4: Standardize Dangerous Mode Handling**
+##### Task 0B.4: Standardize Dangerous Mode Handling
 
 All providers should implement `dangerous_mode_flags()` from adapter:
+
 ```ruby
 def dangerous_mode_flags
   ["--flag-for-this-provider"]  # or []
@@ -2216,6 +2229,7 @@ end
 ```
 
 And use it in `build_command()`:
+
 ```ruby
 def build_command(prompt, options)
   cmd = [...]
@@ -2224,9 +2238,10 @@ def build_command(prompt, options)
 end
 ```
 
-**Task 0B.5: Document Session Parameter Interface**
+##### Task 0B.5: Document Session Parameter Interface
 
 Create standard interface for session handling:
+
 ```ruby
 def session_flags(session_id)
   return [] unless session_id
@@ -2235,6 +2250,7 @@ end
 ```
 
 Map current implementations:
+
 - GitHub Copilot: `["--resume", session_id]`
 - Codex: `["--session", session_id]`
 - Aider: `["--restore-chat-history", session_id]`
@@ -2242,9 +2258,10 @@ Map current implementations:
 
 #### Phase 0C: Extract Reusable Modules (Medium Priority)
 
-**Task 0C.1: Extract Deprecation Handling**
+##### Task 0C.1: Extract Deprecation Handling
 
 Move Anthropic's deprecation logic to shared module:
+
 ```ruby
 # lib/aidp/providers/concerns/deprecation_handler.rb
 module Aidp
@@ -2258,9 +2275,10 @@ module Aidp
 end
 ```
 
-**Task 0C.2: Extract Activity Monitoring**
+##### Task 0C.2: Extract Activity Monitoring
 
 Create module for stuck detection:
+
 ```ruby
 # lib/aidp/providers/concerns/activity_monitor.rb
 module Aidp
@@ -2275,9 +2293,10 @@ module Aidp
 end
 ```
 
-**Task 0C.3: Extract Timeout Calculator**
+##### Task 0C.3: Extract Timeout Calculator
 
 Adaptive timeout logic as module:
+
 ```ruby
 # lib/aidp/providers/concerns/timeout_calculator.rb
 module Aidp
@@ -2296,7 +2315,8 @@ end
 
 #### Phase 0D: Remove TTY Direct Dependencies (Before Extraction)
 
-**Task 0D.1: Create UI Abstraction**
+##### Task 0D.1: Create UI Abstraction
+
 ```ruby
 # lib/aidp/interfaces/ui_interface.rb
 module Aidp
@@ -2314,6 +2334,7 @@ end
 **Task 0D.2: Replace `include Aidp::MessageDisplay`**
 
 Change from mixin to injected dependency:
+
 ```ruby
 # Before
 class Base
@@ -2336,6 +2357,7 @@ end
 Before extraction, verify all providers meet these criteria:
 
 **Required Interface Methods:**
+
 - [ ] `self.provider_name` - Returns symbol
 - [ ] `self.binary_name` - Returns string
 - [ ] `self.available?` - Returns boolean
@@ -2348,6 +2370,7 @@ Before extraction, verify all providers meet these criteria:
 - [ ] `error_patterns` - Returns pattern hash
 
 **Optional but Recommended:**
+
 - [ ] `self.model_family(model_name)` - Normalizes model name
 - [ ] `self.provider_model_name(family)` - Converts family to provider format
 - [ ] `dangerous_mode_flags` - Returns array of flags
@@ -2356,7 +2379,7 @@ Before extraction, verify all providers meet these criteria:
 ### 11.4 Files to Refactor Before Extraction
 
 | File | Refactoring Needed | Priority |
-|------|-------------------|----------|
+| ---- | ------------------ | -------- |
 | `providers/base.rb` | Remove `include MessageDisplay`, inject logger/UI | High |
 | `providers/anthropic.rb` | Extract deprecation module, standardize | High |
 | `providers/github_copilot.rb` | Add model interface methods | High |
@@ -2372,7 +2395,7 @@ Before extraction, verify all providers meet these criteria:
 ### 11.5 Preparation Timeline
 
 | Week | Tasks | Outcome |
-|------|-------|---------|
+| ---- | ----- | ------- |
 | Pre-1 | Tasks 0A.1-0A.3 (interfaces) | Clean injection points |
 | Pre-2 | Tasks 0B.1-0B.5 (standardization) | Consistent providers |
 | Pre-3 | Tasks 0C.1-0C.3 (modules) | Reusable components |
@@ -2401,6 +2424,7 @@ bundle gem agent-harness \
 ```
 
 This creates a gem with:
+
 - RSpec test framework
 - GitHub Actions CI
 - StandardRB linter (matching AIDP's style)
@@ -2498,7 +2522,7 @@ The following items were identified during Phase 0 preparation and should be add
 
 ### 13.1 Test Structure
 
-```
+```text
 spec/
 ├── spec_helper.rb
 ├── agent_harness_spec.rb
@@ -2604,7 +2628,7 @@ end
 ### Summary Timeline
 
 | Phase | Duration | Deliverable |
-|-------|----------|-------------|
+| ----- | -------- | ----------- |
 | 1. Gem Structure | Week 1 | Core gem with configuration and errors |
 | 2. Provider Layer | Week 2 | All providers extracted and working |
 | 3. Orchestration | Week 3 | Full orchestration layer |
@@ -2627,7 +2651,7 @@ end
 ## Appendix A: File Mapping (AIDP → Gem)
 
 | AIDP File | Gem File | Notes |
-|-----------|----------|-------|
+| --------- | -------- | ----- |
 | `lib/aidp/providers/adapter.rb` | `lib/agent_harness/providers/adapter.rb` | Remove AIDP deps |
 | `lib/aidp/providers/base.rb` | `lib/agent_harness/providers/base.rb` | Major refactor |
 | `lib/aidp/providers/error_taxonomy.rb` | `lib/agent_harness/error_taxonomy.rb` | Minor changes |
@@ -2684,6 +2708,7 @@ end
 **Decision:** Agent-harness is stateless. It publishes data via callbacks but does not persist anything.
 
 Consumers receive data through callbacks and handle their own persistence:
+
 ```ruby
 AgentHarness.configure do |config|
   config.on_tokens_used do |event|
@@ -2735,11 +2760,13 @@ end
 **Decision:** Agent-harness tracks and publishes model-level data (health, metrics, circuit state) but consumers decide what to do with it.
 
 The gem publishes:
+
 - Model health events
 - Model metrics events
 - Model circuit breaker state changes
 
 Consumers handle:
+
 - Persistence of model state
 - Model denylisting decisions
 - Model fallback chain configuration
@@ -2774,6 +2801,7 @@ provider.healthy?            # => true if health_score > 50
 ### C.7 Ruby Version Compatibility
 
 **Decision:**
+
 - Minimum: Ruby 3.3
 - CI Matrix: Ruby 3.3, 3.4, 4.0
 
@@ -2798,6 +2826,7 @@ rdoc lib/
 ```
 
 Additional:
+
 - README with quick start guide
 - Examples directory
 - CHANGELOG (auto-generated via release-please)
@@ -2835,6 +2864,7 @@ end
 ```
 
 Emits:
+
 - `agent_harness.request` spans with provider, model, duration attributes
 - `agent_harness.requests_total` counter
 - `agent_harness.request_duration_seconds` histogram
@@ -2843,6 +2873,7 @@ Emits:
 ### C.13 Security
 
 **Decision:**
+
 - Agent-harness does NOT store secrets in configuration or files
 - Provides helpers to check if user is logged into provider CLIs
 - Authentication to providers is out of scope (users log in via provider CLIs directly)
@@ -2888,6 +2919,7 @@ end
 ### C.17 Provider Authentication
 
 **Decision:** Out of scope. Users authenticate directly with provider CLIs:
+
 - `claude login`
 - `gh auth login`
 - `gcloud auth login`
@@ -2897,12 +2929,14 @@ Agent-harness only checks authentication status, does not perform authentication
 ### C.18 Versioning & Releases
 
 **Decision:**
+
 - Semantic Versioning (SemVer)
 - Conventional Commits for commit messages
 - release-please for automated releases and changelog generation
 
 Commit message format:
-```
+
+```text
 feat: add cursor provider support
 fix: handle rate limit errors correctly
 feat!: change Response API (BREAKING)

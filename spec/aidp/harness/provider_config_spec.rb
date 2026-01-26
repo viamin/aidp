@@ -429,35 +429,35 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     it "creates provider instance" do
       provider = factory.create_provider("cursor")
 
-      expect(provider).to be_a(Aidp::Providers::Cursor)
+      expect(provider).to be_a(AgentHarness::Providers::Cursor)
     end
 
     it "creates multiple providers" do
       providers = factory.create_providers(["cursor"])
 
       expect(providers.size).to eq(1)
-      expect(providers.first).to be_a(Aidp::Providers::Cursor)
+      expect(providers.first).to be_a(AgentHarness::Providers::Cursor)
     end
 
     it "creates all configured providers" do
       providers = factory.create_all_providers
 
       expect(providers.size).to eq(2)
-      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic)
+      expect(providers.map(&:class)).to include(AgentHarness::Providers::Cursor, AgentHarness::Providers::Anthropic)
     end
 
     it "creates providers by priority" do
       providers = factory.create_providers_by_priority
 
       expect(providers.size).to eq(2)
-      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic)
+      expect(providers.map(&:class)).to include(AgentHarness::Providers::Cursor, AgentHarness::Providers::Anthropic)
     end
 
     it "creates providers by weight" do
       providers = factory.create_providers_by_weight
 
       expect(providers.size).to eq(5) # cursor(3) + anthropic(2) = 5
-      expect(providers.map(&:class)).to include(Aidp::Providers::Cursor, Aidp::Providers::Anthropic)
+      expect(providers.map(&:class)).to include(AgentHarness::Providers::Cursor, AgentHarness::Providers::Anthropic)
     end
 
     it "raises error for unconfigured provider" do
@@ -502,7 +502,7 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     it "gets provider class" do
       provider_class = factory.provider_class("cursor")
 
-      expect(provider_class).to eq(Aidp::Providers::Cursor)
+      expect(provider_class).to eq(AgentHarness::Providers::Cursor)
     end
 
     it "checks if provider is supported" do
@@ -513,7 +513,7 @@ RSpec.describe Aidp::Harness::ProviderFactory do
     it "gets supported provider names" do
       supported = factory.supported_providers
 
-      expect(supported).to include("cursor", "anthropic", "gemini")
+      expect(supported).to include("cursor", "claude", "gemini")
     end
 
     it "gets configured provider names" do

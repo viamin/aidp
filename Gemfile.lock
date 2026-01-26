@@ -2,6 +2,7 @@ PATH
   remote: .
   specs:
     aidp (0.36.1)
+      agent-harness (~> 0.2)
       concurrent-ruby (~> 1.3)
       csv (~> 3.2)
       logger (~> 1.5)
@@ -28,6 +29,7 @@ GEM
   specs:
     addressable (2.8.8)
       public_suffix (>= 2.0.2, < 8.0)
+    agent-harness (0.2.2)
     aruba (2.3.3)
       bundler (>= 1.17)
       contracts (>= 0.16.0, < 0.18.0)
@@ -186,6 +188,10 @@ GEM
       oppen (~> 1.0)
       sorbet-runtime
       zeitwerk
+    ruby_tree_sitter (2.0.0-arm64-darwin)
+      oppen (~> 1.0)
+      sorbet-runtime
+      zeitwerk
     ruby_tree_sitter (2.0.0-x86_64-linux-gnu)
       oppen (~> 1.0)
       sorbet-runtime
@@ -202,6 +208,7 @@ GEM
     simplecov_json_formatter (0.1.4)
     sorbet-runtime (0.6.12894)
     sqlite3 (2.9.0-aarch64-linux-gnu)
+    sqlite3 (2.9.0-arm64-darwin)
     sqlite3 (2.9.0-x86_64-linux-gnu)
     standard (1.53.0)
       language_server-protocol (~> 3.17.0.2)
@@ -270,6 +277,8 @@ GEM
 PLATFORMS
   aarch64-linux
   aarch64-linux-gnu
+  arm64-darwin-24
+  arm64-darwin-25
   x86_64-linux
 
 DEPENDENCIES

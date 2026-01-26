@@ -46,8 +46,8 @@ RSpec.describe Aidp::Harness::ModelCache do
 
         cache_with_fallback = described_class.new(cache_file: unwritable_cache_file)
 
-        # Should fall back to temp directory
-        expect(cache_with_fallback.cache_file).to include("tmp")
+        # Should fall back to temp directory (macOS uses /var/folders/.../T/, Linux uses /tmp)
+        expect(cache_with_fallback.cache_file).to start_with(Dir.tmpdir)
         expect(cache_with_fallback.cache_file).to include("aidp_cache")
       end
 
@@ -79,7 +79,8 @@ RSpec.describe Aidp::Harness::ModelCache do
         allow(Dir).to receive(:home).and_raise(ArgumentError, "Home directory not found")
 
         cache_no_home = described_class.new
-        expect(cache_no_home.cache_file).to include("tmp")
+        # macOS uses /var/folders/.../T/, Linux uses /tmp
+        expect(cache_no_home.cache_file).to start_with(Dir.tmpdir)
         expect(cache_no_home.cache_file).to include("aidp_cache")
       end
     end

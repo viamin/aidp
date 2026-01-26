@@ -359,14 +359,18 @@ module Aidp
       def provider_instance
         return @provider_instance if @provider_instance
 
-        # Load provider factory and get provider class
-        require_relative "provider_factory"
+        # Get provider class from AgentHarness registry
+        require "agent_harness"
 
-        provider_class = Aidp::Harness::ProviderFactory::PROVIDER_CLASSES[@provider_name]
+        name = @provider_name
+        name = "claude" if name == "anthropic"
+        provider_class = AgentHarness::Providers::Registry.instance.get(name.to_sym)
         return nil unless provider_class
 
         # Create provider instance
         @provider_instance = provider_class.new
+      rescue AgentHarness::ConfigurationError
+        nil
       rescue => e
         log_rescue(e, component: "provider_info", action: "create_provider_instance", fallback: nil, provider: @provider_name)
         warn "Failed to create provider instance for #{@provider_name}: #{e.message}" if Aidp.debug_env_enabled?

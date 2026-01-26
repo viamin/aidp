@@ -106,35 +106,23 @@ module Aidp
       # Provider configuration
       # -------------------------------------------
       def discover_available_providers
-        providers_dir = File.join(__dir__, "../providers")
-        provider_files = Dir.glob("*.rb", base: providers_dir)
-
-        # Exclude base classes and non-provider utility files
-        excluded_files = ["base.rb", "adapter.rb", "capability_registry.rb", "error_taxonomy.rb"]
-        provider_files -= excluded_files
+        require "agent_harness"
 
         providers = {}
+        registry = AgentHarness::Providers::Registry.instance
 
-        provider_files.each do |file|
-          provider_name = File.basename(file, ".rb")
-          begin
-            # Require the provider file if not already loaded
-            require_relative "../providers/#{provider_name}"
+        registry.all.each do |provider_name|
+          provider_class = registry.get(provider_name)
 
-            # Convert to class name (e.g., "anthropic" -> "Anthropic")
-            class_name = provider_name.split("_").map(&:capitalize).join
-            provider_class = Aidp::Providers.const_get(class_name)
-
-            # Create a temporary instance to get the display name
-            if provider_class.respond_to?(:new)
-              instance = provider_class.new
-              display_name = instance.respond_to?(:display_name) ? instance.display_name : provider_name.capitalize
-              providers[display_name] = provider_name
-            end
-          rescue => e
-            # Skip providers that can't be loaded, but don't fail the entire discovery
-            warn "Warning: Could not load provider #{provider_name}: #{e.message}" if Aidp.debug_env_enabled?
+          # Create a temporary instance to get the display name
+          if provider_class.respond_to?(:new)
+            instance = provider_class.new
+            display_name = instance.respond_to?(:display_name) ? instance.display_name : provider_name.to_s.capitalize
+            providers[display_name] = provider_name.to_s
           end
+        rescue => e
+          # Skip providers that can't be loaded, but don't fail the entire discovery
+          warn "Warning: Could not load provider #{provider_name}: #{e.message}" if Aidp.debug_env_enabled?
         end
 
         providers

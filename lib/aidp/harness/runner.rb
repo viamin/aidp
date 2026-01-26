@@ -50,7 +50,7 @@ module Aidp
         # Initialize components
         @configuration = Configuration.new(project_dir)
         @state_manager = StateManager.new(project_dir, @mode)
-        @provider_manager = ProviderManager.new(@configuration, prompt: @prompt)
+        @provider_manager = create_provider_manager(options)
 
         # Use ZFC-enabled condition detector
         # ZfcConditionDetector will create its own ProviderFactory if needed
@@ -223,6 +223,11 @@ module Aidp
       end
 
       private
+
+      def create_provider_manager(_options)
+        require_relative "agent_harness_provider_manager"
+        AgentHarnessProviderManager.new(@configuration, prompt: @prompt)
+      end
 
       def get_mode_runner
         case @mode

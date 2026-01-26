@@ -64,8 +64,8 @@ RSpec.describe Aidp::SafeDirectory do
 
         # Should return a fallback path, not the original
         expect(result).not_to eq(invalid_path)
-        # Fallback should either be in home or temp
-        expect(result).to match(%r{(/home/|/tmp/|/root/)})
+        # Fallback should either be in home (Linux: /home/, macOS: /Users/) or temp
+        expect(result).to match(%r{(/home/|/tmp/|/root/|/Users/)})
       end
 
       it "includes component name in warning messages" do
