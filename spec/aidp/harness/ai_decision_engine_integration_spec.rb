@@ -59,7 +59,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine, :integration do
     # with the right argument types (no mocking of internal classes)
     it "correctly calls select_model_for_tier with expected arguments" do
       config = Aidp::Harness::Configuration.new(project_dir)
-      provider = instance_double(Aidp::Providers::Base)
+      provider = instance_double(AgentHarness::Providers::Base)
       provider_factory = instance_double(Aidp::Harness::ProviderFactory)
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)
@@ -96,7 +96,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine, :integration do
   describe "integration with ImplementationVerifier decision type" do
     it "implementation_verification decision type exists and is callable" do
       config = Aidp::Harness::Configuration.new(project_dir)
-      provider = instance_double(Aidp::Providers::Base)
+      provider = instance_double(AgentHarness::Providers::Base)
       provider_factory = instance_double(Aidp::Harness::ProviderFactory)
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)
@@ -140,7 +140,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine, :integration do
 
     it "AIDecisionEngine.decide accepts expected keyword arguments" do
       config = Aidp::Harness::Configuration.new(project_dir)
-      provider = instance_double(Aidp::Providers::Base)
+      provider = instance_double(AgentHarness::Providers::Base)
       provider_factory = instance_double(Aidp::Harness::ProviderFactory)
 
       allow(provider_factory).to receive(:create_provider).and_return(provider)

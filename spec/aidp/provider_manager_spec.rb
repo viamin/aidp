@@ -17,7 +17,7 @@ RSpec.describe Aidp::ProviderManager do
 
   describe ".get_provider" do
     it "returns a provider instance" do
-      provider_instance = instance_double(Aidp::Providers::Cursor)
+      provider_instance = instance_double(AgentHarness::Providers::Cursor)
       allow(mock_factory).to receive(:create_provider).with("cursor", {}).and_return(provider_instance)
 
       provider = described_class.get_provider("cursor")
@@ -25,7 +25,7 @@ RSpec.describe Aidp::ProviderManager do
     end
 
     it "supports anthropic provider" do
-      provider_instance = instance_double(Aidp::Providers::Anthropic)
+      provider_instance = instance_double(AgentHarness::Providers::Anthropic)
       allow(mock_factory).to receive(:create_provider).with("anthropic", {}).and_return(provider_instance)
 
       provider = described_class.get_provider("anthropic")
@@ -33,7 +33,7 @@ RSpec.describe Aidp::ProviderManager do
     end
 
     it "supports claude alias" do
-      provider_instance = instance_double(Aidp::Providers::Anthropic)
+      provider_instance = instance_double(AgentHarness::Providers::Anthropic)
       allow(mock_factory).to receive(:create_provider).with("claude", {}).and_return(provider_instance)
 
       provider = described_class.get_provider("claude")
@@ -41,7 +41,7 @@ RSpec.describe Aidp::ProviderManager do
     end
 
     it "supports gemini provider" do
-      provider_instance = instance_double(Aidp::Providers::Gemini)
+      provider_instance = instance_double(AgentHarness::Providers::Gemini)
       allow(mock_factory).to receive(:create_provider).with("gemini", {}).and_return(provider_instance)
 
       provider = described_class.get_provider("gemini")
@@ -49,7 +49,7 @@ RSpec.describe Aidp::ProviderManager do
     end
 
     it "supports github_copilot provider" do
-      provider_instance = instance_double(Aidp::Providers::GithubCopilot)
+      provider_instance = instance_double(AgentHarness::Providers::GithubCopilot)
       allow(mock_factory).to receive(:create_provider).with("github_copilot", {}).and_return(provider_instance)
 
       provider = described_class.get_provider("github_copilot")
@@ -57,7 +57,7 @@ RSpec.describe Aidp::ProviderManager do
     end
 
     it "supports codex provider" do
-      provider_instance = instance_double(Aidp::Providers::Codex)
+      provider_instance = instance_double(AgentHarness::Providers::Codex)
       allow(mock_factory).to receive(:create_provider).with("codex", {}).and_return(provider_instance)
 
       provider = described_class.get_provider("codex")
@@ -66,7 +66,7 @@ RSpec.describe Aidp::ProviderManager do
 
     it "accepts custom prompt" do
       prompt = double("prompt")
-      provider_instance = instance_double(Aidp::Providers::Cursor)
+      provider_instance = instance_double(AgentHarness::Providers::Cursor)
       allow(mock_factory).to receive(:create_provider).with("cursor", {prompt: prompt}).and_return(provider_instance)
 
       provider = described_class.get_provider("cursor", prompt: prompt)
@@ -93,7 +93,7 @@ RSpec.describe Aidp::ProviderManager do
   describe ".load_from_config" do
     it "loads provider from config hash" do
       config = {"provider" => "anthropic"}
-      provider_instance = instance_double(Aidp::Providers::Anthropic)
+      provider_instance = instance_double(AgentHarness::Providers::Anthropic)
       allow(mock_factory).to receive(:create_provider).with("anthropic", {}).and_return(provider_instance)
 
       provider = described_class.load_from_config(config)
@@ -102,7 +102,7 @@ RSpec.describe Aidp::ProviderManager do
 
     it "defaults to cursor when no provider specified" do
       config = {}
-      provider_instance = instance_double(Aidp::Providers::Cursor)
+      provider_instance = instance_double(AgentHarness::Providers::Cursor)
       allow(mock_factory).to receive(:create_provider).with("cursor", {}).and_return(provider_instance)
 
       provider = described_class.load_from_config(config)
@@ -112,7 +112,7 @@ RSpec.describe Aidp::ProviderManager do
     it "passes options through" do
       config = {"provider" => "cursor"}
       prompt = double("prompt")
-      provider_instance = instance_double(Aidp::Providers::Cursor)
+      provider_instance = instance_double(AgentHarness::Providers::Cursor)
       allow(mock_factory).to receive(:create_provider).with("cursor", {prompt: prompt}).and_return(provider_instance)
 
       provider = described_class.load_from_config(config, prompt: prompt)

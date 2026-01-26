@@ -123,7 +123,7 @@ module Aidp
         files = []
 
         PROVIDER_CLASSES.each do |class_name|
-          provider_class = Aidp::Providers.const_get(class_name)
+          provider_class = AgentHarness::Providers.const_get(class_name)
           next unless provider_class.respond_to?(:instruction_file_paths)
 
           provider_class.instruction_file_paths.each do |file_info|

@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "benchmark"
+require "yaml"
 require_relative "../../support/test_prompt"
 
 RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
@@ -385,7 +386,7 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
       "harness" => {
         "default_provider" => "anthropic",
         "max_retries" => 3,
-        "fallback_providers" => ["cursor", "macos"],
+        "fallback_providers" => ["cursor", "opencode"],
         "auto_switch_on_error" => true,
         "auto_switch_on_rate_limit" => true,
         "concurrent_requests" => 1,
@@ -418,11 +419,10 @@ RSpec.describe "Harness Performance Testing (Simple)", type: :performance do
           "priority" => 2,
           "models" => ["cursor-default"]
         },
-        "macos" => {
-          "type" => "passthrough",
+        "opencode" => {
+          "type" => "subscription",
           "priority" => 3,
-          "underlying_service" => "cursor",
-          "models" => ["cursor-chat"]
+          "models" => ["opencode-default"]
         }
       }
     }

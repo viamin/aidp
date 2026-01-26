@@ -14,7 +14,7 @@ RSpec.describe Aidp::Harness::AIDecisionEngine do
   end
 
   let(:provider_factory) { instance_double(Aidp::Harness::ProviderFactory) }
-  let(:provider) { instance_double(Aidp::Providers::Base) }
+  let(:provider) { instance_double(AgentHarness::Providers::Base) }
   let(:thinking_manager) { instance_double(Aidp::Harness::ThinkingDepthManager) }
 
   subject(:engine) { described_class.new(config, provider_factory: provider_factory) }

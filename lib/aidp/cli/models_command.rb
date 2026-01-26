@@ -3,6 +3,7 @@
 require "tty-table"
 require "tty-prompt"
 require "tty-spinner"
+require "agent_harness"
 require_relative "../harness/model_registry"
 require_relative "../harness/ruby_llm_registry"
 
@@ -208,26 +209,19 @@ module Aidp
 
       def find_providers_for_family(family_name)
         providers = []
+        registry = AgentHarness::Providers::Registry.instance
 
-        # Check each provider adapter for support
-        provider_classes = [
-          Aidp::Providers::Anthropic,
-          Aidp::Providers::Cursor,
-          Aidp::Providers::Gemini
-        ]
-
-        provider_classes.each do |provider_class|
+        # Check each registered provider for support
+        registry.all.each do |provider_name|
+          provider_class = registry.get(provider_name)
           next unless provider_class.respond_to?(:supports_model_family?)
 
           if provider_class.supports_model_family?(family_name)
-            # Get the provider name from an instance (need to instantiate to call name method)
-            # Or use a simple name mapping
-            provider_name = provider_class.name.split("::").last.downcase
-            providers << provider_name
+            providers << provider_name.to_s
           end
         rescue => e
           # Log but don't fail if provider check fails
-          Aidp.log_debug("models_command", "provider check failed", provider: provider_class.name, error: e.message)
+          Aidp.log_debug("models_command", "provider check failed", provider: provider_name, error: e.message)
         end
 
         providers
@@ -455,9 +449,8 @@ module Aidp
       end
 
       def get_provider_class(provider_name)
-        class_name = "Aidp::Providers::#{provider_name.capitalize}"
-        Object.const_get(class_name)
-      rescue NameError
+        AgentHarness::Providers::Registry.instance.get(provider_name.to_sym)
+      rescue AgentHarness::ConfigurationError
         nil
       end
 

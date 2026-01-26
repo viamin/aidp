@@ -60,8 +60,8 @@ RSpec.describe Aidp::Firewall::ProviderRequirementsCollector do
         expect(provider_name).to match(/^[a-z_]+$/)
       end
 
-      # Should include common providers
-      expect(requirements.keys).to include("anthropic")
+      # Should include common providers (using AgentHarness provider names)
+      expect(requirements.keys).to include("claude")
       expect(requirements.keys).to include("cursor")
       expect(requirements.keys).to include("github_copilot")
       expect(requirements.keys).to include("aider")
@@ -312,8 +312,8 @@ RSpec.describe Aidp::Firewall::ProviderRequirementsCollector do
     it "includes provider-specific information" do
       report = collector.generate_report
 
-      # Should include some common providers
-      expect(report).to match(/anthropic:/i)
+      # Should include some common providers (using AgentHarness names)
+      expect(report).to match(/claude:/i)
       expect(report).to match(/cursor:/i)
 
       # Should include domain listings
@@ -398,7 +398,8 @@ RSpec.describe Aidp::Firewall::ProviderRequirementsCollector do
         expect(provider_classes).not_to be_empty
 
         provider_classes.each do |klass|
-          expect(klass).to be < Aidp::Providers::Base
+          # AgentHarness providers include the Adapter module
+          expect(klass.included_modules).to include(AgentHarness::Providers::Adapter)
         end
       end
 
@@ -414,10 +415,10 @@ RSpec.describe Aidp::Firewall::ProviderRequirementsCollector do
     end
 
     describe "#extract_provider_name" do
-      it "converts class names to snake_case" do
-        expect(collector.send(:extract_provider_name, Aidp::Providers::Anthropic)).to eq("anthropic")
-        expect(collector.send(:extract_provider_name, Aidp::Providers::GithubCopilot)).to eq("github_copilot")
-        expect(collector.send(:extract_provider_name, Aidp::Providers::Cursor)).to eq("cursor")
+      it "returns provider_name from class" do
+        expect(collector.send(:extract_provider_name, AgentHarness::Providers::Anthropic)).to eq("claude")
+        expect(collector.send(:extract_provider_name, AgentHarness::Providers::GithubCopilot)).to eq("github_copilot")
+        expect(collector.send(:extract_provider_name, AgentHarness::Providers::Cursor)).to eq("cursor")
       end
     end
 

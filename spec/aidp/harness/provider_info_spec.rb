@@ -463,7 +463,7 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         allow(provider_info).to receive(:fetch_help_output).and_return("--mcp-config support")
 
         # Mock the provider instance to return the new MCP output
-        mock_provider = instance_double(Aidp::Providers::Anthropic)
+        mock_provider = instance_double(AgentHarness::Providers::Anthropic)
         allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
         allow(mock_provider).to receive(:supports_mcp?).and_return(true)
         allow(mock_provider).to receive(:fetch_mcp_servers).and_return([
@@ -506,7 +506,7 @@ RSpec.describe Aidp::Harness::ProviderInfo do
         allow(provider_info).to receive(:fetch_help_output).and_return("--mcp-config support")
 
         # Mock the provider instance to return the legacy MCP output
-        mock_provider = instance_double(Aidp::Providers::Anthropic)
+        mock_provider = instance_double(AgentHarness::Providers::Anthropic)
         allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
         allow(mock_provider).to receive(:supports_mcp?).and_return(true)
         allow(mock_provider).to receive(:fetch_mcp_servers).and_return([
@@ -590,8 +590,10 @@ RSpec.describe Aidp::Harness::ProviderInfo do
 
     context "when provider_instance creation fails" do
       before do
-        # Mock ProviderFactory to return nil (provider not found)
-        stub_const("Aidp::Harness::ProviderFactory::PROVIDER_CLASSES", {})
+        # Mock AgentHarness registry to raise error for unknown provider
+        registry = instance_double(AgentHarness::Providers::Registry)
+        allow(AgentHarness::Providers::Registry).to receive(:instance).and_return(registry)
+        allow(registry).to receive(:get).and_raise(AgentHarness::ConfigurationError.new("Unknown provider"))
       end
 
       it "returns nil when provider class not found" do
@@ -862,7 +864,7 @@ RSpec.describe Aidp::Harness::ProviderInfo do
       end
 
       before do
-        mock_provider = instance_double(Aidp::Providers::Anthropic)
+        mock_provider = instance_double(AgentHarness::Providers::Anthropic)
         allow(provider_info).to receive(:provider_instance).and_return(mock_provider)
         allow(mock_provider).to receive(:supports_mcp?).and_return(true)
       end

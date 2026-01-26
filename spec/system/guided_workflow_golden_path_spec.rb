@@ -25,7 +25,7 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
   end
 
   let(:golden_path_cursor_provider) do
-    instance_double(Aidp::Providers::Cursor).tap do |provider|
+    instance_double(AgentHarness::Providers::Cursor).tap do |provider|
       call_sequence = [
         '{"complete": false, "questions": ["What is the main goal of this project?"], "reasoning": "need initial context"}',
         '{"complete": true, "questions": [], "reasoning": "have enough information"}',
@@ -41,7 +41,7 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
   end
 
   let(:golden_path_claude_provider) do
-    instance_double(Aidp::Providers::Anthropic).tap do |provider|
+    instance_double(AgentHarness::Providers::Anthropic).tap do |provider|
       allow(provider).to receive(:send_message).and_return(
         '{"complete": true, "questions": [], "reasoning": "fallback response"}'
       )
@@ -167,7 +167,7 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
 
   it "completes workflow even with resource exhaustion fallback" do
     # Create test doubles with resource exhaustion behavior
-    failing_then_recovering_cursor = instance_double(Aidp::Providers::Cursor).tap do |provider|
+    failing_then_recovering_cursor = instance_double(AgentHarness::Providers::Cursor).tap do |provider|
       call_count = 0
       allow(provider).to receive(:send_message) do |prompt:, session: nil|
         call_count += 1
@@ -179,7 +179,7 @@ RSpec.describe "AIDP Golden Path System Test", type: :system do
       end
     end
 
-    successful_claude = instance_double(Aidp::Providers::Anthropic).tap do |provider|
+    successful_claude = instance_double(AgentHarness::Providers::Anthropic).tap do |provider|
       allow(provider).to receive(:send_message).and_return(
         '{"steps": ["00_PRD"], "reasoning": "minimal workflow"}'
       )

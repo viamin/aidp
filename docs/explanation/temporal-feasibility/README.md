@@ -13,7 +13,7 @@ Temporal adoption is strongly recommended to enable Aidp's strategic direction t
 ## Documents
 
 | Document | Description |
-|----------|-------------|
+| -------- | ----------- |
 | [ARCHITECTURE_REPORT.md](./ARCHITECTURE_REPORT.md) | Overview of current Aidp architecture, pain points, and proposed Temporal architecture |
 | [WORKFLOW_MAPPING.md](./WORKFLOW_MAPPING.md) | Detailed mapping of Aidp concepts to Temporal primitives, including multi-agent and recursive patterns |
 | [GAP_ANALYSIS.md](./GAP_ANALYSIS.md) | Critical gaps in current implementation for multi-agent orchestration |
@@ -25,12 +25,14 @@ Temporal adoption is strongly recommended to enable Aidp's strategic direction t
 ## Key Findings
 
 ### Current Architecture Strengths
+
 - Well-designed concurrency primitives (`Backoff`, `Wait`, `Exec`)
 - Thread-safe state management with MonitorMixin
 - Fix-forward work loop pattern
 - Process isolation for parallel workstreams
 
 ### Current Architecture Weaknesses (Multi-Agent Gaps)
+
 - **No failure isolation**: Fork-based parallelism; one crash affects all agents
 - **2-level hierarchy limit**: Cannot support recursive agent decomposition
 - **No partial retry**: Failed agent requires restarting entire operation
@@ -39,6 +41,7 @@ Temporal adoption is strongly recommended to enable Aidp's strategic direction t
 - PID-based process tracking unreliable for 50+ parallel agents
 
 ### Temporal Benefits
+
 - **First-class Child Workflows**: Perfect for multi-agent orchestration
 - **Failure isolation**: Per-child error handling
 - **Partial retry**: Retry individual agents without restarting others
@@ -49,6 +52,7 @@ Temporal adoption is strongly recommended to enable Aidp's strategic direction t
 - Fine-grained retry policies
 
 ### Temporal Challenges
+
 - Ruby SDK is pre-release (January 2025)
 - Infrastructure complexity (database, workers)
 - Team learning curve
@@ -71,14 +75,16 @@ Temporal adoption is strongly recommended to enable Aidp's strategic direction t
 
 ## Decision Criteria
 
-### Adopt (Strongly Recommended):
+### Adopt (Strongly Recommended)
+
 - **Multi-agent orchestration is the strategic direction**
 - Need to coordinate 10-50+ parallel agents
 - Failure isolation required (one agent failure shouldn't block others)
 - Partial retry capability needed
 - Real-time visibility into orchestration progress
 
-### Defer Only If:
+### Defer Only If
+
 - Single-agent use cases are sufficient long-term
 - Team cannot invest in 4-month core implementation
 - Infrastructure complexity is a blocker
@@ -87,7 +93,7 @@ Temporal adoption is strongly recommended to enable Aidp's strategic direction t
 ## Timeline Summary (Multi-Agent Priority)
 
 | Phase | Duration | Focus | Value |
-|-------|----------|-------|-------|
+| ----- | -------- | ----- | ----- |
 | Phase 0 | 2-4 weeks | Infrastructure setup | Temporal running |
 | Phase 1 | 6-8 weeks | **Multi-Agent Core** | **Parallel agents work!** |
 | Phase 2 | 4-6 weeks | **Merge & Aggregate** | **Feature PRs from agents** |

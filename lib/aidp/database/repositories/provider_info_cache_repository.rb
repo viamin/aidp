@@ -61,7 +61,8 @@ module Aidp
 
           # Check expiration
           if row["expires_at"]
-            expires_at = Time.parse(row["expires_at"])
+            # Parse as UTC since timestamps are stored in UTC
+            expires_at = Time.parse(row["expires_at"] + " UTC")
             if Time.now.utc > expires_at
               Aidp.log_debug("provider_info_cache_repo", "cache_expired",
                 provider: provider_name, expires_at: expires_at)
@@ -100,7 +101,8 @@ module Aidp
 
           return true unless row
 
-          cached_at = Time.parse(row["cached_at"])
+          # Parse as UTC since timestamps are stored in UTC
+          cached_at = Time.parse(row["cached_at"] + " UTC")
           (Time.now.utc - cached_at) > max_age
         end
 

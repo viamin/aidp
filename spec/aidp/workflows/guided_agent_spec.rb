@@ -9,7 +9,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   let(:prompt) { instance_double(TTY::Prompt) }
   let(:provider_manager) { instance_double(Aidp::Harness::ProviderManager) }
   let(:provider_factory) { instance_double(Aidp::Harness::ProviderFactory) }
-  let(:provider) { instance_double(Aidp::Providers::Base) }
+  let(:provider) { instance_double(AgentHarness::Providers::Base) }
   let(:config_manager) { instance_double(Aidp::Harness::ConfigManager) }
 
   # Use dependency injection instead of global mocking
@@ -912,7 +912,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     let(:cursor_provider) do
-      instance_double(Aidp::Providers::Cursor).tap do |provider|
+      instance_double(AgentHarness::Providers::Cursor).tap do |provider|
         call_counter = 0
         allow(provider).to receive(:send_message) do |prompt:, session: nil|
           call_counter += 1
@@ -926,7 +926,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     let(:claude_provider) do
-      instance_double(Aidp::Providers::Anthropic).tap do |provider|
+      instance_double(AgentHarness::Providers::Anthropic).tap do |provider|
         allow(provider).to receive(:send_message).and_return('{"complete": true, "questions": [], "reasoning": "done"}')
       end
     end
@@ -988,14 +988,14 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       cursor_prompts = []
       claude_prompts = []
 
-      tracking_cursor_provider = instance_double(Aidp::Providers::Cursor).tap do |provider|
+      tracking_cursor_provider = instance_double(AgentHarness::Providers::Cursor).tap do |provider|
         allow(provider).to receive(:send_message) do |prompt:, session: nil|
           cursor_prompts << prompt
           "" # Empty response triggers fallback
         end
       end
 
-      tracking_claude_provider = instance_double(Aidp::Providers::Anthropic).tap do |provider|
+      tracking_claude_provider = instance_double(AgentHarness::Providers::Anthropic).tap do |provider|
         allow(provider).to receive(:send_message) do |prompt:, session: nil|
           claude_prompts << prompt
           '{"complete": true, "questions": [], "reasoning": "done"}'
@@ -1050,7 +1050,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     let(:failing_cursor_provider) do
-      instance_double(Aidp::Providers::Cursor).tap do |provider|
+      instance_double(AgentHarness::Providers::Cursor).tap do |provider|
         allow(provider).to receive(:send_message).and_return("")
       end
     end
@@ -1131,7 +1131,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   let(:exhausting_cursor_provider) do
-    instance_double(Aidp::Providers::Cursor).tap do |provider|
+    instance_double(AgentHarness::Providers::Cursor).tap do |provider|
       call_counter = 0
       allow(provider).to receive(:send_message) do |prompt:, session: nil|
         call_counter += 1
@@ -1145,7 +1145,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   let(:recovery_claude_provider) do
-    instance_double(Aidp::Providers::Anthropic).tap do |provider|
+    instance_double(AgentHarness::Providers::Anthropic).tap do |provider|
       allow(provider).to receive(:send_message).and_return('{"complete": true, "questions": [], "reasoning": "done"}')
     end
   end
@@ -1208,7 +1208,7 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   let(:always_failing_cursor_provider) do
-    instance_double(Aidp::Providers::Cursor).tap do |provider|
+    instance_double(AgentHarness::Providers::Cursor).tap do |provider|
       allow(provider).to receive(:send_message) do |prompt:, session: nil|
         raise "ConnectError: [resource_exhausted] Error"
       end

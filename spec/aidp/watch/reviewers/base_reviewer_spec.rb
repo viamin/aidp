@@ -17,7 +17,7 @@ RSpec.describe Aidp::Watch::Reviewers::BaseReviewer do
   let(:test_reviewer_class) { TestReviewer }
 
   let(:reviewer) { test_reviewer_class.new }
-  let(:provider) { instance_double(Aidp::Providers::Anthropic) }
+  let(:provider) { instance_double(AgentHarness::Providers::Anthropic) }
 
   before do
     allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)

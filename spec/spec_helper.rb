@@ -20,6 +20,7 @@ ENV["AIDP_LOG_FILE"] = ".aidp/logs/aidp.test.log"
 ENV["AIDP_DISABLE_BOOTSTRAP"] ||= "1" # Default off in tests; enable explicitly in bootstrap specs
 
 require "aidp"
+require "agent_harness"
 require "tempfile"
 require "fileutils"
 require "logger"

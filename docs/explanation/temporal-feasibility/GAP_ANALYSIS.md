@@ -8,7 +8,7 @@ This document identifies gaps in Aidp's current implementation that must be addr
 
 ### 1.1 Target Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                  Feature Orchestrator                            │
 │  "Implement user authentication with OAuth2"                     │
@@ -48,7 +48,7 @@ This document identifies gaps in Aidp's current implementation that must be addr
 ### 1.2 Required Capabilities
 
 | Capability | Description |
-|------------|-------------|
+| ---------- | ----------- |
 | **Durable Orchestration** | Survive crashes, resume from exact point |
 | **Hierarchical Workflows** | Parent coordinates N children |
 | **Parallel Execution** | Run many agents concurrently |
@@ -67,7 +67,7 @@ This document identifies gaps in Aidp's current implementation that must be addr
 ### 2.1 What Exists Today
 
 | Component | Current Implementation | Limitations |
-|-----------|----------------------|-------------|
+| --------- | ---------------------- | ----------- |
 | **Parallel Execution** | `WorkstreamExecutor` with fork() | No crash recovery; manual aggregation |
 | **Hierarchical Issues** | Parent/sub-issue in StateStore | Only 2 levels; no ordering |
 | **State Sharing** | YAML files + GitHub | Polling-based; no real-time |
@@ -77,7 +77,7 @@ This document identifies gaps in Aidp's current implementation that must be addr
 
 ### 2.2 Current Orchestration Flow
 
-```ruby
+```text
 # Current: WorkstreamExecutor (workstream_executor.rb)
 def execute_parallel(slugs, options = {})
   pool = Concurrent::FixedThreadPool.new(@max_concurrent)
@@ -96,6 +96,7 @@ end
 ```
 
 **Problems:**
+
 - If orchestrator crashes, no way to know which agents completed
 - If 5 of 50 fail, must restart everything or manually track
 - No visibility during execution
@@ -108,12 +109,14 @@ end
 ### Gap 1: No Durable Orchestrator State
 
 **Current State:**
+
 - Orchestrator is a Ruby process with in-memory state
 - Workstream states in separate files
 - No single source of truth
 
 **Problem:**
-```
+
+```text
 Orchestrator starts 20 agents
      ↓
 Agent 1-10 complete
@@ -125,11 +128,13 @@ CRASH! (OOM, network, power)
 ```
 
 **Required:**
+
 - Orchestrator state survives crashes
 - Know exactly which children completed
 - Resume from exact point of failure
 
 **Temporal Solution:**
+
 ```ruby
 # Workflow state is automatically persisted
 class FeatureOrchestrationWorkflow < Temporal::Workflow
@@ -150,12 +155,14 @@ end
 ### Gap 2: No Task Graph / DAG Support
 
 **Current State:**
+
 - Linear state machine per work loop
 - Hierarchical issues are flat (parent → children)
 - No way to express complex dependencies
 
 **Problem:**
-```
+
+```text
 Cannot express:
   Task A ──┐
            ├──→ Task C ──→ Task E
@@ -165,12 +172,14 @@ Cannot express:
 ```
 
 **Required:**
+
 - Explicit dependency declaration
 - Parallel execution of independent tasks
 - Sequential execution of dependent tasks
 - Dynamic task graph modification
 
 **Temporal Solution:**
+
 ```ruby
 class FeatureWorkflow < Temporal::Workflow
   def execute(feature)
@@ -203,12 +212,14 @@ end
 ### Gap 3: No Failure Isolation with Partial Retry
 
 **Current State:**
+
 - One agent fails → entire WorkstreamExecutor continues
 - No way to retry just the failed agent
 - Manual intervention required
 
 **Problem:**
-```
+
+```text
 Run 50 agents
      ↓
 Agent 23 fails (API rate limit)
@@ -221,12 +232,14 @@ Options:
 ```
 
 **Required:**
+
 - Automatic retry of failed agents
 - Configurable retry policies per agent type
 - Continue-on-failure with aggregated error report
 - Manual retry trigger for specific agents
 
 **Temporal Solution:**
+
 ```ruby
 class FeatureOrchestrationWorkflow < Temporal::Workflow
   def execute(units)
@@ -266,18 +279,21 @@ end
 ### Gap 4: No Real-Time Progress Visibility
 
 **Current State:**
+
 - Per-workstream log files
 - File-based state updated periodically
 - No unified view of all agents
 
 **Problem:**
-```
+
+```text
 $ aidp workstreams status
 # Shows: slug, status (active/completed/failed)
 # Missing: progress %, current step, ETA, errors
 ```
 
 **Required:**
+
 - Real-time status of all agents
 - Progress percentage per agent
 - Current step/iteration
@@ -285,6 +301,7 @@ $ aidp workstreams status
 - Error details without digging through logs
 
 **Temporal Solution:**
+
 ```ruby
 # Query handler in orchestrator workflow
 workflow.query_handler("orchestration_status") do
@@ -316,12 +333,14 @@ end
 ### Gap 5: No Result Aggregation Framework
 
 **Current State:**
+
 - WorkstreamExecutor collects exit codes
 - HierarchicalPrStrategy checks all sub-PRs merged
 - No composable aggregation logic
 
 **Problem:**
-```
+
+```text
 Agent A produces: PR with OAuth config changes
 Agent B produces: PR with login flow changes
 Agent C produces: PR with session management changes
@@ -334,6 +353,7 @@ How to combine into single feature PR?
 ```
 
 **Required:**
+
 - Configurable merge strategies
 - Conflict detection and resolution
 - Combined PR description generation
@@ -341,6 +361,7 @@ How to combine into single feature PR?
 - Dependency-aware merge ordering
 
 **Temporal Solution:**
+
 ```ruby
 class MergeAtomicUnitsWorkflow < Temporal::Workflow
   def execute(unit_results, target_branch:)
@@ -373,12 +394,14 @@ end
 ### Gap 6: No Inter-Agent Communication
 
 **Current State:**
+
 - Agents work in isolation
 - Share data only via GitHub (comments, branches)
 - No artifact passing between agents
 
 **Problem:**
-```
+
+```text
 Agent A: Generates API schema
 Agent B: Needs schema to implement client
 Agent C: Needs schema to implement server
@@ -388,12 +411,14 @@ Required: A produces artifact, B and C consume it
 ```
 
 **Required:**
+
 - Artifact storage during orchestration
 - Input/output declarations per agent
 - Artifact dependency resolution
 - Caching for repeated access
 
 **Temporal Solution:**
+
 ```ruby
 class FeatureWorkflow < Temporal::Workflow
   def execute(feature)
@@ -423,18 +448,21 @@ end
 ### Gap 7: No Workflow Definition Language
 
 **Current State:**
+
 - Workflows hardcoded in Ruby
 - Changing orchestration requires code changes
 - No declarative specification
 
 **Problem:**
-```
+
+```text
 User wants: "Run 3 agents in parallel, then merge"
 Currently: Must modify workstream_executor.rb
 Required: Declarative config that users can customize
 ```
 
 **Required:**
+
 ```yaml
 # Declarative workflow spec
 workflow:
@@ -511,12 +539,14 @@ end
 ### Gap 8: No Resource Coordination
 
 **Current State:**
+
 - Fixed `max_concurrent` in WorkstreamExecutor
 - No per-task resource limits
 - No priority-based scheduling
 
 **Problem:**
-```
+
+```text
 Have: 50 atomic units to process
   - 10 are lightweight (schema generation)
   - 30 are medium (code implementation)
@@ -527,12 +557,14 @@ Required: Lightweight runs 10 concurrent, heavyweight runs 2
 ```
 
 **Required:**
+
 - Task weight/resource classification
 - Multiple worker pools
 - Priority queues
 - Dynamic concurrency adjustment
 
 **Temporal Solution:**
+
 ```ruby
 # Different task queues for different resource needs
 TASK_QUEUES = {
@@ -559,12 +591,14 @@ end
 ### Gap 9: No Workflow-Level Checkpointing
 
 **Current State:**
+
 - Per-work-loop checkpoints (every 5 iterations)
 - Workstream state separate
 - No full workflow snapshot
 
 **Problem:**
-```
+
+```text
 Workflow running for 6 hours
   - 40 of 50 agents complete
   - User needs to stop for maintenance
@@ -574,12 +608,14 @@ Required: Checkpoint entire workflow → resume later
 ```
 
 **Required:**
+
 - Save complete workflow state
 - Resume from checkpoint
 - List checkpoints
 - Rollback to previous checkpoint
 
 **Temporal Solution:**
+
 ```ruby
 # Temporal handles this automatically via Event History
 # Every state change is recorded
@@ -604,12 +640,14 @@ workflow.wait_condition { !@paused }
 ### Gap 10: No Conflict Resolution Strategy
 
 **Current State:**
+
 - Workstreams modify files independently
 - Git handles conflicts at merge time
 - No preventive measures
 
 **Problem:**
-```
+
+```text
 Agent A: Modifies src/auth.rb
 Agent B: Also modifies src/auth.rb
 Agent C: Modifies src/session.rb (independent)
@@ -619,12 +657,14 @@ Required: Orchestrator knows A and B conflict, runs sequentially
 ```
 
 **Required:**
+
 - File-level conflict detection before execution
 - Automatic grouping of conflicting tasks
 - Sequential execution for conflicts
 - Parallel execution for independent tasks
 
 **Temporal Solution:**
+
 ```ruby
 class ConflictAwareOrchestrationWorkflow < Temporal::Workflow
   def execute(units)
@@ -658,7 +698,7 @@ end
 ## 4. Gap Severity Assessment
 
 | Gap | Severity | Impact on Multi-Agent | Temporal Addresses? |
-|-----|----------|----------------------|---------------------|
+| --- | -------- | --------------------- | ------------------- |
 | No Durable Orchestrator | **Critical** | Cannot scale beyond ~10 agents | Yes - Event History |
 | No Task Graph/DAG | **High** | Cannot express complex dependencies | Yes - Child Workflows |
 | No Failure Isolation | **High** | Single failure wastes all work | Yes - Per-child retry |
@@ -682,21 +722,21 @@ end
 
 ### Phase 2: Parallelism (Addresses High Gaps)
 
-4. **Parallel Child Execution** with configurable concurrency
-5. **Failure Isolation** with per-child retry policies
-6. **Result Collection** with aggregation helpers
+1. **Parallel Child Execution** with configurable concurrency
+2. **Failure Isolation** with per-child retry policies
+3. **Result Collection** with aggregation helpers
 
 ### Phase 3: Intelligence (Addresses Medium Gaps)
 
-7. **Conflict Analysis Activity** for smart scheduling
-8. **Inter-Agent Artifact Passing** via workflow inputs/outputs
-9. **Resource-Based Task Queues** for load balancing
+1. **Conflict Analysis Activity** for smart scheduling
+2. **Inter-Agent Artifact Passing** via workflow inputs/outputs
+3. **Resource-Based Task Queues** for load balancing
 
 ### Phase 4: Polish (Addresses Low Gaps)
 
-10. **Workflow DSL** for declarative specifications
-11. **Advanced Merge Strategies** for PR combination
-12. **Comprehensive Dashboard** for orchestration status
+1. **Workflow DSL** for declarative specifications
+2. **Advanced Merge Strategies** for PR combination
+3. **Comprehensive Dashboard** for orchestration status
 
 ---
 
@@ -705,7 +745,7 @@ end
 Temporal provides the durable execution foundation, but we still need:
 
 | Component | Description | Effort |
-|-----------|-------------|--------|
+| --------- | ----------- | ------ |
 | `FeatureDecomposer` | AI-powered feature → atomic units | Medium |
 | `ConflictAnalyzer` | Detect file-level conflicts between units | Medium |
 | `MergeOrchestrator` | Dependency-aware sequential merge | High |
@@ -725,6 +765,7 @@ Aidp's current implementation has significant gaps for multi-agent orchestration
 - **Medium**: No progress visibility, inter-agent communication, conflict resolution
 
 **Temporal.io directly addresses the critical and most high-severity gaps**, providing:
+
 - Durable workflow state via Event History
 - Hierarchical execution via Child Workflows
 - Failure isolation via per-workflow retry
@@ -732,6 +773,7 @@ Aidp's current implementation has significant gaps for multi-agent orchestration
 - Automatic checkpointing via deterministic replay
 
 **Custom work required** for:
+
 - Intelligent feature decomposition
 - Merge conflict analysis
 - Result aggregation strategies

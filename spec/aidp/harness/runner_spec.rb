@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "tempfile"
+require "yaml"
 
 RSpec.describe Aidp::Harness::Runner do
   let(:temp_dir) { Dir.mktmpdir }
@@ -75,7 +76,7 @@ RSpec.describe Aidp::Harness::Runner do
       expect(runner.configuration).to be_a(Aidp::Harness::Configuration)
       expect(runner.state_manager).to be_a(Aidp::Harness::StateManager)
       expect(runner.condition_detector).to be_a(Aidp::Harness::ZfcConditionDetector)
-      expect(runner.provider_manager).to be_a(Aidp::Harness::ProviderManager)
+      expect(runner.provider_manager).to be_a(Aidp::Harness::AgentHarnessProviderManager)
       expect(runner.user_interface).to be_a(Aidp::Harness::SimpleUserInterface)
       expect(runner.error_handler).to be_a(Aidp::Harness::ErrorHandler)
       expect(runner.status_display).to be_a(Aidp::Harness::StatusDisplay)
