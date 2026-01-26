@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.37.0](https://github.com/viamin/aidp/compare/aidp/v0.36.1...aidp/v0.37.0) (2026-01-26)
+
+
+### Features
+
+* add abstraction interfaces for agent-harness gem extraction ([39f7963](https://github.com/viamin/aidp/commit/39f7963e499d038d42775a43b451a4fbb04f64e5))
+* add Phase 0C/0D preparation interfaces for agent-harness extraction ([e9314de](https://github.com/viamin/aidp/commit/e9314deada07bb706fdf08289c502dc88b1bcbbf))
+* **docs:** add comprehensive Temporal.io feasibility study ([230b810](https://github.com/viamin/aidp/commit/230b8105f4a9a6c3fcec9a82c6e65e1bc753752e))
+* **docs:** add comprehensive Temporal.io feasibility study ([#462](https://github.com/viamin/aidp/issues/462)) ([88a0582](https://github.com/viamin/aidp/commit/88a0582afa4b749c4aa73a88c9c11099ba3c72e6))
+* **harness:** add RSpec --only-failures optimization for work loops ([#467](https://github.com/viamin/aidp/issues/467)) ([e6b5a21](https://github.com/viamin/aidp/commit/e6b5a212ac463d778d42ab98b9337a6f2a1e2a3d))
+* switch from local provider code to the agent-harness gem ([cc60c46](https://github.com/viamin/aidp/commit/cc60c46c62fbcf216a52424f5a34fad081ee9c5b))
+* switch from local provider code to the agent-harness gem ([#468](https://github.com/viamin/aidp/issues/468)) ([15e51f8](https://github.com/viamin/aidp/commit/15e51f8f87ff542ac5677009be21a81caa307c6d))
+
+
+### Bug Fixes
+
+* address additional PR review comments for agent-harness preparation ([ec9edf0](https://github.com/viamin/aidp/commit/ec9edf09e7c8b4ec6ff61c49bcdf3c179cfb66c5))
+* address PR review feedback for agent-harness preparation ([b714141](https://github.com/viamin/aidp/commit/b7141416215709c240d21b693cb94efe9ae83385))
+* address standardrb linting issues in interface files ([67a6b2b](https://github.com/viamin/aidp/commit/67a6b2b126fe87cdde3ee265816a421ef01ea351))
+* **gitignore:** add .aidp_backup* and .cache/.local to ignore list ([0e5a56e](https://github.com/viamin/aidp/commit/0e5a56ed205fa63c67da37cb9ce3abf379c6026e))
+* only recover worktrees that are not already registered ([32c37fc](https://github.com/viamin/aidp/commit/32c37fc77677e0c21b1104b0ec9fa4928ab3b3a7))
+* **watch:** add GIT_EDITOR fix to apply_conflict_resolution method ([05481d5](https://github.com/viamin/aidp/commit/05481d5fbf8bfc69737fe40049087a51d1ec4c32)), closes [#366](https://github.com/viamin/aidp/issues/366)
+* **watch:** add GIT_EDITOR fix to apply_conflict_resolution method ([#460](https://github.com/viamin/aidp/issues/460)) ([dfa9bff](https://github.com/viamin/aidp/commit/dfa9bffce8f51b2bb063d7e423bf1a53c7891132))
+* **watch:** improve worktree recovery and add stuck work loop detection ([5fe0db5](https://github.com/viamin/aidp/commit/5fe0db578d9e7cc446628d2896d16e3989479d80))
+* **watch:** improve worktree recovery and add stuck work loop detection ([#458](https://github.com/viamin/aidp/issues/458)) ([0865b89](https://github.com/viamin/aidp/commit/0865b892b8342cb8f2566d922333dd213a2bb5fb))
+* **workloop:** specify .aidp/PROMPT.md path in agent instructions ([32272f9](https://github.com/viamin/aidp/commit/32272f9b3e86f577219a5e31050ab4583ac48d15))
+
+
+### Documentation
+
+* add comprehensive agent-harness gem extraction plan ([#466](https://github.com/viamin/aidp/issues/466)) ([fd19752](https://github.com/viamin/aidp/commit/fd19752e97f28c93171359a2b0989e6ae28b1140))
+* add comprehensive paid-agents gem extraction plan ([3bcf3d2](https://github.com/viamin/aidp/commit/3bcf3d20fe61fbf15155f3894d08e964aecf166b))
+* add comprehensive paid-agents gem extraction plan ([8730392](https://github.com/viamin/aidp/commit/873039295cfe169c952e5fbd14bdb4e539c0dbde))
+* finalize design decisions for agent-harness gem ([6904bf4](https://github.com/viamin/aidp/commit/6904bf49dfe1eede0ecbfeb5de058ceb58d169bc))
+* rename gem from paid-agents to agent-harness ([a8aed5f](https://github.com/viamin/aidp/commit/a8aed5feede5d5ecc34438dec7a9aeec6f1ca205))
+* **temporal:** update feasibility study for multi-agent orchestration priority ([fa3e2ab](https://github.com/viamin/aidp/commit/fa3e2ab4081de529da46a4bdc6b45d97e72e6711))
+
 ## [0.36.1](https://github.com/viamin/aidp/compare/aidp/v0.36.0...aidp/v0.36.1) (2026-01-19)
 
 
