@@ -121,7 +121,8 @@ RSpec.describe "Work Loop Header Prepending" do
 
       runner.send(:send_to_agent)
 
-      expect(execution_dir).to eq(@tmpdir)
+      # Use File.realpath to handle macOS symlink resolution (/var -> /private/var)
+      expect(execution_dir).to eq(File.realpath(@tmpdir))
     end
   end
 

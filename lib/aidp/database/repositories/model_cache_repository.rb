@@ -64,7 +64,8 @@ module Aidp
 
           # Check expiration
           if row["expires_at"]
-            expires_at = Time.parse(row["expires_at"])
+            # Parse as UTC since timestamps are stored in UTC
+            expires_at = Time.parse(row["expires_at"] + " UTC")
             if Time.now.utc > expires_at
               Aidp.log_debug("model_cache_repo", "cache_expired",
                 provider: provider_name, expires_at: expires_at)
@@ -128,7 +129,8 @@ module Aidp
           rows.each do |row|
             next unless row["expires_at"]
 
-            expires_at = Time.parse(row["expires_at"])
+            # Parse as UTC since timestamps are stored in UTC
+            expires_at = Time.parse(row["expires_at"] + " UTC")
             providers << row["provider_name"] if Time.now.utc <= expires_at
           end
 

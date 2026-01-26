@@ -1,34 +1,29 @@
 # frozen_string_literal: true
 
+require "agent_harness"
 require_relative "provider_config"
-require_relative "../providers/base"
-require_relative "../providers/cursor"
-require_relative "../providers/anthropic"
-require_relative "../providers/gemini"
-require_relative "../providers/opencode"
-require_relative "../providers/kilocode"
-require_relative "../providers/github_copilot"
-require_relative "../providers/codex"
-require_relative "../providers/aider"
 
 module Aidp
   module Harness
     # Factory for creating configured provider instances
+    #
+    # Uses AgentHarness providers for all provider instantiation.
     class ProviderFactory
       # Expose for testability
       attr_reader :provider_instances, :provider_configs
 
-      PROVIDER_CLASSES = {
-        "cursor" => Aidp::Providers::Cursor,
-        "anthropic" => Aidp::Providers::Anthropic,
-        "claude" => Aidp::Providers::Anthropic,
-        "gemini" => Aidp::Providers::Gemini,
-        "opencode" => Aidp::Providers::Opencode,
-        "kilocode" => Aidp::Providers::Kilocode,
-        "github_copilot" => Aidp::Providers::GithubCopilot,
-        "codex" => Aidp::Providers::Codex,
-        "aider" => Aidp::Providers::Aider
-      }.freeze
+      # Provider class lookup - delegates to AgentHarness registry
+      def self.provider_classes
+        registry = AgentHarness::Providers::Registry.instance
+        registry.all.each_with_object({}) do |name, hash|
+          hash[name.to_s] = registry.get(name)
+          # Add aliases
+          hash["anthropic"] = registry.get(:claude) if name == :claude
+        end
+      end
+
+      # For backwards compatibility - expose PROVIDER_CLASSES as a method
+      PROVIDER_CLASSES = nil # Deprecated - use provider_classes method
 
       def initialize(config_manager = nil)
         @config_manager = config_manager || ConfigManager.new
@@ -122,19 +117,26 @@ module Aidp
         @provider_configs[provider_name.to_s] ||= ProviderConfig.new(provider_name, @config_manager)
       end
 
-      # Get provider class
+      # Get provider class from AgentHarness registry
       def provider_class(provider_name)
-        PROVIDER_CLASSES[provider_name.to_s]
+        name = provider_name.to_s
+        # Handle anthropic -> claude alias
+        name = "claude" if name == "anthropic"
+        AgentHarness::Providers::Registry.instance.get(name.to_sym)
+      rescue AgentHarness::ConfigurationError
+        nil
       end
 
       # Check if provider is supported
       def provider_supported?(provider_name)
-        PROVIDER_CLASSES.key?(provider_name.to_s)
+        name = provider_name.to_s
+        name = "claude" if name == "anthropic"
+        AgentHarness::Providers::Registry.instance.registered?(name.to_sym)
       end
 
       # Get supported provider names
       def supported_providers
-        PROVIDER_CLASSES.keys
+        AgentHarness::Providers::Registry.instance.all.map(&:to_s)
       end
 
       # Get configured provider names

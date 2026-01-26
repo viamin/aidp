@@ -4,14 +4,14 @@
 
 This report evaluates whether Aidp should replace its native Ruby workflow orchestration code with Temporal.io workflows running in a self-hosted environment. The evaluation focuses specifically on Aidp's strategic direction toward **multi-agent orchestration** where multiple parallel agents work on atomic units that combine into feature-complete PRs.
 
-**Recommendation: Strongly Recommended**
+## Recommendation: Strongly Recommended
 
 Temporal adoption is essential for achieving durable multi-agent orchestration at scale. The current fork-based implementation cannot provide the durability, failure isolation, and visibility required when coordinating 10-50+ parallel agents on complex features. Temporal's hierarchical workflow model maps directly to the multi-agent pattern.
 
 ### Key Drivers for Adoption
 
 | Requirement | Current Gap | Temporal Solution |
-|-------------|-------------|-------------------|
+| ----------- | ----------- | ----------------- |
 | Orchestrator crash recovery | Lost state; manual restart | Automatic resume via Event History |
 | Partial failure retry | Restart all or manual track | Retry only failed child workflows |
 | Progress visibility | Per-process log files | Real-time queries + Web UI |
@@ -27,7 +27,7 @@ Temporal adoption is essential for achieving durable multi-agent orchestration a
 Aidp's orchestration is built on these foundational components:
 
 | Component | Location | Responsibility |
-|-----------|----------|----------------|
+| --------- | -------- | -------------- |
 | `WorkLoopRunner` | `lib/aidp/execute/work_loop_runner.rb` | Fix-forward state machine for iterative AI execution |
 | `AsyncWorkLoopRunner` | `lib/aidp/execute/async_work_loop_runner.rb` | Thread-based async execution with pause/resume/cancel |
 | `BackgroundRunner` | `lib/aidp/jobs/background_runner.rb` | Daemonized process execution with PID tracking |
@@ -40,11 +40,12 @@ Aidp's orchestration is built on these foundational components:
 
 The `WorkLoopRunner` implements a fix-forward state machine:
 
-```
+```text
 READY → APPLY_PATCH → TEST → {PASS → DONE | FAIL → DIAGNOSE → NEXT_PATCH} → READY
 ```
 
 Key characteristics:
+
 - Maximum 50 iterations safety limit
 - Periodic checkpoints every 5 iterations
 - Style guide reminder injection every 5 iterations
@@ -52,7 +53,7 @@ Key characteristics:
 
 ### 1.3 Data Flow Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        User / CLI                                │
 └─────────────────────────────────────────────────────────────────┘
@@ -97,7 +98,7 @@ Aidp uses `concurrent-ruby` for all concurrency needs:
 ### 1.5 State Persistence
 
 | State Type | Storage | Location |
-|------------|---------|----------|
+| ---------- | ------- | -------- |
 | Checkpoint | YAML | `.aidp/checkpoint.yml` |
 | Checkpoint History | JSONL | `.aidp/checkpoint_history.jsonl` |
 | Job Metadata | YAML | `.aidp/jobs/{job_id}/metadata.yml` |
@@ -112,7 +113,7 @@ Aidp uses `concurrent-ruby` for all concurrency needs:
 ### 2.1 Durability Gaps
 
 | Issue | Current State | Impact |
-|-------|--------------|--------|
+| ----- | ------------ | ------ |
 | **Process Crash Recovery** | Checkpoints saved every 5 iterations; manual restart required | Lost work if crash between checkpoints |
 | **State Consistency** | File-based with atomic writes; no transactions | Potential corruption on partial writes |
 | **Network Partition** | No built-in handling | Silent failures on GitHub API outages |
@@ -128,7 +129,7 @@ Aidp uses `concurrent-ruby` for all concurrency needs:
 ### 2.3 Orchestration Brittleness
 
 | Problem | Details |
-|---------|---------|
+| ------- | ------- |
 | **Thread Safety** | MonitorMixin used but complex multi-threaded state management |
 | **Process Management** | PID-based tracking; stuck detection via checkpoint age |
 | **Fan-out Complexity** | Manual result aggregation with `Concurrent::Hash` |
@@ -147,7 +148,7 @@ Aidp uses `concurrent-ruby` for all concurrency needs:
 ### 3.1 Proposed Component Mapping
 
 | Aidp Component | Temporal Equivalent | Rationale |
-|----------------|-------------------|-----------|
+| -------------- | ------------------- | --------- |
 | `WorkLoopRunner` | **Workflow** | State machine becomes durable workflow with automatic replay |
 | `execute_step()` loop | **Workflow loop with Activities** | Each iteration calls Activities for agent execution |
 | `apply_patch()` | **Activity** | Non-deterministic LLM call becomes Activity |
@@ -161,7 +162,7 @@ Aidp uses `concurrent-ruby` for all concurrency needs:
 
 ### 3.2 Proposed Workflow Hierarchy
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    AidpOrchestratorWorkflow                      │
 │                    (Top-level entry point)                       │
@@ -188,7 +189,7 @@ Aidp uses `concurrent-ruby` for all concurrency needs:
 Activities should encapsulate all non-deterministic operations:
 
 | Activity | Input | Output | Idempotency |
-|----------|-------|--------|-------------|
+| -------- | ----- | ------ | ----------- |
 | `ExecuteAgentActivity` | Prompt, config | Agent output | Non-idempotent (LLM calls) |
 | `RunTestsActivity` | Test config | Test results | Idempotent |
 | `RunLinterActivity` | Linter config | Linter output | Idempotent |
@@ -204,7 +205,7 @@ Activities should encapsulate all non-deterministic operations:
 ### 4.1 Durability & Recovery
 
 | Benefit | Description |
-|---------|-------------|
+| ------- | ----------- |
 | **Automatic State Persistence** | Every workflow state transition persisted; no manual checkpointing |
 | **Crash Recovery** | Workers restart and resume from exact point of failure |
 | **Deterministic Replay** | Workflow history can be replayed for debugging |
@@ -213,7 +214,7 @@ Activities should encapsulate all non-deterministic operations:
 ### 4.2 Observability
 
 | Feature | Value |
-|---------|-------|
+| ------- | ----- |
 | **Event History** | Complete record of all workflow events |
 | **Web UI** | Built-in dashboard for workflow monitoring |
 | **Tracing** | Native OpenTelemetry integration |
@@ -222,7 +223,7 @@ Activities should encapsulate all non-deterministic operations:
 ### 4.3 Operational Benefits
 
 | Benefit | Description |
-|---------|-------------|
+| ------- | ----------- |
 | **Horizontal Scaling** | Add Workers to handle more workflows |
 | **Task Queues** | Route work to specific Worker pools |
 | **Versioning** | Safely deploy workflow updates |
@@ -235,7 +236,7 @@ Activities should encapsulate all non-deterministic operations:
 ### 5.1 Complexity Costs
 
 | Risk | Mitigation |
-|------|------------|
+| ---- | ---------- |
 | **Learning Curve** | Ruby SDK is new; team needs Temporal expertise |
 | **Operational Overhead** | Self-hosted requires database, monitoring, maintenance |
 | **Testing Complexity** | Need Temporal test framework; mock service for unit tests |
@@ -244,7 +245,7 @@ Activities should encapsulate all non-deterministic operations:
 ### 5.2 Migration Challenges
 
 | Challenge | Difficulty |
-|-----------|-----------|
+| --------- | ---------- |
 | **CLI Subprocess Handling** | Medium - Activities can launch CLIs, but output capture needs design |
 | **State Migration** | High - Existing checkpoints incompatible with Temporal history |
 | **Watch Mode Conversion** | Medium - Long-running workflow with Continue-As-New |
@@ -253,6 +254,7 @@ Activities should encapsulate all non-deterministic operations:
 ### 5.3 Ruby SDK Maturity
 
 The Ruby SDK reached pre-release status in January 2025:
+
 - Supports Ruby 3.2, 3.3, 3.4
 - macOS and Linux only (no Windows)
 - Async/fiber support requires Ruby 3.3+
@@ -264,7 +266,7 @@ The Ruby SDK reached pre-release status in January 2025:
 
 ### 6.1 System Components
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Aidp CLI                                  │
 │  (User interface - starts workflows, sends signals)              │
@@ -301,7 +303,7 @@ The Ruby SDK reached pre-release status in January 2025:
 ### 6.2 Task Queue Design
 
 | Task Queue | Workers | Workflows |
-|------------|---------|-----------|
+| ---------- | ------- | --------- |
 | `aidp-work-loop` | 2-4 | WorkLoopWorkflow, WorkstreamWorkflow |
 | `aidp-watch-mode` | 1-2 | WatchModeWorkflow, ProcessorWorkflows |
 | `aidp-analysis` | 1-2 | AnalyzeWorkflow, FeatureAnalysis |
@@ -310,7 +312,7 @@ The Ruby SDK reached pre-release status in January 2025:
 ### 6.3 Signal/Query Design
 
 | Signal | Purpose |
-|--------|---------|
+| ------ | ------- |
 | `pause_work_loop` | Pause iteration at next safe point |
 | `resume_work_loop` | Resume paused workflow |
 | `cancel_work_loop` | Request graceful cancellation |
@@ -318,7 +320,7 @@ The Ruby SDK reached pre-release status in January 2025:
 | `update_guard_policy` | Modify guard configuration |
 
 | Query | Returns |
-|-------|---------|
+| ----- | ------- |
 | `get_status` | Current state, iteration, progress |
 | `get_pending_instructions` | Queued instruction count |
 | `get_metrics` | Checkpoint metrics |
@@ -331,7 +333,7 @@ The strategic direction toward multi-agent orchestration fundamentally changes t
 
 ### 7.1 Multi-Agent Vision
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                  Feature Orchestrator Workflow                   │
 │  "Implement user authentication with OAuth2"                     │
@@ -372,7 +374,7 @@ The strategic direction toward multi-agent orchestration fundamentally changes t
 ### 7.2 Why Temporal is Essential for Multi-Agent
 
 | Multi-Agent Requirement | Current Limitation | Temporal Capability |
-|------------------------|-------------------|---------------------|
+| ----------------------- | ------------------ | ------------------- |
 | **Durable Orchestrator** | In-memory; crash = lost state | Event History survives crashes |
 | **50+ Parallel Agents** | fork() doesn't scale | Child Workflows with isolation |
 | **Partial Failure Retry** | All-or-nothing restart | Retry only failed children |
@@ -384,7 +386,7 @@ The strategic direction toward multi-agent orchestration fundamentally changes t
 ### 7.3 Multi-Agent Task Queues
 
 | Task Queue | Workers | Purpose |
-|------------|---------|---------|
+| ---------- | ------- | ------- |
 | `aidp-orchestrator` | 2 | Feature orchestration (parent workflows) |
 | `aidp-agent-light` | 10 | Lightweight agents (schema gen, config) |
 | `aidp-agent-standard` | 5 | Standard agents (implementation) |
@@ -394,8 +396,9 @@ The strategic direction toward multi-agent orchestration fundamentally changes t
 ### 7.4 Multi-Agent Signals and Queries
 
 **Orchestrator Signals:**
+
 | Signal | Purpose |
-|--------|---------|
+| ------ | ------- |
 | `pause_orchestration` | Pause at next safe point |
 | `resume_orchestration` | Resume paused orchestration |
 | `cancel_orchestration` | Cancel all agents gracefully |
@@ -403,8 +406,9 @@ The strategic direction toward multi-agent orchestration fundamentally changes t
 | `adjust_concurrency` | Change parallel agent count |
 
 **Orchestrator Queries:**
+
 | Query | Returns |
-|-------|---------|
+| ----- | ------- |
 | `orchestration_status` | Overall progress, per-agent status |
 | `agent_details` | Detailed status for specific agent |
 | `estimated_completion` | ETA based on current progress |
@@ -428,6 +432,7 @@ For the multi-agent orchestration direction, Temporal adoption is **strongly rec
 
 **The Alternative is Worse:**
 Building these capabilities natively would require:
+
 - Custom event sourcing system
 - Workflow replay mechanism
 - Distributed state management
@@ -457,7 +462,7 @@ Building these capabilities natively would require:
 ### 8.3 Success Criteria
 
 | Metric | Target |
-|--------|--------|
+| ------ | ------ |
 | Work Loop Recovery | Resume within 5s of worker restart |
 | Observability | Full event history visible in Web UI |
 | Performance | No regression in iteration latency |

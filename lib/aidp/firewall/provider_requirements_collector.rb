@@ -2,15 +2,7 @@
 
 require "yaml"
 require "fileutils"
-require_relative "../providers/base"
-require_relative "../providers/anthropic"
-require_relative "../providers/cursor"
-require_relative "../providers/github_copilot"
-require_relative "../providers/gemini"
-require_relative "../providers/kilocode"
-require_relative "../providers/opencode"
-require_relative "../providers/codex"
-require_relative "../providers/aider"
+require "agent_harness"
 
 module Aidp
   module Firewall
@@ -233,24 +225,16 @@ module Aidp
 
       private
 
-      # Get list of all provider classes
+      # Get list of all provider classes from AgentHarness registry
       def provider_classes
-        [
-          Aidp::Providers::Anthropic,
-          Aidp::Providers::Cursor,
-          Aidp::Providers::GithubCopilot,
-          Aidp::Providers::Gemini,
-          Aidp::Providers::Kilocode,
-          Aidp::Providers::Opencode,
-          Aidp::Providers::Codex,
-          Aidp::Providers::Aider
-        ]
+        registry = AgentHarness::Providers::Registry.instance
+        registry.all.map { |name| registry.get(name) }
       end
 
-      # Extract provider name from class name
+      # Extract provider name from provider class
       def extract_provider_name(provider_class)
-        # Convert Aidp::Providers::GithubCopilot to "github_copilot"
-        provider_class.name.split("::").last.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
+        # AgentHarness providers have provider_name class method
+        provider_class.provider_name.to_s
       end
 
       # Default path to firewall config file

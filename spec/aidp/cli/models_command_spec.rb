@@ -151,7 +151,7 @@ RSpec.describe Aidp::CLI::ModelsCommand do
         allow(Aidp::Config).to receive(:config_exists?).with(temp_dir).and_return(true)
 
         # Mock provider class
-        provider_class = class_double("Aidp::Providers::Anthropic")
+        provider_class = class_double("AgentHarness::Providers::Anthropic")
         allow(provider_class).to receive(:model_family).and_return("claude-3-haiku")
         allow(provider_class).to receive(:supports_model_family?).and_return(true)
         allow(models_command).to receive(:get_provider_class).with("anthropic").and_return(provider_class)
@@ -187,7 +187,7 @@ RSpec.describe Aidp::CLI::ModelsCommand do
         allow(Dir).to receive(:pwd).and_return(temp_dir)
         allow(Aidp::Config).to receive(:config_exists?).with(temp_dir).and_return(true)
 
-        provider_class = class_double("Aidp::Providers::Anthropic")
+        provider_class = class_double("AgentHarness::Providers::Anthropic")
         allow(provider_class).to receive(:model_family).and_return("claude-3-haiku")
         allow(provider_class).to receive(:supports_model_family?).and_return(true)
         allow(models_command).to receive(:get_provider_class).with("anthropic").and_return(provider_class)
@@ -285,7 +285,7 @@ RSpec.describe Aidp::CLI::ModelsCommand do
     end
 
     before do
-      provider_class = class_double("Aidp::Providers::Anthropic")
+      provider_class = class_double("AgentHarness::Providers::Anthropic")
       allow(provider_class).to receive(:model_family).with("claude-3-haiku").and_return("claude-3-haiku")
       allow(provider_class).to receive(:supports_model_family?).with("claude-3-haiku").and_return(true)
       allow(models_command).to receive(:get_provider_class).with("anthropic").and_return(provider_class)
@@ -298,7 +298,7 @@ RSpec.describe Aidp::CLI::ModelsCommand do
     end
 
     it "reports errors for unsupported models" do
-      provider_class = class_double("Aidp::Providers::Anthropic")
+      provider_class = class_double("AgentHarness::Providers::Anthropic")
       allow(provider_class).to receive(:model_family).with("claude-3-haiku").and_return("claude-3-haiku")
       allow(provider_class).to receive(:supports_model_family?).with("claude-3-haiku").and_return(false)
       allow(models_command).to receive(:get_provider_class).with("anthropic").and_return(provider_class)
@@ -390,7 +390,7 @@ RSpec.describe Aidp::CLI::ModelsCommand do
     describe "#get_provider_class" do
       it "returns provider class when it exists" do
         result = models_command.send(:get_provider_class, "anthropic")
-        expect(result).to eq(Aidp::Providers::Anthropic)
+        expect(result).to eq(AgentHarness::Providers::Anthropic)
       end
 
       it "returns nil for non-existent provider" do

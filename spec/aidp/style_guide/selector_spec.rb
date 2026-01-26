@@ -41,12 +41,12 @@ RSpec.describe Aidp::StyleGuide::Selector do
         expect(selector.provider_needs_style_guide?("gemini")).to be false
       end
 
-      it "returns false for opencode" do
-        expect(selector.provider_needs_style_guide?("opencode")).to be false
+      it "returns true for opencode (no instruction files)" do
+        expect(selector.provider_needs_style_guide?("opencode")).to be true
       end
 
-      it "returns false for kilocode" do
-        expect(selector.provider_needs_style_guide?("kilocode")).to be false
+      it "returns true for kilocode (no instruction files)" do
+        expect(selector.provider_needs_style_guide?("kilocode")).to be true
       end
 
       it "returns false for codex" do

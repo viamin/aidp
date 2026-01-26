@@ -1118,8 +1118,8 @@ module Aidp
             end
             installed = !path.nil?
           when "cursor"
-            require_relative "../providers/cursor"
-            installed = Aidp::Providers::Cursor.available?
+            require "agent_harness"
+            installed = AgentHarness::Providers::Registry.instance.get(:cursor).available?
           end
         rescue LoadError => e
           log_rescue(e, component: "provider_manager", action: "check_provider_availability", fallback: false, provider: provider_name)

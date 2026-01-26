@@ -33,7 +33,7 @@ Aidp is evolving toward a model where complex features are decomposed into atomi
 Aidp's native orchestration cannot support multi-agent orchestration at scale:
 
 | Gap | Impact |
-|-----|--------|
+| --- | ------ |
 | Fork-based parallelism | No failure isolation; one crash affects all |
 | 2-level hierarchy limit | Can't support recursive agent decomposition |
 | No partial retry | Failed agent requires restarting entire operation |
@@ -44,7 +44,7 @@ Aidp's native orchestration cannot support multi-agent orchestration at scale:
 ### 1.3 Business Value
 
 | Benefit | Impact |
-|---------|--------|
+| ------- | ------ |
 | **Multi-agent orchestration** | Enable parallel agent development at scale |
 | Failure isolation | Individual agent failures don't block others |
 | Automatic recovery | Orchestrator survives crashes |
@@ -69,16 +69,19 @@ Temporal's hierarchical workflow model aligns with emerging AI research:
 Replace Aidp's orchestration subsystem with Temporal.io, prioritizing multi-agent orchestration:
 
 **Multi-Agent Orchestration (Primary)**:
+
 - **FeatureOrchestrationWorkflow** → Coordinate 10-50+ parallel agents
 - **AtomicUnitWorkflow** → Individual agent executing atomic work
 - **MergeOrchestrationWorkflow** → Combine agent results into feature PRs
 
 **Single-Agent Improvements (Secondary)**:
+
 - **WorkLoopRunner** → Temporal Workflow with durability
 - **AsyncWorkLoopRunner** → Temporal Workflow + Signals
 - **BackgroundRunner** → Async Workflow Start
 
 **Optional**:
+
 - **Watch::Runner** → Scheduled Workflow (can defer)
 
 ### 2.2 Key Changes
@@ -105,7 +108,7 @@ Replace Aidp's orchestration subsystem with Temporal.io, prioritizing multi-agen
 
 ### 3.1 Workflow Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Aidp CLI                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -133,7 +136,7 @@ Replace Aidp's orchestration subsystem with Temporal.io, prioritizing multi-agen
 ### 3.2 Workflow Mapping
 
 | Aidp Component | Temporal Primitive |
-|----------------|-------------------|
+| -------------- | ------------------ |
 | Work Loop state machine | Workflow with loop |
 | Agent execution | Activity |
 | Test/lint execution | Activity |
@@ -174,7 +177,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 4.1 Phases (Multi-Agent Priority)
 
 | Phase | Focus | Duration | Value |
-|-------|-------|----------|-------|
+| ----- | ----- | -------- | ----- |
 | Phase 0 | Infrastructure setup | 2-4 weeks | Temporal running |
 | Phase 1 | **Multi-Agent Core** | 6-8 weeks | **Parallel agents work!** |
 | Phase 2 | **Merge & Aggregate** | 4-6 weeks | **Feature PRs from agents** |
@@ -208,7 +211,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 5.1 New Dependencies
 
 | Dependency | Purpose |
-|------------|---------|
+| ---------- | ------- |
 | Temporal Service | Workflow orchestration |
 | PostgreSQL | Event history persistence |
 | Prometheus | Metrics collection |
@@ -217,14 +220,14 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 5.2 Infrastructure Requirements
 
 | Environment | Setup |
-|-------------|-------|
+| ----------- | ----- |
 | Development | Docker Compose |
 | Production | Kubernetes (Helm) or Docker Compose |
 
 ### 5.3 Monitoring Changes
 
 | Current | With Temporal |
-|---------|---------------|
+| ------- | ------------- |
 | Log files | Temporal Web UI |
 | PID tracking | Workflow state |
 | File-based checkpoints | Event history |
@@ -237,7 +240,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 6.1 Technical Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Ruby SDK bugs | Medium | High | Pin versions; keep native fallback |
 | Non-determinism issues | Medium | High | Strict Activity boundaries |
 | Performance regression | Low | Medium | Benchmarking; optimization |
@@ -245,7 +248,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 6.2 Operational Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Infrastructure complexity | Medium | High | Start with Docker Compose |
 | Team learning curve | High | Medium | Training; documentation |
 | Maintenance burden | Medium | Medium | Use managed DB in production |
@@ -253,7 +256,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 6.3 Project Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
+| ---- | ---------- | ------ | ---------- |
 | Scope creep | Medium | Medium | Strict phase gates |
 | Timeline slip | Medium | Medium | Buffer in estimates |
 
@@ -264,11 +267,13 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 7.1 Enhance Native Orchestration
 
 **Pros**:
+
 - No new dependencies
 - Team familiarity
 - Lower complexity
 
 **Cons**:
+
 - Significant effort to achieve durability
 - Custom observability needed
 - Limited replay capabilities
@@ -278,11 +283,13 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 7.2 Temporal Cloud (Managed)
 
 **Pros**:
+
 - No infrastructure management
 - SLA guarantees
 - Multi-region support
 
 **Cons**:
+
 - Higher cost
 - Data locality concerns
 - Less control
@@ -292,7 +299,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 7.3 Other Orchestration Platforms
 
 | Platform | Why Not |
-|----------|---------|
+| -------- | ------- |
 | Apache Airflow | DAG-based; less suited for dynamic workflows |
 | Prefect | Python-focused; limited Ruby support |
 | Argo Workflows | Kubernetes-native; higher complexity |
@@ -330,7 +337,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ## 9. Timeline
 
 | Milestone | Target Date |
-|-----------|-------------|
+| --------- | ----------- |
 | RFC Approval | Week 0 |
 | Phase 0 Complete | Week 4 |
 | Phase 1 Complete | Week 10 |
@@ -347,7 +354,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 10.1 Development Cost
 
 | Phase | Effort (person-weeks) |
-|-------|----------------------|
+| ----- | --------------------- |
 | Phase 0 | 4 |
 | Phase 1 | 6 |
 | Phase 2 | 12 |
@@ -358,7 +365,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 ### 10.2 Infrastructure Cost (Self-Hosted)
 
 | Component | Monthly Cost |
-|-----------|--------------|
+| --------- | ------------ |
 | Temporal Service | ~$100 |
 | PostgreSQL | ~$60 |
 | Workers | ~$120 |
@@ -375,7 +382,7 @@ workflow.signal_handler("inject_instruction") { |i| @queue << i }
 Temporal adoption is strongly recommended because Aidp's strategic direction toward **multi-agent orchestration** requires capabilities that cannot be reasonably achieved with the current native implementation:
 
 | Requirement | Native Capability | Temporal Capability |
-|-------------|-------------------|---------------------|
+| ----------- | ----------------- | ------------------- |
 | 10-50+ parallel agents | Fork-based, fragile | First-class Child Workflows |
 | Failure isolation | Not available | Per-child error handling |
 | Partial retry | Not available | Retry individual workflows |
@@ -398,6 +405,7 @@ Temporal adoption is strongly recommended because Aidp's strategic direction tow
 - Team learning curve
 
 These risks are mitigated by:
+
 - Pinning SDK version with native fallback
 - Starting with Docker Compose
 - Training before Phase 1
@@ -436,7 +444,7 @@ These risks are mitigated by:
 ### 13.1 Glossary
 
 | Term | Definition |
-|------|------------|
+| ---- | ---------- |
 | Workflow | Durable function that orchestrates Activities |
 | Activity | Non-deterministic operation (I/O, CLI, API) |
 | Signal | Asynchronous message to running Workflow |
@@ -466,7 +474,7 @@ A: Pin SDK version, maintain native fallback, report issues upstream.
 ## Approval
 
 | Role | Name | Decision | Date |
-|------|------|----------|------|
+| ---- | ---- | -------- | ---- |
 | Technical Lead | | Pending | |
 | Product Owner | | Pending | |
 | Operations Lead | | Pending | |

@@ -7,7 +7,7 @@ This document provides instructions for self-hosted Temporal deployment for Aidp
 ## 1. Deployment Options Overview
 
 | Option | Complexity | Best For |
-|--------|-----------|----------|
+| ------ | ---------- | -------- |
 | Docker Compose | Low | Development, testing, single-node |
 | Kubernetes (Helm) | Medium | Production, multi-node, scaling |
 | Temporal Cloud | Low | Production, managed service |
@@ -528,7 +528,7 @@ spec:
 ### 4.1 Database Recommendations
 
 | Environment | Recommendation |
-|-------------|----------------|
+| ----------- | -------------- |
 | Development | PostgreSQL via Docker |
 | Staging | PostgreSQL via Docker with persistent volume |
 | Production | Managed PostgreSQL (RDS, Cloud SQL, Azure DB) |
@@ -536,7 +536,7 @@ spec:
 ### 4.2 Resource Sizing
 
 | Component | Development | Staging | Production |
-|-----------|-------------|---------|------------|
+| --------- | ----------- | ------- | ---------- |
 | Frontend | 256MB / 0.5 CPU | 512MB / 1 CPU | 1GB / 2 CPU |
 | History | 256MB / 0.5 CPU | 512MB / 1 CPU | 2GB / 2 CPU |
 | Matching | 256MB / 0.5 CPU | 512MB / 1 CPU | 1GB / 2 CPU |
@@ -569,7 +569,7 @@ postgresql:
 **Prometheus Metrics to Monitor:**
 
 | Metric | Alert Threshold |
-|--------|----------------|
+| ------ | --------------- |
 | `temporal_server_requests_per_second` | > 1000/s |
 | `temporal_server_latency_p99` | > 5s |
 | `temporal_workflow_started_count` | Trend analysis |
@@ -579,6 +579,7 @@ postgresql:
 **Grafana Dashboards:**
 
 Import official Temporal dashboards:
+
 - Temporal Server Overview
 - Temporal Workflow Metrics
 - Temporal Activity Metrics
@@ -671,7 +672,7 @@ server:
 ### 6.1 Common Issues
 
 | Issue | Symptom | Solution |
-|-------|---------|----------|
+| ----- | ------- | -------- |
 | Workflow not starting | Timeout on start | Check worker is running and connected |
 | Activity timeout | Activity fails after timeout | Increase `start_to_close_timeout` or add heartbeats |
 | History too large | Workflow fails at 50K events | Implement Continue-As-New |
@@ -727,7 +728,7 @@ kubectl logs -f deployment/aidp-worker -n aidp-temporal
 ### 8.1 Self-Hosted (AWS Example)
 
 | Component | Instance Type | Monthly Cost |
-|-----------|--------------|--------------|
+| --------- | ------------- | ------------ |
 | Temporal Server (3 nodes) | t3.medium | ~$90 |
 | PostgreSQL (RDS) | db.t3.medium | ~$60 |
 | Worker Nodes (2) | t3.large | ~$120 |
@@ -736,7 +737,7 @@ kubectl logs -f deployment/aidp-worker -n aidp-temporal
 ### 8.2 Temporal Cloud
 
 | Tier | Monthly Cost |
-|------|--------------|
+| ---- | ------------ |
 | Developer | Free (limited) |
 | Starter | ~$200/month |
 | Production | Custom pricing |

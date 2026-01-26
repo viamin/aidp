@@ -90,7 +90,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
       allow(repository_client).to receive(:remove_labels)
 
       # Mock provider response
-      provider = instance_double(Aidp::Providers::Anthropic)
+      provider = instance_double(AgentHarness::Providers::Anthropic)
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
       allow(provider).to receive(:send_message).and_return(
         JSON.dump({
@@ -127,7 +127,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
       allow(repository_client).to receive(:remove_labels)
 
       # Mock provider response
-      provider = instance_double(Aidp::Providers::Anthropic)
+      provider = instance_double(AgentHarness::Providers::Anthropic)
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
       allow(provider).to receive(:send_message).and_return(
         JSON.dump({
@@ -288,7 +288,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
     let(:failures) { [{name: "RSpec", conclusion: "failure", output: "Test failed"}] }
 
     it "parses valid JSON response" do
-      provider = instance_double(Aidp::Providers::Anthropic)
+      provider = instance_double(AgentHarness::Providers::Anthropic)
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
       allow(provider).to receive(:send_message).and_return(
         '{"can_fix": true, "reason": "Simple fix", "root_causes": ["Typo"], "fixes": []}'
@@ -302,7 +302,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
     end
 
     it "handles JSON parse errors" do
-      provider = instance_double(Aidp::Providers::Anthropic)
+      provider = instance_double(AgentHarness::Providers::Anthropic)
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
       allow(provider).to receive(:send_message).and_return("Invalid JSON{")
       allow(Aidp).to receive(:log_error)
@@ -324,7 +324,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
     end
 
     it "extracts JSON from code fence response" do
-      provider = instance_double(Aidp::Providers::Anthropic)
+      provider = instance_double(AgentHarness::Providers::Anthropic)
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
       allow(provider).to receive(:send_message).and_return(
         "Here's my analysis:\n```json\n{\"can_fix\": true, \"reason\": \"Easy fix\"}\n```"
@@ -446,7 +446,7 @@ RSpec.describe Aidp::Watch::CiFixProcessor do
       allow(Aidp).to receive(:log_error)
 
       # Mock provider response
-      provider = instance_double(Aidp::Providers::Anthropic)
+      provider = instance_double(AgentHarness::Providers::Anthropic)
       allow(Aidp::ProviderManager).to receive(:get_provider).and_return(provider)
       allow(provider).to receive(:send_message).and_return(
         JSON.dump({

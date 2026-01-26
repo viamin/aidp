@@ -12,6 +12,7 @@ services:
 
     volumes:
     - ../../aidp:/workspaces/aidp:cached
+    - ../../agent-harness:/workspaces/agent-harness:cached
 
     # Keep container running; init process handled via devcontainer tooling
     command: sleep infinity

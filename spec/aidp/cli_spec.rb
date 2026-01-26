@@ -76,7 +76,8 @@ RSpec.describe Aidp::CLI do
         config_path = File.join(test_project_dir, ".aidp", "aidp.yml")
         File.write(config_path, {"logging" => {"level" => "debug"}}.to_yaml)
 
-        expect(Aidp).to receive(:setup_logger).with(test_project_dir, {"level" => "debug"})
+        # Use File.realpath to handle macOS symlink resolution (/var -> /private/var)
+        expect(Aidp).to receive(:setup_logger).with(File.realpath(test_project_dir), {"level" => "debug"})
         allow(Aidp.logger).to receive(:info)
 
         # Pass empty args (no subcommand) to trigger main flow
@@ -85,7 +86,8 @@ RSpec.describe Aidp::CLI do
 
       it "handles missing aidp.yml gracefully" do
         # No config file exists
-        expect(Aidp).to receive(:setup_logger).with(test_project_dir, {})
+        # Use File.realpath to handle macOS symlink resolution (/var -> /private/var)
+        expect(Aidp).to receive(:setup_logger).with(File.realpath(test_project_dir), {})
         allow(Aidp.logger).to receive(:info)
 
         described_class.run([])
@@ -97,7 +99,8 @@ RSpec.describe Aidp::CLI do
 
         # YAML parse error happens before setup_logger is called
         # So it only gets called once in the rescue block with empty config
-        expect(Aidp).to receive(:setup_logger).once.with(test_project_dir, {})
+        # Use File.realpath to handle macOS symlink resolution (/var -> /private/var)
+        expect(Aidp).to receive(:setup_logger).once.with(File.realpath(test_project_dir), {})
         allow(Aidp.logger).to receive(:warn)
         allow(described_class).to receive(:log_rescue)
 

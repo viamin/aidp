@@ -406,7 +406,7 @@ module Aidp
           provider_name.to_s.split("_").map(&:capitalize).join
         end
 
-        Aidp::Providers.const_get(class_name)
+        AgentHarness::Providers.const_get(class_name)
       rescue NameError
         nil
       end
