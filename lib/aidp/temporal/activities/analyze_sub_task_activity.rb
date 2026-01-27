@@ -87,9 +87,9 @@ module Aidp
 
           # Look for numbered lists - process line by line to avoid ReDoS
           description.each_line do |line|
-            if line.match?(/^\d+[.)]/)
+            if line.match?(/\A\d+[.)]/)
               # Extract content after the number marker
-              content = line.sub(/^\d+[.)]\s*/, "").strip
+              content = line.sub(/\A\d+[.)]\s{0,50}/, "").strip
               next if content.empty?
 
               sub_tasks << {
@@ -102,8 +102,8 @@ module Aidp
           # Look for bullet points if no numbered items found
           if sub_tasks.empty?
             description.each_line do |line|
-              if line.match?(/^[-*]/)
-                content = line.sub(/^[-*]\s*/, "").strip
+              if line.match?(/\A[-*]/)
+                content = line.sub(/\A[-*]\s{0,50}/, "").strip
                 next if content.length < 10
 
                 sub_tasks << {

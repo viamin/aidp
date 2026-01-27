@@ -145,8 +145,8 @@ module Aidp
         def extract_list_items(text, items)
           text.each_line do |line|
             # Match lines starting with - or *
-            if line.match?(/\A\s*[-*]/)
-              content = line.sub(/\A\s*[-*]\s*/, "").strip
+            if line.match?(/\A\s{0,50}[-*]/)
+              content = line.sub(/\A\s{0,50}[-*]\s{0,50}/, "").strip
               items << content if content.length > 10
             end
           end
@@ -165,8 +165,8 @@ module Aidp
             # Process line by line to avoid ReDoS
             section.each_line do |line|
               # Match lines starting with -, *, or numbers
-              if line.match?(/\A\s*[-*\d.]/)
-                content = line.sub(/\A\s*[-*\d.]+\s*/, "").strip
+              if line.match?(/\A\s{0,50}[-*\d.]/)
+                content = line.sub(/\A\s{0,50}[-*\d.]+\s{0,50}/, "").strip
                 criteria << content if content.length > 5
               end
             end
