@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.38.0](https://github.com/viamin/aidp/compare/aidp/v0.37.0...aidp/v0.38.0) (2026-01-27)
+
+
+### Features
+
+* **temporal:** integrate Temporal for durable workflow orchestration ([#465](https://github.com/viamin/aidp/issues/465)) ([48c9bdf](https://github.com/viamin/aidp/commit/48c9bdfe4493da05fb05264e157fd2b732cf442c))
+
+
+### Bug Fixes
+
+* improve regex patterns for list item extraction in analyze activities ([28e6d5e](https://github.com/viamin/aidp/commit/28e6d5e59bb0cfed22bc975f1aa5ee3f01cd6b3b))
+
+
+### Dependencies
+
+* **deps:** bump the minor-updates group across 1 directory with 2 updates ([390203d](https://github.com/viamin/aidp/commit/390203db685ab388df09f278cec11cd70e13f097))
+* **deps:** bump the minor-updates group across 1 directory with 2 updates ([#473](https://github.com/viamin/aidp/issues/473)) ([44280dd](https://github.com/viamin/aidp/commit/44280ddb7414a0991335fc65bd77b2207ec67789))
+
 ## [0.37.0](https://github.com/viamin/aidp/compare/aidp/v0.36.1...aidp/v0.37.0) (2026-01-26)
 
 
