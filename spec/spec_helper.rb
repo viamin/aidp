@@ -122,6 +122,24 @@ RSpec.configure do |config|
       end
     end
 
+    # Monkey-patch TTY::Table to suppress width warnings in tests
+    # The warnings come from the renderer when table exceeds terminal width
+    require "tty-table"
+    if defined?(TTY::Table::Renderer::Basic)
+      TTY::Table::Renderer::Basic.class_eval do
+        alias_method :original_render, :render
+
+        def render
+          # Capture and suppress width-related warnings
+          original_stderr = $stderr
+          $stderr = StringIO.new
+          result = original_render
+          $stderr = original_stderr
+          result
+        end
+      end
+    end
+
     # Monkey-patch TTY::Spinner to suppress all spinner output in tests
     # Spinners produce animated output that clutters test output
     TTY::Spinner.class_eval do
@@ -161,6 +179,39 @@ RSpec.configure do |config|
           message = arg.to_s
           next if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.match?(pattern) }
           original_puts(arg)
+        end
+        nil
+      end
+    end
+
+    # Monkey-patch Kernel#warn to filter warnings using SUPPRESS_PATTERNS
+    # This catches TTY::Table width warnings and other library warnings
+    Kernel.module_eval do
+      alias_method :original_warn, :warn
+
+      define_method(:warn) do |*args, **kwargs|
+        args.each do |arg|
+          message = arg.to_s
+          next if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.match?(pattern) }
+          original_warn(arg, **kwargs)
+        end
+        nil
+      end
+    end
+
+    # Monkey-patch Kernel#print to filter output using SUPPRESS_PATTERNS
+    # This catches ANSI escape sequences and other direct print calls
+    Kernel.module_eval do
+      alias_method :original_print, :print
+
+      define_method(:print) do |*args|
+        args.each do |arg|
+          message = arg.to_s
+          next if TestPrompt::SUPPRESS_PATTERNS.any? { |pattern| message.match?(pattern) }
+          # Also suppress raw ANSI escape sequences
+          next if message.match?(/\e\[[\d;]*[A-Za-z]/)
+          next if message.match?(/^\[\d+[A-Za-z]/)
+          original_print(arg)
         end
         nil
       end

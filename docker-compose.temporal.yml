@@ -1,0 +1,105 @@
+# Docker Compose configuration for Temporal server
+# Used for local development and self-hosted production deployments
+#
+# Usage:
+#   docker-compose -f docker-compose.temporal.yml up -d
+#
+# Components:
+#   - PostgreSQL: Temporal persistence backend
+#   - Temporal Server: Workflow orchestration service
+#   - Temporal Admin Tools: CLI and admin utilities
+#   - Temporal UI: Web-based workflow visualization
+#
+# For production, consider:
+#   - Using managed database (RDS, Cloud SQL)
+#   - Running multiple Temporal server instances
+#   - Adding load balancer in front of Temporal
+#   - Using Temporal Cloud instead of self-hosted
+
+version: "3.8"
+
+services:
+  # PostgreSQL database for Temporal persistence
+  postgresql:
+    image: postgres:15-alpine
+    container_name: temporal-postgresql
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal-postgresql-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - temporal-network
+
+  # Temporal server
+  temporal:
+    image: temporalio/auto-setup:1.24
+    container_name: temporal-server
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=/etc/temporal/dynamicconfig/development.yaml
+    ports:
+      - "7233:7233"
+    volumes:
+      - ./temporal-config:/etc/temporal/dynamicconfig
+    healthcheck:
+      test: ["CMD", "temporal", "workflow", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - temporal-network
+
+  # Temporal Admin Tools (optional, for CLI access)
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.24
+    container_name: temporal-admin-tools
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    stdin_open: true
+    tty: true
+    networks:
+      - temporal-network
+
+  # Temporal Web UI (optional, for visualization)
+  temporal-ui:
+    image: temporalio/ui:2.26
+    container_name: temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    ports:
+      - "8080:8080"
+    networks:
+      - temporal-network
+
+volumes:
+  temporal-postgresql-data:
+    driver: local
+
+networks:
+  temporal-network:
+    driver: bridge
