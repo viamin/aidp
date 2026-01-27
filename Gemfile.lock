@@ -29,7 +29,7 @@ GEM
   specs:
     addressable (2.8.8)
       public_suffix (>= 2.0.2, < 8.0)
-    agent-harness (0.2.2)
+    agent-harness (0.3.0)
     aruba (2.3.3)
       bundler (>= 1.17)
       contracts (>= 0.16.0, < 0.18.0)
@@ -87,8 +87,12 @@ GEM
     faraday-retry (2.4.0)
       faraday (~> 2.0)
     ffi (1.17.3-aarch64-linux-gnu)
+    ffi (1.17.3-arm64-darwin)
     ffi (1.17.3-x86_64-linux-gnu)
     google-protobuf (4.33.4-aarch64-linux-gnu)
+      bigdecimal
+      rake (>= 13)
+    google-protobuf (4.33.4-arm64-darwin)
       bigdecimal
       rake (>= 13)
     google-protobuf (4.33.4-x86_64-linux-gnu)
@@ -230,10 +234,13 @@ GEM
     sys-uname (1.4.1)
       ffi (~> 1.1)
       memoist3 (~> 1.0.0)
-    temporalio (1.1.0-aarch64-linux)
+    temporalio (1.2.0-aarch64-linux)
       google-protobuf (>= 3.25.0)
       logger
-    temporalio (1.1.0-x86_64-linux)
+    temporalio (1.2.0-arm64-darwin)
+      google-protobuf (>= 3.25.0)
+      logger
+    temporalio (1.2.0-x86_64-linux)
       google-protobuf (>= 3.25.0)
       logger
     thor (1.5.0)
