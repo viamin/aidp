@@ -124,13 +124,14 @@ GEM
       racc
     pastel (0.8.0)
       tty-color (~> 0.5)
-    prism (1.8.0)
+    prism (1.9.0)
     public_suffix (7.0.2)
     racc (1.8.1)
     rainbow (3.1.1)
     rake (13.3.1)
-    rbs (3.10.2)
+    rbs (3.10.3)
       logger
+      tsort
     regexp_parser (2.11.3)
     reline (0.6.3)
       io-console (~> 0.5)
@@ -166,7 +167,7 @@ GEM
       lint_roller (~> 1.1)
       rubocop (>= 1.75.0, < 2.0)
       rubocop-ast (>= 1.47.1, < 2.0)
-    ruby-lsp (0.26.5)
+    ruby-lsp (0.26.6)
       language_server-protocol (~> 3.17.0)
       prism (>= 1.2, < 2.0)
       rbs (>= 3, < 5)
@@ -244,6 +245,7 @@ GEM
       google-protobuf (>= 3.25.0)
       logger
     thor (1.5.0)
+    tsort (0.2.0)
     tty-box (0.7.0)
       pastel (~> 0.8)
       strings (~> 0.2.0)
