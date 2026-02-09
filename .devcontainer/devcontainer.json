@@ -29,7 +29,8 @@
     "ghcr.io/devcontainers/features/node:1": {
       "version": "lts"
     },
-    "ghcr.io/devcontainers-extra/features/mise:1": {}
+    "ghcr.io/devcontainers-extra/features/mise:1": {},
+    "ghcr.io/devcontainers/features/go:1": {}
   },
   // containerEnv is set when the container is built
   // put environment variables that won't change in here
@@ -50,7 +51,8 @@
     "AIDER_NO_BROWSER": "1",
     "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}",
     "AIDP_ENABLE_RELOADING": "1",
-    "AIDP_WATCH_MODE": "1"
+    "AIDP_WATCH_MODE": "1",
+    "PATH": "${containerEnv:PATH}:/home/vscode/go/bin"
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [
@@ -68,8 +70,9 @@
     "bundle-install": "bundle install --jobs 1 --retry 3",
     "markdownlint": "npm install -g markdownlint-cli",
     // OPTIONAL TOOLS (uncomment any you want):
-    "git-curate": "gem install git_curate",
-    "claude-code": "npm install -g @anthropic-ai/claude-code",
+    "git-curate": "env PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH gem install git_curate",
+    "claude-code": "curl -fsSL https://claude.ai/install.sh | bash",
+    "multiclaude": "go install github.com/dlorenc/multiclaude/cmd/multiclaude@latest",
     "cursor-agent": "curl https://cursor.com/install -fsS | bash",
     "codex": "npm install -g @openai/codex",
     "gemini-cli": "npm install -g @google/gemini-cli",
@@ -88,7 +91,8 @@
     "init-firewall": "sudo /usr/local/bin/init-firewall.sh",
     // NOTE: Using --jobs 1 due to Ruby 3.4.7 race condition with parallel gem installation
     "ensure-bundle": "bundle check || bundle install --jobs 1 --retry 3",
-    "fix-aidp-permissions": "sudo chown -R vscode:vscode /home/vscode/.aidp"
+    "fix-aidp-permissions": "sudo chown -R vscode:vscode /home/vscode/.aidp",
+    "multiclaude-start": "multiclaude start || true"
   },
   "waitFor": "postStartCommand",
   // VS Code customizations

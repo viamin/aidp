@@ -26,19 +26,17 @@ if [ -f "/usr/local/bin/codex" ] && [ ! -f "/usr/local/bin/codex.real" ]; then
   sudo ln -sf "$WRAPPER_DIR/codex" /usr/local/bin/codex
 fi
 
-# Create Claude wrapper that adds --dangerously-skip-permissions
+# Create Claude wrapper that adds --dangerously-skip-permissions and --plugin-dir
 echo "Creating Claude wrapper..."
-cat << 'EOF' | sudo tee "$WRAPPER_DIR/claude" > /dev/null
+CLAUDE_BIN="$HOME/.local/bin/claude"
+if [ -f "$CLAUDE_BIN" ] && [ ! -f "$CLAUDE_BIN.real" ]; then
+  mv "$CLAUDE_BIN" "$CLAUDE_BIN.real"
+  cat << CLAUDE_EOF > "$CLAUDE_BIN"
 #!/bin/bash
-# Claude wrapper for devcontainer - dangerous mode
-exec /usr/local/bin/claude.real --dangerously-skip-permissions "$@"
-EOF
-sudo chmod +x "$WRAPPER_DIR/claude"
-
-# Rename original claude if it exists
-if [ -f "/usr/local/bin/claude" ] && [ ! -f "/usr/local/bin/claude.real" ]; then
-  sudo mv /usr/local/bin/claude /usr/local/bin/claude.real
-  sudo ln -sf "$WRAPPER_DIR/claude" /usr/local/bin/claude
+# Claude wrapper for devcontainer - dangerous mode + plugin
+exec "$CLAUDE_BIN.real" --dangerously-skip-permissions --plugin-dir /workspaces/claude-ai-toolkit "\$@"
+CLAUDE_EOF
+  chmod +x "$CLAUDE_BIN"
 fi
 
 # For Gemini CLI, create a container-specific settings file
