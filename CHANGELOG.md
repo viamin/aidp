@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.39.0](https://github.com/viamin/aidp/compare/aidp/v0.38.0...aidp/v0.39.0) (2026-02-12)
+
+
+### Features
+
+* add multiclaude to the devcontainer ([f58fdce](https://github.com/viamin/aidp/commit/f58fdceb888d930e4c7f12331da51ba8148dc6c2))
+
+
+### Dependencies
+
+* **deps-dev:** bump ruby-lsp in the minor-updates group ([e1231d9](https://github.com/viamin/aidp/commit/e1231d9d0165a49dbcb30ab518569f9b6e25b493))
+* **deps:** bump faraday ([d77e863](https://github.com/viamin/aidp/commit/d77e863a89304c2949e299d4b889075becbecbdd))
+
 ## [0.38.0](https://github.com/viamin/aidp/compare/aidp/v0.37.0...aidp/v0.38.0) (2026-01-27)
 
 
