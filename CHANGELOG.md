@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.39.1](https://github.com/viamin/aidp/compare/aidp/v0.39.0...aidp/v0.39.1) (2026-03-20)
+
+
+### Dependencies
+
+* **deps:** bump json from 2.18.1 to 2.19.2 in the security-updates group across 1 directory ([#487](https://github.com/viamin/aidp/issues/487)) ([2b4c0d4](https://github.com/viamin/aidp/commit/2b4c0d465c5a9038b903bfcf82cbb387a835d352))
+* **deps:** bump json in the security-updates group across 1 directory ([673b870](https://github.com/viamin/aidp/commit/673b8700c1ccdc7c7319f56cd9db8253b042c225))
+
 ## [0.39.0](https://github.com/viamin/aidp/compare/aidp/v0.38.0...aidp/v0.39.0) (2026-02-12)
 
 
