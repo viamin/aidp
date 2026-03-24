@@ -67,8 +67,8 @@ module Aidp
 
       def initialize(deprecation_cache: nil)
         @deprecation_cache = deprecation_cache
-        @models = RubyLLM::Models.instance.instance_variable_get(:@models)
-        @index_by_id = @models.to_h { |m| [m.id, m] }
+        @models = load_models_with_utf8_fallback
+        @index_by_id = build_id_index(@models)
 
         # Build family index for mapping versioned names to families
         @family_index = build_family_index
@@ -213,7 +213,7 @@ module Aidp
       def refresh!
         RubyLLM::Models.refresh!
         @models = RubyLLM::Models.instance.instance_variable_get(:@models)
-        @index_by_id = @models.to_h { |m| [m.id, m] }
+        @index_by_id = build_id_index(@models)
         @family_index = build_family_index
         Aidp.log_info("ruby_llm_registry", "refreshed", models: @models.size)
       end
@@ -274,6 +274,39 @@ module Aidp
       end
 
       private
+
+      # Load models from RubyLLM, working around encoding issues in the
+      # upstream gem when the process locale is US-ASCII.
+      def load_models_with_utf8_fallback
+        RubyLLM::Models.instance.instance_variable_get(:@models)
+      rescue Encoding::InvalidByteSequenceError
+        Aidp.log_debug("ruby_llm_registry", "retrying model load with UTF-8 encoding")
+        original = Encoding.default_external
+        Encoding.default_external = Encoding::UTF_8
+        begin
+          RubyLLM::Models.instance_variable_set(:@instance, nil)
+          RubyLLM::Models.instance.instance_variable_get(:@models)
+        ensure
+          Encoding.default_external = original
+        end
+      end
+
+      # Build an index of model ID to model object, preferring primary
+      # providers (anthropic, openai, gemini) over resellers (azure, bedrock)
+      # when the same model ID appears under multiple providers.
+      PRIMARY_PROVIDERS = %w[anthropic openai gemini deepseek mistral].freeze
+
+      def build_id_index(models)
+        index = {}
+        models.each do |m|
+          existing = index[m.id]
+          if existing.nil? || (!PRIMARY_PROVIDERS.include?(existing.provider.to_s) &&
+                                PRIMARY_PROVIDERS.include?(m.provider.to_s))
+            index[m.id] = m
+          end
+        end
+        index
+      end
 
       # Build an index mapping family names to model objects
       # Family name is model ID with version suffix removed
