@@ -247,8 +247,9 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
   end
 
   describe "encoding fallback" do
-    it "retries with UTF-8 encoding on InvalidByteSequenceError" do
+    it "permanently sets UTF-8 encoding on InvalidByteSequenceError" do
       models_instance = instance_double("RubyLLM::Models")
+      original_encoding = Encoding.default_external
 
       call_count = 0
       allow(RubyLLM::Models).to receive(:instance) do
@@ -263,6 +264,9 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
 
       registry = described_class.new
       expect(registry).to be_a(described_class)
+      expect(Encoding.default_external).to eq(Encoding::UTF_8)
+    ensure
+      Encoding.default_external = original_encoding
     end
   end
 
@@ -296,6 +300,40 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
 
       expect(info).not_to be_nil
       expect(info[:provider]).to eq("anthropic")
+    end
+
+    it "returns provider-specific entry when provider is given" do
+      primary_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "anthropic",
+        name: "Claude Haiku",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      reseller_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "bedrock",
+        name: "Claude Haiku (Bedrock)",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      models_instance = instance_double("RubyLLM::Models")
+      allow(RubyLLM::Models).to receive(:instance).and_return(models_instance)
+      allow(models_instance).to receive(:instance_variable_get)
+        .with(:@models)
+        .and_return([primary_model, reseller_model])
+
+      registry = described_class.new
+
+      # Without provider, returns primary (anthropic)
+      info = registry.get_model_info("claude-haiku-4-5-20251001")
+      expect(info[:provider]).to eq("anthropic")
+
+      # With provider, returns the specific provider's entry
+      info = registry.get_model_info("claude-haiku-4-5-20251001", provider: "bedrock")
+      expect(info[:provider]).to eq("bedrock")
     end
 
     it "keeps reseller entry when no primary provider exists" do

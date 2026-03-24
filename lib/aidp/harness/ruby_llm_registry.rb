@@ -128,9 +128,12 @@ module Aidp
       # Get model information
       #
       # @param model_id [String] The model ID
+      # @param provider [String, nil] Optional AIDP provider name. When given,
+      #   returns info for that provider's entry (useful when the same model ID
+      #   exists under multiple providers, e.g. anthropic and azure).
       # @return [Hash, nil] Model information hash or nil if not found
-      def get_model_info(model_id)
-        model = @index_by_id[model_id]
+      def get_model_info(model_id, provider: nil)
+        model = find_model_entry(model_id, provider: provider)
         return nil unless model
 
         {
@@ -283,23 +286,36 @@ module Aidp
       def load_models_with_utf8_fallback
         RubyLLM::Models.instance.instance_variable_get(:@models)
       rescue Encoding::InvalidByteSequenceError
-        Aidp.log_debug("ruby_llm_registry", "retrying model load with UTF-8 encoding")
-        # Synchronized because the fallback temporarily mutates the global
-        # Encoding.default_external, which would race with other threads.
+        # If we hit an encoding error, permanently switch the default external
+        # encoding to UTF-8 (once) under a mutex and retry. This avoids
+        # oscillating the global encoding and keeps RubyLLM's singleton
+        # initialization isolated from transient state changes.
         ENCODING_MUTEX.synchronize do
-          original = Encoding.default_external
-          Encoding.default_external = Encoding::UTF_8
-          begin
-            # RubyLLM::Models uses a singleton @instance that caches the parsed
-            # model list. We reset it so the retry re-reads the JSON under
-            # UTF-8 encoding. This relies on an internal implementation detail;
-            # if upstream adds a public reset API we should prefer that.
-            RubyLLM::Models.instance_variable_set(:@instance, nil)
-            RubyLLM::Models.instance.instance_variable_get(:@models)
-          ensure
-            Encoding.default_external = original
+          if Encoding.default_external != Encoding::UTF_8
+            Aidp.log_debug("ruby_llm_registry", "setting default external encoding to UTF-8 for model load")
+            Encoding.default_external = Encoding::UTF_8
+          end
+
+          # RubyLLM::Models uses a singleton @instance that caches the parsed
+          # model list. We reset it so the retry re-reads the JSON under
+          # UTF-8 encoding. This relies on an internal implementation detail;
+          # if upstream adds a public reset API we should prefer that.
+          RubyLLM::Models.instance_variable_set(:@instance, nil)
+          RubyLLM::Models.instance.instance_variable_get(:@models)
+        end
+      end
+
+      # Find the model entry for a given ID, optionally scoped to a provider.
+      # Falls back to the flat index when no provider is given.
+      def find_model_entry(model_id, provider: nil)
+        if provider
+          registry_provider = PROVIDER_NAME_MAPPING[provider]
+          if registry_provider
+            match = @models.find { |m| m.id == model_id && m.provider.to_s == registry_provider }
+            return match if match
           end
         end
+        @index_by_id[model_id]
       end
 
       # Build an index of model ID to model object, preferring primary
