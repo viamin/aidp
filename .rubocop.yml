@@ -1,2 +1,9 @@
 inherit_gem:
   standard: config/base.yml
+
+AllCops:
+  Exclude:
+    - bin/**/*
+    - templates/**/*
+    - .git/**/*
+    - vendor/**/*

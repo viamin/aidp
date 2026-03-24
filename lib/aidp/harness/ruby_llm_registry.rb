@@ -12,6 +12,9 @@ module Aidp
       class RegistryError < StandardError; end
       class ModelNotFound < RegistryError; end
 
+      ENCODING_MUTEX = Mutex.new
+      private_constant :ENCODING_MUTEX
+
       # Map AIDP provider names to RubyLLM provider names
       # Some AIDP providers use different names than the upstream APIs
       PROVIDER_NAME_MAPPING = {
@@ -212,7 +215,7 @@ module Aidp
       # Refresh the model registry from ruby_llm
       def refresh!
         RubyLLM::Models.refresh!
-        @models = RubyLLM::Models.instance.instance_variable_get(:@models)
+        @models = load_models_with_utf8_fallback
         @index_by_id = build_id_index(@models)
         @family_index = build_family_index
         Aidp.log_info("ruby_llm_registry", "refreshed", models: @models.size)
@@ -281,19 +284,31 @@ module Aidp
         RubyLLM::Models.instance.instance_variable_get(:@models)
       rescue Encoding::InvalidByteSequenceError
         Aidp.log_debug("ruby_llm_registry", "retrying model load with UTF-8 encoding")
-        original = Encoding.default_external
-        Encoding.default_external = Encoding::UTF_8
-        begin
-          RubyLLM::Models.instance_variable_set(:@instance, nil)
-          RubyLLM::Models.instance.instance_variable_get(:@models)
-        ensure
-          Encoding.default_external = original
+        # Synchronized because the fallback temporarily mutates the global
+        # Encoding.default_external, which would race with other threads.
+        ENCODING_MUTEX.synchronize do
+          original = Encoding.default_external
+          Encoding.default_external = Encoding::UTF_8
+          begin
+            # RubyLLM::Models uses a singleton @instance that caches the parsed
+            # model list. We reset it so the retry re-reads the JSON under
+            # UTF-8 encoding. This relies on an internal implementation detail;
+            # if upstream adds a public reset API we should prefer that.
+            RubyLLM::Models.instance_variable_set(:@instance, nil)
+            RubyLLM::Models.instance.instance_variable_get(:@models)
+          ensure
+            Encoding.default_external = original
+          end
         end
       end
 
       # Build an index of model ID to model object, preferring primary
       # providers (anthropic, openai, gemini) over resellers (azure, bedrock)
       # when the same model ID appears under multiple providers.
+      #
+      # NOTE: This flat index stores one entry per model ID. Callers that need
+      # provider-specific results (e.g. models_for_provider) should filter
+      # @models directly rather than relying on this index.
       PRIMARY_PROVIDERS = %w[anthropic openai gemini deepseek mistral].freeze
 
       def build_id_index(models)
