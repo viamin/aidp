@@ -247,9 +247,12 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
   end
 
   describe "encoding fallback" do
-    it "permanently sets UTF-8 encoding on InvalidByteSequenceError" do
+    it "switches from US-ASCII to UTF-8 on InvalidByteSequenceError" do
       models_instance = instance_double("RubyLLM::Models")
       original_encoding = Encoding.default_external
+
+      # Simulate US-ASCII default which triggers the fallback
+      Encoding.default_external = Encoding::US_ASCII
 
       call_count = 0
       allow(RubyLLM::Models).to receive(:instance) do
@@ -265,6 +268,22 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
       registry = described_class.new
       expect(registry).to be_a(described_class)
       expect(Encoding.default_external).to eq(Encoding::UTF_8)
+    ensure
+      Encoding.default_external = original_encoding
+    end
+
+    it "re-raises InvalidByteSequenceError when default encoding is not US-ASCII" do
+      original_encoding = Encoding.default_external
+
+      # Simulate a non-US-ASCII, non-UTF-8 encoding
+      Encoding.default_external = Encoding::ISO_8859_1
+
+      allow(RubyLLM::Models).to receive(:instance)
+        .and_raise(Encoding::InvalidByteSequenceError, "encoding error on ISO-8859-1")
+
+      expect { described_class.new }.to raise_error(Encoding::InvalidByteSequenceError)
+      # Encoding should not have been changed
+      expect(Encoding.default_external).to eq(Encoding::ISO_8859_1)
     ensure
       Encoding.default_external = original_encoding
     end
@@ -334,6 +353,29 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
       # With provider, returns the specific provider's entry
       info = registry.get_model_info("claude-haiku-4-5-20251001", provider: "bedrock")
       expect(info[:provider]).to eq("bedrock")
+    end
+
+    it "returns nil for unsupported provider even when model exists" do
+      primary_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "anthropic",
+        name: "Claude Haiku",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      models_instance = instance_double("RubyLLM::Models")
+      allow(RubyLLM::Models).to receive(:instance).and_return(models_instance)
+      allow(models_instance).to receive(:instance_variable_get)
+        .with(:@models)
+        .and_return([primary_model])
+
+      registry = described_class.new
+
+      # "cursor" maps to nil in PROVIDER_NAME_MAPPING, so even though the
+      # model exists, provider-scoped lookup should return nil
+      info = registry.get_model_info("claude-haiku-4-5-20251001", provider: "cursor")
+      expect(info).to be_nil
     end
 
     it "keeps reseller entry when no primary provider exists" do

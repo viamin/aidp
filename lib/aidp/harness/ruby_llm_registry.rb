@@ -285,16 +285,21 @@ module Aidp
       # upstream gem when the process locale is US-ASCII.
       def load_models_with_utf8_fallback
         RubyLLM::Models.instance.instance_variable_get(:@models)
-      rescue Encoding::InvalidByteSequenceError
-        # If we hit an encoding error, permanently switch the default external
-        # encoding to UTF-8 (once) under a mutex and retry. This avoids
-        # oscillating the global encoding and keeps RubyLLM's singleton
-        # initialization isolated from transient state changes.
+      rescue Encoding::InvalidByteSequenceError => e
+        # Only switch encoding when the current default is US-ASCII, which is
+        # the known problematic locale for RubyLLM's UTF-8 model JSON.
+        # For other non-UTF-8 encodings, propagate the error rather than
+        # silently clobbering the process-wide setting.
         ENCODING_MUTEX.synchronize do
-          if Encoding.default_external != Encoding::UTF_8
-            Aidp.log_debug("ruby_llm_registry", "setting default external encoding to UTF-8 for model load")
-            Encoding.default_external = Encoding::UTF_8
+          unless Encoding.default_external == Encoding::US_ASCII
+            raise e
           end
+
+          Aidp.log_debug(
+            "ruby_llm_registry",
+            "setting default external encoding from US-ASCII to UTF-8 for RubyLLM model load"
+          )
+          Encoding.default_external = Encoding::UTF_8
 
           # RubyLLM::Models uses a singleton @instance that caches the parsed
           # model list. We reset it so the retry re-reads the JSON under
@@ -306,14 +311,24 @@ module Aidp
       end
 
       # Find the model entry for a given ID, optionally scoped to a provider.
-      # Falls back to the flat index when no provider is given.
+      # When a provider is given, only returns entries for that provider;
+      # returns nil if the provider is unsupported or no match is found.
+      # Falls back to the flat index only when no provider is given.
       def find_model_entry(model_id, provider: nil)
         if provider
           registry_provider = PROVIDER_NAME_MAPPING[provider]
-          if registry_provider
-            match = @models.find { |m| m.id == model_id && m.provider.to_s == registry_provider }
-            return match if match
+          unless registry_provider
+            Aidp.log_debug("ruby_llm_registry", "unsupported provider for model lookup",
+              provider: provider, model_id: model_id)
+            return nil
           end
+
+          match = @models.find { |m| m.id == model_id && m.provider.to_s == registry_provider }
+          unless match
+            Aidp.log_debug("ruby_llm_registry", "model not found for provider",
+              model_id: model_id, provider: provider, registry_provider: registry_provider)
+          end
+          return match
         end
         @index_by_id[model_id]
       end
