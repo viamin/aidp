@@ -12,6 +12,9 @@ module Aidp
       class RegistryError < StandardError; end
       class ModelNotFound < RegistryError; end
 
+      ENCODING_MUTEX = Mutex.new
+      private_constant :ENCODING_MUTEX
+
       # Map AIDP provider names to RubyLLM provider names
       # Some AIDP providers use different names than the upstream APIs
       PROVIDER_NAME_MAPPING = {
@@ -67,8 +70,8 @@ module Aidp
 
       def initialize(deprecation_cache: nil)
         @deprecation_cache = deprecation_cache
-        @models = RubyLLM::Models.instance.instance_variable_get(:@models)
-        @index_by_id = @models.to_h { |m| [m.id, m] }
+        @models = load_models_with_utf8_fallback
+        @index_by_id = build_id_index(@models)
 
         # Build family index for mapping versioned names to families
         @family_index = build_family_index
@@ -125,9 +128,12 @@ module Aidp
       # Get model information
       #
       # @param model_id [String] The model ID
+      # @param provider [String, nil] Optional AIDP provider name. When given,
+      #   returns info for that provider's entry (useful when the same model ID
+      #   exists under multiple providers, e.g. anthropic and azure).
       # @return [Hash, nil] Model information hash or nil if not found
-      def get_model_info(model_id)
-        model = @index_by_id[model_id]
+      def get_model_info(model_id, provider: nil)
+        model = find_model_entry(model_id, provider: provider)
         return nil unless model
 
         {
@@ -212,8 +218,8 @@ module Aidp
       # Refresh the model registry from ruby_llm
       def refresh!
         RubyLLM::Models.refresh!
-        @models = RubyLLM::Models.instance.instance_variable_get(:@models)
-        @index_by_id = @models.to_h { |m| [m.id, m] }
+        @models = load_models_with_utf8_fallback
+        @index_by_id = build_id_index(@models)
         @family_index = build_family_index
         Aidp.log_info("ruby_llm_registry", "refreshed", models: @models.size)
       end
@@ -274,6 +280,79 @@ module Aidp
       end
 
       private
+
+      # Load models from RubyLLM, working around encoding issues in the
+      # upstream gem when the process locale is US-ASCII.
+      def load_models_with_utf8_fallback
+        RubyLLM::Models.instance.instance_variable_get(:@models)
+      rescue Encoding::InvalidByteSequenceError => e
+        # Only switch encoding when the current default is US-ASCII, which is
+        # the known problematic locale for RubyLLM's UTF-8 model JSON.
+        # For other non-UTF-8 encodings, propagate the error rather than
+        # silently clobbering the process-wide setting.
+        ENCODING_MUTEX.synchronize do
+          unless Encoding.default_external == Encoding::US_ASCII
+            raise e
+          end
+
+          Aidp.log_debug(
+            "ruby_llm_registry",
+            "setting default external encoding from US-ASCII to UTF-8 for RubyLLM model load"
+          )
+          Encoding.default_external = Encoding::UTF_8
+
+          # RubyLLM::Models uses a singleton @instance that caches the parsed
+          # model list. We reset it so the retry re-reads the JSON under
+          # UTF-8 encoding. This relies on an internal implementation detail;
+          # if upstream adds a public reset API we should prefer that.
+          RubyLLM::Models.instance_variable_set(:@instance, nil)
+          RubyLLM::Models.instance.instance_variable_get(:@models)
+        end
+      end
+
+      # Find the model entry for a given ID, optionally scoped to a provider.
+      # When a provider is given, only returns entries for that provider;
+      # returns nil if the provider is unsupported or no match is found.
+      # Falls back to the flat index only when no provider is given.
+      def find_model_entry(model_id, provider: nil)
+        if provider
+          registry_provider = PROVIDER_NAME_MAPPING[provider]
+          unless registry_provider
+            Aidp.log_debug("ruby_llm_registry", "unsupported provider for model lookup",
+              provider: provider, model_id: model_id)
+            return nil
+          end
+
+          match = @models.find { |m| m.id == model_id && m.provider.to_s == registry_provider }
+          unless match
+            Aidp.log_debug("ruby_llm_registry", "model not found for provider",
+              model_id: model_id, provider: provider, registry_provider: registry_provider)
+          end
+          return match
+        end
+        @index_by_id[model_id]
+      end
+
+      # Build an index of model ID to model object, preferring primary
+      # providers (anthropic, openai, gemini) over resellers (azure, bedrock)
+      # when the same model ID appears under multiple providers.
+      #
+      # NOTE: This flat index stores one entry per model ID. Callers that need
+      # provider-specific results (e.g. models_for_provider) should filter
+      # @models directly rather than relying on this index.
+      PRIMARY_PROVIDERS = %w[anthropic openai gemini deepseek mistral].freeze
+
+      def build_id_index(models)
+        index = {}
+        models.each do |m|
+          existing = index[m.id]
+          if existing.nil? || (!PRIMARY_PROVIDERS.include?(existing.provider.to_s) &&
+                                PRIMARY_PROVIDERS.include?(m.provider.to_s))
+            index[m.id] = m
+          end
+        end
+        index
+      end
 
       # Build an index mapping family names to model objects
       # Family name is model ID with version suffix removed

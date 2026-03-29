@@ -1,0 +1,12 @@
+# Added alongside the standard gem 1.54.0 update (rubocop 1.84.0) which
+# introduced new unconfigured cops. Inheriting from standard's base config
+# ensures rubocop and standardrb share the same rule set.
+inherit_gem:
+  standard: config/base.yml
+
+AllCops:
+  Exclude:
+    - bin/**/*
+    - templates/**/*
+    - .git/**/*
+    - vendor/**/*

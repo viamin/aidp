@@ -245,4 +245,159 @@ RSpec.describe Aidp::Harness::RubyLLMRegistry do
       expect { described_class.new }.to raise_error(StandardError, /Registry unavailable/)
     end
   end
+
+  describe "encoding fallback" do
+    it "switches from US-ASCII to UTF-8 on InvalidByteSequenceError" do
+      models_instance = instance_double("RubyLLM::Models")
+      original_encoding = Encoding.default_external
+
+      # Simulate US-ASCII default which triggers the fallback
+      Encoding.default_external = Encoding::US_ASCII
+
+      call_count = 0
+      allow(RubyLLM::Models).to receive(:instance) do
+        call_count += 1
+        if call_count == 1
+          raise Encoding::InvalidByteSequenceError, '"\xC3" followed by "\xA9" on US-ASCII'
+        end
+        models_instance
+      end
+      allow(models_instance).to receive(:instance_variable_get).with(:@models).and_return([])
+      allow(RubyLLM::Models).to receive(:instance_variable_set).with(:@instance, nil)
+
+      registry = described_class.new
+      expect(registry).to be_a(described_class)
+      expect(Encoding.default_external).to eq(Encoding::UTF_8)
+    ensure
+      Encoding.default_external = original_encoding
+    end
+
+    it "re-raises InvalidByteSequenceError when default encoding is not US-ASCII" do
+      original_encoding = Encoding.default_external
+
+      # Simulate a non-US-ASCII, non-UTF-8 encoding
+      Encoding.default_external = Encoding::ISO_8859_1
+
+      allow(RubyLLM::Models).to receive(:instance)
+        .and_raise(Encoding::InvalidByteSequenceError, "encoding error on ISO-8859-1")
+
+      expect { described_class.new }.to raise_error(Encoding::InvalidByteSequenceError)
+      # Encoding should not have been changed
+      expect(Encoding.default_external).to eq(Encoding::ISO_8859_1)
+    ensure
+      Encoding.default_external = original_encoding
+    end
+  end
+
+  describe "duplicate model ID indexing" do
+    it "prefers primary providers over resellers for duplicate model IDs" do
+      primary_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "anthropic",
+        name: "Claude Haiku",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      reseller_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "azure",
+        name: "Claude Haiku (Azure)",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      models_instance = instance_double("RubyLLM::Models")
+      # Return reseller first, then primary - primary should still win
+      allow(RubyLLM::Models).to receive(:instance).and_return(models_instance)
+      allow(models_instance).to receive(:instance_variable_get)
+        .with(:@models)
+        .and_return([reseller_model, primary_model])
+
+      registry = described_class.new
+      info = registry.get_model_info("claude-haiku-4-5-20251001")
+
+      expect(info).not_to be_nil
+      expect(info[:provider]).to eq("anthropic")
+    end
+
+    it "returns provider-specific entry when provider is given" do
+      primary_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "anthropic",
+        name: "Claude Haiku",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      reseller_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "bedrock",
+        name: "Claude Haiku (Bedrock)",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      models_instance = instance_double("RubyLLM::Models")
+      allow(RubyLLM::Models).to receive(:instance).and_return(models_instance)
+      allow(models_instance).to receive(:instance_variable_get)
+        .with(:@models)
+        .and_return([primary_model, reseller_model])
+
+      registry = described_class.new
+
+      # Without provider, returns primary (anthropic)
+      info = registry.get_model_info("claude-haiku-4-5-20251001")
+      expect(info[:provider]).to eq("anthropic")
+
+      # With provider, returns the specific provider's entry
+      info = registry.get_model_info("claude-haiku-4-5-20251001", provider: "bedrock")
+      expect(info[:provider]).to eq("bedrock")
+    end
+
+    it "returns nil for unsupported provider even when model exists" do
+      primary_model = instance_double("RubyLLM::Model::Info",
+        id: "claude-haiku-4-5-20251001",
+        provider: "anthropic",
+        name: "Claude Haiku",
+        pricing: nil,
+        context_window: 200000,
+        capabilities: [:chat])
+
+      models_instance = instance_double("RubyLLM::Models")
+      allow(RubyLLM::Models).to receive(:instance).and_return(models_instance)
+      allow(models_instance).to receive(:instance_variable_get)
+        .with(:@models)
+        .and_return([primary_model])
+
+      registry = described_class.new
+
+      # "cursor" maps to nil in PROVIDER_NAME_MAPPING, so even though the
+      # model exists, provider-scoped lookup should return nil
+      info = registry.get_model_info("claude-haiku-4-5-20251001", provider: "cursor")
+      expect(info).to be_nil
+    end
+
+    it "keeps reseller entry when no primary provider exists" do
+      reseller_model = instance_double("RubyLLM::Model::Info",
+        id: "azure-only-model",
+        provider: "azure",
+        name: "Azure Only",
+        pricing: nil,
+        context_window: 128000,
+        capabilities: [:chat])
+
+      models_instance = instance_double("RubyLLM::Models")
+      allow(RubyLLM::Models).to receive(:instance).and_return(models_instance)
+      allow(models_instance).to receive(:instance_variable_get)
+        .with(:@models)
+        .and_return([reseller_model])
+
+      registry = described_class.new
+      info = registry.get_model_info("azure-only-model")
+
+      expect(info).not_to be_nil
+      expect(info[:provider]).to eq("azure")
+    end
+  end
 end
