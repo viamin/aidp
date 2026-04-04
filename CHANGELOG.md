@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.39.1](https://github.com/viamin/aidp/compare/aidp/v0.39.0...aidp/v0.39.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* **deps:** address code review feedback for encoding and provider handling ([9217138](https://github.com/viamin/aidp/commit/9217138f903dd6d4ffe86cf884dab70616e19db7))
+* **deps:** address review feedback for ruby_llm 1.14 compatibility ([0f35b9c](https://github.com/viamin/aidp/commit/0f35b9c422c1fece7140a92bff7dfbaf25e7e69b))
+* **deps:** handle ruby_llm 1.14 encoding and duplicate model ID issues ([fbdc284](https://github.com/viamin/aidp/commit/fbdc284d17ae1cdbce44d1d44e2029b96cf2958b))
+* **deps:** scope encoding fallback to US-ASCII and fix provider-scoped lookups ([cc1851d](https://github.com/viamin/aidp/commit/cc1851dba08c74279afb823589bea0a489ce42a1))
+
+
+### Dependencies
+
+* **deps-dev:** bump mcp ([40c66ed](https://github.com/viamin/aidp/commit/40c66ed68c578b3394964b179ce1bdcd51c39f8f))
+* **deps-dev:** bump mcp from 0.6.0 to 0.9.2 in the security-updates group across 1 directory ([#491](https://github.com/viamin/aidp/issues/491)) ([50a837b](https://github.com/viamin/aidp/commit/50a837b9fe05c36ea53dcf320d3d8cd58bd2da16))
+* **deps:** bump json from 2.18.1 to 2.19.2 in the security-updates group across 1 directory ([#487](https://github.com/viamin/aidp/issues/487)) ([2b4c0d4](https://github.com/viamin/aidp/commit/2b4c0d465c5a9038b903bfcf82cbb387a835d352))
+* **deps:** bump json in the security-updates group across 1 directory ([673b870](https://github.com/viamin/aidp/commit/673b8700c1ccdc7c7319f56cd9db8253b042c225))
+* **deps:** bump the minor-updates group across 1 directory with 10 updates ([f86ee96](https://github.com/viamin/aidp/commit/f86ee96fe19c0b9770b34c89d0400754d8edb4de))
+* **deps:** bump the minor-updates group across 1 directory with 10 updates ([#490](https://github.com/viamin/aidp/issues/490)) ([07b80c7](https://github.com/viamin/aidp/commit/07b80c78083e3c1613e9469cf13c7e9bf41816b5))
+* **deps:** bump the minor-updates group with 2 updates ([185e4f3](https://github.com/viamin/aidp/commit/185e4f33b82909e149b3796db7208e65e7ad6596))
+* **deps:** bump the minor-updates group with 2 updates ([#494](https://github.com/viamin/aidp/issues/494)) ([e993f8d](https://github.com/viamin/aidp/commit/e993f8d85b38528ac85b3f0fad33a3e5a068f211))
+
 ## [0.39.0](https://github.com/viamin/aidp/compare/aidp/v0.38.0...aidp/v0.39.0) (2026-02-12)
 
 
