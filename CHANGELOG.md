@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.39.2](https://github.com/viamin/aidp/compare/aidp/v0.39.1...aidp/v0.39.2) (2026-04-12)
+
+
+### Dependencies
+
+* **deps-dev:** bump addressable ([e143ec9](https://github.com/viamin/aidp/commit/e143ec9403e927d6fe58dbbcbb7e90d939ee531b))
+* **deps-dev:** bump addressable from 2.8.9 to 2.9.0 in the security-updates group across 1 directory ([#498](https://github.com/viamin/aidp/issues/498)) ([75d102b](https://github.com/viamin/aidp/commit/75d102b1f68a3d45cd21f3f53f736748222f9cd2))
+* **deps:** bump the minor-updates group with 2 updates ([bbf861b](https://github.com/viamin/aidp/commit/bbf861bdaa5e518391c27a0034c5887001666ff6))
+* **deps:** bump the minor-updates group with 2 updates ([#497](https://github.com/viamin/aidp/issues/497)) ([9f492ec](https://github.com/viamin/aidp/commit/9f492ec39df563064d499f7fe04c7270c2e7a9fb))
+
 ## [0.39.1](https://github.com/viamin/aidp/compare/aidp/v0.39.0...aidp/v0.39.1) (2026-03-30)
 
 
