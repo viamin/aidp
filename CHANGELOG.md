@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.39.3](https://github.com/viamin/aidp/compare/aidp/v0.39.2...aidp/v0.39.3) (2026-04-16)
+
+
+### Dependencies
+
+* **deps:** bump agent-harness from 0.5.6 to 0.7.0 in the minor-updates group ([#503](https://github.com/viamin/aidp/issues/503)) ([94acd5d](https://github.com/viamin/aidp/commit/94acd5dfbf26d0e331d93bb09b1c725a9c665cd5))
+* **deps:** bump agent-harness in the minor-updates group ([559a731](https://github.com/viamin/aidp/commit/559a73117a8a5649dc7e83bbeebb5b462f311911))
+
 ## [0.39.2](https://github.com/viamin/aidp/compare/aidp/v0.39.1...aidp/v0.39.2) (2026-04-12)
 
 
