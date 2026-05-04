@@ -26,7 +26,7 @@
       "moby": false
     },
     "ghcr.io/rails/devcontainer/features/sqlite3": {},
-    "ghcr.io/devcontainers/features/node:1": {
+    "ghcr.io/devcontainers/features/node:2": {
       "version": "lts"
     },
     "ghcr.io/devcontainers-extra/features/mise:1": {},
