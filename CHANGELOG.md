@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.39.4](https://github.com/viamin/aidp/compare/aidp/v0.39.3...aidp/v0.39.4) (2026-07-08)
+
+
+### Dependencies
+
+* **deps:** bump faraday from 2.14.1 to 2.14.2 in the security-updates group across 1 directory ([#514](https://github.com/viamin/aidp/issues/514)) ([795f721](https://github.com/viamin/aidp/commit/795f721deea1ecb7b05bd24869745d46256e24ce))
+
 ## [0.39.3](https://github.com/viamin/aidp/compare/aidp/v0.39.2...aidp/v0.39.3) (2026-05-04)
 
 
