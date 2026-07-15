@@ -5,7 +5,7 @@ module Aidp
     # Manages queued instructions and plan modifications during work loop execution
     # Instructions are merged into PROMPT.md at the next iteration
     class InstructionQueue
-      Instruction = Struct.new(:content, :type, :priority, :timestamp, keyword_init: true)
+      Instruction = Struct.new(:content, :type, :priority, :timestamp)
 
       INSTRUCTION_TYPES = {
         user_input: "USER_INPUT",           # Direct user instructions

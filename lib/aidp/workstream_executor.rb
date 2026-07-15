@@ -20,8 +20,7 @@ module Aidp
       :started_at,
       :completed_at,
       :duration,
-      :error,
-      keyword_init: true
+      :error
     )
 
     # @param project_dir [String] root directory of the project

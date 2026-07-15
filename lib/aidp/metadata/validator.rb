@@ -19,7 +19,7 @@ module Aidp
     #   results.each { |r| puts "#{r[:file]}: #{r[:errors].join(", ")}" }
     class Validator
       # Validation result structure
-      ValidationResult = Struct.new(:tool_id, :file_path, :valid, :errors, :warnings, keyword_init: true)
+      ValidationResult = Struct.new(:tool_id, :file_path, :valid, :errors, :warnings)
 
       # Initialize validator with tool metadata collection
       #

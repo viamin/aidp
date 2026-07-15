@@ -28,7 +28,7 @@ module Aidp
 
     # Enhanced result with framework information
     Result = Struct.new(:test_commands, :lint_commands, :formatter_commands,
-      :frameworks, keyword_init: true) do
+      :frameworks) do
       # Get test commands with their detected framework
       def test_command_frameworks
         @test_command_frameworks ||= {}
@@ -41,7 +41,7 @@ module Aidp
     end
 
     # Information about a detected command
-    CommandInfo = Struct.new(:command, :framework, :flags, keyword_init: true)
+    CommandInfo = Struct.new(:command, :framework, :flags)
 
     def self.detect(root = Dir.pwd)
       new(root).detect
