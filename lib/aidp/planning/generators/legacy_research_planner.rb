@@ -261,7 +261,7 @@ module Aidp
         # Detect primary language from file extensions
         def detect_language(files)
           extensions = files.map { |f| File.extname(f) }.compact
-          ext_counts = extensions.each_with_object(Hash.new(0)) { |ext, counts| counts[ext] += 1 }
+          ext_counts = extensions.tally
 
           language_map = {
             ".rb" => "Ruby",

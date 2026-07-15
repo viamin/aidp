@@ -21,8 +21,7 @@ module Aidp
       :completed_at,
       :abandoned_at,
       :abandoned_reason,
-      :tags,
-      keyword_init: true
+      :tags
     ) do
       def to_h
         super.compact

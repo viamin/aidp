@@ -7,7 +7,7 @@ require_relative "../logger"
 module Aidp
   module Execute
     class WorkLoopUnitScheduler
-      Unit = Struct.new(:type, :name, :definition, keyword_init: true) do
+      Unit = Struct.new(:type, :name, :definition) do
         def agentic?
           type == :agentic
         end
