@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.39.6](https://github.com/viamin/aidp/compare/aidp/v0.39.5...aidp/v0.39.6) (2026-07-20)
+
+
+### Dependencies
+
+* **deps-dev:** bump simplecov from 0.22.0 to 1.0.2 ([#533](https://github.com/viamin/aidp/issues/533)) ([5737d50](https://github.com/viamin/aidp/commit/5737d50bb819894f0c03ed42c6d7df2d4ba44a79))
+* **deps:** bump the minor-updates group with 4 updates ([#532](https://github.com/viamin/aidp/issues/532)) ([6dba73e](https://github.com/viamin/aidp/commit/6dba73e8c8232283e7a0e944a0a67615fd1e7133))
+
 ## [0.39.5](https://github.com/viamin/aidp/compare/aidp/v0.39.4...aidp/v0.39.5) (2026-07-15)
 
 
