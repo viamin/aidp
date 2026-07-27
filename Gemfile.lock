@@ -49,7 +49,7 @@ GEM
     crack (1.0.1)
       bigdecimal
       rexml
-    csv (3.3.5)
+    csv (3.3.6)
     cucumber (11.1.1)
       base64 (~> 0.2)
       builder (~> 3.2)
@@ -213,7 +213,7 @@ GEM
       oppen (~> 1.0)
       sorbet-runtime
       zeitwerk
-    simplecov (1.0.2)
+    simplecov (1.0.3)
     simplecov-mcp (0.3.0)
       awesome_print (>= 1.9.2, < 2)
       mcp (>= 0.3)
