@@ -1649,6 +1649,11 @@ module Aidp
           existing[:plan_trigger] || "aidp-plan"
         )
 
+        project_trigger = ask_with_default(
+          "Label to trigger project planning",
+          existing[:project_trigger] || "aidp-project"
+        )
+
         needs_input = ask_with_default(
           "Label for plans needing user input",
           existing[:needs_input] || "aidp-needs-input"
@@ -1662,6 +1667,11 @@ module Aidp
         build_trigger = ask_with_default(
           "Label to trigger implementation",
           existing[:build_trigger] || "aidp-build"
+        )
+
+        blocked_trigger = ask_with_default(
+          "Label for blocked project sub-issues",
+          existing[:blocked_trigger] || "aidp-blocked"
         )
 
         review_trigger = ask_with_default(
@@ -1686,9 +1696,11 @@ module Aidp
 
         set(%i[watch labels], {
           plan_trigger: plan_trigger,
+          project_trigger: project_trigger,
           needs_input: needs_input,
           ready_to_build: ready_to_build,
           build_trigger: build_trigger,
+          blocked_trigger: blocked_trigger,
           review_trigger: review_trigger,
           ci_fix_trigger: ci_fix_trigger,
           auto_trigger: auto_trigger,
@@ -1856,9 +1868,11 @@ module Aidp
       def collect_required_labels(labels_config)
         default_colors = {
           plan_trigger: "0E8A16",        # Green
+          project_trigger: "0052CC",     # Deep blue
           needs_input: "D93F0B",         # Red
           ready_to_build: "0075CA",      # Blue
           build_trigger: "5319E7",       # Purple
+          blocked_trigger: "B60205",     # Dark red
           review_trigger: "FBCA04",      # Yellow
           ci_fix_trigger: "D93F0B",      # Red
           auto_trigger: "0C8BD6",        # Blue (distinct from build)

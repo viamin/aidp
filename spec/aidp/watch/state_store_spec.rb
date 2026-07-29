@@ -284,4 +284,39 @@ RSpec.describe Aidp::Watch::StateStore do
       expect(store.round_robin_last_processed_at).to be_nil
     end
   end
+
+  describe "hierarchy dependency tracking" do
+    it "records and retrieves issue dependencies" do
+      store.record_issue_dependencies(600, [601, 602])
+
+      expect(store.issue_dependencies(600)).to eq([601, 602])
+      expect(store.blocking_status(600)).to eq(
+        blocked: true,
+        blockers: [601, 602],
+        blocker_count: 2
+      )
+    end
+
+    it "treats sub-issues as blockers when no explicit dependencies are recorded" do
+      store.record_sub_issues(700, [701, 702])
+
+      expect(store.blocking_status(700)).to eq(
+        blocked: true,
+        blockers: [701, 702],
+        blocker_count: 2
+      )
+    end
+
+    it "clears stale reverse mappings when a parent replaces its tracked sub-issues" do
+      store.record_sub_issues(700, [701, 702])
+      store.record_issue_dependencies(701, [699])
+
+      store.record_sub_issues(700, [703])
+
+      expect(store.sub_issues(700)).to eq([703])
+      expect(store.parent_issue(701)).to be_nil
+      expect(store.issue_dependencies(701)).to eq([])
+      expect(store.parent_issue(703)).to eq(700)
+    end
+  end
 end

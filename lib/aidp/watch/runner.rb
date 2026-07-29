@@ -3,6 +3,7 @@
 require "tty-prompt"
 require_relative "feedback_collector"
 require_relative "github_state_extractor"
+require_relative "projects_processor"
 require_relative "round_robin_scheduler"
 require_relative "work_item"
 require_relative "worktree_cleanup_job"
@@ -43,6 +44,7 @@ module Aidp
 
         # Extract label configuration from safety_config (it's actually the full watch config)
         label_config = safety_config[:labels] || safety_config["labels"] || {}
+        @project_config = safety_config[:projects] || safety_config["projects"] || {}
 
         # Extract detection comment configuration (issue #280)
         # Enabled by default, can be disabled in config
@@ -58,7 +60,8 @@ module Aidp
           repository_client: @repository_client,
           state_store: @state_store,
           plan_generator: PlanGenerator.new(provider_name: provider_name, verbose: verbose),
-          label_config: label_config
+          label_config: label_config,
+          project_config: @project_config
         )
         @build_processor = BuildProcessor.new(
           repository_client: @repository_client,
@@ -269,7 +272,7 @@ module Aidp
         # Dispatch to processor
         case item.processor_type
         when :plan
-          @plan_processor.process(detailed)
+          @plan_processor.process(detailed, trigger_label: item.label)
         when :build
           # Check build completion at dispatch time (moved from collection for API efficiency)
           if @state_extractor.build_completed?(detailed)
@@ -336,6 +339,7 @@ module Aidp
         items = []
 
         items.concat(collect_plan_work_items)
+        items.concat(collect_project_work_items)
         items.concat(collect_build_work_items)
         items.concat(collect_auto_issue_work_items)
         items.concat(collect_review_work_items)
@@ -353,10 +357,12 @@ module Aidp
       # @return [Array<WorkItem>]
       def collect_plan_work_items
         label = @plan_processor.plan_label
+        project_label = @plan_processor.project_label
         issues = @repository_client.list_issues(labels: [label], state: "open")
 
         issues.filter_map do |issue|
           next unless issue_has_label?(issue, label)
+          next if issue_has_label?(issue, project_label)
 
           WorkItem.new(
             number: issue[:number],
@@ -371,28 +377,54 @@ module Aidp
         []
       end
 
-      # Collect work items for build triggers.
-      # @return [Array<WorkItem>]
-      def collect_build_work_items
-        label = @build_processor.build_label
+      def collect_project_work_items
+        label = @plan_processor.project_label
         issues = @repository_client.list_issues(labels: [label], state: "open")
 
         issues.filter_map do |issue|
           next unless issue_has_label?(issue, label)
 
-          # Note: build_completed check moved to dispatch phase to avoid
-          # API calls during collection (addresses rate limiting concerns)
           WorkItem.new(
             number: issue[:number],
             item_type: :issue,
-            processor_type: :build,
+            processor_type: :plan,
             label: label,
             data: issue
           )
         end
       rescue => e
+        Aidp.log_error("watch_runner", "collect_project_items_failed", error: e.message)
+        []
+      end
+
+      # Collect work items for build triggers.
+      # @return [Array<WorkItem>]
+      def collect_build_work_items
+        unblock_dependency_ready_items
+
+        standard_build_work_items + ready_project_work_items
+      rescue => e
         Aidp.log_error("watch_runner", "collect_build_items_failed", error: e.message)
         []
+      end
+
+      def unblock_dependency_ready_items
+        blocked_label = @plan_processor.blocked_label
+        blocked_issues = @repository_client.list_issues(labels: [blocked_label], state: "open")
+
+        blocked_issues.each do |issue|
+          next unless issue_has_label?(issue, blocked_label)
+          next unless dependencies_met_for_issue?(issue[:number])
+
+          @repository_client.replace_labels(
+            issue[:number],
+            old_labels: [blocked_label],
+            new_labels: [unblocked_label_for(issue[:number])]
+          )
+          sync_project_status_for_unblocked_issue(issue[:number])
+        end
+      rescue => e
+        Aidp.log_error("watch_runner", "unblock_dependency_ready_items_failed", error: e.message)
       end
 
       # Collect work items for auto issue triggers.
@@ -527,6 +559,82 @@ module Aidp
           name = (issue_label.is_a?(Hash) ? issue_label["name"] : issue_label.to_s)
           name.casecmp(label).zero?
         end
+      end
+
+      def standard_build_work_items
+        label = @build_processor.build_label
+        project_label = @plan_processor.project_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+          next if issue_has_label?(issue, project_label)
+
+          build_work_item_for(issue, label: label)
+        end
+      end
+
+      def ready_project_work_items
+        label = @plan_processor.ready_label
+        issues = @repository_client.list_issues(labels: [label], state: "open")
+
+        issues.filter_map do |issue|
+          next unless issue_has_label?(issue, label)
+          next unless @state_store.sub_issues(issue[:number]).any?
+
+          build_work_item_for(issue, label: label)
+        end
+      end
+
+      def build_work_item_for(issue, label:)
+        # Note: build_completed check moved to dispatch phase to avoid
+        # API calls during collection (addresses rate limiting concerns)
+        WorkItem.new(
+          number: issue[:number],
+          item_type: :issue,
+          processor_type: :build,
+          label: label,
+          data: issue
+        )
+      end
+
+      def dependencies_met_for_issue?(issue_number)
+        blocking_status = @state_store.blocking_status(issue_number)
+        return false unless blocking_status[:blocked]
+
+        blocking_status[:blockers].all? do |blocker_number|
+          blocker = @repository_client.fetch_issue(blocker_number)
+          blocker[:state].to_s.casecmp("closed").zero?
+        end
+      rescue => e
+        Aidp.log_warn("watch_runner", "dependency_check_failed",
+          issue: issue_number, error: e.message)
+        false
+      end
+
+      def unblocked_label_for(issue_number)
+        return @plan_processor.ready_label if @state_store.sub_issues(issue_number).any?
+
+        @build_processor.build_label
+      end
+
+      def sync_project_status_for_unblocked_issue(issue_number)
+        project_id = @state_store.project_sync_data(issue_number)["project_id"]
+        return unless project_id
+
+        projects_processor = ProjectsProcessor.new(
+          repository_client: @repository_client,
+          state_store: @state_store,
+          project_id: project_id,
+          config: @project_config
+        )
+        return if projects_processor.sync_issue_to_project(issue_number, status: ProjectsProcessor::STATUS_VALUES[:todo])
+
+        Aidp.log_warn("watch_runner", "project_status_sync_failed",
+          issue: issue_number, project_id: project_id)
+      rescue => e
+        Aidp.log_warn("watch_runner", "project_status_sync_failed",
+          issue: issue_number, project_id: project_id, error: e.message)
       end
 
       # Restore from checkpoint if one exists (after auto-update)

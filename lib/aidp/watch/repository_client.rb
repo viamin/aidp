@@ -303,9 +303,33 @@ module Aidp
         create_project_field_via_gh(project_id, name, field_type, options: options)
       end
 
+      def create_project(title:, repository_id: nil)
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        create_project_via_gh(title: title, repository_id: repository_id)
+      end
+
+      def find_active_project
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        find_active_project_via_gh
+      end
+
+      def repository_node_data
+        raise "GitHub CLI not available - Projects API requires gh CLI" unless gh_available?
+        repository_node_data_via_gh
+      end
+
       def create_issue(title:, body:, labels: [], assignees: [])
         raise "GitHub CLI not available - cannot create issue" unless gh_available?
         create_issue_via_gh(title: title, body: body, labels: labels, assignees: assignees)
+      end
+
+      def close_issue(number)
+        raise "GitHub CLI not available - cannot close issue" unless gh_available?
+        close_issue_via_gh(number)
+      end
+
+      def update_issue(number, title:, body:, labels:, assignees:)
+        gh_available? ? update_issue_via_gh(number, title: title, body: body, labels: labels, assignees: assignees) : update_issue_via_api(number, title: title, body: body, labels: labels, assignees: assignees)
       end
 
       def merge_pull_request(number, merge_method: "squash")
@@ -428,6 +452,47 @@ module Aidp
             body: response["body"]
           }
         end
+      end
+
+      def update_issue_via_gh(number, title:, body:, labels:, assignees:)
+        with_gh_retry("update_issue") do
+          existing_issue = fetch_issue_via_gh(number)
+          cmd = ["gh", "issue", "edit", number.to_s, "--repo", full_repo, "--title", title, "--body", body]
+
+          label_changes(existing_issue[:labels], labels).each do |flag, values|
+            values.each { |value| cmd.concat([flag, value]) }
+          end
+
+          assignee_changes(existing_issue[:assignees], assignees).each do |flag, values|
+            values.each { |value| cmd.concat([flag, value]) }
+          end
+
+          _stdout, stderr, status = Open3.capture3(*cmd)
+          raise "Failed to update issue via gh: #{stderr.strip}" unless status.success?
+
+          true
+        end
+      end
+
+      def update_issue_via_api(number, title:, body:, labels:, assignees:)
+        uri = URI("https://api.github.com/repos/#{full_repo}/issues/#{number}")
+        request = Net::HTTP::Patch.new(uri)
+        request["Content-Type"] = "application/json"
+        request["Accept"] = "application/vnd.github.v3+json"
+        request.body = JSON.dump({
+          title: title,
+          body: body,
+          labels: labels,
+          assignees: assignees
+        })
+
+        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+          http.request(request)
+        end
+
+        raise "GitHub API issue update failed (#{response.code})" unless response.code.start_with?("2")
+
+        true
       end
 
       def post_comment_via_api(number, body)
@@ -1358,6 +1423,20 @@ module Aidp
         end
       end
 
+      def label_changes(existing_labels, next_labels)
+        {
+          "--remove-label" => Array(existing_labels) - Array(next_labels),
+          "--add-label" => Array(next_labels) - Array(existing_labels)
+        }
+      end
+
+      def assignee_changes(existing_assignees, next_assignees)
+        {
+          "--remove-assignee" => Array(existing_assignees) - Array(next_assignees),
+          "--add-assignee" => Array(next_assignees) - Array(existing_assignees)
+        }
+      end
+
       def normalize_pr_comment(raw)
         {
           id: raw["id"],
@@ -1716,6 +1795,105 @@ module Aidp
         raise
       end
 
+      def repository_node_data_via_gh
+        Aidp.log_debug("repository_client", "repository_node_data", repo: full_repo)
+
+        query = <<~GRAPHQL
+          query($owner: String!, $repo: String!) {
+            repository(owner: $owner, name: $repo) {
+              id
+              owner {
+                __typename
+                login
+                ... on Organization {
+                  id
+                }
+                ... on User {
+                  id
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, owner: owner, repo: repo)
+        repo_data = result.dig("data", "repository")
+        raise "Repository not found: #{full_repo}" unless repo_data
+
+        {
+          repository_id: repo_data["id"],
+          owner_id: repo_data.dig("owner", "id"),
+          owner_login: repo_data.dig("owner", "login"),
+          owner_type: repo_data.dig("owner", "__typename")
+        }
+      rescue => e
+        Aidp.log_error("repository_client", "repository_node_data_failed", repo: full_repo, error: e.message)
+        raise
+      end
+
+      def create_project_via_gh(title:, repository_id: nil)
+        owner_data = repository_node_data_via_gh
+
+        mutation = <<~GRAPHQL
+          mutation($ownerId: ID!, $title: String!, $repositoryId: ID) {
+            createProjectV2(input: {
+              ownerId: $ownerId
+              title: $title
+              repositoryId: $repositoryId
+            }) {
+              projectV2 {
+                id
+                title
+                number
+                url
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(
+          mutation,
+          ownerId: owner_data[:owner_id],
+          title: title,
+          repositoryId: repository_id || owner_data[:repository_id]
+        )
+        project_data = result.dig("data", "createProjectV2", "projectV2")
+        raise "Failed to create project: #{title}" unless project_data
+
+        normalize_project(project_data)
+      rescue => e
+        Aidp.log_error("repository_client", "create_project_failed", repo: full_repo, title: title, error: e.message)
+        raise
+      end
+
+      def find_active_project_via_gh
+        Aidp.log_debug("repository_client", "find_active_project", repo: full_repo)
+
+        query = <<~GRAPHQL
+          query($owner: String!, $repo: String!) {
+            repository(owner: $owner, name: $repo) {
+              projectsV2(first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) {
+                nodes {
+                  id
+                  title
+                  number
+                  url
+                  closed
+                }
+              }
+            }
+          }
+        GRAPHQL
+
+        result = execute_graphql_query(query, owner: owner, repo: repo)
+        projects = Array(result.dig("data", "repository", "projectsV2", "nodes"))
+        active_project = projects.find { |project| !project["closed"] }
+        normalize_project(active_project) if active_project
+      rescue => e
+        Aidp.log_error("repository_client", "find_active_project_failed", repo: full_repo, error: e.message)
+        raise
+      end
+
       def create_issue_via_gh(title:, body:, labels: [], assignees: [])
         Aidp.log_debug("repository_client", "create_issue", title: title, label_count: labels.size, assignee_count: assignees.size)
 
@@ -1734,6 +1912,19 @@ module Aidp
         {number: issue_number, url: issue_url}
       rescue => e
         Aidp.log_error("repository_client", "Failed to create issue", title: title, error: e.message)
+        raise
+      end
+
+      def close_issue_via_gh(number)
+        Aidp.log_debug("repository_client", "close_issue", issue_number: number)
+
+        cmd = ["gh", "issue", "close", number.to_s, "--repo", full_repo]
+        _stdout, stderr, status = Open3.capture3(*cmd)
+        raise "Failed to close issue via gh: #{stderr.strip}" unless status.success?
+
+        Aidp.log_debug("repository_client", "close_issue_complete", issue_number: number)
+      rescue => e
+        Aidp.log_error("repository_client", "Failed to close issue", issue_number: number, error: e.message)
         raise
       end
 
@@ -1785,11 +1976,14 @@ module Aidp
       end
 
       def normalize_project(raw)
+        return nil unless raw
+
         {
           id: raw["id"],
           title: raw["title"],
           number: raw["number"],
           url: raw["url"],
+          closed: raw["closed"],
           fields: Array(raw.dig("fields", "nodes")).map { |field| normalize_project_field(field) }
         }
       end

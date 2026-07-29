@@ -27,7 +27,7 @@ module Aidp
       PROMPT
 
       HIERARCHICAL_PROVIDER_PROMPT = <<~PROMPT
-        You are AIDP's planning specialist for large projects. Read the GitHub issue and existing comments.
+        You are AIDP's project planning specialist for large projects. Read the GitHub issue and existing comments.
         This is a LARGE project that should be broken down into independent sub-issues.
 
         Analyze the requirements and break them into logical sub-tasks that can be worked on independently.
@@ -59,6 +59,7 @@ module Aidp
         - Sub-issues should be sized for 1-3 days of work
         - Include 3-8 sub-issues for a large project
         - Be specific about skills needed (avoid generic terms)
+        - Prefer leaf-node tasks first so dependency order is explicit and mechanically executable
         - Only create sub-issues if the project truly warrants it (complexity, multiple components, etc.)
       PROMPT
 
