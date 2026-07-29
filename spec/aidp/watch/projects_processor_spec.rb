@@ -110,6 +110,27 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
       end
     end
 
+    context "when syncing with status parameter and the project status update fails" do
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_existing")
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: [{name: "Done", id: "opt_done"}]}
+        ])
+        allow(repository_client).to receive(:update_project_item_field).and_raise(StandardError, "API error")
+      end
+
+      it "returns false without recording a sync" do
+        expect(state_store).not_to receive(:record_project_sync)
+        expect(processor.sync_issue_to_project(issue_number, status: "Done")).to be false
+      end
+
+      it "does not update the gantt task status" do
+        processor.sync_issue_to_project(issue_number, status: "Done")
+
+        expect(gantt_synchronizer).not_to have_received(:sync_issue_status_to_gantt)
+      end
+    end
+
     context "when record_project_sync fails" do
       before do
         allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_existing")
@@ -150,6 +171,39 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
           issue_number: issue_number,
           status: "Done",
           format: nil
+        )
+      end
+    end
+
+    context "when gantt auto-sync is enabled with string-keyed config" do
+      let(:config) do
+        {
+          "field_mappings" => {"status" => "Status", "blocking" => "Blocking"},
+          "auto_create_fields" => true,
+          "auto_sync_gantt" => true,
+          "prd_path" => ".aidp/docs/GANTT.md",
+          "gantt_format" => "mermaid"
+        }
+      end
+
+      before do
+        allow(state_store).to receive(:project_item_id).with(issue_number).and_return("PVTI_existing")
+        allow(state_store).to receive(:blocking_status).with(issue_number).and_return({blocked: false, blockers: []})
+        allow(state_store).to receive(:record_project_sync)
+        allow(repository_client).to receive(:fetch_project_fields).and_return([
+          {name: "Status", id: "PVTSSF_status", options: [{name: "Done", id: "opt_done"}]}
+        ])
+        allow(repository_client).to receive(:update_project_item_field)
+      end
+
+      it "updates the gantt task status using string-keyed settings" do
+        processor.sync_issue_to_project(issue_number, status: "Done")
+
+        expect(gantt_synchronizer).to have_received(:sync_issue_status_to_gantt).with(
+          prd_path: ".aidp/docs/GANTT.md",
+          issue_number: issue_number,
+          status: "Done",
+          format: "mermaid"
         )
       end
     end
@@ -440,6 +494,58 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
       end
     end
 
+    context "when gantt sync is enabled with string-keyed config" do
+      let(:config) do
+        {
+          "field_mappings" => {
+            "status" => "Status",
+            "blocking" => "Blocking",
+            "start_date" => "Kickoff",
+            "target_date" => "Ship Date",
+            "dependencies" => "Depends On",
+            "critical_path" => "Critical"
+          },
+          "auto_create_fields" => true,
+          "auto_sync_gantt" => true,
+          "prd_path" => ".aidp/docs/GANTT.md"
+        }
+      end
+
+      before do
+        allow(repository_client).to receive(:fetch_project_fields).and_return([])
+        allow(repository_client).to receive(:create_project_field).and_return({id: "new", name: "field"})
+      end
+
+      it "uses string-keyed field mappings for gantt fields" do
+        processor.ensure_project_fields
+
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Kickoff",
+          "DATE",
+          options: nil
+        )
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Ship Date",
+          "DATE",
+          options: nil
+        )
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Depends On",
+          "TEXT",
+          options: nil
+        )
+        expect(repository_client).to have_received(:create_project_field).with(
+          project_id,
+          "Critical",
+          "SINGLE_SELECT",
+          options: [{name: "Yes"}, {name: "No"}]
+        )
+      end
+    end
+
     context "when all fields already exist" do
       before do
         allow(repository_client).to receive(:fetch_project_fields).and_return([
@@ -504,6 +610,27 @@ RSpec.describe Aidp::Watch::ProjectsProcessor do
         format: "mermaid",
         issue_numbers_by_title: {"api slice" => 43}
       )
+    end
+
+    context "with string-keyed config" do
+      let(:config) do
+        {
+          "field_mappings" => {"status" => "Status", "blocking" => "Blocking"},
+          "auto_create_fields" => true,
+          "prd_path" => ".aidp/docs/GANTT.md",
+          "gantt_format" => "mermaid"
+        }
+      end
+
+      it "delegates using string-keyed configuration values" do
+        processor.sync_from_gantt(issue_numbers_by_title: {"api slice" => 43})
+
+        expect(gantt_synchronizer).to have_received(:sync_from_prd).with(
+          prd_path: ".aidp/docs/GANTT.md",
+          format: "mermaid",
+          issue_numbers_by_title: {"api slice" => 43}
+        )
+      end
     end
   end
 end

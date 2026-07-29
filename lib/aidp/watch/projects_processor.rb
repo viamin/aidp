@@ -39,9 +39,9 @@ module Aidp
         @repository_client = repository_client
         @state_store = state_store
         @project_id = project_id
-        @config = config
-        @field_mappings = DEFAULT_FIELD_MAPPINGS.merge(config[:field_mappings] || {})
-        @auto_create_fields = config[:auto_create_fields] != false
+        @config = normalize_config(config)
+        @field_mappings = DEFAULT_FIELD_MAPPINGS.merge(@config[:field_mappings] || {})
+        @auto_create_fields = @config[:auto_create_fields] != false
         @project_fields_cache = nil
         @gantt_synchronizer = gantt_synchronizer || GanttSynchronizer.new(
           repository_client: repository_client,
@@ -78,7 +78,7 @@ module Aidp
 
         # Update status if provided
         if status
-          update_issue_status(issue_number, status)
+          return false unless update_issue_status(issue_number, status)
         end
 
         # Check and update blocking status
@@ -225,6 +225,19 @@ module Aidp
         rescue => e
           Aidp.log_error("projects_processor", "Failed to fetch project fields", error: e.message)
           []
+        end
+      end
+
+      def normalize_config(value)
+        case value
+        when Hash
+          value.each_with_object({}) do |(key, nested_value), normalized|
+            normalized[key.to_sym] = normalize_config(nested_value)
+          end
+        when Array
+          value.map { |item| normalize_config(item) }
+        else
+          value
         end
       end
 
