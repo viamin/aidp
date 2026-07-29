@@ -203,6 +203,15 @@ RSpec.describe Aidp::Interfaces::TtyCommandExecutor do
       end
     end
 
+    context "when arguments contain shell metacharacters" do
+      it "passes them literally instead of invoking a shell" do
+        result = executor.execute("ruby", args: ["-e", "puts ARGV.first", "$(echo exploited)"])
+
+        expect(result.success?).to be true
+        expect(result.stdout).to eq("$(echo exploited)\n")
+      end
+    end
+
     context "with stdin input" do
       it "passes input to the command" do
         result = executor.execute("cat", input: "hello stdin")
