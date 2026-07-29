@@ -114,7 +114,8 @@ module Aidp
 
       def candidate_agent_commands
         raw = agents[:coder] || agents[:execution] || agents.values
-        Array(raw).flatten.reject { |entry| entry[:command].to_s.empty? }
+        commands = raw.is_a?(Hash) ? [raw] : Array(raw).flatten
+        commands.reject { |entry| entry[:command].to_s.empty? }
       end
     end
   end

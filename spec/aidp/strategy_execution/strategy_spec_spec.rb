@@ -34,5 +34,20 @@ RSpec.describe Aidp::StrategyExecution::StrategySpec do
         described_class.from_hash({})
       }.to raise_error(ArgumentError, /strategy name/)
     end
+
+    it "builds branch commands for a single normalized agent hash" do
+      spec = described_class.from_hash(
+        "name" => "fanout",
+        "fanout" => 2,
+        "agents" => {"coder" => "bin/coder"}
+      )
+
+      expect(spec.branch_commands).to eq(
+        [
+          {key: "branch_0", name: "coder", command: "bin/coder"},
+          {key: "branch_1", name: "coder", command: "bin/coder"}
+        ]
+      )
+    end
   end
 end
