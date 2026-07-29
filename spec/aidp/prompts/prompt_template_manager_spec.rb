@@ -83,6 +83,48 @@ RSpec.describe Aidp::Prompts::PromptTemplateManager do
         }.to raise_error(Aidp::Prompts::TemplateNotFoundError, /has no prompt/)
       end
     end
+
+    context "with work loop templates" do
+      it "renders the initial prompt with explicit .aidp/PROMPT.md paths" do
+        prompt = manager.render(
+          "work_loop/initial_prompt",
+          STEP_NAME: "TEST_STEP",
+          USER_INPUT_SECTION: "",
+          PREVIOUS_AGENT_SUMMARY_SECTION: "",
+          DETERMINISTIC_OUTPUTS_SECTION: "",
+          STYLE_GUIDE_SECTION: "",
+          PRD_SECTION: "",
+          TASK_TEMPLATE: "Implement the change"
+        )
+
+        expect(prompt).to include("Edit this `.aidp/PROMPT.md` file")
+        expect(prompt).to include("STATUS: COMPLETE")
+      end
+
+      it "renders the header with explicit .aidp/PROMPT.md paths" do
+        prompt = manager.render(
+          "work_loop/header",
+          STEP_NAME: "TEST_STEP",
+          ITERATION: 1,
+          PROJECT_DIR: "/tmp/project",
+          TASK_FILING_SECTION: "",
+          TASK_COMPLETION_LINE: ""
+        )
+
+        expect(prompt).to include("Mark this step COMPLETE by adding these lines to `.aidp/PROMPT.md`")
+        expect(prompt).to include("The working directory is: /tmp/project")
+      end
+
+      it "renders the task completion requirement template" do
+        prompt = manager.render(
+          "work_loop/task_completion_requirement",
+          MESSAGE: "Tasks remain incomplete"
+        )
+
+        expect(prompt).to include("**CRITICAL**: Tasks remain incomplete")
+        expect(prompt).to include("Update task: task_123_abc status: done")
+      end
+    end
   end
 
   describe "#template_exists?" do

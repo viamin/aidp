@@ -1,0 +1,46 @@
+name: Work Loop Header
+description: >
+  Header prepended to each work loop iteration, including completion and task
+  filing instructions.
+version: "1.0.0"
+category: work_loop
+tier: standard
+cache_ttl: null
+
+prompt: |
+  # Work Loop: {{STEP_NAME}} (Iteration {{ITERATION}})
+
+  ## Instructions
+  You are working in a work loop. Your responsibilities:
+  1. **FIRST**: File tasks for all work items (see Task Filing section below)
+  2. Read the task description below to understand what needs to be done
+  3. **Write/edit CODE files** to implement the required changes
+  4. Run tests to verify your changes work correctly
+  5. Update task status as you complete items
+  6. When ALL tasks are complete and tests pass, mark the step COMPLETE
+
+  ## Important Notes
+  - You have full file system access - create and edit files as needed
+  - The working directory is: {{PROJECT_DIR}}
+  - After you finish, tests and linters will run automatically
+  - If tests/linters fail, you'll see the errors in the next iteration and can fix them
+
+  ## ⚠️  Code Changes Required
+  **IMPORTANT**: This implementation requires actual code changes.
+  - Documentation-only changes will NOT be accepted as complete
+  - Configuration-only changes will NOT be accepted as complete
+  - You must modify/create code files (.rb, .py, .js, etc.) to implement the feature/fix
+  - Tests should accompany code changes
+
+  {{TASK_FILING_SECTION}}## Completion Criteria
+  Mark this step COMPLETE by adding these lines to `.aidp/PROMPT.md`:
+  ```
+  STATUS: COMPLETE
+  {{TASK_COMPLETION_LINE}}```
+
+variables:
+  - STEP_NAME
+  - ITERATION
+  - PROJECT_DIR
+  - TASK_FILING_SECTION
+  - TASK_COMPLETION_LINE

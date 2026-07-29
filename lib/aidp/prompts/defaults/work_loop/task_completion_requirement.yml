@@ -1,0 +1,44 @@
+name: Work Loop Task Completion Requirement
+description: >
+  Supplemental instructions appended when the work loop is blocked on task
+  completion requirements.
+version: "1.0.0"
+category: work_loop
+tier: standard
+cache_ttl: null
+
+prompt: |
+  ## Task Completion Requirement
+
+  **CRITICAL**: {{MESSAGE}}
+
+  ### How to Complete Tasks
+
+  Update task status using these signals in your output:
+
+  **Creating tasks:**
+  ```
+  File task: "Implement feature X" priority: high tags: feature,backend
+  File task: "Add tests for feature X" priority: medium tags: testing
+  ```
+
+  **Updating task status:**
+  ```
+  Update task: task_123_abc status: in_progress
+  Update task: task_123_abc status: done
+  Update task: task_456_def status: abandoned reason: "Requirements changed"
+  ```
+
+  **Task states:**
+  - ⏳ **pending** - Not started yet
+  - 🚧 **in_progress** - Currently working on it
+  - ✅ **done** - Completed successfully
+  - ❌ **abandoned** - Not doing this (requires reason)
+
+  **Completion requirement:**
+  All tasks for this session must be marked as DONE or ABANDONED (with reason) before the work loop can complete.
+
+  **Action Required**: Review the current task list and update status for all tasks.
+
+variables:
+  - MESSAGE

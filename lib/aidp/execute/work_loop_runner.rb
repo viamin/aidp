@@ -11,6 +11,7 @@ require_relative "agent_signal_parser"
 require_relative "steps"
 require_relative "../harness/test_runner"
 require_relative "../errors"
+require_relative "../prompts/prompt_template_manager"
 require_relative "../style_guide/selector"
 require_relative "../security"
 
@@ -44,7 +45,7 @@ module Aidp
       # Expose state for testability
       attr_accessor :iteration_count, :step_name, :options, :persistent_tasklist
       attr_reader :project_dir, :current_state, :state_history, :test_runner, :prompt_manager, :checkpoint
-      attr_writer :guard_policy, :prompt_manager, :style_guide_selector
+      attr_writer :guard_policy, :prompt_manager, :prompt_template_manager, :style_guide_selector
 
       MAX_ITERATIONS = 50 # Safety limit
       CHECKPOINT_INTERVAL = 5 # Record checkpoint every N iterations
@@ -87,6 +88,7 @@ module Aidp
 
         # FIX for issue #391: Initialize prompt evaluator for iteration threshold assessment
         @prompt_evaluator = options[:prompt_evaluator] || PromptEvaluator.new(config)
+        @prompt_template_manager = options[:prompt_template_manager] || Prompts::PromptTemplateManager.new(project_dir: project_dir)
 
         # Initialize security adapter for Rule of Two enforcement
         @security_adapter = options[:security_adapter] || Aidp::Security::WorkLoopAdapter.new(project_dir: project_dir)
@@ -1039,71 +1041,20 @@ module Aidp
       end
 
       def build_initial_prompt_content(template:, prd:, style_guide:, user_input:, step_name:, deterministic_outputs:, previous_agent_summary:, task_description:, additional_context:)
-        parts = []
-
-        parts << "# Work Loop: #{step_name}"
-        parts << ""
-        parts << "## Instructions"
-        parts << "You are working in a work loop. Your responsibilities:"
-        parts << "1. Read this file (`.aidp/PROMPT.md`) to understand what needs to be done"
-        parts << "2. Complete the work described below"
-        parts << "3. **IMPORTANT**: Edit this `.aidp/PROMPT.md` file to:"
-        parts << "   - Remove completed items"
-        parts << "   - Update with current status"
-        parts << "   - Keep it concise (remove unnecessary context)"
-        parts << "   - Mark the step COMPLETE when 100% done"
-        parts << "4. After you finish, tests and linters will run automatically"
-        parts << "5. If tests/linters fail, you'll see the errors in the next iteration"
-        parts << ""
-        parts << "## Completion Criteria"
-        parts << "Mark this step COMPLETE by adding this line to `.aidp/PROMPT.md`:"
-        parts << "```"
-        parts << "STATUS: COMPLETE"
-        parts << "```"
-        parts << ""
-
-        if user_input && !user_input.empty?
-          parts << "## User Input"
-          parts << user_input
-          parts << ""
-        end
-
-        if previous_agent_summary && !previous_agent_summary.empty?
-          parts << "## Previous Agent Summary"
-          parts << previous_agent_summary
-          parts << ""
-        end
-
-        unless deterministic_outputs.empty?
-          parts << "## Recent Deterministic Outputs"
-          deterministic_outputs.each do |entry|
-            parts << "- #{entry[:name]} (status: #{entry[:status]})"
-            parts << "  Output: #{entry[:output_path] || "n/a"}"
-          end
-          parts << ""
-        end
-
-        if style_guide
-          parts << "## LLM Style Guide"
-          parts << style_guide
-          parts << ""
-        end
-
-        if prd
-          parts << "## Product Requirements (PRD)"
-          parts << prd
-          parts << ""
-        end
-
-        parts << "## Task Template"
-        parts << interpolate_task_template(
-          template,
-          task_description: task_description,
-          additional_context: additional_context
+        @prompt_template_manager.render(
+          "work_loop/initial_prompt",
+          STEP_NAME: step_name,
+          USER_INPUT_SECTION: optional_section("## User Input", user_input),
+          PREVIOUS_AGENT_SUMMARY_SECTION: optional_section("## Previous Agent Summary", previous_agent_summary),
+          DETERMINISTIC_OUTPUTS_SECTION: deterministic_outputs_section(deterministic_outputs),
+          STYLE_GUIDE_SECTION: optional_section("## LLM Style Guide", style_guide),
+          PRD_SECTION: optional_section("## Product Requirements (PRD)", prd),
+          TASK_TEMPLATE: interpolate_task_template(
+            template,
+            task_description: task_description,
+            additional_context: additional_context
+          )
         )
-        parts << ""
-
-        parts.join("\n")
       end
 
       def send_to_agent(selected_provider: nil, selected_model: nil)
@@ -1325,88 +1276,14 @@ module Aidp
 
       # FIX for issue #391: Enhanced work loop header with upfront task filing requirements
       def build_work_loop_header(step_name, iteration)
-        parts = []
-        parts << "# Work Loop: #{step_name} (Iteration #{iteration})"
-        parts << ""
-        parts << "## Instructions"
-        parts << "You are working in a work loop. Your responsibilities:"
-        parts << "1. **FIRST**: File tasks for all work items (see Task Filing section below)"
-        parts << "2. Read the task description below to understand what needs to be done"
-        parts << "3. **Write/edit CODE files** to implement the required changes"
-        parts << "4. Run tests to verify your changes work correctly"
-        parts << "5. Update task status as you complete items"
-        parts << "6. When ALL tasks are complete and tests pass, mark the step COMPLETE"
-        parts << ""
-        parts << "## Important Notes"
-        parts << "- You have full file system access - create and edit files as needed"
-        parts << "- The working directory is: #{@project_dir}"
-        parts << "- After you finish, tests and linters will run automatically"
-        parts << "- If tests/linters fail, you'll see the errors in the next iteration and can fix them"
-        parts << ""
-        parts << "## ⚠️  Code Changes Required"
-        parts << "**IMPORTANT**: This implementation requires actual code changes."
-        parts << "- Documentation-only changes will NOT be accepted as complete"
-        parts << "- Configuration-only changes will NOT be accepted as complete"
-        parts << "- You must modify/create code files (.rb, .py, .js, etc.) to implement the feature/fix"
-        parts << "- Tests should accompany code changes"
-        parts << ""
-
-        if @config.task_completion_required?
-          parts << "## Task Filing (REQUIRED - DO THIS FIRST)"
-          parts << "**CRITICAL**: This work loop requires task tracking. You MUST file tasks before implementation."
-          parts << ""
-          parts << "### Step 1: File Tasks Immediately"
-          parts << "In your FIRST iteration, analyze the requirements and file tasks for ALL work:"
-          parts << ""
-          parts << "```text"
-          parts << "File task: \"Implement [feature/fix description]\" priority: high tags: implementation"
-          parts << "File task: \"Add unit tests for [feature]\" priority: high tags: testing"
-          parts << "File task: \"Add integration tests if needed\" priority: medium tags: testing"
-          parts << "```"
-          parts << ""
-          parts << "### Step 2: Work Through Tasks"
-          parts << "- Pick the highest priority pending task"
-          parts << "- Implement it completely"
-          parts << "- Mark it done: `Update task: task_id status: done`"
-          parts << "- Repeat until all tasks are complete"
-          parts << ""
-          parts << "### Step 3: Complete the Work Loop"
-          parts << "Only after ALL tasks are done:"
-          parts << "- Verify tests pass"
-          parts << "- Add STATUS: COMPLETE to `.aidp/PROMPT.md`"
-          parts << ""
-          parts << "### Task Rules"
-          parts << "- **At least ONE task must be filed** - completion blocked without tasks"
-          parts << "- **At least ONE task must be DONE** - completion blocked if all abandoned"
-          parts << "- **Substantive work required** - doc-only changes rejected"
-          parts << ""
-          parts << "**Important**: Tasks exist due to careful planning. Do NOT abandon tasks due to"
-          parts << "perceived complexity - these factors were considered during planning. Only abandon"
-          parts << "when truly obsolete (requirements changed, duplicate, external blockers)."
-          parts << ""
-          parts << "### Task Filing Examples"
-          parts << "- `File task: \"Implement user authentication\" priority: high tags: security,auth`"
-          parts << "- `File task: \"Add tests for login flow\" priority: medium tags: testing`"
-          parts << "- `File task: \"Update documentation\" priority: low tags: docs`"
-          parts << ""
-          parts << "### Task Status Update Examples"
-          parts << "- `Update task: task_123_abc status: in_progress`"
-          parts << "- `Update task: task_456_def status: done`"
-          parts << "- `Update task: task_789_ghi status: abandoned reason: \"Requirements changed\"`"
-          parts << ""
-        end
-
-        parts << "## Completion Criteria"
-        parts << "Mark this step COMPLETE by adding these lines to `.aidp/PROMPT.md`:"
-        parts << "```"
-        parts << "STATUS: COMPLETE"
-        if @config.task_completion_required?
-          parts << ""
-          parts << "Update task: task_xxx_yyy status: done  # Mark ALL your tasks as done"
-        end
-        parts << "```"
-        parts << ""
-        parts.join("\n")
+        @prompt_template_manager.render(
+          "work_loop/header",
+          STEP_NAME: step_name,
+          ITERATION: iteration,
+          PROJECT_DIR: @project_dir,
+          TASK_FILING_SECTION: task_filing_section,
+          TASK_COMPLETION_LINE: task_completion_line
+        )
       end
 
       def iteration_context_metadata
@@ -2131,51 +2008,91 @@ module Aidp
 
       # Append task completion requirement to PROMPT.md
       def append_task_requirement_to_prompt(message)
-        task_requirement = []
-
-        task_requirement << "## Task Completion Requirement"
-        task_requirement << ""
-        task_requirement << "**CRITICAL**: #{message}"
-        task_requirement << ""
-        task_requirement << "### How to Complete Tasks"
-        task_requirement << ""
-        task_requirement << "Update task status using these signals in your output:"
-        task_requirement << ""
-        task_requirement << "**Creating tasks:**"
-        task_requirement << "```"
-        task_requirement << 'File task: "Implement feature X" priority: high tags: feature,backend'
-        task_requirement << 'File task: "Add tests for feature X" priority: medium tags: testing'
-        task_requirement << "```"
-        task_requirement << ""
-        task_requirement << "**Updating task status:**"
-        task_requirement << "```"
-        task_requirement << "Update task: task_123_abc status: in_progress"
-        task_requirement << "Update task: task_123_abc status: done"
-        task_requirement << 'Update task: task_456_def status: abandoned reason: "Requirements changed"'
-        task_requirement << "```"
-        task_requirement << ""
-        task_requirement << "**Task states:**"
-        task_requirement << "- ⏳ **pending** - Not started yet"
-        task_requirement << "- 🚧 **in_progress** - Currently working on it"
-        task_requirement << "- ✅ **done** - Completed successfully"
-        task_requirement << "- ❌ **abandoned** - Not doing this (requires reason)"
-        task_requirement << ""
-        task_requirement << "**Completion requirement:**"
-        task_requirement << "All tasks for this session must be marked as DONE or ABANDONED (with reason) before the work loop can complete."
-        task_requirement << ""
-        task_requirement << "**Action Required**: Review the current task list and update status for all tasks."
-        task_requirement << ""
-
         # Append to PROMPT.md - ensure directory exists
-        begin
-          current_prompt = @prompt_manager.read || ""
-          updated_prompt = current_prompt + "\n\n---\n\n" + task_requirement.join("\n")
-          @prompt_manager.write(updated_prompt, step_name: @step_name)
-          display_message("  [TASK_REQ] Added task completion requirement to PROMPT.md", type: :warning)
-        rescue => e
-          Aidp.log_warn("work_loop", "Failed to append task requirement to PROMPT.md", error: e.message)
-          display_message("  [TASK_REQ] Warning: Could not update PROMPT.md: #{e.message}", type: :warning)
+        current_prompt = @prompt_manager.read || ""
+        task_requirement = @prompt_template_manager.render(
+          "work_loop/task_completion_requirement",
+          MESSAGE: message
+        )
+        updated_prompt = current_prompt + "\n\n---\n\n" + task_requirement
+        @prompt_manager.write(updated_prompt, step_name: @step_name)
+        display_message("  [TASK_REQ] Added task completion requirement to PROMPT.md", type: :warning)
+      rescue => e
+        Aidp.log_warn("work_loop", "Failed to append task requirement to PROMPT.md", error: e.message)
+        display_message("  [TASK_REQ] Warning: Could not update PROMPT.md: #{e.message}", type: :warning)
+      end
+
+      def optional_section(title, body)
+        return "" if body.nil? || body.empty?
+
+        [title, body, ""].join("\n")
+      end
+
+      def deterministic_outputs_section(deterministic_outputs)
+        return "" if deterministic_outputs.empty?
+
+        lines = ["## Recent Deterministic Outputs"]
+        deterministic_outputs.each do |entry|
+          lines << "- #{entry[:name]} (status: #{entry[:status]})"
+          lines << "  Output: #{entry[:output_path] || "n/a"}"
         end
+        lines << ""
+        lines.join("\n")
+      end
+
+      def task_filing_section
+        return "" unless @config.task_completion_required?
+
+        <<~SECTION
+          ## Task Filing (REQUIRED - DO THIS FIRST)
+          **CRITICAL**: This work loop requires task tracking. You MUST file tasks before implementation.
+
+          ### Step 1: File Tasks Immediately
+          In your FIRST iteration, analyze the requirements and file tasks for ALL work:
+
+          ```text
+          File task: "Implement [feature/fix description]" priority: high tags: implementation
+          File task: "Add unit tests for [feature]" priority: high tags: testing
+          File task: "Add integration tests if needed" priority: medium tags: testing
+          ```
+
+          ### Step 2: Work Through Tasks
+          - Pick the highest priority pending task
+          - Implement it completely
+          - Mark it done: `Update task: task_id status: done`
+          - Repeat until all tasks are complete
+
+          ### Step 3: Complete the Work Loop
+          Only after ALL tasks are done:
+          - Verify tests pass
+          - Add STATUS: COMPLETE to `.aidp/PROMPT.md`
+
+          ### Task Rules
+          - **At least ONE task must be filed** - completion blocked without tasks
+          - **At least ONE task must be DONE** - completion blocked if all abandoned
+          - **Substantive work required** - doc-only changes rejected
+
+          **Important**: Tasks exist due to careful planning. Do NOT abandon tasks due to
+          perceived complexity - these factors were considered during planning. Only abandon
+          when truly obsolete (requirements changed, duplicate, external blockers).
+
+          ### Task Filing Examples
+          - `File task: "Implement user authentication" priority: high tags: security,auth`
+          - `File task: "Add tests for login flow" priority: medium tags: testing`
+          - `File task: "Update documentation" priority: low tags: docs`
+
+          ### Task Status Update Examples
+          - `Update task: task_123_abc status: in_progress`
+          - `Update task: task_456_def status: done`
+          - `Update task: task_789_ghi status: abandoned reason: "Requirements changed"`
+
+        SECTION
+      end
+
+      def task_completion_line
+        return "" unless @config.task_completion_required?
+
+        "Update task: task_xxx_yyy status: done  # Mark ALL your tasks as done\n"
       end
 
       # Validate changes against guard policy

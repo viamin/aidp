@@ -60,6 +60,7 @@ RSpec.describe "Work Loop Task Completion" do
   end
 
   let(:test_prompt) { TestPrompt.new }
+  let(:prompt_template_manager) { instance_double("Aidp::Prompts::PromptTemplateManager") }
   let(:mock_thinking_depth_manager) do
     instance_double("Aidp::Harness::ThinkingDepthManager",
       select_model_for_tier: ["anthropic", "claude-3-5-sonnet-20241022", {tier: "standard"}],
@@ -95,6 +96,32 @@ RSpec.describe "Work Loop Task Completion" do
     allow(Aidp::Harness::CapabilityRegistry).to receive(:new).and_return(mock_registry)
     allow(config_with_tasks_required).to receive(:models_for_tier).and_return([])
     allow(config_without_tasks_required).to receive(:models_for_tier).and_return([])
+    allow(prompt_template_manager).to receive(:render) do |template_id, **variables|
+      case template_id
+      when "work_loop/header"
+        <<~TEXT
+          # Work Loop: #{variables[:STEP_NAME]} (Iteration #{variables[:ITERATION]})
+
+          #{variables[:TASK_FILING_SECTION]}## Completion Criteria
+          Mark this step COMPLETE by adding these lines to `.aidp/PROMPT.md`:
+          ```
+          STATUS: COMPLETE
+          #{variables[:TASK_COMPLETION_LINE]}```
+        TEXT
+      when "work_loop/task_completion_requirement"
+        <<~TEXT
+          ## Task Completion Requirement
+
+          **CRITICAL**: #{variables[:MESSAGE]}
+
+          **Action Required**: Review the current task list and update status for all tasks.
+        TEXT
+      when "work_loop/initial_prompt"
+        "# Work Loop: #{variables[:STEP_NAME]}\n\n## Task Template\n#{variables[:TASK_TEMPLATE]}\n"
+      else
+        raise "Unexpected template #{template_id}"
+      end
+    end
   end
 
   describe "#check_task_completion" do
