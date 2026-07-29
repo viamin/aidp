@@ -76,10 +76,10 @@ module Aidp
         force_refresh_provider_names = Array(force_refresh_providers).map(&:to_s)
 
         provider_names.each_with_object({}) do |provider_name, tools|
+          refresh_provider = refresh_provider?(provider_name, force_refresh, force_refresh_provider_names)
           provider_info = @provider_info_class.new(provider_name, project_dir)
-          info = provider_info.info(
-            force_refresh: force_refresh || force_refresh_provider_names.include?(provider_name)
-          )
+          info = provider_info.info(force_refresh: refresh_provider)
+          validate_refreshed_provider_info!(provider_name, info, refresh_provider)
           next unless info&.dig(:mcp_support)
 
           enabled_mcp_servers(info).each do |server|
@@ -206,6 +206,19 @@ module Aidp
 
       def enabled_mcp_servers(info)
         Array(info[:mcp_servers]).select { |server| server_enabled?(server) }
+      end
+
+      def refresh_provider?(provider_name, force_refresh, force_refresh_provider_names)
+        force_refresh || force_refresh_provider_names.include?(provider_name)
+      end
+
+      def validate_refreshed_provider_info!(provider_name, info, refresh_provider)
+        return unless refresh_provider
+        raise "Provider metadata unavailable for #{provider_name}" unless info
+        return unless info[:mcp_support]
+        return if info.key?(:mcp_servers)
+
+        raise "MCP server metadata unavailable for #{provider_name}"
       end
 
       def server_enabled?(server)

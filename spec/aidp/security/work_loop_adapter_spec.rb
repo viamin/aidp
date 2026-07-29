@@ -395,6 +395,16 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
 
       adapter.apply_provider_mcp_tool_risk!("anthropic")
     end
+
+    it "falls back to a conservative classification when MCP server metadata is unavailable" do
+      allow(provider_info).to receive(:load_info).and_return({mcp_support: true})
+
+      expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_provider:anthropic:unknown_tools")
+      expect(mock_state).to receive(:enable).with(:egress, source: "mcp_provider:anthropic:unknown_tools")
+
+      adapter.apply_provider_mcp_tool_risk!("anthropic")
+    end
   end
 
   describe "#request_credential" do

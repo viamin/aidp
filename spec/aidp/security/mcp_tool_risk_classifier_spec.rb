@@ -155,6 +155,31 @@ RSpec.describe Aidp::Security::McpToolRiskClassifier do
       expect(profile.generator_model).to eq("none")
     end
 
+    it "preserves the existing profile when refreshed provider metadata is unavailable" do
+      existing_profile = Aidp::Security::McpRiskProfile.new(
+        generated_at: "2026-07-28T12:00:00Z",
+        generator_model: "existing-model",
+        tools: {
+          "filesystem" => {
+            flags: ["private_data"],
+            risk_level: "medium",
+            rationale: "Existing classification."
+          }
+        }
+      )
+      existing_profile.save!(project_dir)
+      allow(provider_info).to receive(:info).with(force_refresh: true).and_return(nil)
+
+      expect(provider_factory).not_to receive(:create_provider)
+      expect { classifier.generate!(force_refresh: true) }
+        .to raise_error("Provider metadata unavailable for anthropic")
+
+      saved = Aidp::Security::McpRiskProfile.load(project_dir)
+      expect(saved.generator_model).to eq("existing-model")
+      expect(saved.flags_for("filesystem")).to eq(["private_data"])
+      expect(saved.risk_level_for("filesystem")).to eq("medium")
+    end
+
     it "conservatively classifies tools omitted from the model response" do
       allow(provider).to receive(:send_message).and_return(<<~JSON)
         {

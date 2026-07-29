@@ -268,6 +268,7 @@ module Aidp
         raise "Provider metadata unavailable for #{provider_name}" unless info
 
         return [] unless info&.dig(:mcp_support)
+        raise "MCP server metadata unavailable for #{provider_name}" unless info.key?(:mcp_servers)
 
         enabled_mcp_servers(info).filter_map do |server|
           name = server_name(server)
