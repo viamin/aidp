@@ -116,6 +116,14 @@ RSpec.describe "Work Loop Task Completion" do
 
           **Action Required**: Review the current task list and update status for all tasks.
         TEXT
+      when "work_loop/task_filing"
+        <<~TEXT
+          ## Task Filing (REQUIRED - DO THIS FIRST)
+          **CRITICAL**: This work loop requires task tracking. You MUST file tasks before implementation.
+
+          File task: "Implement [feature/fix description]" priority: high tags: implementation
+          File task: "Implement user authentication" priority: high tags: security,auth
+        TEXT
       when "work_loop/initial_prompt"
         "# Work Loop: #{variables[:STEP_NAME]}\n\n## Task Template\n#{variables[:TASK_TEMPLATE]}\n"
       else

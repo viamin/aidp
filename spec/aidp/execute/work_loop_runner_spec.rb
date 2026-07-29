@@ -140,6 +140,14 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
           **Action Required**: Review the current task list and update status for all tasks.
         TEXT
+      when "work_loop/task_filing"
+        <<~TEXT
+          ## Task Filing (REQUIRED - DO THIS FIRST)
+          **CRITICAL**: This work loop requires task tracking. You MUST file tasks before implementation.
+
+          File task: "Implement [feature/fix description]" priority: high tags: implementation
+          File task: "Implement user authentication" priority: high tags: security,auth
+        TEXT
       else
         raise "Unexpected template #{template_id}"
       end

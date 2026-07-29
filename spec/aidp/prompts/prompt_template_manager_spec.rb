@@ -124,6 +124,13 @@ RSpec.describe Aidp::Prompts::PromptTemplateManager do
         expect(prompt).to include("**CRITICAL**: Tasks remain incomplete")
         expect(prompt).to include("Update task: task_123_abc status: done")
       end
+
+      it "renders the task filing template" do
+        prompt = manager.render("work_loop/task_filing")
+
+        expect(prompt).to include("## Task Filing (REQUIRED - DO THIS FIRST)")
+        expect(prompt).to include("File task: \"Implement [feature/fix description]\"")
+      end
     end
   end
 

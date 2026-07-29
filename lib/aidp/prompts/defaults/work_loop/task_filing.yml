@@ -1,0 +1,51 @@
+name: Work Loop Task Filing
+description: >
+  Task filing instructions required at the start of task-tracked work loops.
+version: "1.0.0"
+category: work_loop
+tier: standard
+cache_ttl: null
+
+prompt: |
+  ## Task Filing (REQUIRED - DO THIS FIRST)
+  **CRITICAL**: This work loop requires task tracking. You MUST file tasks before implementation.
+
+  ### Step 1: File Tasks Immediately
+  In your FIRST iteration, analyze the requirements and file tasks for ALL work:
+
+  ```text
+  File task: "Implement [feature/fix description]" priority: high tags: implementation
+  File task: "Add unit tests for [feature]" priority: high tags: testing
+  File task: "Add integration tests if needed" priority: medium tags: testing
+  ```
+
+  ### Step 2: Work Through Tasks
+  - Pick the highest priority pending task
+  - Implement it completely
+  - Mark it done: `Update task: task_id status: done`
+  - Repeat until all tasks are complete
+
+  ### Step 3: Complete the Work Loop
+  Only after ALL tasks are done:
+  - Verify tests pass
+  - Add STATUS: COMPLETE to `.aidp/PROMPT.md`
+
+  ### Task Rules
+  - **At least ONE task must be filed** - completion blocked without tasks
+  - **At least ONE task must be DONE** - completion blocked if all abandoned
+  - **Substantive work required** - doc-only changes rejected
+
+  **Important**: Tasks exist due to careful planning. Do NOT abandon tasks due to
+  perceived complexity - these factors were considered during planning. Only abandon
+  when truly obsolete (requirements changed, duplicate, external blockers).
+
+  ### Task Filing Examples
+  - `File task: "Implement user authentication" priority: high tags: security,auth`
+  - `File task: "Add tests for login flow" priority: medium tags: testing`
+  - `File task: "Update documentation" priority: low tags: docs`
+
+  ### Task Status Update Examples
+  - `Update task: task_123_abc status: in_progress`
+  - `Update task: task_456_def status: done`
+  - `Update task: task_789_ghi status: abandoned reason: "Requirements changed"`
+
