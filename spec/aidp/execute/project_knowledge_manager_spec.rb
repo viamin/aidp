@@ -45,6 +45,21 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
     expect(feature_note).to include("<authentication_session_manager:lib/authentication/session_manager.rb>")
   end
 
+  it "leaves a neutral users placeholder in new feature notes" do
+    manager.sync!(
+      step_name: "99_SIMPLE_TASK",
+      task_description: "Update authentication flow",
+      affected_files: ["lib/authentication/session_manager.rb"],
+      tool_commands: []
+    )
+
+    feature_note = File.read(File.join(temp_dir, "docs", "features", "authentication_session_manager.md"))
+
+    expect(feature_note).to include("## Users")
+    expect(feature_note).to include("- Add the end users or personas when they become clear.")
+    expect(feature_note).not_to include("Developers maintaining this feature.")
+  end
+
   it "does not collapse feature notes to a generic container directory" do
     manager.sync!(
       step_name: "99_SIMPLE_TASK",
@@ -62,6 +77,17 @@ RSpec.describe Aidp::Execute::ProjectKnowledgeManager do
       step_name: "99_SIMPLE_TASK",
       task_description: "Update documentation",
       affected_files: ["docs/guide.md", "spec/models/user_spec.rb"],
+      tool_commands: []
+    )
+
+    expect(Dir.glob(File.join(temp_dir, "docs", "features", "*.md"))).to be_empty
+  end
+
+  it "does not create a feature note for repo-level config and docs changes" do
+    manager.sync!(
+      step_name: "99_SIMPLE_TASK",
+      task_description: "Refresh repo configuration docs",
+      affected_files: ["aidp.yml", "docs/guide.md"],
       tool_commands: []
     )
 

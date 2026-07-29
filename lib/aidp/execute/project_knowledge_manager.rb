@@ -8,6 +8,7 @@ module Aidp
     # Creates and refreshes concise feature/tool notes under docs/
     class ProjectKnowledgeManager
       MAX_TOOL_NOTES = 5
+      FEATURE_ROOT_SEGMENTS = %w[app client lib packages server src].freeze
 
       def initialize(project_dir)
         @project_dir = project_dir
@@ -77,7 +78,7 @@ module Aidp
           - Concise feature context for work touching these paths.
 
           ## Users
-          - Developers maintaining this feature.
+          - Add the end users or personas when they become clear.
 
           ## Known Gaps
           - Add concrete gaps when discovered.
@@ -168,8 +169,8 @@ module Aidp
       end
 
       def feature_path?(file)
-        first_segment = file.to_s.split("/").first
-        !%w[docs spec test].include?(first_segment)
+        path_segments = file.to_s.split("/")
+        FEATURE_ROOT_SEGMENTS.include?(path_segments.first) && path_segments.length > 1
       end
 
       def common_path_segments(all_segments)
