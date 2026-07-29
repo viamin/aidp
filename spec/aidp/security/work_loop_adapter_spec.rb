@@ -30,7 +30,7 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
   before do
     allow(Aidp::Security::McpRiskProfile).to receive(:load).and_return(mock_mcp_risk_profile)
     allow(provider_info_class).to receive(:new).and_return(provider_info)
-    allow(provider_info).to receive(:info).with(force_refresh: false).and_return({mcp_support: false, mcp_servers: []})
+    allow(provider_info).to receive(:load_info).and_return({mcp_support: false, mcp_servers: []})
   end
 
   describe "#initialize" do
@@ -319,7 +319,7 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
     end
 
     it "applies stored risk flags for each configured MCP server on the provider" do
-      allow(provider_info).to receive(:info).with(force_refresh: false).and_return({
+      allow(provider_info).to receive(:load_info).and_return({
         mcp_support: true,
         mcp_servers: [
           {name: "filesystem", enabled: true},
@@ -343,7 +343,7 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
     end
 
     it "falls back to a conservative classification when a configured MCP server is unclassified" do
-      allow(provider_info).to receive(:info).with(force_refresh: false).and_return({
+      allow(provider_info).to receive(:load_info).and_return({
         mcp_support: true,
         mcp_servers: [{name: "filesystem", enabled: true}]
       })
@@ -362,7 +362,7 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
     end
 
     it "falls back to a conservative classification when provider lookup fails" do
-      allow(provider_info).to receive(:info).with(force_refresh: false).and_raise("boom")
+      allow(provider_info).to receive(:load_info).and_raise("boom")
 
       expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_provider:anthropic:unknown_tools")
       expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_provider:anthropic:unknown_tools")
@@ -371,8 +371,8 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
       adapter.apply_provider_mcp_tool_risk!("anthropic")
     end
 
-    it "refreshes provider metadata when runtime callers request a refresh" do
-      allow(provider_info).to receive(:info).with(force_refresh: true).and_return({
+    it "does not refresh provider metadata when runtime callers request a refresh" do
+      allow(provider_info).to receive(:load_info).and_return({
         mcp_support: true,
         mcp_servers: [{name: "filesystem", enabled: true}]
       })
@@ -380,13 +380,14 @@ RSpec.describe Aidp::Security::WorkLoopAdapter do
         flags: %w[private_data]
       })
 
+      expect(provider_info).not_to receive(:info)
       expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_tool:filesystem")
 
       adapter.apply_provider_mcp_tool_risk!("anthropic", force_refresh: true)
     end
 
-    it "falls back to a conservative classification when refreshed metadata is unavailable" do
-      allow(provider_info).to receive(:info).with(force_refresh: false).and_return(nil)
+    it "falls back to a conservative classification when stored metadata is unavailable" do
+      allow(provider_info).to receive(:load_info).and_return(nil)
 
       expect(mock_state).to receive(:enable).with(:untrusted_input, source: "mcp_provider:anthropic:unknown_tools")
       expect(mock_state).to receive(:enable).with(:private_data, source: "mcp_provider:anthropic:unknown_tools")

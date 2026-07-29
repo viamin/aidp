@@ -146,12 +146,17 @@ module Aidp
       end
 
       # Apply deterministic MCP tool risk flags for all MCP servers configured on
-      # the selected provider. This keeps runtime enforcement aligned with the
-      # profile's "tool available to the agent" classification semantics.
+      # the selected provider. This reads only persisted provider metadata so the
+      # work loop never re-introspects provider CLIs at runtime.
       def apply_provider_mcp_tool_risk!(provider_name, force_refresh: false)
         return @current_state unless enabled? && @current_state
 
-        provider_mcp_server_names(provider_name, force_refresh: force_refresh).each do |tool_name|
+        if force_refresh
+          Aidp.log_debug("security.adapter", "ignored_provider_mcp_refresh_request",
+            provider: provider_name)
+        end
+
+        provider_mcp_server_names(provider_name).each do |tool_name|
           apply_mcp_tool_risk!(tool_name)
         end
 
@@ -257,9 +262,9 @@ module Aidp
         Aidp::Security::McpRiskProfile.new(tools: {})
       end
 
-      def provider_mcp_server_names(provider_name, force_refresh: false)
+      def provider_mcp_server_names(provider_name)
         provider_info = @provider_info_class.new(provider_name, project_dir)
-        info = provider_info.info(force_refresh: force_refresh)
+        info = provider_info.load_info
         raise "Provider metadata unavailable for #{provider_name}" unless info
 
         return [] unless info&.dig(:mcp_support)
