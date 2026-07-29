@@ -196,7 +196,6 @@ module Aidp
         return line unless match
 
         mapped_status = mermaid_status_for(status)
-        return line unless mapped_status
 
         tokens = match[:definition].split(",").map(&:strip).reject(&:empty?)
         tokens.reject! { |token| %w[done active].include?(token) }

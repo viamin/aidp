@@ -243,14 +243,15 @@ module Aidp
         root_tasks = tasks.select { |task| task[:dependency_ids].empty? }
         return tasks if root_tasks.empty?
 
-        cursor = root_tasks.filter_map { |task| task[:start_date] }.min ||
-          tasks.filter_map { |task| task[:chart_start_date] }.min ||
-          Date.today
+        cursor = tasks.filter_map { |task| task[:chart_start_date] }.min || Date.today
         root_tasks_by_id = root_tasks.each_with_object({}) do |task, memo|
           start_date = task[:start_date] || cursor
           end_date = task[:end_date] || infer_end_date(start_date, task[:duration_days])
           memo[task[:id]] = task.merge(start_date: start_date, end_date: end_date, chart_start_date: nil)
-          cursor = end_date + 1 if end_date
+          next unless end_date
+
+          next_cursor = end_date + 1
+          cursor = [cursor, next_cursor].max
         end
 
         tasks.map do |task|

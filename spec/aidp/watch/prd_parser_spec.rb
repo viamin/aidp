@@ -196,6 +196,30 @@ RSpec.describe Aidp::Watch::PrdParser do
       expect(result[:tasks].first[:end_date]).to eq(Date.new(2026, 8, 11))
     end
 
+    it "keeps undated Mermaid root tasks in chart order when later roots have earlier explicit dates" do
+      file = File.join(tmp_dir, "chart_order_root_dates_gantt.md")
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        gantt
+            %% start_date: 2026-07-01
+            section Planning
+            Alpha :a, 2026-07-10, 2d
+            Beta :b, 2026-07-01, 1d
+            Gamma :c, 1d
+        ```
+      MARKDOWN
+
+      result = described_class.new(file_path: file).parse
+      tasks = result[:tasks].each_with_object({}) do |task, memo|
+        memo[task[:id]] = task
+      end
+
+      expect(tasks["a"][:start_date]).to eq(Date.new(2026, 7, 10))
+      expect(tasks["b"][:start_date]).to eq(Date.new(2026, 7, 1))
+      expect(tasks["c"][:start_date]).to eq(Date.new(2026, 7, 12))
+      expect(tasks["c"][:end_date]).to eq(Date.new(2026, 7, 12))
+    end
+
     it "parses Microsoft Project XML tasks" do
       file = File.join(tmp_dir, "project.xml")
       File.write(file, <<~XML)
