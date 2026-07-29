@@ -35,8 +35,9 @@ module Aidp
       # Returns job_id
       def start(mode, options = {})
         job_id = generate_job_id
-        log_file = File.join(@jobs_dir, job_id, "output.log")
-        pid_file = File.join(@jobs_dir, job_id, "job.pid")
+        log_file = job_file_path(job_id, "output.log")
+        pid_file = job_file_path(job_id, "job.pid")
+        return unless log_file && pid_file
 
         # Create job directory
         FileUtils.mkdir_p(File.dirname(log_file))
@@ -322,7 +323,7 @@ module Aidp
         return unless resolved_job_dir
         return unless resolved_job_dir.start_with?("#{jobs_dir}/")
 
-        File.join(resolved_job_dir, file_name)
+        resolved_job_file_path(resolved_job_dir, file_name)
       end
 
       def tail_job_logs(log_file, requested_lines)
@@ -338,6 +339,19 @@ module Aidp
         else
           File.expand_path(job_dir)
         end
+      rescue Errno::ENOENT, Errno::EACCES
+        nil
+      end
+
+      def resolved_job_file_path(job_dir, file_name)
+        candidate = File.join(job_dir, file_name)
+        return candidate unless File.exist?(candidate) || File.symlink?(candidate)
+        return if File.symlink?(candidate)
+
+        resolved_file = File.realpath(candidate)
+        return unless resolved_file.start_with?("#{job_dir}/")
+
+        resolved_file
       rescue Errno::ENOENT, Errno::EACCES
         nil
       end

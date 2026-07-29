@@ -167,6 +167,20 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
       FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
     end
 
+    it "returns nil when output.log is a symlink outside the jobs directory" do
+      outside_dir = Dir.mktmpdir("aidp-outside-log-file")
+      job_id = "linked_log_file"
+      job_dir = File.join(project_dir, ".aidp", "jobs", job_id)
+      FileUtils.mkdir_p(job_dir)
+      File.write(File.join(outside_dir, "output.log"), "outside log")
+      File.symlink(File.join(outside_dir, "output.log"), File.join(job_dir, "output.log"))
+
+      expect(runner.job_logs(job_id)).to be_nil
+      expect(runner.job_status(job_id)).to be_nil
+    ensure
+      FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
+    end
+
     it "reads logs from a symlinked project path when the job stays inside the jobs directory" do
       real_project_dir = Dir.mktmpdir("aidp-bg-real")
       symlink_project_dir = "#{real_project_dir}-link"
@@ -359,6 +373,20 @@ RSpec.describe Aidp::Jobs::BackgroundRunner do
         File.write(File.join(outside_dir, "metadata.yml"), {job_id: "outside"}.to_yaml)
 
         expect(runner.send(:load_job_metadata, "../outside_meta")).to be_nil
+      end
+
+      it "returns nil when metadata.yml is a symlink outside the jobs directory" do
+        outside_dir = Dir.mktmpdir("aidp-outside-meta-file")
+        job_id = "linked_metadata_file"
+        job_dir = File.join(project_dir, ".aidp", "jobs", job_id)
+        FileUtils.mkdir_p(job_dir)
+        outside_metadata = File.join(outside_dir, "metadata.yml")
+        File.write(outside_metadata, {job_id: "outside"}.to_yaml)
+        File.symlink(outside_metadata, File.join(job_dir, "metadata.yml"))
+
+        expect(runner.send(:load_job_metadata, job_id)).to be_nil
+      ensure
+        FileUtils.rm_rf(outside_dir) if outside_dir && File.exist?(outside_dir)
       end
 
       it "returns nil for invalid YAML" do
