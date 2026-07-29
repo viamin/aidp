@@ -65,6 +65,7 @@ module Aidp
         @project_knowledge_manager = options[:project_knowledge_manager] || ProjectKnowledgeManager.new(project_dir)
         @work_context = {}
         @executed_tool_commands = []
+        @agentic_execution_results = []
         @persistent_tasklist = PersistentTasklist.new(project_dir)
         @iteration_count = 0
         @step_name = nil
@@ -104,6 +105,7 @@ module Aidp
         @step_name = step_name
         @work_context = context
         @executed_tool_commands = []
+        @agentic_execution_results = []
         @iteration_count = 0
         transition_to(:ready)
 
@@ -576,6 +578,7 @@ module Aidp
             tier: @thinking_depth_manager.current_tier
           }
         )
+        record_agentic_execution_result(agent_result)
 
         requested = AgentSignalParser.extract_next_unit(agent_result[:output])
 
@@ -609,6 +612,7 @@ module Aidp
             tier: @thinking_depth_manager.current_tier
           }
         )
+        record_agentic_execution_result(agent_result)
 
         requested = AgentSignalParser.extract_next_unit(agent_result[:output])
 
@@ -1109,6 +1113,7 @@ module Aidp
             execute_block.call
           end
         end
+          .tap { |result| record_agentic_execution_result(result) }
       end
 
       def display_iteration_overview(provider_name, model_name, prompt_length, checks_summary = nil)
@@ -1539,6 +1544,8 @@ module Aidp
       def knowledge_affected_files
         files = Array(@work_context[:affected_files])
         files.concat(extract_affected_files(@work_context, format_user_input(@work_context[:user_input])))
+        files.concat(metadata_affected_files)
+        files.concat(get_changed_files) if files.empty?
         files.map(&:to_s).select { |path| knowledge_path_candidate?(path) }.uniq
       end
 
@@ -1559,7 +1566,13 @@ module Aidp
       end
 
       def knowledge_tool_commands
-        @executed_tool_commands.uniq
+        metadata_tool_commands.concat(@executed_tool_commands).uniq
+      end
+
+      def record_agentic_execution_result(result)
+        return unless result.is_a?(Hash)
+
+        @agentic_execution_results << result
       end
 
       def knowledge_feature_identifier
@@ -1597,6 +1610,91 @@ module Aidp
           user_input[:feature_identifier] ||
           user_input["feature_id"] ||
           user_input[:feature_id]
+      end
+
+      def metadata_affected_files
+        metadata_entries = metadata_value_objects
+        files = extract_file_entries(metadata_entries, :affected_files)
+        files.concat(extract_file_entries(metadata_entries, :changed_files))
+        files.concat(extract_file_entries(metadata_entries, :edited_files))
+        files.concat(extract_file_entries(metadata_entries, :files_changed))
+        files.concat(extract_file_entries(metadata_entries, :modified_files))
+        files.concat(extract_file_entries(metadata_entries, :touched_files))
+        files.uniq
+      end
+
+      def metadata_tool_commands
+        metadata_entries = metadata_value_objects
+        commands = extract_command_entries(metadata_entries, :tool_commands)
+        commands.concat(extract_command_entries(metadata_entries, :tool_usage))
+        commands.concat(extract_command_entries(metadata_entries, :tool_calls))
+        commands.concat(extract_command_entries(metadata_entries, :tools_used))
+        commands.concat(extract_command_entries(metadata_entries, :commands))
+        commands.uniq
+      end
+
+      def metadata_value_objects
+        Array(@agentic_execution_results).flat_map do |result|
+          [
+            result,
+            indifferent_hash_value(result, :metadata),
+            indifferent_hash_value(result, :output)
+          ]
+        end.compact.select { |entry| entry.is_a?(Hash) }
+      end
+
+      def extract_file_entries(entries, key)
+        entries.flat_map do |entry|
+          Array(indifferent_hash_value(entry, key)).flat_map do |value|
+            case value
+            when String
+              [value]
+            when Hash
+              candidate = file_candidate_from_hash(value)
+              candidate ? [candidate] : []
+            else
+              []
+            end
+          end
+        end
+      end
+
+      def extract_command_entries(entries, key)
+        entries.flat_map do |entry|
+          Array(indifferent_hash_value(entry, key)).flat_map do |value|
+            case value
+            when String
+              [value]
+            when Hash
+              candidate = command_candidate_from_hash(value)
+              candidate ? [candidate] : []
+            else
+              []
+            end
+          end
+        end.reject(&:empty?)
+      end
+
+      def indifferent_hash_value(hash, key)
+        hash[key] || hash[key.to_s]
+      end
+
+      def file_candidate_from_hash(hash)
+        %i[path file file_path output_path relative_path].each do |key|
+          candidate = indifferent_hash_value(hash, key).to_s.strip
+          return candidate unless candidate.empty?
+        end
+
+        nil
+      end
+
+      def command_candidate_from_hash(hash)
+        %i[command tool name identifier].each do |key|
+          candidate = indifferent_hash_value(hash, key).to_s.strip
+          return candidate unless candidate.empty?
+        end
+
+        nil
       end
 
       def trim_path_token(token)

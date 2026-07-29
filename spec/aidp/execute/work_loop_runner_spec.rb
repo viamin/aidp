@@ -310,6 +310,64 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
           )
         )
       end
+
+      it "falls back to changed worktree files when the task description is generic" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {"task" => "Fix issue #123"}
+        })
+        allow(knowledge_runner).to receive(:get_changed_files).and_return([
+          ".aidp/out/tests.log",
+          "lib/aidp/execute/work_loop_runner.rb",
+          "spec/aidp/execute/work_loop_runner_spec.rb"
+        ])
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly(
+              "lib/aidp/execute/work_loop_runner.rb",
+              "spec/aidp/execute/work_loop_runner_spec.rb"
+            )
+          )
+        )
+      end
+
+      it "captures tool usage and edited files from agent execution metadata" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          user_input: {"task" => "Fix issue #123"}
+        })
+        knowledge_runner.instance_variable_set(:@agentic_execution_results, [
+          {
+            metadata: {
+              edited_files: [
+                {path: "lib/aidp/execute/work_loop_runner.rb"},
+                {path: "spec/aidp/execute/work_loop_runner_spec.rb"}
+              ],
+              tool_calls: [
+                {tool: "filesystem.read"},
+                {tool: "web.search"}
+              ]
+            }
+          }
+        ])
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly(
+              "lib/aidp/execute/work_loop_runner.rb",
+              "spec/aidp/execute/work_loop_runner_spec.rb"
+            ),
+            tool_commands: contain_exactly("filesystem.read", "web.search")
+          )
+        )
+      end
     end
 
     describe "STATES constant" do
@@ -1871,6 +1929,26 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
 
           expect(result[:success]).to be false
           expect(runner_with_commands.send(:knowledge_tool_commands)).to eq(["rspec --all"])
+        end
+      end
+
+      describe "#knowledge_tool_commands" do
+        it "prefers agent metadata tool usage and keeps validation commands as a supplement" do
+          runner.instance_variable_set(:@agentic_execution_results, [
+            {
+              metadata: {
+                tool_usage: ["filesystem.read"],
+                tool_calls: [{tool: "web.search"}]
+              }
+            }
+          ])
+          runner.instance_variable_set(:@executed_tool_commands, ["bundle exec rspec"])
+
+          expect(runner.send(:knowledge_tool_commands)).to eq([
+            "filesystem.read",
+            "web.search",
+            "bundle exec rspec"
+          ])
         end
       end
 
