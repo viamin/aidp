@@ -3,6 +3,8 @@
 require "tty-prompt"
 require "tty-table"
 require "pastel"
+require_relative "../strategy_execution/strategy_loader"
+require_relative "../strategy_execution/experience_store"
 require_relative "terminal_io"
 
 module Aidp
@@ -30,6 +32,10 @@ module Aidp
         case subcommand
         when "start", nil
           start_workflow(args)
+        when "replay"
+          replay_workflow(args)
+        when "benchmark"
+          benchmark_workflows(args)
         when "list"
           list_workflows(args)
         when "status"
@@ -61,6 +67,9 @@ module Aidp
         display_message("")
         display_message("Temporal Workflow Commands:", type: :info)
         display_message("  aidp temporal start [issue_number]  - Start issue-to-PR workflow", type: :info)
+        display_message("  aidp temporal start strategy <strategy.yml> [task.json] - Start strategy workflow", type: :info)
+        display_message("  aidp temporal replay <run_id> <strategy.yml> - Replay a task with a new strategy", type: :info)
+        display_message("  aidp temporal benchmark <strategy.yml> <run_id> [run_id...] - Replay many runs", type: :info)
         display_message("  aidp temporal list                  - List active workflows", type: :info)
         display_message("  aidp temporal status <workflow_id>  - Show workflow status", type: :info)
         display_message("  aidp temporal signal <workflow_id> <signal> - Send signal to workflow", type: :info)
@@ -80,9 +89,11 @@ module Aidp
           start_issue_to_pr_workflow(issue_number)
         when "workloop", "work_loop"
           start_work_loop_workflow(args)
+        when "strategy"
+          start_strategy_workflow(args)
         else
           display_message("Unknown workflow type: #{workflow_type}", type: :error)
-          display_message("Available: issue, workloop", type: :info)
+          display_message("Available: issue, workloop, strategy", type: :info)
         end
       end
 
@@ -90,6 +101,7 @@ module Aidp
         @prompt.select("Select workflow type:") do |menu|
           menu.choice "Issue to PR (full pipeline)", "issue"
           menu.choice "Work Loop (fix-forward iteration)", "workloop"
+          menu.choice "Strategy Execution", "strategy"
         end
       end
 
@@ -142,6 +154,92 @@ module Aidp
         display_message("  Step: #{step_name}", type: :info)
         display_message("")
         display_message("Monitor with: aidp temporal status #{handle.id}", type: :info)
+      end
+
+      def start_strategy_workflow(args)
+        strategy_path = args.shift
+        task_path = args.shift
+
+        unless strategy_path
+          display_message("Usage: aidp temporal start strategy <strategy.yml> [task.json]", type: :error)
+          return
+        end
+
+        strategy = load_strategy(strategy_path)
+        task = task_path ? load_task(task_path) : prompt_for_task
+
+        handle = Aidp::Temporal.start_workflow(
+          Aidp::Temporal::Workflows::StrategyExecutionWorkflow,
+          {
+            project_dir: @project_dir,
+            strategy: strategy.to_h,
+            task: task
+          },
+          project_dir: @project_dir
+        )
+
+        display_message("Started strategy workflow #{strategy.name}", type: :success)
+        display_message("  Workflow ID: #{handle.id}", type: :info)
+      end
+
+      def replay_workflow(args)
+        original_run_id = args.shift
+        strategy_path = args.shift
+
+        unless original_run_id && strategy_path
+          display_message("Usage: aidp temporal replay <run_id> <strategy.yml>", type: :error)
+          return
+        end
+
+        bundle = experience_store.replay_bundle(original_run_id)
+        unless bundle
+          display_message("Replay source run not found: #{original_run_id}", type: :error)
+          return
+        end
+
+        strategy = load_strategy(strategy_path)
+        replay_task = bundle[:task].merge(source_run_id: original_run_id)
+
+        handle = Aidp::Temporal.start_workflow(
+          Aidp::Temporal::Workflows::StrategyExecutionWorkflow,
+          {
+            project_dir: @project_dir,
+            strategy: strategy.to_h,
+            task: replay_task
+          },
+          project_dir: @project_dir
+        )
+
+        display_message("Replay started from run #{original_run_id}", type: :success)
+        display_message("  Workflow ID: #{handle.id}", type: :info)
+      end
+
+      def benchmark_workflows(args)
+        strategy_path = args.shift
+        run_ids = args
+
+        unless strategy_path && run_ids.any?
+          display_message("Usage: aidp temporal benchmark <strategy.yml> <run_id> [run_id...]", type: :error)
+          return
+        end
+
+        strategy = load_strategy(strategy_path)
+        started = run_ids.filter_map do |run_id|
+          bundle = experience_store.replay_bundle(run_id)
+          next unless bundle
+
+          Aidp::Temporal.start_workflow(
+            Aidp::Temporal::Workflows::StrategyExecutionWorkflow,
+            {
+              project_dir: @project_dir,
+              strategy: strategy.to_h,
+              task: bundle[:task].merge(source_run_id: run_id)
+            },
+            project_dir: @project_dir
+          ).id
+        end
+
+        display_message("Started #{started.length} benchmark replay workflow(s)", type: :success)
       end
 
       def list_workflows(args)
@@ -327,7 +425,9 @@ module Aidp
         worker.register_workflows(
           Aidp::Temporal::Workflows::IssueToPrWorkflow,
           Aidp::Temporal::Workflows::WorkLoopWorkflow,
-          Aidp::Temporal::Workflows::SubIssueWorkflow
+          Aidp::Temporal::Workflows::SubIssueWorkflow,
+          Aidp::Temporal::Workflows::StrategyBranchWorkflow,
+          Aidp::Temporal::Workflows::StrategyExecutionWorkflow
         )
 
         # Register all activities
@@ -342,7 +442,9 @@ module Aidp
           Aidp::Temporal::Activities::RecordCheckpointActivity.new,
           Aidp::Temporal::Activities::CreatePrActivity.new,
           Aidp::Temporal::Activities::RunWorkLoopIterationActivity.new,
-          Aidp::Temporal::Activities::AnalyzeSubTaskActivity.new
+          Aidp::Temporal::Activities::AnalyzeSubTaskActivity.new,
+          Aidp::Temporal::Activities::ExecuteCliCommandActivity.new,
+          Aidp::Temporal::Activities::ManageExperienceStoreActivity.new
         )
 
         display_message(@pastel.green("Worker started"), type: :success)
@@ -418,6 +520,25 @@ module Aidp
         display_message("  1. Start Temporal server: docker-compose -f docker-compose.temporal.yml up -d", type: :info)
         display_message("  2. Start worker: aidp temporal worker", type: :info)
         display_message("  3. Start workflow: aidp temporal start issue <number>", type: :info)
+      end
+
+      def load_strategy(strategy_path)
+        StrategyExecution::StrategyLoader.new(project_dir: @project_dir).load_file(strategy_path)
+      end
+
+      def load_task(task_path)
+        JSON.parse(File.read(task_path), symbolize_names: true)
+      end
+
+      def prompt_for_task
+        {
+          title: @prompt.ask("Task title:"),
+          description: @prompt.ask("Task description:")
+        }
+      end
+
+      def experience_store
+        @experience_store ||= StrategyExecution::ExperienceStore.new(project_dir: @project_dir)
       end
 
       def format_status(status)

@@ -321,11 +321,102 @@ module Aidp
         CREATE UNIQUE INDEX IF NOT EXISTS idx_template_versions_unique ON template_versions(project_dir, template_id, version_number);
       SQL
 
+      # Version 4: Add strategy execution experience store
+      V4_STRATEGY_EXECUTION = <<~SQL
+        -- Strategy definitions for orchestration-as-data
+        CREATE TABLE IF NOT EXISTS strategies (
+            id TEXT PRIMARY KEY,
+            project_dir TEXT NOT NULL,
+            name TEXT NOT NULL,
+            spec TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_strategies_project_name ON strategies(project_dir, name);
+
+        -- Replayable task inputs for strategy execution
+        CREATE TABLE IF NOT EXISTS experience_tasks (
+            id TEXT PRIMARY KEY,
+            project_dir TEXT NOT NULL,
+            title TEXT,
+            description TEXT NOT NULL,
+            input_payload TEXT,
+            context TEXT,
+            source_run_id TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_experience_tasks_project ON experience_tasks(project_dir);
+        CREATE INDEX IF NOT EXISTS idx_experience_tasks_source_run ON experience_tasks(source_run_id);
+
+        -- Individual strategy execution runs, including speculative branches
+        CREATE TABLE IF NOT EXISTS experience_runs (
+            id TEXT PRIMARY KEY,
+            project_dir TEXT NOT NULL,
+            task_id TEXT NOT NULL,
+            strategy_id TEXT NOT NULL,
+            workflow_id TEXT,
+            parent_run_id TEXT,
+            branch_key TEXT,
+            status TEXT NOT NULL,
+            depth INTEGER DEFAULT 0,
+            input_payload TEXT,
+            output_payload TEXT,
+            metadata TEXT,
+            started_at TEXT NOT NULL DEFAULT (datetime('now')),
+            completed_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_experience_runs_project ON experience_runs(project_dir);
+        CREATE INDEX IF NOT EXISTS idx_experience_runs_task ON experience_runs(task_id);
+        CREATE INDEX IF NOT EXISTS idx_experience_runs_parent ON experience_runs(parent_run_id);
+        CREATE INDEX IF NOT EXISTS idx_experience_runs_strategy ON experience_runs(strategy_id);
+
+        -- Evaluation signals captured for each run
+        CREATE TABLE IF NOT EXISTS experience_evaluations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_dir TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            evaluator_name TEXT NOT NULL,
+            score REAL,
+            passed INTEGER DEFAULT 0 CHECK (passed IN (0, 1)),
+            summary TEXT,
+            metadata TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_experience_evaluations_run ON experience_evaluations(run_id);
+        CREATE INDEX IF NOT EXISTS idx_experience_evaluations_name ON experience_evaluations(project_dir, evaluator_name);
+
+        -- Artifact metadata produced by runs
+        CREATE TABLE IF NOT EXISTS experience_artifacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_dir TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            path TEXT NOT NULL,
+            metadata TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_experience_artifacts_run ON experience_artifacts(run_id);
+
+        -- Embeddings are stored as JSON vectors until a dedicated vector store exists
+        CREATE TABLE IF NOT EXISTS experience_embeddings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_dir TEXT NOT NULL,
+            task_id TEXT,
+            run_id TEXT,
+            embedding_type TEXT NOT NULL,
+            vector TEXT NOT NULL,
+            metadata TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_experience_embeddings_task ON experience_embeddings(task_id);
+        CREATE INDEX IF NOT EXISTS idx_experience_embeddings_run ON experience_embeddings(run_id);
+      SQL
+
       # All migrations in order
       MIGRATIONS = {
         1 => V1_INITIAL,
         2 => V2_PROMPT_FEEDBACK,
-        3 => V3_TEMPLATE_VERSIONS
+        3 => V3_TEMPLATE_VERSIONS,
+        4 => V4_STRATEGY_EXECUTION
       }.freeze
 
       # Get SQL for a specific version
