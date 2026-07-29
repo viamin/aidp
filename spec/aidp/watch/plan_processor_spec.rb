@@ -151,7 +151,7 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     allow(repository_client).to receive(:post_comment)
     expect(repository_client).to receive(:replace_labels).with(
       42,
-      old_labels: ["aidp-project"],
+      old_labels: ["aidp-project", "aidp-plan", "aidp-build"],
       new_labels: ["aidp-blocked"]
     )
     allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
@@ -186,7 +186,7 @@ RSpec.describe Aidp::Watch::PlanProcessor do
 
     expect(repository_client).to receive(:replace_labels).with(
       42,
-      old_labels: ["aidp-project"],
+      old_labels: ["aidp-project", "aidp-plan", "aidp-build"],
       new_labels: ["aidp-needs-input"]
     )
 
@@ -223,7 +223,7 @@ RSpec.describe Aidp::Watch::PlanProcessor do
 
     expect(repository_client).to receive(:replace_labels).with(
       42,
-      old_labels: ["aidp-project"],
+      old_labels: ["aidp-project", "aidp-plan", "aidp-build"],
       new_labels: ["aidp-needs-input"]
     )
 

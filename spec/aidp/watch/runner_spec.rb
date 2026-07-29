@@ -204,6 +204,14 @@ RSpec.describe Aidp::Watch::Runner do
       expect(items.first.processor_type).to eq(:build)
     end
 
+    it "skips build work items that also carry the project label" do
+      allow(repo_client).to receive(:list_issues).and_return([], [{number: 2, labels: ["build", "project"]}])
+
+      items = runner.send(:collect_build_work_items)
+
+      expect(items).to eq([])
+    end
+
     it "collects auto issue work items" do
       allow(auto_processor).to receive(:auto_label).and_return("auto")
       allow(repo_client).to receive(:list_issues).and_return([{number: 3, labels: ["auto"]}])

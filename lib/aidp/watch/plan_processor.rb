@@ -152,8 +152,9 @@ module Aidp
           project_mode: project_mode,
           project_setup: project_setup
         )
+        old_labels = labels_to_replace(trigger_label, project_mode: project_mode)
 
-        if new_label == trigger_label
+        if old_labels == [new_label]
           display_message("🏷️  Left label '#{trigger_label}' in place (#{status_text})", type: :info)
           return
         end
@@ -161,7 +162,7 @@ module Aidp
         begin
           @repository_client.replace_labels(
             number,
-            old_labels: [trigger_label],
+            old_labels: old_labels,
             new_labels: [new_label]
           )
           display_message("🏷️  Updated labels: removed '#{trigger_label}', added '#{new_label}' (#{status_text})", type: :info)
@@ -314,6 +315,12 @@ module Aidp
         end
 
         [@ready_label, "ready to build"]
+      end
+
+      def labels_to_replace(trigger_label, project_mode:)
+        return [trigger_label] unless project_mode
+
+        [trigger_label, @plan_label, @build_label].uniq
       end
 
       def record_project_setup_failure(issue_number, reason)

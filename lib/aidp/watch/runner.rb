@@ -401,10 +401,12 @@ module Aidp
         unblock_dependency_ready_items
 
         label = @build_processor.build_label
+        project_label = @plan_processor.project_label
         issues = @repository_client.list_issues(labels: [label], state: "open")
 
         issues.filter_map do |issue|
           next unless issue_has_label?(issue, label)
+          next if issue_has_label?(issue, project_label)
 
           # Note: build_completed check moved to dispatch phase to avoid
           # API calls during collection (addresses rate limiting concerns)
