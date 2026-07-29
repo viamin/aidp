@@ -101,10 +101,17 @@ module Aidp
       end
 
       def extract_mermaid_chart(content)
-        match = content.match(/```mermaid\s*\n(?<chart>.*?^\s*```)/m)
-        return match[:chart].sub(/\n?\s*```\s*\z/m, "") if match
+        mermaid_blocks(content).each do |block|
+          return block if block.each_line.any? { |line| line.strip == "gantt" }
+        end
 
         content
+      end
+
+      def mermaid_blocks(content)
+        content.scan(/```mermaid\s*\n(?<chart>.*?^\s*```)/m).flatten.map do |chart|
+          chart.sub(/\n?\s*```\s*\z/m, "")
+        end
       end
 
       def build_mermaid_task(name_part, definition, section, line_number, chart_start_date)

@@ -105,6 +105,7 @@ RSpec.describe Aidp::Watch::GanttSynchronizer do
     end
 
     before do
+      allow(state_store).to receive(:project_sync_data).and_return({})
       File.write(file, <<~MARKDOWN)
         Overview mentions issue #102 before the chart.
 
@@ -191,6 +192,55 @@ RSpec.describe Aidp::Watch::GanttSynchronizer do
       ).to be true
 
       expect(File.read(file)).to include("Implement sync (#102) :done, task2, after task1, 3d")
+    end
+
+    it "uses stored gantt task metadata when the Mermaid task omits the issue number" do
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        gantt
+            section Build
+            Implement sync :task2, after task1, 3d
+        ```
+      MARKDOWN
+      allow(state_store).to receive(:project_sync_data).with(102).and_return({"gantt_task_id" => "task2"})
+
+      expect(
+        real_synchronizer.sync_issue_status_to_gantt(
+          prd_path: file,
+          issue_number: 102,
+          status: "Done"
+        )
+      ).to be true
+
+      expect(File.read(file)).to include("Implement sync :done, task2, after task1, 3d")
+    end
+
+    it "updates the Mermaid gantt block when another Mermaid diagram appears earlier in the document" do
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        flowchart TD
+            A[Start] --> B[Finish]
+        ```
+
+        ```mermaid
+        gantt
+            section Build
+            Implement sync (#102) :task2, after task1, 3d
+        ```
+      MARKDOWN
+      allow(state_store).to receive(:project_sync_data).with(102).and_return({})
+
+      expect(
+        real_synchronizer.sync_issue_status_to_gantt(
+          prd_path: file,
+          issue_number: 102,
+          status: "Done"
+        )
+      ).to be true
+
+      content = File.read(file)
+      expect(content).to include("flowchart TD")
+      expect(content).to include("Implement sync (#102) :done, task2, after task1, 3d")
     end
   end
 end

@@ -104,6 +104,27 @@ RSpec.describe Aidp::Watch::PrdParser do
       expect(tasks["b1"][:end_date]).to eq(Date.new(2026, 7, 3))
     end
 
+    it "parses the Mermaid gantt block when earlier Mermaid blocks use a different diagram type" do
+      file = File.join(tmp_dir, "multiple_mermaid_blocks.md")
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        flowchart TD
+            A[Start] --> B[Finish]
+        ```
+
+        ```mermaid
+        gantt
+            section Planning
+            Task A :a1, 2026-07-01, 2d
+        ```
+      MARKDOWN
+
+      result = described_class.new(file_path: file).parse
+
+      expect(result[:format]).to eq(:mermaid)
+      expect(result[:tasks].map { |task| task[:id] }).to eq(["a1"])
+    end
+
     it "rejects markdown files that do not contain a Mermaid gantt chart" do
       file = File.join(tmp_dir, "product_requirements.md")
       File.write(file, <<~MARKDOWN)

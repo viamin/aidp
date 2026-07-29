@@ -213,7 +213,7 @@ module Aidp
       end
 
       def mermaid_task_line_index(content, tasks, issue_number)
-        line_number = tasks.find { |task| task[:issue_number] == issue_number }&.dig(:line_number)
+        line_number = find_mermaid_task(tasks, issue_number)&.dig(:line_number)
         return unless line_number
 
         line_number + mermaid_chart_line_offset(content) - 1
@@ -221,8 +221,29 @@ module Aidp
 
       def mermaid_chart_line_offset(content)
         lines = content.lines
-        mermaid_start = lines.index { |line| line.match?(/\A```mermaid\b/) }
+        mermaid_start = lines.each_index.find do |index|
+          mermaid_gantt_block?(lines, index)
+        end
         mermaid_start ? mermaid_start + 1 : 0
+      end
+
+      def find_mermaid_task(tasks, issue_number)
+        sync_data = @state_store.project_sync_data(issue_number)
+        gantt_task_id = sync_data["gantt_task_id"]
+
+        tasks.find { |task| task[:id] == gantt_task_id } ||
+          tasks.find { |task| task[:issue_number] == issue_number }
+      end
+
+      def mermaid_gantt_block?(lines, start_index)
+        return false unless lines[start_index].match?(/\A```mermaid\b/)
+
+        block_lines = lines[(start_index + 1)..]
+        return false unless block_lines
+
+        block_lines.take_while { |line| !line.match?(/\A\s*```\s*$/) }.any? do |line|
+          line.strip == "gantt"
+        end
       end
 
       def normalize_title(title)
