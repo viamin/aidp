@@ -238,9 +238,7 @@ module Aidp
       end
 
       def record_dependencies(created_issues)
-        title_map = created_issues.each_with_object({}) do |issue, memo|
-          memo[issue[:title].downcase] = issue[:number]
-        end
+        title_map = build_title_map(created_issues)
 
         created_issues.each do |issue|
           dependency_numbers, unresolved_dependencies = resolve_dependency_numbers(issue[:dependencies], title_map)
@@ -264,12 +262,43 @@ module Aidp
           "Unable to resolve dependencies for sub-issue ##{issue[:number]} (#{issue[:title]}): #{dependency_list}"
       end
 
+      def build_title_map(created_issues)
+        duplicate_titles = duplicate_normalized_titles(created_issues)
+        if duplicate_titles.empty?
+          return created_issues.each_with_object({}) do |issue, memo|
+            memo[normalize_title(issue[:title])] = issue[:number]
+          end
+        end
+
+        raise UnresolvedDependenciesError,
+          "Duplicate sub-issue titles after normalization are not allowed: #{duplicate_titles.join(", ")}"
+      end
+
+      def duplicate_normalized_titles(created_issues)
+        grouped_titles = created_issues.each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |issue, memo|
+          normalized_title = normalize_title(issue[:title])
+          next if normalized_title.empty?
+
+          memo[normalized_title] << issue[:title].to_s.strip
+        end
+
+        grouped_titles.filter_map do |_normalized_title, titles|
+          next unless titles.size > 1
+
+          titles.uniq.join(" / ")
+        end
+      end
+
+      def normalize_title(title)
+        title.to_s.strip.downcase
+      end
+
       def resolve_dependency_number(dependency, title_map)
         text = dependency.to_s.strip
         match = text.match(/\A#(\d+)\z/)
         return match[1].to_i if match
 
-        title_map[text.downcase]
+        title_map[normalize_title(text)]
       end
 
       def sub_issue_dependencies(sub_data)

@@ -325,6 +325,35 @@ RSpec.describe Aidp::Watch::SubIssueCreator do
         end.to raise_error(Aidp::Watch::SubIssueCreator::UnresolvedDependenciesError)
       end
     end
+
+    context "when duplicate normalized sub-issue titles are created" do
+      let(:sub_issues_data) do
+        [
+          {title: "Setup"},
+          {title: " setup "}
+        ]
+      end
+
+      before do
+        allow(repository_client).to receive(:create_issue).and_return(
+          {number: 43, url: "https://github.com/test/repo/issues/43"},
+          {number: 44, url: "https://github.com/test/repo/issues/44"}
+        )
+      end
+
+      it "raises and cleans up instead of silently overwriting the title map" do
+        expect(repository_client).to receive(:close_issue).with(43)
+        expect(repository_client).to receive(:close_issue).with(44)
+        expect(state_store).not_to receive(:record_sub_issues)
+
+        expect do
+          creator.create_sub_issues(parent_issue, sub_issues_data)
+        end.to raise_error(
+          Aidp::Watch::SubIssueCreator::UnresolvedDependenciesError,
+          /Duplicate sub-issue titles after normalization are not allowed: Setup \/ setup/
+        )
+      end
+    end
   end
 
   describe "#initialize" do

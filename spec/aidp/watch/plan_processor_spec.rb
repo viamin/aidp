@@ -539,6 +539,86 @@ RSpec.describe Aidp::Watch::PlanProcessor do
     expect(project_sync["setup_error"]).to eq("Unable to resolve dependencies for sub-issue #43 (API slice): Missing task")
   end
 
+  it "moves project issues to needs-input when reused tracked sub-issues have duplicate normalized titles" do
+    project_plan = {
+      summary: "Implement the requested feature",
+      tasks: ["Add API endpoint"],
+      questions: [],
+      should_create_sub_issues: true,
+      sub_issues: [
+        {title: "Setup", tasks: ["Ship API"], dependencies: []},
+        {title: " setup ", tasks: ["Use setup"], dependencies: ["Setup"]}
+      ]
+    }
+    project_generator = instance_double(Aidp::Watch::PlanGenerator, generate: project_plan)
+    project_processor = described_class.new(
+      repository_client: repository_client,
+      state_store: state_store,
+      plan_generator: project_generator
+    )
+    projects_processor = instance_double(Aidp::Watch::ProjectsProcessor, ensure_project_fields: true)
+    creator = instance_double(Aidp::Watch::SubIssueCreator)
+
+    state_store.record_sub_issues(42, [43, 44])
+    state_store.record_issue_dependencies(43, [])
+    state_store.record_issue_dependencies(44, [])
+
+    allow(repository_client).to receive(:most_recent_label_actor).with(42).and_return(nil)
+    allow(repository_client).to receive(:post_comment)
+    allow(repository_client).to receive(:find_active_project).and_return({id: "PVT_1", title: "AIDP Project", url: "https://example.com/project"})
+    allow(Aidp::Watch::ProjectsProcessor).to receive(:new).and_return(projects_processor)
+    allow(Aidp::Watch::SubIssueCreator).to receive(:new).and_return(creator)
+    allow(creator).to receive(:create_sub_issues)
+    allow(creator).to receive(:planned_sub_issue_attributes).with(issue, project_plan[:sub_issues][0], 1).and_return(
+      {
+        title: "Setup",
+        body: "body one",
+        labels: ["aidp-build"],
+        assignees: [],
+        dependencies: []
+      }
+    )
+    allow(creator).to receive(:planned_sub_issue_attributes).with(issue, project_plan[:sub_issues][1], 2).and_return(
+      {
+        title: " setup ",
+        body: "body two",
+        labels: ["aidp-blocked"],
+        assignees: [],
+        dependencies: ["Setup"]
+      }
+    )
+    allow(repository_client).to receive(:fetch_issue).with(43).and_return(
+      number: 43,
+      title: "Setup",
+      body: "body one",
+      labels: ["aidp-build"],
+      assignees: [],
+      state: "open"
+    )
+    allow(repository_client).to receive(:fetch_issue).with(44).and_return(
+      number: 44,
+      title: " setup ",
+      body: "body two",
+      labels: ["aidp-blocked"],
+      assignees: [],
+      state: "open"
+    )
+
+    expect(repository_client).to receive(:replace_labels).with(
+      42,
+      old_labels: ["aidp-project", "aidp-plan", "aidp-build"],
+      new_labels: ["aidp-needs-input"]
+    )
+
+    project_processor.process(issue, trigger_label: "aidp-project")
+
+    expect(creator).not_to have_received(:create_sub_issues)
+
+    project_sync = state_store.project_sync_data(42)
+    expect(project_sync["setup_status"]).to eq("failed")
+    expect(project_sync["setup_error"]).to eq("Duplicate sub-issue titles after normalization are not allowed: Setup / setup")
+  end
+
   it "moves project issues to needs-input when project sync fails" do
     project_plan = {
       summary: "Implement the requested feature",

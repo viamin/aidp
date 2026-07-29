@@ -432,31 +432,56 @@ module Aidp
       end
 
       def reconcile_existing_sub_issues(parent_issue, existing_numbers, sub_issues, creator)
-        issue_numbers_by_title = {}
-
-        sub_issues.each_with_index.map do |sub_issue, index|
+        tracked_issues = sub_issues.each_with_index.map do |sub_issue, index|
           number = existing_numbers.fetch(index)
           tracked_issue = @repository_client.fetch_issue(number)
           planned_issue = creator.planned_sub_issue_attributes(parent_issue, sub_issue, index + 1)
           update_tracked_sub_issue(number, tracked_issue, planned_issue) unless tracked_sub_issue_contract_matches?(tracked_issue, planned_issue)
 
-          title = planned_issue[:title].to_s.strip
-          issue_numbers_by_title[title.downcase] = number unless title.empty?
-          {number: number, title: title, dependencies: Array(sub_issue[:dependencies])}
-        end.then do |tracked_issues|
-          tracked_issues.each do |tracked_issue|
-            dependencies, unresolved_dependencies = resolve_tracked_dependencies(
-              tracked_issue[:dependencies],
-              issue_numbers_by_title
-            )
-            if unresolved_dependencies.any?
-              raise SubIssueCreator::UnresolvedDependenciesError,
-                "Unable to resolve dependencies for sub-issue ##{tracked_issue[:number]} (#{tracked_issue[:title]}): #{unresolved_dependencies.join(", ")}"
-            end
+          {number: number, title: planned_issue[:title].to_s.strip, dependencies: Array(sub_issue[:dependencies])}
+        end
 
-            @state_store.record_issue_dependencies(tracked_issue[:number], dependencies)
-            tracked_issue[:dependencies] = dependencies
+        issue_numbers_by_title = build_issue_numbers_by_title(tracked_issues)
+        tracked_issues.each do |tracked_issue|
+          dependencies, unresolved_dependencies = resolve_tracked_dependencies(
+            tracked_issue[:dependencies],
+            issue_numbers_by_title
+          )
+          if unresolved_dependencies.any?
+            raise SubIssueCreator::UnresolvedDependenciesError,
+              "Unable to resolve dependencies for sub-issue ##{tracked_issue[:number]} (#{tracked_issue[:title]}): #{unresolved_dependencies.join(", ")}"
           end
+
+          @state_store.record_issue_dependencies(tracked_issue[:number], dependencies)
+          tracked_issue[:dependencies] = dependencies
+        end
+      end
+
+      def build_issue_numbers_by_title(tracked_issues)
+        duplicate_titles = duplicate_normalized_tracked_titles(tracked_issues)
+        if duplicate_titles.empty?
+          return tracked_issues.each_with_object({}) do |tracked_issue, memo|
+            normalized_title = normalize_sub_issue_title(tracked_issue[:title])
+            memo[normalized_title] = tracked_issue[:number] unless normalized_title.empty?
+          end
+        end
+
+        raise SubIssueCreator::UnresolvedDependenciesError,
+          "Duplicate sub-issue titles after normalization are not allowed: #{duplicate_titles.join(", ")}"
+      end
+
+      def duplicate_normalized_tracked_titles(tracked_issues)
+        grouped_titles = tracked_issues.each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |tracked_issue, memo|
+          normalized_title = normalize_sub_issue_title(tracked_issue[:title])
+          next if normalized_title.empty?
+
+          memo[normalized_title] << tracked_issue[:title].to_s.strip
+        end
+
+        grouped_titles.filter_map do |_normalized_title, titles|
+          next unless titles.size > 1
+
+          titles.uniq.join(" / ")
         end
       end
 
@@ -464,7 +489,7 @@ module Aidp
         Array(dependencies).each_with_object([[], []]) do |dependency, (resolved, unresolved)|
           text = dependency.to_s.strip
           match = text.match(/\A#(\d+)\z/)
-          resolved_dependency = match ? match[1].to_i : issue_numbers_by_title[text.downcase]
+          resolved_dependency = match ? match[1].to_i : issue_numbers_by_title[normalize_sub_issue_title(text)]
           resolved_dependency ? resolved << resolved_dependency : unresolved << dependency
         end
       end
