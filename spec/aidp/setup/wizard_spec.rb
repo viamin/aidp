@@ -18,6 +18,7 @@ RSpec.describe Aidp::Setup::Wizard do
         "Select your primary provider:" => "anthropic",
         "Billing model for anthropic:" => "usage_based",
         "Preferred model family for anthropic:" => "Auto (let provider decide)",
+        "Choose PRD interaction style:" => "balanced",
         # Required logging configuration
         "Log level:" => "Info",
         # Required VCS configuration
@@ -75,6 +76,7 @@ RSpec.describe Aidp::Setup::Wizard do
           "Select your primary provider:" => "anthropic",
           "Billing model for anthropic:" => "usage_based",
           "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
           "Log level:" => "Info",
           "Detected git. Use this version control system?" => "git",
           "Which version control system do you use?" => "git",
@@ -100,6 +102,7 @@ RSpec.describe Aidp::Setup::Wizard do
           "Select your primary provider:" => "anthropic",
           "Billing model for anthropic:" => "usage_based",
           "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
           "Log level:" => "Info",
           "Detected git. Use this version control system?" => "git",
           "Which version control system do you use?" => "git",
@@ -139,6 +142,7 @@ RSpec.describe Aidp::Setup::Wizard do
           "Select your primary provider:" => "anthropic",
           "Billing model for anthropic:" => "usage_based",
           "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
           "Log level:" => "Info",
           "Detected git. Use this version control system?" => "git",
           "Which version control system do you use?" => "git",
@@ -179,6 +183,7 @@ RSpec.describe Aidp::Setup::Wizard do
           "Select your primary provider:" => "anthropic",
           "Billing model for anthropic:" => "usage_based",
           "Preferred model family for anthropic:" => "Auto (let provider decide)",
+          "Choose PRD interaction style:" => "balanced",
           "Log level:" => "Info",
           "Detected git. Use this version control system?" => "git",
           "Which version control system do you use?" => "git",
@@ -197,6 +202,7 @@ RSpec.describe Aidp::Setup::Wizard do
       wizard.run
       yaml = wizard.send(:generate_yaml)
       expect(yaml).to include("# Provider configuration")
+      expect(yaml).to include("# PRD questioning depth and autonomy")
       expect(yaml).to include("schema_version:")
     end
 

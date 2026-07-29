@@ -14,6 +14,34 @@ generated_at: 2024-05-01T12:34:56Z
 
 Keep `schema_version` intact so future releases can migrate the file.
 
+## PRD Generation
+
+```yaml
+prd_generation:
+  interaction_style: balanced
+  default_style: balanced
+  max_question_rounds:
+    detailed: 30
+    balanced: 10
+    quick_sketch: 3
+```
+
+- `interaction_style` selects the default guided-planning depth.
+- `default_style` is stored alongside the selected style so teams can see the intended repo default explicitly.
+- `max_question_rounds` controls the cap for each planning style.
+
+Available styles:
+
+- `detailed`: deep requirement discovery, more follow-up questions, low assumption making.
+- `balanced`: the default. Moderate questioning with some autonomous decisions when context is already clear.
+- `quick_sketch`: 1-3 rounds, optimized for MVP planning, with inferred assumptions written into the PRD.
+
+You can override the configured default for a guided planning session with:
+
+```bash
+aidp --style quick_sketch
+```
+
 ## Providers
 
 ```yaml

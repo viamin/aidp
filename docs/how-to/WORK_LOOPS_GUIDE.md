@@ -147,6 +147,18 @@ Simply run `aidp` to start Copilot:
 aidp
 ```
 
+Guided planning now respects the configured PRD interaction style from `.aidp/aidp.yml`:
+
+- `detailed`: up to 30 planning rounds, lowest autonomy.
+- `balanced`: default mode, usually 5-10 rounds with moderate autonomy.
+- `quick_sketch`: up to 3 rounds, highest autonomy, optimized for MVP sketches.
+
+You can temporarily override the saved style for a session:
+
+```bash
+aidp --style quick_sketch
+```
+
 Select "Guided Workflow" and simply describe what you want to do:
 
 **Examples:**

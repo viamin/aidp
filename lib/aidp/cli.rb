@@ -347,6 +347,7 @@ module Aidp
           opts.on("-v", "--version", "Show version information") { options[:version] = true }
           opts.on("--setup-config", "Setup or reconfigure config file") { options[:setup_config] = true }
           opts.on("--verbose", "Show detailed prompts and raw provider responses during guided workflow") { options[:verbose] = true }
+          opts.on("--style STYLE", "Override PRD style for guided planning (detailed, balanced, quick_sketch)") { |style| options[:style] = style }
           opts.on("--quiet", "Suppress non-critical output (incompatible with --verbose and --interactive)") { options[:quiet] = true }
           # Undocumented: Quick exit launch test for CI/CD validation
           opts.on("--launch-test", nil) { options[:launch_test] = true }

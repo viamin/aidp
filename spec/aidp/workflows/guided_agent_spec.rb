@@ -36,6 +36,15 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
       "enabled" => true,
       "default_provider" => "claude"
     })
+    allow(config_manager).to receive(:prd_generation_config).and_return({
+      interaction_style: "balanced",
+      max_question_rounds: {
+        detailed: 30,
+        balanced: 10,
+        quick_sketch: 3
+      }
+    })
+    allow(config_manager).to receive(:config).and_return({})
 
     # Setup provider_manager and provider_factory stubs (passed via dependency injection)
     allow(provider_factory).to receive(:create_provider).and_return(provider)
@@ -285,10 +294,37 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         allow(prompt).to receive(:ask).and_return("More details")
       end
 
-      it "breaks out of infinite loop after 10 iterations" do
+      it "breaks out of infinite loop after the configured style limit" do
         # Just verify that it eventually completes without hanging
         result = agent.select_workflow
         expect(result).to have_key(:steps)
+      end
+    end
+
+    context "with quick sketch style override" do
+      subject(:quick_sketch_agent) do
+        described_class.new(
+          project_dir,
+          prompt: prompt,
+          interaction_style: "quick_sketch",
+          config_manager: config_manager,
+          provider_manager: provider_manager
+        )
+      end
+
+      before do
+        allow(provider).to receive(:send_message).and_return(
+          {complete: true, questions: [], reasoning: "Fast sketch", assumptions: ["Assuming MVP scope"]}.to_json,
+          step_identification_response.to_json
+        )
+      end
+
+      it "writes the selected style and assumptions to the PRD" do
+        quick_sketch_agent.select_workflow
+
+        prd_content = File.read(File.join(project_dir, "docs", "prd.md"))
+        expect(prd_content).to include("PRD Style: quick_sketch")
+        expect(prd_content).to include("Assuming MVP scope")
       end
     end
 
@@ -413,6 +449,15 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
         # Verify we went through refinement cycle
         expect(prompt).to have_received(:yes?).twice
         expect(prompt).to have_received(:ask).with("What would you like to add or clarify?")
+      end
+
+      it "fills in inferred assumptions for missing detail" do
+        allow(prompt).to receive(:yes?).with(/Is this plan ready for execution/).and_return(true)
+
+        plan = agent.send(:iterative_planning)
+
+        expect(plan[:assumptions]).not_to be_empty
+        expect(plan[:metadata][:interaction_style]).to eq("balanced")
       end
     end
 
@@ -908,7 +953,11 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     let(:mock_config_manager) do
-      instance_double(Aidp::Harness::ConfigManager, config: mock_config)
+      instance_double(
+        Aidp::Harness::ConfigManager,
+        config: mock_config,
+        prd_generation_config: {interaction_style: "balanced", max_question_rounds: {detailed: 30, balanced: 10, quick_sketch: 3}}
+      )
     end
 
     let(:cursor_provider) do
@@ -1046,7 +1095,11 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
     end
 
     let(:single_provider_config_manager) do
-      instance_double(Aidp::Harness::ConfigManager, config: single_provider_config)
+      instance_double(
+        Aidp::Harness::ConfigManager,
+        config: single_provider_config,
+        prd_generation_config: {interaction_style: "balanced", max_question_rounds: {detailed: 30, balanced: 10, quick_sketch: 3}}
+      )
     end
 
     let(:failing_cursor_provider) do
@@ -1127,7 +1180,11 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   let(:resource_exhaustion_config_manager) do
-    instance_double(Aidp::Harness::ConfigManager, config: resource_exhaustion_config)
+    instance_double(
+      Aidp::Harness::ConfigManager,
+      config: resource_exhaustion_config,
+      prd_generation_config: {interaction_style: "balanced", max_question_rounds: {detailed: 30, balanced: 10, quick_sketch: 3}}
+    )
   end
 
   let(:exhausting_cursor_provider) do
@@ -1204,7 +1261,11 @@ RSpec.describe Aidp::Workflows::GuidedAgent do
   end
 
   let(:retry_failure_config_manager) do
-    instance_double(Aidp::Harness::ConfigManager, config: retry_failure_config)
+    instance_double(
+      Aidp::Harness::ConfigManager,
+      config: retry_failure_config,
+      prd_generation_config: {interaction_style: "balanced", max_question_rounds: {detailed: 30, balanced: 10, quick_sketch: 3}}
+    )
   end
 
   let(:always_failing_cursor_provider) do

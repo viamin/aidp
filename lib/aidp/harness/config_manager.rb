@@ -10,6 +10,16 @@ module Aidp
     class ConfigManager
       include ProviderTypeChecker
 
+      DEFAULT_PRD_GENERATION = {
+        interaction_style: "balanced",
+        default_style: "balanced",
+        max_question_rounds: {
+          detailed: 30,
+          balanced: 10,
+          quick_sketch: 3
+        }
+      }.freeze
+
       attr_reader :project_dir
 
       def initialize(project_dir = Dir.pwd)
@@ -195,6 +205,24 @@ module Aidp
         }
       end
 
+      def prd_generation_config(options = {})
+        config = config(options)
+        raw_config = config&.dig(:prd_generation) || config&.dig("prd_generation") || {}
+        raw_rounds = raw_config[:max_question_rounds] || raw_config["max_question_rounds"] || {}
+
+        {
+          interaction_style: raw_config[:interaction_style] || raw_config["interaction_style"] || DEFAULT_PRD_GENERATION[:interaction_style],
+          default_style: raw_config[:default_style] || raw_config["default_style"] || DEFAULT_PRD_GENERATION[:default_style],
+          max_question_rounds: DEFAULT_PRD_GENERATION[:max_question_rounds].merge(
+            symbolize_keys(raw_rounds)
+          )
+        }
+      end
+
+      def prd_interaction_style(options = {})
+        prd_generation_config(options)[:interaction_style]
+      end
+
       # Get provider models
       def provider_models(provider_name, options = {})
         provider_config = provider_config(provider_name, options)
@@ -350,6 +378,12 @@ module Aidp
       end
 
       private
+
+      def symbolize_keys(hash)
+        hash.each_with_object({}) do |(key, value), memo|
+          memo[key.to_sym] = value
+        end
+      end
 
       def load_config_with_options(options)
         # Apply different loading strategies based on options
