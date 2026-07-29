@@ -110,5 +110,52 @@ RSpec.describe Aidp::Security::McpToolRiskClassifier do
       expect(profile).to be_empty
       expect(profile.generator_model).to eq("none")
     end
+
+    it "conservatively classifies tools omitted from the model response" do
+      allow(provider).to receive(:send_message).and_return(<<~JSON)
+        {
+          "tools": [
+            {
+              "name": "filesystem",
+              "flags": ["private_data"],
+              "risk_level": "medium",
+              "rationale": "Can read local files."
+            }
+          ]
+        }
+      JSON
+
+      profile = classifier.generate!
+
+      expect(profile.flags_for("filesystem")).to eq(["private_data"])
+      expect(profile.flags_for("web")).to match_array(%w[untrusted_input private_data egress])
+      expect(profile.risk_level_for("web")).to eq("high")
+    end
+
+    it "conservatively classifies malformed tool entries" do
+      allow(provider).to receive(:send_message).and_return(<<~JSON)
+        {
+          "tools": [
+            {
+              "name": "filesystem",
+              "risk_level": "medium",
+              "rationale": "Can read local files."
+            },
+            {
+              "name": "web",
+              "flags": ["egress"],
+              "risk_level": "medium",
+              "rationale": "Makes external HTTP requests."
+            }
+          ]
+        }
+      JSON
+
+      profile = classifier.generate!
+
+      expect(profile.flags_for("filesystem")).to match_array(%w[untrusted_input private_data egress])
+      expect(profile.risk_level_for("filesystem")).to eq("high")
+      expect(profile.flags_for("web")).to eq(["egress"])
+    end
   end
 end

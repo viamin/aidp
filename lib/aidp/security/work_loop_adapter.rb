@@ -42,11 +42,12 @@ module Aidp
         issue_comment
       ].freeze
 
-      def initialize(project_dir:, config: nil, enforcer: nil, secrets_proxy: nil)
+      def initialize(project_dir:, config: nil, enforcer: nil, secrets_proxy: nil, provider_info_class: nil)
         @project_dir = project_dir
         @config = config || load_security_config
         @enforcer = enforcer || Aidp::Security.enforcer
         @secrets_proxy = secrets_proxy || Aidp::Security.secrets_proxy
+        @provider_info_class = provider_info_class || Aidp::Harness::ProviderInfo
         @mcp_risk_profile = load_mcp_risk_profile
         @current_work_unit_id = nil
         @current_state = nil
@@ -147,6 +148,24 @@ module Aidp
         @current_state
       end
 
+      # Apply deterministic MCP tool risk flags for all MCP servers configured on
+      # the selected provider. This keeps runtime enforcement aligned with the
+      # profile's "tool available to the agent" classification semantics.
+      def apply_provider_mcp_tool_risk!(provider_name, force_refresh: false)
+        return @current_state unless enabled? && @current_state
+
+        provider_mcp_server_names(provider_name, force_refresh: force_refresh).each do |tool_name|
+          apply_mcp_tool_risk!(tool_name)
+        end
+
+        @current_state
+      rescue => e
+        Aidp.log_warn("security.adapter", "mcp_provider_lookup_failed",
+          provider: provider_name,
+          error: e.message)
+        apply_unknown_mcp_risk!(provider_name)
+      end
+
       # Request credentials through the secrets proxy
       # This enables the private_data flag and returns a short-lived token
       # @param secret_name [String] The registered secret name
@@ -239,6 +258,24 @@ module Aidp
         Aidp::Security::McpRiskProfile.load(@project_dir)
       rescue
         Aidp::Security::McpRiskProfile.new(tools: {})
+      end
+
+      def provider_mcp_server_names(provider_name, force_refresh: false)
+        info = @provider_info_class.new(provider_name, project_dir).info(force_refresh: force_refresh)
+        return [] unless info&.dig(:mcp_support)
+
+        Array(info[:mcp_servers]).filter_map do |server|
+          name = server[:name].to_s.strip
+          name unless name.empty?
+        end.uniq
+      end
+
+      def apply_unknown_mcp_risk!(provider_name)
+        %i[untrusted_input private_data egress].each do |flag|
+          @current_state.enable(flag, source: "mcp_provider:#{provider_name}:unknown_tools")
+        end
+
+        @current_state
       end
 
       # Detect untrusted input sources in the context

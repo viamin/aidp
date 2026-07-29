@@ -67,7 +67,7 @@ RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
   # Disable in CI to avoid permission issues with read-only file systems
   unless ENV["CI"]
-    config.example_status_persistence_file_path = ".rspec_status"
+    config.example_status_persistence_file_path = File.expand_path("../.rspec_status", __dir__)
   end
 
   config.expect_with :rspec do |c|

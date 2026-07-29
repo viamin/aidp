@@ -1094,6 +1094,7 @@ module Aidp
           # Execute with sanitized environment (secrets stripped) when security is enabled
           # This ensures agent processes cannot access registered secrets directly
           execute_block = lambda do
+            @security_adapter.apply_provider_mcp_tool_risk!(provider_name)
             @provider_manager.execute_with_provider(
               provider_name,
               full_prompt,

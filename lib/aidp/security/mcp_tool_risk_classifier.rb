@@ -11,6 +11,9 @@ module Aidp
   module Security
     # Generates an MCP tool risk profile using an AI call at configuration time.
     class McpToolRiskClassifier
+      RISK_FLAGS = %w[untrusted_input private_data egress].freeze
+      RISK_LEVELS = %w[low medium high].freeze
+
       GENERATION_PROMPT = <<~PROMPT
         You are classifying MCP tools for Rule-of-Two security enforcement.
 
@@ -54,7 +57,7 @@ module Aidp
 
         provider_name, model_name = select_model(tier)
         response = call_ai(provider_name, model_name, build_prompt(tools))
-        profile = build_profile(response, model_name)
+        profile = build_profile(response, model_name, expected_tools: tools)
         profile.save!(project_dir)
         profile
       rescue => e
@@ -123,17 +126,16 @@ module Aidp
         provider.send_message(prompt: prompt, session: nil)
       end
 
-      def build_profile(response, model_name)
+      def build_profile(response, model_name, expected_tools:)
         parsed = parse_response(response)
-        tools_hash = Array(parsed[:tools]).each_with_object({}) do |tool, hash|
-          name = tool[:name].to_s.strip
-          next if name.empty?
+        classified_tools = index_classified_tools(parsed)
+        expected_names = expected_tools.map { |tool| tool[:name] }
 
-          hash[name] = {
-            flags: Array(tool[:flags]),
-            risk_level: tool[:risk_level],
-            rationale: tool[:rationale]
-          }
+        log_unexpected_tools(classified_tools.keys - expected_names)
+
+        tools_hash = expected_names.each_with_object({}) do |tool_name, hash|
+          tool_profile = classified_tools[tool_name]
+          hash[tool_name] = tool_profile || conservative_tool_profile(tool_name)
         end
 
         McpRiskProfile.new(
@@ -151,6 +153,45 @@ module Aidp
         JSON.parse(json_match[0], symbolize_names: true)
       rescue JSON::ParserError => e
         raise "Invalid JSON in AI response: #{e.message}"
+      end
+
+      def index_classified_tools(parsed)
+        Array(parsed[:tools]).each_with_object({}) do |tool, hash|
+          name = tool[:name].to_s.strip
+          next if name.empty?
+
+          normalized = normalize_tool_profile(tool)
+          hash[name] = normalized if normalized
+        end
+      end
+
+      def normalize_tool_profile(tool)
+        flags = tool[:flags]
+        return unless flags.is_a?(Array) && RISK_LEVELS.include?(tool[:risk_level].to_s)
+
+        {
+          flags: flags.map(&:to_s).select { |flag| RISK_FLAGS.include?(flag) }.uniq,
+          risk_level: tool[:risk_level].to_s,
+          rationale: tool[:rationale].to_s.strip
+        }
+      end
+
+      def conservative_tool_profile(tool_name)
+        Aidp.log_warn("security.mcp_classifier", "missing_tool_classification",
+          tool_name: tool_name)
+
+        {
+          flags: RISK_FLAGS,
+          risk_level: "high",
+          rationale: "Conservative fallback: model response omitted or malformed classification for #{tool_name}."
+        }
+      end
+
+      def log_unexpected_tools(tool_names)
+        return if tool_names.empty?
+
+        Aidp.log_warn("security.mcp_classifier", "unexpected_tool_classifications",
+          tool_names: tool_names)
       end
     end
   end
