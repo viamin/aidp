@@ -115,6 +115,8 @@ module Aidp
       def meets_threshold?(fragment, score, thresholds)
         threshold = if fragment.class.name.include?("Fragment") && fragment.respond_to?(:heading)
           thresholds[:style_guide] || 0.75
+        elsif fragment.respond_to?(:linked_paths)
+          thresholds[:knowledge] || 0.72
         elsif fragment.respond_to?(:category)
           thresholds[:templates] || 0.8
         elsif fragment.respond_to?(:file_path) && fragment.respond_to?(:type)
@@ -248,6 +250,8 @@ module Aidp
           case type
           when :style_guide
             item[:fragment].class.name.include?("Fragment") && item[:fragment].respond_to?(:heading)
+          when :project_knowledge
+            item[:fragment].respond_to?(:linked_paths)
           when :template
             item[:fragment].respond_to?(:category) && !item[:fragment].respond_to?(:type)
           when :code
@@ -272,6 +276,7 @@ module Aidp
           over_budget: over_budget?,
           by_type: {
             style_guide: fragments_by_type(:style_guide).count,
+            project_knowledge: fragments_by_type(:project_knowledge).count,
             templates: fragments_by_type(:template).count,
             code: fragments_by_type(:code).count
           }

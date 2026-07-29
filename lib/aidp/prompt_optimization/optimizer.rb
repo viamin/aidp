@@ -6,6 +6,7 @@ require_relative "source_code_fragmenter"
 require_relative "relevance_scorer"
 require_relative "context_composer"
 require_relative "prompt_builder"
+require_relative "project_knowledge_indexer"
 
 module Aidp
   module PromptOptimization
@@ -38,6 +39,7 @@ module Aidp
         @style_guide_indexer = nil
         @template_indexer = nil
         @fragmenter = nil
+        @project_knowledge_indexer = nil
         @scorer = nil
         @composer = nil
         @builder = nil
@@ -127,6 +129,10 @@ module Aidp
         template_indexer.index!
         fragments.concat(template_indexer.templates)
 
+        # Project knowledge fragments
+        project_knowledge_indexer.index!
+        fragments.concat(project_knowledge_indexer.fragments)
+
         # Source code fragments (only for affected files)
         if affected_files && !affected_files.empty?
           code_fragments = fragmenter.fragment_files(affected_files)
@@ -178,6 +184,10 @@ module Aidp
       # Get or create source code fragmenter (cached)
       def fragmenter
         @fragmenter ||= SourceCodeFragmenter.new(project_dir: @project_dir)
+      end
+
+      def project_knowledge_indexer
+        @project_knowledge_indexer ||= ProjectKnowledgeIndexer.new(project_dir: @project_dir)
       end
 
       # Get or create relevance scorer (cached)

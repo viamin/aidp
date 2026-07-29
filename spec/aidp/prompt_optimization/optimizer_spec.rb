@@ -21,6 +21,50 @@ RSpec.describe Aidp::PromptOptimization::Optimizer do
     }
   end
   let(:optimizer) { described_class.new(project_dir: temp_dir, config: config) }
+  let(:sample_style_guide) do
+    <<~MARKDOWN
+      # LLM Style Guide
+
+      ## Testing Guidelines
+
+      Write comprehensive tests for all code.
+
+      ## Implementation Best Practices
+
+      Follow Ruby conventions and keep methods small.
+    MARKDOWN
+  end
+  let(:sample_template) do
+    <<~MARKDOWN
+      # Feature Implementation Template
+
+      Use this template for implementing new features.
+
+      ## Steps
+      1. Write tests
+      2. Implement feature
+    MARKDOWN
+  end
+  let(:sample_source_file) do
+    <<~RUBY
+      class User
+        def authenticate(password)
+          password == "secret"
+        end
+      end
+    RUBY
+  end
+  let(:sample_feature_note) do
+    <<~MARKDOWN
+      # Authentication Feature
+
+      ## Paths
+      <authentication:lib/user.rb>
+
+      ## Purpose
+      - Handles user authentication behavior.
+    MARKDOWN
+  end
 
   before do
     # Create minimal file structure
@@ -46,6 +90,12 @@ RSpec.describe Aidp::PromptOptimization::Optimizer do
     File.write(
       File.join(temp_dir, "lib", "user.rb"),
       sample_source_file
+    )
+
+    FileUtils.mkdir_p(File.join(temp_dir, "docs", "features"))
+    File.write(
+      File.join(temp_dir, "docs", "features", "authentication.md"),
+      sample_feature_note
     )
   end
 
@@ -118,6 +168,18 @@ RSpec.describe Aidp::PromptOptimization::Optimizer do
       )
 
       expect(result.content).to include("# Template Guidance")
+    end
+
+    it "includes project knowledge notes when files match" do
+      result = optimizer.optimize_prompt(
+        task_type: :feature,
+        description: "Update authentication behavior",
+        affected_files: ["lib/user.rb"],
+        step_name: "implementation"
+      )
+
+      expect(result.content).to include("# Project Knowledge")
+      expect(result.content).to include("Authentication Feature")
     end
 
     it "includes code fragments from affected files" do

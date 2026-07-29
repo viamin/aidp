@@ -31,11 +31,13 @@ module Aidp
 
         # Group fragments by type
         style_guide_fragments = composition_result.fragments_by_type(:style_guide)
+        project_knowledge_fragments = composition_result.fragments_by_type(:project_knowledge)
         template_fragments = composition_result.fragments_by_type(:template)
         code_fragments = composition_result.fragments_by_type(:code)
 
         # Add relevant sections if they have content
         sections << build_style_guide_section(style_guide_fragments) unless style_guide_fragments.empty?
+        sections << build_project_knowledge_section(project_knowledge_fragments) unless project_knowledge_fragments.empty?
         sections << build_template_section(template_fragments) unless template_fragments.empty?
         sections << build_code_section(code_fragments) unless code_fragments.empty?
 
@@ -139,6 +141,25 @@ module Aidp
         lines.join("\n")
       end
 
+      def build_project_knowledge_section(fragments)
+        lines = ["# Project Knowledge"]
+        lines << ""
+        lines << "Concise notes associated with the affected files:"
+        lines << ""
+
+        fragments.each do |item|
+          fragment = item[:fragment]
+          lines << "## #{fragment.title}"
+          lines << ""
+          lines << "**Type**: #{fragment.note_type}"
+          lines << ""
+          lines << fragment.content
+          lines << ""
+        end
+
+        lines.join("\n")
+      end
+
       # Build code context section
       #
       # @param fragments [Array<Hash>] Code fragments
@@ -198,6 +219,7 @@ module Aidp
         lines << "## Fragments by Type"
         lines << ""
         lines << "- **Style Guide Sections**: #{summary[:by_type][:style_guide]}"
+        lines << "- **Project Knowledge Notes**: #{summary[:by_type][:project_knowledge]}"
         lines << "- **Templates**: #{summary[:by_type][:templates]}"
         lines << "- **Code Fragments**: #{summary[:by_type][:code]}"
         lines << ""

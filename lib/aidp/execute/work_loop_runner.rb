@@ -8,6 +8,7 @@ require_relative "guard_policy"
 require_relative "work_loop_unit_scheduler"
 require_relative "deterministic_unit"
 require_relative "agent_signal_parser"
+require_relative "project_knowledge_manager"
 require_relative "steps"
 require_relative "../harness/test_runner"
 require_relative "../errors"
@@ -61,6 +62,7 @@ module Aidp
         @checkpoint = Checkpoint.new(project_dir)
         @checkpoint_display = CheckpointDisplay.new(prompt: @prompt)
         @guard_policy = GuardPolicy.new(project_dir, config.guards_config)
+        @project_knowledge_manager = options[:project_knowledge_manager] || ProjectKnowledgeManager.new(project_dir)
         @work_context = {}
         @persistent_tasklist = PersistentTasklist.new(project_dir)
         @iteration_count = 0
@@ -1515,8 +1517,44 @@ module Aidp
       end
 
       def archive_and_cleanup
+        sync_project_knowledge
         @prompt_manager.archive(@step_name)
         @prompt_manager.delete
+      end
+
+      def sync_project_knowledge
+        affected_files = knowledge_affected_files
+        return if affected_files.empty?
+
+        @project_knowledge_manager.sync!(
+          step_name: @step_name,
+          task_description: build_task_description(format_user_input(@work_context[:user_input]), @work_context),
+          affected_files: affected_files,
+          tool_commands: knowledge_tool_commands
+        )
+      rescue => e
+        Aidp.logger.warn("work_loop", "project_knowledge_sync_failed",
+          step: @step_name,
+          error: e.message)
+      end
+
+      def knowledge_affected_files
+        files = Array(@work_context[:affected_files])
+        files.concat(extract_affected_files(@work_context, format_user_input(@work_context[:user_input])))
+        files.map(&:to_s).reject(&:empty?).uniq
+      end
+
+      def knowledge_tool_commands
+        if @config.respond_to?(:commands) && @config.commands.any?
+          %i[each_unit on_completion full_loop].flat_map { |phase| Array(@config.commands_for_phase(phase)) }
+            .map { |entry| entry[:command] }
+            .compact
+            .uniq
+        else
+          @test_runner.planned_commands.values.flatten.map do |entry|
+            entry.is_a?(String) ? entry : entry[:command]
+          end.compact.uniq
+        end
       end
 
       def load_template(template_name)

@@ -155,6 +155,43 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
   end
 
   describe "Fix-Forward State Machine" do
+    describe "#archive_and_cleanup" do
+      let(:knowledge_manager) { instance_double("Aidp::Execute::ProjectKnowledgeManager", sync!: true) }
+      let(:prompt_manager) { instance_double("PromptManager", archive: true, delete: true) }
+      let(:knowledge_runner) do
+        described_class.new(
+          project_dir,
+          provider_manager,
+          config,
+          prompt: test_prompt,
+          project_knowledge_manager: knowledge_manager
+        )
+      end
+
+      it "syncs project knowledge before removing the prompt" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "authentication_flow"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          affected_files: ["lib/user.rb"],
+          user_input: {"task" => "Update authentication flow"}
+        })
+
+        allow(knowledge_runner).to receive(:knowledge_tool_commands).and_return(["bundle exec rspec"])
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            step_name: "authentication_flow",
+            affected_files: ["lib/user.rb"],
+            tool_commands: ["bundle exec rspec"]
+          )
+        )
+        expect(prompt_manager).to have_received(:archive).with("authentication_flow")
+        expect(prompt_manager).to have_received(:delete)
+      end
+    end
+
     describe "STATES constant" do
       it "defines all required states" do
         expect(described_class::STATES).to include(
