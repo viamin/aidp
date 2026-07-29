@@ -28,10 +28,10 @@ This document tracks the implementation of GitHub Projects V2 integration for AI
   - [x] Add error handling for GraphQL failures
 
 - [x] Extend `Config` class with projects section
-  - [x] `projects.enabled` (boolean, default: false)
-  - [x] `projects.default_project_id` (string)
-  - [x] `projects.field_mappings` (hash: status, priority, skills, personas)
-  - [x] `projects.auto_create_fields` (boolean, default: true)
+  - [x] `watch.projects.enabled` (boolean, default: false)
+  - [x] `watch.projects.default_project_id` (string)
+  - [x] `watch.projects.field_mappings` (hash: status, priority, skills, personas)
+  - [x] `watch.projects.auto_create_fields` (boolean, default: true)
   - [x] Add configuration validation
   - [x] Add configuration documentation
 
@@ -257,9 +257,9 @@ Auto-merge eligibility:
   - [ ] Add validation for circular dependencies
 
 - [ ] Add PRD configuration
-  - [ ] `projects.prd_path` - Path to PRD file
-  - [ ] `projects.auto_sync_gantt` - Enable/disable auto-sync
-  - [ ] `projects.gantt_format` - Format of Gantt data (Mermaid, etc.)
+  - [ ] `watch.projects.prd_path` - Path to PRD file
+  - [ ] `watch.projects.auto_sync_gantt` - Enable/disable auto-sync
+  - [ ] `watch.projects.gantt_format` - Format of Gantt data (Mermaid, etc.)
 
 #### Implementation Notes
 
@@ -480,14 +480,14 @@ Supported Gantt formats:
 ### Existing Watch Mode Users
 
 1. Update to latest version
-2. Add `projects` config section
-3. Enable feature with `projects.enabled: true`
+2. Add `watch.projects` config section
+3. Enable feature with `watch.projects.enabled: true`
 4. Existing issues continue working
 5. New issues can use hierarchical planning
 
 ### Rollback Plan
 
-- Feature flag: `projects.enabled: false` disables entirely
+- Feature flag: `watch.projects.enabled: false` disables entirely
 - Existing state files remain compatible
 - No breaking changes to existing workflows
 - Can revert to previous version safely

@@ -79,16 +79,16 @@ module Aidp
 
         lines.each_with_index do |line, index|
           stripped = line.strip
-          next if stripped.empty? || stripped == "gantt" || stripped.start_with?("title ", "dateFormat ", "axisFormat ", "todayMarker ")
+          next if stripped.empty? || stripped == "gantt" || stripped.start_with?("%%", "title ", "dateFormat ", "axisFormat ", "todayMarker ")
 
           if stripped.start_with?("section ")
             section = stripped.delete_prefix("section ").strip
             next
           end
 
-          next unless stripped.include?(" :")
+          next unless stripped.include?(":")
 
-          name_part, definition = stripped.split(/\s+:/, 2)
+          name_part, definition = stripped.split(":", 2)
           tasks << build_mermaid_task(name_part, definition, section, index + 1, chart_start_date)
         end
 

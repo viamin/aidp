@@ -199,7 +199,7 @@ AIDP can create and update custom fields in your project:
 
 ### Automatic Synchronization
 
-When `projects.enabled: true`, AIDP automatically:
+When `watch.projects.enabled: true`, AIDP automatically:
 
 - Links new issues to the project
 - Updates status fields when work begins
@@ -209,7 +209,7 @@ When `projects.enabled: true`, AIDP automatically:
 
 ### Gantt Synchronization
 
-When `projects.prd_path` is configured, AIDP can parse project timelines from:
+When `watch.projects.prd_path` is configured, AIDP can parse project timelines from:
 
 - Mermaid Gantt charts in Markdown
 - Microsoft Project XML exports

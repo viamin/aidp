@@ -80,6 +80,30 @@ RSpec.describe Aidp::Watch::PrdParser do
       expect(tasks["task3"][:end_date]).to eq(Date.new(2026, 7, 5))
     end
 
+    it "parses Mermaid tasks without whitespace before metadata colons" do
+      file = File.join(tmp_dir, "compact_mermaid_gantt.md")
+      File.write(file, <<~MARKDOWN)
+        ```mermaid
+        gantt
+            title Project Timeline
+            dateFormat YYYY-MM-DD
+            section Planning
+            Task A:a1, 2026-07-01, 2d
+            Task B:b1, after a1, 1d
+        ```
+      MARKDOWN
+
+      result = described_class.new(file_path: file).parse
+      tasks = result[:tasks].each_with_object({}) do |task, memo|
+        memo[task[:id]] = task
+      end
+
+      expect(tasks.keys).to contain_exactly("a1", "b1")
+      expect(tasks["b1"][:dependency_ids]).to eq(["a1"])
+      expect(tasks["b1"][:start_date]).to eq(Date.new(2026, 7, 3))
+      expect(tasks["b1"][:end_date]).to eq(Date.new(2026, 7, 3))
+    end
+
     it "parses Mermaid tasks with explicit start and end dates" do
       file = File.join(tmp_dir, "explicit_end_date_gantt.md")
       File.write(file, <<~MARKDOWN)
