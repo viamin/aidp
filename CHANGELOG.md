@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.43.0](https://github.com/viamin/aidp/compare/aidp/v0.42.0...aidp/v0.43.0) (2026-07-29)
+
+
+### Features
+
+* MCP tool risk classifier ([#549](https://github.com/viamin/aidp/issues/549)) ([43b13f9](https://github.com/viamin/aidp/commit/43b13f9ea98266e50d9186c0e6b42ebb9472deaa))
+
 ## [0.42.0](https://github.com/viamin/aidp/compare/aidp/v0.41.0...aidp/v0.42.0) (2026-07-29)
 
 
