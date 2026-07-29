@@ -93,6 +93,17 @@ RSpec.describe Aidp::CLI do
         described_class.run([])
       end
 
+      it "prints the splash screen during startup" do
+        allow(described_class).to receive(:display_message).and_call_original
+
+        described_class.run([])
+
+        expect(described_class).to have_received(:display_message).with(
+          a_string_including("AI Development Pipeline"),
+          type: :highlight
+        )
+      end
+
       it "handles logging setup errors and falls back to default config" do
         config_path = File.join(test_project_dir, ".aidp", "aidp.yml")
         File.write(config_path, "invalid: yaml: content:")

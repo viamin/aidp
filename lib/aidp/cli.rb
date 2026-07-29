@@ -79,6 +79,8 @@ module Aidp
         # Priority: ENV variable > aidp.yml > default (info)
         setup_logging(Dir.pwd)
 
+        display_splash_screen
+
         # Start the interactive TUI
         display_message("AIDP initializing...", type: :info)
         display_message("   Press Ctrl+C to stop\n", type: :highlight)
@@ -164,6 +166,21 @@ module Aidp
         # If logging setup fails, continue with default logger
         Aidp.setup_logger(project_dir, {})
         Aidp.logger.warn("cli", "Failed to load logging config, using defaults", error: e.message)
+      end
+
+      def display_splash_screen
+        display_message(
+          <<~'ASCII',
+              ___    ___  ____  ____ 
+             / _ \  / _ \/ ___||  _ \
+            | | | || | | \___ \| |_) |
+            | |_| || |_| |___) |  __/
+             \___/  \___/|____/|_|
+
+            AI Development Pipeline
+          ASCII
+          type: :highlight
+        )
       end
 
       # Quick exit launch test for CI/CD validation
