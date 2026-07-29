@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.46.0](https://github.com/viamin/aidp/compare/aidp/v0.45.0...aidp/v0.46.0) (2026-07-29)
+
+
+### Features
+
+* Devcontainer config step deletes comments in devcontainer.json ([#555](https://github.com/viamin/aidp/issues/555)) ([6100c9a](https://github.com/viamin/aidp/commit/6100c9a2530dcc8566efddb3940b43808f7872d5))
+
 ## [0.45.0](https://github.com/viamin/aidp/compare/aidp/v0.44.0...aidp/v0.45.0) (2026-07-29)
 
 
