@@ -1539,7 +1539,7 @@ module Aidp
       def knowledge_affected_files
         files = Array(@work_context[:affected_files])
         files.concat(extract_affected_files(@work_context, format_user_input(@work_context[:user_input])))
-        files.map(&:to_s).reject(&:empty?).uniq
+        files.map(&:to_s).select { |path| knowledge_path_candidate?(path) }.uniq
       end
 
       def extract_paths_from_text(text)
@@ -1600,7 +1600,31 @@ module Aidp
       end
 
       def trim_path_token(token)
-        token.to_s.gsub(/\A[^[:alnum:]_.\/-]+|[^[:alnum:]_.\/-]+\z/, "")
+        text = token.to_s
+        start_index = 0
+        end_index = text.length - 1
+
+        start_index += 1 while start_index <= end_index && !path_character?(text[start_index])
+        end_index -= 1 while end_index >= start_index && !path_character?(text[end_index])
+
+        return "" if start_index > end_index
+
+        text[start_index..end_index]
+      end
+
+      def knowledge_path_candidate?(path)
+        return false if path.empty?
+        return false if internal_generated_path?(path)
+
+        true
+      end
+
+      def internal_generated_path?(path)
+        path == ".aidp" || path.start_with?(".aidp/")
+      end
+
+      def path_character?(char)
+        alphanumeric_character?(char) || ["_", ".", "/", "-"].include?(char)
       end
 
       def valid_path_candidate?(path)

@@ -214,6 +214,29 @@ RSpec.describe Aidp::Execute::WorkLoopRunner do
         )
       end
 
+      it "excludes internal deterministic output paths from knowledge sync" do
+        knowledge_runner.prompt_manager = prompt_manager
+        knowledge_runner.step_name = "project_knowledge_sync"
+        knowledge_runner.instance_variable_set(:@work_context, {
+          affected_files: [".aidp/out/tests.log", "docs/guide.md"],
+          user_input: {
+            "task" => "Update docs/guide.md"
+          },
+          deterministic_outputs: [
+            {output_path: ".aidp/out/tests.log"},
+            {output_path: "src/feature.ts"}
+          ]
+        })
+
+        knowledge_runner.send(:archive_and_cleanup)
+
+        expect(knowledge_manager).to have_received(:sync!).with(
+          hash_including(
+            affected_files: contain_exactly("docs/guide.md", "src/feature.ts")
+          )
+        )
+      end
+
       it "extracts paths without matching surrounding punctuation" do
         knowledge_runner.prompt_manager = prompt_manager
         knowledge_runner.step_name = "project_knowledge_sync"
