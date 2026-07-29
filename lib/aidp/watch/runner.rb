@@ -572,12 +572,12 @@ module Aidp
       end
 
       def dependencies_met_for_issue?(issue_number)
-        dependency_numbers = @state_store.issue_dependencies(issue_number)
-        return false if dependency_numbers.empty?
+        blocking_status = @state_store.blocking_status(issue_number)
+        return false unless blocking_status[:blocked]
 
-        dependency_numbers.all? do |dependency_number|
-          dependency = @repository_client.fetch_issue(dependency_number)
-          dependency[:state].to_s.casecmp("closed").zero?
+        blocking_status[:blockers].all? do |blocker_number|
+          blocker = @repository_client.fetch_issue(blocker_number)
+          blocker[:state].to_s.casecmp("closed").zero?
         end
       rescue => e
         Aidp.log_warn("watch_runner", "dependency_check_failed",

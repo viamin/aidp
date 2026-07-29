@@ -296,5 +296,15 @@ RSpec.describe Aidp::Watch::StateStore do
         blocker_count: 2
       )
     end
+
+    it "treats sub-issues as blockers when no explicit dependencies are recorded" do
+      store.record_sub_issues(700, [701, 702])
+
+      expect(store.blocking_status(700)).to eq(
+        blocked: true,
+        blockers: [701, 702],
+        blocker_count: 2
+      )
+    end
   end
 end

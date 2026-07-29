@@ -11,7 +11,8 @@ RSpec.describe Aidp::Watch::Runner do
       state: {},
       round_robin_last_key: nil,
       record_round_robin_position: nil,
-      issue_dependencies: []
+      issue_dependencies: [],
+      blocking_status: {blocked: false, blockers: [], blocker_count: 0}
     )
   end
   let(:state_extractor) { instance_double("GitHubStateExtractor") }
@@ -280,9 +281,55 @@ RSpec.describe Aidp::Watch::Runner do
       runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
       allow(runner).to receive(:display_message)
 
-      allow(state_store).to receive(:issue_dependencies).with(10).and_return([11])
+      allow(state_store).to receive(:blocking_status).with(10).and_return(
+        blocked: true,
+        blockers: [11],
+        blocker_count: 1
+      )
       allow(repo_client).to receive(:list_issues).and_return([{number: 10, labels: ["blocked"]}])
       allow(repo_client).to receive(:fetch_issue).with(11).and_return({state: "closed"})
+      allow(repo_client).to receive(:replace_labels)
+
+      runner.send(:unblock_dependency_ready_items)
+
+      expect(repo_client).to have_received(:replace_labels).with(
+        10,
+        old_labels: ["blocked"],
+        new_labels: ["build"]
+      )
+    end
+
+    it "keeps parent issues blocked while any sub-issue remains open" do
+      runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
+
+      allow(state_store).to receive(:blocking_status).with(10).and_return(
+        blocked: true,
+        blockers: [11, 12],
+        blocker_count: 2
+      )
+      allow(repo_client).to receive(:list_issues).and_return([{number: 10, labels: ["blocked"]}])
+      allow(repo_client).to receive(:fetch_issue).with(11).and_return({state: "closed"})
+      allow(repo_client).to receive(:fetch_issue).with(12).and_return({state: "open"})
+      allow(repo_client).to receive(:replace_labels)
+
+      runner.send(:unblock_dependency_ready_items)
+
+      expect(repo_client).not_to have_received(:replace_labels)
+    end
+
+    it "promotes parent issues when all sub-issues are closed" do
+      runner = described_class.new(issues_url: "o/r", once: true, prompt: test_prompt)
+      allow(runner).to receive(:display_message)
+
+      allow(state_store).to receive(:blocking_status).with(10).and_return(
+        blocked: true,
+        blockers: [11, 12],
+        blocker_count: 2
+      )
+      allow(repo_client).to receive(:list_issues).and_return([{number: 10, labels: ["blocked"]}])
+      allow(repo_client).to receive(:fetch_issue).with(11).and_return({state: "closed"})
+      allow(repo_client).to receive(:fetch_issue).with(12).and_return({state: "closed"})
       allow(repo_client).to receive(:replace_labels)
 
       runner.send(:unblock_dependency_ready_items)
